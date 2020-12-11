@@ -114,9 +114,12 @@ class PipelineInstrument(object):
     # module and can be used to recover original pipeline if needed.
     self._pipeline_snap = beam.pipeline.Pipeline.from_runner_api(
         pipeline.to_runner_api(use_fake_coders=True), pipeline.runner, options)
+    ie.current_env().add_derived_pipeline(self._pipeline, self._pipeline_snap)
 
     self._background_caching_pipeline = beam.pipeline.Pipeline.from_runner_api(
         pipeline.to_runner_api(use_fake_coders=True), pipeline.runner, options)
+    ie.current_env().add_derived_pipeline(
+        self._pipeline, self._background_caching_pipeline)
 
     # Snapshot of original pipeline information.
     (self._original_pipeline_proto,
@@ -166,6 +169,9 @@ class PipelineInstrument(object):
     # transforms instrumented, used by pruning logic as targets no longer need
     # to be produced during pipeline runs.
     self._ignored_targets = set()
+
+    # Set of PCollections that are written to cache.
+    self.cached_pcolls = set()
 
   def instrumented_pipeline_proto(self):
     """Always returns a new instance of portable instrumented proto."""
@@ -392,7 +398,7 @@ class PipelineInstrument(object):
 
   @property
   def has_unbounded_sources(self):
-    """Returns whether the pipeline has any capturable sources.
+    """Returns whether the pipeline has any recordable sources.
     """
     return len(self._unbounded_sources) > 0
 
@@ -469,7 +475,7 @@ class PipelineInstrument(object):
 
       def visit_transform(self, transform_node):
         if isinstance(transform_node.transform,
-                      tuple(ie.current_env().options.capturable_sources)):
+                      tuple(ie.current_env().options.recordable_sources)):
           unbounded_source_pcolls.update(transform_node.outputs.values())
         cacheable_inputs.update(self._pin._cacheable_inputs(transform_node))
         ins, outs = self._pin._all_inputs_outputs(transform_node)
@@ -531,10 +537,12 @@ class PipelineInstrument(object):
           break
       self._pruned_pipeline_proto = self.prune_subgraph_for(
           self._pipeline, [test_stream_id])
-      self._pipeline = beam.Pipeline.from_runner_api(
+      pruned_pipeline = beam.Pipeline.from_runner_api(
           proto=self._pruned_pipeline_proto,
           runner=self._pipeline.runner,
           options=self._pipeline._options)
+      ie.current_env().add_derived_pipeline(self._pipeline, pruned_pipeline)
+      self._pipeline = pruned_pipeline
 
   def preprocess(self):
     """Pre-processes the pipeline.
@@ -610,14 +618,14 @@ class PipelineInstrument(object):
     if pcoll.pipeline is not pipeline:
       return
 
-    # Ignore the unbounded reads from capturable sources as these will be pruned
+    # Ignore the unbounded reads from recordable sources as these will be pruned
     # out using the PipelineFragment later on.
     if ignore_unbounded_reads:
       ignore = False
       producer = pcoll.producer
       while producer:
         if isinstance(producer.transform,
-                      tuple(ie.current_env().options.capturable_sources)):
+                      tuple(ie.current_env().options.recordable_sources)):
           ignore = True
           break
         producer = producer.parent
@@ -630,6 +638,8 @@ class PipelineInstrument(object):
     # Only need to write when the cache with expected key doesn't exist.
     if not self._cache_manager.exists('full', key):
       label = '{}{}'.format(WRITE_CACHE, key)
+
+      self.cached_pcolls.add(self.runner_pcoll_to_user_pcoll.get(pcoll, pcoll))
 
       # Read the windowing information and cache it along with the element. This
       # caches the arguments to a WindowedValue object because Python has logic
@@ -858,21 +868,6 @@ def build_pipeline_instrument(pipeline, options=None):
   return pi
 
 
-def user_pipeline(pipeline):
-  _, context = pipeline.to_runner_api(return_context=True)
-  pcoll_ids = pcolls_to_pcoll_id(pipeline, context)
-
-  for watching in ie.current_env().watching():
-    for _, v in watching:
-      # TODO(BEAM-8288): cleanup the attribute check when py2 is not supported.
-      if hasattr(v, '__class__') and isinstance(v, beam.pvalue.PCollection):
-        pcoll_id = pcoll_ids.get(str(v), None)
-        if (pcoll_id in context.pcollections and
-            context.pcollections[pcoll_id] != v):
-          return v.pipeline
-  return pipeline
-
-
 def cacheables(pcolls_to_pcoll_id):
   """Finds PCollections that need to be cached for analyzed PCollections.
 
@@ -924,16 +919,16 @@ def cacheable_key(pcoll, pcolls_to_pcoll_id, pcoll_version_map=None):
 
 
 def has_unbounded_sources(pipeline):
-  """Checks if a given pipeline has capturable sources."""
+  """Checks if a given pipeline has recordable sources."""
   return len(unbounded_sources(pipeline)) > 0
 
 
 def unbounded_sources(pipeline):
-  """Returns a pipeline's capturable sources."""
+  """Returns a pipeline's recordable sources."""
   class CheckUnboundednessVisitor(PipelineVisitor):
     """Visitor checks if there are any unbounded read sources in the Pipeline.
 
-    Visitor visits all nodes and checks if it is an instance of capturable
+    Visitor visits all nodes and checks if it is an instance of recordable
     sources.
     """
     def __init__(self):
@@ -944,7 +939,7 @@ def unbounded_sources(pipeline):
 
     def visit_transform(self, transform_node):
       if isinstance(transform_node.transform,
-                    tuple(ie.current_env().options.capturable_sources)):
+                    tuple(ie.current_env().options.recordable_sources)):
         self.unbounded_sources.append(transform_node)
 
   v = CheckUnboundednessVisitor()
@@ -995,7 +990,7 @@ def watch_sources(pipeline):
   synthetically create a variable to the intermediate PCollection.
   """
 
-  retrieved_user_pipeline = user_pipeline(pipeline)
+  retrieved_user_pipeline = ie.current_env().user_pipeline(pipeline)
 
   class CacheableUnboundedPCollectionVisitor(PipelineVisitor):
     def __init__(self):
@@ -1006,7 +1001,7 @@ def watch_sources(pipeline):
 
     def visit_transform(self, transform_node):
       if isinstance(transform_node.transform,
-                    tuple(ie.current_env().options.capturable_sources)):
+                    tuple(ie.current_env().options.recordable_sources)):
         for pcoll in transform_node.outputs.values():
           ie.current_env().watch({'synthetic_var_' + str(id(pcoll)): pcoll})
 

@@ -24,6 +24,9 @@ import java.time.Duration;
 // passing SamzaPortablePipelineOption. Alternative, we could merge portable and non-portable
 // pipeline option.
 /** A helper class for holding all the beam runner specific samza configs. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SamzaRunnerOverrideConfigs {
   public static final String BEAM_RUNNER_CONFIG_PREFIX = "beam.override.";
   // whether the job is in portable mode

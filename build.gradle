@@ -22,7 +22,7 @@ plugins {
   // Additionally, the plugin checks for updates to Gradle itself.
   //
   // See https://github.com/ben-manes/gradle-versions-plugin for further details.
-  id 'com.github.ben-manes.versions' version '0.29.0'
+  id 'com.github.ben-manes.versions' version '0.33.0'
   // Apply one top level rat plugin to perform any required license enforcement analysis
   id 'org.nosphere.apache.rat' version '0.7.0'
   // Enable gradle-based release management
@@ -95,7 +95,7 @@ rat {
     "learning/katas/**/section-remote-info.yaml",
     "learning/katas/**/lesson-remote-info.yaml",
     "learning/katas/**/task-remote-info.yaml",
-    "learning/katas/*/IO/**/*.txt",
+    "learning/katas/**/*.txt",
 
     // test p8 file for SnowflakeIO
     "sdks/java/io/snowflake/src/test/resources/invalid_test_rsa_key.p8",
@@ -107,7 +107,10 @@ rat {
     "sdks/java/extensions/ml/src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker",
 
     // JupyterLab extensions
-    "sdks/python/apache_beam/runners/interactive/extensions/apache-beam-jupyterlab-sidepanel/yarn.lock"
+    "sdks/python/apache_beam/runners/interactive/extensions/apache-beam-jupyterlab-sidepanel/yarn.lock",
+
+    // Sample text file for Java quickstart
+    "sdks/java/maven-archetypes/examples/sample.txt"
   ]
 
   // Add .gitignore excludes to the Apache Rat exclusion list. We re-create the behavior
@@ -141,7 +144,7 @@ task javaPreCommit() {
   dependsOn ":sdks:java:extensions:sql:jdbc:preCommit"
   dependsOn ":sdks:java:javadoc:allJavadoc"
   dependsOn ":runners:direct-java:needsRunnerTests"
-  dependsOn ":sdks:java:container:docker"
+  dependsOn ":sdks:java:container:java8:docker"
 }
 
 task sqlPreCommit() {
@@ -149,10 +152,6 @@ task sqlPreCommit() {
   dependsOn ":sdks:java:extensions:sql:runPojoExample"
   dependsOn ":sdks:java:extensions:sql:build"
   dependsOn ":sdks:java:extensions:sql:buildDependents"
-}
-
-task javaPreCommitBeamZetaSQL() {
-  dependsOn ":sdks:java:extensions:sql:zetasql:test"
 }
 
 task javaPreCommitPortabilityApi() {
@@ -165,12 +164,26 @@ task javaPostCommit() {
   dependsOn ":sdks:java:extensions:zetasketch:postCommit"
   dependsOn ":sdks:java:io:google-cloud-platform:postCommit"
   dependsOn ":sdks:java:io:kinesis:integrationTest"
+  dependsOn ":sdks:java:extensions:ml:postCommit"
+  dependsOn ":javaHadoopVersionsTest"
+  dependsOn ":sdks:java:io:kafka:kafkaVersionsCompatibilityTest"
+}
+
+task javaHadoopVersionsTest() {
+  dependsOn ":sdks:java:io:hadoop-common:hadoopVersionsTest"
+  dependsOn ":sdks:java:io:hadoop-file-system:hadoopVersionsTest"
+  dependsOn ":sdks:java:io:hadoop-format:hadoopVersionsTest"
+  dependsOn ":sdks:java:io:hcatalog:hadoopVersionsTest"
+  dependsOn ":sdks:java:io:parquet:hadoopVersionsTest"
+  dependsOn ":sdks:java:extensions:sorter:hadoopVersionsTest"
+  dependsOn ":runners:spark:hadoopVersionsTest"
 }
 
 task sqlPostCommit() {
   dependsOn ":sdks:java:extensions:sql:postCommit"
   dependsOn ":sdks:java:extensions:sql:jdbc:postCommit"
   dependsOn ":sdks:java:extensions:sql:datacatalog:postCommit"
+  dependsOn ":sdks:java:extensions:sql:hadoopVersionsTest"
 }
 
 task goPreCommit() {
@@ -203,8 +216,6 @@ task goIntegrationTests() {
 
 task pythonPreCommit() {
   dependsOn ":sdks:python:test-suites:tox:pycommon:preCommitPyCommon"
-  dependsOn ":sdks:python:test-suites:tox:py2:preCommitPy2"
-  dependsOn ":sdks:python:test-suites:tox:py35:preCommitPy35"
   dependsOn ":sdks:python:test-suites:tox:py36:preCommitPy36"
   dependsOn ":sdks:python:test-suites:tox:py37:preCommitPy37"
   dependsOn ":sdks:python:test-suites:tox:py38:preCommitPy38"
@@ -217,35 +228,17 @@ task pythonDocsPreCommit() {
 }
 
 task pythonDockerBuildPreCommit() {
-  dependsOn ":sdks:python:container:py2:docker"
-  dependsOn ":sdks:python:container:py35:docker"
   dependsOn ":sdks:python:container:py36:docker"
   dependsOn ":sdks:python:container:py37:docker"
   dependsOn ":sdks:python:container:py38:docker"
 }
 
 task pythonLintPreCommit() {
-  dependsOn ":sdks:python:test-suites:tox:py2:lint"
   dependsOn ":sdks:python:test-suites:tox:py37:lint"
 }
 
 task pythonFormatterPreCommit() {
   dependsOn 'sdks:python:test-suites:tox:py38:formatter'
-}
-
-task python2PostCommit() {
-  dependsOn ":sdks:python:test-suites:portable:py2:crossLanguageTests"
-  dependsOn ":sdks:python:test-suites:dataflow:py2:postCommitIT"
-  dependsOn ":sdks:python:test-suites:direct:py2:directRunnerIT"
-  dependsOn ":sdks:python:test-suites:direct:py2:hdfsIntegrationTest"
-  dependsOn ":sdks:python:test-suites:direct:py2:mongodbioIT"
-  dependsOn ":sdks:python:test-suites:portable:py2:postCommitPy2"
-}
-
-task python35PostCommit() {
-  dependsOn ":sdks:python:test-suites:dataflow:py35:postCommitIT"
-  dependsOn ":sdks:python:test-suites:direct:py35:postCommitIT"
-  dependsOn ":sdks:python:test-suites:portable:py35:postCommitPy35"
 }
 
 task python36PostCommit() {
@@ -257,6 +250,9 @@ task python36PostCommit() {
 task python37PostCommit() {
   dependsOn ":sdks:python:test-suites:dataflow:py37:postCommitIT"
   dependsOn ":sdks:python:test-suites:direct:py37:postCommitIT"
+  dependsOn ":sdks:python:test-suites:direct:py37:directRunnerIT"
+  dependsOn ":sdks:python:test-suites:direct:py37:hdfsIntegrationTest"
+  dependsOn ":sdks:python:test-suites:direct:py37:mongodbioIT"
   dependsOn ":sdks:python:test-suites:portable:py37:postCommitPy37"
 }
 
@@ -268,15 +264,11 @@ task python38PostCommit() {
 }
 
 task portablePythonPreCommit() {
-  dependsOn ":sdks:python:test-suites:portable:py2:preCommitPy2"
-  dependsOn ":sdks:python:test-suites:portable:py35:preCommitPy35"
   dependsOn ":sdks:python:test-suites:portable:py36:preCommitPy36"
   dependsOn ":sdks:python:test-suites:portable:py37:preCommitPy37"
 }
 
 task pythonSparkPostCommit() {
-  dependsOn ":sdks:python:test-suites:portable:py2:sparkValidatesRunner"
-  dependsOn ":sdks:python:test-suites:portable:py35:sparkValidatesRunner"
   dependsOn ":sdks:python:test-suites:portable:py36:sparkValidatesRunner"
   dependsOn ":sdks:python:test-suites:portable:py37:sparkValidatesRunner"
   dependsOn ":sdks:python:test-suites:portable:py38:sparkValidatesRunner"
@@ -381,12 +373,20 @@ if (project.hasProperty('javaLinkageArtifactIds')) {
 if (project.hasProperty('compileAndRunTestsWithJava11')) {
   project.javaPreCommitPortabilityApi.dependsOn ':sdks:java:testing:test-utils:verifyJavaVersion'
   project.javaExamplesDataflowPrecommit.dependsOn ':sdks:java:testing:test-utils:verifyJavaVersion'
-  project.javaPreCommitBeamZetaSQL.dependsOn ':sdks:java:testing:test-utils:verifyJavaVersion'
   project.sqlPreCommit.dependsOn ':sdks:java:testing:test-utils:verifyJavaVersion'
 } else {
   allprojects {
-    tasks.withType(Test) {
+    tasks.withType(Test).configureEach {
       exclude '**/JvmVerification.class'
+    }
+  }
+}
+
+// Ignore sdk.properties so it doesn't spoil the build cache unnecessarily (see https://docs.gradle.org/6.6/userguide/more_about_tasks.html#sec:configure_input_normalization)
+allprojects {
+  normalization {
+    runtimeClasspath {
+      ignore('**/sdk.properties')
     }
   }
 }

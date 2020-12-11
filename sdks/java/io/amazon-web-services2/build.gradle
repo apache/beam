@@ -21,7 +21,6 @@ import groovy.json.JsonOutput
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
   enableChecker: false,
-  ignoreRawtypeErrors: true,
   automaticModuleName: 'org.apache.beam.sdk.io.aws2')
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
@@ -55,7 +54,7 @@ dependencies {
   testCompile library.java.guava_testlib
   testCompile library.java.hamcrest_core
   testCompile library.java.junit
-  testCompile 'org.elasticmq:elasticmq-rest-sqs_2.12:0.14.1'
+  testCompile 'org.elasticmq:elasticmq-rest-sqs_2.12:0.15.6'
   testCompile library.java.hamcrest_library
   testCompile library.java.powermock
   testCompile library.java.powermock_mockito
@@ -67,7 +66,7 @@ dependencies {
 
 test {
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
-      '--region=us-west-2',
+      '--awsRegion=us-west-2',
       '--awsCredentialsProvider={"@type": "StaticCredentialsProvider", "accessKeyId": "key_id_value", "secretAccessKey": "secret_value"}'
   ])
   // Forking every test resolves an issue where KinesisMockReadTest gets stuck forever.

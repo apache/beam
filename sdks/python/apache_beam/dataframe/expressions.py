@@ -17,6 +17,7 @@
 from __future__ import absolute_import
 
 import contextlib
+import random
 import threading
 from typing import Any
 from typing import Callable
@@ -42,6 +43,93 @@ class Session(object):
     return self._bindings[expr]
 
   def lookup(self, expr):  #  type: (Expression) -> Any
+    return self._bindings[expr]
+
+
+class PartitioningSession(Session):
+  """An extension of Session that enforces actual partitioning of inputs.
+
+  Each expression is evaluated multiple times for various supported
+  partitionings determined by its `requires_partition_by` specification. For
+  each tested partitioning, the input is partitioned and the expression is
+  evaluated on each partition separately, as if this were actually executed in
+  a parallel manner.
+
+  For each input partitioning, the results are verified to be partitioned
+  appropriately according to the expression's `preserves_partition_by`
+  specification.
+
+  For testing only.
+  """
+  def evaluate(self, expr):
+    import pandas as pd
+    import collections
+
+    def is_scalar(expr):
+      return not isinstance(expr.proxy(), pd.core.generic.NDFrame)
+
+    if expr not in self._bindings:
+      if is_scalar(expr) or not expr.args():
+        result = super(PartitioningSession, self).evaluate(expr)
+      else:
+        scaler_args = [arg for arg in expr.args() if is_scalar(arg)]
+
+        def evaluate_with(input_partitioning):
+          parts = collections.defaultdict(
+              lambda: Session({arg: self.evaluate(arg)
+                               for arg in scaler_args}))
+          for arg in expr.args():
+            if not is_scalar(arg):
+              input = self.evaluate(arg)
+              for key, part in input_partitioning.test_partition_fn(input):
+                parts[key]._bindings[arg] = part
+          if not parts:
+            parts[None]  # Create at least one entry.
+
+          results = []
+          for session in parts.values():
+            if any(len(session.lookup(arg)) for arg in expr.args()
+                   if not is_scalar(arg)):
+              results.append(session.evaluate(expr))
+
+          expected_output_partitioning = expr.preserves_partition_by(
+          ) if input_partitioning.is_subpartitioning_of(
+              expr.preserves_partition_by()) else input_partitioning
+
+          if not expected_output_partitioning.check(results):
+            raise AssertionError(
+                f"""Expression does not preserve partitioning!
+                Expression: {expr}
+                Requires: {expr.requires_partition_by()}
+                Preserves: {expr.preserves_partition_by()}
+                Input partitioning: {input_partitioning}
+                Expected output partitioning: {expected_output_partitioning}
+                """)
+
+          if results:
+            return pd.concat(results)
+          else:
+            # Choose any single session.
+            return next(iter(parts.values())).evaluate(expr)
+
+        # Store random state so it can be re-used for each execution, in case
+        # the expression is part of a test that relies on the random seed.
+        random_state = random.getstate()
+
+        for input_partitioning in set([expr.requires_partition_by(),
+                                       partitionings.Nothing(),
+                                       partitionings.Index(),
+                                       partitionings.Singleton()]):
+          if not input_partitioning.is_subpartitioning_of(
+              expr.requires_partition_by()):
+            continue
+
+          random.setstate(random_state)
+
+          # TODO(BEAM-11324): Consider verifying result is always the same
+          result = evaluate_with(input_partitioning)
+
+        self._bindings[expr] = result
     return self._bindings[expr]
 
 

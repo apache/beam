@@ -18,6 +18,9 @@
 package org.apache.beam.runners.dataflow.worker;
 
 /** Indicates that the key token was invalid when data was attempted to be fetched. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class KeyTokenInvalidException extends RuntimeException {
   public KeyTokenInvalidException(String key) {
     super("Unable to fetch data due to token mismatch for key " + key);

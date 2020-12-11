@@ -44,6 +44,7 @@ from apache_beam.transforms import window
 from apache_beam.transforms.window import IntervalWindow
 from apache_beam.typehints import schemas
 from apache_beam.utils import windowed_value
+from apache_beam.utils.sharded_key import ShardedKey
 from apache_beam.utils.timestamp import Timestamp
 from apache_beam.utils.windowed_value import PaneInfo
 from apache_beam.utils.windowed_value import PaneInfoTiming
@@ -101,6 +102,15 @@ def value_parser_from_schema(schema):
       value_parser = attribute_parser_from_type(type_.map_type.value_type)
       return lambda x: dict(
           (key_parser(k), value_parser(v)) for k, v in x.items())
+    elif type_info == "row_type":
+      return value_parser_from_schema(type_.row_type.schema)
+    elif type_info == "logical_type":
+      # In YAML logical types are represented with their representation types.
+      to_language_type = schemas.LogicalType.from_runner_api(
+          type_.logical_type).to_language_type
+      parse_representation = attribute_parser_from_type(
+          type_.logical_type.representation)
+      return lambda x: to_language_type(parse_representation(x))
 
   parsers = [(field.name, attribute_parser_from_type(field.type))
              for field in schema.fields]
@@ -181,6 +191,9 @@ class StandardCodersTest(unittest.TestCase):
                   x['pane']['index'],
                   x['pane']['on_time_index'])),
       'beam:coder:double:v1': parse_float,
+      'beam:coder:sharded_key:v1': lambda x,
+      value_parser: ShardedKey(
+          key=value_parser(x['key']), shard_id=x['shardId'].encode('utf-8'))
   }
 
   def test_standard_coders(self):

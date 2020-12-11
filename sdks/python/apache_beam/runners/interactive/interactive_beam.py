@@ -34,20 +34,18 @@ this module in your notebook or application code.
 from __future__ import absolute_import
 
 import logging
-import warnings
+from datetime import timedelta
+
+import pandas as pd
 
 import apache_beam as beam
-from apache_beam.runners.interactive import background_caching_job as bcj
 from apache_beam.runners.interactive import interactive_environment as ie
-from apache_beam.runners.interactive import interactive_runner as ir
-from apache_beam.runners.interactive import pipeline_fragment as pf
-from apache_beam.runners.interactive import pipeline_instrument as pi
 from apache_beam.runners.interactive.display import pipeline_graph
 from apache_beam.runners.interactive.display.pcoll_visualization import visualize
 from apache_beam.runners.interactive.options import interactive_options
 from apache_beam.runners.interactive.utils import elements_to_df
 from apache_beam.runners.interactive.utils import progress_indicated
-from apache_beam.runners.interactive.utils import to_element_list
+from apache_beam.runners.runner import PipelineState
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -55,98 +53,117 @@ _LOGGER = logging.getLogger(__name__)
 class Options(interactive_options.InteractiveOptions):
   """Options that guide how Interactive Beam works."""
   @property
-  def enable_capture_replay(self):
-    """Whether replayable source data capture should be replayed for multiple
-    PCollection evaluations and pipeline runs as long as the data captured is
+  def enable_recording_replay(self):
+    """Whether replayable source data recorded should be replayed for multiple
+    PCollection evaluations and pipeline runs as long as the data recorded is
     still valid."""
     return self.capture_control._enable_capture_replay
 
-  @enable_capture_replay.setter
-  def enable_capture_replay(self, value):
-    """Sets whether source data capture should be replayed. True - Enables
-    capture of replayable source data so that following PCollection evaluations
-    and pipeline runs always use the same data captured; False - Disables
-    capture of replayable source data so that following PCollection evaluation
-    and pipeline runs always use new data from sources."""
+  @enable_recording_replay.setter
+  def enable_recording_replay(self, value):
+    """Sets whether source data recorded should be replayed. True - Enables
+    recording of replayable source data so that following PCollection
+    evaluations and pipeline runs always use the same data recorded;
+    False - Disables recording of replayable source data so that following
+    PCollection evaluation and pipeline runs always use new data from sources.
+    """
     # This makes sure the log handler is configured correctly in case the
     # options are configured in an early stage.
     _ = ie.current_env()
     if value:
       _LOGGER.info(
-          'Capture replay is enabled. When a PCollection is evaluated or the '
-          'pipeline is executed, existing data captured from previous '
+          'Record replay is enabled. When a PCollection is evaluated or the '
+          'pipeline is executed, existing data recorded from previous '
           'computations will be replayed for consistent results. If no '
-          'captured data is available, new data from capturable sources will '
-          'be captured.')
+          'recorded data is available, new data from recordable sources will '
+          'be recorded.')
     else:
       _LOGGER.info(
-          'Capture replay is disabled. The next time a PCollection is '
+          'Record replay is disabled. The next time a PCollection is '
           'evaluated or the pipeline is executed, new data will always be '
           'consumed from sources in the pipeline. You will not have '
           'replayability until re-enabling this option.')
     self.capture_control._enable_capture_replay = value
 
   @property
-  def capturable_sources(self):
-    """Interactive Beam automatically captures data from sources in this set.
+  def recordable_sources(self):
+    """Interactive Beam automatically records data from sources in this set.
     """
     return self.capture_control._capturable_sources
 
   @property
-  def capture_duration(self):
-    """The data capture of sources ends as soon as the background caching job
-    has run for this long."""
+  def recording_duration(self):
+    """The data recording of sources ends as soon as the background source
+    recording job has run for this long."""
     return self.capture_control._capture_duration
 
-  @capture_duration.setter
-  def capture_duration(self, value):
-    """Sets the capture duration as a timedelta.
+  @recording_duration.setter
+  def recording_duration(self, value):
+    """Sets the recording duration as a timedelta. The input can be a
+    datetime.timedelta, a possitive integer as seconds or a string
+    representation that is parsable by pandas.to_timedelta.
 
     Example::
 
-      # Sets the capture duration limit to 10 seconds.
-      interactive_beam.options.capture_duration = timedelta(seconds=10)
-      # Evicts all captured data if there is any.
-      interactive_beam.evict_captured_data()
-      # The next PCollection evaluation will capture fresh data from sources,
-      # and the data captured will be replayed until another eviction.
-      interactive_beam.collect(some_pcoll)
+      # Sets the recording duration limit to 10 seconds.
+      ib.options.recording_duration = timedelta(seconds=10)
+      ib.options.recording_duration = 10
+      ib.options.recording_duration = '10s'
+      # Explicitly control the recordings.
+      ib.recordings.stop(p)
+      ib.recordings.clear(p)
+      ib.recordings.record(p)
+      # The next PCollection evaluation uses fresh data from sources,
+      # and the data recorded will be replayed until another clear.
+      ib.collect(some_pcoll)
     """
-    assert value.total_seconds() > 0, 'Duration must be a positive value.'
+    duration = None
+    if isinstance(value, int):
+      assert value > 0, 'Duration must be a positive value.'
+      duration = timedelta(seconds=value)
+    elif isinstance(value, str):
+      duration = pd.to_timedelta(value)
+    else:
+      assert isinstance(value, timedelta), ('The input can only abe a '
+        'datetime.timedelta, a possitive integer as seconds, or a string '
+        'representation that is parsable by pandas.to_timedelta.')
+      duration = value
     if self.capture_control._capture_duration.total_seconds(
-    ) != value.total_seconds():
+    ) != duration.total_seconds():
       _ = ie.current_env()
       _LOGGER.info(
-          'You have changed capture duration from %s seconds to %s seconds. '
-          'To allow new data to be captured for the updated duration, the '
+          'You have changed recording duration from %s seconds to %s seconds. '
+          'To allow new data to be recorded for the updated duration the '
           'next time a PCollection is evaluated or the pipeline is executed, '
-          'please invoke evict_captured_data().',
+          'please invoke ib.recordings.stop, ib.recordings.clear and '
+          'ib.recordings.record.',
           self.capture_control._capture_duration.total_seconds(),
-          value.total_seconds())
-      self.capture_control._capture_duration = value
+          duration.total_seconds())
+      self.capture_control._capture_duration = duration
 
   @property
-  def capture_size_limit(self):
-    """The data capture of sources ends as soon as the size (in bytes) of data
-    captured from capturable sources reaches the limit."""
+  def recording_size_limit(self):
+    """The data recording of sources ends as soon as the size (in bytes) of data
+    recorded from recordable sources reaches the limit."""
     return self.capture_control._capture_size_limit
 
-  @capture_size_limit.setter
-  def capture_size_limit(self, value):
-    """Sets the capture size in bytes.
+  @recording_size_limit.setter
+  def recording_size_limit(self, value):
+    """Sets the recording size in bytes.
 
     Example::
 
-      # Sets the capture size limit to 1GB.
-      interactive_beam.options.capture_size_limit = 1e9
+      # Sets the recording size limit to 1GB.
+      interactive_beam.options.recording_size_limit = 1e9
     """
     if self.capture_control._capture_size_limit != value:
       _ = ie.current_env()
       _LOGGER.info(
-          'You have changed capture size limit from %s bytes to %s bytes. To '
-          'allow new data to be captured under the updated size limit, the '
-          'next time a PCollection is evaluated or the pipeline is executed, '
-          'please invoke evict_captured_data().',
+          'You have changed recording size limit from %s bytes to %s bytes. To '
+          'allow new data to be recorded under the updated size limit the '
+          'next time a PCollection is recorded or the pipeline is executed, '
+          'please invoke ib.recordings.stop, ib.recordings.clear and '
+          'ib.recordings.record.',
           self.capture_control._capture_size_limit,
           value)
       self.capture_control._capture_size_limit = value
@@ -197,20 +214,105 @@ class Options(interactive_options.InteractiveOptions):
       # You can also use dateutil.tz to get a timezone.
       tz = dateutil.tz.gettz('US/Eastern')
 
-      interactive_beam.options.capture_size = tz
+      interactive_beam.options.display_timezone = tz
     """
     self._display_timezone = value
 
 
+class Recordings():
+  """An introspection interface for recordings for pipelines.
+
+  When a user materializes a PCollection onto disk (eg. ib.show) for a streaming
+  pipeline, a background source recording job is started. This job pulls data
+  from all defined unbounded sources for that PCollection's pipeline. The
+  following methods allow for introspection into that background recording job.
+  """
+  def describe(self, pipeline=None):
+    # type: (Optional[beam.Pipeline]) -> dict[str, Any]
+
+    """Returns a description of all the recordings for the given pipeline.
+
+    If no pipeline is given then this returns a dictionary of descriptions for
+    all pipelines.
+    """
+
+    # Create the RecordingManager if it doesn't already exist.
+    if pipeline:
+      ie.current_env().get_recording_manager(pipeline, create_if_absent=True)
+
+    description = ie.current_env().describe_all_recordings()
+
+    if pipeline:
+      return description[pipeline]
+    return description
+
+  def clear(self, pipeline):
+    # type: (beam.Pipeline) -> bool
+
+    """Clears all recordings of the given pipeline. Returns True if cleared."""
+
+    description = self.describe(pipeline)
+    if (not PipelineState.is_terminal(description['state']) and
+        description['state'] != PipelineState.STOPPED):
+      _LOGGER.warning(
+          'Trying to clear a recording with a running pipeline. Did '
+          'you forget to call ib.recordings.stop?')
+      return False
+
+    ie.current_env().cleanup(pipeline)
+    return True
+
+  def stop(self, pipeline):
+    # type: (beam.Pipeline) -> None
+
+    """Stops the background source recording of the given pipeline."""
+
+    recording_manager = ie.current_env().get_recording_manager(
+        pipeline, create_if_absent=True)
+    recording_manager.cancel()
+
+  def record(self, pipeline):
+    # type: (beam.Pipeline) -> bool
+
+    """Starts a background source recording job for the given pipeline. Returns
+    True if the recording job was started.
+    """
+
+    description = self.describe(pipeline)
+    if (not PipelineState.is_terminal(description['state']) and
+        description['state'] != PipelineState.STOPPED):
+      _LOGGER.warning(
+          'Trying to start a recording with a running pipeline. Did '
+          'you forget to call ib.recordings.stop?')
+      return False
+
+    if description['size'] > 0:
+      _LOGGER.warning(
+          'A recording already exists for this pipeline. To start a '
+          'recording, make sure to call ib.recordings.clear first.')
+      return False
+
+    recording_manager = ie.current_env().get_recording_manager(
+        pipeline, create_if_absent=True)
+    return recording_manager.record_pipeline()
+
+
 # Users can set options to guide how Interactive Beam works.
 # Examples:
-# from datetime import timedelta
 # from apache_beam.runners.interactive import interactive_beam as ib
-# ib.options.enable_capture_replay = False/True
-# ib.options.capture_duration = timedelta(seconds=60)
-# ib.options.capturable_sources.add(SourceClass)
+# ib.options.enable_recording_replay = False/True
+# ib.options.recording_duration = '1m'
+# ib.options.recordable_sources.add(SourceClass)
 # Check the docstrings for detailed usages.
 options = Options()
+
+# Users can introspect into recordings by using the recordings class.
+# Examples:
+# p = beam.Pipeline(InteractiveRunner())
+# elems = p | beam.Create([1, 2, 3])
+# ib.show(elems)
+# ib.recordings.describe(p)
+recordings = Recordings()
 
 
 def watch(watchable):
@@ -270,18 +372,24 @@ def show(*pcolls, **configs):
   a notebook, or prints a heading sampled data if used within an ipython shell.
   Noop if used in a non-interactive environment.
 
+  Args:
+    include_window_info: (optional) if True, windowing information of the
+        data will be visualized too. Default is false.
+    visualize_data: (optional) by default, the visualization contains data
+        tables rendering data from given pcolls separately as if they are
+        converted into dataframes. If visualize_data is True, there will be a
+        more dive-in widget and statistically overview widget of the data.
+        Otherwise, those 2 data visualization widgets will not be displayed.
+    n: (optional) max number of elements to visualize. Default 'inf'.
+    duration: (optional) max duration of elements to read in integer seconds or
+        a string duration. Default 'inf'.
+
   The given pcolls can be dictionary of PCollections (as values), or iterable
   of PCollections or plain PCollection values.
 
-  There are 2 boolean configurations:
-
-    #. include_window_info=<True/False>. If True, windowing information of the
-       data will be visualized too. Default is false.
-    #. visualize_data=<True/False>. By default, the visualization contains data
-       tables rendering data from given pcolls separately as if they are
-       converted into dataframes. If visualize_data is True, there will be a
-       more dive-in widget and statistically overview widget of the data.
-       Otherwise, those 2 data visualization widgets will not be displayed.
+  The user can specify either the max number of elements with `n` to read
+  or the maximum duration of elements to read with `duration`. When a limiter is
+  not supplied, it is assumed to be infinite.
 
   By default, the visualization contains data tables rendering data from given
   pcolls separately as if they are converted into dataframes. If visualize_data
@@ -342,121 +450,95 @@ def show(*pcolls, **configs):
     assert isinstance(pcoll, beam.pvalue.PCollection), (
         '{} is not an apache_beam.pvalue.PCollection.'.format(pcoll))
   user_pipeline = pcolls[0].pipeline
-  for pcoll in pcolls:
-    assert pcoll.pipeline is user_pipeline, (
-        '{} belongs to a different user-defined pipeline ({}) than that of'
-        ' other PCollections ({}).'.format(
-            pcoll, pcoll.pipeline, user_pipeline))
+
   # TODO(BEAM-8288): Remove below pops and assertion once Python 2 is
   # deprecated from Beam.
   include_window_info = configs.pop('include_window_info', False)
   visualize_data = configs.pop('visualize_data', False)
+  n = configs.pop('n', 'inf')
+  duration = configs.pop('duration', 'inf')
+
+  if isinstance(n, str):
+    assert n == 'inf', (
+        'Currently only the string \'inf\' is supported. This denotes reading '
+        'elements until the recording is stopped via a kernel interrupt.')
+  elif isinstance(n, int):
+    assert n > 0, 'n needs to be positive or the string \'inf\''
+
+  if isinstance(duration, int):
+    assert duration > 0, ('duration needs to be positive, a duration string, '
+                          'or the string \'inf\'')
+
+  if n == 'inf':
+    n = float('inf')
+
+  if duration == 'inf':
+    duration = float('inf')
+
   # This assertion is to protect the backward compatibility for function
   # signature change after Python 2 deprecation.
   assert not configs, (
-      'The only configs supported are include_window_info and '
-      'visualize_data.')
-  runner = user_pipeline.runner
-  if isinstance(runner, ir.InteractiveRunner):
-    runner = runner._underlying_runner
+      'The only supported arguments are include_window_info, visualize_data, '
+      'n, and duration')
 
-  # Make sure that sources without a user reference are still cached.
-  pi.watch_sources(user_pipeline)
+  recording_manager = ie.current_env().get_recording_manager(
+      user_pipeline, create_if_absent=True)
+  recording = recording_manager.record(pcolls, max_n=n, max_duration=duration)
 
-  # Make sure that all PCollections to be shown are watched. If a PCollection
-  # has not been watched, make up a variable name for that PCollection and watch
-  # it. No validation is needed here because the watch logic can handle
-  # arbitrary variables.
-  watched_pcollections = set()
-  for watching in ie.current_env().watching():
-    for _, val in watching:
-      if hasattr(val, '__class__') and isinstance(val, beam.pvalue.PCollection):
-        watched_pcollections.add(val)
-  for pcoll in pcolls:
-    if pcoll not in watched_pcollections:
-      watch({'anonymous_pcollection_{}'.format(id(pcoll)): pcoll})
+  # Catch a KeyboardInterrupt to gracefully cancel the recording and
+  # visualizations.
+  try:
+    # If in notebook, static plotting computed pcolls as computation is done.
+    if ie.current_env().is_in_notebook:
+      for stream in recording.computed().values():
+        visualize(
+            stream,
+            include_window_info=include_window_info,
+            display_facets=visualize_data)
+    elif ie.current_env().is_in_ipython:
+      for stream in recording.computed().values():
+        visualize(stream, include_window_info=include_window_info)
 
-  if ie.current_env().is_in_ipython:
-    warnings.filterwarnings(
-        'ignore',
-        'options is deprecated since First stable release. References to '
-        '<pipeline>.options will not be supported',
-        category=DeprecationWarning)
-  # Attempt to run background caching job since we have the reference to the
-  # user-defined pipeline.
-  bcj.attempt_to_run_background_caching_job(
-      runner, user_pipeline, user_pipeline.options)
+    if recording.is_computed():
+      return
 
-  pcolls = set(pcolls)
-  computed_pcolls = set()
-  for pcoll in pcolls:
-    if pcoll in ie.current_env().computed_pcollections:
-      computed_pcolls.add(pcoll)
-  pcolls = pcolls.difference(computed_pcolls)
-  # If in notebook, static plotting computed pcolls as computation is done.
-  if ie.current_env().is_in_notebook:
-    for pcoll in computed_pcolls:
-      visualize(
-          pcoll,
-          include_window_info=include_window_info,
-          display_facets=visualize_data)
-  elif ie.current_env().is_in_ipython:
-    for pcoll in computed_pcolls:
-      visualize(pcoll, include_window_info=include_window_info)
+    # If in notebook, dynamic plotting as computation goes.
+    if ie.current_env().is_in_notebook:
+      for stream in recording.uncomputed().values():
+        visualize(
+            stream,
+            dynamic_plotting_interval=1,
+            include_window_info=include_window_info,
+            display_facets=visualize_data)
 
-  if not pcolls:
-    return
+    # Invoke wait_until_finish to ensure the blocking nature of this API without
+    # relying on the run to be blocking.
+    recording.wait_until_finish()
 
-  # Build a pipeline fragment for the PCollections and run it.
-  result = pf.PipelineFragment(list(pcolls), user_pipeline.options).run()
-  ie.current_env().set_pipeline_result(user_pipeline, result)
+    # If just in ipython shell, plotting once when the computation is completed.
+    if ie.current_env().is_in_ipython and not ie.current_env().is_in_notebook:
+      for stream in recording.computed().values():
+        visualize(stream, include_window_info=include_window_info)
 
-  # If in notebook, dynamic plotting as computation goes.
-  if ie.current_env().is_in_notebook:
-    for pcoll in pcolls:
-      visualize(
-          pcoll,
-          dynamic_plotting_interval=1,
-          include_window_info=include_window_info,
-          display_facets=visualize_data)
-
-  # Invoke wait_until_finish to ensure the blocking nature of this API without
-  # relying on the run to be blocking.
-  result.wait_until_finish()
-
-  # If just in ipython shell, plotting once when the computation is completed.
-  if ie.current_env().is_in_ipython and not ie.current_env().is_in_notebook:
-    for pcoll in pcolls:
-      visualize(pcoll, include_window_info=include_window_info)
-
-  # If the pipeline execution is successful at this stage, mark the computation
-  # completeness for the given PCollections so that when further `show`
-  # invocation occurs, Interactive Beam wouldn't need to re-compute them.
-  if result.state is beam.runners.runner.PipelineState.DONE:
-    ie.current_env().mark_pcollection_computed(pcolls)
-
-
-def collect(pcoll, include_window_info=False):
-  """Materializes all of the elements from a PCollection into a Dataframe.
-
-  For example::
-
-    p = beam.Pipeline(InteractiveRunner())
-    init = p | 'Init' >> beam.Create(range(10))
-    square = init | 'Square' >> beam.Map(lambda x: x * x)
-
-    # Run the pipeline and bring the PCollection into memory as a Dataframe.
-    in_memory_square = collect(square)
-  """
-  return head(pcoll, n=-1, include_window_info=include_window_info)
+  except KeyboardInterrupt:
+    if recording:
+      recording.cancel()
 
 
 @progress_indicated
-def head(pcoll, n=5, include_window_info=False):
-  """Materializes the first n elements from a PCollection into a Dataframe.
+def collect(pcoll, n='inf', duration='inf', include_window_info=False):
+  """Materializes the elements from a PCollection into a Dataframe.
 
   This reads each element from file and reads only the amount that it needs
-  into memory.
+  into memory. The user can specify either the max number of elements to read
+  or the maximum duration of elements to read. When a limiter is not supplied,
+  it is assumed to be infinite.
+
+  Args:
+    n: (optional) max number of elements to visualize. Default 'inf'.
+    duration: (optional) max duration of elements to read in integer seconds or
+        a string duration. Default 'inf'.
+
   For example::
 
     p = beam.Pipeline(InteractiveRunner())
@@ -469,66 +551,36 @@ def head(pcoll, n=5, include_window_info=False):
   assert isinstance(pcoll, beam.pvalue.PCollection), (
       '{} is not an apache_beam.pvalue.PCollection.'.format(pcoll))
 
+  if isinstance(n, str):
+    assert n == 'inf', (
+        'Currently only the string \'inf\' is supported. This denotes reading '
+        'elements until the recording is stopped via a kernel interrupt.')
+  elif isinstance(n, int):
+    assert n > 0, 'n needs to be positive or the string \'inf\''
+
+  if isinstance(duration, int):
+    assert duration > 0, ('duration needs to be positive, a duration string, '
+                          'or the string \'inf\'')
+
+  if n == 'inf':
+    n = float('inf')
+
+  if duration == 'inf':
+    duration = float('inf')
+
   user_pipeline = pcoll.pipeline
-  runner = user_pipeline.runner
-  if isinstance(runner, ir.InteractiveRunner):
-    runner = runner._underlying_runner
+  recording_manager = ie.current_env().get_recording_manager(
+      user_pipeline, create_if_absent=True)
 
-  # Make sure that sources without a user reference are still cached.
-  pi.watch_sources(user_pipeline)
+  recording = recording_manager.record([pcoll], max_n=n, max_duration=duration)
 
-  # Make sure that all PCollections to be shown are watched. If a PCollection
-  # has not been watched, make up a variable name for that PCollection and watch
-  # it. No validation is needed here because the watch logic can handle
-  # arbitrary variables.
-  watched_pcollections = set()
-  for watching in ie.current_env().watching():
-    for _, val in watching:
-      if hasattr(val, '__class__') and isinstance(val, beam.pvalue.PCollection):
-        watched_pcollections.add(val)
-  if pcoll not in watched_pcollections:
-    watch({'anonymous_pcollection_{}'.format(id(pcoll)): pcoll})
+  try:
+    elements = list(recording.stream(pcoll).read())
+  except KeyboardInterrupt:
+    recording.cancel()
+    return pd.DataFrame()
 
-  warnings.filterwarnings('ignore', category=DeprecationWarning)
-  # Attempt to run background caching job since we have the reference to the
-  # user-defined pipeline.
-  bcj.attempt_to_run_background_caching_job(
-      runner, user_pipeline, user_pipeline.options)
-
-  if pcoll in ie.current_env().computed_pcollections:
-    # Read from pcoll cache, then convert to DF
-    pipeline_instrument = pi.PipelineInstrument(pcoll.pipeline)
-    key = pipeline_instrument.cache_key(pcoll)
-    cache_manager = ie.current_env().get_cache_manager(user_pipeline)
-
-    coder = cache_manager.load_pcoder('full', key)
-    reader, _ = cache_manager.read('full', key)
-    elements = to_element_list(reader, coder, include_window_info=True)
-  else:
-
-    # Build a pipeline fragment for the PCollections and run it.
-    result = pf.PipelineFragment([pcoll], user_pipeline.options).run()
-    ie.current_env().set_pipeline_result(user_pipeline, result)
-
-    # Invoke wait_until_finish to ensure the blocking nature of this API without
-    # relying on the run to be blocking.
-    result.wait_until_finish()
-
-    # If the pipeline execution is successful at this stage, mark the
-    # computation completeness for the given PCollections so that when further
-    # `show` invocation occurs, Interactive Beam wouldn't need to re-compute.
-    if result.state is beam.runners.runner.PipelineState.DONE:
-      ie.current_env().mark_pcollection_computed([pcoll])
-
-    elements = result.read(pcoll, include_window_info=True)
-
-  results = []
-  for e in elements:
-    results.append(e)
-    if len(results) >= n > 0:
-      break
-
-  return elements_to_df(results, include_window_info=include_window_info)
+  return elements_to_df(elements, include_window_info=include_window_info)
 
 
 @progress_indicated
@@ -538,11 +590,11 @@ def show_graph(pipeline):
   pipeline_graph.PipelineGraph(pipeline).display_graph()
 
 
-def evict_captured_data(pipeline=None):
-  """Forcefully evicts all captured replayable data for the given pipeline. If
+def evict_recorded_data(pipeline=None):
+  """Forcefully evicts all recorded replayable data for the given pipeline. If
   no pipeline is specified, evicts for all user defined pipelines.
 
-  Once invoked, Interactive Beam will capture new data based on the guidance of
+  Once invoked, Interactive Beam will record new data based on the guidance of
   options the next time it evaluates/visualizes PCollections or runs pipelines.
   """
   from apache_beam.runners.interactive.options import capture_control

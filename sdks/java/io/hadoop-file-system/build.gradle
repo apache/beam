@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+import java.util.stream.Collectors
+
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
   enableChecker:false,
@@ -23,6 +25,15 @@ applyJavaNature(
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Hadoop File System"
 ext.summary = "Library to read and write Hadoop/HDFS file formats from Beam."
+
+def hadoopVersions = [
+    "285": "2.8.5",
+    "292": "2.9.2",
+    "2101": "2.10.1",
+    "321": "3.2.1",
+]
+
+hadoopVersions.each {kv -> configurations.create("hadoopVersion$kv.key")}
 
 dependencies {
   compile library.java.vendored_guava_26_0_jre
@@ -42,4 +53,42 @@ dependencies {
   testCompile library.java.hadoop_hdfs_tests
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+  hadoopVersions.each {kv ->
+    "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-client:$kv.value"
+    "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-common:$kv.value"
+    "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-mapreduce-client-core:$kv.value"
+    "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-minicluster:$kv.value"
+    "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-hdfs:$kv.value:tests"
+    "hadoopVersion$kv.key" library.java.slf4j_jdk14
+  }
+}
+
+hadoopVersions.each {kv ->
+  configurations."hadoopVersion$kv.key" {
+    resolutionStrategy {
+      force "org.apache.hadoop:hadoop-client:$kv.value"
+      force "org.apache.hadoop:hadoop-common:$kv.value"
+      force "org.apache.hadoop:hadoop-mapreduce-client-core:$kv.value"
+      force "org.apache.hadoop:hadoop-minicluster:$kv.value"
+      force "org.apache.hadoop:hadoop-hdfs:$kv.value:tests"
+      force library.java.slf4j_jdk14
+    }
+  }
+}
+
+task hadoopVersionsTest(group: "Verification") {
+  description = "Runs Hadoop file system tests with different Hadoop versions"
+  def taskNames = hadoopVersions.keySet().stream()
+      .map{num -> "hadoopVersion${num}Test"}
+      .collect(Collectors.toList())
+  dependsOn taskNames
+}
+
+hadoopVersions.each { kv ->
+  task "hadoopVersion${kv.key}Test"(type: Test, group: "Verification") {
+    description = "Runs Hadoop file system tests with Hadoop version $kv.value"
+    classpath = configurations."hadoopVersion$kv.key" + sourceSets.test.runtimeClasspath
+    outputs.upToDateWhen { false }
+    include '**/*Test.class'
+  }
 }

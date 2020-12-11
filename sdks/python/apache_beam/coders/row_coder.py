@@ -38,6 +38,8 @@ from apache_beam.coders.coders import VarIntCoder
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import schema_pb2
 from apache_beam.typehints import row_type
+from apache_beam.typehints.schemas import PYTHON_ANY_URN
+from apache_beam.typehints.schemas import LogicalType
 from apache_beam.typehints.schemas import named_tuple_from_schema
 from apache_beam.typehints.schemas import schema_from_element_type
 from apache_beam.utils import proto_utils
@@ -89,12 +91,7 @@ class RowCoder(FastCoder):
 
   @staticmethod
   def from_type_hint(type_hint, registry):
-    try:
-      schema = schema_from_element_type(type_hint)
-    except ValueError:
-      # TODO(BEAM-10570): Consider a pythonsdk logical type.
-      return typecoders.registry.get_coder(object)
-
+    schema = schema_from_element_type(type_hint)
     return RowCoder(schema)
 
   @staticmethod
@@ -138,6 +135,15 @@ def _nonnull_coder_from_type(field_type):
     return MapCoder(
         _coder_from_type(field_type.map_type.key_type),
         _coder_from_type(field_type.map_type.value_type))
+  elif type_info == "logical_type":
+    # Special case for the Any logical type. Just use the default coder for an
+    # unknown Python object.
+    if field_type.logical_type.urn == PYTHON_ANY_URN:
+      return typecoders.registry.get_coder(object)
+
+    logical_type = LogicalType.from_runner_api(field_type.logical_type)
+    return LogicalTypeCoder(
+        logical_type, _coder_from_type(field_type.logical_type.representation))
   elif type_info == "row_type":
     return RowCoder(field_type.row_type.schema)
 
@@ -214,3 +220,32 @@ class RowCoderImpl(StreamCoderImpl):
         is_null in zip(self.components, nulls) if not is_null
     ] if self.has_nullable_fields else self.components
     return TupleCoder(components).get_impl()
+
+
+class LogicalTypeCoder(FastCoder):
+  def __init__(self, logical_type, representation_coder):
+    self.logical_type = logical_type
+    self.representation_coder = representation_coder
+
+  def _create_impl(self):
+    return LogicalTypeCoderImpl(self.logical_type, self.representation_coder)
+
+  def is_deterministic(self):
+    return self.representation_coder.is_deterministic()
+
+  def to_type_hint(self):
+    return self.logical_type.language_type()
+
+
+class LogicalTypeCoderImpl(StreamCoderImpl):
+  def __init__(self, logical_type, representation_coder):
+    self.logical_type = logical_type
+    self.representation_coder = representation_coder.get_impl()
+
+  def encode_to_stream(self, value, out, nested):
+    return self.representation_coder.encode_to_stream(
+        self.logical_type.to_representation_type(value), out, nested)
+
+  def decode_from_stream(self, in_stream, nested):
+    return self.logical_type.to_language_type(
+        self.representation_coder.decode_from_stream(in_stream, nested))

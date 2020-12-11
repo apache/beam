@@ -1,0 +1,76 @@
+#    Licensed to the Apache Software Foundation (ASF) under one or more
+#    contributor license agreements.  See the NOTICE file distributed with
+#    this work for additional information regarding copyright ownership.
+#    The ASF licenses this file to You under the Apache License, Version 2.0
+#    (the "License"); you may not use this file except in compliance with
+#    the License.  You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: influxdb-creds
+data:
+  INFLUXDB_USER: c3VwZXJzYWRtaW4=
+  INFLUXDB_USER_PASSWORD: c3VwZXJzZWNyZXRwYXNzd29yZA==
+  INFLUXDB_GRAPHITE_ENABLED: dHJ1ZQ==
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: influxdb
+  labels:
+    app: influxdb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: influxdb
+  template:
+    metadata:
+      labels:
+        app: influxdb
+    spec:
+      containers:
+      - name: influxdb
+        image: influxdb
+        env:
+        - name: INFLUXDB_USER
+          valueFrom:
+            secretKeyRef:
+              name: influxdb-creds
+              key: INFLUXDB_USER
+        - name: INFLUXDB_USER_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: influxdb-creds
+              key: INFLUXDB_USER_PASSWORD
+        - name: INFLUXDB_GRAPHITE_ENABLED
+          valueFrom:
+            secretKeyRef:
+              name: influxdb-creds
+              key: INFLUXDB_GRAPHITE_ENABLED
+        ports:
+        - containerPort: 8086
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: influxdb-load-balancer-service
+spec:
+  ports:
+  - port: 8086
+    targetPort: 8086
+  selector:
+    app: influxdb
+  type: LoadBalancer

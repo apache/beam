@@ -68,8 +68,11 @@ import org.junit.runners.JUnit4;
  * Tests for {@link DoFnSignatures} focused on methods related to <a
  * href="https://s.apache.org/splittable-do-fn">splittable</a> {@link DoFn}.
  */
-@SuppressWarnings("unused")
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DoFnSignaturesSplittableDoFnTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
 

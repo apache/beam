@@ -330,6 +330,9 @@ import org.joda.time.Duration;
  *     .to(new UserDynamicAvroDestinations(userToSchemaMap)));
  * }</pre>
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class AvroIO {
   /**
    * Reads records of the given type from an Avro file (or multiple Avro files matching a pattern).
@@ -677,11 +680,13 @@ public class AvroIO {
      * interval, until the given termination condition is reached. The returned {@link PCollection}
      * is unbounded.
      *
-     * <p>This works only in runners supporting {@link Kind#SPLITTABLE_DO_FN}.
+     * <p>This works only in runners supporting splittable {@link
+     * org.apache.beam.sdk.transforms.DoFn}.
      */
-    @Experimental(Kind.SPLITTABLE_DO_FN)
-    public Read<T> watchForNewFiles(Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {
-      return withMatchConfiguration(getMatchConfiguration().continuously(pollInterval, terminationCondition));
+    public Read<T> watchForNewFiles(
+        Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {
+      return withMatchConfiguration(
+          getMatchConfiguration().continuously(pollInterval, terminationCondition));
     }
 
     /**
@@ -871,9 +876,10 @@ public class AvroIO {
     }
 
     /** Like {@link Read#watchForNewFiles}. */
-    @Experimental(Kind.SPLITTABLE_DO_FN)
-    public ReadAll<T> watchForNewFiles(Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {
-      return withMatchConfiguration(getMatchConfiguration().continuously(pollInterval, terminationCondition));
+    public ReadAll<T> watchForNewFiles(
+        Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {
+      return withMatchConfiguration(
+          getMatchConfiguration().continuously(pollInterval, terminationCondition));
     }
 
     @VisibleForTesting
@@ -988,9 +994,10 @@ public class AvroIO {
     }
 
     /** Like {@link Read#watchForNewFiles}. */
-    @Experimental(Kind.SPLITTABLE_DO_FN)
-    public Parse<T> watchForNewFiles(Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {
-      return withMatchConfiguration(getMatchConfiguration().continuously(pollInterval, terminationCondition));
+    public Parse<T> watchForNewFiles(
+        Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {
+      return withMatchConfiguration(
+          getMatchConfiguration().continuously(pollInterval, terminationCondition));
     }
 
     /** Sets a coder for the result of the parse function. */
@@ -1152,9 +1159,10 @@ public class AvroIO {
     }
 
     /** Like {@link Read#watchForNewFiles}. */
-    @Experimental(Kind.SPLITTABLE_DO_FN)
-    public ParseAll<T> watchForNewFiles(Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {
-      return withMatchConfiguration(getMatchConfiguration().continuously(pollInterval, terminationCondition));
+    public ParseAll<T> watchForNewFiles(
+        Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {
+      return withMatchConfiguration(
+          getMatchConfiguration().continuously(pollInterval, terminationCondition));
     }
 
     /** Specifies the coder for the result of the {@code parseFn}. */
@@ -1756,9 +1764,8 @@ public class AvroIO {
   @AutoValue
   public abstract static class Sink<ElementT> implements FileIO.Sink<ElementT> {
     /** @deprecated RecordFormatter will be removed in future versions. */
-    @Nullable
     @Deprecated
-    abstract RecordFormatter<ElementT> getRecordFormatter();
+    abstract @Nullable RecordFormatter<ElementT> getRecordFormatter();
 
     abstract @Nullable String getJsonSchema();
 

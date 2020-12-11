@@ -27,6 +27,8 @@ description = "Apache Beam :: SDKs :: Go :: Test"
 // "./github.com/apache/beam/sdks/go"
 resolveBuildDependencies.dependsOn ":sdks:go:goBuild"
 
+clean.dependsOn cleanVendor
+
 dependencies {
   golang {
     // TODO(herohde): use "./" prefix to prevent gogradle use base github path, for now.
@@ -45,6 +47,25 @@ golang {
 
     targetPlatform = ['linux-amd64']
     go 'build -o ./build/bin/linux-amd64/worker github.com/apache/beam/sdks/go/test/integration'
+  }
+}
+
+// ValidatesRunner tests for Flink using an updated framework that supports
+// cross-language tests.
+// TODO(BEAM-11415): Merge this into existing ValidatesRunner gradle rules.
+task flinkXlangValidatesRunner {
+  dependsOn ":runners:flink:1.10:job-server:shadowJar"
+  dependsOn ":sdks:java:testing:expansion-service:buildTestExpansionServiceJar"
+  doLast {
+    def options = [
+            "--runner flink",
+            "--flink_job_server_jar ${project(":runners:flink:1.10:job-server").shadowJar.archivePath}",
+            "--expansion_service_jar ${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
+    ]
+    exec {
+      executable "sh"
+      args "-c", "./run_validatesrunner_tests.sh ${options.join(' ')}"
+    }
   }
 }
 

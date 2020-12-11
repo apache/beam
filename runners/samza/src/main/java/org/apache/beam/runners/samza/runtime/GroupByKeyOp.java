@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.samza.runtime;
 
+import java.util.Collection;
 import java.util.Collections;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
@@ -52,6 +53,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Samza operator for {@link org.apache.beam.sdk.transforms.GroupByKey}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class GroupByKeyOp<K, InputT, OutputT>
     implements Op<KeyedWorkItem<K, InputT>, KV<K, OutputT>, K> {
   private static final Logger LOG = LoggerFactory.getLogger(GroupByKeyOp.class);
@@ -110,18 +114,18 @@ public class GroupByKeyOp<K, InputT, OutputT>
         (SamzaExecutionContext) context.getApplicationContainerContext();
     this.pipelineOptions = samzaExecutionContext.getPipelineOptions();
 
-    final SamzaStateInternals.Factory<?> nonKeyedStateInternalsFactory =
-        SamzaStateInternals.createStateInternalFactory(
+    final SamzaStoreStateInternals.Factory<?> nonKeyedStateInternalsFactory =
+        SamzaStoreStateInternals.createStateInternalFactory(
             transformId, null, context.getTaskContext(), pipelineOptions, null);
 
     final DoFnRunners.OutputManager outputManager = outputManagerFactory.create(emitter);
 
     this.stateInternalsFactory =
-        new SamzaStateInternals.Factory<>(
+        new SamzaStoreStateInternals.Factory<>(
             transformId,
             Collections.singletonMap(
-                SamzaStateInternals.BEAM_STORE,
-                SamzaStateInternals.getBeamStore(context.getTaskContext())),
+                SamzaStoreStateInternals.BEAM_STORE,
+                SamzaStoreStateInternals.getBeamStore(context.getTaskContext())),
             keyCoder,
             pipelineOptions.getStoreBatchGetSize());
 
@@ -195,11 +199,14 @@ public class GroupByKeyOp<K, InputT, OutputT>
   public void processWatermark(Instant watermark, OpEmitter<KV<K, OutputT>> emitter) {
     timerInternalsFactory.setInputWatermark(watermark);
 
-    fnRunner.startBundle();
-    for (KeyedTimerData<K> keyedTimerData : timerInternalsFactory.removeReadyTimers()) {
-      fireTimer(keyedTimerData.getKey(), keyedTimerData.getTimerData());
+    Collection<KeyedTimerData<K>> readyTimers = timerInternalsFactory.removeReadyTimers();
+    if (!readyTimers.isEmpty()) {
+      fnRunner.startBundle();
+      for (KeyedTimerData<K> keyedTimerData : readyTimers) {
+        fireTimer(keyedTimerData.getKey(), keyedTimerData.getTimerData());
+      }
+      fnRunner.finishBundle();
     }
-    fnRunner.finishBundle();
 
     if (timerInternalsFactory.getOutputWatermark() == null
         || timerInternalsFactory.getOutputWatermark().isBefore(watermark)) {

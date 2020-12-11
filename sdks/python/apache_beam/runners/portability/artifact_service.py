@@ -33,9 +33,15 @@ import queue
 import sys
 import tempfile
 import threading
-import typing
 from io import BytesIO
+from typing import Any
+from typing import BinaryIO  # pylint: disable=unused-import
 from typing import Callable
+from typing import Dict
+from typing import List
+from typing import MutableMapping
+from typing import Optional
+from typing import Tuple
 
 import grpc
 from future.moves.urllib.request import urlopen
@@ -48,11 +54,6 @@ from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.utils import proto_utils
 
-if typing.TYPE_CHECKING:
-  from typing import BinaryIO  # pylint: disable=ungrouped-imports
-  from typing import Iterable
-  from typing import MutableMapping
-
 
 class ArtifactRetrievalService(
     beam_artifact_api_pb2_grpc.ArtifactRetrievalServiceServicer):
@@ -61,7 +62,7 @@ class ArtifactRetrievalService(
 
   def __init__(
       self,
-      file_reader,  # type: Callable[[str], BinaryIO],
+      file_reader,  # type: Callable[[str], BinaryIO]
       chunk_size=None,
   ):
     self._file_reader = file_reader
@@ -105,7 +106,8 @@ class ArtifactStagingService(
       file_writer,  # type: Callable[[str, Optional[str]], Tuple[BinaryIO, str]]
     ):
     self._lock = threading.Lock()
-    self._jobs_to_stage = {}
+    self._jobs_to_stage = {
+    }  # type: Dict[str, Tuple[Dict[Any, List[beam_runner_api_pb2.ArtifactInformation]], threading.Event]]
     self._file_writer = file_writer
 
   def register_job(

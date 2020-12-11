@@ -17,7 +17,7 @@
  */
 
 import CommonJobProperties as commonJobProperties
-import PostcommitJobBuilder
+import PhraseTriggeringPostCommitBuilder
 import CronJobBuilder
 import LoadTestsBuilder
 
@@ -44,7 +44,7 @@ def chicagoTaxiJob = { scope ->
   }
 }
 
-PostcommitJobBuilder.postCommitJob(
+PhraseTriggeringPostCommitBuilder.postCommitJob(
     'beam_PostCommit_Python_Chicago_Taxi_Dataflow',
     'Run Chicago Taxi on Dataflow',
     'Chicago Taxi Example on Dataflow ("Run Chicago Taxi on Dataflow")',
@@ -53,10 +53,13 @@ PostcommitJobBuilder.postCommitJob(
       chicagoTaxiJob(delegate)
     }
 
-CronJobBuilder.cronJob(
-    'beam_PostCommit_Python_Chicago_Taxi_Dataflow',
-    'H 14 * * *',
-    this
-    ) {
-      chicagoTaxiJob(delegate)
-    }
+// TODO(BEAM-9154): Chicago Taxi Example doesn't work in Python 3.
+// Uncomment below once it is fixed.
+//
+// CronJobBuilder.cronJob(
+//     'beam_PostCommit_Python_Chicago_Taxi_Dataflow',
+//     'H 14 * * *',
+//     this
+//     ) {
+//       chicagoTaxiJob(delegate)
+//     }

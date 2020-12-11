@@ -32,6 +32,9 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 
 @Experimental(Kind.PORTABILITY)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class WriteBuilder
     implements ExternalTransformBuilder<WriteBuilder.Configuration, PCollection<byte[]>, PDone> {
 
@@ -74,16 +77,8 @@ public class WriteBuilder
 
   @Override
   public PTransform<PCollection<byte[]>, PDone> buildExternal(Configuration c) {
-    SnowflakeIO.DataSourceConfiguration dataSourceConfiguration =
-        SnowflakeIO.DataSourceConfiguration.create()
-            .withServerName(c.getServerName())
-            .withDatabase(c.getDatabase())
-            .withSchema(c.getSchema())
-            .withRole(c.getRole())
-            .withWarehouse(c.getWarehouse());
-
     return SnowflakeIO.<byte[]>write()
-        .withDataSourceConfiguration(dataSourceConfiguration)
+        .withDataSourceConfiguration(c.getDataSourceConfiguration())
         .withStorageIntegrationName(c.getStorageIntegrationName())
         .withStagingBucketName(c.getStagingBucketName())
         .withTableSchema(c.getTableSchema())

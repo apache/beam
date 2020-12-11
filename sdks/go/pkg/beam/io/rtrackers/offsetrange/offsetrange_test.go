@@ -63,10 +63,99 @@ func TestRestriction_EvenSplits(t *testing.T) {
 					t.Errorf("split restriction [%v, %v] has unexpected size. got: %v, want: %v or %v",
 						split.Start, split.End, size, min, min+1)
 				}
-				// Check: All elements are still in a split restrictions. This
-				// logic assumes that the splits are returned in order which
-				// isn't guaranteed by EvenSplits, but this check is way easier
-				// with the assumption.
+				// Check: All elements are still in a split restriction and
+				// the restrictions are in the appropriate ascending order.
+				if split.Start != prevEnd {
+					t.Errorf("restriction range [%v, %v] missing after splits.",
+						prevEnd, split.Start)
+				} else {
+					prevEnd = split.End
+				}
+			}
+			if prevEnd != r.End {
+				t.Errorf("restriction range [%v, %v] missing after splits.",
+					prevEnd, r.End)
+			}
+		})
+	}
+}
+
+// TestRestriction_SizedSplits tests various splits and checks that they all
+// follow the contract for SizedSplits. This means that all restrictions match
+// the given size unless it is a remainder, and that each element is present
+// in the split restrictions.
+func TestRestriction_SizedSplits(t *testing.T) {
+	tests := []struct {
+		name string
+		rest Restriction
+		size int64
+		want []Restriction
+	}{
+		{
+			name: "Remainder",
+			rest: Restriction{Start: 0, End: 11},
+			size: 5,
+			want: []Restriction{{0, 5}, {5, 10}, {10, 11}},
+		},
+		{
+			name: "OffsetRemainder",
+			rest: Restriction{Start: 11, End: 22},
+			size: 5,
+			want: []Restriction{{11, 16}, {16, 21}, {21, 22}},
+		},
+		{
+			name: "OffsetExact",
+			rest: Restriction{Start: 11, End: 21},
+			size: 5,
+			want: []Restriction{{11, 16}, {16, 21}},
+		},
+		{
+			name: "LargeValues",
+			rest: Restriction{Start: 0, End: 1024 * 1024 * 1024},
+			size: 400 * 1024 * 1024,
+			want: []Restriction{
+				{0, 400 * 1024 * 1024},
+				{400 * 1024 * 1024, 800 * 1024 * 1024},
+				{800 * 1024 * 1024, 1024 * 1024 * 1024},
+			},
+		},
+		{
+			name: "OverlyLargeSize",
+			rest: Restriction{Start: 0, End: 5},
+			size: 10,
+			want: []Restriction{{0, 5}},
+		},
+		{
+			name: "InvalidSize",
+			rest: Restriction{Start: 0, End: 21},
+			size: 0,
+			want: []Restriction{{0, 21}},
+		},
+	}
+	for _, test := range tests {
+		test := test
+		t.Run(fmt.Sprintf("%v (rest[%v, %v], size = %v)",
+			test.name, test.rest.Start, test.rest.End, test.size), func(t *testing.T) {
+			r := test.rest
+
+			// Get the minimum size that a split restriction can be. Max size
+			// should be min + 1. This way we can check the size of each split.
+			splits := r.SizedSplits(test.size)
+			prevEnd := r.Start
+			for i, split := range splits {
+				size := split.End - split.Start
+				// Check: Each restriction has at least 1 element.
+				if size == 0 {
+					t.Errorf("split restriction [%v, %v] is empty, size must be greater than 0.",
+						split.Start, split.End)
+				}
+				// Check: Restrictions (except for the last one) must match the split size.
+				if i != len(splits)-1 && size != test.size {
+					t.Errorf("split restriction [%v, %v] has unexpected size. got: %v, want: %v",
+						split.Start, split.End, size, test.size)
+				}
+				// Check: All elements are still in a split restriction and
+				// the restrictions are in the appropriate ascending order.
 				if split.Start != prevEnd {
 					t.Errorf("restriction range [%v, %v] missing after splits.",
 						prevEnd, split.Start)

@@ -111,6 +111,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Dynamically generates a {@link DoFnInvoker} instances for invoking a {@link DoFn}. */
+@SuppressWarnings({
+  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes"
+})
 class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
 
   public static final String START_BUNDLE_CONTEXT_PARAMETER_METHOD = "startBundleContext";

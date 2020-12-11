@@ -579,6 +579,10 @@ class WithTypeHints(object):
             self.default_type_hints()).with_defaults(
                 get_type_hints(self.__class__)))
 
+  def _set_type_hints(self, type_hints):
+    # type: (IOTypeHints) -> None
+    self._type_hints = type_hints
+
   def default_type_hints(self):
     return None
 

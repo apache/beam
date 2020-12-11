@@ -53,6 +53,9 @@ import org.slf4j.LoggerFactory;
  * {@code BeamKafkaTable} represent a Kafka topic, as source or target. Need to extend to convert
  * between {@code BeamSqlRow} and {@code KV<byte[], byte[]>}.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public abstract class BeamKafkaTable extends SchemaBaseBeamTable {
   private String bootstrapServers;
   private List<String> topics;
@@ -91,10 +94,10 @@ public abstract class BeamKafkaTable extends SchemaBaseBeamTable {
     return PCollection.IsBounded.UNBOUNDED;
   }
 
-  public abstract PTransform<PCollection<KV<byte[], byte[]>>, PCollection<Row>>
+  protected abstract PTransform<PCollection<KV<byte[], byte[]>>, PCollection<Row>>
       getPTransformForInput();
 
-  public abstract PTransform<PCollection<Row>, PCollection<KV<byte[], byte[]>>>
+  protected abstract PTransform<PCollection<Row>, PCollection<KV<byte[], byte[]>>>
       getPTransformForOutput();
 
   @Override

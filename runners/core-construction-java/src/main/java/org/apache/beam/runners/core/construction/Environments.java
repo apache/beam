@@ -39,6 +39,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ProcessPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardArtifacts;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardEnvironments;
+import org.apache.beam.model.pipeline.v1.RunnerApi.StandardPTransforms.SplittableParDoComponents;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardProtocols;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
@@ -59,6 +60,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Utilities for interacting with portability {@link Environment environments}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class Environments {
   private static final Logger LOG = LoggerFactory.getLogger(Environments.class);
 
@@ -71,6 +75,38 @@ public class Environments {
   public static final String ENVIRONMENT_EMBEDDED = "EMBEDDED"; // Non Public urn for testing
   public static final String ENVIRONMENT_LOOPBACK = "LOOPBACK"; // Non Public urn for testing
 
+  public enum JavaVersion {
+    v8("java8", "1.8"),
+    v11("java11", "11");
+
+    private final String name;
+    private final String specification;
+
+    JavaVersion(final String name, final String specification) {
+      this.name = name;
+      this.specification = specification;
+    }
+
+    @Override
+    public String toString() {
+      return this.name;
+    }
+
+    public String specification() {
+      return this.specification;
+    }
+
+    public static JavaVersion forSpecification(String specification) {
+      for (JavaVersion ver : JavaVersion.values()) {
+        if (ver.specification.equals(specification)) {
+          return ver;
+        }
+      }
+      throw new UnsupportedOperationException(
+          String.format("unsupported Java version: %s", specification));
+    }
+  }
+
   /* For development, use the container build by the current user to ensure that the SDK harness and
    * the SDK agree on how they should interact. This should be changed to a version-specific
    * container during a release.
@@ -78,12 +114,9 @@ public class Environments {
    * See https://beam.apache.org/contribute/docker-images/ for more information on how to build a
    * container.
    */
+
   private static final String JAVA_SDK_HARNESS_CONTAINER_URL =
-      ReleaseInfo.getReleaseInfo().getDefaultDockerRepoRoot()
-          + "/"
-          + ReleaseInfo.getReleaseInfo().getDefaultDockerRepoPrefix()
-          + "java_sdk:"
-          + ReleaseInfo.getReleaseInfo().getSdkVersion();
+      getDefaultJavaSdkHarnessContainerUrl();
   public static final Environment JAVA_SDK_HARNESS_ENVIRONMENT =
       createDockerEnvironment(JAVA_SDK_HARNESS_CONTAINER_URL);
 
@@ -314,9 +347,12 @@ public class Environments {
     capabilities.add(BeamUrns.getUrn(StandardProtocols.Enum.MULTI_CORE_BUNDLE_PROCESSING));
     capabilities.add(BeamUrns.getUrn(StandardProtocols.Enum.PROGRESS_REPORTING));
     capabilities.add("beam:version:sdk_base:" + JAVA_SDK_HARNESS_CONTAINER_URL);
-    // TODO(BEAM-10505): Add the capability back.
-    // capabilities.add(BeamUrns.getUrn(SplittableParDoComponents.TRUNCATE_SIZED_RESTRICTION));
+    capabilities.add(BeamUrns.getUrn(SplittableParDoComponents.TRUNCATE_SIZED_RESTRICTION));
     return capabilities.build();
+  }
+
+  public static JavaVersion getJavaVersion() {
+    return JavaVersion.forSpecification(System.getProperty("java.specification.version"));
   }
 
   public static String createStagingFileName(File path, HashCode hash) {
@@ -356,5 +392,14 @@ public class Environments {
     public @Nullable Map<String, String> getEnv() {
       return env;
     }
+  }
+
+  private static String getDefaultJavaSdkHarnessContainerUrl() {
+    return String.format(
+        "%s/%s%s_sdk:%s",
+        ReleaseInfo.getReleaseInfo().getDefaultDockerRepoRoot(),
+        ReleaseInfo.getReleaseInfo().getDefaultDockerRepoPrefix(),
+        getJavaVersion().toString(),
+        ReleaseInfo.getReleaseInfo().getSdkVersion());
   }
 }

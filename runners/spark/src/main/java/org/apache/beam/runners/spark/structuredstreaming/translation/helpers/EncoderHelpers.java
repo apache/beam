@@ -46,6 +46,9 @@ import scala.reflect.ClassTag;
 import scala.reflect.ClassTag$;
 
 /** {@link Encoders} utility class. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class EncoderHelpers {
   /**
    * Wrap a Beam coder into a Spark Encoder using Catalyst Expression Encoders (which uses java code

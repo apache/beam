@@ -511,6 +511,21 @@ class FnApiRunnerTest(unittest.TestCase):
       actual = (p | beam.Create(data) | beam.ParDo(ExpandingStringsDoFn()))
       assert_that(actual, equal_to(list(''.join(data))))
 
+  def test_sdf_with_dofn_as_restriction_provider(self):
+    class ExpandingStringsDoFn(beam.DoFn, ExpandStringsProvider):
+      def process(
+          self, element, restriction_tracker=beam.DoFn.RestrictionParam()):
+        assert isinstance(restriction_tracker, RestrictionTrackerView)
+        cur = restriction_tracker.current_restriction().start
+        while restriction_tracker.try_claim(cur):
+          yield element[cur]
+          cur += 1
+
+    with self.create_pipeline() as p:
+      data = ['abc', 'defghijklmno', 'pqrstuv', 'wxyz']
+      actual = (p | beam.Create(data) | beam.ParDo(ExpandingStringsDoFn()))
+      assert_that(actual, equal_to(list(''.join(data))))
+
   def test_sdf_with_check_done_failed(self):
     class ExpandingStringsDoFn(beam.DoFn):
       def process(
@@ -532,6 +547,38 @@ class FnApiRunnerTest(unittest.TestCase):
 
   def test_sdf_with_watermark_tracking(self):
     class ExpandingStringsDoFn(beam.DoFn):
+      def process(
+          self,
+          element,
+          restriction_tracker=beam.DoFn.RestrictionParam(
+              ExpandStringsProvider()),
+          watermark_estimator=beam.DoFn.WatermarkEstimatorParam(
+              ManualWatermarkEstimator.default_provider())):
+        cur = restriction_tracker.current_restriction().start
+        while restriction_tracker.try_claim(cur):
+          watermark_estimator.set_watermark(timestamp.Timestamp(cur))
+          assert (
+              watermark_estimator.current_watermark() == timestamp.Timestamp(
+                  cur))
+          yield element[cur]
+          if cur % 2 == 1:
+            restriction_tracker.defer_remainder(timestamp.Duration(micros=5))
+            return
+          cur += 1
+
+    with self.create_pipeline() as p:
+      data = ['abc', 'defghijklmno', 'pqrstuv', 'wxyz']
+      actual = (p | beam.Create(data) | beam.ParDo(ExpandingStringsDoFn()))
+      assert_that(actual, equal_to(list(''.join(data))))
+
+  def test_sdf_with_dofn_as_watermark_estimator(self):
+    class ExpandingStringsDoFn(beam.DoFn, beam.WatermarkEstimatorProvider):
+      def initial_estimator_state(self, element, restriction):
+        return None
+
+      def create_watermark_estimator(self, state):
+        return beam.io.watermark_estimators.ManualWatermarkEstimator(state)
+
       def process(
           self,
           element,
@@ -836,22 +883,40 @@ class FnApiRunnerTest(unittest.TestCase):
 
   def test_register_finalizations(self):
     event_recorder = EventRecorder(tempfile.gettempdir())
-    elements_list = ['2', '1']
 
-    class FinalizableDoFn(beam.DoFn):
+    class FinalizableSplittableDoFn(beam.DoFn):
       def process(
-          self, element, bundle_finalizer=beam.DoFn.BundleFinalizerParam):
-        bundle_finalizer.register(lambda: event_recorder.record(element))
-        yield element
+          self,
+          element,
+          bundle_finalizer=beam.DoFn.BundleFinalizerParam,
+          restriction_tracker=beam.DoFn.RestrictionParam(
+              OffsetRangeProvider(
+                  use_bounded_offset_range=True, checkpoint_only=True))):
+        # We use SDF to enforce finalization call happens by using
+        # self-initiated checkpoint.
+        if 'finalized' in event_recorder.events():
+          restriction_tracker.try_claim(
+              restriction_tracker.current_restriction().start)
+          yield element
+          restriction_tracker.try_claim(element)
+          return
+        if restriction_tracker.try_claim(
+            restriction_tracker.current_restriction().start):
+          bundle_finalizer.register(lambda: event_recorder.record('finalized'))
+          # We sleep here instead of setting a resume time since the resume time
+          # doesn't need to be honored.
+          time.sleep(1)
+          restriction_tracker.defer_remainder()
 
     with self.create_pipeline() as p:
-      res = (p | beam.Create(elements_list) | beam.ParDo(FinalizableDoFn()))
+      max_retries = 100
+      res = (
+          p
+          | beam.Create([max_retries])
+          | beam.ParDo(FinalizableSplittableDoFn()))
+      assert_that(res, equal_to([max_retries]))
 
-      assert_that(res, equal_to(elements_list))
-
-    results = event_recorder.events()
     event_recorder.cleanup()
-    self.assertEqual(results, sorted(elements_list))
 
   def test_sdf_synthetic_source(self):
     common_attrs = {
@@ -1331,6 +1396,12 @@ class FnApiRunnerTestWithMultiWorkers(FnApiRunnerTest):
   def test_sdf_with_watermark_tracking(self):
     raise unittest.SkipTest("This test is for a single worker only.")
 
+  def test_sdf_with_dofn_as_watermark_estimator(self):
+    raise unittest.SkipTest("This test is for a single worker only.")
+
+  def test_register_finalizations(self):
+    raise unittest.SkipTest("This test is for a single worker only.")
+
 
 class FnApiRunnerTestWithGrpcAndMultiWorkers(FnApiRunnerTest):
   def create_pipeline(self, is_drain=False):
@@ -1353,6 +1424,12 @@ class FnApiRunnerTestWithGrpcAndMultiWorkers(FnApiRunnerTest):
     raise unittest.SkipTest("This test is for a single worker only.")
 
   def test_sdf_with_watermark_tracking(self):
+    raise unittest.SkipTest("This test is for a single worker only.")
+
+  def test_sdf_with_dofn_as_watermark_estimator(self):
+    raise unittest.SkipTest("This test is for a single worker only.")
+
+  def test_register_finalizations(self):
     raise unittest.SkipTest("This test is for a single worker only.")
 
 
@@ -1388,6 +1465,9 @@ class FnApiRunnerTestWithBundleRepeatAndMultiWorkers(FnApiRunnerTest):
     raise unittest.SkipTest("This test is for a single worker only.")
 
   def test_sdf_with_watermark_tracking(self):
+    raise unittest.SkipTest("This test is for a single worker only.")
+
+  def test_sdf_with_dofn_as_watermark_estimator(self):
     raise unittest.SkipTest("This test is for a single worker only.")
 
 
@@ -1737,13 +1817,23 @@ class UnboundedOffsetRestrictionTracker(
 
 
 class OffsetRangeProvider(beam.transforms.core.RestrictionProvider):
-  def __init__(self, use_bounded_offset_range):
+  def __init__(self, use_bounded_offset_range, checkpoint_only=False):
     self.use_bounded_offset_range = use_bounded_offset_range
+    self.checkpoint_only = checkpoint_only
 
   def initial_restriction(self, element):
     return restriction_trackers.OffsetRange(0, element)
 
   def create_tracker(self, restriction):
+    if self.checkpoint_only:
+
+      class CheckpointOnlyOffsetRestrictionTracker(
+          restriction_trackers.OffsetRestrictionTracker):
+        def try_split(self, unused_fraction_of_remainder):
+          return super(CheckpointOnlyOffsetRestrictionTracker,
+                       self).try_split(0.0)
+
+      return CheckpointOnlyOffsetRestrictionTracker(restriction)
     if self.use_bounded_offset_range:
       return restriction_trackers.OffsetRestrictionTracker(restriction)
     return UnboundedOffsetRestrictionTracker(restriction)

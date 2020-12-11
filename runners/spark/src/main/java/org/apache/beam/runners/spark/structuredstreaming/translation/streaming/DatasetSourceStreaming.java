@@ -65,6 +65,9 @@ import org.apache.spark.sql.types.StructType;
  * its {@link CheckpointMark} in case of failure.
  */
 @SuppressFBWarnings("SE_BAD_FIELD") // make spotbugs happy
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 class DatasetSourceStreaming implements DataSourceV2, MicroBatchReadSupport {
 
   static final String BEAM_SOURCE_OPTION = "beam-source";

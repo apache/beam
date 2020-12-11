@@ -22,7 +22,9 @@ plugins {
 }
 
 applyGoNature()
-applyDockerNature()
+
+evaluationDependsOn(":sdks:java:harness")
+evaluationDependsOn(":sdks:java:io:kafka")
 
 description = "Apache Beam :: SDKs :: Java :: Container"
 
@@ -33,6 +35,8 @@ resolveBuildDependencies.dependsOn ":sdks:go:goBuild"
 
 configurations {
   dockerDependency
+  sdkHarnessLauncher
+  pulledLicenses
 }
 
 dependencies {
@@ -51,19 +55,6 @@ dependencies {
   dockerDependency library.java.kafka_clients
 }
 
-def dockerfileName = project.findProperty('dockerfile') ?: 'Dockerfile'
-
-task copyDockerfileDependencies(type: Copy) {
-  from configurations.dockerDependency
-  rename "slf4j-api.*", "slf4j-api.jar"
-  rename "slf4j-jdk14.*", "slf4j-jdk14.jar"
-  rename 'beam-sdks-java-harness-.*.jar', 'beam-sdks-java-harness.jar'
-  rename 'beam-sdks-java-io-kafka.*.jar', 'beam-sdks-java-io-kafka.jar'
-  rename 'kafka-clients.*.jar', 'kafka-clients.jar'
-  into "build/target"
-}
-
-
 golang {
   packagePath = 'github.com/apache/beam/sdks/java/boot'
   goBuild {
@@ -76,7 +67,6 @@ golang {
 // command: ./gradlew generateLicenseReport
 import com.github.jk1.license.render.*
 licenseReport {
-  outputDir = 'java_third_party_licenses'
   projects = [project,
               project.rootProject.findProject(':sdks:java:harness'),
               project.rootProject.findProject(':sdks:java:io:kafka')]
@@ -86,46 +76,16 @@ licenseReport {
   renderers = [new JsonReportRenderer()]
 }
 
-docker {
-  name containerImageName(
-          name: project.docker_image_default_repo_prefix + "java_sdk",
-          root: project.rootProject.hasProperty(["docker-repository-root"]) ?
-                  project.rootProject["docker-repository-root"] :
-                  project.docker_image_default_repo_root,
-          tag: project.rootProject.hasProperty(["docker-tag"]) ?
-                  project.rootProject["docker-tag"] : project.sdk_version)
-  dockerfile project.file("./${dockerfileName}")
-  files "./build/"
-  buildArgs(['pull_licenses': project.rootProject.hasProperty(["docker-pull-licenses"]) ||
-                     project.rootProject.hasProperty(["isRelease"])])
+task pullLicenses(type: Exec) {
+  dependsOn generateLicenseReport
+  generateLicenseReport.outputs.cacheIf { false }
+
+  commandLine './license_scripts/license_script.sh'
+  outputs.dir('build/target/third_party_licenses')
+  outputs.dir('build/target/java_third_party_licenses')
 }
 
-if (project.rootProject.hasProperty(["docker-pull-licenses"]) ||
-        project.rootProject.hasProperty(["isRelease"])) {
-  task pullLicenses(type: Exec) {
-    workingDir project.rootProject.projectDir
-    commandLine './sdks/java/container/license_scripts/license_script.sh'
-    doLast {
-      file('third_party_licenses').deleteDir()
-      file('java_third_party_licenses').deleteDir()
-    }
-  }
-  dockerPrepare.dependsOn pullLicenses
-
-  task copyGolangLicenses(type: Copy) {
-    from "${project(':release:go-licenses:java').buildDir}/output"
-    into "build/target/go-licenses"
-    dependsOn ':release:go-licenses:java:createLicenses'
-  }
-  dockerPrepare.dependsOn 'copyGolangLicenses'
-} else {
-  task createFile(type: Exec) {
-      executable "sh"
-      args "-c", "mkdir -p build/target/third_party_licenses && touch build/target/third_party_licenses/skip"
-  }
-  dockerPrepare.dependsOn createFile
+artifacts {
+  sdkHarnessLauncher file: file('./build/target'), builtBy: goBuild
+  pulledLicenses file: file('./build/target'), builtBy: pullLicenses
 }
-
-// Ensure that we build the required resources and copy and file dependencies from related projects
-dockerPrepare.dependsOn goBuild
-dockerPrepare.dependsOn copyDockerfileDependencies

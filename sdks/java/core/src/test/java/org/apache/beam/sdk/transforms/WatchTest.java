@@ -81,6 +81,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link Watch}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class WatchTest implements Serializable {
 
   @Rule public transient TestPipeline p = TestPipeline.create();
@@ -334,17 +337,15 @@ public class WatchTest implements Serializable {
             outputs -> {
               Function<TimestampedValue<Integer>, Integer> extractValueFn =
                   new Function<TimestampedValue<Integer>, Integer>() {
-                    @Nullable
                     @Override
-                    public Integer apply(@Nullable TimestampedValue<Integer> input) {
+                    public @Nullable Integer apply(@Nullable TimestampedValue<Integer> input) {
                       return input.getValue();
                     }
                   };
               Function<TimestampedValue<Integer>, Instant> extractTimestampFn =
                   new Function<TimestampedValue<Integer>, Instant>() {
-                    @Nullable
                     @Override
-                    public Instant apply(@Nullable TimestampedValue<Integer> input) {
+                    public @Nullable Instant apply(@Nullable TimestampedValue<Integer> input) {
                       return input.getTimestamp();
                     }
                   };

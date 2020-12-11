@@ -62,6 +62,9 @@ import org.junit.runners.JUnit4;
 
 /** Test PubsubUnboundedSource. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class PubsubUnboundedSourceTest {
   private static final SubscriptionPath SUBSCRIPTION =
       PubsubClient.subscriptionPathFromName("testProject", "testSubscription");

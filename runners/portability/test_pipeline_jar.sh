@@ -68,6 +68,7 @@ command -v docker
 docker -v
 
 # Verify container has already been built
+echo "Checking for Docker image ${PYTHON_CONTAINER_IMAGE}"
 docker images --format "{{.Repository}}:{{.Tag}}" | grep $PYTHON_CONTAINER_IMAGE
 
 # Set up Python environment
@@ -108,7 +109,7 @@ else
 fi
 
 # Create the jar
-OUTPUT_JAR=flink-test-$(date +%Y%m%d-%H%M%S).jar
+OUTPUT_JAR="test-pipeline-${RUNNER}-$(date +%Y%m%d-%H%M%S).jar"
 (python -c "$PIPELINE_PY" \
   --runner "$RUNNER" \
   --"$INPUT_JAR_ARG" "$JOB_SERVER_JAR" \
@@ -116,7 +117,7 @@ OUTPUT_JAR=flink-test-$(date +%Y%m%d-%H%M%S).jar
   --parallelism 1 \
   --sdk_worker_parallelism 1 \
   --environment_type DOCKER \
-  --environment_config=$PYTHON_CONTAINER_IMAGE \
+  --environment_options "docker_container_image=$PYTHON_CONTAINER_IMAGE" \
 ) || TEST_EXIT_CODE=$? # don't fail fast here; clean up before exiting
 
 if [[ "$TEST_EXIT_CODE" -eq 0 ]]; then

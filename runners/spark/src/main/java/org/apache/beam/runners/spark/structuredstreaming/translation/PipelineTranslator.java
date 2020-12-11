@@ -39,6 +39,9 @@ import org.slf4j.LoggerFactory;
  * PipelineTranslatorStreaming}. If we have a batch job, it is instantiated as a {@link
  * PipelineTranslatorBatch}.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public abstract class PipelineTranslator extends Pipeline.PipelineVisitor.Defaults {
   private int depth = 0;
   private static final Logger LOG = LoggerFactory.getLogger(PipelineTranslator.class);

@@ -43,6 +43,7 @@ import org.apache.samza.system.descriptors.GenericInputDescriptor;
 import org.apache.samza.system.descriptors.GenericSystemDescriptor;
 import org.junit.Test;
 
+@SuppressWarnings({"rawtypes"})
 public class TranslationContextTest {
   private final GenericInputDescriptor testInputDescriptor =
       new GenericSystemDescriptor("mockSystem", "mockFactoryClassName")

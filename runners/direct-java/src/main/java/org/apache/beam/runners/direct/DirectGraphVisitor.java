@@ -25,7 +25,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.runners.core.construction.TransformInputs;
-import org.apache.beam.runners.direct.ViewOverrideFactory.WriteView;
+import org.apache.beam.runners.direct.DirectWriteViewVisitor.WriteView;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -47,6 +47,9 @@ import org.slf4j.LoggerFactory;
  * {@link Pipeline}. This is used to schedule consuming {@link PTransform PTransforms} to consume
  * input after the upstream transform has produced and committed output.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class DirectGraphVisitor extends PipelineVisitor.Defaults {
   private static final Logger LOG = LoggerFactory.getLogger(DirectGraphVisitor.class);
 
@@ -119,7 +122,7 @@ class DirectGraphVisitor extends PipelineVisitor.Defaults {
     if (node.getTransform() instanceof ParDo.MultiOutput) {
       consumedViews.addAll(
           ((ParDo.MultiOutput<?, ?>) node.getTransform()).getSideInputs().values());
-    } else if (node.getTransform() instanceof ViewOverrideFactory.WriteView) {
+    } else if (node.getTransform() instanceof WriteView) {
       viewWriters.put(
           ((WriteView) node.getTransform()).getView(), node.toAppliedPTransform(getPipeline()));
     }
@@ -134,7 +137,10 @@ class DirectGraphVisitor extends PipelineVisitor.Defaults {
   }
 
   private AppliedPTransform<?, ?, ?> getAppliedTransform(TransformHierarchy.Node node) {
-    @SuppressWarnings({"rawtypes", "unchecked"})
+    @SuppressWarnings({
+      "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+      "unchecked"
+    })
     AppliedPTransform<?, ?, ?> application = node.toAppliedPTransform(getPipeline());
     return application;
   }

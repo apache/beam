@@ -76,9 +76,18 @@ public class DirectGraphVisitorTest implements Serializable {
             .apply(View.asList());
     PCollectionView<Object> singletonView =
         p.apply("singletonCreate", Create.<Object>of(1, 2, 3)).apply(View.asSingleton());
-    p.replaceAll(
-        DirectRunner.fromOptions(TestPipeline.testingPipelineOptions())
-            .defaultTransformOverrides());
+
+    // Views are not materialized unless they are consumed
+    p.apply(Create.of(1, 2, 3))
+        .apply(
+            ParDo.of(
+                    new DoFn<Integer, Void>() {
+                      @ProcessElement
+                      public void process() {}
+                    })
+                .withSideInputs(listView, singletonView));
+
+    DirectRunner.fromOptions(TestPipeline.testingPipelineOptions()).performRewrites(p);
     p.traverseTopologically(visitor);
     assertThat(visitor.getGraph().getViews(), Matchers.containsInAnyOrder(listView, singletonView));
   }

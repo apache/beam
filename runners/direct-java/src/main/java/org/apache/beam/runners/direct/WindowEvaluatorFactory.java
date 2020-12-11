@@ -34,6 +34,7 @@ import org.joda.time.Instant;
  * The {@link DirectRunner} {@link TransformEvaluatorFactory} for the {@link Window.Assign}
  * primitive {@link PTransform}.
  */
+@SuppressWarnings({"keyfor", "nullness"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class WindowEvaluatorFactory implements TransformEvaluatorFactory {
   private final EvaluationContext evaluationContext;
 

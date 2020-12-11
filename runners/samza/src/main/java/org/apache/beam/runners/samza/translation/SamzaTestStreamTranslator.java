@@ -43,6 +43,7 @@ import org.apache.samza.system.descriptors.GenericSystemDescriptor;
  * {@link
  * org.apache.beam.runners.samza.translation.SamzaTestStreamSystemFactory.SmazaTestStreamSystemConsumer}.
  */
+@SuppressWarnings({"rawtypes"})
 public class SamzaTestStreamTranslator<T> implements TransformTranslator<TestStream<T>> {
 
   @Override

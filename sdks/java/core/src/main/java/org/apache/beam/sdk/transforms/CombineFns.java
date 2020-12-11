@@ -50,6 +50,11 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Static utility methods that create combine function instances. */
+@SuppressWarnings({
+  "initialization",
+  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes"
+})
 public class CombineFns {
 
   /**
@@ -469,7 +474,10 @@ public class CombineFns {
       this.extractInputFns = castedExtractInputFns;
       this.combineInputCoders = combineInputCoders;
 
-      @SuppressWarnings({"rawtypes", "unchecked"})
+      @SuppressWarnings({
+        "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+        "unchecked"
+      })
       List<CombineFnWithContext<Object, Object, Object>> castedCombineFnWithContexts =
           (List) combineFnWithContexts;
       this.combineFnWithContexts = castedCombineFnWithContexts;

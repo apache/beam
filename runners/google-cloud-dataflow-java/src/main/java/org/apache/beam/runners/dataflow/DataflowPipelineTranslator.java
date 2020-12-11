@@ -72,7 +72,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
-import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -120,9 +119,14 @@ import org.slf4j.LoggerFactory;
  * {@link DataflowPipelineTranslator} knows how to translate {@link Pipeline} objects into Cloud
  * Dataflow Service API {@link Job}s.
  */
-@SuppressWarnings({"rawtypes", "unchecked"})
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "unchecked",
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 @VisibleForTesting
 public class DataflowPipelineTranslator {
+
   // Must be kept in sync with their internal counterparts.
   private static final Logger LOG = LoggerFactory.getLogger(DataflowPipelineTranslator.class);
   private static final ObjectMapper MAPPER = new ObjectMapper();
@@ -191,6 +195,7 @@ public class DataflowPipelineTranslator {
    * may be of use to other classes (eg the {@link PTransform} to StepName mapping).
    */
   public static class JobSpecification {
+
     private final Job job;
     private final Map<AppliedPTransform<?, ?, ?>, String> stepNames;
     private final RunnerApi.Pipeline pipelineProto;
@@ -261,6 +266,7 @@ public class DataflowPipelineTranslator {
    * <p>For internal use only.
    */
   class Translator extends PipelineVisitor.Defaults implements TranslationContext {
+
     /**
      * An id generator to be used when giving unique ids for pipeline level constructs. This is
      * purposely wrapped inside of a {@link Supplier} to prevent the incorrect usage of the {@link
@@ -354,7 +360,9 @@ public class DataflowPipelineTranslator {
           if (experiments.contains(GcpOptions.STREAMING_ENGINE_EXPERIMENT)
               || experiments.contains(GcpOptions.WINDMILL_SERVICE_EXPERIMENT)) {
             throw new IllegalArgumentException(
-                "Streaming engine both disabled and enabled: enableStreamingEngine is set to false, but enable_windmill_service and/or enable_streaming_engine are present. It is recommended you only set enableStreamingEngine.");
+                "Streaming engine both disabled and enabled: enableStreamingEngine is set to"
+                    + " false, but enable_windmill_service and/or enable_streaming_engine are"
+                    + " present. It is recommended you only set enableStreamingEngine.");
           }
         }
       }
@@ -430,7 +438,7 @@ public class DataflowPipelineTranslator {
     }
 
     @Override
-    public <InputT extends PInput> Map<TupleTag<?>, PValue> getInputs(
+    public <InputT extends PInput> Map<TupleTag<?>, PCollection<?>> getInputs(
         PTransform<InputT, ?> transform) {
       return getCurrentTransform(transform).getInputs();
     }
@@ -443,7 +451,7 @@ public class DataflowPipelineTranslator {
     }
 
     @Override
-    public <OutputT extends POutput> Map<TupleTag<?>, PValue> getOutputs(
+    public <OutputT extends POutput> Map<TupleTag<?>, PCollection<?>> getOutputs(
         PTransform<?, OutputT> transform) {
       return getCurrentTransform(transform).getOutputs();
     }
@@ -683,6 +691,16 @@ public class DataflowPipelineTranslator {
      */
     private void addOutput(String name, PValue value, Coder<?> valueCoder) {
       translator.registerOutputName(value, name);
+
+      // If the output requires runner determined sharding, also append necessary input properties.
+      if (value instanceof PCollection
+          && translator.runner.doesPCollectionRequireAutoSharding((PCollection<?>) value)) {
+        addInput(PropertyNames.ALLOWS_SHARDABLE_STATE, "true");
+        // Currently we only allow auto-sharding to be enabled through the GroupIntoBatches
+        // transform. So we also add the following property which GroupIntoBatchesDoFn has, to allow
+        // the backend to perform graph optimization.
+        addInput(PropertyNames.PRESERVES_KEYS, "true");
+      }
 
       Map<String, Object> properties = getProperties();
       @Nullable List<Map<String, Object>> outputInfoList = null;
@@ -1071,7 +1089,7 @@ public class DataflowPipelineTranslator {
     ///////////////////////////////////////////////////////////////////////////
     // IO Translation.
 
-    registerTransformTranslator(Read.Bounded.class, new ReadTranslator());
+    registerTransformTranslator(SplittableParDo.PrimitiveBoundedRead.class, new ReadTranslator());
 
     registerTransformTranslator(
         TestStream.class,
@@ -1268,15 +1286,10 @@ public class DataflowPipelineTranslator {
   }
 
   private static void translateOutputs(
-      Map<TupleTag<?>, PValue> outputs, StepTranslationContext stepContext) {
-    for (Map.Entry<TupleTag<?>, PValue> taggedOutput : outputs.entrySet()) {
+      Map<TupleTag<?>, PCollection<?>> outputs, StepTranslationContext stepContext) {
+    for (Map.Entry<TupleTag<?>, PCollection<?>> taggedOutput : outputs.entrySet()) {
       TupleTag<?> tag = taggedOutput.getKey();
-      checkArgument(
-          taggedOutput.getValue() instanceof PCollection,
-          "Non %s returned from Multi-output %s",
-          PCollection.class.getSimpleName(),
-          stepContext);
-      stepContext.addOutput(tag.getId(), (PCollection<?>) taggedOutput.getValue());
+      stepContext.addOutput(tag.getId(), taggedOutput.getValue());
     }
   }
 

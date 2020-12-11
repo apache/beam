@@ -18,8 +18,6 @@
 package org.apache.beam.sdk.transforms.splittabledofn;
 
 import com.google.auto.value.AutoValue;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -27,11 +25,16 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * Manages access to the restriction and keeps track of its claimed part for a <a
  * href="https://s.apache.org/splittable-do-fn">splittable</a> {@link DoFn}.
  *
+ * <p>The restriction may be modified by different threads, however the system will ensure
+ * sufficient locking such that no methods on the restriction tracker will be called concurrently.
+ *
  * <p>{@link RestrictionTracker}s should implement {@link HasProgress} otherwise poor auto-scaling
  * of workers and/or splitting may result if the progress is an inaccurate representation of the
  * known amount of completed and remaining work.
  */
-@Experimental(Kind.SPLITTABLE_DO_FN)
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public abstract class RestrictionTracker<RestrictionT, PositionT> {
   /**
    * Attempts to claim the block of work in the current restriction identified by the given
@@ -46,12 +49,20 @@ public abstract class RestrictionTracker<RestrictionT, PositionT> {
    *       call to this method).
    *   <li>{@link RestrictionTracker#checkDone} MUST succeed.
    * </ul>
+   *
+   * This method is <b>required</b> to be implemented.
    */
   public abstract boolean tryClaim(PositionT position);
 
   /**
    * Returns a restriction accurately describing the full range of work the current {@link
    * DoFn.ProcessElement} call will do, including already completed work.
+   *
+   * <p>The current restriction returned by method may be updated dynamically due to due to
+   * concurrent invocation of other methods of the {@link RestrictionTracker}, For example, {@link
+   * RestrictionTracker#trySplit(double)}.
+   *
+   * <p>This method is <b>required</b> to be implemented.
    */
   public abstract RestrictionT currentRestriction();
 
@@ -80,6 +91,9 @@ public abstract class RestrictionTracker<RestrictionT, PositionT> {
    * <p>The API is recommended to be implemented for a batch pipeline to improve parallel processing
    * performance.
    *
+   * <p>The API is recommended to be implemented for batch pipeline given that it is very important
+   * for pipeline scaling and end to end pipeline execution.
+   *
    * <p>The API is required to be implemented for a streaming pipeline.
    *
    * @param fractionOfRemainder A hint as to the fraction of work the primary restriction should
@@ -91,10 +105,15 @@ public abstract class RestrictionTracker<RestrictionT, PositionT> {
   public abstract @Nullable SplitResult<RestrictionT> trySplit(double fractionOfRemainder);
 
   /**
-   * Called by the runner after {@link DoFn.ProcessElement} returns.
+   * Checks whether the restriction has been fully processed.
+   *
+   * <p>Called by the SDK harness after {@link DoFn.ProcessElement} returns.
    *
    * <p>Must throw an exception with an informative error message, if there is still any unclaimed
    * work remaining in the restriction.
+   *
+   * <p>This method is <b>required</b> to be implemented in order to prevent data loss during SDK
+   * processing.
    */
   public abstract void checkDone() throws IllegalStateException;
 
@@ -113,6 +132,8 @@ public abstract class RestrictionTracker<RestrictionT, PositionT> {
    * <p>It is valid to return {@link IsBounded#BOUNDED} after returning {@link IsBounded#UNBOUNDED}
    * once the end of a restriction is discovered. It is not valid to return {@link
    * IsBounded#UNBOUNDED} after returning {@link IsBounded#BOUNDED}.
+   *
+   * <p>This method is <b>required</b> to be implemented.
    */
   public abstract IsBounded isBounded();
 

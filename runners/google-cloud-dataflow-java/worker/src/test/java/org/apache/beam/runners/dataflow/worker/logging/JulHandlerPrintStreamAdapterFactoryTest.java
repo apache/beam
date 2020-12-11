@@ -37,6 +37,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link JulHandlerPrintStreamAdapterFactory}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class JulHandlerPrintStreamAdapterFactoryTest {
   private static final String LOGGER_NAME = "test";
 
@@ -131,6 +134,14 @@ public class JulHandlerPrintStreamAdapterFactoryTest {
     byte[] newlineMsgBytes = newlineMsg.getBytes(Charset.defaultCharset());
     printStream.write(newlineMsgBytes, 0, newlineMsgBytes.length);
     assertThat(handler.getLogs(), hasLogItem(msg + newlineMsg));
+  }
+
+  @Test
+  public void testLogThrowable() {
+    PrintStream printStream = createPrintStreamAdapter();
+    Throwable t = new RuntimeException("Test error");
+    t.printStackTrace(printStream);
+    assertThat(handler.getLogs(), hasLogItem("testLogThrowable"));
   }
 
   @Test

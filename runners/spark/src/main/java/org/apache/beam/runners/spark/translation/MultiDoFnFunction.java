@@ -60,6 +60,9 @@ import scala.Tuple2;
  * @param <InputT> Input type for DoFunction.
  * @param <OutputT> Output type for DoFunction.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class MultiDoFnFunction<InputT, OutputT>
     implements PairFlatMapFunction<Iterator<WindowedValue<InputT>>, TupleTag<?>, WindowedValue<?>> {
 

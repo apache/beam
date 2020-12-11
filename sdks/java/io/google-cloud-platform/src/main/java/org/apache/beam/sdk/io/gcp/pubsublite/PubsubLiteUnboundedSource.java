@@ -17,17 +17,17 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsublite;
 
-import static com.google.cloud.pubsublite.internal.Preconditions.checkState;
+import static java.lang.Math.min;
 
 import com.google.cloud.pubsublite.Offset;
 import com.google.cloud.pubsublite.Partition;
-import com.google.cloud.pubsublite.internal.wire.Committer;
-import com.google.cloud.pubsublite.internal.wire.SubscriberFactory;
+import com.google.cloud.pubsublite.internal.BufferingPullSubscriber;
+import com.google.cloud.pubsublite.proto.Cursor;
+import com.google.cloud.pubsublite.proto.SeekRequest;
 import com.google.cloud.pubsublite.proto.SequencedMessage;
-import io.grpc.StatusException;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
@@ -36,10 +36,12 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** An UnboundedSource of Pub/Sub Lite SequencedMessages. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class PubsubLiteUnboundedSource extends UnboundedSource<SequencedMessage, OffsetCheckpointMark> {
   private final SubscriberOptions subscriberOptions;
 
@@ -50,22 +52,27 @@ class PubsubLiteUnboundedSource extends UnboundedSource<SequencedMessage, Offset
   @Override
   public List<? extends UnboundedSource<SequencedMessage, OffsetCheckpointMark>> split(
       int desiredNumSplits, PipelineOptions options) {
+    ArrayList<ArrayList<Partition>> partitionPartitions =
+        new ArrayList<>(min(desiredNumSplits, subscriberOptions.partitions().size()));
+    for (int i = 0; i < desiredNumSplits; i++) {
+      partitionPartitions.add(new ArrayList<>());
+    }
+    int counter = 0;
+    for (Partition partition : subscriberOptions.partitions()) {
+      partitionPartitions.get(counter % desiredNumSplits).add(partition);
+      ++counter;
+    }
     ImmutableList.Builder<PubsubLiteUnboundedSource> builder = ImmutableList.builder();
-    for (List<Partition> partitionSubset :
-        Iterables.partition(subscriberOptions.partitions(), desiredNumSplits)) {
+    for (List<Partition> partitionSubset : partitionPartitions) {
       if (partitionSubset.isEmpty()) {
         continue;
       }
-      try {
-        builder.add(
-            new PubsubLiteUnboundedSource(
-                subscriberOptions
-                    .toBuilder()
-                    .setPartitions(ImmutableSet.copyOf(partitionSubset))
-                    .build()));
-      } catch (StatusException e) {
-        throw e.getStatus().asRuntimeException();
-      }
+      builder.add(
+          new PubsubLiteUnboundedSource(
+              subscriberOptions
+                  .toBuilder()
+                  .setPartitions(ImmutableSet.copyOf(partitionSubset))
+                  .build()));
     }
     return builder.build();
   }
@@ -74,34 +81,36 @@ class PubsubLiteUnboundedSource extends UnboundedSource<SequencedMessage, Offset
   public UnboundedReader<SequencedMessage> createReader(
       PipelineOptions options, @Nullable OffsetCheckpointMark checkpointMark) throws IOException {
     try {
-      Map<Partition, SubscriberFactory> subscriberFactories =
-          subscriberOptions.getSubscriberFactories();
-      Map<Partition, Committer> committers = subscriberOptions.getCommitters();
       ImmutableMap.Builder<Partition, PubsubLiteUnboundedReader.SubscriberState> statesBuilder =
           ImmutableMap.builder();
-      for (Partition partition : subscriberFactories.keySet()) {
-        checkState(committers.containsKey(partition));
+      for (Partition partition : subscriberOptions.partitions()) {
         PubsubLiteUnboundedReader.SubscriberState state =
             new PubsubLiteUnboundedReader.SubscriberState();
-        state.committer = committers.get(partition);
+        state.committer = subscriberOptions.getCommitter(partition);
         if (checkpointMark != null && checkpointMark.partitionOffsetMap.containsKey(partition)) {
           Offset checkpointed = checkpointMark.partitionOffsetMap.get(partition);
           state.lastDelivered = Optional.of(checkpointed);
           state.subscriber =
-              new BufferingPullSubscriber(
-                  subscriberFactories.get(partition),
-                  subscriberOptions.flowControlSettings(),
-                  checkpointed);
+              new TranslatingPullSubscriber(
+                  new BufferingPullSubscriber(
+                      subscriberOptions.getSubscriberFactory(partition),
+                      subscriberOptions.flowControlSettings(),
+                      SeekRequest.newBuilder()
+                          .setCursor(Cursor.newBuilder().setOffset(checkpointed.value()))
+                          .build()));
         } else {
           state.subscriber =
-              new BufferingPullSubscriber(
-                  subscriberFactories.get(partition), subscriberOptions.flowControlSettings());
+              new TranslatingPullSubscriber(
+                  new BufferingPullSubscriber(
+                      subscriberOptions.getSubscriberFactory(partition),
+                      subscriberOptions.flowControlSettings()));
         }
         statesBuilder.put(partition, state);
       }
-      return new PubsubLiteUnboundedReader(this, statesBuilder.build());
-    } catch (StatusException e) {
-      throw new IOException(e);
+      return new PubsubLiteUnboundedReader(
+          this, statesBuilder.build(), subscriberOptions.getBacklogReader());
+    } catch (Throwable t) {
+      throw new IOException(t);
     }
   }
 

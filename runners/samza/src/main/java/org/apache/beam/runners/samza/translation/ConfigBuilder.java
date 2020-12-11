@@ -36,7 +36,7 @@ import org.apache.beam.runners.samza.BeamJobCoordinatorRunner;
 import org.apache.beam.runners.samza.SamzaExecutionEnvironment;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.container.BeamContainerRunner;
-import org.apache.beam.runners.samza.runtime.SamzaStateInternals;
+import org.apache.beam.runners.samza.runtime.SamzaStoreStateInternals;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.samza.config.ApplicationConfig;
@@ -56,6 +56,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Builder class to generate configs for BEAM samza runner during runtime. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ConfigBuilder {
   private static final Logger LOG = LoggerFactory.getLogger(ConfigBuilder.class);
 
@@ -243,10 +246,10 @@ public class ConfigBuilder {
             .put("stores.beamStore.msg.serde", "stateValueSerde")
             .put(
                 "serializers.registry.stateValueSerde.class",
-                SamzaStateInternals.StateValueSerdeFactory.class.getName())
+                SamzaStoreStateInternals.StateValueSerdeFactory.class.getName())
             .put(
                 "serializers.registry.byteArraySerde.class",
-                SamzaStateInternals.ByteArraySerdeFactory.class.getName());
+                SamzaStoreStateInternals.ByteArraySerdeFactory.class.getName());
 
     // if config does not contain "stores.beamStore.factory" at this moment,
     // then it is a stateless job.

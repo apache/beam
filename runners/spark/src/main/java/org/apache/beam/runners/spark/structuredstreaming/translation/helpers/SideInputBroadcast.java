@@ -24,6 +24,9 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.spark.broadcast.Broadcast;
 
 /** Broadcast helper for side inputs. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SideInputBroadcast implements Serializable {
 
   private final Map<String, Broadcast<?>> bcast = new HashMap<>();

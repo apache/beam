@@ -28,9 +28,11 @@ import com.google.api.client.util.BackOffUtils;
 import com.google.api.client.util.ExponentialBackOff;
 import com.google.api.client.util.Sleeper;
 import com.google.api.gax.core.FixedCredentialsProvider;
+import com.google.api.gax.retrying.RetrySettings;
 import com.google.api.gax.rpc.FixedHeaderProvider;
 import com.google.api.gax.rpc.HeaderProvider;
 import com.google.api.gax.rpc.ServerStream;
+import com.google.api.gax.rpc.UnaryCallSettings;
 import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.Bigquery.Tables;
 import com.google.api.services.bigquery.model.Dataset;
@@ -44,10 +46,11 @@ import com.google.api.services.bigquery.model.JobConfigurationTableCopy;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.JobStatistics;
 import com.google.api.services.bigquery.model.JobStatus;
+import com.google.api.services.bigquery.model.QueryRequest;
+import com.google.api.services.bigquery.model.QueryResponse;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableDataInsertAllRequest;
 import com.google.api.services.bigquery.model.TableDataInsertAllResponse;
-import com.google.api.services.bigquery.model.TableDataList;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.auth.Credentials;
@@ -78,8 +81,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.extensions.gcp.auth.NullCredentialInitializer;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.extensions.gcp.util.BackOffAdapter;
@@ -94,6 +95,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Histogram;
 import org.apache.beam.sdk.util.ReleaseInfo;
+import org.apache.beam.sdk.values.FailsafeValueInSingleWindow;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -107,6 +109,7 @@ import org.slf4j.LoggerFactory;
  * An implementation of {@link BigQueryServices} that actually communicates with the cloud BigQuery
  * service.
  */
+@SuppressWarnings({"keyfor", "nullness"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class BigQueryServicesImpl implements BigQueryServices {
 
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryServicesImpl.class);
@@ -273,7 +276,7 @@ class BigQueryServicesImpl implements BigQueryServices {
       Exception lastException;
       do {
         try {
-          client.jobs().insert(jobRef.getProjectId(), job).execute();
+          client.jobs().insert(jobRef.getProjectId(), job).setPrettyPrint(false).execute();
           LOG.info(
               "Started BigQuery job: {}.\n{}",
               jobRef,
@@ -316,6 +319,7 @@ class BigQueryServicesImpl implements BigQueryServices {
                   .jobs()
                   .get(jobRef.getProjectId(), jobRef.getJobId())
                   .setLocation(jobRef.getLocation())
+                  .setPrettyPrint(false)
                   .execute();
           if (job == null) {
             LOG.info("Still waiting for BigQuery job {} to start", jobRef);
@@ -359,7 +363,7 @@ class BigQueryServicesImpl implements BigQueryServices {
               .setJobReference(jobRef)
               .setConfiguration(new JobConfiguration().setQuery(queryConfig).setDryRun(true));
       return executeWithRetries(
-              client.jobs().insert(projectId, job),
+              client.jobs().insert(projectId, job).setPrettyPrint(false),
               String.format(
                   "Unable to dry run query: %s, aborting after %d retries.",
                   queryConfig, MAX_RPC_RETRIES),
@@ -392,6 +396,7 @@ class BigQueryServicesImpl implements BigQueryServices {
               .jobs()
               .get(jobRef.getProjectId(), jobId)
               .setLocation(jobRef.getLocation())
+              .setPrettyPrint(false)
               .execute();
         } catch (GoogleJsonResponseException e) {
           if (errorExtractor.itemNotFound(e)) {
@@ -496,7 +501,10 @@ class BigQueryServicesImpl implements BigQueryServices {
         TableReference ref, @Nullable List<String> selectedFields, BackOff backoff, Sleeper sleeper)
         throws IOException, InterruptedException {
       Tables.Get get =
-          client.tables().get(ref.getProjectId(), ref.getDatasetId(), ref.getTableId());
+          client
+              .tables()
+              .get(ref.getProjectId(), ref.getDatasetId(), ref.getTableId())
+              .setPrettyPrint(false);
       if (selectedFields != null && !selectedFields.isEmpty()) {
         get.setSelectedFields(String.join(",", selectedFields));
       }
@@ -559,6 +567,7 @@ class BigQueryServicesImpl implements BigQueryServices {
                   table.getTableReference().getProjectId(),
                   table.getTableReference().getDatasetId(),
                   table)
+              .setPrettyPrint(false)
               .execute();
         } catch (IOException e) {
           ApiErrorExtractor extractor = new ApiErrorExtractor();
@@ -620,18 +629,30 @@ class BigQueryServicesImpl implements BigQueryServices {
     @VisibleForTesting
     boolean isTableEmpty(TableReference tableRef, BackOff backoff, Sleeper sleeper)
         throws IOException, InterruptedException {
-      TableDataList dataList =
+      QueryResponse response =
           executeWithRetries(
               client
-                  .tabledata()
-                  .list(tableRef.getProjectId(), tableRef.getDatasetId(), tableRef.getTableId()),
+                  .jobs()
+                  .query(
+                      tableRef.getProjectId(),
+                      new QueryRequest()
+                          .setQuery(
+                              // Attempts to fetch a single row, if found returns false,
+                              // otherwise empty result. Runs quickly on large datasets.
+                              "SELECT false FROM (SELECT AS STRUCT * FROM `"
+                                  + tableRef.getDatasetId()
+                                  + "`.`"
+                                  + tableRef.getTableId()
+                                  + "` LIMIT 1) AS i WHERE i IS NOT NULL")
+                          .setUseLegacySql(false))
+                  .setPrettyPrint(false),
               String.format(
                   "Unable to list table data: %s, aborting after %d retries.",
                   tableRef.getTableId(), MAX_RPC_RETRIES),
               sleeper,
               backoff,
               DONT_RETRY_NOT_FOUND);
-      return dataList.getRows() == null || dataList.getRows().isEmpty();
+      return response.getRows() == null || response.getRows().isEmpty();
     }
 
     /**
@@ -645,7 +666,7 @@ class BigQueryServicesImpl implements BigQueryServices {
     public Dataset getDataset(String projectId, String datasetId)
         throws IOException, InterruptedException {
       return executeWithRetries(
-          client.datasets().get(projectId, datasetId),
+          client.datasets().get(projectId, datasetId).setPrettyPrint(false),
           String.format(
               "Unable to get dataset: %s, aborting after %d retries.", datasetId, MAX_RPC_RETRIES),
           Sleeper.DEFAULT,
@@ -705,7 +726,7 @@ class BigQueryServicesImpl implements BigQueryServices {
       Exception lastException;
       do {
         try {
-          client.datasets().insert(projectId, dataset).execute();
+          client.datasets().insert(projectId, dataset).setPrettyPrint(false).execute();
           return; // SUCCEEDED
         } catch (GoogleJsonResponseException e) {
           if (errorExtractor.itemAlreadyExists(e)) {
@@ -747,7 +768,7 @@ class BigQueryServicesImpl implements BigQueryServices {
     @VisibleForTesting
     <T> long insertAll(
         TableReference ref,
-        List<ValueInSingleWindow<TableRow>> rowList,
+        List<FailsafeValueInSingleWindow<TableRow, TableRow>> rowList,
         @Nullable List<String> insertIdList,
         BackOff backoff,
         FluentBackoff rateLimitBackoffFactory,
@@ -776,13 +797,13 @@ class BigQueryServicesImpl implements BigQueryServices {
       List<TableDataInsertAllResponse.InsertErrors> allErrors = new ArrayList<>();
       // These lists contain the rows to publish. Initially the contain the entire list.
       // If there are failures, they will contain only the failed rows to be retried.
-      List<ValueInSingleWindow<TableRow>> rowsToPublish = rowList;
+      List<FailsafeValueInSingleWindow<TableRow, TableRow>> rowsToPublish = rowList;
       List<String> idsToPublish = null;
       if (!ignoreInsertIds) {
         idsToPublish = insertIdList;
       }
       while (true) {
-        List<ValueInSingleWindow<TableRow>> retryRows = new ArrayList<>();
+        List<FailsafeValueInSingleWindow<TableRow, TableRow>> retryRows = new ArrayList<>();
         List<String> retryIds = (idsToPublish != null) ? new ArrayList<>() : null;
 
         int strideIndex = 0;
@@ -821,7 +842,8 @@ class BigQueryServicesImpl implements BigQueryServices {
             final Bigquery.Tabledata.InsertAll insert =
                 client
                     .tabledata()
-                    .insertAll(ref.getProjectId(), ref.getDatasetId(), ref.getTableId(), content);
+                    .insertAll(ref.getProjectId(), ref.getDatasetId(), ref.getTableId(), content)
+                    .setPrettyPrint(false);
 
             futures.add(
                 executor.submit(
@@ -938,7 +960,7 @@ class BigQueryServicesImpl implements BigQueryServices {
     @Override
     public <T> long insertAll(
         TableReference ref,
-        List<ValueInSingleWindow<TableRow>> rowList,
+        List<FailsafeValueInSingleWindow<TableRow, TableRow>> rowList,
         @Nullable List<String> insertIdList,
         InsertRetryPolicy retryPolicy,
         List<ValueInSingleWindow<T>> failedInserts,
@@ -985,7 +1007,8 @@ class BigQueryServicesImpl implements BigQueryServices {
                   tableReference.getProjectId(),
                   tableReference.getDatasetId(),
                   tableReference.getTableId(),
-                  table),
+                  table)
+              .setPrettyPrint(false),
           String.format(
               "Unable to patch table description: %s, aborting after %d retries.",
               tableReference, MAX_RPC_RETRIES),
@@ -1096,7 +1119,6 @@ class BigQueryServicesImpl implements BigQueryServices {
     }
   }
 
-  @Experimental(Kind.SOURCE_SINK)
   static class StorageClientImpl implements StorageClient {
 
     private static final HeaderProvider USER_AGENT_HEADER_PROVIDER =
@@ -1106,15 +1128,27 @@ class BigQueryServicesImpl implements BigQueryServices {
     private final BigQueryReadClient client;
 
     private StorageClientImpl(BigQueryOptions options) throws IOException {
-      BigQueryReadSettings settings =
+      BigQueryReadSettings.Builder builder =
           BigQueryReadSettings.newBuilder()
               .setCredentialsProvider(FixedCredentialsProvider.create(options.getGcpCredential()))
               .setTransportChannelProvider(
                   BigQueryReadSettings.defaultGrpcTransportProviderBuilder()
                       .setHeaderProvider(USER_AGENT_HEADER_PROVIDER)
-                      .build())
-              .build();
-      this.client = BigQueryReadClient.create(settings);
+                      .build());
+
+      UnaryCallSettings.Builder<CreateReadSessionRequest, ReadSession> createReadSessionSettings =
+          builder.getStubSettingsBuilder().createReadSessionSettings();
+
+      RetrySettings.Builder retrySettings =
+          createReadSessionSettings
+              .getRetrySettings()
+              .toBuilder()
+              .setInitialRpcTimeout(org.threeten.bp.Duration.ofHours(2))
+              .setMaxRpcTimeout(org.threeten.bp.Duration.ofHours(2))
+              .setTotalTimeout(org.threeten.bp.Duration.ofHours(2));
+
+      createReadSessionSettings.setRetrySettings(retrySettings.build());
+      this.client = BigQueryReadClient.create(builder.build());
     }
 
     @Override

@@ -32,12 +32,15 @@ import logging
 import os
 import sys
 import tempfile
+from collections.abc import Iterable
 
 import apache_beam as beam
 from apache_beam.runners import runner
 from apache_beam.runners.interactive import cache_manager as cache
 from apache_beam.runners.interactive import samza_cache_manager as samza_cache
 from apache_beam.runners.interactive.messaging.interactive_environment_inspector import InteractiveEnvironmentInspector
+from apache_beam.runners.interactive.recording_manager import RecordingManager
+from apache_beam.runners.interactive.user_pipeline_tracker import UserPipelineTracker
 from apache_beam.runners.interactive.utils import register_ipython_log_handler
 from apache_beam.utils.interactive_utils import is_in_ipython
 from apache_beam.utils.interactive_utils import is_in_notebook
@@ -137,6 +140,8 @@ class InteractiveEnvironment(object):
     # PCollection cache for each pipeline. Each key is a stringified user
     # defined pipeline instance's id.
     self._cache_managers = {}
+    # Holds RecordingManagers keyed by pipeline instance id.
+    self._recording_managers = {}
     # Holds class instances, module object, string of module names.
     self._watching_set = set()
     # Holds variables list of (Dict[str, object]).
@@ -161,7 +166,8 @@ class InteractiveEnvironment(object):
     # the gRPC server serves.
     self._test_stream_service_controllers = {}
     self._cached_source_signature = {}
-    self._tracked_user_pipelines = set()
+    self._tracked_user_pipelines = UserPipelineTracker()
+
     # Tracks the computation completeness of PCollections. PCollections tracked
     # here don't need to be re-computed when data introspection is needed.
     self._computed_pcolls = set()
@@ -200,10 +206,6 @@ class InteractiveEnvironment(object):
           'ipython kernel is not connected any notebook frontend.')
     if self._is_in_notebook:
       self.load_jquery_with_datatable()
-      self.import_html_to_head([
-          'https://raw.githubusercontent.com/PAIR-code/facets/1.0.0/facets-dist'
-          '/facets-jupyter.html'
-      ])
       register_ipython_log_handler()
 
     # A singleton inspector instance to message information of current
@@ -273,11 +275,27 @@ class InteractiveEnvironment(object):
         if cache_manager:
           cache_manager.cleanup()
 
+    self.evict_recording_manager(pipeline)
     self.evict_background_caching_job(pipeline)
     self.evict_test_stream_service_controller(pipeline)
     self.evict_computed_pcollections(pipeline)
     self.evict_cached_source_signature(pipeline)
     self.evict_pipeline_result(pipeline)
+    self.evict_tracked_pipelines(pipeline)
+
+  def _track_user_pipelines(self, watchable):
+    """Tracks user pipelines from the given watchable."""
+
+    if isinstance(watchable, beam.Pipeline):
+      self._tracked_user_pipelines.add_user_pipeline(watchable)
+    elif isinstance(watchable, dict):
+      for v in watchable.values():
+        if isinstance(v, beam.Pipeline):
+          self._tracked_user_pipelines.add_user_pipeline(v)
+    elif isinstance(watchable, Iterable):
+      for v in watchable:
+        if isinstance(v, beam.Pipeline):
+          self._tracked_user_pipelines.add_user_pipeline(v)
 
   def watch(self, watchable):
     """Watches a watchable.
@@ -288,6 +306,8 @@ class InteractiveEnvironment(object):
     matter since they are different instances. Duplicated variables are also
     allowed when watching.
     """
+    self._track_user_pipelines(watchable)
+
     if isinstance(watchable, dict):
       self._watching_dict_list.append(watchable.items())
     else:
@@ -351,6 +371,57 @@ class InteractiveEnvironment(object):
     if pipeline:
       return self._cache_managers.pop(str(id(pipeline)), None)
     self._cache_managers.clear()
+
+  def set_recording_manager(self, recording_manager, pipeline):
+    """Sets the recording manager for the given pipeline."""
+    if self.get_recording_manager(pipeline) is recording_manager:
+      # NOOP if setting to the same recording_manager.
+      return
+    self._recording_managers[str(id(pipeline))] = recording_manager
+
+  def get_recording_manager(self, pipeline, create_if_absent=False):
+    """Gets the recording manager for the given pipeline."""
+    recording_manager = self._recording_managers.get(str(id(pipeline)), None)
+    if not recording_manager and create_if_absent:
+      # Get the pipeline variable name for the user. This is useful if the user
+      # has multiple pipelines.
+      pipeline_var = ''
+      for w in self.watching():
+        for var, val in w:
+          if val is pipeline:
+            pipeline_var = var
+            break
+      recording_manager = RecordingManager(pipeline, pipeline_var)
+      self._recording_managers[str(id(pipeline))] = recording_manager
+    return recording_manager
+
+  def evict_recording_manager(self, pipeline):
+    """Evicts the recording manager for the given pipeline.
+
+    This stops the background caching job and clears the cache.
+    Noop if the pipeline is absent from the environment. If no
+    pipeline is specified, evicts for all pipelines.
+    """
+    if not pipeline:
+      for rm in self._recording_managers.values():
+        rm.cancel()
+        rm.clear()
+      self._recording_managers = {}
+      return
+
+    recording_manager = self.get_recording_manager(pipeline)
+    if recording_manager:
+      recording_manager.cancel()
+      recording_manager.clear()
+      del self._recording_managers[str(id(pipeline))]
+
+  def describe_all_recordings(self):
+    """Returns a description of the recording for all watched pipelnes."""
+    return {
+        self.pipeline_id_to_pipeline(pid): rm.describe()
+        for pid,
+        rm in self._recording_managers.items()
+    }
 
   def set_pipeline_result(self, pipeline, result):
     """Sets the pipeline run result. Adds one if absent. Otherwise, replace."""
@@ -463,12 +534,12 @@ class InteractiveEnvironment(object):
     function also clears up internal states for those anonymous pipelines once
     all their PCollections are anonymous.
     """
-    self._tracked_user_pipelines = set()
     for watching in self.watching():
       for _, val in watching:
         if isinstance(val, beam.pipeline.Pipeline):
-          self._tracked_user_pipelines.add(val)
+          self._tracked_user_pipelines.add_user_pipeline(val)
           _ = self.get_cache_manager(val, create_if_absent=True)
+          _ = self.get_recording_manager(val, create_if_absent=True)
     all_tracked_pipeline_ids = set(self._background_caching_jobs.keys()).union(
         set(self._test_stream_service_controllers.keys()),
         set(self._cache_managers.keys()),
@@ -483,14 +554,32 @@ class InteractiveEnvironment(object):
 
   @property
   def tracked_user_pipelines(self):
-    return self._tracked_user_pipelines
+    """Returns the user pipelines in this environment."""
+    for p in self._tracked_user_pipelines:
+      yield p
+
+  def user_pipeline(self, derived_pipeline):
+    """Returns the user pipeline for the given derived pipeline."""
+    return self._tracked_user_pipelines.get_user_pipeline(derived_pipeline)
+
+  def add_user_pipeline(self, user_pipeline):
+    self._tracked_user_pipelines.add_user_pipeline(user_pipeline)
+
+  def add_derived_pipeline(self, user_pipeline, derived_pipeline):
+    """Adds the derived pipeline to the parent user pipeline."""
+    self._tracked_user_pipelines.add_derived_pipeline(
+        user_pipeline, derived_pipeline)
+
+  def evict_tracked_pipelines(self, user_pipeline):
+    """Evicts the user pipeline and its derived pipelines."""
+    if user_pipeline:
+      self._tracked_user_pipelines.evict(user_pipeline)
 
   def pipeline_id_to_pipeline(self, pid):
     """Converts a pipeline id to a user pipeline.
     """
 
-    pid_to_pipelines = {str(id(p)): p for p in self._tracked_user_pipelines}
-    return pid_to_pipelines[pid]
+    return self._tracked_user_pipelines.get_pipeline(pid)
 
   def mark_pcollection_computed(self, pcolls):
     """Marks computation completeness for the given pcolls.

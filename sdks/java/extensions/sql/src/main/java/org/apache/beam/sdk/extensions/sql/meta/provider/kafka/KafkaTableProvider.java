@@ -45,6 +45,14 @@ import org.apache.beam.sdk.schemas.Schema;
  */
 @AutoService(TableProvider.class)
 public class KafkaTableProvider extends InMemoryMetaTableProvider {
+
+  private enum PayloadFormat {
+    CSV,
+    AVRO,
+    JSON,
+    PROTO
+  }
+
   @Override
   public BeamSqlTable buildBeamSqlTable(Table table) {
     Schema schema = table.getSchema();
@@ -56,7 +64,30 @@ public class KafkaTableProvider extends InMemoryMetaTableProvider {
     for (Object topic : topicsArr) {
       topics.add(topic.toString());
     }
-    return new BeamKafkaCSVTable(schema, bootstrapServers, topics);
+
+    PayloadFormat payloadFormat =
+        properties.containsKey("format")
+            ? PayloadFormat.valueOf(properties.getString("format").toUpperCase())
+            : PayloadFormat.CSV;
+
+    switch (payloadFormat) {
+      case CSV:
+        return new BeamKafkaCSVTable(schema, bootstrapServers, topics);
+      case AVRO:
+        return new BeamKafkaAvroTable(schema, bootstrapServers, topics);
+      case JSON:
+        return new BeamKafkaJsonTable(schema, bootstrapServers, topics);
+      case PROTO:
+        String protoClassName = properties.getString("protoClass");
+        try {
+          Class<?> protoClass = Class.forName(protoClassName);
+          return new BeamKafkaProtoTable(schema, bootstrapServers, topics, protoClass);
+        } catch (ClassNotFoundException e) {
+          throw new IllegalArgumentException("Incorrect proto class provided: " + protoClassName);
+        }
+      default:
+        throw new IllegalArgumentException("Unsupported payload format: " + payloadFormat);
+    }
   }
 
   @Override

@@ -31,11 +31,12 @@
 
     <bigquery.version>@bigquery.version@</bigquery.version>
     <google-api-client.version>@google-api-client.version@</google-api-client.version>
-    <google-http-client.version>@google-http-client.version@</google-http-client.version>
+    <guava.version>@guava.version@</guava.version>
     <hamcrest.version>@hamcrest.version@</hamcrest.version>
     <jackson.version>@jackson.version@</jackson.version>
     <joda.version>@joda.version@</joda.version>
     <junit.version>@junit.version@</junit.version>
+    <libraries-bom.version>@libraries-bom.version@</libraries-bom.version>
     <maven-compiler-plugin.version>@maven-compiler-plugin.version@</maven-compiler-plugin.version>
     <maven-exec-plugin.version>@maven-exec-plugin.version@</maven-exec-plugin.version>
     <maven-jar-plugin.version>@maven-jar-plugin.version@</maven-jar-plugin.version>
@@ -282,6 +283,17 @@
       </dependencies>
     </profile>
     <profile>
+      <id>twister2-runner</id>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.beam</groupId>
+          <artifactId>beam-runners-twister2</artifactId>
+          <version>${beam.version}</version>
+          <scope>runtime</scope>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
       <id>nemo-runner</id>
       <dependencies>
         <dependency>
@@ -368,7 +380,6 @@
     <dependency>
       <groupId>com.google.http-client</groupId>
       <artifactId>google-http-client</artifactId>
-      <version>${google-http-client.version}</version>
       <exclusions>
         <!-- Exclude an old version of guava that is being pulled
              in by a transitive dependency of google-api-client -->
@@ -449,4 +460,22 @@
       <scope>test</scope>
     </dependency>
   </dependencies>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>com.google.guava</groupId>
+        <artifactId>guava</artifactId>
+        <version>${guava.version}</version>  <!-- "-jre" for Java 8 or higher -->
+      </dependency>
+      <!-- GCP libraries BOM sets the version for google http client -->
+      <dependency>
+        <groupId>com.google.cloud</groupId>
+        <artifactId>libraries-bom</artifactId>
+        <version>${libraries-bom.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
 </project>

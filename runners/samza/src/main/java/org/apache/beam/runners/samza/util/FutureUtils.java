@@ -25,6 +25,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /** A util class to handle java 8 {@link CompletableFuture} and {@link CompletionStage}. */
+@SuppressWarnings({"rawtypes"})
 public final class FutureUtils {
   /**
    * Flattens the input future collection and returns a single future comprising the results of all

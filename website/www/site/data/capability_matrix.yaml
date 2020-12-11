@@ -34,6 +34,8 @@ capability-matrix:
       name: Apache Nemo
     - class: jet
       name: Hazelcast Jet
+    - class: twister2
+      name: Twister2
 
   categories:
     - description: What is being computed?
@@ -89,6 +91,10 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: ""
+            - class: twister2
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
         - name: GroupByKey
           values:
             - class: model
@@ -132,6 +138,10 @@ capability-matrix:
               l2: fully supported
               l3: ""
             - class: jet
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
+            - class: twister2
               l1: "Yes"
               l2: fully supported
               l3: ""
@@ -181,6 +191,10 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: ""
+            - class: twister2
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
         - name: Combine
           values:
             - class: model
@@ -227,6 +241,10 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: "Batch mode uses pre-aggregation"
+            - class: twister2
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
         - name: Composite Transforms
           values:
             - class: model
@@ -270,6 +288,10 @@ capability-matrix:
               l2: fully supported
               l3: ""
             - class: jet
+              l1: "Partially"
+              l2: supported via inlining
+              l3: ""
+            - class: twister2
               l1: "Partially"
               l2: supported via inlining
               l3: ""
@@ -319,6 +341,10 @@ capability-matrix:
               l1: "Partially"
               l2: with restrictions
               l3: Supported only when the side input source is bounded and windowing uses global window
+            - class: twister2
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
         - name: Source API
           values:
             - class: model
@@ -362,6 +388,10 @@ capability-matrix:
               l2: fully supported
               l3: ""
             - class: jet
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
+            - class: twister2
               l1: "Yes"
               l2: fully supported
               l3: ""
@@ -411,6 +441,10 @@ capability-matrix:
               l1: "No"
               l2: not implemented
               l3: ""
+            - class: twister2
+              l1: "Partially"
+              l2: supports bounded
+              l3: ""
         - name: Metrics
           values:
             - class: model
@@ -457,6 +491,10 @@ capability-matrix:
               l1: "Partially"
               l2: All metrics types supported, both in batching and streaming mode.
               l3: Doesn't differentiate between committed and attempted values.
+            - class: twister2
+              l1: "No"
+              l2: not implemented
+              l3: ""
         - name: Stateful Processing
           values:
             - class: model
@@ -502,6 +540,10 @@ capability-matrix:
             - class: jet
               l1: "Partially"
               l2: non-merging windows
+              l3: ""
+            - class: twister2
+              l1: "No"
+              l2: not implemented
               l3: ""
     - description: Where in event time?
       anchor: where
@@ -556,6 +598,10 @@ capability-matrix:
               l1: "Yes"
               l2: supported
               l3: ""
+            - class: twister2
+              l1: "Yes"
+              l2: supported
+              l3: ""
         - name: Fixed windows
           values:
             - class: model
@@ -599,6 +645,10 @@ capability-matrix:
               l2: supported
               l3: ""
             - class: jet
+              l1: "Yes"
+              l2: supported
+              l3: ""
+            - class: twister2
               l1: "Yes"
               l2: supported
               l3: ""
@@ -648,6 +698,10 @@ capability-matrix:
               l1: "Yes"
               l2: supported
               l3: ""
+            - class: twister2
+              l1: "Yes"
+              l2: supported
+              l3: ""
         - name: Session windows
           values:
             - class: model
@@ -691,6 +745,10 @@ capability-matrix:
               l2: supported
               l3: ""
             - class: jet
+              l1: "Yes"
+              l2: supported
+              l3: ""
+            - class: twister2
               l1: "Yes"
               l2: supported
               l3: ""
@@ -740,6 +798,10 @@ capability-matrix:
               l1: "Yes"
               l2: supported
               l3: ""
+            - class: twister2
+              l1: "Yes"
+              l2: supported
+              l3: ""
         - name: Custom merging windows
           values:
             - class: model
@@ -786,6 +848,10 @@ capability-matrix:
               l1: "Yes"
               l2: supported
               l3: ""
+            - class: twister2
+              l1: "Yes"
+              l2: supported
+              l3: ""
         - name: Timestamp control
           values:
             - class: model
@@ -829,6 +895,10 @@ capability-matrix:
               l2: supported
               l3: ""
             - class: jet
+              l1: "Yes"
+              l2: supported
+              l3: ""
+            - class: twister2
               l1: "Yes"
               l2: supported
               l3: ""
@@ -886,6 +956,10 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: ""
+            - class: twister2
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
 
         - name: Event-time triggers
           values:
@@ -930,6 +1004,10 @@ capability-matrix:
               l2: fully supported
               l3: ""
             - class: jet
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
+            - class: twister2
               l1: "Yes"
               l2: fully supported
               l3: ""
@@ -980,6 +1058,10 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: ""
+            - class: twister2
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
 
         - name: Count triggers
           values:
@@ -1024,6 +1106,10 @@ capability-matrix:
               l2: fully supported
               l3: ""
             - class: jet
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
+            - class: twister2
               l1: "Yes"
               l2: fully supported
               l3: ""
@@ -1075,6 +1161,10 @@ capability-matrix:
               l1: "No"
               l2: pending model support
               l3: ""
+            - class: twister2
+              l1: "Partially"
+              l2:
+              l3: ""
 
         - name: Composite triggers
           values:
@@ -1121,6 +1211,10 @@ capability-matrix:
             - class: jet
               l1: "Yes"
               l2: fully supported
+              l3: ""
+            - class: twister2
+              l1: "Partially"
+              l2:
               l3: ""
 
         - name: Allowed lateness
@@ -1169,6 +1263,10 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: ""
+            - class: twister2
+              l1: "Partially"
+              l2:
+              l3: ""
 
         - name: Timers
           values:
@@ -1215,6 +1313,10 @@ capability-matrix:
             - class: jet
               l1: "Partially"
               l2: non-merging windows
+              l3: ""
+            - class: twister2
+              l1: "Partially"
+              l2:
               l3: ""
 
     - description: How do refinements relate?
@@ -1270,6 +1372,10 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: ""
+            - class: twister2
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
 
         - name: Accumulating
           values:
@@ -1314,6 +1420,10 @@ capability-matrix:
               l2: fully supported
               l3: ""
             - class: jet
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
+            - class: twister2
               l1: "Yes"
               l2: fully supported
               l3: ""
@@ -1362,6 +1472,10 @@ capability-matrix:
               l2: pending model support
               l3: ""
             - class: jet
+              l1: "No"
+              l2: pending model support
+              l3: ""
+            - class: twister2
               l1: "No"
               l2: pending model support
               l3: ""
@@ -1414,6 +1528,14 @@ capability-matrix:
               l1:
               l2:
               l3:
+            - class: jet
+              l1:
+              l2:
+              l3:
+            - class: twister2
+              l1:
+              l2:
+              l3:
         - name: Checkpoint
           values:
             - class: model
@@ -1457,6 +1579,10 @@ capability-matrix:
               l2:
               l3:
             - class: jet
+              l1:
+              l2:
+              l3:
+            - class: twister2
               l1:
               l2:
               l3:

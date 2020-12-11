@@ -36,10 +36,10 @@ import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
-import org.apache.beam.runners.samza.runtime.SamzaStateInternals.ByteArray;
-import org.apache.beam.runners.samza.runtime.SamzaStateInternals.ByteArraySerdeFactory;
-import org.apache.beam.runners.samza.runtime.SamzaStateInternals.StateValue;
-import org.apache.beam.runners.samza.runtime.SamzaStateInternals.StateValueSerdeFactory;
+import org.apache.beam.runners.samza.runtime.SamzaStoreStateInternals.ByteArray;
+import org.apache.beam.runners.samza.runtime.SamzaStoreStateInternals.ByteArraySerdeFactory;
+import org.apache.beam.runners.samza.runtime.SamzaStoreStateInternals.StateValue;
+import org.apache.beam.runners.samza.runtime.SamzaStoreStateInternals.StateValueSerdeFactory;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -68,6 +68,10 @@ import org.rocksdb.WriteOptions;
  * Tests for {@link SamzaTimerInternalsFactory}. Covers both event-time timers and processing-timer
  * timers.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SamzaTimerInternalsFactoryTest {
   @Rule public transient TemporaryFolder temporaryFolder = new TemporaryFolder();
 
@@ -93,13 +97,13 @@ public class SamzaTimerInternalsFactoryTest {
         new SerializedKeyValueStoreMetrics("beamStore", new MetricsRegistryMap()));
   }
 
-  private static SamzaStateInternals.Factory<?> createNonKeyedStateInternalsFactory(
+  private static SamzaStoreStateInternals.Factory<?> createNonKeyedStateInternalsFactory(
       SamzaPipelineOptions pipelineOptions, KeyValueStore<ByteArray, StateValue<?>> store) {
     final TaskContext context = mock(TaskContext.class);
     when(context.getStore(anyString())).thenReturn((KeyValueStore) store);
     final TupleTag<?> mainOutputTag = new TupleTag<>("output");
 
-    return SamzaStateInternals.createStateInternalFactory(
+    return SamzaStoreStateInternals.createStateInternalFactory(
         "42", null, context, pipelineOptions, null);
   }
 
@@ -109,7 +113,7 @@ public class SamzaTimerInternalsFactoryTest {
       SamzaPipelineOptions pipelineOptions,
       KeyValueStore<ByteArray, StateValue<?>> store) {
 
-    final SamzaStateInternals.Factory<?> nonKeyedStateInternalsFactory =
+    final SamzaStoreStateInternals.Factory<?> nonKeyedStateInternalsFactory =
         createNonKeyedStateInternalsFactory(pipelineOptions, store);
 
     return SamzaTimerInternalsFactory.createTimerInternalFactory(

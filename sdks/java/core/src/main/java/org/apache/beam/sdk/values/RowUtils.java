@@ -39,6 +39,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.joda.time.base.AbstractInstant;
 
+@SuppressWarnings({
+  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes"
+})
 class RowUtils {
   static class RowPosition {
     FieldAccessDescriptor descriptor;
@@ -519,6 +523,10 @@ class RowUtils {
       Object retValue = null;
       FieldOverride override = override(rowPosition);
       if (override != null) {
+        if (override.getOverrideValue() == null) {
+          // This value is supposed to be overridden with null
+          return null;
+        }
         retValue = logicalType.toInputType(logicalType.toBaseType(override.getOverrideValue()));
       } else if (value != null) {
         retValue = logicalType.toInputType(logicalType.toBaseType(value));

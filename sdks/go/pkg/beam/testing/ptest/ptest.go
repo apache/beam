@@ -73,7 +73,16 @@ func Run(p *beam.Pipeline) error {
 	if *Runner == "" {
 		*Runner = defaultRunner
 	}
-	return beam.Run(context.Background(), *Runner, p)
+	_, err := beam.Run(context.Background(), *Runner, p)
+	return err
+}
+
+// RunAndValidate runs a pipeline for testing and validates the result, failing
+// the test if the pipeline fails.
+func RunAndValidate(t *testing.T, p *beam.Pipeline) {
+	if err := Run(p); err != nil {
+		t.Fatalf("Failed to execute job: %v", err)
+	}
 }
 
 // Main is an implementation of testing's TestMain to permit testing

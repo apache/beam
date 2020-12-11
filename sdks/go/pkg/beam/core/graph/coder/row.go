@@ -296,6 +296,7 @@ func containerEncoderForType(t reflect.Type) func(reflect.Value, io.Writer) erro
 }
 
 type typeEncoderReflect struct {
+	debug  []string
 	fields []func(reflect.Value, io.Writer) error
 }
 
@@ -303,6 +304,7 @@ type typeEncoderReflect struct {
 func encoderForStructReflect(t reflect.Type) func(reflect.Value, io.Writer) error {
 	var coder typeEncoderReflect
 	for i := 0; i < t.NumField(); i++ {
+		coder.debug = append(coder.debug, t.Field(i).Type.Name())
 		coder.fields = append(coder.fields, encoderForSingleTypeReflect(t.Field(i).Type))
 	}
 
@@ -320,7 +322,7 @@ func encoderForStructReflect(t reflect.Type) func(reflect.Value, io.Writer) erro
 				}
 			}
 			if err := f(rvf, w); err != nil {
-				return err
+				return errors.Wrapf(err, "encoding %v, expected: %v", rvf.Type(), coder.debug[i])
 			}
 		}
 		return nil

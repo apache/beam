@@ -30,6 +30,7 @@ from apache_beam.dataframe import expressions
 from apache_beam.dataframe import frame_base
 from apache_beam.dataframe import transforms
 from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 
 
 def sort_by_value_and_drop_index(df):
@@ -71,13 +72,16 @@ def df_equal_to(expected):
 AnimalSpeed = typing.NamedTuple(
     'AnimalSpeed', [('Animal', unicode), ('Speed', int)])
 coders.registry.register_coder(AnimalSpeed, coders.RowCoder)
+Nested = typing.NamedTuple(
+    'Nested', [('id', int), ('animal_speed', AnimalSpeed)])
+coders.registry.register_coder(Nested, coders.RowCoder)
 
 
 class TransformTest(unittest.TestCase):
   def run_scenario(self, input, func):
     expected = func(input)
 
-    empty = input[0:0]
+    empty = input.iloc[0:0]
     input_placeholder = expressions.PlaceholderExpression(empty)
     input_deferred = frame_base.DeferredFrame.wrap(input_placeholder)
     actual_deferred = func(input_deferred)._expr.evaluate_at(
@@ -86,9 +90,23 @@ class TransformTest(unittest.TestCase):
     check_correct(expected, actual_deferred)
 
     with beam.Pipeline() as p:
-      input_pcoll = p | beam.Create([input[::2], input[1::2]])
-      output_pcoll = input_pcoll | transforms.DataframeTransform(
-          func, proxy=empty)
+      input_pcoll = p | beam.Create([input.iloc[::2], input.iloc[1::2]])
+      input_df = convert.to_dataframe(input_pcoll, proxy=empty)
+      output_df = func(input_df)
+
+      output_proxy = output_df._expr.proxy()
+      if isinstance(output_proxy, pd.core.generic.NDFrame):
+        self.assertTrue(
+            output_proxy.iloc[:0].equals(expected.iloc[:0]),
+            (
+                'Output proxy is incorrect:\n'
+                f'Expected:\n{expected.iloc[:0]}\n\n'
+                f'Actual:\n{output_proxy.iloc[:0]}'))
+      else:
+        self.assertEqual(type(output_proxy), type(expected))
+
+      output_pcoll = convert.to_pcollection(output_df, yield_elements='pandas')
+
       assert_that(
           output_pcoll, lambda actual: check_correct(expected, concat(actual)))
 
@@ -144,6 +162,14 @@ class TransformTest(unittest.TestCase):
     })
     self.run_scenario(df, lambda df: df[['Speed', 'Size']])
 
+  def test_offset_elementwise(self):
+    s = pd.Series(range(10)).astype(float)
+    df = pd.DataFrame({'value': s, 'square': s * s, 'cube': s * s * s})
+    # Only those values that are both squares and cubes will intersect.
+    self.run_scenario(
+        df,
+        lambda df: df.set_index('square').value + df.set_index('cube').value)
+
   def test_batching_named_tuple_input(self):
     with beam.Pipeline() as p:
       result = (
@@ -157,9 +183,7 @@ class TransformTest(unittest.TestCase):
 
       assert_that(
           result,
-          df_equal_to(
-              pd.DataFrame({'Animal': ['Aardvark', 'Ant', 'Elephant',
-                                       'Zebra']})))
+          equal_to([('Aardvark', ), ('Ant', ), ('Elephant', ), ('Zebra', )]))
 
   def test_batching_beam_row_input(self):
     with beam.Pipeline() as p:
@@ -168,15 +192,10 @@ class TransformTest(unittest.TestCase):
           | beam.Create([(u'Falcon', 380.), (u'Falcon', 370.), (u'Parrot', 24.),
                          (u'Parrot', 26.)])
           | beam.Map(lambda tpl: beam.Row(Animal=tpl[0], Speed=tpl[1]))
-          |
-          transforms.DataframeTransform(lambda df: df.groupby('Animal').mean()))
+          | transforms.DataframeTransform(
+              lambda df: df.groupby('Animal').mean(), include_indexes=True))
 
-      assert_that(
-          result,
-          df_equal_to(
-              pd.DataFrame({
-                  'Animal': ['Falcon', 'Parrot'], 'Speed': [375., 25.]
-              }).set_index('Animal')))
+      assert_that(result, equal_to([('Falcon', 375.), ('Parrot', 25.)]))
 
   def test_batching_beam_row_to_dataframe(self):
     with beam.Pipeline() as p:
@@ -186,38 +205,43 @@ class TransformTest(unittest.TestCase):
               u'Parrot', 24.), (u'Parrot', 26.)])
           | beam.Map(lambda tpl: beam.Row(Animal=tpl[0], Speed=tpl[1])))
 
-      result = convert.to_pcollection(df.groupby('Animal').mean())
+      result = convert.to_pcollection(
+          df.groupby('Animal').mean(), include_indexes=True)
 
-      assert_that(
-          result,
-          df_equal_to(
-              pd.DataFrame({
-                  'Animal': ['Falcon', 'Parrot'], 'Speed': [375., 25.]
-              }).set_index('Animal')))
+      assert_that(result, equal_to([('Falcon', 375.), ('Parrot', 25.)]))
 
-  def test_batching_unsupported_nested_schema_raises(self):
-    Nested = typing.NamedTuple(
-        'Nested', [('id', int), ('animal_speed', AnimalSpeed)])
-    coders.registry.register_coder(Nested, coders.RowCoder)
-
+  def test_batching_passthrough_nested_schema(self):
     with beam.Pipeline() as p:
       nested_schema_pc = (
           p | beam.Create([Nested(1, AnimalSpeed('Aardvark', 5))
                            ]).with_output_types(Nested))
-      with self.assertRaisesRegex(TypeError, 'animal_speed'):
-        nested_schema_pc | transforms.DataframeTransform(  # pylint: disable=expression-not-assigned
-            lambda df: df.filter(items=['id']))
+      result = nested_schema_pc | transforms.DataframeTransform(  # pylint: disable=expression-not-assigned
+          lambda df: df.filter(items=['animal_speed']))
 
-  def test_batching_unsupported_array_schema_raises(self):
+      assert_that(result, equal_to([(('Aardvark', 5), )]))
+
+  def test_batching_passthrough_nested_array(self):
     Array = typing.NamedTuple(
         'Array', [('id', int), ('business_numbers', typing.Sequence[int])])
     coders.registry.register_coder(Array, coders.RowCoder)
 
     with beam.Pipeline() as p:
       array_schema_pc = (p | beam.Create([Array(1, [7, 8, 9])]))
-      with self.assertRaisesRegex(TypeError, 'business_numbers'):
-        array_schema_pc | transforms.DataframeTransform(  # pylint: disable=expression-not-assigned
-            lambda df: df.filter(items=['id']))
+      result = array_schema_pc | transforms.DataframeTransform(  # pylint: disable=expression-not-assigned
+            lambda df: df.filter(items=['business_numbers']))
+
+      assert_that(result, equal_to([([7, 8, 9], )]))
+
+  def test_unbatching_series(self):
+    with beam.Pipeline() as p:
+      result = (
+          p
+          | beam.Create([(u'Falcon', 380.), (u'Falcon', 370.), (u'Parrot', 24.),
+                         (u'Parrot', 26.)])
+          | beam.Map(lambda tpl: beam.Row(Animal=tpl[0], Speed=tpl[1]))
+          | transforms.DataframeTransform(lambda df: df.Animal))
+
+      assert_that(result, equal_to(['Falcon', 'Falcon', 'Parrot', 'Parrot']))
 
   def test_input_output_polymorphism(self):
     one_series = pd.Series([1])
@@ -240,31 +264,103 @@ class TransformTest(unittest.TestCase):
 
       assert_that(
           one | 'PcollInPcollOut' >> transforms.DataframeTransform(
-              lambda x: 3 * x, proxy=proxy),
+              lambda x: 3 * x, proxy=proxy, yield_elements='pandas'),
           equal_to_series(three_series),
           label='CheckPcollInPcollOut')
 
-      assert_that((one, two)
-                  | 'TupleIn' >> transforms.DataframeTransform(
-                      lambda x, y: (x + y), (proxy, proxy)),
-                  equal_to_series(three_series),
-                  label='CheckTupleIn')
+      assert_that(
+          (one, two)
+          | 'TupleIn' >> transforms.DataframeTransform(
+              lambda x, y: (x + y), (proxy, proxy), yield_elements='pandas'),
+          equal_to_series(three_series),
+          label='CheckTupleIn')
 
       assert_that(
           dict(x=one, y=two)
           | 'DictIn' >> transforms.DataframeTransform(
-              lambda x, y: (x + y), proxy=dict(x=proxy, y=proxy)),
+              lambda x,
+              y: (x + y),
+              proxy=dict(x=proxy, y=proxy),
+              yield_elements='pandas'),
           equal_to_series(three_series),
           label='CheckDictIn')
 
       double, triple = one | 'TupleOut' >> transforms.DataframeTransform(
-              lambda x: (2*x, 3*x), proxy)
+              lambda x: (2*x, 3*x), proxy, yield_elements='pandas')
       assert_that(double, equal_to_series(two_series), 'CheckTupleOut0')
       assert_that(triple, equal_to_series(three_series), 'CheckTupleOut1')
 
       res = one | 'DictOut' >> transforms.DataframeTransform(
-          lambda x: {'res': 3 * x}, proxy)
+          lambda x: {'res': 3 * x}, proxy, yield_elements='pandas')
       assert_that(res['res'], equal_to_series(three_series), 'CheckDictOut')
+
+  def test_cat(self):
+    # verify that cat works with a List[Series] since this is
+    # missing from doctests
+    df = pd.DataFrame({
+        'one': ['A', 'B', 'C'],
+        'two': ['BB', 'CC', 'A'],
+        'three': ['CCC', 'AA', 'B'],
+    })
+    self.run_scenario(df, lambda df: df.two.str.cat([df.three], join='outer'))
+    self.run_scenario(
+        df, lambda df: df.one.str.cat([df.two, df.three], join='outer'))
+
+  def test_repeat(self):
+    # verify that repeat works with a Series since this is
+    # missing from doctests
+    df = pd.DataFrame({
+        'strings': ['A', 'B', 'C', 'D', 'E'],
+        'repeats': [3, 1, 4, 5, 2],
+    })
+    self.run_scenario(df, lambda df: df.strings.str.repeat(df.repeats))
+
+  def test_rename(self):
+    df = pd.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]})
+    self.run_scenario(
+        df, lambda df: df.rename(columns={'B': 'C'}, index={
+            0: 2, 2: 0
+        }))
+
+    with expressions.allow_non_parallel_operations():
+      self.run_scenario(
+          df,
+          lambda df: df.rename(
+              columns={'B': 'C'}, index={
+                  0: 2, 2: 0
+              }, errors='raise'))
+
+
+class TransformPartsTest(unittest.TestCase):
+  def test_rebatch(self):
+    with beam.Pipeline() as p:
+      sA = pd.Series(range(1000))
+      sB = sA * sA
+      pcA = p | 'CreatePCollA' >> beam.Create([('k0', sA[::3]),
+                                               ('k1', sA[1::3]),
+                                               ('k2', sA[2::3])])
+      pcB = p | 'CreatePCollB' >> beam.Create([('k0', sB[::3]),
+                                               ('k1', sB[1::3]),
+                                               ('k2', sB[2::3])])
+      input = {'A': pcA, 'B': pcB} | beam.CoGroupByKey()
+      output = input | beam.ParDo(
+          transforms._ReBatch(target_size=sA.memory_usage()))
+
+      # There should be exactly two elements, as the target size will be
+      # hit when 2/3 of pcA and 2/3 of pcB is seen, but not before.
+      assert_that(output | beam.combiners.Count.Globally(), equal_to([2]))
+
+      # Sanity check that we got all the right values.
+      assert_that(
+          output | beam.Map(lambda x: x['A'].sum())
+          | 'SumA' >> beam.CombineGlobally(sum),
+          equal_to([sA.sum()]),
+          label='CheckValuesA')
+      assert_that(
+          output | beam.Map(lambda x: x['B'].sum())
+          | 'SumB' >> beam.CombineGlobally(sum),
+          equal_to([sB.sum()]),
+          label='CheckValuesB')
 
 
 if __name__ == '__main__':

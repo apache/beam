@@ -26,6 +26,7 @@ import threading
 
 from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileHeader
 from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileRecord
+from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
 from apache_beam.runners.interactive import interactive_environment as ie
 
 
@@ -130,15 +131,15 @@ class ProcessingTimeLimiter(ElementLimiter):
 
   def update(self, e):
     # Only look at TestStreamFileRecords which hold the processing time.
-    if not isinstance(e, TestStreamFileRecord):
+    if not isinstance(e, TestStreamPayload.Event):
       return
 
-    if not e.recorded_event.processing_time_event:
+    if not e.HasField('processing_time_event'):
       return
 
     if self._start_us == 0:
-      self._start_us = e.recorded_event.processing_time_event.advance_duration
-    self._cur_time_us += e.recorded_event.processing_time_event.advance_duration
+      self._start_us = e.processing_time_event.advance_duration
+    self._cur_time_us += e.processing_time_event.advance_duration
 
   def is_triggered(self):
     return self._cur_time_us - self._start_us >= self._max_duration_us

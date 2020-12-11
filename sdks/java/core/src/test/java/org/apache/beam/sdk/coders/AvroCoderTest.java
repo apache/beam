@@ -85,6 +85,9 @@ import org.objenesis.strategy.StdInstantiatorStrategy;
 
 /** Tests for {@link AvroCoder}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class AvroCoderTest {
 
   public static final DateTime DATETIME_A =

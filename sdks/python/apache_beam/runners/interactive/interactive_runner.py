@@ -128,7 +128,7 @@ class InteractiveRunner(runners.PipelineRunner):
     return self._underlying_runner.apply(transform, pvalueish, options)
 
   def run_pipeline(self, pipeline, options):
-    if not ie.current_env().options.enable_capture_replay:
+    if not ie.current_env().options.enable_recording_replay:
       capture_control.evict_captured_data()
     if self._force_compute:
       ie.current_env().evict_computed_pcollections()
@@ -136,7 +136,7 @@ class InteractiveRunner(runners.PipelineRunner):
     # Make sure that sources without a user reference are still cached.
     inst.watch_sources(pipeline)
 
-    user_pipeline = inst.user_pipeline(pipeline)
+    user_pipeline = ie.current_env().user_pipeline(pipeline)
     pipeline_instrument = inst.build_pipeline_instrument(pipeline, options)
 
     # The user_pipeline analyzed might be None if the pipeline given has nothing
@@ -212,7 +212,7 @@ class InteractiveRunner(runners.PipelineRunner):
     if main_job_result.state is beam.runners.runner.PipelineState.DONE:
       # pylint: disable=dict-values-not-iterating
       ie.current_env().mark_pcollection_computed(
-          pipeline_instrument.runner_pcoll_to_user_pcoll.values())
+          pipeline_instrument.cached_pcolls)
 
     return main_job_result
 

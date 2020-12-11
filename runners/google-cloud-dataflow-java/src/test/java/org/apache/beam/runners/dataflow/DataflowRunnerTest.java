@@ -86,7 +86,6 @@ import java.util.regex.Pattern;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.SdkComponents;
-import org.apache.beam.runners.dataflow.DataflowRunner.BatchGroupIntoBatches;
 import org.apache.beam.runners.dataflow.DataflowRunner.StreamingShardedWriteFactory;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
@@ -133,17 +132,20 @@ import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.PValues;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
@@ -175,6 +177,9 @@ import org.powermock.modules.junit4.PowerMockRunner;
  * <p>Implements {@link Serializable} because it is caught in closures.
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DataflowRunnerTest implements Serializable {
 
   private static final String VALID_BUCKET = "valid-bucket";
@@ -509,6 +514,7 @@ public class DataflowRunnerTest implements Serializable {
 
   /** PipelineOptions used to test auto registration of Jackson modules. */
   public interface JacksonIncompatibleOptions extends PipelineOptions {
+
     JacksonIncompatible getJacksonIncompatible();
 
     void setJacksonIncompatible(JacksonIncompatible value);
@@ -517,6 +523,7 @@ public class DataflowRunnerTest implements Serializable {
   /** A Jackson {@link Module} to test auto-registration of modules. */
   @AutoService(Module.class)
   public static class RegisteredTestModule extends SimpleModule {
+
     public RegisteredTestModule() {
       super("RegisteredTestModule");
       setMixInAnnotation(JacksonIncompatible.class, JacksonIncompatibleMixin.class);
@@ -525,6 +532,7 @@ public class DataflowRunnerTest implements Serializable {
 
   /** A class which Jackson does not know how to serialize/deserialize. */
   public static class JacksonIncompatible {
+
     private final String value;
 
     public JacksonIncompatible(String value) {
@@ -668,6 +676,7 @@ public class DataflowRunnerTest implements Serializable {
 
   /** Options for testing. */
   public interface RuntimeTestOptions extends PipelineOptions {
+
     ValueProvider<String> getInput();
 
     void setInput(ValueProvider<String> value);
@@ -1261,6 +1270,7 @@ public class DataflowRunnerTest implements Serializable {
 
   /** A fake PTransform for testing. */
   public static class TestTransform extends PTransform<PCollection<Integer>, PCollection<Integer>> {
+
     public boolean translated = false;
 
     @Override
@@ -1399,6 +1409,7 @@ public class DataflowRunnerTest implements Serializable {
 
   /** Records all the composite transforms visited within the Pipeline. */
   private static class CompositeTransformRecorder extends PipelineVisitor.Defaults {
+
     private List<PTransform<?, ?>> transforms = new ArrayList<>();
 
     @Override
@@ -1600,17 +1611,32 @@ public class DataflowRunnerTest implements Serializable {
     verifyMergingStatefulParDoRejected(options);
   }
 
-  @Test
-  @Category(ValidatesRunner.class)
-  public void testBatchGroupIntoBatchesOverride() {
-    // Ignore this test for streaming pipelines.
-    assumeFalse(pipeline.getOptions().as(StreamingOptions.class).isStreaming());
-
+  private void verifyGroupIntoBatchesOverride(
+      Pipeline p, Boolean withShardedKey, Boolean expectOverriden) {
     final int batchSize = 2;
     List<KV<String, Integer>> testValues =
         Arrays.asList(KV.of("A", 1), KV.of("B", 0), KV.of("A", 2), KV.of("A", 4), KV.of("A", 8));
-    PCollection<KV<String, Iterable<Integer>>> output =
-        pipeline.apply(Create.of(testValues)).apply(GroupIntoBatches.ofSize(batchSize));
+    PCollection<KV<String, Integer>> input = p.apply(Create.of(testValues));
+    PCollection<KV<String, Iterable<Integer>>> output;
+    if (withShardedKey) {
+      output =
+          input
+              .apply(GroupIntoBatches.<String, Integer>ofSize(batchSize).withShardedKey())
+              .apply(
+                  "StripShardId",
+                  MapElements.via(
+                      new SimpleFunction<
+                          KV<ShardedKey<String>, Iterable<Integer>>,
+                          KV<String, Iterable<Integer>>>() {
+                        @Override
+                        public KV<String, Iterable<Integer>> apply(
+                            KV<ShardedKey<String>, Iterable<Integer>> input) {
+                          return KV.of(input.getKey().getKey(), input.getValue());
+                        }
+                      }));
+    } else {
+      output = input.apply(GroupIntoBatches.ofSize(batchSize));
+    }
     PAssert.thatMultimap(output)
         .satisfies(
             new SerializableFunction<Map<String, Iterable<Iterable<Integer>>>, Void>() {
@@ -1632,21 +1658,67 @@ public class DataflowRunnerTest implements Serializable {
                 return null;
               }
             });
-    pipeline.run();
+    p.run();
 
     AtomicBoolean sawGroupIntoBatchesOverride = new AtomicBoolean(false);
-    pipeline.traverseTopologically(
+    p.traverseTopologically(
         new PipelineVisitor.Defaults() {
 
           @Override
           public CompositeBehavior enterCompositeTransform(Node node) {
-            if (node.getTransform() instanceof BatchGroupIntoBatches) {
+            if (p.getOptions().as(StreamingOptions.class).isStreaming()
+                && node.getTransform()
+                    instanceof GroupIntoBatchesOverride.StreamingGroupIntoBatchesWithShardedKey) {
+              sawGroupIntoBatchesOverride.set(true);
+            }
+            if (!p.getOptions().as(StreamingOptions.class).isStreaming()
+                && node.getTransform() instanceof GroupIntoBatchesOverride.BatchGroupIntoBatches) {
+              sawGroupIntoBatchesOverride.set(true);
+            }
+            if (!p.getOptions().as(StreamingOptions.class).isStreaming()
+                && node.getTransform()
+                    instanceof GroupIntoBatchesOverride.BatchGroupIntoBatchesWithShardedKey) {
               sawGroupIntoBatchesOverride.set(true);
             }
             return CompositeBehavior.ENTER_TRANSFORM;
           }
         });
-    assertTrue(sawGroupIntoBatchesOverride.get());
+    if (expectOverriden) {
+      assertTrue(sawGroupIntoBatchesOverride.get());
+    } else {
+      assertFalse(sawGroupIntoBatchesOverride.get());
+    }
+  }
+
+  @Test
+  @Category(ValidatesRunner.class)
+  public void testBatchGroupIntoBatchesOverride() {
+    // Ignore this test for streaming pipelines.
+    assumeFalse(pipeline.getOptions().as(StreamingOptions.class).isStreaming());
+    verifyGroupIntoBatchesOverride(pipeline, false, true);
+  }
+
+  @Test
+  public void testBatchGroupIntoBatchesWithShardedKeyOverride() throws IOException {
+    PipelineOptions options = buildPipelineOptions();
+    Pipeline p = Pipeline.create(options);
+    verifyGroupIntoBatchesOverride(p, true, true);
+  }
+
+  @Test
+  public void testStreamingGroupIntoBatchesOverride() throws IOException {
+    PipelineOptions options = buildPipelineOptions();
+    options.as(StreamingOptions.class).setStreaming(true);
+    Pipeline p = Pipeline.create(options);
+    verifyGroupIntoBatchesOverride(p, false, false);
+  }
+
+  @Test
+  public void testStreamingGroupIntoBatchesWithShardedKeyOverride() throws IOException {
+    PipelineOptions options = buildPipelineOptions();
+    options.as(StreamingOptions.class).setStreaming(true);
+    Pipeline p = Pipeline.create(options);
+    verifyGroupIntoBatchesOverride(p, true, true);
   }
 
   private void testStreamingWriteOverride(PipelineOptions options, int expectedNumShards) {
@@ -1658,7 +1730,8 @@ public class DataflowRunnerTest implements Serializable {
     PCollection<Object> objs = (PCollection) p.apply(Create.empty(VoidCoder.of()));
     AppliedPTransform<PCollection<Object>, WriteFilesResult<Void>, WriteFiles<Object, Void, Object>>
         originalApplication =
-            AppliedPTransform.of("writefiles", objs.expand(), Collections.emptyMap(), original, p);
+            AppliedPTransform.of(
+                "writefiles", PValues.expandInput(objs), Collections.emptyMap(), original, p);
 
     WriteFiles<Object, Void, Object> replacement =
         (WriteFiles<Object, Void, Object>)
@@ -1668,8 +1741,8 @@ public class DataflowRunnerTest implements Serializable {
 
     WriteFilesResult<Void> originalResult = objs.apply(original);
     WriteFilesResult<Void> replacementResult = objs.apply(replacement);
-    Map<PValue, ReplacementOutput> res =
-        factory.mapOutputs(originalResult.expand(), replacementResult);
+    Map<PCollection<?>, ReplacementOutput> res =
+        factory.mapOutputs(PValues.expandOutput(originalResult), replacementResult);
     assertEquals(1, res.size());
     assertEquals(
         originalResult.getPerDestinationOutputFilenames(),
@@ -1677,6 +1750,7 @@ public class DataflowRunnerTest implements Serializable {
   }
 
   private static class TestSink extends FileBasedSink<Object, Void, Object> {
+
     @Override
     public void validate(PipelineOptions options) {}
 
@@ -1695,9 +1769,8 @@ public class DataflowRunnerTest implements Serializable {
                   throw new UnsupportedOperationException("should not be called");
                 }
 
-                @Nullable
                 @Override
-                public ResourceId unwindowedFilename(
+                public @Nullable ResourceId unwindowedFilename(
                     int shardNumber, int numShards, OutputFileHints outputFileHints) {
                   throw new UnsupportedOperationException("should not be called");
                 }

@@ -264,13 +264,17 @@ func TestSchemaConversion(t *testing.T) {
 					&pipepb.Field{
 						Name: "C",
 						Type: &pipepb.FieldType{
-							TypeInfo: &pipepb.FieldType_AtomicType{
-								AtomicType: pipepb.AtomicType_INT64,
+							TypeInfo: &pipepb.FieldType_LogicalType{
+								LogicalType: &pipepb.LogicalType{
+									Urn: "int",
+									Representation: &pipepb.FieldType{
+										TypeInfo: &pipepb.FieldType_AtomicType{
+											AtomicType: pipepb.AtomicType_INT64,
+										},
+									},
+								},
 							},
 						},
-						Options: []*pipepb.Option{{
-							Name: optGoInt,
-						}},
 					},
 				},
 			},
@@ -284,39 +288,52 @@ func TestSchemaConversion(t *testing.T) {
 							TypeInfo: &pipepb.FieldType_MapType{
 								MapType: &pipepb.MapType{
 									KeyType: &pipepb.FieldType{
-										TypeInfo: &pipepb.FieldType_AtomicType{
-											AtomicType: pipepb.AtomicType_INT64,
+										TypeInfo: &pipepb.FieldType_LogicalType{
+											LogicalType: &pipepb.LogicalType{
+												Urn: "int",
+												Representation: &pipepb.FieldType{
+													TypeInfo: &pipepb.FieldType_AtomicType{
+														AtomicType: pipepb.AtomicType_INT64,
+													},
+												},
+											},
 										},
 									},
 									ValueType: &pipepb.FieldType{
-										TypeInfo: &pipepb.FieldType_AtomicType{
-											AtomicType: pipepb.AtomicType_INT64,
+										TypeInfo: &pipepb.FieldType_LogicalType{
+											LogicalType: &pipepb.LogicalType{
+												Urn: "int",
+												Representation: &pipepb.FieldType{
+													TypeInfo: &pipepb.FieldType_AtomicType{
+														AtomicType: pipepb.AtomicType_INT64,
+													},
+												},
+											},
 										},
 									},
 								},
 							},
 						},
-						Options: []*pipepb.Option{{
-							Name: optGoIntKey,
-						}, {
-							Name: optGoIntElem,
-						}},
 					}, {
 						Name: "T",
 						Type: &pipepb.FieldType{
 							TypeInfo: &pipepb.FieldType_ArrayType{
 								ArrayType: &pipepb.ArrayType{
 									ElementType: &pipepb.FieldType{
-										TypeInfo: &pipepb.FieldType_AtomicType{
-											AtomicType: pipepb.AtomicType_INT64,
+										TypeInfo: &pipepb.FieldType_LogicalType{
+											LogicalType: &pipepb.LogicalType{
+												Urn: "int",
+												Representation: &pipepb.FieldType{
+													TypeInfo: &pipepb.FieldType_AtomicType{
+														AtomicType: pipepb.AtomicType_INT64,
+													},
+												},
+											},
 										},
 									},
 								},
 							},
 						},
-						Options: []*pipepb.Option{{
-							Name: optGoIntElem,
-						}},
 					},
 				},
 			},

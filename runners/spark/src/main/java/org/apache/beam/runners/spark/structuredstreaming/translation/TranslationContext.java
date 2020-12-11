@@ -52,6 +52,10 @@ import org.slf4j.LoggerFactory;
  * Base class that gives a context for {@link PTransform} translation: keeping track of the
  * datasets, the {@link SparkSession}, the current transform being translated.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class TranslationContext {
 
   private static final Logger LOG = LoggerFactory.getLogger(TranslationContext.class);
@@ -176,7 +180,7 @@ public class TranslationContext {
     return Iterables.getOnlyElement(TransformInputs.nonAdditionalInputs(currentTransform));
   }
 
-  public Map<TupleTag<?>, PValue> getInputs() {
+  public Map<TupleTag<?>, PCollection<?>> getInputs() {
     return currentTransform.getInputs();
   }
 
@@ -184,7 +188,7 @@ public class TranslationContext {
     return Iterables.getOnlyElement(currentTransform.getOutputs().values());
   }
 
-  public Map<TupleTag<?>, PValue> getOutputs() {
+  public Map<TupleTag<?>, PCollection<?>> getOutputs() {
     return currentTransform.getOutputs();
   }
 

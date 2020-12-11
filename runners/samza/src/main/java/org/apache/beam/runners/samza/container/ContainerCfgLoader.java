@@ -30,6 +30,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Loader for the Beam yarn container to load job model. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ContainerCfgLoader implements ConfigLoader {
   private static final Logger LOG = LoggerFactory.getLogger(ContainerCfgLoader.class);
 

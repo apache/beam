@@ -280,8 +280,9 @@ class Pipeline(object):
         # type: (AppliedPTransform) -> None
         if override.matches(original_transform_node):
           assert isinstance(original_transform_node, AppliedPTransform)
-          replacement_transform = override.get_replacement_transform(
-              original_transform_node.transform)
+          replacement_transform = (
+              override.get_replacement_transform_for_applied_ptransform(
+                  original_transform_node))
           if replacement_transform is original_transform_node.transform:
             return
           replacement_transform.side_inputs = tuple(
@@ -503,10 +504,16 @@ class Pipeline(object):
       if test_runner_api == 'AUTO':
         # Don't pay the cost of a round-trip if we're going to be going through
         # the FnApi anyway...
+        is_fnapi_compatible = self.runner.is_fnapi_compatible() or (
+            # DirectRunner uses the Fn API for batch only
+            self.runner.__class__.__name__ == 'SwitchingDirectRunner' and
+            not self._options.view_as(StandardOptions).streaming)
+
+        # The InteractiveRunner relies on a constant pipeline reference, skip
+        # it.
         test_runner_api = (
-            not self.runner.is_fnapi_compatible() and (
-                self.runner.__class__.__name__ != 'SwitchingDirectRunner' or
-                self._options.view_as(StandardOptions).streaming))
+            not is_fnapi_compatible and
+            self.runner.__class__.__name__ != 'InteractiveRunner')
 
       # When possible, invoke a round trip through the runner API.
       if test_runner_api and self._verify_runner_api_compatible():
@@ -887,8 +894,11 @@ class Pipeline(object):
         proto.components,
         allow_proto_holders=allow_proto_holders,
         requirements=proto.requirements)
-    root_transform_id, = proto.root_transform_ids
-    p.transforms_stack = [context.transforms.get_by_id(root_transform_id)]
+    if proto.root_transform_ids:
+      root_transform_id, = proto.root_transform_ids
+      p.transforms_stack = [context.transforms.get_by_id(root_transform_id)]
+    else:
+      p.transforms_stack = [AppliedPTransform(None, None, '', None)]
     # TODO(robertwb): These are only needed to continue construction. Omit?
     p.applied_labels = {
         t.unique_name
@@ -1329,7 +1339,25 @@ class PTransformOverride(with_metaclass(abc.ABCMeta,
     """
     raise NotImplementedError
 
-  @abc.abstractmethod
+  def get_replacement_transform_for_applied_ptransform(
+      self, applied_ptransform):
+    # type: (AppliedPTransform) -> ptransform.PTransform
+
+    """Provides a runner specific override for a given `AppliedPTransform`.
+
+    Args:
+      applied_ptransform: `AppliedPTransform` containing the `PTransform` to be
+        replaced.
+
+    Returns:
+      A `PTransform` that will be the replacement for the `PTransform` inside
+      the `AppliedPTransform` given as an argument.
+    """
+    # Returns a PTransformReplacement
+    return self.get_replacement_transform(applied_ptransform.transform)
+
+  @deprecated(
+      since='2.24', current='get_replacement_transform_for_applied_ptransform')
   def get_replacement_transform(self, ptransform):
     # type: (Optional[ptransform.PTransform]) -> ptransform.PTransform
 

@@ -30,6 +30,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
  * @link org.apache.beam.sdk.io.snowflake.SnowflakeIO.Write.CreateDisposition#CREATE_IF_NEEDED}
  *     disposition is used.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SnowflakeTableSchema implements Serializable {
 
   @JsonProperty("schema")

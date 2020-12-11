@@ -19,7 +19,7 @@
 source release/src/main/python-release/run_release_candidate_python_quickstart.sh
 source release/src/main/python-release/run_release_candidate_python_mobile_gaming.sh
 
-for version in 2.7 3.5 3.6 3.7 3.8
+for version in 3.6 3.7 3.8
 do
   run_release_candidate_python_quickstart    "tar"   "python${version}"
   run_release_candidate_python_mobile_gaming "tar"   "python${version}"

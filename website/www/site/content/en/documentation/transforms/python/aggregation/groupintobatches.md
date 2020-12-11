@@ -46,6 +46,8 @@ Output:
 
 ## Related transforms
 
-N/A
+<!-- TODO(BEAM-10889): Create a page for BatchElements and link to it here. //-->
+For unkeyed data and dynamic batch sizes, one may want to use
+[BatchElements](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html#apache_beam.transforms.util.BatchElements).
 
 {{< button-pydoc path="apache_beam.transforms.util" class="GroupIntoBatches" >}}

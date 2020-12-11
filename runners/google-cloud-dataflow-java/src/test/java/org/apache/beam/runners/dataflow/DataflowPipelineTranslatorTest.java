@@ -25,6 +25,7 @@ import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
@@ -77,6 +78,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.gcp.util.GcsUtil;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.FileSystems;
@@ -91,6 +93,7 @@ import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -128,7 +131,12 @@ import org.mockito.ArgumentMatcher;
 
 /** Tests for DataflowPipelineTranslator. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DataflowPipelineTranslatorTest implements Serializable {
+
   @Rule public transient ExpectedException thrown = ExpectedException.none();
 
   private SdkComponents createSdkComponents(PipelineOptions options) {
@@ -146,6 +154,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
   // A Custom Mockito matcher for an initial Job that checks that all
   // expected fields are set.
   private static class IsValidCreateRequest implements ArgumentMatcher<Job> {
+
     @Override
     public boolean matches(Job o) {
       Job job = (Job) o;
@@ -593,6 +602,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
   }
 
   private static class TestValueProvider implements ValueProvider<String>, Serializable {
+
     @Override
     public boolean isAccessible() {
       return false;
@@ -1114,6 +1124,72 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     assertEquals("CollectionToSingleton", collectionToSingletonStep.getKind());
   }
 
+  private Map<String, Object> runGroupIntoBatchesAndGetStepProperties(
+      Boolean withShardedKey, Boolean usesFnApi) throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.setExperiments(
+        Arrays.asList(
+            "enable_streaming_auto_sharding",
+            GcpOptions.STREAMING_ENGINE_EXPERIMENT,
+            GcpOptions.WINDMILL_SERVICE_EXPERIMENT));
+    if (usesFnApi) {
+      options.setExperiments(Arrays.asList("beam_fn_api"));
+    }
+    options.setStreaming(true);
+    DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
+
+    Pipeline pipeline = Pipeline.create(options);
+    PCollection<KV<Integer, String>> input =
+        pipeline.apply(Create.of(Arrays.asList(KV.of(1, "1"), KV.of(2, "2"), KV.of(3, "3"))));
+    if (withShardedKey) {
+      input.apply(GroupIntoBatches.<Integer, String>ofSize(3).withShardedKey());
+    } else {
+      input.apply(GroupIntoBatches.ofSize(3));
+    }
+
+    DataflowRunner runner = DataflowRunner.fromOptions(options);
+    runner.replaceTransforms(pipeline);
+    SdkComponents sdkComponents = createSdkComponents(options);
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents, true);
+    Job job =
+        translator
+            .translate(pipeline, pipelineProto, sdkComponents, runner, Collections.emptyList())
+            .getJob();
+    List<Step> steps = job.getSteps();
+    Step shardedStateStep = steps.get(steps.size() - 1);
+    return shardedStateStep.getProperties();
+  }
+
+  @Test
+  public void testStreamingGroupIntoBatchesTranslation() throws Exception {
+    Map<String, Object> properties = runGroupIntoBatchesAndGetStepProperties(false, false);
+    assertTrue(properties.containsKey(PropertyNames.USES_KEYED_STATE));
+    assertEquals("true", getString(properties, PropertyNames.USES_KEYED_STATE));
+    assertFalse(properties.containsKey(PropertyNames.ALLOWS_SHARDABLE_STATE));
+    assertFalse(properties.containsKey(PropertyNames.PRESERVES_KEYS));
+  }
+
+  @Test
+  public void testStreamingGroupIntoBatchesWithShardedKeyTranslation() throws Exception {
+    Map<String, Object> properties = runGroupIntoBatchesAndGetStepProperties(true, false);
+    assertTrue(properties.containsKey(PropertyNames.USES_KEYED_STATE));
+    assertEquals("true", getString(properties, PropertyNames.USES_KEYED_STATE));
+    assertTrue(properties.containsKey(PropertyNames.ALLOWS_SHARDABLE_STATE));
+    assertEquals("true", getString(properties, PropertyNames.ALLOWS_SHARDABLE_STATE));
+    assertTrue(properties.containsKey(PropertyNames.PRESERVES_KEYS));
+    assertEquals("true", getString(properties, PropertyNames.PRESERVES_KEYS));
+  }
+
+  @Test
+  public void testStreamingGroupIntoBatchesTranslationFnApi() throws Exception {
+    Map<String, Object> properties = runGroupIntoBatchesAndGetStepProperties(true, true);
+    assertTrue(properties.containsKey(PropertyNames.USES_KEYED_STATE));
+    assertEquals("true", getString(properties, PropertyNames.USES_KEYED_STATE));
+    // "allows_shardable_state" is currently unsupported for portable jobs.
+    assertFalse(properties.containsKey(PropertyNames.ALLOWS_SHARDABLE_STATE));
+    assertFalse(properties.containsKey(PropertyNames.PRESERVES_KEYS));
+  }
+
   @Test
   public void testStepDisplayData() throws Exception {
     DataflowPipelineOptions options = buildPipelineOptions();
@@ -1276,6 +1352,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
   }
 
   private static class TestSplittableFn extends DoFn<String, Integer> {
+
     @ProcessElement
     public void process(ProcessContext c, RestrictionTracker<OffsetRange, Long> tracker) {
       // noop

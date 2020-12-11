@@ -670,7 +670,9 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
    *       representation of work. See {@link GetSize} and {@link RestrictionTracker.HasProgress}
    *       for further details.
    *   <li>It <i>should</i> define a {@link SplitRestriction} method. This method enables runners to
-   *       perform bulk splitting initially allowing for a rapid increase in parallelism. See {@link
+   *       perform bulk splitting initially allowing for a rapid increase in parallelism. If it is
+   *       not defined, there is no initial split happening by default. Note that initial split is a
+   *       different concept from the split during element processing time. See {@link
    *       RestrictionTracker#trySplit} for details about splitting when the current element and
    *       restriction are actively being processed.
    *   <li>It <i>may</i> define a {@link TruncateRestriction} method to choose how to truncate a
@@ -936,7 +938,6 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.METHOD)
-  @Experimental(Kind.SPLITTABLE_DO_FN)
   public @interface GetInitialRestriction {}
 
   /**
@@ -992,7 +993,6 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.METHOD)
-  @Experimental(Kind.SPLITTABLE_DO_FN)
   public @interface GetSize {}
 
   /**
@@ -1009,7 +1009,6 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.METHOD)
-  @Experimental(Kind.SPLITTABLE_DO_FN)
   public @interface GetRestrictionCoder {}
 
   /**
@@ -1055,7 +1054,6 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.METHOD)
-  @Experimental(Kind.SPLITTABLE_DO_FN)
   public @interface SplitRestriction {}
 
   /**
@@ -1108,7 +1106,6 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.METHOD)
-  @Experimental(Kind.SPLITTABLE_DO_FN)
   public @interface TruncateRestriction {}
 
   /**
@@ -1146,7 +1143,6 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.METHOD)
-  @Experimental(Kind.SPLITTABLE_DO_FN)
   public @interface NewTracker {}
 
   /**
@@ -1187,7 +1183,6 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.METHOD)
-  @Experimental(Kind.SPLITTABLE_DO_FN)
   public @interface GetInitialWatermarkEstimatorState {}
 
   /**
@@ -1204,7 +1199,6 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.METHOD)
-  @Experimental(Kind.SPLITTABLE_DO_FN)
   public @interface GetWatermarkEstimatorStateCoder {}
 
   /**
@@ -1249,7 +1243,6 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.METHOD)
-  @Experimental(Kind.SPLITTABLE_DO_FN)
   public @interface NewWatermarkEstimator {}
 
   /**
@@ -1260,7 +1253,6 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.PARAMETER)
-  @Experimental(Kind.SPLITTABLE_DO_FN)
   public @interface WatermarkEstimatorState {}
 
   /**
@@ -1272,7 +1264,6 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.TYPE)
-  @Experimental(Kind.SPLITTABLE_DO_FN)
   public @interface BoundedPerElement {}
 
   /**
@@ -1284,7 +1275,6 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.TYPE)
-  @Experimental(Kind.SPLITTABLE_DO_FN)
   public @interface UnboundedPerElement {}
 
   // This can't be put into ProcessContinuation itself due to the following problem:
@@ -1299,7 +1289,6 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
    * <p>If the {@link ProcessElement} call completes because of a failed {@code tryClaim()} call on
    * the {@link RestrictionTracker}, then the call MUST return {@link #stop()}.
    */
-  @Experimental(Kind.SPLITTABLE_DO_FN)
   @AutoValue
   public abstract static class ProcessContinuation {
     /** Indicates that there is no more work to be done for the current element. */

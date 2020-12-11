@@ -45,6 +45,9 @@ import org.slf4j.LoggerFactory;
  * This class holds the {@link MetricsContainer}s for BEAM metrics, and update the results to Samza
  * metrics.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SamzaMetricsContainer {
 
   private static final Logger LOG = LoggerFactory.getLogger(SamzaMetricsContainer.class);

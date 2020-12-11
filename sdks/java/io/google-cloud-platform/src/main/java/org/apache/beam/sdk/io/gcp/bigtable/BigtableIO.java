@@ -172,6 +172,9 @@ import org.slf4j.LoggerFactory;
  * pipeline. Please refer to the documentation of corresponding {@link PipelineRunner
  * PipelineRunners} for more details.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BigtableIO {
   private static final Logger LOG = LoggerFactory.getLogger(BigtableIO.class);
 
@@ -452,6 +455,17 @@ public class BigtableIO {
       return toBuilder().setBigtableConfig(config.withBigtableService(bigtableService)).build();
     }
 
+    /**
+     * Returns a new {@link BigtableIO.Read} that will use an official Bigtable emulator.
+     *
+     * <p>This is used for testing.
+     */
+    @VisibleForTesting
+    public Read withEmulator(String emulatorHost) {
+      BigtableConfig config = getBigtableConfig();
+      return toBuilder().setBigtableConfig(config.withEmulator(emulatorHost)).build();
+    }
+
     @Override
     public PCollection<Row> expand(PBegin input) {
       getBigtableConfig().validate();
@@ -681,6 +695,17 @@ public class BigtableIO {
     Write withBigtableService(BigtableService bigtableService) {
       BigtableConfig config = getBigtableConfig();
       return toBuilder().setBigtableConfig(config.withBigtableService(bigtableService)).build();
+    }
+
+    /**
+     * Returns a new {@link BigtableIO.Write} that will use an official Bigtable emulator.
+     *
+     * <p>This is used for testing.
+     */
+    @VisibleForTesting
+    public Write withEmulator(String emulatorHost) {
+      BigtableConfig config = getBigtableConfig();
+      return toBuilder().setBigtableConfig(config.withEmulator(emulatorHost)).build();
     }
 
     /**

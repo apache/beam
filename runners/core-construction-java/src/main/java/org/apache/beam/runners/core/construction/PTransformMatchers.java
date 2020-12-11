@@ -27,6 +27,7 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformMatcher;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
+import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
@@ -47,7 +48,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>Once {@link PTransform PTransforms} have URNs, this will be removed and replaced with a
  * UrnPTransformMatcher.
  */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class PTransformMatchers {
+
   private PTransformMatchers() {}
 
   /**
@@ -59,6 +64,7 @@ public class PTransformMatchers {
   }
 
   private static class EqualUrnPTransformMatcher implements PTransformMatcher {
+
     private final String urn;
 
     private EqualUrnPTransformMatcher(String urn) {
@@ -102,6 +108,7 @@ public class PTransformMatchers {
   }
 
   private static class EqualClassPTransformMatcher implements PTransformMatcher {
+
     private final Class<? extends PTransform> clazz;
 
     private EqualClassPTransformMatcher(Class<? extends PTransform> clazz) {
@@ -471,6 +478,29 @@ public class PTransformMatchers {
       @Override
       public String toString() {
         return MoreObjects.toStringHelper("FlattenWithDuplicateInputsMatcher").toString();
+      }
+    };
+  }
+
+  /**
+   * A {@link PTransformMatcher} which matches {@link GroupIntoBatches} transform that allows
+   * shardable states.
+   */
+  public static PTransformMatcher groupWithShardableStates() {
+    return new PTransformMatcher() {
+      @Override
+      public boolean matches(AppliedPTransform<?, ?, ?> application) {
+        return application.getTransform().getClass().equals(GroupIntoBatches.WithShardedKey.class);
+      }
+
+      @Override
+      public boolean matchesDuringValidation(AppliedPTransform<?, ?, ?> application) {
+        return false;
+      }
+
+      @Override
+      public String toString() {
+        return MoreObjects.toStringHelper("groupWithShardableStatesMatcher").toString();
       }
     };
   }

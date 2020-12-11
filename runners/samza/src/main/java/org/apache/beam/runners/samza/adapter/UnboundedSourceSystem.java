@@ -71,6 +71,10 @@ import org.slf4j.LoggerFactory;
  * A Samza system that supports reading from a Beam {@link UnboundedSource}. The source is split
  * into partitions. Samza creates the job model by assigning partitions to Samza tasks.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class UnboundedSourceSystem {
   private static final Logger LOG = LoggerFactory.getLogger(UnboundedSourceSystem.class);
 

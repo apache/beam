@@ -29,6 +29,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * Cache deserialized side inputs for executor so every task doesn't need to deserialize them again.
  * Side inputs are stored in {@link Cache} with 5 minutes expireAfterAccess.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class SideInputStorage {
 
   /** JVM deserialized side input cache. */

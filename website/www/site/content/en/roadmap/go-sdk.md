@@ -42,7 +42,7 @@ The Go SDK has the following goals for the next few months:
 
 ## Usability
 
-* Beam Schema Support [BEAM-9615](https://issues.apache.org/jira/browse/BEAM-4124)
+* Beam Schema Support [BEAM-9615](https://issues.apache.org/jira/browse/BEAM-9615)
 * Improvements to starcgen [BEAM-9616](https://issues.apache.org/jira/browse/BEAM-9616)
 
 ## Integrating with the Go ecosystem

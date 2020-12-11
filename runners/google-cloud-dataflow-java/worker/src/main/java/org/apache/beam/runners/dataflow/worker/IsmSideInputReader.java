@@ -94,6 +94,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * {@link #getSingletonForWindow} for singleton views, {@link #getListForWindow} for iterable and
  * list views, and {@link #getMapForWindow} for map and multimap views.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "keyfor",
+  "nullness"
+}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class IsmSideInputReader implements SideInputReader {
   private static final String SINGLETON_KIND = "singleton";
   private static final String COLLECTION_KIND = "collection";
@@ -378,7 +383,10 @@ public class IsmSideInputReader implements SideInputReader {
    */
   private <T, W extends BoundedWindow> T getSingletonForWindow(
       TupleTag<?> viewTag, SingletonViewFn<T> viewFn, W window) throws IOException {
-    @SuppressWarnings({"rawtypes", "unchecked"})
+    @SuppressWarnings({
+      "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+      "unchecked"
+    })
     List<IsmReader<WindowedValue<T>>> readers = (List) tagToIsmReaderMap.get(viewTag);
     List<IsmReader<WindowedValue<T>>.IsmPrefixReaderIterator> readerIterators =
         findAndStartReaders(readers, ImmutableList.of(window));
@@ -401,7 +409,10 @@ public class IsmSideInputReader implements SideInputReader {
   @SuppressWarnings("TypeParameterUnusedInFormals")
   private <T, W extends BoundedWindow> T getMapSingletonForViewAndWindow(
       TupleTag<?> viewTag, W window) throws IOException {
-    @SuppressWarnings({"rawtypes", "unchecked"})
+    @SuppressWarnings({
+      "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+      "unchecked"
+    })
     List<IsmReader<WindowedValue<T>>> readers = (List) tagToIsmReaderMap.get(viewTag);
     List<IsmReader<WindowedValue<T>>.IsmPrefixReaderIterator> readerIterators =
         findAndStartReaders(readers, ImmutableList.of(window));

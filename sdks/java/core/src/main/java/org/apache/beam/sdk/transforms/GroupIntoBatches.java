@@ -19,6 +19,10 @@ package org.apache.beam.sdk.transforms;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
+import java.nio.ByteBuffer;
+import java.util.UUID;
+import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.state.BagState;
@@ -31,6 +35,7 @@ import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
@@ -44,13 +49,14 @@ import org.slf4j.LoggerFactory;
  * A {@link PTransform} that batches inputs to a desired batch size. Batches will contain only
  * elements of a single key.
  *
- * <p>Elements are buffered until there are {@code batchSize} elements buffered, at which point they
- * are output to the output {@link PCollection}.
+ * <p>Elements are buffered until there are {@code batchSize} elements, at which point they are
+ * emitted to the output {@link PCollection}. A {@code maxBufferingDuration} can be set to emit
+ * output early and avoid waiting for a full batch forever.
  *
  * <p>Windows are preserved (batches contain elements from the same window). Batches may contain
  * elements from more than one bundle.
  *
- * <p>Example (batch call a webservice and get return codes):
+ * <p>Example 1 (batch call a webservice and get return codes):
  *
  * <pre>{@code
  * PCollection<KV<String, String>> input = ...;
@@ -66,23 +72,113 @@ import org.slf4j.LoggerFactory;
  *         }
  *     }}));
  * </pre>
+ *
+ * <p>Example 2 (batch unbounded input in a global window):
+ *
+ * <pre>{@code
+ * PCollection<KV<String, String>> unboundedInput = ...;
+ * long batchSize = 100L;
+ * Duration maxBufferingDuration = Duration.standardSeconds(10);
+ * PCollection<KV<String, Iterable<String>>> batched = unboundedInput
+ *     .apply(Window.<KV<String, String>>into(new GlobalWindows())
+ *         .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
+ *         .discardingFiredPanes())
+ *     .apply(GroupIntoBatches.<String, String>ofSize(batchSize)
+ *         .withMaxBufferingDuration(maxBufferingDuration));
+ * }</pre>
  */
+@SuppressWarnings({
+  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes"
+})
 public class GroupIntoBatches<K, InputT>
     extends PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, Iterable<InputT>>>> {
 
   private final long batchSize;
+  @Nullable private final Duration maxBufferingDuration;
+  private static final UUID workerUuid = UUID.randomUUID();
 
-  private GroupIntoBatches(long batchSize) {
+  private GroupIntoBatches(long batchSize, @Nullable Duration maxBufferingDuration) {
     this.batchSize = batchSize;
+    this.maxBufferingDuration = maxBufferingDuration;
   }
 
   public static <K, InputT> GroupIntoBatches<K, InputT> ofSize(long batchSize) {
-    return new GroupIntoBatches<>(batchSize);
+    return new GroupIntoBatches<>(batchSize, null);
   }
 
   /** Returns the size of the batch. */
   public long getBatchSize() {
     return batchSize;
+  }
+
+  /**
+   * Sets a time limit (in processing time) on how long an incomplete batch of elements is allowed
+   * to be buffered. Once a batch is flushed to output, the timer is reset.
+   */
+  public GroupIntoBatches<K, InputT> withMaxBufferingDuration(Duration duration) {
+    checkArgument(
+        duration.isLongerThan(Duration.ZERO), "max buffering duration should be a positive value");
+    return new GroupIntoBatches<>(batchSize, duration);
+  }
+
+  /**
+   * Outputs batched elements associated with sharded input keys. By default, keys are sharded to
+   * such that the input elements with the same key are spread to all available threads executing
+   * the transform. Runners may override the default sharding to do a better load balancing during
+   * the execution time.
+   */
+  @Experimental
+  public WithShardedKey withShardedKey() {
+    return new WithShardedKey();
+  }
+
+  public class WithShardedKey
+      extends PTransform<
+          PCollection<KV<K, InputT>>, PCollection<KV<ShardedKey<K>, Iterable<InputT>>>> {
+    private WithShardedKey() {}
+
+    /** Returns the size of the batch. */
+    public long getBatchSize() {
+      return batchSize;
+    }
+
+    @Override
+    public PCollection<KV<ShardedKey<K>, Iterable<InputT>>> expand(
+        PCollection<KV<K, InputT>> input) {
+      Duration allowedLateness = input.getWindowingStrategy().getAllowedLateness();
+
+      checkArgument(
+          input.getCoder() instanceof KvCoder,
+          "coder specified in the input PCollection is not a KvCoder");
+      KvCoder<K, InputT> inputCoder = (KvCoder<K, InputT>) input.getCoder();
+      Coder<K> keyCoder = (Coder<K>) inputCoder.getCoderArguments().get(0);
+      Coder<InputT> valueCoder = (Coder<InputT>) inputCoder.getCoderArguments().get(1);
+
+      return input
+          .apply(
+              MapElements.via(
+                  new SimpleFunction<KV<K, InputT>, KV<ShardedKey<K>, InputT>>() {
+                    @Override
+                    public KV<ShardedKey<K>, InputT> apply(KV<K, InputT> input) {
+                      long tid = Thread.currentThread().getId();
+                      ByteBuffer buffer = ByteBuffer.allocate(3 * Long.BYTES);
+                      buffer.putLong(workerUuid.getMostSignificantBits());
+                      buffer.putLong(workerUuid.getLeastSignificantBits());
+                      buffer.putLong(tid);
+                      return KV.of(ShardedKey.of(input.getKey(), buffer.array()), input.getValue());
+                    }
+                  }))
+          .setCoder(KvCoder.of(ShardedKey.Coder.of(keyCoder), valueCoder))
+          .apply(
+              ParDo.of(
+                  new GroupIntoBatchesDoFn<>(
+                      batchSize,
+                      allowedLateness,
+                      maxBufferingDuration,
+                      ShardedKey.Coder.of(keyCoder),
+                      valueCoder)));
+    }
   }
 
   @Override
@@ -92,28 +188,35 @@ public class GroupIntoBatches<K, InputT>
     checkArgument(
         input.getCoder() instanceof KvCoder,
         "coder specified in the input PCollection is not a KvCoder");
-    KvCoder inputCoder = (KvCoder) input.getCoder();
+    KvCoder<K, InputT> inputCoder = (KvCoder<K, InputT>) input.getCoder();
     Coder<K> keyCoder = (Coder<K>) inputCoder.getCoderArguments().get(0);
     Coder<InputT> valueCoder = (Coder<InputT>) inputCoder.getCoderArguments().get(1);
 
     return input.apply(
-        ParDo.of(new GroupIntoBatchesDoFn<>(batchSize, allowedLateness, keyCoder, valueCoder)));
+        ParDo.of(
+            new GroupIntoBatchesDoFn<>(
+                batchSize, allowedLateness, maxBufferingDuration, keyCoder, valueCoder)));
   }
 
   @VisibleForTesting
-  static class GroupIntoBatchesDoFn<K, InputT>
+  private static class GroupIntoBatchesDoFn<K, InputT>
       extends DoFn<KV<K, InputT>, KV<K, Iterable<InputT>>> {
 
     private static final Logger LOG = LoggerFactory.getLogger(GroupIntoBatchesDoFn.class);
     private static final String END_OF_WINDOW_ID = "endOFWindow";
+    private static final String END_OF_BUFFERING_ID = "endOfBuffering";
     private static final String BATCH_ID = "batch";
     private static final String NUM_ELEMENTS_IN_BATCH_ID = "numElementsInBatch";
     private static final String KEY_ID = "key";
     private final long batchSize;
     private final Duration allowedLateness;
+    private final Duration maxBufferingDuration;
 
     @TimerId(END_OF_WINDOW_ID)
-    private final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+    private final TimerSpec windowTimer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+    @TimerId(END_OF_BUFFERING_ID)
+    private final TimerSpec bufferingTimer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 
     @StateId(BATCH_ID)
     private final StateSpec<BagState<InputT>> batchSpec;
@@ -129,10 +232,12 @@ public class GroupIntoBatches<K, InputT>
     GroupIntoBatchesDoFn(
         long batchSize,
         Duration allowedLateness,
+        Duration maxBufferingDuration,
         Coder<K> inputKeyCoder,
         Coder<InputT> inputValueCoder) {
       this.batchSize = batchSize;
       this.allowedLateness = allowedLateness;
+      this.maxBufferingDuration = maxBufferingDuration;
       this.batchSpec = StateSpecs.bag(inputValueCoder);
       this.numElementsInBatchSpec =
           StateSpecs.combining(
@@ -150,70 +255,96 @@ public class GroupIntoBatches<K, InputT>
               });
 
       this.keySpec = StateSpecs.value(inputKeyCoder);
-      // prefetch every 20% of batchSize elements. Do not prefetch if batchSize is too little
+      // Prefetch every 20% of batchSize elements. Do not prefetch if batchSize is too little
       this.prefetchFrequency = ((batchSize / 5) <= 1) ? Long.MAX_VALUE : (batchSize / 5);
     }
 
     @ProcessElement
     public void processElement(
-        @TimerId(END_OF_WINDOW_ID) Timer timer,
+        @TimerId(END_OF_WINDOW_ID) Timer windowTimer,
+        @TimerId(END_OF_BUFFERING_ID) Timer bufferingTimer,
         @StateId(BATCH_ID) BagState<InputT> batch,
         @StateId(NUM_ELEMENTS_IN_BATCH_ID) CombiningState<Long, long[], Long> numElementsInBatch,
         @StateId(KEY_ID) ValueState<K> key,
         @Element KV<K, InputT> element,
         BoundedWindow window,
         OutputReceiver<KV<K, Iterable<InputT>>> receiver) {
-      Instant windowExpires = window.maxTimestamp().plus(allowedLateness);
-
-      LOG.debug(
-          "*** SET TIMER *** to point in time {} for window {}",
-          windowExpires.toString(),
-          window.toString());
-      timer.set(windowExpires);
+      Instant windowEnds = window.maxTimestamp().plus(allowedLateness);
+      LOG.debug("*** SET TIMER *** to point in time {} for window {}", windowEnds, window);
+      windowTimer.set(windowEnds);
       key.write(element.getKey());
+      LOG.debug("*** BATCH *** Add element for window {} ", window);
       batch.add(element.getValue());
-      LOG.debug("*** BATCH *** Add element for window {} ", window.toString());
-      // blind add is supported with combiningState
+      // Blind add is supported with combiningState
       numElementsInBatch.add(1L);
-      Long num = numElementsInBatch.read();
+
+      long num = numElementsInBatch.read();
+      if (num == 1 && maxBufferingDuration != null) {
+        // This is the first element in batch. Start counting buffering time if a limit was set.
+        bufferingTimer.offset(maxBufferingDuration).setRelative();
+      }
       if (num % prefetchFrequency == 0) {
-        // prefetch data and modify batch state (readLater() modifies this)
+        // Prefetch data and modify batch state (readLater() modifies this)
         batch.readLater();
       }
       if (num >= batchSize) {
         LOG.debug("*** END OF BATCH *** for window {}", window.toString());
-        flushBatch(receiver, key, batch, numElementsInBatch);
+        flushBatch(receiver, key, batch, numElementsInBatch, bufferingTimer);
       }
     }
 
-    @OnTimer(END_OF_WINDOW_ID)
-    public void onTimerCallback(
+    @OnTimer(END_OF_BUFFERING_ID)
+    public void onBufferingTimer(
         OutputReceiver<KV<K, Iterable<InputT>>> receiver,
         @Timestamp Instant timestamp,
         @StateId(KEY_ID) ValueState<K> key,
         @StateId(BATCH_ID) BagState<InputT> batch,
         @StateId(NUM_ELEMENTS_IN_BATCH_ID) CombiningState<Long, long[], Long> numElementsInBatch,
+        @TimerId(END_OF_BUFFERING_ID) Timer bufferingTimer) {
+      LOG.debug(
+          "*** END OF BUFFERING *** for timer timestamp {} with buffering duration {}",
+          timestamp,
+          maxBufferingDuration);
+      flushBatch(receiver, key, batch, numElementsInBatch, null);
+    }
+
+    @OnTimer(END_OF_WINDOW_ID)
+    public void onWindowTimer(
+        OutputReceiver<KV<K, Iterable<InputT>>> receiver,
+        @Timestamp Instant timestamp,
+        @StateId(KEY_ID) ValueState<K> key,
+        @StateId(BATCH_ID) BagState<InputT> batch,
+        @StateId(NUM_ELEMENTS_IN_BATCH_ID) CombiningState<Long, long[], Long> numElementsInBatch,
+        @TimerId(END_OF_BUFFERING_ID) Timer bufferingTimer,
         BoundedWindow window) {
       LOG.debug(
           "*** END OF WINDOW *** for timer timestamp {} in windows {}",
           timestamp,
           window.toString());
-      flushBatch(receiver, key, batch, numElementsInBatch);
+      flushBatch(receiver, key, batch, numElementsInBatch, bufferingTimer);
     }
 
     private void flushBatch(
         OutputReceiver<KV<K, Iterable<InputT>>> receiver,
         ValueState<K> key,
         BagState<InputT> batch,
-        CombiningState<Long, long[], Long> numElementsInBatch) {
+        CombiningState<Long, long[], Long> numElementsInBatch,
+        @Nullable Timer bufferingTimer) {
       Iterable<InputT> values = batch.read();
-      // when the timer fires, batch state might be empty
+      // When the timer fires, batch state might be empty
       if (!Iterables.isEmpty(values)) {
         receiver.output(KV.of(key.read(), values));
       }
       batch.clear();
       LOG.debug("*** BATCH *** clear");
       numElementsInBatch.clear();
+      // We might reach here due to batch size being reached or window expiration. Reset the
+      // buffering timer (if not null) since the state is empty now. It'll be extended again if a
+      // new element arrives prior to the expiration time set here.
+      // TODO(BEAM-10887): Use clear() when it's available.
+      if (bufferingTimer != null && maxBufferingDuration != null) {
+        bufferingTimer.offset(maxBufferingDuration).setRelative();
+      }
     }
   }
 }

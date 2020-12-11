@@ -52,6 +52,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Helper functions for converting between equivalent schema types. */
 @Experimental(Kind.SCHEMAS)
+@SuppressWarnings({
+  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes"
+})
 public class ConvertHelpers {
   /** Return value after converting a schema. */
   public static class ConvertedSchemaInformation<T> implements Serializable {

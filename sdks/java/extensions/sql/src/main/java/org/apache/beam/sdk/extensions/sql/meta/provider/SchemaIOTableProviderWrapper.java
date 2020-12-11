@@ -44,6 +44,9 @@ import org.apache.beam.sdk.values.Row;
 /** A general {@link TableProvider} for IOs for consumption by Beam SQL. */
 @Internal
 @Experimental
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public abstract class SchemaIOTableProviderWrapper extends InMemoryMetaTableProvider
     implements Serializable {
 

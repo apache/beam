@@ -51,6 +51,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * The EvaluationContext allows us to define pipeline instructions and translate between {@code
  * PObject<T>}s or {@code PCollection<T>}s and Ts or DStreams/RDDs of Ts.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class EvaluationContext {
   private final JavaSparkContext jsc;
   private JavaStreamingContext jssc;
@@ -119,7 +123,7 @@ public class EvaluationContext {
     return input;
   }
 
-  public <T> Map<TupleTag<?>, PValue> getInputs(PTransform<?, ?> transform) {
+  public <T> Map<TupleTag<?>, PCollection<?>> getInputs(PTransform<?, ?> transform) {
     checkArgument(currentTransform != null, "can only be called with non-null currentTransform");
     checkArgument(
         currentTransform.getTransform() == transform, "can only be called with current transform");
@@ -132,7 +136,7 @@ public class EvaluationContext {
     return output;
   }
 
-  public Map<TupleTag<?>, PValue> getOutputs(PTransform<?, ?> transform) {
+  public Map<TupleTag<?>, PCollection<?>> getOutputs(PTransform<?, ?> transform) {
     checkArgument(currentTransform != null, "can only be called with non-null currentTransform");
     checkArgument(
         currentTransform.getTransform() == transform, "can only be called with current transform");

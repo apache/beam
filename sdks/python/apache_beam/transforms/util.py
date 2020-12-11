@@ -28,7 +28,9 @@ import contextlib
 import random
 import re
 import sys
+import threading
 import time
+import uuid
 from builtins import filter
 from builtins import object
 from builtins import range
@@ -48,6 +50,7 @@ from apache_beam import coders
 from apache_beam import typehints
 from apache_beam.metrics import Metrics
 from apache_beam.portability import common_urns
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.transforms import window
 from apache_beam.transforms.combiners import CountCombineFn
 from apache_beam.transforms.core import CombinePerKey
@@ -73,6 +76,7 @@ from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils import windowed_value
 from apache_beam.utils.annotations import deprecated
 from apache_beam.utils.annotations import experimental
+from apache_beam.utils.sharded_key import ShardedKey
 
 if TYPE_CHECKING:
   from apache_beam import pvalue
@@ -659,7 +663,8 @@ class ReshufflePerKey(PTransform):
         ]
     else:
 
-      def reify_timestamps(
+      # typing: All conditional function variants must have identical signatures
+      def reify_timestamps(  # type: ignore[misc]
           element, timestamp=DoFn.TimestampParam, window=DoFn.WindowParam):
         key, value = element
         # Transport the window as part of the value and restore it later.
@@ -708,12 +713,11 @@ class Reshuffle(PTransform):
       KeyedT = Tuple[long, T]  # pylint: disable=long-builtin
     return (
         pcoll
-        | 'AddRandomKeys' >> Map(lambda t: (random.getrandbits(32), t)).
-        with_input_types(T).with_output_types(KeyedT)  # type: ignore[misc]
+        | 'AddRandomKeys' >> Map(lambda t: (random.getrandbits(
+            32), t)).with_input_types(T).with_output_types(KeyedT)
         | ReshufflePerKey()
-        | 'RemoveRandomKeys' >> Map(lambda t: t[1]).with_input_types(
-            KeyedT).with_output_types(T)  # type: ignore[misc]
-    )
+        | 'RemoveRandomKeys' >>
+        Map(lambda t: t[1]).with_input_types(KeyedT).with_output_types(T))
 
   def to_runner_api_parameter(self, unused_context):
     # type: (PipelineContext) -> Tuple[str, None]
@@ -751,24 +755,144 @@ class GroupIntoBatches(PTransform):
   GroupIntoBatches is experimental. Its use case will depend on the runner if
   it has support of States and Timers.
   """
-  def __init__(self, batch_size):
-    """Create a new GroupIntoBatches with batch size.
+  def __init__(
+      self, batch_size, max_buffering_duration_secs=None, clock=time.time):
+    """Create a new GroupIntoBatches.
 
     Arguments:
       batch_size: (required) How many elements should be in a batch
+      max_buffering_duration_secs: (optional) How long in seconds at most an
+        incomplete batch of elements is allowed to be buffered in the states.
+        The duration must be a positive second duration and should be given as
+        an int or float. Setting this parameter to zero effectively means no
+        buffering limit.
+      clock: (optional) an alternative to time.time (mostly for testing)
     """
-    self.batch_size = batch_size
+    self.params = _GroupIntoBatchesParams(
+        batch_size, max_buffering_duration_secs)
+    self.clock = clock
 
   def expand(self, pcoll):
     input_coder = coders.registry.get_coder(pcoll)
     return pcoll | ParDo(
-        _pardo_group_into_batches(self.batch_size, input_coder))
+        _pardo_group_into_batches(
+            input_coder,
+            self.params.batch_size,
+            self.params.max_buffering_duration_secs,
+            self.clock))
+
+  def to_runner_api_parameter(
+      self,
+      unused_context  # type: PipelineContext
+  ):  # type: (...) -> Tuple[str, beam_runner_api_pb2.GroupIntoBatchesPayload]
+    return (
+        common_urns.group_into_batches_components.GROUP_INTO_BATCHES.urn,
+        self.params.get_payload())
+
+  @staticmethod
+  @PTransform.register_urn(
+      common_urns.group_into_batches_components.GROUP_INTO_BATCHES.urn,
+      beam_runner_api_pb2.GroupIntoBatchesPayload)
+  def from_runner_api_parameter(unused_ptransform, proto, unused_context):
+    return GroupIntoBatches(*_GroupIntoBatchesParams.parse_payload(proto))
+
+  @typehints.with_input_types(Tuple[K, V])
+  @typehints.with_output_types(Tuple[K, Iterable[V]])
+  class WithShardedKey(PTransform):
+    """A GroupIntoBatches transform that outputs batched elements associated
+    with sharded input keys.
+
+    By default, keys are sharded to such that the input elements with the same
+    key are spread to all available threads executing the transform. Runners may
+    override the default sharding to do a better load balancing during the
+    execution time.
+    """
+    def __init__(self, batch_size, max_buffering_duration_secs=None):
+      """Create a new GroupIntoBatches with sharded output.
+      See ``GroupIntoBatches`` transform for a description of input parameters.
+      """
+      self.params = _GroupIntoBatchesParams(
+          batch_size, max_buffering_duration_secs)
+
+    _shard_id_prefix = uuid.uuid4().bytes
+
+    def expand(self, pcoll):
+      sharded_pcoll = pcoll | Map(
+          lambda key_value: (
+              ShardedKey(
+                  key_value[0],
+                  # Use [uuid, thread id] as the shard id.
+                  GroupIntoBatches.WithShardedKey._shard_id_prefix + bytes(
+                      threading.get_ident().to_bytes(8, 'big'))),
+              key_value[1]))
+      return (
+          sharded_pcoll
+          | GroupIntoBatches(
+              self.params.batch_size, self.params.max_buffering_duration_secs))
+
+    def to_runner_api_parameter(
+        self,
+        unused_context  # type: PipelineContext
+    ):  # type: (...) -> Tuple[str, beam_runner_api_pb2.GroupIntoBatchesPayload]
+      return (
+          common_urns.composites.GROUP_INTO_BATCHES_WITH_SHARDED_KEY.urn,
+          self.params.get_payload())
+
+    @staticmethod
+    @PTransform.register_urn(
+        common_urns.composites.GROUP_INTO_BATCHES_WITH_SHARDED_KEY.urn,
+        beam_runner_api_pb2.GroupIntoBatchesPayload)
+    def from_runner_api_parameter(unused_ptransform, proto, unused_context):
+      return GroupIntoBatches.WithShardedKey(
+          *_GroupIntoBatchesParams.parse_payload(proto))
 
 
-def _pardo_group_into_batches(batch_size, input_coder):
+class _GroupIntoBatchesParams:
+  """This class represents the parameters for
+  :class:`apache_beam.utils.GroupIntoBatches` transform, used to define how
+  elements should be batched.
+  """
+  def __init__(self, batch_size, max_buffering_duration_secs):
+    self.batch_size = batch_size
+    self.max_buffering_duration_secs = (
+        0
+        if max_buffering_duration_secs is None else max_buffering_duration_secs)
+    self._validate()
+
+  def __eq__(self, other):
+    if other is None or not isinstance(other, _GroupIntoBatchesParams):
+      return False
+    return (
+        self.batch_size == other.batch_size and
+        self.max_buffering_duration_secs == other.max_buffering_duration_secs)
+
+  def _validate(self):
+    assert self.batch_size is not None and self.batch_size > 0, (
+        'batch_size must be a positive value')
+    assert (
+        self.max_buffering_duration_secs is not None and
+        self.max_buffering_duration_secs >= 0), (
+            'max_buffering_duration must be a non-negative value')
+
+  def get_payload(self):
+    return beam_runner_api_pb2.GroupIntoBatchesPayload(
+        batch_size=self.batch_size,
+        max_buffering_duration_millis=int(
+            self.max_buffering_duration_secs * 1000))
+
+  @staticmethod
+  def parse_payload(
+      proto  # type: beam_runner_api_pb2.GroupIntoBatchesPayload
+  ):
+    return proto.batch_size, proto.max_buffering_duration_millis / 1000
+
+
+def _pardo_group_into_batches(
+    input_coder, batch_size, max_buffering_duration_secs, clock=time.time):
   ELEMENT_STATE = BagStateSpec('values', input_coder)
   COUNT_STATE = CombiningValueStateSpec('count', input_coder, CountCombineFn())
-  EXPIRY_TIMER = TimerSpec('expiry', TimeDomain.WATERMARK)
+  WINDOW_TIMER = TimerSpec('window_end', TimeDomain.WATERMARK)
+  BUFFERING_TIMER = TimerSpec('buffering_end', TimeDomain.REAL_TIME)
 
   class _GroupIntoBatchesDoFn(DoFn):
     def process(
@@ -777,33 +901,47 @@ def _pardo_group_into_batches(batch_size, input_coder):
         window=DoFn.WindowParam,
         element_state=DoFn.StateParam(ELEMENT_STATE),
         count_state=DoFn.StateParam(COUNT_STATE),
-        expiry_timer=DoFn.TimerParam(EXPIRY_TIMER)):
+        window_timer=DoFn.TimerParam(WINDOW_TIMER),
+        buffering_timer=DoFn.TimerParam(BUFFERING_TIMER)):
       # Allowed lateness not supported in Python SDK
       # https://beam.apache.org/documentation/programming-guide/#watermarks-and-late-data
-      expiry_timer.set(window.end)
+      window_timer.set(window.end)
       element_state.add(element)
       count_state.add(1)
       count = count_state.read()
+      if count == 1 and max_buffering_duration_secs > 0:
+        # This is the first element in batch. Start counting buffering time if a
+        # limit was set.
+        buffering_timer.set(clock() + max_buffering_duration_secs)
       if count >= batch_size:
-        batch = [element for element in element_state.read()]
-        key, _ = batch[0]
-        batch_values = [v for (k, v) in batch]
-        yield (key, batch_values)
-        element_state.clear()
-        count_state.clear()
+        return self.flush_batch(element_state, count_state, buffering_timer)
 
-    @on_timer(EXPIRY_TIMER)
-    def expiry(
+    @on_timer(WINDOW_TIMER)
+    def on_window_timer(
         self,
         element_state=DoFn.StateParam(ELEMENT_STATE),
-        count_state=DoFn.StateParam(COUNT_STATE)):
+        count_state=DoFn.StateParam(COUNT_STATE),
+        buffering_timer=DoFn.TimerParam(BUFFERING_TIMER)):
+      return self.flush_batch(element_state, count_state, buffering_timer)
+
+    @on_timer(BUFFERING_TIMER)
+    def on_buffering_timer(
+        self,
+        element_state=DoFn.StateParam(ELEMENT_STATE),
+        count_state=DoFn.StateParam(COUNT_STATE),
+        buffering_timer=DoFn.TimerParam(BUFFERING_TIMER)):
+      return self.flush_batch(element_state, count_state, buffering_timer)
+
+    def flush_batch(self, element_state, count_state, buffering_timer):
       batch = [element for element in element_state.read()]
-      if batch:
-        key, _ = batch[0]
-        batch_values = [v for (k, v) in batch]
-        yield (key, batch_values)
-        element_state.clear()
-        count_state.clear()
+      if not batch:
+        return
+      key, _ = batch[0]
+      batch_values = [v for (k, v) in batch]
+      element_state.clear()
+      count_state.clear()
+      buffering_timer.clear()
+      yield key, batch_values
 
   return _GroupIntoBatchesDoFn()
 
@@ -1009,7 +1147,7 @@ class Regex(object):
 
   @staticmethod
   @typehints.with_input_types(str)
-  @typehints.with_output_types(Union[List[str], Tuple[str, str]])
+  @typehints.with_output_types(Union[List[str], List[Tuple[str, str]]])
   @ptransform_fn
   def find_all(pcoll, regex, group=0, outputEmpty=True):
     """

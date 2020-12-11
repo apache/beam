@@ -97,6 +97,10 @@ export class KernelModel {
     return this._stateChanged;
   }
 
+  get isDone(): boolean {
+    return this._isDone;
+  }
+
   execute(code: string, expectReply = true): void {
     // Dispose the kernel future so that no more IOPub will be handled.
     if (this.future) {
@@ -110,11 +114,18 @@ export class KernelModel {
     if (!this._sessionContext || !this._sessionContext.session?.kernel) {
       return;
     }
+    // Start a new code execution.
+    this._isDone = false;
     this.future = this._sessionContext.session?.kernel?.requestExecute({
       code: KernelCode.COMMON_KERNEL_IMPORTS + code,
       silent: !expectReply,
       store_history: false // eslint-disable-line @typescript-eslint/camelcase
     });
+  }
+
+  interruptKernel(): void {
+    this._sessionContext.session?.kernel?.interrupt();
+    this._isDone = true;
   }
 
   private _onIOPub(msg: KernelMessage.IIOPubMessage): void {
@@ -127,18 +138,25 @@ export class KernelModel {
         const executeResult = msg.content as IExecuteResult;
         this._executeResult = executeResult;
         this._stateChanged.emit();
+        this._isDone = true;
         break;
       }
       case 'display_data': {
         const displayData = msg.content as IDisplayData;
         this._displayData.push(displayData);
         this._stateChanged.emit();
+        this._isDone = false;
         break;
       }
       case 'update_display_data': {
         const displayUpdate = msg.content as IDisplayUpdate;
         this._displayUpdate.push(displayUpdate);
         this._stateChanged.emit();
+        this._isDone = false;
+        break;
+      }
+      case 'status': {
+        this._isDone = true;
         break;
       }
       default: {
@@ -158,4 +176,5 @@ export class KernelModel {
   private _sessionContext: ISessionContext;
   private _stateChanged = new Signal<KernelModel, void>(this);
   private _enableConsoleLog = false;
+  private _isDone = true;
 }

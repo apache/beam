@@ -54,6 +54,9 @@ import org.junit.Ignore;
 import org.junit.Test;
 
 /** Tests for {@link UnboundedSourceSystem}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class UnboundedSourceSystemTest {
 
   // A reasonable time to wait to get all messages from the source assuming no blocking.

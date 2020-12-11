@@ -32,12 +32,17 @@ import static org.mockito.Mockito.when;
 import com.google.api.core.ApiFutures;
 import com.google.cloud.pubsublite.Offset;
 import com.google.cloud.pubsublite.Partition;
-import com.google.cloud.pubsublite.internal.FakeApiService;
+import com.google.cloud.pubsublite.internal.PullSubscriber;
+import com.google.cloud.pubsublite.internal.testing.FakeApiService;
 import com.google.cloud.pubsublite.internal.wire.Committer;
+import com.google.cloud.pubsublite.proto.ComputeMessageStatsResponse;
 import com.google.cloud.pubsublite.proto.Cursor;
 import com.google.cloud.pubsublite.proto.SequencedMessage;
+import com.google.protobuf.Duration;
 import com.google.protobuf.Timestamp;
+import com.google.protobuf.util.Durations;
 import com.google.protobuf.util.Timestamps;
+import io.grpc.Status;
 import io.grpc.StatusException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -48,6 +53,7 @@ import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.io.gcp.pubsublite.PubsubLiteUnboundedReader.SubscriberState;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Ticker;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.Instant;
@@ -59,18 +65,42 @@ import org.mockito.MockitoAnnotations;
 import org.mockito.Spy;
 
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class PubsubLiteUnboundedReaderTest {
-  @Mock private PullSubscriber subscriber5;
+  @Mock private PullSubscriber<SequencedMessage> subscriber5;
 
-  @Mock private PullSubscriber subscriber8;
+  @Mock private PullSubscriber<SequencedMessage> subscriber8;
 
   abstract static class CommitterFakeService extends FakeApiService implements Committer {}
+
+  private static class FakeTicker extends Ticker {
+    private Timestamp time;
+
+    FakeTicker(Timestamp start) {
+      time = start;
+    }
+
+    @Override
+    public long read() {
+      return Timestamps.toNanos(time);
+    }
+
+    public void advance(Duration duration) {
+      time = Timestamps.add(time, duration);
+    }
+  }
 
   @Spy private CommitterFakeService committer5;
   @Spy private CommitterFakeService committer8;
 
   @SuppressWarnings("unchecked")
   private final UnboundedSource<SequencedMessage, ?> source = mock(UnboundedSource.class);
+
+  @Mock private TopicBacklogReader backlogReader;
+
+  private final FakeTicker ticker = new FakeTicker(Timestamps.fromSeconds(450));
 
   private final PubsubLiteUnboundedReader reader;
 
@@ -100,7 +130,10 @@ public class PubsubLiteUnboundedReaderTest {
     state8.committer = committer8;
     reader =
         new PubsubLiteUnboundedReader(
-            source, ImmutableMap.of(Partition.of(5), state5, Partition.of(8), state8));
+            source,
+            ImmutableMap.of(Partition.of(5), state5, Partition.of(8), state8),
+            backlogReader,
+            ticker);
   }
 
   @Test
@@ -223,5 +256,75 @@ public class PubsubLiteUnboundedReaderTest {
     when(committer5.commitOffset(Offset.of(10))).thenReturn(ApiFutures.immediateFuture(null));
     mark.finalizeCheckpoint();
     verify(committer5).commitOffset(Offset.of(10));
+  }
+
+  @Test
+  public void splitBacklogBytes_returnsUnknownBacklogOnError() throws Exception {
+    when(backlogReader.computeMessageStats(ImmutableMap.of()))
+        .thenReturn(ApiFutures.immediateFailedFuture(new StatusException(Status.UNAVAILABLE)));
+    assertThat(PubsubLiteUnboundedReader.BACKLOG_UNKNOWN, equalTo(reader.getSplitBacklogBytes()));
+  }
+
+  @Test
+  public void splitBacklogBytes_computesBacklog() throws Exception {
+    ComputeMessageStatsResponse response =
+        ComputeMessageStatsResponse.newBuilder().setMessageBytes(40).build();
+    when(backlogReader.computeMessageStats(ImmutableMap.of()))
+        .thenReturn(ApiFutures.immediateFuture(response));
+    assertThat(response.getMessageBytes(), equalTo(reader.getSplitBacklogBytes()));
+  }
+
+  @SuppressWarnings("unchecked")
+  @Test
+  public void splitBacklogBytes_computesBacklogOncePerTenSeconds() throws Exception {
+    ComputeMessageStatsResponse response1 =
+        ComputeMessageStatsResponse.newBuilder().setMessageBytes(40).build();
+    ComputeMessageStatsResponse response2 =
+        ComputeMessageStatsResponse.newBuilder().setMessageBytes(50).build();
+
+    when(backlogReader.computeMessageStats(ImmutableMap.of()))
+        .thenReturn(ApiFutures.immediateFuture(response1), ApiFutures.immediateFuture(response2));
+
+    assertThat(response1.getMessageBytes(), equalTo(reader.getSplitBacklogBytes()));
+    ticker.advance(Durations.fromSeconds(10));
+    assertThat(response1.getMessageBytes(), equalTo(reader.getSplitBacklogBytes()));
+    ticker.advance(Durations.fromSeconds(1));
+    assertThat(response2.getMessageBytes(), equalTo(reader.getSplitBacklogBytes()));
+  }
+
+  @SuppressWarnings("unchecked")
+  @Test
+  public void splitBacklogBytes_oldValueExpiresAfterOneMinute() throws Exception {
+    ComputeMessageStatsResponse response =
+        ComputeMessageStatsResponse.newBuilder().setMessageBytes(40).build();
+
+    when(backlogReader.computeMessageStats(ImmutableMap.of()))
+        .thenReturn(
+            ApiFutures.immediateFuture(response),
+            ApiFutures.immediateFailedFuture(new StatusException(Status.UNAVAILABLE)));
+
+    assertThat(response.getMessageBytes(), equalTo(reader.getSplitBacklogBytes()));
+    ticker.advance(Durations.fromSeconds(30));
+    assertThat(response.getMessageBytes(), equalTo(reader.getSplitBacklogBytes()));
+    ticker.advance(Durations.fromSeconds(31));
+    assertThat(PubsubLiteUnboundedReader.BACKLOG_UNKNOWN, equalTo(reader.getSplitBacklogBytes()));
+  }
+
+  @Test
+  public void splitBacklogBytes_usesCorrectCursorValues() throws Exception {
+    SequencedMessage message1 = exampleMessage(Offset.of(10), randomMilliAllignedTimestamp());
+    SequencedMessage message2 = exampleMessage(Offset.of(888), randomMilliAllignedTimestamp());
+    ComputeMessageStatsResponse response =
+        ComputeMessageStatsResponse.newBuilder().setMessageBytes(40).build();
+
+    when(subscriber5.pull()).thenReturn(ImmutableList.of(message1));
+    when(subscriber8.pull()).thenReturn(ImmutableList.of(message2));
+    when(backlogReader.computeMessageStats(
+            ImmutableMap.of(Partition.of(5), Offset.of(10), Partition.of(8), Offset.of(888))))
+        .thenReturn(ApiFutures.immediateFuture(response));
+
+    assertTrue(reader.start());
+    assertTrue(reader.advance());
+    assertThat(response.getMessageBytes(), equalTo(reader.getSplitBacklogBytes()));
   }
 }

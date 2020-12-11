@@ -75,6 +75,9 @@ import org.slf4j.LoggerFactory;
  *
  * <p>TODO: replace in-memory job management state with persistent solution.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implements FnService {
   private static final Logger LOG = LoggerFactory.getLogger(InMemoryJobService.class);
 
@@ -270,9 +273,7 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
               }
             } catch (Exception e) {
               LOG.warn(
-                  "Failed to remove job staging directory for token {}: {}",
-                  stagingSessionToken,
-                  e);
+                  "Failed to remove job staging directory for token {}.", stagingSessionToken, e);
             } finally {
               onFinishedInvocationCleanup(invocationId);
             }
