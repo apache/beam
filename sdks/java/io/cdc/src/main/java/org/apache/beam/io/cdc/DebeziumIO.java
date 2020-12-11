@@ -1,14 +1,6 @@
 package org.apache.beam.io.cdc;
 
-
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-
-import java.io.Serializable;
-import java.util.HashMap;
-import java.util.Map;
-
-import org.apache.kafka.connect.source.SourceConnector;
-import org.apache.kafka.connect.source.SourceRecord;
+import com.google.auto.value.AutoValue;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -16,16 +8,20 @@ import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.kafka.connect.source.SourceConnector;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.auto.value.AutoValue;
+import java.io.Serializable;
+import java.util.HashMap;
+import java.util.Map;
+
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 public class DebeziumIO {
 	
@@ -55,7 +51,7 @@ public class DebeziumIO {
 
 		abstract @Nullable ConnectorConfiguration getConnectorConfiguration();
 		
-		abstract @Nullable SerializableFunction<SourceRecord, T> getFormatFunction();
+		abstract @Nullable SourceRecordMapper<T> getFormatFunction();
 
 		abstract @Nullable Coder<T> getCoder();
 
@@ -66,7 +62,7 @@ public class DebeziumIO {
 
 			abstract Builder<T> setConnectorConfiguration(ConnectorConfiguration config);
 			abstract Builder<T> setCoder(Coder<T> coder);
-			abstract Builder<T> setFormatFunction(SerializableFunction<SourceRecord, T> mapperFn);
+			abstract Builder<T> setFormatFunction(SourceRecordMapper<T> mapperFn);
 			abstract Read<T> build();
 			  
 		}
@@ -77,7 +73,7 @@ public class DebeziumIO {
 			return toBuilder().setConnectorConfiguration(config).build();
 		}
 		
-		public Read<T> withFormatFunction(SerializableFunction<SourceRecord, T> mapperFn) {
+		public Read<T> withFormatFunction(SourceRecordMapper<T> mapperFn) {
 			checkArgument(mapperFn != null, "mapperFn can not be null");
 			return toBuilder().setFormatFunction(mapperFn).build();
 		}

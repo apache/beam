@@ -80,12 +80,12 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
 
   public static final String BEAM_INSTANCE_PROPERTY = "beam.parent.instance";
   private final Class<? extends SourceConnector> connectorClass;
-  private final SerializableFunction<SourceRecord, T> fn;
+  private final SourceRecordMapper<T> fn;
   protected static final Map<String, RestrictionTracker<OffsetHolder,  Map<String, Object>>>
       restrictionTrackers = new ConcurrentHashMap<>();
 
   KafkaSourceConsumerFn(Class<?> connectorClass,
-                        SerializableFunction<SourceRecord, T> fn) {
+		  SourceRecordMapper<T> fn) {
     this.connectorClass = (Class<? extends SourceConnector>) connectorClass;
     this.fn = fn;
   }
@@ -110,7 +110,7 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
       @Element Map<String, String> element,
       RestrictionTracker<OffsetHolder, Map<String, Object>> tracker,
       OutputReceiver<T> receiver)
-      throws IllegalAccessException, InstantiationException, InterruptedException, NoSuchMethodException, InvocationTargetException {
+      throws Exception {
     Map<String, String> configuration = new HashMap<>(element);
     // Adding the current restriction to the class object to be found by the database history
     restrictionTrackers.put(Integer.toString(System.identityHashCode(this)), tracker);
@@ -140,8 +140,9 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
     for (SourceRecord record : records) {
       Map<String, Object> offset = (Map<String, Object>) record.sourceOffset();
       if (offset != null && tracker.tryClaim(offset)) {
-        System.out.println("RECEIVED SOME " + record.toString());
-        receiver.output(this.fn.apply(record));
+    	  T json = this.fn.mapSourceRecord(record);
+        System.out.println("RECEIVED SOME " + json);
+        receiver.output(json);
       } else {
         System.out.println("DONE BECAUSE NULL OFFSET or CANT CLAIM!");
         // We're done.
