@@ -68,7 +68,9 @@ with at least one <code>qualifier</code>. Cells are represented as simple types 
 ROW type with a mandatory <code>val</code> field, optional <code>timestampMicros</code> and optional <code>labels</code>. Both
 read the latest cell in the column. Cells specified as Arrays of simple types
 (<code>ARRAY&lt;simpleType></code>) allow to read all the column&rsquo;s values.</p><p>For flat schema only <code>SIMPLE_TYPE</code> values are allowed. Every field except for <code>key</code> must correspond
-to the key-values pairs specified in <code>columnsMapping</code>.</p><p>Not all existing column families and qualifiers have to be provided to the schema.</p><h3 id=write-mode-1>Write Mode</h3><p>Supported for flat schema only.</p><h3 id=example-1>Example</h3><pre><code>CREATE EXTERNAL TABLE beamTable(
+to the key-values pairs specified in <code>columnsMapping</code>.</p><p>Not all existing column families and qualifiers have to be provided to the schema.</p><p>Filters are only allowed by <code>key</code> field with single <code>LIKE</code> statement with
+<a href=https://github.com/google/re2/wiki/Syntax>RE2 Syntax</a> regex, e.g.
+<code>SELECT * FROM table WHERE key LIKE '^key[012]{1}'</code></p><h3 id=write-mode-1>Write Mode</h3><p>Supported for flat schema only.</p><h3 id=example-1>Example</h3><pre><code>CREATE EXTERNAL TABLE beamTable(
   key VARCHAR NOT NULL,
   beamFamily ROW&lt;
      boolLatest BOOLEAN NOT NULL,

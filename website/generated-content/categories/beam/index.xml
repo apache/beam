@@ -1221,6 +1221,426 @@ How do refinements relate?
 &lt;tr class='cap-summary'>
 &lt;td class='cap-summary color-blank cap-blank' colspan='5'>&lt;/td>
 &lt;/tr>
+&lt;tr class='cap-summary' id='cap-blog-what'>
+&lt;th class='cap-summary color-metadata format-category' colspan='8' style='color:#ca1'>
+Bounded Splittable DoFn Support Status
+&lt;/th>
+&lt;/tr>
+&lt;tr class='cap-summary'>
+&lt;th class='cap-summary color-capability'>&lt;/th>
+&lt;th class='cap-summary color-platform format-platform' style='color:#ec3'>Beam Model&lt;/th>
+&lt;th class='cap-summary color-platform format-platform' style='color:#ec3'>Google Cloud Dataflow&lt;/th>
+&lt;th class='cap-summary color-platform format-platform' style='color:#ec3'>Apache Flink&lt;/th>
+&lt;th class='cap-summary color-platform format-platform' style='color:#ec3'>Apache Spark&lt;/th>
+&lt;/tr>
+&lt;tr class='cap-summary'>
+&lt;th class='cap-summary color-capability format-capability' style='color:#ec3'>Base&lt;/th>
+&lt;td width='25%' class='cap-summary' style='background-color:#ec3;border-color:#ca1'>
+&lt;center>
+&lt;b>
+&amp;#x2713;
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;td width='25%' class='cap-summary' style='background-color:#fe5;border-color:#ca1'>
+&lt;center>
+&lt;b>
+~
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;td width='25%' class='cap-summary' style='background-color:#fe5;border-color:#ca1'>
+&lt;center>
+&lt;b>
+~
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;td width='25%' class='cap-summary' style='background-color:#ddd;border-color:#ca1'>
+&lt;center>
+&lt;b>
+&amp;#x2715;
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;/tr>
+&lt;tr class='cap-summary'>
+&lt;th class='cap-summary color-capability format-capability' style='color:#ec3'>Side Inputs&lt;/th>
+&lt;td width='25%' class='cap-summary' style='background-color:#ec3;border-color:#ca1'>
+&lt;center>
+&lt;b>
+&amp;#x2713;
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;td width='25%' class='cap-summary' style='background-color:#fe5;border-color:#ca1'>
+&lt;center>
+&lt;b>
+~
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;td width='25%' class='cap-summary' style='background-color:#fe5;border-color:#ca1'>
+&lt;center>
+&lt;b>
+~
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;td width='25%' class='cap-summary' style='background-color:#ddd;border-color:#ca1'>
+&lt;center>
+&lt;b>
+&amp;#x2715;
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;/tr>
+&lt;tr class='cap-summary'>
+&lt;th class='cap-summary color-capability format-capability' style='color:#ec3'>Splittable DoFn Initiated Checkpointing&lt;/th>
+&lt;td width='25%' class='cap-summary' style='background-color:#ec3;border-color:#ca1'>
+&lt;center>
+&lt;b>
+&amp;#x2713;
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;td width='25%' class='cap-summary' style='background-color:#fe5;border-color:#ca1'>
+&lt;center>
+&lt;b>
+~
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;td width='25%' class='cap-summary' style='background-color:#fe5;border-color:#ca1'>
+&lt;center>
+&lt;b>
+~
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;td width='25%' class='cap-summary' style='background-color:#ddd;border-color:#ca1'>
+&lt;center>
+&lt;b>
+&amp;#x2715;
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;/tr>
+&lt;tr class='cap-summary'>
+&lt;th class='cap-summary color-capability format-capability' style='color:#ec3'>Dynamic Splitting&lt;/th>
+&lt;td width='25%' class='cap-summary' style='background-color:#ec3;border-color:#ca1'>
+&lt;center>
+&lt;b>
+&amp;#x2713;
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;td width='25%' class='cap-summary' style='background-color:#fe5;border-color:#ca1'>
+&lt;center>
+&lt;b>
+~
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;td width='25%' class='cap-summary' style='background-color:#ddd;border-color:#ca1'>
+&lt;center>
+&lt;b>
+&amp;#x2715;
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;td width='25%' class='cap-summary' style='background-color:#ddd;border-color:#ca1'>
+&lt;center>
+&lt;b>
+&amp;#x2715;
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;/tr>
+&lt;tr class='cap-summary'>
+&lt;th class='cap-summary color-capability format-capability' style='color:#ec3'>Bundle Finalization&lt;/th>
+&lt;td width='25%' class='cap-summary' style='background-color:#ec3;border-color:#ca1'>
+&lt;center>
+&lt;b>
+&amp;#x2713;
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;td width='25%' class='cap-summary' style='background-color:#fe5;border-color:#ca1'>
+&lt;center>
+&lt;b>
+~
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;td width='25%' class='cap-summary' style='background-color:#ddd;border-color:#ca1'>
+&lt;center>
+&lt;b>
+&amp;#x2715;
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;td width='25%' class='cap-summary' style='background-color:#ddd;border-color:#ca1'>
+&lt;center>
+&lt;b>
+&amp;#x2715;
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;/tr>
+&lt;tr class='cap-summary'>
+&lt;td class='cap-summary color-blank cap-blank' colspan='5'>&lt;/td>
+&lt;/tr>
+&lt;tr class='cap-summary' id='cap-blog-what'>
+&lt;th class='cap-summary color-metadata format-category' colspan='8' style='color:#ca1'>
+Unbounded Splittable DoFn Support Status
+&lt;/th>
+&lt;/tr>
+&lt;tr class='cap-summary'>
+&lt;th class='cap-summary color-capability'>&lt;/th>
+&lt;th class='cap-summary color-platform format-platform' style='color:#ec3'>Beam Model&lt;/th>
+&lt;th class='cap-summary color-platform format-platform' style='color:#ec3'>Google Cloud Dataflow&lt;/th>
+&lt;th class='cap-summary color-platform format-platform' style='color:#ec3'>Apache Flink&lt;/th>
+&lt;th class='cap-summary color-platform format-platform' style='color:#ec3'>Apache Spark&lt;/th>
+&lt;/tr>
+&lt;tr class='cap-summary'>
+&lt;th class='cap-summary color-capability format-capability' style='color:#ec3'>Base&lt;/th>
+&lt;td width='25%' class='cap-summary' style='background-color:#ec3;border-color:#ca1'>
+&lt;center>
+&lt;b>
+&amp;#x2713;
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;td width='25%' class='cap-summary' style='background-color:#ec3;border-color:#ca1'>
+&lt;center>
+&lt;b>
+&amp;#x2713;
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;td width='25%' class='cap-summary' style='background-color:#ec3;border-color:#ca1'>
+&lt;center>
+&lt;b>
+&amp;#x2713;
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;td width='25%' class='cap-summary' style='background-color:#ddd;border-color:#ca1'>
+&lt;center>
+&lt;b>
+&amp;#x2715;
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;/tr>
+&lt;tr class='cap-summary'>
+&lt;th class='cap-summary color-capability format-capability' style='color:#ec3'>Side Inputs&lt;/th>
+&lt;td width='25%' class='cap-summary' style='background-color:#ec3;border-color:#ca1'>
+&lt;center>
+&lt;b>
+&amp;#x2713;
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;td width='25%' class='cap-summary' style='background-color:#fe5;border-color:#ca1'>
+&lt;center>
+&lt;b>
+~
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;td width='25%' class='cap-summary' style='background-color:#fe5;border-color:#ca1'>
+&lt;center>
+&lt;b>
+~
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;td width='25%' class='cap-summary' style='background-color:#ddd;border-color:#ca1'>
+&lt;center>
+&lt;b>
+&amp;#x2715;
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;/tr>
+&lt;tr class='cap-summary'>
+&lt;th class='cap-summary color-capability format-capability' style='color:#ec3'>Splittable DoFn Initiated Checkpointing&lt;/th>
+&lt;td width='25%' class='cap-summary' style='background-color:#ec3;border-color:#ca1'>
+&lt;center>
+&lt;b>
+&amp;#x2713;
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;td width='25%' class='cap-summary' style='background-color:#ec3;border-color:#ca1'>
+&lt;center>
+&lt;b>
+&amp;#x2713;
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;td width='25%' class='cap-summary' style='background-color:#ec3;border-color:#ca1'>
+&lt;center>
+&lt;b>
+&amp;#x2713;
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;td width='25%' class='cap-summary' style='background-color:#ddd;border-color:#ca1'>
+&lt;center>
+&lt;b>
+&amp;#x2715;
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;/tr>
+&lt;tr class='cap-summary'>
+&lt;th class='cap-summary color-capability format-capability' style='color:#ec3'>Dynamic Splitting&lt;/th>
+&lt;td width='25%' class='cap-summary' style='background-color:#ec3;border-color:#ca1'>
+&lt;center>
+&lt;b>
+&amp;#x2713;
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;td width='25%' class='cap-summary' style='background-color:#ddd;border-color:#ca1'>
+&lt;center>
+&lt;b>
+&amp;#x2715;
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;td width='25%' class='cap-summary' style='background-color:#ddd;border-color:#ca1'>
+&lt;center>
+&lt;b>
+&amp;#x2715;
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;td width='25%' class='cap-summary' style='background-color:#ddd;border-color:#ca1'>
+&lt;center>
+&lt;b>
+&amp;#x2715;
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;/tr>
+&lt;tr class='cap-summary'>
+&lt;th class='cap-summary color-capability format-capability' style='color:#ec3'>Bundle Finalization&lt;/th>
+&lt;td width='25%' class='cap-summary' style='background-color:#ec3;border-color:#ca1'>
+&lt;center>
+&lt;b>
+&amp;#x2713;
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;td width='25%' class='cap-summary' style='background-color:#fe5;border-color:#ca1'>
+&lt;center>
+&lt;b>
+~
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;td width='25%' class='cap-summary' style='background-color:#fe5;border-color:#ca1'>
+&lt;center>
+&lt;b>
+~
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;td width='25%' class='cap-summary' style='background-color:#ddd;border-color:#ca1'>
+&lt;center>
+&lt;b>
+&amp;#x2715;
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;/tr>
+&lt;tr class='cap-summary'>
+&lt;td class='cap-summary color-blank cap-blank' colspan='5'>&lt;/td>
+&lt;/tr>
 &lt;/table>
 &lt;/div>
 &lt;/p></description></item><item><title>Blog: Dataflow Python SDK is now public!</title><link>/blog/python-sdk-now-public/</link><pubDate>Thu, 25 Feb 2016 13:00:00 -0800</pubDate><guid>/blog/python-sdk-now-public/</guid><description>
