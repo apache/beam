@@ -439,8 +439,8 @@ class ExternalTransform(ptransform.PTransform):
       if id.startswith(self._IMPULSE_PREFIX):
         # Our fake inputs.
         continue
-      assert id.startswith(self._external_namespace), (
-          id, self._external_namespace)
+      assert id.startswith(
+          self._external_namespace), (id, self._external_namespace)
       new_proto = beam_runner_api_pb2.PTransform(
           unique_name=proto.unique_name,
           spec=proto.spec,

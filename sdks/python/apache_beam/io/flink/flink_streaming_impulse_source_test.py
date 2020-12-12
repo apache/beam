@@ -33,8 +33,7 @@ class FlinkStreamingImpulseSourceTest(unittest.TestCase):
     # pylint: disable=expression-not-assigned
     p | FlinkStreamingImpulseSource()
     # Test that roundtrip through Runner API works
-    beam.Pipeline.from_runner_api(
-        p.to_runner_api(), p.runner, p._options)
+    beam.Pipeline.from_runner_api(p.to_runner_api(), p.runner, p._options)
 
 
 if __name__ == '__main__':

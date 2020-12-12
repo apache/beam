@@ -723,9 +723,9 @@ class DataflowRunner(PipelineRunner):
     # Cache the node/step association for the main output of the transform node.
 
     # External transforms may not use 'None' as an output tag.
-    output_tags = ([None] + list(side_tags)
-                   if None in transform_node.outputs.keys()
-                   else list(transform_node.outputs.keys()))
+    output_tags = ([None] +
+                   list(side_tags) if None in transform_node.outputs.keys() else
+                   list(transform_node.outputs.keys()))
 
     # We have to cache output for all tags since some transforms may produce
     # multiple outputs.
@@ -910,8 +910,10 @@ class DataflowRunner(PipelineRunner):
 
     # AppliedTransform node outputs have to be updated to correctly map the
     # outputs for external transforms.
-    transform_node.outputs = (
-      {output.tag:output for output in transform_node.outputs.values()})
+    transform_node.outputs = ({
+        output.tag: output
+        for output in transform_node.outputs.values()
+    })
 
     self.run_Impulse(transform_node, options)
 

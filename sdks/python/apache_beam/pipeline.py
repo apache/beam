@@ -901,8 +901,7 @@ class Pipeline(object):
     p = Pipeline(runner=runner, options=options)
     from apache_beam.runners import pipeline_context
     context = pipeline_context.PipelineContext(
-        proto.components,
-        requirements=proto.requirements)
+        proto.components, requirements=proto.requirements)
     if proto.root_transform_ids:
       root_transform_id, = proto.root_transform_ids
       p.transforms_stack = [context.transforms.get_by_id(root_transform_id)]
@@ -975,7 +974,6 @@ class ExternalTransformFinder(PipelineVisitor):
   """Looks for any external transforms in the pipeline and if found records
   it.
   """
-
   def __init__(self):
     self.contains_external_transforms = False
 
@@ -1237,8 +1235,7 @@ class AppliedPTransform(object):
     # TODO(BEAM-9635): use key, value pairs instead of depending on tags with
     # index as a suffix.
     indexed_side_inputs = [
-        (get_sideinput_index(tag), context.pcollections.get_by_id(id))
-        for tag,
+        (get_sideinput_index(tag), context.pcollections.get_by_id(id)) for tag,
         id in proto.inputs.items() if tag in side_input_tags
     ]
     side_inputs = [si for _, si in sorted(indexed_side_inputs)]

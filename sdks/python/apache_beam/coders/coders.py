@@ -366,10 +366,8 @@ class Coder(object):
     """
     parameter_type, constructor = cls._known_urns[coder_proto.spec.urn]
     return constructor(
-        proto_utils.parse_Bytes(coder_proto.spec.payload, parameter_type), [
-            context.coders.get_by_id(c)
-            for c in coder_proto.component_coder_ids
-        ],
+        proto_utils.parse_Bytes(coder_proto.spec.payload, parameter_type),
+        [context.coders.get_by_id(c) for c in coder_proto.component_coder_ids],
         context)
 
   def to_runner_api_parameter(self, context):
