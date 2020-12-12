@@ -74,7 +74,10 @@ class TranslationsTest(unittest.TestCase):
         if transform.spec.urn == common_urns.composites.COMBINE_PER_KEY.urn:
           combine_per_key_stages.append(stage)
     self.assertEqual(len(combine_per_key_stages), 1)
-    self.assertIn('/Pack', combine_per_key_stages[0].name)
+    self.assertIn('PackedCombinePerKey', combine_per_key_stages[0].name)
+    self.assertIn(
+        'PackedCombinePerKey',
+        combine_per_key_stages[0].transforms[0].unique_name)
     self.assertIn('multiple-combines', combine_per_key_stages[0].parent)
     self.assertNotIn('-perkey', combine_per_key_stages[0].parent)
 
@@ -101,7 +104,10 @@ class TranslationsTest(unittest.TestCase):
     # the beam:combinefn:packed_python:v1 capability.
     self.assertEqual(len(combine_per_key_stages), 2)
     for combine_per_key_stage in combine_per_key_stages:
-      self.assertNotIn('/Pack', combine_per_key_stage.name)
+      self.assertNotIn('PackedCombinePerKey', combine_per_key_stage.name)
+      self.assertNotIn(
+          'PackedCombinePerKey',
+          combine_per_key_stage.transforms[0].unique_name)
 
   def test_pack_global_combiners(self):
     class MultipleCombines(beam.PTransform):
@@ -134,7 +140,10 @@ class TranslationsTest(unittest.TestCase):
         if transform.spec.urn == common_urns.composites.COMBINE_PER_KEY.urn:
           combine_per_key_stages.append(stage)
     self.assertEqual(len(combine_per_key_stages), 1)
-    self.assertIn('/Pack', combine_per_key_stages[0].name)
+    self.assertIn('PackedCombinePerKey', combine_per_key_stages[0].name)
+    self.assertIn(
+        'PackedCombinePerKey',
+        combine_per_key_stages[0].transforms[0].unique_name)
     self.assertIn('multiple-combines', combine_per_key_stages[0].parent)
     self.assertNotIn('-globally', combine_per_key_stages[0].parent)
 

@@ -948,13 +948,44 @@ def pack_combiners(stages, context):
         component_coder_ids=[key_coder_id, pack_output_value_coder_id])
     pack_output_kv_coder_id = context.add_or_get_coder_id(pack_output_kv_coder)
 
-    # Set up packed PCollection
-    pack_combine_name = fused_stage.name
+    def make_pack_name(names):
+      """Return the packed Transform or Stage name.
+      
+      The output name will contain the input names' common prefix, the infix
+      '/PackedCombinePerKey', and the input names' suffixes in parantheses.
+      For example, if the input names are 'a/b/c1/d1' and 'a/b/c2/d2, then
+      the output name is 'a/b/Packed(c1/d1,c2/d2)'.
+      """
+      assert names
+      tokens_in_names = [name.split('/') for name in names]
+      common_prefix_tokens = []
+
+      while True:
+        first_token_in_names = set()
+        for tokens in tokens_in_names:
+          if not tokens:
+            break
+          first_token_in_names.add(tokens[0])
+        if len(first_token_in_names) != 1:
+          break
+
+        common_prefix_tokens.append(next(iter(first_token_in_names)))
+        for tokens in tokens_in_names:
+          tokens.pop(0)
+      common_prefix = '/'.join(common_prefix_tokens)
+      suffixes = ['/'.join(tokens) for tokens in tokens_in_names]
+      return '%s/PackedCombinePerKey(%s)' % (common_prefix, ','.join(suffixes))
+
+    pack_stage_name = make_pack_name([stage.name for stage in packable_stages])
+    pack_transform_name = make_pack_name([
+        only_transform(stage.transforms).unique_name
+        for stage in packable_stages
+    ])
     pack_pcoll_id = unique_name(context.components.pcollections, 'pcollection')
     input_pcoll = context.components.pcollections[input_pcoll_id]
     context.components.pcollections[pack_pcoll_id].CopyFrom(
         beam_runner_api_pb2.PCollection(
-            unique_name=pack_combine_name + '.out',
+            unique_name=pack_transform_name + '/Pack.out',
             coder_id=pack_output_kv_coder_id,
             windowing_strategy_id=input_pcoll.windowing_strategy_id,
             is_bounded=input_pcoll.is_bounded))
@@ -969,7 +1000,7 @@ def pack_combiners(stages, context):
             for combine_payload in combine_payloads
         ]).to_runner_api(context)  # type: ignore[arg-type]
     pack_transform = beam_runner_api_pb2.PTransform(
-        unique_name=pack_combine_name + '/Pack',
+        unique_name=pack_transform_name + '/Pack',
         spec=beam_runner_api_pb2.FunctionSpec(
             urn=common_urns.composites.COMBINE_PER_KEY.urn,
             payload=beam_runner_api_pb2.CombinePayload(
@@ -980,7 +1011,7 @@ def pack_combiners(stages, context):
         outputs={'out': pack_pcoll_id},
         environment_id=fused_stage.environment)
     pack_stage = Stage(
-        pack_combine_name + '/Pack', [pack_transform],
+        pack_stage_name + '/Pack', [pack_transform],
         downstream_side_inputs=fused_stage.downstream_side_inputs,
         must_follow=fused_stage.must_follow,
         parent=fused_stage.parent,
@@ -991,7 +1022,7 @@ def pack_combiners(stages, context):
     tags = [str(i) for i in range(len(output_pcoll_ids))]
     pickled_do_fn_data = pickler.dumps((_UnpackFn(tags), (), {}, [], None))
     unpack_transform = beam_runner_api_pb2.PTransform(
-        unique_name=pack_combine_name + '/Unpack',
+        unique_name=pack_transform_name + '/Unpack',
         spec=beam_runner_api_pb2.FunctionSpec(
             urn=common_urns.primitives.PAR_DO.urn,
             payload=beam_runner_api_pb2.ParDoPayload(
@@ -1002,7 +1033,7 @@ def pack_combiners(stages, context):
         outputs=dict(zip(tags, output_pcoll_ids)),
         environment_id=fused_stage.environment)
     unpack_stage = Stage(
-        pack_combine_name + '/Unpack', [unpack_transform],
+        pack_stage_name + '/Unpack', [unpack_transform],
         downstream_side_inputs=fused_stage.downstream_side_inputs,
         must_follow=fused_stage.must_follow,
         parent=fused_stage.parent,
