@@ -960,6 +960,7 @@ def pack_combiners(stages, context):
       tokens_in_names = [name.split('/') for name in names]
       common_prefix_tokens = []
 
+      # Find the longest common prefix of tokens.
       while True:
         first_token_in_names = set()
         for tokens in tokens_in_names:
@@ -968,10 +969,10 @@ def pack_combiners(stages, context):
           first_token_in_names.add(tokens[0])
         if len(first_token_in_names) != 1:
           break
-
         common_prefix_tokens.append(next(iter(first_token_in_names)))
         for tokens in tokens_in_names:
           tokens.pop(0)
+
       common_prefix = '/'.join(common_prefix_tokens)
       suffixes = ['/'.join(tokens) for tokens in tokens_in_names]
       return '%s/PackedCombinePerKey(%s)' % (common_prefix, ','.join(suffixes))
