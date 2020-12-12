@@ -59,6 +59,11 @@ def read_fwf(path, *args, **kwargs):
 
 
 def read_json(path, *args, **kwargs):
+  if 'nrows' in kwargs:
+    raise NotImplementedError('nrows not yet supported')
+  elif kwargs.get('lines', False):
+    # Work around https://github.com/pandas-dev/pandas/issues/34548.
+    kwargs = dict(kwargs, nrows=1 << 63)
   return _ReadFromPandas(
       pd.read_json,
       path,
