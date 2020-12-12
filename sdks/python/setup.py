@@ -201,6 +201,7 @@ GCP_REQUIREMENTS = [
     'google-cloud-vision>=0.38.0,<2',
     # GCP Package required by Google Cloud Profiler.
     'google-cloud-profiler>=3.0.4,<4'
+    'google-cloud-recommendations-ai>=0.1.0,<=0.2.0'
 ]
 
 INTERACTIVE_BEAM = [
