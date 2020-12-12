@@ -351,7 +351,7 @@ public class DoFnOperator<InputT, OutputT>
           };
 
       // we don't know the window type
-      @SuppressWarnings({"unchecked", "rawtypes"})
+      //      @SuppressWarnings({"unchecked", "rawtypes"})
       Coder windowCoder = windowingStrategy.getWindowFn().windowCoder();
 
       @SuppressWarnings({"unchecked", "rawtypes"})
@@ -639,8 +639,7 @@ public class DoFnOperator<InputT, OutputT>
   }
 
   @Override
-  public final void processElement(StreamRecord<WindowedValue<InputT>> streamRecord)
-      throws Exception {
+  public final void processElement(StreamRecord<WindowedValue<InputT>> streamRecord) {
     checkInvokeStartBundle();
     doFnRunner.processElement(streamRecord.getValue());
     checkInvokeFinishBundleByCount();
