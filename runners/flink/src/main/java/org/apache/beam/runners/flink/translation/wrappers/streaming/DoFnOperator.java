@@ -41,12 +41,10 @@ import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.InMemoryBundleFinalizer;
 import org.apache.beam.runners.core.NullSideInputReader;
-import org.apache.beam.runners.core.ProcessFnRunner;
 import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
 import org.apache.beam.runners.core.SideInputHandler;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.SimplePushbackSideInputDoFnRunner;
-import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces.WindowNamespace;
@@ -146,7 +144,7 @@ public class DoFnOperator<InputT, OutputT>
 
   private static final Logger LOG = LoggerFactory.getLogger(DoFnOperator.class);
 
-  protected DoFn<InputT, OutputT> doFn;
+  @Nullable protected DoFn<InputT, OutputT> doFn;
 
   protected final SerializablePipelineOptions serializedOptions;
 
@@ -255,7 +253,7 @@ public class DoFnOperator<InputT, OutputT>
 
   /** Constructor for DoFnOperator. */
   public DoFnOperator(
-      DoFn<InputT, OutputT> doFn,
+      @Nullable DoFn<InputT, OutputT> doFn,
       String stepName,
       Coder<WindowedValue<InputT>> inputWindowedCoder,
       Map<TupleTag<?>, Coder<?>> outputCoders,
@@ -372,6 +370,13 @@ public class DoFnOperator<InputT, OutputT>
     } else {
       return doFnRunner;
     }
+  }
+
+  protected PushbackSideInputDoFnRunner<InputT, OutputT> createPushbackSideInputDoFnRunner(
+      DoFnRunner<InputT, OutputT> doFnRunner,
+      Collection<PCollectionView<?>> views,
+      SideInputHandler sideInputHandler) {
+    return SimplePushbackSideInputDoFnRunner.create(doFnRunner, views, sideInputHandler);
   }
 
   @Override
@@ -527,15 +532,8 @@ public class DoFnOperator<InputT, OutputT>
         getProcessingTimeService()
             .scheduleAtFixedRate(
                 timestamp -> checkInvokeFinishBundleByTime(), bundleCheckPeriod, bundleCheckPeriod);
-
-    if (doFn instanceof SplittableParDoViaKeyedWorkItems.ProcessFn) {
-      pushbackDoFnRunner =
-          new ProcessFnRunner<>((DoFnRunner) doFnRunner, sideInputs, sideInputHandler);
-    } else {
-      pushbackDoFnRunner =
-          SimplePushbackSideInputDoFnRunner.create(doFnRunner, sideInputs, sideInputHandler);
-    }
-
+    pushbackDoFnRunner =
+        createPushbackSideInputDoFnRunner(doFnRunner, sideInputs, sideInputHandler);
     bundleFinalizer = new InMemoryBundleFinalizer();
     pendingFinalizations = new LinkedHashMap<>();
   }

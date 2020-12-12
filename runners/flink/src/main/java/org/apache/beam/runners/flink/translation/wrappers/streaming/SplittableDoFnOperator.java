@@ -31,6 +31,9 @@ import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItems;
 import org.apache.beam.runners.core.OutputAndTimeBoundedSplittableProcessElementInvoker;
 import org.apache.beam.runners.core.OutputWindowedValue;
+import org.apache.beam.runners.core.ProcessFnRunner;
+import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
+import org.apache.beam.runners.core.SideInputHandler;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessFn;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateInternalsFactory;
@@ -110,6 +113,15 @@ public class SplittableDoFnOperator<InputT, OutputT, RestrictionT>
     // don't wrap in anything because we don't need state cleanup because ProcessFn does
     // all that
     return wrappedRunner;
+  }
+
+  @Override
+  protected PushbackSideInputDoFnRunner<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT>
+      createPushbackSideInputDoFnRunner(
+          DoFnRunner<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> doFnRunner,
+          Collection<PCollectionView<?>> views,
+          SideInputHandler sideInputHandler) {
+    return new ProcessFnRunner<>(doFnRunner, sideInputs, sideInputHandler);
   }
 
   @Override

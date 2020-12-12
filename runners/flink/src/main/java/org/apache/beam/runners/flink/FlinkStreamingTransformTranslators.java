@@ -44,10 +44,10 @@ import org.apache.beam.runners.flink.translation.functions.ImpulseSourceFunction
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.DoFnOperator;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.KvToByteBufferKeySelector;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.NewWindowDoFnOperator;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.SingletonKeyedWorkItem;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.SingletonKeyedWorkItemCoder;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.SplittableDoFnOperator;
-import org.apache.beam.runners.flink.translation.wrappers.streaming.WindowDoFnOperator;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.WorkItemKeySelector;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.BeamStoppableFunction;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.DedupingOperator;
@@ -911,14 +911,13 @@ class FlinkStreamingTransformTranslators {
               ByteArrayCoder.of(),
               input.getWindowingStrategy().getWindowFn().windowCoder());
 
-      DataStream<WindowedValue<KV<K, InputT>>> inputDataStream = context.getInputDataStream(input);
-
-      WindowedValue.FullWindowedValueCoder<KeyedWorkItem<K, byte[]>> windowedWorkItemCoder =
-          WindowedValue.getFullCoder(
-              workItemCoder, input.getWindowingStrategy().getWindowFn().windowCoder());
+      Coder<WindowedValue<KeyedWorkItem<K, byte[]>>> windowedWorkItemCoder =
+          WindowedValue.getParamWindowedValueCoder(workItemCoder);
 
       CoderTypeInformation<WindowedValue<KeyedWorkItem<K, byte[]>>> workItemTypeInfo =
           new CoderTypeInformation<>(windowedWorkItemCoder, context.getPipelineOptions());
+
+      DataStream<WindowedValue<KV<K, InputT>>> inputDataStream = context.getInputDataStream(input);
 
       DataStream<WindowedValue<KeyedWorkItem<K, byte[]>>> workItemStream =
           inputDataStream
@@ -947,8 +946,8 @@ class FlinkStreamingTransformTranslators {
       TupleTag<KV<K, Iterable<byte[]>>> mainTag = new TupleTag<>("main output");
 
       String fullName = getCurrentTransformName(context);
-      WindowDoFnOperator<K, byte[], Iterable<byte[]>> doFnOperator =
-          new WindowDoFnOperator<>(
+      NewWindowDoFnOperator<K, byte[], Iterable<byte[]>> doFnOperator =
+          new NewWindowDoFnOperator<>(
               reduceFn,
               fullName,
               windowedWorkItemCoder,
@@ -1019,14 +1018,13 @@ class FlinkStreamingTransformTranslators {
               inputKvCoder.getValueCoder(),
               input.getWindowingStrategy().getWindowFn().windowCoder());
 
-      DataStream<WindowedValue<KV<K, InputT>>> inputDataStream = context.getInputDataStream(input);
-
-      WindowedValue.FullWindowedValueCoder<KeyedWorkItem<K, InputT>> windowedWorkItemCoder =
-          WindowedValue.getFullCoder(
-              workItemCoder, input.getWindowingStrategy().getWindowFn().windowCoder());
+      Coder<WindowedValue<KeyedWorkItem<K, InputT>>> windowedWorkItemCoder =
+          WindowedValue.getParamWindowedValueCoder(workItemCoder);
 
       CoderTypeInformation<WindowedValue<KeyedWorkItem<K, InputT>>> workItemTypeInfo =
           new CoderTypeInformation<>(windowedWorkItemCoder, context.getPipelineOptions());
+
+      DataStream<WindowedValue<KV<K, InputT>>> inputDataStream = context.getInputDataStream(input);
 
       DataStream<WindowedValue<KeyedWorkItem<K, InputT>>> workItemStream =
           inputDataStream
@@ -1055,8 +1053,8 @@ class FlinkStreamingTransformTranslators {
 
       if (sideInputs.isEmpty()) {
         TupleTag<KV<K, OutputT>> mainTag = new TupleTag<>("main output");
-        WindowDoFnOperator<K, InputT, OutputT> doFnOperator =
-            new WindowDoFnOperator<>(
+        NewWindowDoFnOperator<K, InputT, OutputT> doFnOperator =
+            new NewWindowDoFnOperator<>(
                 reduceFn,
                 fullName,
                 (Coder) windowedWorkItemCoder,
@@ -1081,8 +1079,8 @@ class FlinkStreamingTransformTranslators {
             transformSideInputs(sideInputs, context);
 
         TupleTag<KV<K, OutputT>> mainTag = new TupleTag<>("main output");
-        WindowDoFnOperator<K, InputT, OutputT> doFnOperator =
-            new WindowDoFnOperator<>(
+        NewWindowDoFnOperator<K, InputT, OutputT> doFnOperator =
+            new NewWindowDoFnOperator<>(
                 reduceFn,
                 fullName,
                 (Coder) windowedWorkItemCoder,
@@ -1157,8 +1155,8 @@ class FlinkStreamingTransformTranslators {
               inputKvCoder.getValueCoder(),
               input.getWindowingStrategy().getWindowFn().windowCoder());
 
-      WindowedValue.ValueOnlyWindowedValueCoder<KeyedWorkItem<K, InputT>> windowedWorkItemCoder =
-          WindowedValue.getValueOnlyCoder(workItemCoder);
+      Coder<WindowedValue<KeyedWorkItem<K, InputT>>> windowedWorkItemCoder =
+          WindowedValue.getParamWindowedValueCoder(workItemCoder);
 
       CoderTypeInformation<WindowedValue<KeyedWorkItem<K, InputT>>> workItemTypeInfo =
           new CoderTypeInformation<>(windowedWorkItemCoder, context.getPipelineOptions());
@@ -1198,14 +1196,7 @@ class FlinkStreamingTransformTranslators {
     @Override
     public void flatMap(
         WindowedValue<KV<K, InputT>> inWithMultipleWindows,
-        Collector<WindowedValue<KeyedWorkItem<K, InputT>>> out)
-        throws Exception {
-
-      // we need to wrap each one work item per window for now
-      // since otherwise the PushbackSideInputRunner will not correctly
-      // determine whether side inputs are ready
-      //
-      // this is tracked as https://issues.apache.org/jira/browse/BEAM-1850
+        Collector<WindowedValue<KeyedWorkItem<K, InputT>>> out) {
       for (WindowedValue<KV<K, InputT>> in : inWithMultipleWindows.explodeWindows()) {
         SingletonKeyedWorkItem<K, InputT> workItem =
             new SingletonKeyedWorkItem<>(
@@ -1305,21 +1296,12 @@ class FlinkStreamingTransformTranslators {
 
     @Override
     public void flatMap(
-        WindowedValue<KV<K, InputT>> inWithMultipleWindows,
+        WindowedValue<KV<K, InputT>> element,
         Collector<WindowedValue<KeyedWorkItem<K, InputT>>> out) {
-
-      // we need to wrap each one work item per window for now
-      // since otherwise the PushbackSideInputRunner will not correctly
-      // determine whether side inputs are ready
-      //
-      // this is tracked as https://issues.apache.org/jira/browse/BEAM-1850
-      for (WindowedValue<KV<K, InputT>> in : inWithMultipleWindows.explodeWindows()) {
-        SingletonKeyedWorkItem<K, InputT> workItem =
-            new SingletonKeyedWorkItem<>(
-                in.getValue().getKey(), in.withValue(in.getValue().getValue()));
-
-        out.collect(in.withValue(workItem));
-      }
+      final SingletonKeyedWorkItem<K, InputT> workItem =
+          new SingletonKeyedWorkItem<>(
+              element.getValue().getKey(), element.withValue(element.getValue().getValue()));
+      out.collect(element.withValue(workItem));
     }
   }
 
@@ -1344,22 +1326,14 @@ class FlinkStreamingTransformTranslators {
 
     @Override
     public void flatMap(
-        WindowedValue<KV<K, InputT>> inWithMultipleWindows,
+        WindowedValue<KV<K, InputT>> element,
         Collector<WindowedValue<KeyedWorkItem<K, byte[]>>> out)
         throws CoderException {
-
-      // we need to wrap each one work item per window for now
-      // since otherwise the PushbackSideInputRunner will not correctly
-      // determine whether side inputs are ready
-      //
-      // this is tracked as https://issues.apache.org/jira/browse/BEAM-1850
-      for (WindowedValue<KV<K, InputT>> in : inWithMultipleWindows.explodeWindows()) {
-        final byte[] binaryValue =
-            CoderUtils.encodeToByteArray(valueCoder, in.getValue().getValue());
-        final SingletonKeyedWorkItem<K, byte[]> workItem =
-            new SingletonKeyedWorkItem<>(in.getValue().getKey(), in.withValue(binaryValue));
-        out.collect(in.withValue(workItem));
-      }
+      final byte[] binaryValue =
+          CoderUtils.encodeToByteArray(valueCoder, element.getValue().getValue());
+      final SingletonKeyedWorkItem<K, byte[]> workItem =
+          new SingletonKeyedWorkItem<>(element.getValue().getKey(), element.withValue(binaryValue));
+      out.collect(element.withValue(workItem));
     }
   }
 
