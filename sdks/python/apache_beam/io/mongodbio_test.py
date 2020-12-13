@@ -444,15 +444,17 @@ class MongoSourceTest(unittest.TestCase):
         'mongodb+srv://user:password@test.mongodb.net/testdb',
         'testdb',
         'testcoll',
-        extra_client_params={'user': 'user', 'password': 'password'})
+        extra_client_params={
+            'user': 'user', 'password': 'password'
+        })
     data = mongo_source.display_data()
     self.assertTrue('uri' in data)
-    self.assertTrue(data['uri'] ==
-                    'mongodb+srv://user:******@test.mongodb.net/testdb')
+    self.assertTrue(
+        data['uri'] == 'mongodb+srv://user:******@test.mongodb.net/testdb')
     # Password is masked in the client spec if present
     self.assertTrue('mongo_client_spec' in data)
-    self.assertTrue(data['mongo_client_spec'] ==
-                    '{"user": "user", "password": "******"}')
+    self.assertTrue(
+        data['mongo_client_spec'] == '{"user": "user", "password": "******"}')
 
 
 @parameterized_class(('bucket_auto', ), [(False, ), (True, )])
@@ -518,16 +520,17 @@ class WriteMongoFnTest(unittest.TestCase):
     self.assertTrue(data['uri'] == 'mongodb://test')
     # Password is masked in the uri if present
     data = _WriteMongoFn(
-      uri='mongodb+srv://user:password@test.mongodb.net/testdb',
-      extra_params={'user': 'user', 'password': 'password'}
-    ).display_data()
+        uri='mongodb+srv://user:password@test.mongodb.net/testdb',
+        extra_params={
+            'user': 'user', 'password': 'password'
+        }).display_data()
     self.assertTrue('uri' in data)
-    self.assertTrue(data['uri'] ==
-                    'mongodb+srv://user:******@test.mongodb.net/testdb')
+    self.assertTrue(
+        data['uri'] == 'mongodb+srv://user:******@test.mongodb.net/testdb')
     # Password is masked in the client spec if present
     self.assertTrue('mongo_client_params' in data)
-    self.assertTrue(data['mongo_client_params'] ==
-                    '{"user": "user", "password": "******"}')
+    self.assertTrue(
+        data['mongo_client_params'] == '{"user": "user", "password": "******"}')
 
 
 class MongoSinkTest(unittest.TestCase):
