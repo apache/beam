@@ -74,9 +74,9 @@ class TranslationsTest(unittest.TestCase):
         if transform.spec.urn == common_urns.composites.COMBINE_PER_KEY.urn:
           combine_per_key_stages.append(stage)
     self.assertEqual(len(combine_per_key_stages), 1)
-    self.assertIn('PackedCombinePerKey', combine_per_key_stages[0].name)
+    self.assertIn('Packed', combine_per_key_stages[0].name)
     self.assertIn(
-        'PackedCombinePerKey',
+        'Packed',
         combine_per_key_stages[0].transforms[0].unique_name)
     self.assertIn('multiple-combines', combine_per_key_stages[0].parent)
     self.assertNotIn('-perkey', combine_per_key_stages[0].parent)
