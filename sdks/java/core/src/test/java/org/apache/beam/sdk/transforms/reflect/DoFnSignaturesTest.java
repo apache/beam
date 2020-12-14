@@ -33,6 +33,7 @@ import static org.junit.Assert.fail;
 
 import java.lang.reflect.Field;
 import java.util.List;
+import java.util.concurrent.CompletionStage;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
@@ -269,6 +270,29 @@ public class DoFnSignaturesTest {
               public void process(OutputReceiver<Row> rowReceiver) {}
             }.getClass());
     assertThat(sig.processElement().getMainOutputReceiver().isRowReceiver(), is(true));
+  }
+
+  @Test
+  public void testIsAsync() {
+    DoFnSignature sig =
+        DoFnSignatures.getSignature(
+            new DoFn<String, String>() {
+              @ProcessElement
+              public void process(OutputReceiver<CompletionStage<String>> asyncReceiver) {}
+            }.getClass());
+    assertThat(sig.processElement().getMainOutputReceiver().isAsync(), is(true));
+  }
+
+  @Test
+  public void testBadOutputTForAsync() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("OutputReceiver should be parameterized by java.lang.Integer");
+    DoFnSignature sig =
+        DoFnSignatures.getSignature(
+            new DoFn<String, Integer>() {
+              @ProcessElement
+              public void process(OutputReceiver<CompletionStage<String>> asyncReceiver) {}
+            }.getClass());
   }
 
   @Test

@@ -577,8 +577,9 @@ public abstract class DoFnSignature {
       return TIME_DOMAIN_PARAMETER;
     }
 
-    public static OutputReceiverParameter outputReceiverParameter(boolean rowReceiver) {
-      return new AutoValue_DoFnSignature_Parameter_OutputReceiverParameter(rowReceiver);
+    public static OutputReceiverParameter outputReceiverParameter(
+        boolean rowReceiver, boolean async) {
+      return new AutoValue_DoFnSignature_Parameter_OutputReceiverParameter(rowReceiver, async);
     }
 
     public static TaggedOutputReceiverParameter taggedOutputReceiverParameter() {
@@ -801,6 +802,8 @@ public abstract class DoFnSignature {
       OutputReceiverParameter() {}
 
       public abstract boolean isRowReceiver();
+
+      public abstract boolean isAsync();
     }
 
     /**

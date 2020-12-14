@@ -41,6 +41,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.apache.samza.Partition;
+import org.apache.samza.config.MapConfig;
 import org.apache.samza.metrics.MetricsRegistryMap;
 import org.apache.samza.system.IncomingMessageEnvelope;
 import org.apache.samza.system.SystemConsumer;
@@ -304,7 +305,10 @@ public class BoundedSourceSystemTest {
     SamzaPipelineOptions pipelineOptions = PipelineOptionsFactory.as(SamzaPipelineOptions.class);
     pipelineOptions.setMaxSourceParallelism(splitNum);
     return new BoundedSourceSystem.Consumer<>(
-        source, pipelineOptions, new SamzaMetricsContainer(new MetricsRegistryMap()), "test-step");
+        source,
+        pipelineOptions,
+        new SamzaMetricsContainer(new MetricsRegistryMap(), new MapConfig()),
+        "test-step");
   }
 
   private static SystemStreamPartition ssp(int partition) {

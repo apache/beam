@@ -39,7 +39,10 @@ import java.util.Optional;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -160,6 +163,51 @@ public class DirectRunnerTest implements Serializable {
     PAssert.that(countStrs).containsInAnyOrder("baz: 1", "bar: 2", "foo: 3");
 
     DirectPipelineResult result = (DirectPipelineResult) p.run();
+    result.waitUntilFinish();
+  }
+
+  @Test
+  public void wordCountAsync() throws Throwable {
+    Pipeline p = getPipeline();
+    CountDownLatch latch = new CountDownLatch(1);
+    PCollection<KV<String, Long>> counts =
+        p.apply(Create.of("foo", "bar", "baz", "foo", "bar", "baz"))
+            .apply(
+                ParDo.of(
+                    new DoFn<String, String>() {
+
+                      @ProcessElement
+                      public void processElement(
+                          @Element String element,
+                          OutputReceiver<CompletionStage<String>> outputReceiver) {
+                        outputReceiver.output(
+                            CompletableFuture.supplyAsync(
+                                () -> {
+                                  try {
+                                    latch.await();
+                                  } catch (InterruptedException e) {
+                                  }
+
+                                  return element;
+                                }));
+                      }
+                    }))
+            .apply(Count.perElement());
+
+    PCollection<String> output =
+        counts.apply(
+            MapElements.via(
+                new SimpleFunction<KV<String, Long>, String>() {
+                  @Override
+                  public String apply(KV<String, Long> input) {
+                    return String.format("%s: %s", input.getKey(), input.getValue());
+                  }
+                }));
+
+    PAssert.that(output).containsInAnyOrder("foo: 2", "bar: 2", "baz: 2");
+
+    DirectPipelineResult result = (DirectPipelineResult) p.run();
+    latch.countDown();
     result.waitUntilFinish();
   }
 
