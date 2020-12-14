@@ -28,6 +28,6 @@ import java.util.function.Consumer;
 interface SerializableSubscriberFactory extends Serializable {
   long serialVersionUID = -6978345654136456L;
 
-  Subscriber newSubscriber(Partition partition, Consumer<List<SequencedMessage>> message_consumer)
+  Subscriber newSubscriber(Partition partition, Consumer<List<SequencedMessage>> messageConsumer)
       throws ApiException;
 }
