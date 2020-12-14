@@ -1,4 +1,86 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Blogs</title><link>/blog/</link><description>Recent content in Blogs on Apache Beam</description><generator>Hugo -- gohugo.io</generator><lastBuildDate>Fri, 11 Dec 2020 12:00:00 -0800</lastBuildDate><atom:link href="/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.26.0</title><link>/blog/beam-2.26.0/</link><pubDate>Fri, 11 Dec 2020 12:00:00 -0800</pubDate><guid>/blog/beam-2.26.0/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Blogs</title><link>/blog/</link><description>Recent content in Blogs on Apache Beam</description><generator>Hugo -- gohugo.io</generator><lastBuildDate>Mon, 14 Dec 2020 00:00:01 -0800</lastBuildDate><atom:link href="/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Splittable DoFn in Apache Beam is Ready to Use</title><link>/blog/splittable-do-fn-is-available/</link><pubDate>Mon, 14 Dec 2020 00:00:01 -0800</pubDate><guid>/blog/splittable-do-fn-is-available/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>We are pleased to announce that Splittable DoFn (SDF) is ready for use in the Beam Python, Java,
+and Go SDKs for versions 2.25.0 and later.&lt;/p>
+&lt;p>In 2017, &lt;a href="https://beam.apache.org/blog/splittable-do-fn/">Splittable DoFn Blog Post&lt;/a> proposed
+to build &lt;a href="https://s.apache.org/splittable-do-fn">Splittable DoFn&lt;/a> APIs as the new recommended way of
+building I/O connectors. Splittable DoFn is a generalization of &lt;code>DoFn&lt;/code> that gives it the core
+capabilities of &lt;code>Source&lt;/code> while retaining &lt;code>DoFn&lt;/code>'s syntax, flexibility, modularity, and ease of
+coding. Thus, it becomes much easier to develop complex I/O connectors with simpler and reusable
+code.&lt;/p>
+&lt;p>SDF has three advantages over the existing &lt;code>UnboundedSource&lt;/code> and &lt;code>BoundedSource&lt;/code>:&lt;/p>
+&lt;ul>
+&lt;li>SDF provides a unified set of APIs to handle both unbounded and bounded cases.&lt;/li>
+&lt;li>SDF enables reading from source descriptors dynamically.
+&lt;ul>
+&lt;li>Taking KafkaIO as an example, within &lt;code>UnboundedSource&lt;/code>/&lt;code>BoundedSource&lt;/code> API, you must specify
+the topic and partition you want to read from during pipeline construction time. There is no way
+for &lt;code>UnboundedSource&lt;/code>/&lt;code>BoundedSource&lt;/code> to accept topics and partitions as inputs during execution
+time. But it&amp;rsquo;s built-in to SDF.&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>SDF fits in as any node on a pipeline freely with the ability of splitting.
+&lt;ul>
+&lt;li>&lt;code>UnboundedSource&lt;/code>/&lt;code>BoundedSource&lt;/code> has to be the root node of the pipeline to gain performance
+benefits from splitting strategies, which limits many real-world usages. This is no longer a limit
+for an SDF.&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ul>
+&lt;p>As SDF is now ready to use with all the mentioned improvements, it is the recommended
+way to build the new I/O connectors. Try out building your own Splittable DoFn by following the
+&lt;a href="https://beam.apache.org/documentation/programming-guide/#splittable-dofns">programming guide&lt;/a>. We
+have provided tonnes of common utility classes such as common types of &lt;code>RestrictionTracker&lt;/code> and
+&lt;code>WatermarkEstimator&lt;/code> in Beam SDK, which will help you onboard easily. As for the existing I/O
+connectors, we have wrapped &lt;code>UnboundedSource&lt;/code> and &lt;code>BoundedSource&lt;/code> implementations into Splittable
+DoFns, yet we still encourage developers to convert &lt;code>UnboundedSource&lt;/code>/&lt;code>BoundedSource&lt;/code> into actual
+Splittable DoFn implementation to gain more performance benefits.&lt;/p>
+&lt;p>Many thanks to every contributor who brought this highly anticipated design into the data processing
+world. We are really excited to see that users benefit from SDF.&lt;/p>
+&lt;p>Below are some real-world SDF examples for you to explore.&lt;/p>
+&lt;h2 id="real-world-splittable-dofn-examples">Real world Splittable DoFn examples&lt;/h2>
+&lt;p>&lt;strong>Java Examples&lt;/strong>&lt;/p>
+&lt;ul>
+&lt;li>&lt;a href="https://github.com/apache/beam/blob/571338b0cc96e2e80f23620fe86de5c92dffaccc/sdks/java/io/kafka/src/main/java/org/apache/beam/sdk/io/kafka/ReadFromKafkaDoFn.java#L118">Kafka&lt;/a>:
+An I/O connector for &lt;a href="https://kafka.apache.org/">Apache Kafka&lt;/a>
+(an open-source distributed event streaming platform).&lt;/li>
+&lt;li>&lt;a href="https://github.com/apache/beam/blob/571338b0cc96e2e80f23620fe86de5c92dffaccc/sdks/java/core/src/main/java/org/apache/beam/sdk/transforms/Watch.java#L787">Watch&lt;/a>:
+Uses a polling function producing a growing set of outputs for each input until a per-input
+termination condition is met.&lt;/li>
+&lt;li>&lt;a href="https://github.com/apache/beam/blob/571338b0cc96e2e80f23620fe86de5c92dffaccc/sdks/java/io/parquet/src/main/java/org/apache/beam/sdk/io/parquet/ParquetIO.java#L365">Parquet&lt;/a>:
+An I/O connector for &lt;a href="https://parquet.apache.org/">Apache Parquet&lt;/a>
+(an open-source columnar storage format).&lt;/li>
+&lt;li>&lt;a href="https://github.com/apache/beam/blob/6fdde4f4eab72b49b10a8bb1cb3be263c5c416b5/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/healthcare/HL7v2IO.java#L493">HL7v2&lt;/a>:
+An I/O connector for HL7v2 messages (a clinical messaging format that provides data about events
+that occur inside an organization) part of
+&lt;a href="https://cloud.google.com/healthcare">Google’s Cloud Healthcare API&lt;/a>.&lt;/li>
+&lt;li>&lt;a href="https://github.com/apache/beam/blob/571338b0cc96e2e80f23620fe86de5c92dffaccc/sdks/java/core/src/main/java/org/apache/beam/sdk/io/Read.java#L248">BoundedSource wrapper&lt;/a>:
+A wrapper which converts an existing &lt;a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/BoundedSource.html">BoundedSource&lt;/a>
+implementation to a splittable DoFn.&lt;/li>
+&lt;li>&lt;a href="https://github.com/apache/beam/blob/571338b0cc96e2e80f23620fe86de5c92dffaccc/sdks/java/core/src/main/java/org/apache/beam/sdk/io/Read.java#L432">UnboundedSource wrapper&lt;/a>:
+A wrapper which converts an existing &lt;a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/UnboundedSource.html">UnboundedSource&lt;/a>
+implementation to a splittable DoFn.&lt;/li>
+&lt;/ul>
+&lt;p>&lt;strong>Python Examples&lt;/strong>&lt;/p>
+&lt;ul>
+&lt;li>&lt;a href="https://github.com/apache/beam/blob/571338b0cc96e2e80f23620fe86de5c92dffaccc/sdks/python/apache_beam/io/iobase.py#L1375">BoundedSourceWrapper&lt;/a>:
+A wrapper which converts an existing &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.iobase.html#apache_beam.io.iobase.BoundedSource">BoundedSource&lt;/a>
+implementation to a splittable DoFn.&lt;/li>
+&lt;/ul>
+&lt;p>&lt;strong>Go Examples&lt;/strong>&lt;/p>
+&lt;ul>
+&lt;li>&lt;a href="https://github.com/apache/beam/blob/ce190e11332469ea59b6c9acf16ee7c673ccefdd/sdks/go/pkg/beam/io/textio/sdf.go#L40">textio.ReadSdf&lt;/a> implements reading from text files using a splittable DoFn.&lt;/li>
+&lt;/ul></description></item><item><title>Blog: Apache Beam 2.26.0</title><link>/blog/beam-2.26.0/</link><pubDate>Fri, 11 Dec 2020 12:00:00 -0800</pubDate><guid>/blog/beam-2.26.0/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -5190,261 +5272,4 @@ limitations under the License.
 &lt;p>Embedded mode is useful for development and debugging. Apex in production runs distributed on Apache Hadoop YARN clusters. An example how a Beam pipeline can be embedded into an Apex application package to run on YARN can be found &lt;a href="https://github.com/tweise/apex-samples/tree/master/beam-apex-wordcount">here&lt;/a> and support for direct launch in the runner is currently being worked on.&lt;/p>
 &lt;p>The Beam project has a strong focus on development process and tooling, including testing. For the runners, there is a comprehensive test suite with more than 200 integration tests that are executed against each runner to ensure they don’t break as changes are made. The tests cover the capabilities of the matrix and thus are a measure of completeness and correctness of the runner implementations. The suite was very helpful when developing the Apex runner.&lt;/p>
 &lt;h2 id="outlook">Outlook&lt;/h2>
-&lt;p>The next step is to take the Apex runner from functional to ready for real applications that run distributed, leveraging the scalability and performance features of Apex, similar to its native API. This includes chaining of ParDos, partitioning, optimizing combine operations etc. To get involved, please see &lt;a href="https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20and%20component%20%3D%20runner-apex%20and%20resolution%20%3D%20unresolved">JIRA&lt;/a> and join the Beam community.&lt;/p></description></item><item><title>Blog: Testing Unbounded Pipelines in Apache Beam</title><link>/blog/test-stream/</link><pubDate>Thu, 20 Oct 2016 10:00:00 -0800</pubDate><guid>/blog/test-stream/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>The Beam Programming Model unifies writing pipelines for Batch and Streaming
-pipelines. We’ve recently introduced a new PTransform to write tests for
-pipelines that will be run over unbounded datasets and must handle out-of-order
-and delayed data.&lt;/p>
-&lt;p>Watermarks, Windows and Triggers form a core part of the Beam programming model
-&amp;ndash; they respectively determine how your data are grouped, when your input is
-complete, and when to produce results. This is true for all pipelines,
-regardless of if they are processing bounded or unbounded inputs. If you’re not
-familiar with watermarks, windowing, and triggering in the Beam model,
-&lt;a href="https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-101">Streaming 101&lt;/a>
-and &lt;a href="https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-102">Streaming 102&lt;/a>
-are an excellent place to get started. A key takeaway from
-these articles: in realistic streaming scenarios with intermittent failures and
-disconnected users, data can arrive out of order or be delayed. Beam’s
-primitives provide a way for users to perform useful, powerful, and correct
-computations in spite of these challenges.&lt;/p>
-&lt;p>As Beam pipeline authors, we need comprehensive tests that cover crucial
-failure scenarios and corner cases to gain real confidence that a pipeline is
-ready for production. The existing testing infrastructure within the Beam SDKs
-permits tests to be written which examine the contents of a Pipeline at
-execution time. However, writing unit tests for pipelines that may receive
-late data or trigger multiple times has historically ranged from complex to
-not possible, as pipelines that read from unbounded sources do not shut down
-without external intervention, while pipelines that read from bounded sources
-exclusively cannot test behavior with late data nor most speculative triggers.
-Without additional tools, pipelines that use custom triggers and handle
-out-of-order data could not be easily tested.&lt;/p>
-&lt;p>This blog post introduces our new framework for writing tests for pipelines that
-handle delayed and out-of-order data in the context of the LeaderBoard pipeline
-from the Mobile Gaming example series.&lt;/p>
-&lt;h2 id="leaderboard-and-the-mobile-gaming-example">LeaderBoard and the Mobile Gaming Example&lt;/h2>
-&lt;p>&lt;a href="https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/complete/game/LeaderBoard.java#L177">LeaderBoard&lt;/a>
-is part of the &lt;a href="https://github.com/apache/beam/tree/master/examples/java/src/main/java/org/apache/beam/examples/complete/game">Beam mobile gaming examples&lt;/a>
-(and &lt;a href="/get-started/mobile-gaming-example/">walkthroughs&lt;/a>)
-which produces a continuous accounting of user and team scores. User scores are
-calculated over the lifetime of the program, while team scores are calculated
-within fixed windows with a default duration of one hour. The LeaderBoard
-pipeline produces speculative and late panes as appropriate, based on the
-configured triggering and allowed lateness of the pipeline. The expected outputs
-of the LeaderBoard pipeline vary depending on when elements arrive in relation
-to the watermark and the progress of processing time, which could not previously
-be controlled within a test.&lt;/p>
-&lt;h2 id="writing-deterministic-tests-to-emulate-nondeterminism">Writing Deterministic Tests to Emulate Nondeterminism&lt;/h2>
-&lt;p>The Beam testing infrastructure provides the
-&lt;a href="https://beam.apache.org/releases/javadoc/2.26.0/org/apache/beam/sdk/testing/PAssert.html">PAssert&lt;/a>
-methods, which assert properties about the contents of a PCollection from within
-a pipeline. We have expanded this infrastructure to include
-&lt;a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/testing/TestStream.java">TestStream&lt;/a>,
-which is a PTransform that performs a series of events, consisting of adding
-additional elements to a pipeline, advancing the watermark of the TestStream,
-and advancing the pipeline processing time clock. TestStream permits tests which
-observe the effects of triggers on the output a pipeline produces.&lt;/p>
-&lt;p>While executing a pipeline that reads from a TestStream, the read waits for all
-of the consequences of each event to complete before continuing on to the next
-event, ensuring that when processing time advances, triggers that are based on
-processing time fire as appropriate. With this transform, the effect of
-triggering and allowed lateness can be observed on a pipeline, including
-reactions to speculative and late panes and dropped data.&lt;/p>
-&lt;h2 id="element-timings">Element Timings&lt;/h2>
-&lt;p>Elements arrive either before, with, or after the watermark, which categorizes
-them into the &amp;ldquo;early&amp;rdquo;, &amp;ldquo;on-time&amp;rdquo;, and &amp;ldquo;late&amp;rdquo; divisions. &amp;ldquo;Late&amp;rdquo; elements can be
-further subdivided into &amp;ldquo;unobservably&amp;rdquo;, &amp;ldquo;observably&amp;rdquo;, and &amp;ldquo;droppably&amp;rdquo; late,
-depending on the window to which they are assigned and the maximum allowed
-lateness, as specified by the windowing strategy. Elements that arrive with
-these timings are emitted into panes, which can be &amp;ldquo;EARLY&amp;rdquo;, &amp;ldquo;ON-TIME&amp;rdquo;, or
-&amp;ldquo;LATE&amp;rdquo;, depending on the position of the watermark when the pane was emitted.&lt;/p>
-&lt;p>Using TestStream, we can write tests that demonstrate that speculative panes are
-output after their trigger condition is met, that the advancing of the watermark
-causes the on-time pane to be produced, and that late-arriving data produces
-refinements when it arrives before the maximum allowed lateness, and is dropped
-after.&lt;/p>
-&lt;p>The following examples demonstrate how you can use TestStream to provide a
-sequence of events to the Pipeline, where the arrival of elements is interspersed
-with updates to the watermark and the advance of processing time. Each of these
-events runs to completion before additional events occur.&lt;/p>
-&lt;p>In the diagrams, the time at which events occurred in &amp;ldquo;real&amp;rdquo; (event) time
-progresses as the graph moves to the right. The time at which the pipeline
-receives them progresses as the graph goes upwards. The watermark is represented
-by the squiggly red line, and each starburst is the firing of a trigger and the
-associated pane.&lt;/p>
-&lt;img class="center-block" src="/images/blog/test-stream/elements-all-on-time.png" alt="Elements on the Event and Processing time axes, with the Watermark and produced panes" width="442">
-&lt;h3 id="everything-arrives-on-time">Everything arrives on-time&lt;/h3>
-&lt;p>For example, if we create a TestStream where all the data arrives before the
-watermark and provide the result PCollection as input to the CalculateTeamScores
-PTransform:&lt;/p>
-&lt;div class=language-java>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">TestStream&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">GameActionInfo&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">infos&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">TestStream&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">create&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">AvroCoder&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">GameActionInfo&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">))&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">addElements&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="k">new&lt;/span> &lt;span class="n">GameActionInfo&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;sky&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="s">&amp;#34;blue&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">12&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="k">new&lt;/span> &lt;span class="n">Instant&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">0L&lt;/span>&lt;span class="o">)),&lt;/span>
-                &lt;span class="k">new&lt;/span> &lt;span class="n">GameActionInfo&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;navy&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="s">&amp;#34;blue&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">3&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="k">new&lt;/span> &lt;span class="n">Instant&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">0L&lt;/span>&lt;span class="o">)),&lt;/span>
-                &lt;span class="k">new&lt;/span> &lt;span class="n">GameActionInfo&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;navy&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="s">&amp;#34;blue&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">3&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="k">new&lt;/span> &lt;span class="n">Instant&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">0L&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">plus&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Duration&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">standardMinutes&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">3&lt;/span>&lt;span class="o">))))&lt;/span>
-   &lt;span class="c1">// Move the watermark past the end the end of the window
-&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="o">.&lt;/span>&lt;span class="na">advanceWatermarkTo&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="k">new&lt;/span> &lt;span class="n">Instant&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">0L&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">plus&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">TEAM_WINDOW_DURATION&lt;/span>&lt;span class="o">)&lt;/span>
-                                &lt;span class="o">.&lt;/span>&lt;span class="na">plus&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Duration&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">standardMinutes&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">1&lt;/span>&lt;span class="o">)))&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">advanceWatermarkToInfinity&lt;/span>&lt;span class="o">();&lt;/span>
-&lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">KV&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">Integer&lt;/span>&lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">teamScores&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">p&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">createEvents&lt;/span>&lt;span class="o">)&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="k">new&lt;/span> &lt;span class="n">CalculateTeamScores&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">TEAM_WINDOW_DURATION&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">ALLOWED_LATENESS&lt;/span>&lt;span class="o">));&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
-&lt;/div>
-&lt;p>we can then assert that the result PCollection contains elements that arrived:&lt;/p>
-&lt;img class="center-block" src="/images/blog/test-stream/elements-all-on-time.png" alt="Elements all arrive before the watermark, and are produced in the on-time pane" width="442">
-&lt;div class=language-java>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="c1">// Only one value is emitted for the blue team
-&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="n">PAssert&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">that&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">teamScores&lt;/span>&lt;span class="o">)&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">inWindow&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">window&lt;/span>&lt;span class="o">)&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">containsInAnyOrder&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">KV&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;blue&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">18&lt;/span>&lt;span class="o">));&lt;/span>
-&lt;span class="n">p&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">run&lt;/span>&lt;span class="o">();&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
-&lt;/div>
-&lt;h3 id="some-elements-are-late-but-arrive-before-the-end-of-the-window">Some elements are late, but arrive before the end of the window&lt;/h3>
-&lt;p>We can also add data to the TestStream after the watermark, but before the end
-of the window (shown below to the left of the red watermark), which demonstrates
-&amp;ldquo;unobservably late&amp;rdquo; data - that is, data that arrives late, but is promoted by
-the system to be on time, as it arrives before the watermark passes the end of
-the window&lt;/p>
-&lt;div class=language-java>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">TestStream&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">GameActionInfo&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">infos&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">TestStream&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">create&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">AvroCoder&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">GameActionInfo&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">))&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">addElements&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="k">new&lt;/span> &lt;span class="n">GameActionInfo&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;sky&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="s">&amp;#34;blue&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">3&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="k">new&lt;/span> &lt;span class="n">Instant&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">0L&lt;/span>&lt;span class="o">)),&lt;/span>
-        &lt;span class="k">new&lt;/span> &lt;span class="n">GameActionInfo&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;navy&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="s">&amp;#34;blue&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">3&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="k">new&lt;/span> &lt;span class="n">Instant&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">0L&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">plus&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Duration&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">standardMinutes&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">3&lt;/span>&lt;span class="o">))))&lt;/span>
-   &lt;span class="c1">// Move the watermark up to &amp;#34;near&amp;#34; the end of the window
-&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="o">.&lt;/span>&lt;span class="na">advanceWatermarkTo&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="k">new&lt;/span> &lt;span class="n">Instant&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">0L&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">plus&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">TEAM_WINDOW_DURATION&lt;/span>&lt;span class="o">)&lt;/span>
-                                &lt;span class="o">.&lt;/span>&lt;span class="na">minus&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Duration&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">standardMinutes&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">1&lt;/span>&lt;span class="o">)))&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">addElements&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="k">new&lt;/span> &lt;span class="n">GameActionInfo&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;sky&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="s">&amp;#34;blue&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">12&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">Duration&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">ZERO&lt;/span>&lt;span class="o">))&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">advanceWatermarkToInfinity&lt;/span>&lt;span class="o">();&lt;/span>
-&lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">KV&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">Integer&lt;/span>&lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">teamScores&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">p&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">createEvents&lt;/span>&lt;span class="o">)&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="k">new&lt;/span> &lt;span class="n">CalculateTeamScores&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">TEAM_WINDOW_DURATION&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">ALLOWED_LATENESS&lt;/span>&lt;span class="o">));&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
-&lt;/div>
-&lt;img class="center-block" src="/images/blog/test-stream/elements-unobservably-late.png" alt="An element arrives late, but before the watermark passes the end of the window, and is produced in the on-time pane" width="442">
-&lt;div class=language-java>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="c1">// Only one value is emitted for the blue team
-&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="n">PAssert&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">that&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">teamScores&lt;/span>&lt;span class="o">)&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">inWindow&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">window&lt;/span>&lt;span class="o">)&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">containsInAnyOrder&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">KV&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;blue&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">18&lt;/span>&lt;span class="o">));&lt;/span>
-&lt;span class="n">p&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">run&lt;/span>&lt;span class="o">();&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
-&lt;/div>
-&lt;h3 id="elements-are-late-and-arrive-after-the-end-of-the-window">Elements are late, and arrive after the end of the window&lt;/h3>
-&lt;p>By advancing the watermark farther in time before adding the late data, we can
-demonstrate the triggering behavior that causes the system to emit an on-time
-pane, and then after the late data arrives, a pane that refines the result.&lt;/p>
-&lt;div class=language-java>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">TestStream&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">GameActionInfo&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">infos&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">TestStream&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">create&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">AvroCoder&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">GameActionInfo&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">))&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">addElements&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="k">new&lt;/span> &lt;span class="n">GameActionInfo&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;sky&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="s">&amp;#34;blue&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">3&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="k">new&lt;/span> &lt;span class="n">Instant&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">0L&lt;/span>&lt;span class="o">)),&lt;/span>
-          &lt;span class="k">new&lt;/span> &lt;span class="n">GameActionInfo&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;navy&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="s">&amp;#34;blue&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">3&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="k">new&lt;/span> &lt;span class="n">Instant&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">0L&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">plus&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Duration&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">standardMinutes&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">3&lt;/span>&lt;span class="o">))))&lt;/span>
-    &lt;span class="c1">// Move the watermark up to &amp;#34;near&amp;#34; the end of the window
-&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="o">.&lt;/span>&lt;span class="na">advanceWatermarkTo&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="k">new&lt;/span> &lt;span class="n">Instant&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">0L&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">plus&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">TEAM_WINDOW_DURATION&lt;/span>&lt;span class="o">)&lt;/span>
-                                 &lt;span class="o">.&lt;/span>&lt;span class="na">minus&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Duration&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">standardMinutes&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">1&lt;/span>&lt;span class="o">)))&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">addElements&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="k">new&lt;/span> &lt;span class="n">GameActionInfo&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;sky&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="s">&amp;#34;blue&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">12&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">Duration&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">ZERO&lt;/span>&lt;span class="o">))&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">advanceWatermarkToInfinity&lt;/span>&lt;span class="o">();&lt;/span>
-&lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">KV&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">Integer&lt;/span>&lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">teamScores&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">p&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">createEvents&lt;/span>&lt;span class="o">)&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="k">new&lt;/span> &lt;span class="n">CalculateTeamScores&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">TEAM_WINDOW_DURATION&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">ALLOWED_LATENESS&lt;/span>&lt;span class="o">));&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
-&lt;/div>
-&lt;img class="center-block" src="/images/blog/test-stream/elements-observably-late.png" alt="Elements all arrive before the watermark, and are produced in the on-time pane" width="442">
-&lt;div class=language-java>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="c1">// An on-time pane is emitted with the events that arrived before the window closed
-&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="n">PAssert&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">that&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">teamScores&lt;/span>&lt;span class="o">)&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">inOnTimePane&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">window&lt;/span>&lt;span class="o">)&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">containsInAnyOrder&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">KV&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;blue&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">6&lt;/span>&lt;span class="o">));&lt;/span>
-&lt;span class="c1">// The final pane contains the late refinement
-&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="n">PAssert&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">that&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">teamScores&lt;/span>&lt;span class="o">)&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">inFinalPane&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">window&lt;/span>&lt;span class="o">)&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">containsInAnyOrder&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">KV&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;blue&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">18&lt;/span>&lt;span class="o">));&lt;/span>
-&lt;span class="n">p&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">run&lt;/span>&lt;span class="o">();&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
-&lt;/div>
-&lt;h3 id="elements-are-late-and-after-the-end-of-the-window-plus-the-allowed-lateness">Elements are late, and after the end of the window plus the allowed lateness&lt;/h3>
-&lt;p>If we push the watermark even further into the future, beyond the maximum
-configured allowed lateness, we can demonstrate that the late element is dropped
-by the system.&lt;/p>
-&lt;div class=language-java>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">TestStream&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">GameActionInfo&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">infos&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">TestStream&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">create&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">AvroCoder&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">GameActionInfo&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">))&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">addElements&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="k">new&lt;/span> &lt;span class="n">GameActionInfo&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;sky&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="s">&amp;#34;blue&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">3&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">Duration&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">ZERO&lt;/span>&lt;span class="o">),&lt;/span>
-         &lt;span class="k">new&lt;/span> &lt;span class="n">GameActionInfo&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;navy&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="s">&amp;#34;blue&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">3&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">Duration&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">standardMinutes&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">3&lt;/span>&lt;span class="o">)))&lt;/span>
-    &lt;span class="c1">// Move the watermark up to &amp;#34;near&amp;#34; the end of the window
-&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="o">.&lt;/span>&lt;span class="na">advanceWatermarkTo&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="k">new&lt;/span> &lt;span class="n">Instant&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">0&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">plus&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">TEAM_WINDOW_DURATION&lt;/span>&lt;span class="o">)&lt;/span>
-                                        &lt;span class="o">.&lt;/span>&lt;span class="na">plus&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">ALLOWED_LATENESS&lt;/span>&lt;span class="o">)&lt;/span>
-                                        &lt;span class="o">.&lt;/span>&lt;span class="na">plus&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Duration&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">standardMinutes&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">1&lt;/span>&lt;span class="o">)))&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">addElements&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="k">new&lt;/span> &lt;span class="n">GameActionInfo&lt;/span>&lt;span class="o">(&lt;/span>
-                     &lt;span class="s">&amp;#34;sky&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span>
-                     &lt;span class="s">&amp;#34;blue&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span>
-                     &lt;span class="n">12&lt;/span>&lt;span class="o">,&lt;/span>
-                     &lt;span class="k">new&lt;/span> &lt;span class="n">Instant&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">0&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">plus&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">TEAM_WINDOW_DURATION&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">minus&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Duration&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">standardMinutes&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">1&lt;/span>&lt;span class="o">))))&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">advanceWatermarkToInfinity&lt;/span>&lt;span class="o">();&lt;/span>
-&lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">KV&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">Integer&lt;/span>&lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">teamScores&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">p&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">createEvents&lt;/span>&lt;span class="o">)&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="k">new&lt;/span> &lt;span class="n">CalculateTeamScores&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">TEAM_WINDOW_DURATION&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">ALLOWED_LATENESS&lt;/span>&lt;span class="o">));&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
-&lt;/div>
-&lt;img class="center-block" src="/images/blog/test-stream/elements-droppably-late.png" alt="Elements all arrive before the watermark, and are produced in the on-time pane" width="442">
-&lt;div class=language-java>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="c1">// An on-time pane is emitted with the events that arrived before the window closed
-&lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="n">PAssert&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">that&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">teamScores&lt;/span>&lt;span class="o">)&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">inWindow&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">window&lt;/span>&lt;span class="o">)&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">containsInAnyOrder&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">KV&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;blue&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">6&lt;/span>&lt;span class="o">));&lt;/span>
-&lt;span class="n">p&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">run&lt;/span>&lt;span class="o">();&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
-&lt;/div>
-&lt;h3 id="elements-arrive-before-the-end-of-the-window-and-some-processing-time-passes">Elements arrive before the end of the window, and some processing time passes&lt;/h3>
-&lt;p>Using additional methods, we can demonstrate the behavior of speculative
-triggers by advancing the processing time of the TestStream. If we add elements
-to an input PCollection, occasionally advancing the processing time clock, and
-apply &lt;code>CalculateUserScores&lt;/code>&lt;/p>
-&lt;div class=language-java>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">TestStream&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">create&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">AvroCoder&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">GameActionInfo&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">))&lt;/span>
-   &lt;span class="o">.&lt;/span>&lt;span class="na">addElements&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="k">new&lt;/span> &lt;span class="n">GameActionInfo&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;scarlet&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="s">&amp;#34;red&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">3&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="k">new&lt;/span> &lt;span class="n">Instant&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">0L&lt;/span>&lt;span class="o">)),&lt;/span>
-               &lt;span class="k">new&lt;/span> &lt;span class="n">GameActionInfo&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;scarlet&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="s">&amp;#34;red&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">2&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="k">new&lt;/span> &lt;span class="n">Instant&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">0L&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">plus&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Duration&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">standardMinutes&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">1&lt;/span>&lt;span class="o">))))&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">advanceProcessingTime&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Duration&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">standardMinutes&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">12&lt;/span>&lt;span class="o">))&lt;/span>
-   &lt;span class="o">.&lt;/span>&lt;span class="na">addElements&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="k">new&lt;/span> &lt;span class="n">GameActionInfo&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;oxblood&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="s">&amp;#34;red&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">2&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="k">new&lt;/span> &lt;span class="n">Instant&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">0L&lt;/span>&lt;span class="o">)).&lt;/span>&lt;span class="na">plus&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Duration&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">standardSeconds&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">22&lt;/span>&lt;span class="o">)),&lt;/span>
-               &lt;span class="k">new&lt;/span> &lt;span class="n">GameActionInfo&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;scarlet&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="s">&amp;#34;red&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">4&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="k">new&lt;/span> &lt;span class="n">Instant&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">0L&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">plus&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Duration&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">standardMinutes&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">2&lt;/span>&lt;span class="o">))))&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">advanceProcessingTime&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Duration&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">standardMinutes&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">15&lt;/span>&lt;span class="o">))&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">advanceWatermarkToInfinity&lt;/span>&lt;span class="o">();&lt;/span>
-&lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">KV&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">Integer&lt;/span>&lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">userScores&lt;/span> &lt;span class="o">=&lt;/span>
-   &lt;span class="n">p&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">infos&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="k">new&lt;/span> &lt;span class="n">CalculateUserScores&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">ALLOWED_LATENESS&lt;/span>&lt;span class="o">));&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
-&lt;/div>
-&lt;img class="center-block" src="/images/blog/test-stream/elements-processing-speculative.png" alt="Elements all arrive before the watermark, and are produced in the on-time pane" width="442">
-&lt;div class=language-java>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">PAssert&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">that&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">userScores&lt;/span>&lt;span class="o">)&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">inEarlyGlobalWindowPanes&lt;/span>&lt;span class="o">()&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">containsInAnyOrder&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">KV&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;scarlet&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">5&lt;/span>&lt;span class="o">),&lt;/span>
-                        &lt;span class="n">KV&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;scarlet&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">9&lt;/span>&lt;span class="o">),&lt;/span>
-&lt;span class="n">KV&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;oxblood&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">2&lt;/span>&lt;span class="o">));&lt;/span>
-&lt;span class="n">p&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">run&lt;/span>&lt;span class="o">();&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
-&lt;/div>
-&lt;h2 id="teststream---under-the-hood">TestStream - Under the Hood&lt;/h2>
-&lt;p>TestStream relies on a pipeline concept we’ve introduced, called quiescence, to
-utilize the existing runner infrastructure while providing guarantees about when
-a root transform will called by the runner. This consists of properties about
-pending elements and triggers, namely:&lt;/p>
-&lt;ul>
-&lt;li>No trigger is permitted to fire but has not fired&lt;/li>
-&lt;li>All elements are either buffered in state or cannot progress until a side input becomes available&lt;/li>
-&lt;/ul>
-&lt;p>Simplified, this means that, in the absence of an advancement in input
-watermarks or processing time, or additional elements being added to the
-pipeline, the pipeline will not make progress. Whenever the TestStream PTransform
-performs an action, the runner must not reinvoke the same instance until the
-pipeline has quiesced. This ensures that the events specified by TestStream
-happen &amp;ldquo;in-order&amp;rdquo;, which ensures that input watermarks and the system clock do
-not advance ahead of the elements they hoped to hold up.&lt;/p>
-&lt;p>The DirectRunner has been modified to use quiescence as the signal that it
-should add more work to the Pipeline, and the implementation of TestStream in
-that runner uses this fact to perform a single output per event. The DirectRunner
-implementation also directly controls the runner’s system clock, ensuring that
-tests will complete promptly even if there is a multi-minute processing time
-trigger located within the pipeline.&lt;/p>
-&lt;p>The TestStream transform is supported in the DirectRunner. For most users, tests
-written using TestPipeline and PAsserts will automatically function while using
-TestStream.&lt;/p>
-&lt;h2 id="summary">Summary&lt;/h2>
-&lt;p>The addition of TestStream alongside window and pane-specific matchers in PAssert
-has enabled the testing of Pipelines which produce speculative and late panes.
-This permits tests for all styles of pipeline to be expressed directly within the
-Java SDK. If you have questions or comments, we’d love to hear them on the
-&lt;a href="/get-started/support/">mailing lists&lt;/a>.&lt;/p></description></item></channel></rss>
+&lt;p>The next step is to take the Apex runner from functional to ready for real applications that run distributed, leveraging the scalability and performance features of Apex, similar to its native API. This includes chaining of ParDos, partitioning, optimizing combine operations etc. To get involved, please see &lt;a href="https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20and%20component%20%3D%20runner-apex%20and%20resolution%20%3D%20unresolved">JIRA&lt;/a> and join the Beam community.&lt;/p></description></item></channel></rss>

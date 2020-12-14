@@ -1,4 +1,86 @@
-<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Apache Beam</title><description>Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.</description><link>/</link><generator>Hugo -- gohugo.io</generator><item><title>Apache Beam 2.26.0</title><description>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Apache Beam</title><description>Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.</description><link>/</link><generator>Hugo -- gohugo.io</generator><item><title>Splittable DoFn in Apache Beam is Ready to Use</title><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>We are pleased to announce that Splittable DoFn (SDF) is ready for use in the Beam Python, Java,
+and Go SDKs for versions 2.25.0 and later.&lt;/p>
+&lt;p>In 2017, &lt;a href="https://beam.apache.org/blog/splittable-do-fn/">Splittable DoFn Blog Post&lt;/a> proposed
+to build &lt;a href="https://s.apache.org/splittable-do-fn">Splittable DoFn&lt;/a> APIs as the new recommended way of
+building I/O connectors. Splittable DoFn is a generalization of &lt;code>DoFn&lt;/code> that gives it the core
+capabilities of &lt;code>Source&lt;/code> while retaining &lt;code>DoFn&lt;/code>'s syntax, flexibility, modularity, and ease of
+coding. Thus, it becomes much easier to develop complex I/O connectors with simpler and reusable
+code.&lt;/p>
+&lt;p>SDF has three advantages over the existing &lt;code>UnboundedSource&lt;/code> and &lt;code>BoundedSource&lt;/code>:&lt;/p>
+&lt;ul>
+&lt;li>SDF provides a unified set of APIs to handle both unbounded and bounded cases.&lt;/li>
+&lt;li>SDF enables reading from source descriptors dynamically.
+&lt;ul>
+&lt;li>Taking KafkaIO as an example, within &lt;code>UnboundedSource&lt;/code>/&lt;code>BoundedSource&lt;/code> API, you must specify
+the topic and partition you want to read from during pipeline construction time. There is no way
+for &lt;code>UnboundedSource&lt;/code>/&lt;code>BoundedSource&lt;/code> to accept topics and partitions as inputs during execution
+time. But it&amp;rsquo;s built-in to SDF.&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>SDF fits in as any node on a pipeline freely with the ability of splitting.
+&lt;ul>
+&lt;li>&lt;code>UnboundedSource&lt;/code>/&lt;code>BoundedSource&lt;/code> has to be the root node of the pipeline to gain performance
+benefits from splitting strategies, which limits many real-world usages. This is no longer a limit
+for an SDF.&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ul>
+&lt;p>As SDF is now ready to use with all the mentioned improvements, it is the recommended
+way to build the new I/O connectors. Try out building your own Splittable DoFn by following the
+&lt;a href="https://beam.apache.org/documentation/programming-guide/#splittable-dofns">programming guide&lt;/a>. We
+have provided tonnes of common utility classes such as common types of &lt;code>RestrictionTracker&lt;/code> and
+&lt;code>WatermarkEstimator&lt;/code> in Beam SDK, which will help you onboard easily. As for the existing I/O
+connectors, we have wrapped &lt;code>UnboundedSource&lt;/code> and &lt;code>BoundedSource&lt;/code> implementations into Splittable
+DoFns, yet we still encourage developers to convert &lt;code>UnboundedSource&lt;/code>/&lt;code>BoundedSource&lt;/code> into actual
+Splittable DoFn implementation to gain more performance benefits.&lt;/p>
+&lt;p>Many thanks to every contributor who brought this highly anticipated design into the data processing
+world. We are really excited to see that users benefit from SDF.&lt;/p>
+&lt;p>Below are some real-world SDF examples for you to explore.&lt;/p>
+&lt;h2 id="real-world-splittable-dofn-examples">Real world Splittable DoFn examples&lt;/h2>
+&lt;p>&lt;strong>Java Examples&lt;/strong>&lt;/p>
+&lt;ul>
+&lt;li>&lt;a href="https://github.com/apache/beam/blob/571338b0cc96e2e80f23620fe86de5c92dffaccc/sdks/java/io/kafka/src/main/java/org/apache/beam/sdk/io/kafka/ReadFromKafkaDoFn.java#L118">Kafka&lt;/a>:
+An I/O connector for &lt;a href="https://kafka.apache.org/">Apache Kafka&lt;/a>
+(an open-source distributed event streaming platform).&lt;/li>
+&lt;li>&lt;a href="https://github.com/apache/beam/blob/571338b0cc96e2e80f23620fe86de5c92dffaccc/sdks/java/core/src/main/java/org/apache/beam/sdk/transforms/Watch.java#L787">Watch&lt;/a>:
+Uses a polling function producing a growing set of outputs for each input until a per-input
+termination condition is met.&lt;/li>
+&lt;li>&lt;a href="https://github.com/apache/beam/blob/571338b0cc96e2e80f23620fe86de5c92dffaccc/sdks/java/io/parquet/src/main/java/org/apache/beam/sdk/io/parquet/ParquetIO.java#L365">Parquet&lt;/a>:
+An I/O connector for &lt;a href="https://parquet.apache.org/">Apache Parquet&lt;/a>
+(an open-source columnar storage format).&lt;/li>
+&lt;li>&lt;a href="https://github.com/apache/beam/blob/6fdde4f4eab72b49b10a8bb1cb3be263c5c416b5/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/healthcare/HL7v2IO.java#L493">HL7v2&lt;/a>:
+An I/O connector for HL7v2 messages (a clinical messaging format that provides data about events
+that occur inside an organization) part of
+&lt;a href="https://cloud.google.com/healthcare">Google’s Cloud Healthcare API&lt;/a>.&lt;/li>
+&lt;li>&lt;a href="https://github.com/apache/beam/blob/571338b0cc96e2e80f23620fe86de5c92dffaccc/sdks/java/core/src/main/java/org/apache/beam/sdk/io/Read.java#L248">BoundedSource wrapper&lt;/a>:
+A wrapper which converts an existing &lt;a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/BoundedSource.html">BoundedSource&lt;/a>
+implementation to a splittable DoFn.&lt;/li>
+&lt;li>&lt;a href="https://github.com/apache/beam/blob/571338b0cc96e2e80f23620fe86de5c92dffaccc/sdks/java/core/src/main/java/org/apache/beam/sdk/io/Read.java#L432">UnboundedSource wrapper&lt;/a>:
+A wrapper which converts an existing &lt;a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/UnboundedSource.html">UnboundedSource&lt;/a>
+implementation to a splittable DoFn.&lt;/li>
+&lt;/ul>
+&lt;p>&lt;strong>Python Examples&lt;/strong>&lt;/p>
+&lt;ul>
+&lt;li>&lt;a href="https://github.com/apache/beam/blob/571338b0cc96e2e80f23620fe86de5c92dffaccc/sdks/python/apache_beam/io/iobase.py#L1375">BoundedSourceWrapper&lt;/a>:
+A wrapper which converts an existing &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.iobase.html#apache_beam.io.iobase.BoundedSource">BoundedSource&lt;/a>
+implementation to a splittable DoFn.&lt;/li>
+&lt;/ul>
+&lt;p>&lt;strong>Go Examples&lt;/strong>&lt;/p>
+&lt;ul>
+&lt;li>&lt;a href="https://github.com/apache/beam/blob/ce190e11332469ea59b6c9acf16ee7c673ccefdd/sdks/go/pkg/beam/io/textio/sdf.go#L40">textio.ReadSdf&lt;/a> implements reading from text files using a splittable DoFn.&lt;/li>
+&lt;/ul></description><link>/blog/splittable-do-fn-is-available/</link><pubDate>Mon, 14 Dec 2020 00:00:01 -0800</pubDate><guid>/blog/splittable-do-fn-is-available/</guid><category>blog</category></item><item><title>Apache Beam 2.26.0</title><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -763,102 +845,4 @@ Kotlin a try.&lt;/p>
 &lt;p>I&amp;rsquo;d like to extend a very special thanks to &lt;a href="https://twitter.com/henry_ken">Henry Suryawirawan&lt;/a> for his creation of the original series of Katas
 and his support during the review process and making this effort a reality.&lt;/p>
 &lt;p>&lt;br />&lt;/p>
-&lt;p>&lt;img src="/images/blog/beam-katas-kotlin-release/beam-katas-in-edutools.png" alt="Access Beam Katas Kotlin through a JetBrains Educational Product" height="252" width="800" >&lt;/p></description><link>/blog/beam-katas-kotlin-release/</link><pubDate>Mon, 01 Jun 2020 00:00:01 -0800</pubDate><guid>/blog/beam-katas-kotlin-release/</guid><category>blog</category></item><item><title>Python SDK Typing Changes</title><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>Beam Python has recently increased its support and integration of Python 3 type
-annotations for improved code clarity and type correctness checks.
-Read on to find out what&amp;rsquo;s new.&lt;/p>
-&lt;p>Python supports type annotations on functions (PEP 484). Static type checkers,
-such as mypy, are used to verify adherence to these types.
-For example:&lt;/p>
-&lt;pre>&lt;code>def f(v: int) -&amp;gt; int:
-return v[0]
-&lt;/code>&lt;/pre>&lt;p>Running mypy on the above code will give the error:
-&lt;code>Value of type &amp;quot;int&amp;quot; is not indexable&lt;/code>.&lt;/p>
-&lt;p>We&amp;rsquo;ve recently made changes to Beam in 2 areas:&lt;/p>
-&lt;p>Adding type annotations throughout Beam. Type annotations make a large and
-sophisticated codebase like Beam easier to comprehend and navigate in your
-favorite IDE.&lt;/p>
-&lt;p>Second, we&amp;rsquo;ve added support for Python 3 type annotations. This allows SDK
-users to specify a DoFn&amp;rsquo;s type hints in one place.
-We&amp;rsquo;ve also expanded Beam&amp;rsquo;s support of &lt;code>typing&lt;/code> module types.&lt;/p>
-&lt;p>For more background see:
-&lt;a href="https://beam.apache.org/documentation/sdks/python-type-safety/">Ensuring Python Type Safety&lt;/a>.&lt;/p>
-&lt;h1 id="beam-is-typed">Beam Is Typed&lt;/h1>
-&lt;p>In tandem with the new type annotation support within DoFns, we&amp;rsquo;ve invested a
-great deal of time adding type annotations to the Beam python code itself.
-With this in place, we have begun using mypy, a static type
-checker, as part of Beam&amp;rsquo;s code review process, which ensures higher quality
-contributions and fewer bugs.
-The added context and insight that type annotations add throughout Beam is
-useful for all Beam developers, contributors and end users alike, but
-it is especially beneficial for developers who are new to the project.
-If you use an IDE that understands type annotations, it will provide richer
-type completions and warnings than before.
-You&amp;rsquo;ll also be able to use your IDE to inspect the types of Beam functions and
-transforms to better understand how they work, which will ease your own
-development.
-Finally, once Beam is fully annotated, end users will be able to benefit from
-the use of static type analysis on their own pipelines and custom transforms.&lt;/p>
-&lt;h1 id="new-ways-to-annotate">New Ways to Annotate&lt;/h1>
-&lt;h2 id="python-3-syntax-annotations">Python 3 Syntax Annotations&lt;/h2>
-&lt;p>Coming in Beam 2.21 (BEAM-8280), you will be able to use Python annotation
-syntax to specify input and output types.&lt;/p>
-&lt;p>For example, this new form:&lt;/p>
-&lt;pre>&lt;code>class MyDoFn(beam.DoFn):
-def process(self, element: int) -&amp;gt; typing.Text:
-yield str(element)
-&lt;/code>&lt;/pre>&lt;p>is equivalent to this:&lt;/p>
-&lt;pre>&lt;code>@apache_beam.typehints.with_input_types(int)
-@apache_beam.typehints.with_output_types(typing.Text)
-class MyDoFn(beam.DoFn):
-def process(self, element):
-yield str(element)
-&lt;/code>&lt;/pre>&lt;p>One of the advantages of the new form is that you may already be using it
-in tandem with a static type checker such as mypy, thus getting additional
-runtime type checking for free.&lt;/p>
-&lt;p>This feature will be enabled by default, and there will be 2 mechanisms in
-place to disable it:&lt;/p>
-&lt;ol>
-&lt;li>Calling &lt;code>apache_beam.typehints.disable_type_annotations()&lt;/code> before pipeline
-construction will disable the new feature completely.&lt;/li>
-&lt;li>Decorating a function with &lt;code>@apache_beam.typehints.no_annotations&lt;/code> will
-tell Beam to ignore annotations for it.&lt;/li>
-&lt;/ol>
-&lt;p>Uses of Beam&amp;rsquo;s &lt;code>with_input_type&lt;/code>, &lt;code>with_output_type&lt;/code> methods and decorators will
-still work and take precedence over annotations.&lt;/p>
-&lt;h3 id="sidebar">Sidebar&lt;/h3>
-&lt;p>You might ask: couldn&amp;rsquo;t we use mypy to type check Beam pipelines?
-There are several reasons why this is not the case.&lt;/p>
-&lt;ul>
-&lt;li>Pipelines are constructed at runtime and may depend on information that is
-only known at that time, such as a config file or database table schema.&lt;/li>
-&lt;li>PCollections don&amp;rsquo;t have the necessary type information, so mypy sees them as
-effectively containing any element type.
-This may change in in the future.&lt;/li>
-&lt;li>Transforms using lambdas (ex: &lt;code>beam.Map(lambda x: (1, x)&lt;/code>) cannot be
-annotated properly using PEP 484.
-However, Beam does a best-effort attempt to analyze the output type
-from the bytecode.&lt;/li>
-&lt;/ul>
-&lt;h2 id="typing-module-support">Typing Module Support&lt;/h2>
-&lt;p>Python&amp;rsquo;s &lt;a href="https://docs.python.org/3/library/typing.html">typing&lt;/a> module defines
-types used in type annotations. This is what we call &amp;ldquo;native&amp;rdquo; types.
-While Beam has its own typing types, it also supports native types.
-While both Beam and native types are supported, for new code we encourage using
-native typing types. Native types have as these are supported by additional tools.&lt;/p>
-&lt;p>While working on Python 3 annotations syntax support, we&amp;rsquo;ve also discovered and
-fixed issues with native type support. There may still be bugs and unsupported
-native types. Please
-&lt;a href="https://beam.apache.org/community/contact-us/">let us know&lt;/a> if you encounter
-issues.&lt;/p></description><link>/blog/python-typing/</link><pubDate>Thu, 28 May 2020 00:00:01 -0800</pubDate><guid>/blog/python-typing/</guid><category>blog</category><category>python</category><category>typing</category></item></channel></rss>
+&lt;p>&lt;img src="/images/blog/beam-katas-kotlin-release/beam-katas-in-edutools.png" alt="Access Beam Katas Kotlin through a JetBrains Educational Product" height="252" width="800" >&lt;/p></description><link>/blog/beam-katas-kotlin-release/</link><pubDate>Mon, 01 Jun 2020 00:00:01 -0800</pubDate><guid>/blog/beam-katas-kotlin-release/</guid><category>blog</category></item></channel></rss>
