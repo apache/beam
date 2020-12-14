@@ -973,9 +973,10 @@ def pack_combiners(stages, context):
         for tokens in tokens_in_names:
           tokens.pop(0)
 
+      common_prefix_tokens.append('PackedCombinePerKey')
       common_prefix = '/'.join(common_prefix_tokens)
       suffixes = ['/'.join(tokens) for tokens in tokens_in_names]
-      return '%s/PackedCombinePerKey(%s)' % (common_prefix, ','.join(suffixes))
+      return '%s(%s)' % (common_prefix, ','.join(suffixes))
 
     pack_stage_name = make_pack_name([stage.name for stage in packable_stages])
     pack_transform_name = make_pack_name([
