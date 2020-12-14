@@ -103,6 +103,7 @@ For more information on changes in 2.26.0, check out the
 &lt;h2 id="ios">I/Os&lt;/h2>
 &lt;ul>
 &lt;li>Java BigQuery streaming inserts now have timeouts enabled by default. Pass &lt;code>--HTTPWriteTimeout=0&lt;/code> to revert to the old behavior. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-6103">BEAM-6103&lt;/a>)&lt;/li>
+&lt;li>Added support for Contextual Text IO (Java), a version of text IO that provides metadata about the records (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10124">BEAM-10124&lt;/a>). Support for this IO is currently experimental. Specifically, &lt;strong>there are no update-compatibility guarantees&lt;/strong> for streaming jobs with this IO between current future verisons of Apache Beam SDK.&lt;/li>
 &lt;/ul>
 &lt;h2 id="new-features--improvements">New Features / Improvements&lt;/h2>
 &lt;ul>
