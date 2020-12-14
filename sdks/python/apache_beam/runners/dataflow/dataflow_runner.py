@@ -541,6 +541,7 @@ class DataflowRunner(PipelineRunner):
     if (not options.view_as(StandardOptions).streaming and
         not debug_options.lookup_experiment(
             "disable_optimize_pipeline_for_dataflow")):
+      from apache_beam.runners.portability.fn_api_runner import translations
       self.proto_pipeline = translations.optimize_pipeline(
           self.proto_pipeline,
           phases=[
