@@ -18,6 +18,7 @@
 package org.apache.beam.runners.samza.adapter;
 
 import static org.apache.beam.runners.samza.adapter.TestSourceHelpers.createElementMessage;
+import static org.apache.beam.runners.samza.adapter.TestSourceHelpers.createEndOfStreamMessage;
 import static org.apache.beam.runners.samza.adapter.TestSourceHelpers.createWatermarkMessage;
 import static org.apache.beam.runners.samza.adapter.TestSourceHelpers.expectWrappedException;
 import static org.junit.Assert.assertEquals;
@@ -42,6 +43,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.samza.Partition;
+import org.apache.samza.config.MapConfig;
 import org.apache.samza.metrics.MetricsRegistryMap;
 import org.apache.samza.system.IncomingMessageEnvelope;
 import org.apache.samza.system.MessageType;
@@ -98,6 +100,33 @@ public class UnboundedSourceSystemTest {
             createElementMessage(
                 DEFAULT_SSP, offset(0), "test", BoundedWindow.TIMESTAMP_MIN_VALUE)),
         consumeUntilTimeoutOrWatermark(consumer, DEFAULT_SSP, DEFAULT_TIMEOUT_MILLIS));
+    consumer.stop();
+  }
+
+  @Test
+  public void testMaxWatermarkTriggersEndOfStreamMessage()
+      throws IOException, InterruptedException {
+    final TestUnboundedSource<String> source =
+        TestUnboundedSource.<String>createBuilder()
+            .addElements("test")
+            .advanceWatermarkTo(BoundedWindow.TIMESTAMP_MAX_VALUE)
+            .build();
+
+    final UnboundedSourceSystem.Consumer<String, TestCheckpointMark> consumer =
+        createConsumer(source);
+
+    consumer.register(DEFAULT_SSP, NULL_STRING);
+    consumer.start();
+    List<IncomingMessageEnvelope> actualList =
+        consumeUntilTimeoutOrWatermark(consumer, DEFAULT_SSP, DEFAULT_TIMEOUT_MILLIS);
+    actualList.addAll(
+        consumeUntilTimeoutOrWatermark(consumer, DEFAULT_SSP, DEFAULT_TIMEOUT_MILLIS));
+    assertEquals(
+        Arrays.asList(
+            createElementMessage(DEFAULT_SSP, offset(0), "test", BoundedWindow.TIMESTAMP_MIN_VALUE),
+            createWatermarkMessage(DEFAULT_SSP, BoundedWindow.TIMESTAMP_MAX_VALUE),
+            createEndOfStreamMessage(DEFAULT_SSP)),
+        actualList);
     consumer.stop();
   }
 
@@ -334,7 +363,10 @@ public class UnboundedSourceSystemTest {
     pipelineOptions.setWatermarkInterval(0L); // emit immediately
     pipelineOptions.setMaxSourceParallelism(splitNum);
     return new UnboundedSourceSystem.Consumer<>(
-        source, pipelineOptions, new SamzaMetricsContainer(new MetricsRegistryMap()), "test-step");
+        source,
+        pipelineOptions,
+        new SamzaMetricsContainer(new MetricsRegistryMap(), new MapConfig()),
+        "test-step");
   }
 
   private static List<IncomingMessageEnvelope> consumeUntilTimeoutOrWatermark(
