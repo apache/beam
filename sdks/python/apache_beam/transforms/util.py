@@ -73,6 +73,7 @@ from apache_beam.transforms.userstate import on_timer
 from apache_beam.transforms.window import NonMergingWindowFn
 from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import TimestampedValue
+from apache_beam.typehints.sharded_key_type import ShardedKeyType
 from apache_beam.utils import windowed_value
 from apache_beam.utils.annotations import deprecated
 from apache_beam.utils.annotations import experimental
@@ -797,7 +798,10 @@ class GroupIntoBatches(PTransform):
     return GroupIntoBatches(*_GroupIntoBatchesParams.parse_payload(proto))
 
   @typehints.with_input_types(Tuple[K, V])
-  @typehints.with_output_types(Tuple[K, Iterable[V]])
+  @typehints.with_output_types(
+      typehints.Tuple[
+          ShardedKeyType[typehints.TypeVariable(K)],  # type: ignore[misc]
+          typehints.Iterable[typehints.TypeVariable(V)]])
   class WithShardedKey(PTransform):
     """A GroupIntoBatches transform that outputs batched elements associated
     with sharded input keys.
@@ -817,6 +821,7 @@ class GroupIntoBatches(PTransform):
     _shard_id_prefix = uuid.uuid4().bytes
 
     def expand(self, pcoll):
+      key_type, value_type = pcoll.element_type.tuple_types
       sharded_pcoll = pcoll | Map(
           lambda key_value: (
               ShardedKey(
@@ -824,7 +829,10 @@ class GroupIntoBatches(PTransform):
                   # Use [uuid, thread id] as the shard id.
                   GroupIntoBatches.WithShardedKey._shard_id_prefix + bytes(
                       threading.get_ident().to_bytes(8, 'big'))),
-              key_value[1]))
+              key_value[1])).with_output_types(
+                  typehints.Tuple[
+                      ShardedKeyType[key_type],  # type: ignore[misc]
+                      value_type])
       return (
           sharded_pcoll
           | GroupIntoBatches(
