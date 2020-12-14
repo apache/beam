@@ -43,7 +43,7 @@ if [ "$(uname -s)" = "Darwin" ]; then
       # if Docker post-install steps to manage as non-root user not performed - will use dummy gid
       DOCKER_GROUP_ID=1000
       echo "`tput setaf 3`Please take a look post-install steps, to manage Docker as non-root user"
-      echo "`tput setaf 2`https://docs.docker.com/engine/install/linux-postinstall"
+      echo "`tput setaf 2`https://docs.docker.com/engine/install/linux-postinstall`tput sgr0`"
   fi
 fi
 
