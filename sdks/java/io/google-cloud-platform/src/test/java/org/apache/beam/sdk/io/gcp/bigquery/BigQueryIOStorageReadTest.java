@@ -26,6 +26,8 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 
@@ -98,6 +100,7 @@ import org.junit.runner.Description;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.junit.runners.model.Statement;
+import org.mockito.ArgumentMatchers;
 
 /** Tests for {@link BigQueryIO#readTableRows() using {@link Method#DIRECT_READ}}. */
 @RunWith(JUnit4.class)
@@ -107,7 +110,7 @@ import org.junit.runners.model.Statement;
 public class BigQueryIOStorageReadTest {
 
   private transient PipelineOptions options;
-  private transient TemporaryFolder testFolder = new TemporaryFolder();
+  private final transient TemporaryFolder testFolder = new TemporaryFolder();
   private transient TestPipeline p;
 
   @Rule
@@ -138,7 +141,7 @@ public class BigQueryIOStorageReadTest {
 
   @Rule public transient ExpectedException thrown = ExpectedException.none();
 
-  private FakeDatasetService fakeDatasetService = new FakeDatasetService();
+  private final FakeDatasetService fakeDatasetService = new FakeDatasetService();
 
   @Before
   public void setUp() throws Exception {
@@ -1112,6 +1115,12 @@ public class BigQueryIOStorageReadTest {
     assertEquals("B", parent.getCurrent().get("name"));
 
     assertNull(parent.splitAtFraction(0.5));
+    verify(fakeStorageClient, times(1)).splitReadStream(ArgumentMatchers.any());
+
+    // Verify that subsequent splitAtFraction() calls after a failed splitAtFraction() attempt
+    // do NOT invoke SplitReadStream.
+    assertNull(parent.splitAtFraction(0.5));
+    verify(fakeStorageClient, times(1)).splitReadStream(ArgumentMatchers.any());
 
     // Verify that the parent source still works okay even after an unsuccessful split attempt.
     assertTrue(parent.advance());

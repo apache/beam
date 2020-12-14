@@ -163,6 +163,7 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
     private long currentOffset;
 
     // Values used for progress reporting.
+    private boolean splitPossible = true;
     private double fractionConsumed;
     private double progressAtResponseStart;
     private double progressAtResponseEnd;
@@ -288,6 +289,10 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
         return null;
       }
 
+      if (!splitPossible) {
+        return null;
+      }
+
       SplitReadStreamRequest splitRequest =
           SplitReadStreamRequest.newBuilder()
               .setName(source.readStream.getName())
@@ -305,6 +310,7 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
             "BigQuery Storage API stream {} cannot be split at {}.",
             source.readStream.getName(),
             fraction);
+        splitPossible = false;
         return null;
       }
 

@@ -34,6 +34,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
+import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTableFilter;
 import org.apache.beam.sdk.extensions.sql.meta.SchemaBaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.InvalidTableException;
@@ -43,10 +44,12 @@ import org.apache.beam.sdk.io.gcp.bigtable.BigtableRowToBeamRow;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableRowToBeamRowFlat;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
 
 @Experimental
@@ -95,19 +98,21 @@ public class BigtableTable extends SchemaBaseBeamTable implements Serializable {
 
   @Override
   public PCollection<Row> buildIOReader(PBegin begin) {
-    BigtableIO.Read readTransform =
-        BigtableIO.read().withProjectId(projectId).withInstanceId(instanceId).withTableId(tableId);
-    if (!emulatorHost.isEmpty()) {
-      readTransform = readTransform.withEmulator(emulatorHost);
-    }
-    return readTransform
+    return readTransform()
         .expand(begin)
-        .apply(
-            "BigtableRowToBeamRow",
-            useFlatSchema
-                ? new BigtableRowToBeamRowFlat(schema, columnsMapping)
-                : new BigtableRowToBeamRow(schema))
+        .apply("BigtableRowToBeamRow", bigtableRowToRow())
         .setRowSchema(schema);
+  }
+
+  @Override
+  public PCollection<Row> buildIOReader(
+      PBegin begin, BeamSqlTableFilter filters, List<String> fieldNames) {
+    BigtableIO.Read readTransform = readTransform();
+    if (filters instanceof BigtableFilter) {
+      BigtableFilter bigtableFilter = (BigtableFilter) filters;
+      readTransform = readTransform.withRowFilter(bigtableFilter.getFilters());
+    }
+    return readTransform.expand(begin).apply(bigtableRowToRow());
   }
 
   @Override
@@ -132,6 +137,11 @@ public class BigtableTable extends SchemaBaseBeamTable implements Serializable {
   @Override
   public BeamTableStatistics getTableStatistics(PipelineOptions options) {
     return BeamTableStatistics.BOUNDED_UNKNOWN;
+  }
+
+  @Override
+  public BeamSqlTableFilter constructFilter(List<RexNode> filter) {
+    return new BigtableFilter(filter, schema);
   }
 
   private static Map<String, Set<String>> parseColumnsMapping(String commaSeparatedMapping) {
@@ -207,5 +217,20 @@ public class BigtableTable extends SchemaBaseBeamTable implements Serializable {
               "columnsMapping '%s' does not fit to schema field names '%s'",
               allMappingQualifiers, schemaFieldNames));
     }
+  }
+
+  private BigtableIO.Read readTransform() {
+    BigtableIO.Read readTransform =
+        BigtableIO.read().withProjectId(projectId).withInstanceId(instanceId).withTableId(tableId);
+    if (!emulatorHost.isEmpty()) {
+      readTransform = readTransform.withEmulator(emulatorHost);
+    }
+    return readTransform;
+  }
+
+  private PTransform<PCollection<com.google.bigtable.v2.Row>, PCollection<Row>> bigtableRowToRow() {
+    return useFlatSchema
+        ? new BigtableRowToBeamRowFlat(schema, columnsMapping)
+        : new BigtableRowToBeamRow(schema);
   }
 }

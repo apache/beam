@@ -19,7 +19,7 @@ package org.apache.beam.sdk.io.gcp.pubsublite;
 
 import com.google.cloud.pubsublite.Offset;
 import com.google.cloud.pubsublite.Partition;
-import io.grpc.StatusException;
+import com.google.cloud.pubsublite.internal.CheckedApiException;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Optional;
@@ -42,12 +42,8 @@ class OffsetCheckpointMark implements CheckpointMark {
 
   private OffsetCheckpointMark(Map<Long, Long> encodedMap) {
     ImmutableMap.Builder<Partition, Offset> builder = ImmutableMap.builder();
-    try {
-      for (Map.Entry<Long, Long> entry : encodedMap.entrySet()) {
-        builder.put(Partition.of(entry.getKey()), Offset.of(entry.getValue()));
-      }
-    } catch (StatusException e) {
-      throw e.getStatus().asRuntimeException();
+    for (Map.Entry<Long, Long> entry : encodedMap.entrySet()) {
+      builder.put(Partition.of(entry.getKey()), Offset.of(entry.getValue()));
     }
     finalizer = Optional.empty();
     partitionOffsetMap = builder.build();
@@ -60,7 +56,7 @@ class OffsetCheckpointMark implements CheckpointMark {
     }
     try {
       finalizer.get().finalizeOffsets(partitionOffsetMap);
-    } catch (StatusException e) {
+    } catch (CheckedApiException e) {
       throw new IOException(e);
     }
   }

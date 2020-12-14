@@ -477,6 +477,7 @@ public class Read {
               UnboundedSourceRestriction.create(split, null, restriction.getWatermark()));
         }
       } catch (Exception e) {
+        LOG.warn("Exception while splitting source. Source not split.", e);
         receiver.output(restriction);
       }
     }

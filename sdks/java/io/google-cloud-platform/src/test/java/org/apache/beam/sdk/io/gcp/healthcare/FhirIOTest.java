@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
+import com.google.gson.JsonArray;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -67,7 +68,7 @@ public class FhirIOTest {
 
     PCollection<HealthcareIOError<String>> failed = searchResult.getFailedSearches();
 
-    PCollection<String> resources = searchResult.getResources();
+    PCollection<JsonArray> resources = searchResult.getResources();
 
     PCollection<String> failedMsgIds =
         failed.apply(

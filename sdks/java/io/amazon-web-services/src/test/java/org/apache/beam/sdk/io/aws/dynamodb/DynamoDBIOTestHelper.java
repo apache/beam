@@ -49,7 +49,7 @@ import org.testcontainers.utility.DockerImageName;
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 class DynamoDBIOTestHelper implements Serializable {
-  private static final String LOCALSTACK_VERSION = "0.11.3";
+  private static final String LOCALSTACK_VERSION = "0.11.4";
 
   @Rule
   private static final LocalStackContainer localStackContainer =

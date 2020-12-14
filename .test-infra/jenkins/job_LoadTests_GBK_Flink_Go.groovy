@@ -27,6 +27,11 @@ import static LoadTestsBuilder.DOCKER_CONTAINER_REGISTRY
 
 String now = new Date().format('MMddHHmmss', TimeZone.getTimeZone('UTC'))
 
+// TODO(BEAM-9761): Skipping some cases because they are too slow or have memory errors.
+def TESTS_TO_SKIP = [
+  'load-tests-go-flink-batch-gbk-7',
+]
+
 def batchScenarios = {
   [
     [
@@ -58,7 +63,7 @@ def batchScenarios = {
         influx_namespace   : 'flink',
         influx_measurement : 'go_batch_gbk_2',
         input_options      : '\'{' +
-        '"num_records": 200000000,' +
+        '"num_records": 20000000,' +
         '"key_size": 10,' +
         '"value_size": 90}\'',
         iterations         : 1,
@@ -121,7 +126,7 @@ def batchScenarios = {
         fanout             : 8,
         parallelism        : 16,
         input_options      : '\'{' +
-        '"num_records": 5000000,' +
+        '"num_records": 2500000,' +
         '"key_size": 10,' +
         '"value_size": 90}\'',
         endpoint           : 'localhost:8099',
@@ -141,7 +146,7 @@ def batchScenarios = {
         fanout             : 1,
         parallelism        : 5,
         input_options      : '\'{' +
-        '"num_records": 5000000,' +
+        '"num_records": 20000000,' +
         '"key_size": 10,' +
         '"value_size": 90,' +
         '"num_hot_keys": 200,' +
@@ -173,7 +178,11 @@ def batchScenarios = {
         environment_config : "${DOCKER_CONTAINER_REGISTRY}/beam_go_sdk:latest",
       ]
     ],
-  ].each { test -> test.pipelineOptions.putAll(additionalPipelineArgs) }
+  ]
+  .each { test -> test.pipelineOptions.putAll(additionalPipelineArgs) }
+  .collectMany { test ->
+    TESTS_TO_SKIP.any { element -> test.pipelineOptions.job_name.startsWith(element) } ? []: [test]
+  }
 }
 
 def loadTestJob = { scope, triggeringContext, mode ->
@@ -204,7 +213,7 @@ def loadTestJob = { scope, triggeringContext, mode ->
 PhraseTriggeringPostCommitBuilder.postCommitJob(
     'beam_LoadTests_Go_GBK_Flink_Batch',
     'Run Load Tests Go GBK Flink Batch',
-    'Load Tests Go GBK Batch suite',
+    'Load Tests Go GBK Flink Batch suite',
     this
     ) {
       additionalPipelineArgs = [:]
