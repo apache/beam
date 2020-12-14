@@ -1704,6 +1704,20 @@ class BeamModulePlugin implements Plugin<Project> {
       return "${configuration.root}/${configuration.name}:${configuration.tag}"
     }
 
+    project.ext.containerImageTags = {
+      String[] tags
+      if (project.rootProject.hasProperty(["docker-tag-list"])) {
+        tags = project.rootProject["docker-tag-list"].split(',')
+      } else {
+        tags = [
+          project.rootProject.hasProperty(["docker-tag"]) ?
+          project.rootProject["docker-tag"] : project.sdk_version,
+          'latest'
+        ]
+      }
+      return tags
+    }
+
     /** ***********************************************************************************************/
 
     // applyGrpcNature should only be applied to projects who wish to use
