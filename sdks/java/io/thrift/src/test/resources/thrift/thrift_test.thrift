@@ -15,7 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-// This thrift file is used to generate the TestThriftStruct class.
+
+/*
+This thrift file is used to generate the TestThrift* classes:
+
+thrift --gen java:beans \
+  -out sdks/java/io/thrift/src/test/java/ \
+  sdks/java/io/thrift/src/test/resources/thrift/thrift_test.thrift
+
+./gradlew :sdks:java:io:thrift:spotlessApply
+*/
 
 namespace java org.apache.beam.sdk.io.thrift
 
