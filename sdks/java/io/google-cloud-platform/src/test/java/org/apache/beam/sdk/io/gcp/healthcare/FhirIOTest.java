@@ -69,7 +69,6 @@ public class FhirIOTest {
     PCollection<HealthcareIOError<String>> failed = searchResult.getFailedSearches();
 
     PCollection<JsonArray> resources = searchResult.getResources();
-    resources.setCoder(JsonArrayCoder.of());
 
     PCollection<String> failedMsgIds =
         failed.apply(

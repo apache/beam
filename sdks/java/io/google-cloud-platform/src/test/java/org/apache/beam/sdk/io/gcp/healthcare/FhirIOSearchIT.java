@@ -142,7 +142,6 @@ public class FhirIOSearchIT {
     PAssert.that(result.getFailedSearches()).empty();
     // Verify that none of the result resource sets are empty sets.
     PCollection<JsonArray> resources = result.getResources();
-    resources.setCoder(JsonArrayCoder.of());
     PAssert.that(resources)
         .satisfies(
             input -> {

@@ -1457,7 +1457,7 @@ public class FhirIO {
 
       private Result(PCollectionTuple pct) {
         this.pct = pct;
-        this.resources = pct.get(OUT);
+        this.resources = pct.get(OUT).setCoder(JsonArrayCoder.of());
         this.failedSearches =
             pct.get(DEAD_LETTER).setCoder(HealthcareIOErrorCoder.of(StringUtf8Coder.of()));
       }
