@@ -1215,7 +1215,7 @@ def _lowest_common_ancestor(a, b, parents):
 
 
 def _parent_for_fused_stages(stages, context):
-  # type: (Iterable[Optional[Stage]], TransformContext) -> Optional[str]
+  # type: (Iterable[Stage], TransformContext) -> Optional[str]
 
   '''Returns the name of the new parent for the fused stages.
 
