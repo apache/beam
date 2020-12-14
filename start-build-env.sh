@@ -41,8 +41,9 @@ if [ "$(uname -s)" = "Darwin" ]; then
       DOCKER_GROUP_ID=$(dscl . -read /Groups/docker| awk '($1 == "PrimaryGroupID:") { print $2 }')
     else
       # if Docker post-install steps to manage as non-root user not performed - will use dummy gid
-      # see https://docs.docker.com/engine/install/linux-postinstall/ for more info
       DOCKER_GROUP_ID=1000
+      echo "`tput setaf 3`Please take a look post-install steps, to manage Docker as non-root user"
+      echo "`tput setaf 2`https://docs.docker.com/engine/install/linux-postinstall"
   fi
 fi
 
