@@ -1226,13 +1226,11 @@ def _parent_for_fused_stages(stages, context):
 
   parents = context.parents_map()
   # If any of the input stages were produced by fusion or an optimizer phase,
-  # it will not be reflected in the context yet, so we need to augment
-  # parents_map with its parents.
+  # or had its parent modified by an optimizer phase, its parent will not be
+  # be reflected in the PipelineContext yet, so we need to add it to the
+  # parents map.
   for stage in stages:
-    if stage.name in parents:
-      assert parents[stage.name] == stage.parent
-    else:
-      parents[stage.name] = stage.parent
+    parents[stage.name] = stage.parent
 
   def reduce_fn(a, b):
     # type: (Optional[str], Optional[str]) -> Optional[str]
