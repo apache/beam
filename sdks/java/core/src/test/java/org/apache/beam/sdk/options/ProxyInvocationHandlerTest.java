@@ -598,7 +598,7 @@ public class ProxyInvocationHandlerTest {
     options2.setString("TestValue");
     SimpleTypes options3 = serializeDeserialize(SimpleTypes.class, options2);
     assertEquals(5, options3.getInteger());
-    assertEquals("TestValue", options3.getString());
+    assertEquals("TestValue", optaons3.getString());
   }
 
   @Test
