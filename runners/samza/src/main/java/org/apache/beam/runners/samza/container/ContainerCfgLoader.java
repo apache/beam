@@ -17,12 +17,11 @@
  */
 package org.apache.beam.runners.samza.container;
 
-import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 import org.apache.samza.config.Config;
-import org.apache.samza.config.ConfigFactory;
+import org.apache.samza.config.ConfigLoader;
 import org.apache.samza.config.MapConfig;
 import org.apache.samza.config.ShellCommandConfig;
 import org.apache.samza.container.SamzaContainer;
@@ -30,26 +29,27 @@ import org.apache.samza.job.model.JobModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Factory for the Beam yarn container to load job model. */
+/** Loader for the Beam yarn container to load job model. */
 @SuppressWarnings({
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
-public class ContainerCfgFactory implements ConfigFactory {
-  private static final Logger LOG = LoggerFactory.getLogger(ContainerCfgFactory.class);
+public class ContainerCfgLoader implements ConfigLoader {
+  private static final Logger LOG = LoggerFactory.getLogger(ContainerCfgLoader.class);
 
   private static final Object LOCK = new Object();
   static volatile JobModel jobModel;
 
   @Override
-  public Config getConfig(URI configUri) {
+  public Config getConfig() {
     if (jobModel == null) {
       synchronized (LOCK) {
         if (jobModel == null) {
-          String containerId = System.getenv(ShellCommandConfig.ENV_CONTAINER_ID());
+          final String containerId = System.getenv(ShellCommandConfig.ENV_CONTAINER_ID);
           LOG.info(String.format("Got container ID: %s", containerId));
-          String coordinatorUrl = System.getenv(ShellCommandConfig.ENV_COORDINATOR_URL());
+          final String coordinatorUrl = System.getenv(ShellCommandConfig.ENV_COORDINATOR_URL);
           LOG.info(String.format("Got coordinator URL: %s", coordinatorUrl));
-          int delay = new Random().nextInt(SamzaContainer.DEFAULT_READ_JOBMODEL_DELAY_MS()) + 1;
+          final int delay =
+              new Random().nextInt(SamzaContainer.DEFAULT_READ_JOBMODEL_DELAY_MS()) + 1;
           jobModel = SamzaContainer.readJobModel(coordinatorUrl, delay);
         }
       }
