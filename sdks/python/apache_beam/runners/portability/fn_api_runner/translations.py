@@ -950,11 +950,11 @@ def pack_combiners(stages, context):
 
     def make_pack_name(names):
       """Return the packed Transform or Stage name.
-      
+
       The output name will contain the input names' common prefix, the infix
-      '/PackedCombinePerKey', and the input names' suffixes in parantheses.
+      '/Packed', and the input names' suffixes in square brackets.
       For example, if the input names are 'a/b/c1/d1' and 'a/b/c2/d2, then
-      the output name is 'a/b/Packed(c1/d1,c2/d2)'.
+      the output name is 'a/b/Packed[c1/d1, c2/d2]'.
       """
       assert names
       tokens_in_names = [name.split('/') for name in names]
@@ -973,10 +973,10 @@ def pack_combiners(stages, context):
         for tokens in tokens_in_names:
           tokens.pop(0)
 
-      common_prefix_tokens.append('PackedCombinePerKey')
+      common_prefix_tokens.append('Packed')
       common_prefix = '/'.join(common_prefix_tokens)
       suffixes = ['/'.join(tokens) for tokens in tokens_in_names]
-      return '%s(%s)' % (common_prefix, ','.join(suffixes))
+      return '%s[%s]' % (common_prefix, ', '.join(suffixes))
 
     pack_stage_name = make_pack_name([stage.name for stage in packable_stages])
     pack_transform_name = make_pack_name([
