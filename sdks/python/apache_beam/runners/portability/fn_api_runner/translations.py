@@ -1240,7 +1240,7 @@ def _parent_for_fused_stages(stages, context):
       return None
     return _lowest_common_ancestor(a, b, parents)
 
-  stage_names = [stage.name for stage in stages]  # type: Set[Optional[str]]
+  stage_names = [stage.name for stage in stages]  # type: List[Optional[str]]
   result = functools.reduce(reduce_fn, stage_names)
   if result in stage_names:
     result = parents.get(result)
