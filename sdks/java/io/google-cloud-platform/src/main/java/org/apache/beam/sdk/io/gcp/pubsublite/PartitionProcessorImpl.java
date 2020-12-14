@@ -90,7 +90,9 @@ class PartitionProcessorImpl extends Listener implements PartitionProcessor {
   }
 
   private void onMessages(List<SequencedMessage> messages) {
-    if (completionFuture.isDone()) return;
+    if (completionFuture.isDone()) {
+      return;
+    }
     Offset lastOffset = Offset.of(Iterables.getLast(messages).getCursor().getOffset());
     long byteSize = messages.stream().mapToLong(SequencedMessage::getSizeBytes).sum();
     if (tracker.tryClaim(OffsetByteProgress.of(lastOffset, byteSize))) {
