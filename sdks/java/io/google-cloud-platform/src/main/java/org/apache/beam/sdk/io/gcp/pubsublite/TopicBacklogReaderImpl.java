@@ -32,7 +32,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 final class TopicBacklogReaderImpl implements TopicBacklogReader {
-  private static Logger logger = LoggerFactory.getLogger(TopicBacklogReaderImpl.class);
+  private static final Logger logger = LoggerFactory.getLogger(TopicBacklogReaderImpl.class);
   private final TopicStatsClient client;
   private final TopicPath topicPath;
   private final Partition partition;
