@@ -217,10 +217,15 @@ public class BeamFnLoggingClient implements AutoCloseable {
         builder.setLogLocation(loggerName);
       }
 
-      String transformId =
-          TransformProcessingThreadTracker.getThreadIdToTransformIdMappings()
-              .getOrDefault((long) record.getThreadID(), "");
-      builder.setTransformId(transformId);
+      if (TransformProcessingThreadTracker.getThreadIdToTransformIdMappings()
+          .containsKey((long) record.getThreadID())) {
+        String transformId =
+            TransformProcessingThreadTracker.getThreadIdToTransformIdMappings()
+                .get((long) record.getThreadID());
+        if (transformId != null) {
+          builder.setTransformId(transformId);
+        }
+      }
 
       // The thread that sends log records should never perform a blocking publish and
       // only insert log records best effort.
