@@ -29,7 +29,7 @@ def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 def batchScenarios = {
   [
     [
-      title          : 'SideInput Go Load test: 10gb-1kb-10workers-1window-first-iterable',
+      title          : 'SideInput Go Load test: 400mb-1kb-10workers-1window-first-iterable',
       test           : 'sideinput',
       runner         : CommonTestProperties.Runner.FLINK,
       pipelineOptions: [
@@ -48,7 +48,7 @@ def batchScenarios = {
       ]
     ],
     [
-      title          : 'SideInput Go Load test: 10gb-1kb-10workers-1window-iterable',
+      title          : 'SideInput Go Load test: 400mb-1kb-10workers-1window-iterable',
       test           : 'sideinput',
       runner         : CommonTestProperties.Runner.FLINK,
       pipelineOptions: [
