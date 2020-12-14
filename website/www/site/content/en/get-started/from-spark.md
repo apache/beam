@@ -52,7 +52,7 @@ result = (
 print(result)
 {{< /highlight >}}
 
-In Beam you _pipe_ your data through the pipeline using the
+In Beam you pipe your data through the pipeline using the
 _pipe operator_ `|` like `data | beam.Map(...)` instead of chaining
 methods like `data.map(...)`, but they're doing the same thing.
 
@@ -75,11 +75,11 @@ with beam.Pipeline() as pipeline:
 > That's because we can only access the elements of a PCollection
 > from within a PTransform.
 
-Another thing to note is that Beam pipelines are constructed _lazily_.
-This means that when you pipe `|` data you're only _decalring_ the
+Another thing to note is that Beam pipelines are constructed lazily.
+This means that when you pipe `|` data you're only declaring the
 transformations and the order you want them to happen,
 but the actual computation doesn't happen.
-The pipeline is run _after_ the `with beam.Pipeline() as pipeline` context has
+The pipeline is run after the `with beam.Pipeline() as pipeline` context has
 closed.
 
 > ℹ️ When the `with beam.Pipeline() as pipeline` context closes,
@@ -206,7 +206,7 @@ Since we are working in potentially distributed environments,
 we can't guarantee that the results we've calculated are available at any given machine.
 
 In PySpark, we can get a result from a collection of elements (RDD) by using
-`data.collect()`, or other aggregations such as `reduce()`, `count()` and more.
+`data.collect()`, or other aggregations such as `reduce()`, `count()`, and more.
 
 Here's an example to scale numbers into a range between zero and one.
 
@@ -224,7 +224,7 @@ scaled_values = values.map(lambda x: x / total)
 print(scaled_values.collect())
 {{< /highlight >}}
 
-In Beam the results from _all_ transforms result in a PCollection.
+In Beam the results from all transforms result in a PCollection.
 We use [_side inputs_](/documentation/programming-guide/#side-inputs)
 to feed a PCollection into a transform and access its values.
 
