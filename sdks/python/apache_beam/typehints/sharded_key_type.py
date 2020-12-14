@@ -15,19 +15,33 @@
 # limitations under the License.
 #
 
+"""Type constraint for `ShardedKey`.
+
+Can be used like a type-hint, for instance,
+  'ShardedKeyType[int]'
+  'ShardedKeyType[Tuple[T]]'
+
+The type constraint is registered to be associated with
+:class:`apache_beam.coders.coders.ShardedKeyCoder`.
+Mostly for internal use.
+"""
+
 # pytype: skip-file
 
 from __future__ import absolute_import
 
-from apache_beam.coders import typecoders
-from apache_beam.coders.coders import ShardedKeyCoder
+from six import with_metaclass
+
+from apache_beam import coders
 from apache_beam.typehints import typehints
-from apache_beam.typehints.typehints import match_type_variables
 from apache_beam.utils.sharded_key import ShardedKey
 
 
-class ShardedKeyTypeConstraint(typehints.TypeConstraint):
+class ShardedKeyTypeConstraint(with_metaclass(typehints.GetitemConstructor,
+                                              typehints.TypeConstraint)):
   def __init__(self, key_type):
+    typehints.validate_composite_type_param(
+        key_type, error_msg_prefix='Parameter to ShardedKeyType hint')
     self.key_type = typehints.normalize(key_type)
 
   def _inner_types(self):
@@ -58,7 +72,8 @@ class ShardedKeyTypeConstraint(typehints.TypeConstraint):
 
   def match_type_variables(self, concrete_type):
     if isinstance(concrete_type, ShardedKeyTypeConstraint):
-      return match_type_variables(self.key_type, concrete_type.key_type)
+      return typehints.match_type_variables(
+          self.key_type, concrete_type.key_type)
     return {}
 
   def __eq__(self, other):
@@ -69,7 +84,9 @@ class ShardedKeyTypeConstraint(typehints.TypeConstraint):
     return hash(self.key_type)
 
   def __repr__(self):
-    return 'ShardedKey(%s)' % typehints._unified_repr(self.key_type)
+    return 'ShardedKey[%s]' % typehints._unified_repr(self.key_type)
 
 
-typecoders.registry.register_coder(ShardedKeyTypeConstraint, ShardedKeyCoder)
+ShardedKeyType = ShardedKeyTypeConstraint
+coders.typecoders.registry.register_coder(
+    ShardedKeyType, coders.ShardedKeyCoder)

@@ -65,6 +65,8 @@ from apache_beam.transforms.window import IntervalWindow
 from apache_beam.transforms.window import Sessions
 from apache_beam.transforms.window import SlidingWindows
 from apache_beam.transforms.window import TimestampedValue
+from apache_beam.typehints import typehints
+from apache_beam.typehints.sharded_key_type import ShardedKeyType
 from apache_beam.utils import proto_utils
 from apache_beam.utils import timestamp
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
@@ -776,6 +778,28 @@ class GroupIntoBatchesTest(unittest.TestCase):
       # We will flush twice when the max buffering duration is reached and when
       # the global window ends.
       assert_that(num_elements_per_batch, equal_to([9, 1]))
+
+  def test_output_typehints(self):
+    transform = util.GroupIntoBatches.WithShardedKey(
+        GroupIntoBatchesTest.BATCH_SIZE)
+    unused_input_type = typehints.Tuple[str, str]
+    output_type = transform.infer_output_type(unused_input_type)
+    self.assertTrue(isinstance(output_type, typehints.TupleConstraint))
+    k, v = output_type.tuple_types
+    self.assertTrue(isinstance(k, ShardedKeyType))
+    self.assertTrue(isinstance(v, typehints.IterableTypeConstraint))
+
+    with TestPipeline() as pipeline:
+      collection = (
+          pipeline
+          | beam.Create([((1, 2), 'a'), ((2, 3), 'b')])
+          | util.GroupIntoBatches.WithShardedKey(
+              GroupIntoBatchesTest.BATCH_SIZE))
+      self.assertTrue(
+          collection.element_type,
+          typehints.Tuple[
+              ShardedKeyType[typehints.Tuple[int, int]],  # type: ignore[misc]
+              typehints.Iterable[str]])
 
   def _test_runner_api_round_trip(self, transform, urn):
     context = pipeline_context.PipelineContext()
