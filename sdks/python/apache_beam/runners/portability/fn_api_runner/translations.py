@@ -174,7 +174,7 @@ class Stage(object):
         union(self.must_follow, other.must_follow),
         environment=self._merge_environments(
             self.environment, other.environment),
-        parent=_parent_for_fused_stages([self.name, other.name], context),
+        parent=_parent_for_fused_stages([self, other], context),
         forced_root=self.forced_root or other.forced_root)
 
   def is_runner_urn(self, context):
@@ -799,7 +799,7 @@ def eliminate_common_key_with_none(stages, context):
         only_element(stage.transforms[0].outputs.values())
         for stage in sibling_stages
     ]
-    parent = _parent_for_fused_stages([s.name for s in sibling_stages], context)
+    parent = _parent_for_fused_stages(sibling_stages, context)
     for to_delete_pcoll_id in output_pcoll_ids[1:]:
       pcoll_id_remap[to_delete_pcoll_id] = output_pcoll_ids[0]
       del context.components.pcollections[to_delete_pcoll_id]
@@ -1191,17 +1191,15 @@ def lift_combiners(stages, context):
       yield stage
 
 
-def _lowest_common_ancestor(a, b, context):
-  # type: (str, str, TransformContext) -> Optional[str]
+def _lowest_common_ancestor(a, b, parents):
+  # type: (str, str, Dict[str, str]) -> Optional[str]
 
   '''Returns the name of the lowest common ancestor of the two named stages.
 
-  The provided context is used to compute ancestors of stages. Note that stages
-  are considered to be ancestors of themselves.
+  The map of stage names to their parents' stage names should be provided
+  in parents. Note that stages are considered to be ancestors of themselves.
   '''
   assert a != b
-
-  parents = context.parents_map()
 
   def get_ancestors(name):
     ancestor = name
@@ -1217,7 +1215,7 @@ def _lowest_common_ancestor(a, b, context):
 
 
 def _parent_for_fused_stages(stages, context):
-  # type: (Iterable[Optional[str]], TransformContext) -> Optional[str]
+  # type: (Iterable[Optional[Stage]], TransformContext) -> Optional[str]
 
   '''Returns the name of the new parent for the fused stages.
 
@@ -1225,15 +1223,27 @@ def _parent_for_fused_stages(stages, context):
   contained in the set of stages to be fused. The provided context is used to
   compute ancestors of stages.
   '''
+
+  parents = context.parents_map()
+  # If any of the input stages were produced by fusion or an optimizer phase,
+  # it will not be reflected in the context yet, so we need to augment
+  # parents_map with its parents.
+  for stage in stages:
+    if stage.name in parents:
+      assert parents[stage.name] == stage.parent
+    else:
+      parents[stage.name] = stage.parent
+
   def reduce_fn(a, b):
     # type: (Optional[str], Optional[str]) -> Optional[str]
     if a is None or b is None:
       return None
-    return _lowest_common_ancestor(a, b, context)
+    return _lowest_common_ancestor(a, b, parents)
 
-  result = functools.reduce(reduce_fn, stages)
-  if result in stages:
-    result = context.parents_map().get(result)
+  stage_names = [stage.name for stage in stages]
+  result = functools.reduce(reduce_fn, stage_names)
+  if result in stage_names:
+    result = parents.get(result)
   return result
 
 

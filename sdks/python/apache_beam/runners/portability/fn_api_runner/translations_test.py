@@ -38,6 +38,7 @@ class TranslationsTest(unittest.TestCase):
       def expand(self, pcoll):
         _ = pcoll | 'key-with-none-a' >> beam.ParDo(core._KeyWithNone())
         _ = pcoll | 'key-with-none-b' >> beam.ParDo(core._KeyWithNone())
+        _ = pcoll | 'key-with-none-c' >> beam.ParDo(core._KeyWithNone())
 
     pipeline = beam.Pipeline()
     _ = pipeline | beam.Create(
@@ -57,6 +58,7 @@ class TranslationsTest(unittest.TestCase):
       def expand(self, pcoll):
         _ = pcoll | 'mean-perkey' >> combiners.Mean.PerKey()
         _ = pcoll | 'count-perkey' >> combiners.Count.PerKey()
+        _ = pcoll | 'largest-perkey' >> core.CombinePerKey(combiners.Largest(1))
 
     pipeline = beam.Pipeline()
     vals = [6, 3, 1, 1, 9, 1, 5, 2, 0, 6]
@@ -83,6 +85,7 @@ class TranslationsTest(unittest.TestCase):
       def expand(self, pcoll):
         _ = pcoll | 'mean-perkey' >> combiners.Mean.PerKey()
         _ = pcoll | 'count-perkey' >> combiners.Count.PerKey()
+        _ = pcoll | 'largest-perkey' >> core.CombinePerKey(combiners.Largest(1))
 
     pipeline = beam.Pipeline()
     vals = [6, 3, 1, 1, 9, 1, 5, 2, 0, 6]
@@ -99,7 +102,7 @@ class TranslationsTest(unittest.TestCase):
           combine_per_key_stages.append(stage)
     # Combiner packing should be skipped because the environment is missing
     # the beam:combinefn:packed_python:v1 capability.
-    self.assertEqual(len(combine_per_key_stages), 2)
+    self.assertEqual(len(combine_per_key_stages), 3)
     for combine_per_key_stage in combine_per_key_stages:
       self.assertNotIn('/Pack', combine_per_key_stage.name)
 
@@ -108,6 +111,8 @@ class TranslationsTest(unittest.TestCase):
       def expand(self, pcoll):
         _ = pcoll | 'mean-globally' >> combiners.Mean.Globally()
         _ = pcoll | 'count-globally' >> combiners.Count.Globally()
+        _ = pcoll | 'largest-globally' >> core.CombineGlobally(
+            combiners.Largest(1))
 
     pipeline = beam.Pipeline()
     vals = [6, 3, 1, 1, 9, 1, 5, 2, 0, 6]
@@ -172,6 +177,7 @@ class TranslationsTest(unittest.TestCase):
     pcoll = pipeline | Create(vals)
     _ = pcoll | 'mean-globally' >> combiners.Mean.Globally()
     _ = pcoll | 'count-globally' >> combiners.Count.Globally()
+    _ = pcoll | 'largest-globally' >> core.CombineGlobally(combiners.Largest(1))
     pipeline_proto = pipeline.to_runner_api()
     optimized_pipeline_proto = translations.optimize_pipeline(
         pipeline_proto,
