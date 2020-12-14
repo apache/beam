@@ -19,6 +19,10 @@ package org.apache.beam.fn.harness;
 
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * TransformProcessingThreadTracker tracks the thread ids for the transforms that are being
+ * processed in the SDK harness.
+ */
 public class TransformProcessingThreadTracker {
   private static final TransformProcessingThreadTracker INSTANCE =
       new TransformProcessingThreadTracker();
