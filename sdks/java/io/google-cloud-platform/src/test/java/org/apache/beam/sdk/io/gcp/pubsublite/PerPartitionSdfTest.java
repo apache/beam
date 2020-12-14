@@ -66,8 +66,9 @@ import org.mockito.stubbing.Answer;
 @RunWith(JUnit4.class)
 @SuppressWarnings("initialization.fields.uninitialized")
 public class PerPartitionSdfTest {
-  private final Duration MAX_SLEEP_TIME = Duration.standardMinutes(10).plus(Duration.millis(10));
-  private final OffsetRange RESTRICTION = new OffsetRange(1, Long.MAX_VALUE);
+  private static final Duration MAX_SLEEP_TIME =
+      Duration.standardMinutes(10).plus(Duration.millis(10));
+  private static final OffsetRange RESTRICTION = new OffsetRange(1, Long.MAX_VALUE);
   private static final SubscriptionPartition PARTITION =
       SubscriptionPartition.of(example(SubscriptionPath.class), example(Partition.class));
 

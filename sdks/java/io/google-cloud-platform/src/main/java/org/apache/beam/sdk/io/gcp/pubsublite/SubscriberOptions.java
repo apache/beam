@@ -130,7 +130,9 @@ public abstract class SubscriberOptions implements Serializable {
 
   InitialOffsetReader getInitialOffsetReader(Partition partition) {
     SerializableSupplier<InitialOffsetReader> supplier = offsetReaderSupplier();
-    if (supplier != null) return supplier.get();
+    if (supplier != null) {
+      return supplier.get();
+    }
     return new InitialOffsetReaderImpl(
         CursorClient.create(
             CursorClientSettings.newBuilder()

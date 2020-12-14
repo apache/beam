@@ -23,7 +23,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.cloud.pubsublite.Offset;
 import com.google.cloud.pubsublite.proto.ComputeMessageStatsResponse;
-import com.google.common.flogger.GoogleLogger;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.range.OffsetRange;
@@ -47,8 +46,6 @@ import org.joda.time.Duration;
  */
 class OffsetByteRangeTracker extends RestrictionTracker<OffsetRange, OffsetByteProgress>
     implements HasProgress {
-  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
-
   private final TopicBacklogReader backlogReader;
   private final Duration minTrackingTime;
   private final long minBytesReceived;
@@ -124,16 +121,24 @@ class OffsetByteRangeTracker extends RestrictionTracker<OffsetRange, OffsetByteP
    */
   private boolean receivedEnough() {
     Duration duration = Duration.millis(stopwatch.elapsed(TimeUnit.MILLISECONDS));
-    if (duration.isLongerThan(minTrackingTime)) return true;
-    if (byteCount >= minBytesReceived) return true;
+    if (duration.isLongerThan(minTrackingTime)) {
+      return true;
+    }
+    if (byteCount >= minBytesReceived) {
+      return true;
+    }
     return false;
   }
 
   @Override
   public @Nullable SplitResult<OffsetRange> trySplit(double fractionOfRemainder) {
     // Cannot split a bounded range. This should already be completely claimed.
-    if (range.getTo() != Long.MAX_VALUE) return null;
-    if (!receivedEnough()) return null;
+    if (range.getTo() != Long.MAX_VALUE) {
+      return null;
+    }
+    if (!receivedEnough()) {
+      return null;
+    }
     range = new OffsetRange(currentRestriction().getFrom(), nextOffset());
     return SplitResult.of(this.range, new OffsetRange(nextOffset(), Long.MAX_VALUE));
   }
@@ -141,7 +146,9 @@ class OffsetByteRangeTracker extends RestrictionTracker<OffsetRange, OffsetByteP
   @Override
   @SuppressWarnings("unboxing.of.nullable")
   public void checkDone() throws IllegalStateException {
-    if (range.getFrom() == range.getTo()) return;
+    if (range.getFrom() == range.getTo()) {
+      return;
+    }
     checkState(
         lastClaimed != null,
         "Last attempted offset should not be null. No work was claimed in non-empty range %s.",
@@ -154,9 +161,6 @@ class OffsetByteRangeTracker extends RestrictionTracker<OffsetRange, OffsetByteP
         range,
         lastClaimedNotNull + 1,
         range.getTo());
-    logger.atInfo().log(
-        "Closed byte range after receiving %s offsets and %s bytes, and having %s time elapse.",
-        range.getTo() - range.getFrom(), byteCount, stopwatch.elapsed());
   }
 
   @Override
