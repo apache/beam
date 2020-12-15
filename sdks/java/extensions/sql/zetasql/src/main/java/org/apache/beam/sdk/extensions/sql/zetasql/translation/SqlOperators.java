@@ -127,7 +127,7 @@ public class SqlOperators {
       createUdfOperator("DATE", BeamBuiltinMethods.DATE_METHOD);
 
   public static final SqlOperator BIT_XOR =
-          createUdafOperator("BIT_XOR", x -> createTypeFactory().createSqlType(SqlTypeName.INTEGER),
+          createUdafOperator("BIT_XOR", x -> createTypeFactory().createSqlType(SqlTypeName.BIGINT),
                   new UdafImpl<>(new BeamBuiltinAggregations.BitXOr()));
 
   public static final SqlUserDefinedFunction CAST_OP =
