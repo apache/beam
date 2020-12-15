@@ -44,7 +44,8 @@ def read_csv(path, *args, splittable=False, **kwargs):
 
   If your files are large and records do not contain quoted newlines, you may
   pass the extra argument splittable=True to enable dynamic splitting for this
-  read.
+  read on newlines. Using this option for records that do contain quoted
+  newlines may result in partial records and data corruption.
   """
   if 'nrows' in kwargs:
     raise ValueError('nrows not yet supported')
@@ -217,16 +218,38 @@ class _ReadFromPandas(beam.PTransform):
 
 class _Splitter:
   def empty_buffer(self):
+    """Returns an empty buffer of the right type (string or bytes).
+    """
     raise NotImplementedError(self)
 
   def read_header(self, handle):
+    """Reads the header from handle, which points to the start of the file.
+
+    Returns the pair (header, buffer) where buffer contains any part of the
+    file that was "overread" from handle while seeking the end of header.
+    """
     raise NotImplementedError(self)
 
   def read_to_record_boundary(self, buffered, handle):
+    """Reads the given handle up to the end of the current record.
+
+    The buffer argument represents bytes that were read previously; logically
+    it's as if these were pushed back into handle for reading. If the
+    record end is within buffered, it's possible that no more bytes will be read
+    from handle at all.
+
+    Returns the pair (remaining_record_bytes, buffer) where buffer contains
+    any part of the file that was "overread" from handle while seeking the end
+    of the record.
+    """
     raise NotImplementedError(self)
 
 
 class _DelimSplitter(_Splitter):
+  """A _Splitter that splits on delimiters between records.
+
+  This delimiter is assumed ot never occur within a record.
+  """
   def __init__(self, delim, read_chunk_size=_DEFAULT_BYTES_CHUNKSIZE):
     # Multi-char delimiters would require more care across chunk boundaries.
     assert len(delim) == 1
@@ -264,7 +287,7 @@ def _maybe_encode(str_or_bytes):
 
 
 class _CsvSplitter(_DelimSplitter):
-  """Splitter for dynamically sharding CSV files.
+  """Splitter for dynamically sharding CSV files and newline record boundaries.
 
   Currently does not handle quoted newlines, so is off by default, but such
   support could be added in the future.
