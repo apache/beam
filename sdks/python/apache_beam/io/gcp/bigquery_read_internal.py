@@ -27,8 +27,10 @@ import logging
 import random
 import uuid
 from typing import TYPE_CHECKING
+from typing import Any
 from typing import Dict
 from typing import Iterable
+from typing import List
 from typing import Optional
 from typing import Union
 
@@ -355,34 +357,32 @@ class _JsonToDictCoder(coders.Coder):
 
   def decode(self, value):
     value = json.loads(value.decode('utf-8'))
-    return self._decode_with_schema(value, self.fields)
+    return self._decode_row(value, self.fields)
 
-  def _decode_with_schema(self, value, schema_fields):
+  def _decode_row(self, row: Dict[str, Any], schema_fields: List[FieldSchema]):
     for field in schema_fields:
-      if field.name not in value:
+      if field.name not in row:
         # The field exists in the schema, but it doesn't exist in this row.
         # It probably means its value was null, as the extract to JSON job
         # doesn't preserve null fields
-        value[field.name] = None
+        row[field.name] = None
         continue
 
-      if field.type == 'RECORD':
-        nested_values = value[field.name]
-        if field.mode == 'REPEATED':
-          for i, nested_value in enumerate(nested_values):
-            nested_values[i] = self._decode_with_schema(
-                nested_value, field.fields)
-        else:
-          value[field.name] = self._decode_with_schema(
-              nested_values, field.fields)
+      if field.mode == 'REPEATED':
+        for i, elem in enumerate(row[field.name]):
+          row[field.name][i] = self._decode_data(elem, field)
       else:
-        try:
-          converter = self._converters[field.type]
-          value[field.name] = converter(value[field.name])
-        except KeyError:
-          # No need to do any conversion
-          pass
-    return value
+        row[field.name] = self._decode_data(row[field.name], field)
+    return row
+
+  def _decode_data(self, obj: Any, field: FieldSchema):
+    if not field.fields:
+      try:
+        return self._converters[field.type](obj)
+      except KeyError:
+        # No need to do any conversion
+        return obj
+    return self._decode_row(obj, field.fields)
 
   def is_deterministic(self):
     return True
