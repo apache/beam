@@ -70,7 +70,6 @@ dependencies {
   compile "org.apache.kafka:kafka-clients:0.11.0.2"
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile project(path: ":runners:core-java", configuration: "testRuntime")
-  testCompile library.java.commons_lang3
   testCompile library.java.hamcrest_core
   testCompile library.java.junit
   testCompile library.java.mockito_core

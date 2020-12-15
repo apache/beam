@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.samza.adapter;
 
-import static org.apache.beam.runners.samza.adapter.BoundedSourceSystem.Factory.getPipelineOptions;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -37,6 +35,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.StringUtils;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.serialization.Base64Serializer;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.metrics.FnWithMetricsWrapper;
@@ -505,7 +504,7 @@ public class UnboundedSourceSystem {
       return new Consumer<T, CheckpointMarkT>(
           getUnboundedSource(scopedConfig),
           getPipelineOptions(config),
-          new SamzaMetricsContainer((MetricsRegistryMap) registry, config),
+          new SamzaMetricsContainer((MetricsRegistryMap) registry),
           scopedConfig.get("stepName"));
     }
 
@@ -528,6 +527,18 @@ public class UnboundedSourceSystem {
       final UnboundedSource<T, CheckpointMarkT> source =
           Base64Serializer.deserializeUnchecked(config.get("source"), UnboundedSource.class);
       return source;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T> Coder<WindowedValue<T>> getCoder(Config config) {
+      return Base64Serializer.deserializeUnchecked(config.get("coder"), Coder.class);
+    }
+
+    private static SamzaPipelineOptions getPipelineOptions(Config config) {
+      return Base64Serializer.deserializeUnchecked(
+              config.get("beamPipelineOptions"), SerializablePipelineOptions.class)
+          .get()
+          .as(SamzaPipelineOptions.class);
     }
   }
 }

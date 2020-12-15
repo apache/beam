@@ -38,7 +38,6 @@ import org.apache.beam.runners.samza.metrics.SamzaMetricsContainer;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
-import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.samza.context.ApplicationContainerContext;
 import org.apache.samza.context.ApplicationContainerContextFactory;
 import org.apache.samza.context.ContainerContext;
@@ -179,11 +178,7 @@ public class SamzaExecutionContext implements ApplicationContainerContext {
 
       final MetricsRegistryMap metricsRegistry =
           (MetricsRegistryMap) containerContext.getContainerMetricsRegistry();
-      SamzaMetricsContainer samzaMetricsContainer =
-          new SamzaMetricsContainer(metricsRegistry, jobContext.getConfig());
-      MetricsEnvironment.setGlobalContainer(
-          samzaMetricsContainer.getContainer(SamzaMetricsContainer.GLOBAL_CONTAINER_STEP_NAME));
-      SamzaExecutionContext.this.setMetricsContainer(samzaMetricsContainer);
+      SamzaExecutionContext.this.setMetricsContainer(new SamzaMetricsContainer(metricsRegistry));
       return SamzaExecutionContext.this;
     }
   }
