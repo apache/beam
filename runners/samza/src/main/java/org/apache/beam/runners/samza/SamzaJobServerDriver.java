@@ -46,7 +46,6 @@ public class SamzaJobServerDriver {
   private static final Logger LOG = LoggerFactory.getLogger(SamzaJobServerDriver.class);
 
   private final SamzaPortablePipelineOptions pipelineOptions;
-  private ExpansionServer expansionServer;
 
   protected SamzaJobServerDriver(SamzaPortablePipelineOptions pipelineOptions) {
     this.pipelineOptions = pipelineOptions;
@@ -110,14 +109,14 @@ public class SamzaJobServerDriver {
 
   public void run() throws Exception {
     // Create services
-    InMemoryJobService service = createJobService();
-    GrpcFnServer<InMemoryJobService> jobServiceGrpcFnServer =
+    final InMemoryJobService service = createJobService();
+    final GrpcFnServer<InMemoryJobService> jobServiceGrpcFnServer =
         GrpcFnServer.allocatePortAndCreateFor(
             service, ServerFactory.createWithPortSupplier(pipelineOptions::getJobPort));
-    String jobServerUrl = jobServiceGrpcFnServer.getApiServiceDescriptor().getUrl();
+    final String jobServerUrl = jobServiceGrpcFnServer.getApiServiceDescriptor().getUrl();
     LOG.info("JobServer started on {}", jobServerUrl);
-    URI uri = new URI(jobServerUrl);
-    expansionServer = createExpansionService(uri.getHost(), pipelineOptions.getExpansionPort());
+    final URI uri = new URI(jobServerUrl);
+    final ExpansionServer expansionServer = createExpansionService(uri.getHost(), pipelineOptions.getExpansionPort());
 
     try {
       jobServiceGrpcFnServer.getServer().awaitTermination();
@@ -129,7 +128,6 @@ public class SamzaJobServerDriver {
           expansionServer.close();
           LOG.info(
               "Expansion stopped on {}:{}", expansionServer.getHost(), expansionServer.getPort());
-          expansionServer = null;
         } catch (Exception e) {
           LOG.error("Error while closing the Expansion Service.", e);
         }
