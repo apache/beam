@@ -218,13 +218,10 @@ public class ParquetIOTest implements Serializable {
     mainPipeline.run().waitUntilFinish();
 
     PCollection<String> readBackAsJsonWithSplit =
-        readPipeline
-            .apply(Create.of(temporaryFolder.getRoot().getAbsolutePath() + "/*"))
-            .apply(FileIO.matchAll())
-            .apply(FileIO.readMatches())
-            .apply(
-                ParquetIO.parseFilesGenericRecords(ParseGenericRecordAsJsonFn.create())
-                    .withSplit());
+        readPipeline.apply(
+            ParquetIO.parseGenericRecords(ParseGenericRecordAsJsonFn.create())
+                .from(temporaryFolder.getRoot().getAbsolutePath() + "/*")
+                .withSplit());
 
     PAssert.that(readBackAsJsonWithSplit).containsInAnyOrder(convertRecordsToJson(records));
     readPipeline.run().waitUntilFinish();
@@ -286,7 +283,7 @@ public class ParquetIOTest implements Serializable {
                     .expand(null));
 
     assertEquals(
-        "Schema is required for GenericRecord output.", illegalArgumentException.getMessage());
+        "Parse can't be used for reading as GenericRecord.", illegalArgumentException.getMessage());
   }
 
   private List<GenericRecord> generateGenericRecords(long count) {
