@@ -500,10 +500,9 @@ class Pipeline(object):
 
     """Runs the pipeline. Returns whatever our runner returns after running."""
 
-    external_transform_finder = ExternalTransformFinder()
-    self.visit(external_transform_finder)
+    # Records whether this pipeline contains any cross-language transforms.
     self.contains_external_transforms = (
-        external_transform_finder.contains_external_transforms)
+        ExternalTransformFinder.contains_external_transforms(self))
 
     try:
       if test_runner_api == 'AUTO':
@@ -517,8 +516,6 @@ class Pipeline(object):
         # Multi-language pipelines that contain external pipeline segments may
         # not be able to create a Python pipeline object graph. Hence following
         # runner API check should be skipped for such pipelines.
-        external_transform_finder = ExternalTransformFinder()
-        self.visit(external_transform_finder)
 
         # The InteractiveRunner relies on a constant pipeline reference, skip
         # it.
@@ -975,13 +972,19 @@ class ExternalTransformFinder(PipelineVisitor):
   it.
   """
   def __init__(self):
-    self.contains_external_transforms = False
+    self._contains_external_transforms = False
+
+  @staticmethod
+  def contains_external_transforms(pipeline):
+    visitor = ExternalTransformFinder()
+    pipeline.visit(visitor)
+    return visitor._contains_external_transforms
 
   def visit_transform(self, transform_node):
     # type: (AppliedPTransform) -> None
     from apache_beam.transforms import ExternalTransform
     if isinstance(transform_node.transform, ExternalTransform):
-      self.contains_external_transforms = True
+      self._contains_external_transforms = True
 
 
 class AppliedPTransform(object):

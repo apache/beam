@@ -549,9 +549,10 @@ class DataflowRunner(PipelineRunner):
       debug_options.add_experiment(
           'min_cpu_platform=' + worker_options.min_cpu_platform)
 
-    if pipeline.contains_external_transforms:
-      # All Dataflow multi-language pipelines use portable job submission by
-      # default.
+    if (apiclient._use_unified_worker(options) and
+        pipeline.contains_external_transforms):
+      # All Dataflow multi-language pipelines (supported by Runner v2 only) use
+      # portable job submission by default.
       debug_options.add_experiment("use_portable_job_submission")
 
     # Elevate "enable_streaming_engine" to pipeline option, but using the
