@@ -172,7 +172,6 @@ class PipelineContext(object):
                iterable_state_read=None,  # type: Optional[IterableStateReader]
                iterable_state_write=None,  # type: Optional[IterableStateWriter]
                namespace='ref',  # type: str
-               allow_proto_holders=False,  # type: bool
                requirements=(),  # type: Iterable[str]
               ):
     # type: (...) -> None
@@ -220,7 +219,6 @@ class PipelineContext(object):
     self.use_fake_coders = use_fake_coders
     self.iterable_state_read = iterable_state_read
     self.iterable_state_write = iterable_state_write
-    self.allow_proto_holders = allow_proto_holders
     self._requirements = set(requirements)
 
   def add_requirement(self, requirement):
