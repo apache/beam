@@ -786,60 +786,6 @@ class UtilTest(unittest.TestCase):
     self.assertEqual('key5', job.proto.labels.additionalProperties[4].key)
     self.assertEqual('', job.proto.labels.additionalProperties[4].value)
 
-  def test_experiment_use_multiple_sdk_containers(self):
-    pipeline_options = PipelineOptions([
-        '--project',
-        'test_project',
-        '--job_name',
-        'test_job_name',
-        '--temp_location',
-        'gs://test-location/temp',
-        '--experiments',
-        'beam_fn_api'
-    ])
-    environment = apiclient.Environment([],
-                                        pipeline_options,
-                                        1,
-                                        FAKE_PIPELINE_URL)
-    self.assertIn('use_multiple_sdk_containers', environment.proto.experiments)
-
-    pipeline_options = PipelineOptions([
-        '--project',
-        'test_project',
-        '--job_name',
-        'test_job_name',
-        '--temp_location',
-        'gs://test-location/temp',
-        '--experiments',
-        'beam_fn_api',
-        '--experiments',
-        'use_multiple_sdk_containers'
-    ])
-    environment = apiclient.Environment([],
-                                        pipeline_options,
-                                        1,
-                                        FAKE_PIPELINE_URL)
-    self.assertIn('use_multiple_sdk_containers', environment.proto.experiments)
-
-    pipeline_options = PipelineOptions([
-        '--project',
-        'test_project',
-        '--job_name',
-        'test_job_name',
-        '--temp_location',
-        'gs://test-location/temp',
-        '--experiments',
-        'beam_fn_api',
-        '--experiments',
-        'no_use_multiple_sdk_containers'
-    ])
-    environment = apiclient.Environment([],
-                                        pipeline_options,
-                                        1,
-                                        FAKE_PIPELINE_URL)
-    self.assertNotIn(
-        'use_multiple_sdk_containers', environment.proto.experiments)
-
   @mock.patch(
       'apache_beam.runners.dataflow.internal.apiclient.sys.version_info',
       (3, 8))
