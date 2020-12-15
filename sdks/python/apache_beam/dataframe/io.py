@@ -311,7 +311,6 @@ class _CsvSplitter(_DelimSplitter):
 
     comment = _maybe_encode(self._kwargs.get('comment', None))
     if comment:
-      import logging
       is_comment = lambda line: line.startswith(comment)
     else:
       is_comment = lambda line: False
