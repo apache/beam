@@ -44,8 +44,11 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.FileIO;
+import org.apache.beam.sdk.io.FileIO.ReadableFile;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.hadoop.SerializableConfiguration;
+import org.apache.beam.sdk.io.parquet.ParquetIO.ReadFiles.ReadFn;
+import org.apache.beam.sdk.io.parquet.ParquetIO.ReadFiles.SplitReadFn;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.Create;
@@ -162,29 +165,33 @@ import org.slf4j.LoggerFactory;
  * <h3>Reading records of an unknown schema</h3>
  *
  * <p>To read records from files whose schema is unknown at pipeline construction time or differs
- * between files, use {@link #parseFilesGenericRecords(SerializableFunction)} - in this case, you
- * will need to specify a parsing function for converting each {@link GenericRecord} into a value of
- * your custom type.
- *
- * <p>It expects a {@link PCollection} of filepatterns with unknown schema, use {@link FileIO}
- * matching plus {@link #parseFilesGenericRecords(SerializableFunction)}.
+ * between files, use {@link #parseGenericRecords(SerializableFunction)} - in this case, you will
+ * need to specify a parsing function for converting each {@link GenericRecord} into a value of your
+ * custom type.
  *
  * <p>For example:
  *
  * <pre>{@code
  * Pipeline p = ...;
  *
- * PCollection<String> filepatterns = p.apply(...);
- *
  * PCollection<Foo> records =
- *     filepatterns.apply(FileIO.matchAll())
- *     .apply(FileIO.readMatches())
- *     .apply(ParquetIO.parseGenericRecords(new SerializableFunction<GenericRecord, Foo>() {
+ *     p.apply(ParquetIO.parseGenericRecords(new SerializableFunction<GenericRecord, Foo>() {
  *       public Foo apply(GenericRecord record) {
  *         // If needed, access the schema of the record using record.getSchema()
  *         return ...;
- *       }
- *     }));
+ *       }}));
+ *
+ * // For reading from filepatterns
+ *  PCollection<String> filepatterns = p.apply(...);
+ *
+ *  PCollection<Foo> records =
+ *     filepatterns
+ *       .apply(ParquetIO.parseFilesGenericRecords(new SerializableFunction<GenericRecord, Foo>() {
+ *         public Foo apply(GenericRecord record) {
+ *         // If needed, access the schema of the record using record.getSchema()
+ *         return ...;
+ *         }
+ *       }));
  * }</pre>
  *
  * <h3>Writing Parquet files</h3>
@@ -235,18 +242,33 @@ public class ParquetIO {
    * Like {@link #read(Schema)}, but reads each file in a {@link PCollection} of {@link
    * org.apache.beam.sdk.io.FileIO.ReadableFile}, which allows more flexible usage.
    */
-  public static ReadFiles<GenericRecord> readFiles(Schema schema) {
-    return parseFilesGenericRecords(GenericRecordPassthroughFn.create())
-        .toBuilder()
+  public static ReadFiles readFiles(Schema schema) {
+    return new AutoValue_ParquetIO_ReadFiles.Builder()
+        .setSplittable(false)
         .setSchema(schema)
         .build();
   }
 
-  public static <T> ReadFiles<T> parseFilesGenericRecords(
-      SerializableFunction<GenericRecord, T> parseFn) {
-    return new AutoValue_ParquetIO_ReadFiles.Builder<T>()
-        .setSplittable(false)
+  /**
+   * Reads {@link GenericRecord} from a Parquet file (or multiple Parquet files matching the
+   * pattern) and converts to user defined type using provided parseFn.
+   */
+  public static <T> Parse<T> parseGenericRecords(SerializableFunction<GenericRecord, T> parseFn) {
+    return new AutoValue_ParquetIO_Parse.Builder<T>()
         .setParseFn(parseFn)
+        .setSplittable(false)
+        .build();
+  }
+
+  /**
+   * Reads {@link GenericRecord} from Parquet files and converts to user defined type using provided
+   * {@code parseFn}.
+   */
+  public static <T> ParseFiles<T> parseFilesGenericRecords(
+      SerializableFunction<GenericRecord, T> parseFn) {
+    return new AutoValue_ParquetIO_ParseFiles.Builder<T>()
+        .setParseFn(parseFn)
+        .setSplittable(false)
         .build();
   }
 
@@ -343,78 +365,89 @@ public class ParquetIO {
     }
   }
 
-  /** Implementation of {@link #readFiles(Schema)}. */
+  /** Implementation of {@link #parseGenericRecords(SerializableFunction)}. */
   @AutoValue
-  public abstract static class ReadFiles<T>
-      extends PTransform<PCollection<FileIO.ReadableFile>, PCollection<T>> {
-
-    abstract @Nullable Schema getSchema();
-
-    abstract @Nullable GenericData getAvroDataModel();
-
-    abstract @Nullable Schema getEncoderSchema();
-
-    abstract @Nullable Schema getProjectionSchema();
-
-    abstract boolean isSplittable();
+  public abstract static class Parse<T> extends PTransform<PBegin, PCollection<T>> {
+    abstract @Nullable ValueProvider<String> getFilepattern();
 
     abstract SerializableFunction<GenericRecord, T> getParseFn();
+
+    abstract boolean isSplittable();
 
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
     abstract static class Builder<T> {
-      abstract Builder<T> setSchema(Schema schema);
-
-      abstract Builder<T> setAvroDataModel(GenericData model);
-
-      abstract Builder<T> setEncoderSchema(Schema schema);
-
-      abstract Builder<T> setProjectionSchema(Schema schema);
-
-      abstract Builder<T> setSplittable(boolean split);
+      abstract Builder<T> setFilepattern(ValueProvider<String> inputFiles);
 
       abstract Builder<T> setParseFn(SerializableFunction<GenericRecord, T> parseFn);
 
-      abstract ReadFiles<T> build();
+      abstract Builder<T> setSplittable(boolean splittable);
+
+      abstract Parse<T> build();
     }
 
-    /**
-     * Define the Avro data model; see {@link AvroParquetReader.Builder#withDataModel(GenericData)}.
-     */
-    public ReadFiles<T> withAvroDataModel(GenericData model) {
-      return toBuilder().setAvroDataModel(model).build();
+    public Parse<T> from(ValueProvider<String> inputFiles) {
+      return toBuilder().setFilepattern(inputFiles).build();
     }
 
-    public ReadFiles<T> withProjection(Schema projectionSchema, Schema encoderSchema) {
-      return toBuilder()
-          .setProjectionSchema(projectionSchema)
-          .setEncoderSchema(encoderSchema)
-          .setSplittable(true)
-          .build();
+    public Parse<T> from(String inputFiles) {
+      return from(ValueProvider.StaticValueProvider.of(inputFiles));
     }
-    /** Enable the Splittable reading. */
-    public ReadFiles<T> withSplit() {
+
+    public Parse<T> withSplit() {
       return toBuilder().setSplittable(true).build();
     }
 
     @Override
-    public PCollection<T> expand(PCollection<FileIO.ReadableFile> input) {
-      checkArgument(
-          !isGenericRecordOutput() || getSchema() != null,
-          "Schema is required for GenericRecord output.");
-      CoderRegistry coderRegistry = input.getPipeline().getCoderRegistry();
-
-      if (isSplittable()) {
-        return input
-            .apply(
-                ParDo.of(
-                    new SplitReadFn<>(getAvroDataModel(), getProjectionSchema(), getParseFn())))
-            .setCoder(inferCoder(coderRegistry));
-      }
+    public PCollection<T> expand(PBegin input) {
+      checkNotNull(getFilepattern(), "Filepattern cannot be null.");
       return input
-          .apply(ParDo.of(new ReadFn<>(getAvroDataModel(), getParseFn())))
-          .setCoder(inferCoder(coderRegistry));
+          .apply("Create filepattern", Create.ofProvider(getFilepattern(), StringUtf8Coder.of()))
+          .apply(FileIO.matchAll())
+          .apply(FileIO.readMatches())
+          .apply(
+              parseFilesGenericRecords(getParseFn())
+                  .toBuilder()
+                  .setSplittable(isSplittable())
+                  .build());
+    }
+  }
+
+  /** Implementation of {@link #parseFilesGenericRecords(SerializableFunction)}. */
+  @AutoValue
+  public abstract static class ParseFiles<T>
+      extends PTransform<PCollection<FileIO.ReadableFile>, PCollection<T>> {
+
+    abstract SerializableFunction<GenericRecord, T> getParseFn();
+
+    abstract boolean isSplittable();
+
+    abstract Builder<T> toBuilder();
+
+    @AutoValue.Builder
+    abstract static class Builder<T> {
+      abstract Builder<T> setParseFn(SerializableFunction<GenericRecord, T> parseFn);
+
+      abstract Builder<T> setSplittable(boolean split);
+
+      abstract ParseFiles<T> build();
+    }
+
+    public ParseFiles<T> withSplit() {
+      return toBuilder().setSplittable(true).build();
+    }
+
+    @Override
+    public PCollection<T> expand(PCollection<ReadableFile> input) {
+      checkArgument(!isGenericRecordOutput(), "Parse can't be used for reading as GenericRecord.");
+
+      PCollection<T> parsedRecords =
+          isSplittable()
+              ? input.apply(ParDo.of(new SplitReadFn<>(null, null, getParseFn())))
+              : input.apply(ParDo.of(new ReadFn<>(null, getParseFn())));
+
+      return parsedRecords.setCoder(inferCoder(input.getPipeline().getCoderRegistry()));
     }
 
     /** Returns true if expected output is {@code PCollection<GenericRecord>}. */
@@ -431,16 +464,9 @@ public class ParquetIO {
      * @param coderRegistry the {@link org.apache.beam.sdk.Pipeline}'s CoderRegistry to identify
      *     Coder for expected output type of {@link #getParseFn()}
      */
-    @SuppressWarnings("unchecked") // Validation is done via #isGenericRecordOutput
     private Coder<T> inferCoder(CoderRegistry coderRegistry) {
       if (isGenericRecordOutput()) {
-        Schema coderSchema = getSchema();
-
-        if (isSplittable()) {
-          coderSchema = getProjectionSchema() == null ? getSchema() : getEncoderSchema();
-        }
-        return (Coder<T>)
-            AvroCoder.of(checkNotNull(coderSchema, "coder schema should not be null"));
+        throw new IllegalArgumentException("Parse can't be used for reading as GenericRecord.");
       }
 
       // If not GenericRecord infer it from ParseFn.
@@ -451,6 +477,77 @@ public class ParquetIO {
             "Unable to infer coder for output of parseFn. Specify it explicitly using withCoder().",
             e);
       }
+    }
+  }
+
+  /** Implementation of {@link #readFiles(Schema)}. */
+  @AutoValue
+  public abstract static class ReadFiles
+      extends PTransform<PCollection<FileIO.ReadableFile>, PCollection<GenericRecord>> {
+
+    abstract @Nullable Schema getSchema();
+
+    abstract @Nullable GenericData getAvroDataModel();
+
+    abstract @Nullable Schema getEncoderSchema();
+
+    abstract @Nullable Schema getProjectionSchema();
+
+    abstract boolean isSplittable();
+
+    abstract Builder toBuilder();
+
+    @AutoValue.Builder
+    abstract static class Builder {
+      abstract Builder setSchema(Schema schema);
+
+      abstract Builder setAvroDataModel(GenericData model);
+
+      abstract Builder setEncoderSchema(Schema schema);
+
+      abstract Builder setProjectionSchema(Schema schema);
+
+      abstract Builder setSplittable(boolean split);
+
+      abstract ReadFiles build();
+    }
+
+    /**
+     * Define the Avro data model; see {@link AvroParquetReader.Builder#withDataModel(GenericData)}.
+     */
+    public ReadFiles withAvroDataModel(GenericData model) {
+      return toBuilder().setAvroDataModel(model).build();
+    }
+
+    public ReadFiles withProjection(Schema projectionSchema, Schema encoderSchema) {
+      return toBuilder()
+          .setProjectionSchema(projectionSchema)
+          .setEncoderSchema(encoderSchema)
+          .setSplittable(true)
+          .build();
+    }
+    /** Enable the Splittable reading. */
+    public ReadFiles withSplit() {
+      return toBuilder().setSplittable(true).build();
+    }
+
+    @Override
+    public PCollection<GenericRecord> expand(PCollection<FileIO.ReadableFile> input) {
+      checkNotNull(getSchema(), "Schema can not be null");
+      if (isSplittable()) {
+        Schema coderSchema = getProjectionSchema() == null ? getSchema() : getEncoderSchema();
+        return input
+            .apply(
+                ParDo.of(
+                    new SplitReadFn<>(
+                        getAvroDataModel(),
+                        getProjectionSchema(),
+                        GenericRecordPassthroughFn.create())))
+            .setCoder(AvroCoder.of(coderSchema));
+      }
+      return input
+          .apply(ParDo.of(new ReadFn<>(getAvroDataModel(), GenericRecordPassthroughFn.create())))
+          .setCoder(AvroCoder.of(getSchema()));
     }
 
     @DoFn.BoundedPerElement
@@ -468,7 +565,7 @@ public class ParquetIO {
 
         this.modelClass = model != null ? model.getClass() : null;
         this.requestSchemaString = requestSchema != null ? requestSchema.toString() : null;
-        this.parseFn = checkNotNull(parseFn, "GenericRecord parse function is null");
+        this.parseFn = checkNotNull(parseFn, "GenericRecord parse function can't be null");
       }
 
       ParquetFileReader getParquetFileReader(FileIO.ReadableFile file) throws Exception {
