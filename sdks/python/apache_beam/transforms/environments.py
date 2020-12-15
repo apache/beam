@@ -205,16 +205,11 @@ class Environment(object):
       return None
     parameter_type, constructor = cls._known_urns[proto.urn]
 
-    try:
-      return constructor(
-          proto_utils.parse_Bytes(proto.payload, parameter_type),
-          proto.capabilities,
-          proto.dependencies,
-          context)
-    except Exception:
-      if context.allow_proto_holders:
-        return RunnerAPIEnvironmentHolder(proto)
-      raise
+    return constructor(
+        proto_utils.parse_Bytes(proto.payload, parameter_type),
+        proto.capabilities,
+        proto.dependencies,
+        context)
 
   @classmethod
   def from_options(cls, options):
