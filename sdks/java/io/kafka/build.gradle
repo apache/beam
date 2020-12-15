@@ -51,8 +51,6 @@ dependencies {
   testCompile project(":sdks:java:expansion-service")
   compile "org.apache.kafka:kafka-clients:2.4.1"
   compile library.java.jsr305
-  compile "io.confluent:kafka-schema-registry-client:5.3.2"
-  compile "org.apache.kafka:kafka-clients:5.3.2-ccs"
   compile library.java.avro
   // Get back to "provided" since 2.14
   provided library.java.kafka_clients
@@ -67,8 +65,13 @@ dependencies {
     exclude group: "org.apache.zookeeper", module: "zookeeper"
     // "kafka-clients" has to be provided since user can use its own version.
     exclude group: "org.apache.kafka", module: "kafka-clients"
-
-    exclude group: 'io.confluent', module: 'kafka-schema-registry-client'
+  }
+  compile ("io.confluent:kafka-schema-registry-client:5.3.2") {
+    // It depends on "spotbugs-annotations:3.1.9" which clashes with current
+    // "spotbugs-annotations:3.1.12" used in Beam. Not required.
+    exclude group: "org.apache.zookeeper", module: "zookeeper"
+    // "kafka-clients" has to be provided since user can use its own version.
+    exclude group: "org.apache.kafka", module: "kafka-clients"
   }
   provided library.java.jackson_dataformat_csv
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
