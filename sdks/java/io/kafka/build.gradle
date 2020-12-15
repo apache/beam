@@ -67,6 +67,8 @@ dependencies {
     exclude group: "org.apache.zookeeper", module: "zookeeper"
     // "kafka-clients" has to be provided since user can use its own version.
     exclude group: "org.apache.kafka", module: "kafka-clients"
+
+    exclude group: 'io.confluent', module: 'kafka-schema-registry-client'
   }
   provided library.java.jackson_dataformat_csv
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
