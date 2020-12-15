@@ -537,6 +537,22 @@ class DataflowRunner(PipelineRunner):
     self.proto_pipeline, self.proto_context = pipeline.to_runner_api(
         return_context=True, default_environment=self._default_environment)
 
+    # Optimize the pipeline if it not streaming and the
+    # disable_optimize_pipeline_for_dataflow experiment has not been set.
+    if (not options.view_as(StandardOptions).streaming and
+        not options.view_as(DebugOptions).lookup_experiment(
+            "disable_optimize_pipeline_for_dataflow")):
+      from apache_beam.runners.portability.fn_api_runner import translations
+      self.proto_pipeline = translations.optimize_pipeline(
+          self.proto_pipeline,
+          phases=[
+              translations.eliminate_common_key_with_none,
+              translations.pack_combiners,
+              translations.sort_stages,
+          ],
+          known_runner_urns=frozenset(),
+          partial=True)
+
     if use_fnapi:
       self._check_for_unsupported_fnapi_features(self.proto_pipeline)
 
