@@ -4068,7 +4068,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
     PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
 
-    Schema schema = Schema.builder().addInt64Field("rslt_field").build();
+    Schema schema = Schema.builder().addInt32Field("field1").build();
     PAssert.that(stream)
             .containsInAnyOrder(Row.withSchema(schema).addValue(4860L).build());
 
