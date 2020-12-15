@@ -253,7 +253,11 @@ python -m apache_beam.examples.wordcount \
 {{< /highlight >}}
 
 
-### Troubleshooting/TIps
+### Troubleshooting
+
+The following section describes some common issues to consider
+when you encounter unexpected errors running Beam pipelines with
+custom containers.
 
 * Differences in language and SDK version between the container SDK and
   pipeline SDK may result in unexpected errors due to incompatibility. For best
@@ -261,10 +265,10 @@ python -m apache_beam.examples.wordcount \
   and when running your pipeline.
 * If you are running into unexpected errors when using remote containers,
   make sure that your container exists in the remote repository and can be
-  accesses. Local runners will attempt to pull remote images and default to
-  local images if it exists locally. If an image cannot be pulled by the local
-  docker daemon, you may see an log message like:
-
+  accessed by any third-party service, if needed.
+* Local runners will attempt to pull remote images and default to local
+  images. If an image cannot be pulled locally (by the docker daemon),
+  you may see an log message like:
   ```
   Error response from daemon: manifest for remote.repo/beam_python3.7_sdk:2.25.0-custom not found: manifest unknown: ...
   INFO:apache_beam.runners.portability.fn_api_runner.worker_handlers:Unable to pull image...
