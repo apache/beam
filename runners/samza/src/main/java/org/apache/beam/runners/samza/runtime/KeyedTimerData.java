@@ -169,17 +169,8 @@ public class KeyedTimerData<K> implements Comparable<KeyedTimerData<K>> {
         keyCoder.encode(value.key, outStream);
       }
 
-      final String timerFamilyId = timer.getTimerFamilyId();
-
-      // Only encode the timerFamilyId if not empty.
-      if (!timerFamilyId.isEmpty()) {
-        STRING_CODER.encode(timer.getTimerFamilyId(), outStream);
-      }
-
-      // Adding new fields will make it error prone when decoding from
-      // a different version of samza-beam-runner.
-      // TODO: LISAMZA-19205 encode this field once we have a better solution.
-      // INSTANT_CODER.encode(timer.getOutputTimestamp(), outStream);
+      STRING_CODER.encode(timer.getTimerFamilyId(), outStream);
+      INSTANT_CODER.encode(timer.getOutputTimestamp(), outStream);
     }
 
     @Override
@@ -206,13 +197,10 @@ public class KeyedTimerData<K> implements Comparable<KeyedTimerData<K>> {
       }
 
       final String timerFamilyId = inStream.available() > 0 ? STRING_CODER.decode(inStream) : "";
-
-      // TODO: LISAMZA-19205 decode this field once we have a better solution.
-      // final Instant outputTimestamp =
-      //    inStream.available() > 0 ? INSTANT_CODER.decode(inStream) : timestamp;
-
+      final Instant outputTimestamp =
+          inStream.available() > 0 ? INSTANT_CODER.decode(inStream) : timestamp;
       final TimerData timer =
-          TimerData.of(timerId, timerFamilyId, namespace, timestamp, timestamp, domain);
+          TimerData.of(timerId, timerFamilyId, namespace, timestamp, outputTimestamp, domain);
       return new KeyedTimerData<>(keyBytes, key, timer);
     }
 
