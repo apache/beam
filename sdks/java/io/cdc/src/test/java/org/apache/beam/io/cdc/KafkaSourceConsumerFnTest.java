@@ -17,11 +17,26 @@
  */
 package org.apache.beam.io.cdc;
 
-import org.apache.kafka.connect.source.SourceRecord;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 
-@FunctionalInterface
-public interface SourceRecordMapper<T> extends Serializable {
-    T mapSourceRecord(SourceRecord sourceRecord) throws Exception;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
+/**
+ *
+ */
+@RunWith(JUnit4.class)
+public class KafkaSourceConsumerFnTest implements Serializable {
+    private static final Logger LOG = LoggerFactory.getLogger(KafkaSourceConsumerFnTest.class);
+
+    @Test
+    public void testHello() {
+        assertEquals(23, 232);
+    }
 }

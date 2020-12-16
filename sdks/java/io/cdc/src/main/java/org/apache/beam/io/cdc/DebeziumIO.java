@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.beam.io.cdc;
 
 import com.google.auto.value.AutoValue;
@@ -24,7 +41,6 @@ import java.util.Map;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 public class DebeziumIO {
-	
 	private static final Logger LOG = LoggerFactory.getLogger(DebeziumIO.class);
 	
 	/**
@@ -36,10 +52,6 @@ public class DebeziumIO {
 		return new AutoValue_DebeziumIO_Read.Builder<T>().build();
 	}
 	
-//	public static <ParameterT, OutputT> ReadAll<ParameterT, OutputT> readAll() {
-//		return new AutoValue_DebeziumIO_ReadAll.Builder<ParameterT, OutputT>().build();
-//	}
-	
 	/** Disallow construction of utility class. */
 	private DebeziumIO() {}
 	
@@ -50,24 +62,19 @@ public class DebeziumIO {
 		private static final long serialVersionUID = 1L;
 
 		abstract @Nullable ConnectorConfiguration getConnectorConfiguration();
-		
 		abstract @Nullable SourceRecordMapper<T> getFormatFunction();
-
 		abstract @Nullable Coder<T> getCoder();
-
 		abstract Builder<T> toBuilder();
 		  
 		@AutoValue.Builder
 		abstract static class Builder<T> {
-
 			abstract Builder<T> setConnectorConfiguration(ConnectorConfiguration config);
 			abstract Builder<T> setCoder(Coder<T> coder);
 			abstract Builder<T> setFormatFunction(SourceRecordMapper<T> mapperFn);
 			abstract Read<T> build();
 			  
 		}
-		
-		//ConnectorConfiguration
+
 		public Read<T> withConnectorConfiguration(final ConnectorConfiguration config) {
 			checkArgument(config != null, "config can not be null");
 			return toBuilder().setConnectorConfiguration(config).build();
@@ -84,97 +91,52 @@ public class DebeziumIO {
 		}
 		
 		@Override
-		public PCollection<T> expand(PBegin input){
+		public PCollection<T> expand(PBegin input) {
 			return input
-					.apply(Create.of(
-							Lists.newArrayList(getConnectorConfiguration().getConfigurationMap()))
+					.apply(Create.of(Lists.newArrayList(getConnectorConfiguration().getConfigurationMap()))
 							.withCoder(MapCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of())))
-					.apply(ParDo.of(
-							new KafkaSourceConsumerFn<T>(
+					.apply(ParDo.of(new KafkaSourceConsumerFn<>(
 									getConnectorConfiguration().getConnectorClass().get(),
-									getFormatFunction()))
-							);
+									getFormatFunction())));
 		}
 		  
 	}
-//	/** Implementation of {@link #readAll}. */
-//	@AutoValue
-//	public abstract static class ReadAll<ParameterT, OutputT>
-//		extends PTransform<PCollection<ParameterT>, PCollection<OutputT>> {
-//		@AutoValue.Builder
-//		abstract static class Builder<ParameterT, OutputT> {
-//			abstract ReadAll<ParameterT, OutputT> build();
-//		}
-//		@Override
-//		public PCollection<OutputT> expand(PCollection<ParameterT> input) {
-//			PCollection<OutputT> output = input.apply("Read", ParDo.of(new ReadFn<>()));
-//			return output;
-//		}
-//	}
-//	
-//	private static class ReadFn<ParameterT, OutputT> extends DoFn<ParameterT, OutputT> {
-//
-//		@ProcessElement
-//		public void processElement(ProcessContext context) throws Exception {
-//
-//			LOG.info("Helloa....");
-//		}
-//	}
-	
-	
+
 	/**
 	 * A POJO describing a Debezium configuration.
 	*/
 	@AutoValue
 	public abstract static class ConnectorConfiguration implements Serializable {
-		
 		private static final long serialVersionUID = 1L;
 		  
 		abstract @Nullable ValueProvider<Class<?>> getConnectorClass();
-
 		abstract @Nullable ValueProvider<String> getHostName();
-		
 		abstract @Nullable ValueProvider<String> getPort();
-		
 		abstract @Nullable ValueProvider<String> getUsername();
-		
 		abstract @Nullable ValueProvider<String> getPassword();
-
 		abstract @Nullable ValueProvider<SourceConnector> getSourceConnector();
-
 		abstract @Nullable ValueProvider<Map<String,String>> getConnectionProperties();
-		
 		abstract Builder builder();
 		
 		@AutoValue.Builder
 		abstract static class Builder {
-			
 			abstract Builder setConnectorClass(ValueProvider<Class<?>> connectorClass);
-			
 			abstract Builder setHostName(ValueProvider<String> hostname);
-			
 			abstract Builder setPort(ValueProvider<String> port);
-			
 			abstract Builder setUsername(ValueProvider<String> username);
-			
 			abstract Builder setPassword(ValueProvider<String> password);
-
 			abstract Builder setConnectionProperties(ValueProvider<Map<String,String>> connectionProperties);
-
 			abstract Builder setSourceConnector(ValueProvider<SourceConnector> sourceConnector);
-
 			abstract ConnectorConfiguration build();
 		      
 		}
 		
 		public static ConnectorConfiguration create() {
 		    return new AutoValue_DebeziumIO_ConnectorConfiguration.Builder()
-		    		.setConnectionProperties(
-		    				ValueProvider.StaticValueProvider.of(new HashMap<String, String>()))
+		    		.setConnectionProperties(ValueProvider.StaticValueProvider.of(new HashMap<>()))
 		    		.build();
 		}
-		
-		//ConnectorClass
+
 		public ConnectorConfiguration withConnectorClass(Class<?> connectorClass) {
 			checkArgument(connectorClass != null, "connectorClass can not be null");
 			return withConnectorClass(ValueProvider.StaticValueProvider.of(connectorClass));
@@ -184,8 +146,7 @@ public class DebeziumIO {
 			checkArgument(connectorClass != null, "connectorClass can not be null");
 			return builder().setConnectorClass(connectorClass).build();
 		}
-		
-		//HostName
+
 		public ConnectorConfiguration withHostName(String hostName) {
 			checkArgument(hostName != null, "hostName can not be null");
 			return withHostName(ValueProvider.StaticValueProvider.of(hostName));
@@ -195,8 +156,7 @@ public class DebeziumIO {
 			checkArgument(hostName != null, "hostName can not be null");
 			return builder().setHostName(hostName).build();
 		}
-		
-		//Port
+
 		public ConnectorConfiguration withPort(String port) {
 			checkArgument(port != null, "port can not be null");
 			return withPort(ValueProvider.StaticValueProvider.of(port));
@@ -206,8 +166,7 @@ public class DebeziumIO {
 			checkArgument(port != null, "port can not be null");
 			return builder().setPort(port).build();
 		}
-		
-		//Username
+
 		public ConnectorConfiguration withUsername(String username) {
 			checkArgument(username != null, "username can not be null");
 			return withUsername(ValueProvider.StaticValueProvider.of(username));
@@ -218,7 +177,6 @@ public class DebeziumIO {
 	    	return builder().setUsername(username).build();
 	    }
 
-	    //Password
 	    public ConnectorConfiguration withPassword(String password) {
 	    	checkArgument(password != null, "password can not be null");
 	    	return withPassword(ValueProvider.StaticValueProvider.of(password));
@@ -228,8 +186,7 @@ public class DebeziumIO {
 	    	checkArgument(password != null, "password can not be null");
 	    	return builder().setPassword(password).build();
 	    }
-	    
-	    //ConnectionProperties
+
 	    public ConnectorConfiguration withConnectionProperties(Map<String,String> connectionProperties) {
 	    	checkArgument(connectionProperties != null, "connectionProperties can not be null");
 	    	return withConnectionProperties(ValueProvider.StaticValueProvider.of(connectionProperties));
@@ -239,18 +196,17 @@ public class DebeziumIO {
 	    	checkArgument(connectionProperties != null, "connectionProperties can not be null");
 	    	return builder().setConnectionProperties(connectionProperties).build();
 	    }
-	    
-	    //ConnectionProperty
+
 	    public ConnectorConfiguration withConnectionProperty(String key, String value) {
 	    	checkArgument(key != null, "key can not be null");
 	    	checkArgument(value != null, "value can not be null");
+			checkArgument(getConnectionProperties().get() != null, "connectionProperties can not be null");
+
 	    	ConnectorConfiguration config = builder().build();
-	    	checkArgument(getConnectionProperties().get() != null, "connectionProperties can not be null");
 	    	config.getConnectionProperties().get().putIfAbsent(key, value);
 	    	return config;
 	    }
 
-	    //Source Connector
 	    public ConnectorConfiguration withSourceConnector(SourceConnector sourceConnector) {
 	    	checkArgument(sourceConnector != null, "sourceConnector can not be null");
 	    	return withSourceConnector(ValueProvider.StaticValueProvider.of(sourceConnector));
@@ -266,7 +222,6 @@ public class DebeziumIO {
 	     * @return Configuration Map.
 	     */
 		public Map<String, String> getConfigurationMap() {
-
 	        HashMap<String,String> configuration = new HashMap<>();
 	        
 	        configuration.computeIfAbsent("connector.class", k -> getConnectorClass().get().getCanonicalName());
@@ -278,12 +233,14 @@ public class DebeziumIO {
 	        for (Map.Entry<String, String> entry: getConnectionProperties().get().entrySet()) {
 	            configuration.computeIfAbsent(entry.getKey(), k -> entry.getValue());
 	        }
+
+	        // Set default Database History impl. if not provided
+			configuration.computeIfAbsent("database.history", k -> DebeziumSDFDatabaseHistory.class.getName());
 	        
 	        String stringProperties = Joiner.on('\n').withKeyValueSeparator(" -> ").join(configuration);
-	        LOG.info("Connector configuration: "+stringProperties);
+	        LOG.info("---------------- Connector configuration: {}", stringProperties);
 	        
 	        return configuration;
 	    }
 	}
-	
 }

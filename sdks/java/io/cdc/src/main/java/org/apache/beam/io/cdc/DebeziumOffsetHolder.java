@@ -17,11 +17,18 @@
  */
 package org.apache.beam.io.cdc;
 
-import org.apache.kafka.connect.source.SourceRecord;
-
+import javax.annotation.Nullable;
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
-@FunctionalInterface
-public interface SourceRecordMapper<T> extends Serializable {
-    T mapSourceRecord(SourceRecord sourceRecord) throws Exception;
+public class DebeziumOffsetHolder implements Serializable {
+    @Nullable public final Map<String, ?> offset;
+    @Nullable public final List<?> history;
+
+    DebeziumOffsetHolder(@Nullable Map<String, ?> offset, @Nullable List<?> history) {
+        this.offset = offset;
+        this.history = history == null ? new ArrayList<>() : history;
+    }
 }
