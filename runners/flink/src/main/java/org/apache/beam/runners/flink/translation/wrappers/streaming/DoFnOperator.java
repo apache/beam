@@ -351,7 +351,7 @@ public class DoFnOperator<InputT, OutputT>
           };
 
       // we don't know the window type
-      @SuppressWarnings({"unchecked", "rawtypes"})
+      //      @SuppressWarnings({"unchecked", "rawtypes"})
       Coder windowCoder = windowingStrategy.getWindowFn().windowCoder();
 
       @SuppressWarnings({"unchecked", "rawtypes"})
@@ -639,8 +639,7 @@ public class DoFnOperator<InputT, OutputT>
   }
 
   @Override
-  public final void processElement(StreamRecord<WindowedValue<InputT>> streamRecord)
-      throws Exception {
+  public final void processElement(StreamRecord<WindowedValue<InputT>> streamRecord) {
     checkInvokeStartBundle();
     doFnRunner.processElement(streamRecord.getValue());
     checkInvokeFinishBundleByCount();
@@ -1418,12 +1417,15 @@ public class DoFnOperator<InputT, OutputT>
             timer.getTimestamp().getMillis(),
             timer.getOutputTimestamp().getMillis());
         String contextTimerId = getContextTimerId(timer.getTimerId(), timer.getNamespace());
-        // Only one timer can exist at a time for a given timer id and context.
-        // If a timer gets set twice in the same context, the second must
-        // override the first. Thus, we must cancel any pending timers
-        // before we set the new one.
-        cancelPendingTimerById(contextTimerId);
-        registerTimer(timer, contextTimerId);
+        @Nullable final TimerData oldTimer = pendingTimersById.get(contextTimerId);
+        if (!timer.equals(oldTimer)) {
+          // Only one timer can exist at a time for a given timer id and context.
+          // If a timer gets set twice in the same context, the second must
+          // override the first. Thus, we must cancel any pending timers
+          // before we set the new one.
+          cancelPendingTimer(oldTimer);
+          registerTimer(timer, contextTimerId);
+        }
       } catch (Exception e) {
         throw new RuntimeException("Failed to set timer", e);
       }
@@ -1452,11 +1454,21 @@ public class DoFnOperator<InputT, OutputT>
     /**
      * Looks up a timer by its id. This is necessary to support canceling existing timers with the
      * same id. Flink does not provide this functionality.
+     *
+     * @param contextTimerId Timer ID o cancel.
      */
     private void cancelPendingTimerById(String contextTimerId) throws Exception {
-      TimerData oldTimer = pendingTimersById.get(contextTimerId);
-      if (oldTimer != null) {
-        deleteTimerInternal(oldTimer);
+      cancelPendingTimer(pendingTimersById.get(contextTimerId));
+    }
+
+    /**
+     * Cancels a pending timer.
+     *
+     * @param timer Timer to cancel.
+     */
+    private void cancelPendingTimer(@Nullable TimerData timer) {
+      if (timer != null) {
+        deleteTimerInternal(timer);
       }
     }
 

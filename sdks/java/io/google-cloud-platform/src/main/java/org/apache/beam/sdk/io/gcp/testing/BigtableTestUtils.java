@@ -31,7 +31,6 @@ import com.google.bigtable.v2.Cell;
 import com.google.bigtable.v2.Column;
 import com.google.bigtable.v2.Family;
 import com.google.protobuf.ByteString;
-import java.time.Instant;
 import java.util.List;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -82,8 +81,8 @@ public class BigtableTestUtils {
           .addDoubleField(DOUBLE_COLUMN)
           .build();
 
-  public static final long NOW = Instant.now().toEpochMilli() * 1_000;
-  public static final long LATER = NOW + 1_000;
+  public static final long NOW = 5_000_000_000L;
+  public static final long LATER = NOW + 1_000L;
 
   public static byte[] floatToByteArray(float number) {
     return Ints.toByteArray(Float.floatToIntBits(number));

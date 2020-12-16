@@ -17,32 +17,17 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsublite;
 
-import com.google.cloud.pubsublite.internal.PullSubscriber;
+import com.google.api.gax.rpc.ApiException;
+import com.google.cloud.pubsublite.Partition;
+import com.google.cloud.pubsublite.internal.wire.Subscriber;
 import com.google.cloud.pubsublite.proto.SequencedMessage;
-import io.grpc.StatusException;
+import java.io.Serializable;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.function.Consumer;
 
-/**
- * A PullSubscriber translating from {@link com.google.cloud.pubsublite.SequencedMessage}to {@link
- * com.google.cloud.pubsublite.proto.SequencedMessage}.
- */
-class TranslatingPullSubscriber implements PullSubscriber<SequencedMessage> {
-  private final PullSubscriber<com.google.cloud.pubsublite.SequencedMessage> underlying;
+interface SerializableSubscriberFactory extends Serializable {
+  long serialVersionUID = -6978345654136456L;
 
-  TranslatingPullSubscriber(
-      PullSubscriber<com.google.cloud.pubsublite.SequencedMessage> underlying) {
-    this.underlying = underlying;
-  }
-
-  @Override
-  public List<SequencedMessage> pull() throws StatusException {
-    List<com.google.cloud.pubsublite.SequencedMessage> messages = underlying.pull();
-    return messages.stream().map(m -> m.toProto()).collect(Collectors.toList());
-  }
-
-  @Override
-  public void close() throws Exception {
-    underlying.close();
-  }
+  Subscriber newSubscriber(Partition partition, Consumer<List<SequencedMessage>> messageConsumer)
+      throws ApiException;
 }

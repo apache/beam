@@ -281,6 +281,10 @@ to the key-values pairs specified in `columnsMapping`.
 
 Not all existing column families and qualifiers have to be provided to the schema.
 
+Filters are only allowed by `key` field with single `LIKE` statement with
+[RE2 Syntax](https://github.com/google/re2/wiki/Syntax) regex, e.g.
+`SELECT * FROM table WHERE key LIKE '^key[012]{1}'`
+
 ### Write Mode
 
 Supported for flat schema only.

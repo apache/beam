@@ -54,6 +54,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadFactory;
@@ -472,7 +473,7 @@ public class StreamingDataflowWorker {
   private final EvictingQueue<String> pendingFailuresToReport =
       EvictingQueue.<String>create(MAX_FAILURES_TO_REPORT_IN_UPDATE);
 
-  private final ReaderCache readerCache = new ReaderCache();
+  private final ReaderCache readerCache;
 
   private final WorkUnitClient workUnitClient;
   private final CompletableFuture<Void> isDoneFuture;
@@ -602,6 +603,10 @@ public class StreamingDataflowWorker {
       HotKeyLogger hotKeyLogger)
       throws IOException {
     this.stateCache = new WindmillStateCache(options.getWorkerCacheMb());
+    this.readerCache =
+        new ReaderCache(
+            Duration.standardSeconds(options.getReaderCacheTimeoutSec()),
+            Executors.newCachedThreadPool());
     this.mapTaskExecutorFactory = mapTaskExecutorFactory;
     this.workUnitClient = workUnitClient;
     this.options = options;

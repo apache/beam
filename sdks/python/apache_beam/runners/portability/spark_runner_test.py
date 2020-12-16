@@ -172,6 +172,9 @@ class SparkRunnerTest(portable_runner_test.PortableRunnerTest):
     # Skip until Spark runner supports SDF and self-checkpoint.
     raise unittest.SkipTest("BEAM-7222")
 
+  def test_pardo_dynamic_timer(self):
+    raise unittest.SkipTest("BEAM-9912")
+
   def test_flattened_side_input(self):
     # Blocked on support for transcoding
     # https://jira.apache.org/jira/browse/BEAM-7236

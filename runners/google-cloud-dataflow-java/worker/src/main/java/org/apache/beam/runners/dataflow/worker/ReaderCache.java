@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import java.io.IOException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.sdk.io.UnboundedSource;
@@ -41,6 +42,7 @@ import org.slf4j.LoggerFactory;
 class ReaderCache {
 
   private static final Logger LOG = LoggerFactory.getLogger(ReaderCache.class);
+  private final Executor invalidationExecutor;
 
   // Note on thread safety. This class is thread safe because:
   //   - Guava Cache is thread safe.
@@ -64,33 +66,36 @@ class ReaderCache {
 
   private final Cache<WindmillComputationKey, CacheEntry> cache;
 
-  /** ReaderCache with default 1 minute expiration for readers. */
-  ReaderCache() {
-    this(Duration.standardMinutes(1));
-  }
-
-  /** Cache reader for {@code cacheDuration}. */
-  ReaderCache(Duration cacheDuration) {
+  /** Cache reader for {@code cacheDuration}. Readers will be closed on {@code executor}. */
+  ReaderCache(Duration cacheDuration, Executor invalidationExecutor) {
+    this.invalidationExecutor = invalidationExecutor;
     this.cache =
         CacheBuilder.newBuilder()
             .expireAfterWrite(cacheDuration.getMillis(), TimeUnit.MILLISECONDS)
             .removalListener(
                 (RemovalNotification<WindmillComputationKey, CacheEntry> notification) -> {
                   if (notification.getCause() != RemovalCause.EXPLICIT) {
-                    LOG.info("Closing idle reader for {}", notification.getKey());
-                    closeReader(notification.getKey(), notification.getValue());
+                    LOG.info(
+                        "Asynchronously closing reader for {} as it has been idle for over {}",
+                        notification.getKey(),
+                        cacheDuration);
+                    asyncCloseReader(notification.getKey(), notification.getValue());
                   }
                 })
             .build();
   }
 
   /** Close the reader and log a warning if close fails. */
-  private void closeReader(WindmillComputationKey key, CacheEntry entry) {
-    try {
-      entry.reader.close();
-    } catch (IOException e) {
-      LOG.warn("Failed to close UnboundedReader for {}", key, e);
-    }
+  private void asyncCloseReader(WindmillComputationKey key, CacheEntry entry) {
+    invalidationExecutor.execute(
+        () -> {
+          try {
+            entry.reader.close();
+            LOG.info("Finished closing reader for {}", key);
+          } catch (IOException e) {
+            LOG.warn("Failed to close UnboundedReader for {}", key, e);
+          }
+        });
   }
 
   /**
@@ -112,7 +117,8 @@ class ReaderCache {
       } else {
         // new cacheToken invalidates old one or this is a retried or stale request,
         // close the reader.
-        closeReader(computationKey, entry);
+        LOG.info("Asynchronously closing reader for {} as it is no longer valid", computationKey);
+        asyncCloseReader(computationKey, entry);
       }
     }
     return null;

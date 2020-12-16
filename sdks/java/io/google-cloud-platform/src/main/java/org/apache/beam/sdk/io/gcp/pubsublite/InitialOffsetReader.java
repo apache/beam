@@ -17,12 +17,12 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsublite;
 
+import com.google.api.gax.rpc.ApiException;
 import com.google.cloud.pubsublite.Offset;
-import com.google.cloud.pubsublite.Partition;
-import io.grpc.StatusException;
-import java.util.Map;
 
-/** An internal interface for finalizing offsets. */
-interface OffsetFinalizer {
-  void finalizeOffsets(Map<Partition, Offset> offsets) throws StatusException;
+interface InitialOffsetReader extends AutoCloseable {
+  Offset read() throws ApiException;
+
+  @Override
+  void close();
 }

@@ -17,73 +17,53 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsublite;
 
-import com.google.api.core.ApiFuture;
-import com.google.api.core.ApiFutures;
+import static com.google.cloud.pubsublite.internal.ExtractStatus.toCanonical;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+
+import com.google.api.gax.rpc.ApiException;
 import com.google.cloud.pubsublite.Offset;
 import com.google.cloud.pubsublite.Partition;
 import com.google.cloud.pubsublite.TopicPath;
 import com.google.cloud.pubsublite.internal.TopicStatsClient;
 import com.google.cloud.pubsublite.proto.ComputeMessageStatsResponse;
-import com.google.protobuf.Timestamp;
-import com.google.protobuf.util.Timestamps;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.stream.Collectors;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
+import java.util.concurrent.ExecutionException;
+import javax.annotation.Nonnull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 final class TopicBacklogReaderImpl implements TopicBacklogReader {
+  private static final Logger LOG = LoggerFactory.getLogger(TopicBacklogReaderImpl.class);
   private final TopicStatsClient client;
   private final TopicPath topicPath;
+  private final Partition partition;
 
-  public TopicBacklogReaderImpl(TopicStatsClient client, TopicPath topicPath) {
+  public TopicBacklogReaderImpl(TopicStatsClient client, TopicPath topicPath, Partition partition) {
     this.client = client;
     this.topicPath = topicPath;
-  }
-
-  private static Optional<Timestamp> minTimestamp(Optional<Timestamp> t1, Timestamp t2) {
-    if (!t1.isPresent() || Timestamps.compare(t1.get(), t2) > 0) {
-      return Optional.of(t2);
-    }
-    return t1;
+    this.partition = partition;
   }
 
   @Override
-  @SuppressWarnings("dereference.of.nullable")
-  public ApiFuture<ComputeMessageStatsResponse> computeMessageStats(
-      Map<Partition, Offset> subscriptionState) {
-    List<ApiFuture<ComputeMessageStatsResponse>> perPartitionFutures =
-        subscriptionState.entrySet().stream()
-            .map(
-                e ->
-                    client.computeMessageStats(
-                        topicPath, e.getKey(), e.getValue(), Offset.of(Integer.MAX_VALUE)))
-            .collect(Collectors.toList());
-    return ApiFutures.transform(
-        ApiFutures.allAsList(perPartitionFutures),
-        responses -> {
-          Optional<Timestamp> minPublishTime = Optional.empty();
-          Optional<Timestamp> minEventTime = Optional.empty();
-          long messageBytes = 0;
-          long messageCount = 0;
-          for (ComputeMessageStatsResponse response : responses) {
-            messageBytes += response.getMessageBytes();
-            messageCount += response.getMessageCount();
-            if (response.hasMinimumPublishTime()) {
-              minPublishTime = minTimestamp(minPublishTime, response.getMinimumPublishTime());
-            }
-            if (response.hasMinimumEventTime()) {
-              minEventTime = minTimestamp(minPublishTime, response.getMinimumEventTime());
-            }
-          }
-          ComputeMessageStatsResponse.Builder builder =
-              ComputeMessageStatsResponse.newBuilder()
-                  .setMessageBytes(messageBytes)
-                  .setMessageCount(messageCount);
-          minPublishTime.ifPresent(builder::setMinimumPublishTime);
-          minEventTime.ifPresent(builder::setMinimumEventTime);
-          return builder.build();
-        },
-        MoreExecutors.directExecutor());
+  @SuppressWarnings("assignment.type.incompatible")
+  public ComputeMessageStatsResponse computeMessageStats(Offset offset) throws ApiException {
+    try {
+      return client
+          .computeMessageStats(topicPath, partition, offset, Offset.of(Integer.MAX_VALUE))
+          .get();
+    } catch (ExecutionException e) {
+      @Nonnull Throwable cause = checkNotNull(e.getCause());
+      throw toCanonical(cause).underlying;
+    } catch (InterruptedException e) {
+      throw toCanonical(e).underlying;
+    }
+  }
+
+  @Override
+  public void close() {
+    try {
+      client.close();
+    } catch (Exception e) {
+      LOG.warn("Failed to close topic stats client.", e);
+    }
   }
 }
