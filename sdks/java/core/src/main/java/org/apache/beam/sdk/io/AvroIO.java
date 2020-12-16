@@ -57,7 +57,6 @@ import org.apache.beam.sdk.transforms.Watch.Growth.TerminationCondition;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
@@ -1619,7 +1618,7 @@ public class AvroIO {
    * <p>All methods in this class delegate to the appropriate method of {@link AvroIO.TypedWrite}.
    * This class exists for backwards compatibility, and will be removed in Beam 3.0.
    */
-  public static class Write<T> extends PTransform<PCollection<T>, PDone> {
+  public static class Write<T> extends PTransform<PCollection<T>, WriteFilesResult<?>> {
     @VisibleForTesting final TypedWrite<T, ?, T> inner;
 
     Write(TypedWrite<T, ?, T> inner) {
@@ -1741,9 +1740,8 @@ public class AvroIO {
     }
 
     @Override
-    public PDone expand(PCollection<T> input) {
-      input.apply(inner);
-      return PDone.in(input.getPipeline());
+    public WriteFilesResult<?> expand(PCollection<T> input) {
+      return input.apply(inner);
     }
 
     @Override

@@ -72,7 +72,6 @@ import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PCollectionViews;
-import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
@@ -90,7 +89,8 @@ import org.slf4j.LoggerFactory;
 /**
  * A {@link PTransform} that writes to a {@link FileBasedSink}. A write begins with a sequential
  * global initialization of a sink, followed by a parallel write, and ends with a sequential
- * finalization of the write. The output of a write is {@link PDone}.
+ * finalization of the write. The output of a write is {@link WriteFilesResult} with the files
+ * written.
  *
  * <p>By default, every bundle in the input {@link PCollection} will be processed by a {@link
  * WriteOperation}, so the number of output will vary based on runner behavior, though at least 1

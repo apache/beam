@@ -29,8 +29,6 @@ import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 
 /**
@@ -109,12 +107,12 @@ public class AvroSchemaIOProvider implements SchemaIOProvider {
     }
 
     @Override
-    public PTransform<PCollection<Row>, POutput> buildWriter() {
+    public PTransform<PCollection<Row>, WriteFilesResult<?>> buildWriter() {
       PTransform<PCollection<Row>, PCollection<GenericRecord>> writeConverter =
           GenericRecordWriteConverter.builder().beamSchema(dataSchema).build();
-      return new PTransform<PCollection<Row>, POutput>() {
+      return new PTransform<PCollection<Row>, WriteFilesResult<?>>() {
         @Override
-        public PDone expand(PCollection<Row> input) {
+        public WriteFilesResult<?> expand(PCollection<Row> input) {
           return input
               .apply("GenericRecordToRow", writeConverter)
               .apply(
