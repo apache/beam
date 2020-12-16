@@ -93,3 +93,59 @@ pre{
     padding: 24px;
     max-width: 848px;
 }
+.icon-list{
+
+    .list{
+        margin-top: 64px;
+        max-width: 640px;
+    }
+    .list-item{
+        display:flex;
+        margin-bottom: 31px;
+        
+        .list-item-icon{
+            width: 44px;
+            height: 44px;
+            display: block;
+            margin-right: 25px;
+        }
+        .list-item-header{
+            font-size: 22px;
+            font-weight: normal;
+            letter-spacing: normal;
+            line-height: 1.36;
+            @media (max-width: $mobile){
+                font-weight: 500;
+            }
+        }
+    }
+    .pillars-item {
+        display: flex;
+        align-items: center;
+        margin-bottom: 14px;
+        .pillars-item-icon {
+          margin-right: 28px;
+        }
+  
+        .pillars-item-description {
+          width: 100%;
+          max-width: 684px;
+  
+          .pillars-item-header {
+            font-size: 16px;
+            font-weight: bold;
+            line-height: 1.2;
+            letter-spacing: 0.43px;
+            margin-bottom: 6px;
+          }
+  
+          .pillars-item-text {
+            font-size: 14px;
+            font-weight: normal;
+            line-height: 1.57;
+            letter-spacing: 0.43px;
+          }
+        }
+      }
+ }
+ 
