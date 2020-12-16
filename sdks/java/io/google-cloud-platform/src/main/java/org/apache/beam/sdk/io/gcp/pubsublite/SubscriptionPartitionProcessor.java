@@ -17,12 +17,16 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsublite;
 
+import com.google.cloud.pubsublite.Offset;
 import com.google.cloud.pubsublite.internal.CheckedApiException;
+import java.util.Optional;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.joda.time.Duration;
 
-interface PartitionProcessor extends AutoCloseable {
+interface SubscriptionPartitionProcessor extends AutoCloseable {
   void start() throws CheckedApiException;
 
   ProcessContinuation waitForCompletion(Duration duration);
+
+  Optional<Offset> lastClaimed();
 }
