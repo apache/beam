@@ -17,9 +17,8 @@
  */
 package org.apache.beam.fn.harness;
 
+import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
 import java.time.Duration;
 
 /**
@@ -29,27 +28,18 @@ import java.time.Duration;
 public class TransformProcessingThreadTracker {
   private static final TransformProcessingThreadTracker INSTANCE =
       new TransformProcessingThreadTracker();
-  private final LoadingCache<Long, String> threadIdToTransformIdMappings;
+  private final Cache<Long, String> threadIdToTransformIdMappings;
 
   private TransformProcessingThreadTracker() {
     this.threadIdToTransformIdMappings =
-        CacheBuilder.newBuilder()
-            .maximumSize(10000)
-            .expireAfterAccess(Duration.ofHours(1))
-            .build(
-                new CacheLoader<Long, String>() {
-                  @Override
-                  public String load(Long threadId) throws Exception {
-                    return "";
-                  }
-                });
+        CacheBuilder.newBuilder().maximumSize(10000).expireAfterAccess(Duration.ofHours(1)).build();
   }
 
   public static TransformProcessingThreadTracker getInstance() {
     return INSTANCE;
   }
 
-  public static LoadingCache<Long, String> getThreadIdToTransformIdMappings() {
+  public static Cache<Long, String> getThreadIdToTransformIdMappings() {
     return getInstance().threadIdToTransformIdMappings;
   }
 

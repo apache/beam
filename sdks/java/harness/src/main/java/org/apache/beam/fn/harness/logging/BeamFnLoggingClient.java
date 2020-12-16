@@ -54,7 +54,6 @@ import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.CallStreamObserver;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.ClientCallStreamObserver;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.ClientResponseObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -220,8 +219,8 @@ public class BeamFnLoggingClient implements AutoCloseable {
 
       String transformId =
           TransformProcessingThreadTracker.getThreadIdToTransformIdMappings()
-              .getUnchecked((long) record.getThreadID());
-      if (!Strings.isNullOrEmpty(transformId)) {
+              .getIfPresent((long) record.getThreadID());
+      if (transformId != null) {
         builder.setTransformId(transformId);
       }
 
