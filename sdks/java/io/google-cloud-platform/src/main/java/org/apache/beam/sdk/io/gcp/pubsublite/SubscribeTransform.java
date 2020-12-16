@@ -123,10 +123,17 @@ class SubscribeTransform extends PTransform<PBegin, PCollection<SequencedMessage
   public PCollection<SequencedMessage> expand(PBegin input) {
     PCollection<SubscriptionPartition> subscriptionPartitions;
     if (options.partitions().isEmpty()) {
-      subscriptionPartitions = input.apply(new SubscriptionPartitionLoader(getTopicPath(), options.subscriptionPath()));
+      subscriptionPartitions =
+          input.apply(new SubscriptionPartitionLoader(getTopicPath(), options.subscriptionPath()));
     } else {
-      subscriptionPartitions = input.apply(Create.of(options.partitions())).apply(MapElements.into(
-          TypeDescriptor.of(SubscriptionPartition.class)).via(partition -> SubscriptionPartition.of(options.subscriptionPath(), partition)));
+      subscriptionPartitions =
+          input
+              .apply(Create.of(options.partitions()))
+              .apply(
+                  MapElements.into(TypeDescriptor.of(SubscriptionPartition.class))
+                      .via(
+                          partition ->
+                              SubscriptionPartition.of(options.subscriptionPath(), partition)));
     }
 
     return subscriptionPartitions.apply(
