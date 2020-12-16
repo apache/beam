@@ -30,6 +30,7 @@ import com.google.cloud.pubsublite.proto.SeekRequest;
 import com.google.cloud.pubsublite.proto.SequencedMessage;
 import com.google.protobuf.util.Timestamps;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -45,15 +46,17 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
-class PartitionProcessorImpl extends Listener implements PartitionProcessor {
+class SubscriptionPartitionProcessorImpl extends Listener
+    implements SubscriptionPartitionProcessor {
   private final RestrictionTracker<OffsetRange, OffsetByteProgress> tracker;
   private final OutputReceiver<SequencedMessage> receiver;
   private final Subscriber subscriber;
   private final SettableFuture<Void> completionFuture = SettableFuture.create();
   private final FlowControlSettings flowControlSettings;
+  private Optional<Offset> lastClaimedOffset = Optional.empty();
 
   @SuppressWarnings("methodref.receiver.bound.invalid")
-  PartitionProcessorImpl(
+  SubscriptionPartitionProcessorImpl(
       RestrictionTracker<OffsetRange, OffsetByteProgress> tracker,
       OutputReceiver<SequencedMessage> receiver,
       Function<Consumer<List<SequencedMessage>>, Subscriber> subscriberFactory,
@@ -96,6 +99,7 @@ class PartitionProcessorImpl extends Listener implements PartitionProcessor {
     Offset lastOffset = Offset.of(Iterables.getLast(messages).getCursor().getOffset());
     long byteSize = messages.stream().mapToLong(SequencedMessage::getSizeBytes).sum();
     if (tracker.tryClaim(OffsetByteProgress.of(lastOffset, byteSize))) {
+      lastClaimedOffset = Optional.of(lastOffset);
       messages.forEach(
           message ->
               receiver.outputWithTimestamp(
@@ -139,5 +143,10 @@ class PartitionProcessorImpl extends Listener implements PartitionProcessor {
     } catch (Throwable t) {
       throw ExtractStatus.toCanonical(t).underlying;
     }
+  }
+
+  @Override
+  public Optional<Offset> lastClaimed() {
+    return lastClaimedOffset;
   }
 }

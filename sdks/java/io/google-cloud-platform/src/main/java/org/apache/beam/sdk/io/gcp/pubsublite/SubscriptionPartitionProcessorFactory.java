@@ -23,10 +23,10 @@ import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 
-interface PartitionProcessorFactory extends Serializable {
+interface SubscriptionPartitionProcessorFactory extends Serializable {
   long serialVersionUID = 765145146544654L;
 
-  PartitionProcessor newProcessor(
+  SubscriptionPartitionProcessor newProcessor(
       SubscriptionPartition subscriptionPartition,
       RestrictionTracker<OffsetRange, OffsetByteProgress> tracker,
       OutputReceiver<SequencedMessage> receiver);

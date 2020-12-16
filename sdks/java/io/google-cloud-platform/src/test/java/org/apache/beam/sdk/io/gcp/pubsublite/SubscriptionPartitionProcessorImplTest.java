@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.pubsublite;
 import static com.google.cloud.pubsublite.internal.testing.UnitTestExamples.example;
 import static org.apache.beam.sdk.io.gcp.pubsublite.SubscriberOptions.DEFAULT_FLOW_CONTROL;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
@@ -62,7 +63,7 @@ import org.mockito.Spy;
 
 @RunWith(JUnit4.class)
 @SuppressWarnings("initialization.fields.uninitialized")
-public class PartitionProcessorImplTest {
+public class SubscriptionPartitionProcessorImplTest {
   @Spy RestrictionTracker<OffsetRange, OffsetByteProgress> tracker;
   @Mock OutputReceiver<SequencedMessage> receiver;
   @Mock Function<Consumer<List<SequencedMessage>>, Subscriber> subscriberFactory;
@@ -72,7 +73,7 @@ public class PartitionProcessorImplTest {
   @Spy FakeSubscriber subscriber;
 
   Consumer<List<SequencedMessage>> leakedConsumer;
-  PartitionProcessor processor;
+  SubscriptionPartitionProcessor processor;
 
   private static SequencedMessage messageWithOffset(long offset) {
     return SequencedMessage.newBuilder()
@@ -92,7 +93,8 @@ public class PartitionProcessorImplTest {
               return subscriber;
             });
     processor =
-        new PartitionProcessorImpl(tracker, receiver, subscriberFactory, DEFAULT_FLOW_CONTROL);
+        new SubscriptionPartitionProcessorImpl(
+            tracker, receiver, subscriberFactory, DEFAULT_FLOW_CONTROL);
     assertNotNull(leakedConsumer);
   }
 
@@ -180,6 +182,7 @@ public class PartitionProcessorImplTest {
   @Test
   public void timeoutReturnsResume() {
     assertEquals(ProcessContinuation.resume(), processor.waitForCompletion(Duration.millis(10)));
+    assertFalse(processor.lastClaimed().isPresent());
   }
 
   @Test
@@ -188,6 +191,7 @@ public class PartitionProcessorImplTest {
     leakedConsumer.accept(ImmutableList.of(messageWithOffset(1)));
     verify(tracker, times(1)).tryClaim(any());
     assertEquals(ProcessContinuation.stop(), processor.waitForCompletion(Duration.millis(10)));
+    assertFalse(processor.lastClaimed().isPresent());
     // Future calls to process don't try to claim.
     leakedConsumer.accept(ImmutableList.of(messageWithOffset(2)));
     verify(tracker, times(1)).tryClaim(any());
@@ -218,5 +222,6 @@ public class PartitionProcessorImplTest {
                 .setAllowedBytes(message1.getSizeBytes() + message3.getSizeBytes())
                 .build());
     assertEquals(ProcessContinuation.resume(), processor.waitForCompletion(Duration.millis(10)));
+    assertEquals(processor.lastClaimed().get(), Offset.of(3));
   }
 }
