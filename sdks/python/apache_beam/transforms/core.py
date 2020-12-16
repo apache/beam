@@ -706,10 +706,10 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     - ``DoFn.SideInputParam``: a side input that may be used when processing.
     - ``DoFn.TimestampParam``: timestamp of the input element.
     - ``DoFn.WindowParam``: ``Window`` the input element belongs to.
-    - ``DoFn.TimerParam``: a ``userstate.RuntimeTimer`` object defined by the spec
-       of the parameter.
-    - ``DoFn.StateParam``: a ``userstate.RuntimeState`` object defined by the spec
-       of the parameter.
+    - ``DoFn.TimerParam``: a ``userstate.RuntimeTimer`` object defined by the
+      spec of the parameter.
+    - ``DoFn.StateParam``: a ``userstate.RuntimeState`` object defined by the
+      spec of the parameter.
     - ``DoFn.KeyParam``: key associated with the element.
     - ``DoFn.RestrictionParam``: an ``iobase.RestrictionTracker`` will be
       provided here to allow treatment as a Splittable ``DoFn``. The restriction
