@@ -21,7 +21,10 @@ import static com.google.cloud.pubsublite.internal.ExtractStatus.toCanonical;
 import static com.google.cloud.pubsublite.internal.UncheckedApiPreconditions.checkArgument;
 
 import com.google.api.gax.rpc.ApiException;
+import com.google.cloud.pubsublite.AdminClient;
+import com.google.cloud.pubsublite.AdminClientSettings;
 import com.google.cloud.pubsublite.Partition;
+import com.google.cloud.pubsublite.TopicPath;
 import com.google.cloud.pubsublite.internal.wire.Committer;
 import com.google.cloud.pubsublite.internal.wire.Subscriber;
 import com.google.cloud.pubsublite.proto.SequencedMessage;
@@ -29,7 +32,6 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.io.range.OffsetRange;
-import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -102,17 +104,23 @@ class SubscribeTransform extends PTransform<PBegin, PCollection<SequencedMessage
     return options.getCommitter(subscriptionPartition.partition());
   }
 
+  private TopicPath getTopicPath() {
+    try (AdminClient admin =
+        AdminClient.create(
+            AdminClientSettings.newBuilder()
+                .setRegion(options.subscriptionPath().location().region())
+                .build())) {
+      return TopicPath.parse(admin.getSubscription(options.subscriptionPath()).get().getTopic());
+    } catch (Throwable t) {
+      throw toCanonical(t).underlying;
+    }
+  }
+
   @Override
   public PCollection<SequencedMessage> expand(PBegin input) {
-    PCollection<SubscriptionPartition> partitions =
-        Create.of(
-                options.partitions().stream()
-                    .map(
-                        partition ->
-                            SubscriptionPartition.of(options.subscriptionPath(), partition))
-                    .collect(Collectors.toList()))
-            .expand(input);
-    return partitions.apply(
+    PCollection<SubscriptionPartition> subscriptionPartitions =
+        input.apply(new SubscriptionPartitionLoader(getTopicPath(), options.subscriptionPath()));
+    return subscriptionPartitions.apply(
         ParDo.of(
             new PerSubscriptionPartitionSdf(
                 MAX_SLEEP_TIME,
