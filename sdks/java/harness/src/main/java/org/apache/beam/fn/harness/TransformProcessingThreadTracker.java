@@ -17,7 +17,10 @@
  */
 package org.apache.beam.fn.harness;
 
-import java.util.concurrent.ConcurrentHashMap;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
+import java.time.Duration;
 
 /**
  * TransformProcessingThreadTracker tracks the thread ids for the transforms that are being
@@ -26,17 +29,27 @@ import java.util.concurrent.ConcurrentHashMap;
 public class TransformProcessingThreadTracker {
   private static final TransformProcessingThreadTracker INSTANCE =
       new TransformProcessingThreadTracker();
-  private final ConcurrentHashMap<Long, String> threadIdToTransformIdMappings;
+  private final LoadingCache<Long, String> threadIdToTransformIdMappings;
 
   private TransformProcessingThreadTracker() {
-    this.threadIdToTransformIdMappings = new ConcurrentHashMap<>();
+    this.threadIdToTransformIdMappings =
+        CacheBuilder.newBuilder()
+            .maximumSize(10000)
+            .expireAfterAccess(Duration.ofHours(1))
+            .build(
+                new CacheLoader<Long, String>() {
+                  @Override
+                  public String load(Long threadId) throws Exception {
+                    return "";
+                  }
+                });
   }
 
   public static TransformProcessingThreadTracker getInstance() {
     return INSTANCE;
   }
 
-  public static ConcurrentHashMap<Long, String> getThreadIdToTransformIdMappings() {
+  public static LoadingCache<Long, String> getThreadIdToTransformIdMappings() {
     return getInstance().threadIdToTransformIdMappings;
   }
 
