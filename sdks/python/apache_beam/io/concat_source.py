@@ -149,6 +149,9 @@ class ConcatRangeTracker(iobase.RangeTracker):
     # E.g. if the weights were [100, 20, 3] we would produce
     # [0.0, 100/123, 120/123, 1.0]
     total = float(sum(weights))
+    if not total:
+      return [float(k) / len(weights) for k in range(len(weights) + 1)]
+
     running_total = [0]
     for w in weights:
       running_total.append(max(min_diff, min(1, running_total[-1] + w / total)))
