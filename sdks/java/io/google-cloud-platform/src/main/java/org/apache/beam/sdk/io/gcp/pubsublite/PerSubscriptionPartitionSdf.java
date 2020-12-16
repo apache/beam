@@ -57,12 +57,12 @@ class PerSubscriptionPartitionSdf extends DoFn<SubscriptionPartition, SequencedM
   }
 
   @GetInitialWatermarkEstimatorState
-  Instant getInitialWatermarkState() {
+  public Instant getInitialWatermarkState() {
     return Instant.EPOCH;
   }
 
   @NewWatermarkEstimator
-  MonotonicallyIncreasing newWatermarkEstimator(@WatermarkEstimatorState Instant state) {
+  public MonotonicallyIncreasing newWatermarkEstimator(@WatermarkEstimatorState Instant state) {
     return new MonotonicallyIncreasing(state);
   }
 
