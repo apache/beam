@@ -1,11 +1,9 @@
 ---
 layout: post
 title:  "DataFrame API Preview now Available!"
-date:   2020-12-17 00:00:01 -0800
+date:   2020-12-15 00:00:01 -0800
 categories:
   - blog
-  - python
-  - dataframe
 authors:
   - Brian Hulette
   - Robert Bradshaw
