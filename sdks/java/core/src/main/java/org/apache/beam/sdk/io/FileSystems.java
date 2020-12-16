@@ -420,7 +420,10 @@ public class FileSystems {
         // If the source is not found, and we are ignoring found source files, then we skip it.
         continue;
       }
-      if (!matchDestResults.get(i).status().equals(Status.NOT_FOUND) && skipExistingDest) {
+      if (matchDestResults.get(i).status().equals(Status.OK)
+          && matchDestResults.get(i).metadata().get(0).sizeBytes()
+              == matchSrcResults.get(i).metadata().get(0).sizeBytes()
+          && skipExistingDest) {
         // If the destination exists, and we are skipping when destinations exist, then we skip.
         continue;
       }
