@@ -52,9 +52,6 @@ public class DebeziumIOTest implements Serializable {
             .withConnectionProperty("database.include.list", "inventory")
             .withConnectionProperty("database.history", DebeziumSDFDatabaseHistory.class.getName())
             .withConnectionProperty("include.schema.changes", "false");
-//    @Rule public final transient TestPipeline pipeline = TestPipeline.create();
-//    @Rule public final transient ExpectedLogs expectedLogs = ExpectedLogs.none(DebeziumIO.class);
-
 
     @Test
     public void testSourceMySqlConnectorValidConfiguration() {

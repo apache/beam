@@ -27,7 +27,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
-
 public class DebeziumSourceOffsetStorageReader implements OffsetStorageReader {
     private static final Logger LOG = LoggerFactory.getLogger(DebeziumSourceOffsetStorageReader.class);
     private final Map<String, ?> offset;
@@ -46,8 +45,8 @@ public class DebeziumSourceOffsetStorageReader implements OffsetStorageReader {
         LOG.info("-------------- GETTING OFFSETS!");
 
         Map<Map<String, T>, Map<String, Object>> map = new HashMap<>();
-        for (Map<String, T> p : partitions) {
-            map.put(p, (Map<String, Object>) offset);
+        for (Map<String, T> partition : partitions) {
+            map.put(partition, (Map<String, Object>) offset);
         }
 
         LOG.info("-------------- OFFSETS: " + map);

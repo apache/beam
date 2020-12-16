@@ -34,9 +34,8 @@ public class DebeziumIOConnectorTest {
   public void testDebeziumIOMySql() {
 	  PipelineOptions options = PipelineOptionsFactory.create();
 	  Pipeline p = Pipeline.create(options);
-	  p.apply(
-			  DebeziumIO.<String>read().
-			  		withConnectorConfiguration(
+	  p.apply(DebeziumIO.<String>read().
+              withConnectorConfiguration(
 						DebeziumIO.ConnectorConfiguration.create()
 							.withUsername("debezium")
 							.withPassword("dbz")
@@ -81,18 +80,18 @@ public class DebeziumIOConnectorTest {
         PipelineOptions options = PipelineOptionsFactory.create();
         Pipeline p = Pipeline.create(options);
         p.apply(DebeziumIO.<String>read().
-                        withConnectorConfiguration(
-                                DebeziumIO.ConnectorConfiguration.create()
-                                        .withUsername("sa")
-                                        .withPassword("Password!")
-                                        .withConnectorClass(SqlServerConnector.class)
-                                        .withHostName("127.0.0.1")
-                                        .withPort("1433")
-                                        .withConnectionProperty("database.dbname", "testDB")
-                                        .withConnectionProperty("database.server.name", "server1")
-                                        .withConnectionProperty("table.include.list", "dbo.customers")
-                                        .withConnectionProperty("include.schema.changes", "false")
-                        ).withFormatFunction(new SourceRecordJson.SourceRecordJsonMapper())
+                withConnectorConfiguration(
+                        DebeziumIO.ConnectorConfiguration.create()
+                                .withUsername("sa")
+                                .withPassword("Password!")
+                                .withConnectorClass(SqlServerConnector.class)
+                                .withHostName("127.0.0.1")
+                                .withPort("1433")
+                                .withConnectionProperty("database.dbname", "testDB")
+                                .withConnectionProperty("database.server.name", "server1")
+                                .withConnectionProperty("table.include.list", "dbo.customers")
+                                .withConnectionProperty("include.schema.changes", "false")
+                ).withFormatFunction(new SourceRecordJson.SourceRecordJsonMapper())
         ).setCoder(StringUtf8Coder.of());
 
         p.run().waitUntilFinish();
