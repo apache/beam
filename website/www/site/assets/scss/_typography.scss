@@ -135,8 +135,8 @@
   }
 }
 
-h1{
-  @media (max-width: $tablet){
+h1 {
+  @media (max-width: $tablet) {
     font-size: 32px;
     line-height: 1.19;
     font-weight: 500;
@@ -147,8 +147,8 @@ h1{
   line-height: 1;
   letter-spacing: normal;
 }
-h2{
-  @media (max-width: $tablet){
+h2 {
+  @media (max-width: $tablet) {
     font-size: 28px;
     line-height: 1.29;
     font-weight: 500;
@@ -159,8 +159,8 @@ h2{
   letter-spacing: normal;
   font-weight: 500;
 }
-h3{
-  @media (max-width: $tablet){
+h3 {
+  @media (max-width: $tablet) {
     font-size: 24px;
     line-height: 1.25;
     font-weight: 500;
@@ -171,13 +171,12 @@ h3{
   letter-spacing: normal;
   font-weight: 500;
 }
-p{
+p {
   font-size: 16px;
   font-weight: normal;
   line-height: 1.63;
   letter-spacing: 0.43px;
 }
-  .hero-heading {
-    font-size: 32px;
-  }
-
+.hero-heading {
+  font-size: 32px;
+}

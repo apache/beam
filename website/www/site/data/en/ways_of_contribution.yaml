@@ -10,12 +10,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-- title: Beam Technical commiters 
+- title: Beam Technical commiters
   body: Short description with hyperlinks.
-  icon: icons/contributor/become a commiter/code-icon.svg 
-- title: Non-technical commiters 
-  body: Short description with hyperlinks. 
+  icon: icons/contributor/become a commiter/code-icon.svg
+- title: Non-technical commiters
+  body: Short description with hyperlinks.
   icon: icons/contributor/become a commiter/file-icon.svg
 - title: Website maintainers
-  body: Short description with hyperlinks. 
+  body: Short description with hyperlinks.
   icon: icons/contributor/become a commiter/tool-icon.svg

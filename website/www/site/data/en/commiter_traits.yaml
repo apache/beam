@@ -10,12 +10,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-- body: To learn more see the ASF documentation. 
+- body: To learn more see the ASF documentation.
   bolded: Knows, upholds, and reinforces the Apache Software Foundation code of conduct.
-  icon: icons/contributor/become a commiter/messages-icon.svg 
-- body: To learn more see the ASF documentation. 
-  bolded: Knows, upholds, and reinforces the responsibilities of an Apache Software Foundation committer. 
+  icon: icons/contributor/become a commiter/messages-icon.svg
+- body: To learn more see the ASF documentation.
+  bolded: Knows, upholds, and reinforces the responsibilities of an Apache Software Foundation committer.
   icon: icons/contributor/become a commiter/beam-logo-icon.svg
 - body: To learn more see our best practices!
-  bolded: Knows, upholds, and reinforces the Beam community’s practices. 
+  bolded: Knows, upholds, and reinforces the Beam community’s practices.
   icon: icons/contributor/become a commiter/diamond-icon.svg
