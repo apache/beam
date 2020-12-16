@@ -49,7 +49,7 @@ job('beam_Publish_Beam_SDK_Snapshots') {
         tasks(":sdks:python:container:${taskVer}:dockerTagPush")
       }
       switches("-Pdocker-repository-root=${imageRepo}")
-      switches("-Pdocker-tag=${imageTag}")
+      switches("-Pdocker-tag-list=${imageTag},latest")
     }
   }
 }

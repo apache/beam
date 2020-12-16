@@ -1711,8 +1711,7 @@ class BeamModulePlugin implements Plugin<Project> {
       } else {
         tags = [
           project.rootProject.hasProperty(["docker-tag"]) ?
-          project.rootProject["docker-tag"] : project.sdk_version,
-          'latest'
+          project.rootProject["docker-tag"] : project.sdk_version
         ]
       }
       return tags
