@@ -10,10 +10,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
  
-- id: home-hero-title
-  translation: "Apache Beam: An advanced unified programming model"
-- id: home-hero-subtitle
-  translation: "Implement batch and streaming data processing jobs that run on any execution engine."
 - id: home-learn-more
   translation: "Learn more"
 - id: home-try-beam

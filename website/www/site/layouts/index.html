@@ -1,191 +1,191 @@
 {{/*
-  Licensed under the Apache License, Version 2.0 (the "License");
-  you may not use this file except in compliance with the License.
-  You may obtain a copy of the License at
-    http://www.apache.org/licenses/LICENSE-2.0
-  Unless required by applicable law or agreed to in writing, software
-  distributed under the License is distributed on an "AS IS" BASIS,
-  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-  See the License for the specific language governing permissions and
-  limitations under the License. See accompanying LICENSE file.
- */}}
- 
- {{ define "hero-section" }}
-   <div id="hero-desktop" class="hero-desktop">
-     <div class="hero-content">
-       <h3>{{ T "home-hero-title" }}</h3>
-       <h1>{{ T "home-hero-heading" }}</h1>
-       <h2>{{ T "home-hero-subheading" }}</h2>
-       <a href={{ "/get-started/downloads/" | relLangURL }}>
-         <button>
-           <span>
-             {{ with resources.Get "icons/install-button-icon.svg" }}
-               {{ .Content | safeHTML }}
-             {{ end }}
-           </span>&nbsp;&nbsp;
-           <span>{{ T "home-hero-button" }}</span>
-         </button>
-       </a>
-     </div>
-   </div>
-   <div id="hero-mobile" class="hero-mobile">
-     <div class="hero-content">
-       <h3>{{ T "home-hero-title" }}</h3>
-       <h1>{{ T "home-hero-heading" }}</h1>
-       <h2>{{ T "home-hero-subheading" }}</h2>
-     </div>
-   </div>
- {{ end }}
- 
- {{ define "pillars-section" }}
-   <div class="pillars">
-     <h2 class="pillars-title">
-       {{ T "home-pillars-title" }}
-     </h2>
-     <div class="pillars-content">
-       {{ $data := index $.Site.Data .Site.Language.Lang }}
-       {{ range $pillar := $data.pillars }}
-           {{ partial "pillars/pillars-item" (dict "logo" $pillar.icon  "header" $pillar.title "text" $pillar.body) }}
-       {{ end }}
-     </div>
-     <div class="pillars-social">
-       <div class="pillars-social-icons">
-         {{ $data := index $.Site.Data .Site.Language.Lang }}
-         {{ range $pillars_social := $data.pillars_social }}
-             {{ partial "pillars/pillars-social" (dict "icon" $pillars_social.icon  "url" $pillars_social.url "name" $pillars_social.name) }}
-         {{ end }}
-       </div>
-       <p class="pillars-social-text">
-         {{ T "home-pillars-social-text" }}
-       </p>
-     </div>
-   </div>
- {{ end }}
- 
- {{ define "graphic-section" }}
-   <div class="graphic section">
-     <div class="graphic__image">
-       <img src="/images/beam_architecture.png" alt="Beam architecture">
-     </div>
-   </div>
- {{ end }}
- 
- {{/*
-   TODO:
-     This is the implementation of the design.
-     The event sync functionality will be implemented when we have the event page.
- */}}
- {{ define "calendar-section" }}
-   <div class="calendar">
-     <h2 class="calendar-title">
-       {{ T "home-calendar-title" }}
-     </h2>
-     <div class="calendar-content">
-       <div class="calendar-card-big calendar-card-big-left">
-         <div class="desktop">
-           <a class="twitter-timeline" data-width="381" data-height="460"  href="https://twitter.com/ApacheBeam?ref_src=twsrc%5Etfw">Tweets by ApacheBeam</a>
-         </div>
-         <div class="mobile">
-           <a class="twitter-timeline" data-width="381" data-height="348"  href="https://twitter.com/ApacheBeam?ref_src=twsrc%5Etfw">Tweets by ApacheBeam</a>
-         </div>
-       </div>
-       <div class="calendar-card-box">
-         <a href="#">
-           <div class="calendar-card-small">
-             <div class="calendar-category">
-               <p class="calendar-category-tag">{{ T "home-calendar-category-tag-second" }}</p>
-               <p class="calendar-category-date">{{ T "home-calendar-category-date-second" }}</p>
-             </div>
-             <h4 class="calendar-card-small-title">
-               {{ T "home-calendar-card-title-second" }}
-             </h4>
-             <p class="calendar-card-author">{{ T "home-calendar-card-author-second" }}</p>
-           </div>
-         </a>
-         <a href="#">
-           <div class="calendar-card-small">
-             <div class="calendar-category">
-               <p class="calendar-category-tag">{{ T "home-calendar-category-tag-third" }}</p>
-               <p class="calendar-category-date">{{ T "home-calendar-category-date-third" }}</p>
-             </div>
-             <h4 class="calendar-card-small-title">
-               {{ T "home-calendar-card-title-third" }}
-             </h4>
-             <p class="calendar-card-author">{{ T "home-calendar-card-author-third" }}</p>
-           </div>
-         </a>
-       </div>
-       <div class="calendar-card-big calendar-card-big-right">
-         <p class="calendar-card-event-title">{{ T "home-calendar-card-events-title" }}</p>
-         <div class="calendar-card-events">
-           {{ $data := index $.Site.Data .Site.Language.Lang }}
-           {{ range $event := $data.calendar_events }}
-               {{ partial "calendar/calendar-events" (dict "icon" $event.icon  "title" $event.title "place" $event.place "time" $event.time "url" $event.url) }}
-           {{ end }}
-         </div>
-         <a href="">
-           <button class="calendar-card-events-button"><span>{{ T "home-calendar-card-events-button" }}</span></button>
-         </a>
-       </div>
-     </div>
-   </div>
- {{ end }}
- 
- {{ define "quotes-section" }}
-   <div class="quotes">
-     <div class="quotes-title">
-       {{ T "home-quotes-title" }}
-     </div>
- 
-     <div class="quotes-desktop">
-       {{ $data := index $.Site.Data .Site.Language.Lang }}
-       {{ range $quote := $data.quotes }}
-           {{ partial "quotes/quote.html" (dict "icon" $quote.icon "text" $quote.text  "logoUrl" $quote.logoUrl) }}
-       {{ end }}
-     </div>
-     
-     {{/*
-       The id "my-keen-slider" and "dots" should be named as defaults to make the external library (Keen Slider) works well
-     */}}
-     <div id="my-keen-slider" class="keen-slider quote-mobile">
-       {{ $data := index $.Site.Data .Site.Language.Lang }}
-       {{ range $quote := $data.quotes }}
-           {{ partial "quotes/quote-mobile.html" (dict "icon" $quote.icon "text" $quote.text  "logoUrl" $quote.logoUrl) }}
-       {{ end }}
-     </div>
-     <div id="dots" class="dots"></div>
-   </div>
- {{ end }}
- 
- {{ define "logos-section" }}
-   <div class="logos">
-     <div class="logos-title">
-       {{ T "home-logos-title" }}
-     </div>
-     <div class="logos-logos">
-       {{ range $logo := $.Site.Data.works_with }}
-       <div class="logos-logo">
-         <a href="{{ $logo.url }}"><img src="{{ $logo.image_url }}" alt="{{ $logo.title }}"></a>
-       </div>
-       {{ end }}
-     </div>
-   </div>
- {{ end }}
- 
- {{ define "ctas-section" }}
-   <div class="ctas section">
-     <div class="ctas__title">
-       {{ T "home-ctas-title" }}
-     </div>
-     <div class="ctas__ctas ctas__ctas--top">
-     <a class="button button--primary" href={{ "/get-started/beam-overview/" | relLangURL }}>{{ T "home-learn-more" }}</a>
-     <a class="button button--primary" href={{ "/get-started/downloads/" | relLangURL }}>{{ T "home-download-beam" . }}</a>
-     </div>
-     <div class="ctas__ctas">
-     <a class="button" href={{ "/get-started/quickstart-java/" | relLangURL }}>{{ T "home-java-quickstart" }}</a>
-     <a class="button" href={{ "/get-started/quickstart-py/" | relLangURL }}>{{ T "home-python-quickstart" }}</a>
-     <a class="button" href={{ "/get-started/quickstart-go/" | relLangURL }}>{{ T "home-go-quickstart" }}</a>
-     </div>
-   </div>
- {{ end }}
- 
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+*/}}
+
+{{ define "hero-section" }}
+  <div id="hero-desktop" class="hero-desktop">
+    <div class="hero-content">
+      <h3>{{ T "home-hero-title" }}</h3>
+      <h1>{{ T "home-hero-heading" }}</h1>
+      <h2>{{ T "home-hero-subheading" }}</h2>
+      <a href={{ "/get-started/downloads/" | relLangURL }}>
+        <button>
+          <span>
+            {{ with resources.Get "icons/install-button-icon.svg" }}
+              {{ .Content | safeHTML }}
+            {{ end }}
+          </span>&nbsp;&nbsp;
+          <span>{{ T "home-hero-button" }}</span>
+        </button>
+      </a>
+    </div>
+  </div>
+  <div id="hero-mobile" class="hero-mobile">
+    <div class="hero-content">
+      <h3>{{ T "home-hero-title" }}</h3>
+      <h1>{{ T "home-hero-heading" }}</h1>
+      <h2>{{ T "home-hero-subheading" }}</h2>
+    </div>
+  </div>
+{{ end }}
+
+{{ define "pillars-section" }}
+  <div class="pillars">
+    <h2 class="pillars-title">
+      {{ T "home-pillars-title" }}
+    </h2>
+    <div class="pillars-content">
+      {{ $data := index $.Site.Data .Site.Language.Lang }}
+      {{ range $pillar := $data.pillars }}
+          {{ partial "pillars/pillars-item" (dict "logo" $pillar.icon  "header" $pillar.title "text" $pillar.body) }}
+      {{ end }}
+    </div>
+    <div class="pillars-social">
+      <div class="pillars-social-icons">
+        {{ $data := index $.Site.Data .Site.Language.Lang }}
+        {{ range $pillars_social := $data.pillars_social }}
+            {{ partial "pillars/pillars-social" (dict "icon" $pillars_social.icon  "url" $pillars_social.url "name" $pillars_social.name) }}
+        {{ end }}
+      </div>
+      <p class="pillars-social-text">
+        {{ T "home-pillars-social-text" }}
+      </p>
+    </div>
+  </div>
+{{ end }}
+
+{{ define "graphic-section" }}
+  <div class="graphic section">
+    <div class="graphic__image">
+      <img src="/images/beam_architecture.png" alt="Beam architecture">
+    </div>
+  </div>
+{{ end }}
+
+{{/*
+  TODO:
+    This is the implementation of the design.
+    The event sync functionality will be implemented when we have the event page.
+*/}}
+{{ define "calendar-section" }}
+  <div class="calendar">
+    <h2 class="calendar-title">
+      {{ T "home-calendar-title" }}
+    </h2>
+    <div class="calendar-content">
+      <div class="calendar-card-big calendar-card-big-left">
+        <div class="desktop">
+          <a class="twitter-timeline" data-width="381" data-height="460"  href="https://twitter.com/ApacheBeam?ref_src=twsrc%5Etfw">Tweets by ApacheBeam</a>
+        </div>
+        <div class="mobile">
+          <a class="twitter-timeline" data-width="381" data-height="348"  href="https://twitter.com/ApacheBeam?ref_src=twsrc%5Etfw">Tweets by ApacheBeam</a>
+        </div>
+      </div>
+      <div class="calendar-card-box">
+        <a href="#">
+          <div class="calendar-card-small">
+            <div class="calendar-category">
+              <p class="calendar-category-tag">{{ T "home-calendar-category-tag-second" }}</p>
+              <p class="calendar-category-date">{{ T "home-calendar-category-date-second" }}</p>
+            </div>
+            <h4 class="calendar-card-small-title">
+              {{ T "home-calendar-card-title-second" }}
+            </h4>
+            <p class="calendar-card-author">{{ T "home-calendar-card-author-second" }}</p>
+          </div>
+        </a>
+        <a href="#">
+          <div class="calendar-card-small">
+            <div class="calendar-category">
+              <p class="calendar-category-tag">{{ T "home-calendar-category-tag-third" }}</p>
+              <p class="calendar-category-date">{{ T "home-calendar-category-date-third" }}</p>
+            </div>
+            <h4 class="calendar-card-small-title">
+              {{ T "home-calendar-card-title-third" }}
+            </h4>
+            <p class="calendar-card-author">{{ T "home-calendar-card-author-third" }}</p>
+          </div>
+        </a>
+      </div>
+      <div class="calendar-card-big calendar-card-big-right">
+        <p class="calendar-card-event-title">{{ T "home-calendar-card-events-title" }}</p>
+        <div class="calendar-card-events">
+          {{ $data := index $.Site.Data .Site.Language.Lang }}
+          {{ range $event := $data.calendar_events }}
+              {{ partial "calendar/calendar-events" (dict "icon" $event.icon  "title" $event.title "place" $event.place "time" $event.time "url" $event.url) }}
+          {{ end }}
+        </div>
+        <a href="">
+          <button class="calendar-card-events-button"><span>{{ T "home-calendar-card-events-button" }}</span></button>
+        </a>
+      </div>
+    </div>
+  </div>
+{{ end }}
+
+
+{{ define "quotes-section" }}
+  <div class="quotes">
+    <div class="quotes-title">
+      {{ T "home-quotes-title" }}
+    </div>
+
+    <div class="quotes-desktop">
+      {{ $data := index $.Site.Data .Site.Language.Lang }}
+      {{ range $quote := $data.quotes }}
+          {{ partial "quotes/quote.html" (dict "icon" $quote.icon "text" $quote.text  "logoUrl" $quote.logoUrl) }}
+      {{ end }}
+    </div>
+    
+    {{/*
+      The id "my-keen-slider" and "dots" should be named as defaults to make the external library (Keen Slider) works well
+    */}}
+    <div id="my-keen-slider" class="keen-slider quote-mobile">
+      {{ $data := index $.Site.Data .Site.Language.Lang }}
+      {{ range $quote := $data.quotes }}
+          {{ partial "quotes/quote-mobile.html" (dict "icon" $quote.icon "text" $quote.text  "logoUrl" $quote.logoUrl) }}
+      {{ end }}
+    </div>
+    <div id="dots" class="dots"></div>
+  </div>
+{{ end }}
+
+{{ define "logos-section" }}
+  <div class="logos">
+    <div class="logos-title">
+      {{ T "home-logos-title" }}
+    </div>
+    <div class="logos-logos">
+      {{ range $logo := $.Site.Data.works_with }}
+      <div class="logos-logo">
+        <a href="{{ $logo.url }}"><img src="{{ $logo.image_url }}" alt="{{ $logo.title }}"></a>
+      </div>
+      {{ end }}
+    </div>
+  </div>
+{{ end }}
+
+{{ define "ctas-section" }}
+  <div class="ctas section">
+    <div class="ctas__title">
+      {{ T "home-ctas-title" }}
+    </div>
+    <div class="ctas__ctas ctas__ctas--top">
+    <a class="button button--primary" href={{ "/get-started/beam-overview/" | relLangURL }}>{{ T "home-learn-more" }}</a>
+    <a class="button button--primary" href={{ "/get-started/downloads/" | relLangURL }}>{{ T "home-download-beam" . }}</a>
+    </div>
+    <div class="ctas__ctas">
+    <a class="button" href={{ "/get-started/quickstart-java/" | relLangURL }}>{{ T "home-java-quickstart" }}</a>
+    <a class="button" href={{ "/get-started/quickstart-py/" | relLangURL }}>{{ T "home-python-quickstart" }}</a>
+    <a class="button" href={{ "/get-started/quickstart-go/" | relLangURL }}>{{ T "home-go-quickstart" }}</a>
+    </div>
+  </div>
+{{ end }}
