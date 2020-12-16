@@ -17,9 +17,9 @@
  */
 package org.apache.beam.fn.harness;
 
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
 import java.time.Duration;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Cache;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
 
 /**
  * TransformProcessingThreadTracker tracks the thread ids for the transforms that are being
