@@ -1,0 +1,95 @@
+/*!
+ *  Licensed to the Apache Software Foundation (ASF) under one or more
+ *  contributor license agreements.  See the NOTICE file distributed with
+ *  this work for additional information regarding copyright ownership.
+ *  The ASF licenses this file to You under the Apache License, Version 2.0
+ *  (the "License"); you may not use this file except in compliance with
+ *  the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+@import "media";
+
+.arrow-list{
+    margin-top: 26px;
+    ul{
+        font-size: 16px;
+        font-weight: normal;
+        line-height: 1.63;
+        letter-spacing: 0.43px;
+        position: relative;
+        li:before {
+            content: "\2192";
+            position: absolute;
+            color: #ff6d05;
+            font-size: 24px;
+            line-height: 20px;
+            left: 0;
+        }
+        li{
+            list-style-type: none;
+            list-style-position: outside;
+            margin-bottom: 6px;
+            p{
+                margin: 0;
+            }
+        }
+    }
+}
+.arrow-lists-desktop{
+   margin-top: 36px;
+}
+.arrow-lists-mobile{
+    display: none;
+    .arrow-list-header{
+        font-size: 28px;
+        font-weight: 500;
+        line-height: 1.29;
+        letter-spacing: normal;
+        color: #333333;
+        text-decoration: none;
+        display: flex;
+        img{
+            margin-top: 17px;
+            width: 18px;
+            height: 18px;
+            padding-right: 16px;
+            transform: rotate(-90deg);
+           
+        }
+    }
+    .rotate{
+        img{
+            transform: rotate(0deg); 
+            margin-top: 26px;
+        }
+
+    }
+    
+}
+@media (max-width: $mobile){
+    .arrow-lists-desktop{
+        display: none;
+    }
+    .arrow-lists-mobile{
+        display: block;
+    }
+}
+pre{
+    background:rgba(255, 109, 0, 0.03);
+    border-radius: 8px;
+    border: solid 0.6px #ff6d05;
+    font-family: Menlo;
+    font-size: 16px;
+    font-weight: normal;
+    line-height: 1.63;
+    letter-spacing: 0.43px;
+    padding: 24px;
+    max-width: 848px;
+}
