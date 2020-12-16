@@ -54,6 +54,7 @@ import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.CallStreamObserver;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.ClientCallStreamObserver;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.ClientResponseObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -217,14 +218,11 @@ public class BeamFnLoggingClient implements AutoCloseable {
         builder.setLogLocation(loggerName);
       }
 
-      if (TransformProcessingThreadTracker.getThreadIdToTransformIdMappings()
-          .containsKey((long) record.getThreadID())) {
-        String transformId =
-            TransformProcessingThreadTracker.getThreadIdToTransformIdMappings()
-                .get((long) record.getThreadID());
-        if (transformId != null) {
-          builder.setTransformId(transformId);
-        }
+      String transformId =
+          TransformProcessingThreadTracker.getThreadIdToTransformIdMappings()
+              .getUnchecked((long) record.getThreadID());
+      if (!Strings.isNullOrEmpty(transformId)) {
+        builder.setTransformId(transformId);
       }
 
       // The thread that sends log records should never perform a blocking publish and
