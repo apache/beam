@@ -32,12 +32,15 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.io.range.OffsetRange;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Stopwatch;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.math.LongMath;
 import org.joda.time.Duration;
@@ -118,8 +121,14 @@ class SubscribeTransform extends PTransform<PBegin, PCollection<SequencedMessage
 
   @Override
   public PCollection<SequencedMessage> expand(PBegin input) {
-    PCollection<SubscriptionPartition> subscriptionPartitions =
-        input.apply(new SubscriptionPartitionLoader(getTopicPath(), options.subscriptionPath()));
+    PCollection<SubscriptionPartition> subscriptionPartitions;
+    if (options.partitions().isEmpty()) {
+      subscriptionPartitions = input.apply(new SubscriptionPartitionLoader(getTopicPath(), options.subscriptionPath()));
+    } else {
+      subscriptionPartitions = input.apply(Create.of(options.partitions())).apply(MapElements.into(
+          TypeDescriptor.of(SubscriptionPartition.class)).via(partition -> SubscriptionPartition.of(options.subscriptionPath(), partition)));
+    }
+
     return subscriptionPartitions.apply(
         ParDo.of(
             new PerSubscriptionPartitionSdf(

@@ -163,28 +163,6 @@ public abstract class SubscriberOptions implements Serializable {
     abstract Builder setOffsetReaderSupplier(
         SerializableSupplier<InitialOffsetReader> offsetReaderSupplier);
 
-    // Used for implementing build();
-    abstract SubscriptionPath subscriptionPath();
-
-    abstract Set<Partition> partitions();
-
-    abstract SubscriberOptions autoBuild();
-
-    @SuppressWarnings("CheckReturnValue")
-    public SubscriberOptions build() throws ApiException {
-      if (!partitions().isEmpty()) {
-        return autoBuild();
-      }
-
-      if (partitions().isEmpty()) {
-        int partitionCount = PartitionLookupUtils.numPartitions(subscriptionPath());
-        ImmutableSet.Builder<Partition> partitions = ImmutableSet.builder();
-        for (int i = 0; i < partitionCount; i++) {
-          partitions.add(Partition.of(i));
-        }
-        setPartitions(partitions.build());
-      }
-      return autoBuild();
-    }
+    public abstract SubscriberOptions build();
   }
 }
