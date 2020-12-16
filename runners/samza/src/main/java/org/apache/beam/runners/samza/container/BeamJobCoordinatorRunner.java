@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.samza;
+package org.apache.beam.runners.samza.container;
 
 import java.time.Duration;
 import org.apache.samza.application.SamzaApplication;
