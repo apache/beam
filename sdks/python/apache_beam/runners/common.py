@@ -717,6 +717,14 @@ class PerWindowInvoker(DoFnInvoker):
 
     residuals = []
     if self.is_splittable:
+      if restriction is None:
+        # This may be a SDF invoked as an ordinary DoFn on runners that don't
+        # understand SDF.  See, e.g. BEAM-11472.
+        # In this case, processing the element is simply processing it against
+        # the entire initial restriction.
+        restriction = self.signature.initial_restriction_method.method_value(
+            windowed_value.value)
+
       with self.splitting_lock:
         self.current_windowed_value = windowed_value
         self.restriction = restriction
