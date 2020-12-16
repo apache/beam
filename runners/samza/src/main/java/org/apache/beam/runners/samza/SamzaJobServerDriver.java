@@ -116,7 +116,8 @@ public class SamzaJobServerDriver {
     final String jobServerUrl = jobServiceGrpcFnServer.getApiServiceDescriptor().getUrl();
     LOG.info("JobServer started on {}", jobServerUrl);
     final URI uri = new URI(jobServerUrl);
-    final ExpansionServer expansionServer = createExpansionService(uri.getHost(), pipelineOptions.getExpansionPort());
+    final ExpansionServer expansionServer =
+        createExpansionService(uri.getHost(), pipelineOptions.getExpansionPort());
 
     try {
       jobServiceGrpcFnServer.getServer().awaitTermination();
