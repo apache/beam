@@ -16,11 +16,11 @@
 
 from __future__ import absolute_import
 
+import itertools
+import re
 from io import BytesIO
 from io import StringIO
 from io import TextIOWrapper
-import itertools
-import re
 
 import pandas as pd
 
