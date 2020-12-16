@@ -692,23 +692,29 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     This is invoked by ``DoFnRunner`` for each element of a input
     ``PCollection``.
 
-    If specified, following default arguments are used by the ``DoFnRunner`` to
-    be able to pass the parameters correctly.
+    The following parameters can be used as default value on `process`,
+    arguments to indicate the DoFn accepts the corresponding parameters. For
+    example, a DoFn might accept the element and its timestamp with::
 
-    ``DoFn.ElementParam``: element to be processed, should not be mutated.
-    ``DoFn.SideInputParam``: a side input that may be used when processing.
-    ``DoFn.TimestampParam``: timestamp of the input element.
-    ``DoFn.WindowParam``: ``Window`` the input element belongs to.
-    ``DoFn.TimerParam``: a ``userstate.RuntimeTimer`` object defined by the spec
-    of the parameter.
-    ``DoFn.StateParam``: a ``userstate.RuntimeState`` object defined by the spec
-    of the parameter.
-    ``DoFn.KeyParam``: key associated with the element.
-    ``DoFn.RestrictionParam``: an ``iobase.RestrictionTracker`` will be
-    provided here to allow treatment as a Splittable ``DoFn``. The restriction
-    tracker will be derived from the restriction provider in the parameter.
-    ``DoFn.WatermarkEstimatorParam``: a function that can be used to track
-    output watermark of Splittable ``DoFn`` implementations.
+      def process(element=DoFn.ElementParam, timestamp=DoFn.TimestampParam):
+        ...
+
+    The full set of parameters is:
+
+    - ``DoFn.ElementParam``: element to be processed, should not be mutated.
+    - ``DoFn.SideInputParam``: a side input that may be used when processing.
+    - ``DoFn.TimestampParam``: timestamp of the input element.
+    - ``DoFn.WindowParam``: ``Window`` the input element belongs to.
+    - ``DoFn.TimerParam``: a ``userstate.RuntimeTimer`` object defined by the spec
+       of the parameter.
+    - ``DoFn.StateParam``: a ``userstate.RuntimeState`` object defined by the spec
+       of the parameter.
+    - ``DoFn.KeyParam``: key associated with the element.
+    - ``DoFn.RestrictionParam``: an ``iobase.RestrictionTracker`` will be
+      provided here to allow treatment as a Splittable ``DoFn``. The restriction
+      tracker will be derived from the restriction provider in the parameter.
+    - ``DoFn.WatermarkEstimatorParam``: a function that can be used to track
+      output watermark of Splittable ``DoFn`` implementations.
 
     Args:
       element: The element to be processed
