@@ -33,7 +33,6 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -113,10 +112,7 @@ class SubscribeTransform extends PTransform<PBegin, PCollection<SequencedMessage
                             SubscriptionPartition.of(options.subscriptionPath(), partition))
                     .collect(Collectors.toList()))
             .expand(input);
-    // Prevent fusion between Create and read.
-    PCollection<SubscriptionPartition> shuffledPartitions =
-        partitions.apply(Reshuffle.viaRandomKey());
-    return shuffledPartitions.apply(
+    return partitions.apply(
         ParDo.of(
             new PerPartitionSdf(
                 MAX_SLEEP_TIME,
