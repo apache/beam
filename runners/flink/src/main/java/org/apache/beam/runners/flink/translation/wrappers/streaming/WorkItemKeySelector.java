@@ -19,11 +19,12 @@ package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
 import java.nio.ByteBuffer;
 import org.apache.beam.runners.core.KeyedWorkItem;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
+import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 
 /**
@@ -36,9 +37,11 @@ public class WorkItemKeySelector<K, V>
         ResultTypeQueryable<ByteBuffer> {
 
   private final Coder<K> keyCoder;
+  private final SerializablePipelineOptions pipelineOptions;
 
-  public WorkItemKeySelector(Coder<K> keyCoder) {
+  public WorkItemKeySelector(Coder<K> keyCoder, SerializablePipelineOptions pipelineOptions) {
     this.keyCoder = keyCoder;
+    this.pipelineOptions = pipelineOptions;
   }
 
   @Override
@@ -49,6 +52,6 @@ public class WorkItemKeySelector<K, V>
 
   @Override
   public TypeInformation<ByteBuffer> getProducedType() {
-    return new GenericTypeInfo<>(ByteBuffer.class);
+    return new CoderTypeInformation<>(FlinkKeyUtils.ByteBufferCoder.of(), pipelineOptions.get());
   }
 }
