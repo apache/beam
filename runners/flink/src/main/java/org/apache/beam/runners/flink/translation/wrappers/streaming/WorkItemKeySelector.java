@@ -32,7 +32,7 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
  * comparisons/hashing happen on the encoded form.
  */
 public class WorkItemKeySelector<K, V>
-    implements KeySelector<WindowedValue<SingletonKeyedWorkItem<K, V>>, ByteBuffer>,
+    implements KeySelector<WindowedValue<KeyedWorkItem<K, V>>, ByteBuffer>,
         ResultTypeQueryable<ByteBuffer> {
 
   private final Coder<K> keyCoder;
@@ -42,7 +42,7 @@ public class WorkItemKeySelector<K, V>
   }
 
   @Override
-  public ByteBuffer getKey(WindowedValue<SingletonKeyedWorkItem<K, V>> value) throws Exception {
+  public ByteBuffer getKey(WindowedValue<KeyedWorkItem<K, V>> value) throws Exception {
     K key = value.getValue().key();
     return FlinkKeyUtils.encodeKey(key, keyCoder);
   }
