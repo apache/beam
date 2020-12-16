@@ -17,9 +17,18 @@
  */
 
 class PythonTestProperties {
-  final static List<String> SUPPORTED_CONTAINER_TASKS = ['py36', 'py37', 'py38']
-  final static String LOWEST_SUPPORTED = '3.6'
-  final static String HIGHEST_SUPPORTED = '3.8'
+  // Indicates all supported Python versions.
+  // This must be sorted in ascending order.
+  final static List<String> ALL_SUPPORTED_VERSIONS = [
+    '3.6',
+    '3.7',
+    '3.8'
+  ]
+  final static List<String> SUPPORTED_CONTAINER_TASKS = ALL_SUPPORTED_VERSIONS.collect {
+    "py${it.replace('.', '')}"
+  }
+  final static String LOWEST_SUPPORTED = ALL_SUPPORTED_VERSIONS[0]
+  final static String HIGHEST_SUPPORTED = ALL_SUPPORTED_VERSIONS[-1]
   final static List<String> ESSENTIAL_VERSIONS = [
     LOWEST_SUPPORTED,
     HIGHEST_SUPPORTED
@@ -27,5 +36,7 @@ class PythonTestProperties {
   final static List<String> CROSS_LANGUAGE_VALIDATES_RUNNER_PYTHON_VERSIONS = ESSENTIAL_VERSIONS
   final static List<String> CROSS_LANGUAGE_VALIDATES_RUNNER_DATAFLOW_USING_JAVA_PYTHON_VERSIONS = ESSENTIAL_VERSIONS
   final static List<String> CROSS_LANGUAGE_VALIDATES_RUNNER_DATAFLOW_USING_SQL_PYTHON_VERSIONS = [HIGHEST_SUPPORTED]
+  final static List<String> VALIDATES_CONTAINER_DATAFLOW_PYTHON_VERSIONS = ALL_SUPPORTED_VERSIONS
   final static String LOAD_TEST_PYTHON_VERSION = '3.7'
+  final static String CHICAGO_TAXI_EXAMPLE_FLINK_PYTHON_VERSION = '3.7'
 }

@@ -783,7 +783,17 @@ class BigQueryWrapper(object):
         return
       else:
         raise
-    self._delete_dataset(temp_table.projectId, temp_table.datasetId, True)
+    try:
+      self._delete_dataset(temp_table.projectId, temp_table.datasetId, True)
+    except HttpError as exn:
+      if exn.status_code == 403:
+        _LOGGER.warning(
+            'Permission denied to delete temporary dataset %s:%s for clean up',
+            temp_table.projectId,
+            temp_table.datasetId)
+        return
+      else:
+        raise
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
@@ -914,17 +924,17 @@ class BigQueryWrapper(object):
 
     # If table exists already then handle the semantics for WRITE_EMPTY and
     # WRITE_TRUNCATE write dispositions.
-    if found_table:
-      table_empty = self._is_table_empty(project_id, dataset_id, table_id)
-      if (not table_empty and
-          write_disposition == BigQueryDisposition.WRITE_EMPTY):
-        raise RuntimeError(
-            'Table %s:%s.%s is not empty but write disposition is WRITE_EMPTY.'
-            % (project_id, dataset_id, table_id))
+    if found_table and write_disposition in (
+        BigQueryDisposition.WRITE_EMPTY, BigQueryDisposition.WRITE_TRUNCATE):
       # Delete the table and recreate it (later) if WRITE_TRUNCATE was
       # specified.
       if write_disposition == BigQueryDisposition.WRITE_TRUNCATE:
         self._delete_table(project_id, dataset_id, table_id)
+      elif (not self._is_table_empty(project_id, dataset_id, table_id) and
+            write_disposition == BigQueryDisposition.WRITE_EMPTY):
+        raise RuntimeError(
+            'Table %s:%s.%s is not empty but write disposition is WRITE_EMPTY.'
+            % (project_id, dataset_id, table_id))
 
     # Create a new table potentially reusing the schema from a previously
     # found table in case the schema was not specified.

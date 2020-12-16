@@ -22,7 +22,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.Objects;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
@@ -42,7 +41,6 @@ import org.joda.time.Instant;
  * reach given timestamp. Transform will not output elements prior to target time. Transform can
  * output elements at any time after target time.
  */
-@Experimental(Experimental.Kind.SPLITTABLE_DO_FN)
 @SuppressWarnings({
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
@@ -92,7 +90,6 @@ public class PeriodicSequence
     return new PeriodicSequence();
   }
 
-  @Experimental(Experimental.Kind.SPLITTABLE_DO_FN)
   public static class OutputRangeTracker extends RestrictionTracker<OffsetRange, Long>
       implements RestrictionTracker.HasProgress {
     private OffsetRange range;
