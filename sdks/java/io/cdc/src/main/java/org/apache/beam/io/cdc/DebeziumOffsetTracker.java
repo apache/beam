@@ -19,6 +19,7 @@ package org.apache.beam.io.cdc;
 
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
+import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,6 +29,7 @@ public class DebeziumOffsetTracker extends RestrictionTracker<DebeziumOffsetHold
     private static final Logger LOG = LoggerFactory.getLogger(DebeziumOffsetTracker.class);
 
     private DebeziumOffsetHolder restriction;
+    private static final long MILLIS = 60 * 1000;
 
     DebeziumOffsetTracker(DebeziumOffsetHolder holder) {
         this.restriction = holder;
@@ -36,10 +38,13 @@ public class DebeziumOffsetTracker extends RestrictionTracker<DebeziumOffsetHold
     @Override
     public boolean tryClaim(Map<String, Object> position) {
         LOG.info("-------------- Claiming {} used to have: {}", position, restriction.offset);
-
+        long elapsedTime = System.currentTimeMillis() - KafkaSourceConsumerFn.startTime.getMillis();
+        LOG.info("-------------- Time running: {} / {}", elapsedTime, (KafkaSourceConsumerFn.minutesToRun * MILLIS));
         this.restriction = new DebeziumOffsetHolder(position, this.restriction.history);
-
-        return true;
+        if (KafkaSourceConsumerFn.minutesToRun < 0) {
+            return true;
+        }
+        return elapsedTime < (KafkaSourceConsumerFn.minutesToRun * MILLIS);
     }
 
     @Override

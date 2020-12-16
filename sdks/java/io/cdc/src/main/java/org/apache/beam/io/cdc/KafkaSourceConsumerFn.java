@@ -24,6 +24,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.kafka.connect.source.SourceConnector;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.apache.kafka.connect.source.SourceTask;
+import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,11 +43,19 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
   private static final Logger LOG = LoggerFactory.getLogger(KafkaSourceConsumerFn.class);
   public static final String BEAM_INSTANCE_PROPERTY = "beam.parent.instance";
 
+  public static long minutesToRun = -1;
+  public static DateTime startTime;
+
   private final Class<? extends SourceConnector> connectorClass;
   private final SourceRecordMapper<T> fn;
-
   protected static final Map<String, RestrictionTracker<DebeziumOffsetHolder,  Map<String, Object>>>
       restrictionTrackers = new ConcurrentHashMap<>();
+
+  public KafkaSourceConsumerFn(Class<?> connectorClass, SourceRecordMapper<T> fn, long minutesToRun) {
+    this.connectorClass = (Class<? extends SourceConnector>) connectorClass;
+    this.fn = fn;
+    KafkaSourceConsumerFn.minutesToRun = minutesToRun;
+  }
 
   public KafkaSourceConsumerFn(Class<?> connectorClass, SourceRecordMapper<T> fn) {
     this.connectorClass = (Class<? extends SourceConnector>) connectorClass;
@@ -55,6 +64,7 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
 
   @GetInitialRestriction
   public DebeziumOffsetHolder getInitialRestriction(@Element Map<String, String> unused) throws IOException {
+    KafkaSourceConsumerFn.startTime = new DateTime();
     return new DebeziumOffsetHolder(null, null);
   }
 
