@@ -26,6 +26,7 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -43,6 +44,7 @@ import com.google.cloud.pubsublite.internal.wire.Committer;
 import com.google.cloud.pubsublite.proto.SequencedMessage;
 import java.io.ByteArrayOutputStream;
 import java.io.ObjectOutputStream;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nonnull;
 import org.apache.beam.sdk.io.range.OffsetRange;
@@ -65,7 +67,7 @@ import org.mockito.stubbing.Answer;
 
 @RunWith(JUnit4.class)
 @SuppressWarnings("initialization.fields.uninitialized")
-public class PerPartitionSdfTest {
+public class PerSubscriptionPartitionSdfTest {
   private static final Duration MAX_SLEEP_TIME =
       Duration.standardMinutes(10).plus(Duration.millis(10));
   private static final OffsetRange RESTRICTION = new OffsetRange(1, Long.MAX_VALUE);
@@ -79,20 +81,20 @@ public class PerPartitionSdfTest {
           SubscriptionPartition, OffsetRange, RestrictionTracker<OffsetRange, OffsetByteProgress>>
       trackerFactory;
 
-  @Mock PartitionProcessorFactory processorFactory;
+  @Mock SubscriptionPartitionProcessorFactory processorFactory;
   @Mock SerializableFunction<SubscriptionPartition, Committer> committerFactory;
 
   @Mock InitialOffsetReader initialOffsetReader;
   @Spy RestrictionTracker<OffsetRange, OffsetByteProgress> tracker;
   @Mock OutputReceiver<SequencedMessage> output;
   @Mock BundleFinalizer finalizer;
-  @Mock PartitionProcessor processor;
+  @Mock SubscriptionPartitionProcessor processor;
 
   abstract static class FakeCommitter extends FakeApiService implements Committer {}
 
   @Spy FakeCommitter committer;
 
-  PerPartitionSdf sdf;
+  PerSubscriptionPartitionSdf sdf;
 
   @Before
   public void setUp() {
@@ -103,7 +105,7 @@ public class PerPartitionSdfTest {
     when(committerFactory.apply(any())).thenReturn(committer);
     when(tracker.currentRestriction()).thenReturn(RESTRICTION);
     sdf =
-        new PerPartitionSdf(
+        new PerSubscriptionPartitionSdf(
             MAX_SLEEP_TIME,
             offsetReaderFactory,
             trackerFactory,
@@ -155,12 +157,14 @@ public class PerPartitionSdfTest {
                 })
         .when(finalizer)
         .afterBundleCommit(any(), any());
+    doReturn(Optional.of(example(Offset.class))).when(processor).lastClaimed();
     assertEquals(
         ProcessContinuation.resume(), sdf.processElement(tracker, PARTITION, output, finalizer));
     verify(processorFactory).newProcessor(eq(PARTITION), any(), eq(output));
     InOrder order = inOrder(processor);
     order.verify(processor).start();
     order.verify(processor).waitForCompletion(MAX_SLEEP_TIME);
+    order.verify(processor).lastClaimed();
     order.verify(processor).close();
     verify(finalizer).afterBundleCommit(eq(Instant.ofEpochMilli(Long.MAX_VALUE)), any());
     assertTrue(callbackRef.get() != null);
@@ -179,7 +183,7 @@ public class PerPartitionSdfTest {
   public void dofnIsSerializable() throws Exception {
     ObjectOutputStream output = new ObjectOutputStream(new ByteArrayOutputStream());
     output.writeObject(
-        new PerPartitionSdf(
+        new PerSubscriptionPartitionSdf(
             MAX_SLEEP_TIME, x -> null, (x, y) -> null, (x, y, z) -> null, (x) -> null));
   }
 }

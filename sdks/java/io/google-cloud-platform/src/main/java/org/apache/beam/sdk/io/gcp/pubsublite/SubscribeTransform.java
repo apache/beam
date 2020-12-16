@@ -68,13 +68,13 @@ class SubscribeTransform extends PTransform<PBegin, PCollection<SequencedMessage
     }
   }
 
-  private PartitionProcessor newPartitionProcessor(
+  private SubscriptionPartitionProcessor newPartitionProcessor(
       SubscriptionPartition subscriptionPartition,
       RestrictionTracker<OffsetRange, OffsetByteProgress> tracker,
       OutputReceiver<SequencedMessage> receiver)
       throws ApiException {
     checkSubscription(subscriptionPartition);
-    return new PartitionProcessorImpl(
+    return new SubscriptionPartitionProcessorImpl(
         tracker,
         receiver,
         consumer -> newSubscriber(subscriptionPartition.partition(), consumer),
@@ -114,7 +114,7 @@ class SubscribeTransform extends PTransform<PBegin, PCollection<SequencedMessage
             .expand(input);
     return partitions.apply(
         ParDo.of(
-            new PerPartitionSdf(
+            new PerSubscriptionPartitionSdf(
                 MAX_SLEEP_TIME,
                 this::newInitialOffsetReader,
                 this::newRestrictionTracker,
