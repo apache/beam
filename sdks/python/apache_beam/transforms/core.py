@@ -692,9 +692,10 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     This is invoked by ``DoFnRunner`` for each element of a input
     ``PCollection``.
 
-    The following parameters can be used as default value on `process`,
-    arguments to indicate the DoFn accepts the corresponding parameters. For
-    example, a DoFn might accept the element and its timestamp with::
+    The following parameters can be used as default values on ``process``
+    arguments to indicate that a DoFn accepts the corresponding parameters. For
+    example, a DoFn might accept the element and its timestamp with the
+    following signature::
 
       def process(element=DoFn.ElementParam, timestamp=DoFn.TimestampParam):
         ...
