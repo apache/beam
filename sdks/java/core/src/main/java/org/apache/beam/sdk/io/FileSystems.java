@@ -48,6 +48,7 @@ import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.MatchResult.Status;
 import org.apache.beam.sdk.io.fs.MoveOptions;
+import org.apache.beam.sdk.io.fs.MoveOptions.StandardMoveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
@@ -309,6 +310,7 @@ public class FileSystems {
   public static void rename(
       List<ResourceId> srcResourceIds, List<ResourceId> destResourceIds, MoveOptions... moveOptions)
       throws IOException {
+    Set<MoveOptions> moveOptionSet = Sets.newHashSet(moveOptions);
     validateSrcDestLists(srcResourceIds, destResourceIds);
     if (srcResourceIds.isEmpty()) {
       // Short-circuit.
@@ -317,10 +319,9 @@ public class FileSystems {
 
     List<ResourceId> srcToRename = srcResourceIds;
     List<ResourceId> destToRename = destResourceIds;
-    if (Sets.newHashSet(moveOptions)
-        .contains(MoveOptions.StandardMoveOptions.IGNORE_MISSING_FILES)) {
+    if (moveOptionSet.size() > 0) {
       KV<List<ResourceId>, List<ResourceId>> existings =
-          filterMissingFiles(srcResourceIds, destResourceIds);
+          filterFiles(srcResourceIds, destResourceIds, moveOptions);
       srcToRename = existings.getKey();
       destToRename = existings.getValue();
     }
@@ -392,6 +393,16 @@ public class FileSystems {
 
   private static KV<List<ResourceId>, List<ResourceId>> filterMissingFiles(
       List<ResourceId> srcResourceIds, List<ResourceId> destResourceIds) throws IOException {
+    return filterFiles(srcResourceIds, destResourceIds, StandardMoveOptions.IGNORE_MISSING_FILES);
+  }
+
+  private static KV<List<ResourceId>, List<ResourceId>> filterFiles(
+      List<ResourceId> srcResourceIds, List<ResourceId> destResourceIds, MoveOptions... moveOptions)
+      throws IOException {
+    Set<MoveOptions> moveOptionSet = Sets.newHashSet(moveOptions);
+    Boolean ignoreMissingSrc = moveOptionSet.contains(StandardMoveOptions.IGNORE_MISSING_FILES);
+    Boolean skipExistingDest =
+        moveOptionSet.contains(StandardMoveOptions.SKIP_IF_DESTINATION_EXISTS);
     validateSrcDestLists(srcResourceIds, destResourceIds);
     if (srcResourceIds.isEmpty()) {
       // Short-circuit.
@@ -401,12 +412,20 @@ public class FileSystems {
     List<ResourceId> srcToHandle = new ArrayList<>();
     List<ResourceId> destToHandle = new ArrayList<>();
 
-    List<MatchResult> matchResults = matchResources(srcResourceIds);
-    for (int i = 0; i < matchResults.size(); ++i) {
-      if (!matchResults.get(i).status().equals(Status.NOT_FOUND)) {
-        srcToHandle.add(srcResourceIds.get(i));
-        destToHandle.add(destResourceIds.get(i));
+    List<MatchResult> matchSrcResults = matchResources(srcResourceIds);
+    List<MatchResult> matchDestResults = matchResources(destResourceIds);
+
+    for (int i = 0; i < matchSrcResults.size(); ++i) {
+      if (matchSrcResults.get(i).status().equals(Status.NOT_FOUND) && ignoreMissingSrc) {
+        // If the source is not found, and we are ignoring found source files, then we skip it.
+        continue;
       }
+      if (!matchDestResults.get(i).status().equals(Status.NOT_FOUND) && skipExistingDest) {
+        // If the destination exists, and we are skipping when destinations exist, then we skip.
+        continue;
+      }
+      srcToHandle.add(srcResourceIds.get(i));
+      destToHandle.add(destResourceIds.get(i));
     }
     return KV.of(srcToHandle, destToHandle);
   }
