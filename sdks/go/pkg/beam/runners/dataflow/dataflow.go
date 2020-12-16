@@ -129,16 +129,23 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 
 	experiments := jobopts.GetExperiments()
 	// Always use runner v2, unless set already.
-	var v2set bool
+	var v2set, portaSubmission bool
 	for _, e := range experiments {
 		if strings.Contains(e, "use_runner_v2") || strings.Contains(e, "use_unified_worker") {
 			v2set = true
-			break
+		}
+		if strings.Contains(e, "use_portable_job_submission") {
+			portaSubmission = true
 		}
 	}
+	// Enable Default unified worker, and portable job submission.
 	if !v2set {
 		experiments = append(experiments, "use_unified_worker")
 	}
+	if !portaSubmission {
+		experiments = append(experiments, "use_portable_job_submission")
+	}
+	
 	if *minCPUPlatform != "" {
 		experiments = append(experiments, fmt.Sprintf("min_cpu_platform=%v", *minCPUPlatform))
 	}
