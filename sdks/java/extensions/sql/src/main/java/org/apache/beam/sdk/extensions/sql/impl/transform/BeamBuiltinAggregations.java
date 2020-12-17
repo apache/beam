@@ -16,24 +16,33 @@
  * limitations under the License.
  */
 package org.apache.beam.sdk.extensions.sql.impl.transform;
-
-import java.math.BigDecimal;
-import java.math.MathContext;
-import java.math.RoundingMode;
-import java.util.Map;
-import java.util.function.Function;
-import org.apache.beam.sdk.coders.*;
+import org.apache.beam.sdk.coders.BigDecimalCoder;
+import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderRegistry;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.extensions.sql.impl.transform.agg.CovarianceFn;
 import org.apache.beam.sdk.extensions.sql.impl.transform.agg.VarianceFn;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
-import org.apache.beam.sdk.transforms.*;
+import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
+import org.apache.beam.sdk.transforms.Count;
+import org.apache.beam.sdk.transforms.Max;
+import org.apache.beam.sdk.transforms.Min;
+import org.apache.beam.sdk.transforms.Sample;
+import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
+
+import java.math.BigDecimal;
+import java.math.MathContext;
+import java.math.RoundingMode;
+import java.util.Map;
+import java.util.function.Function;
 
 /** Built-in aggregations functions for COUNT/MAX/MIN/SUM/AVG/VAR_POP/VAR_SAMP. */
 @SuppressWarnings({
@@ -426,15 +435,15 @@ public class BeamBuiltinAggregations {
     }
   }
 
-  public static CombineFn createBitXOr(Schema.FieldType fieldType) {
+  public  static CombineFn createBitXOr(Schema.FieldType fieldType) {
     if (fieldType.getTypeName() == TypeName.INT64) {
       return new BitXOr();
     }
-    throw new UnsupportedOperationException(
-        String.format("[%s] is not supported in BIT_XOR", fieldType));
+    throw new UnsupportedOperationException(String.format("[%s] is not supported in BIT_XOR", fieldType));
   }
 
   public static class BitXOr extends CombineFn<Long, Long, Long> {
+
 
     @Override
     public Long createAccumulator() {
@@ -445,7 +454,7 @@ public class BeamBuiltinAggregations {
     public Long addInput(Long mutableAccumulator, Long input) {
       if (input != null) {
         return mutableAccumulator ^ input;
-      } else {
+      }else {
         return 0L;
       }
     }
@@ -464,4 +473,5 @@ public class BeamBuiltinAggregations {
       return accumulator;
     }
   }
+
 }
