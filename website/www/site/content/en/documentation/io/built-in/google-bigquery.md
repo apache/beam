@@ -327,10 +327,10 @@ such as column selection and predicate filter push-down which can allow more
 efficient pipeline execution.
 
 The Beam SDK for Java supports using the BigQuery Storage API when reading from
-BigQuery. SDK versions before 2.24.0 support the BigQuery Storage API as an
+BigQuery. SDK versions before 2.25.0 support the BigQuery Storage API as an
 [experimental feature](https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/annotations/Experimental.html)
 and use the pre-GA BigQuery Storage API surface. Callers should migrate
-pipelines which use the BigQuery Storage API to use SDK version 2.24.0 or later.
+pipelines which use the BigQuery Storage API to use SDK version 2.25.0 or later.
 
 The Beam SDK for Python does not support the BigQuery Storage API. See
 [BEAM-10917](https://issues.apache.org/jira/browse/BEAM-10917)).
