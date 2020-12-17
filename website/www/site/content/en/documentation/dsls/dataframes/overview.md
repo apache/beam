@@ -53,6 +53,7 @@ To use the DataFrames API in a larger pipeline, you can convert a PCollection to
 
 Here’s an example that creates a schema-aware PCollection, converts it to a DataFrame using `to_dataframe`, processes the DataFrame, and then converts the DataFrame back to a PCollection using `to_pcollection`:
 
+<!-- TODO(BEAM-11480): Convert these examples to snippets -->
 {{< highlight py >}}
 from apache_beam.dataframe.convert import to_dataframe
 from apache_beam.dataframe.convert import to_pcollection
@@ -82,21 +83,21 @@ from apache_beam.dataframe.convert import to_pcollection
 
 You can [see the full example on GitHub](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/wordcount_dataframe.py).
 
-It’s also possible to use the DataFrame API by passing a function to `DataframeTransform`:
+It’s also possible to use the DataFrame API by passing a function to [DataframeTransform][pydoc_dataframe_transform]:
 
 {{< highlight py >}}
 from apache_beam.dataframe.transforms import DataframeTransform
 
 with beam.Pipeline() as p:
   ...
-  | beam.Select(trip_distance=lambda line: float(..),
+  | beam.Select(DOLocationID=lambda line: int(..),
                 passenger_count=lambda line: int(..))
-  | DataframeTransform(lambda df: df[['passenger_count', 'trip_distance']].groupby('passenger_count').sum())
-  | beam.Map(lambda row: f"{row.passenger_count}: {row.trip_distance}")
+  | DataframeTransform(lambda df: df[['passenger_count', 'DOLocationID']].groupby('DOLocationID').sum())
+  | beam.Map(lambda row: f"{row.DOLocationID}: {row.passenger_count}")
   ...
 {{< /highlight >}}
 
-`DataframeTransform` is similar to `SqlTransform` from the [Beam SQL](https://beam.apache.org/documentation/dsls/sql/overview/) DSL. Where `SqlTransform` translates a SQL query to a PTransform, `DataframeTransform` is a PTransform that applies a function that takes and returns DataFrames. A `DataframeTransform` can be particularly useful if you have a stand-alone function that can be called both on Beam and on ordinary Pandas DataFrames.
+[DataframeTransform][pydoc_dataframe_transform] is similar to [SqlTransform][pydoc_sql_transform] from the [Beam SQL](https://beam.apache.org/documentation/dsls/sql/overview/) DSL. Where `SqlTransform` translates a SQL query to a PTransform, `DataframeTransform` is a PTransform that applies a function that takes and returns DataFrames. A `DataframeTransform` can be particularly useful if you have a stand-alone function that can be called both on Beam and on ordinary Pandas DataFrames.
 
 `DataframeTransform` can accept and return multiple PCollections by name and by keyword, as shown in the following examples:
 
@@ -112,20 +113,19 @@ pc1, pc2 = {'a': pc} | DataframeTransform(lambda a: expr1, expr2)
 
 ## Differences from standard Pandas {#differences_from_standard_pandas}
 
-The Beam DataFrames API is deferred, like the rest of the Beam API. As a result, there are some limitations on what you can do with Beam DataFrames, compared to the standard Pandas implementation:
+Beam DataFrames are deferred, like the rest of the Beam API. As a result, there are some limitations on what you can do with Beam DataFrames, compared to the standard Pandas implementation:
 
 * Because all operations are deferred, the result of a given operation may not be available for control flow. For example, you can compute a sum, but you can't branch on the result.
 * Result columns must be computable without access to the data. For example, you can’t use [transpose](https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.transpose.html).
-* PCollections in Beam are inherently unordered, so Pandas operations that are sensitive to the ordering of rows are unsupported.
+* PCollections in Beam are inherently unordered, so Pandas operations that are sensitive to the ordering of rows are unsupported. For example, order-sensitive operations such as [shift](https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.shift.html), [cummax](https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.cummax.html), [cummin](https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.cummin.html), [head](https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.head.html), and [tail](https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.tail.html#pandas.DataFrame.tail) are not supported.
 
 With Beam DataFrames, computation doesn’t take place until the pipeline runs. Before that, only the shape or schema of the result is known, meaning that you can work with the names and types of the columns, but not the result data itself.
 
 There are a few common exceptions you may see when attempting to use certain Pandas operations:
 
-* **WontImplementError**: Indicates that this is an operation or argument that isn’t supported because it’s incompatible with the Beam model. The largest class of operations that raise this error are operations that are order sensitive, such as [shift](https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.shift.html), [cummax](https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.cummax.html), [cummin](https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.cummin.html), [head](https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.head.html), and [tail](https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.tail.html#pandas.DataFrame.tail). These cannot be trivially mapped to Beam because PCollections, representing distributed datasets, are unordered.
+* **WontImplementError**: Indicates that this operation or argument isn’t supported because it’s incompatible with the Beam model. The largest class of operations that raise this error are order-sensitive operations.
 * **NotImplementedError**: Indicates this is an operation or argument that hasn’t been implemented yet. Many Pandas operations are already available through Beam DataFrames, but there’s still a long tail of unimplemented operations.
-* **NonParallelOperation**: Indicates that you’re attempting a non-parallel operation outside of an `allow_non_parallel_operations` block. Some operations don't lend themselves to parallel computation. They can still be used, but must be guarded:
-```py
-with beam.dataframe.allow_non_parallel_operations(True):
-  ...
-```
+* **NonParallelOperation**: Indicates that you’re attempting a non-parallel operation outside of an `allow_non_parallel_operations` block. Some operations don't lend themselves to parallel computation. They can still be used, but must be guarded in a `with beam.dataframe.allow_non_parallel_operations(True)` block.
+
+[pydoc_dataframe_transform]: https://beam.apache.org/releases/pydoc/current/apache_beam.dataframe.transforms.html#apache_beam.dataframe.transforms.DataframeTransform
+[pydoc_sql_transform]: https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.sql.html#apache_beam.transforms.sql.SqlTransform
