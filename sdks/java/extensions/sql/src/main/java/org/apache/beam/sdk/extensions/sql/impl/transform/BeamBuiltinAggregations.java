@@ -17,6 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.transform;
 
+import java.math.BigDecimal;
+import java.math.MathContext;
+import java.math.RoundingMode;
+import java.util.Map;
+import java.util.function.Function;
 import org.apache.beam.sdk.coders.*;
 import org.apache.beam.sdk.extensions.sql.impl.transform.agg.CovarianceFn;
 import org.apache.beam.sdk.extensions.sql.impl.transform.agg.VarianceFn;
@@ -29,12 +34,6 @@ import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
-
-import java.math.BigDecimal;
-import java.math.MathContext;
-import java.math.RoundingMode;
-import java.util.Map;
-import java.util.function.Function;
 
 /** Built-in aggregations functions for COUNT/MAX/MIN/SUM/AVG/VAR_POP/VAR_SAMP. */
 @SuppressWarnings({
@@ -427,42 +426,42 @@ public class BeamBuiltinAggregations {
     }
   }
 
-  public  static CombineFn createBitXOr(Schema.FieldType fieldType) {
+  public static CombineFn createBitXOr(Schema.FieldType fieldType) {
     if (fieldType.getTypeName() == TypeName.INT64) {
       return new BitXOr();
     }
-    throw new UnsupportedOperationException(String.format("[%s] is not supported in BIT_XOR", fieldType));
+    throw new UnsupportedOperationException(
+        String.format("[%s] is not supported in BIT_XOR", fieldType));
   }
 
-  public static class BitXOr extends CombineFn<Integer, Integer, Integer> {
+  public static class BitXOr extends CombineFn<Long, Long, Long> {
 
     @Override
-    public Integer createAccumulator() {
-      return 0;
+    public Long createAccumulator() {
+      return 0L;
     }
 
     @Override
-    public Integer addInput(Integer mutableAccumulator, Integer input) {
+    public Long addInput(Long mutableAccumulator, Long input) {
       if (input != null) {
         return mutableAccumulator ^ input;
-      }else {
-        return 0;
+      } else {
+        return 0L;
       }
     }
 
     @Override
-    public Integer mergeAccumulators(Iterable<Integer> accumulators) {
-      Integer merged = createAccumulator();
-      for (Integer accum : accumulators) {
+    public Long mergeAccumulators(Iterable<Long> accumulators) {
+      Long merged = createAccumulator();
+      for (Long accum : accumulators) {
         merged = merged ^ accum;
       }
       return merged;
     }
 
     @Override
-    public Integer extractOutput(Integer accumulator) {
+    public Long extractOutput(Long accumulator) {
       return accumulator;
     }
   }
-
 }
