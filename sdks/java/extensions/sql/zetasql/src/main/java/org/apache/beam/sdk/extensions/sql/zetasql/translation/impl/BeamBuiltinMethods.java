@@ -17,10 +17,9 @@
  */
 package org.apache.beam.sdk.extensions.sql.zetasql.translation.impl;
 
+import java.lang.reflect.Method;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.linq4j.tree.Types;
-
-import java.lang.reflect.Method;
 
 /** BeamBuiltinMethods. */
 @Internal
@@ -73,5 +72,5 @@ public class BeamBuiltinMethods {
       Types.lookupMethod(DateFunctions.class, "date", Integer.class, Integer.class, Integer.class);
 
   public static final Method BIT_XOR =
-          Types.lookupMethod(BitwiseFunctions.class, "bitXOr", Integer.class, Integer.class);
+      Types.lookupMethod(BitwiseFunctions.class, "bitXOr", Long.class, Long.class);
 }

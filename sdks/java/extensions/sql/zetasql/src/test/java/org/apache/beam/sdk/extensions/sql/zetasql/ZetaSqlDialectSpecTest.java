@@ -4063,14 +4063,13 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
 
   @Test
   public void testBitXorAggregation() {
-    String sql ="SELECT BIT_XOR(x) AS bit_xor FROM UNNEST([5678, 1234]) AS x";
+    String sql = "SELECT BIT_XOR(x) AS bit_xor FROM UNNEST([5678, 1234]) AS x";
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
     PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
 
-    Schema schema = Schema.builder().addInt32Field("field1").build();
-    PAssert.that(stream)
-            .containsInAnyOrder(Row.withSchema(schema).addValue(4860L).build());
+    Schema schema = Schema.builder().addInt64Field("field1").build();
+    PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValue(4860L).build());
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
