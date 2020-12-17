@@ -83,7 +83,7 @@ from apache_beam.dataframe.convert import to_pcollection
 
 You can [see the full example on GitHub](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/wordcount_dataframe.py).
 
-It’s also possible to use the DataFrame API by passing a function to [DataframeTransform][pydoc_dataframe_transform]:
+It’s also possible to use the DataFrame API by passing a function to [`DataframeTransform`][pydoc_dataframe_transform]:
 
 {{< highlight py >}}
 from apache_beam.dataframe.transforms import DataframeTransform
