@@ -73,6 +73,8 @@ if [[ $confirmation != "y" ]]; then
   else
     echo "Not commit new changes into ${ROOT_SVN_URL}${DEV_REPO}/${BEAM_REPO}/KEYS"
   fi
+  cd ~
+  rm -rf ${LOCAL_SVN_DIR}/${BEAM_REPO}
 
   echo "Only a PMC member can write into dist.apache.org's release KEYS. Are you a PMC member? [y|N]"
   read pmc_permission
