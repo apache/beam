@@ -337,7 +337,8 @@ class PortableRunner(runner.PipelineRunner):
             #       https://issues.apache.org/jira/browse/BEAM-11478
             # Eventually remove the 'lift_combiners' phase from 'default'.
             translations.lift_combiners,
-            translations.sort_stages]
+            translations.sort_stages
+        ]
         partial = True
       elif pre_optimize == 'all':
         phases = [
@@ -354,14 +355,16 @@ class PortableRunner(runner.PipelineRunner):
             translations.read_to_impulse,
             translations.extract_impulse_stages,
             translations.remove_data_plane_ops,
-            translations.sort_stages]
+            translations.sort_stages
+        ]
         partial = False
       else:
         phases = []
         for phase_name in pre_optimize.split(','):
           # For now, these are all we allow.
           if phase_name in ('eliminate_common_key_with_none',
-                            'pack_combiners', 'lift_combiners'):
+                            'pack_combiners',
+                            'lift_combiners'):
             phases.append(getattr(translations, phase_name))
           else:
             raise ValueError(
