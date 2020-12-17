@@ -97,7 +97,7 @@ with beam.Pipeline() as p:
   ...
 {{< /highlight >}}
 
-[DataframeTransform][pydoc_dataframe_transform] is similar to [SqlTransform][pydoc_sql_transform] from the [Beam SQL](https://beam.apache.org/documentation/dsls/sql/overview/) DSL. Where `SqlTransform` translates a SQL query to a PTransform, `DataframeTransform` is a PTransform that applies a function that takes and returns DataFrames. A `DataframeTransform` can be particularly useful if you have a stand-alone function that can be called both on Beam and on ordinary Pandas DataFrames.
+[`DataframeTransform`][pydoc_dataframe_transform] is similar to [`SqlTransform`][pydoc_sql_transform] from the [Beam SQL](https://beam.apache.org/documentation/dsls/sql/overview/) DSL. Where `SqlTransform` translates a SQL query to a PTransform, `DataframeTransform` is a PTransform that applies a function that takes and returns DataFrames. A `DataframeTransform` can be particularly useful if you have a stand-alone function that can be called both on Beam and on ordinary Pandas DataFrames.
 
 `DataframeTransform` can accept and return multiple PCollections by name and by keyword, as shown in the following examples:
 
