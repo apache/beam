@@ -33,8 +33,8 @@ You may want to customize container images for many reasons, including:
 
 ### Prerequisites
 
-* You will need to use Docker, either by [installing Docker tools locally](https://docs.docker.com/get-docker/) or using build services that can run Docker, such as [Google Cloud Build](https://cloud.google.com/cloud-build/docs/building/build-containers).
-* You will need to have a container registry accessible by your execution engine or runner to host a custom container image. Options include [Docker Hub](https://hub.docker.com/) or a "self-hosted" repository, including cloud-specific container registries like [Google Container Registry](https://cloud.google.com/container-registry) (GCR) or [Amazon Elastic Container Registry](https://aws.amazon.com/ecr/) (ECR).
+* This guide requires building images using Docker. [Install Docker locally](https://docs.docker.com/get-docker/). Some CI/CD platforms like [Google Cloud Build](https://cloud.google.com/cloud-build/docs/building/build-containers) also provide the ability to build images using Docker.
+* For remote execution engines/runners, have a container registry to host your custom container image. Options include [Docker Hub](https://hub.docker.com/) or a "self-hosted" repository, including cloud-specific container registries like [Google Container Registry](https://cloud.google.com/container-registry) (GCR) or [Amazon Elastic Container Registry](https://aws.amazon.com/ecr/) (ECR). Make sure your registry can be accessed by your execution engine or runner.
 
 >  **NOTE**: On Nov 20, 2020, Docker Hub put [rate limits](https://www.docker.com/increase-rate-limits) into effect for anonymous and free authenticated use, which may impact larger pipelines that pull containers several times.
 
@@ -58,7 +58,7 @@ ENV FOO=bar
 COPY /src/path/to/file /dest/path/to/file/
 ```
 
-This `Dockerfile`: uses the prebuilt Python 3.7 SDK container image [`beam_python3.7_sdk`](https://hub.docker.com/r/apache/beam_python3.7_sdk) tagged at (SDK version) `2.25.0`, and adds an additional environment variable and file to the image.
+This `Dockerfile` uses the prebuilt Python 3.7 SDK container image [`beam_python3.7_sdk`](https://hub.docker.com/r/apache/beam_python3.7_sdk) tagged at (SDK version) `2.25.0`, and adds an additional environment variable and file to the image.
 
 
 2. [Build](https://docs.docker.com/engine/reference/commandline/build/) and [push](https://docs.docker.com/engine/reference/commandline/push/) the image using Docker.
@@ -75,17 +75,17 @@ This `Dockerfile`: uses the prebuilt Python 3.7 SDK container image [`beam_pytho
   docker build -f Dockerfile -t "${IMAGE_NAME}:${TAG}" .
   ```
 
-3. If your runner is running remotely, you will need to retag the image and [push](https://docs.docker.com/engine/reference/commandline/push/) the image using Docker to a remote repository accessible by your runner.
+3. If your runner is running remotely, retag and [push](https://docs.docker.com/engine/reference/commandline/push/) the image to the appropriate repository.
 
   ```
   docker push "${IMAGE_NAME}:${TAG}"
   ```
 
-4. After pushing a container image, you should verify the remote image ID and digest should match the local image ID and digest, output from `docker build` or `docker images`.
+4. After pushing a container image, verify the remote image ID and digest matches the local image ID and digest, output from `docker build` or `docker images`.
 
 #### Modifying a source Dockerfile in Beam {#modifying-dockerfiles}
 
-This method will require building image artifacts from Beam source. For additional instructions on setting up your development environment, see the [Contribution guide](/contribute/#development-setup).
+This method requires building image artifacts from Beam source. For additional instructions on setting up your development environment, see the [Contribution guide](/contribute/#development-setup).
 
 >**NOTE**: It is recommended that you start from a stable release branch (`release-X.XX.X`) corresponding to the same version of the SDK to run your pipeline. Differences in SDK version may result in unexpected errors.
 
@@ -134,8 +134,7 @@ This method will require building image artifacts from Beam source. For addition
   apache/beam_go_sdk                 latest               sha256:...               ...              1 min ago         ...
   ```
 
-5. If your runner is running remotely, you will need to retag the image and [push](https://docs.docker.com/engine/reference/commandline/push/) the image using Docker to a remote repository accessible by your runner.
-   You can also provide a custom repo/tag as [additional parameters](#additional-build-parameters).
+5. If your runner is running remotely, retag the image and [push](https://docs.docker.com/engine/reference/commandline/push/) the image to your repository. You can skip this step if you provide a custom repo/tag as [additional parameters](#additional-build-parameters).
 
   ```
   export BEAM_SDK_VERSION="2.26.0"
@@ -176,12 +175,6 @@ The common method for providing a container image requires using the
 PortableRunner flag `--environment_config` as supported by the Portable
 Runner or by runners supported PortableRunner flags.
 Other runners, such as Dataflow, support specifying containers with different flags.
-
-<!--
-  TODO(emilymye): Should be updated to PortableRunner flag --environment_options
- (added in 2.25.0) once this flags has been validated and ported over to all
- runners
--->
 
 {{< highlight class="runner-direct" >}}
 export IMAGE="my-repo/beam_python_sdk_custom"
@@ -230,7 +223,7 @@ export GCS_PATH="gs://my-gcs-bucket"
 export GCP_PROJECT="my-gcp-project"
 export REGION="us-central1"
 
-# By default, the Dataflow runner will have access to the GCR images
+# By default, the Dataflow runner has access to the GCR images
 # under the same project.
 export IMAGE="my-repo/beam_python_sdk_custom"
 export TAG="X.Y.Z"
@@ -266,7 +259,7 @@ custom containers.
 * If you are running into unexpected errors when using remote containers,
   make sure that your container exists in the remote repository and can be
   accessed by any third-party service, if needed.
-* Local runners will attempt to pull remote images and default to local
+* Local runners attempt to pull remote images and default to local
   images. If an image cannot be pulled locally (by the docker daemon),
   you may see an log message like:
   ```
