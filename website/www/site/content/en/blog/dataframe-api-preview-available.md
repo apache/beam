@@ -21,9 +21,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-We are proud to announce that a preview of the Beam Python SDK's new DataFrame
+We're excited to announce that a preview of the Beam Python SDK's new DataFrame
 API is now available in [Beam
-2.26.0](https://beam.apache.org/blog/beam-2.26.0/). Much like SqlTransform
+2.26.0](https://beam.apache.org/blog/beam-2.26.0/). Much like `SqlTransform`
 ([Java](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/extensions/sql/SqlTransform.html),
 [Python](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.sql.html#apache_beam.transforms.sql.SqlTransform)),
 the DataFrame API gives Beam users a way to express complex
@@ -31,7 +31,7 @@ relational logic much more concisely than previously possible.
 <!--more-->
 
 ## A more expressive API
-Beam's new Dataframe API aims to be compatible with the well known
+Beam's new DataFrame API aims to be compatible with the well known
 [Pandas](https://pandas.pydata.org/pandas-docs/stable/index.html)
 DataFrame API, with a few caveats detailed below. With this new API a simple
 pipeline that reads NYC taxiride data from a CSV, performs a grouped
@@ -69,10 +69,10 @@ The DataFrame example is much easier to quickly inspect and understand, as it
 allows you to concisely express grouped aggregations without using the low-level
 `CombinePerKey`.
 
-In addition to being more expressive and concise, a pipeline written with the
-DataFrame API can often be more efficient than a conventional Beam pipeline.
-This is because the DataFrame API defers to the very efficient, columnar Pandas
-implementation as much as possible.
+In addition to being more expressive, a pipeline written with the DataFrame API
+can often be more efficient than a conventional Beam pipeline.  This is because
+the DataFrame API defers to the very efficient, columnar Pandas implementation
+as much as possible.
 
 ## DataFrames as a DSL
 You may already be aware of [Beam
@@ -89,7 +89,7 @@ This is possible because the DataFrame API doesn't just implement Pandas'
 computation operations, it also includes IOs based on the Pandas native
 implementations (`pd.read_{csv,parquet,...}` and `pd.DataFrame.to_{csv,parquet,...}`).
 
-Like SQL, it’s also possible to embed the DataFrame API into a larger pipeline
+Like SQL, it's also possible to embed the DataFrame API into a larger pipeline
 by using
 [schemas](https://beam.apache.org/documentation/programming-guide/#what-is-a-schema).
 A schema-aware PCollection can be converted to a DataFrame, processed, and the
@@ -116,7 +116,7 @@ with beam.Pipeline() as p:
           | beam.WriteToText(..))
 ```
 
-It’s also possible to use the DataFrame API by passing a function to
+It's also possible to use the DataFrame API by passing a function to
 [`DataframeTransform`](https://beam.apache.org/releases/pydoc/current/apache_beam.dataframe.transforms.html#apache_beam.dataframe.transforms.DataframeTransform):
 
 ```
@@ -165,14 +165,14 @@ production workloads.
 The easiest way to get involved with this effort is to try out DataFrames and
 let us know what you think! You can send questions to user@beam.apache.org, or
 file bug reports and feature requests in [jira](https://issues.apache.org/jira).
-In particular, it would be really helpful to know if there’s an operation we
-haven’t implemented yet that you’d find useful, so that we can prioritize it.
+In particular, it would be really helpful to know if there's an operation we
+haven't implemented yet that you'd find useful, so that we can prioritize it.
 
-If you’d like to learn more about how the DataFrame API works under the hood and
+If you'd like to learn more about how the DataFrame API works under the hood and
 get involved with the development we recommend you take a look at the
 [design doc](http://s.apache.org/beam-dataframes)
 and our [Beam summit
 presentation](https://2020.beamsummit.org/sessions/simpler-python-pipelines/).
 From there the best way to help is to knock out some of those not implemented
-operations, we’re coordinating that work in
+operations. We're coordinating that work in
 [BEAM-9547](https://issues.apache.org/jira/browse/BEAM-9547).
