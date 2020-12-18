@@ -30,7 +30,7 @@ If you’re new to Pandas DataFrames, you can get started by reading [10 minutes
 
 ## Using DataFrames
 
-To use Beam DataFrames, you need to install Apache Beam version 2.26.0 or higher (for complete setup instructions, see the [Apache Beam Python SDK Quickstart](https://beam.apache.org/get-started/quickstart-py/)) and Pandas version 1.0 or higher. You can use DataFrames as shown in the following example, which reads New York City taxi data from a CSV file, performs a grouped aggregation, and writes the output back to CSV. Note that this example processes a large dataset and should be run in a distributed environment:
+To use Beam DataFrames, you need to install Apache Beam version 2.26.0 or higher (for complete setup instructions, see the [Apache Beam Python SDK Quickstart](https://beam.apache.org/get-started/quickstart-py/)) and Pandas version 1.0 or higher. You can use DataFrames as shown in the following example, which reads New York City taxi data from a CSV file, performs a grouped aggregation, and writes the output back to CSV:
 
 {{< highlight py >}}
 from apache_beam.dataframe.io import read_csv
@@ -92,8 +92,8 @@ with beam.Pipeline() as p:
   ...
   | beam.Select(DOLocationID=lambda line: int(..),
                 passenger_count=lambda line: int(..))
-  | DataframeTransform(lambda df: df[['passenger_count', 'DOLocationID']].groupby('DOLocationID').sum())
-  | beam.Map(lambda row: f"{row.DOLocationID}: {row.passenger_count}")
+  | DataframeTransform(lambda df: df.groupby('DOLocationID').sum())
+  | beam.Map(lambda row: f"{row.DOLocationID},{row.passenger_count}")
   ...
 {{< /highlight >}}
 
