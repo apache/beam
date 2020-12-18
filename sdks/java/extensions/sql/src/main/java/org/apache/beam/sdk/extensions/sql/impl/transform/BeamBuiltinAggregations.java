@@ -17,6 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.transform;
 
+import java.math.BigDecimal;
+import java.math.MathContext;
+import java.math.RoundingMode;
+import java.util.Map;
+import java.util.function.Function;
 import org.apache.beam.sdk.coders.BigDecimalCoder;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -39,11 +44,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-import java.math.BigDecimal;
-import java.math.MathContext;
-import java.math.RoundingMode;
-import java.util.Map;
-import java.util.function.Function;
 /** Built-in aggregations functions for COUNT/MAX/MIN/SUM/AVG/VAR_POP/VAR_SAMP. */
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
@@ -64,7 +64,7 @@ public class BeamBuiltinAggregations {
               .put("BIT_OR", BeamBuiltinAggregations::createBitOr)
               // JIRA link:https://issues.apache.org/jira/browse/BEAM-10379
               // .put("BIT_AND", BeamBuiltinAggregations::createBitAnd)
-              .put("LOGICAL_AND",BeamBuiltinAggregations::createLogicalAnd)
+              .put("LOGICAL_AND", BeamBuiltinAggregations::createLogicalAnd)
               .put("BIT_AND", BeamBuiltinAggregations::createBitAnd)
               .put("VAR_POP", t -> VarianceFn.newPopulation(t.getTypeName()))
               .put("VAR_SAMP", t -> VarianceFn.newSample(t.getTypeName()))
@@ -487,81 +487,83 @@ public class BeamBuiltinAggregations {
   //  }
 
   static class BitAnd<T extends Number> extends CombineFn<T, Long, Long> {
-      // Indicate if input only contains null value.
-      private boolean isEmpty = true;
+    // Indicate if input only contains null value.
+    private boolean isEmpty = true;
 
-      @Override
-      public Long createAccumulator() {
-          return -1L;
-      }
+    @Override
+    public Long createAccumulator() {
+      return -1L;
+    }
 
-      @Override
-      public Long addInput(Long accum, T input) {
-          if (input != null) {
-              this.isEmpty = false;
-              return accum & input.longValue();
-          } else {
-              return null;
-          }
+    @Override
+    public Long addInput(Long accum, T input) {
+      if (input != null) {
+        this.isEmpty = false;
+        return accum & input.longValue();
+      } else {
+        return null;
       }
-      @Override
-      public Long mergeAccumulators(Iterable<Long> accums) {
-          Long merged = createAccumulator();
-          for (Long accum : accums) {
-              merged = merged & accum;
-          }
-          return merged;
-      }
+    }
 
-      @Override
-      public Long extractOutput(Long accumulator) {
-          if(this.isEmpty){
-              return  null;
-          }
-          return accumulator;
+    @Override
+    public Long mergeAccumulators(Iterable<Long> accums) {
+      Long merged = createAccumulator();
+      for (Long accum : accums) {
+        merged = merged & accum;
       }
+      return merged;
+    }
+
+    @Override
+    public Long extractOutput(Long accumulator) {
+      if (this.isEmpty) {
+        return null;
+      }
+      return accumulator;
+    }
   }
 
-    static CombineFn createLogicalAnd(Schema.FieldType fieldType) {
-        if (fieldType.getTypeName() == TypeName.BOOLEAN) {
-            return new LogicalAnd();
-        }
-        throw new UnsupportedOperationException(String.format("[%s] is not supported in LOGICAL_AND", fieldType));
+  static CombineFn createLogicalAnd(Schema.FieldType fieldType) {
+    if (fieldType.getTypeName() == TypeName.BOOLEAN) {
+      return new LogicalAnd();
+    }
+    throw new UnsupportedOperationException(
+        String.format("[%s] is not supported in LOGICAL_AND", fieldType));
+  }
+
+  public static class LogicalAnd extends CombineFn<Boolean, Boolean, Boolean> {
+    private boolean isEmpty = true;
+
+    @Override
+    public Boolean createAccumulator() {
+      return Boolean.FALSE;
     }
 
-    public static class LogicalAnd extends CombineFn<Boolean, Boolean, Boolean> {
-        private boolean isEmpty = true;
-        @Override
-        public Boolean createAccumulator() {
-            return Boolean.FALSE;
-        }
-
-        @Override
-        public Boolean addInput(Boolean mutableAccumulator, Boolean input) {
-            if (input != null) {
-                this.isEmpty = false;
-                return mutableAccumulator && input;
-            }else {
-                return null;
-            }
-        }
-
-        @Override
-        public Boolean mergeAccumulators(Iterable<Boolean> accumulators) {
-            Boolean merged = createAccumulator();
-            for (Boolean accum : accumulators) {
-                merged = merged && accum;
-            }
-            return merged;
-        }
-
-        @Override
-        public Boolean extractOutput(Boolean accumulator) {
-            if(this.isEmpty){
-                return  null;
-            }
-            return accumulator;
-        }
-
+    @Override
+    public Boolean addInput(Boolean mutableAccumulator, Boolean input) {
+      if (input != null) {
+        this.isEmpty = false;
+        return mutableAccumulator && input;
+      } else {
+        return null;
+      }
     }
+
+    @Override
+    public Boolean mergeAccumulators(Iterable<Boolean> accumulators) {
+      Boolean merged = createAccumulator();
+      for (Boolean accum : accumulators) {
+        merged = merged && accum;
+      }
+      return merged;
+    }
+
+    @Override
+    public Boolean extractOutput(Boolean accumulator) {
+      if (this.isEmpty) {
+        return null;
+      }
+      return accumulator;
+    }
+  }
 }

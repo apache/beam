@@ -418,7 +418,7 @@ class SupportedZetaSqlBuiltinFunctions {
 
           FunctionSignatureId.FN_BIT_OR_INT64, // bit_or
           // FunctionSignatureId.FN_BIT_XOR_INT64, // bit_xor
-           FunctionSignatureId.FN_LOGICAL_AND,// logical_and
+          FunctionSignatureId.FN_LOGICAL_AND, // logical_and
           // FunctionSignatureId.FN_LOGICAL_OR, // logical_or
           // Approximate aggregate functions.
           // FunctionSignatureId.FN_APPROX_COUNT_DISTINCT, // approx_count_distinct
