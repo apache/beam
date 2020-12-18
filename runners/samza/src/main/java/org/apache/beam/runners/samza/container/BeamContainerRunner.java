@@ -40,8 +40,10 @@ import org.slf4j.LoggerFactory;
 public class BeamContainerRunner implements ApplicationRunner {
   private static final Logger LOG = LoggerFactory.getLogger(BeamContainerRunner.class);
 
+  @SuppressWarnings("rawtypes")
   private final ApplicationDescriptorImpl<? extends ApplicationDescriptor> appDesc;
 
+  @SuppressWarnings("rawtypes")
   public BeamContainerRunner(SamzaApplication app, Config config) {
     this.appDesc = ApplicationDescriptorUtil.getAppDescriptor(app, config);
   }
@@ -56,9 +58,7 @@ public class BeamContainerRunner implements ApplicationRunner {
             }));
 
     ContainerLaunchUtil.run(
-        appDesc,
-        System.getenv(ShellCommandConfig.ENV_CONTAINER_ID()),
-        ContainerCfgFactory.jobModel);
+        appDesc, System.getenv(ShellCommandConfig.ENV_CONTAINER_ID), ContainerCfgLoader.jobModel);
   }
 
   @Override

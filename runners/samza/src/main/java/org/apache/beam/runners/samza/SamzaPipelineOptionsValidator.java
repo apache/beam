@@ -18,11 +18,12 @@
 package org.apache.beam.runners.samza;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
-import static org.apache.samza.config.TaskConfig.MAX_CONCURRENCY;
+import static org.apache.samza.config.JobConfig.JOB_CONTAINER_THREAD_POOL_SIZE;
 
 import java.util.HashMap;
 import java.util.Map;
+import org.apache.samza.config.JobConfig;
+import org.apache.samza.config.MapConfig;
 
 /** Validates that the {@link SamzaPipelineOptions} conforms to all the criteria. */
 public class SamzaPipelineOptionsValidator {
@@ -32,30 +33,25 @@ public class SamzaPipelineOptionsValidator {
   }
 
   /*
-   * Perform some bundling related validation for pipeline option .
+   * Perform some bundling related validation for pipeline option.
+   * Visible for testing.
    */
-  private static void validateBundlingRelatedOptions(SamzaPipelineOptions pipelineOptions) {
+  static void validateBundlingRelatedOptions(SamzaPipelineOptions pipelineOptions) {
     if (pipelineOptions.getMaxBundleSize() > 1) {
-      // TODO: remove this check and implement bundling for side input, timer, etc in DoFnOp.java
-      checkState(
-          isPortable(pipelineOptions),
-          "Bundling is not supported in non portable mode. Please disable by setting maxBundleSize to 1.");
-
-      String taskConcurrencyConfig = MAX_CONCURRENCY;
-      Map<String, String> configs =
+      final Map<String, String> configs =
           pipelineOptions.getConfigOverride() == null
               ? new HashMap<>()
               : pipelineOptions.getConfigOverride();
-      long taskConcurrency = Long.parseLong(configs.getOrDefault(taskConcurrencyConfig, "1"));
-      checkState(
-          taskConcurrency == 1,
-          "Bundling is not supported if "
-              + taskConcurrencyConfig
-              + " is greater than 1. Please disable bundling by setting maxBundleSize to 1. Or disable task concurrency.");
-    }
-  }
+      final JobConfig jobConfig = new JobConfig(new MapConfig(configs));
 
-  private static boolean isPortable(SamzaPipelineOptions options) {
-    return options instanceof SamzaPortablePipelineOptions;
+      // TODO: once Samza supports a better thread pool modle, e.g. thread
+      // per-task/key-range, this can be supported.
+      checkArgument(
+          jobConfig.getThreadPoolSize() <= 1,
+          JOB_CONTAINER_THREAD_POOL_SIZE
+              + " cannot be configured to"
+              + " greater than 1 for max bundle size: "
+              + pipelineOptions.getMaxBundleSize());
+    }
   }
 }
