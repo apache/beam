@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.extensions.sql.zetasql.translation;
 
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.impl.ScalarFunctionImpl;
 import org.apache.beam.sdk.extensions.sql.impl.UdafImpl;
@@ -54,10 +57,6 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.Optionalit
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.Util;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
-
-import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * A separate SqlOperators table for those functions that do not exist or not compatible with
