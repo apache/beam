@@ -19,9 +19,11 @@ package org.apache.beam.runners.samza.runtime;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -32,9 +34,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
+import org.apache.beam.runners.samza.TestSamzaRunner;
+import org.apache.beam.runners.samza.runtime.SamzaStoreStateInternals.StateValue;
+import org.apache.beam.runners.samza.runtime.SamzaStoreStateInternals.StateValueSerdeFactory;
 import org.apache.beam.runners.samza.state.SamzaMapState;
 import org.apache.beam.runners.samza.state.SamzaSetState;
 import org.apache.beam.runners.samza.translation.ConfigBuilder;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -58,6 +64,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.apache.samza.context.ContainerContext;
 import org.apache.samza.context.JobContext;
 import org.apache.samza.metrics.MetricsRegistry;
+import org.apache.samza.serializers.Serde;
 import org.apache.samza.storage.StorageEngineFactory;
 import org.apache.samza.storage.kv.Entry;
 import org.apache.samza.storage.kv.KeyValueIterator;
@@ -206,16 +213,9 @@ public class SamzaStoreStateInternalsTest implements Serializable {
   /** A test store based on InMemoryKeyValueStore. */
   public static class TestStore extends InMemoryKeyValueStore {
     static List<TestKeyValueIteraor> iterators = Collections.synchronizedList(new ArrayList<>());
-    private final KeyValueStoreMetrics metrics;
 
     public TestStore(KeyValueStoreMetrics metrics) {
       super(metrics);
-      this.metrics = metrics;
-    }
-
-    @Override
-    public KeyValueStoreMetrics metrics() {
-      return metrics;
     }
 
     @Override
@@ -285,7 +285,9 @@ public class SamzaStoreStateInternalsTest implements Serializable {
                 KV.of("hello", 97), KV.of("hello", 42), KV.of("hello", 42), KV.of("hello", 12)))
         .apply(ParDo.of(fn));
 
-    Map<String, String> configs = new HashMap(ConfigBuilder.localRunConfig());
+    SamzaPipelineOptions options = PipelineOptionsFactory.create().as(SamzaPipelineOptions.class);
+    options.setRunner(TestSamzaRunner.class);
+    Map<String, String> configs = new HashMap<>(ConfigBuilder.localRunConfig());
     configs.put("stores.foo.factory", TestStorageEngine.class.getName());
     pipeline.getOptions().as(SamzaPipelineOptions.class).setConfigOverride(configs);
     pipeline.run();
@@ -294,5 +296,25 @@ public class SamzaStoreStateInternalsTest implements Serializable {
     // Verify all of them are closed
     assertEquals(8, TestStore.iterators.size());
     TestStore.iterators.forEach(iter -> assertTrue(iter.closed));
+  }
+
+  @Test
+  public void testStateValueSerde() throws IOException {
+    StateValueSerdeFactory stateValueSerdeFactory = new StateValueSerdeFactory();
+    Serde<StateValue<Integer>> serde = (Serde) stateValueSerdeFactory.getSerde("Test", null);
+    int value = 123;
+    Coder<Integer> coder = VarIntCoder.of();
+
+    byte[] valueBytes = serde.toBytes(StateValue.of(value, coder));
+    StateValue<Integer> stateValue1 = serde.fromBytes(valueBytes);
+    StateValue<Integer> stateValue2 = StateValue.of(valueBytes);
+    assertEquals(stateValue1.getValue(coder).intValue(), value);
+    assertEquals(stateValue2.getValue(coder).intValue(), value);
+
+    Integer nullValue = null;
+    byte[] nullBytes = serde.toBytes(StateValue.of(nullValue, coder));
+    StateValue<Integer> nullStateValue = serde.fromBytes(nullBytes);
+    assertNull(nullBytes);
+    assertNull(nullStateValue.getValue(coder));
   }
 }

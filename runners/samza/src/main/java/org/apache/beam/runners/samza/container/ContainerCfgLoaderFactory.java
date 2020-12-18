@@ -15,17 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.samza.runtime;
+package org.apache.beam.runners.samza.container;
 
-import java.io.Serializable;
-import org.apache.beam.runners.core.DoFnRunners;
+import org.apache.samza.config.Config;
+import org.apache.samza.config.ConfigLoader;
+import org.apache.samza.config.ConfigLoaderFactory;
 
-/** Factory class to create {@link DoFnRunners.OutputManager}. */
-public interface OutputManagerFactory<OutT> extends Serializable {
-  DoFnRunners.OutputManager create(OpEmitter<OutT> emitter);
-
-  default DoFnRunners.OutputManager create(
-      OpEmitter<OutT> emitter, FutureCollector<OutT> collector) {
-    return create(emitter);
+/** Factory for the Beam yarn container to get loader to load job model. */
+public class ContainerCfgLoaderFactory implements ConfigLoaderFactory {
+  @Override
+  public ConfigLoader getLoader(Config config) {
+    return new ContainerCfgLoader();
   }
 }
