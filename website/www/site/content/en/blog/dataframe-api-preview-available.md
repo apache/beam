@@ -61,7 +61,7 @@ with beam.Pipeline() as p:
                                 int(splits[3] or 0))) # passenger_count
      # Sum values per key
      | beam.CombinePerKey(sum)
-     | beam.MapTuple(lambda loc_id, pc: f'{loc_id}: {pc}')
+     | beam.MapTuple(lambda loc_id, pc: f'{loc_id},{pc}')
      | beam.io.WriteToText(known_args.output))
 ```
 
@@ -112,7 +112,7 @@ with beam.Pipeline() as p:
   agg_pc = to_pcollection(pc)
 
   # agg_pc has a schema based on the structure of agg
-  (agg_pc | beam.Map(lambda row: f'{row.DOLocationID}: {row.passenger_count}')
+  (agg_pc | beam.Map(lambda row: f'{row.DOLocationID},{row.passenger_count}')
           | beam.WriteToText(..))
 ```
 
@@ -127,7 +127,7 @@ with beam.Pipeline() as p:
   | beam.Select(DOLocationID=lambda line: int(..),
                 passenger_count=lambda line: int(..))
   | DataframeTransform(lambda df: df.groupby('DOLocationID').sum())
-  | beam.Map(lambda row: f'{row.DOLocationID}: {row.passenger_count}')
+  | beam.Map(lambda row: f'{row.DOLocationID},{row.passenger_count}')
   ...
 ```
 
