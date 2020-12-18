@@ -24,7 +24,7 @@ An Apache Beam [committer](https://www.apache.org/foundation/how-it-works.html#c
 
 </br>
 
-### What does it mean being a commiter?
+### What does it mean being a committer?
 
 </br>
 
@@ -40,7 +40,7 @@ The [PMC](https://www.apache.org/foundation/how-it-works.html#pmc-members) makes
 {{< contributor/list_with_icons >}}
 </br>
 
-### What are the traits of an Apache Beam Commiter?
+### What are the traits of an Apache Beam committer?
 
 {{< contributor/row_of_traits >}}
 </br>

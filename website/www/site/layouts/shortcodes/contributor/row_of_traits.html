@@ -12,7 +12,7 @@
 
     {{ $data := index $.Site.Data .Site.Language.Lang }}
     <div class="row_of_traits">
-        {{ range $item := $data.commiter_traits }}
+        {{ range $item := $data.committer_traits }}
             {{ partial "traits/traits-item" (dict "logo" .icon "text" .body "bolded" .bolded) }}
         {{ end }}
     </div>
