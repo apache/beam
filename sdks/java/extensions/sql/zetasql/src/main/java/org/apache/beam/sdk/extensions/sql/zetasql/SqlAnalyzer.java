@@ -19,7 +19,18 @@ package org.apache.beam.sdk.extensions.sql.zetasql;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
-import com.google.zetasql.*;
+import com.google.zetasql.Analyzer;
+import com.google.zetasql.AnalyzerOptions;
+import com.google.zetasql.Function;
+import com.google.zetasql.FunctionArgumentType;
+import com.google.zetasql.FunctionSignature;
+import com.google.zetasql.ParseResumeLocation;
+import com.google.zetasql.SimpleCatalog;
+import com.google.zetasql.TVFRelation;
+import com.google.zetasql.TableValuedFunction;
+import com.google.zetasql.TypeFactory;
+import com.google.zetasql.Value;
+import com.google.zetasql.ZetaSQLBuiltinFunctionOptions;
 import com.google.zetasql.ZetaSQLFunctions.FunctionEnums.Mode;
 import com.google.zetasql.ZetaSQLFunctions.SignatureArgumentKind;
 import com.google.zetasql.ZetaSQLOptions.ErrorMessageMode;
@@ -42,10 +53,16 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDat
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.SchemaPlus;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
-import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.*;
+import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_CREATE_FUNCTION_STMT;
+import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_CREATE_TABLE_FUNCTION_STMT;
+import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_QUERY_STMT;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 /** Adapter for {@link Analyzer} to simplify the API for parsing the query and resolving the AST. */
