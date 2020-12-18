@@ -68,10 +68,8 @@ import org.junit.runners.JUnit4;
 })
 public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
 
-  @Rule
-  public transient TestPipeline pipeline = TestPipeline.create();
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public transient TestPipeline pipeline = TestPipeline.create();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Before
   public void setUp() {
