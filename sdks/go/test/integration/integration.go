@@ -50,11 +50,22 @@ var directFilters = []string{
 	"TestXLang.*",
 }
 
-var portableFilters = []string{}
+var portableFilters = []string{
+	// TODO(BEAM-11499): XLang tests timing out.
+	"TestXLang.*",
+}
 
-var flinkFilters = []string{}
+var flinkFilters = []string{
+	// TODO(BEAM-11500): Flink tests timing out on reads.
+	"TestXLang_Combine.*",
+}
 
-var sparkFilters = []string{}
+var sparkFilters = []string{
+	// TODO(BEAM-11498): XLang tests broken with Spark runner.
+	"TestXLang.*",
+	"TestParDoSideInput",
+	"TestParDoKVSideInput",
+}
 
 // CheckFilters checks if an integration test is filtered to be skipped, either
 // because the intended runner does not support it, or the test is sickbayed.
@@ -80,6 +91,9 @@ func CheckFilters(t *testing.T) {
 	// Test for runner-specific skipping second.
 	var filters []string
 	runner := *ptest.Runner
+	if runner == "" {
+		runner = ptest.DefaultRunner()
+	}
 	switch runner {
 	case "direct", "DirectRunner":
 		filters = directFilters

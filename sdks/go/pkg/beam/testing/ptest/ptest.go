@@ -75,6 +75,10 @@ var (
 	defaultRunner = "direct"
 )
 
+func DefaultRunner() string {
+	return defaultRunner
+}
+
 // Run runs a pipeline for testing. The semantics of the pipeline is expected
 // to be verified through passert.
 func Run(p *beam.Pipeline) error {
