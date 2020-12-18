@@ -1,0 +1,119 @@
+<!doctype html><html lang=en class=no-js><head><meta charset=utf-8><meta http-equiv=x-ua-compatible content="IE=edge"><meta name=viewport content="width=device-width,initial-scale=1"><title>DataFrame API Preview now Available!</title><meta name=description content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes."><link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel=stylesheet><link rel=preload href=/scss/main.min.7bfa213b38fe814e9a5d5af502d4d2e0d4e9e7dfe8a528843e32a858c6c92bc2.css as=style><link href=/scss/main.min.7bfa213b38fe814e9a5d5af502d4d2e0d4e9e7dfe8a528843e32a858c6c92bc2.css rel=stylesheet integrity><script src=https://code.jquery.com/jquery-2.2.4.min.js></script><style>.body__contained img{max-width:100%}</style><script src=/js/bootstrap.min.js></script><script src=/js/language-switch.js></script><script src=/js/fix-menu.js></script><script src=/js/section-nav.js></script><script src=/js/page-nav.js></script><link rel=alternate type=application/rss+xml title="Apache Beam" href=/feed.xml><link rel=canonical href=/blog/dataframe-api-preview-available/ data-proofer-ignore><link rel="shortcut icon" type=image/x-icon href=/images/favicon.ico><link rel=stylesheet href=https://use.fontawesome.com/releases/v5.4.1/css/all.css integrity=sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz crossorigin=anonymous><script>(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)})(window,document,'script','//www.google-analytics.com/analytics.js','ga');ga('create','UA-73650088-1','auto');ga('send','pageview');</script></head><body class=body><nav class="header navbar navbar-fixed-top"><div class=navbar-header><button type=button class=navbar-toggle aria-expanded=false aria-controls=navbar>
+<span class=sr-only>Toggle navigation</span>
+<span class=icon-bar></span><span class=icon-bar></span><span class=icon-bar></span></button>
+<a href=/ class=navbar-brand><img alt=Brand style=height:25px src=/images/beam_logo_navbar.png></a></div><div class="navbar-mask closed"></div><div id=navbar class="navbar-container closed"><ul class="nav navbar-nav"><li><a href=/get-started/beam-overview/>Get Started</a></li><li><a href=/documentation/>Documentation</a></li><li><a href=/documentation/sdks/java/>Languages</a></li><li><a href=/documentation/runners/capability-matrix/>RUNNERS</a></li><li><a href=/roadmap/>Roadmap</a></li><li><a href=/contribute/>Contribute</a></li><li><a href=/community/contact-us/>Community</a></li><li><a href=/blog/>Blog</a></li></ul><ul class="nav navbar-nav navbar-right"><li><div style=width:300px><script>(function(){var cx='012923275103528129024:4emlchv9wzi';var gcse=document.createElement('script');gcse.type='text/javascript';gcse.async=true;gcse.src='https://cse.google.com/cse.js?cx='+cx;var s=document.getElementsByTagName('script')[0];s.parentNode.insertBefore(gcse,s);})();</script><gcse:search></gcse:search></div></li><li class=dropdown><a href=# class=dropdown-toggle data-toggle=dropdown role=button aria-haspopup=true aria-expanded=false><img src=https://www.apache.org/foundation/press/kit/feather_small.png alt="Apache Logo" style=height:20px><span class=caret></span></a><ul class="dropdown-menu dropdown-menu-right"><li><a href=http://www.apache.org/>ASF Homepage</a></li><li><a href=http://www.apache.org/licenses/>License</a></li><li><a href=http://www.apache.org/security/>Security</a></li><li><a href=http://www.apache.org/foundation/thanks.html>Thanks</a></li><li><a href=http://www.apache.org/foundation/sponsorship.html>Sponsorship</a></li><li><a href=https://www.apache.org/foundation/policies/conduct>Code of Conduct</a></li></ul></li><li><a href=https://github.com/apache/beam/edit/master/website/www/site/content/en/blog/dataframe-api-preview-available.md data-proofer-ignore><i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i></a></li></ul></div></nav><div class=body__contained><article class=post itemscope itemtype=http://schema.org/BlogPosting><header class=post-header><h1 class=post-title itemprop="name headline">DataFrame API Preview now Available!</h1><p class=post-meta><time datetime=2020-12-16T09:09:41-08:00 itemprop=datePublished>Dec 16, 2020</time>
+•
+Brian Hulette [<a href=https://twitter.com/BrianHulette>@BrianHulette</a>]
+&
+Robert Bradshaw</p></header><div class=post-content itemprop=articleBody><p>We&rsquo;re excited to announce that a preview of the Beam Python SDK&rsquo;s new DataFrame
+API is now available in <a href=https://beam.apache.org/blog/beam-2.26.0/>Beam
+2.26.0</a>. Much like <code>SqlTransform</code>
+(<a href=https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/extensions/sql/SqlTransform.html>Java</a>,
+<a href=https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.sql.html#apache_beam.transforms.sql.SqlTransform>Python</a>),
+the DataFrame API gives Beam users a way to express complex
+relational logic much more concisely than previously possible.</p><h2 id=a-more-expressive-api>A more expressive API</h2><p>Beam&rsquo;s new DataFrame API aims to be compatible with the well known
+<a href=https://pandas.pydata.org/pandas-docs/stable/index.html>Pandas</a>
+DataFrame API, with a few caveats detailed below. With this new API a simple
+pipeline that reads NYC taxiride data from a CSV, performs a grouped
+aggregation, and writes the output to CSV, can be expressed very concisely:</p><pre><code>from apache_beam.dataframe.io import read_csv
+
+with beam.Pipeline() as p:
+  df = p | read_csv(&quot;gs://apache-beam-samples/nyc_taxi/2019/*.csv&quot;,
+                    use_ncols=['passenger_count' , 'DOLocationID'])
+  # Count the number of passengers dropped off per LocationID
+  agg = df.groupby('DOLocationID').sum()
+  agg.to_csv(output)
+</code></pre><p>Compare this to the same logic implemented as a conventional Beam python
+pipeline with a <code>CombinePerKey</code>:</p><pre><code>with beam.Pipeline() as p:
+  (p | beam.io.ReadFromText(&quot;gs://apache-beam-samples/nyc_taxi/2019/*.csv&quot;,
+                            skip_header_lines=1)
+     | beam.Map(lambda line: line.split(','))
+     # Parse CSV, create key - value pairs
+     | beam.Map(lambda splits: (int(splits[8] or 0),  # DOLocationID
+                                int(splits[3] or 0))) # passenger_count
+     # Sum values per key
+     | beam.CombinePerKey(sum)
+     | beam.MapTuple(lambda loc_id, pc: f'{loc_id},{pc}')
+     | beam.io.WriteToText(known_args.output))
+</code></pre><p>The DataFrame example is much easier to quickly inspect and understand, as it
+allows you to concisely express grouped aggregations without using the low-level
+<code>CombinePerKey</code>.</p><p>In addition to being more expressive, a pipeline written with the DataFrame API
+can often be more efficient than a conventional Beam pipeline. This is because
+the DataFrame API defers to the very efficient, columnar Pandas implementation
+as much as possible.</p><h2 id=dataframes-as-a-dsl>DataFrames as a DSL</h2><p>You may already be aware of <a href=https://beam.apache.org/documentation/dsls/sql/overview/>Beam
+SQL</a>, which is
+a Domain-Specific Language (DSL) built with Beam&rsquo;s Java SDK. SQL is
+considered a DSL because it&rsquo;s possible to express a full pipeline, including IOs
+and complex operations, entirely with SQL. </p><p>Similarly, the DataFrame API is a DSL built with the Python SDK. You can see
+that the above example is written without traditional Beam constructs like IOs,
+ParDo, or CombinePerKey. In fact the only traditional Beam type is the Pipeline
+instance! Otherwise this pipeline is written completely using the DataFrame API.
+This is possible because the DataFrame API doesn&rsquo;t just implement Pandas&rsquo;
+computation operations, it also includes IOs based on the Pandas native
+implementations (<code>pd.read_{csv,parquet,...}</code> and <code>pd.DataFrame.to_{csv,parquet,...}</code>).</p><p>Like SQL, it&rsquo;s also possible to embed the DataFrame API into a larger pipeline
+by using
+<a href=https://beam.apache.org/documentation/programming-guide/#what-is-a-schema>schemas</a>.
+A schema-aware PCollection can be converted to a DataFrame, processed, and the
+result converted back to another schema-aware PCollection. For example, if you
+wanted to use traditional Beam IOs rather than one of the DataFrame IOs you
+could rewrite the above pipeline like this:</p><pre><code>from apache_beam.dataframe.convert import to_dataframe
+from apache_beam.dataframe.convert import to_pcollection
+
+with beam.Pipeline() as p:
+  ...
+  schema_pc = (p | beam.ReadFromText(..)
+                 # Use beam.Select to assign a schema
+                 | beam.Select(DOLocationID=lambda line: int(...),
+                               passenger_count=lambda line: int(...)))
+  df = to_dataframe(schema_pc)
+  agg = df.groupby('DOLocationID').sum()
+  agg_pc = to_pcollection(pc)
+
+  # agg_pc has a schema based on the structure of agg
+  (agg_pc | beam.Map(lambda row: f'{row.DOLocationID},{row.passenger_count}')
+          | beam.WriteToText(..))
+</code></pre><p>It&rsquo;s also possible to use the DataFrame API by passing a function to
+<a href=https://beam.apache.org/releases/pydoc/current/apache_beam.dataframe.transforms.html#apache_beam.dataframe.transforms.DataframeTransform><code>DataframeTransform</code></a>:</p><pre><code>from apache_beam.dataframe.transforms import DataframeTransform
+
+with beam.Pipeline() as p:
+  ...
+  | beam.Select(DOLocationID=lambda line: int(..),
+                passenger_count=lambda line: int(..))
+  | DataframeTransform(lambda df: df.groupby('DOLocationID').sum())
+  | beam.Map(lambda row: f'{row.DOLocationID},{row.passenger_count}')
+  ...
+</code></pre><h2 id=caveats>Caveats</h2><p>As hinted above, there are some differences between Beam&rsquo;s DataFrame API and the
+Pandas API. The most significant difference is that the Beam DataFrame API is
+<em>deferred</em>, just like the rest of the Beam API. This means that you can&rsquo;t
+<code>print()</code> a DataFrame instance in order to inspect the data, because we haven&rsquo;t
+computed the data yet! The computation doesn&rsquo;t take place until the pipeline is
+<code>run()</code>. Before that, we only know about the shape/schema of the result (i.e.
+the names and types of the columns), and not the result itself.</p><p>There are a few common exceptions you will likely see when attempting to use
+certain Pandas operations:</p><ul><li><strong>NotImplementedError:</strong> Indicates this is an operation or argument that we
+haven&rsquo;t had time to look at yet. We&rsquo;ve tried to make as many Pandas operations
+as possible available in the Preview offering of this new API, but there&rsquo;s
+still a long tail of operations to go.</li><li><strong>WontImplementError:</strong> Indicates this is an operation or argument we do not
+intend to support in the near-term because it&rsquo;s incompatible with the Beam
+model. The largest class of operations that raise this error are those that
+are order sensitive (e.g. shift, cummax, cummin, head, tail, etc..). These
+cannot be trivially mapped to Beam because PCollections, representing
+distributed datasets, are unordered. Note that even some of these operations
+<em>may</em> get implemented in the future - we actually have some ideas for how we
+might support order sensitive operations - but it&rsquo;s a ways off.</li></ul><p>Finally, it&rsquo;s important to note that this is a preview of a new feature that
+will get hardened over the next few Beam releases. We would love for you to try
+it out now and give us some feedback, but we do not yet recommend it for use in
+production workloads.</p><h2 id=how-to-get-involved>How to get involved</h2><p>The easiest way to get involved with this effort is to try out DataFrames and
+let us know what you think! You can send questions to <a href=mailto:user@beam.apache.org>user@beam.apache.org</a>, or
+file bug reports and feature requests in <a href=https://issues.apache.org/jira>jira</a>.
+In particular, it would be really helpful to know if there&rsquo;s an operation we
+haven&rsquo;t implemented yet that you&rsquo;d find useful, so that we can prioritize it.</p><p>If you&rsquo;d like to learn more about how the DataFrame API works under the hood and
+get involved with the development we recommend you take a look at the
+<a href=http://s.apache.org/beam-dataframes>design doc</a>
+and our <a href=https://2020.beamsummit.org/sessions/simpler-python-pipelines/>Beam summit
+presentation</a>.
+From there the best way to help is to knock out some of those not implemented
+operations. We&rsquo;re coordinating that work in
+<a href=https://issues.apache.org/jira/browse/BEAM-9547>BEAM-9547</a>.</p></div></article></div><footer class=footer><div class=footer__contained><div class=footer__cols><div class=footer__cols__col><div class=footer__cols__col__logo><img src=/images/beam_logo_circle.svg class=footer__logo alt="Beam logo"></div><div class=footer__cols__col__logo><img src=/images/apache_logo_circle.svg class=footer__logo alt="Apache logo"></div></div><div class="footer__cols__col footer__cols__col--md"><div class=footer__cols__col__title>Start</div><div class=footer__cols__col__link><a href=/get-started/beam-overview/>Overview</a></div><div class=footer__cols__col__link><a href=/get-started/quickstart-java/>Quickstart (Java)</a></div><div class=footer__cols__col__link><a href=/get-started/quickstart-py/>Quickstart (Python)</a></div><div class=footer__cols__col__link><a href=/get-started/quickstart-go/>Quickstart (Go)</a></div><div class=footer__cols__col__link><a href=/get-started/downloads/>Downloads</a></div></div><div class="footer__cols__col footer__cols__col--md"><div class=footer__cols__col__title>Docs</div><div class=footer__cols__col__link><a href=/documentation/programming-guide/>Concepts</a></div><div class=footer__cols__col__link><a href=/documentation/pipelines/design-your-pipeline/>Pipelines</a></div><div class=footer__cols__col__link><a href=/documentation/runners/capability-matrix/>Runners</a></div></div><div class="footer__cols__col footer__cols__col--md"><div class=footer__cols__col__title>Community</div><div class=footer__cols__col__link><a href=/contribute/>Contribute</a></div><div class=footer__cols__col__link><a href=https://projects.apache.org/committee.html?beam target=_blank>Team<img src=/images/external-link-icon.png width=14 height=14 alt="External link."></a></div><div class=footer__cols__col__link><a href=/community/presentation-materials/>Media</a></div><div class=footer__cols__col__link><a href=/community/in-person/>Events/Meetups</a></div></div><div class="footer__cols__col footer__cols__col--md"><div class=footer__cols__col__title>Resources</div><div class=footer__cols__col__link><a href=/blog/>Blog</a></div><div class=footer__cols__col__link><a href=/community/contact-us/>Contact Us</a></div><div class=footer__cols__col__link><a href=https://github.com/apache/beam>GitHub</a></div></div></div></div><div class=footer__bottom>&copy;
+<a href=http://www.apache.org>The Apache Software Foundation</a>
+| <a href=/privacy_policy>Privacy Policy</a>
+| <a href=/feed.xml>RSS Feed</a><br><br>Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are either registered trademarks or trademarks of The Apache Software Foundation. All other products or name brands are trademarks of their respective holders, including The Apache Software Foundation.</div></footer></body></html>

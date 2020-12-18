@@ -1,4 +1,141 @@
-<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Apache Beam</title><description>Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.</description><link>/</link><generator>Hugo -- gohugo.io</generator><item><title>Splittable DoFn in Apache Beam is Ready to Use</title><description>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Apache Beam</title><description>Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.</description><link>/</link><generator>Hugo -- gohugo.io</generator><item><title>DataFrame API Preview now Available!</title><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>We&amp;rsquo;re excited to announce that a preview of the Beam Python SDK&amp;rsquo;s new DataFrame
+API is now available in &lt;a href="https://beam.apache.org/blog/beam-2.26.0/">Beam
+2.26.0&lt;/a>. Much like &lt;code>SqlTransform&lt;/code>
+(&lt;a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/extensions/sql/SqlTransform.html">Java&lt;/a>,
+&lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.sql.html#apache_beam.transforms.sql.SqlTransform">Python&lt;/a>),
+the DataFrame API gives Beam users a way to express complex
+relational logic much more concisely than previously possible.&lt;/p>
+&lt;h2 id="a-more-expressive-api">A more expressive API&lt;/h2>
+&lt;p>Beam&amp;rsquo;s new DataFrame API aims to be compatible with the well known
+&lt;a href="https://pandas.pydata.org/pandas-docs/stable/index.html">Pandas&lt;/a>
+DataFrame API, with a few caveats detailed below. With this new API a simple
+pipeline that reads NYC taxiride data from a CSV, performs a grouped
+aggregation, and writes the output to CSV, can be expressed very concisely:&lt;/p>
+&lt;pre>&lt;code>from apache_beam.dataframe.io import read_csv
+with beam.Pipeline() as p:
+df = p | read_csv(&amp;quot;gs://apache-beam-samples/nyc_taxi/2019/*.csv&amp;quot;,
+use_ncols=['passenger_count' , 'DOLocationID'])
+# Count the number of passengers dropped off per LocationID
+agg = df.groupby('DOLocationID').sum()
+agg.to_csv(output)
+&lt;/code>&lt;/pre>&lt;p>Compare this to the same logic implemented as a conventional Beam python
+pipeline with a &lt;code>CombinePerKey&lt;/code>:&lt;/p>
+&lt;pre>&lt;code>with beam.Pipeline() as p:
+(p | beam.io.ReadFromText(&amp;quot;gs://apache-beam-samples/nyc_taxi/2019/*.csv&amp;quot;,
+skip_header_lines=1)
+| beam.Map(lambda line: line.split(','))
+# Parse CSV, create key - value pairs
+| beam.Map(lambda splits: (int(splits[8] or 0), # DOLocationID
+int(splits[3] or 0))) # passenger_count
+# Sum values per key
+| beam.CombinePerKey(sum)
+| beam.MapTuple(lambda loc_id, pc: f'{loc_id},{pc}')
+| beam.io.WriteToText(known_args.output))
+&lt;/code>&lt;/pre>&lt;p>The DataFrame example is much easier to quickly inspect and understand, as it
+allows you to concisely express grouped aggregations without using the low-level
+&lt;code>CombinePerKey&lt;/code>.&lt;/p>
+&lt;p>In addition to being more expressive, a pipeline written with the DataFrame API
+can often be more efficient than a conventional Beam pipeline. This is because
+the DataFrame API defers to the very efficient, columnar Pandas implementation
+as much as possible.&lt;/p>
+&lt;h2 id="dataframes-as-a-dsl">DataFrames as a DSL&lt;/h2>
+&lt;p>You may already be aware of &lt;a href="https://beam.apache.org/documentation/dsls/sql/overview/">Beam
+SQL&lt;/a>, which is
+a Domain-Specific Language (DSL) built with Beam&amp;rsquo;s Java SDK. SQL is
+considered a DSL because it&amp;rsquo;s possible to express a full pipeline, including IOs
+and complex operations, entirely with SQL. &lt;/p>
+&lt;p>Similarly, the DataFrame API is a DSL built with the Python SDK. You can see
+that the above example is written without traditional Beam constructs like IOs,
+ParDo, or CombinePerKey. In fact the only traditional Beam type is the Pipeline
+instance! Otherwise this pipeline is written completely using the DataFrame API.
+This is possible because the DataFrame API doesn&amp;rsquo;t just implement Pandas&amp;rsquo;
+computation operations, it also includes IOs based on the Pandas native
+implementations (&lt;code>pd.read_{csv,parquet,...}&lt;/code> and &lt;code>pd.DataFrame.to_{csv,parquet,...}&lt;/code>).&lt;/p>
+&lt;p>Like SQL, it&amp;rsquo;s also possible to embed the DataFrame API into a larger pipeline
+by using
+&lt;a href="https://beam.apache.org/documentation/programming-guide/#what-is-a-schema">schemas&lt;/a>.
+A schema-aware PCollection can be converted to a DataFrame, processed, and the
+result converted back to another schema-aware PCollection. For example, if you
+wanted to use traditional Beam IOs rather than one of the DataFrame IOs you
+could rewrite the above pipeline like this:&lt;/p>
+&lt;pre>&lt;code>from apache_beam.dataframe.convert import to_dataframe
+from apache_beam.dataframe.convert import to_pcollection
+with beam.Pipeline() as p:
+...
+schema_pc = (p | beam.ReadFromText(..)
+# Use beam.Select to assign a schema
+| beam.Select(DOLocationID=lambda line: int(...),
+passenger_count=lambda line: int(...)))
+df = to_dataframe(schema_pc)
+agg = df.groupby('DOLocationID').sum()
+agg_pc = to_pcollection(pc)
+# agg_pc has a schema based on the structure of agg
+(agg_pc | beam.Map(lambda row: f'{row.DOLocationID},{row.passenger_count}')
+| beam.WriteToText(..))
+&lt;/code>&lt;/pre>&lt;p>It&amp;rsquo;s also possible to use the DataFrame API by passing a function to
+&lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.dataframe.transforms.html#apache_beam.dataframe.transforms.DataframeTransform">&lt;code>DataframeTransform&lt;/code>&lt;/a>:&lt;/p>
+&lt;pre>&lt;code>from apache_beam.dataframe.transforms import DataframeTransform
+with beam.Pipeline() as p:
+...
+| beam.Select(DOLocationID=lambda line: int(..),
+passenger_count=lambda line: int(..))
+| DataframeTransform(lambda df: df.groupby('DOLocationID').sum())
+| beam.Map(lambda row: f'{row.DOLocationID},{row.passenger_count}')
+...
+&lt;/code>&lt;/pre>&lt;h2 id="caveats">Caveats&lt;/h2>
+&lt;p>As hinted above, there are some differences between Beam&amp;rsquo;s DataFrame API and the
+Pandas API. The most significant difference is that the Beam DataFrame API is
+&lt;em>deferred&lt;/em>, just like the rest of the Beam API. This means that you can&amp;rsquo;t
+&lt;code>print()&lt;/code> a DataFrame instance in order to inspect the data, because we haven&amp;rsquo;t
+computed the data yet! The computation doesn&amp;rsquo;t take place until the pipeline is
+&lt;code>run()&lt;/code>. Before that, we only know about the shape/schema of the result (i.e.
+the names and types of the columns), and not the result itself.&lt;/p>
+&lt;p>There are a few common exceptions you will likely see when attempting to use
+certain Pandas operations:&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>NotImplementedError:&lt;/strong> Indicates this is an operation or argument that we
+haven&amp;rsquo;t had time to look at yet. We&amp;rsquo;ve tried to make as many Pandas operations
+as possible available in the Preview offering of this new API, but there&amp;rsquo;s
+still a long tail of operations to go.&lt;/li>
+&lt;li>&lt;strong>WontImplementError:&lt;/strong> Indicates this is an operation or argument we do not
+intend to support in the near-term because it&amp;rsquo;s incompatible with the Beam
+model. The largest class of operations that raise this error are those that
+are order sensitive (e.g. shift, cummax, cummin, head, tail, etc..). These
+cannot be trivially mapped to Beam because PCollections, representing
+distributed datasets, are unordered. Note that even some of these operations
+&lt;em>may&lt;/em> get implemented in the future - we actually have some ideas for how we
+might support order sensitive operations - but it&amp;rsquo;s a ways off.&lt;/li>
+&lt;/ul>
+&lt;p>Finally, it&amp;rsquo;s important to note that this is a preview of a new feature that
+will get hardened over the next few Beam releases. We would love for you to try
+it out now and give us some feedback, but we do not yet recommend it for use in
+production workloads.&lt;/p>
+&lt;h2 id="how-to-get-involved">How to get involved&lt;/h2>
+&lt;p>The easiest way to get involved with this effort is to try out DataFrames and
+let us know what you think! You can send questions to &lt;a href="mailto:user@beam.apache.org">user@beam.apache.org&lt;/a>, or
+file bug reports and feature requests in &lt;a href="https://issues.apache.org/jira">jira&lt;/a>.
+In particular, it would be really helpful to know if there&amp;rsquo;s an operation we
+haven&amp;rsquo;t implemented yet that you&amp;rsquo;d find useful, so that we can prioritize it.&lt;/p>
+&lt;p>If you&amp;rsquo;d like to learn more about how the DataFrame API works under the hood and
+get involved with the development we recommend you take a look at the
+&lt;a href="http://s.apache.org/beam-dataframes">design doc&lt;/a>
+and our &lt;a href="https://2020.beamsummit.org/sessions/simpler-python-pipelines/">Beam summit
+presentation&lt;/a>.
+From there the best way to help is to knock out some of those not implemented
+operations. We&amp;rsquo;re coordinating that work in
+&lt;a href="https://issues.apache.org/jira/browse/BEAM-9547">BEAM-9547&lt;/a>.&lt;/p></description><link>/blog/dataframe-api-preview-available/</link><pubDate>Wed, 16 Dec 2020 09:09:41 -0800</pubDate><guid>/blog/dataframe-api-preview-available/</guid><category>blog</category></item><item><title>Splittable DoFn in Apache Beam is Ready to Use</title><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -808,42 +945,4 @@ For more information on changes in 2.22.0, check out the
 &lt;/ul>
 &lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
 &lt;p>According to git shortlog, the following people contributed to the 2.22.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Ahmet Altay, aiyangar, Ajo Thomas, Akshay-Iyangar, Alan Pryor, Alexey Romanenko, Allen Pradeep Xavier, amaliujia, Andrew Pilloud, Ankur Goenka, Ashwin Ramaswami, bntnam, Borzoo Esmailloo, Boyuan Zhang, Brian Hulette, Chamikara Jayalath, Colm O hEigeartaigh, Craig Chambers, Damon Douglas, Daniel Oliveira, David Cavazos, David Moravek, Esun Kim, Etienne Chauchot, Filipe Regadas, Graeme Morgan, Hannah Jiang, Hannah-Jiang, Harch Vardhan, Heejong Lee, Henry Suryawirawan, Ismaël Mejía, Israel Herraiz, Jacob Ferriero, Jan Lukavský, John Mora, Kamil Wasilewski, Kenneth Jung, Kenneth Knowles, kevingg, Kyle Weaver, Kyoungha Min, Kyungwon Jo, Luke Cwik, Mark Liu, Matthias Baetens, Maximilian Michels, Michal Walenia, Mikhail Gryzykhin, Nam Bui, Niel Markwick, Ning Kang, Omar Ismail, omarismail94, Pablo Estrada, paul fisher, pawelpasterz, Pawel Pasterz, Piotr Szuberski, Rahul Patwari, rarokni, Rehman, Rehman Murad Ali, Reuven Lax, Robert Bradshaw, Robert Burke, Rui Wang, Ruoyun Huang, Sam Rohde, Sam Whittle, Sebastian Graca, Shoaib Zafar, Sruthi Sree Kumar, Stephen O&amp;rsquo;Kennedy, Steve Koonce, Steve Niemitz, Steven van Rossum, Tesio, Thomas Weise, tobiaslieber-cognitedata, Tomo Suzuki, Tudor Marian, tvalentyn, Tyson Hamilton, Udi Meiri, Valentyn Tymofieiev, Vasu Nori, xuelianhan, Yichi Zhang, Yifan Zou, yoshiki.obata, Yueyang Qiu, Zhuo Peng&lt;/p></description><link>/blog/beam-2.22.0/</link><pubDate>Mon, 08 Jun 2020 00:00:01 -0800</pubDate><guid>/blog/beam-2.22.0/</guid><category>blog</category></item><item><title>Announcing Beam Katas for Kotlin</title><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>Today, we are happy to announce a new addition to the Beam Katas family: Kotlin!&lt;/p>
-&lt;p>&lt;img src="/images/blog/beam-katas-kotlin-release/beam-and-kotlin.png" alt="Apache Beam and Kotlin Shaking Hands" height="330" width="800" >&lt;/p>
-&lt;p>You may remember &lt;a href="https://beam.apache.org/blog/beam-kata-release">a post from last year&lt;/a> that informed everyone of the wonderful Beam Katas available on &lt;a href="https://stepik.org">Stepik&lt;/a>
-for learning more about writing Apache Beam applications, working with its various APIs and programming model
-hands-on, all from the comfort of your favorite IDEs. As of today, you can now work through all of the progressive
-exercises to learn about the fundamentals of Beam in Kotlin.&lt;/p>
-&lt;p>&lt;a href="https://kotlinlang.org">Kotlin&lt;/a> is a modern, open-source, statically typed language that targets the JVM. It is most commonly used by
-Android developers, however it has recently risen in popularity due to its extensive feature set that enables
-more concise and cleaner code than Java, without sacrificing performance or type safety. It recently was &lt;a href="https://insights.stackoverflow.com/survey/2020#technology-most-loved-dreaded-and-wanted-languages-loved">ranked
-as one of the most beloved programming languages in the annual Stack Overflow Developer Survey&lt;/a>, so don&amp;rsquo;t take
-just our word for it.&lt;/p>
-&lt;p>The relationship between Apache Beam and Kotlin isn&amp;rsquo;t a new one. You can find examples scattered across the web
-of engineering teams embracing the two technologies including &lt;a href="https://beam.apache.org/blog/beam-kotlin/">a series of samples announced on this very blog&lt;/a>.
-If you are new to Beam or are an experienced veteran looking for a change of pace, we&amp;rsquo;d encourage you to give
-Kotlin a try.&lt;/p>
-&lt;p>You can find the Kotlin and the other excellent Beam Katas below (or by just searching for &amp;ldquo;Beam Katas&amp;rdquo; within
-&lt;a href="https://www.jetbrains.com/education/download/#section=idea">IntelliJ&lt;/a> or &lt;a href="https://www.jetbrains.com/education/download/#section=pycharm-edu">PyCharm&lt;/a> through &lt;a href="https://plugins.jetbrains.com/plugin/10081-edutools">the EduTools plugin&lt;/a>):&lt;/p>
-&lt;ul>
-&lt;li>&lt;a href="https://stepik.org/course/72488">&lt;strong>Kotlin&lt;/strong>&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://stepik.org/course/54530">&lt;strong>Java&lt;/strong>&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://stepik.org/course/54532">&lt;strong>Python&lt;/strong>&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://stepik.org/course/70387">&lt;strong>Go (in development)&lt;/strong>&lt;/a>&lt;/li>
-&lt;/ul>
-&lt;p>I&amp;rsquo;d like to extend a very special thanks to &lt;a href="https://twitter.com/henry_ken">Henry Suryawirawan&lt;/a> for his creation of the original series of Katas
-and his support during the review process and making this effort a reality.&lt;/p>
-&lt;p>&lt;br />&lt;/p>
-&lt;p>&lt;img src="/images/blog/beam-katas-kotlin-release/beam-katas-in-edutools.png" alt="Access Beam Katas Kotlin through a JetBrains Educational Product" height="252" width="800" >&lt;/p></description><link>/blog/beam-katas-kotlin-release/</link><pubDate>Mon, 01 Jun 2020 00:00:01 -0800</pubDate><guid>/blog/beam-katas-kotlin-release/</guid><category>blog</category></item></channel></rss>
+&lt;p>Ahmet Altay, aiyangar, Ajo Thomas, Akshay-Iyangar, Alan Pryor, Alexey Romanenko, Allen Pradeep Xavier, amaliujia, Andrew Pilloud, Ankur Goenka, Ashwin Ramaswami, bntnam, Borzoo Esmailloo, Boyuan Zhang, Brian Hulette, Chamikara Jayalath, Colm O hEigeartaigh, Craig Chambers, Damon Douglas, Daniel Oliveira, David Cavazos, David Moravek, Esun Kim, Etienne Chauchot, Filipe Regadas, Graeme Morgan, Hannah Jiang, Hannah-Jiang, Harch Vardhan, Heejong Lee, Henry Suryawirawan, Ismaël Mejía, Israel Herraiz, Jacob Ferriero, Jan Lukavský, John Mora, Kamil Wasilewski, Kenneth Jung, Kenneth Knowles, kevingg, Kyle Weaver, Kyoungha Min, Kyungwon Jo, Luke Cwik, Mark Liu, Matthias Baetens, Maximilian Michels, Michal Walenia, Mikhail Gryzykhin, Nam Bui, Niel Markwick, Ning Kang, Omar Ismail, omarismail94, Pablo Estrada, paul fisher, pawelpasterz, Pawel Pasterz, Piotr Szuberski, Rahul Patwari, rarokni, Rehman, Rehman Murad Ali, Reuven Lax, Robert Bradshaw, Robert Burke, Rui Wang, Ruoyun Huang, Sam Rohde, Sam Whittle, Sebastian Graca, Shoaib Zafar, Sruthi Sree Kumar, Stephen O&amp;rsquo;Kennedy, Steve Koonce, Steve Niemitz, Steven van Rossum, Tesio, Thomas Weise, tobiaslieber-cognitedata, Tomo Suzuki, Tudor Marian, tvalentyn, Tyson Hamilton, Udi Meiri, Valentyn Tymofieiev, Vasu Nori, xuelianhan, Yichi Zhang, Yifan Zou, yoshiki.obata, Yueyang Qiu, Zhuo Peng&lt;/p></description><link>/blog/beam-2.22.0/</link><pubDate>Mon, 08 Jun 2020 00:00:01 -0800</pubDate><guid>/blog/beam-2.22.0/</guid><category>blog</category></item></channel></rss>

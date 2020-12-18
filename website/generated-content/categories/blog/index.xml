@@ -1,4 +1,141 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – blog</title><link>/categories/blog/</link><description>Recent content in blog on Apache Beam</description><generator>Hugo -- gohugo.io</generator><lastBuildDate>Mon, 14 Dec 2020 00:00:01 -0800</lastBuildDate><atom:link href="/categories/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Splittable DoFn in Apache Beam is Ready to Use</title><link>/blog/splittable-do-fn-is-available/</link><pubDate>Mon, 14 Dec 2020 00:00:01 -0800</pubDate><guid>/blog/splittable-do-fn-is-available/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – blog</title><link>/categories/blog/</link><description>Recent content in blog on Apache Beam</description><generator>Hugo -- gohugo.io</generator><lastBuildDate>Wed, 16 Dec 2020 09:09:41 -0800</lastBuildDate><atom:link href="/categories/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: DataFrame API Preview now Available!</title><link>/blog/dataframe-api-preview-available/</link><pubDate>Wed, 16 Dec 2020 09:09:41 -0800</pubDate><guid>/blog/dataframe-api-preview-available/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>We&amp;rsquo;re excited to announce that a preview of the Beam Python SDK&amp;rsquo;s new DataFrame
+API is now available in &lt;a href="https://beam.apache.org/blog/beam-2.26.0/">Beam
+2.26.0&lt;/a>. Much like &lt;code>SqlTransform&lt;/code>
+(&lt;a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/extensions/sql/SqlTransform.html">Java&lt;/a>,
+&lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.sql.html#apache_beam.transforms.sql.SqlTransform">Python&lt;/a>),
+the DataFrame API gives Beam users a way to express complex
+relational logic much more concisely than previously possible.&lt;/p>
+&lt;h2 id="a-more-expressive-api">A more expressive API&lt;/h2>
+&lt;p>Beam&amp;rsquo;s new DataFrame API aims to be compatible with the well known
+&lt;a href="https://pandas.pydata.org/pandas-docs/stable/index.html">Pandas&lt;/a>
+DataFrame API, with a few caveats detailed below. With this new API a simple
+pipeline that reads NYC taxiride data from a CSV, performs a grouped
+aggregation, and writes the output to CSV, can be expressed very concisely:&lt;/p>
+&lt;pre>&lt;code>from apache_beam.dataframe.io import read_csv
+with beam.Pipeline() as p:
+df = p | read_csv(&amp;quot;gs://apache-beam-samples/nyc_taxi/2019/*.csv&amp;quot;,
+use_ncols=['passenger_count' , 'DOLocationID'])
+# Count the number of passengers dropped off per LocationID
+agg = df.groupby('DOLocationID').sum()
+agg.to_csv(output)
+&lt;/code>&lt;/pre>&lt;p>Compare this to the same logic implemented as a conventional Beam python
+pipeline with a &lt;code>CombinePerKey&lt;/code>:&lt;/p>
+&lt;pre>&lt;code>with beam.Pipeline() as p:
+(p | beam.io.ReadFromText(&amp;quot;gs://apache-beam-samples/nyc_taxi/2019/*.csv&amp;quot;,
+skip_header_lines=1)
+| beam.Map(lambda line: line.split(','))
+# Parse CSV, create key - value pairs
+| beam.Map(lambda splits: (int(splits[8] or 0), # DOLocationID
+int(splits[3] or 0))) # passenger_count
+# Sum values per key
+| beam.CombinePerKey(sum)
+| beam.MapTuple(lambda loc_id, pc: f'{loc_id},{pc}')
+| beam.io.WriteToText(known_args.output))
+&lt;/code>&lt;/pre>&lt;p>The DataFrame example is much easier to quickly inspect and understand, as it
+allows you to concisely express grouped aggregations without using the low-level
+&lt;code>CombinePerKey&lt;/code>.&lt;/p>
+&lt;p>In addition to being more expressive, a pipeline written with the DataFrame API
+can often be more efficient than a conventional Beam pipeline. This is because
+the DataFrame API defers to the very efficient, columnar Pandas implementation
+as much as possible.&lt;/p>
+&lt;h2 id="dataframes-as-a-dsl">DataFrames as a DSL&lt;/h2>
+&lt;p>You may already be aware of &lt;a href="https://beam.apache.org/documentation/dsls/sql/overview/">Beam
+SQL&lt;/a>, which is
+a Domain-Specific Language (DSL) built with Beam&amp;rsquo;s Java SDK. SQL is
+considered a DSL because it&amp;rsquo;s possible to express a full pipeline, including IOs
+and complex operations, entirely with SQL. &lt;/p>
+&lt;p>Similarly, the DataFrame API is a DSL built with the Python SDK. You can see
+that the above example is written without traditional Beam constructs like IOs,
+ParDo, or CombinePerKey. In fact the only traditional Beam type is the Pipeline
+instance! Otherwise this pipeline is written completely using the DataFrame API.
+This is possible because the DataFrame API doesn&amp;rsquo;t just implement Pandas&amp;rsquo;
+computation operations, it also includes IOs based on the Pandas native
+implementations (&lt;code>pd.read_{csv,parquet,...}&lt;/code> and &lt;code>pd.DataFrame.to_{csv,parquet,...}&lt;/code>).&lt;/p>
+&lt;p>Like SQL, it&amp;rsquo;s also possible to embed the DataFrame API into a larger pipeline
+by using
+&lt;a href="https://beam.apache.org/documentation/programming-guide/#what-is-a-schema">schemas&lt;/a>.
+A schema-aware PCollection can be converted to a DataFrame, processed, and the
+result converted back to another schema-aware PCollection. For example, if you
+wanted to use traditional Beam IOs rather than one of the DataFrame IOs you
+could rewrite the above pipeline like this:&lt;/p>
+&lt;pre>&lt;code>from apache_beam.dataframe.convert import to_dataframe
+from apache_beam.dataframe.convert import to_pcollection
+with beam.Pipeline() as p:
+...
+schema_pc = (p | beam.ReadFromText(..)
+# Use beam.Select to assign a schema
+| beam.Select(DOLocationID=lambda line: int(...),
+passenger_count=lambda line: int(...)))
+df = to_dataframe(schema_pc)
+agg = df.groupby('DOLocationID').sum()
+agg_pc = to_pcollection(pc)
+# agg_pc has a schema based on the structure of agg
+(agg_pc | beam.Map(lambda row: f'{row.DOLocationID},{row.passenger_count}')
+| beam.WriteToText(..))
+&lt;/code>&lt;/pre>&lt;p>It&amp;rsquo;s also possible to use the DataFrame API by passing a function to
+&lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.dataframe.transforms.html#apache_beam.dataframe.transforms.DataframeTransform">&lt;code>DataframeTransform&lt;/code>&lt;/a>:&lt;/p>
+&lt;pre>&lt;code>from apache_beam.dataframe.transforms import DataframeTransform
+with beam.Pipeline() as p:
+...
+| beam.Select(DOLocationID=lambda line: int(..),
+passenger_count=lambda line: int(..))
+| DataframeTransform(lambda df: df.groupby('DOLocationID').sum())
+| beam.Map(lambda row: f'{row.DOLocationID},{row.passenger_count}')
+...
+&lt;/code>&lt;/pre>&lt;h2 id="caveats">Caveats&lt;/h2>
+&lt;p>As hinted above, there are some differences between Beam&amp;rsquo;s DataFrame API and the
+Pandas API. The most significant difference is that the Beam DataFrame API is
+&lt;em>deferred&lt;/em>, just like the rest of the Beam API. This means that you can&amp;rsquo;t
+&lt;code>print()&lt;/code> a DataFrame instance in order to inspect the data, because we haven&amp;rsquo;t
+computed the data yet! The computation doesn&amp;rsquo;t take place until the pipeline is
+&lt;code>run()&lt;/code>. Before that, we only know about the shape/schema of the result (i.e.
+the names and types of the columns), and not the result itself.&lt;/p>
+&lt;p>There are a few common exceptions you will likely see when attempting to use
+certain Pandas operations:&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>NotImplementedError:&lt;/strong> Indicates this is an operation or argument that we
+haven&amp;rsquo;t had time to look at yet. We&amp;rsquo;ve tried to make as many Pandas operations
+as possible available in the Preview offering of this new API, but there&amp;rsquo;s
+still a long tail of operations to go.&lt;/li>
+&lt;li>&lt;strong>WontImplementError:&lt;/strong> Indicates this is an operation or argument we do not
+intend to support in the near-term because it&amp;rsquo;s incompatible with the Beam
+model. The largest class of operations that raise this error are those that
+are order sensitive (e.g. shift, cummax, cummin, head, tail, etc..). These
+cannot be trivially mapped to Beam because PCollections, representing
+distributed datasets, are unordered. Note that even some of these operations
+&lt;em>may&lt;/em> get implemented in the future - we actually have some ideas for how we
+might support order sensitive operations - but it&amp;rsquo;s a ways off.&lt;/li>
+&lt;/ul>
+&lt;p>Finally, it&amp;rsquo;s important to note that this is a preview of a new feature that
+will get hardened over the next few Beam releases. We would love for you to try
+it out now and give us some feedback, but we do not yet recommend it for use in
+production workloads.&lt;/p>
+&lt;h2 id="how-to-get-involved">How to get involved&lt;/h2>
+&lt;p>The easiest way to get involved with this effort is to try out DataFrames and
+let us know what you think! You can send questions to &lt;a href="mailto:user@beam.apache.org">user@beam.apache.org&lt;/a>, or
+file bug reports and feature requests in &lt;a href="https://issues.apache.org/jira">jira&lt;/a>.
+In particular, it would be really helpful to know if there&amp;rsquo;s an operation we
+haven&amp;rsquo;t implemented yet that you&amp;rsquo;d find useful, so that we can prioritize it.&lt;/p>
+&lt;p>If you&amp;rsquo;d like to learn more about how the DataFrame API works under the hood and
+get involved with the development we recommend you take a look at the
+&lt;a href="http://s.apache.org/beam-dataframes">design doc&lt;/a>
+and our &lt;a href="https://2020.beamsummit.org/sessions/simpler-python-pipelines/">Beam summit
+presentation&lt;/a>.
+From there the best way to help is to knock out some of those not implemented
+operations. We&amp;rsquo;re coordinating that work in
+&lt;a href="https://issues.apache.org/jira/browse/BEAM-9547">BEAM-9547&lt;/a>.&lt;/p></description></item><item><title>Blog: Splittable DoFn in Apache Beam is Ready to Use</title><link>/blog/splittable-do-fn-is-available/</link><pubDate>Mon, 14 Dec 2020 00:00:01 -0800</pubDate><guid>/blog/splittable-do-fn-is-available/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -5248,29 +5385,4 @@ towards our first release with API stability. If you’d like to try out Apache
 Beam today, check out the latest
 &lt;a href="/get-started/downloads/">0.4.0 release&lt;/a>. We welcome
 contribution and participation from anyone through our mailing lists, issue
-tracker, pull requests, and events.&lt;/p></description></item><item><title>Blog: Release 0.4.0 adds a runner for Apache Apex</title><link>/blog/added-apex-runner/</link><pubDate>Mon, 09 Jan 2017 10:00:01 -0700</pubDate><guid>/blog/added-apex-runner/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>The latest release 0.4.0 of &lt;a href="/">Apache Beam&lt;/a> adds a new runner for &lt;a href="https://apex.apache.org/">Apache Apex&lt;/a>. We are excited to reach this initial milestone and are looking forward to continued collaboration between the Beam and Apex communities to advance the runner.&lt;/p>
-&lt;p>Beam evolved from the Google Dataflow SDK and as incubator project has quickly adapted the Apache way, grown the community and attracts increasing interest from users that hope to benefit from a conceptual strong unified programming model that is portable between different big data processing frameworks (see &lt;a href="https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-101">Streaming-101&lt;/a> and &lt;a href="https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-102">Streaming-102&lt;/a>). Multiple Apache projects already provide runners for Beam (see &lt;a href="/documentation/runners/capability-matrix/">runners and capabilities matrix&lt;/a>).&lt;/p>
-&lt;p>Apex is a stream processing framework for low-latency, high-throughput, stateful and reliable processing of complex analytics pipelines on clusters. Apex was developed since 2012 and is used in production by large companies for real-time and batch processing at scale.&lt;/p>
-&lt;p>The initial revision of the runner was focussed on broad coverage of the Beam model on a functional level. That means, there will be follow up work in several areas to take the runner from functional to scalable and high performance to match the capabilities of Apex and its native API. The runner capabilities matrix shows that the Apex capabilities are well aligned with the Beam model. Specifically, the ability to track computational state in a fault tolerant and efficient manner is needed to broadly support the windowing concepts, including event time based processing.&lt;/p>
-&lt;h2 id="stateful-stream-processor">Stateful Stream Processor&lt;/h2>
-&lt;p>Apex was built as stateful stream processor from the ground up. Operators checkpoint state in a distributed and asynchronous manner that produces a consistent snapshot for the entire processing graph, which can be used for recovery. Apex also supports such recovery in an incremental, or fine grained, manner. This means only the portion of the DAG that is actually affected by a failure will be recovered while the remaining pipeline continues processing (this can be leveraged to implement use cases with special needs, such as speculative execution to achieve SLA on the processing latency). The state checkpointing along with idempotent processing guarantee is the basis for exactly-once results support in Apex.&lt;/p>
-&lt;h2 id="translation-to-apex-dag">Translation to Apex DAG&lt;/h2>
-&lt;p>A Beam runner needs to implement the translation from the Beam model to the underlying frameworks execution model. In the case of Apex, the runner will translate the pipeline into the native (compositional, low level) DAG API (which is also the base for a number of other API that are available to specify applications that run on Apex). The DAG consists of operators (functional building blocks that are connected with streams. The runner provides the execution layer. In the case of Apex it is distributed stream processing, operators process data event by event. The minimum set of operators covers Beam’s primitive transforms: &lt;code>ParDo.Bound&lt;/code>, &lt;code>ParDo.BoundMulti&lt;/code>, &lt;code>Read.Unbounded&lt;/code>, &lt;code>Read.Bounded&lt;/code>, &lt;code>GroupByKey&lt;/code>, &lt;code>Flatten.FlattenPCollectionList&lt;/code> etc.&lt;/p>
-&lt;h2 id="execution-and-testing">Execution and Testing&lt;/h2>
-&lt;p>In this release, the Apex runner executes the pipelines in embedded mode, where, similar to the direct runner, everything is executed in a single JVM. See &lt;a href="/get-started/quickstart/">quickstart&lt;/a> on how to run the Beam examples with the Apex runner.&lt;/p>
-&lt;p>Embedded mode is useful for development and debugging. Apex in production runs distributed on Apache Hadoop YARN clusters. An example how a Beam pipeline can be embedded into an Apex application package to run on YARN can be found &lt;a href="https://github.com/tweise/apex-samples/tree/master/beam-apex-wordcount">here&lt;/a> and support for direct launch in the runner is currently being worked on.&lt;/p>
-&lt;p>The Beam project has a strong focus on development process and tooling, including testing. For the runners, there is a comprehensive test suite with more than 200 integration tests that are executed against each runner to ensure they don’t break as changes are made. The tests cover the capabilities of the matrix and thus are a measure of completeness and correctness of the runner implementations. The suite was very helpful when developing the Apex runner.&lt;/p>
-&lt;h2 id="outlook">Outlook&lt;/h2>
-&lt;p>The next step is to take the Apex runner from functional to ready for real applications that run distributed, leveraging the scalability and performance features of Apex, similar to its native API. This includes chaining of ParDos, partitioning, optimizing combine operations etc. To get involved, please see &lt;a href="https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20and%20component%20%3D%20runner-apex%20and%20resolution%20%3D%20unresolved">JIRA&lt;/a> and join the Beam community.&lt;/p></description></item></channel></rss>
+tracker, pull requests, and events.&lt;/p></description></item></channel></rss>
