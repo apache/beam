@@ -90,6 +90,17 @@ class BeamModulePlugin implements Plugin<Project> {
 
     /** Controls whether the checker framework plugin is enabled and configured. */
     boolean enableChecker = true
+    /** Regexes matching generated classes which should not receive extended type checking. */
+    List<String> generatedClassPatterns = []
+
+    /** Classes triggering Checker failures. A map from class name to the bug filed against checkerframework. */
+    Map<String, String> classesTriggerCheckerBugs = [:]
+
+    /**
+     Some module's tests take a very long time to compile with checkerframework.
+     Until that is solved, set this flag to skip checking for those tests.
+     */
+    boolean checkerTooSlowOnTests = false
 
     /** Controls whether the dependency analysis plugin is enabled. */
     boolean enableStrictDependencies = false
@@ -167,6 +178,15 @@ class BeamModulePlugin implements Plugin<Project> {
 
     /** Controls whether this project is published to Maven. */
     boolean publish = true
+
+    /**
+     * Regexes matching generated Java classes which should not receive extended type checking.
+     *
+     * By default, skips anything in the `org.apache.beam.model` namespace.
+     */
+    List<String> generatedClassPatterns = [
+      "^org\\.apache\\.beam\\.model.*"
+    ]
 
     /**
      * Automatic-Module-Name Header value to be set in MANFIEST.MF file.
@@ -340,7 +360,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.27.0'
+    project.version = '3.2260.0'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
@@ -431,7 +451,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def slf4j_version = "1.7.30"
     def spark_version = "2.4.7"
     def spotbugs_version = "4.0.6"
-    def testcontainers_version = "1.15.0-rc2"
+    def testcontainers_version = "1.15.1"
 
     // A map of maps containing common libraries used per language. To use:
     // dependencies {
@@ -742,7 +762,9 @@ class BeamModulePlugin implements Plugin<Project> {
         options.encoding = "UTF-8"
         // As we want to add '-Xlint:-deprecation' we intentionally remove '-Xlint:deprecation' from compilerArgs here,
         // as intellij is adding this, see https://youtrack.jetbrains.com/issue/IDEA-196615
-        options.compilerArgs -= ["-Xlint:deprecation"]
+        options.compilerArgs -= [
+          "-Xlint:deprecation",
+        ]
         options.compilerArgs += ([
           '-parameters',
           '-Xlint:all',
@@ -1680,6 +1702,19 @@ class BeamModulePlugin implements Plugin<Project> {
       return "${configuration.root}/${configuration.name}:${configuration.tag}"
     }
 
+    project.ext.containerImageTags = {
+      String[] tags
+      if (project.rootProject.hasProperty(["docker-tag-list"])) {
+        tags = project.rootProject["docker-tag-list"].split(',')
+      } else {
+        tags = [
+          project.rootProject.hasProperty(["docker-tag"]) ?
+          project.rootProject["docker-tag"] : project.sdk_version
+        ]
+      }
+      return tags
+    }
+
     /** ***********************************************************************************************/
 
     // applyGrpcNature should only be applied to projects who wish to use
@@ -1747,6 +1782,7 @@ class BeamModulePlugin implements Plugin<Project> {
           enableSpotbugs: false,
           enableChecker: false,
           publish: configuration.publish,
+          generatedClassPatterns: configuration.generatedClassPatterns,
           archivesBaseName: configuration.archivesBaseName,
           automaticModuleName: configuration.automaticModuleName,
           shadowJarValidationExcludes: it.shadowJarValidationExcludes,

@@ -85,7 +85,7 @@ public class TranslationContextTest {
         .getInputDescriptor(streamId, kvSerde);
   }
 
-  private Config getConfig() {
+  private static Config getConfig() {
     HashMap<String, String> configMap = new HashMap<>();
     configMap.put("job.name", "testJobName");
     configMap.put("job.id", "testJobId");

@@ -18,11 +18,12 @@
 package org.apache.beam.sdk.io.gcp.bigtable;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.apache.beam.sdk.io.gcp.testing.BigtableTestUtils.FAMILY_TEST;
-import static org.apache.beam.sdk.io.gcp.testing.BigtableTestUtils.LATER;
-import static org.apache.beam.sdk.io.gcp.testing.BigtableTestUtils.NOW;
-import static org.apache.beam.sdk.io.gcp.testing.BigtableTestUtils.booleanToByteArray;
-import static org.apache.beam.sdk.io.gcp.testing.BigtableTestUtils.doubleToByteArray;
+import static org.apache.beam.sdk.io.gcp.bigtable.RowUtils.KEY;
+import static org.apache.beam.sdk.io.gcp.bigtable.RowUtils.LABELS;
+import static org.apache.beam.sdk.io.gcp.bigtable.RowUtils.TIMESTAMP_MICROS;
+import static org.apache.beam.sdk.io.gcp.bigtable.RowUtils.VALUE;
+import static org.apache.beam.sdk.io.gcp.testing.BigtableUtils.booleanToByteArray;
+import static org.apache.beam.sdk.io.gcp.testing.BigtableUtils.doubleToByteArray;
 
 import com.google.bigtable.v2.Cell;
 import com.google.bigtable.v2.Column;
@@ -30,11 +31,48 @@ import com.google.bigtable.v2.Family;
 import com.google.bigtable.v2.Mutation;
 import com.google.protobuf.ByteString;
 import java.util.List;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Longs;
 
-public class TestUtils {
+class BigtableTestUtils {
+
+  static final String BOOL_COLUMN = "boolColumn";
+  static final String LONG_COLUMN = "longColumn";
+  static final String STRING_COLUMN = "stringColumn";
+  static final String DOUBLE_COLUMN = "doubleColumn";
+  static final String FAMILY_TEST = "familyTest";
+
+  static final Schema LONG_COLUMN_SCHEMA =
+      Schema.builder()
+          .addInt64Field(VALUE)
+          .addInt64Field(TIMESTAMP_MICROS)
+          .addArrayField(LABELS, Schema.FieldType.STRING)
+          .build();
+
+  static final Schema TEST_FAMILY_SCHEMA =
+      Schema.builder()
+          .addBooleanField(BOOL_COLUMN)
+          .addRowField(LONG_COLUMN, LONG_COLUMN_SCHEMA)
+          .addArrayField(STRING_COLUMN, Schema.FieldType.STRING)
+          .addDoubleField(DOUBLE_COLUMN)
+          .build();
+
+  static final Schema TEST_SCHEMA =
+      Schema.builder().addStringField(KEY).addRowField(FAMILY_TEST, TEST_FAMILY_SCHEMA).build();
+
+  static final Schema TEST_FLAT_SCHEMA =
+      Schema.builder()
+          .addStringField(KEY)
+          .addBooleanField(BOOL_COLUMN)
+          .addInt64Field(LONG_COLUMN)
+          .addStringField(STRING_COLUMN)
+          .addDoubleField(DOUBLE_COLUMN)
+          .build();
+
+  static final long NOW = 5_000_000_000L;
+  static final long LATER = NOW + 1_000L;
 
   static com.google.bigtable.v2.Row bigtableRow(long i) {
     return com.google.bigtable.v2.Row.newBuilder()

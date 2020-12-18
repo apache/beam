@@ -49,6 +49,9 @@ import org.apache.samza.system.SystemStreamPartition;
  * into messages according to the {@link org.apache.beam.sdk.testing.TestStream.EventType} of the
  * events.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SamzaTestStreamSystemFactory implements SystemFactory {
   @Override
   public SystemConsumer getConsumer(String systemName, Config config, MetricsRegistry registry) {

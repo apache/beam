@@ -56,6 +56,9 @@ import org.slf4j.LoggerFactory;
  *
  * @param <OutT> output type of the {@link DoFnOp}
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BundleManager<OutT> {
   private static final Logger LOG = LoggerFactory.getLogger(BundleManager.class);
   private static final long MIN_BUNDLE_CHECK_TIME_MS = 10L;

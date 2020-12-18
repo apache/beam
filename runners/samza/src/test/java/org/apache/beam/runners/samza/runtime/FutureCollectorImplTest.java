@@ -34,7 +34,7 @@ import org.junit.Test;
 /** Unit tests for {@linkplain org.apache.beam.runners.samza.runtime.DoFnOp.FutureCollectorImpl}. */
 public final class FutureCollectorImplTest {
   private static final List<String> RESULTS = ImmutableList.of("hello", "world");
-  private FutureCollector<String> futureCollector;
+  private FutureCollector<String> futureCollector = new DoFnOp.FutureCollectorImpl<>();
 
   @Before
   public void setup() {

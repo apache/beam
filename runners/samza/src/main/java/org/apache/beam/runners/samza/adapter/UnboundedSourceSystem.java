@@ -269,7 +269,6 @@ public class UnboundedSourceSystem {
       private final FnWithMetricsWrapper metricsWrapper;
 
       private volatile boolean running;
-      private volatile boolean maxWatermarkReached = false;
       private volatile Exception lastException;
       private long lastWatermarkTime = 0L;
 
@@ -305,7 +304,7 @@ public class UnboundedSourceSystem {
             }
           }
 
-          while (running && !maxWatermarkReached) {
+          while (running) {
             boolean elementAvailable = false;
             for (UnboundedReader reader : readers) {
               final boolean hasData = invoke(reader::advance);
@@ -365,7 +364,6 @@ public class UnboundedSourceSystem {
       private void updateWatermark() throws InterruptedException {
         final long time = System.currentTimeMillis();
         if (time - lastWatermarkTime > watermarkInterval) {
-          long watermarkMillis = Long.MAX_VALUE;
           for (UnboundedReader reader : readers) {
             final SystemStreamPartition ssp = readerToSsp.get(reader);
             final Instant currentWatermark =
@@ -373,9 +371,6 @@ public class UnboundedSourceSystem {
                     ? currentWatermarks.get(ssp)
                     : BoundedWindow.TIMESTAMP_MIN_VALUE;
             final Instant nextWatermark = reader.getWatermark();
-            if (nextWatermark != null) {
-              watermarkMillis = Math.min(nextWatermark.getMillis(), watermarkMillis);
-            }
             if (currentWatermark.isBefore(nextWatermark)) {
               currentWatermarks.put(ssp, nextWatermark);
               if (BoundedWindow.TIMESTAMP_MAX_VALUE.isAfter(nextWatermark)) {
@@ -383,14 +378,12 @@ public class UnboundedSourceSystem {
               } else {
                 // Max watermark has been reached for this reader.
                 enqueueMaxWatermarkAndEndOfStream(reader);
+                running = false;
               }
             }
           }
 
           lastWatermarkTime = time;
-          if (watermarkMillis == BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()) {
-            maxWatermarkReached = true;
-          }
         }
       }
 

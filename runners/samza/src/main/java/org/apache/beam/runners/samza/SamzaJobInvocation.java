@@ -34,6 +34,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Invocation of a Samza job via {@link SamzaRunner}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SamzaJobInvocation extends JobInvocation {
   private static final Logger LOG = LoggerFactory.getLogger(SamzaJobInvocation.class);
 
