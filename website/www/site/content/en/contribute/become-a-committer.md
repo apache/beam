@@ -40,7 +40,7 @@ The [PMC](https://www.apache.org/foundation/how-it-works.html#pmc-members) makes
 {{< contributor/list_with_icons >}}
 </br>
 
-### What are the traits of an Apache Beam committer?
+### What are the traits of an Apache Beam Committer?
 
 {{< contributor/row_of_traits >}}
 </br>
