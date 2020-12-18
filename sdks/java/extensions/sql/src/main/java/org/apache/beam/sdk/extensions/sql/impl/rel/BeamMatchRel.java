@@ -462,4 +462,26 @@ public class BeamMatchRel extends Match implements BeamRelNode {
         orderKeys,
         interval);
   }
+
+  @Override
+  public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
+    // FIXME: THIS IS PROBABLY WRONG
+    return new BeamMatchRel(
+            getCluster(),
+            traitSet,
+            input,
+            rowType,
+            pattern,
+            strictStart,
+            strictEnd,
+            patternDefinitions,
+            measures,
+            after,
+            subsets,
+            allRows,
+            partitionKeys,
+            orderKeys,
+            interval);
+  }
+
 }
