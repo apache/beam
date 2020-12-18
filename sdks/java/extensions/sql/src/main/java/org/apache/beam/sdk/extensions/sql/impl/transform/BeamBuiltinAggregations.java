@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 package org.apache.beam.sdk.extensions.sql.impl.transform;
+
 import org.apache.beam.sdk.coders.BigDecimalCoder;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -435,15 +436,15 @@ public class BeamBuiltinAggregations {
     }
   }
 
-  public  static CombineFn createBitXOr(Schema.FieldType fieldType) {
+  public static CombineFn createBitXOr(Schema.FieldType fieldType) {
     if (fieldType.getTypeName() == TypeName.INT64) {
       return new BitXOr();
     }
-    throw new UnsupportedOperationException(String.format("[%s] is not supported in BIT_XOR", fieldType));
+    throw new UnsupportedOperationException(
+        String.format("[%s] is not supported in BIT_XOR", fieldType));
   }
 
   public static class BitXOr extends CombineFn<Long, Long, Long> {
-
 
     @Override
     public Long createAccumulator() {
@@ -454,7 +455,7 @@ public class BeamBuiltinAggregations {
     public Long addInput(Long mutableAccumulator, Long input) {
       if (input != null) {
         return mutableAccumulator ^ input;
-      }else {
+      } else {
         return 0L;
       }
     }
@@ -473,5 +474,4 @@ public class BeamBuiltinAggregations {
       return accumulator;
     }
   }
-
 }
