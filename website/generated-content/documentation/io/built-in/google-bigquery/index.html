@@ -247,10 +247,10 @@ in the following example:</p><div class=language-java><div class=highlight><pre 
 allows you to directly access tables in BigQuery storage, and supports features
 such as column selection and predicate filter push-down which can allow more
 efficient pipeline execution.</p><p>The Beam SDK for Java supports using the BigQuery Storage API when reading from
-BigQuery. SDK versions before 2.24.0 support the BigQuery Storage API as an
+BigQuery. SDK versions before 2.25.0 support the BigQuery Storage API as an
 <a href=https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/annotations/Experimental.html>experimental feature</a>
 and use the pre-GA BigQuery Storage API surface. Callers should migrate
-pipelines which use the BigQuery Storage API to use SDK version 2.24.0 or later.</p><p>The Beam SDK for Python does not support the BigQuery Storage API. See
+pipelines which use the BigQuery Storage API to use SDK version 2.25.0 or later.</p><p>The Beam SDK for Python does not support the BigQuery Storage API. See
 <a href=https://issues.apache.org/jira/browse/BEAM-10917>BEAM-10917</a>).</p><h4 id=updating-your-code>Updating your code</h4><p>Use the following methods when you read from a table:</p><ul><li>Required: Specify <a href=https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.TypedRead.html#withMethod-org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method->withMethod(Method.DIRECT_READ)</a> to use the BigQuery Storage API for the read operation.</li><li>Optional: To use features such as <a href=https://cloud.google.com/bigquery/docs/reference/storage/>column projection and column filtering</a>, you must specify <a href=https://beam.apache.org/releases/javadoc/2.17.0/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.TypedRead.html#withSelectedFields-java.util.List->withSelectedFields</a> and <a href=https://beam.apache.org/releases/javadoc/2.17.0/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.TypedRead.html#withRowRestriction-java.lang.String->withRowRestriction</a> respectively.</li></ul><p>The following code snippet reads from a table. This example is from the <a href=https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/cookbook/BigQueryTornadoes.java>BigQueryTornadoes
 example</a>.
 When the example&rsquo;s read method option is set to <code>DIRECT_READ</code>, the pipeline uses
