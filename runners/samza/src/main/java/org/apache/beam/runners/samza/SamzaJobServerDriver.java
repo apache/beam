@@ -18,17 +18,18 @@
 package org.apache.beam.runners.samza;
 
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.ServerFactory;
-import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.jobsubmission.InMemoryJobService;
 import org.apache.beam.runners.jobsubmission.JobInvocation;
 import org.apache.beam.runners.jobsubmission.JobInvoker;
+import org.apache.beam.sdk.expansion.service.ExpansionServer;
+import org.apache.beam.sdk.expansion.service.ExpansionService;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListeningExecutorService;
@@ -37,7 +38,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Driver program that starts a job server. */
-// TODO extend JobServerDriver
+// TODO(BEAM-8510): extend JobServerDriver
 @SuppressWarnings({
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
@@ -46,7 +47,7 @@ public class SamzaJobServerDriver {
 
   private final SamzaPortablePipelineOptions pipelineOptions;
 
-  private SamzaJobServerDriver(SamzaPortablePipelineOptions pipelineOptions) {
+  protected SamzaJobServerDriver(SamzaPortablePipelineOptions pipelineOptions) {
     this.pipelineOptions = pipelineOptions;
   }
 
@@ -65,12 +66,13 @@ public class SamzaJobServerDriver {
     overrideConfig.put(
         SamzaRunnerOverrideConfigs.FN_CONTROL_PORT,
         String.valueOf(pipelineOptions.getControlPort()));
+    overrideConfig.put(SamzaRunnerOverrideConfigs.FS_TOKEN_PATH, pipelineOptions.getFsTokenPath());
+
     pipelineOptions.setConfigOverride(overrideConfig);
     return new SamzaJobServerDriver(pipelineOptions);
   }
 
-  private static InMemoryJobService createJobService(SamzaPortablePipelineOptions pipelineOptions)
-      throws IOException {
+  private InMemoryJobService createJobService() throws IOException {
     JobInvoker jobInvoker =
         new JobInvoker("samza-job-invoker") {
           @Override
@@ -80,16 +82,7 @@ public class SamzaJobServerDriver {
               @Nullable String retrievalToken,
               ListeningExecutorService executorService)
               throws IOException {
-            String invocationId =
-                String.format("%s_%s", pipelineOptions.getJobName(), UUID.randomUUID().toString());
-            SamzaPipelineRunner pipelineRunner = new SamzaPipelineRunner(pipelineOptions);
-            JobInfo jobInfo =
-                JobInfo.create(
-                    invocationId,
-                    pipelineOptions.getJobName(),
-                    retrievalToken,
-                    PipelineOptionsTranslation.toProto(pipelineOptions));
-            return new JobInvocation(jobInfo, executorService, pipeline, pipelineRunner);
+            return new SamzaJobInvocation(pipeline, pipelineOptions);
           }
         };
     return InMemoryJobService.create(
@@ -100,17 +93,46 @@ public class SamzaJobServerDriver {
         InMemoryJobService.DEFAULT_MAX_INVOCATION_HISTORY);
   }
 
+  private ExpansionServer createExpansionService(String host, int expansionPort)
+      throws IOException {
+    if (host == null) {
+      host = InetAddress.getLoopbackAddress().getHostName();
+    }
+    ExpansionServer expansionServer =
+        ExpansionServer.create(new ExpansionService(), host, expansionPort);
+    LOG.info(
+        "Java ExpansionService started on {}:{}",
+        expansionServer.getHost(),
+        expansionServer.getPort());
+    return expansionServer;
+  }
+
   public void run() throws Exception {
-    final InMemoryJobService service = createJobService(pipelineOptions);
+    // Create services
+    final InMemoryJobService service = createJobService();
     final GrpcFnServer<InMemoryJobService> jobServiceGrpcFnServer =
         GrpcFnServer.allocatePortAndCreateFor(
             service, ServerFactory.createWithPortSupplier(pipelineOptions::getJobPort));
-    LOG.info("JobServer started on {}", jobServiceGrpcFnServer.getApiServiceDescriptor().getUrl());
+    final String jobServerUrl = jobServiceGrpcFnServer.getApiServiceDescriptor().getUrl();
+    LOG.info("JobServer started on {}", jobServerUrl);
+    final URI uri = new URI(jobServerUrl);
+    final ExpansionServer expansionServer =
+        createExpansionService(uri.getHost(), pipelineOptions.getExpansionPort());
+
     try {
       jobServiceGrpcFnServer.getServer().awaitTermination();
     } finally {
       LOG.info("JobServer closing");
       jobServiceGrpcFnServer.close();
+      if (expansionServer != null) {
+        try {
+          expansionServer.close();
+          LOG.info(
+              "Expansion stopped on {}:{}", expansionServer.getHost(), expansionServer.getPort());
+        } catch (Exception e) {
+          LOG.error("Error while closing the Expansion Service.", e);
+        }
+      }
     }
   }
 }
