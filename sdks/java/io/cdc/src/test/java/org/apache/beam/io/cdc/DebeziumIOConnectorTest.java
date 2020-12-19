@@ -28,8 +28,23 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+/**
+ * DebeziumIO Tester
+ *
+ * <p>
+ *     Tests the three different Connectors.
+ *     Requires each environment (MySQL, PostgreSQL, SQLServer) already set up.
+ * </p>
+ */
 @RunWith(JUnit4.class)
 public class DebeziumIOConnectorTest {
+    /**
+     * Debezium - MySQL connector Test
+     *
+     * <p>
+     *     Tests that connector can actually connect to the database
+     * </p>
+     */
   @Test
   public void testDebeziumIOMySql() {
 	  PipelineOptions options = PipelineOptionsFactory.create();
@@ -51,7 +66,14 @@ public class DebeziumIOConnectorTest {
 
 	  p.run().waitUntilFinish();
   }
-  
+
+    /**
+     * Debezium - PostgreSQL connector Test
+     *
+     * <p>
+     *     Tests that connector can actually connect to the database
+     * </p>
+     */
     @Test
     public void testDebeziumIOPostgreSql() {
         PipelineOptions options = PipelineOptionsFactory.create();
@@ -75,6 +97,13 @@ public class DebeziumIOConnectorTest {
         p.run().waitUntilFinish();
     }
 
+    /**
+     * Debezium - SQLServer connector Test
+     *
+     * <p>
+     *     Tests that connector can actually connect to the database
+     * </p>
+     */
     @Test
     public void testDebeziumIOSqlSever() {
         PipelineOptions options = PipelineOptionsFactory.create();

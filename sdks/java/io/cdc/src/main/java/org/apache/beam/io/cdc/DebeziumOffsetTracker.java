@@ -25,6 +25,9 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 
+/**
+ * {@link RestrictionTracker} for Debezium connectors
+ */
 public class DebeziumOffsetTracker extends RestrictionTracker<DebeziumOffsetHolder, Map<String, Object>> {
     private static final Logger LOG = LoggerFactory.getLogger(DebeziumOffsetTracker.class);
 
@@ -35,6 +38,18 @@ public class DebeziumOffsetTracker extends RestrictionTracker<DebeziumOffsetHold
         this.restriction = holder;
     }
 
+    /**
+     * Overriding {@link #tryClaim} in order to stop fetching records from the database.
+     *
+     * <p>Currently this works time-based:</p>
+     * </p>
+     * User may specify the amount of time the connector to be kept alive.
+     * Please see {@link KafkaSourceConsumerFn} for more details on this.
+     * </p>
+     *
+     * @param position Currently not used
+     * @return boolean
+     */
     @Override
     public boolean tryClaim(Map<String, Object> position) {
         LOG.info("-------------- Claiming {} used to have: {}", position, restriction.offset);
@@ -46,7 +61,7 @@ public class DebeziumOffsetTracker extends RestrictionTracker<DebeziumOffsetHold
         }
         return elapsedTime < (KafkaSourceConsumerFn.minutesToRun * MILLIS);
     }
-
+    
     @Override
     public DebeziumOffsetHolder currentRestriction() {
         return restriction;
