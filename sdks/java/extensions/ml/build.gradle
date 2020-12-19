@@ -32,9 +32,14 @@ dependencies {
     compile project(path: ":sdks:java:core", configuration: "shadow")
     compile project(":sdks:java:expansion-service")
     permitUnusedDeclared project(":sdks:java:expansion-service") // BEAM-11761
+    compile group: 'com.google.http-client', name: 'google-http-client', version: '1.38.0'
+    compile group: 'com.google.api-client', name: 'google-api-client', version: '1.31.1'
+    compile 'com.google.cloud:google-cloud-recommendations-ai:0.3.7'
     compile 'com.google.cloud:google-cloud-video-intelligence:1.2.0'
     compile 'com.google.cloud:google-cloud-dlp:1.1.4'
     compile 'com.google.cloud:google-cloud-language:1.99.4'
+    compile group: 'com.google.protobuf', name: 'protobuf-java-util', version: '3.14.0'
+    compile group: 'org.json', name: 'json', version: '20201115'
     compile 'com.google.api.grpc:proto-google-cloud-dlp-v2:1.1.4'
     compile 'com.google.api.grpc:proto-google-cloud-language-v1:1.81.4'
     compile 'com.google.api.grpc:proto-google-cloud-video-intelligence-v1:1.2.0'
@@ -47,6 +52,12 @@ dependencies {
     testCompile project(path: ':sdks:java:core', configuration: 'shadowTest')
     compile 'com.google.cloud:google-cloud-vision:1.99.3'
     testCompile library.java.mockito_core
+    testCompile group: 'com.google.http-client', name: 'google-http-client', version: '1.38.0'
+    testCompile group: 'com.google.protobuf', name: 'protobuf-java-util', version: '3.14.0'
+    testCompile group: 'org.json', name: 'json', version: '20201115'
+    testCompile 'com.google.cloud:google-cloud-recommendations-ai:0.3.7'
+    testCompile 'com.google.cloud:google-cloud-video-intelligence:1.2.0'
+    testCompile 'com.google.cloud:google-cloud-dlp:1.1.4'
     testCompile project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntime")
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
     testRuntimeOnly project(":runners:google-cloud-dataflow-java")
