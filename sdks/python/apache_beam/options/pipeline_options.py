@@ -414,13 +414,30 @@ class StandardOptions(PipelineOptions):
 
   DEFAULT_RUNNER = 'DirectRunner'
 
+  ALL_KNOWN_RUNNERS = (
+      'apache_beam.runners.dataflow.dataflow_runner.DataflowRunner',
+      'apache_beam.runners.direct.direct_runner.BundleBasedDirectRunner',
+      'apache_beam.runners.direct.direct_runner.DirectRunner',
+      'apache_beam.runners.direct.direct_runner.SwitchingDirectRunner',
+      'apache_beam.runners.interactive.interactive_runner.InteractiveRunner',
+      'apache_beam.runners.portability.flink_runner.FlinkRunner',
+      'apache_beam.runners.portability.portable_runner.PortableRunner',
+      'apache_beam.runners.portability.spark_runner.SparkRunner',
+      'apache_beam.runners.test.TestDirectRunner',
+      'apache_beam.runners.test.TestDataflowRunner',
+  )
+
+  KNOWN_RUNNER_NAMES = [path.split('.')[-1] for path in ALL_KNOWN_RUNNERS]
+
   @classmethod
   def _add_argparse_args(cls, parser):
     parser.add_argument(
         '--runner',
         help=(
             'Pipeline runner used to execute the workflow. Valid values are '
-            'DirectRunner, DataflowRunner.'))
+            'one of %s, or the fully qualified name of a PipelineRunner '
+            'subclass. If unspecified, defaults to %s.' %
+            (', '.join(cls.KNOWN_RUNNER_NAMES), cls.DEFAULT_RUNNER)))
     # Whether to enable streaming mode.
     parser.add_argument(
         '--streaming',
