@@ -25,6 +25,7 @@ class S3Input(PTransform):
     self.events = []
     self.s3_config = S3Config(None, None)
     self.source_name = 'S3_' + self._get_random_source_name()
+    self.app_env = "production"
 
   def expand(self, pbegin):
     assert isinstance(pbegin, PBegin), (
@@ -49,6 +50,16 @@ class S3Input(PTransform):
     self.source_name = source_name
     return self
 
+  def with_app_environment(self, app_env):
+    """
+    Add the application environment.
+    Will be used to connect to the appropriate S3 buckets
+    staging or prod.
+    Defaults to production
+    """
+    self.app_env = app_env
+    return self
+
   @staticmethod
   @PTransform.register_urn("lyft:flinkS3Input", None)
   def from_runner_api_parameter(_unused_ptransform, spec_parameter, _unused_context):
@@ -56,6 +67,7 @@ class S3Input(PTransform):
     instance = S3Input()
     payload = json.loads(spec_parameter)
     instance.source_name = payload['source_name']
+    instance.app_env = payload['app_env']
     s3_config_dict = payload['s3']
     instance.s3_config = S3Config(
         parallelism=s3_config_dict.get('parallelism', None),
@@ -81,6 +93,7 @@ class S3Input(PTransform):
 
     json_map = {
       'source_name': self.source_name,
+      'app_env': self.app_env,
       's3': {
         'parallelism': self.s3_config.parallelism,
         'lookback_hours': self.s3_config.lookback_hours

@@ -395,6 +395,7 @@ public class LyftFlinkStreamingPortableTranslations {
       JsonNode params = mapper.readTree(pTransform.getSpec().getPayload().toByteArray());
       Map<?, ?> jsonMap = mapper.convertValue(params, Map.class);
       String sourceName = (String) jsonMap.get("source_name");
+      String appEnv = (String) jsonMap.get("app_env");
       Preconditions.checkNotNull(sourceName, "Source name has to be set");
       Map<String, JsonNode> userKinesisConfig =
           mapper.convertValue(
@@ -419,7 +420,7 @@ public class LyftFlinkStreamingPortableTranslations {
               .withSourceName(sourceName)
               .build();
 
-      KinesisAndS3EventSource source = new KinesisAndS3EventSource();
+      KinesisAndS3EventSource source = new KinesisAndS3EventSource(appEnv);
       StreamExecutionEnvironment environment = context.getExecutionEnvironment();
       Map<String, DataStream<Event>> eventStreams =
           source.getEventStreams(environment, sourceContext);
@@ -457,6 +458,7 @@ public class LyftFlinkStreamingPortableTranslations {
       JsonNode params = mapper.readTree(pTransform.getSpec().getPayload().toByteArray());
       Map<?, ?> jsonMap = mapper.convertValue(params, Map.class);
       String sourceName = (String) jsonMap.get("source_name");
+      String appEnv = (String) jsonMap.get("app_env");
       Preconditions.checkNotNull(sourceName, "Source name has to be set");
 
       Map<String, JsonNode> userS3Config =
@@ -476,7 +478,7 @@ public class LyftFlinkStreamingPortableTranslations {
               .withSourceName(sourceName)
               .build();
 
-      S3EventSource source = new S3EventSource();
+      S3EventSource source = new S3EventSource(appEnv);
       StreamExecutionEnvironment environment = context.getExecutionEnvironment();
       Map<String, DataStream<Event>> eventStreams =
           source.getEventStreams(environment, sourceContext);
