@@ -89,6 +89,7 @@ __all__ = [
     'PickleCoder',
     'ProtoCoder',
     'SingletonCoder',
+    'ShardedKeyCoder',
     'StrUtf8Coder',
     'TimestampCoder',
     'TupleCoder',
@@ -1484,6 +1485,21 @@ class ShardedKeyCoder(FastCoder):
             self._key_coder.as_cloud_object(coders_context)
         ],
     }
+
+  def to_type_hint(self):
+    from apache_beam.typehints import sharded_key_type
+    return sharded_key_type.ShardedKeyTypeConstraint(
+        self._key_coder.to_type_hint())
+
+  @staticmethod
+  def from_type_hint(typehint, registry):
+    from apache_beam.typehints import sharded_key_type
+    if isinstance(typehint, sharded_key_type.ShardedKeyTypeConstraint):
+      return ShardedKeyCoder(registry.get_coder(typehint.key_type))
+    else:
+      raise ValueError((
+          'Expected an instance of ShardedKeyTypeConstraint'
+          ', but got a %s' % typehint))
 
   def __eq__(self, other):
     return type(self) == type(other) and self._key_coder == other._key_coder
