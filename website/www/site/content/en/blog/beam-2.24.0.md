@@ -4,7 +4,7 @@ date:   2020-09-18 00:00:01 -0800
 categories:
   - blog
 authors:
-  - Daniel Oliveira
+  - danoliveira
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

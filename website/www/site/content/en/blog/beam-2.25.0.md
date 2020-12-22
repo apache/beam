@@ -4,7 +4,7 @@ date:   2020-10-23 14:00:00 -0800
 categories:
   - blog
 authors:
-  - Robin Qiu
+  - robinyq
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

@@ -4,7 +4,7 @@ date:   2020-07-29 00:00:01 -0800
 categories:
   - blog
 authors:
-  - Valentyn Tymofieiev
+  - tvalentyn
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
