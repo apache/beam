@@ -72,6 +72,7 @@ class S3AndKinesisInput(PTransform):
         self.kinesis_properties = {'aws.region': 'us-east-1'}
         self.stream_start_mode = S3AndKinesisInput.DEFAULT_START_MODE
         self.kinesis_parallelism = S3AndKinesisInput.DEFAULT_KINESIS_PARALLELISM
+        self.app_env = "production"
 
     def expand(self, pbegin):
         assert isinstance(pbegin, PBegin), (
@@ -83,6 +84,16 @@ class S3AndKinesisInput(PTransform):
 
     def infer_output_type(self, unused_input_type):
         return bytes
+
+    def with_app_environment(self, app_env):
+        """
+        Add the application environment.
+        Will be used to connect to the appropriate S3 buckets
+        staging or prod.
+        Defaults to production
+        """
+        self.app_env = app_env
+        return self
 
     def with_event_config(self, event_config):
         """
@@ -133,6 +144,7 @@ class S3AndKinesisInput(PTransform):
         instance = S3AndKinesisInput()
         payload = json.loads(spec_parameter)
         instance.source_name = payload['source_name']
+        instance.app_env = payload['app_env']
         s3_config_dict = payload['s3']
 
         lookback_threshold_hours=s3_config_dict.get('lookback_threshold_hours', S3Config.DEFAULT_LOOKBACK_THRESHOLD_HOURS)
@@ -173,6 +185,7 @@ class S3AndKinesisInput(PTransform):
 
         json_map = {
             'source_name': self.source_name,
+            'app_env': self.app_env,
             'kinesis': {
                 'stream': self.stream_name,
                 'properties': self.kinesis_properties,
