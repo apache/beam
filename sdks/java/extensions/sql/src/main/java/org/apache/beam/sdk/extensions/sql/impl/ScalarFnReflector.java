@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.zetasql.translation.impl;
+package org.apache.beam.sdk.extensions.sql.impl;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -24,8 +24,8 @@ import java.util.Collection;
 import org.apache.beam.sdk.extensions.sql.udf.ScalarFn;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 
-/** Implementation logic for {@link ScalarFn}. */
-public class ScalarFnImpl {
+/** Reflection-based implementation logic for {@link ScalarFn}. */
+public class ScalarFnReflector {
   /**
    * Gets the method annotated with {@link
    * org.apache.beam.sdk.extensions.sql.udf.ScalarFn.ApplyMethod} from {@code scalarFn}.

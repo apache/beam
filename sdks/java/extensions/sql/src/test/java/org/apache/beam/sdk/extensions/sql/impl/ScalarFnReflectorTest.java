@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.zetasql.translation.impl;
+package org.apache.beam.sdk.extensions.sql.impl;
 
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
@@ -30,16 +30,16 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Tests for {@link ScalarFnImpl}. */
+/** Tests for {@link ScalarFnReflector}. */
 @RunWith(JUnit4.class)
-public class ScalarFnImplTest {
+public class ScalarFnReflectorTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   @SuppressWarnings("nullness") // If result is null, test will fail as expected.
   public void testGetApplyMethod() throws InvocationTargetException, IllegalAccessException {
     IncrementFn incrementFn = new IncrementFn();
-    Method method = ScalarFnImpl.getApplyMethod(incrementFn);
+    Method method = ScalarFnReflector.getApplyMethod(incrementFn);
     @Nullable Object result = method.invoke(incrementFn, Long.valueOf(24L));
     assertEquals(Long.valueOf(25L), result);
   }
@@ -47,7 +47,7 @@ public class ScalarFnImplTest {
   @Test
   @SuppressWarnings("nullness") // If result is null, test will fail as expected.
   public void testGetApplyMethodStatic() throws InvocationTargetException, IllegalAccessException {
-    Method method = ScalarFnImpl.getApplyMethod(new IncrementFnWithStaticMethod());
+    Method method = ScalarFnReflector.getApplyMethod(new IncrementFnWithStaticMethod());
     @Nullable Object result = method.invoke(null, Long.valueOf(24L));
     assertEquals(Long.valueOf(25L), result);
   }
@@ -56,14 +56,14 @@ public class ScalarFnImplTest {
   public void testMissingAnnotationThrowsIllegalArgumentException() {
     thrown.expect(instanceOf(IllegalArgumentException.class));
     thrown.expectMessage("No method annotated with @ApplyMethod found in class");
-    ScalarFnImpl.getApplyMethod(new IncrementFnMissingAnnotation());
+    ScalarFnReflector.getApplyMethod(new IncrementFnMissingAnnotation());
   }
 
   @Test
   public void testNonPublicMethodThrowsIllegalArgumentException() {
     thrown.expect(instanceOf(IllegalArgumentException.class));
     thrown.expectMessage("not public");
-    ScalarFnImpl.getApplyMethod(new IncrementFnWithProtectedMethod());
+    ScalarFnReflector.getApplyMethod(new IncrementFnWithProtectedMethod());
   }
 
   static class IncrementFn extends ScalarFn {
