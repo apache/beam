@@ -147,7 +147,7 @@
           {{ partial "quotes/quote.html" (dict "icon" $quote.icon "text" $quote.text  "logoUrl" $quote.logoUrl) }}
       {{ end }}
     </div>
-    
+
     {{/*
       The id "my-keen-slider" and "dots" should be named as defaults to make the external library (Keen Slider) works well
     */}}
@@ -177,18 +177,18 @@
 {{ end }}
 
 {{ define "ctas-section" }}
-  <div class="ctas section">
-    <div class="ctas__title">
-      {{ T "home-ctas-title" }}
-    </div>
-    <div class="ctas__ctas ctas__ctas--top">
-    <a class="button button--primary" href={{ "/get-started/beam-overview/" | relLangURL }}>{{ T "home-learn-more" }}</a>
-    <a class="button button--primary" href={{ "/get-started/downloads/" | relLangURL }}>{{ T "home-download-beam" . }}</a>
-    </div>
-    <div class="ctas__ctas">
-    <a class="button" href={{ "/get-started/quickstart-java/" | relLangURL }}>{{ T "home-java-quickstart" }}</a>
-    <a class="button" href={{ "/get-started/quickstart-py/" | relLangURL }}>{{ T "home-python-quickstart" }}</a>
-    <a class="button" href={{ "/get-started/quickstart-go/" | relLangURL }}>{{ T "home-go-quickstart" }}</a>
-    </div>
+<div class="ctas">
+  <div class='ctas_row'>
+    <a class="ctas_button" href={{ "/get-started/beam-overview/" | relLangURL }}><i class="fas fa-info-circle"></i> {{ T "home-learn-more" }}</a>
   </div>
+  <div class='ctas_row'>
+    <a class="ctas_button" href={{ "/get-started/quickstart-java/" | relLangURL }}>{{ T "home-java-quickstart" }}</a>
+  </div>
+  <div class='ctas_row'>
+    <a class="ctas_button" href={{ "/get-started/quickstart-py/" | relLangURL }}>{{ T "home-python-quickstart" }}</a>
+  </div>
+  <div class='ctas_row'>
+    <a class="ctas_button" href={{ "/get-started/quickstart-go/" | relLangURL }}>{{ T "home-go-quickstart" }}</a>
+  </div>
+</div>
 {{ end }}

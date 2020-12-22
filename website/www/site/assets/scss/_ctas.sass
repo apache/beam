@@ -15,14 +15,55 @@
  *  limitations under the License.
  */
 
+
 .ctas
-  text-align: center
-  margin: $pad-xl 0
+  display: flex
+  justify-content: center
+  align-items: center
+  width: 100%
+  height: 96px
+  position: sticky
+  z-index: 1050
+  box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.06)
+  background-color: #ffffff
+  margin-top: -5px
 
-  .ctas__ctas
-    &--top
-      margin-bottom: $pad
+  @media (max-width: $ak-breakpoint-lg)
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    width: auto;
+    justify-content: flex-start
+    top: calc(100% - 96px)
 
-  .ctas__title
-    +type-h2
-    margin-bottom: $pad
+
+
+  &_row
+    margin: 0 0 0 90px
+    max-width: 184px;
+    @media (max-width: $ak-breakpoint-lg)
+      margin: 0 0 0 24px
+
+  &_button
+    width: 184px
+    height: 46px
+    border-radius: 100px
+    background-color: #f26628
+    font-size: 14px
+    font-weight: bold
+    line-height: normal
+    letter-spacing: 0.39px
+    color: #ffffff
+    text-transform: uppercase
+    display: flex
+    align-items: center
+    justify-content: center
+
+    i
+      margin-right: 12px
+
+    &:hover
+      text-decoration: none
+      color: #ffffff
+
+.to-bottom
+    top: calc(100% - 96px)
