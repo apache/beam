@@ -45,6 +45,14 @@ public class ScalarFnImplTest {
   }
 
   @Test
+  @SuppressWarnings("nullness") // If result is null, test will fail as expected.
+  public void testGetApplyMethodStatic() throws InvocationTargetException, IllegalAccessException {
+    Method method = ScalarFnImpl.getApplyMethod(new IncrementFnWithStaticMethod());
+    @Nullable Object result = method.invoke(null, Long.valueOf(24L));
+    assertEquals(Long.valueOf(25L), result);
+  }
+
+  @Test
   public void testMissingAnnotationThrowsIllegalArgumentException() {
     thrown.expect(instanceOf(IllegalArgumentException.class));
     thrown.expectMessage("No method annotated with @ApplyMethod found in class");
@@ -58,16 +66,16 @@ public class ScalarFnImplTest {
     ScalarFnImpl.getApplyMethod(new IncrementFnWithProtectedMethod());
   }
 
-  @Test
-  public void testStaticMethodThrowsIllegalArgumentException() {
-    thrown.expect(instanceOf(IllegalArgumentException.class));
-    thrown.expectMessage("must not be static");
-    ScalarFnImpl.getApplyMethod(new IncrementFnWithStaticMethod());
-  }
-
   static class IncrementFn extends ScalarFn {
     @ApplyMethod
     public Long increment(Long i) {
+      return i + 1;
+    }
+  }
+
+  static class IncrementFnWithStaticMethod extends ScalarFn {
+    @ApplyMethod
+    public static Long increment(Long i) {
       return i + 1;
     }
   }
@@ -81,13 +89,6 @@ public class ScalarFnImplTest {
   static class IncrementFnWithProtectedMethod extends ScalarFn {
     @ApplyMethod
     protected Long increment(Long i) {
-      return i + 1;
-    }
-  }
-
-  static class IncrementFnWithStaticMethod extends ScalarFn {
-    @ApplyMethod
-    public static Long increment(Long i) {
       return i + 1;
     }
   }

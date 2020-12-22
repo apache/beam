@@ -31,8 +31,7 @@ public class ScalarFnImpl {
    * org.apache.beam.sdk.extensions.sql.udf.ScalarFn.ApplyMethod} from {@code scalarFn}.
    *
    * <p>There must be exactly one method annotated with {@link
-   * org.apache.beam.sdk.extensions.sql.udf.ScalarFn.ApplyMethod}, and it must be public and
-   * non-static.
+   * org.apache.beam.sdk.extensions.sql.udf.ScalarFn.ApplyMethod}, and it must be public.
    */
   public static Method getApplyMethod(ScalarFn scalarFn) {
     Class<? extends ScalarFn> clazz = scalarFn.getClass();
@@ -63,14 +62,10 @@ public class ScalarFnImpl {
       }
     }
 
-    // Method must be public and non-static.
+    // Method must be public.
     if ((first.getModifiers() & Modifier.PUBLIC) == 0) {
       throw new IllegalArgumentException(
           String.format("Method %s is not public.", ReflectHelpers.formatMethod(first)));
-    }
-    if ((first.getModifiers() & Modifier.STATIC) != 0) {
-      throw new IllegalArgumentException(
-          String.format("Method %s must not be static.", ReflectHelpers.formatMethod(first)));
     }
 
     return first;
