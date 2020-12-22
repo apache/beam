@@ -36,7 +36,7 @@ from apache_beam.runners.portability import portable_runner_test
 # Run as
 #
 # pytest spark_runner_test.py[::TestClass::test_case] \
-#     --test-pipeline-options "--environment_type=LOOPBACK"
+#     --test-pipeline-options="--environment_type=LOOPBACK"
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -167,6 +167,10 @@ class SparkRunnerTest(portable_runner_test.PortableRunnerTest):
   def test_register_finalizations(self):
     # Skip until Spark runner supports bundle finalization.
     raise unittest.SkipTest("BEAM-7233")
+
+  def test_sdf_with_dofn_as_watermark_estimator(self):
+    # Skip until Spark runner supports SDF and self-checkpoint.
+    raise unittest.SkipTest("BEAM-7222")
 
   def test_flattened_side_input(self):
     # Blocked on support for transcoding

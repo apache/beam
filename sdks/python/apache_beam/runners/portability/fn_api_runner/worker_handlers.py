@@ -686,7 +686,7 @@ class EmbeddedGrpcWorkerHandler(GrpcWorkerHandler):
 
 
 # The subprocesses module is not threadsafe on Python 2.7. Use this lock to
-# prevent concurrent calls to POpen().
+# prevent concurrent calls to Popen().
 SUBPROCESS_LOCK = threading.Lock()
 
 

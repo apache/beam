@@ -23,8 +23,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import java.math.BigDecimal;
 import java.math.MathContext;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgress;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
@@ -37,7 +35,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>The smallest offset is {@code Long.MIN_VALUE} and the largest offset is {@code Long.MAX_VALUE
  * - 1}.
  */
-@Experimental(Kind.SPLITTABLE_DO_FN)
 @SuppressWarnings({
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })

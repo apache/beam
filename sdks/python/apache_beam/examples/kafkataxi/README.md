@@ -185,7 +185,5 @@ python -m apache_beam.examples.kafkataxi.kafka_taxi \
   --job_name $JOB_NAME \
   --bootstrap_servers $BOOTSTRAP_SERVER \
   --sdk_harness_container_image_overrides ".*java.*,${DOCKER_ROOT}/beam_java8_sdk:latest" \
-  --experiments=use_runner_v2 \
-  --experiments=use_unified_worker \
-  --experiments=beam_fn_api
+  --experiments=use_runner_v2
 ```

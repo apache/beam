@@ -31,6 +31,7 @@ option java_outer_classname = "MetricsApi";
 
 import "beam_runner_api.proto";
 import "google/protobuf/descriptor.proto";
+import "google/protobuf/timestamp.proto";
 
 // A specification for describing a well known MonitoringInfo.
 //
@@ -401,6 +402,18 @@ message MonitoringInfo {
   // as Stackdriver will be able to aggregate the metrics using a subset of the
   // provided labels
   map<string, string> labels = 4;
+
+  // This indicates the start of the time range over which this value was
+  // measured.
+  // This is needed by some external metric aggregation services
+  // to indicate when the reporter of the metric first began collecting the
+  // cumulative value for the timeseries.
+  // If the SDK Harness restarts, it should reset the start_time, and reset
+  // the collection of cumulative metrics (i.e. start to count again from 0).
+  // HarnessMonitoringInfos should set this start_time once, when the
+  // MonitoringInfo is first reported.
+  // ProcessBundle MonitoringInfos should set a start_time for each bundle.
+  google.protobuf.Timestamp start_time = 5;
 }
 
 // A set of well known URNs that specify the encoding and aggregation method.
