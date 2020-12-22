@@ -16,10 +16,12 @@
   translation: "Get Started"
 - id: nav-documentation
   translation: "Documentation"
+- id: nav-documentation-general
+  translation: "General"
 - id: nav-languages
   translation: "Languages"
 - id: nav-runners
-  translation: "RUNNERS"
+  translation: "Runners"
 - id: nav-roadmap
   translation: "Roadmap"
 - id: nav-contribute

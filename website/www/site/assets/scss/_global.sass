@@ -26,7 +26,6 @@ body
 .body
   background: #fff
   margin: 0 auto
-  padding-top: 130px
 
   &:not(.body--index)
     .body__contained
@@ -36,6 +35,8 @@ body
       figure
         img
           width: 100%
+    .center
+      margin: 0 auto
 
 .section
   &:not(.section--wide)
@@ -68,3 +69,7 @@ body
 .container-main-content
   padding: 0 20px
   position: relative
+  margin-top: 85px
+
+  @media (min-width: $tablet)
+    margin-top: 0
