@@ -95,7 +95,8 @@ class SdkContainerImageBuilder(plugin.BeamPlugin):
 
   def _prepare_dependencies(self):
     with tempfile.TemporaryDirectory() as tmp:
-      resources = Stager.create_job_resources(self._options, tmp)
+      artifacts = Stager.create_job_resources(self._options, tmp)
+      resources = Stager.extract_staging_tuple_iter(artifacts)
       # make a copy of the staged artifacts into the temp source folder.
       for path, name in resources:
         shutil.copyfile(path, os.path.join(self._temp_src_dir, name))
