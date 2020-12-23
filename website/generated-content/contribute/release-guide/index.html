@@ -136,53 +136,7 @@ to the Beam website, usually within an hour.</p><p><strong>PR 1: apache/beam-sit
 branch (<a href=https://github.com/apache/beam-site/pull/603>example</a>).
 It is created by <code>build_release_candidate.sh</code> (see above).</p><p><strong>PR 2: apache/beam</strong></p><p>This pull request is against the <code>apache/beam</code> repo, on the <code>master</code> branch (<a href=https://github.com/apache/beam/pull/11727>example</a>).</p><ul><li>Update release version in <code>website/www/site/config.toml</code>.</li><li>Add new release in <code>website/www/site/content/en/get-started/downloads.md</code>.<ul><li>Download links will not work until the release is finalized.</li></ul></li><li>Update <code>website/www/site/static/.htaccess</code> to redirect to the new version.</li></ul><h3 id=blog-post>Blog post</h3><p>Write a blog post similar to <a href=https://github.com/apache/beam/commit/b976e7be0744a32e99c841ad790c54920c8737f5#diff-8b1c3fd0d4a6765c16dfd18509182f9d>beam-2.23.0.md</a>.</p><ul><li>Update <code>CHANGES.md</code> by adding a new section for the next release.</li><li>Copy the changes for the current release from <code>CHANGES.md</code> to the blog post and edit as necessary.</li></ul><p><strong>Tip</strong>: Use git log to find contributors to the releases. (e.g: <code>git log --pretty='%aN' ^v2.10.0 v2.11.0 | sort | uniq</code>).
 Make sure to clean it up, as there may be duplicate or incorrect user names.</p><p><strong>NOTE</strong>: Make sure to include any breaking changes, even to <code>@Experimental</code> features,
-all major features and bug fixes, and all known issues.</p><p>Template:</p><pre><code>We are happy to present the new {$RELEASE_VERSION} release of Beam. This release includes both improvements and new functionality.
-See the [download page](/get-started/downloads/{$DOWNLOAD_ANCHOR}) for this release.
-For more information on changes in {$RELEASE_VERSION}, check out the
-[detailed release notes]({$JIRA_RELEASE_NOTES}).
-
-## Highlights
-
-  * New highly anticipated feature X added to Python SDK ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
-  * New highly anticipated feature Y added to JavaSDK ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-Y)).
-
-{$TOPICS e.g.:}
-### I/Os
-* Support for X source added (Java) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
-{$TOPICS}
-
-### New Features / Improvements
-
-* X feature added (Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
-* Y feature added (Java) [BEAM-Y](https://issues.apache.org/jira/browse/BEAM-Y).
-
-### Breaking Changes
-
-* X behavior was changed ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
-* Y behavior was changed ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-Y)).
-
-### Deprecations
-
-* X behavior is deprecated and will be removed in X versions ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
-
-### Bugfixes
-
-* Fixed X (Python) ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-X)).
-* Fixed Y (Java) ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-Y)).
-
-### Known Issues
-
-* {$KNOWN_ISSUE_1}
-* {$KNOWN_ISSUE_2}
-* See a full list of open [issues that affect](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20affectedVersion%20%3D%20{$RELEASE}%20ORDER%20BY%20priority%20DESC%2C%20updated%20DESC) this version.
-
-
-## List of Contributors
-
-According to git shortlog, the following people contributed to the {$RELEASE_VERSION} release. Thank you to all contributors!
-
-${CONTRIBUTORS}
-</code></pre><h4 id=checklist-to-proceed-to-the-next-step-1>Checklist to proceed to the next step</h4><ol><li>Maven artifacts deployed to the staging repository of <a href=https://repository.apache.org/content/repositories/>repository.apache.org</a></li><li>Source distribution deployed to the dev repository of <a href=https://dist.apache.org/repos/dist/dev/beam/>dist.apache.org</a></li><li>Website pull request proposed to list the <a href=/get-started/downloads/>release</a>, publish the <a href=https://beam.apache.org/releases/javadoc/>Java API reference manual</a>, and publish the <a href=https://beam.apache.org/releases/pydoc/>Python API reference manual</a>.</li><li>Docker images are published to <a href="https://hub.docker.com/search?q=apache%2Fbeam&type=image">DockerHub</a> with tags: {RELEASE}_rc{RC_NUM}.</li></ol><p>You can (optionally) also do additional verification by:</p><ol><li>Check that Python zip file contains the <code>README.md</code>, <code>NOTICE</code>, and <code>LICENSE</code> files.</li><li>Check hashes (e.g. <code>md5sum -c *.md5</code> and <code>sha1sum -c *.sha1</code>)</li><li>Check signatures (e.g. <code>gpg --verify apache-beam-1.2.3-python.zip.asc apache-beam-1.2.3-python.zip</code>)</li><li><code>grep</code> for legal headers in each file.</li><li>Run all jenkins suites and include links to passing tests in the voting email.</li><li>Pull docker images to make sure they are pullable.</li></ol><pre><code>docker pull {image_name}
+all major features and bug fixes, and all known issues.</p><p>Template:</p>e><h4 id=checklist-to-proceed-to-the-next-step-1>Checklist to proceed to the next step</h4><ol><li>Maven artifacts deployed to the staging repository of <a href=https://repository.apache.org/content/repositories/>repository.apache.org</a></li><li>Source distribution deployed to the dev repository of <a href=https://dist.apache.org/repos/dist/dev/beam/>dist.apache.org</a></li><li>Website pull request proposed to list the <a href=/get-started/downloads/>release</a>, publish the <a href=https://beam.apache.org/releases/javadoc/>Java API reference manual</a>, and publish the <a href=https://beam.apache.org/releases/pydoc/>Python API reference manual</a>.</li><li>Docker images are published to <a href="https://hub.docker.com/search?q=apache%2Fbeam&type=image">DockerHub</a> with tags: {RELEASE}_rc{RC_NUM}.</li></ol><p>You can (optionally) also do additional verification by:</p><ol><li>Check that Python zip file contains the <code>README.md</code>, <code>NOTICE</code>, and <code>LICENSE</code> files.</li><li>Check hashes (e.g. <code>md5sum -c *.md5</code> and <code>sha1sum -c *.sha1</code>)</li><li>Check signatures (e.g. <code>gpg --verify apache-beam-1.2.3-python.zip.asc apache-beam-1.2.3-python.zip</code>)</li><li><code>grep</code> for legal headers in each file.</li><li>Run all jenkins suites and include links to passing tests in the voting email.</li><li>Pull docker images to make sure they are pullable.</li></ol><pre><code>docker pull {image_name}
 docker pull apache/beam_python3.5_sdk:2.16.0_rc1
 </code></pre><hr><h2 id=9-vote-and-validate-release-candidate>9. Vote and validate release candidate</h2><p>Once you have built and individually reviewed the release candidate, please share it for the community-wide review. Please review foundation-wide <a href=http://www.apache.org/foundation/voting.html>voting guidelines</a> for more information.</p><p>Start the review-and-vote thread on the dev@ mailing list. Here’s an email template; please adjust as you see fit.</p><pre><code>From: Release Manager
 To: dev@beam.apache.org
