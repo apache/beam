@@ -652,10 +652,10 @@ This pull request is against the `apache/beam` repo, on the `master` branch ([ex
 
 ### Blog post
 
-Write a blog post similar to [beam-2.23.0.md](https://github.com/apache/beam/commit/b976e7be0744a32e99c841ad790c54920c8737f5#diff-8b1c3fd0d4a6765c16dfd18509182f9d).
-
+Write a blog post similar to [beam-2.23.0.md](https://github.com/apache/beam/commit/b976e7be0744a32e99c841ad790c54920c8737f5#diff-8b1c3fd0d4a6765c16dfd18509182f9d). 
 - Update `CHANGES.md` by adding a new section for the next release.
 - Copy the changes for the current release from `CHANGES.md` to the blog post and edit as necessary.
+- Be sure to add yourself to [authors.yml](https://github.com/apache/beam/blob/master/website/www/site/data/authors.yml) if necessary.
 
 __Tip__: Use git log to find contributors to the releases. (e.g: `git log --pretty='%aN' ^v2.10.0 v2.11.0 | sort | uniq`).
 Make sure to clean it up, as there may be duplicate or incorrect user names.
