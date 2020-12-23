@@ -1342,7 +1342,11 @@ message StandardArtifacts {
   enum Roles {
     // A URN for staging-to role.
     // payload: ArtifactStagingToRolePayload
-    STAGING_TO  = 0 [(beam_urn) = "beam:artifact:role:staging_to:v1"];
+    STAGING_TO        = 0 [(beam_urn) = "beam:artifact:role:staging_to:v1"];
+
+    // A URN for pypi-install-req role.
+    // payload: None
+    PYPI_INSTALL_REQ  = 1 [(beam_urn) = "beam:artifact:role:pypi_install_req:v1"];
   }
 }
 
