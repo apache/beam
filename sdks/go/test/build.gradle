@@ -46,7 +46,7 @@ golang {
     // script would otherwise have to figure out which arch/platform binary to invoke.
 
     targetPlatform = ['linux-amd64']
-    go 'build -o ./build/bin/linux-amd64/worker github.com/apache/beam/sdks/go/test/integration'
+    go 'build -o ./build/bin/linux-amd64/worker github.com/apache/beam/sdks/go/test/integration/driver'
   }
 }
 
@@ -54,6 +54,8 @@ golang {
 // cross-language tests.
 // TODO(BEAM-11415): Merge this into existing ValidatesRunner gradle rules.
 task flinkXlangValidatesRunner {
+  dependsOn ":sdks:go:test:goBuild"
+  dependsOn ":sdks:go:container:docker"
   dependsOn ":runners:flink:1.10:job-server:shadowJar"
   dependsOn ":sdks:java:testing:expansion-service:buildTestExpansionServiceJar"
   doLast {
@@ -65,6 +67,52 @@ task flinkXlangValidatesRunner {
     exec {
       executable "sh"
       args "-c", "./run_validatesrunner_tests.sh ${options.join(' ')}"
+    }
+  }
+}
+
+// ValidatesRunner tests for Spark using an updated framework that supports
+// cross-language tests.
+// TODO(BEAM-11415): Merge this into existing ValidatesRunner gradle rules.
+task sparkXlangValidatesRunner {
+  dependsOn ":sdks:go:test:goBuild"
+  dependsOn ":runners:spark:job-server:shadowJar"
+  dependsOn ":sdks:java:testing:expansion-service:buildTestExpansionServiceJar"
+  doLast {
+    def options = [
+            "--runner spark",
+            "--spark_job_server_jar ${project(":runners:spark:job-server").shadowJar.archivePath}",
+            "--expansion_service_jar ${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
+    ]
+    exec {
+      executable "sh"
+      args "-c", "./run_validatesrunner_tests.sh ${options.join(' ')}"
+    }
+  }
+}
+
+// ValidatesRunner tests for the Python Portable runner (aka. ULR) using an
+// updated framework that supports cross-language tests.
+// TODO(BEAM-11415): Merge this into existing ValidatesRunner gradle rules.
+task ulrXlangValidatesRunner {
+  dependsOn ":sdks:go:test:goBuild"
+  dependsOn ":sdks:go:container:docker"
+  dependsOn "setupVirtualenv"
+  dependsOn ":sdks:python:buildPython"
+  dependsOn ":sdks:java:testing:expansion-service:buildTestExpansionServiceJar"
+  doLast {
+    def options = [
+            "--runner portable",
+            "--expansion_service_jar ${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
+    ]
+    exec {
+      executable "sh"
+      workingDir "${project.rootDir}/sdks/python"
+      args "-c", ". ${envdir}/bin/activate && pip install -e ."
+    }
+    exec {
+      executable "sh"
+      args "-c", ". ${envdir}/bin/activate && ./run_validatesrunner_tests.sh ${options.join(' ')}"
     }
   }
 }

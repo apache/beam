@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package validatesrunner
+package xlang
 
 import (
 	"fmt"
@@ -25,6 +25,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
+	"github.com/apache/beam/sdks/go/test/integration"
 )
 
 func init() {
@@ -102,14 +103,9 @@ func collectValues(key string, iter func(*int64) bool) (string, []int) {
 }
 
 func TestXLang_CoGroupBy(t *testing.T) {
-	// TODO(BEAM-11418): Enable test once this bug is fixed.
-	t.Skip("Sickbayed: This test currently fails for unknown reasons.")
-	// TODO(BEAM-11416): Filter this test out from direct runner.
-	if *ptest.Runner == "direct" {
-		t.Skip("Direct runner does not support cross-language.")
-	}
+	integration.CheckFilters(t)
 
-	if *expansionAddr == "" {
+	if *ptest.ExpansionAddr == "" {
 		t.Fatal("No expansion address provided")
 	}
 
@@ -119,7 +115,7 @@ func TestXLang_CoGroupBy(t *testing.T) {
 	// Using the cross-language transform
 	col1 := beam.ParDo(s, getIntString, beam.Create(s, IntString{X: 0, Y: "1"}, IntString{X: 0, Y: "2"}, IntString{X: 1, Y: "3"}))
 	col2 := beam.ParDo(s, getIntString, beam.Create(s, IntString{X: 0, Y: "4"}, IntString{X: 1, Y: "5"}, IntString{X: 1, Y: "6"}))
-	c := xlang.CoGroupByKey(s, *expansionAddr, col1, col2)
+	c := xlang.CoGroupByKey(s, *ptest.ExpansionAddr, col1, col2)
 	sums := beam.ParDo(s, sumCounts, c)
 	formatted := beam.ParDo(s, formatIntStringsFn, sums)
 	passert.Equals(s, formatted, "0:[1 2 4]", "1:[3 5 6]")
@@ -128,12 +124,9 @@ func TestXLang_CoGroupBy(t *testing.T) {
 }
 
 func TestXLang_Combine(t *testing.T) {
-	// TODO(BEAM-11416): Filter this test out from direct runner.
-	if *ptest.Runner == "direct" {
-		t.Skip("Direct runner does not support cross-language.")
-	}
+	integration.CheckFilters(t)
 
-	if *expansionAddr == "" {
+	if *ptest.ExpansionAddr == "" {
 		t.Fatal("No expansion address provided")
 	}
 
@@ -143,7 +136,7 @@ func TestXLang_Combine(t *testing.T) {
 	// Using the cross-language transform
 	kvs := beam.Create(s, StringInt{X: "a", Y: 1}, StringInt{X: "a", Y: 2}, StringInt{X: "b", Y: 3})
 	ins := beam.ParDo(s, getStringInt, kvs)
-	c := xlang.CombinePerKey(s, *expansionAddr, ins)
+	c := xlang.CombinePerKey(s, *ptest.ExpansionAddr, ins)
 
 	formatted := beam.ParDo(s, formatStringIntFn, c)
 	passert.Equals(s, formatted, "a:3", "b:3")
@@ -152,12 +145,9 @@ func TestXLang_Combine(t *testing.T) {
 }
 
 func TestXLang_CombineGlobally(t *testing.T) {
-	// TODO(BEAM-11416): Filter this test out from direct runner.
-	if *ptest.Runner == "direct" {
-		t.Skip("Direct runner does not support cross-language.")
-	}
+	integration.CheckFilters(t)
 
-	if *expansionAddr == "" {
+	if *ptest.ExpansionAddr == "" {
 		t.Fatal("No expansion address provided")
 	}
 
@@ -167,7 +157,7 @@ func TestXLang_CombineGlobally(t *testing.T) {
 	in := beam.CreateList(s, []int64{1, 2, 3})
 
 	// Using the cross-language transform
-	c := xlang.CombineGlobally(s, *expansionAddr, in)
+	c := xlang.CombineGlobally(s, *ptest.ExpansionAddr, in)
 
 	formatted := beam.ParDo(s, formatIntFn, c)
 	passert.Equals(s, formatted, "6")
@@ -176,12 +166,9 @@ func TestXLang_CombineGlobally(t *testing.T) {
 }
 
 func TestXLang_Flatten(t *testing.T) {
-	// TODO(BEAM-11416): Filter this test out from direct runner.
-	if *ptest.Runner == "direct" {
-		t.Skip("Direct runner does not support cross-language.")
-	}
+	integration.CheckFilters(t)
 
-	if *expansionAddr == "" {
+	if *ptest.ExpansionAddr == "" {
 		t.Fatal("No expansion address provided")
 	}
 
@@ -192,7 +179,7 @@ func TestXLang_Flatten(t *testing.T) {
 	col2 := beam.CreateList(s, []int64{4, 5, 6})
 
 	// Using the cross-language transform
-	c := xlang.Flatten(s, *expansionAddr, col1, col2)
+	c := xlang.Flatten(s, *ptest.ExpansionAddr, col1, col2)
 
 	formatted := beam.ParDo(s, formatIntFn, c)
 	passert.Equals(s, formatted, "1", "2", "3", "4", "5", "6")
@@ -201,12 +188,9 @@ func TestXLang_Flatten(t *testing.T) {
 }
 
 func TestXLang_GroupBy(t *testing.T) {
-	// TODO(BEAM-11416): Filter this test out from direct runner.
-	if *ptest.Runner == "direct" {
-		t.Skip("Direct runner does not support cross-language.")
-	}
+	integration.CheckFilters(t)
 
-	if *expansionAddr == "" {
+	if *ptest.ExpansionAddr == "" {
 		t.Fatal("No expansion address provided")
 	}
 
@@ -216,7 +200,7 @@ func TestXLang_GroupBy(t *testing.T) {
 	// Using the cross-language transform
 	kvs := beam.Create(s, StringInt{X: "0", Y: 1}, StringInt{X: "0", Y: 2}, StringInt{X: "1", Y: 3})
 	in := beam.ParDo(s, getStringInt, kvs)
-	out := xlang.GroupByKey(s, *expansionAddr, in)
+	out := xlang.GroupByKey(s, *ptest.ExpansionAddr, in)
 
 	vals := beam.ParDo(s, collectValues, out)
 	formatted := beam.ParDo(s, formatStringIntsFn, vals)
@@ -226,14 +210,9 @@ func TestXLang_GroupBy(t *testing.T) {
 }
 
 func TestXLang_Multi(t *testing.T) {
-	// TODO(BEAM-11418): Enable test once this bug is fixed.
-	t.Skip("Sickbayed: This test currently fails for unknown reasons.")
-	// TODO(BEAM-11416): Filter this test out from direct runner.
-	if *ptest.Runner == "direct" {
-		t.Skip("Direct runner does not support cross-language.")
-	}
+	integration.CheckFilters(t)
 
-	if *expansionAddr == "" {
+	if *ptest.ExpansionAddr == "" {
 		t.Fatal("No expansion address provided")
 	}
 
@@ -245,7 +224,7 @@ func TestXLang_Multi(t *testing.T) {
 	side := beam.CreateList(s, []string{"s"})
 
 	// Using the cross-language transform
-	mainOut, sideOut := xlang.Multi(s, *expansionAddr, main1, main2, side)
+	mainOut, sideOut := xlang.Multi(s, *ptest.ExpansionAddr, main1, main2, side)
 
 	passert.Equals(s, mainOut, "as", "bbs", "xs", "yys", "zzzs")
 	passert.Equals(s, sideOut, "ss")
@@ -254,14 +233,9 @@ func TestXLang_Multi(t *testing.T) {
 }
 
 func TestXLang_Partition(t *testing.T) {
-	// TODO(BEAM-11418): Enable test once this bug is fixed.
-	t.Skip("Sickbayed: This test currently fails for unknown reasons.")
-	// TODO(BEAM-11416): Filter this test out from direct runner.
-	if *ptest.Runner == "direct" {
-		t.Skip("Direct runner does not support cross-language.")
-	}
+	integration.CheckFilters(t)
 
-	if *expansionAddr == "" {
+	if *ptest.ExpansionAddr == "" {
 		t.Fatal("No expansion address provided")
 	}
 
@@ -271,7 +245,7 @@ func TestXLang_Partition(t *testing.T) {
 	col := beam.CreateList(s, []int64{1, 2, 3, 4, 5, 6})
 
 	// Using the cross-language transform
-	out0, out1 := xlang.Partition(s, *expansionAddr, col)
+	out0, out1 := xlang.Partition(s, *ptest.ExpansionAddr, col)
 	formatted0 := beam.ParDo(s, formatIntFn, out0)
 	formatted1 := beam.ParDo(s, formatIntFn, out1)
 
@@ -279,4 +253,8 @@ func TestXLang_Partition(t *testing.T) {
 	passert.Equals(s, formatted1, "1", "3", "5")
 
 	ptest.RunAndValidate(t, p)
+}
+
+func TestMain(m *testing.M) {
+	ptest.Main(m)
 }
