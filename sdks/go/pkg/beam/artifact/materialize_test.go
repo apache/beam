@@ -212,12 +212,13 @@ func TestNewRetrieveWithResolution(t *testing.T) {
 	checkStagedFiles(mds, dest, expected, t)
 }
 
-func checkStagedFiles(mds []*jobpb.ArtifactMetadata, dest string, expected map[string]string, t *testing.T) {
+func checkStagedFiles(mds []*pipepb.ArtifactInformation, dest string, expected map[string]string, t *testing.T) {
 	if len(mds) != len(expected) {
 		t.Errorf("wrong number of artifacts staged %v vs %v", len(mds), len(expected))
 	}
 	for _, md := range mds {
-		filename := filepath.Join(dest, filepath.FromSlash(md.Name))
+		name, _ := MustExtractFilePayload(md)
+		filename := filepath.Join(dest, filepath.FromSlash(name))
 		fd, err := os.Open(filename)
 		if err != nil {
 			t.Errorf("error opening file %v", err)
@@ -230,8 +231,8 @@ func checkStagedFiles(mds []*jobpb.ArtifactMetadata, dest string, expected map[s
 			t.Errorf("error reading file %v", err)
 		}
 
-		if string(data[:n]) != expected[md.Name] {
-			t.Errorf("missmatched contents for %v: '%s' vs '%s'", md.Name, string(data[:n]), expected[md.Name])
+		if string(data[:n]) != expected[name] {
+			t.Errorf("missmatched contents for %v: '%s' vs '%s'", name, string(data[:n]), expected[name])
 		}
 	}
 }
