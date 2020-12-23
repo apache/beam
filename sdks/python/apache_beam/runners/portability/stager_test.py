@@ -214,6 +214,25 @@ class StagerTest(unittest.TestCase):
                 staging_location=staging_dir)[1]))
     self.assertTrue(
         os.path.isfile(os.path.join(staging_dir, stager.REQUIREMENTS_FILE)))
+
+  def test_with_pypi_requirements(self):
+    staging_dir = self.make_temp_dir()
+    requirements_cache_dir = self.make_temp_dir()
+
+    options = PipelineOptions()
+    self.update_options(options)
+    options.view_as(SetupOptions).requirements_cache = requirements_cache_dir
+    resources = self.stager.create_and_stage_job_resources(
+        options,
+        pypi_requirements=['nothing>=1.0,<2.0'],
+        populate_requirements_cache=self.populate_requirements_cache,
+        staging_location=staging_dir)[1]
+    self.assertEqual(3, len(resources))
+    self.assertTrue({'abc.txt', 'def.txt'} <= set(resources))
+    generated_requirements = (set(resources) - {'abc.txt', 'def.txt'}).pop()
+    with open(os.path.join(staging_dir, generated_requirements)) as f:
+      data = f.read()
+    self.assertEqual('nothing>=1.0,<2.0', data)
     self.assertTrue(os.path.isfile(os.path.join(staging_dir, 'abc.txt')))
     self.assertTrue(os.path.isfile(os.path.join(staging_dir, 'def.txt')))
 

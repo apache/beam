@@ -728,15 +728,5 @@ def python_sdk_dependencies(options, tmp_dir=None):
     tmp_dir = tempfile.mkdtemp()
   skip_prestaged_dependencies = options.view_as(
       SetupOptions).prebuild_sdk_container_engine is not None
-  return tuple(
-      beam_runner_api_pb2.ArtifactInformation(
-          type_urn=common_urns.artifact_types.FILE.urn,
-          type_payload=beam_runner_api_pb2.ArtifactFilePayload(
-              path=local_path).SerializeToString(),
-          role_urn=common_urns.artifact_roles.STAGING_TO.urn,
-          role_payload=beam_runner_api_pb2.ArtifactStagingToRolePayload(
-              staged_name=staged_name).SerializeToString()) for local_path,
-      staged_name in stager.Stager.create_job_resources(
-          options,
-          tmp_dir,
-          skip_prestaged_dependencies=skip_prestaged_dependencies))
+  return stager.Stager.create_job_resources(
+      options, tmp_dir, skip_prestaged_dependencies=skip_prestaged_dependencies)
