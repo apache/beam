@@ -52,6 +52,20 @@ public class DebeziumIO {
         return new AutoValue_DebeziumIO_Read.Builder<T>().build();
     }
 
+    /**
+     * Read data from Debezium source and convert a Kafka {@link org.apache.kafka.connect.source.SourceRecord}
+     * into a JSON string using {@link org.apache.beam.io.cdc.SourceRecordJson.SourceRecordJsonMapper} as default
+     * function mapper.
+     *
+     * @return Reader object of String.
+     */
+    public static Read<String> readAsJson() {
+        return new AutoValue_DebeziumIO_Read.Builder<String>()
+                .setFormatFunction(new SourceRecordJson.SourceRecordJsonMapper())
+                .setCoder(StringUtf8Coder.of())
+                .build();
+    }
+
     /** Disallow construction of utility class. */
     private DebeziumIO() {}
 
@@ -72,7 +86,6 @@ public class DebeziumIO {
             abstract Builder<T> setCoder(Coder<T> coder);
             abstract Builder<T> setFormatFunction(SourceRecordMapper<T> mapperFn);
             abstract Read<T> build();
-
         }
 
         public Read<T> withConnectorConfiguration(final ConnectorConfiguration config) {
@@ -97,9 +110,9 @@ public class DebeziumIO {
                             .withCoder(MapCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of())))
                     .apply(ParDo.of(new KafkaSourceConsumerFn<>(
                             getConnectorConfiguration().getConnectorClass().get(),
-                            getFormatFunction())));
+                            getFormatFunction())))
+                    .setCoder(getCoder());
         }
-
     }
 
     /**
@@ -128,7 +141,6 @@ public class DebeziumIO {
             abstract Builder setConnectionProperties(ValueProvider<Map<String,String>> connectionProperties);
             abstract Builder setSourceConnector(ValueProvider<SourceConnector> sourceConnector);
             abstract ConnectorConfiguration build();
-
         }
 
         public static ConnectorConfiguration create() {
@@ -238,7 +250,7 @@ public class DebeziumIO {
             configuration.computeIfAbsent("database.history", k -> DebeziumSDFDatabaseHistory.class.getName());
 
             String stringProperties = Joiner.on('\n').withKeyValueSeparator(" -> ").join(configuration);
-            LOG.info("---------------- Connector configuration: {}", stringProperties);
+            LOG.debug("---------------- Connector configuration: {}", stringProperties);
 
             return configuration;
         }

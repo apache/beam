@@ -37,9 +37,9 @@ public class DebeziumOffsetTracker extends RestrictionTracker<DebeziumOffsetHold
 
     @Override
     public boolean tryClaim(Map<String, Object> position) {
-        LOG.info("-------------- Claiming {} used to have: {}", position, restriction.offset);
+        LOG.debug("-------------- Claiming {} used to have: {}", position, restriction.offset);
         long elapsedTime = System.currentTimeMillis() - KafkaSourceConsumerFn.startTime.getMillis();
-        LOG.info("-------------- Time running: {} / {}", elapsedTime, (KafkaSourceConsumerFn.minutesToRun * MILLIS));
+        LOG.debug("-------------- Time running: {} / {}", elapsedTime, (KafkaSourceConsumerFn.minutesToRun * MILLIS));
         this.restriction = new DebeziumOffsetHolder(position, this.restriction.history);
         if (KafkaSourceConsumerFn.minutesToRun < 0) {
             return true;
@@ -54,7 +54,7 @@ public class DebeziumOffsetTracker extends RestrictionTracker<DebeziumOffsetHold
 
     @Override
     public SplitResult<DebeziumOffsetHolder> trySplit(double fractionOfRemainder) {
-        LOG.info("-------------- Trying to split: fractionOfRemainder={}", fractionOfRemainder);
+        LOG.debug("-------------- Trying to split: fractionOfRemainder={}", fractionOfRemainder);
 
         return SplitResult.of(new DebeziumOffsetHolder(null, null), restriction);
     }

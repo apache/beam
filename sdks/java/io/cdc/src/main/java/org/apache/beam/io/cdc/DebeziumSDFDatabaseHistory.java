@@ -44,7 +44,7 @@ public class DebeziumSDFDatabaseHistory extends AbstractDatabaseHistory {
     @Override
     public void start() {
         super.start();
-        LOG.info("------------ STARTING THE DATABASE HISTORY! - trackers: {} - config: {}",
+        LOG.debug("------------ STARTING THE DATABASE HISTORY! - trackers: {} - config: {}",
                 KafkaSourceConsumerFn.restrictionTrackers, config.asMap());
 
         // TODO(pabloem): Figure out how to link these. For now, we'll just link directly.
@@ -56,14 +56,14 @@ public class DebeziumSDFDatabaseHistory extends AbstractDatabaseHistory {
 
     @Override
     protected void storeRecord(HistoryRecord record) throws DatabaseHistoryException {
-        LOG.info("------------- Adding history! {}", record);
+        LOG.debug("------------- Adding history! {}", record);
 
         history.add(DocumentWriter.defaultWriter().writeAsBytes(record.document()));
     }
 
     @Override
     protected void recoverRecords(Consumer<HistoryRecord> consumer) {
-        LOG.info("------------- Trying to recover!");
+        LOG.debug("------------- Trying to recover!");
 
         try {
             for (byte[] record : history) {

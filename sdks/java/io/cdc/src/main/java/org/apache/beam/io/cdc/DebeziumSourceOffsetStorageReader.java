@@ -42,14 +42,14 @@ public class DebeziumSourceOffsetStorageReader implements OffsetStorageReader {
 
     @Override
     public <T> Map<Map<String, T>, Map<String, Object>> offsets(Collection<Map<String, T>> partitions) {
-        LOG.info("-------------- GETTING OFFSETS!");
+        LOG.debug("-------------- GETTING OFFSETS!");
 
         Map<Map<String, T>, Map<String, Object>> map = new HashMap<>();
         for (Map<String, T> partition : partitions) {
             map.put(partition, (Map<String, Object>) offset);
         }
 
-        LOG.info("-------------- OFFSETS: " + map);
+        LOG.debug("-------------- OFFSETS: {}", map);
         return map;
     }
 }

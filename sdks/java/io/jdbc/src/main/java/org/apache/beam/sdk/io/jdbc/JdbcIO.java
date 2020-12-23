@@ -463,7 +463,7 @@ public class JdbcIO {
    * used to setParameters into the database.
    */
   @FunctionalInterface
-  public interface StatementPreparator  extends Serializable {
+  public interface StatementPreparator extends Serializable {
     void setParameters(PreparedStatement preparedStatement) throws Exception;
   }
 

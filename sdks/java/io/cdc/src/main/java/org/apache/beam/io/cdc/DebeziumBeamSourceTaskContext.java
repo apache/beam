@@ -42,7 +42,7 @@ public class DebeziumBeamSourceTaskContext implements SourceTaskContext {
 
     @Override
     public OffsetStorageReader offsetStorageReader() {
-        LOG.info("------------- Creating an offset storage reader");
+        LOG.debug("------------- Creating an offset storage reader");
         return new DebeziumSourceOffsetStorageReader(initialOffset);
     }
 }
