@@ -46,10 +46,34 @@ public class ScalarFnReflectorTest {
 
   @Test
   @SuppressWarnings("nullness") // If result is null, test will fail as expected.
+  public void testGetApplyMethodOverride()
+      throws InvocationTargetException, IllegalAccessException {
+    IncrementFnChild incrementFn = new IncrementFnChild();
+    Method method = ScalarFnReflector.getApplyMethod(incrementFn);
+    @Nullable Object result = method.invoke(incrementFn, Long.valueOf(24L));
+    assertEquals(Long.valueOf(26L), result);
+  }
+
+  @Test
+  @SuppressWarnings("nullness") // If result is null, test will fail as expected.
   public void testGetApplyMethodStatic() throws InvocationTargetException, IllegalAccessException {
     Method method = ScalarFnReflector.getApplyMethod(new IncrementFnWithStaticMethod());
     @Nullable Object result = method.invoke(null, Long.valueOf(24L));
     assertEquals(Long.valueOf(25L), result);
+  }
+
+  @Test
+  public void testDifferentMethodNameThrowsIllegalArgumentException() {
+    thrown.expect(instanceOf(IllegalArgumentException.class));
+    thrown.expectMessage("Found multiple methods annotated with @ApplyMethod.");
+    ScalarFnReflector.getApplyMethod(new IncrementFnDifferentMethodName());
+  }
+
+  @Test
+  public void testDifferentMethodSignatureThrowsIllegalArgumentException() {
+    thrown.expect(instanceOf(IllegalArgumentException.class));
+    thrown.expectMessage("Found multiple methods annotated with @ApplyMethod.");
+    ScalarFnReflector.getApplyMethod(new IncrementFnDifferentSignature());
   }
 
   @Test
@@ -73,10 +97,32 @@ public class ScalarFnReflectorTest {
     }
   }
 
+  static class IncrementFnChild extends IncrementFn {
+    @ApplyMethod
+    @Override
+    public Long increment(Long i) {
+      return i + 2;
+    }
+  }
+
   static class IncrementFnWithStaticMethod extends ScalarFn {
     @ApplyMethod
     public static Long increment(Long i) {
       return i + 1;
+    }
+  }
+
+  static class IncrementFnDifferentMethodName extends IncrementFn {
+    @ApplyMethod
+    public Long differentMethod(Long i) {
+      return i + 2;
+    }
+  }
+
+  static class IncrementFnDifferentSignature extends IncrementFn {
+    @ApplyMethod
+    public Long increment(String s) {
+      return 0L;
     }
   }
 
