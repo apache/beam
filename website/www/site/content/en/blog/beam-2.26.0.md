@@ -18,7 +18,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 We are happy to present the new 2.26.0 release of Apache Beam. This release includes both improvements and new functionality.
-See the [download page](/get-started/downloads/#2260-2020-12-11) for this release.
+See the [download page](/get-started/downloads/#2260-2020-12-11) for this release.<!--more-->
 For more information on changes in 2.26.0, check out the
 [detailed release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12348833).
 
