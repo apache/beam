@@ -1043,8 +1043,10 @@ public class ParquetIO {
   static class GenericRecordPassthroughFn
       implements SerializableFunction<GenericRecord, GenericRecord> {
 
+    private static final GenericRecordPassthroughFn singleton = new GenericRecordPassthroughFn();
+    
     static GenericRecordPassthroughFn create() {
-      return new GenericRecordPassthroughFn();
+      return singleton;
     }
 
     @Override
