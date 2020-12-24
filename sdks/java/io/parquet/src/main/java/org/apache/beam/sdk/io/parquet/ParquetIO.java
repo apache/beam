@@ -1044,7 +1044,7 @@ public class ParquetIO {
       implements SerializableFunction<GenericRecord, GenericRecord> {
 
     private static final GenericRecordPassthroughFn singleton = new GenericRecordPassthroughFn();
-    
+
     static GenericRecordPassthroughFn create() {
       return singleton;
     }
