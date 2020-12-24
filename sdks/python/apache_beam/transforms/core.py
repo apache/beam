@@ -1075,10 +1075,7 @@ class CallableWrapperCombineFn(CombineFn):
       return [self._fn(accumulator, *args, **kwargs)]
 
   def extract_output(self, accumulator, *args, **kwargs):
-    if len(accumulator) == 1:
-      return accumulator[0]
-    else:
-      return self._fn(accumulator, *args, **kwargs)
+    return self._fn(accumulator, *args, **kwargs)
 
   def default_type_hints(self):
     fn_hints = get_type_hints(self._fn)
@@ -1155,10 +1152,7 @@ class NoSideInputsCallableWrapperCombineFn(CallableWrapperCombineFn):
       return [self._fn(accumulator)]
 
   def extract_output(self, accumulator):
-    if len(accumulator) == 1:
-      return accumulator[0]
-    else:
-      return self._fn(accumulator)
+    return self._fn(accumulator)
 
 
 class PartitionFn(WithTypeHints):

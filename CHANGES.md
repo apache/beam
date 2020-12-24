@@ -133,6 +133,10 @@
 * BigQuery's DATETIME type now maps to Beam logical type org.apache.beam.sdk.schemas.logicaltypes.SqlTypes.DATETIME
 * Pandas 1.x is now required for dataframe operations.
 
+## Known Issues
+
+* Non-idempotent combiners built via `CombineFn.from_callable()` or `CombineFn.maybe_from_callable()` can lead to incorrect behavior. ([BEAM-11522](https://issues.apache.org/jira/browse/BEAM-11522)).
+
 
 # [2.25.0] - 2020-10-23
 
