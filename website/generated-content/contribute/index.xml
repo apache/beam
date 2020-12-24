@@ -525,6 +525,7 @@ oversees these just like any other JIRA issue marked with the &amp;lsquo;Fix Ver
 &lt;p>Attention: Only committer has permission to create release branch in apache/beam.&lt;/p>
 &lt;p>Release candidates are built from a release branch. As a final step in preparation for the release, you should create the release branch, push it to the Apache code repository, and update version information on the original branch.&lt;/p>
 &lt;p>There are 2 ways to cut a release branch: either running automation script(recommended), or running all commands manually.&lt;/p>
+&lt;p>After following one of these processes you should manually update &lt;code>CHANGES.md&lt;/code> on &lt;code>master&lt;/code> by adding a new section for the next release.&lt;/p>
 &lt;h4 id="use-cut_release_branchsh-to-cut-a-release-branch">Use cut_release_branch.sh to cut a release branch&lt;/h4>
 &lt;ul>
 &lt;li>
@@ -954,8 +955,8 @@ It is created by &lt;code>build_release_candidate.sh&lt;/code> (see above).&lt;/
 &lt;h3 id="blog-post">Blog post&lt;/h3>
 &lt;p>Write a blog post similar to &lt;a href="https://github.com/apache/beam/commit/b976e7be0744a32e99c841ad790c54920c8737f5#diff-8b1c3fd0d4a6765c16dfd18509182f9d">beam-2.23.0.md&lt;/a>.&lt;/p>
 &lt;ul>
-&lt;li>Update &lt;code>CHANGES.md&lt;/code> by adding a new section for the next release.&lt;/li>
 &lt;li>Copy the changes for the current release from &lt;code>CHANGES.md&lt;/code> to the blog post and edit as necessary.&lt;/li>
+&lt;li>Be sure to add yourself to &lt;a href="https://github.com/apache/beam/blob/master/website/www/site/data/authors.yml">authors.yml&lt;/a> if necessary.&lt;/li>
 &lt;/ul>
 &lt;p>&lt;strong>Tip&lt;/strong>: Use git log to find contributors to the releases. (e.g: &lt;code>git log --pretty='%aN' ^v2.10.0 v2.11.0 | sort | uniq&lt;/code>).
 Make sure to clean it up, as there may be duplicate or incorrect user names.&lt;/p>
