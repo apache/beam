@@ -62,6 +62,7 @@ dependencies {
   fmppTemplates library.java.vendored_calcite_1_20_0
   compile project(":sdks:java:core")
   compile project(":sdks:java:extensions:join-library")
+  compile project(":sdks:java:extensions:sql:udf")
   compile project(path: ":runners:direct-java", configuration: "shadow")
   compile library.java.commons_codec
   compile library.java.commons_csv
@@ -177,16 +178,6 @@ task runPojoExample(type: JavaExec) {
   args = ["--runner=DirectRunner"]
 }
 
-// These tests become flaky when run in parallel at more than 3 threads so run them in a separate task
-task runKafkaTableProviderIT(type: Test) {
-  outputs.upToDateWhen { false }
-  include '**/KafkaTableProvider*IT.class'
-  maxParallelForks 2
-  classpath = project(":sdks:java:extensions:sql").sourceSets.test.runtimeClasspath
-  testClassesDirs = files(project(":sdks:java:extensions:sql").sourceSets.test.output.classesDirs)
-  useJUnit { }
-}
-
 task integrationTest(type: Test) {
   def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
   def gcsTempRoot = project.findProperty('gcsTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests/'
@@ -202,7 +193,6 @@ task integrationTest(type: Test) {
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson(pipelineOptions)
 
   include '**/*IT.class'
-  exclude '**/KafkaTableProvider*IT.class'
 
   maxParallelForks 4
   classpath = project(":sdks:java:extensions:sql")
@@ -216,7 +206,6 @@ task integrationTest(type: Test) {
 task postCommit {
   group = "Verification"
   description = "Various integration tests"
-  dependsOn runKafkaTableProviderIT
   dependsOn integrationTest
 }
 

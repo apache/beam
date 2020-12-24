@@ -132,6 +132,7 @@ if [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "portable" ]]
           --job-port $JOB_PORT \
           --expansion-port 0 \
           --artifact-port 0 &
+      ARGS="$ARGS -p 1" # Spark runner fails if jobs are run concurrently.
     elif [[ "$RUNNER" == "portable" ]]; then
       python \
           -m apache_beam.runners.portability.local_job_service_main \
@@ -155,4 +156,6 @@ if [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "portable" ]]
 fi
 
 echo ">>> RUNNING $RUNNER VALIDATESRUNNER TESTS"
-go test ./sdks/go/test/validatesrunner/... $ARGS
+go test -v ./sdks/go/test/integration/... $ARGS
+
+exit_background_processes

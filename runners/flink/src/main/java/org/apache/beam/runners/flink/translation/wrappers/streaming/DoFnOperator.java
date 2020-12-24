@@ -351,7 +351,7 @@ public class DoFnOperator<InputT, OutputT>
           };
 
       // we don't know the window type
-      @SuppressWarnings({"unchecked", "rawtypes"})
+      //      @SuppressWarnings({"unchecked", "rawtypes"})
       Coder windowCoder = windowingStrategy.getWindowFn().windowCoder();
 
       @SuppressWarnings({"unchecked", "rawtypes"})
@@ -639,11 +639,12 @@ public class DoFnOperator<InputT, OutputT>
   }
 
   @Override
-  public final void processElement(StreamRecord<WindowedValue<InputT>> streamRecord)
-      throws Exception {
+  public final void processElement(StreamRecord<WindowedValue<InputT>> streamRecord) {
     checkInvokeStartBundle();
+    long oldHold = keyCoder != null ? keyedStateInternals.minWatermarkHoldMs() : -1L;
     doFnRunner.processElement(streamRecord.getValue());
     checkInvokeFinishBundleByCount();
+    emitWatermarkIfHoldChanged(oldHold);
   }
 
   @Override
@@ -740,9 +741,12 @@ public class DoFnOperator<InputT, OutputT>
     }
 
     currentInputWatermark = mark.getTimestamp();
+    processInputWatermark(true);
+  }
 
+  private void processInputWatermark(boolean advanceInputWatermark) throws Exception {
     long inputWatermarkHold = applyInputWatermarkHold(getEffectiveInputWatermark());
-    if (keyCoder != null) {
+    if (keyCoder != null && advanceInputWatermark) {
       timeServiceManagerCompat.advanceWatermark(new Watermark(inputWatermarkHold));
     }
 
@@ -993,7 +997,23 @@ public class DoFnOperator<InputT, OutputT>
 
   // allow overriding this in ExecutableStageDoFnOperator to set the key context
   protected void fireTimerInternal(ByteBuffer key, TimerData timerData) {
+    long oldHold = keyCoder != null ? keyedStateInternals.minWatermarkHoldMs() : -1L;
     fireTimer(timerData);
+    emitWatermarkIfHoldChanged(oldHold);
+  }
+
+  void emitWatermarkIfHoldChanged(long currentWatermarkHold) {
+    if (keyCoder != null) {
+      long newWatermarkHold = keyedStateInternals.minWatermarkHoldMs();
+      if (newWatermarkHold > currentWatermarkHold) {
+        try {
+          processInputWatermark(false);
+        } catch (Exception ex) {
+          // should not happen
+          throw new IllegalStateException(ex);
+        }
+      }
+    }
   }
 
   // allow overriding this in WindowDoFnOperator

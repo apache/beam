@@ -31,6 +31,8 @@ from builtins import object
 from typing import TYPE_CHECKING
 from typing import Optional
 
+from apache_beam.options.pipeline_options import StandardOptions
+
 if TYPE_CHECKING:
   from apache_beam import pvalue
   from apache_beam import PTransform
@@ -41,22 +43,10 @@ if TYPE_CHECKING:
 
 __all__ = ['PipelineRunner', 'PipelineState', 'PipelineResult']
 
-_ALL_KNOWN_RUNNERS = (
-    'apache_beam.runners.dataflow.dataflow_runner.DataflowRunner',
-    'apache_beam.runners.direct.direct_runner.BundleBasedDirectRunner',
-    'apache_beam.runners.direct.direct_runner.DirectRunner',
-    'apache_beam.runners.direct.direct_runner.SwitchingDirectRunner',
-    'apache_beam.runners.interactive.interactive_runner.InteractiveRunner',
-    'apache_beam.runners.portability.flink_runner.FlinkRunner',
-    'apache_beam.runners.portability.portable_runner.PortableRunner',
-    'apache_beam.runners.portability.spark_runner.SparkRunner',
-    'apache_beam.runners.test.TestDirectRunner',
-    'apache_beam.runners.test.TestDataflowRunner',
-)
-
-_KNOWN_RUNNER_NAMES = [path.split('.')[-1] for path in _ALL_KNOWN_RUNNERS]
-
-_RUNNER_MAP = {path.split('.')[-1].lower(): path for path in _ALL_KNOWN_RUNNERS}
+_RUNNER_MAP = {
+    path.split('.')[-1].lower(): path
+    for path in StandardOptions.ALL_KNOWN_RUNNERS
+}
 
 # Allow this alias, but don't make public.
 _RUNNER_MAP['pythonrpcdirectrunner'] = (
@@ -110,7 +100,7 @@ def create_runner(runner_name):
     raise ValueError(
         'Unexpected pipeline runner: %s. Valid values are %s '
         'or the fully qualified name of a PipelineRunner subclass.' %
-        (runner_name, ', '.join(_KNOWN_RUNNER_NAMES)))
+        (runner_name, ', '.join(StandardOptions.KNOWN_RUNNER_NAMES)))
 
 
 class PipelineRunner(object):
