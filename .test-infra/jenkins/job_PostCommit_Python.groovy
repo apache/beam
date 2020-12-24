@@ -29,8 +29,6 @@ ALL_SUPPORTED_VERSIONS.each { pythonVersion ->
       "Python${versionSuffix}_PC(\"Run Python ${pythonVersion} PostCommit\")", this) {
         description('Runs Python postcommit tests using Python ${pythonVersion}.')
 
-        previousNames('/beam_PostCommit_Python3_Verify/')
-
         // Set common parameters.
         commonJobProperties.setTopLevelMainJobProperties(delegate)
 
