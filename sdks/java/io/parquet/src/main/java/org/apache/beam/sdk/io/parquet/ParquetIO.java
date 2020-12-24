@@ -175,23 +175,29 @@ import org.slf4j.LoggerFactory;
  * Pipeline p = ...;
  *
  * PCollection<Foo> records =
- *     p.apply(ParquetIO.parseGenericRecords(new SerializableFunction<GenericRecord, Foo>() {
- *       public Foo apply(GenericRecord record) {
- *         // If needed, access the schema of the record using record.getSchema()
- *         return ...;
- *       }}));
+ *     p.apply(
+ *       ParquetIO.parseGenericRecords(
+ *           new SerializableFunction<GenericRecord, Foo>() {
+ *               public Foo apply(GenericRecord record) {
+ *                   // If needed, access the schema of the record using record.getSchema()
+ *                   return ...;
+ *               }
+ *           })
+ *           .setFilePattern(...));
  *
- * // For reading from filepatterns
- *  PCollection<String> filepatterns = p.apply(...);
+ * // For reading from files
+ *  PCollection<FileIO.ReadableFile> files = p.apply(...);
  *
  *  PCollection<Foo> records =
- *     filepatterns
- *       .apply(ParquetIO.parseFilesGenericRecords(new SerializableFunction<GenericRecord, Foo>() {
- *         public Foo apply(GenericRecord record) {
- *         // If needed, access the schema of the record using record.getSchema()
- *         return ...;
- *         }
- *       }));
+ *     files
+ *       .apply(
+ *           ParquetIO.parseFilesGenericRecords(
+ *               new SerializableFunction<GenericRecord, Foo>() {
+ *                   public Foo apply(GenericRecord record) {
+ *                       // If needed, access the schema of the record using record.getSchema()
+ *                       return ...;
+ *                   }
+ *           }));
  * }</pre>
  *
  * <h3>Writing Parquet files</h3>
@@ -814,7 +820,6 @@ public class ParquetIO {
       private final SerializableFunction<GenericRecord, T> parseFn;
 
       ReadFn(GenericData model, SerializableFunction<GenericRecord, T> parseFn) {
-
         this.modelClass = model != null ? model.getClass() : null;
         this.parseFn = checkNotNull(parseFn, "GenericRecord parse function is null");
       }
