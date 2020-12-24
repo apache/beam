@@ -155,8 +155,8 @@ public class FlinkStateInternals<K> implements StateInternals {
       Coder<K> keyCoder,
       SerializablePipelineOptions pipelineOptions)
       throws Exception {
-    this.flinkStateBackend = flinkStateBackend;
-    this.keyCoder = keyCoder;
+    this.flinkStateBackend = Objects.requireNonNull(flinkStateBackend);
+    this.keyCoder = Objects.requireNonNull(keyCoder);
     watermarkHoldStateDescriptor =
         new MapStateDescriptor<>(
             "watermark-holds",

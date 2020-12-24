@@ -697,18 +697,10 @@ class PTransform(WithTypeHints, HasDisplayData):
       return None
     parameter_type, constructor = cls._known_urns[proto.spec.urn]
 
-    try:
-      return constructor(
-          proto,
-          proto_utils.parse_Bytes(proto.spec.payload, parameter_type),
-          context)
-    except Exception:
-      if context.allow_proto_holders:
-        # For external transforms we cannot build a Python ParDo object so
-        # we build a holder transform instead.
-        from apache_beam.transforms.core import RunnerAPIPTransformHolder
-        return RunnerAPIPTransformHolder(proto.spec, context)
-      raise
+    return constructor(
+        proto,
+        proto_utils.parse_Bytes(proto.spec.payload, parameter_type),
+        context)
 
   def to_runner_api_parameter(
       self,

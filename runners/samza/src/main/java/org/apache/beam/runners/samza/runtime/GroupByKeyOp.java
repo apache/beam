@@ -32,8 +32,6 @@ import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
-import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
-import org.apache.beam.runners.core.serialization.Base64Serializer;
 import org.apache.beam.runners.samza.SamzaExecutionContext;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.metrics.DoFnRunnerWithMetrics;
@@ -111,11 +109,10 @@ public class GroupByKeyOp<K, InputT, OutputT>
       Context context,
       Scheduler<KeyedTimerData<K>> timerRegistry,
       OpEmitter<KV<K, OutputT>> emitter) {
-    this.pipelineOptions =
-        Base64Serializer.deserializeUnchecked(
-                config.get("beamPipelineOptions"), SerializablePipelineOptions.class)
-            .get()
-            .as(SamzaPipelineOptions.class);
+
+    final SamzaExecutionContext samzaExecutionContext =
+        (SamzaExecutionContext) context.getApplicationContainerContext();
+    this.pipelineOptions = samzaExecutionContext.getPipelineOptions();
 
     final SamzaStoreStateInternals.Factory<?> nonKeyedStateInternalsFactory =
         SamzaStoreStateInternals.createStateInternalFactory(

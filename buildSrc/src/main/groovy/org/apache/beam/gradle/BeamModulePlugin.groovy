@@ -357,7 +357,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.27.0'
+    project.version = '2.28.0'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
@@ -1702,6 +1702,19 @@ class BeamModulePlugin implements Plugin<Project> {
         }
       }
       return "${configuration.root}/${configuration.name}:${configuration.tag}"
+    }
+
+    project.ext.containerImageTags = {
+      String[] tags
+      if (project.rootProject.hasProperty(["docker-tag-list"])) {
+        tags = project.rootProject["docker-tag-list"].split(',')
+      } else {
+        tags = [
+          project.rootProject.hasProperty(["docker-tag"]) ?
+          project.rootProject["docker-tag"] : project.sdk_version
+        ]
+      }
+      return tags
     }
 
     /** ***********************************************************************************************/

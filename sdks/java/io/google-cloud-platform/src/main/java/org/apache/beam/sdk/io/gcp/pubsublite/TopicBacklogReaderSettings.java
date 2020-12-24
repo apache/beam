@@ -17,10 +17,13 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsublite;
 
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+
 import com.google.api.gax.rpc.ApiException;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.pubsublite.AdminClient;
 import com.google.cloud.pubsublite.AdminClientSettings;
+import com.google.cloud.pubsublite.Partition;
 import com.google.cloud.pubsublite.SubscriptionPath;
 import com.google.cloud.pubsublite.TopicPath;
 import com.google.cloud.pubsublite.internal.ExtractStatus;
@@ -28,9 +31,11 @@ import com.google.cloud.pubsublite.internal.TopicStatsClient;
 import com.google.cloud.pubsublite.internal.TopicStatsClientSettings;
 import java.io.Serializable;
 import java.util.concurrent.ExecutionException;
+import javax.annotation.Nonnull;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Ticker;
 
 @AutoValue
-public abstract class TopicBacklogReaderSettings implements Serializable {
+abstract class TopicBacklogReaderSettings implements Serializable {
   private static final long serialVersionUID = -4001752066450248673L;
 
   /**
@@ -39,18 +44,20 @@ public abstract class TopicBacklogReaderSettings implements Serializable {
    */
   abstract TopicPath topicPath();
 
-  public static Builder newBuilder() {
+  abstract Partition partition();
+
+  static Builder newBuilder() {
     return new AutoValue_TopicBacklogReaderSettings.Builder();
   }
 
   @AutoValue.Builder
-  public abstract static class Builder {
+  abstract static class Builder {
 
     // Required parameters.
-    public abstract Builder setTopicPath(TopicPath topicPath);
+    abstract Builder setTopicPath(TopicPath topicPath);
 
-    @SuppressWarnings("argument.type.incompatible")
-    public Builder setTopicPathFromSubscriptionPath(SubscriptionPath subscriptionPath)
+    @SuppressWarnings("assignment.type.incompatible")
+    Builder setTopicPathFromSubscriptionPath(SubscriptionPath subscriptionPath)
         throws ApiException {
       try (AdminClient adminClient =
           AdminClient.create(
@@ -60,19 +67,23 @@ public abstract class TopicBacklogReaderSettings implements Serializable {
         return setTopicPath(
             TopicPath.parse(adminClient.getSubscription(subscriptionPath).get().getTopic()));
       } catch (ExecutionException e) {
-        throw ExtractStatus.toCanonical(e.getCause()).underlying;
+        @Nonnull Throwable cause = checkNotNull(e.getCause());
+        throw ExtractStatus.toCanonical(cause).underlying;
       } catch (Throwable t) {
         throw ExtractStatus.toCanonical(t).underlying;
       }
     }
 
-    public abstract TopicBacklogReaderSettings build();
+    abstract Builder setPartition(Partition partition);
+
+    abstract TopicBacklogReaderSettings build();
   }
 
-  @SuppressWarnings("CheckReturnValue")
   TopicBacklogReader instantiate() throws ApiException {
     TopicStatsClientSettings settings =
         TopicStatsClientSettings.newBuilder().setRegion(topicPath().location().region()).build();
-    return new TopicBacklogReaderImpl(TopicStatsClient.create(settings), topicPath());
+    TopicBacklogReader impl =
+        new TopicBacklogReaderImpl(TopicStatsClient.create(settings), topicPath(), partition());
+    return new LimitingTopicBacklogReader(impl, Ticker.systemTicker());
   }
 }
