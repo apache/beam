@@ -1040,7 +1040,7 @@ public class ParquetIO {
    * Passthrough function to provide seamless backward compatibility to ParquetIO's functionality.
    */
   @VisibleForTesting
-  static class GenericRecordPassthroughFn
+  static final class GenericRecordPassthroughFn
       implements SerializableFunction<GenericRecord, GenericRecord> {
 
     private static final GenericRecordPassthroughFn singleton = new GenericRecordPassthroughFn();
@@ -1053,6 +1053,9 @@ public class ParquetIO {
     public GenericRecord apply(GenericRecord input) {
       return input;
     }
+
+    /** Enforce singleton pattern, by disallowing construction with {@code new} operator. */
+    private GenericRecordPassthroughFn() {}
   }
 
   /** Disallow construction of utility class. */
