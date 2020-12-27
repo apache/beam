@@ -1,5 +1,7 @@
 ---
 title: "Beam Contribution Guide"
+type: "contribute"
+layout: "arrow_list_template"
 aliases:
   - /contribution-guide/
   - /contribute/contribution-guide/
@@ -24,8 +26,6 @@ limitations under the License.
 
 # Contribution guide
 
-</br>
-
 <div class="arrow-lists-desktop">
 
 ## Overview
@@ -33,8 +33,6 @@ limitations under the License.
 </br>
 
 There are lots of opportunities to contribute. You can for example:
-
-<div class="arrow-list">
 
 - ask or answer questions on [user@beam.apache.org](/community/contact-us/) or
   [stackoverflow](https://stackoverflow.com/questions/tagged/apache-beam)
@@ -45,8 +43,6 @@ There are lots of opportunities to contribute. You can for example:
   run?)
 - improve the developer experience (for example, Windows guides)
 - organize local meetups of users or contributors to Apache Beam
-
-</div>
 
 ...and many more. Most importantly, if you have an idea of how to contribute, then do it!
 
@@ -63,8 +59,6 @@ detail.
 
 ### Prerequisites
 
-<div class="arrow-list">
-
 - a GitHub account
 - a Linux, macOS, or Microsoft Windows development environment with Java JDK 8 installed
 - [Docker](https://www.docker.com/) installed for some tasks including building worker containers and testing this website
@@ -77,8 +71,6 @@ detail.
 - for large contributions, a signed [Individual Contributor License
   Agreement](https://www.apache.org/licenses/icla.pdf) (ICLA) to the Apache
   Software Foundation (ASF).
-
-</div>
 
 </br>
 
@@ -115,21 +107,16 @@ Linux users should configure their machines for sudoless Docker.
 
 ### Connect With the Beam community
 
-<div class="arrow-list">
-
 - Consider subscribing to the [dev@ mailing list](/community/contact-us/), especially
   if you plan to make more than one change or the change will be large. All decisions happen on the
   public dev list.
 - (Optionally) Join the [#beam channel of the ASF slack](/community/contact-us/).
 - Create an account on [Beam issue tracker (JIRA)](https://issues.apache.org/jira/projects/BEAM/issues)
-(anyone can do this).
-</div>
+  (anyone can do this).
 
 </br>
 
 ### Share your intent
-
-<div class="arrow-list">
 
 - Find or create an issue in the [Beam issue tracker (JIRA)](https://issues.apache.org/jira/projects/BEAM/issues).
   Tracking your work in an issue will avoid duplicated or conflicting work, and provide
@@ -147,7 +134,6 @@ Linux users should configure their machines for sudoless Docker.
   [examples](https://s.apache.org/beam-design-docs)) and email it to the [dev@ mailing list](/community/contact-us).
 
 </div>
-</div>
 
 <div class="arrow-lists-mobile">
 
@@ -158,7 +144,7 @@ Linux users should configure their machines for sudoless Docker.
 
   </a>
 
-<div class="arrow-list collapse" id="collapseOverview">
+<div class="collapse" id="collapseOverview">
 
 There are lots of opportunities to contribute. You can for example:
 
@@ -183,7 +169,7 @@ There are lots of opportunities to contribute. You can for example:
 
   </a>
 
-<div class="arrow-list collapse" id="collapseContributing">
+<div class="collapse" id="collapseContributing">
 
 Below is a tutorial for contributing code to Beam, covering our tools and typical process in
 detail.
@@ -238,21 +224,16 @@ Linux users should configure their machines for sudoless Docker.
 
 ### Connect With the Beam community
 
-<div class="arrow-list">
-
 - Consider subscribing to the [dev@ mailing list](/community/contact-us/), especially
   if you plan to make more than one change or the change will be large. All decisions happen on the
   public dev list.
 - (Optionally) Join the [#beam channel of the ASF slack](/community/contact-us/).
 - Create an account on [Beam issue tracker (JIRA)](https://issues.apache.org/jira/projects/BEAM/issues)
-(anyone can do this).
-</div>
+  (anyone can do this).
 
 </br>
 
 ### Share your intent
-
-<div class="arrow-list">
 
 - Find or create an issue in the [Beam issue tracker (JIRA)](https://issues.apache.org/jira/projects/BEAM/issues).
   Tracking your work in an issue will avoid duplicated or conflicting work, and provide
@@ -268,7 +249,5 @@ Linux users should configure their machines for sudoless Docker.
 - For large changes create a design doc
   ([template](https://s.apache.org/beam-design-doc-template),
   [examples](https://s.apache.org/beam-design-docs)) and email it to the [dev@ mailing list](/community/contact-us).
-
-</div>
 
 </div>
