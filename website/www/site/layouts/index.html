@@ -122,14 +122,13 @@
       <div class="calendar-card-big calendar-card-big-right">
         <p class="calendar-card-event-title">{{ T "home-calendar-card-events-title" }}</p>
         <div class="calendar-card-events">
-          {{ $data := index $.Site.Data .Site.Language.Lang }}
-          {{ range $event := $data.calendar_events }}
-              {{ partial "calendar/calendar-events" (dict "icon" $event.icon  "title" $event.title "place" $event.place "time" $event.time "url" $event.url) }}
-          {{ end }}
+          <div class="desktop">
+            <iframe src="https://calendar.google.com/calendar/embed?src=r24up18ne2ddgl0t93flk0hsj8%40group.calendar.google.com&ctz=Europe%2FWarsaw" style="border: 0" width="330" height="350" frameborder="0" scrolling="no"></iframe>
+          </div>
+          <div class="mobile">
+            <iframe src="https://calendar.google.com/calendar/embed?src=r24up18ne2ddgl0t93flk0hsj8%40group.calendar.google.com&ctz=Europe%2FWarsaw" style="border: 0" width="280" height="300" frameborder="0" scrolling="no"></iframe>
+          </div>
         </div>
-        <a href="">
-          <button class="calendar-card-events-button"><span>{{ T "home-calendar-card-events-button" }}</span></button>
-        </a>
       </div>
     </div>
   </div>
