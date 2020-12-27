@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+import java.util.stream.Collectors
+
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
   automaticModuleName: 'org.apache.beam.sdk.io.kafka',
@@ -29,10 +31,19 @@ enableJavaPerformanceTesting()
 description = "Apache Beam :: SDKs :: Java :: IO :: Kafka"
 ext.summary = "Library to read Kafka topics."
 
-// Testing Kafka clients API 2.1.0 onwards (deserialization with Headers suppport)
-configurations {
-  kafkaVersion210
-}
+def kafkaVersions = [
+    '01103': "0.11.0.3",
+    '100': "1.0.0",
+    '111': "1.1.1",
+    '201': "2.0.1",
+    '211': "2.1.1",
+    '222': "2.2.2",
+    '231': "2.3.1",
+    '241': "2.4.1",
+    '251': "2.5.1",
+]
+
+kafkaVersions.each{k,v -> configurations.create("kafkaVersion$k")}
 
 dependencies {
   compile library.java.vendored_guava_26_0_jre
@@ -65,26 +76,71 @@ dependencies {
   testCompile library.java.junit
   testCompile library.java.powermock
   testCompile library.java.powermock_mockito
+  testCompile library.java.testcontainers_kafka
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
-  kafkaVersion210 "org.apache.kafka:kafka-clients:2.1.0"
+  kafkaVersions.each {"kafkaVersion$it.key" "org.apache.kafka:kafka-clients:$it.value"}
 }
 
-configurations.kafkaVersion210 {
-  resolutionStrategy {
-    force "org.apache.kafka:kafka-clients:2.1.0"
+kafkaVersions.each { kv ->
+  configurations."kafkaVersion$kv.key" {
+    resolutionStrategy {
+      force "org.apache.kafka:kafka-clients:$kv.value"
+    }
   }
 }
 
-task kafkaVersion210Test(type: Test) {
-  group = "Verification"
-  description = 'Runs KafkaIO tests with Kafka clients API 2.1.0'
-  outputs.upToDateWhen { false }
-  testClassesDirs = sourceSets.test.output.classesDirs
-  classpath =  configurations.kafkaVersion210 + sourceSets.test.runtimeClasspath
-  include '**/KafkaIOTest.class'
-  shouldRunAfter test
-  useJUnit { }
+kafkaVersions.each {kv ->
+  task "kafkaVersion${kv.key}Test"(type: Test) {
+    group = "Verification"
+    description = "Runs KafkaIO tests with Kafka clients API $kv.value"
+    outputs.upToDateWhen { false }
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath =  configurations."kafkaVersion${kv.key}" + sourceSets.test.runtimeClasspath
+    include '**/KafkaIOTest.class'
+  }
 }
 
-check.dependsOn kafkaVersion210Test
+kafkaVersions.each {kv ->
+  task "kafkaVersion${kv.key}BatchIT"(type: Test) {
+    group = "Verification"
+    description = "Runs KafkaIO IT tests with Kafka clients API $kv.value"
+    outputs.upToDateWhen { false }
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath =  configurations."kafkaVersion${kv.key}" + sourceSets.test.runtimeClasspath
+
+    def pipelineOptions = [
+        '--sourceOptions={' +
+            '"numRecords": "1000",' +
+            '"keySizeBytes": "10",' +
+            '"valueSizeBytes": "90"' +
+            '}',
+        "--readTimeout=120",
+        "--kafkaTopic=beam",
+        "--withTestcontainers=true",
+        "--kafkaContainerVersion=5.5.2",
+    ]
+
+    systemProperty "beamTestPipelineOptions", groovy.json.JsonOutput.toJson(pipelineOptions)
+    include '**/KafkaIOIT.class'
+
+    filter {
+      includeTestsMatching "*InBatch"
+    }
+  }
+}
+
+task kafkaVersionsCompatibilityTest {
+  group = "Verification"
+  description = 'Runs KafkaIO with different Kafka client APIs'
+  def testNames = createTestList(kafkaVersions, "Test")
+  def batchItTestNames = createTestList(kafkaVersions, "BatchIT")
+  dependsOn testNames
+  dependsOn batchItTestNames
+}
+
+static def createTestList(Map<String, String> prefixMap, String suffix) {
+  return prefixMap.keySet().stream()
+      .map{version -> "kafkaVersion${version}${suffix}"}
+      .collect(Collectors.toList())
+}
