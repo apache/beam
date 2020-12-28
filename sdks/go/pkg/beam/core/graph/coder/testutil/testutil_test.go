@@ -57,11 +57,11 @@ func ut1DecDropB(r io.Reader) (interface{}, error) {
 	}
 	a, err := coder.DecodeStringUTF8(r)
 	if err != nil {
-		return nil, fmt.Errorf("decoding string field A: %w", err)
+		return nil, fmt.Errorf("decoding string field A: %v", err)
 	}
 	c, err := coder.DecodeStringUTF8(r)
 	if err != nil {
-		return nil, fmt.Errorf("decoding string field C: %v, %w", c, err)
+		return nil, fmt.Errorf("decoding string field C: %v, %v", c, err)
 	}
 	return UserType1{
 		A: a,
