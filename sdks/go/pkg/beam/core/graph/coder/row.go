@@ -151,14 +151,14 @@ func WriteSimpleRowHeader(fields int, w io.Writer) error {
 func ReadSimpleRowHeader(fields int, r io.Reader) error {
 	n, err := DecodeVarInt(r)
 	if err != nil {
-		return fmt.Errorf("ReadSimpleRowHeader field count: %v, %w", n, err)
+		return fmt.Errorf("ReadSimpleRowHeader field count: %v, %v", n, err)
 	}
 	if int(n) != fields {
 		return fmt.Errorf("ReadSimpleRowHeader field count mismatch, got %v, want %v", n, fields)
 	}
 	n, err = DecodeVarInt(r)
 	if err != nil {
-		return fmt.Errorf("ReadSimpleRowHeader reading nils count: %v, %w", n, err)
+		return fmt.Errorf("ReadSimpleRowHeader reading nils count: %v, %v", n, err)
 	}
 	if n != 0 {
 		return fmt.Errorf("ReadSimpleRowHeader expected no nils encoded count, got %v", n)

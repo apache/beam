@@ -215,15 +215,15 @@ func ut1Dec(r io.Reader) (interface{}, error) {
 	}
 	a, err := DecodeStringUTF8(r)
 	if err != nil {
-		return nil, fmt.Errorf("decoding string field A: %w", err)
+		return nil, fmt.Errorf("decoding string field A: %v", err)
 	}
 	b, err := DecodeVarInt(r)
 	if err != nil {
-		return nil, fmt.Errorf("decoding int field B: %w", err)
+		return nil, fmt.Errorf("decoding int field B: %v", err)
 	}
 	c, err := DecodeStringUTF8(r)
 	if err != nil {
-		return nil, fmt.Errorf("decoding string field C: %v, %w", c, err)
+		return nil, fmt.Errorf("decoding string field C: %v, %v", c, err)
 	}
 	return UserType1{
 		A: a,
