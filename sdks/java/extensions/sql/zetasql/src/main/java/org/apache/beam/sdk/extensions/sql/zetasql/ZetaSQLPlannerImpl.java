@@ -31,7 +31,9 @@ import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedCreateTableFunctionS
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedQueryStmt;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedStatement;
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.impl.JavaUdfLoader;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
+import org.apache.beam.sdk.extensions.sql.udf.ScalarFn;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.ConversionContext;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.ExpressionConverter;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.QueryStatementConverter;
@@ -104,6 +106,9 @@ class ZetaSQLPlannerImpl {
     ImmutableMap.Builder<List<String>, ResolvedCreateFunctionStmt> udfBuilder =
         ImmutableMap.builder();
     ImmutableMap.Builder<List<String>, ResolvedNode> udtvfBuilder = ImmutableMap.builder();
+    ImmutableMap.Builder<List<String>, UserFunctionDefinitions.JavaScalarFunction>
+        javaScalarFunctionBuilder = ImmutableMap.builder();
+    JavaUdfLoader javaUdfLoader = new JavaUdfLoader();
 
     ResolvedStatement statement;
     ParseResumeLocation parseResumeLocation = new ParseResumeLocation(sql);
@@ -111,7 +116,20 @@ class ZetaSQLPlannerImpl {
       statement = analyzer.analyzeNextStatement(parseResumeLocation, options, catalog);
       if (statement.nodeKind() == RESOLVED_CREATE_FUNCTION_STMT) {
         ResolvedCreateFunctionStmt createFunctionStmt = (ResolvedCreateFunctionStmt) statement;
-        udfBuilder.put(createFunctionStmt.getNamePath(), createFunctionStmt);
+        String functionGroup = SqlAnalyzer.getFunctionGroup(createFunctionStmt);
+        if (SqlAnalyzer.USER_DEFINED_FUNCTIONS.equals(functionGroup)) {
+          udfBuilder.put(createFunctionStmt.getNamePath(), createFunctionStmt);
+        } else if (SqlAnalyzer.USER_DEFINED_JAVA_SCALAR_FUNCTIONS.equals(functionGroup)) {
+          String jarPath = getJarPath(createFunctionStmt);
+          ScalarFn scalarFn =
+              javaUdfLoader.loadScalarFunction(createFunctionStmt.getNamePath(), jarPath);
+          javaScalarFunctionBuilder.put(
+              createFunctionStmt.getNamePath(),
+              UserFunctionDefinitions.JavaScalarFunction.create(scalarFn, jarPath));
+        } else {
+          throw new IllegalArgumentException(
+              String.format("Encountered unrecognized function group %s.", functionGroup));
+        }
       } else if (statement.nodeKind() == RESOLVED_CREATE_TABLE_FUNCTION_STMT) {
         ResolvedCreateTableFunctionStmt createTableFunctionStmt =
             (ResolvedCreateTableFunctionStmt) statement;
@@ -134,6 +152,7 @@ class ZetaSQLPlannerImpl {
         UserFunctionDefinitions.newBuilder()
             .setSqlScalarFunctions(udfBuilder.build())
             .setSqlTableValuedFunctions(udtvfBuilder.build())
+            .setJavaScalarFunctions(javaScalarFunctionBuilder.build())
             .build();
 
     ExpressionConverter expressionConverter =
@@ -160,5 +179,16 @@ class ZetaSQLPlannerImpl {
 
   static LanguageOptions getLanguageOptions() {
     return SqlAnalyzer.baseAnalyzerOptions().getLanguageOptions();
+  }
+
+  private static String getJarPath(ResolvedCreateFunctionStmt createFunctionStmt) {
+    String jarPath = SqlAnalyzer.getOptionStringValue(createFunctionStmt, "path");
+    if (jarPath.isEmpty()) {
+      throw new IllegalArgumentException(
+          String.format(
+              "No jar was provided to define function %s. Add 'OPTIONS (path=<jar location>)' to the CREATE FUNCTION statement.",
+              String.join(".", createFunctionStmt.getNamePath())));
+    }
+    return jarPath;
   }
 }
