@@ -33,8 +33,8 @@ import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.Immutabl
 
 @Experimental(Kind.SCHEMAS)
 @SuppressWarnings({
-    "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-    "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 class SchemaUtils {
 
@@ -57,7 +57,7 @@ class SchemaUtils {
           .build();
 
   /** Convert DataCatalog schema to Beam schema. */
-  public static Schema fromDataCatalog(com.google.cloud.datacatalog.v1beta1.Schema dcSchema) {
+  static Schema fromDataCatalog(com.google.cloud.datacatalog.v1beta1.Schema dcSchema) {
     return fromColumnsList(dcSchema.getColumnsList());
   }
 
@@ -104,7 +104,7 @@ class SchemaUtils {
   }
 
   /** Convert Beam schema to DataCatalog schema. */
-  public static com.google.cloud.datacatalog.v1beta1.Schema toDataCatalog(Schema schema) {
+  static com.google.cloud.datacatalog.v1beta1.Schema toDataCatalog(Schema schema) {
     com.google.cloud.datacatalog.v1beta1.Schema.Builder schemaBuilder =
         com.google.cloud.datacatalog.v1beta1.Schema.newBuilder();
     for (Schema.Field field : schema.getFields()) {
