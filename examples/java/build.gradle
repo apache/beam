@@ -56,6 +56,7 @@ dependencies {
   compile library.java.vendored_guava_26_0_jre
   compile library.java.kafka_clients
   compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile project(path: ":runners:direct-java", configuration: "shadow")
   compile project(":sdks:java:extensions:google-cloud-platform-core")
   compile project(":sdks:java:io:google-cloud-platform")
   compile project(":sdks:java:io:kafka")
