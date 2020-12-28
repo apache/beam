@@ -147,7 +147,7 @@ public class ParquetIOTest implements Serializable {
   public void testSplitBlockWithLimit() {
     ParquetIO.ReadFiles.SplitReadFn<GenericRecord> testFn =
         new ParquetIO.ReadFiles.SplitReadFn<>(
-            null, null, ParquetIO.GenericRecordPassthroughFn.create());
+            null, null, ParquetIO.GenericRecordPassthroughFn.create(), null);
     ArrayList<BlockMetaData> blockList = new ArrayList<>();
     ArrayList<OffsetRange> rangeList;
     BlockMetaData testBlock = mock(BlockMetaData.class);
@@ -415,6 +415,9 @@ public class ParquetIOTest implements Serializable {
     PAssert.that(readBack).containsInAnyOrder(records);
     readPipeline.run().waitUntilFinish();
   }
+
+  @Test
+  public void testConfigurationReadFile() {}
 
   /** Returns list of JSON representation of GenericRecords. */
   private static List<String> convertRecordsToJson(List<GenericRecord> records) {
