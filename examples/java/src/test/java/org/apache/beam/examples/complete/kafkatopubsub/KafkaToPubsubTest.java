@@ -35,6 +35,69 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class KafkaToPubsubTest {
 
+  @Rule
+  public final transient TestPipeline pipeline = TestPipeline.create();
+  @Rule
+  public transient TestPubsubSignal signal = TestPubsubSignal.create();
+  @Rule
+  public static final String pubsubMessage = "rulezzz";
+
+  private static class TestMessage implements SerializableFunction<Set<String>, Boolean> {
+
+    @Override
+    public Boolean apply(Set<String> input) {
+      for (String message : input) {
+        if (!Objects.equals(message, pubsubMessage)) {
+          return false;
+        }
+      }
+      return true;
+    }
+  }
+
+  @Before
+  public void setUp() throws Exception {
+//    SetupPubsubContainer psc = new SetupPubsubContainer(pipeline);
+  }
+
+  @Test
+  public void testKafkaToPubsubE2E() throws IOException {
+    pipeline.getOptions().as(DirectOptions.class).setBlockOnRun(false);
+
+    RunKafkaContainer rkc = new RunKafkaContainer(pubsubMessage);
+    String bootstrapServer = rkc.getBootstrapServer();
+    String[] kafkaTopicsList = new String[]{rkc.getTopicName()};
+
+    String pubsubTopicPath = SetupPubsubContainer.getTopicPath();
+
+    Map<String, Object> kafkaConfig = new HashMap<>();
+    Map<String, String> sslConfig = null;
+
+    PCollection<KV<String, String>> readStrings = pipeline
+        .apply("readFromKafka",
+            readFromKafka(bootstrapServer, Arrays.asList(kafkaTopicsList), kafkaConfig, sslConfig));
+
+    PCollection<String> readFromPubsub = readStrings.apply(Values.create())
+        .apply("writeToPubSub", PubsubIO.writeStrings().to(pubsubTopicPath)).getPipeline()
+        .apply("readFromPubsub",
+            PubsubIO.readStrings().fromTopic(pubsubTopicPath));
+
+    readFromPubsub.apply(
+        "waitForTestMessage",
+        signal.signalSuccessWhen(readFromPubsub.getCoder(), new TestMessage()));
+
+    Supplier<Void> start = signal.waitForStart(Duration.standardSeconds(10));
+    pipeline.apply(signal.signalStart());
+    PipelineResult job = pipeline.run();
+    start.get();
+    signal.waitForSuccess(Duration.standardMinutes(2));
+    try {
+      job.cancel();
+    } catch (IOException | UnsupportedOperationException e) {
+      System.out.println("Something went wrong");
+    }
+  }
+
   /** Tests configureKafka() with a null input properties. */
   @Test
   public void testConfigureKafkaNullProps() {
