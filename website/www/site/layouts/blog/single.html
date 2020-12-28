@@ -49,7 +49,7 @@
     </div>
 
       <div class="posts-list">
-          {{ range first 3 (after 1 (where .Site.Pages.ByPublishDate "Section" "blog")) }}
+          {{ range first 3 (after 1 (where .Site.Pages.ByPublishDate.Reverse "Section" "blog")) }}
             <a class="post-card" href="{{ .RelPermalink }}" data-categories="{{ with .Params.categories }}{{ if eq ( printf "%T" . ) "string" }}{{ . | replaceRE "[.]" "_" | urlize }}{{ else if eq ( printf "%T" . ) "[]string" }}{{ range . }}{{ . | replaceRE "[.]" "_" | urlize }} {{end}}{{end}}{{else}}no-author{{end}}"
             >
               <div class="post-info">
