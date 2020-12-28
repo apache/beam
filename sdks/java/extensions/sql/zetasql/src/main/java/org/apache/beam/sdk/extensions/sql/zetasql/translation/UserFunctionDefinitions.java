@@ -48,6 +48,8 @@ public abstract class UserFunctionDefinitions {
   }
 
   public static Builder newBuilder() {
-    return new AutoValue_UserFunctionDefinitions.Builder();
+    return new AutoValue_UserFunctionDefinitions.Builder()
+        .setSqlScalarFunctions(ImmutableMap.of())
+        .setSqlTableValuedFunctions(ImmutableMap.of());
   }
 }
