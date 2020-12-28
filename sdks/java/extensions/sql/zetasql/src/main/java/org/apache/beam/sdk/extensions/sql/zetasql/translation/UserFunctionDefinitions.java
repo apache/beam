@@ -21,6 +21,7 @@ import com.google.auto.value.AutoValue;
 import com.google.zetasql.resolvedast.ResolvedNode;
 import com.google.zetasql.resolvedast.ResolvedNodes;
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.udf.ScalarFn;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /** Holds user defined function definitions. */

@@ -44,6 +44,7 @@ import com.google.zetasql.ZetaSQLOptions.ParameterMode;
 import com.google.zetasql.ZetaSQLOptions.ProductMode;
 import com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind;
 import com.google.zetasql.ZetaSQLType.TypeKind;
+import com.google.zetasql.resolvedast.ResolvedNodes;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedCreateFunctionStmt;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedCreateTableFunctionStmt;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedStatement;
@@ -77,6 +78,11 @@ public class SqlAnalyzer {
    * Same as {@link Function}.ZETASQL_FUNCTION_GROUP_NAME. Identifies built-in ZetaSQL functions.
    */
   public static final String ZETASQL_FUNCTION_GROUP_NAME = "ZetaSQL";
+
+  public static final String USER_DEFINED_JAVA_SCALAR_FUNCTIONS =
+      "user_defined_java_scalar_functions";
+  public static final String USER_DEFINED_JAVA_AGGREGATE_FUNCTIONS =
+      "user_defined_java_aggregation_functions";
 
   private static final ImmutableSet<ResolvedNodeKind> SUPPORTED_STATEMENT_KINDS =
       ImmutableSet.of(
@@ -112,6 +118,22 @@ public class SqlAnalyzer {
         >= parseResumeLocation.getInput().getBytes(UTF_8).length;
   }
 
+  static String getOptionStringValue(
+      ResolvedCreateFunctionStmt createFunctionStmt, String optionName) {
+    for (ResolvedNodes.ResolvedOption option : createFunctionStmt.getOptionList()) {
+      if (option.getName().equals(optionName)) {
+        if (option.getValue().getType().getKind() != TypeKind.TYPE_STRING) {
+          throw new IllegalArgumentException(
+              String.format(
+                  "Option '%s' has type %s (expected %s).",
+                  optionName, option.getValue().getType().getKind(), TypeKind.TYPE_STRING));
+        }
+        return ((ResolvedNodes.ResolvedLiteral) option.getValue()).getValue().getStringValue();
+      }
+    }
+    return "";
+  }
+
   /** Returns table names from all statements in the SQL string. */
   List<List<String>> extractTableNames(String sql, AnalyzerOptions options) {
     ParseResumeLocation parseResumeLocation = new ParseResumeLocation(sql);
@@ -122,6 +144,53 @@ public class SqlAnalyzer {
       tables.addAll(statementTables);
     }
     return tables.build();
+  }
+
+  /** Returns the fully qualified name of the function defined in {@code statement}. */
+  static String getFunctionQualifiedName(ResolvedCreateFunctionStmt createFunctionStmt) {
+    return String.format(
+        "%s:%s",
+        getFunctionGroup(createFunctionStmt), String.join(".", createFunctionStmt.getNamePath()));
+  }
+
+  static String getFunctionGroup(ResolvedCreateFunctionStmt createFunctionStmt) {
+    switch (createFunctionStmt.getLanguage().toUpperCase()) {
+      case "JAVA":
+        if (createFunctionStmt.getIsAggregate()) {
+          throw new UnsupportedOperationException(
+              "Java SQL aggregate functions are not supported (BEAM-10925).");
+        }
+        return USER_DEFINED_JAVA_SCALAR_FUNCTIONS;
+      case "SQL":
+        if (createFunctionStmt.getIsAggregate()) {
+          throw new UnsupportedOperationException(
+              "Native SQL aggregate functions are not supported (BEAM-9954).");
+        }
+        return USER_DEFINED_FUNCTIONS;
+      case "PY":
+      case "PYTHON":
+      case "JS":
+      case "JAVASCRIPT":
+        throw new UnsupportedOperationException(
+            String.format(
+                "Function %s uses unsupported language %s.",
+                String.join(".", createFunctionStmt.getNamePath()),
+                createFunctionStmt.getLanguage()));
+      default:
+        throw new IllegalArgumentException(
+            String.format(
+                "Function %s uses unrecognized language %s.",
+                String.join(".", createFunctionStmt.getNamePath()),
+                createFunctionStmt.getLanguage()));
+    }
+  }
+
+  private Function createFunction(ResolvedCreateFunctionStmt createFunctionStmt) {
+    return new Function(
+        createFunctionStmt.getNamePath(),
+        getFunctionGroup(createFunctionStmt),
+        createFunctionStmt.getIsAggregate() ? Mode.AGGREGATE : Mode.SCALAR,
+        ImmutableList.of(createFunctionStmt.getSignature()));
   }
 
   /**
@@ -136,14 +205,7 @@ public class SqlAnalyzer {
     if (resolvedStatement.nodeKind() == RESOLVED_CREATE_FUNCTION_STMT) {
       ResolvedCreateFunctionStmt createFunctionStmt =
           (ResolvedCreateFunctionStmt) resolvedStatement;
-      Function userFunction =
-          new Function(
-              createFunctionStmt.getNamePath(),
-              USER_DEFINED_FUNCTIONS,
-              // TODO(BEAM-9954) handle aggregate functions
-              // TODO(BEAM-9969) handle table functions
-              Mode.SCALAR,
-              ImmutableList.of(createFunctionStmt.getSignature()));
+      Function userFunction = createFunction(createFunctionStmt);
       try {
         catalog.addFunction(userFunction);
       } catch (IllegalArgumentException e) {
@@ -186,7 +248,8 @@ public class SqlAnalyzer {
                     LanguageFeature.FEATURE_V_1_1_SELECT_STAR_EXCEPT_REPLACE,
                     LanguageFeature.FEATURE_TABLE_VALUED_FUNCTIONS,
                     LanguageFeature.FEATURE_CREATE_TABLE_FUNCTION,
-                    LanguageFeature.FEATURE_TEMPLATE_FUNCTIONS)));
+                    LanguageFeature.FEATURE_TEMPLATE_FUNCTIONS,
+                    LanguageFeature.FEATURE_CREATE_AGGREGATE_FUNCTION)));
     options.getLanguageOptions().setSupportedStatementKinds(SUPPORTED_STATEMENT_KINDS);
 
     return options;

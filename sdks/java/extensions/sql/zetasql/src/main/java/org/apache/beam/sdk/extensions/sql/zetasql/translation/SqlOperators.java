@@ -174,7 +174,9 @@ public class SqlOperators {
 
   /**
    * Create a dummy SqlFunction of type OTHER_FUNCTION from given function name and return type.
-   * These functions will be unparsed in BeamZetaSqlCalcRel and then executed by ZetaSQL evaluator.
+   * These functions will be unparsed in either {@link
+   * org.apache.beam.sdk.extensions.sql.zetasql.BeamZetaSqlCalcRel} (for built-in functions) or
+   * {@link org.apache.beam.sdk.extensions.sql.impl.rel.BeamCalcRel} (for user-defined functions).
    */
   public static SqlFunction createZetaSqlFunction(String name, SqlTypeName returnType) {
     return new SqlFunction(

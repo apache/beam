@@ -26,6 +26,7 @@ import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_STRING;
 import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_TIMESTAMP;
 import static org.apache.beam.sdk.extensions.sql.zetasql.SqlAnalyzer.PRE_DEFINED_WINDOW_FUNCTIONS;
 import static org.apache.beam.sdk.extensions.sql.zetasql.SqlAnalyzer.USER_DEFINED_FUNCTIONS;
+import static org.apache.beam.sdk.extensions.sql.zetasql.SqlAnalyzer.USER_DEFINED_JAVA_SCALAR_FUNCTIONS;
 import static org.apache.beam.sdk.extensions.sql.zetasql.SqlAnalyzer.ZETASQL_FUNCTION_GROUP_NAME;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
@@ -55,6 +56,7 @@ import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedLiteral;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedOrderByScan;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedParameter;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedProjectScan;
+import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -67,7 +69,9 @@ import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
 import org.apache.beam.sdk.extensions.sql.impl.SqlConversionException;
 import org.apache.beam.sdk.extensions.sql.impl.ZetaSqlUserDefinedSQLNativeTableValuedFunction;
 import org.apache.beam.sdk.extensions.sql.impl.utils.TVFStreamingUtils;
+import org.apache.beam.sdk.extensions.sql.udf.ScalarFn;
 import org.apache.beam.sdk.extensions.sql.zetasql.ZetaSqlCalciteTranslationUtils;
+import org.apache.beam.sdk.extensions.sql.impl.ScalarFnReflector;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptCluster;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
@@ -665,6 +669,22 @@ public class ExpressionConverter {
         operands.add(
             convertRexNodeFromResolvedExpr(expr, columnList, fieldList, outerFunctionArguments));
       }
+    } else if (USER_DEFINED_JAVA_SCALAR_FUNCTIONS.equals(funGroup)) {
+      ScalarFn scalarFn =
+          userFunctionDefinitions.javaScalarFunctions.get(functionCall.getFunction().getNamePath());
+      Method method = ScalarFnReflector.getApplyMethod(scalarFn);
+      ArrayList<RexNode> innerFunctionArguments = new ArrayList<>();
+      for (int i = 0; i < functionCall.getArgumentList().size(); i++) {
+        ResolvedExpr argExpr = functionCall.getArgumentList().get(i);
+        RexNode argNode =
+            convertRexNodeFromResolvedExpr(argExpr, columnList, fieldList, outerFunctionArguments);
+        innerFunctionArguments.add(argNode);
+      }
+      return rexBuilder()
+          .makeCall(
+              SqlOperators.createUdfOperator(
+                  functionCall.getFunction().getName(), method, USER_DEFINED_JAVA_SCALAR_FUNCTIONS),
+              innerFunctionArguments);
     } else if (USER_DEFINED_FUNCTIONS.equals(funGroup)) {
       ResolvedCreateFunctionStmt createFunctionStmt =
           userFunctionDefinitions
