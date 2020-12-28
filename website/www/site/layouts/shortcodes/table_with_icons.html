@@ -25,11 +25,11 @@
                         {{ with resources.Get .icon }}
                             {{ .Content | safeHTML }}
                         {{ end }}
-                        <p>{{.purpose | safeHTML}}</p>
+                        <p>{{ .purpose | safeHTML }}</p>
                     </div>
                 </td>
                 <td>
-                    <a href={{.contact.link}}>{{.contact.email}}</a>
+                    <a href={{.contact.link}}>{{.contact.email }}</a>
                     {{ if .contact.add }}
                         <span>{{ .contact.add }}</span>
                     {{end}}
@@ -38,7 +38,7 @@
                     <div>
                         {{ range .actions }}
                             {{ if .link }}
-                                <a href={{.link}}>{{.action |safeHTML }}</a>
+                                <a href={{.link}}>{{ .action |safeHTML }}</a>
                             {{ else }}
                                 {{ .action | safeHTML }}
                             {{end}}

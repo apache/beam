@@ -163,12 +163,12 @@
   .navigation-bar-desktop {
     display: none;
   }
-  
+
   .navigation-bar-mobile {
     display: block;
     width: 100%;
     height: 64px;
-    padding: 9px 25.4px 9px 13px;
+    padding: 9px 25px 9px 13px;
     box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.06);
     background-color: $color-white;
     z-index: 10000;
