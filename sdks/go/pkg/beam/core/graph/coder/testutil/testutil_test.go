@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
@@ -69,7 +70,10 @@ func ut1DecDropB(r io.Reader) (interface{}, error) {
 	}, nil
 }
 
-// TestValidateCoder_SingleValue checks that the validate coder fun will
+type UserType2 struct {
+	A UserType1
+}
+
 func TestValidateCoder(t *testing.T) {
 	// Validates a custom UserType1 encoding, which drops encoding the "B" field,
 	// always setting it to a constant value.
@@ -123,4 +127,75 @@ func TestValidateCoder(t *testing.T) {
 			},
 		)
 	})
+	t.Run("FailureCases", func(t *testing.T) {
+		var c checker
+		err := fmt.Errorf("FactoryError")
+		var v SchemaCoder
+		// Register the pointer type to the default encoder too.
+		v.Register(reflect.TypeOf((*UserType2)(nil)),
+			func(reflect.Type) (func(interface{}, io.Writer) error, error) { return nil, err },
+			func(reflect.Type) (func(io.Reader) (interface{}, error), error) { return nil, err },
+		)
+		v.Validate(&c, reflect.TypeOf((*UserType1)(nil)).Elem(),
+			func(reflect.Type) (func(interface{}, io.Writer) error, error) { return ut1EncDropB, err },
+			func(reflect.Type) (func(io.Reader) (interface{}, error), error) { return ut1DecDropB, err },
+			struct {
+				A, C string
+				B    *UserType2 // To trigger the bad factory registered earlier.
+			}{},
+			[]UserType1{},
+		)
+		if got, want := len(c.errors), 5; got != want {
+			t.Fatalf("SchemaCoder.Validate did not fail as expected. Got %v errors logged, but want %v", got, want)
+		}
+		if !strings.Contains(c.errors[0].fmt, "No test values") {
+			t.Fatalf("SchemaCoder.Validate with no values did not fail. fmt: %q", c.errors[0].fmt)
+		}
+		if !strings.Contains(c.errors[1].fmt, "Unable to build encoder function with given factory") {
+			t.Fatalf("SchemaCoder.Validate with no values did not fail. fmt: %q", c.errors[1].fmt)
+		}
+		if !strings.Contains(c.errors[2].fmt, "Unable to build decoder function with given factory") {
+			t.Fatalf("SchemaCoder.Validate with no values did not fail. fmt: %q", c.errors[2].fmt)
+		}
+		if !strings.Contains(c.errors[3].fmt, "Unable to build encoder function for schema equivalent type") {
+			t.Fatalf("SchemaCoder.Validate with no values did not fail. fmt: %q", c.errors[3].fmt)
+		}
+		if !strings.Contains(c.errors[4].fmt, "Unable to build decoder function for schema equivalent type") {
+			t.Fatalf("SchemaCoder.Validate with no values did not fail. fmt: %q", c.errors[4].fmt)
+		}
+	})
+}
+
+type msg struct {
+	fmt    string
+	params []interface{}
+}
+
+type checker struct {
+	errors []msg
+
+	runCount      int
+	failNowCalled bool
+}
+
+func (c *checker) Helper() {}
+
+func (c *checker) Run(string, func(*testing.T)) bool {
+	c.runCount++
+	return true
+}
+
+func (c *checker) Errorf(fmt string, params ...interface{}) {
+	c.errors = append(c.errors, msg{
+		fmt:    fmt,
+		params: params,
+	})
+}
+
+func (c *checker) Failed() bool {
+	return len(c.errors) > 0
+}
+
+func (c *checker) FailNow() {
+	c.failNowCalled = true
 }

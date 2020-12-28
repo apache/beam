@@ -44,22 +44,34 @@ func (v *SchemaCoder) Register(rt reflect.Type, encF, decF interface{}) {
 	v.decBldSchema.Register(rt, decF)
 }
 
+// T is an interface to facilitate testing the tester. The methods need
+// to match the one's we're using of *testing.T.
+type T interface {
+	Helper()
+	Run(string, func(*testing.T)) bool
+	Errorf(string, ...interface{})
+	Failed() bool
+	FailNow()
+}
+
 // Validate is a test utility to validate custom schema coders generate
 // beam schema encoded bytes.
 //
-// Validate accepts the reflect.Type to register, factory functions for encoding and decoding, an
-// anonymous struct type equivalent to the encoded format produced and consumed by the factory produced functions
-// and test values. Values must be a single struct or pointer to struct.
+// Validate accepts the reflect.Type to register, factory functions for
+// encoding and decoding, an anonymous struct type equivalent to the encoded
+// format produced and consumed by the factory produced functions and test
+// values. Test values must be either a struct, pointer to struct, or a slice
+// where each element is a struct or pointer to struct.
 //
 // TODO(lostluck): Improve documentation.
 // TODO(lostluck): Abstract into a configurable struct, to handle
 //
-// Validate will register the under test factories and generate an encoder and decoder function.
-// These functions will be re-used for all test values. This emulates coders being re-used for all
-// elements within a bundle.
+// Validate will register the under test factories and generate an encoder and
+// decoder function. These functions will be re-used for all test values. This
+// emulates coders being re-used for all elements within a bundle.
 //
 // Validate mutates the SchemaCoderValidator, so the SchemaCoderValidator may not be used more than once.
-func (v *SchemaCoder) Validate(t *testing.T, rt reflect.Type, encF, decF, schema interface{}, values interface{}) {
+func (v *SchemaCoder) Validate(t T, rt reflect.Type, encF, decF, schema interface{}, values interface{}) {
 	t.Helper()
 	testValues := reflect.ValueOf(values)
 	// Check whether we have a slice type or not.
@@ -68,7 +80,7 @@ func (v *SchemaCoder) Validate(t *testing.T, rt reflect.Type, encF, decF, schema
 		testValues = reflect.Append(vs, testValues)
 	}
 	if testValues.Len() == 0 {
-		t.Fatalf("No test values provided for ValidateSchemaCoder(%v)", rt)
+		t.Errorf("No test values provided for ValidateSchemaCoder(%v)", rt)
 	}
 	// We now have non empty slice of test values!
 
@@ -78,21 +90,27 @@ func (v *SchemaCoder) Validate(t *testing.T, rt reflect.Type, encF, decF, schema
 	testRt := testValues.Type().Elem()
 	encUT, err := v.encBldUT.Build(testRt)
 	if err != nil {
-		t.Fatalf("Unable to build encoder function with given factory: coder.RowEncoderBuilder.Build(%v) = %v, want nil error", rt, err)
+		t.Errorf("Unable to build encoder function with given factory: coder.RowEncoderBuilder.Build(%v) = %v, want nil error", rt, err)
 	}
 	decUT, err := v.decBldUT.Build(testRt)
 	if err != nil {
-		t.Fatalf("Unable to build decoder function with given factory: coder.RowDecoderBuilder.Build(%v) = %v, want nil error", rt, err)
+		t.Errorf("Unable to build decoder function with given factory: coder.RowDecoderBuilder.Build(%v) = %v, want nil error", rt, err)
 	}
 
 	schemaRt := reflect.TypeOf(schema)
 	encSchema, err := v.encBldSchema.Build(schemaRt)
 	if err != nil {
-		t.Fatalf("Unable to build encoder function for schema equivalent type: coder.RowEncoderBuilder.Build(%v) = %v, want nil error", rt, err)
+		t.Errorf("Unable to build encoder function for schema equivalent type: coder.RowEncoderBuilder.Build(%v) = %v, want nil error", rt, err)
 	}
 	decSchema, err := v.decBldSchema.Build(schemaRt)
 	if err != nil {
-		t.Fatalf("Unable to build decoder function for schema equivalent type: coder.RowDecoderBuilder.Build(%v) = %v, want nil error", rt, err)
+		t.Errorf("Unable to build decoder function for schema equivalent type: coder.RowDecoderBuilder.Build(%v) = %v, want nil error", rt, err)
+	}
+	// We use error messages instead of fatals to allow all the cases to be
+	// checked. None of the coder functions are used until the per value runs
+	// so a user can get additional information per run.
+	if t.Failed() {
+		t.FailNow()
 	}
 	for i := 0; i < testValues.Len(); i++ {
 		t.Run(fmt.Sprintf("%v[%d]", rt, i), func(t *testing.T) {

@@ -23,13 +23,13 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
-type encoderProvider = func(reflect.Type) (func(interface{}, io.Writer) error, error)
-
 // RowEncoderBuilder allows one to build Beam Schema row encoders for provided types.
 type RowEncoderBuilder struct {
 	allFuncs   map[reflect.Type]encoderProvider
 	ifaceFuncs []reflect.Type
 }
+
+type encoderProvider = func(reflect.Type) (func(interface{}, io.Writer) error, error)
 
 // Register accepts a provider for the given type to schema encode values of that type.
 //
@@ -42,7 +42,7 @@ type RowEncoderBuilder struct {
 func (b *RowEncoderBuilder) Register(rt reflect.Type, f interface{}) {
 	fe, ok := f.(encoderProvider)
 	if !ok {
-		panic(fmt.Sprintf("%v isn't a supported decoder function type (passed with %T)", f, rt))
+		panic(fmt.Sprintf("%T isn't a supported encoder function type (passed with %v)", f, rt))
 	}
 
 	if rt.Kind() == reflect.Interface && rt.NumMethod() == 0 {
@@ -63,19 +63,19 @@ func (b *RowEncoderBuilder) Build(rt reflect.Type) (func(interface{}, io.Writer)
 	if err := rowTypeValidation(rt, true); err != nil {
 		return nil, err
 	}
-	return b.encoderForType(rt), nil
+	return b.encoderForType(rt)
 }
 
-// customFunc returns nil if no custom func exists for this.
-func (b *RowEncoderBuilder) customFunc(t reflect.Type) func(interface{}, io.Writer) error {
+// customFunc returns nil if no custom func exists for this type.
+// If an error is returned, coder construction should be aborted.
+func (b *RowEncoderBuilder) customFunc(t reflect.Type) (func(interface{}, io.Writer) error, error) {
 	if fact, ok := b.allFuncs[t]; ok {
 		f, err := fact(t)
 
-		// TODO handle errors?
 		if err != nil {
-			return nil
+			return nil, err
 		}
-		return f
+		return f, err
 	}
 	// Check satisfaction of interface types in reverse registration order.
 	for i := len(b.ifaceFuncs) - 1; i >= 0; i-- {
@@ -85,59 +85,76 @@ func (b *RowEncoderBuilder) customFunc(t reflect.Type) func(interface{}, io.Writ
 				f, err := fact(t)
 				// TODO handle errors?
 				if err != nil {
-					return nil
+					return nil, err
 				}
-				return f
+				return f, nil
 			}
 		}
 	}
-	return nil
+	return nil, nil
 }
 
 // encoderForType returns an encoder function for the struct or pointer to struct type.
-func (b *RowEncoderBuilder) encoderForType(t reflect.Type) func(interface{}, io.Writer) error {
+func (b *RowEncoderBuilder) encoderForType(t reflect.Type) (func(interface{}, io.Writer) error, error) {
 	// Check if there are any providers registered for this type, or that this type adheres to any interfaces.
 	var isPtr bool
 	// Pointers become the value type for decomposition.
 	if t.Kind() == reflect.Ptr {
 		// If we have something for the pointer version already, we're done.
-		if enc := b.customFunc(t); enc != nil {
-			return enc
+		enc, err := b.customFunc(t)
+		if err != nil {
+			return nil, err
+		}
+		if enc != nil {
+			return enc, nil
 		}
 		isPtr = true
 		t = t.Elem()
 	}
 
-	if enc := b.customFunc(t); enc != nil {
-		if isPtr {
-			// We have the value version, but not a pointer version, so we jump through reflect to
-			// get the right type to pass in.
-			return func(v interface{}, w io.Writer) error {
-				return enc(reflect.ValueOf(v).Elem().Interface(), w)
-			}
+	{
+		enc, err := b.customFunc(t)
+		if err != nil {
+			return nil, err
 		}
-		return enc
+		if enc != nil {
+			if isPtr {
+				// We have the value version, but not a pointer version, so we jump through reflect to
+				// get the right type to pass in.
+				return func(v interface{}, w io.Writer) error {
+					return enc(reflect.ValueOf(v).Elem().Interface(), w)
+				}, nil
+			}
+			return enc, nil
+		}
 	}
 
-	enc := b.encoderForStructReflect(t)
+	enc, err := b.encoderForStructReflect(t)
+	if err != nil {
+		return nil, err
+	}
 
 	if isPtr {
 		return func(v interface{}, w io.Writer) error {
 			return enc(reflect.ValueOf(v).Elem(), w)
-		}
+		}, nil
 	}
 	return func(v interface{}, w io.Writer) error {
 		return enc(reflect.ValueOf(v), w)
-	}
+	}, nil
 }
 
 // Generates coder using reflection for
-func (b *RowEncoderBuilder) encoderForSingleTypeReflect(t reflect.Type) func(reflect.Value, io.Writer) error {
+func (b *RowEncoderBuilder) encoderForSingleTypeReflect(t reflect.Type) (func(reflect.Value, io.Writer) error, error) {
 	// Check if there are any providers registered for this type, or that this type adheres to any interfaces.
-	if enc := b.customFunc(t); enc != nil {
+	enc, err := b.customFunc(t)
+	if err != nil {
+		return nil, err
+	}
+	if enc != nil {
 		return func(v reflect.Value, w io.Writer) error {
 			return enc(v.Interface(), w)
-		}
+		}, nil
 	}
 
 	switch t.Kind() {
@@ -146,52 +163,71 @@ func (b *RowEncoderBuilder) encoderForSingleTypeReflect(t reflect.Type) func(ref
 	case reflect.Bool:
 		return func(rv reflect.Value, w io.Writer) error {
 			return EncodeBool(rv.Bool(), w)
-		}
+		}, nil
 	case reflect.Uint8:
 		return func(rv reflect.Value, w io.Writer) error {
 			return EncodeByte(byte(rv.Uint()), w)
-		}
+		}, nil
 	case reflect.String:
 		return func(rv reflect.Value, w io.Writer) error {
 			return EncodeStringUTF8(rv.String(), w)
-		}
+		}, nil
 	case reflect.Int, reflect.Int64, reflect.Int16, reflect.Int32, reflect.Int8:
 		return func(rv reflect.Value, w io.Writer) error {
 			return EncodeVarInt(int64(rv.Int()), w)
-		}
+		}, nil
 	case reflect.Float32, reflect.Float64:
 		return func(rv reflect.Value, w io.Writer) error {
 			return EncodeDouble(float64(rv.Float()), w)
-		}
+		}, nil
 	case reflect.Ptr:
 		// Nils are handled at the struct field level.
-		encf := b.encoderForSingleTypeReflect(t.Elem())
+		encf, err := b.encoderForSingleTypeReflect(t.Elem())
+		if err != nil {
+			return nil, err
+		}
 		return func(rv reflect.Value, w io.Writer) error {
 			return encf(rv.Elem(), w)
-		}
+		}, nil
 	case reflect.Slice:
 		// Special case handling for byte slices.
 		if t.Elem().Kind() == reflect.Uint8 {
 			return func(rv reflect.Value, w io.Writer) error {
 				return EncodeBytes(rv.Bytes(), w)
-			}
+			}, nil
 		}
-		encf := b.containerEncoderForType(t.Elem())
-		return iterableEncoder(t, encf)
+		encf, err := b.containerEncoderForType(t.Elem())
+		if err != nil {
+			return nil, err
+		}
+		return iterableEncoder(t, encf), nil
 	case reflect.Array:
-		encf := b.containerEncoderForType(t.Elem())
-		return iterableEncoder(t, encf)
+		encf, err := b.containerEncoderForType(t.Elem())
+		if err != nil {
+			return nil, err
+		}
+		return iterableEncoder(t, encf), nil
 	case reflect.Map:
-		encK := b.containerEncoderForType(t.Key())
-		encV := b.containerEncoderForType(t.Elem())
-		return mapEncoder(t, encK, encV)
+		encK, err := b.containerEncoderForType(t.Key())
+		if err != nil {
+			return nil, err
+		}
+		encV, err := b.containerEncoderForType(t.Elem())
+		if err != nil {
+			return nil, err
+		}
+		return mapEncoder(t, encK, encV), nil
 	}
 	panic(fmt.Sprintf("unimplemented type to encode: %v", t))
 }
 
-func (b *RowEncoderBuilder) containerEncoderForType(t reflect.Type) func(reflect.Value, io.Writer) error {
+func (b *RowEncoderBuilder) containerEncoderForType(t reflect.Type) (func(reflect.Value, io.Writer) error, error) {
 	if t.Kind() == reflect.Ptr {
-		return containerNilEncoder(b.encoderForSingleTypeReflect(t.Elem()))
+		encf, err := b.encoderForSingleTypeReflect(t.Elem())
+		if err != nil {
+			return nil, err
+		}
+		return containerNilEncoder(encf), nil
 	}
 	return b.encoderForSingleTypeReflect(t)
 }
@@ -202,11 +238,15 @@ type typeEncoderReflect struct {
 }
 
 // encoderForStructReflect generates reflection field access closures for structs.
-func (b *RowEncoderBuilder) encoderForStructReflect(t reflect.Type) func(reflect.Value, io.Writer) error {
+func (b *RowEncoderBuilder) encoderForStructReflect(t reflect.Type) (func(reflect.Value, io.Writer) error, error) {
 	var coder typeEncoderReflect
 	for i := 0; i < t.NumField(); i++ {
 		coder.debug = append(coder.debug, t.Field(i).Type.Name())
-		coder.fields = append(coder.fields, b.encoderForSingleTypeReflect(t.Field(i).Type))
+		enc, err := b.encoderForSingleTypeReflect(t.Field(i).Type)
+		if err != nil {
+			return nil, err
+		}
+		coder.fields = append(coder.fields, enc)
 	}
 
 	return func(rv reflect.Value, w io.Writer) error {
@@ -227,5 +267,5 @@ func (b *RowEncoderBuilder) encoderForStructReflect(t reflect.Type) func(reflect
 			}
 		}
 		return nil
-	}
+	}, nil
 }
