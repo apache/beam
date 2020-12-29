@@ -315,10 +315,6 @@ public class ParquetIO {
 
       abstract Builder setConfiguration(SerializableConfiguration configuration);
 
-      Builder setHadoopConfigurationFlags(Map<String, String> flags) {
-        return setConfiguration(makeHadoopConfigurationUsingFlags(flags));
-      }
-
       abstract Read build();
     }
 
@@ -340,8 +336,9 @@ public class ParquetIO {
           .build();
     }
 
-    public Read withConfiguration(Map<String, String> flags) {
-      return toBuilder().setHadoopConfigurationFlags(flags).build();
+    /** Specify Hadoop configuration for ParquetReader. */
+    public Read withConfiguration(Map<String, String> configuration) {
+      return toBuilder().setConfiguration(SerializableConfiguration.fromMap(configuration)).build();
     }
 
     /** Enable the Splittable reading. */
@@ -404,10 +401,6 @@ public class ParquetIO {
 
       abstract Builder<T> setConfiguration(SerializableConfiguration configuration);
 
-      Builder<T> setHadoopConfigurationFlags(Map<String, String> flags) {
-        return setConfiguration(makeHadoopConfigurationUsingFlags(flags));
-      }
-
       abstract Builder<T> setSplittable(boolean splittable);
 
       abstract Parse<T> build();
@@ -421,8 +414,9 @@ public class ParquetIO {
       return from(ValueProvider.StaticValueProvider.of(inputFiles));
     }
 
-    public Parse<T> withConfiguration(Map<String, String> hadoopConfigFlags) {
-      return toBuilder().setHadoopConfigurationFlags(hadoopConfigFlags).build();
+    /** Specify Hadoop configuration for ParquetReader. */
+    public Parse<T> withConfiguration(Map<String, String> configuration) {
+      return toBuilder().setConfiguration(SerializableConfiguration.fromMap(configuration)).build();
     }
 
     public Parse<T> withSplit() {
@@ -463,17 +457,14 @@ public class ParquetIO {
 
       abstract Builder<T> setConfiguration(SerializableConfiguration configuration);
 
-      Builder<T> setHadoopConfigurationFlags(Map<String, String> flags) {
-        return setConfiguration(makeHadoopConfigurationUsingFlags(flags));
-      }
-
       abstract Builder<T> setSplittable(boolean split);
 
       abstract ParseFiles<T> build();
     }
 
-    public ParseFiles<T> withConfiguration(Map<String, String> hadoopConfigFlags) {
-      return toBuilder().setHadoopConfigurationFlags(hadoopConfigFlags).build();
+    /** Specify Hadoop configuration for ParquetReader. */
+    public ParseFiles<T> withConfiguration(Map<String, String> configuration) {
+      return toBuilder().setConfiguration(SerializableConfiguration.fromMap(configuration)).build();
     }
 
     public ParseFiles<T> withSplit() {
@@ -484,17 +475,16 @@ public class ParquetIO {
     public PCollection<T> expand(PCollection<ReadableFile> input) {
       checkArgument(!isGenericRecordOutput(), "Parse can't be used for reading as GenericRecord.");
 
-      Coder<T> outputCoder = inferCoder(input.getPipeline().getCoderRegistry());
-
-      if (isSplittable()) {
-        return input
-            .apply(ParDo.of(new SplitReadFn<>(null, null, getParseFn(), getConfiguration())))
-            .setCoder(outputCoder);
-      }
-
       return input
-          .apply(ParDo.of(new ReadFn<>(null, getParseFn(), getConfiguration())))
-          .setCoder(outputCoder);
+          .apply(ParDo.of(buildFileReadingFn()))
+          .setCoder(inferCoder(input.getPipeline().getCoderRegistry()));
+    }
+
+    /** Returns Splittable or normal Parquet file reading DoFn. */
+    private DoFn<ReadableFile, T> buildFileReadingFn() {
+      return isSplittable()
+          ? new SplitReadFn<>(null, null, getParseFn(), getConfiguration())
+          : new ReadFn<>(null, getParseFn(), getConfiguration());
     }
 
     /** Returns true if expected output is {@code PCollection<GenericRecord>}. */
@@ -558,10 +548,6 @@ public class ParquetIO {
 
       abstract Builder setConfiguration(SerializableConfiguration configuration);
 
-      Builder setHadoopConfigurationFlags(Map<String, String> configFlags) {
-        return setConfiguration(makeHadoopConfigurationUsingFlags(configFlags));
-      }
-
       abstract Builder setSplittable(boolean split);
 
       abstract ReadFiles build();
@@ -583,8 +569,8 @@ public class ParquetIO {
     }
 
     /** Specify Hadoop configuration for ParquetReader. */
-    public ReadFiles withHadoopConfiguration(Map<String, String> configurationFlags) {
-      return toBuilder().setHadoopConfigurationFlags(configurationFlags).build();
+    public ReadFiles withConfiguration(Map<String, String> configuration) {
+      return toBuilder().setConfiguration(SerializableConfiguration.fromMap(configuration)).build();
     }
 
     /** Enable the Splittable reading. */
@@ -623,7 +609,7 @@ public class ParquetIO {
       // Default initial splitting the file into blocks of 64MB. Unit of SPLIT_LIMIT is byte.
       private static final long SPLIT_LIMIT = 64000000;
 
-      private final SerializableConfiguration hadoopBaseConfig;
+      private @Nullable final SerializableConfiguration configuration;
 
       private final SerializableFunction<GenericRecord, T> parseFn;
 
@@ -631,12 +617,12 @@ public class ParquetIO {
           GenericData model,
           Schema requestSchema,
           SerializableFunction<GenericRecord, T> parseFn,
-          SerializableConfiguration hadoopBaseConfig) {
+          @Nullable SerializableConfiguration configuration) {
 
         this.modelClass = model != null ? model.getClass() : null;
         this.requestSchemaString = requestSchema != null ? requestSchema.toString() : null;
         this.parseFn = checkNotNull(parseFn, "GenericRecord parse function can't be null");
-        this.hadoopBaseConfig = hadoopBaseConfig;
+        this.configuration = configuration;
       }
 
       ParquetFileReader getParquetFileReader(FileIO.ReadableFile file) throws Exception {
@@ -747,7 +733,7 @@ public class ParquetIO {
       }
 
       public Configuration getConfWithModelClass() throws Exception {
-        Configuration conf = SerializableConfiguration.newConfiguration(hadoopBaseConfig);
+        Configuration conf = SerializableConfiguration.newConfiguration(configuration);
         GenericData model = null;
         if (modelClass != null) {
           model = (GenericData) modelClass.getMethod("get").invoke(null);
@@ -884,15 +870,15 @@ public class ParquetIO {
 
       private final SerializableFunction<GenericRecord, T> parseFn;
 
-      private final SerializableConfiguration hadoopBaseConfig;
+      private final SerializableConfiguration configuration;
 
       ReadFn(
           GenericData model,
           SerializableFunction<GenericRecord, T> parseFn,
-          SerializableConfiguration hadoopBaseConfig) {
+          SerializableConfiguration configuration) {
         this.modelClass = model != null ? model.getClass() : null;
         this.parseFn = checkNotNull(parseFn, "GenericRecord parse function is null");
-        this.hadoopBaseConfig = hadoopBaseConfig;
+        this.configuration = configuration;
       }
 
       @ProcessElement
@@ -907,15 +893,14 @@ public class ParquetIO {
         SeekableByteChannel seekableByteChannel = file.openSeekable();
 
         AvroParquetReader.Builder<GenericRecord> builder =
-            AvroParquetReader.builder(new BeamParquetInputFile(seekableByteChannel));
+            (AvroParquetReader.Builder<GenericRecord>)
+                AvroParquetReader.<GenericRecord>builder(
+                        new BeamParquetInputFile(seekableByteChannel))
+                    .withConf(SerializableConfiguration.newConfiguration(configuration));
+
         if (modelClass != null) {
           // all GenericData implementations have a static get method
           builder = builder.withDataModel((GenericData) modelClass.getMethod("get").invoke(null));
-        }
-
-        if (hadoopBaseConfig != null) {
-          builder =
-              (AvroParquetReader.Builder<GenericRecord>) builder.withConf(hadoopBaseConfig.get());
         }
 
         try (ParquetReader<GenericRecord> reader = builder.build()) {
@@ -996,7 +981,7 @@ public class ParquetIO {
 
     /** Specifies configuration to be passed into the sink's writer. */
     public Sink withConfiguration(Map<String, String> configuration) {
-      return toBuilder().setConfiguration(makeHadoopConfigurationUsingFlags(configuration)).build();
+      return toBuilder().setConfiguration(SerializableConfiguration.fromMap(configuration)).build();
     }
 
     private transient @Nullable ParquetWriter<GenericRecord> writer;
@@ -1010,17 +995,13 @@ public class ParquetIO {
       BeamParquetOutputFile beamParquetOutputFile =
           new BeamParquetOutputFile(Channels.newOutputStream(channel));
 
-      AvroParquetWriter.Builder<GenericRecord> builder =
+      this.writer =
           AvroParquetWriter.<GenericRecord>builder(beamParquetOutputFile)
               .withSchema(schema)
               .withCompressionCodec(getCompressionCodec())
-              .withWriteMode(OVERWRITE);
-
-      if (getConfiguration() != null) {
-        builder = builder.withConf(getConfiguration().get());
-      }
-
-      this.writer = builder.build();
+              .withWriteMode(OVERWRITE)
+              .withConf(SerializableConfiguration.newConfiguration(getConfiguration()))
+              .build();
     }
 
     @Override
@@ -1126,18 +1107,6 @@ public class ParquetIO {
 
     /** Enforce singleton pattern, by disallowing construction with {@code new} operator. */
     private GenericRecordPassthroughFn() {}
-  }
-
-  /** Returns a new Hadoop {@link Configuration} instance with provided flags. */
-  private static SerializableConfiguration makeHadoopConfigurationUsingFlags(
-      Map<String, String> configFlags) {
-    Configuration hadoopConfiguration = new Configuration();
-
-    for (Map.Entry<String, String> entry : configFlags.entrySet()) {
-      hadoopConfiguration.set(entry.getKey(), entry.getValue());
-    }
-
-    return new SerializableConfiguration(hadoopConfiguration);
   }
 
   /** Disallow construction of utility class. */
