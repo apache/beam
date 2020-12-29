@@ -16,13 +16,25 @@
  * limitations under the License.
  */
 
-
+import groovy.transform.SourceURI
+import java.nio.file.Paths
 
 class CommonTestProperties {
   enum SDK {
     PYTHON,
     JAVA,
     GO,
+  }
+
+  static String getFlinkVersion() {
+    Properties properties = new Properties()
+    @SourceURI def sourceURI
+    def sourceParent = Paths.get(sourceURI.getPath()).getParent().toString()
+    File propertiesFile = new File(sourceParent, '../../gradle.properties')
+    propertiesFile.withInputStream {
+      properties.load(it)
+    }
+    return properties.getProperty("flink_versions").split(",").last()
   }
 
   enum Runner {
@@ -40,7 +52,7 @@ class CommonTestProperties {
         TEST_DATAFLOW: ":runners:google-cloud-dataflow-java",
         SPARK: ":runners:spark",
         SPARK_STRUCTURED_STREAMING: ":runners:spark",
-        FLINK: ":runners:flink:1.10",
+        FLINK: ":runners:flink:${CommonTestProperties.getFlinkVersion()}",
         DIRECT: ":runners:direct-java"
       ],
       PYTHON: [
