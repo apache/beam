@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.zetasql.translation;
+package org.apache.beam.sdk.extensions.sql.impl;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.fail;

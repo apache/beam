@@ -20,9 +20,9 @@ plugins {
   id 'org.apache.beam.module'
 }
 
-applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.extensions.sql.zetasql.provider')
+applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.extensions.sql.provider')
 
-description = "Apache Beam :: SDKs :: Java :: Extensions :: SQL :: ZetaSQL :: UDF test provider"
+description = "Apache Beam :: SDKs :: Java :: Extensions :: SQL :: UDF test provider"
 ext.summary = "Java UDFs for testing. This project must be built separately from its parent so the UDF provider is not included in the context classloader for tests."
 
 project.ext.jarPath = jar.archivePath

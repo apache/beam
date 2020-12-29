@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.zetasql.translation;
+package org.apache.beam.sdk.extensions.sql.impl;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -57,7 +57,7 @@ public class JavaUdfLoader {
    * Maps the external jar location to the functions the jar defines. Static so it can persist
    * across multiple SQL transforms.
    */
-  private static final Map<String, UserFunctionDefinitions> cache = new HashMap<>();
+  private static final Map<String, JavaUdfDefinitions> cache = new HashMap<>();
 
   private static final ClassLoader originalClassLoader = ReflectHelpers.findClassLoader();
 
@@ -70,8 +70,8 @@ public class JavaUdfLoader {
   public ScalarFn loadScalarFunction(List<String> functionPath, String jarPath) {
     String functionFullName = String.join(".", functionPath);
     try {
-      UserFunctionDefinitions functionDefinitions = loadJar(jarPath);
-      if (!functionDefinitions.javaScalarFunctions().containsKey(functionPath)) {
+      JavaUdfDefinitions functionDefinitions = loadJar(jarPath);
+      if (!functionDefinitions.scalarFunctions().containsKey(functionPath)) {
         throw new IllegalArgumentException(
             String.format(
                 "No implementation of scalar function %s found in %s.%n"
@@ -83,7 +83,7 @@ public class JavaUdfLoader {
                 UdfProvider.class.getSimpleName(),
                 functionFullName));
       }
-      return functionDefinitions.javaScalarFunctions().get(functionPath);
+      return functionDefinitions.scalarFunctions().get(functionPath);
     } catch (IOException e) {
       throw new RuntimeException(
           String.format(
@@ -135,7 +135,7 @@ public class JavaUdfLoader {
     return ServiceLoader.load(UdfProvider.class, classLoader).iterator();
   }
 
-  private UserFunctionDefinitions loadJar(String jarPath) throws IOException {
+  private JavaUdfDefinitions loadJar(String jarPath) throws IOException {
     if (cache.containsKey(jarPath)) {
       LOG.debug("Using cached function definitions from {}", jarPath);
       return cache.get(jarPath);
@@ -177,9 +177,9 @@ public class JavaUdfLoader {
         UdfProvider.class.getSimpleName(),
         jarPath,
         scalarFunctions.size());
-    UserFunctionDefinitions userFunctionDefinitions =
-        UserFunctionDefinitions.newBuilder()
-            .setJavaScalarFunctions(ImmutableMap.copyOf(scalarFunctions))
+    JavaUdfDefinitions userFunctionDefinitions =
+        JavaUdfDefinitions.newBuilder()
+            .setScalarFunctions(ImmutableMap.copyOf(scalarFunctions))
             .build();
     cache.put(jarPath, userFunctionDefinitions);
     return userFunctionDefinitions;

@@ -15,6 +15,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.extensions.sql.impl;
 
-/** Package containing UDF providers for testing. */
-package org.apache.beam.sdk.extensions.sql.zetasql.provider;
+import com.google.auto.value.AutoValue;
+import java.util.List;
+import org.apache.beam.sdk.extensions.sql.udf.ScalarFn;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+
+/** Holds user defined function definitions. */
+@AutoValue
+public abstract class JavaUdfDefinitions {
+  public abstract ImmutableMap<List<String>, ScalarFn> scalarFunctions();
+
+  @AutoValue.Builder
+  public abstract static class Builder {
+    public abstract Builder setScalarFunctions(ImmutableMap<List<String>, ScalarFn> value);
+
+    public abstract JavaUdfDefinitions build();
+  }
+
+  public static Builder newBuilder() {
+    return new AutoValue_JavaUdfDefinitions.Builder().setScalarFunctions(ImmutableMap.of());
+  }
+}
