@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl;
 
+import com.google.auto.value.AutoValue;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -57,7 +58,7 @@ public class JavaUdfLoader {
    * Maps the external jar location to the functions the jar defines. Static so it can persist
    * across multiple SQL transforms.
    */
-  private static final Map<String, JavaUdfDefinitions> cache = new HashMap<>();
+  private static final Map<String, FunctionDefinitions> cache = new HashMap<>();
 
   private static final ClassLoader originalClassLoader = ReflectHelpers.findClassLoader();
 
@@ -70,7 +71,7 @@ public class JavaUdfLoader {
   public ScalarFn loadScalarFunction(List<String> functionPath, String jarPath) {
     String functionFullName = String.join(".", functionPath);
     try {
-      JavaUdfDefinitions functionDefinitions = loadJar(jarPath);
+      FunctionDefinitions functionDefinitions = loadJar(jarPath);
       if (!functionDefinitions.scalarFunctions().containsKey(functionPath)) {
         throw new IllegalArgumentException(
             String.format(
@@ -135,7 +136,7 @@ public class JavaUdfLoader {
     return ServiceLoader.load(UdfProvider.class, classLoader).iterator();
   }
 
-  private JavaUdfDefinitions loadJar(String jarPath) throws IOException {
+  private FunctionDefinitions loadJar(String jarPath) throws IOException {
     if (cache.containsKey(jarPath)) {
       LOG.debug("Using cached function definitions from {}", jarPath);
       return cache.get(jarPath);
@@ -177,11 +178,29 @@ public class JavaUdfLoader {
         UdfProvider.class.getSimpleName(),
         jarPath,
         scalarFunctions.size());
-    JavaUdfDefinitions userFunctionDefinitions =
-        JavaUdfDefinitions.newBuilder()
+    FunctionDefinitions userFunctionDefinitions =
+        FunctionDefinitions.newBuilder()
             .setScalarFunctions(ImmutableMap.copyOf(scalarFunctions))
             .build();
     cache.put(jarPath, userFunctionDefinitions);
     return userFunctionDefinitions;
+  }
+
+  /** Holds user defined function definitions. */
+  @AutoValue
+  abstract static class FunctionDefinitions {
+    abstract ImmutableMap<List<String>, ScalarFn> scalarFunctions();
+
+    @AutoValue.Builder
+    abstract static class Builder {
+      abstract Builder setScalarFunctions(ImmutableMap<List<String>, ScalarFn> value);
+
+      abstract FunctionDefinitions build();
+    }
+
+    static Builder newBuilder() {
+      return new AutoValue_JavaUdfLoader_FunctionDefinitions.Builder()
+          .setScalarFunctions(ImmutableMap.of());
+    }
   }
 }
