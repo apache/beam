@@ -414,13 +414,30 @@ class StandardOptions(PipelineOptions):
 
   DEFAULT_RUNNER = 'DirectRunner'
 
+  ALL_KNOWN_RUNNERS = (
+      'apache_beam.runners.dataflow.dataflow_runner.DataflowRunner',
+      'apache_beam.runners.direct.direct_runner.BundleBasedDirectRunner',
+      'apache_beam.runners.direct.direct_runner.DirectRunner',
+      'apache_beam.runners.direct.direct_runner.SwitchingDirectRunner',
+      'apache_beam.runners.interactive.interactive_runner.InteractiveRunner',
+      'apache_beam.runners.portability.flink_runner.FlinkRunner',
+      'apache_beam.runners.portability.portable_runner.PortableRunner',
+      'apache_beam.runners.portability.spark_runner.SparkRunner',
+      'apache_beam.runners.test.TestDirectRunner',
+      'apache_beam.runners.test.TestDataflowRunner',
+  )
+
+  KNOWN_RUNNER_NAMES = [path.split('.')[-1] for path in ALL_KNOWN_RUNNERS]
+
   @classmethod
   def _add_argparse_args(cls, parser):
     parser.add_argument(
         '--runner',
         help=(
             'Pipeline runner used to execute the workflow. Valid values are '
-            'DirectRunner, DataflowRunner.'))
+            'one of %s, or the fully qualified name of a PipelineRunner '
+            'subclass. If unspecified, defaults to %s.' %
+            (', '.join(cls.KNOWN_RUNNER_NAMES), cls.DEFAULT_RUNNER)))
     # Whether to enable streaming mode.
     parser.add_argument(
         '--streaming',
@@ -1164,16 +1181,19 @@ class JobServerOptions(PipelineOptions):
     parser.add_argument(
         '--job_port',
         default=0,
+        type=int,
         help='Port to use for the job service. 0 to use a '
         'dynamic port.')
     parser.add_argument(
         '--artifact_port',
         default=0,
+        type=int,
         help='Port to use for artifact staging. 0 to use a '
         'dynamic port.')
     parser.add_argument(
         '--expansion_port',
         default=0,
+        type=int,
         help='Port to use for artifact staging. 0 to use a '
         'dynamic port.')
     parser.add_argument(
@@ -1182,6 +1202,13 @@ class JobServerOptions(PipelineOptions):
         help='The Java Application Launcher executable file to use for '
         'starting a Java job server. If unset, `java` from the '
         'environment\'s $PATH is used.')
+    parser.add_argument(
+        '--job_server_jvm_properties',
+        '--job_server_jvm_property',
+        dest='job_server_jvm_properties',
+        action='append',
+        default=[],
+        help='JVM properties to pass to a Java job server.')
 
 
 class FlinkRunnerOptions(PipelineOptions):
