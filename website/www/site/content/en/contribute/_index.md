@@ -105,34 +105,6 @@ Linux users should configure their machines for sudoless Docker.
 
 </br>
 
-### Connect With the Beam community
-
-- Consider subscribing to the [dev@ mailing list](/community/contact-us/), especially
-  if you plan to make more than one change or the change will be large. All decisions happen on the
-  public dev list.
-- (Optionally) Join the [#beam channel of the ASF slack](/community/contact-us/).
-- Create an account on [Beam issue tracker (JIRA)](https://issues.apache.org/jira/projects/BEAM/issues)
-  (anyone can do this).
-
-</br>
-
-### Share your intent
-
-- Find or create an issue in the [Beam issue tracker (JIRA)](https://issues.apache.org/jira/projects/BEAM/issues).
-  Tracking your work in an issue will avoid duplicated or conflicting work, and provide
-  a place for notes. Later, your pull request will be linked to the issue as well.
-- If you want to get involved but don't have a project in mind, check our list of open starter tasks,
-  [https://s.apache.org/beam-starter-tasks](https://s.apache.org/beam-starter-tasks).
-- Assign the issue to yourself. To get the permission to do so, email
-  the [dev@ mailing list](/community/contact-us)
-  to introduce yourself and to be added as a contributor in the Beam issue tracker including your
-  ASF Jira Username. For example [this welcome email](https://lists.apache.org/thread.html/e6018c2aaf7dc7895091434295e5b0fafe192b975e3e3761fcf0cda7@%3Cdev.beam.apache.org%3E).
-- If your change is large or it is your first change, it is a good idea to
-  [discuss it on the dev@ mailing list](/community/contact-us/).
-- For large changes create a design doc
-  ([template](https://s.apache.org/beam-design-doc-template),
-  [examples](https://s.apache.org/beam-design-docs)) and email it to the [dev@ mailing list](/community/contact-us).
-
 </div>
 
 <div class="arrow-lists-mobile">
@@ -140,7 +112,7 @@ Linux users should configure their machines for sudoless Docker.
  <a class="arrow-list-header" data-toggle="collapse" href="#collapseOverview" role="button" aria-expanded="false" aria-controls="collapseOverview">
   {{< figure src="/images/arrow-icon_list.svg">}}
 
-## Overview
+Overview
 
   </a>
 
@@ -165,7 +137,7 @@ There are lots of opportunities to contribute. You can for example:
 <a class="arrow-list-header" data-toggle="collapse" href="#collapseContributing" role="button" aria-expanded="false" aria-controls="collapseContributing">
    {{< figure src="/images/arrow-icon_list.svg">}}
 
-## Contributing code
+Contributing code
 
   </a>
 
@@ -222,6 +194,8 @@ Linux users should configure their machines for sudoless Docker.
 
 </br>
 
+</div>
+
 ### Connect With the Beam community
 
 - Consider subscribing to the [dev@ mailing list](/community/contact-us/), especially
@@ -249,5 +223,3 @@ Linux users should configure their machines for sudoless Docker.
 - For large changes create a design doc
   ([template](https://s.apache.org/beam-design-doc-template),
   [examples](https://s.apache.org/beam-design-docs)) and email it to the [dev@ mailing list](/community/contact-us).
-
-</div>

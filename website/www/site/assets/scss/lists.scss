@@ -48,13 +48,16 @@
 .arrow-lists-mobile {
   display: none;
   .arrow-list-header {
-    font-size: 28px;
-    font-weight: 500;
-    line-height: 1.29;
-    letter-spacing: normal;
     color: #333333;
     text-decoration: none;
     display: flex;
+    p {
+      font-size: 24px;
+      line-height: 1.25;
+      font-weight: 500;
+      letter-spacing: normal;
+      margin: 20px 0;
+    }
     img {
       margin-top: 17px;
       width: 18px;
