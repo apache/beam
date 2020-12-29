@@ -249,8 +249,8 @@ public class TestPubsubSignal implements TestRule {
             "start-subscription-" + String.valueOf(ThreadLocalRandom.current().nextLong()));
 
     subscriptionAdmin.createSubscription(
-        startTopicPath.getPath(),
         startSubscriptionPath.getPath(),
+        startTopicPath.getPath(),
         PushConfig.getDefaultInstance(),
         (int) duration.getStandardSeconds());
 
