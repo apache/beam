@@ -1,4 +1,4 @@
-package org.apache.beam.examples.complete.kafkatopubsub;
+package org.apache.beam.examples.complete.kafkatopubsub.utils;
 
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
@@ -23,7 +23,7 @@ public class RunKafkaContainer {
     private final KafkaProducer<String, String> producer;
     private final String bootstrapServer;
 
-    RunKafkaContainer(String pubsubMessage) {
+    public RunKafkaContainer(String pubsubMessage) {
         bootstrapServer = setupKafkaContainer();
         topicName = "messages-topic";
         producer = new KafkaProducer<>(
