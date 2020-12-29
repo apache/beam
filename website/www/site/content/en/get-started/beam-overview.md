@@ -58,7 +58,7 @@ Get started using Beam for your data processing tasks.
 
 1. [Try Apache Beam](/get-started/try-apache-beam) in an online interactive environment.
 
-1. Follow the Quickstart for the [Java SDK](/get-started/quickstart-java), the [Python SDK](/get-started/quickstart-py) or the [Go SDK](/get-started/quickstart-go).
+1. Follow the Quickstart for the [Java SDK](/get-started/quickstart-java), the [Python SDK](/get-started/quickstart-py), or the [Go SDK](/get-started/quickstart-go).
 
 1. See the [WordCount Examples Walkthrough](/get-started/wordcount-example) for examples that introduce various features of the SDKs.
 
