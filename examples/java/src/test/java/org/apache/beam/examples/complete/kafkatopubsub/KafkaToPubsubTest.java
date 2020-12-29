@@ -74,7 +74,7 @@ public class KafkaToPubsubTest {
 
   @BeforeClass
   public static void beforeClass() throws Exception {
-    Credentials credentials = NoopCredentialFactory.getInstance().getCredential();
+    Credentials credentials = NoopCredentialFactory.fromOptions(OPTIONS).getCredential();
     OPTIONS.as(GcpOptions.class).setGcpCredential(credentials);
     OPTIONS.as(GcpOptions.class).setProject(PROJECT_ID);
     setupPubsubContainer(OPTIONS.as(PubsubOptions.class));
@@ -119,7 +119,7 @@ public class KafkaToPubsubTest {
     try {
       job.cancel();
     } catch (IOException | UnsupportedOperationException e) {
-      System.out.println("Something went wrong");
+      throw new AssertionError("Could not stop pipeline.", e);
     }
   }
 

@@ -3,6 +3,7 @@ package org.apache.beam.examples.complete.kafkatopubsub;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.kafka.clients.producer.KafkaProducer;
@@ -39,11 +40,11 @@ public class RunKafkaContainer {
                         "testcontainers", pubsubMessage)).get();
                 System.out.println("Producer sent");
             } catch (ExecutionException | InterruptedException e) {
-                System.out.println("Something went wrong in kafka producer");
-                e.printStackTrace();
+                throw new RuntimeException("Something went wrong in kafka producer", e);
             }
         };
-        Executors.newSingleThreadScheduledExecutor()
+        // Without saving `.schedule(...)` result to variable checkframework will fail
+        @SuppressWarnings("unused") ScheduledFuture<?> schedule = Executors.newSingleThreadScheduledExecutor()
                 .schedule(kafkaProducer, 10, TimeUnit.SECONDS);
     }
 

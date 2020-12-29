@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.gcp.auth;
 
 import com.google.auth.Credentials;
+import java.io.IOException;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
@@ -38,12 +39,8 @@ public class NoopCredentialFactory implements CredentialFactory {
     return INSTANCE;
   }
 
-  public static NoopCredentialFactory getInstance() {
-    return INSTANCE;
-  }
-
   @Override
-  public Credentials getCredential() {
+  public Credentials getCredential() throws IOException {
     return NOOP_CREDENTIALS;
   }
 
@@ -54,7 +51,7 @@ public class NoopCredentialFactory implements CredentialFactory {
     }
 
     @Override
-    public Map<String, List<String>> getRequestMetadata(URI uri) {
+    public Map<String, List<String>> getRequestMetadata(URI uri) throws IOException {
       return null;
     }
 
@@ -69,6 +66,6 @@ public class NoopCredentialFactory implements CredentialFactory {
     }
 
     @Override
-    public void refresh() {}
+    public void refresh() throws IOException {}
   }
 }
