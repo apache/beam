@@ -416,9 +416,6 @@ public class ParquetIOTest implements Serializable {
     readPipeline.run().waitUntilFinish();
   }
 
-  @Test
-  public void testConfigurationReadFile() {}
-
   /** Returns list of JSON representation of GenericRecords. */
   private static List<String> convertRecordsToJson(List<GenericRecord> records) {
     return records.stream().map(ParseGenericRecordAsJsonFn.create()::apply).collect(toList());
