@@ -183,6 +183,13 @@ class DeferredFrameTest(unittest.TestCase):
           sort_values(['b', 'c']),
           df1,
           df2)
+      # Test without specifying 'on'
+      self._run_test(
+          lambda df1,
+          df2: df1.merge(df2, how='left').rename(index=lambda x: '*').
+          sort_values(['b', 'c']),
+          df1,
+          df2)
 
   def test_series_getitem(self):
     s = pd.Series([x**2 for x in range(10)])

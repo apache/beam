@@ -1196,7 +1196,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
         right_index=right_index,
         **kwargs)
     if not any([on, left_on, right_on, left_index, right_index]):
-      on = [col for col in self_proxy.columns() if col in right_proxy.columns()]
+      on = [col for col in self_proxy.columns if col in right_proxy.columns]
     if not left_on:
       left_on = on
     if not isinstance(left_on, list):
