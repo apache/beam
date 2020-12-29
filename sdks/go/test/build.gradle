@@ -56,12 +56,12 @@ golang {
 task flinkXlangValidatesRunner {
   dependsOn ":sdks:go:test:goBuild"
   dependsOn ":sdks:go:container:docker"
-  dependsOn ":runners:flink:1.10:job-server:shadowJar"
+  dependsOn ":runners:flink:${project.ext.latestFlinkVersion}:job-server:shadowJar"
   dependsOn ":sdks:java:testing:expansion-service:buildTestExpansionServiceJar"
   doLast {
     def options = [
             "--runner flink",
-            "--flink_job_server_jar ${project(":runners:flink:1.10:job-server").shadowJar.archivePath}",
+            "--flink_job_server_jar ${project(":runners:flink:${project.ext.latestFlinkVersion}:job-server").shadowJar.archivePath}",
             "--expansion_service_jar ${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
     ]
     exec {
@@ -119,12 +119,12 @@ task ulrXlangValidatesRunner {
 
 task flinkValidatesRunner {
   dependsOn ":sdks:go:test:goBuild"
-  dependsOn ":runners:flink:1.10:job-server:shadowJar"
+  dependsOn ":runners:flink:${project.ext.latestFlinkVersion}:job-server:shadowJar"
   doLast {
     def options = [
             "--runner flink",
             "--parallel 1", // prevent memory overuse
-            "--flink_job_server_jar ${project(":runners:flink:1.10:job-server").shadowJar.archivePath}",
+            "--flink_job_server_jar ${project(":runners:flink:${project.ext.latestFlinkVersion}:job-server").shadowJar.archivePath}",
     ]
     exec {
       executable "sh"
