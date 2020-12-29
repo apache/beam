@@ -152,6 +152,38 @@ class DeferredFrameTest(unittest.TestCase):
           df1,
           df2)
 
+  def test_merge_same_key(self):
+    df1 = pd.DataFrame({
+        'key': ['foo', 'bar', 'baz', 'foo'], 'value': [1, 2, 3, 5]
+    })
+    df2 = pd.DataFrame({
+        'key': ['foo', 'bar', 'baz', 'foo'], 'value': [5, 6, 7, 8]
+    })
+    with beam.dataframe.allow_non_parallel_operations():
+      self._run_test(
+          lambda df1,
+          df2: df1.merge(df2, on='key').rename(index=lambda x: '*').sort_values(
+              ['value_x', 'value_y']),
+          df1,
+          df2)
+      self._run_test(
+          lambda df1,
+          df2: df1.merge(df2, on='key', suffixes=('_left', '_right')).rename(
+              index=lambda x: '*').sort_values(['value_left', 'value_right']),
+          df1,
+          df2)
+
+    df1 = pd.DataFrame({'a': ['foo', 'bar'], 'b': [1, 2]})
+    df2 = pd.DataFrame({'a': ['foo', 'baz'], 'c': [3, 4]})
+
+    with beam.dataframe.allow_non_parallel_operations():
+      self._run_test(
+          lambda df1,
+          df2: df1.merge(df2, how='left', on='a').rename(index=lambda x: '*').
+          sort_values(['b', 'c']),
+          df1,
+          df2)
+
   def test_series_getitem(self):
     s = pd.Series([x**2 for x in range(10)])
     self._run_test(lambda s: s[...], s)

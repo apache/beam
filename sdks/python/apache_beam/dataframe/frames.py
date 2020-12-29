@@ -1182,6 +1182,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       right_on,
       left_index,
       right_index,
+      suffixes,
       **kwargs):
     self_proxy = self._expr.proxy()
     right_proxy = right._expr.proxy()
@@ -1198,11 +1199,11 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       on = [col for col in self_proxy.columns() if col in right_proxy.columns()]
     if not left_on:
       left_on = on
-    elif not isinstance(left_on, list):
+    if not isinstance(left_on, list):
       left_on = [left_on]
     if not right_on:
       right_on = on
-    elif not isinstance(right_on, list):
+    if not isinstance(right_on, list):
       right_on = [right_on]
 
     if left_index:
@@ -1218,8 +1219,11 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
     merged = frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
             'merge',
-            lambda left, right: left.merge(
-                right, left_index=True, right_index=True, **kwargs),
+            lambda left, right: left.merge(right,
+                                           left_index=True,
+                                           right_index=True,
+                                           suffixes=suffixes,
+                                           **kwargs),
             [indexed_left._expr, indexed_right._expr],
             preserves_partition_by=partitionings.Singleton(),
             requires_partition_by=partitionings.Index()))
@@ -1227,6 +1231,20 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
     if left_index or right_index:
       return merged
     else:
+      common_cols = set(left_on).intersection(right_on)
+      if len(common_cols):
+        # When merging on the same column name from both dfs, merged will have
+        # two duplicate columns, one with lsuffix and one with rsuffix.
+        # Normally pandas de-dupes these into a single column with no suffix.
+        # This replicates that logic by dropping the _right_ dupe, and removing
+        # the suffix from the _left_ dupe.
+        lsuffix, rsuffix = suffixes
+        merged = merged.drop(
+            columns=[f'{col}{rsuffix}' for col in common_cols])
+        merged = merged.rename(
+            columns={f'{col}{lsuffix}': col for col in common_cols})
+
+
       return merged.reset_index(drop=True)
 
   @frame_base.args_to_kwargs(pd.DataFrame)
