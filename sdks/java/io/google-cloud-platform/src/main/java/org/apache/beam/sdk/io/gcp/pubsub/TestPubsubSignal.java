@@ -20,7 +20,10 @@ package org.apache.beam.sdk.io.gcp.pubsub;
 import static org.apache.beam.sdk.io.gcp.pubsub.TestPubsub.createTopicName;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
+import com.google.api.gax.grpc.GrpcTransportChannel;
 import com.google.api.gax.rpc.ApiException;
+import com.google.api.gax.rpc.FixedTransportChannelProvider;
+import com.google.api.gax.rpc.TransportChannelProvider;
 import com.google.cloud.pubsub.v1.AckReplyConsumer;
 import com.google.cloud.pubsub.v1.MessageReceiver;
 import com.google.cloud.pubsub.v1.Subscriber;
@@ -29,13 +32,17 @@ import com.google.cloud.pubsub.v1.SubscriptionAdminSettings;
 import com.google.cloud.pubsub.v1.TopicAdminClient;
 import com.google.cloud.pubsub.v1.TopicAdminSettings;
 import com.google.pubsub.v1.PushConfig;
+import io.grpc.ManagedChannel;
+import io.grpc.ManagedChannelBuilder;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
@@ -82,18 +89,17 @@ public class TestPubsubSignal implements TestRule {
   private static final String RESULT_SUCCESS_MESSAGE = "SUCCESS";
   private static final String START_TOPIC_NAME = "start";
   private static final String START_SIGNAL_MESSAGE = "START SIGNAL";
-  private static final Integer DEFAULT_ACK_DEADLINE_SECONDS = 60;
-
-  private static final String NO_ID_ATTRIBUTE = null;
-  private static final String NO_TIMESTAMP_ATTRIBUTE = null;
 
   private final TestPubsubOptions pipelineOptions;
   private final String pubsubEndpoint;
+  private final boolean isLocalhost;
 
   private @Nullable TopicAdminClient topicAdmin = null;
   private @Nullable SubscriptionAdminClient subscriptionAdmin = null;
   private @Nullable TopicPath resultTopicPath = null;
   private @Nullable TopicPath startTopicPath = null;
+  private @Nullable ManagedChannel channel = null;
+  private @Nullable TransportChannelProvider channelProvider = null;
 
   /**
    * Creates an instance of this rule.
@@ -101,13 +107,22 @@ public class TestPubsubSignal implements TestRule {
    * <p>Loads GCP configuration from {@link TestPipelineOptions}.
    */
   public static TestPubsubSignal create() {
-    TestPubsubOptions options = TestPipeline.testingPipelineOptions().as(TestPubsubOptions.class);
-    return new TestPubsubSignal(options);
+    return fromOptions(TestPipeline.testingPipelineOptions());
+  }
+
+  /**
+   * Creates an instance of this rule using provided {@link PipelineOptions}.
+   *
+   * @param options {@link PipelineOptions} to be used for loading GCP configuration.
+   */
+  public static TestPubsubSignal fromOptions(PipelineOptions options) {
+    return new TestPubsubSignal(options.as(TestPubsubOptions.class));
   }
 
   private TestPubsubSignal(TestPubsubOptions pipelineOptions) {
     this.pipelineOptions = pipelineOptions;
     this.pubsubEndpoint = PubsubOptions.targetForRootUrl(this.pipelineOptions.getPubsubRootUrl());
+    this.isLocalhost = this.pubsubEndpoint.startsWith("localhost");
   }
 
   @Override
@@ -115,7 +130,7 @@ public class TestPubsubSignal implements TestRule {
     return new Statement() {
       @Override
       public void evaluate() throws Throwable {
-        if (topicAdmin != null || subscriptionAdmin != null) {
+        if (topicAdmin != null || subscriptionAdmin != null || channel != null) {
           throw new AssertionError(
               "Pubsub client was not shutdown in previous test. "
                   + "Topic path is'"
@@ -136,16 +151,24 @@ public class TestPubsubSignal implements TestRule {
   }
 
   private void initializePubsub(Description description) throws IOException {
+    if (isLocalhost) {
+      channel = ManagedChannelBuilder.forTarget(pubsubEndpoint).usePlaintext().build();
+    } else {
+      channel = ManagedChannelBuilder.forTarget(pubsubEndpoint).useTransportSecurity().build();
+    }
+    channelProvider = FixedTransportChannelProvider.create(GrpcTransportChannel.create(channel));
     topicAdmin =
         TopicAdminClient.create(
             TopicAdminSettings.newBuilder()
                 .setCredentialsProvider(pipelineOptions::getGcpCredential)
+                .setTransportChannelProvider(channelProvider)
                 .setEndpoint(pubsubEndpoint)
                 .build());
     subscriptionAdmin =
         SubscriptionAdminClient.create(
             SubscriptionAdminSettings.newBuilder()
                 .setCredentialsProvider(pipelineOptions::getGcpCredential)
+                .setTransportChannelProvider(channelProvider)
                 .setEndpoint(pubsubEndpoint)
                 .build());
 
@@ -166,8 +189,8 @@ public class TestPubsubSignal implements TestRule {
     startTopicPath = startTopicPathTmp;
   }
 
-  private void tearDown() throws IOException {
-    if (subscriptionAdmin == null || topicAdmin == null) {
+  private void tearDown() {
+    if (subscriptionAdmin == null || topicAdmin == null || channel == null) {
       return;
     }
 
@@ -189,9 +212,12 @@ public class TestPubsubSignal implements TestRule {
     } finally {
       subscriptionAdmin.close();
       topicAdmin.close();
+      channel.shutdown();
 
       subscriptionAdmin = null;
       topicAdmin = null;
+      channelProvider = null;
+      channel = null;
 
       resultTopicPath = null;
       startTopicPath = null;
@@ -242,15 +268,15 @@ public class TestPubsubSignal implements TestRule {
    * <p>This future must be created before running the pipeline. A subscription must exist prior to
    * the start signal being published, which occurs immediately upon pipeline startup.
    */
-  public Supplier<Void> waitForStart(Duration duration) throws IOException {
+  public Supplier<Void> waitForStart(Duration duration) {
     SubscriptionPath startSubscriptionPath =
         PubsubClient.subscriptionPathFromName(
             pipelineOptions.getProject(),
-            "start-subscription-" + String.valueOf(ThreadLocalRandom.current().nextLong()));
+            "start-subscription-" + ThreadLocalRandom.current().nextLong());
 
     subscriptionAdmin.createSubscription(
-        startTopicPath.getPath(),
         startSubscriptionPath.getPath(),
+        startTopicPath.getPath(),
         PushConfig.getDefaultInstance(),
         (int) duration.getStandardSeconds());
 
@@ -277,7 +303,7 @@ public class TestPubsubSignal implements TestRule {
     SubscriptionPath resultSubscriptionPath =
         PubsubClient.subscriptionPathFromName(
             pipelineOptions.getProject(),
-            "result-subscription-" + String.valueOf(ThreadLocalRandom.current().nextLong()));
+            "result-subscription-" + ThreadLocalRandom.current().nextLong());
 
     subscriptionAdmin.createSubscription(
         resultSubscriptionPath.getPath(),
@@ -320,6 +346,7 @@ public class TestPubsubSignal implements TestRule {
         Subscriber.newBuilder(signalSubscriptionPath.getPath(), receiver)
             .setCredentialsProvider(pipelineOptions::getGcpCredential)
             .setEndpoint(pubsubEndpoint)
+            .setChannelProvider(channelProvider)
             .build();
     subscriber.startAsync();
 
@@ -343,14 +370,6 @@ public class TestPubsubSignal implements TestRule {
               signalSubscriptionPath, timeoutDuration.getStandardSeconds()));
     }
     return result.get();
-  }
-
-  private void sleep(long t) {
-    try {
-      Thread.sleep(t);
-    } catch (InterruptedException ex) {
-      throw new RuntimeException(ex);
-    }
   }
 
   /** {@link PTransform} that signals once when the pipeline has started. */
