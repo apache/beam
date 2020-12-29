@@ -15,26 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.zetasql.provider;
 
-import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableMap;
-import java.util.Map;
-import org.apache.beam.sdk.extensions.sql.udf.ScalarFn;
-import org.apache.beam.sdk.extensions.sql.udf.UdfProvider;
-
-/** Defines Java UDFs for use in tests. */
-@AutoService(UdfProvider.class)
-public class UdfTestProvider implements UdfProvider {
-  @Override
-  public Map<String, ScalarFn> userDefinedScalarFunctions() {
-    return ImmutableMap.of("helloWorld", new HelloWorldFn());
-  }
-
-  public static class HelloWorldFn extends ScalarFn {
-    @ApplyMethod
-    public String helloWorld() {
-      return "Hello world!";
-    }
-  }
-}
+/** Package containing UDF providers for testing. */
+package org.apache.beam.sdk.extensions.sql.provider;
