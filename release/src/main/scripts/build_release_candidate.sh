@@ -62,7 +62,6 @@ DOCKER_IMAGE_DEFAULT_REPO_PREFIX=beam_
 
 JAVA_VER=("java8" "java11")
 PYTHON_VER=("python3.6" "python3.7" "python3.8")
-FLINK_VER=("1.8" "1.9" "1.10")
 
 echo "================Setting Up Environment Variables==========="
 echo "Which release version are you working on: "
@@ -281,8 +280,9 @@ if [[ $confirmation = "y" ]]; then
   done
 
   echo '-------------Generating and Pushing Flink job server images-------------'
-  echo "Building containers for the following Flink versions:" "${FLINK_VER[@]}"
-  for ver in "${FLINK_VER[@]}"; do
+  FLINK_VERSIONS=($(grep 'flink_versions' gradle.properties | cut -d'=' -f2 | tr "," "\n"))
+  echo "Building containers for the following Flink versions:" "${FLINK_VERSIONS[@]}"
+  for ver in "${FLINK_VERSIONS[@]}"; do
     ./gradlew ":runners:flink:${ver}:job-server-container:dockerPush" -Pdocker-tag="${RELEASE}_rc${RC_NUM}"
   done
 

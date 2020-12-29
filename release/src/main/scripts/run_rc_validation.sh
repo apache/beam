@@ -198,7 +198,9 @@ if [[ "$java_quickstart_flink_local" = true ]]; then
   echo "*************************************************************"
   echo "* Running Java Quickstart with Flink local runner"
   echo "*************************************************************"
-  ./gradlew :runners:flink:1.10:runQuickstartJavaFlinkLocal \
+  FLINK_VERSIONS=($(grep 'flink_versions' gradle.properties | cut -d'=' -f2 | tr "," "\n"))
+  LATEST_FLINK_VERSION=${FLINK_VERSIONS[@]:${#FLINK_VERSIONS}-1:1}
+  ./gradlew ":runners:flink:$LATEST_FLINK_VERSION:runQuickstartJavaFlinkLocal" \
   -Prepourl=${REPO_URL} \
   -Pver=${RELEASE_VER}
 else
