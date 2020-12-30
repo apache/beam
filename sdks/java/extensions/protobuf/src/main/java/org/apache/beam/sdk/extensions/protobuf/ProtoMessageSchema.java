@@ -22,7 +22,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.Message;
-import java.io.IOException;
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
@@ -32,6 +31,7 @@ import org.apache.beam.sdk.extensions.protobuf.ProtoByteBuddyUtils.ProtoTypeConv
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
 import org.apache.beam.sdk.schemas.GetterBasedSchemaProvider;
+import org.apache.beam.sdk.schemas.RowMessages;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.SchemaUserTypeCreator;
@@ -39,7 +39,6 @@ import org.apache.beam.sdk.schemas.logicaltypes.OneOfType;
 import org.apache.beam.sdk.schemas.utils.FieldValueTypeSupplier;
 import org.apache.beam.sdk.schemas.utils.JavaBeanUtils;
 import org.apache.beam.sdk.schemas.utils.ReflectUtils;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -130,28 +129,12 @@ public class ProtoMessageSchema extends GetterBasedSchemaProvider {
     "unchecked"
   })
   public static <T> SimpleFunction<byte[], Row> getProtoBytesToRowFn(Class<T> clazz) {
-    checkForMessageType(clazz);
-    return new ProtoBytesToRowFn(clazz);
-  }
-
-  private static class ProtoBytesToRowFn<T extends Message> extends SimpleFunction<byte[], Row> {
-    private final ProtoCoder<T> protoCoder;
-    private final SerializableFunction<T, Row> toRowFunction;
-
-    public ProtoBytesToRowFn(Class<T> clazz) {
-      this.protoCoder = ProtoCoder.of(clazz);
-      this.toRowFunction = new ProtoMessageSchema().toRowFunction(TypeDescriptor.of(clazz));
-    }
-
-    @Override
-    public Row apply(byte[] bytes) {
-      try {
-        T message = protoCoder.getParser().parseFrom(bytes);
-        return toRowFunction.apply(message);
-      } catch (IOException e) {
-        throw new IllegalArgumentException("Could not decode row from proto payload.", e);
-      }
-    }
+    Class<Message> protoClass = ensureMessageType(clazz);
+    ProtoCoder<Message> protoCoder = ProtoCoder.of(protoClass);
+    return RowMessages.bytesToRowFn(
+        new ProtoMessageSchema(),
+        TypeDescriptor.of(protoClass),
+        bytes -> protoCoder.getParser().parseFrom(bytes));
   }
 
   // Other modules are not allowed to use non-vendored Message class
@@ -160,37 +143,9 @@ public class ProtoMessageSchema extends GetterBasedSchemaProvider {
     "unchecked"
   })
   public static <T> SimpleFunction<Row, byte[]> getRowToProtoBytesFn(Class<T> clazz) {
-    checkForMessageType(clazz);
-    return new RowToProtoBytesFn(clazz);
-  }
-
-  private static class RowToProtoBytesFn<T extends Message> extends SimpleFunction<Row, byte[]> {
-    private final SerializableFunction<Row, T> toMessageFunction;
-    private final Schema protoSchema;
-
-    public RowToProtoBytesFn(Class<T> clazz) {
-      ProtoMessageSchema messageSchema = new ProtoMessageSchema();
-      TypeDescriptor<T> typeDescriptor = TypeDescriptor.of(clazz);
-      this.toMessageFunction = messageSchema.fromRowFunction(typeDescriptor);
-      this.protoSchema = messageSchema.schemaFor(typeDescriptor);
-    }
-
-    @Override
-    public byte[] apply(Row row) {
-      if (!protoSchema.equivalent(row.getSchema())) {
-        row = switchFieldsOrder(row);
-      }
-      Message message = toMessageFunction.apply(row);
-      return message.toByteArray();
-    }
-
-    private Row switchFieldsOrder(Row row) {
-      Row.Builder convertedRow = Row.withSchema(protoSchema);
-      protoSchema
-          .getFields()
-          .forEach(field -> convertedRow.addValue(row.getValue(field.getName())));
-      return convertedRow.build();
-    }
+    Class<Message> protoClass = ensureMessageType(clazz);
+    return RowMessages.rowToBytesFn(
+        new ProtoMessageSchema(), TypeDescriptor.of(protoClass), Message::toByteArray);
   }
 
   private <T> void checkForDynamicType(TypeDescriptor<T> typeDescriptor) {
@@ -200,11 +155,12 @@ public class ProtoMessageSchema extends GetterBasedSchemaProvider {
     }
   }
 
-  private static <T> void checkForMessageType(Class<T> clazz) {
+  private static Class<Message> ensureMessageType(Class<?> clazz) {
     checkArgument(
         Message.class.isAssignableFrom(clazz),
         "%s is not a subtype of %s",
         clazz.getName(),
         Message.class.getSimpleName());
+    return (Class<Message>) clazz;
   }
 }
