@@ -35,7 +35,6 @@ import com.google.pubsub.v1.PushConfig;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicReference;
@@ -272,7 +271,7 @@ public class TestPubsubSignal implements TestRule {
     SubscriptionPath startSubscriptionPath =
         PubsubClient.subscriptionPathFromName(
             pipelineOptions.getProject(),
-            "start-subscription-" + ThreadLocalRandom.current().nextLong());
+            "start-subscription-" + String.valueOf(ThreadLocalRandom.current().nextLong()));
 
     subscriptionAdmin.createSubscription(
         startSubscriptionPath.getPath(),
@@ -303,7 +302,7 @@ public class TestPubsubSignal implements TestRule {
     SubscriptionPath resultSubscriptionPath =
         PubsubClient.subscriptionPathFromName(
             pipelineOptions.getProject(),
-            "result-subscription-" + ThreadLocalRandom.current().nextLong());
+            "result-subscription-" + String.valueOf(ThreadLocalRandom.current().nextLong()));
 
     subscriptionAdmin.createSubscription(
         resultSubscriptionPath.getPath(),
