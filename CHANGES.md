@@ -72,6 +72,7 @@
 
 ## Known Issues
 
+* Fixed annotation handling for setter parameters in schema creation (Java) ([BEAM-11530](https://issues.apache.org/jira/browse/BEAM-11530)).
 * Fixed X (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 
 # [2.27.0] - Cut, Unreleased
