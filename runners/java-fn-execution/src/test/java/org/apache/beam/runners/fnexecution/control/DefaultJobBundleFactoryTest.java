@@ -19,7 +19,6 @@ package org.apache.beam.runners.fnexecution.control;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
@@ -36,6 +35,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
@@ -460,12 +460,13 @@ public class DefaultJobBundleFactoryTest {
       final RemoteBundle b2 = sbf.getBundle(orf, srh, BundleProgressHandler.ignored());
       verify(envFactory, Mockito.times(2)).createEnvironment(eq(environment), any());
 
-      long tms = System.currentTimeMillis();
+      AtomicBoolean b2Closing = new AtomicBoolean(false);
       ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
       ScheduledFuture<Optional<Exception>> closingFuture =
           executor.schedule(
               () -> {
                 try {
+                  b2Closing.compareAndSet(false, true);
                   b2.close();
                   return Optional.empty();
                 } catch (Exception e) {
@@ -475,18 +476,25 @@ public class DefaultJobBundleFactoryTest {
               100,
               TimeUnit.MILLISECONDS);
 
-      // This call should block until closingFuture has finished closing b2
+      Assert.assertThat(b2Closing.get(), equalTo(false));
+
+      // This call should block until closingFuture has finished closing b2 (100ms)
       RemoteBundle b3 = sbf.getBundle(orf, srh, BundleProgressHandler.ignored());
 
       // ensure the previous call waited for close
-      Assert.assertThat(System.currentTimeMillis() - tms, greaterThanOrEqualTo(100L));
-      // This assertion includes a small delay to give the forked thread a chance to finish if it's
-      // been blocked
-      Assert.assertThat(closingFuture.get(1, TimeUnit.MILLISECONDS), equalTo(Optional.empty()));
+      Assert.assertThat(b2Closing.get(), equalTo(true));
+
+      // Join closingFuture and check if an exception occurred
+      Optional<Exception> closingException = closingFuture.get();
+      if (closingException.isPresent()) {
+        throw new AssertionError("Exception occurred while closing b2", closingException.get());
+      }
 
       verify(envFactory, Mockito.times(2)).createEnvironment(eq(environment), any());
       b3.close();
       b1.close();
+
+      executor.shutdown();
     }
   }
 
