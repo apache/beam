@@ -91,7 +91,6 @@ dependencies {
   compile library.java.jackson_core
   compile "org.hamcrest:hamcrest:2.1"
   compile "org.threeten:threetenbp:1.4.4"
-  compile "com.google.cloud:google-cloud-bigtable:1.16.1"
   compile "org.apache.beam:beam-vendor-grpc-1_26_0:0.3"
   compile project(path: ":model:pipeline", configuration: "shadow")
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
