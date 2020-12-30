@@ -191,9 +191,11 @@ message PTransform {
 
   // (Optional) A map from URNs designating a type of annotation, to the
   // annotation in binary format. For example, an annotation could indicate
-  // that this PTransform has specific resource preferences.
+  // that this PTransform has specific privacy properties.
   //
-  // A runner MAY ignore types of annotations it doesn't understand.
+  // A runner MAY ignore types of annotations it doesn't understand. Therefore
+  // annotations MUST NOT be used for metadata that can affect correct
+  // execution of the transform.
   map<string, bytes> annotations = 8;
 }
 
