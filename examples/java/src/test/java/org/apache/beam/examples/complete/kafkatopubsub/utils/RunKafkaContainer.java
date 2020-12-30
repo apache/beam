@@ -30,53 +30,52 @@ import org.apache.kafka.common.serialization.StringSerializer;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.utility.DockerImageName;
 
-/**
- * Run kafka container in separate thread to produce message.
- */
+/** Run kafka container in separate thread to produce message. */
 public class RunKafkaContainer {
 
-    private static final String KAFKA_IMAGE_NAME = "confluentinc/cp-kafka:5.4.3";
-    private final String topicName;
-    private final KafkaProducer<String, String> producer;
-    private final String bootstrapServer;
+  private static final String KAFKA_IMAGE_NAME = "confluentinc/cp-kafka:5.4.3";
+  private final String topicName;
+  private final KafkaProducer<String, String> producer;
+  private final String bootstrapServer;
 
-    public RunKafkaContainer(String pubsubMessage) {
-        bootstrapServer = setupKafkaContainer();
-        topicName = "messages-topic";
-        producer = new KafkaProducer<>(
+  public RunKafkaContainer(String pubsubMessage) {
+    bootstrapServer = setupKafkaContainer();
+    topicName = "messages-topic";
+    producer =
+        new KafkaProducer<>(
             ImmutableMap.of(
-                ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServer,
-                ProducerConfig.CLIENT_ID_CONFIG, UUID.randomUUID().toString()
-            ),
+                ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,
+                bootstrapServer,
+                ProducerConfig.CLIENT_ID_CONFIG,
+                UUID.randomUUID().toString()),
             new StringSerializer(),
-            new StringSerializer()
-        );
-        Runnable kafkaProducer = () -> {
-            try {
-                producer.send(new ProducerRecord<>(topicName,
-                        "testcontainers", pubsubMessage)).get();
-                System.out.println("Producer sent");
-            } catch (ExecutionException | InterruptedException e) {
-                throw new RuntimeException("Something went wrong in kafka producer", e);
-            }
+            new StringSerializer());
+    Runnable kafkaProducer =
+        () -> {
+          try {
+            producer.send(new ProducerRecord<>(topicName, "testcontainers", pubsubMessage)).get();
+            System.out.println("Producer sent");
+          } catch (ExecutionException | InterruptedException e) {
+            throw new RuntimeException("Something went wrong in kafka producer", e);
+          }
         };
-        // Without saving `.schedule(...)` result to variable checkframework will fail
-        @SuppressWarnings("unused") ScheduledFuture<?> schedule = Executors.newSingleThreadScheduledExecutor()
-                .schedule(kafkaProducer, 10, TimeUnit.SECONDS);
-    }
+    // Without saving `.schedule(...)` result to variable checkframework will fail
+    @SuppressWarnings("unused")
+    ScheduledFuture<?> schedule =
+        Executors.newSingleThreadScheduledExecutor().schedule(kafkaProducer, 10, TimeUnit.SECONDS);
+  }
 
-    public String getTopicName() {
-        return topicName;
-    }
+  public String getTopicName() {
+    return topicName;
+  }
 
-    public String getBootstrapServer() {
-        return bootstrapServer;
-    }
+  public String getBootstrapServer() {
+    return bootstrapServer;
+  }
 
-    private static String setupKafkaContainer() {
-        KafkaContainer kafkaContainer = new KafkaContainer(
-            DockerImageName.parse(KAFKA_IMAGE_NAME));
-        kafkaContainer.start();
-        return kafkaContainer.getBootstrapServers();
-    }
+  private static String setupKafkaContainer() {
+    KafkaContainer kafkaContainer = new KafkaContainer(DockerImageName.parse(KAFKA_IMAGE_NAME));
+    kafkaContainer.start();
+    return kafkaContainer.getBootstrapServers();
+  }
 }
