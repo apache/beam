@@ -151,6 +151,23 @@ class DeferredFrameTest(unittest.TestCase):
           df1,
           df2)
 
+  def test_merge_on_index(self):
+    # This is from the pandas doctests, but fails due to re-indexing being
+    # order-sensitive.
+    df1 = pd.DataFrame({
+        'lkey': ['foo', 'bar', 'baz', 'foo'], 'value': [1, 2, 3, 5]
+    }).set_index('lkey')
+    df2 = pd.DataFrame({
+        'rkey': ['foo', 'bar', 'baz', 'foo'], 'value': [5, 6, 7, 8]
+    }).set_index('rkey')
+    with beam.dataframe.allow_non_parallel_operations():
+      self._run_test(
+          lambda df1,
+          df2: df1.merge(df2, left_index=True, right_index=True).sort_values(
+              ['value_x', 'value_y']),
+          df1,
+          df2)
+
   def test_merge_same_key(self):
     df1 = pd.DataFrame({
         'key': ['foo', 'bar', 'baz', 'foo'], 'value': [1, 2, 3, 5]
@@ -172,6 +189,7 @@ class DeferredFrameTest(unittest.TestCase):
           df1,
           df2)
 
+  def test_merge_same_key_doctest(self):
     df1 = pd.DataFrame({'a': ['foo', 'bar'], 'b': [1, 2]})
     df2 = pd.DataFrame({'a': ['foo', 'baz'], 'c': [3, 4]})
 
@@ -187,6 +205,26 @@ class DeferredFrameTest(unittest.TestCase):
           lambda df1,
           df2: df1.merge(df2, how='left').rename(index=lambda x: '*').
           sort_values(['b', 'c']),
+          df1,
+          df2)
+
+  def test_merge_same_key_suffix_collision(self):
+    df1 = pd.DataFrame({'a': ['foo', 'bar'], 'b': [1, 2], 'a_lsuffix': [5, 6]})
+    df2 = pd.DataFrame({'a': ['foo', 'baz'], 'c': [3, 4], 'a_rsuffix': [7, 8]})
+
+    with beam.dataframe.allow_non_parallel_operations():
+      self._run_test(
+          lambda df1,
+          df2: df1.merge(
+              df2, how='left', on='a', suffixes=('_lsuffix', '_rsuffix')).
+          rename(index=lambda x: '*').sort_values(['b', 'c']),
+          df1,
+          df2)
+      # Test without specifying 'on'
+      self._run_test(
+          lambda df1,
+          df2: df1.merge(df2, how='left', suffixes=('_lsuffix', '_rsuffix')).
+          rename(index=lambda x: '*').sort_values(['b', 'c']),
           df1,
           df2)
 

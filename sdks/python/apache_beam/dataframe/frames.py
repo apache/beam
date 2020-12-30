@@ -1199,11 +1199,11 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       on = [col for col in self_proxy.columns if col in right_proxy.columns]
     if not left_on:
       left_on = on
-    if not isinstance(left_on, list):
+    if left_on and not isinstance(left_on, list):
       left_on = [left_on]
     if not right_on:
       right_on = on
-    if not isinstance(right_on, list):
+    if right_on and not isinstance(right_on, list):
       right_on = [right_on]
 
     if left_index:
@@ -1215,6 +1215,17 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       indexed_right = right
     else:
       indexed_right = right.set_index(right_on, drop=False)
+
+    if left_on and right_on:
+      common_cols = set(left_on).intersection(right_on)
+      if len(common_cols):
+        # When merging on the same column name from both dfs, we need to make
+        # sure only one df has the column. Otherwise we end up with
+        # two duplicate columns, one with lsuffix and one with rsuffix.
+        # It's safe to drop from either because the data has already been duped
+        # to the index.
+        indexed_right = indexed_right.drop(columns=common_cols)
+
 
     merged = frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
@@ -1231,19 +1242,6 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
     if left_index or right_index:
       return merged
     else:
-      common_cols = set(left_on).intersection(right_on)
-      if len(common_cols):
-        # When merging on the same column name from both dfs, merged will have
-        # two duplicate columns, one with lsuffix and one with rsuffix.
-        # Normally pandas de-dupes these into a single column with no suffix.
-        # This replicates that logic by dropping the _right_ dupe, and removing
-        # the suffix from the _left_ dupe.
-        lsuffix, rsuffix = suffixes
-        merged = merged.drop(
-            columns=[f'{col}{rsuffix}' for col in common_cols])
-        merged = merged.rename(
-            columns={f'{col}{lsuffix}': col for col in common_cols})
-
 
       return merged.reset_index(drop=True)
 
