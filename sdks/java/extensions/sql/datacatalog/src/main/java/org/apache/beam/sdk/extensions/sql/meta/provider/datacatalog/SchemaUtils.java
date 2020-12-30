@@ -128,6 +128,11 @@ class SchemaUtils {
       }
       ColumnSchema column =
           fromBeamField(Field.of(field.getName(), fieldType.getCollectionElementType()));
+      if (!column.getMode().equals("REQUIRED")) {
+        // We should have bailed out earlier for any cases that would result in mode being set.
+        throw new AssertionError(
+            "ColumnSchema for collection element type has non-empty mode: " + fieldType);
+      }
       return column.toBuilder().setMode("REPEATED").build();
     } else { // struct or primitive type
       ColumnSchema.Builder colBuilder =

@@ -34,6 +34,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.sql.impl.TableName;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
@@ -214,6 +215,7 @@ public class DataCatalogTableProvider extends FullNameTableProvider implements A
     return tableBuilder.get().schema(schema).name(tableName).build();
   }
 
+  @Internal
   public boolean setSchemaIfNotPresent(String resource, Schema schema) {
     com.google.cloud.datacatalog.v1beta1.Schema dcSchema = SchemaUtils.toDataCatalog(schema);
     Entry entry =
