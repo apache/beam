@@ -99,7 +99,7 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
 
         List<SourceRecord> records = task.poll();
         if (records == null) {
-            LOG.info("----------- No records found");
+            LOG.debug("----------- No records found");
 
             restrictionTrackers.remove(this.getHashCode());
             return ProcessContinuation.stop();
@@ -111,7 +111,7 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
         }
 
         for (SourceRecord record : records) {
-            LOG.info("------------ Record found: {}", record);
+            LOG.debug("------------ Record found: {}", record);
 
             Map<String, Object> offset = (Map<String, Object>) record.sourceOffset();
 
@@ -121,12 +121,12 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
             }
 
             T json = this.fn.mapSourceRecord(record);
-            LOG.info("****************** RECEIVED SOURCE AS JSON: {}", json);
+            LOG.debug("****************** RECEIVED SOURCE AS JSON: {}", json);
 
             receiver.output(json);
         }
 
-        LOG.info("WE SHOULD RESUME IN A BIT!");
+        LOG.debug("WE SHOULD RESUME IN A BIT!");
 
         restrictionTrackers.remove(this.getHashCode());
         return ProcessContinuation.resume().withResumeDelay(Duration.standardSeconds(1));
