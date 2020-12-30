@@ -881,7 +881,7 @@ limitations under the License.
 &lt;p>&lt;a href="/get-started/try-apache-beam">Try Apache Beam&lt;/a> in an online interactive environment.&lt;/p>
 &lt;/li>
 &lt;li>
-&lt;p>Follow the Quickstart for the &lt;a href="/get-started/quickstart-java">Java SDK&lt;/a>, the &lt;a href="/get-started/quickstart-py">Python SDK&lt;/a> or the &lt;a href="/get-started/quickstart-go">Go SDK&lt;/a>.&lt;/p>
+&lt;p>Follow the Quickstart for the &lt;a href="/get-started/quickstart-java">Java SDK&lt;/a>, the &lt;a href="/get-started/quickstart-py">Python SDK&lt;/a>, or the &lt;a href="/get-started/quickstart-go">Go SDK&lt;/a>.&lt;/p>
 &lt;/li>
 &lt;li>
 &lt;p>See the &lt;a href="/get-started/wordcount-example">WordCount Examples Walkthrough&lt;/a> for examples that introduce various features of the SDKs.&lt;/p>
