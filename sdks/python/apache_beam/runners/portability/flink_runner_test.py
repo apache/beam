@@ -57,7 +57,7 @@ from apache_beam.transforms.sql import SqlTransform
 # Run as
 #
 # pytest flink_runner_test.py[::TestClass::test_case] \
-#     --test-pipeline-options "--environment_type=LOOPBACK"
+#     --test-pipeline-options="--environment_type=LOOPBACK"
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -394,6 +394,9 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
 
   def test_register_finalizations(self):
     raise unittest.SkipTest("BEAM-11021")
+
+  def test_pardo_dynamic_timer(self):
+    raise unittest.SkipTest("BEAM-10120")
 
   # Inherits all other tests.
 

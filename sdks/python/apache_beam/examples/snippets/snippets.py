@@ -697,12 +697,12 @@ def examples_wordcount_streaming(argv):
         | 'Group' >> beam.GroupByKey()
         |
         'Sum' >> beam.Map(lambda word_ones: (word_ones[0], sum(word_ones[1])))
-        |
-        'Format' >> beam.Map(lambda word_and_count: '%s: %d' % word_and_count))
+        | 'Format' >>
+        beam.MapTuple(lambda word, count: f'{word}: {count}'.encode('utf-8')))
 
     # [START example_wordcount_streaming_write]
     # Write to Pub/Sub
-    output | beam.io.WriteStringsToPubSub(known_args.output_topic)
+    output | beam.io.WriteToPubSub(known_args.output_topic)
     # [END example_wordcount_streaming_write]
 
 
@@ -1658,6 +1658,10 @@ def sdf_basic_example():
     def process(
         self,
         file_name,
+        # Alternatively, we can let FileToWordsFn itself inherit from
+        # RestrictionProvider, implement the required methods and let
+        # tracker=beam.DoFn.RestrictionParam() which will use self as
+        # the provider.
         tracker=beam.DoFn.RestrictionParam(FileToWordsRestrictionProvider())):
       with open(file_name) as file_handle:
         file_handle.seek(tracker.current_restriction.start())

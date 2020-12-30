@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.transforms.splittabledofn;
 
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.joda.time.Instant;
 
@@ -26,7 +24,6 @@ import org.joda.time.Instant;
  * A {@link WatermarkEstimator} that observes the timestamps of all records output from a {@link
  * DoFn}.
  */
-@Experimental(Kind.SPLITTABLE_DO_FN)
 public interface TimestampObservingWatermarkEstimator<WatermarkEstimatorStateT>
     extends WatermarkEstimator<WatermarkEstimatorStateT> {
 

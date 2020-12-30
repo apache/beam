@@ -686,7 +686,7 @@ class EmbeddedGrpcWorkerHandler(GrpcWorkerHandler):
 
 
 # The subprocesses module is not threadsafe on Python 2.7. Use this lock to
-# prevent concurrent calls to POpen().
+# prevent concurrent calls to Popen().
 SUBPROCESS_LOCK = threading.Lock()
 
 
@@ -744,9 +744,12 @@ class DockerSdkWorkerHandler(GrpcWorkerHandler):
     # type: () -> None
     with SUBPROCESS_LOCK:
       try:
+        _LOGGER.info('Attempting to pull image %s', self._container_image)
         subprocess.check_call(['docker', 'pull', self._container_image])
       except Exception:
-        _LOGGER.info('Unable to pull image %s' % self._container_image)
+        _LOGGER.info(
+            'Unable to pull image %s, defaulting to local image if it exists' %
+            self._container_image)
       self._container_id = subprocess.check_output([
           'docker',
           'run',
@@ -766,7 +769,7 @@ class DockerSdkWorkerHandler(GrpcWorkerHandler):
             'docker', 'inspect', '-f', '{{.State.Status}}', self._container_id
         ]).strip()
         _LOGGER.info(
-            'Waiting for docker to start up.Current status is %s' %
+            'Waiting for docker to start up. Current status is %s' %
             status.decode('utf-8'))
         if status == b'running':
           _LOGGER.info(

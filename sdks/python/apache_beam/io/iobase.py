@@ -1206,8 +1206,6 @@ class RestrictionTracker(object):
   See following documents for more details.
   * https://s.apache.org/splittable-do-fn
   * https://s.apache.org/splittable-do-fn-python-sdk
-
-  Experimental; no backwards-compatibility guarantees.
   """
   def current_restriction(self):
     """Returns the current restriction.
@@ -1373,10 +1371,7 @@ class WatermarkEstimator(object):
 
 
 class RestrictionProgress(object):
-  """Used to record the progress of a restriction.
-
-  Experimental; no backwards-compatibility guarantees.
-  """
+  """Used to record the progress of a restriction."""
   def __init__(self, **kwargs):
     # Only accept keyword arguments.
     self._fraction = kwargs.pop('fraction', None)

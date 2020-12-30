@@ -19,8 +19,6 @@ package org.apache.beam.sdk.transforms.splittabledofn;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.joda.time.Instant;
@@ -29,7 +27,6 @@ import org.joda.time.Instant;
  * A set of {@link WatermarkEstimator}s that users can use to advance the output watermark for their
  * associated {@link DoFn splittable DoFn}s.
  */
-@Experimental(Kind.SPLITTABLE_DO_FN)
 @SuppressWarnings({
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })

@@ -60,6 +60,8 @@ docker {
                   project.docker_image_default_repo_root,
           tag: project.rootProject.hasProperty(["docker-tag"]) ?
                   project.rootProject["docker-tag"] : project.sdk_version)
+  // tags used by dockerTag task
+  tags containerImageTags()
   files "../Dockerfile", "./build"
   buildArgs(['py_version': "${project.ext.pythonVersion}",
              'pull_licenses': project.rootProject.hasProperty(["docker-pull-licenses"]) ||

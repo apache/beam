@@ -42,6 +42,7 @@ import org.joda.time.Instant;
  * {@link Comparable} by first comparing the wrapped TimerData then the key.
  */
 @SuppressWarnings({
+  "keyfor",
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })

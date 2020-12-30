@@ -372,7 +372,13 @@ public class UnboundedSourceSystem {
             final Instant nextWatermark = reader.getWatermark();
             if (currentWatermark.isBefore(nextWatermark)) {
               currentWatermarks.put(ssp, nextWatermark);
-              enqueueWatermark(reader);
+              if (BoundedWindow.TIMESTAMP_MAX_VALUE.isAfter(nextWatermark)) {
+                enqueueWatermark(reader);
+              } else {
+                // Max watermark has been reached for this reader.
+                enqueueMaxWatermarkAndEndOfStream(reader);
+                running = false;
+              }
             }
           }
 
@@ -401,6 +407,37 @@ public class UnboundedSourceSystem {
             new IncomingMessageEnvelope(ssp, getOffset(reader), null, opMessage);
 
         queues.get(ssp).put(envelope);
+      }
+
+      // Send an max watermark message and an end of stream message to the corresponding ssp to
+      // close windows and finish the task.
+      private void enqueueMaxWatermarkAndEndOfStream(UnboundedReader<T> reader) {
+        final SystemStreamPartition ssp = readerToSsp.get(reader);
+        // Send the max watermark to force completion of any open windows.
+        final IncomingMessageEnvelope watermarkEnvelope =
+            IncomingMessageEnvelope.buildWatermarkEnvelope(
+                ssp, BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis());
+        enqueueUninterruptibly(watermarkEnvelope);
+
+        final IncomingMessageEnvelope endOfStreamEnvelope =
+            IncomingMessageEnvelope.buildEndOfStreamEnvelope(ssp);
+        enqueueUninterruptibly(endOfStreamEnvelope);
+      }
+
+      private void enqueueUninterruptibly(IncomingMessageEnvelope envelope) {
+        final BlockingQueue<IncomingMessageEnvelope> queue =
+            queues.get(envelope.getSystemStreamPartition());
+        while (true) {
+          try {
+            queue.put(envelope);
+            return;
+          } catch (InterruptedException e) {
+            // Some events require that we post an envelope to the queue even if the interrupt
+            // flag was set (i.e. during a call to stop) to ensure that the consumer properly
+            // shuts down. Consequently, if we receive an interrupt here we ignore it and retry
+            // the put operation.
+          }
+        }
       }
 
       void stop() {

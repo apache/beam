@@ -157,15 +157,15 @@ class SpannerAccessor implements AutoCloseable {
         spanner, databaseClient, databaseAdminClient, batchClient, spannerConfig);
   }
 
-  DatabaseClient getDatabaseClient() {
+  public DatabaseClient getDatabaseClient() {
     return databaseClient;
   }
 
-  BatchClient getBatchClient() {
+  public BatchClient getBatchClient() {
     return batchClient;
   }
 
-  DatabaseAdminClient getDatabaseAdminClient() {
+  public DatabaseAdminClient getDatabaseAdminClient() {
     return databaseAdminClient;
   }
 

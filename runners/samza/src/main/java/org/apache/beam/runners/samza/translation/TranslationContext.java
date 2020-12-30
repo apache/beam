@@ -17,8 +17,12 @@
  */
 package org.apache.beam.runners.samza.translation;
 
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Consumer;
 import org.apache.beam.runners.core.construction.TransformInputs;
@@ -93,26 +97,38 @@ public class TranslationContext {
   }
 
   public <OutT> void registerInputMessageStream(
-      PValue pvalue,
-      InputDescriptor<org.apache.samza.operators.KV<?, OpMessage<OutT>>, ?> inputDescriptor) {
-    // we want to register it with the Samza graph only once per i/o stream
-    final String streamId = inputDescriptor.getStreamId();
-    if (registeredInputStreams.containsKey(streamId)) {
-      MessageStream<OpMessage<OutT>> messageStream = registeredInputStreams.get(streamId);
-      LOG.info(
-          String.format(
-              "Stream id %s has already been mapped to %s stream. Mapping %s to the same message stream.",
-              streamId, messageStream, pvalue));
-      registerMessageStream(pvalue, messageStream);
+      PValue pvalue, InputDescriptor<KV<?, OpMessage<OutT>>, ?> inputDescriptor) {
+    registerInputMessageStreams(pvalue, Collections.singletonList(inputDescriptor));
+  }
 
-      return;
+  /**
+   * Function to register a merged messageStream of all input messageStreams to a PCollection.
+   *
+   * @param pvalue output of a transform
+   * @param inputDescriptors a list of Samza InputDescriptors
+   */
+  public <OutT> void registerInputMessageStreams(
+      PValue pvalue, List<? extends InputDescriptor<KV<?, OpMessage<OutT>>, ?>> inputDescriptors) {
+    final Set<MessageStream<OpMessage<OutT>>> streamsToMerge = new HashSet<>();
+    for (InputDescriptor<KV<?, OpMessage<OutT>>, ?> inputDescriptor : inputDescriptors) {
+      final String streamId = inputDescriptor.getStreamId();
+      // each streamId registered in map should already be add in messageStreamMap
+      if (registeredInputStreams.containsKey(streamId)) {
+        @SuppressWarnings("unchecked")
+        MessageStream<OpMessage<OutT>> messageStream = registeredInputStreams.get(streamId);
+        LOG.info(
+            String.format(
+                "Stream id %s has already been mapped to %s stream. Mapping %s to the same message stream.",
+                streamId, messageStream, pvalue));
+        streamsToMerge.add(messageStream);
+      } else {
+        final MessageStream<OpMessage<OutT>> typedStream =
+            getValueStream(appDescriptor.getInputStream(inputDescriptor));
+        registeredInputStreams.put(streamId, typedStream);
+        streamsToMerge.add(typedStream);
+      }
     }
-    @SuppressWarnings("unchecked")
-    final MessageStream<OpMessage<OutT>> typedStream =
-        getValueStream(appDescriptor.getInputStream(inputDescriptor));
-
-    registerMessageStream(pvalue, typedStream);
-    registeredInputStreams.put(streamId, typedStream);
+    registerMessageStream(pvalue, MessageStream.mergeAll(streamsToMerge));
   }
 
   public <OutT> void registerMessageStream(PValue pvalue, MessageStream<OpMessage<OutT>> stream) {
@@ -204,9 +220,8 @@ public class TranslationContext {
         tableDesc.getTableId(), id -> appDescriptor.getTable(tableDesc));
   }
 
-  private static <T> MessageStream<T> getValueStream(
-      MessageStream<org.apache.samza.operators.KV<?, T>> input) {
-    return input.map(org.apache.samza.operators.KV::getValue);
+  private static <T> MessageStream<T> getValueStream(MessageStream<KV<?, T>> input) {
+    return input.map(KV::getValue);
   }
 
   public String getIdForPValue(PValue pvalue) {

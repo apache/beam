@@ -357,7 +357,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.27.0'
+    project.version = '2.28.0'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
@@ -427,7 +427,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def google_clients_version = "1.30.10"
     def google_cloud_bigdataoss_version = "2.1.6"
     def google_cloud_pubsub_version = "1.108.6"
-    def google_cloud_pubsublite_version = "0.4.1"
+    def google_cloud_pubsublite_version = "0.7.0"
     def google_code_gson_version = "2.8.6"
     def google_oauth_clients_version = "1.31.0"
     // Try to keep grpc_version consistent with gRPC version in google_cloud_platform_libraries_bom
@@ -438,6 +438,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def influxdb_version = "2.19"
     def jackson_version = "2.10.2"
     def jaxb_api_version = "2.3.3"
+    def kafka_version = "2.4.1"
     def nemo_version = "0.1"
     def netty_version = "4.1.51.Final"
     def postgres_version = "42.2.16"
@@ -447,7 +448,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def slf4j_version = "1.7.30"
     def spark_version = "2.4.7"
     def spotbugs_version = "4.0.6"
-    def testcontainers_version = "1.15.0-rc2"
+    def testcontainers_version = "1.15.1"
 
     // A map of maps containing common libraries used per language. To use:
     // dependencies {
@@ -513,6 +514,7 @@ class BeamModulePlugin implements Plugin<Project> {
         google_cloud_bigquery                       : "com.google.cloud:google-cloud-bigquery", // google_cloud_platform_libraries_bom sets version
         google_cloud_bigquery_storage               : "com.google.cloud:google-cloud-bigquerystorage", // google_cloud_platform_libraries_bom sets version
         google_cloud_bigtable_client_core           : "com.google.cloud.bigtable:bigtable-client-core:1.16.0",
+        google_cloud_bigtable_emulator              : "com.google.cloud:google-cloud-bigtable-emulator:0.125.2",
         google_cloud_core                           : "com.google.cloud:google-cloud-core", // google_cloud_platform_libraries_bom sets version
         google_cloud_core_grpc                      : "com.google.cloud:google-cloud-core-grpc", // google_cloud_platform_libraries_bom sets version
         google_cloud_datacatalog_v1beta1            : "com.google.cloud:google-cloud-datacatalog", // google_cloud_platform_libraries_bom sets version
@@ -576,8 +578,8 @@ class BeamModulePlugin implements Plugin<Project> {
         jsonassert                                  : "org.skyscreamer:jsonassert:1.5.0",
         jsr305                                      : "com.google.code.findbugs:jsr305:3.0.2",
         junit                                       : "junit:junit:4.13-beta-3",
-        kafka                                       : "org.apache.kafka:kafka_2.11:2.4.1",
-        kafka_clients                               : "org.apache.kafka:kafka-clients:2.6.0",
+        kafka                                       : "org.apache.kafka:kafka_2.11:$kafka_version",
+        kafka_clients                               : "org.apache.kafka:kafka-clients:$kafka_version",
         mockito_core                                : "org.mockito:mockito-core:3.0.0",
         nemo_compiler_frontend_beam                 : "org.apache.nemo:nemo-compiler-frontend-beam:$nemo_version",
         netty_all                                   : "io.netty:netty-all:$netty_version",
@@ -753,7 +755,7 @@ class BeamModulePlugin implements Plugin<Project> {
         'varargs',
       ]
 
-      project.tasks.withType(JavaCompile) {
+      project.tasks.withType(JavaCompile).configureEach {
         options.encoding = "UTF-8"
         // As we want to add '-Xlint:-deprecation' we intentionally remove '-Xlint:deprecation' from compilerArgs here,
         // as intellij is adding this, see https://youtrack.jetbrains.com/issue/IDEA-196615
@@ -766,6 +768,10 @@ class BeamModulePlugin implements Plugin<Project> {
           '-Werror'
         ]
         + (defaultLintSuppressions + configuration.disableLintWarnings).collect { "-Xlint:-${it}" })
+      }
+
+      project.tasks.withType(Jar).configureEach {
+        preserveFileTimestamps(false)
       }
 
       if (project.hasProperty("compileAndRunTestsWithJava11")) {
@@ -795,7 +801,7 @@ class BeamModulePlugin implements Plugin<Project> {
         filter { setFailOnNoMatchingTests(false) }
       }
 
-      project.tasks.withType(Test) {
+      project.tasks.withType(Test).configureEach {
         // Configure all test tasks to use JUnit
         useJUnit {}
         // default maxHeapSize on gradle 5 is 512m, lets increase to handle more demanding tests
@@ -917,7 +923,7 @@ class BeamModulePlugin implements Plugin<Project> {
       project.apply plugin: 'checkstyle'
       project.tasks.withType(Checkstyle) {
         configFile = project.project(":").file("sdks/java/build-tools/src/main/resources/beam/checkstyle.xml")
-        configProperties = ["checkstyle.suppressions.file": project.project(":").relativePath("sdks/java/build-tools/src/main/resources/beam/suppressions.xml")]
+        configProperties = ["checkstyle.suppressions.file": project.project(":").file("sdks/java/build-tools/src/main/resources/beam/suppressions.xml")]
         showViolations = true
         maxErrors = 0
       }
@@ -1039,6 +1045,11 @@ class BeamModulePlugin implements Plugin<Project> {
             extendsFrom shadow
           }
           testCompile.extendsFrom shadowTest
+        }
+
+        // Ensure build task depends on shadowJar (required for shadow plugin >=4.0.4)
+        project.tasks.named('build').configure {
+          dependsOn project.tasks.named('shadowJar')
         }
       }
 
@@ -1691,6 +1702,19 @@ class BeamModulePlugin implements Plugin<Project> {
         }
       }
       return "${configuration.root}/${configuration.name}:${configuration.tag}"
+    }
+
+    project.ext.containerImageTags = {
+      String[] tags
+      if (project.rootProject.hasProperty(["docker-tag-list"])) {
+        tags = project.rootProject["docker-tag-list"].split(',')
+      } else {
+        tags = [
+          project.rootProject.hasProperty(["docker-tag"]) ?
+          project.rootProject["docker-tag"] : project.sdk_version
+        ]
+      }
+      return tags
     }
 
     /** ***********************************************************************************************/

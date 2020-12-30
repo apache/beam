@@ -28,6 +28,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -60,6 +61,7 @@ public class DicomIOReadIT {
     client.deleteDicomStore(healthcareDataset + "/dicomStores/" + storeName);
   }
 
+  @Ignore("https://jira.apache.org/jira/browse/BEAM-11376")
   @Test
   public void testDicomMetadataRead() throws IOException {
     String webPath =

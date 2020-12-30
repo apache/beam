@@ -18,35 +18,26 @@
 package org.apache.beam.sdk.io.gcp.pubsublite;
 
 import com.google.auto.value.AutoValue;
-import com.google.cloud.pubsublite.PublishMetadata;
 import com.google.cloud.pubsublite.TopicPath;
-import com.google.cloud.pubsublite.internal.Publisher;
-import com.google.cloud.pubsublite.internal.wire.PubsubContext;
-import com.google.cloud.pubsublite.internal.wire.PubsubContext.Framework;
-import com.google.cloud.pubsublite.internal.wire.RoutingPublisherBuilder;
-import com.google.cloud.pubsublite.internal.wire.SinglePartitionPublisherBuilder;
-import com.google.cloud.pubsublite.proto.PublisherServiceGrpc.PublisherServiceStub;
-import io.grpc.StatusException;
 import java.io.Serializable;
-import java.util.Optional;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Options needed for a Pub/Sub Lite Publisher. */
 @AutoValue
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public abstract class PublisherOptions implements Serializable {
   private static final long serialVersionUID = 275311613L;
-
-  private static final Framework FRAMEWORK = Framework.of("BEAM");
 
   // Required parameters.
   public abstract TopicPath topicPath();
 
   // Optional parameters.
-  /** A supplier for the stub to be used. If enabled, does not use the publisher cache. */
-  public abstract @Nullable SerializableSupplier<PublisherServiceStub> stubSupplier();
+  /**
+   * A supplier for the publisher to be used. If enabled, does not use the publisher cache.
+   *
+   * <p>The returned type must be convertible to Publisher<PublishMetadata>, but Object is used to
+   * prevent adding an api surface dependency on guava when this is not used.
+   */
+  public abstract @Nullable SerializableSupplier<Object> publisherSupplier();
 
   @Override
   public abstract int hashCode();
@@ -56,20 +47,7 @@ public abstract class PublisherOptions implements Serializable {
   }
 
   public boolean usesCache() {
-    return stubSupplier() == null;
-  }
-
-  @SuppressWarnings("CheckReturnValue")
-  Publisher<PublishMetadata> getPublisher() throws StatusException {
-    SinglePartitionPublisherBuilder.Builder singlePartitionPublisherBuilder =
-        SinglePartitionPublisherBuilder.newBuilder().setContext(PubsubContext.of(FRAMEWORK));
-    if (stubSupplier() != null) {
-      singlePartitionPublisherBuilder.setStub(Optional.of(stubSupplier().get()));
-    }
-    return RoutingPublisherBuilder.newBuilder()
-        .setTopic(topicPath())
-        .setPublisherBuilder(singlePartitionPublisherBuilder)
-        .build();
+    return publisherSupplier() == null;
   }
 
   @AutoValue.Builder
@@ -78,8 +56,13 @@ public abstract class PublisherOptions implements Serializable {
     public abstract Builder setTopicPath(TopicPath path);
 
     // Optional parameters.
-    public abstract Builder setStubSupplier(
-        SerializableSupplier<PublisherServiceStub> stubSupplier);
+    /**
+     * A supplier for the publisher to be used. If enabled, does not use the publisher cache.
+     *
+     * <p>The returned type must be convertible to Publisher<PublishMetadata>, but Object is used to
+     * prevent adding an api surface dependency on guava when this is not used.
+     */
+    public abstract Builder setPublisherSupplier(SerializableSupplier<Object> stubSupplier);
 
     public abstract PublisherOptions build();
   }

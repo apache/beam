@@ -17,15 +17,15 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsublite;
 
-import static com.google.cloud.pubsublite.internal.Preconditions.checkArgument;
+import static com.google.cloud.pubsublite.internal.UncheckedApiPreconditions.checkArgument;
 
 import com.google.api.core.ApiService.Listener;
 import com.google.api.core.ApiService.State;
+import com.google.api.gax.rpc.ApiException;
 import com.google.cloud.pubsublite.PublishMetadata;
 import com.google.cloud.pubsublite.internal.CloseableMonitor;
 import com.google.cloud.pubsublite.internal.Publisher;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
-import io.grpc.StatusException;
 import java.util.HashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
@@ -41,14 +41,14 @@ class PublisherCache {
   private final HashMap<PublisherOptions, Publisher<PublishMetadata>> livePublishers =
       new HashMap<>();
 
-  Publisher<PublishMetadata> get(PublisherOptions options) throws StatusException {
+  Publisher<PublishMetadata> get(PublisherOptions options) throws ApiException {
     checkArgument(options.usesCache());
     try (CloseableMonitor.Hold h = monitor.enter()) {
       Publisher<PublishMetadata> publisher = livePublishers.get(options);
       if (publisher != null) {
         return publisher;
       }
-      publisher = options.getPublisher();
+      publisher = Publishers.newPublisher(options);
       livePublishers.put(options, publisher);
       publisher.addListener(
           new Listener() {
@@ -60,7 +60,7 @@ class PublisherCache {
             }
           },
           listenerExecutor);
-      publisher.startAsync();
+      publisher.startAsync().awaitRunning();
       return publisher;
     }
   }
