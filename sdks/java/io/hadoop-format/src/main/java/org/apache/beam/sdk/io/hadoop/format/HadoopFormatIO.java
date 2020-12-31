@@ -199,7 +199,7 @@ import org.slf4j.LoggerFactory;
  *              .withValueTranslation(myOutputValueType);
  * }</pre>
  *
- * <p> Hadoop formats typically work with Writable data structures which are mutable and instances
+ * <p>Hadoop formats typically work with Writable data structures which are mutable and instances
  * are reused by the input format reader. Therefore, to not to have elements which can change value
  * after they are emitted from read, this IO will clone each key value read from underlying hadoop
  * input format (unless they are in the list of well known immutable types). However, in cases where
@@ -208,10 +208,10 @@ import org.slf4j.LoggerFactory;
  * can be instructed to skip key/value cloning.
  *
  * <pre>{@code
- *  HadoopFormatIO.Read<InputFormatKeyClass, MyValueClass> read = ...
- *  p.apply("read", read
- *      .withSkipKeyClone(true)
- *      .withSkipValueClone(true));
+ * HadoopFormatIO.Read<InputFormatKeyClass, MyValueClass> read = ...
+ * p.apply("read", read
+ *     .withSkipKeyClone(true)
+ *     .withSkipValueClone(true));
  * }</pre>
  *
  * <p>IMPORTANT! In case of using {@code DBInputFormat} to read data from RDBMS, Beam parallelizes
