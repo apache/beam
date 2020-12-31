@@ -30,28 +30,56 @@ from apache_beam.dataframe import frames  # pylint: disable=unused-import
 
 
 class DeferredFrameTest(unittest.TestCase):
-  def _run_test(self, func, *args, distributed=True):
+  def _run_test(self, func, *args, distributed=True, expect_error=False):
     deferred_args = [
         frame_base.DeferredFrame.wrap(
             expressions.ConstantExpression(arg, arg[0:0])) for arg in args
     ]
-    expected = func(*args)
+    try:
+      expected = func(*args)
+    except Exception as e:
+      if not expect_error:
+        raise
+      expected = e
+    else:
+      if expect_error:
+        raise AssertionError(
+            "Expected an error but computing expected result successfully "
+            f"returned: {expected}"
+        )
+
     session_type = (
         expressions.PartitioningSession if distributed else expressions.Session)
-    actual = session_type({}).evaluate(func(*deferred_args)._expr)
-    if hasattr(expected, 'equals'):
-      if distributed:
-        cmp = lambda df: expected.sort_index().equals(df.sort_index())
-      else:
-        cmp = expected.equals
-    elif isinstance(expected, float):
-      cmp = lambda x: (math.isnan(x) and math.isnan(expected)
-                       ) or x == expected == 0 or abs(expected - x) / (
-                           abs(expected) + abs(x)) < 1e-8
+    try:
+      actual = session_type({}).evaluate(func(*deferred_args)._expr)
+    except Exception as e:
+      if not expect_error:
+        raise
+      actual = e
     else:
-      cmp = expected.__eq__
-    self.assertTrue(
-        cmp(actual), 'Expected:\n\n%r\n\nActual:\n\n%r' % (expected, actual))
+      if expect_error:
+        raise AssertionError(
+            "Expected an error:\n{expected}\nbut successfully "
+            f"returned:\n{actual}"
+        )
+
+    if not expect_error:
+      if hasattr(expected, 'equals'):
+        if distributed:
+          cmp = lambda df: expected.sort_index().equals(df.sort_index())
+        else:
+          cmp = expected.equals
+      elif isinstance(expected, float):
+        cmp = lambda x: (math.isnan(x) and math.isnan(expected)
+                         ) or x == expected == 0 or abs(expected - x) / (
+                             abs(expected) + abs(x)) < 1e-8
+      else:
+        cmp = expected.__eq__
+      self.assertTrue(
+          cmp(actual), 'Expected:\n\n%r\n\nActual:\n\n%r' % (expected, actual))
+    else:
+      self.assertIsInstance(actual, type(expected))
+      self.assertEqual(str(actual), str(expected))
 
   def test_series_arithmetic(self):
     a = pd.Series([1, 2, 3])
@@ -139,6 +167,14 @@ class DeferredFrameTest(unittest.TestCase):
     self._run_test(lambda df: df.groupby('group').bar.sum(), df)
     self._run_test(lambda df: df.groupby('group')['foo'].sum(), df)
     self._run_test(lambda df: df.groupby('group')['baz'].sum(), df)
+    self._run_test(
+        lambda df: df.groupby('group')[['bar', 'baz']].bar.sum(),
+        df,
+        expect_error=True)
+    self._run_test(
+        lambda df: df.groupby('group')[['bat']].sum(), df, expect_error=True)
+    self._run_test(
+        lambda df: df.groupby('group').bat.sum(), df, expect_error=True)
 
     self._run_test(lambda df: df.groupby('group').median(), df)
     self._run_test(lambda df: df.groupby('group').foo.median(), df)
@@ -146,6 +182,14 @@ class DeferredFrameTest(unittest.TestCase):
     self._run_test(lambda df: df.groupby('group')['foo'].median(), df)
     self._run_test(lambda df: df.groupby('group')['baz'].median(), df)
     self._run_test(lambda df: df.groupby('group')[['bar', 'baz']].median(), df)
+    self._run_test(
+        lambda df: df.groupby('group')[['bar', 'baz']].bar.median(),
+        df,
+        expect_error=True)
+    self._run_test(
+        lambda df: df.groupby('group')[['bat']].median(), df, expect_error=True)
+    self._run_test(
+        lambda df: df.groupby('group').bat.median(), df, expect_error=True)
 
   def test_merge(self):
     # This is from the pandas doctests, but fails due to re-indexing being
