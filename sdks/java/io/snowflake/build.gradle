@@ -31,7 +31,6 @@ dependencies {
   compile group: 'net.snowflake', name: 'snowflake-jdbc', version: '3.12.11'
   compile group: 'com.opencsv', name: 'opencsv', version: '5.0'
   compile 'net.snowflake:snowflake-ingest-sdk:0.9.9'
-  compile library.java.jsr305
   compile library.java.joda_time
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")

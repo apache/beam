@@ -79,7 +79,6 @@ dependencies {
   compile "com.google.api.grpc:proto-google-cloud-spanner-v1:1.59.0"
   compile "com.google.api:api-common:1.8.1"
   compile "com.google.apis:google-api-services-storage:v1-rev20200611-1.30.10"
-  compile library.java.jsr305
   compile "com.google.code.gson:gson:2.8.6"
   compile "com.google.errorprone:error_prone_annotations:2.3.3"
   compile "com.google.protobuf:protobuf-java-util:3.11.1"

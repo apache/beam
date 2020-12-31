@@ -27,7 +27,6 @@ dependencies {
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile library.java.jackson_databind
   compile library.java.jackson_core
-  compile library.java.jsr305
   compile library.java.joda_time
   compile "org.apache.httpcomponents:httpasyncclient:4.1.4"
   compile "org.apache.httpcomponents:httpclient:4.5.10"

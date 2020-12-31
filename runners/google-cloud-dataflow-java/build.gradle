@@ -89,7 +89,6 @@ dependencies {
   compile library.java.joda_time
   compile library.java.slf4j_api
   compile library.java.vendored_grpc_1_26_0
-  compile library.java.jsr305
   compile "org.checkerframework:checker-qual:2.0.0"
   compile "org.hamcrest:hamcrest:2.1"
   compile "com.google.auth:google-auth-library-credentials:0.19.0"

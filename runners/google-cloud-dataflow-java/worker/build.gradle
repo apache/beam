@@ -40,13 +40,13 @@ applyJavaNature(
     // In the case of the Fn API worker jar we are creating an application so we rely on
     // the shadow plugin to include all transitive dependencies to create an uber jar.
 
-          // Include original source files extracted under
-          // '$buildDir/original_sources_to_package' to jar
-          from "$buildDir/original_sources_to_package"
+    // Include original source files extracted under
+    // '$buildDir/original_sources_to_package' to jar
+    from "$buildDir/original_sources_to_package"
 
-          exclude "META-INF/LICENSE.txt"
-          exclude "about.html"
-        },
+    exclude "META-INF/LICENSE.txt"
+    exclude "about.html"
+  },
 )
 
 /******************************************************************************/
@@ -99,7 +99,6 @@ dependencies {
   compile "org.eclipse.jetty:jetty-server:9.2.10.v20150310"
   compile "org.eclipse.jetty:jetty-servlet:9.2.10.v20150310"
   compile "com.google.auth:google-auth-library-credentials:0.19.0"
-  compile library.java.jsr305
   compile "com.google.guava:guava:25.1-jre"
   compile "io.opencensus:opencensus-api:0.24.0"
   compile "org.checkerframework:checker-qual:2.0.0"

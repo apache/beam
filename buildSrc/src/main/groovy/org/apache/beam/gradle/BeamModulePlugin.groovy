@@ -858,6 +858,7 @@ class BeamModulePlugin implements Plugin<Project> {
         "com.google.auto.service:auto-service-annotations:1.0-rc6",
         "com.google.j2objc:j2objc-annotations:1.3",
         "org.checkerframework:checker-qual:3.7.0",
+        "com.google.code.findbugs:jsr305:3.0.2",
         // These dependencies are needed to avoid error-prone warnings on package-info.java files,
         // also to include the annotations to suppress warnings.
         //

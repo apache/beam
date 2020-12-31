@@ -21,6 +21,3 @@ applyJavaNature(exportJavadoc: false, publish: false)
 
 description = "Apache Beam :: SDKs :: Java :: Build Tools"
 
-dependencies {
-    compile library.java.jsr305
-}

@@ -72,7 +72,6 @@ dependencies {
   compile "org.codehaus.janino:janino:3.0.11"
   compile "org.codehaus.janino:commons-compiler:3.0.11"
   compile library.java.jackson_core
-  compile library.java.jsr305
   compile library.java.vendored_guava_26_0_jre
   compile "org.mongodb:mongo-java-driver:3.9.1"
   compile library.java.slf4j_api
