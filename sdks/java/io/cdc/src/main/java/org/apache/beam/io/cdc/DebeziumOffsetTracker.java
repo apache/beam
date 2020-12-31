@@ -33,6 +33,7 @@ public class DebeziumOffsetTracker extends RestrictionTracker<DebeziumOffsetHold
 
     private DebeziumOffsetHolder restriction;
     private static final long MILLIS = 60 * 1000;
+    private final Integer maxRecords = 10;
 
     DebeziumOffsetTracker(DebeziumOffsetHolder holder) {
         this.restriction = holder;
@@ -54,12 +55,14 @@ public class DebeziumOffsetTracker extends RestrictionTracker<DebeziumOffsetHold
     public boolean tryClaim(Map<String, Object> position) {
         LOG.debug("-------------- Claiming {} used to have: {}", position, restriction.offset);
         long elapsedTime = System.currentTimeMillis() - KafkaSourceConsumerFn.startTime.getMillis();
+        int fetchedRecords = this.restriction.fetchedRecords == null ? 0 : this.restriction.fetchedRecords + 1;
         LOG.debug("-------------- Time running: {} / {}", elapsedTime, (KafkaSourceConsumerFn.minutesToRun * MILLIS));
-        this.restriction = new DebeziumOffsetHolder(position, this.restriction.history);
+        this.restriction = new DebeziumOffsetHolder(position, this.restriction.history, fetchedRecords);
+        LOG.debug("-------------- History: {}", this.restriction.history);
         if (KafkaSourceConsumerFn.minutesToRun < 0) {
-            return true;
+            return fetchedRecords < maxRecords;
         }
-        return elapsedTime < (KafkaSourceConsumerFn.minutesToRun * MILLIS);
+        return (elapsedTime < (KafkaSourceConsumerFn.minutesToRun * MILLIS)) || (fetchedRecords < maxRecords);
     }
     
     @Override
@@ -71,7 +74,7 @@ public class DebeziumOffsetTracker extends RestrictionTracker<DebeziumOffsetHold
     public SplitResult<DebeziumOffsetHolder> trySplit(double fractionOfRemainder) {
         LOG.debug("-------------- Trying to split: fractionOfRemainder={}", fractionOfRemainder);
 
-        return SplitResult.of(new DebeziumOffsetHolder(null, null), restriction);
+        return SplitResult.of(new DebeziumOffsetHolder(null, null, null), restriction);
     }
 
     @Override

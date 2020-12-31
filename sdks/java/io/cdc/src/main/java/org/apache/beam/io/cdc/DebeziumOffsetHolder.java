@@ -26,9 +26,11 @@ import java.util.Map;
 public class DebeziumOffsetHolder implements Serializable {
     @Nullable public final Map<String, ?> offset;
     @Nullable public final List<?> history;
+    @Nullable public final Integer fetchedRecords;
 
-    DebeziumOffsetHolder(@Nullable Map<String, ?> offset, @Nullable List<?> history) {
+    DebeziumOffsetHolder(@Nullable Map<String, ?> offset, @Nullable List<?> history, @Nullable Integer fetchedRecords) {
         this.offset = offset;
         this.history = history == null ? new ArrayList<>() : history;
+        this.fetchedRecords = fetchedRecords;
     }
 }

@@ -65,7 +65,7 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
     @GetInitialRestriction
     public DebeziumOffsetHolder getInitialRestriction(@Element Map<String, String> unused) throws IOException {
         KafkaSourceConsumerFn.startTime = new DateTime();
-        return new DebeziumOffsetHolder(null, null);
+        return new DebeziumOffsetHolder(null, null, null);
     }
 
     @NewTracker

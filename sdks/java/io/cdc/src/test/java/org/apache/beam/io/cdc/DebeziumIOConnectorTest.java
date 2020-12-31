@@ -60,9 +60,10 @@ public class DebeziumIOConnectorTest {
 							.withConnectionProperty("database.server.id", "184054")
 							.withConnectionProperty("database.server.name", "dbserver1")
 							.withConnectionProperty("database.include.list", "inventory")
-							.withConnectionProperty("include.schema.changes", "false")
-              ).withFormatFunction(new SourceRecordJson.SourceRecordJsonMapper())
-      ).setCoder(StringUtf8Coder.of());
+							.withConnectionProperty("include.schema.changes", "false"))
+              .withFormatFunction(new SourceRecordJson.SourceRecordJsonMapper())
+              .withCoder(StringUtf8Coder.of())
+      );
 
 	  p.run().waitUntilFinish();
   }
@@ -90,9 +91,10 @@ public class DebeziumIOConnectorTest {
                                 .withConnectionProperty("database.server.name", "dbserver2")
                                 .withConnectionProperty("schema.include.list", "inventory")
                                 .withConnectionProperty("slot.name", "dbzslot2")
-                                .withConnectionProperty("include.schema.changes", "false")
-                ).withFormatFunction(new SourceRecordJson.SourceRecordJsonMapper())
-        ).setCoder(StringUtf8Coder.of());
+                                .withConnectionProperty("include.schema.changes", "false"))
+                .withFormatFunction(new SourceRecordJson.SourceRecordJsonMapper())
+                .withCoder(StringUtf8Coder.of())
+        );
 
         p.run().waitUntilFinish();
     }

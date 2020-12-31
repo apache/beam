@@ -41,11 +41,15 @@ public class SourceRecordJson {
         this.sourceRecord = sourceRecord;
         this.value = (Struct) sourceRecord.value();
 
-        Metadata metadata = this.loadMetadata();
-        Before before = this.loadBefore();
-        After after = this.loadAfter();
+        if (this.value == null) {
+            this.event = new Event(null, null, null);
+        } else {
+            Metadata metadata = this.loadMetadata();
+            Before before = this.loadBefore();
+            After after = this.loadAfter();
 
-        this.event = new Event(metadata, before, after);
+            this.event = new Event(metadata, before, after);
+        }
     }
 
     private Metadata loadMetadata() {
