@@ -147,7 +147,7 @@ public class ParquetIOTest implements Serializable {
   public void testSplitBlockWithLimit() {
     ParquetIO.ReadFiles.SplitReadFn<GenericRecord> testFn =
         new ParquetIO.ReadFiles.SplitReadFn<>(
-            null, null, ParquetIO.GenericRecordPassthroughFn.create());
+            null, null, ParquetIO.GenericRecordPassthroughFn.create(), null);
     ArrayList<BlockMetaData> blockList = new ArrayList<>();
     ArrayList<OffsetRange> rangeList;
     BlockMetaData testBlock = mock(BlockMetaData.class);
