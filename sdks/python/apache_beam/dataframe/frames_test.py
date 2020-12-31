@@ -124,6 +124,29 @@ class DeferredFrameTest(unittest.TestCase):
 
     self._run_test(lambda df: df.groupby(['second', 'A']).sum(), df)
 
+  def test_groupby_project(self):
+    df = pd.DataFrame({
+        'group': ['a' if i % 5 == 0 or i % 3 == 0 else 'b' for i in range(100)],
+        'foo': [None if i % 11 == 0 else i for i in range(100)],
+        'bar': [None if i % 7 == 0 else 99 - i for i in range(100)],
+        'baz': [None if i % 13 == 0 else i * 2 for i in range(100)],
+    })
+
+    self._run_test(lambda df: df.groupby('group').foo.agg(sum), df)
+
+    self._run_test(lambda df: df.groupby('group').sum(), df)
+    self._run_test(lambda df: df.groupby('group').foo.sum(), df)
+    self._run_test(lambda df: df.groupby('group').bar.sum(), df)
+    self._run_test(lambda df: df.groupby('group')['foo'].sum(), df)
+    self._run_test(lambda df: df.groupby('group')['baz'].sum(), df)
+
+    self._run_test(lambda df: df.groupby('group').median(), df)
+    self._run_test(lambda df: df.groupby('group').foo.median(), df)
+    self._run_test(lambda df: df.groupby('group').bar.median(), df)
+    self._run_test(lambda df: df.groupby('group')['foo'].median(), df)
+    self._run_test(lambda df: df.groupby('group')['baz'].median(), df)
+    self._run_test(lambda df: df.groupby('group')[['bar', 'baz']].median(), df)
+
   def test_merge(self):
     # This is from the pandas doctests, but fails due to re-indexing being
     # order-sensitive.

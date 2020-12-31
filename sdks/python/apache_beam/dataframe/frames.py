@@ -174,7 +174,8 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
                 level=list(range(df.index.nlevels)), **kwargs), [to_group],
             requires_partition_by=partitionings.Index(),
             preserves_partition_by=partitionings.Singleton()),
-        kwargs)
+        kwargs,
+        to_group)
 
   abs = frame_base._elementwise_method('abs')
   astype = frame_base._elementwise_method('astype')
@@ -1503,9 +1504,31 @@ for meth in ('filter', ):
 
 @populate_not_implemented(pd.core.groupby.generic.DataFrameGroupBy)
 class DeferredGroupBy(frame_base.DeferredFrame):
-  def __init__(self, expr, kwargs):
+  def __init__(self, expr, kwargs,
+               ungrouped: DeferredDataFrameOrSeries, projection=None):
     super(DeferredGroupBy, self).__init__(expr)
+    # This object represents the result of:
+    # ungrouped.groupby(level=list(range(ungrouped.index.nlevels),
+    #                   **kwargs)[projection]
+    self._ungrouped = ungrouped
+    self._projection = projection
     self._kwargs = kwargs
+
+  def __getattr__(self, name):
+    return DeferredGroupBy(expressions.ComputedExpression(
+        'groupby_project',
+        lambda gb: getattr(gb, name), [self._expr],
+        requires_partition_by=partitionings.Nothing(),
+        preserves_partition_by=partitionings.Singleton()),
+                           self._kwargs, self._ungrouped, name)
+
+  def __getitem__(self, name):
+    return DeferredGroupBy(expressions.ComputedExpression(
+        'groupby_project',
+        lambda gb: gb[name], [self._expr],
+        requires_partition_by=partitionings.Nothing(),
+        preserves_partition_by=partitionings.Singleton()),
+                           self._kwargs, self._ungrouped, name)
 
   def agg(self, fn):
     if not callable(fn):
@@ -1527,7 +1550,6 @@ class DeferredGroupBy(frame_base.DeferredFrame):
 
   # TODO(robertwb): Consider allowing this for categorical keys.
   __len__ = frame_base.wont_implement_method('non-deferred')
-  __getitem__ = frame_base.not_implemented_method('__getitem__')
   groups = property(frame_base.wont_implement_method('non-deferred'))
 
 
@@ -1541,9 +1563,8 @@ def _liftable_agg(meth, postagg_meth=None):
 
   def wrapper(self, *args, **kwargs):
     assert isinstance(self, DeferredGroupBy)
-    ungrouped = self._expr.args()[0]
 
-    to_group = ungrouped.proxy().index
+    to_group = self._ungrouped.proxy().index
     is_categorical_grouping = any(to_group.get_level_values(i).is_categorical()
                                   for i in range(to_group.nlevels))
     groupby_kwargs = self._kwargs
@@ -1551,13 +1572,15 @@ def _liftable_agg(meth, postagg_meth=None):
     # Don't include un-observed categorical values in the preagg
     preagg_groupby_kwargs = groupby_kwargs.copy()
     preagg_groupby_kwargs['observed'] = True
+
+    projection = self._projection or list(self._ungrouped.proxy().columns)
     pre_agg = expressions.ComputedExpression(
         'pre_combine_' + name,
         lambda df: func(
         df.groupby(level=list(range(df.index.nlevels)),
-                   **preagg_groupby_kwargs),
+                   **preagg_groupby_kwargs)[projection],
         **kwargs),
-        [ungrouped],
+        [self._ungrouped],
         requires_partition_by=partitionings.Nothing(),
         preserves_partition_by=partitionings.Singleton())
 
@@ -1581,19 +1604,20 @@ def _unliftable_agg(meth):
 
   def wrapper(self, *args, **kwargs):
     assert isinstance(self, DeferredGroupBy)
-    ungrouped = self._expr.args()[0]
 
-    to_group = ungrouped.proxy().index
+    to_group = self._ungrouped.proxy().index
     is_categorical_grouping = any(to_group.get_level_values(i).is_categorical()
                                   for i in range(to_group.nlevels))
 
     groupby_kwargs = self._kwargs
+    projection = self._projection or list(self._ungrouped.proxy().columns)
     post_agg = expressions.ComputedExpression(
         name,
         lambda df: func(
-            df.groupby(level=list(range(df.index.nlevels)), **groupby_kwargs),
+            df.groupby(level=list(range(df.index.nlevels)),
+                       **groupby_kwargs)[projection],
             **kwargs),
-        [ungrouped],
+        [self._ungrouped],
         requires_partition_by=(partitionings.Singleton()
                                if is_categorical_grouping
                                else partitionings.Index()),
