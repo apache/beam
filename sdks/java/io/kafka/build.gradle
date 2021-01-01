@@ -59,7 +59,7 @@ dependencies {
   compile library.java.jackson_databind
   compile "org.springframework:spring-expression:4.3.18.RELEASE"
   compile ("io.confluent:kafka-avro-serializer:5.3.2") {
-    // It depends on "spotbugs-annotations:3.1.9" which clashes with current
+    // zookeeper depends on "spotbugs-annotations:3.1.9" which clashes with current
     // "spotbugs-annotations:3.1.12" used in Beam. Not required.
     exclude group: "org.apache.zookeeper", module: "zookeeper"
     // "kafka-clients" has to be provided since user can use its own version.

@@ -84,7 +84,6 @@ dependencies {
   compile "org.apache.httpcomponents:httpcore:4.4.13"
   compile library.java.google_oauth_client
   compile library.java.vendored_grpc_1_26_0
-  //compile "com.github.spotbugs:spotbugs-annotations:3.1.9"
   runtime project(path: ":runners:direct-java", configuration: "shadow")
   testCompile project(":sdks:java:io:google-cloud-platform")
   testCompile project(":sdks:java:extensions:ml")

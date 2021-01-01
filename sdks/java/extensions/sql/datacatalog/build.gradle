@@ -34,6 +34,8 @@ dependencies {
   compile library.java.vendored_guava_26_0_jre
   compile library.java.slf4j_api
   compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile "org.threeten:threetenbp:1.4.5"
+  compile library.java.protobuf_java
   provided project(":sdks:java:extensions:sql")
 
   // Dependencies for the example
@@ -42,6 +44,8 @@ dependencies {
 
   testCompile project(":sdks:java:extensions:sql:zetasql")
   testRuntimeOnly library.java.slf4j_simple
+  permitUnusedDeclared "org.threeten:threetenbp:1.4.5"
+  permitUnusedDeclared library.java.protobuf_java
 }
 
 task runDataCatalogExample(type: JavaExec) {
