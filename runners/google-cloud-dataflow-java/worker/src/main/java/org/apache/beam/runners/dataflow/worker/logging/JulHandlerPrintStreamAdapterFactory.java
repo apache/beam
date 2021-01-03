@@ -27,7 +27,7 @@ import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CoderMalfunctionError;
 import java.nio.charset.CoderResult;
 import java.nio.charset.CodingErrorAction;
-import java.nio.charset.StandardCharsets;
+import java.nio.charset.Charset;
 import java.util.Formatter;
 import java.util.Locale;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -69,6 +69,9 @@ class JulHandlerPrintStreamAdapterFactory {
     private int carryOverBytes;
     private byte[] carryOverByteArray;
 
+    @SuppressWarnings({
+      "unchecked" // [BEAM-11327] Replace Charset.defaultCharset() with StandardCharsets.UTF_8
+    })    
     private JulHandlerPrintStream(Handler handler, String loggerName, Level logLevel)
         throws UnsupportedEncodingException {
       super(
@@ -86,7 +89,7 @@ class JulHandlerPrintStreamAdapterFactory {
       this.logger = Logger.getLogger(loggerName);
       this.buffer = new StringBuilder();
       this.decoder =
-          StandardCharsets.UTF_8
+          Charset.defaultCharset()
               .newDecoder()
               .onMalformedInput(CodingErrorAction.REPLACE)
               .onUnmappableCharacter(CodingErrorAction.REPLACE);
