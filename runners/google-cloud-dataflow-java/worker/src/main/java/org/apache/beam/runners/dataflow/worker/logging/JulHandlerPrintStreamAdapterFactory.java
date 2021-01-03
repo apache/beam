@@ -71,7 +71,7 @@ class JulHandlerPrintStreamAdapterFactory {
 
     @SuppressWarnings({
       "unchecked" // [BEAM-11327] Replace Charset.defaultCharset() with StandardCharsets.UTF_8
-    })    
+    })
     private JulHandlerPrintStream(Handler handler, String loggerName, Level logLevel)
         throws UnsupportedEncodingException {
       super(
