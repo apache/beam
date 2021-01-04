@@ -132,7 +132,7 @@ public class ParquetIOTest implements Serializable {
   }
 
   @Test
-  public void testBlockTracker() throws Exception {
+  public void testBlockTracker() {
     OffsetRange range = new OffsetRange(0, 1);
     ParquetIO.ReadFiles.BlockTracker tracker = new ParquetIO.ReadFiles.BlockTracker(range, 7, 3);
     assertEquals(tracker.getProgress().getWorkRemaining(), 1.0, 0.01);
@@ -206,6 +206,29 @@ public class ParquetIOTest implements Serializable {
   }
 
   @Test
+  public void testWriteAndReadWithBeamSchema() {
+    List<GenericRecord> records = generateGenericRecords(1000);
+
+    mainPipeline
+        .apply(Create.of(records).withCoder(AvroCoder.of(SCHEMA)))
+        .apply(
+            FileIO.<GenericRecord>write()
+                .via(ParquetIO.sink(SCHEMA))
+                .to(temporaryFolder.getRoot().getAbsolutePath()));
+
+    mainPipeline.run().waitUntilFinish();
+
+    PCollection<GenericRecord> readBackRecords =
+        readPipeline.apply(
+            ParquetIO.read(SCHEMA)
+                .from(temporaryFolder.getRoot().getAbsolutePath() + "/*")
+                .withBeamSchemas(true));
+
+    PAssert.that(readBackRecords).containsInAnyOrder(records);
+    readPipeline.run().waitUntilFinish();
+  }
+
+  @Test
   public void testWriteAndReadFilesAsJsonForWithSplitForUnknownSchema() {
     List<GenericRecord> records = generateGenericRecords(1000);
 
@@ -274,6 +297,7 @@ public class ParquetIOTest implements Serializable {
   }
 
   @Test
+  @SuppressWarnings({"nullable", "ConstantConditions"} /* forced check. */)
   public void testReadFilesUnknownSchemaFilesForGenericRecordThrowException() {
     IllegalArgumentException illegalArgumentException =
         assertThrows(
