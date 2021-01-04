@@ -98,7 +98,9 @@ public class ParquetSchemaIOProvider implements SchemaIOProvider {
           return begin
               .apply(
                   "ParquetIORead",
-                  ParquetIO.read(AvroUtils.toAvroSchema(dataSchema)).from(location))
+                  ParquetIO.read(AvroUtils.toAvroSchema(dataSchema))
+                      .withBeamSchemas(true)
+                      .from(location))
               .apply("GenericRecordToRow", Convert.toRows());
         }
       };
