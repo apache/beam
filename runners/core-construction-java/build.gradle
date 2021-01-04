@@ -60,8 +60,8 @@ dependencies {
   compile library.java.jackson_databind
   compile library.java.joda_time
   compile library.java.slf4j_api
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
+  compile library.java.jackson_annotations
+  compile library.java.avro
   testCompile library.java.junit
   testCompile library.java.mockito_core
   testCompile library.java.jackson_annotations
