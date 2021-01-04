@@ -28,6 +28,8 @@ ext.summary = "Portable definitions for execution user-defined functions."
 dependencies {
   // We purposely depend on the unshaded classes for protobuf compilation and
   // export the shaded variant as the actual runtime dependency.
+  compile "com.google.guava:guava:28.1-android"
   compile project(path: ":model:pipeline", configuration: "unshaded")
   runtime project(path: ":model:pipeline", configuration: "shadow")
+  permitUnusedDeclared library.java.vendored_grpc_1_26_0
 }
