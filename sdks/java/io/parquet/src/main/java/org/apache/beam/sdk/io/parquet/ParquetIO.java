@@ -660,9 +660,9 @@ public class ParquetIO {
 
     @DoFn.BoundedPerElement
     static class SplitReadFn<T> extends DoFn<ReadableFile, T> {
-      private Class<? extends GenericData> modelClass;
+      private final Class<? extends GenericData> modelClass;
       private static final Logger LOG = LoggerFactory.getLogger(SplitReadFn.class);
-      private String requestSchemaString;
+      private final String requestSchemaString;
       // Default initial splitting the file into blocks of 64MB. Unit of SPLIT_LIMIT is byte.
       private static final long SPLIT_LIMIT = 64000000;
 
@@ -682,9 +682,15 @@ public class ParquetIO {
         this.configuration = configuration;
       }
 
-      ParquetFileReader getParquetFileReader(ReadableFile file) throws Exception {
-        ParquetReadOptions options = HadoopReadOptions.builder(getConfWithModelClass()).build();
-        return ParquetFileReader.open(new BeamParquetInputFile(file.openSeekable()), options);
+      ParquetFileReader getParquetFileReader(ReadableFile file) {
+        try {
+          ParquetReadOptions options = HadoopReadOptions.builder(getConfWithModelClass()).build();
+          return ParquetFileReader.open(new BeamParquetInputFile(file.openSeekable()), options);
+        } catch (IOException ioException) {
+          throw new ParquetIoException(ioException);
+        } catch (ReflectiveOperationException reflectionException) {
+          throw new ParquetIoException(reflectionException);
+        }
       }
 
       @ProcessElement
@@ -692,7 +698,7 @@ public class ParquetIO {
           @Element ReadableFile file,
           RestrictionTracker<OffsetRange, Long> tracker,
           OutputReceiver<T> outputReceiver)
-          throws Exception {
+          throws ReflectiveOperationException, IOException {
         LOG.debug(
             "start "
                 + tracker.currentRestriction().getFrom()
@@ -703,7 +709,7 @@ public class ParquetIO {
         if (modelClass != null) {
           model = (GenericData) modelClass.getMethod("get").invoke(null);
         }
-        AvroReadSupport<GenericRecord> readSupport = new AvroReadSupport<GenericRecord>(model);
+        AvroReadSupport<GenericRecord> readSupport = new AvroReadSupport<>(model);
         if (requestSchemaString != null) {
           AvroReadSupport.setRequestedProjection(
               conf, new Schema.Parser().parse(requestSchemaString));
@@ -789,12 +795,10 @@ public class ParquetIO {
         }
       }
 
-      public Configuration getConfWithModelClass() throws Exception {
+      public Configuration getConfWithModelClass() throws ReflectiveOperationException {
         Configuration conf = SerializableConfiguration.newConfiguration(configuration);
-        GenericData model = null;
-        if (modelClass != null) {
-          model = (GenericData) modelClass.getMethod("get").invoke(null);
-        }
+        GenericData model = buildModelObject(modelClass);
+
         if (model != null
             && (model.getClass() == GenericData.class || model.getClass() == SpecificData.class)) {
           conf.setBoolean(AvroReadSupport.AVRO_COMPATIBILITY, true);
@@ -805,7 +809,7 @@ public class ParquetIO {
       }
 
       @GetInitialRestriction
-      public OffsetRange getInitialRestriction(@Element ReadableFile file) throws Exception {
+      public OffsetRange getInitialRestriction(@Element ReadableFile file) {
         ParquetFileReader reader = getParquetFileReader(file);
         return new OffsetRange(0, reader.getRowGroups().size());
       }
@@ -814,8 +818,7 @@ public class ParquetIO {
       public void split(
           @Restriction OffsetRange restriction,
           OutputReceiver<OffsetRange> out,
-          @Element ReadableFile file)
-          throws Exception {
+          @Element ReadableFile file) {
         ParquetFileReader reader = getParquetFileReader(file);
         List<BlockMetaData> rowGroups = reader.getRowGroups();
         for (OffsetRange offsetRange :
@@ -827,7 +830,7 @@ public class ParquetIO {
 
       public ArrayList<OffsetRange> splitBlockWithLimit(
           long start, long end, List<BlockMetaData> blockList, long limit) {
-        ArrayList<OffsetRange> offsetList = new ArrayList<OffsetRange>();
+        ArrayList<OffsetRange> offsetList = new ArrayList<>();
         long totalSize = 0;
         long rangeStart = start;
         for (long rangeEnd = start; rangeEnd < end; rangeEnd++) {
@@ -846,7 +849,7 @@ public class ParquetIO {
 
       @NewTracker
       public RestrictionTracker<OffsetRange, Long> newTracker(
-          @Restriction OffsetRange restriction, @Element ReadableFile file) throws Exception {
+          @Restriction OffsetRange restriction, @Element ReadableFile file) {
         CountAndSize recordCountAndSize = getRecordCountAndSize(file, restriction);
         return new BlockTracker(
             restriction,
@@ -860,13 +863,11 @@ public class ParquetIO {
       }
 
       @GetSize
-      public double getSize(@Element ReadableFile file, @Restriction OffsetRange restriction)
-          throws Exception {
+      public double getSize(@Element ReadableFile file, @Restriction OffsetRange restriction) {
         return getRecordCountAndSize(file, restriction).getSize();
       }
 
-      private CountAndSize getRecordCountAndSize(ReadableFile file, OffsetRange restriction)
-          throws Exception {
+      private CountAndSize getRecordCountAndSize(ReadableFile file, OffsetRange restriction) {
         ParquetFileReader reader = getParquetFileReader(file);
         double size = 0;
         double recordCount = 0;
@@ -875,8 +876,7 @@ public class ParquetIO {
           recordCount += block.getRowCount();
           size += block.getTotalByteSize();
         }
-        CountAndSize countAndSize = CountAndSize.create(recordCount, size);
-        return countAndSize;
+        return CountAndSize.create(recordCount, size);
       }
 
       @AutoValue
@@ -906,7 +906,7 @@ public class ParquetIO {
         }
       }
 
-      public void makeProgress() throws Exception {
+      public void makeProgress() throws IOException {
         progress += approximateRecordSize;
         if (progress > totalWork) {
           throw new IOException("Making progress out of range");
@@ -922,7 +922,7 @@ public class ParquetIO {
 
     static class ReadFn<T> extends DoFn<ReadableFile, T> {
 
-      private Class<? extends GenericData> modelClass;
+      private final Class<? extends GenericData> modelClass;
 
       private final SerializableFunction<GenericRecord, T> parseFn;
 
@@ -938,7 +938,7 @@ public class ParquetIO {
       }
 
       @ProcessElement
-      public void processElement(ProcessContext processContext) throws Exception {
+      public void processElement(ProcessContext processContext) throws IOException {
         ReadableFile file = processContext.element();
 
         if (!file.getMetadata().isReadSeekEfficient()) {
@@ -956,7 +956,7 @@ public class ParquetIO {
 
         if (modelClass != null) {
           // all GenericData implementations have a static get method
-          builder = builder.withDataModel((GenericData) modelClass.getMethod("get").invoke(null));
+          builder = builder.withDataModel(buildModelObject(modelClass));
         }
 
         try (ParquetReader<GenericRecord> reader = builder.build()) {
@@ -970,7 +970,7 @@ public class ParquetIO {
 
     private static class BeamParquetInputFile implements InputFile {
 
-      private SeekableByteChannel seekableByteChannel;
+      private final SeekableByteChannel seekableByteChannel;
 
       BeamParquetInputFile(SeekableByteChannel seekableByteChannel) {
         this.seekableByteChannel = seekableByteChannel;
@@ -1074,7 +1074,7 @@ public class ParquetIO {
 
     private static class BeamParquetOutputFile implements OutputFile {
 
-      private OutputStream outputStream;
+      private final OutputStream outputStream;
 
       BeamParquetOutputFile(OutputStream outputStream) {
         this.outputStream = outputStream;
@@ -1103,14 +1103,14 @@ public class ParquetIO {
 
     private static class BeamOutputStream extends PositionOutputStream {
       private long position = 0;
-      private OutputStream outputStream;
+      private final OutputStream outputStream;
 
       private BeamOutputStream(OutputStream outputStream) {
         this.outputStream = outputStream;
       }
 
       @Override
-      public long getPos() throws IOException {
+      public long getPos() {
         return position;
       }
 
@@ -1143,6 +1143,19 @@ public class ParquetIO {
     }
   }
 
+  /** Returns a model object created using provided modelClass or null. */
+  private static GenericData buildModelObject(@Nullable Class<? extends GenericData> modelClass) {
+    try {
+      if (modelClass == null) {
+        return null;
+      }
+
+      return (GenericData) modelClass.getMethod("get").invoke(null);
+    } catch (ReflectiveOperationException reflectionException) {
+      throw new ParquetIoException(reflectionException);
+    }
+  }
+
   /**
    * Passthrough function to provide seamless backward compatibility to ParquetIO's functionality.
    */
@@ -1163,6 +1176,17 @@ public class ParquetIO {
 
     /** Enforce singleton pattern, by disallowing construction with {@code new} operator. */
     private GenericRecordPassthroughFn() {}
+  }
+
+  /** Encapsulates checked exceptions with Parquet file operation as RuntimeException. */
+  public static class ParquetIoException extends RuntimeException {
+    private ParquetIoException(IOException ioException) {
+      super("Unable to open file", ioException);
+    }
+
+    private ParquetIoException(ReflectiveOperationException reflectionException) {
+      super("Error with model class", reflectionException);
+    }
   }
 
   /** Disallow construction of utility class. */
