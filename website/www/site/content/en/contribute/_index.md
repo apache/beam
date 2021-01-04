@@ -30,8 +30,6 @@ limitations under the License.
 
 ## Overview
 
-</br>
-
 There are lots of opportunities to contribute. You can for example:
 
 - ask or answer questions on [user@beam.apache.org](/community/contact-us/) or
@@ -46,16 +44,10 @@ There are lots of opportunities to contribute. You can for example:
 
 ...and many more. Most importantly, if you have an idea of how to contribute, then do it!
 
-</br>
-
 ## Contributing code
-
-</br>
 
 Below is a tutorial for contributing code to Beam, covering our tools and typical process in
 detail.
-
-</br>
 
 ### Prerequisites
 
@@ -102,8 +94,6 @@ $ go get github.com/linkedin/goavro
 </br>
 
 Linux users should configure their machines for sudoless Docker.
-
-</br>
 
 </div>
 
@@ -192,8 +182,6 @@ $ go get github.com/linkedin/goavro
 
 Linux users should configure their machines for sudoless Docker.
 
-</br>
-
 </div>
 
 ### Connect With the Beam community
@@ -204,8 +192,6 @@ Linux users should configure their machines for sudoless Docker.
 - (Optionally) Join the [#beam channel of the ASF slack](/community/contact-us/).
 - Create an account on [Beam issue tracker (JIRA)](https://issues.apache.org/jira/projects/BEAM/issues)
   (anyone can do this).
-
-</br>
 
 ### Share your intent
 
