@@ -121,7 +121,7 @@ page at http://checkstyle.sourceforge.net/config.html -->
 
     <!-- Forbid use of Charset.defaultCharset()-->
     <module name="RegexpSinglelineJava">
-      <property name="id" value="ForbidCharset"/>
+      <property name="id" value="ForbidDefaultCharset"/>
       <property name="format" value="(\sCharset\.defaultCharset())"/>
       <property name="severity" value="error"/>
       <property name="message" value="You are using Charset.defaultCharset(), please use StandardCharsets.UTF_8."/>
