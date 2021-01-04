@@ -33,7 +33,6 @@ artifacts {
     unshaded jar
 }
 
-
 dependencies {
     permitUnusedDeclared library.java.vendored_grpc_1_26_0
 }
