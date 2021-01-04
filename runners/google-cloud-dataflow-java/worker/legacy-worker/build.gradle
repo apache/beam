@@ -77,7 +77,7 @@ def excluded_dependencies = [
         library.java.hamcrest_core,                  // Test only
         library.java.hamcrest_library,               // Test only
         library.java.junit,                          // Test only
-        library.java.jsonassert,                      // Test only
+        library.java.jsonassert                      // Test only
 ]
 
 applyJavaNature(

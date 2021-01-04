@@ -31,8 +31,6 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Expansion Service"
 ext.summary = "Expansion service serving several Java IOs"
 
 dependencies {
-  // Include postgres so it can be used with external JDBC
-  //compile library.java.postgres
   runtime library.java.kafka_clients
   runtime library.java.slf4j_jdk14
 }

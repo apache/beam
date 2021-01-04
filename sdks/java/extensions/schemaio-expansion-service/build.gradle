@@ -39,3 +39,4 @@ dependencies {
     // TODO(BEAM-10632): remove this dependency
     testCompile "org.checkerframework:checker-qual:3.5.0"
 }
+

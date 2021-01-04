@@ -39,19 +39,18 @@ dependencies {
   compile library.java.slf4j_api
   compile library.java.joda_time
   compile "org.hamcrest:hamcrest:2.1"
-
-  testCompile project(path: ":runners:core-construction-java", configuration: "testRuntime")
-  testCompile library.java.hamcrest_core
-  testCompile library.java.junit
-  testCompile library.java.mockito_core
-  testCompile library.java.slf4j_jdk14
-
   compile project(path: ":model:fn-execution", configuration: "shadow")
   compile project(path: ":model:job-management:", configuration: "shadow")
   compile project(path: ":model:pipeline", configuration: "shadow")
   compile project(":runners:core-construction-java")
   permitUsedUndeclared project(":sdks:java:core")
   compile project(":sdks:java:fn-execution")
+
+  testCompile project(path: ":runners:core-construction-java", configuration: "testRuntime")
+  testCompile library.java.hamcrest_core
+  testCompile library.java.junit
+  testCompile library.java.mockito_core
+  testCompile library.java.slf4j_jdk14
 
   validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
   validatesRunner project(path: ":runners:core-java", configuration: "testRuntime")
