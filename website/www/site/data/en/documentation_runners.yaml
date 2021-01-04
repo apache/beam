@@ -15,20 +15,20 @@
   description: Runs locally on your machine – great for developing, testing, and debugging.
 - name: { text: "FlinkRunner:", link: /documentation/runners/flink/ }
   icon: icons/documentation/runners/flink-icon.svg
-  description: Runs on <a href="https://flink.apache.org">Apache Flink</a>.
+  description: Runs on <a target="_blank" href="https://flink.apache.org">Apache Flink</a>.
 - name: { text: "SparkRunner:", link: /documentation/runners/spark/ }
   icon: icons/documentation/runners/spark-icon.svg
-  description: Runs on <a href="https://spark.apache.org">Apache Spark</a>.
+  description: Runs on <a target="_blank" href="https://spark.apache.org">Apache Spark</a>.
 - name: { text: "DataflowRunner:", link: /documentation/runners/dataflow/ }
   icon: icons/documentation/runners/dataflow-icon.svg
-  description: Runs on <a href="https://cloud.google.com/dataflow">Google Cloud Dataflow</a>, a fully managed service within Google Cloud Platform.
+  description: Runs on <a target="_blank" href="https://cloud.google.com/dataflow">Google Cloud Dataflow</a>, a fully managed service within Google Cloud Platform.
 - name: { text: "SamzaRunner:", link: /documentation/runners/samza/ }
   icon: icons/documentation/runners/samza-icon.svg
-  description: Runs on <a href="https://samza.apache.org">Apache Samza</a>.
+  description: Runs on <a target="_blank" href="https://samza.apache.org">Apache Samza</a>.
 - name: { text: "NemoRunner:", link: /documentation/runners/nemo/ }
   icon: icons/documentation/runners/nemo-icon.svg
-  description: Runs on <a href="https://nemo.apache.org">Apache Nemo</a>.
+  description: Runs on <a target="_blank" href="https://nemo.apache.org">Apache Nemo</a>.
 - name: { text: "JetRunner:", link: /documentation/runners/jet/ }
-  description: Runs on <a href="https://jet.hazelcast.org/">Hazelcast Jet</a>.
+  description: Runs on <a  target="_blank" href="https://jet.hazelcast.org/">Hazelcast Jet</a>.
 - name: { text: "Twister2Runner:", link: /documentation/runners/twister2/ }
-  description: Runs on <a href="https://twister2.org/">Twister2</a>.
+  description: Runs on <a target="_blank" href="https://twister2.org/">Twister2</a>.
