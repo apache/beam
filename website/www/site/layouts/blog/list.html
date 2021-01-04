@@ -23,7 +23,7 @@
              {{ if ( not ( in ($.Scratch.Get "categories") . ) ) }}
                  {{ $.Scratch.Add "categories" . }}
              {{ end }}
-             {{ else if ( printf "%T" . ) "[]string" }}
+             {{ else if eq ( printf "%T" . ) "[]string" }}
              {{ range . }}
                  {{ if ( not ( in ($.Scratch.Get "categories") . ) ) }}
                  {{ $.Scratch.Add "categories" . }}
