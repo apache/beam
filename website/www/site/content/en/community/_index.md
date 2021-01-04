@@ -5,6 +5,7 @@ aliases:
   - /use/mailing-lists/
   - /get-started/support/
 ---
+
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,7 +21,6 @@ limitations under the License.
 -->
 
 # Welcome to the Beam Community!
-</br>
 
 Beam is a tool created by community for community. We tirelessly work to make it better and you can do it too!
 If you are a data or software developer this is a place for you.
