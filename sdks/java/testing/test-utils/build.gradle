@@ -37,6 +37,7 @@ dependencies {
   compile "org.apache.httpcomponents:httpclient:4.5.10"
   compile "org.apache.httpcomponents:httpcore:4.4.12"
   compile library.java.slf4j_api
+
   testCompile library.java.junit
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadowTest")
 }

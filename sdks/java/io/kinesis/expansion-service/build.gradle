@@ -34,4 +34,3 @@ ext.summary = "Expansion service serving KinesisIO"
 dependencies {
   runtime library.java.slf4j_jdk14
 }
-

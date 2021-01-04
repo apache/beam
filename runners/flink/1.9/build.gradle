@@ -17,7 +17,6 @@
  */
 
 def basePath = '..'
-
 /* All properties required for loading the Flink build script */
 project.ext {
   // Set the version of all Flink-related dependencies here.
@@ -32,4 +31,3 @@ project.ext {
 
 // Load the main build script which contains all build logic.
 apply from: "$basePath/flink_runner.gradle"
-

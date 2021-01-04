@@ -69,7 +69,6 @@ dependencies {
   testCompile project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
   testCompile project(":sdks:java:io:jdbc")
   testCompile project(path: ":examples:java", configuration: "testRuntime")
-
   testCompile "org.elasticsearch.plugin:transport-netty4-client:$elastic_search_version"
   testCompile library.java.testcontainers_elasticsearch
   testCompile "org.elasticsearch.client:elasticsearch-rest-high-level-client:$elastic_search_version"

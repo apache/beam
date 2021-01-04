@@ -17,7 +17,6 @@
  */
 
 def basePath = '..'
-
 /* All properties required for loading the Flink build script */
 project.ext {
   // Set the version of all Flink-related dependencies here.

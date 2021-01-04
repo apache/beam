@@ -105,6 +105,7 @@ dependencies {
   compile "org.conscrypt:conscrypt-openjdk-uber:2.2.1"
   compile library.java.slf4j_jdk14
   permitUnusedDeclared library.java.slf4j_jdk14
+
   // All test sourceset dependencies can be marked as shadowTest since we create an uber jar without
   // relocating any code.
   shadowTest project(path: ":runners:core-java", configuration: "testRuntime")

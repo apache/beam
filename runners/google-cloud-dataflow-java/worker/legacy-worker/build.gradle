@@ -227,6 +227,7 @@ dependencies {
     compile library.java.vendored_grpc_1_26_0
     compile "org.conscrypt:conscrypt-openjdk-uber:1.3.0"
     compile library.java.slf4j_api
+
     // Any test dependency which intersects with our relocation rules above needs to be relocated
     // as well and placed within the testCompile configuration. Otherwise we can place it within
     // the shadowTest configuration.

@@ -61,7 +61,6 @@ dependencies {
   testImplementation 'io.grpc:grpc-core:1.27.2'
   compile library.java.grpc_netty
   compile library.java.grpc_google_cloud_pubsub_v1
-  //compile library.java.grpc_google_cloud_pubsublite_v1
   compile library.java.guava
   compile library.java.jackson_databind
   compile library.java.joda_time
