@@ -29,5 +29,8 @@ dependencies {
   // We purposely depend on the unshaded classes for protobuf compilation and
   // export the shaded variant as the actual runtime dependency.
   compile project(path: ":model:pipeline", configuration: "unshaded")
+  compile "com.google.guava:guava:28.1-android"
+  compile library.java.grpc_api
+  permitUnusedDeclared library.java.vendored_grpc_1_26_0
   runtime project(path: ":model:pipeline", configuration: "shadow")
 }

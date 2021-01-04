@@ -32,3 +32,8 @@ configurations {
 artifacts {
     unshaded jar
 }
+
+dependencies {
+    compile "io.grpc:grpc-api:1.26.0"
+    permitUnusedDeclared library.java.vendored_grpc_1_26_0
+}
