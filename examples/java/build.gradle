@@ -73,7 +73,17 @@ dependencies {
   compile library.java.joda_time
   compile library.java.proto_google_cloud_datastore_v1
   compile library.java.slf4j_api
-  compile library.java.slf4j_jdk14
+  compile "com.google.api.grpc:proto-google-cloud-language-v1:1.81.4"
+  compile ("io.confluent:kafka-avro-serializer:5.3.2") {
+    // It depends on "spotbugs-annotations:3.1.9" which clashes with current
+    // "spotbugs-annotations:3.1.12" used in Beam. Not required.
+    exclude group: "org.apache.zookeeper", module: "zookeeper"
+  }
+  compile library.java.vendored_guava_26_0_jre
+  compile "org.apache.httpcomponents:httpclient:4.5.13"
+  compile "org.apache.httpcomponents:httpcore:4.4.13"
+  compile library.java.google_oauth_client
+  compile library.java.vendored_grpc_1_26_0
   runtime project(path: ":runners:direct-java", configuration: "shadow")
   testCompile project(":sdks:java:io:google-cloud-platform")
   testCompile project(":sdks:java:extensions:ml")
