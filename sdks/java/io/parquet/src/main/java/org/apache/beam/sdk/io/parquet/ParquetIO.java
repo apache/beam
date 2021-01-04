@@ -44,6 +44,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.FileIO;
+import org.apache.beam.sdk.io.FileIO.ReadableFile;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.hadoop.SerializableConfiguration;
 import org.apache.beam.sdk.io.parquet.ParquetIO.ReadFiles.ReadFn;
@@ -122,7 +123,7 @@ import org.slf4j.LoggerFactory;
  * to set the data model associated with the {@link AvroParquetReader}
  *
  * <p>For more advanced use cases, like reading each file in a {@link PCollection} of {@link
- * FileIO.ReadableFile}, use the {@link ReadFiles} transform.
+ * ReadableFile}, use the {@link ReadFiles} transform.
  *
  * <p>For example:
  *
@@ -272,7 +273,7 @@ public class ParquetIO {
 
   /**
    * Like {@link #read(Schema)}, but reads each file in a {@link PCollection} of {@link
-   * org.apache.beam.sdk.io.FileIO.ReadableFile}, which allows more flexible usage.
+   * ReadableFile}, which allows more flexible usage.
    */
   public static ReadFiles readFiles(Schema schema) {
     return new AutoValue_ParquetIO_ReadFiles.Builder()
@@ -392,7 +393,7 @@ public class ParquetIO {
     @Override
     public PCollection<GenericRecord> expand(PBegin input) {
       checkNotNull(getFilepattern(), "Filepattern cannot be null.");
-      PCollection<FileIO.ReadableFile> inputFiles =
+      PCollection<ReadableFile> inputFiles =
           input
               .apply(
                   "Create filepattern", Create.ofProvider(getFilepattern(), StringUtf8Coder.of()))
@@ -481,7 +482,7 @@ public class ParquetIO {
   /** Implementation of {@link #parseFilesGenericRecords(SerializableFunction)}. */
   @AutoValue
   public abstract static class ParseFiles<T>
-      extends PTransform<PCollection<FileIO.ReadableFile>, PCollection<T>> {
+      extends PTransform<PCollection<ReadableFile>, PCollection<T>> {
 
     abstract SerializableFunction<GenericRecord, T> getParseFn();
 
@@ -512,7 +513,7 @@ public class ParquetIO {
     }
 
     @Override
-    public PCollection<T> expand(PCollection<FileIO.ReadableFile> input) {
+    public PCollection<T> expand(PCollection<ReadableFile> input) {
       checkArgument(!isGenericRecordOutput(), "Parse can't be used for reading as GenericRecord.");
 
       return input
@@ -521,7 +522,7 @@ public class ParquetIO {
     }
 
     /** Returns Splittable or normal Parquet file reading DoFn. */
-    private DoFn<FileIO.ReadableFile, T> buildFileReadingFn() {
+    private DoFn<ReadableFile, T> buildFileReadingFn() {
       return isSplittable()
           ? new SplitReadFn<>(null, null, getParseFn(), getConfiguration())
           : new ReadFn<>(null, getParseFn(), getConfiguration());
@@ -560,7 +561,7 @@ public class ParquetIO {
   /** Implementation of {@link #readFiles(Schema)}. */
   @AutoValue
   public abstract static class ReadFiles
-      extends PTransform<PCollection<FileIO.ReadableFile>, PCollection<GenericRecord>> {
+      extends PTransform<PCollection<ReadableFile>, PCollection<GenericRecord>> {
 
     abstract @Nullable Schema getSchema();
 
@@ -628,13 +629,13 @@ public class ParquetIO {
     }
 
     @Override
-    public PCollection<GenericRecord> expand(PCollection<FileIO.ReadableFile> input) {
+    public PCollection<GenericRecord> expand(PCollection<ReadableFile> input) {
       checkNotNull(getSchema(), "Schema can not be null");
       return input.apply(ParDo.of(getReaderFn())).setCoder(getCollectionCoder());
     }
 
     /** Returns Parquet file reading function based on {@link #isSplittable()}. */
-    private DoFn<FileIO.ReadableFile, GenericRecord> getReaderFn() {
+    private DoFn<ReadableFile, GenericRecord> getReaderFn() {
       return isSplittable()
           ? new SplitReadFn<>(
               getAvroDataModel(),
@@ -658,7 +659,7 @@ public class ParquetIO {
     }
 
     @DoFn.BoundedPerElement
-    static class SplitReadFn<T> extends DoFn<FileIO.ReadableFile, T> {
+    static class SplitReadFn<T> extends DoFn<ReadableFile, T> {
       private Class<? extends GenericData> modelClass;
       private static final Logger LOG = LoggerFactory.getLogger(SplitReadFn.class);
       private String requestSchemaString;
@@ -681,14 +682,14 @@ public class ParquetIO {
         this.configuration = configuration;
       }
 
-      ParquetFileReader getParquetFileReader(FileIO.ReadableFile file) throws Exception {
+      ParquetFileReader getParquetFileReader(ReadableFile file) throws Exception {
         ParquetReadOptions options = HadoopReadOptions.builder(getConfWithModelClass()).build();
         return ParquetFileReader.open(new BeamParquetInputFile(file.openSeekable()), options);
       }
 
       @ProcessElement
       public void processElement(
-          @Element FileIO.ReadableFile file,
+          @Element ReadableFile file,
           RestrictionTracker<OffsetRange, Long> tracker,
           OutputReceiver<T> outputReceiver)
           throws Exception {
@@ -804,7 +805,7 @@ public class ParquetIO {
       }
 
       @GetInitialRestriction
-      public OffsetRange getInitialRestriction(@Element FileIO.ReadableFile file) throws Exception {
+      public OffsetRange getInitialRestriction(@Element ReadableFile file) throws Exception {
         ParquetFileReader reader = getParquetFileReader(file);
         return new OffsetRange(0, reader.getRowGroups().size());
       }
@@ -813,7 +814,7 @@ public class ParquetIO {
       public void split(
           @Restriction OffsetRange restriction,
           OutputReceiver<OffsetRange> out,
-          @Element FileIO.ReadableFile file)
+          @Element ReadableFile file)
           throws Exception {
         ParquetFileReader reader = getParquetFileReader(file);
         List<BlockMetaData> rowGroups = reader.getRowGroups();
@@ -845,8 +846,7 @@ public class ParquetIO {
 
       @NewTracker
       public RestrictionTracker<OffsetRange, Long> newTracker(
-          @Restriction OffsetRange restriction, @Element FileIO.ReadableFile file)
-          throws Exception {
+          @Restriction OffsetRange restriction, @Element ReadableFile file) throws Exception {
         CountAndSize recordCountAndSize = getRecordCountAndSize(file, restriction);
         return new BlockTracker(
             restriction,
@@ -860,12 +860,12 @@ public class ParquetIO {
       }
 
       @GetSize
-      public double getSize(@Element FileIO.ReadableFile file, @Restriction OffsetRange restriction)
+      public double getSize(@Element ReadableFile file, @Restriction OffsetRange restriction)
           throws Exception {
         return getRecordCountAndSize(file, restriction).getSize();
       }
 
-      private CountAndSize getRecordCountAndSize(FileIO.ReadableFile file, OffsetRange restriction)
+      private CountAndSize getRecordCountAndSize(ReadableFile file, OffsetRange restriction)
           throws Exception {
         ParquetFileReader reader = getParquetFileReader(file);
         double size = 0;
@@ -920,7 +920,7 @@ public class ParquetIO {
       }
     }
 
-    static class ReadFn<T> extends DoFn<FileIO.ReadableFile, T> {
+    static class ReadFn<T> extends DoFn<ReadableFile, T> {
 
       private Class<? extends GenericData> modelClass;
 
@@ -939,7 +939,7 @@ public class ParquetIO {
 
       @ProcessElement
       public void processElement(ProcessContext processContext) throws Exception {
-        FileIO.ReadableFile file = processContext.element();
+        ReadableFile file = processContext.element();
 
         if (!file.getMetadata().isReadSeekEfficient()) {
           ResourceId filename = file.getMetadata().resourceId();
