@@ -34,7 +34,6 @@ Here should be a short description on what mailing lists are and how to use them
 
 Choose the mailing list that suits you best and send us an email!
 
-<br/>
 {{< table_with_icons >}}
 
 If you have questions about how to use Apache Beam, we recommend you try out the [user@](https://lists.apache.org/list.html?user@beam.apache.org) mailing list, and [StackOverflow](https://stackoverflow.com/questions/tagged/apache-beam).

@@ -14,90 +14,93 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
- $padding:24px;
-.table-wrapper{
-  table{
+$padding: 24px;
+.table-wrapper {
+  margin-top: 64px;
+
+  table {
     @extend .table;
     max-width: 853px;
   }
   th:nth-child(1) {
-    @media (max-width: $mobile){
-      padding-left:0 !important;
+    @media (max-width: $mobile) {
+      padding-left: 0 !important;
       width: 115px;
-    } 
-    padding-left: 67px+$padding !important; 
-    width: 491px;     
+    }
+    padding-left: 67px + $padding !important;
+    width: 491px;
   }
-  th:nth-child(2) { 
-    @media (max-width: $mobile){
+  th:nth-child(2) {
+    @media (max-width: $mobile) {
       width: 111px;
     }
-    width: 181px;     
+    width: 181px;
   }
-  th{
+  th {
     padding: 14px 14px 17px 14px !important;
     border: none !important;
     border-bottom: 1px solid #ff6d05 !important;
     letter-spacing: 2px;
     line-height: normal !important;
   }
-  td{
-    @media (max-width: $mobile){
+  td {
+    @media (max-width: $mobile) {
       padding: $padding/4 !important;
     }
     padding: $padding !important;
     border-bottom: 1px solid rgba(255, 109, 5, 0.24);
-    div{
+    div {
       display: flex;
       position: relative;
     }
-    img, svg{
-      @media (max-width: $mobile){
+    img,
+    svg {
+      @media (max-width: $mobile) {
         display: none;
       }
       position: absolute;
-      top:50%;
+      top: 50%;
       transform: translateY(-60%);
     }
-    p{
-      @media (max-width: $mobile){
-        margin:0;
+    p {
+      @media (max-width: $mobile) {
+        margin: 0;
       }
       margin-left: 67px;
       font-size: 14px;
       line-height: 1.57;
     }
   }
-  td:nth-child(3) { 
-    @media (max-width: $mobile){
+  td:nth-child(3) {
+    @media (max-width: $mobile) {
       padding: $padding/3 !important;
       padding-left: $padding/4 !important;
     }
     padding: $padding/3 !important;
     padding-left: $padding !important;
-    div{
+    div {
       flex-direction: column;
     }
-    a{
+    a {
       text-decoration: underline;
       line-height: 2;
       letter-spacing: 0.43px;
     }
   }
-  td:nth-child(2) { 
+  td:nth-child(2) {
     background-color: rgba(255, 109, 0, 0.04);
     padding-left: $padding/2 !important;
     padding-right: 0 !important;
     line-height: 1.57;
     letter-spacing: 0.43px;
   }
-  a{
-    color:#f26628;
+  a {
+    color: #f26628;
   }
 }
-    
-.table-bordered-wrapper{
-  table{
-    @extend .table-bordered
-  }   
+
+.table-bordered-wrapper {
+  table {
+    @extend .table-bordered;
+  }
 }
