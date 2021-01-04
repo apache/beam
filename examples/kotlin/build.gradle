@@ -37,57 +37,53 @@ artifact includes all Apache Beam Kotlin SDK examples."""
  */
 def preCommitRunners = ["directRunner", "flinkRunner", "sparkRunner"]
 for (String runner : preCommitRunners) {
-  configurations.create(runner + "PreCommit")
+    configurations.create(runner + "PreCommit")
 }
 configurations.sparkRunnerPreCommit {
-  // Ban certain dependencies to prevent a StackOverflow within Spark
-  // because JUL -> SLF4J -> JUL, and similarly JDK14 -> SLF4J -> JDK14
-  exclude group: "org.slf4j", module: "jul-to-slf4j"
-  exclude group: "org.slf4j", module: "slf4j-jdk14"
+    // Ban certain dependencies to prevent a StackOverflow within Spark
+    // because JUL -> SLF4J -> JUL, and similarly JDK14 -> SLF4J -> JDK14
+    exclude group: "org.slf4j", module: "jul-to-slf4j"
+    exclude group: "org.slf4j", module: "slf4j-jdk14"
 }
 
 dependencies {
-  compile enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
-  compile library.java.vendored_guava_26_0_jre
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile project(":sdks:java:extensions:google-cloud-platform-core")
-  compile project(":sdks:java:io:google-cloud-platform")
-  compile library.java.avro
-  compile library.java.bigdataoss_util
-  compile library.java.google_api_client
-  compile library.java.google_api_services_bigquery
-  compile library.java.google_api_services_pubsub
-  compile library.java.google_auth_library_credentials
-  compile library.java.google_auth_library_oauth2_http
-  compile library.java.google_cloud_datastore_v1_proto_client
-  compile library.java.google_http_client
-  compile library.java.joda_time
-  compile library.java.proto_google_cloud_datastore_v1
-  compile library.java.slf4j_api
-  compile library.java.slf4j_jdk14
-  runtime project(path: ":runners:direct-java", configuration: "shadow")
-  testCompile project(":sdks:java:io:google-cloud-platform")
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
-  testCompile library.java.junit
-  testCompile library.java.mockito_core
+    compile enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
+    compile library.java.vendored_guava_26_0_jre
+    compile project(path: ":sdks:java:core", configuration: "shadow")
+    compile project(":sdks:java:extensions:google-cloud-platform-core")
+    compile project(":sdks:java:io:google-cloud-platform")
+    compile library.java.avro
+    compile library.java.bigdataoss_util
+    compile library.java.google_api_client
+    compile library.java.google_api_services_bigquery
+    compile library.java.google_api_services_pubsub
+    compile library.java.google_auth_library_credentials
+    compile library.java.google_auth_library_oauth2_http
+    compile library.java.google_http_client
+    compile library.java.joda_time
+    compile library.java.slf4j_api
+    compile "com.google.guava:guava:25.1-jre"
+    compile "org.jetbrains.kotlin:kotlin-stdlib:1.3.72"
+    compile "org.jetbrains:annotations:13.0"
+    runtime project(path: ":runners:direct-java", configuration: "shadow")
+    testCompile project(":sdks:java:io:google-cloud-platform")
+    testCompile library.java.junit
 
-  // Add dependencies for the PreCommit configurations
-  // For each runner a project level dependency on the examples project.
-  for (String runner : preCommitRunners) {
-    delegate.add(runner + "PreCommit", project(":examples:kotlin"))
-    delegate.add(runner + "PreCommit", project(path: ":examples:kotlin", configuration: "testRuntime"))
-  }
-  directRunnerPreCommit project(path: ":runners:direct-java", configuration: "shadow")
-  flinkRunnerPreCommit project(":runners:flink:1.10")
-  // TODO: Make the netty version used configurable, we add netty-all 4.1.17.Final so it appears on the classpath
-  // before 4.1.8.Final defined by Apache Beam
-  sparkRunnerPreCommit "io.netty:netty-all:4.1.17.Final"
-  sparkRunnerPreCommit project(":runners:spark")
-  sparkRunnerPreCommit project(":sdks:java:io:hadoop-file-system")
-  sparkRunnerPreCommit library.java.spark_streaming
-  sparkRunnerPreCommit library.java.spark_core
-  implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
+    // Add dependencies for the PreCommit configurations
+    // For each runner a project level dependency on the examples project.
+    for (String runner : preCommitRunners) {
+        delegate.add(runner + "PreCommit", project(":examples:kotlin"))
+        delegate.add(runner + "PreCommit", project(path: ":examples:kotlin", configuration: "testRuntime"))
+    }
+    directRunnerPreCommit project(path: ":runners:direct-java", configuration: "shadow")
+    flinkRunnerPreCommit project(":runners:flink:1.10")
+    // TODO: Make the netty version used configurable, we add netty-all 4.1.17.Final so it appears on the classpath
+    // before 4.1.8.Final defined by Apache Beam
+    sparkRunnerPreCommit "io.netty:netty-all:4.1.17.Final"
+    sparkRunnerPreCommit project(":runners:spark")
+    sparkRunnerPreCommit project(":sdks:java:io:hadoop-file-system")
+    sparkRunnerPreCommit library.java.spark_streaming
+    sparkRunnerPreCommit library.java.spark_core
 }
 
 /*
@@ -95,36 +91,36 @@ dependencies {
  * of integration tests for WordCount and WindowedWordCount.
  */
 def preCommitRunnerClass = [
-  directRunner: "org.apache.beam.runners.direct.DirectRunner",
-  flinkRunner: "org.apache.beam.runners.flink.TestFlinkRunner",
-  sparkRunner: "org.apache.beam.runners.spark.TestSparkRunner",
+        directRunner: "org.apache.beam.runners.direct.DirectRunner",
+        flinkRunner: "org.apache.beam.runners.flink.TestFlinkRunner",
+        sparkRunner: "org.apache.beam.runners.spark.TestSparkRunner",
 ]
 def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
 def gcsTempRoot = project.findProperty('gcsTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests/'
 
 for (String runner : preCommitRunners) {
-  tasks.create(name: runner + "PreCommit", type: Test) {
-    def preCommitBeamTestPipelineOptions = [
-       "--project=${gcpProject}",
-       "--tempRoot=${gcsTempRoot}",
-       "--runner=" + preCommitRunnerClass[runner],
-    ]
-    classpath = configurations."${runner}PreCommit"
-    include "**/WordCountIT.class"
-    if (!"sparkRunner".equals(runner)) {
-      include "**/WindowedWordCountIT.class"
+    tasks.create(name: runner + "PreCommit", type: Test) {
+        def preCommitBeamTestPipelineOptions = [
+                "--project=${gcpProject}",
+                "--tempRoot=${gcsTempRoot}",
+                "--runner=" + preCommitRunnerClass[runner],
+        ]
+        classpath = configurations."${runner}PreCommit"
+        include "**/WordCountIT.class"
+        if (!"sparkRunner".equals(runner)) {
+            include "**/WindowedWordCountIT.class"
+        }
+        forkEvery 1
+        maxParallelForks 4
+        systemProperty "beamTestPipelineOptions", JsonOutput.toJson(preCommitBeamTestPipelineOptions)
     }
-    forkEvery 1
-    maxParallelForks 4
-    systemProperty "beamTestPipelineOptions", JsonOutput.toJson(preCommitBeamTestPipelineOptions)
-  }
 }
 
 /* Define a common precommit task which depends on all the individual precommits. */
 task preCommit() {
-  for (String runner : preCommitRunners) {
-    dependsOn runner + "PreCommit"
-  }
+    for (String runner : preCommitRunners) {
+        dependsOn runner + "PreCommit"
+    }
 }
 
 compileKotlin {
@@ -138,6 +134,5 @@ compileTestKotlin {
     }
 }
 repositories {
-  mavenCentral()
+    mavenCentral()
 }
-
