@@ -1330,4 +1330,21 @@ public class TestJavaBeans {
           .addInt32Field("age_in_years")
           .addBooleanField("KnowsJavascript")
           .build();
+
+  @DefaultSchema(JavaBeanSchema.class)
+  public static class ParameterNullableBean {
+
+    @org.apache.avro.reflect.Nullable private Float value;
+
+    public @org.apache.avro.reflect.Nullable Float getValue() {
+      return value;
+    }
+
+    public void setValue(@org.apache.avro.reflect.Nullable Float value) {
+      this.value = value;
+    }
+  }
+
+  public static final Schema PARAMETER_NULLABLE_BEAN_SCHEMA =
+      Schema.builder().addNullableField("value", FieldType.INT64).build();
 }

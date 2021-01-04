@@ -59,6 +59,7 @@
 ## New Features / Improvements
 
 * ParquetIO add methods _readGenericRecords_ and _readFilesGenericRecords_ can read files with an unknown schema. See [PR-13554](https://github.com/apache/beam/pull/13554) and ([BEAM-11460](https://issues.apache.org/jira/browse/BEAM-11460))
+* Added support for thrift in KafkaTableProvider ([BEAM-11482](https://issues.apache.org/jira/browse/BEAM-11482))
 * X feature added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 
 ## Breaking Changes
@@ -71,6 +72,7 @@
 
 ## Known Issues
 
+* Fixed annotation handling for setter parameters in schema creation (Java) ([BEAM-11530](https://issues.apache.org/jira/browse/BEAM-11530)).
 * Fixed X (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 
 # [2.27.0] - Cut, Unreleased

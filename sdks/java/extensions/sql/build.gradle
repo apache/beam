@@ -27,6 +27,7 @@ applyJavaNature(
   generatedClassPatterns: [
     /^org\.apache\.beam\.sdk\.extensions\.sql\.impl\.parser\.impl.*/,
     /^org\.apache\.beam\.sdk\.extensions\.sql\.meta\.provider\.kafka\.KafkaMessages/,
+    /^org\.apache\.beam\.sdk\.extensions\.sql\.meta\.provider\.kafka\.thrift.*/,
   ],
   automaticModuleName: 'org.apache.beam.sdk.extensions.sql',
   // javacc generated code produces lint warnings
@@ -83,6 +84,7 @@ dependencies {
   provided project(":sdks:java:io:google-cloud-platform")
   compile project(":sdks:java:io:mongodb")
   provided project(":sdks:java:io:parquet")
+  provided project(":sdks:java:io:thrift")
   provided library.java.jackson_dataformat_xml
   provided library.java.hadoop_client
   provided library.java.kafka_clients
