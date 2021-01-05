@@ -36,7 +36,23 @@ dependencies {
     compile (project(path: ":runners:core-java")){
         exclude group: 'com.esotericsoftware.kryo', module: 'kryo'
     }
-    compile project(":runners:java-fn-execution")
+    compile project(path: ":model:pipeline", configuration: "shadow")
+    compile project(path: ":runners:core-construction-java")
+    compile project(path: ":sdks:java:core", configuration: "shadow")
+
+    compile library.java.jackson_annotations
+    compile library.java.joda_time
+    compile library.java.vendored_grpc_1_26_0
+    compile "org.checkerframework:checker-qual:2.0.0"
+    compile "org.mortbay.jetty:jetty-util:6.1.26"
+    compile library.java.slf4j_api
+    compile "org.twister2:comms-api-java:0.6.0"
+    compile "org.twister2:config-api-java:0.6.0"
+    compile "org.twister2:dataset-api-java:0.6.0"
+    compile "org.twister2:driver-api-java:0.6.0"
+    compile "org.twister2:exceptions-java:0.6.0"
+    compile "org.twister2:scheduler-api-java:0.6.0"
+    compile "org.twister2:task-api-java:0.6.0"
     compile "org.twister2:api-java:$twister2_version"
     compile "org.twister2:tset-api-java:$twister2_version"
     compile "org.twister2:tset-java:$twister2_version"
