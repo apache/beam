@@ -26,17 +26,20 @@ dependencies {
   compile library.java.vendored_guava_26_0_jre
   compile project(":runners:core-construction-java")
   compile project(path: ":model:pipeline", configuration: "shadow")
-  compile project(path: ":model:fn-execution", configuration: "shadow")
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile project(path: ":model:job-management", configuration: "shadow")
   compile project(":sdks:java:expansion-service")
   compile project(":sdks:java:fn-execution")
   compile project(":runners:core-construction-java")
   compile project(":runners:java-fn-execution")
+  compile library.java.jackson_core
+  compile library.java.jackson_databind
+  compile library.java.joda_time
+  compile "org.apache.commons:commons-compress:1.20"
   compile library.java.vendored_grpc_1_26_0
   compile library.java.slf4j_api
   compile library.java.args4j
   testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
   testCompile library.java.mockito_core
   testRuntimeOnly library.java.slf4j_simple
 }
