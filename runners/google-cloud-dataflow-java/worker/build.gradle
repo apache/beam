@@ -27,7 +27,6 @@ def DATAFLOW_VERSION = "dataflow.version"
 def google_api_services_dataflow = project.hasProperty(DATAFLOW_VERSION) ? "com.google.apis:google-api-services-dataflow:" + getProperty(DATAFLOW_VERSION) : library.java.google_api_services_dataflow
 
 applyJavaNature(
-  enableStrictDependencies: false,
   archivesBaseName: 'beam-runners-google-cloud-dataflow-java-fn-api-worker',
   publish: false,
   exportJavadoc: false,
@@ -71,6 +70,7 @@ dependencies {
   // All main sourceset dependencies here should be listed as compile scope so that the dependencies
   // are all packaged into a single uber jar allowing the jar to serve as an application.
   compile enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
+  permitUnusedDeclared enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
   compile project(":runners:google-cloud-dataflow-java")
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile project(":sdks:java:extensions:google-cloud-platform-core")
@@ -86,24 +86,32 @@ dependencies {
   compile google_api_services_dataflow
   compile library.java.avro
   compile library.java.google_api_client
+  permitUnusedDeclared library.java.google_api_client // BEAM-11761
+  compile library.java.google_auth_library_credentials
   compile library.java.google_http_client
   compile library.java.google_http_client_jackson2
+  compile library.java.guava
   compile library.java.jackson_annotations
   compile library.java.jackson_core
   compile library.java.jackson_databind
   compile library.java.joda_time
+  compile library.java.proto_google_common_protos
   shadow library.java.vendored_guava_26_0_jre
   compile library.java.slf4j_api
+  compile "io.opencensus:opencensus-api:0.28.0"
   compile "javax.servlet:javax.servlet-api:3.1.0"
 
   // Conscrypt shouldn't be included here because Conscrypt won't work when being shaded.
   // (Context: https://github.com/apache/beam/pull/13846)
   // Conscrypt will be added to runtime dependencies by GrpcVendoring so compileOnly works for now.
-  compileOnly "org.conscrypt:conscrypt-openjdk:2.5.1:linux-x86_64"
+  compileOnly "org.conscrypt:conscrypt-openjdk-uber:2.5.1"
+
   compile "org.eclipse.jetty:jetty-server:9.2.10.v20150310"
   compile "org.eclipse.jetty:jetty-servlet:9.2.10.v20150310"
   compile library.java.error_prone_annotations
+  permitUnusedDeclared library.java.error_prone_annotations // BEAM-11761
   compile library.java.slf4j_jdk14
+  permitUnusedDeclared library.java.slf4j_jdk14 // BEAM-11761
 
   // All test sourceset dependencies can be marked as shadowTest since we create an uber jar without
   // relocating any code.
@@ -112,8 +120,6 @@ dependencies {
   shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")
   shadowTest project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntime")
   shadowTest project(path: ":runners:direct-java", configuration: "shadow")
-  shadowTest library.java.hamcrest_core
-  shadowTest library.java.hamcrest_library
   shadowTest library.java.jsonassert
   shadowTest library.java.junit
   shadowTest library.java.mockito_core
