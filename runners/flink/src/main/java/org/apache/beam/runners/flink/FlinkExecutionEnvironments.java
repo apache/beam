@@ -378,6 +378,10 @@ public class FlinkExecutionEnvironments {
     }
   }
 
+  /**
+   * Disables classloader.check-leaked-classloader unless set by the user. See
+   * https://issues.apache.org/jira/browse/BEAM-11570.
+   */
   private static void disableClassLoaderLeakCheck(final Configuration config) {
     if (!config.containsKey("classloader.check-leaked-classloader")) {
       config.setBoolean("classloader.check-leaked-classloader", false);
