@@ -20,6 +20,8 @@ import collections
 import inspect
 import math
 import re
+from typing import List
+from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -28,9 +30,6 @@ from apache_beam.dataframe import expressions
 from apache_beam.dataframe import frame_base
 from apache_beam.dataframe import io
 from apache_beam.dataframe import partitionings
-
-from typing import List
-from typing import Optional
 
 
 def populate_not_implemented(pd_type):
