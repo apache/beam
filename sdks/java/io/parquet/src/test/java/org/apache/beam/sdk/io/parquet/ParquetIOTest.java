@@ -42,8 +42,6 @@ import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.parquet.ParquetIO.GenericRecordPassthroughFn;
 import org.apache.beam.sdk.io.range.OffsetRange;
-import org.apache.beam.sdk.schemas.transforms.Convert;
-import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -51,7 +49,6 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.Row;
 import org.apache.parquet.hadoop.metadata.BlockMetaData;
 import org.hamcrest.MatcherAssert;
 import org.junit.Rule;
@@ -228,52 +225,6 @@ public class ParquetIOTest implements Serializable {
                 .withBeamSchemas(true));
 
     PAssert.that(readBackRecords).containsInAnyOrder(records);
-    readPipeline.run().waitUntilFinish();
-  }
-
-  @Test
-  public void testWriteAndReadParquetAsSqlRows() {
-    Schema userDetailsSchema =
-        new Schema.Parser()
-            .parse(
-                "{\"namespace\": \"example.avro\",\n"
-                    + " \"type\": \"record\",\n"
-                    + " \"name\": \"User\",\n"
-                    + " \"fields\": [\n"
-                    + "     {\"name\": \"name\", \"type\": \"string\"},\n"
-                    + "     {\"name\": \"favorite_number\", \"type\": \"int\"},\n"
-                    + "     {\"name\": \"favorite_color\", \"type\": \"string\"},\n"
-                    + "     {\"name\": \"price\", \"type\": \"double\"}\n"
-                    + " ]\n"
-                    + "}");
-
-    GenericRecord testRecordBob = new GenericData.Record(userDetailsSchema);
-    testRecordBob.put("name", "Bob");
-    testRecordBob.put("favorite_number", 256);
-    testRecordBob.put("favorite_color", "red");
-    testRecordBob.put("price", 2.4);
-
-    mainPipeline
-        .apply(Create.of(testRecordBob).withCoder(AvroCoder.of(userDetailsSchema)))
-        .apply(
-            FileIO.<GenericRecord>write()
-                .via(ParquetIO.sink(userDetailsSchema))
-                .to(temporaryFolder.getRoot().getAbsolutePath()));
-    mainPipeline.run().waitUntilFinish();
-
-    PCollection<Row> rows =
-        readPipeline
-            .apply(
-                ParquetIO.read(userDetailsSchema)
-                    .withBeamSchemas(true)
-                    .from(temporaryFolder.getRoot().getAbsolutePath() + "/*"))
-            .apply(Convert.toRows());
-
-    PAssert.that(rows)
-        .containsInAnyOrder(
-            Row.withSchema(AvroUtils.toBeamSchema(userDetailsSchema))
-                .addValues("Bob", 256, "red", 2.4)
-                .build());
     readPipeline.run().waitUntilFinish();
   }
 
