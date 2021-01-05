@@ -36,4 +36,5 @@ artifacts {
 dependencies {
     compile library.java.grpc_api
     permitUnusedDeclared library.java.vendored_grpc_1_26_0
+    permitUnusedDeclared library.java.error_prone_annotations
 }

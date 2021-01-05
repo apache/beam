@@ -60,6 +60,7 @@ class GrpcVendoring_1_26_0 {
    */
   static List<String> runtimeDependencies() {
     return [
+      'com.google.errorprone:error_prone_annotations:2.3.3'
       // TODO(BEAM-9288): Enable relocation for conscrypt
     ]
   }
