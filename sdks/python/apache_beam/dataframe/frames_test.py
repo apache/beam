@@ -45,8 +45,7 @@ class DeferredFrameTest(unittest.TestCase):
       if expect_error:
         raise AssertionError(
             "Expected an error but computing expected result successfully "
-            f"returned: {expected}"
-        )
+            f"returned: {expected}")
 
     session_type = (
         expressions.PartitioningSession if distributed else expressions.Session)
@@ -60,8 +59,7 @@ class DeferredFrameTest(unittest.TestCase):
       if expect_error:
         raise AssertionError(
             "Expected an error:\n{expected}\nbut successfully "
-            f"returned:\n{actual}"
-        )
+            f"returned:\n{actual}")
 
     if not expect_error:
       if hasattr(expected, 'equals'):
