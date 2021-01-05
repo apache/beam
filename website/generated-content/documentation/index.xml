@@ -4860,7 +4860,7 @@ this class. Nested classes are supported as are classes with &lt;code>List&lt;/c
 &lt;span class="kd">public&lt;/span> &lt;span class="kd">final&lt;/span> &lt;span class="kt">double&lt;/span> &lt;span class="n">purchaseAmount&lt;/span>&lt;span class="o">;&lt;/span>
 &lt;span class="nd">@SchemaCreate&lt;/span>
 &lt;span class="kd">public&lt;/span> &lt;span class="nf">TransactionPojo&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">String&lt;/span> &lt;span class="n">bank&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="kt">double&lt;/span> &lt;span class="n">purchaseAmount&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
-&lt;span class="k">this&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">bank&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">bank&lt;/span>&lt;span class="o">.&lt;/span>
+&lt;span class="k">this&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">bank&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">bank&lt;/span>&lt;span class="o">;&lt;/span>
 &lt;span class="k">this&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">purchaseAmount&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">purchaseAmount&lt;/span>&lt;span class="o">;&lt;/span>
 &lt;span class="o">}&lt;/span>
 &lt;span class="o">}&lt;/span>
