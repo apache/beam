@@ -682,15 +682,9 @@ public class ParquetIO {
         this.configuration = configuration;
       }
 
-      ParquetFileReader getParquetFileReader(ReadableFile file) {
-        try {
-          ParquetReadOptions options = HadoopReadOptions.builder(getConfWithModelClass()).build();
-          return ParquetFileReader.open(new BeamParquetInputFile(file.openSeekable()), options);
-        } catch (IOException ioException) {
-          throw new ParquetIoException(ioException);
-        } catch (ReflectiveOperationException reflectionException) {
-          throw new ParquetIoException(reflectionException);
-        }
+      ParquetFileReader getParquetFileReader(ReadableFile file) throws Exception {
+        ParquetReadOptions options = HadoopReadOptions.builder(getConfWithModelClass()).build();
+        return ParquetFileReader.open(new BeamParquetInputFile(file.openSeekable()), options);
       }
 
       @ProcessElement
@@ -698,7 +692,7 @@ public class ParquetIO {
           @Element ReadableFile file,
           RestrictionTracker<OffsetRange, Long> tracker,
           OutputReceiver<T> outputReceiver)
-          throws ReflectiveOperationException, IOException {
+          throws Exception {
         LOG.debug(
             "start "
                 + tracker.currentRestriction().getFrom()
@@ -809,7 +803,7 @@ public class ParquetIO {
       }
 
       @GetInitialRestriction
-      public OffsetRange getInitialRestriction(@Element ReadableFile file) {
+      public OffsetRange getInitialRestriction(@Element ReadableFile file) throws Exception {
         ParquetFileReader reader = getParquetFileReader(file);
         return new OffsetRange(0, reader.getRowGroups().size());
       }
@@ -818,7 +812,8 @@ public class ParquetIO {
       public void split(
           @Restriction OffsetRange restriction,
           OutputReceiver<OffsetRange> out,
-          @Element ReadableFile file) {
+          @Element ReadableFile file)
+          throws Exception {
         ParquetFileReader reader = getParquetFileReader(file);
         List<BlockMetaData> rowGroups = reader.getRowGroups();
         for (OffsetRange offsetRange :
@@ -849,7 +844,7 @@ public class ParquetIO {
 
       @NewTracker
       public RestrictionTracker<OffsetRange, Long> newTracker(
-          @Restriction OffsetRange restriction, @Element ReadableFile file) {
+          @Restriction OffsetRange restriction, @Element ReadableFile file) throws Exception {
         CountAndSize recordCountAndSize = getRecordCountAndSize(file, restriction);
         return new BlockTracker(
             restriction,
@@ -863,11 +858,13 @@ public class ParquetIO {
       }
 
       @GetSize
-      public double getSize(@Element ReadableFile file, @Restriction OffsetRange restriction) {
+      public double getSize(@Element ReadableFile file, @Restriction OffsetRange restriction)
+          throws Exception {
         return getRecordCountAndSize(file, restriction).getSize();
       }
 
-      private CountAndSize getRecordCountAndSize(ReadableFile file, OffsetRange restriction) {
+      private CountAndSize getRecordCountAndSize(ReadableFile file, OffsetRange restriction)
+          throws Exception {
         ParquetFileReader reader = getParquetFileReader(file);
         double size = 0;
         double recordCount = 0;
@@ -938,7 +935,7 @@ public class ParquetIO {
       }
 
       @ProcessElement
-      public void processElement(ProcessContext processContext) throws IOException {
+      public void processElement(ProcessContext processContext) throws Exception {
         ReadableFile file = processContext.element();
 
         if (!file.getMetadata().isReadSeekEfficient()) {
@@ -1144,16 +1141,9 @@ public class ParquetIO {
   }
 
   /** Returns a model object created using provided modelClass or null. */
-  private static GenericData buildModelObject(@Nullable Class<? extends GenericData> modelClass) {
-    try {
-      if (modelClass == null) {
-        return null;
-      }
-
-      return (GenericData) modelClass.getMethod("get").invoke(null);
-    } catch (ReflectiveOperationException reflectionException) {
-      throw new ParquetIoException(reflectionException);
-    }
+  private static GenericData buildModelObject(@Nullable Class<? extends GenericData> modelClass)
+      throws ReflectiveOperationException {
+    return (modelClass == null) ? null : (GenericData) modelClass.getMethod("get").invoke(null);
   }
 
   /**
@@ -1176,17 +1166,6 @@ public class ParquetIO {
 
     /** Enforce singleton pattern, by disallowing construction with {@code new} operator. */
     private GenericRecordPassthroughFn() {}
-  }
-
-  /** Encapsulates checked exceptions with Parquet file operation as RuntimeException. */
-  public static class ParquetIoException extends RuntimeException {
-    private ParquetIoException(IOException ioException) {
-      super("Unable to open file", ioException);
-    }
-
-    private ParquetIoException(ReflectiveOperationException reflectionException) {
-      super("Error with model class", reflectionException);
-    }
   }
 
   /** Disallow construction of utility class. */
