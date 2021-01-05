@@ -50,7 +50,7 @@ import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.parquet.hadoop.metadata.BlockMetaData;
-import org.junit.Assert;
+import org.hamcrest.MatcherAssert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -337,7 +337,7 @@ public class ParquetIOTest implements Serializable {
   public void testReadDisplayData() {
     DisplayData displayData = DisplayData.from(ParquetIO.read(SCHEMA).from("foo.parquet"));
 
-    Assert.assertThat(displayData, hasDisplayItem("filePattern", "foo.parquet"));
+    MatcherAssert.assertThat(displayData, hasDisplayItem("filePattern", "foo.parquet"));
   }
 
   public static class TestRecord {
