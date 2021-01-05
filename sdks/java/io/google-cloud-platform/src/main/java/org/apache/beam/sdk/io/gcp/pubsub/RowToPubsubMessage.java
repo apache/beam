@@ -87,8 +87,8 @@ class RowToPubsubMessage extends PTransform<PCollection<Row>, PCollection<Pubsub
         // to publish time. The data will be dropped.
         LOG.warn(
             String.format(
-                "Dropping output field '%s' before writing to PubSub because this is a read-only " +
-                "column. To preserve this information you must configure a timestamp attribute.",
+                "Dropping output field '%s' before writing to PubSub because this is a read-only "
+                    + "column. To preserve this information you must configure a timestamp attribute.",
                 TIMESTAMP_FIELD));
       }
       rows = withTimestamp.apply(DropFields.fields(TIMESTAMP_FIELD));
