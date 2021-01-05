@@ -29,6 +29,9 @@ from apache_beam.dataframe import frame_base
 from apache_beam.dataframe import io
 from apache_beam.dataframe import partitionings
 
+from typing import List
+from typing import Optional
+
 
 def populate_not_implemented(pd_type):
   def wrapper(deferred_type):
@@ -1552,12 +1555,20 @@ class DeferredGroupBy(frame_base.DeferredFrame):
   __len__ = frame_base.wont_implement_method('non-deferred')
   groups = property(frame_base.wont_implement_method('non-deferred'))
 
+def _maybe_project_func(projection: Optional[List[str]]):
+  """ Returns identity func if projection is empty or None, else returns
+  a function that projects the specified columns. """
+  if projection:
+    return lambda df: df[projection]
+  else:
+    return lambda x: x
+
 
 def _liftable_agg(meth, postagg_meth=None):
-  name, func = frame_base.name_and_func(meth)
+  name, agg_func = frame_base.name_and_func(meth)
 
   if postagg_meth is None:
-    post_agg_name, post_agg_func = name, func
+    post_agg_name, post_agg_func = name, agg_func
   else:
     post_agg_name, post_agg_func = frame_base.name_and_func(postagg_meth)
 
@@ -1573,13 +1584,13 @@ def _liftable_agg(meth, postagg_meth=None):
     preagg_groupby_kwargs = groupby_kwargs.copy()
     preagg_groupby_kwargs['observed'] = True
 
-    projection = self._projection or list(self._ungrouped.proxy().columns)
+    project = _maybe_project_func(self._projection)
     pre_agg = expressions.ComputedExpression(
         'pre_combine_' + name,
-        lambda df: func(
+        lambda df: agg_func(project(
         df.groupby(level=list(range(df.index.nlevels)),
-                   **preagg_groupby_kwargs)[projection],
-        **kwargs),
+                   **preagg_groupby_kwargs),
+        ), **kwargs),
         [self._ungrouped],
         requires_partition_by=partitionings.Nothing(),
         preserves_partition_by=partitionings.Singleton())
@@ -1600,7 +1611,7 @@ def _liftable_agg(meth, postagg_meth=None):
 
 
 def _unliftable_agg(meth):
-  name, func = frame_base.name_and_func(meth)
+  name, agg_func = frame_base.name_and_func(meth)
 
   def wrapper(self, *args, **kwargs):
     assert isinstance(self, DeferredGroupBy)
@@ -1610,13 +1621,13 @@ def _unliftable_agg(meth):
                                   for i in range(to_group.nlevels))
 
     groupby_kwargs = self._kwargs
-    projection = self._projection or list(self._ungrouped.proxy().columns)
+    project = _maybe_project_func(self._projection)
     post_agg = expressions.ComputedExpression(
         name,
-        lambda df: func(
+        lambda df: agg_func(project(
             df.groupby(level=list(range(df.index.nlevels)),
-                       **groupby_kwargs)[projection],
-            **kwargs),
+                       **groupby_kwargs),
+            ), **kwargs),
         [self._ungrouped],
         requires_partition_by=(partitionings.Singleton()
                                if is_categorical_grouping
@@ -1638,10 +1649,10 @@ for meth in UNLIFTABLE_AGGREGATIONS:
   setattr(DeferredGroupBy, meth, _unliftable_agg(meth))
 
 
-def _is_associative(func):
-  return func in LIFTABLE_AGGREGATIONS or (
-      getattr(func, '__name__', None) in LIFTABLE_AGGREGATIONS
-      and func.__module__ in ('numpy', 'builtins'))
+def _is_associative(agg_func):
+  return agg_func in LIFTABLE_AGGREGATIONS or (
+      getattr(agg_func, '__name__', None) in LIFTABLE_AGGREGATIONS
+      and agg_func.__module__ in ('numpy', 'builtins'))
 
 
 
