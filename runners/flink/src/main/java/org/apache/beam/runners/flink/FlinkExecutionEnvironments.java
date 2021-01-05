@@ -77,6 +77,7 @@ public class FlinkExecutionEnvironments {
     // depending on the master, create the right environment.
     if ("[local]".equals(flinkMasterHostPort)) {
       setManagedMemoryByFraction(flinkConfiguration);
+      disableClassLoaderLeakCheck(flinkConfiguration);
       flinkBatchEnv = ExecutionEnvironment.createLocalEnvironment(flinkConfiguration);
     } else if ("[collection]".equals(flinkMasterHostPort)) {
       flinkBatchEnv = new CollectionEnvironment();
@@ -155,6 +156,7 @@ public class FlinkExecutionEnvironments {
     // depending on the master, create the right environment.
     if ("[local]".equals(masterUrl)) {
       setManagedMemoryByFraction(flinkConfiguration);
+      disableClassLoaderLeakCheck(flinkConfiguration);
       flinkStreamEnv =
           StreamExecutionEnvironment.createLocalEnvironment(
               getDefaultLocalParallelism(), flinkConfiguration);
@@ -373,6 +375,16 @@ public class FlinkExecutionEnvironments {
       long freeHeapMemory = EnvironmentInformation.getSizeOfFreeHeapMemoryWithDefrag();
       long managedMemorySize = (long) (freeHeapMemory * managedMemoryFraction);
       config.setString("taskmanager.memory.managed.size", String.valueOf(managedMemorySize));
+    }
+  }
+
+  /**
+   * Disables classloader.check-leaked-classloader unless set by the user. See
+   * https://issues.apache.org/jira/browse/BEAM-11570.
+   */
+  private static void disableClassLoaderLeakCheck(final Configuration config) {
+    if (!config.containsKey("classloader.check-leaked-classloader")) {
+      config.setBoolean("classloader.check-leaked-classloader", false);
     }
   }
 }
