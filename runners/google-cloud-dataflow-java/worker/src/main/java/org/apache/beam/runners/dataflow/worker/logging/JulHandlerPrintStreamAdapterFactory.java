@@ -70,7 +70,7 @@ class JulHandlerPrintStreamAdapterFactory {
     private byte[] carryOverByteArray;
 
     @SuppressWarnings({
-      "unchecked" // [BEAM-11327] Replace Charset.defaultCharset() with StandardCharsets.UTF_8
+      "unchecked" // Suppress ForbidDefaultCharset checkstyle
     })
     private JulHandlerPrintStream(Handler handler, String loggerName, Level logLevel)
         throws UnsupportedEncodingException {
