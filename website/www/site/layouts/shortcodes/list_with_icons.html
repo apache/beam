@@ -9,7 +9,7 @@
     See the License for the specific language governing permissions and
     limitations under the License. See accompanying LICENSE file.
    */}}
-   
+
     {{ $data := index $.Site.Data .Site.Language.Lang }}
     <div class="icon-list">
         {{ range $item := $data.community_list }}
@@ -20,10 +20,10 @@
                     {{ end }}
                 </div>
                 <div class="list-item-description">
-                    <h5 class="list-item-header">{{ .title | markdownify }}</h5>
+                    <h3 class="list-item-header">{{ .title | markdownify }}</h3>
                     <p class="list-item-text">{{ .body | markdownify }}</p>
                 </div>
             </div>
-          
+
         {{ end }}
     </div>
