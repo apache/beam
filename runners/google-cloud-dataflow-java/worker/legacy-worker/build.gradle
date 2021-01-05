@@ -72,7 +72,6 @@ def excluded_dependencies = [
         "com.google.auto.value:auto-value",          // Provided scope added from applyJavaNature
         "org.codehaus.jackson:jackson-core-asl",     // Exclude an old version of jackson-core-asl introduced by google-http-client-jackson
         "org.objenesis:objenesis",                   // Transitive dependency introduced from Beam
-        "org.tukaani:xz",                            // Transitive dependency introduced from Beam
         library.java.commons_compress,               // Transitive dependency introduced from Beam
         library.java.error_prone_annotations,        // Provided scope added in worker
         library.java.hamcrest_core,                  // Test only
@@ -82,7 +81,6 @@ def excluded_dependencies = [
 ]
 
 applyJavaNature(
-        enableStrictDependencies: false,
         archivesBaseName: 'beam-runners-google-cloud-dataflow-java-legacy-worker',
         publish: false,
         classesTriggerCheckerBugs: [
@@ -201,6 +199,8 @@ dependencies {
     }
 
     compile project(path: ":model:fn-execution", configuration: "shadow")
+    compile project(path: ":model:pipeline", configuration: "shadow")
+    compile project(path: ":sdks:java:core", configuration: "shadow")
     compile project(":runners:core-construction-java")
     compile project(":runners:core-java")
     compile project(":runners:java-fn-execution")
@@ -211,9 +211,18 @@ dependencies {
     // Conscrypt shouldn't be included here because Conscrypt won't work when being shaded.
     // (Context: https://github.com/apache/beam/pull/13846)
     // Conscrypt will be added to runtime dependencies by GrpcVendoring so compileOnly works for now.
-    compileOnly "org.conscrypt:conscrypt-openjdk:2.5.1:linux-x86_64"
+    compileOnly "org.conscrypt:conscrypt-openjdk-uber:2.5.1"
+
+    compile "javax.servlet:javax.servlet-api:3.1.0"
     compile "org.eclipse.jetty:jetty-server:9.2.10.v20150310"
     compile "org.eclipse.jetty:jetty-servlet:9.2.10.v20150310"
+    compile library.java.avro
+    compile library.java.jackson_annotations
+    compile library.java.jackson_core
+    compile library.java.jackson_databind
+    compile library.java.joda_time
+    compile library.java.slf4j_api
+    compile library.java.vendored_grpc_1_26_0
     provided library.java.error_prone_annotations
     runtime library.java.slf4j_jdk14
 
@@ -225,8 +234,6 @@ dependencies {
     shadowTest project(path: ":runners:direct-java", configuration: "shadow")
     shadowTest project(path: ":sdks:java:harness", configuration: "shadowTest")
     shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")
-    shadowTest library.java.hamcrest_core
-    shadowTest library.java.hamcrest_library
     shadowTest library.java.jsonassert
     shadowTest library.java.junit
     shadowTest library.java.mockito_core
