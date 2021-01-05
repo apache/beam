@@ -74,7 +74,6 @@ dependencies {
   compile library.java.hamcrest_core
   compile library.java.jackson_databind
   compile library.java.joda_time
-  compile library.java.junit
   compile library.java.netty_handler
   compile library.java.netty_tcnative_boringssl_static
   compile library.java.proto_google_cloud_bigquery_storage_v1beta1
@@ -86,6 +85,7 @@ dependencies {
   compile library.java.proto_google_common_protos
   compile library.java.protobuf_java
   compile library.java.slf4j_api
+  testCompile library.java.junit
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntime")
   testCompile project(path: ":runners:direct-java", configuration: "shadow")
