@@ -53,21 +53,28 @@ dependencies {
   compile library.java.slf4j_api
   compile library.java.joda_time
   compile library.java.commons_io
-  compile library.java.commons_lang3
-  compile library.java.args4j
-  compile "javax.servlet:javax.servlet-api:3.1.0"
-  compile "io.dropwizard.metrics:metrics-core:3.1.2"
   compile "org.rocksdb:rocksdbjni:5.7.3"
-  compile "org.apache.commons:commons-collections4:4.0"
   compile "org.scala-lang:scala-library:2.11.8"
   compile "org.apache.samza:samza-api:$samza_version"
   compile "org.apache.samza:samza-core_2.11:$samza_version"
   compile "org.apache.samza:samza-kafka_2.11:$samza_version"
   compile "org.apache.samza:samza-kv_2.11:$samza_version"
+  compile project(":sdks:java:expansion-service")
+  permitUnusedDeclared "org.apache.samza:samza-kafka_2.11:1.5.0"
+  permitUnusedDeclared "org.apache.samza:samza-kv-inmemory_2.11:1.3.0"
+  permitUnusedDeclared "org.apache.samza:samza-kv_2.11:1.5.0"
+  permitUnusedDeclared "org.rocksdb:rocksdbjni:6.5.3"
+  permitUnusedDeclared "org.scala-lang:scala-library:2.11.12"
   compile "org.apache.samza:samza-kv-rocksdb_2.11:$samza_version"
   compile "org.apache.samza:samza-kv-inmemory_2.11:$samza_version"
   compile "org.apache.samza:samza-yarn_2.11:$samza_version"
   compile "org.apache.kafka:kafka-clients:0.11.0.2"
+  permitUnusedDeclared "org.apache.kafka:kafka-clients:2.4.1"
+  compile library.java.vendored_grpc_1_26_0
+  compile "org.checkerframework:checker-qual:2.0.0"
+  compile project(path: ":model:job-management:", configuration: "shadow")
+  compile project(path: ":model:pipeline", configuration: "shadow")
+  compile project(":sdks:java:fn-execution")
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile project(path: ":runners:core-java", configuration: "testRuntime")
   testCompile library.java.hamcrest_core

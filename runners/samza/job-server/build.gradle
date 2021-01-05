@@ -32,7 +32,6 @@ applyJavaNature(
 )
 
 dependencies {
-  compile project(":runners:samza")
   runtime group: "org.slf4j", name: "jcl-over-slf4j", version: dependencies.create(project.library.java.slf4j_api).getVersion()
   runtime library.java.slf4j_simple
 }
