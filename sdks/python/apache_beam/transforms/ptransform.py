@@ -73,6 +73,7 @@ from apache_beam.portability import python_urns
 from apache_beam.pvalue import DoOutputsTuple
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.display import HasDisplayData
+from apache_beam.transforms.sideinputs import SIDE_INPUT_PREFIX
 from apache_beam.typehints import native_type_compatibility
 from apache_beam.typehints import typehints
 from apache_beam.typehints.decorators import IOTypeHints
@@ -613,6 +614,35 @@ class PTransform(WithTypeHints, HasDisplayData):
       return next(iter(input_dict.values()))
     else:
       return input_dict
+
+  def _named_inputs(self, inputs, side_inputs):
+    # type: (Sequence[pvalue.Pvalue], Sequence[pvalue.Pvalue]) -> Dict[str, pvalue.PValue]
+
+    """Returns the dictionary of named inputs (including side inputs) as they
+    should be named in the beam proto.
+    """
+    # TODO(BEAM-1833): Push names up into the sdk construction.
+    main_inputs = {
+        str(ix): input
+        for (ix, input) in enumerate(inputs)
+        if isinstance(input, pvalue.PCollection)
+    }
+    side_inputs = {(SIDE_INPUT_PREFIX + '%s') % ix: si.pvalue
+                   for (ix, si) in enumerate(side_inputs)}
+    return dict(main_inputs, **side_inputs)
+
+  def _named_outputs(self, outputs):
+    # type: (Dict[object, pvalue.PCollection]) -> Dict[str, pvalue.PCollection]
+
+    """Returns the dictionary of named outputs as they should be named in the
+    beam proto.
+    """
+    # TODO(BEAM-1833): Push names up into the sdk construction.
+    return {
+        str(tag): output
+        for (tag, output) in outputs.items()
+        if isinstance(output, pvalue.PCollection)
+    }
 
   _known_urns = {}  # type: Dict[str, Tuple[Optional[type], ConstructorFn]]
 
