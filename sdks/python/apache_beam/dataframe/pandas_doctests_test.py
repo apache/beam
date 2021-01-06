@@ -110,6 +110,11 @@ class DoctestTest(unittest.TestCase):
 
             # In theory this is possible for bounded inputs?
             'pandas.core.frame.DataFrame.append': ['*'],
+
+            # Cross-join not implemented
+            'pandas.core.frame.DataFrame.merge': [
+                "df1.merge(df2, how='cross')"
+            ],
         },
         skip={
             'pandas.core.frame.DataFrame.axes': [
@@ -393,6 +398,7 @@ class DoctestTest(unittest.TestCase):
             'infer_freq': ['*'],
             'lreshape': ['*'],
             'melt': ['*'],
+            'merge': ["df1.merge(df2, how='cross')"],
             'merge_asof': ['*'],
             'pivot': ['*'],
             'pivot_table': ['*'],
