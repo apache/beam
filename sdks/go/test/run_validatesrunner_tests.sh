@@ -16,9 +16,10 @@
 #    limitations under the License.
 
 # This script executes ValidatesRunner tests including launching any additional
-# services needed, such as job services or expansion services. The following
-# runners are supported, and selected via a flag:
+# services needed, such as job services or expansion services. This script
+# should be executed from the root of the Beam repository.
 #
+# The following runners are supported, and selected via a flag:
 # --runner {portable|direct|flink} (default: portable)
 #  Select which runner to execute tests on. This flag also determines which
 #  services to start up and which tests may be skipped.
@@ -26,29 +27,57 @@
 #    portable - (default) Python Portable Runner (aka. Reference Runner or FnAPI Runner)
 #    flink    - Java Flink Runner (local mode)
 #    spark    - Java Spark Runner (local mode)
+#    dataflow - Dataflow Runner
 #
-# --flink_job_server_jar -> Filepath to jar, used if runner is Flink.
-# --spark_job_server_jar -> Filepath to jar, used if runner is Spark.
-# --endpoint -> Replaces jar filepath with existing job server endpoint.
+# General flags:
+#    --timeout -> Timeout for the go test command, on a per-package level.
+#    --endpoint -> An endpoint for an existing job server outside the script.
+#        If present, job server jar flags are ignored.
+#    --expansion_service_jar -> Filepath to jar for expansion service, for
+#        runners that support cross-language.
+#    --expansion_addr -> An endpoint for an existing expansion service outside
+#        the script. If present, expansion_service_jar is ignored.
 #
-# --expansion_service_jar -> Filepath to jar for expansion service.
-# --expansion_addr -> Replaces jar filepath with existing expansion service endpoint.
-#
-# Execute from the root of the repository. This script requires that necessary
-# services can be built from the repository.
+# Runner-specific flags:
+#  Flink
+#    --flink_job_server_jar -> Filepath to jar, used if runner is Flink.
+#  Spark
+#    --spark_job_server_jar -> Filepath to jar, used if runner is Spark.
+#  Dataflow
+#    --dataflow_project -> GCP project to run Dataflow jobs on.
+#    --project -> Same project as dataflow-project, but in URL format, for
+#        example in the format "us.gcr.io/<project>".
+#    --region -> GCP region to run Dataflow jobs on.
+#    --gcs_location -> GCS URL for storing temporary files for Dataflow jobs.
+#    --dataflow_worker_jar -> The Dataflow worker jar to use when running jobs.
+#        If not specified, the script attempts to retrieve a previously built
+#        jar from the appropriate gradle module, which may not succeed.
 
 set -e
 set -v
 
+# Default runner.
 RUNNER=portable
+
+# Default timeout. This timeout is applied per-package, as tests in different
+# packages are executed in parallel.
+TIMEOUT=1h
+
+# Where to store integration test outputs.
+GCS_LOCATION=gs://clouddfe-danoliveira/temp-storage-go-end-to-end-tests
+
+# Project for the container and integration test
+PROJECT=google.com/clouddfe
+DATAFLOW_PROJECT=google.com:clouddfe
+REGION=us-central1
 
 # Set up trap to close any running background processes when script ends.
 exit_background_processes () {
-  if [[ -n "$JOBSERVER_PID" ]]; then
-    kill -s SIGKILL $JOBSERVER_PID
+  if [[ ! -z "$JOBSERVER_PID" ]]; then
+    kill -9 $JOBSERVER_PID
   fi
-  if [[ -n "$EXPANSION_PID" ]]; then
-    kill -s SIGKILL $EXPANSION_PID
+  if [[ ! -z "$EXPANSION_PID" ]]; then
+    kill -9 $EXPANSION_PID
   fi
 }
 trap exit_background_processes SIGINT SIGTERM EXIT
@@ -59,6 +88,36 @@ key="$1"
 case $key in
     --runner)
         RUNNER="$2"
+        shift # past argument
+        shift # past value
+        ;;
+    --timeout)
+        TIMEOUT="$2"
+        shift # past argument
+        shift # past value
+        ;;
+    --project)
+        PROJECT="$2"
+        shift # past argument
+        shift # past value
+        ;;
+    --region)
+        REGION="$2"
+        shift # past argument
+        shift # past value
+        ;;
+    --dataflow_project)
+        DATAFLOW_PROJECT="$2"
+        shift # past argument
+        shift # past value
+        ;;
+    --gcs_location)
+        GCS_LOCATION="$2"
+        shift # past argument
+        shift # past value
+        ;;
+    --dataflow_worker_jar)
+        DATAFLOW_WORKER_JAR="$2"
         shift # past argument
         shift # past value
         ;;
@@ -100,7 +159,6 @@ cd $(git rev-parse --show-toplevel)
 # Verify in the root of the repository
 test -d sdks/go/test
 
-
 # Hacky python script to find a free port. Note there is a small chance the chosen port could
 # get taken before being claimed by the job server.
 SOCKET_SCRIPT="
@@ -112,8 +170,21 @@ s.close()
 "
 
 # Set up environment based on runner.
-ARGS=--runner=$RUNNER
-if [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "portable" ]]; then
+if [[ "$RUNNER" == "dataflow" ]]; then
+  if [[ -z "$DATAFLOW_WORKER_JAR" ]]; then
+    DATAFLOW_WORKER_JAR=$(find ./runners/google-cloud-dataflow-java/worker/build/libs/beam-runners-google-cloud-dataflow-java-fn-api-worker-*.jar)
+  fi
+  echo "Using Dataflow worker jar: $DATAFLOW_WORKER_JAR"
+  ARGS="-timeout 20m"
+
+  if [[ -z "$EXPANSION_ADDR" ]]; then
+    EXPANSION_PORT=$(python -c "$SOCKET_SCRIPT")
+    EXPANSION_ADDR="localhost:$EXPANSION_PORT"
+    echo "No expansion address specified; starting a new expansion server on $EXPANSION_ADDR"
+    java -jar $EXPANSION_SERVICE_JAR $EXPANSION_PORT &
+    EXPANSION_PID=$!
+  fi
+elif [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "portable" ]]; then
   if [[ -z "$ENDPOINT" ]]; then
     JOB_PORT=$(python -c "$SOCKET_SCRIPT")
     ENDPOINT="localhost:$JOB_PORT"
@@ -132,7 +203,7 @@ if [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "portable" ]]
           --job-port $JOB_PORT \
           --expansion-port 0 \
           --artifact-port 0 &
-      ARGS="$ARGS -p 1" # Spark runner fails if jobs are run concurrently.
+      ARGS="-p 1" # Spark runner fails if jobs are run concurrently.
     elif [[ "$RUNNER" == "portable" ]]; then
       python \
           -m apache_beam.runners.portability.local_job_service_main \
@@ -151,11 +222,70 @@ if [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "portable" ]]
     java -jar $EXPANSION_SERVICE_JAR $EXPANSION_PORT &
     EXPANSION_PID=$!
   fi
+fi
 
-  ARGS="$ARGS --endpoint=$ENDPOINT --expansion_addr=$EXPANSION_ADDR"
+if [[ "$RUNNER" == "dataflow" ]]; then
+  # Verify docker and gcloud commands exist
+  command -v docker
+  docker -v
+  command -v gcloud
+  gcloud --version
+
+  # ensure gcloud is version 186 or above
+  TMPDIR=$(mktemp -d)
+  gcloud_ver=$(gcloud -v | head -1 | awk '{print $4}')
+  if [[ "$gcloud_ver" < "186" ]]
+  then
+    pushd $TMPDIR
+    curl https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-186.0.0-linux-x86_64.tar.gz --output gcloud.tar.gz
+    tar xf gcloud.tar.gz
+    ./google-cloud-sdk/install.sh --quiet
+    . ./google-cloud-sdk/path.bash.inc
+    popd
+    gcloud components update --quiet || echo 'gcloud components update failed'
+    gcloud -v
+  fi
+
+  # Build the container
+  TAG=$(date +%Y%m%d-%H%M%S)
+  CONTAINER=us.gcr.io/$PROJECT/$USER/beam_go_sdk
+  echo "Using container $CONTAINER"
+  ./gradlew :sdks:go:container:docker -Pdocker-repository-root=us.gcr.io/$PROJECT/$USER -Pdocker-tag=$TAG
+
+  # Verify it exists
+  docker images | grep $TAG
+
+  # Push the container
+  gcloud docker -- push $CONTAINER
+else
+  TAG=dev
+  ./gradlew :sdks:go:container:docker -Pdocker-tag=$TAG
+  CONTAINER=apache/beam_go_sdk
 fi
 
 echo ">>> RUNNING $RUNNER VALIDATESRUNNER TESTS"
-go test -v ./sdks/go/test/integration/... $ARGS
+go test -v ./sdks/go/test/integration/... $ARGS \
+    --timeout=$TIMEOUT \
+    --runner=$RUNNER \
+    --project=$DATAFLOW_PROJECT \
+    --region=$REGION \
+    --environment_type=DOCKER \
+    --environment_config=$CONTAINER:$TAG \
+    --staging_location=$GCS_LOCATION/staging-validatesrunner-test \
+    --temp_location=$GCS_LOCATION/temp-validatesrunner-test \
+    --dataflow_worker_jar=$DATAFLOW_WORKER_JAR \
+    --endpoint=$ENDPOINT \
+    --expansion_addr=$EXPANSION_ADDR \
+    || TEST_EXIT_CODE=$? # don't fail fast here; clean up environment before exiting
+
+if [[ "$RUNNER" == "dataflow" ]]; then
+  # Delete the container locally and remotely
+  docker rmi $CONTAINER:$TAG || echo "Failed to remove container"
+  gcloud --quiet container images delete $CONTAINER:$TAG || echo "Failed to delete container"
+
+  # Clean up tempdir
+  rm -rf $TMPDIR
+fi
 
 exit_background_processes
+exit $TEST_EXIT_CODE

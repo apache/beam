@@ -50,6 +50,27 @@ golang {
   }
 }
 
+// ValidatesRunner tests for Dataflow using an updated framework that supports
+// cross-language tests.
+// TODO(BEAM-11415): Merge this into existing ValidatesRunner gradle rules.
+task dataflowXlangValidatesRunner() {
+  dependsOn ":sdks:go:test:goBuild"
+  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
+  dependsOn ":sdks:java:testing:expansion-service:buildTestExpansionServiceJar"
+
+  doLast {
+    def options = [
+            "--runner dataflow",
+            "--dataflow_worker_jar ${project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath}",
+            "--expansion_service_jar ${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
+    ]
+    exec {
+      executable "sh"
+      args "-c", "./run_validatesrunner_tests.sh ${options.join(' ')}"
+    }
+  }
+}
+
 // ValidatesRunner tests for Flink using an updated framework that supports
 // cross-language tests.
 // TODO(BEAM-11415): Merge this into existing ValidatesRunner gradle rules.
