@@ -171,6 +171,7 @@ class DoctestTest(unittest.TestCase):
                 "df1.merge(df2, left_on='lkey', right_on='rkey')",
                 "df1.merge(df2, left_on='lkey', right_on='rkey',\n"
                 "          suffixes=('_left', '_right'))",
+                "df1.merge(df2, how='left', on='a')",
             ],
             # Raises right exception, but testing framework has matching issues.
             'pandas.core.frame.DataFrame.replace': [
@@ -432,9 +433,9 @@ class DoctestTest(unittest.TestCase):
             'merge': [
                 "df1.merge(df2, left_on='lkey', right_on='rkey')",
                 "df1.merge(df2, left_on='lkey', right_on='rkey',\n"
-                "          suffixes=('_left', '_right'))"
-            ],
-            # Not an actual test.
+                "          suffixes=('_left', '_right'))",
+                "df1.merge(df2, how='left', on='a')",
+            ],  # Not an actual test.
             'option_context': ['*'],
             'factorize': ['codes', 'uniques'],
             # Bad top-level use of un-imported function.

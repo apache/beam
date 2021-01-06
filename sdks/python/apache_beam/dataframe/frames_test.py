@@ -153,6 +153,20 @@ class DeferredFrameTest(unittest.TestCase):
           df1,
           df2)
 
+  def test_merge_left_join(self):
+    # This is from the pandas doctests, but fails due to re-indexing being
+    # order-sensitive.
+    df1 = pd.DataFrame({'a': ['foo', 'bar'], 'b': [1, 2]})
+    df2 = pd.DataFrame({'a': ['foo', 'baz'], 'c': [3, 4]})
+
+    with beam.dataframe.allow_non_parallel_operations():
+      self._run_test(
+          lambda df1,
+          df2: df1.merge(df2, how='left', on='a').rename(index=lambda x: '*').
+          sort_values(['b', 'c']),
+          df1,
+          df2)
+
   def test_merge_on_index(self):
     # This is from the pandas doctests, but fails due to re-indexing being
     # order-sensitive.
