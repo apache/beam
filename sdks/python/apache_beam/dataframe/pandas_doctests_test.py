@@ -191,6 +191,12 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.frame.DataFrame.transpose': [
                 'df1_transposed.dtypes', 'df2_transposed.dtypes'
             ],
+            # Skipped because the relies on iloc to set a cell to NA. Test is
+            # replicated in frames_test::DeferredFrameTest::test_applymap.
+            'pandas.core.frame.DataFrame.applymap': [
+                'df_copy.iloc[0, 0] = pd.NA',
+                "df_copy.applymap(lambda x: len(str(x)), na_action='ignore')",
+            ],
         })
     self.assertEqual(result.failed, 0)
 
