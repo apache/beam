@@ -198,6 +198,19 @@ class DoctestTest(unittest.TestCase):
                 'df_copy.iloc[0, 0] = pd.NA',
                 "df_copy.applymap(lambda x: len(str(x)), na_action='ignore')",
             ],
+            # Skipped so we don't need to install natsort
+            'pandas.core.frame.DataFrame.sort_values': [
+                'from natsort import index_natsorted',
+                'df.sort_values(\n'
+                '   by="time",\n'
+                '   key=lambda x: np.argsort(index_natsorted(df["time"]))\n'
+                ')'
+            ],
+            # Mode that we don't yet support, documentation added in pandas
+            # 1.2.0 (https://github.com/pandas-dev/pandas/issues/35912)
+            'pandas.core.frame.DataFrame.aggregate': [
+                "df.agg(x=('A', max), y=('B', 'min'), z=('C', np.mean))"
+            ],
         })
     self.assertEqual(result.failed, 0)
 
