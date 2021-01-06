@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.fnexecution.control;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.mockito.ArgumentMatchers.eq;
@@ -476,13 +477,13 @@ public class DefaultJobBundleFactoryTest {
               100,
               TimeUnit.MILLISECONDS);
 
-      Assert.assertThat(b2Closing.get(), equalTo(false));
+      assertThat(b2Closing.get(), equalTo(false));
 
       // This call should block until closingFuture has finished closing b2 (100ms)
       RemoteBundle b3 = sbf.getBundle(orf, srh, BundleProgressHandler.ignored());
 
       // ensure the previous call waited for close
-      Assert.assertThat(b2Closing.get(), equalTo(true));
+      assertThat(b2Closing.get(), equalTo(true));
 
       // Join closingFuture and check if an exception occurred
       Optional<Exception> closingException = closingFuture.get();
@@ -517,7 +518,7 @@ public class DefaultJobBundleFactoryTest {
                         stageIdGenerator,
                         serverInfo)
                     .close());
-    Assert.assertThat(e.getMessage(), containsString("state_cache_size"));
+    assertThat(e.getMessage(), containsString("state_cache_size"));
   }
 
   private DefaultJobBundleFactory createDefaultJobBundleFactory(

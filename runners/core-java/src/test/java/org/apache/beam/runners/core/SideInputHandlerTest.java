@@ -18,9 +18,9 @@
 package org.apache.beam.runners.core;
 
 import static org.apache.beam.sdk.testing.PCollectionViewTesting.materializeValuesFor;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.util.List;
