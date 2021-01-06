@@ -19,13 +19,13 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.toTableRow;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.toTableSchema;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.collection.IsMapContaining.hasEntry;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertThrows;
 
 import com.google.api.services.bigquery.model.TableFieldSchema;

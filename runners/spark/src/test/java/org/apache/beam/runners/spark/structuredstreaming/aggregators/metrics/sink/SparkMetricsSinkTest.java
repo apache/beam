@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.aggregators.metrics.sink;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
-import static org.junit.Assert.assertThat;
 
 import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingRunner;
