@@ -16,8 +16,7 @@
  * limitations under the License.
  */
 
-import groovy.transform.SourceURI
-import java.nio.file.Paths
+
 
 class CommonTestProperties {
   enum SDK {
@@ -27,14 +26,7 @@ class CommonTestProperties {
   }
 
   static String getFlinkVersion() {
-    Properties properties = new Properties()
-    @SourceURI def sourceURI
-    def sourceParent = Paths.get(sourceURI.getPath()).getParent().toString()
-    File propertiesFile = new File(sourceParent, '../../gradle.properties')
-    propertiesFile.withInputStream {
-      properties.load(it)
-    }
-    return properties.getProperty("flink_versions").split(",").last()
+    return "1.12"
   }
 
   enum Runner {
