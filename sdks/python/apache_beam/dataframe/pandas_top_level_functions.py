@@ -38,8 +38,14 @@ def _call_on_first_arg(name):
 
 
 def _defer_to_pandas(name):
+  func = getattr(pd, name)
+
   def wrapper(*args, **kwargs):
-    res = getattr(pd, name)(*args, **kwargs)
+    if any(isinstance(arg, frame_base.DeferredBase)
+           for arg in args + tuple(kwargs.values())):
+      return frame_base._elementwise_function(func, name)(*args, **kwargs)
+
+    res = func(*args, **kwargs)
     if type(res) in frame_base.DeferredBase._pandas_type_map.keys():
       return frame_base.DeferredBase.wrap(
           expressions.ConstantExpression(res, res[0:0]))
@@ -133,6 +139,7 @@ class DeferredPandasModule(object):
   test = frame_base.wont_implement_method('test')
   timedelta_range = _defer_to_pandas('timedelta_range')
   to_pickle = frame_base.wont_implement_method('order-sensitive')
+  to_datetime = _defer_to_pandas('to_datetime')
   notna = _call_on_first_arg('notna')
 
   def __getattr__(self, name):
