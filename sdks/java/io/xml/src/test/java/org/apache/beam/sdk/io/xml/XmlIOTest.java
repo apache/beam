@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.xml;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matcherorg.hamcrest.MatcherAssert.assertThat;
 
 import java.io.File;
 import java.io.Serializable;
