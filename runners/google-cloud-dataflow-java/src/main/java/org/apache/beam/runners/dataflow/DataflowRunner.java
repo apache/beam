@@ -486,8 +486,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                 new StreamingPubsubIOReadOverrideFactory()));
       }
       if (!hasExperiment(options, "enable_custom_pubsub_sink")) {
-        if (hasExperiment(options, "use_runner_v2")
-            || hasExperiment(options, "use_unified_worker")) {
+        if (useUnifiedWorker(options)) {
           overridesBuilder.add(
               PTransformOverride.of(
                   PTransformMatchers.classEqualTo(PubsubUnboundedSink.class),
@@ -1195,7 +1194,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       RunnerApi.Pipeline pipelineProto,
       Job newJob,
       String workerHarnessContainerImage) {
-    if (hasExperiment(options, "use_runner_v2") || hasExperiment(options, "use_unified_worker")) {
+    if (useUnifiedWorker(options)) {
       ImmutableSet.Builder<String> sdkContainerUrlSetBuilder = ImmutableSet.builder();
       sdkContainerUrlSetBuilder.add(workerHarnessContainerImage);
       for (Map.Entry<String, RunnerApi.Environment> entry :
@@ -1220,6 +1219,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                   (String url) -> {
                     SdkHarnessContainerImage image = new SdkHarnessContainerImage();
                     image.setContainerImage(url);
+                    if (url.toLowerCase().contains("python")) {
+                      image.setUseSingleCorePerContainer(true);
+                    }
                     return image;
                   })
               .collect(Collectors.toList());
@@ -2219,6 +2221,10 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       return workerHarnessContainerImage.replace(
           "IMAGE", String.format("beam-%s-batch", javaVersionId));
     }
+  }
+
+  static boolean useUnifiedWorker(DataflowPipelineOptions options) {
+    return hasExperiment(options, "use_runner_v2") || hasExperiment(options, "use_unified_worker");
   }
 
   static void verifyDoFnSupportedBatch(DoFn<?, ?> fn) {
