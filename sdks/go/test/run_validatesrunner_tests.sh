@@ -36,7 +36,7 @@
 #    --expansion_service_jar -> Filepath to jar for expansion service, for
 #        runners that support cross-language.
 #    --expansion_addr -> An endpoint for an existing expansion service outside
-#        the script. If present, expansion_service_jar is ignored.
+#        the script. If present, --expansion_service_jar is ignored.
 #
 # Runner-specific flags:
 #  Flink
@@ -45,7 +45,7 @@
 #    --spark_job_server_jar -> Filepath to jar, used if runner is Spark.
 #  Dataflow
 #    --dataflow_project -> GCP project to run Dataflow jobs on.
-#    --project -> Same project as dataflow-project, but in URL format, for
+#    --project -> Same project as --dataflow-project, but in URL format, for
 #        example in the format "us.gcr.io/<project>".
 #    --region -> GCP region to run Dataflow jobs on.
 #    --gcs_location -> GCS URL for storing temporary files for Dataflow jobs.
@@ -64,11 +64,11 @@ RUNNER=portable
 TIMEOUT=1h
 
 # Where to store integration test outputs.
-GCS_LOCATION=gs://clouddfe-danoliveira/temp-storage-go-end-to-end-tests
+GCS_LOCATION=gs://temp-storage-for-end-to-end-tests
 
 # Project for the container and integration test
-PROJECT=google.com/clouddfe
-DATAFLOW_PROJECT=google.com:clouddfe
+PROJECT=apache-beam-testing
+DATAFLOW_PROJECT=apache-beam-testing
 REGION=us-central1
 
 # Set up trap to close any running background processes when script ends.
