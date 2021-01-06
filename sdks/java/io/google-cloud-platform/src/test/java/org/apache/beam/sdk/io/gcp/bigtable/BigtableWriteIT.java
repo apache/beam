@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable;
 
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 import com.google.bigtable.admin.v2.ColumnFamily;
 import com.google.bigtable.admin.v2.CreateTableRequest;

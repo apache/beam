@@ -18,7 +18,7 @@
 package org.apache.beam.runners.direct;
 
 import static org.apache.beam.sdk.util.ApiSurface.containsOnlyPackages;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.util.Set;
 import org.apache.beam.sdk.Pipeline;

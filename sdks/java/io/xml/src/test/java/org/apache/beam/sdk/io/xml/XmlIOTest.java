@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.xml;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matcherorg.hamcrest.MatcherAssert.assertThat;
 
 import java.io.File;
 import java.io.Serializable;
@@ -37,7 +38,6 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -187,11 +187,11 @@ public class XmlIOTest {
                 .withMinBundleSize(1234)
                 .withRecordClass(Integer.class));
 
-    Assert.assertThat(displayData, hasDisplayItem("filePattern", "foo.xml"));
-    Assert.assertThat(displayData, hasDisplayItem("rootElement", "bird"));
-    Assert.assertThat(displayData, hasDisplayItem("recordElement", "cat"));
-    Assert.assertThat(displayData, hasDisplayItem("recordClass", Integer.class));
-    Assert.assertThat(displayData, hasDisplayItem("minBundleSize", 1234));
+    assertThat(displayData, hasDisplayItem("filePattern", "foo.xml"));
+    assertThat(displayData, hasDisplayItem("rootElement", "bird"));
+    assertThat(displayData, hasDisplayItem("recordElement", "cat"));
+    assertThat(displayData, hasDisplayItem("recordClass", Integer.class));
+    assertThat(displayData, hasDisplayItem("minBundleSize", 1234));
   }
 
   @Test
