@@ -30,12 +30,13 @@ applyJavaNature(
 )
 
 dependencies {
-    compile project(path: ":sdks:java:expansion-service")
-    compile project(":sdks:java:io:jdbc")
-    compile library.java.postgres
+    compile project(path: ":model:pipeline", configuration: "shadow")
+    compile project(path: ":sdks:java:core", configuration: "shadow")
+    compile library.java.vendored_grpc_1_26_0
+    compile "org.apache.beam:beam-vendor-guava-26_0-jre:0.1"
     testCompile library.java.junit
-    testCompile library.java.powermock_mockito
     testCompile library.java.mockito_core
     // TODO(BEAM-10632): remove this dependency
     testCompile "org.checkerframework:checker-qual:3.5.0"
 }
+

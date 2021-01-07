@@ -32,18 +32,17 @@ configurations {
 
 dependencies {
   compile project(":sdks:java:extensions:sql")
-  compile "jline:jline:2.14.6"
   compile "sqlline:sqlline:1.4.0"
-  compile library.java.slf4j_jdk14
+  compile library.java.vendored_guava_26_0_jre
   testCompile project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntime")
   testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
   // Depending on outputs so integrationTest can run with only test dependencies.
   // This enables us to test the JDBC jar being loaded on a custom classloader.
   integrationTest sourceSets.test.output
   integrationTest sourceSets.main.output
   integrationTest library.java.junit
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile "org.checkerframework:checker-qual:2.0.0"
 }
 
 processResources {

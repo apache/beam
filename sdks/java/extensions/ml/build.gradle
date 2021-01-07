@@ -27,18 +27,26 @@ description = 'Apache Beam :: SDKs :: Java :: Extensions :: ML'
 
 dependencies {
     compile project(path: ":sdks:java:core", configuration: "shadow")
-    compile project(":sdks:java:expansion-service")
     compile 'com.google.cloud:google-cloud-video-intelligence:1.2.0'
     compile 'com.google.cloud:google-cloud-dlp:1.1.4'
     compile 'com.google.cloud:google-cloud-language:1.99.4'
+    compile 'com.google.api.grpc:proto-google-cloud-dlp-v2:1.1.4'
+    compile 'com.google.api.grpc:proto-google-cloud-language-v1:1.81.4'
+    compile 'com.google.api.grpc:proto-google-cloud-video-intelligence-v1:1.2.0'
+    compile 'com.google.api.grpc:proto-google-cloud-vision-v1:1.81.3'
+    compile 'com.google.api:gax:1.57.1'
+    compile 'com.google.protobuf:protobuf-java:3.11.1'
+    compile 'org.checkerframework:checker-qual:2.0.0'
+    compile library.java.slf4j_api
     provided library.java.junit
     testCompile project(path: ':sdks:java:core', configuration: 'shadowTest')
     compile 'com.google.cloud:google-cloud-vision:1.99.3'
+    permitUsedUndeclared "com.google.auto.value:auto-value-annotations:1.7"
     testCompile library.java.mockito_core
     testCompile 'com.google.cloud:google-cloud-video-intelligence:1.2.0'
-    testCompile 'com.google.cloud:google-cloud-dlp:1.1.4'
+    implementation 'com.google.cloud:google-cloud-dlp:1.1.4'
     testCompile project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntime")
-    testCompile 'com.google.cloud:google-cloud-language:1.99.4'
+    implementation 'com.google.cloud:google-cloud-language:1.99.4'
     testCompile 'com.google.cloud:google-cloud-vision:1.99.3'
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
     testRuntimeOnly project(":runners:google-cloud-dataflow-java")

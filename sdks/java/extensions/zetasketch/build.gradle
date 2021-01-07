@@ -33,6 +33,7 @@ dependencies {
     compile library.java.vendored_guava_26_0_jre
     compile project(path: ":sdks:java:core", configuration: "shadow")
     compile "com.google.zetasketch:zetasketch:$zetasketch_version"
+    compile "org.checkerframework:checker-qual:2.8.1"
     testCompile library.java.junit
     testCompile project(":sdks:java:io:google-cloud-platform")
     testRuntimeOnly library.java.slf4j_simple

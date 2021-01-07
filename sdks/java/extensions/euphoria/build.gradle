@@ -26,7 +26,10 @@ description = "Apache Beam :: SDKs :: Java :: Extensions :: Euphoria Java 8 DSL"
 
 dependencies {
   compile project(path: ":sdks:java:core", configuration: "shadow")
-  testCompile library.java.mockito_core
+  implementation library.java.slf4j_api
+  implementation 'com.fasterxml.jackson.core:jackson-annotations:2.10.2'
+  implementation library.java.vendored_guava_26_0_jre
+  implementation library.java.joda_time
   testCompile project(":sdks:java:extensions:kryo")
   testCompile library.java.slf4j_api
   testCompile library.java.hamcrest_core

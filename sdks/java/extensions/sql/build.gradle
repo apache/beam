@@ -62,7 +62,6 @@ dependencies {
   fmppTask "org.freemarker:freemarker:2.3.28"
   fmppTemplates library.java.vendored_calcite_1_20_0
   compile project(":sdks:java:core")
-  compile project(":sdks:java:extensions:join-library")
   compile project(":sdks:java:extensions:sql:udf")
   compile project(path: ":runners:direct-java", configuration: "shadow")
   compile library.java.commons_codec
@@ -73,7 +72,14 @@ dependencies {
   compile "com.alibaba:fastjson:1.2.69"
   compile "org.codehaus.janino:janino:3.0.11"
   compile "org.codehaus.janino:commons-compiler:3.0.11"
-  provided "org.checkerframework:checker-qual:3.4.1"
+  compile library.java.jackson_core
+  compile library.java.vendored_guava_26_0_jre
+  compile "org.mongodb:mongo-java-driver:3.9.1"
+  compile library.java.slf4j_api
+  compile library.java.joda_time
+  compile library.java.vendored_guava_26_0_jre
+  compile "org.checkerframework:checker-qual:2.0.0"
+  permitUnusedDeclared project(":sdks:java:core")
   provided project(":sdks:java:io:kafka")
   provided project(":sdks:java:io:google-cloud-platform")
   compile project(":sdks:java:io:mongodb")
@@ -85,9 +91,6 @@ dependencies {
   testCompile library.java.vendored_calcite_1_20_0
   testCompile library.java.vendored_guava_26_0_jre
   testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
-  testCompile library.java.mockito_core
   testCompile library.java.quickcheck_core
   testCompile library.java.testcontainers_kafka
   testCompile library.java.google_cloud_bigtable_emulator
