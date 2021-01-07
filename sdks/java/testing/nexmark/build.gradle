@@ -62,6 +62,10 @@ dependencies {
   compile project(":sdks:java:extensions:sql:zetasql")
   compile project(":sdks:java:io:kafka")
   compile project(":sdks:java:testing:test-utils")
+  compile "com.google.api-client:google-api-client:1.30.10"
+  compile "junit:junit:4.13-beta-3"
+  compile "org.checkerframework:checker-qual:2.0.0"
+  compile "org.hamcrest:hamcrest:2.1"
   compile library.java.google_api_services_bigquery
   compile library.java.jackson_core
   compile library.java.jackson_annotations
@@ -75,9 +79,6 @@ dependencies {
   testRuntimeClasspath library.java.slf4j_jdk14
   testCompile project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntime")
   testCompile project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
-
   gradleRun project(project.path)
   gradleRun project(path: nexmarkRunnerDependency, configuration: runnerConfiguration)
 

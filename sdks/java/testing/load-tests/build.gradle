@@ -61,14 +61,18 @@ configurations {
 
 dependencies {
   compile library.java.kafka_clients
-
   compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile project(path: ":runners:direct-java", configuration: "shadow")
   compile project(":sdks:java:io:synthetic")
   compile project(":sdks:java:testing:test-utils")
   compile project(":sdks:java:io:google-cloud-platform")
   compile project(":sdks:java:io:kafka")
   compile project(":sdks:java:io:kinesis")
+  compile "com.amazonaws:aws-java-sdk-core:1.11.718"
+  compile "com.google.cloud:google-cloud-core:1.93.7"
+  compile library.java.joda_time
+  compile library.java.vendored_guava_26_0_jre
+  compile "org.checkerframework:checker-qual:2.0.0"
+  compile library.java.slf4j_api
 
   gradleRun project(project.path)
   gradleRun project(path: runnerDependency, configuration: runnerConfiguration)
