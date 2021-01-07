@@ -24,8 +24,6 @@ capability-matrix:
       name: Apache Spark Structured Streaming (Dataset based)
     - class: mapreduce
       name: Apache Hadoop MapReduce
-    - class: jstorm
-      name: JStorm
     - class: ibmstreams
       name: IBM Streams
     - class: samza
@@ -74,10 +72,6 @@ capability-matrix:
               l2: fully supported in batch mode
               l3: ParDo applies per-element transformations as Spark FlatMapFunction.
             - class: mapreduce
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
-            - class: jstorm
               l1: "Yes"
               l2: fully supported
               l3: ""
@@ -135,10 +129,6 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: ""
-            - class: jstorm
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: ibmstreams
               l1: "Yes"
               l2: fully supported
@@ -190,10 +180,6 @@ capability-matrix:
               l2: fully supported in batch mode
               l3: Some corner cases like flatten on empty collections are not yet supported.
             - class: mapreduce
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
-            - class: jstorm
               l1: "Yes"
               l2: fully supported
               l3: ""
@@ -251,10 +237,6 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: ""
-            - class: jstorm
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: ibmstreams
               l1: "Yes"
               l2: fully supported
@@ -306,10 +288,6 @@ capability-matrix:
               l2: supported via inlining only in batch mode
               l3: ""
             - class: mapreduce
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
-            - class: jstorm
               l1: "Yes"
               l2: fully supported
               l3: ""
@@ -367,10 +345,6 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: ""
-            - class: jstorm
-              l1: "Yes"
-              l2: some size restrictions
-              l3: ""
             - class: ibmstreams
               l1: "Yes"
               l2: fully supported
@@ -424,10 +398,6 @@ capability-matrix:
             - class: mapreduce
               l1: "Partially"
               l2: bounded source only
-              l3: ""
-            - class: jstorm
-              l1: "Yes"
-              l2: fully supported
               l3: ""
             - class: ibmstreams
               l1: "Yes"
@@ -483,10 +453,6 @@ capability-matrix:
               l1: "Partially"
               l2: Only attempted counters are supported
               l3: ""
-            - class: jstorm
-              l1: "Partially"
-              l2: Metrics are only supported in local mode.
-              l3: ""
             - class: ibmstreams
               l1: "Partially"
               l2: All metrics types are supported.
@@ -538,10 +504,6 @@ capability-matrix:
               l2: not implemented
               l3:
             - class: mapreduce
-              l1: "Partially"
-              l2: non-merging windows
-              l3: ""
-            - class: jstorm
               l1: "Partially"
               l2: non-merging windows
               l3: ""
@@ -608,10 +570,6 @@ capability-matrix:
               l1:
               l2:
               l3:
-            - class: jstorm
-              l1:
-              l2:
-              l3: ""
             - class: ibmstreams
               l1:
               l2:
@@ -666,10 +624,6 @@ capability-matrix:
               l1:
               l2:
               l3:
-            - class: jstorm
-              l1:
-              l2:
-              l3: ""
             - class: ibmstreams
               l1:
               l2:
@@ -724,10 +678,6 @@ capability-matrix:
               l1:
               l2:
               l3:
-            - class: jstorm
-              l1:
-              l2:
-              l3: ""
             - class: ibmstreams
               l1:
               l2:
@@ -782,10 +732,6 @@ capability-matrix:
               l1:
               l2:
               l3:
-            - class: jstorm
-              l1:
-              l2:
-              l3: ""
             - class: ibmstreams
               l1:
               l2:
@@ -840,10 +786,6 @@ capability-matrix:
               l1:
               l2:
               l3:
-            - class: jstorm
-              l1:
-              l2:
-              l3: ""
             - class: ibmstreams
               l1:
               l2:
@@ -907,10 +849,6 @@ capability-matrix:
               l1:
               l2:
               l3:
-            - class: jstorm
-              l1:
-              l2:
-              l3: ""
             - class: ibmstreams
               l1:
               l2:
@@ -965,10 +903,6 @@ capability-matrix:
               l1:
               l2:
               l3:
-            - class: jstorm
-              l1:
-              l2:
-              l3: ""
             - class: ibmstreams
               l1:
               l2:
@@ -1023,10 +957,6 @@ capability-matrix:
               l1:
               l2:
               l3:
-            - class: jstorm
-              l1:
-              l2:
-              l3: ""
             - class: ibmstreams
               l1:
               l2:
@@ -1081,10 +1011,6 @@ capability-matrix:
               l1:
               l2:
               l3:
-            - class: jstorm
-              l1:
-              l2:
-              l3: ""
             - class: ibmstreams
               l1:
               l2:
@@ -1139,10 +1065,6 @@ capability-matrix:
               l1:
               l2:
               l3:
-            - class: jstorm
-              l1:
-              l2:
-              l3: ""
             - class: ibmstreams
               l1:
               l2:
@@ -1206,10 +1128,6 @@ capability-matrix:
               l1: "Yes"
               l2: supported
               l3: ""
-            - class: jstorm
-              l1: "Yes"
-              l2: supported
-              l3: ""
             - class: ibmstreams
               l1: "Yes"
               l2: supported
@@ -1253,10 +1171,6 @@ capability-matrix:
               l2: fully supported in batch mode
               l3: ""
             - class: mapreduce
-              l1: "Yes"
-              l2: supported
-              l3: ""
-            - class: jstorm
               l1: "Yes"
               l2: supported
               l3: ""
@@ -1306,10 +1220,6 @@ capability-matrix:
               l1: "Yes"
               l2: supported
               l3: ""
-            - class: jstorm
-              l1: "Yes"
-              l2: supported
-              l3: ""
             - class: ibmstreams
               l1: "Yes"
               l2: supported
@@ -1353,10 +1263,6 @@ capability-matrix:
               l2: fully supported in batch mode
               l3: ""
             - class: mapreduce
-              l1: "Yes"
-              l2: supported
-              l3: ""
-            - class: jstorm
               l1: "Yes"
               l2: supported
               l3: ""
@@ -1406,10 +1312,6 @@ capability-matrix:
               l1: "Yes"
               l2: supported
               l3: ""
-            - class: jstorm
-              l1: "Yes"
-              l2: supported
-              l3: ""
             - class: ibmstreams
               l1: "Yes"
               l2: supported
@@ -1456,10 +1358,6 @@ capability-matrix:
               l1: "Yes"
               l2: supported
               l3: ""
-            - class: jstorm
-              l1: "Yes"
-              l2: supported
-              l3: ""
             - class: ibmstreams
               l1: "Yes"
               l2: supported
@@ -1503,10 +1401,6 @@ capability-matrix:
               l2: fully supported in batch mode
               l3: ""
             - class: mapreduce
-              l1: "Yes"
-              l2: supported
-              l3: ""
-            - class: jstorm
               l1: "Yes"
               l2: supported
               l3: ""
@@ -1566,10 +1460,6 @@ capability-matrix:
               l1: "No"
               l2: batch-only runner
               l3: ""
-            - class: jstorm
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: ibmstreams
               l1: "Yes"
               l2: fully supported
@@ -1616,10 +1506,6 @@ capability-matrix:
             - class: mapreduce
               l1: "No"
               l2: ""
-              l3: ""
-            - class: jstorm
-              l1: "Yes"
-              l2: fully supported
               l3: ""
             - class: ibmstreams
               l1: "Yes"
@@ -1668,10 +1554,6 @@ capability-matrix:
               l1: "No"
               l2: ""
               l3: ""
-            - class: jstorm
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: ibmstreams
               l1: "Yes"
               l2: fully supported
@@ -1718,10 +1600,6 @@ capability-matrix:
             - class: mapreduce
               l1: "No"
               l2: ""
-              l3: ""
-            - class: jstorm
-              l1: "Yes"
-              l2: fully supported
               l3: ""
             - class: ibmstreams
               l1: "Yes"
@@ -1770,10 +1648,6 @@ capability-matrix:
               l1: "No"
               l2: ""
               l3: ""
-            - class: jstorm
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: ibmstreams
               l1: "Yes"
               l2: fully supported
@@ -1821,10 +1695,6 @@ capability-matrix:
               l1: "No"
               l2: ""
               l3: ""
-            - class: jstorm
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: ibmstreams
               l1: "Yes"
               l2: fully supported
@@ -1871,10 +1741,6 @@ capability-matrix:
             - class: mapreduce
               l1: "No"
               l2: ""
-              l3: ""
-            - class: jstorm
-              l1: "Partially"
-              l2: non-merging windows
               l3: ""
             - class: ibmstreams
               l1: "Partially"
@@ -1932,10 +1798,6 @@ capability-matrix:
               l1: "No"
               l2: batch-only runner
               l3: ""
-            - class: jstorm
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: ibmstreams
               l1: "Yes"
               l2: fully supported
@@ -1982,10 +1844,6 @@ capability-matrix:
             - class: mapreduce
               l1: "No"
               l2: ""
-              l3: ""
-            - class: jstorm
-              l1: "Yes"
-              l2: fully supported
               l3: ""
             - class: ibmstreams
               l1: "Yes"
@@ -2043,10 +1901,6 @@ capability-matrix:
               l1:
               l2:
               l3:
-            - class: jstorm
-              l1:
-              l2:
-              l3:
             - class: ibmstreams
               l1:
               l2:
@@ -2090,10 +1944,6 @@ capability-matrix:
               l2:
               l3: not implemented
             - class: mapreduce
-              l1:
-              l2:
-              l3:
-            - class: jstorm
               l1:
               l2:
               l3:
