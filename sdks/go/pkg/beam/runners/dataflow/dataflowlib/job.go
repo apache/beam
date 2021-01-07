@@ -48,6 +48,7 @@ type JobOptions struct {
 	Subnetwork          string
 	NoUsePublicIPs      bool
 	NumWorkers          int64
+	DiskSizeGb          int64
 	MachineType         string
 	Labels              map[string]string
 	ServiceAccountEmail string
@@ -138,6 +139,7 @@ func Translate(p *pb.Pipeline, opts *JobOptions, workerURL, jarURL, modelURL str
 				AutoscalingSettings: &df.AutoscalingSettings{
 					MaxNumWorkers: opts.MaxNumWorkers,
 				},
+				DiskSizeGb:                  opts.DiskSizeGb,
 				IpConfiguration:             ipConfiguration,
 				Kind:                        "harness",
 				Packages:                    packages,
