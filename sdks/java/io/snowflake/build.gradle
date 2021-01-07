@@ -27,19 +27,17 @@ ext.summary = "IO to read and write on Snowflake."
 dependencies {
   compile library.java.vendored_guava_26_0_jre
   compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile project(path: ":sdks:java:extensions:google-cloud-platform-core")
   compile library.java.slf4j_api
   compile group: 'net.snowflake', name: 'snowflake-jdbc', version: '3.12.11'
   compile group: 'com.opencsv', name: 'opencsv', version: '5.0'
   compile 'net.snowflake:snowflake-ingest-sdk:0.9.9'
+  compile library.java.joda_time
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
   testCompile project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
   testCompile 'com.google.cloud:google-cloud-storage:1.102.0'
   testCompile library.java.avro
   testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
   testCompile library.java.slf4j_api
   testRuntimeOnly library.java.hadoop_client
   testRuntimeOnly library.java.slf4j_jdk14

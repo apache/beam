@@ -37,6 +37,7 @@ dependencies {
   compile library.java.slf4j_api
   compile library.java.cassandra_driver_core
   compile library.java.cassandra_driver_mapping
+  compile "org.checkerframework:checker-qual:2.0.0"
   testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
   testCompile library.java.junit
   testCompile library.java.hamcrest_core

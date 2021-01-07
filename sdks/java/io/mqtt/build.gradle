@@ -27,15 +27,13 @@ dependencies {
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile library.java.slf4j_api
   compile library.java.joda_time
+  testCompile library.java.activemq_mqtt
+  testCompile library.java.activemq_kahadb_store
   compile "org.fusesource.mqtt-client:mqtt-client:1.15"
   compile "org.fusesource.hawtbuf:hawtbuf:1.11"
   testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
   testCompile library.java.activemq_broker
-  testCompile library.java.activemq_mqtt
-  testCompile library.java.activemq_kahadb_store
   testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

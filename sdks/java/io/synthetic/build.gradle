@@ -31,11 +31,11 @@ dependencies {
   compile library.java.jackson_core
   compile library.java.jackson_annotations
   compile library.java.jackson_databind
+  compile library.java.vendored_guava_26_0_jre
+  compile library.java.slf4j_api
   compile project(path: ":sdks:java:core", configuration: "shadow")
 
   testCompile library.java.vendored_guava_26_0_jre
   testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

@@ -34,8 +34,10 @@ dependencies {
   compile "com.azure:azure-storage-blob:12.8.0"
   compile "com.azure:azure-identity:1.0.8"
   compile "com.microsoft.azure:azure-storage:8.6.5"
-  compile "commons-io:commons-io:2.6"
   compile library.java.slf4j_api
+  compile "com.azure:azure-core:1.6.0"
+  compile "com.azure:azure-storage-common:12.1.0"
+  compile "org.checkerframework:checker-qual:2.0.0"
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile library.java.mockito_core
   testCompile library.java.junit

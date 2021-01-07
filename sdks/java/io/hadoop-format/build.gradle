@@ -60,6 +60,7 @@ dependencies {
   compile library.java.vendored_guava_26_0_jre
   compile library.java.slf4j_api
   compile project(":sdks:java:io:hadoop-common")
+  compile library.java.joda_time
   provided library.java.hadoop_common
   provided library.java.hadoop_hdfs
   provided library.java.hadoop_mapreduce_client_core
@@ -68,6 +69,7 @@ dependencies {
   testCompile project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
   testCompile project(":sdks:java:io:jdbc")
   testCompile project(path: ":examples:java", configuration: "testRuntime")
+  testCompile "org.elasticsearch.plugin:transport-netty4-client:$elastic_search_version"
   testCompile library.java.testcontainers_elasticsearch
   testCompile "org.elasticsearch.client:elasticsearch-rest-high-level-client:$elastic_search_version"
   testCompile "org.elasticsearch:elasticsearch:$elastic_search_version"
@@ -90,7 +92,6 @@ dependencies {
   testCompile library.java.cassandra_driver_mapping
   testCompile "org.apache.cassandra:cassandra-all:3.11.8"
   testCompile library.java.postgres
-  testCompile "org.apache.logging.log4j:log4j-core:$log4j_version"
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library

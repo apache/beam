@@ -30,17 +30,18 @@ dependencies {
   compile library.java.vendored_guava_26_0_jre
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile "org.apache.commons:commons-dbcp2:2.6.0"
+  compile library.java.joda_time
+  compile "org.apache.commons:commons-pool2:2.6.1"
+  compile library.java.slf4j_api
+  testCompile "org.apache.derby:derby:10.14.2.0"
+  testCompile "org.apache.derby:derbyclient:10.14.2.0"
+  testCompile "org.apache.derby:derbynet:10.14.2.0"
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
   testCompile project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
   testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
   testCompile library.java.slf4j_api
   testCompile library.java.postgres
-  testCompile "org.apache.derby:derby:10.14.2.0"
-  testCompile "org.apache.derby:derbyclient:10.14.2.0"
-  testCompile "org.apache.derby:derbynet:10.14.2.0"
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

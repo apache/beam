@@ -31,8 +31,6 @@ dependencies {
   compile library.java.joda_time
   compile "org.mongodb:mongo-java-driver:3.12.7"
   testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
   testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
   testCompile project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
   testCompile "de.flapdoodle.embed:de.flapdoodle.embed.mongo:2.2.0"

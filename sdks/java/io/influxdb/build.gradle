@@ -27,6 +27,9 @@ ext.summary = "IO to read and write on InfluxDB"
 dependencies {
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile library.java.influxdb_library
+  compile "com.squareup.okhttp3:okhttp:4.6.0"
+  compile library.java.vendored_guava_26_0_jre
+  compile library.java.slf4j_api
   testCompile library.java.junit
   testCompile library.java.powermock
   testCompile library.java.powermock_mockito

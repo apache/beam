@@ -26,10 +26,11 @@ ext.summary = "Context-aware Text IO."
 
 dependencies {
     compile library.java.vendored_guava_26_0_jre
-    compile library.java.protobuf_java
     compile project(path: ":sdks:java:core", configuration: "shadow")
-    testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
+    compile library.java.vendored_grpc_1_26_0
+    compile library.java.slf4j_api
 
+    testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
     testCompile library.java.guava_testlib
     testCompile library.java.junit
     testCompile library.java.hamcrest_core
