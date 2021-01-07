@@ -2008,57 +2008,6 @@ capability-matrix:
               l2: fully supported
               l3: ""
 
-        - name: "Accumulating & Retracting"
-          values:
-            - class: model
-              jira: BEAM-91
-              l1: "No"
-              l2: accumulation plus retraction of old panes
-              l3: Elements are accumulated across multiple pane firings and old emitted values are retracted. Also known as "backsies" ;-D
-            - class: dataflow
-              l1: "No"
-              l2: pending model support
-              l3: ""
-            - class: flink
-              l1: "No"
-              l2: pending model support
-              l3: ""
-            - class: spark-rdd
-              l1: "No"
-              l2: pending model support
-              l3: ""
-            - class: spark-dataset
-              l1: "No"
-              l2: pending model support
-              l3: ""
-            - class: mapreduce
-              l1: "No"
-              l2: ""
-              l3: ""
-            - class: jstorm
-              l1: "No"
-              l2: pending model support
-              l3: ""
-            - class: ibmstreams
-              l1: "No"
-              l2: pending model support
-              l3: ""
-            - class: samza
-              l1: "No"
-              l2: pending model support
-              l3: ""
-            - class: nemo
-              l1: "No"
-              l2: pending model support
-              l3: ""
-            - class: jet
-              l1: "No"
-              l2: pending model support
-              l3: ""
-            - class: twister2
-              l1: "No"
-              l2: pending model support
-              l3: ""
     - description: Additional common features not yet part of the Beam model
       anchor: misc
       color-y: "fff"
