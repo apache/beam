@@ -67,6 +67,13 @@ var sparkFilters = []string{
 	"TestParDoKVSideInput",
 }
 
+var dataflowFilters = []string{
+	// TODO(BEAM-11574): XLang needs to be enabled for Dataflow.
+	"TestXLang.*",
+	// TODO(BEAM-11576): TestFlattenDup failing on this runner.
+	"TestFlattenDup",
+}
+
 // CheckFilters checks if an integration test is filtered to be skipped, either
 // because the intended runner does not support it, or the test is sickbayed.
 // This method should be called at the beginning of any integration test. If
@@ -103,6 +110,8 @@ func CheckFilters(t *testing.T) {
 		filters = flinkFilters
 	case "spark", "SparkRunner":
 		filters = sparkFilters
+	case "dataflow", "DataflowRunner":
+		filters = dataflowFilters
 	default:
 		return
 	}
