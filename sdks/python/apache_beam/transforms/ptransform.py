@@ -616,7 +616,7 @@ class PTransform(WithTypeHints, HasDisplayData):
       return input_dict
 
   def _named_inputs(self, inputs, side_inputs):
-    # type: (Sequence[pvalue.Pvalue], Sequence[pvalue.Pvalue]) -> Dict[str, pvalue.PValue]
+    # type: (Sequence[pvalue.PValue], Sequence[Any]) -> Dict[str, pvalue.PValue]
 
     """Returns the dictionary of named inputs (including side inputs) as they
     should be named in the beam proto.
@@ -627,9 +627,9 @@ class PTransform(WithTypeHints, HasDisplayData):
         for (ix, input) in enumerate(inputs)
         if isinstance(input, pvalue.PCollection)
     }
-    side_inputs = {(SIDE_INPUT_PREFIX + '%s') % ix: si.pvalue
-                   for (ix, si) in enumerate(side_inputs)}
-    return dict(main_inputs, **side_inputs)
+    named_side_inputs = {(SIDE_INPUT_PREFIX + '%s') % ix: si.pvalue
+                         for (ix, si) in enumerate(side_inputs)}
+    return dict(main_inputs, **named_side_inputs)
 
   def _named_outputs(self, outputs):
     # type: (Dict[object, pvalue.PCollection]) -> Dict[str, pvalue.PCollection]
