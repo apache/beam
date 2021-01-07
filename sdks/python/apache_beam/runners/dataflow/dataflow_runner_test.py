@@ -824,30 +824,30 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     properties = self._run_group_into_batches_and_get_step_properties(
         True, ['--experiment=use_runner_v2'])
     self.assertEqual(properties[PropertyNames.USES_KEYED_STATE], u'true')
-    self.assertFalse(PropertyNames.ALLOWS_SHARDABLE_STATE in properties)
-    self.assertFalse(PropertyNames.PRESERVES_KEYS in properties)
+    self.assertNotIn(PropertyNames.ALLOWS_SHARDABLE_STATE, properties)
+    self.assertNotIn(PropertyNames.PRESERVES_KEYS, properties)
 
   def test_group_into_batches_translation_non_sharded(self):
     properties = self._run_group_into_batches_and_get_step_properties(
         False, ['--enable_streaming_engine', '--experiment=use_runner_v2'])
     self.assertEqual(properties[PropertyNames.USES_KEYED_STATE], u'true')
-    self.assertFalse(PropertyNames.ALLOWS_SHARDABLE_STATE in properties)
-    self.assertFalse(PropertyNames.PRESERVES_KEYS in properties)
+    self.assertNotIn(PropertyNames.ALLOWS_SHARDABLE_STATE, properties)
+    self.assertNotIn(PropertyNames.PRESERVES_KEYS, properties)
 
   def test_group_into_batches_translation_non_unified_worker(self):
     # non-portable
     properties = self._run_group_into_batches_and_get_step_properties(
         True, ['--enable_streaming_engine'])
     self.assertEqual(properties[PropertyNames.USES_KEYED_STATE], u'true')
-    self.assertFalse(PropertyNames.ALLOWS_SHARDABLE_STATE in properties)
-    self.assertFalse(PropertyNames.PRESERVES_KEYS in properties)
+    self.assertNotIn(PropertyNames.ALLOWS_SHARDABLE_STATE, properties)
+    self.assertNotIn(PropertyNames.PRESERVES_KEYS, properties)
 
     # JRH
     properties = self._run_group_into_batches_and_get_step_properties(
         True, ['--enable_streaming_engine', '--experiment=beam_fn_api'])
     self.assertEqual(properties[PropertyNames.USES_KEYED_STATE], u'true')
-    self.assertFalse(PropertyNames.ALLOWS_SHARDABLE_STATE in properties)
-    self.assertFalse(PropertyNames.PRESERVES_KEYS in properties)
+    self.assertNotIn(PropertyNames.ALLOWS_SHARDABLE_STATE, properties)
+    self.assertNotIn(PropertyNames.PRESERVES_KEYS, properties)
 
 
 class CustomMergingWindowFn(window.WindowFn):
