@@ -27,10 +27,15 @@ ext.summary = "IO to write events to Splunk Http Event Collector (HEC)"
 dependencies {
     compile platform(library.java.google_cloud_platform_libraries_bom)
     compile library.java.slf4j_api
-    compile library.java.google_api_client
     compile library.java.google_http_client_apache_v2
     compile library.java.google_code_gson
     compile project(path: ":sdks:java:core", configuration: "shadow")
+    compile "com.google.http-client:google-http-client:1.34.0"
+    compile library.java.joda_time
+    compile library.java.vendored_guava_26_0_jre
+    compile "org.apache.httpcomponents:httpclient:4.5.10"
+    compile "org.apache.httpcomponents:httpcore:4.4.12"
+    compile "org.checkerframework:checker-qual:2.0.0"
     testCompile library.java.junit
     testCompile group: 'org.mock-server', name: 'mockserver-junit-rule', version: '5.10.0'
     testCompile group: 'org.mock-server', name: 'mockserver-client-java', version: '5.10.0'

@@ -45,8 +45,6 @@ dependencies {
   provided library.java.hadoop_common
   provided library.java.hadoop_mapreduce_client_core
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
   testCompile library.java.mockito_core
   testCompile library.java.junit
   testCompile library.java.hadoop_minicluster

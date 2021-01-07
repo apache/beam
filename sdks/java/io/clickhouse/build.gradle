@@ -56,6 +56,10 @@ dependencies {
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile library.java.joda_time
   compile "ru.yandex.clickhouse:clickhouse-jdbc:$clickhouse_jdbc_version"
+  compile "com.google.guava:guava:25.1-jre"
+  compile library.java.vendored_guava_26_0_jre
+  compile "org.checkerframework:checker-qual:2.0.0"
+  compile library.java.slf4j_api
   testCompile library.java.slf4j_api
   testCompile library.java.junit
   testCompile library.java.hamcrest_core

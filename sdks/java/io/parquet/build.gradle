@@ -46,11 +46,10 @@ dependencies {
   compile "org.apache.parquet:parquet-common:$parquet_version"
   compile "org.apache.parquet:parquet-hadoop:$parquet_version"
   compile library.java.avro
+  compile "org.apache.parquet:parquet-column:1.10.0"
   provided library.java.hadoop_client
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
   hadoopVersions.each {kv ->

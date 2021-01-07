@@ -32,7 +32,5 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Kinesis :: Expansion Service
 ext.summary = "Expansion service serving KinesisIO"
 
 dependencies {
-  compile project(":sdks:java:expansion-service")
-  compile project(":sdks:java:io:kinesis")
   runtime library.java.slf4j_jdk14
 }

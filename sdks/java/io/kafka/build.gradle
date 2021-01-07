@@ -48,7 +48,9 @@ kafkaVersions.each{k,v -> configurations.create("kafkaVersion$k")}
 dependencies {
   compile library.java.vendored_guava_26_0_jre
   compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile project(":sdks:java:expansion-service")
+  testCompile project(":sdks:java:expansion-service")
+  compile "org.apache.kafka:kafka-clients:2.4.1"
+  compile library.java.avro
   // Get back to "provided" since 2.14
   provided library.java.kafka_clients
   compile library.java.slf4j_api
@@ -57,6 +59,13 @@ dependencies {
   compile library.java.jackson_databind
   compile "org.springframework:spring-expression:4.3.18.RELEASE"
   compile ("io.confluent:kafka-avro-serializer:5.3.2") {
+    // zookeeper depends on "spotbugs-annotations:3.1.9" which clashes with current
+    // "spotbugs-annotations:3.1.12" used in Beam. Not required.
+    exclude group: "org.apache.zookeeper", module: "zookeeper"
+    // "kafka-clients" has to be provided since user can use its own version.
+    exclude group: "org.apache.kafka", module: "kafka-clients"
+  }
+  compile ("io.confluent:kafka-schema-registry-client:5.3.2") {
     // It depends on "spotbugs-annotations:3.1.9" which clashes with current
     // "spotbugs-annotations:3.1.12" used in Beam. Not required.
     exclude group: "org.apache.zookeeper", module: "zookeeper"
@@ -71,8 +80,6 @@ dependencies {
   // For testing Cross-language transforms
   testCompile project(":runners:core-construction-java")
   testCompile library.java.avro
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
   testCompile library.java.junit
   testCompile library.java.powermock
   testCompile library.java.powermock_mockito

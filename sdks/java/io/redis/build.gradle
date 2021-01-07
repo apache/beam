@@ -28,8 +28,6 @@ dependencies {
   compile "redis.clients:jedis:3.3.0"
   testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
   testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
   testCompile "com.github.kstyrc:embedded-redis:0.6"
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")

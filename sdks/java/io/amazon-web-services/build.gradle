@@ -39,11 +39,12 @@ dependencies {
   compile library.java.aws_java_sdk_sns
   compile library.java.aws_java_sdk_sqs
   compile library.java.aws_java_sdk_sts
-  compile "commons-lang:commons-lang:2.6"
   compile library.java.jackson_core
   compile library.java.jackson_annotations
   compile library.java.jackson_databind
   compile library.java.slf4j_api
+  compile library.java.joda_time
+  compile "org.apache.httpcomponents:httpcore:4.4.11"
   runtime library.java.commons_codec
   runtime "org.apache.httpcomponents:httpclient:4.5.12"
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")

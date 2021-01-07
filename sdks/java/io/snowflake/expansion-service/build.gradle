@@ -32,8 +32,6 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Snowflake ::Expansion Servic
   ext.summary = "Expansion service serving Snowflake IO"
 
 dependencies {
-  compile project(":sdks:java:expansion-service")
-  compile project(":sdks:java:io:snowflake")
   runtime library.java.slf4j_jdk14
 }
 

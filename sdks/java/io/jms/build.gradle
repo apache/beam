@@ -30,14 +30,12 @@ dependencies {
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile library.java.slf4j_api
   compile library.java.joda_time
-  compile "org.apache.geronimo.specs:geronimo-jms_1.1_spec:1.1.1"
-  testCompile library.java.activemq_broker
   testCompile library.java.activemq_jaas
   testCompile library.java.activemq_kahadb_store
+  compile "org.apache.geronimo.specs:geronimo-jms_1.1_spec:1.1.1"
+  testCompile library.java.activemq_broker
   testCompile library.java.activemq_client
   testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }
