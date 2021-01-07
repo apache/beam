@@ -68,6 +68,7 @@ test {
 
 dependencies {
   antlr library.java.antlr
+  permitUnusedDeclared "org.antlr:antlr4:4.7"
   // Required to load constants from the model, e.g. max timestamp for global window
   shadow project(path: ":model:pipeline", configuration: "shadow")
   shadow project(path: ":model:job-management", configuration: "shadow")
@@ -77,7 +78,7 @@ dependencies {
   compile library.java.antlr_runtime
   compile library.java.commons_compress
   compile library.java.commons_lang3
-  shadow library.java.jsr305
+  shadow library.java.error_prone_annotations
   shadow library.java.jackson_core
   shadow library.java.jackson_annotations
   shadow library.java.jackson_databind
@@ -85,7 +86,7 @@ dependencies {
   shadow library.java.avro
   shadow library.java.snappy_java
   shadow library.java.joda_time
-  shadow "org.tukaani:xz:1.8"
+  permitUnusedDeclared "org.tukaani:xz:1.8"
   provided library.java.junit
   provided library.java.hamcrest_core
   provided library.java.hamcrest_library
