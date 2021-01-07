@@ -22,8 +22,6 @@ capability-matrix:
       name: Apache Spark (RDD/DStream based)
     - class: spark-dataset
       name: Apache Spark Structured Streaming (Dataset based)
-    - class: mapreduce
-      name: Apache Hadoop MapReduce
     - class: ibmstreams
       name: IBM Streams
     - class: samza
@@ -71,10 +69,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: ParDo applies per-element transformations as Spark FlatMapFunction.
-            - class: mapreduce
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: ibmstreams
               l1: "Yes"
               l2: fully supported
@@ -125,10 +119,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: "Using Spark's <tt>groupByKey</tt>."
-            - class: mapreduce
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: ibmstreams
               l1: "Yes"
               l2: fully supported
@@ -179,10 +169,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: Some corner cases like flatten on empty collections are not yet supported.
-            - class: mapreduce
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: ibmstreams
               l1: "Yes"
               l2: fully supported
@@ -233,10 +219,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: "Using Spark's <tt>Aggregator</tt> and agg function"
-            - class: mapreduce
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: ibmstreams
               l1: "Yes"
               l2: fully supported
@@ -286,10 +268,6 @@ capability-matrix:
             - class: spark-dataset
               l1: "Partially"
               l2: supported via inlining only in batch mode
-              l3: ""
-            - class: mapreduce
-              l1: "Yes"
-              l2: fully supported
               l3: ""
             - class: ibmstreams
               l1: "Partially"
@@ -341,10 +319,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: "Using Spark's broadcast variables."
-            - class: mapreduce
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: ibmstreams
               l1: "Yes"
               l2: fully supported
@@ -395,10 +369,6 @@ capability-matrix:
               l1: "Partially"
               l2: bounded source only
               l3: "Using Spark's DatasourceV2 API in microbatch mode (Continuous streaming mode is tagged experimental in spark and does not support aggregation)."
-            - class: mapreduce
-              l1: "Partially"
-              l2: bounded source only
-              l3: ""
             - class: ibmstreams
               l1: "Yes"
               l2: fully supported
@@ -449,10 +419,6 @@ capability-matrix:
               l1: "Partially"
               l2: All metric types are supported in batch mode.
               l3: Only attempted values are supported. No committed values for metrics.
-            - class: mapreduce
-              l1: "Partially"
-              l2: Only attempted counters are supported
-              l3: ""
             - class: ibmstreams
               l1: "Partially"
               l2: All metrics types are supported.
@@ -503,10 +469,6 @@ capability-matrix:
               l1: "No"
               l2: not implemented
               l3:
-            - class: mapreduce
-              l1: "Partially"
-              l2: non-merging windows
-              l3: ""
             - class: ibmstreams
               l1: "Partially"
               l2: non-merging windows
@@ -566,10 +528,6 @@ capability-matrix:
               l1:
               l2:
               l3: ""
-            - class: mapreduce
-              l1:
-              l2:
-              l3:
             - class: ibmstreams
               l1:
               l2:
@@ -620,10 +578,6 @@ capability-matrix:
               l1:
               l2:
               l3: ""
-            - class: mapreduce
-              l1:
-              l2:
-              l3:
             - class: ibmstreams
               l1:
               l2:
@@ -674,10 +628,6 @@ capability-matrix:
               l1:
               l2:
               l3: ""
-            - class: mapreduce
-              l1:
-              l2:
-              l3:
             - class: ibmstreams
               l1:
               l2:
@@ -728,10 +678,6 @@ capability-matrix:
               l1:
               l2:
               l3: ""
-            - class: mapreduce
-              l1:
-              l2:
-              l3:
             - class: ibmstreams
               l1:
               l2:
@@ -782,10 +728,6 @@ capability-matrix:
               l1:
               l2:
               l3: ""
-            - class: mapreduce
-              l1:
-              l2:
-              l3:
             - class: ibmstreams
               l1:
               l2:
@@ -845,10 +787,6 @@ capability-matrix:
               l1:
               l2:
               l3: ""
-            - class: mapreduce
-              l1:
-              l2:
-              l3:
             - class: ibmstreams
               l1:
               l2:
@@ -899,10 +837,6 @@ capability-matrix:
               l1:
               l2:
               l3: ""
-            - class: mapreduce
-              l1:
-              l2:
-              l3:
             - class: ibmstreams
               l1:
               l2:
@@ -953,10 +887,6 @@ capability-matrix:
               l1:
               l2:
               l3: ""
-            - class: mapreduce
-              l1:
-              l2:
-              l3:
             - class: ibmstreams
               l1:
               l2:
@@ -1007,10 +937,6 @@ capability-matrix:
               l1:
               l2:
               l3: ""
-            - class: mapreduce
-              l1:
-              l2:
-              l3:
             - class: ibmstreams
               l1:
               l2:
@@ -1061,10 +987,6 @@ capability-matrix:
               l1:
               l2:
               l3: ""
-            - class: mapreduce
-              l1:
-              l2:
-              l3:
             - class: ibmstreams
               l1:
               l2:
@@ -1124,10 +1046,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: ""
-            - class: mapreduce
-              l1: "Yes"
-              l2: supported
-              l3: ""
             - class: ibmstreams
               l1: "Yes"
               l2: supported
@@ -1169,10 +1087,6 @@ capability-matrix:
             - class: spark-dataset
               l1: "Partially"
               l2: fully supported in batch mode
-              l3: ""
-            - class: mapreduce
-              l1: "Yes"
-              l2: supported
               l3: ""
             - class: ibmstreams
               l1: "Yes"
@@ -1216,10 +1130,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: ""
-            - class: mapreduce
-              l1: "Yes"
-              l2: supported
-              l3: ""
             - class: ibmstreams
               l1: "Yes"
               l2: supported
@@ -1261,10 +1171,6 @@ capability-matrix:
             - class: spark-dataset
               l1: "Partially"
               l2: fully supported in batch mode
-              l3: ""
-            - class: mapreduce
-              l1: "Yes"
-              l2: supported
               l3: ""
             - class: ibmstreams
               l1: "Yes"
@@ -1308,10 +1214,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: ""
-            - class: mapreduce
-              l1: "Yes"
-              l2: supported
-              l3: ""
             - class: ibmstreams
               l1: "Yes"
               l2: supported
@@ -1354,10 +1256,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: ""
-            - class: mapreduce
-              l1: "Yes"
-              l2: supported
-              l3: ""
             - class: ibmstreams
               l1: "Yes"
               l2: supported
@@ -1399,10 +1297,6 @@ capability-matrix:
             - class: spark-dataset
               l1: "Partially"
               l2: fully supported in batch mode
-              l3: ""
-            - class: mapreduce
-              l1: "Yes"
-              l2: supported
               l3: ""
             - class: ibmstreams
               l1: "Yes"
@@ -1456,10 +1350,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: ""
-            - class: mapreduce
-              l1: "No"
-              l2: batch-only runner
-              l3: ""
             - class: ibmstreams
               l1: "Yes"
               l2: fully supported
@@ -1502,10 +1392,6 @@ capability-matrix:
             - class: spark-dataset
               l1: "Partially"
               l2: fully supported in batch mode
-              l3: ""
-            - class: mapreduce
-              l1: "No"
-              l2: ""
               l3: ""
             - class: ibmstreams
               l1: "Yes"
@@ -1550,10 +1436,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3:
-            - class: mapreduce
-              l1: "No"
-              l2: ""
-              l3: ""
             - class: ibmstreams
               l1: "Yes"
               l2: fully supported
@@ -1596,10 +1478,6 @@ capability-matrix:
             - class: spark-dataset
               l1: "Partially"
               l2: fully supported in batch mode
-              l3: ""
-            - class: mapreduce
-              l1: "No"
-              l2: ""
               l3: ""
             - class: ibmstreams
               l1: "Yes"
@@ -1644,10 +1522,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: ""
-            - class: mapreduce
-              l1: "No"
-              l2: ""
-              l3: ""
             - class: ibmstreams
               l1: "Yes"
               l2: fully supported
@@ -1691,10 +1565,6 @@ capability-matrix:
               l1: "No"
               l2: no streaming support in the runner
               l3: ""
-            - class: mapreduce
-              l1: "No"
-              l2: ""
-              l3: ""
             - class: ibmstreams
               l1: "Yes"
               l2: fully supported
@@ -1737,10 +1607,6 @@ capability-matrix:
             - class: spark-dataset
               l1: "No"
               l2: not implemented
-              l3: ""
-            - class: mapreduce
-              l1: "No"
-              l2: ""
               l3: ""
             - class: ibmstreams
               l1: "Partially"
@@ -1794,10 +1660,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: ""
-            - class: mapreduce
-              l1: "No"
-              l2: batch-only runner
-              l3: ""
             - class: ibmstreams
               l1: "Yes"
               l2: fully supported
@@ -1838,10 +1700,6 @@ capability-matrix:
               l2: ""
               l3: ""
             - class: spark-dataset
-              l1: "No"
-              l2: ""
-              l3: ""
-            - class: mapreduce
               l1: "No"
               l2: ""
               l3: ""
@@ -1897,10 +1755,6 @@ capability-matrix:
               l1:
               l2:
               l3:
-            - class: mapreduce
-              l1:
-              l2:
-              l3:
             - class: ibmstreams
               l1:
               l2:
@@ -1943,10 +1797,6 @@ capability-matrix:
               l1: "No"
               l2:
               l3: not implemented
-            - class: mapreduce
-              l1:
-              l2:
-              l3:
             - class: ibmstreams
               l1:
               l2:
