@@ -72,8 +72,11 @@ class ParseToDataframeTest(unittest.TestCase):
         [['a', 2, int(1e6), els[0].windows, els[0].pane_info],
          ['b', 3, int(1e6), els[1].windows, els[1].pane_info]],
         columns=[0, 1, 'event_time', 'windows', 'pane_info'])
-    # check_like so that ordering of indices doesn't matter.
-    pd.testing.assert_frame_equal(actual_df, expected_df, check_like=True)
+    # TODO: Consider using pd.testing.assert_frame_equal here (fails for this
+    # call in pandas 1.2.0)
+    self.assertTrue(
+        actual_df.rename(index=lambda x: '*').equals(
+            expected_df.rename(index=lambda x: '*')))
 
   def test_parse_windowedvalue_with_dicts(self):
     """Tests that dicts play well with WindowedValues.
