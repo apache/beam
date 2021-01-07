@@ -275,15 +275,15 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
 
     long numEvents = eventMetrics.getCounterMetric(eventMonitor.prefix + ".elements");
     long numEventBytes = eventMetrics.getCounterMetric(eventMonitor.prefix + ".bytes");
-    long eventStart = eventMetrics.getStartTimeMetric(eventMonitor.prefix + ".systemTimestamp");
-    long eventEnd = eventMetrics.getEndTimeMetric(eventMonitor.prefix + ".systemTimestamp");
+    long eventStart = eventMetrics.getStartTimeMetric(eventMonitor.prefix + ".processingTime");
+    long eventEnd = eventMetrics.getEndTimeMetric(eventMonitor.prefix + ".processingTime");
 
     MetricsReader resultMetrics = new MetricsReader(result, resultMonitor.name);
 
     long numResults = resultMetrics.getCounterMetric(resultMonitor.prefix + ".elements");
     long numResultBytes = resultMetrics.getCounterMetric(resultMonitor.prefix + ".bytes");
-    long resultStart = resultMetrics.getStartTimeMetric(resultMonitor.prefix + ".systemTimestamp");
-    long resultEnd = resultMetrics.getEndTimeMetric(resultMonitor.prefix + ".systemTimestamp");
+    long resultStart = resultMetrics.getStartTimeMetric(resultMonitor.prefix + ".processingTime");
+    long resultEnd = resultMetrics.getEndTimeMetric(resultMonitor.prefix + ".processingTime");
     long timestampStart =
         resultMetrics.getStartTimeMetric(resultMonitor.prefix + ".eventTimestamp");
     long timestampEnd = resultMetrics.getEndTimeMetric(resultMonitor.prefix + ".eventTimestamp");
