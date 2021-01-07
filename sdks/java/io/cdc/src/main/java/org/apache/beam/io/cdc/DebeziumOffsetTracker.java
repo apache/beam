@@ -42,11 +42,18 @@ public class DebeziumOffsetTracker extends RestrictionTracker<DebeziumOffsetHold
     /**
      * Overriding {@link #tryClaim} in order to stop fetching records from the database.
      *
-     * <p>Currently this works time-based:</p>
+     * <p>This works on two different ways:</p>
+     * <h3>Number of records</h3>
+     * <p>
+     *     This is the default behavior.
+     *     Once the specified number of records has been reached, it will stop fetching them.
      * </p>
-     * User may specify the amount of time the connector to be kept alive.
-     * Please see {@link KafkaSourceConsumerFn} for more details on this.
+     * <h3>Time based</h3>
      * </p>
+     *     User may specify the amount of time the connector to be kept alive.
+     *     Please see {@link KafkaSourceConsumerFn} for more details on this.
+     * </p>
+     *
      *
      * @param position Currently not used
      * @return boolean
@@ -62,7 +69,7 @@ public class DebeziumOffsetTracker extends RestrictionTracker<DebeziumOffsetHold
         if (KafkaSourceConsumerFn.minutesToRun < 0) {
             return fetchedRecords < maxRecords;
         }
-        return (elapsedTime < (KafkaSourceConsumerFn.minutesToRun * MILLIS)) || (fetchedRecords < maxRecords);
+        return elapsedTime < (KafkaSourceConsumerFn.minutesToRun * MILLIS);
     }
     
     @Override
