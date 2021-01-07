@@ -39,7 +39,7 @@ public class Monitor<T extends KnownSize> implements Serializable {
   private class MonitorDoFn extends DoFn<T, T> {
     final Counter elementCounter = Metrics.counter(name, prefix + ".elements");
     final Counter bytesCounter = Metrics.counter(name, prefix + ".bytes");
-    final Distribution processingTime = Metrics.distribution(name, prefix + ".systemTimestamp");
+    final Distribution processingTime = Metrics.distribution(name, prefix + ".processingTime");
     final Distribution eventTimestamp = Metrics.distribution(name, prefix + ".eventTimestamp");
 
     @ProcessElement
