@@ -73,6 +73,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -162,6 +163,88 @@ import org.slf4j.LoggerFactory;
  * Read#withKeyDeserializerAndCoder(Class, Coder)} and {@link
  * Read#withValueDeserializerAndCoder(Class, Coder)}. Note that Kafka messages are interpreted using
  * key and value <i>deserializers</i>.
+ *
+ * <h3>Read From Kafka Dynamically</h3>
+ *
+ * For a given kafka bootstrap_server, KafkaIO is also able to detect and read from available {@link
+ * TopicPartition} dynamically and stop reading from un. KafkaIO uses {@link
+ * WatchKafkaTopicPartitionDoFn} to emit any new added {@link TopicPartition} and uses {@link
+ * ReadFromKafkaDoFn} to read from each {@link KafkaSourceDescriptor}. Dynamic read is able to solve
+ * 2 scenarios:
+ *
+ * <ul>
+ *   <li>Certain topic or partition is added/deleted.
+ *   <li>Certain topic or partition is added, then removed but added back again
+ * </ul>
+ *
+ * Within providing {@code checkStopReadingFn}, there are 2 more cases that dynamic read can handle:
+ *
+ * <ul>
+ *   <li>Certain topic or partition is stopped
+ *   <li>Certain topic or partition is added, then stopped but added back again
+ * </ul>
+ *
+ * Race conditions may happen under 2 supported cases:
+ *
+ * <ul>
+ *   <li>A TopicPartition is removed, but added backed again
+ *   <li>A TopicPartition is stopped, then want to read it again
+ * </ul>
+ *
+ * When race condition happens, it will result in the stopped/removed TopicPartition failing to be
+ * emitted to ReadFromKafkaDoFn again. Or ReadFromKafkaDoFn will output replicated records. The
+ * major cause for such race condition is that both {@link WatchKafkaTopicPartitionDoFn} and {@link
+ * ReadFromKafkaDoFn} react to the signal from removed/stopped {@link TopicPartition} but we cannot
+ * guarantee that both DoFns perform related actions at the same time.
+ *
+ * <p>Here is one example for failing to emit new added {@link TopicPartition}:
+ *
+ * <ul>
+ *   <li>A {@link WatchKafkaTopicPartitionDoFn} is configured with updating the current tracking set
+ *       every 1 hour.
+ *   <li>One TopicPartition A is tracked by the {@link WatchKafkaTopicPartitionDoFn} at 10:00AM and
+ *       {@link ReadFromKafkaDoFn} starts to read from TopicPartition A immediately.
+ *   <li>At 10:30AM, the {@link WatchKafkaTopicPartitionDoFn} notices that the {@link
+ *       TopicPartition} has been stopped/removed, so it stops reading from it and returns {@code
+ *       ProcessContinuation.stop()}.
+ *   <li>At 10:45 the pipeline author wants to read from TopicPartition A again.
+ *   <li>At 11:00AM when {@link WatchKafkaTopicPartitionDoFn} is invoked by firing timer, it doesn’t
+ *       know that TopicPartition A has been stopped/removed. All it knows is that TopicPartition A
+ *       is still an active TopicPartition and it will not emit TopicPartition A again.
+ * </ul>
+ *
+ * Another race condition example for producing duplicate records:
+ *
+ * <ul>
+ *   <li>At 10:00AM, {@link ReadFromKafkaDoFn} is processing TopicPartition A
+ *   <li>At 10:05AM, {@link ReadFromKafkaDoFn} starts to process other TopicPartitions(sdf-initiated
+ *       checkpoint or runner-issued checkpoint happens)
+ *   <li>At 10:10AM, {@link WatchKafkaTopicPartitionDoFn} knows that TopicPartition A is
+ *       stopped/removed
+ *   <li>At 10:15AM, {@link WatchKafkaTopicPartitionDoFn} knows that TopicPartition A is added again
+ *       and emits TopicPartition A again
+ *   <li>At 10:20AM, {@link ReadFromKafkaDoFn} starts to process resumed TopicPartition A but at the
+ *       same time {@link ReadFromKafkaDoFn} is also processing the new emitted TopicPartitionA.
+ * </ul>
+ *
+ * For more design details, please refer to
+ * https://docs.google.com/document/d/1FU3GxVRetHPLVizP3Mdv6mP5tpjZ3fd99qNjUI5DT5k/. To enable
+ * dynamic read, you can write a pipeline like:
+ *
+ * <pre>{@code
+ * pipeline
+ *   .apply(KafkaIO.<Long, String>read()
+ *      // Configure the dynamic read with 1 hour, where the pipeline will look into available
+ *      // TopicPartitions and emit new added ones every 1 hour.
+ *      .withDynamicRead(Duration.standardHours(1))
+ *      .withCheckStopReadingFn(new SerializedFunction<TopicPartition, Boolean>() {})
+ *      .withBootstrapServers("broker_1:9092,broker_2:9092")
+ *      .withKeyDeserializer(LongDeserializer.class)
+ *      .withValueDeserializer(StringDeserializer.class)
+ *   )
+ *   .apply(Values.<String>create()) // PCollection<String>
+ *    ...
+ * }</pre>
  *
  * <h3>Partition Assignment and Checkpointing</h3>
  *
@@ -431,6 +514,7 @@ public class KafkaIO {
         .setConsumerConfig(KafkaIOUtils.DEFAULT_CONSUMER_PROPERTIES)
         .setMaxNumRecords(Long.MAX_VALUE)
         .setCommitOffsetsInFinalizeEnabled(false)
+        .setDynamicRead(false)
         .setTimestampPolicyFactory(TimestampPolicyFactory.withProcessingTime())
         .build();
   }
@@ -511,6 +595,10 @@ public class KafkaIO {
 
     abstract boolean isCommitOffsetsInFinalizeEnabled();
 
+    abstract boolean isDynamicRead();
+
+    abstract @Nullable Duration getWatchTopicPartitionDuration();
+
     abstract TimestampPolicyFactory<K, V> getTimestampPolicyFactory();
 
     abstract @Nullable Map<String, Object> getOffsetConsumerConfig();
@@ -549,6 +637,10 @@ public class KafkaIO {
       abstract Builder<K, V> setStartReadTime(Instant startReadTime);
 
       abstract Builder<K, V> setCommitOffsetsInFinalizeEnabled(boolean commitOffsetInFinalize);
+
+      abstract Builder<K, V> setDynamicRead(boolean dynamicRead);
+
+      abstract Builder<K, V> setWatchTopicPartitionDuration(Duration duration);
 
       abstract Builder<K, V> setTimestampPolicyFactory(
           TimestampPolicyFactory<K, V> timestampPolicyFactory);
@@ -616,6 +708,11 @@ public class KafkaIO {
         if (config.startReadTime != null) {
           setStartReadTime(Instant.ofEpochMilli(config.startReadTime));
         }
+
+        // We can expose dynamic read to external build when ReadFromKafkaDoFn is the default
+        // implementation.
+        setDynamicRead(false);
+
         // We do not include Metadata until we can encode KafkaRecords cross-language
         return build().withoutMetadata();
       }
@@ -998,6 +1095,16 @@ public class KafkaIO {
     }
 
     /**
+     * Configure the KafkaIO to use {@link WatchKafkaTopicPartitionDoFn} to detect and emit any new
+     * available {@link TopicPartition} for {@link ReadFromKafkaDoFn} to consume during pipeline
+     * execution time. The KafkaIO will regularly check the availability based on the given
+     * duration. If the duration is not specified as {@code null}, the default duration is 1 hour.
+     */
+    public Read<K, V> withDynamicRead(Duration duration) {
+      return toBuilder().setDynamicRead(true).setWatchTopicPartitionDuration(duration).build();
+    }
+
+    /**
      * Set additional configuration for the backend offset consumer. It may be required for a
      * secured Kafka cluster, especially when you see similar WARN log message 'exception while
      * fetching latest offset for partition {}. will be retried'.
@@ -1052,9 +1159,20 @@ public class KafkaIO {
       checkArgument(
           getConsumerConfig().get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG) != null,
           "withBootstrapServers() is required");
-      checkArgument(
-          getTopics().size() > 0 || getTopicPartitions().size() > 0,
-          "Either withTopic(), withTopics() or withTopicPartitions() is required");
+      // With dynamic read, we no longer require providing topic/partition during pipeline
+      // construction time. But dynamic read requires enabling use_sdf_kafka_read.
+      if (!isDynamicRead()) {
+        checkArgument(
+            getTopics().size() > 0 || getTopicPartitions().size() > 0,
+            "Either withTopic(), withTopics() or withTopicPartitions() is required");
+      } else {
+        checkArgument(
+            ExperimentalOptions.hasExperiment(
+                    input.getPipeline().getOptions(), "use_sdf_kafka_read")
+                && ExperimentalOptions.hasExperiment(
+                    input.getPipeline().getOptions(), "beam_fn_api"),
+            "Kafka Dynamic Read requires enabling experiment use_sdf_kafka_read.");
+      }
       checkArgument(getKeyDeserializerProvider() != null, "withKeyDeserializer() is required");
       checkArgument(getValueDeserializerProvider() != null, "withValueDeserializer() is required");
 
@@ -1129,11 +1247,33 @@ public class KafkaIO {
       if (isCommitOffsetsInFinalizeEnabled()) {
         readTransform = readTransform.commitOffsets();
       }
-      PCollection<KafkaSourceDescriptor> output =
-          input
-              .getPipeline()
-              .apply(Impulse.create())
-              .apply(ParDo.of(new GenerateKafkaSourceDescriptor(this)));
+      PCollection<KafkaSourceDescriptor> output;
+      if (isDynamicRead()) {
+        output =
+            input
+                .getPipeline()
+                .apply(Impulse.create())
+                .apply(
+                    MapElements.into(
+                            TypeDescriptors.kvs(
+                                new TypeDescriptor<byte[]>() {}, new TypeDescriptor<byte[]>() {}))
+                        .via(element -> KV.of(element, element)))
+                .apply(
+                    ParDo.of(
+                        new WatchKafkaTopicPartitionDoFn(
+                            getWatchTopicPartitionDuration(),
+                            getConsumerFactoryFn(),
+                            getCheckStopReadingFn(),
+                            getConsumerConfig(),
+                            getStartReadTime())));
+
+      } else {
+        output =
+            input
+                .getPipeline()
+                .apply(Impulse.create())
+                .apply(ParDo.of(new GenerateKafkaSourceDescriptor(this)));
+      }
       return output.apply(readTransform).setCoder(KafkaRecordCoder.of(keyCoder, valueCoder));
     }
 
