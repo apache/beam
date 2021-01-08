@@ -27,6 +27,7 @@ import static org.apache.beam.runners.dataflow.options.DataflowWorkerLoggingOpti
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.ErrorManager;
@@ -167,10 +168,10 @@ public class DataflowWorkerLoggingInitializer {
       originalStdErr = System.err;
       System.setOut(
           JulHandlerPrintStreamAdapterFactory.create(
-              loggingHandler, SYSTEM_OUT_LOG_NAME, Level.INFO));
+              loggingHandler, SYSTEM_OUT_LOG_NAME, Level.INFO, StandardCharsets.UTF_8));
       System.setErr(
           JulHandlerPrintStreamAdapterFactory.create(
-              loggingHandler, SYSTEM_ERR_LOG_NAME, Level.SEVERE));
+              loggingHandler, SYSTEM_ERR_LOG_NAME, Level.SEVERE, StandardCharsets.UTF_8));
 
       // Initialize the SDK Logging Handler, which will only be used for the LoggingService
       sdkLoggingHandler = makeLoggingHandler(SDK_FILEPATH_PROPERTY, DEFAULT_SDK_LOGGING_LOCATION);
@@ -208,7 +209,8 @@ public class DataflowWorkerLoggingInitializer {
           JulHandlerPrintStreamAdapterFactory.create(
               loggingHandler,
               SYSTEM_OUT_LOG_NAME,
-              getJulLevel(options.getWorkerSystemOutMessageLevel())));
+              getJulLevel(options.getWorkerSystemOutMessageLevel()),
+              StandardCharsets.UTF_8));
     }
 
     if (options.getWorkerSystemErrMessageLevel() != null) {
@@ -217,7 +219,8 @@ public class DataflowWorkerLoggingInitializer {
           JulHandlerPrintStreamAdapterFactory.create(
               loggingHandler,
               SYSTEM_ERR_LOG_NAME,
-              getJulLevel(options.getWorkerSystemErrMessageLevel())));
+              getJulLevel(options.getWorkerSystemErrMessageLevel()),
+              StandardCharsets.UTF_8));
     }
   }
 
