@@ -44,6 +44,9 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
   private static final Map<Thread, ExecutionStateTracker> CURRENT_TRACKERS =
       new ConcurrentHashMap<>();
 
+  private static final Map<Long, ExecutionStateTracker> CURRENT_TRACKERS_FOR_THREAD_ID =
+      new ConcurrentHashMap<>();
+
   private static final long LULL_REPORT_MS = TimeUnit.MINUTES.toMillis(5);
 
   public static final String START_STATE_NAME = "start";
@@ -149,6 +152,7 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
     transitionsAtLastSample = 0;
     nextLullReportMs = LULL_REPORT_MS;
     CURRENT_TRACKERS.entrySet().removeIf(entry -> entry.getValue() == this);
+    CURRENT_TRACKERS_FOR_THREAD_ID.entrySet().removeIf(entry -> entry.getValue() == this);
   }
 
   @VisibleForTesting
@@ -185,6 +189,16 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
   }
 
   /**
+   * Return the current {@link ExecutionState} of the thread with thread id, or {@code null} if
+   * there either is no current state or if the corresponding thread is not currently tracking the
+   * state.
+   */
+  public static @Nullable ExecutionState getCurrentExecutionState(long threadId) {
+    ExecutionStateTracker tracker = CURRENT_TRACKERS_FOR_THREAD_ID.get(threadId);
+    return tracker == null ? null : tracker.currentState;
+  }
+
+  /**
    * Activates state sampling using this {@link ExecutionStateTracker} to track the current thread.
    *
    * @return A {@link Closeable} to deactivate state sampling.
@@ -209,6 +223,7 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
         "Execution state of thread {} was already being tracked by {}",
         thread.getId(),
         other);
+    CURRENT_TRACKERS_FOR_THREAD_ID.put(thread.getId(), this);
 
     this.trackedThread = thread;
     sampler.addTracker(this);
