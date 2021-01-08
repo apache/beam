@@ -18,7 +18,6 @@ public class DebeziumOffsetTrackerTest implements Serializable {
 
     @Test
     public void testRestrictByNumberOfRecords() throws IOException {
-        // Number of records default is 10
         int maxNumRecords = 10;
         Map<String, Object> position = new HashMap<>();
         KafkaSourceConsumerFn<String> kafkaSourceConsumerFn = new KafkaSourceConsumerFn<String>(MySqlConnector.class,
