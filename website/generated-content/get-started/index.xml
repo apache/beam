@@ -876,6 +876,10 @@ limitations under the License.
 &lt;p>&lt;strong>Note:&lt;/strong> You can always execute your pipeline locally for testing and debugging purposes.&lt;/p>
 &lt;h2 id="get-started">Get Started&lt;/h2>
 &lt;p>Get started using Beam for your data processing tasks.&lt;/p>
+&lt;blockquote>
+&lt;p>If you already know &lt;a href="http://spark.apache.org/">Apache Spark&lt;/a>,
+check our &lt;a href="/get-started/from-spark">Getting started from Apache Spark&lt;/a> page.&lt;/p>
+&lt;/blockquote>
 &lt;ol>
 &lt;li>
 &lt;p>&lt;a href="/get-started/try-apache-beam">Try Apache Beam&lt;/a> in an online interactive environment.&lt;/p>
@@ -2979,6 +2983,295 @@ using &lt;a href="https://beam.apache.org/releases/pydoc/2.26.0/apache_beam.io.g
 &lt;li>Take a self-paced tour through our &lt;a href="/documentation/resources/learning-resources">Learning Resources&lt;/a>.&lt;/li>
 &lt;li>Dive in to some of our favorite &lt;a href="/documentation/resources/videos-and-podcasts">Videos and Podcasts&lt;/a>.&lt;/li>
 &lt;li>Join the Beam &lt;a href="/community/contact-us">users@&lt;/a> mailing list.&lt;/li>
+&lt;/ul>
+&lt;p>Please don&amp;rsquo;t hesitate to &lt;a href="/community/contact-us">reach out&lt;/a> if you encounter any issues!&lt;/p></description></item><item><title>Get-Started: Getting started from Apache Spark</title><link>/get-started/from-spark/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/get-started/from-spark/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;h1 id="getting-started-from-apache-spark">Getting started from Apache Spark&lt;/h1>
+&lt;script type="text/javascript">
+localStorage.setItem("language", "language-py")
+&lt;/script>
+&lt;p>If you already know &lt;a href="http://spark.apache.org/">&lt;em>Apache Spark&lt;/em>&lt;/a>,
+learning &lt;em>Apache Beam&lt;/em> is familiar.
+The Beam and Spark APIs are similar, so you already know the basic concepts.&lt;/p>
+&lt;p>Spark stores data &lt;em>Spark DataFrames&lt;/em> for structured data,
+and in &lt;em>Resilient Distributed Datasets&lt;/em> (RDD) for unstructured data.
+We are using RDDs for this guide.&lt;/p>
+&lt;p>A Spark RDD represents a collection of elements,
+while in Beam it&amp;rsquo;s called a &lt;em>Parallel Collection&lt;/em> (PCollection).
+A PCollection in Beam does &lt;em>not&lt;/em> have any ordering guarantees.&lt;/p>
+&lt;p>Likewise, a transform in Beam is called a &lt;em>Parallel Transform&lt;/em> (PTransform).&lt;/p>
+&lt;p>Here are some examples of common operations and their equivalent between PySpark and Beam.&lt;/p>
+&lt;h2 id="overview">Overview&lt;/h2>
+&lt;p>Here&amp;rsquo;s a simple example of a PySpark pipeline that takes the numbers from one to four,
+multiplies them by two, adds all the values together, and prints the result.&lt;/p>
+&lt;div class=language-py>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="kn">import&lt;/span> &lt;span class="nn">pyspark&lt;/span>
+&lt;span class="n">sc&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">pyspark&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">SparkContext&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;span class="n">result&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;span class="n">sc&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">parallelize&lt;/span>&lt;span class="p">([&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">2&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">3&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">4&lt;/span>&lt;span class="p">])&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="n">map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">lambda&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">x&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="mi">2&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="n">reduce&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">lambda&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">y&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">x&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">y&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="p">)&lt;/span>
+&lt;span class="k">print&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">result&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;p>In Beam you pipe your data through the pipeline using the
+&lt;em>pipe operator&lt;/em> &lt;code>|&lt;/code> like &lt;code>data | beam.Map(...)&lt;/code> instead of chaining
+methods like &lt;code>data.map(...)&lt;/code>, but they&amp;rsquo;re doing the same thing.&lt;/p>
+&lt;p>Here&amp;rsquo;s what an equivalent pipeline looks like in Beam.&lt;/p>
+&lt;div class=language-py>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="kn">import&lt;/span> &lt;span class="nn">apache_beam&lt;/span> &lt;span class="kn">as&lt;/span> &lt;span class="nn">beam&lt;/span>
+&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">pipeline&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;span class="n">result&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;span class="n">pipeline&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">([&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">2&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">3&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">4&lt;/span>&lt;span class="p">])&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">lambda&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">x&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="mi">2&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">CombineGlobally&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nb">sum&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">print&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;blockquote>
+&lt;p>ℹ️ Note that we called &lt;code>print&lt;/code> inside a &lt;code>Map&lt;/code> transform.
+That&amp;rsquo;s because we can only access the elements of a PCollection
+from within a PTransform.&lt;/p>
+&lt;/blockquote>
+&lt;p>Another thing to note is that Beam pipelines are constructed lazily.
+This means that when you pipe &lt;code>|&lt;/code> data you&amp;rsquo;re only declaring the
+transformations and the order you want them to happen,
+but the actual computation doesn&amp;rsquo;t happen.
+The pipeline is run after the &lt;code>with beam.Pipeline() as pipeline&lt;/code> context has
+closed.&lt;/p>
+&lt;blockquote>
+&lt;p>ℹ️ When the &lt;code>with beam.Pipeline() as pipeline&lt;/code> context closes,
+it implicitly calls &lt;code>pipeline.run()&lt;/code> which triggers the computation to happen.&lt;/p>
+&lt;/blockquote>
+&lt;p>The pipeline is then sent to your
+&lt;a href="https://beam.apache.org/documentation/runners/capability-matrix/">runner of choice&lt;/a>
+and it processes the data.&lt;/p>
+&lt;blockquote>
+&lt;p>ℹ️ The pipeline can run locally with the &lt;em>DirectRunner&lt;/em>,
+or in a distributed runner such as Flink, Spark, or Dataflow.
+The Spark runner is not related to PySpark.&lt;/p>
+&lt;/blockquote>
+&lt;p>A label can optionally be added to a transform using the
+&lt;em>right shift operator&lt;/em> &lt;code>&amp;gt;&amp;gt;&lt;/code> like &lt;code>data | 'My description' &amp;gt;&amp;gt; beam.Map(...)&lt;/code>.
+This serves both as comments and makes your pipeline easier to debug.&lt;/p>
+&lt;p>This is how the pipeline looks after adding labels.&lt;/p>
+&lt;div class=language-py>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="kn">import&lt;/span> &lt;span class="nn">apache_beam&lt;/span> &lt;span class="kn">as&lt;/span> &lt;span class="nn">beam&lt;/span>
+&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">pipeline&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;span class="n">result&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;span class="n">pipeline&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Create numbers&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">([&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">2&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">3&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">4&lt;/span>&lt;span class="p">])&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Multiply by two&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">lambda&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">x&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="mi">2&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Sum everything&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">CombineGlobally&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nb">sum&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Print results&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">print&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;h2 id="setup">Setup&lt;/h2>
+&lt;p>Here&amp;rsquo;s a comparison on how to get started both in PySpark and Beam.&lt;/p>
+&lt;div class="table-wrapper">&lt;table>
+&lt;tr>
+&lt;th>&lt;/th>
+&lt;th>PySpark&lt;/th>
+&lt;th>Beam&lt;/th>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;b>Install&lt;/b>&lt;/td>
+&lt;td>&lt;code>$ pip install pyspark&lt;/code>&lt;/td>
+&lt;td>&lt;code>$ pip install apache-beam&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;b>Imports&lt;/b>&lt;/td>
+&lt;td>&lt;code>import pyspark&lt;/code>&lt;/td>
+&lt;td>&lt;code>import apache_beam as beam&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;b>Creating a&lt;br>local pipeline&lt;/b>&lt;/td>
+&lt;td>
+&lt;code>sc = pyspark.SparkContext() as sc:&lt;/code>&lt;br>
+&lt;code># Your pipeline code here.&lt;/code>
+&lt;/td>
+&lt;td>
+&lt;code>with beam.Pipeline() as pipeline:&lt;/code>&lt;br>
+&lt;code>&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;# Your pipeline code here.&lt;/code>
+&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;b>Creating values&lt;/b>&lt;/td>
+&lt;td>&lt;code>values = sc.parallelize([1, 2, 3, 4])&lt;/code>&lt;/td>
+&lt;td>&lt;code>values = pipeline | beam.Create([1, 2, 3, 4])&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;b>Creating&lt;br>key-value pairs&lt;/b>&lt;/td>
+&lt;td>
+&lt;code>pairs = sc.parallelize([&lt;/code>&lt;br>
+&lt;code>&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;('key1', 'value1'),&lt;/code>&lt;br>
+&lt;code>&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;('key2', 'value2'),&lt;/code>&lt;br>
+&lt;code>&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;('key3', 'value3'),&lt;/code>&lt;br>
+&lt;code>])&lt;/code>
+&lt;/td>
+&lt;td>
+&lt;code>pairs = pipeline | beam.Create([&lt;/code>&lt;br>
+&lt;code>&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;('key1', 'value1'),&lt;/code>&lt;br>
+&lt;code>&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;('key2', 'value2'),&lt;/code>&lt;br>
+&lt;code>&amp;nbsp;&amp;nbsp;&amp;nbsp;&amp;nbsp;('key3', 'value3'),&lt;/code>&lt;br>
+&lt;code>])&lt;/code>
+&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;b>Running a&lt;br>local pipeline&lt;/b>&lt;/td>
+&lt;td>&lt;code>$ spark-submit spark_pipeline.py&lt;/code>&lt;/td>
+&lt;td>&lt;code>$ python beam_pipeline.py&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;/table>&lt;/div>
+&lt;h2 id="transforms">Transforms&lt;/h2>
+&lt;p>Here are the equivalents of some common transforms in both PySpark and Beam.&lt;/p>
+&lt;div class="table-wrapper">&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>&lt;/th>
+&lt;th>PySpark&lt;/th>
+&lt;th>Beam&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>&lt;a href="/documentation/transforms/python/elementwise/map/">&lt;strong>Map&lt;/strong>&lt;/a>&lt;/td>
+&lt;td>&lt;code>values.map(lambda x: x * 2)&lt;/code>&lt;/td>
+&lt;td>&lt;code>values | beam.Map(lambda x: x * 2)&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;a href="/documentation/transforms/python/elementwise/filter/">&lt;strong>Filter&lt;/strong>&lt;/a>&lt;/td>
+&lt;td>&lt;code>values.filter(lambda x: x % 2 == 0)&lt;/code>&lt;/td>
+&lt;td>&lt;code>values | beam.Filter(lambda x: x % 2 == 0)&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;a href="/documentation/transforms/python/elementwise/flatmap/">&lt;strong>FlatMap&lt;/strong>&lt;/a>&lt;/td>
+&lt;td>&lt;code>values.flatMap(lambda x: range(x))&lt;/code>&lt;/td>
+&lt;td>&lt;code>values | beam.FlatMap(lambda x: range(x))&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;a href="/documentation/transforms/python/aggregation/groupbykey/">&lt;strong>Group by key&lt;/strong>&lt;/a>&lt;/td>
+&lt;td>&lt;code>pairs.groupByKey()&lt;/code>&lt;/td>
+&lt;td>&lt;code>pairs | beam.GroupByKey()&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;a href="/documentation/transforms/python/aggregation/combineglobally/">&lt;strong>Reduce&lt;/strong>&lt;/a>&lt;/td>
+&lt;td>&lt;code>values.reduce(lambda x, y: x+y)&lt;/code>&lt;/td>
+&lt;td>&lt;code>values | beam.CombineGlobally(sum)&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;a href="/documentation/transforms/python/aggregation/combineperkey/">&lt;strong>Reduce by key&lt;/strong>&lt;/a>&lt;/td>
+&lt;td>&lt;code>pairs.reduceByKey(lambda x, y: x+y)&lt;/code>&lt;/td>
+&lt;td>&lt;code>pairs | beam.CombinePerKey(sum)&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;a href="/documentation/transforms/python/aggregation/distinct/">&lt;strong>Distinct&lt;/strong>&lt;/a>&lt;/td>
+&lt;td>&lt;code>values.distinct()&lt;/code>&lt;/td>
+&lt;td>&lt;code>values | beam.Distinct()&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;a href="/documentation/transforms/python/aggregation/count/">&lt;strong>Count&lt;/strong>&lt;/a>&lt;/td>
+&lt;td>&lt;code>values.count()&lt;/code>&lt;/td>
+&lt;td>&lt;code>values | beam.combiners.Count.Globally()&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;a href="/documentation/transforms/python/aggregation/count/">&lt;strong>Count by key&lt;/strong>&lt;/a>&lt;/td>
+&lt;td>&lt;code>pairs.countByKey()&lt;/code>&lt;/td>
+&lt;td>&lt;code>pairs | beam.combiners.Count.PerKey()&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;a href="/documentation/transforms/python/aggregation/top/">&lt;strong>Take smallest&lt;/strong>&lt;/a>&lt;/td>
+&lt;td>&lt;code>values.takeOrdered(3)&lt;/code>&lt;/td>
+&lt;td>&lt;code>values | beam.combiners.Top.Smallest(3)&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;a href="/documentation/transforms/python/aggregation/top/">&lt;strong>Take largest&lt;/strong>&lt;/a>&lt;/td>
+&lt;td>&lt;code>values.takeOrdered(3, lambda x: -x)&lt;/code>&lt;/td>
+&lt;td>&lt;code>values | beam.combiners.Top.Largest(3)&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;a href="/documentation/transforms/python/aggregation/sample/">&lt;strong>Random sample&lt;/strong>&lt;/a>&lt;/td>
+&lt;td>&lt;code>values.takeSample(False, 3)&lt;/code>&lt;/td>
+&lt;td>&lt;code>values | beam.combiners.Sample.FixedSizeGlobally(3)&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;a href="/documentation/transforms/python/other/flatten/">&lt;strong>Union&lt;/strong>&lt;/a>&lt;/td>
+&lt;td>&lt;code>values.union(otherValues)&lt;/code>&lt;/td>
+&lt;td>&lt;code>(values, otherValues) | beam.Flatten()&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;a href="/documentation/transforms/python/aggregation/cogroupbykey/">&lt;strong>Co-group&lt;/strong>&lt;/a>&lt;/td>
+&lt;td>&lt;code>pairs.cogroup(otherPairs)&lt;/code>&lt;/td>
+&lt;td>&lt;code>{'Xs': pairs, 'Ys': otherPairs} | beam.CoGroupByKey()&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>&lt;/div>
+&lt;blockquote>
+&lt;p>ℹ️ To learn more about the transforms available in Beam, check the
+&lt;a href="/documentation/transforms/python/overview">Python transform gallery&lt;/a>.&lt;/p>
+&lt;/blockquote>
+&lt;h2 id="using-calculated-values">Using calculated values&lt;/h2>
+&lt;p>Since we are working in potentially distributed environments,
+we can&amp;rsquo;t guarantee that the results we&amp;rsquo;ve calculated are available at any given machine.&lt;/p>
+&lt;p>In PySpark, we can get a result from a collection of elements (RDD) by using
+&lt;code>data.collect()&lt;/code>, or other aggregations such as &lt;code>reduce()&lt;/code>, &lt;code>count()&lt;/code>, and more.&lt;/p>
+&lt;p>Here&amp;rsquo;s an example to scale numbers into a range between zero and one.&lt;/p>
+&lt;div class=language-py>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="kn">import&lt;/span> &lt;span class="nn">pyspark&lt;/span>
+&lt;span class="n">sc&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">pyspark&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">SparkContext&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;span class="n">values&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">sc&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">parallelize&lt;/span>&lt;span class="p">([&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">2&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">3&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">4&lt;/span>&lt;span class="p">])&lt;/span>
+&lt;span class="n">total&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">values&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">reduce&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">lambda&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">y&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">x&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">y&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="c1"># We can simply use `total` since it&amp;#39;s already a Python `int` value from `reduce`.&lt;/span>
+&lt;span class="n">scaled_values&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">values&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">lambda&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">x&lt;/span> &lt;span class="o">/&lt;/span> &lt;span class="n">total&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="c1"># But to access `scaled_values`, we need to call `collect`.&lt;/span>
+&lt;span class="k">print&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">scaled_values&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">collect&lt;/span>&lt;span class="p">())&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;p>In Beam the results from all transforms result in a PCollection.
+We use &lt;a href="/documentation/programming-guide/#side-inputs">&lt;em>side inputs&lt;/em>&lt;/a>
+to feed a PCollection into a transform and access its values.&lt;/p>
+&lt;p>Any transform that accepts a function, like
+&lt;a href="/documentation/transforms/python/elementwise/map">&lt;code>Map&lt;/code>&lt;/a>,
+can take side inputs.
+If we only need a single value, we can use
+&lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.pvalue.html#apache_beam.pvalue.AsSingleton">&lt;code>beam.pvalue.AsSingleton&lt;/code>&lt;/a> and access them as a Python value.
+If we need multiple values, we can use
+&lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.pvalue.html#apache_beam.pvalue.AsIter">&lt;code>beam.pvalue.AsIter&lt;/code>&lt;/a>
+and access them as an &lt;a href="https://docs.python.org/3/glossary.html#term-iterable">&lt;code>iterable&lt;/code>&lt;/a>.&lt;/p>
+&lt;div class=language-py>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="kn">import&lt;/span> &lt;span class="nn">apache_beam&lt;/span> &lt;span class="kn">as&lt;/span> &lt;span class="nn">beam&lt;/span>
+&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">pipeline&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;span class="n">values&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">pipeline&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">([&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">2&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">3&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">4&lt;/span>&lt;span class="p">])&lt;/span>
+&lt;span class="n">total&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">values&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">CombineGlobally&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nb">sum&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="c1"># To access `total`, we need to pass it as a side input.&lt;/span>
+&lt;span class="n">scaled_values&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">values&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="k">lambda&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">total&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">x&lt;/span> &lt;span class="o">/&lt;/span> &lt;span class="n">total&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">total&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">pvalue&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">AsSingleton&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">total&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;span class="n">scaled_values&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">print&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;blockquote>
+&lt;p>ℹ️ In Beam we need to pass a side input explicitly, but we get the
+benefit that a reduction or aggregation does &lt;em>not&lt;/em> have to fit into memory.&lt;/p>
+&lt;/blockquote>
+&lt;h2 id="next-steps">Next Steps&lt;/h2>
+&lt;ul>
+&lt;li>Take a look at all the available transforms in the &lt;a href="/documentation/transforms/python/overview">Python transform gallery&lt;/a>.&lt;/li>
+&lt;li>Learn how to read from and write to files in the &lt;a href="/documentation/programming-guide/#pipeline-io">&lt;em>Pipeline I/O&lt;/em> section of the &lt;em>Programming guide&lt;/em>&lt;/a>&lt;/li>
+&lt;li>Walk through additional WordCount examples in the &lt;a href="/get-started/wordcount-example">WordCount Example Walkthrough&lt;/a>.&lt;/li>
+&lt;li>Take a self-paced tour through our &lt;a href="/documentation/resources/learning-resources">Learning Resources&lt;/a>.&lt;/li>
+&lt;li>Dive in to some of our favorite &lt;a href="/documentation/resources/videos-and-podcasts">Videos and Podcasts&lt;/a>.&lt;/li>
+&lt;li>Join the Beam &lt;a href="/community/contact-us">users@&lt;/a> mailing list.&lt;/li>
+&lt;li>If you&amp;rsquo;re interested in contributing to the Apache Beam codebase, see the &lt;a href="/contribute">Contribution Guide&lt;/a>.&lt;/li>
 &lt;/ul>
 &lt;p>Please don&amp;rsquo;t hesitate to &lt;a href="/community/contact-us">reach out&lt;/a> if you encounter any issues!&lt;/p></description></item><item><title>Get-Started: Try Apache Beam</title><link>/get-started/try-apache-beam/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/get-started/try-apache-beam/</guid><description>
 &lt;!--
