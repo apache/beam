@@ -236,35 +236,3 @@ createCrossLanguageValidatesRunnerTask(
     "--experiments=beam_fn_api",
   ]
 )
-
-def addTestJavaJarCreator(String pyVersion) {
-  def pyBuildPath = pyVersion.startsWith("2") ? "2" : pyVersion.replaceAll("\\.", "")
-  project.tasks.create(name: "testJavaJarCreatorPy${pyBuildPath}") {
-    dependsOn shadowJar
-    dependsOn ":sdks:python:container:py${pyBuildPath}:docker"
-    doLast{
-      exec {
-        executable "sh"
-        def options = [
-                "--runner SparkRunner",
-                "--job_server_jar ${shadowJar.archivePath}",
-                "--env_dir ${project.rootProject.buildDir}/gradleenv/${project.path.hashCode()}",
-                "--python_root_dir ${project.rootDir}/sdks/python",
-                "--python_version ${pyVersion}",
-                "--python_container_image ${project.docker_image_default_repo_root}/"
-                        + "${project.docker_image_default_repo_prefix}"
-                        + "python${pyVersion}_sdk:${project.sdk_version}",
-        ]
-        args "-c", "../../portability/test_pipeline_jar.sh ${options.join(' ')}"
-      }
-    }
-  }
-}
-
-["2.7", "3.5", "3.6", "3.7"].each { pyVersion ->
-  addTestJavaJarCreator(pyVersion)
-}
-
-task testPipelineJar() {
-  dependsOn testJavaJarCreatorPy37
-}

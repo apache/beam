@@ -20,8 +20,8 @@ package org.apache.beam.sdk.extensions.sql.zetasql.translation;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedArrayScan;
 import java.util.Collections;
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.zetasql.unnest.ZetaSqlUnnest;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Uncollect;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.LogicalProject;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -60,6 +60,6 @@ class ArrayScanLiteralToUncollectConverter extends RelConverter<ResolvedArraySca
     // If they aren't true we need to add a Project to reorder columns.
     assert zetaNode.getElementColumn().getId() == 1;
     assert !ordinality || zetaNode.getArrayOffsetColumn().getColumn().getId() == 2;
-    return Uncollect.create(projectNode.getTraitSet(), projectNode, ordinality);
+    return ZetaSqlUnnest.create(projectNode.getTraitSet(), projectNode, ordinality);
   }
 }

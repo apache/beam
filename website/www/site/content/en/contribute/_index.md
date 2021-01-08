@@ -65,7 +65,7 @@ To contribute code, you need
  - [Docker](https://www.docker.com/) installed for some tasks including building worker containers and testing this website
    changes locally
  - [Go](https://golang.org) 1.12 or later installed for Go SDK development
- - Python 2.7, 3.5, 3.6, and 3.7. Yes, you need all four versions installed.
+ - Python 3.6, 3.7, and 3.8. Yes, you need all three versions installed.
     - pip, setuptools, virtualenv, and tox installed for Python development
  - for large contributions, a signed [Individual Contributor License
    Agreement](https://www.apache.org/licenses/icla.pdf) (ICLA) to the Apache
@@ -83,6 +83,11 @@ sudo apt-get install \
    docker-ce
 ```
 
+On some systems (like Ubuntu 20.04) these need to be installed also
+```
+pip3 install grpcio-tools mypy-protobuf
+```
+
 You also need to [install Go](https://golang.org/doc/install).
 
 Once Go is installed, install goavro:
@@ -93,6 +98,15 @@ $ go get github.com/linkedin/goavro
 ```
 
 gLinux users should configure their machines for sudoless Docker.
+
+Alternatively, you can use the Docker based local development environment to wrap your clone of the Beam repo
+into a container meeting the requirements above.
+
+You can start this container using the [start-build-env.sh](https://github.com/apache/beam/blob/master/start-build-env.sh)
+script which is part of the Beam repo:
+```
+./start-build-env.sh
+```
 
 ### Connect With the Beam community
 
@@ -121,7 +135,7 @@ gLinux users should configure their machines for sudoless Docker.
    ([template](https://s.apache.org/beam-design-doc-template),
    [examples](https://s.apache.org/beam-design-docs)) and email it to the [dev@ mailing list](/community/contact-us).
 
-### Development Setup
+### Development Setup {#development-setup}
 
 1. If you need help with git forking, cloning, branching, committing, pull requests, and squashing commits, see
    [Git workflow tips](https://cwiki.apache.org/confluence/display/BEAM/Git+Tips)

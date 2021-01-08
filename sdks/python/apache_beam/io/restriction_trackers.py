@@ -88,7 +88,7 @@ class OffsetRestrictionTracker(RestrictionTracker):
   """
   def __init__(self, offset_range):
     # type: (OffsetRange) -> None
-    assert isinstance(offset_range, OffsetRange)
+    assert isinstance(offset_range, OffsetRange), offset_range
     self._range = offset_range
     self._current_position = None
     self._last_claim_attempt = None
@@ -164,3 +164,20 @@ class OffsetRestrictionTracker(RestrictionTracker):
 
   def is_bounded(self):
     return True
+
+
+class UnsplittableRestrictionTracker(RestrictionTracker):
+  """An `iobase.RestrictionTracker` that wraps another but does not split."""
+  def __init__(self, underling_tracker):
+    self._underling_tracker = underling_tracker
+
+  def try_split(self, fraction_of_remainder):
+    return False
+
+  # __getattribute__ is used rather than __getattr__ to override the
+  # stubs in the baseclass.
+  def __getattribute__(self, name):
+    if name.startswith('_') or name in ('try_split', ):
+      return super(UnsplittableRestrictionTracker, self).__getattribute__(name)
+    else:
+      return getattr(self._underling_tracker, name)

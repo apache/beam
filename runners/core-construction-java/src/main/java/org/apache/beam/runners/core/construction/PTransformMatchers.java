@@ -490,7 +490,7 @@ public class PTransformMatchers {
     return new PTransformMatcher() {
       @Override
       public boolean matches(AppliedPTransform<?, ?, ?> application) {
-        return application.getTransform().getClass().equals(GroupIntoBatches.class);
+        return application.getTransform().getClass().equals(GroupIntoBatches.WithShardedKey.class);
       }
 
       @Override

@@ -22,4 +22,6 @@ To add yourself to the list, please open a [pull request](https://github.com/apa
   Apache Beam pipelines within the Google Cloud Platform ecosystem.
 * **[TensorFlow Extended (TFX)](https://www.tensorflow.org/tfx):**  TensorFlow Extended (TFX) is an end-to-end platform
   for deploying production ML pipelines.
+* **[Apache Hop (incubating)](http://hop.apache.org):**  Hop provides a complete data orchestration (ETL / DI) toolset with visual pipeline development.  It supports execution on the main Apache Beam runners.
+
 

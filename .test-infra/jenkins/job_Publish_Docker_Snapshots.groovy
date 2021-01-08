@@ -17,6 +17,7 @@
  */
 
 import CommonJobProperties as commonJobProperties
+import static PythonTestProperties.SUPPORTED_CONTAINER_TASKS
 
 job('beam_Publish_Docker_Snapshots') {
   description('Builds SDK harness images and job server images for testing purposes.')
@@ -39,9 +40,9 @@ job('beam_Publish_Docker_Snapshots') {
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       commonJobProperties.setGradleSwitches(delegate)
-      tasks(':sdks:python:container:py36:dockerPush')
-      tasks(':sdks:python:container:py37:dockerPush')
-      tasks(':sdks:python:container:py38:dockerPush')
+      SUPPORTED_CONTAINER_TASKS.each { taskVer ->
+        tasks(":sdks:python:container:${taskVer}:dockerPush")
+      }
       tasks(':sdks:go:container:dockerPush')
       tasks(':runners:flink:1.10:job-server-container:dockerPush')
       switches("-Pdocker-repository-root=gcr.io/apache-beam-testing/beam_portability")

@@ -114,9 +114,12 @@ class PipelineInstrument(object):
     # module and can be used to recover original pipeline if needed.
     self._pipeline_snap = beam.pipeline.Pipeline.from_runner_api(
         pipeline.to_runner_api(use_fake_coders=True), pipeline.runner, options)
+    ie.current_env().add_derived_pipeline(self._pipeline, self._pipeline_snap)
 
     self._background_caching_pipeline = beam.pipeline.Pipeline.from_runner_api(
         pipeline.to_runner_api(use_fake_coders=True), pipeline.runner, options)
+    ie.current_env().add_derived_pipeline(
+        self._pipeline, self._background_caching_pipeline)
 
     # Snapshot of original pipeline information.
     (self._original_pipeline_proto,
@@ -166,6 +169,9 @@ class PipelineInstrument(object):
     # transforms instrumented, used by pruning logic as targets no longer need
     # to be produced during pipeline runs.
     self._ignored_targets = set()
+
+    # Set of PCollections that are written to cache.
+    self.cached_pcolls = set()
 
   def instrumented_pipeline_proto(self):
     """Always returns a new instance of portable instrumented proto."""
@@ -531,10 +537,12 @@ class PipelineInstrument(object):
           break
       self._pruned_pipeline_proto = self.prune_subgraph_for(
           self._pipeline, [test_stream_id])
-      self._pipeline = beam.Pipeline.from_runner_api(
+      pruned_pipeline = beam.Pipeline.from_runner_api(
           proto=self._pruned_pipeline_proto,
           runner=self._pipeline.runner,
           options=self._pipeline._options)
+      ie.current_env().add_derived_pipeline(self._pipeline, pruned_pipeline)
+      self._pipeline = pruned_pipeline
 
   def preprocess(self):
     """Pre-processes the pipeline.
@@ -630,6 +638,8 @@ class PipelineInstrument(object):
     # Only need to write when the cache with expected key doesn't exist.
     if not self._cache_manager.exists('full', key):
       label = '{}{}'.format(WRITE_CACHE, key)
+
+      self.cached_pcolls.add(self.runner_pcoll_to_user_pcoll.get(pcoll, pcoll))
 
       # Read the windowing information and cache it along with the element. This
       # caches the arguments to a WindowedValue object because Python has logic
@@ -858,21 +868,6 @@ def build_pipeline_instrument(pipeline, options=None):
   return pi
 
 
-def user_pipeline(pipeline):
-  _, context = pipeline.to_runner_api(return_context=True)
-  pcoll_ids = pcolls_to_pcoll_id(pipeline, context)
-
-  for watching in ie.current_env().watching():
-    for _, v in watching:
-      # TODO(BEAM-8288): cleanup the attribute check when py2 is not supported.
-      if hasattr(v, '__class__') and isinstance(v, beam.pvalue.PCollection):
-        pcoll_id = pcoll_ids.get(str(v), None)
-        if (pcoll_id in context.pcollections and
-            context.pcollections[pcoll_id] != v):
-          return v.pipeline
-  return pipeline
-
-
 def cacheables(pcolls_to_pcoll_id):
   """Finds PCollections that need to be cached for analyzed PCollections.
 
@@ -995,7 +990,7 @@ def watch_sources(pipeline):
   synthetically create a variable to the intermediate PCollection.
   """
 
-  retrieved_user_pipeline = user_pipeline(pipeline)
+  retrieved_user_pipeline = ie.current_env().user_pipeline(pipeline)
 
   class CacheableUnboundedPCollectionVisitor(PipelineVisitor):
     def __init__(self):

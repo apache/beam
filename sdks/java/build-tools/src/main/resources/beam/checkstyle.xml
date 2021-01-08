@@ -143,6 +143,15 @@ page at http://checkstyle.sourceforge.net/config.html -->
       <property name="message" value="You are using raw guava, please use vendored guava classes."/>
     </module>
 
+    <!-- Forbid deprecated Assert.assertThat. -->
+    <module name="RegexpSinglelineJava">
+      <property name="id" value="ForbidDeprecatedAssertThat"/>
+      <property name="ignoreComments" value="true"/>
+      <property name="format" value="(\sorg\.junit\.Assert\.assertThat)|(\sAssert\.assertThat)"/>
+      <property name="severity" value="error"/>
+      <property name="message" value="Using deprecated Assert.assertThat. Please use MatcherAssert.assertThat."/>
+    </module>
+
     <!-- Forbid org.spark_project imports. -->
     <module name="RegexpSinglelineJava">
       <property name="id" value="ForbidSparkProject"/>

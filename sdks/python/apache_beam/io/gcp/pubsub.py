@@ -30,6 +30,8 @@ from __future__ import absolute_import
 import re
 from builtins import object
 from typing import Any
+from typing import List
+from typing import NamedTuple
 from typing import Optional
 
 from future.utils import iteritems
@@ -39,6 +41,7 @@ from apache_beam import coders
 from apache_beam.io.iobase import Read
 from apache_beam.io.iobase import Write
 from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
+from apache_beam.transforms import Flatten
 from apache_beam.transforms import Map
 from apache_beam.transforms import PTransform
 from apache_beam.transforms.display import DisplayDataItem
@@ -50,7 +53,9 @@ except ImportError:
   pubsub = None
 
 __all__ = [
+    'MultipleReadFromPubSub',
     'PubsubMessage',
+    'PubSubSourceDescriptor',
     'ReadFromPubSub',
     'ReadStringsFromPubSub',
     'WriteStringsToPubSub',
@@ -247,16 +252,12 @@ class _WriteStringsToPubSub(PTransform):
       topic: Cloud Pub/Sub topic in the form "/topics/<project>/<topic>".
     """
     super(_WriteStringsToPubSub, self).__init__()
-    self.with_attributes = False
-    self.id_label = None
-    self.timestamp_attribute = None
-    self.project, self.topic_name = parse_topic(topic)
-    self._sink = _PubSubSink(topic, id_label=None, timestamp_attribute=None)
+    self.topic = topic
 
   def expand(self, pcoll):
     pcoll = pcoll | 'EncodeString' >> Map(lambda s: s.encode('utf-8'))
     pcoll.element_type = bytes
-    return pcoll | Write(self._sink)
+    return pcoll | WriteToPubSub(self.topic)
 
 
 class WriteToPubSub(PTransform):
@@ -453,3 +454,112 @@ class _PubSubSink(dataflow_io.NativeSink):
 
   def writer(self):
     raise NotImplementedError
+
+
+class PubSubSourceDescriptor(NamedTuple):
+  """A PubSub source descriptor for ``MultipleReadFromPubSub```
+
+  Attributes:
+    source: Existing Cloud Pub/Sub topic or subscription to use in the
+      form "projects/<project>/topics/<topic>" or
+      "projects/<project>/subscriptions/<subscription>"
+    id_label: The attribute on incoming Pub/Sub messages to use as a unique
+      record identifier. When specified, the value of this attribute (which
+      can be any string that uniquely identifies the record) will be used for
+      deduplication of messages. If not provided, we cannot guarantee
+      that no duplicate data will be delivered on the Pub/Sub stream. In this
+      case, deduplication of the stream will be strictly best effort.
+    timestamp_attribute: Message value to use as element timestamp. If None,
+      uses message publishing time as the timestamp.
+
+      Timestamp values should be in one of two formats:
+
+      - A numerical value representing the number of milliseconds since the
+        Unix epoch.
+      - A string in RFC 3339 format, UTC timezone. Example:
+        ``2015-10-29T23:41:41.123Z``. The sub-second component of the
+        timestamp is optional, and digits beyond the first three (i.e., time
+        units smaller than milliseconds) may be ignored.
+  """
+  source: str
+  id_label: str = None
+  timestamp_attribute: str = None
+
+
+PUBSUB_DESCRIPTOR_REGEXP = 'projects/([^/]+)/(topics|subscriptions)/(.+)'
+
+
+class MultipleReadFromPubSub(PTransform):
+  """A ``PTransform`` that expands ``ReadFromPubSub`` to read from multiple
+  ``PubSubSourceDescriptor``.
+
+  The `MultipleReadFromPubSub` transform allows you to read multiple topics
+  and/or subscriptions using just one transform. It is the recommended transform
+  to read multiple Pub/Sub sources when the output `PCollection` are going to be
+  flattened. The transform takes a list of `PubSubSourceDescriptor` and organize
+  them by type (topic / subscription) and project:::
+
+    topic_1 = PubSubSourceDescriptor('projects/myproject/topics/a_topic')
+    topic_2 = PubSubSourceDescriptor(
+                'projects/myproject2/topics/b_topic',
+                'my_label',
+                'my_timestamp_attribute')
+    subscription_1 = PubSubSourceDescriptor(
+                'projects/myproject/subscriptions/a_subscription')
+
+    results = pipeline | MultipleReadFromPubSub(
+                [topic_1, topic_2, subscription_1])
+  """
+  def __init__(
+      self,
+      pubsub_source_descriptors,  # type: List[PubSubSourceDescriptor]
+      with_attributes=False,  # type: bool
+  ):
+    """Initializes ``PubSubMultipleReader``.
+
+    Args:
+      pubsub_source_descriptors: List of Cloud Pub/Sub topics or subscriptions
+        of type `~PubSubSourceDescriptor`.
+      with_attributes:
+        True - input elements will be :class:`~PubsubMessage` objects.
+        False - input elements will be of type ``bytes`` (message data only).
+    """
+    self.pubsub_source_descriptors = pubsub_source_descriptors
+    self.with_attributes = with_attributes
+
+    for descriptor in self.pubsub_source_descriptors:
+      match_descriptor = re.match(PUBSUB_DESCRIPTOR_REGEXP, descriptor.source)
+
+      if not match_descriptor:
+        raise ValueError(
+            'PubSub source descriptor must be in the form "projects/<project>'
+            '/topics/<topic>" or "projects/<project>/subscription'
+            '/<subscription>" (got %r).' % descriptor.source)
+
+  def expand(self, pcol):
+    sources_pcol = []
+    for descriptor in self.pubsub_source_descriptors:
+      source_match = re.match(PUBSUB_DESCRIPTOR_REGEXP, descriptor.source)
+      source_project = source_match.group(1)
+      source_type = source_match.group(2)
+      source_name = source_match.group(3)
+
+      read_step_name = 'PubSub %s/project:%s/Read %s' % (
+          source_type, source_project, source_name)
+
+      if source_type == 'topics':
+        current_source = pcol | read_step_name >> ReadFromPubSub(
+            topic=descriptor.source,
+            id_label=descriptor.id_label,
+            with_attributes=self.with_attributes,
+            timestamp_attribute=descriptor.timestamp_attribute)
+      else:
+        current_source = pcol | read_step_name >> ReadFromPubSub(
+            subscription=descriptor.source,
+            id_label=descriptor.id_label,
+            with_attributes=self.with_attributes,
+            timestamp_attribute=descriptor.timestamp_attribute)
+
+      sources_pcol.append(current_source)
+
+    return tuple(sources_pcol) | Flatten()

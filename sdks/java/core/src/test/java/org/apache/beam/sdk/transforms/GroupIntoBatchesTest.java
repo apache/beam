@@ -44,6 +44,7 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
@@ -122,6 +123,87 @@ public class GroupIntoBatchesTest implements Serializable {
             });
     PAssert.thatSingleton("Incorrect collection size", collection.apply("Count", Count.globally()))
         .isEqualTo(EVEN_NUM_ELEMENTS / BATCH_SIZE);
+    pipeline.run();
+  }
+
+  @Test
+  @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesStatefulParDo.class})
+  public void testWithShardedKeyInGlobalWindow() {
+    // Since with default sharding, the number of subshards of of a key is nondeterministic, create
+    // a large number of input elements and a small batch size and check there is no batch larger
+    // than the specified size.
+    int numElements = 10000;
+    int batchSize = 5;
+    PCollection<KV<ShardedKey<String>, Iterable<String>>> collection =
+        pipeline
+            .apply("Input data", Create.of(createTestData(numElements)))
+            .apply(GroupIntoBatches.<String, String>ofSize(batchSize).withShardedKey())
+            .setCoder(
+                KvCoder.of(
+                    ShardedKey.Coder.of(StringUtf8Coder.of()),
+                    IterableCoder.of(StringUtf8Coder.of())));
+    PAssert.that("Incorrect batch size in one or more elements", collection)
+        .satisfies(
+            new SerializableFunction<Iterable<KV<ShardedKey<String>, Iterable<String>>>, Void>() {
+
+              private boolean checkBatchSizes(
+                  Iterable<KV<ShardedKey<String>, Iterable<String>>> listToCheck) {
+                for (KV<ShardedKey<String>, Iterable<String>> element : listToCheck) {
+                  if (Iterables.size(element.getValue()) > batchSize) {
+                    return false;
+                  }
+                }
+                return true;
+              }
+
+              @Override
+              public Void apply(Iterable<KV<ShardedKey<String>, Iterable<String>>> input) {
+                assertTrue(checkBatchSizes(input));
+                return null;
+              }
+            });
+    PCollection<KV<Integer, Long>> numBatchesbyBatchSize =
+        collection
+            .apply(
+                "KeyByBatchSize",
+                MapElements.via(
+                    new SimpleFunction<
+                        KV<ShardedKey<String>, Iterable<String>>, KV<Integer, Integer>>() {
+                      @Override
+                      public KV<Integer, Integer> apply(
+                          KV<ShardedKey<String>, Iterable<String>> input) {
+                        int batchSize = 0;
+                        for (String ignored : input.getValue()) {
+                          batchSize++;
+                        }
+                        return KV.of(batchSize, 1);
+                      }
+                    }))
+            .apply("CountBatchesBySize", Count.perKey());
+    PAssert.that("Expecting majority of the batches are full", numBatchesbyBatchSize)
+        .satisfies(
+            (SerializableFunction<Iterable<KV<Integer, Long>>, Void>)
+                listOfBatchSize -> {
+                  Long numFullBatches = 0L;
+                  Long totalNumBatches = 0L;
+                  for (KV<Integer, Long> batchSizeAndCount : listOfBatchSize) {
+                    if (batchSizeAndCount.getKey() == batchSize) {
+                      numFullBatches += batchSizeAndCount.getValue();
+                    }
+                    totalNumBatches += batchSizeAndCount.getValue();
+                  }
+                  assertTrue(
+                      String.format(
+                          "total number of batches should be in the range [%d, %d] but got %d",
+                          numElements, numElements / batchSize, numFullBatches),
+                      numFullBatches <= numElements && numFullBatches >= numElements / batchSize);
+                  assertTrue(
+                      String.format(
+                          "number of full batches vs. total number of batches in total: %d vs. %d",
+                          numFullBatches, totalNumBatches),
+                      numFullBatches > totalNumBatches / 2);
+                  return null;
+                });
     pipeline.run();
   }
 

@@ -44,11 +44,13 @@ import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.FileIO.MatchConfiguration;
+import org.apache.beam.sdk.io.FileIO.ReadableFile;
 import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
+import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -58,7 +60,6 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Function;
@@ -197,7 +198,7 @@ import org.joda.time.Duration;
  *
  * <pre>{@code
  * PCollection<AvroAutoGenClass> records =
- *     p.apply(AvroIO.read(...).from(...).withBeamSchemas(true);
+ *     p.apply(AvroIO.read(...).from(...).withBeamSchemas(true));
  * }</pre>
  *
  * <h3>Inferring Beam schemas from Avro PCollections</h3>
@@ -346,8 +347,8 @@ public class AvroIO {
   }
 
   /**
-   * Like {@link #read}, but reads each file in a {@link PCollection} of {@link
-   * FileIO.ReadableFile}, returned by {@link FileIO#readMatches}.
+   * Like {@link #read}, but reads each file in a {@link PCollection} of {@link ReadableFile},
+   * returned by {@link FileIO#readMatches}.
    *
    * <p>You can read {@link GenericRecord} by using {@code #readFiles(GenericRecord.class)} or
    * {@code #readFiles(new Schema.Parser().parse(schema))} if the schema is a String.
@@ -392,7 +393,7 @@ public class AvroIO {
 
   /**
    * Like {@link #readGenericRecords(Schema)}, but for a {@link PCollection} of {@link
-   * FileIO.ReadableFile}, for example, returned by {@link FileIO#readMatches}.
+   * ReadableFile}, for example, returned by {@link FileIO#readMatches}.
    */
   public static ReadFiles<GenericRecord> readFilesGenericRecords(Schema schema) {
     return new AutoValue_AvroIO_ReadFiles.Builder<GenericRecord>()
@@ -405,7 +406,7 @@ public class AvroIO {
 
   /**
    * Like {@link #readGenericRecords(Schema)}, but for a {@link PCollection} of {@link
-   * FileIO.ReadableFile}, for example, returned by {@link FileIO#readMatches}.
+   * ReadableFile}, for example, returned by {@link FileIO#readMatches}.
    *
    * @deprecated You can achieve The functionality of {@link #readAllGenericRecords(Schema)} using
    *     {@link FileIO} matching plus {@link #readFilesGenericRecords(Schema)}. This is the
@@ -431,7 +432,7 @@ public class AvroIO {
     return readGenericRecords(new Schema.Parser().parse(schema));
   }
 
-  /** Like {@link #readGenericRecords(String)}, but for {@link FileIO.ReadableFile} collections. */
+  /** Like {@link #readGenericRecords(String)}, but for {@link ReadableFile} collections. */
   public static ReadFiles<GenericRecord> readFilesGenericRecords(String schema) {
     return readFilesGenericRecords(new Schema.Parser().parse(schema));
   }
@@ -463,8 +464,8 @@ public class AvroIO {
   }
 
   /**
-   * Like {@link #parseGenericRecords(SerializableFunction)}, but reads each {@link
-   * FileIO.ReadableFile} in the input {@link PCollection}.
+   * Like {@link #parseGenericRecords(SerializableFunction)}, but reads each {@link ReadableFile} in
+   * the input {@link PCollection}.
    */
   public static <T> ParseFiles<T> parseFilesGenericRecords(
       SerializableFunction<GenericRecord, T> parseFn) {
@@ -569,16 +570,7 @@ public class AvroIO {
   @Experimental(Kind.SCHEMAS)
   private static <T> PCollection<T> setBeamSchema(
       PCollection<T> pc, Class<T> clazz, @Nullable Schema schema) {
-    org.apache.beam.sdk.schemas.Schema beamSchema =
-        org.apache.beam.sdk.schemas.utils.AvroUtils.getSchema(clazz, schema);
-    if (beamSchema != null) {
-      pc.setSchema(
-          beamSchema,
-          TypeDescriptor.of(clazz),
-          org.apache.beam.sdk.schemas.utils.AvroUtils.getToRowFunction(clazz, schema),
-          org.apache.beam.sdk.schemas.utils.AvroUtils.getFromRowFunction(clazz));
-    }
-    return pc;
+    return pc.setCoder(AvroUtils.schemaCoder(clazz, schema));
   }
 
   /**
@@ -652,9 +644,9 @@ public class AvroIO {
      * interval, until the given termination condition is reached. The returned {@link PCollection}
      * is unbounded.
      *
-     * <p>This works only in runners supporting {@link Kind#SPLITTABLE_DO_FN}.
+     * <p>This works only in runners supporting splittable {@link
+     * org.apache.beam.sdk.transforms.DoFn}.
      */
-    @Experimental(Kind.SPLITTABLE_DO_FN)
     public Read<T> watchForNewFiles(
         Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {
       return withMatchConfiguration(
@@ -755,7 +747,7 @@ public class AvroIO {
   /** Implementation of {@link #readFiles}. */
   @AutoValue
   public abstract static class ReadFiles<T>
-      extends PTransform<PCollection<FileIO.ReadableFile>, PCollection<T>> {
+      extends PTransform<PCollection<ReadableFile>, PCollection<T>> {
 
     abstract @Nullable Class<T> getRecordClass();
 
@@ -803,7 +795,7 @@ public class AvroIO {
     }
 
     @Override
-    public PCollection<T> expand(PCollection<FileIO.ReadableFile> input) {
+    public PCollection<T> expand(PCollection<ReadableFile> input) {
       checkNotNull(getSchema(), "schema");
       PCollection<T> read =
           input.apply(
@@ -877,7 +869,6 @@ public class AvroIO {
     }
 
     /** Like {@link Read#watchForNewFiles}. */
-    @Experimental(Kind.SPLITTABLE_DO_FN)
     public ReadAll<T> watchForNewFiles(
         Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {
       return withMatchConfiguration(
@@ -1009,7 +1000,6 @@ public class AvroIO {
     }
 
     /** Like {@link Read#watchForNewFiles}. */
-    @Experimental(Kind.SPLITTABLE_DO_FN)
     public Parse<T> watchForNewFiles(
         Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {
       return withMatchConfiguration(
@@ -1080,7 +1070,7 @@ public class AvroIO {
   /** Implementation of {@link #parseFilesGenericRecords}. */
   @AutoValue
   public abstract static class ParseFiles<T>
-      extends PTransform<PCollection<FileIO.ReadableFile>, PCollection<T>> {
+      extends PTransform<PCollection<ReadableFile>, PCollection<T>> {
     abstract SerializableFunction<GenericRecord, T> getParseFn();
 
     abstract @Nullable Coder<T> getCoder();
@@ -1111,7 +1101,7 @@ public class AvroIO {
     }
 
     @Override
-    public PCollection<T> expand(PCollection<FileIO.ReadableFile> input) {
+    public PCollection<T> expand(PCollection<ReadableFile> input) {
       final Coder<T> coder =
           Parse.inferCoder(getCoder(), getParseFn(), input.getPipeline().getCoderRegistry());
       final SerializableFunction<GenericRecord, T> parseFn = getParseFn();
@@ -1189,7 +1179,6 @@ public class AvroIO {
     }
 
     /** Like {@link Read#watchForNewFiles}. */
-    @Experimental(Kind.SPLITTABLE_DO_FN)
     public ParseAll<T> watchForNewFiles(
         Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {
       return withMatchConfiguration(
