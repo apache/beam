@@ -19,12 +19,12 @@ package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.runners.dataflow.worker.ReaderUtils.readAllFromReader;
 import static org.apache.beam.runners.dataflow.worker.SourceTranslationUtils.readerProgressToCloudProgress;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 import com.google.api.services.dataflow.model.ApproximateReportedProgress;

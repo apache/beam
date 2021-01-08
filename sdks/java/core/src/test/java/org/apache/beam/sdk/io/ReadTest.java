@@ -24,17 +24,32 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
+import java.util.NoSuchElementException;
+import java.util.stream.Collectors;
+import java.util.stream.LongStream;
+import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.io.CountingSource.CounterMark;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
+import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.testing.NeedsRunner;
+import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -47,6 +62,7 @@ import org.junit.runners.JUnit4;
 })
 public class ReadTest implements Serializable {
   @Rule public transient ExpectedException thrown = ExpectedException.none();
+  @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
   @Test
   public void testInstantiationOfBoundedSourceAsSDFWrapper() {
@@ -109,6 +125,23 @@ public class ReadTest implements Serializable {
     assertThat(unboundedDisplayData, hasDisplayItem("maxReadTime", maxReadTime));
   }
 
+  @Test
+  @Category(NeedsRunner.class)
+  public void testUnboundedSdfWrapperCacheStartedReaders() throws Exception {
+    long numElements = 1000L;
+    PCollection<Long> input =
+        pipeline.apply(Read.from(new ExpectCacheUnboundedSource(numElements)));
+    PAssert.that(input)
+        .containsInAnyOrder(
+            LongStream.rangeClosed(1L, numElements).boxed().collect(Collectors.toList()));
+    // Force the pipeline to run with one thread to ensure the reader will be reused on one DoFn
+    // instance.
+    // We are not able to use DirectOptions because of circular dependency.
+    pipeline
+        .runWithAdditionalOptionArgs(ImmutableList.of("--targetParallelism=1"))
+        .waitUntilFinish();
+  }
+
   private abstract static class CustomBoundedSource extends BoundedSource<String> {
     @Override
     public List<? extends BoundedSource<String>> split(
@@ -138,6 +171,103 @@ public class ReadTest implements Serializable {
   }
 
   private static class SerializableBoundedSource extends CustomBoundedSource {}
+
+  private static class ExpectCacheUnboundedSource
+      extends UnboundedSource<Long, CountingSource.CounterMark> {
+
+    private final long numElements;
+
+    ExpectCacheUnboundedSource(long numElements) {
+      this.numElements = numElements;
+    }
+
+    @Override
+    public List<? extends UnboundedSource<Long, CounterMark>> split(
+        int desiredNumSplits, PipelineOptions options) throws Exception {
+      return ImmutableList.of(this);
+    }
+
+    @Override
+    public UnboundedReader<Long> createReader(
+        PipelineOptions options, @Nullable CounterMark checkpointMark) throws IOException {
+      if (checkpointMark != null) {
+        throw new IOException("The reader should be retrieved from cache instead of a new one");
+      }
+      return new ExpectCacheReader(this, checkpointMark);
+    }
+
+    @Override
+    public Coder<Long> getOutputCoder() {
+      return VarLongCoder.of();
+    }
+
+    @Override
+    public Coder<CounterMark> getCheckpointMarkCoder() {
+      return AvroCoder.of(CountingSource.CounterMark.class);
+    }
+  }
+
+  private static class ExpectCacheReader extends UnboundedReader<Long> {
+    private long current;
+    private ExpectCacheUnboundedSource source;
+
+    ExpectCacheReader(ExpectCacheUnboundedSource source, CounterMark checkpointMark) {
+      this.source = source;
+      if (checkpointMark == null) {
+        current = 0L;
+      } else {
+        current = checkpointMark.getLastEmitted();
+      }
+    }
+
+    @Override
+    public boolean start() throws IOException {
+      return advance();
+    }
+
+    @Override
+    public boolean advance() throws IOException {
+      current += 1;
+      if (current > source.numElements) {
+        return false;
+      }
+      return true;
+    }
+
+    @Override
+    public Long getCurrent() throws NoSuchElementException {
+      return current;
+    }
+
+    @Override
+    public Instant getCurrentTimestamp() throws NoSuchElementException {
+      return getWatermark();
+    }
+
+    @Override
+    public void close() throws IOException {}
+
+    @Override
+    public Instant getWatermark() {
+      if (current > source.numElements) {
+        return BoundedWindow.TIMESTAMP_MAX_VALUE;
+      }
+      return BoundedWindow.TIMESTAMP_MIN_VALUE;
+    }
+
+    @Override
+    public CheckpointMark getCheckpointMark() {
+      if (current <= 0) {
+        return null;
+      }
+      return new CounterMark(current, BoundedWindow.TIMESTAMP_MIN_VALUE);
+    }
+
+    @Override
+    public UnboundedSource<Long, ?> getCurrentSource() {
+      return source;
+    }
+  }
 
   private abstract static class CustomUnboundedSource
       extends UnboundedSource<String, NoOpCheckpointMark> {

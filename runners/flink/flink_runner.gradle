@@ -108,17 +108,14 @@ test {
   if (System.getProperty("beamSurefireArgline")) {
     jvmArgs System.getProperty("beamSurefireArgline")
   }
-  // TODO Running tests of all Flink versions in parallel can be too harsh on Jenkins memory
-  // Run them serially for now, to avoid "Exit code 137", i.e. Jenkins host killing the Gradle test process
-  if (project.path == ":runners:flink:1.9") {
-    mustRunAfter(":runners:flink:1.8:test")
-  } else if (project.path == ":runners:flink:1.10") {
-    mustRunAfter(":runners:flink:1.8:test")
-    mustRunAfter(":runners:flink:1.9:test")
-  } else if (project.path == ":runners:flink:1.11") {
-    mustRunAfter(":runners:flink:1.8:test")
-    mustRunAfter(":runners:flink:1.9:test")
-    mustRunAfter(":runners:flink:1.10:test")
+  // TODO(BEAM-6418) Running tests of all Flink versions in parallel can be too harsh on Jenkins memory.
+  // Run them serially for now, to avoid "Exit code 137", i.e. Jenkins host killing the Gradle test process.
+  def flink_minor_version = project.path.split(':').last()
+  for (version in project.ext.allFlinkVersions) {
+    if (version == flink_minor_version) {
+      break
+    }
+    mustRunAfter(":runners:flink:${version}:test")
   }
 }
 

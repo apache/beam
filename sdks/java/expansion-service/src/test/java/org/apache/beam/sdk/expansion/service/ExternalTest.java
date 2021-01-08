@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.expansion.service;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
 
 import com.google.auto.service.AutoService;
 import java.io.IOException;

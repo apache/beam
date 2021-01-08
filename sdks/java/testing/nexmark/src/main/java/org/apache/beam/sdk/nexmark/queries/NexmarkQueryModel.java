@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.nexmark.queries;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.HashSet;
@@ -99,7 +101,7 @@ public abstract class NexmarkQueryModel<T extends KnownSize> implements Serializ
       @Override
       public @Nullable Void apply(Iterable<TimestampedValue<T>> actual) {
         Collection<String> actualStrings = toCollection(relevantResults(actual).iterator());
-        Assert.assertThat("wrong pipeline output", actualStrings, IsEqual.equalTo(expectedStrings));
+        assertThat("wrong pipeline output", actualStrings, IsEqual.equalTo(expectedStrings));
         return null;
       }
     };

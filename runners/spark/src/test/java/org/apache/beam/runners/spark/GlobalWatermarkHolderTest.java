@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.spark;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.IsEqual.equalTo;
-import static org.junit.Assert.assertThat;
 
 import org.apache.beam.runners.spark.translation.SparkContextFactory;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;

@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.gcp.util;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Matchers.anyInt;
