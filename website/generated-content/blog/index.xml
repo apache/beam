@@ -1,4 +1,61 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Blogs</title><link>/blog/</link><description>Recent content in Blogs on Apache Beam</description><generator>Hugo -- gohugo.io</generator><lastBuildDate>Wed, 16 Dec 2020 09:09:41 -0800</lastBuildDate><atom:link href="/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: DataFrame API Preview now Available!</title><link>/blog/dataframe-api-preview-available/</link><pubDate>Wed, 16 Dec 2020 09:09:41 -0800</pubDate><guid>/blog/dataframe-api-preview-available/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Blogs</title><link>/blog/</link><description>Recent content in Blogs on Apache Beam</description><generator>Hugo -- gohugo.io</generator><lastBuildDate>Tue, 22 Dec 2020 12:00:00 -0800</lastBuildDate><atom:link href="/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.27.0</title><link>/blog/beam-2.27.0/</link><pubDate>Tue, 22 Dec 2020 12:00:00 -0800</pubDate><guid>/blog/beam-2.27.0/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>We are happy to present the new 2.27.0 release of Apache Beam. This release includes both improvements and new functionality.
+See the &lt;a href="/get-started/downloads/#2270-2020-12-22">download page&lt;/a> for this release.
+For more information on changes in 2.27.0, check out the
+&lt;a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12349380">detailed release notes&lt;/a>.&lt;/p>
+&lt;h2 id="highlights">Highlights&lt;/h2>
+&lt;ul>
+&lt;li>Java 11 Containers are now published with all Beam releases.&lt;/li>
+&lt;li>There is a new transform &lt;code>ReadAllFromBigQuery&lt;/code> that can receive multiple requests to read data from BigQuery at pipeline runtime. See &lt;a href="https://github.com/apache/beam/pull/13170">PR 13170&lt;/a>, and &lt;a href="https://issues.apache.org/jira/browse/BEAM-9650">BEAM-9650&lt;/a>.&lt;/li>
+&lt;/ul>
+&lt;h2 id="ios">I/Os&lt;/h2>
+&lt;ul>
+&lt;li>ReadFromMongoDB can now be used with MongoDB Atlas (Python) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11266">BEAM-11266&lt;/a>.)&lt;/li>
+&lt;li>ReadFromMongoDB/WriteToMongoDB will mask password in display_data (Python) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11444">BEAM-11444&lt;/a>.)&lt;/li>
+&lt;li>There is a new transform &lt;code>ReadAllFromBigQuery&lt;/code> that can receive multiple requests to read data from BigQuery at pipeline runtime. See &lt;a href="https://github.com/apache/beam/pull/13170">PR 13170&lt;/a>, and &lt;a href="https://issues.apache.org/jira/browse/BEAM-9650">BEAM-9650&lt;/a>.&lt;/li>
+&lt;/ul>
+&lt;h2 id="new-features--improvements">New Features / Improvements&lt;/h2>
+&lt;ul>
+&lt;li>Beam modules that depend on Hadoop are now tested for compatibility with Hadoop 3 (&lt;a href="https://issues.apache.org/jira/browse/BEAM-8569">BEAM-8569&lt;/a>). (Hive/HCatalog pending)&lt;/li>
+&lt;li>Publishing Java 11 SDK container images now supported as part of Apache Beam release process. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-8106">BEAM-8106&lt;/a>)&lt;/li>
+&lt;li>Added Cloud Bigtable Provider extension to Beam SQL (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11173">BEAM-11173&lt;/a>, &lt;a href="https://issues.apache.org/jira/browse/BEAM-11373">BEAM-11373&lt;/a>)&lt;/li>
+&lt;li>Added a schema provider for thrift data (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11338">BEAM-11338&lt;/a>)&lt;/li>
+&lt;li>Added combiner packing pipeline optimization to Dataflow runner. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10641">BEAM-10641&lt;/a>)&lt;/li>
+&lt;/ul>
+&lt;h2 id="breaking-changes">Breaking Changes&lt;/h2>
+&lt;ul>
+&lt;li>HBaseIO hbase-shaded-client dependency should be now provided by the users (&lt;a href="https://issues.apache.org/jira/browse/BEAM-9278">BEAM-9278&lt;/a>).&lt;/li>
+&lt;li>&lt;code>--region&lt;/code> flag in amazon-web-services2 was replaced by &lt;code>--awsRegion&lt;/code> (&lt;a href="https://issues.apache.org/jira/projects/BEAM/issues/BEAM-11331">BEAM-11331&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
+&lt;p>According to git shortlog, the following people contributed to the 2.27.0 release. Thank you to all contributors!&lt;/p>
+&lt;p>Ahmet Altay, Alan Myrvold, Alex Amato, Alexey Romanenko, Aliraza Nagamia, Allen Pradeep Xavier,
+Andrew Pilloud, andreyKaparulin, Ashwin Ramaswami, Boyuan Zhang, Brent Worden, Brian Hulette,
+Carlos Marin, Chamikara Jayalath, Costi Ciudatu, Damon Douglas, Daniel Collins,
+Daniel Oliveira, David Huntsperger, David Lu, David Moravek, David Wrede,
+dennis, Dennis Yung, dpcollins-google, Emily Ye, emkornfield,
+Esun Kim, Etienne Chauchot, Eugene Nikolaiev, Frank Zhao, Haizhou Zhao,
+Hector Acosta, Heejong Lee, Ilya, Iñigo San Jose Visiers, InigoSJ,
+Ismaël Mejía, janeliulwq, Jan Lukavský, Kamil Wasilewski, Kenneth Jung,
+Kenneth Knowles, Ke Wu, kileys, Kyle Weaver, lostluck,
+Matt Casters, Maximilian Michels, Michal Walenia, Mike Dewar, nehsyc,
+Nelson Osacky, Niels Basjes, Ning Kang, Pablo Estrada, palmere-google,
+Pawel Pasterz, Piotr Szuberski, purbanow, Reuven Lax, rHermes,
+Robert Bradshaw, Robert Burke, Rui Wang, Sam Rohde, Sam Whittle,
+Siyuan Chen, Tim Robertson, Tobiasz Kędzierski, tszerszen,
+Valentyn Tymofieiev, Tyson Hamilton, Udi Meiri, vachan-shetty, Xinyu Liu,
+Yichi Zhang, Yifan Mai, yoshiki.obata, Yueyang Qiu&lt;/p></description></item><item><title>Blog: DataFrame API Preview now Available!</title><link>/blog/dataframe-api-preview-available/</link><pubDate>Wed, 16 Dec 2020 09:09:41 -0800</pubDate><guid>/blog/dataframe-api-preview-available/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -3084,7 +3141,7 @@ limitations under the License.
 &lt;/td>
 &lt;td>Local&lt;br>(Using the &lt;code>file://&lt;/code> URI)
 &lt;/td>
-&lt;td>&lt;a href="https://beam.apache.org/releases/javadoc/2.26.0/org/apache/beam/sdk/io/TextIO.html">TextIO&lt;/a>
+&lt;td>&lt;a href="https://beam.apache.org/releases/javadoc/2.27.0/org/apache/beam/sdk/io/TextIO.html">TextIO&lt;/a>
 &lt;/td>
 &lt;td>&lt;a href="https://spark.apache.org/docs/latest/api/java/org/apache/spark/streaming/StreamingContext.html#textFileStream-java.lang.String-">textFileStream&lt;/a>&lt;br>(Spark treats most Unix systems as HDFS-compatible, but the location should be accessible from all nodes)
 &lt;/td>
@@ -3092,7 +3149,7 @@ limitations under the License.
 &lt;tr>
 &lt;td>HDFS&lt;br>(Using the &lt;code>hdfs://&lt;/code> URI)
 &lt;/td>
-&lt;td>&lt;a href="https://beam.apache.org/releases/javadoc/2.26.0/org/apache/beam/sdk/io/FileIO.html">FileIO&lt;/a> + &lt;a href="https://beam.apache.org/releases/javadoc/2.26.0/org/apache/beam/sdk/io/hdfs/HadoopFileSystemOptions.html">HadoopFileSystemOptions&lt;/a>
+&lt;td>&lt;a href="https://beam.apache.org/releases/javadoc/2.27.0/org/apache/beam/sdk/io/FileIO.html">FileIO&lt;/a> + &lt;a href="https://beam.apache.org/releases/javadoc/2.27.0/org/apache/beam/sdk/io/hdfs/HadoopFileSystemOptions.html">HadoopFileSystemOptions&lt;/a>
 &lt;/td>
 &lt;td>&lt;a href="https://spark.apache.org/docs/latest/api/java/org/apache/spark/streaming/util/HdfsUtils.html">HdfsUtils&lt;/a>
 &lt;/td>
@@ -3102,7 +3159,7 @@ limitations under the License.
 &lt;/td>
 &lt;td>Cloud Storage&lt;br>(Using the &lt;code>gs://&lt;/code> URI)
 &lt;/td>
-&lt;td>&lt;a href="https://beam.apache.org/releases/javadoc/2.26.0/org/apache/beam/sdk/io/FileIO.html">FileIO&lt;/a> + &lt;a href="https://beam.apache.org/releases/javadoc/2.26.0/org/apache/beam/sdk/extensions/gcp/options/GcsOptions.html">GcsOptions&lt;/a>
+&lt;td>&lt;a href="https://beam.apache.org/releases/javadoc/2.27.0/org/apache/beam/sdk/io/FileIO.html">FileIO&lt;/a> + &lt;a href="https://beam.apache.org/releases/javadoc/2.27.0/org/apache/beam/sdk/extensions/gcp/options/GcsOptions.html">GcsOptions&lt;/a>
 &lt;/td>
 &lt;td rowspan="2" >&lt;a href="https://spark.apache.org/docs/latest/api/java/org/apache/spark/SparkContext.html#hadoopConfiguration--">hadoopConfiguration&lt;/a>
 and &lt;a href="https://spark.apache.org/docs/latest/api/java/org/apache/spark/streaming/StreamingContext.html#textFileStream-java.lang.String-">textFileStream&lt;/a>
@@ -3111,7 +3168,7 @@ and &lt;a href="https://spark.apache.org/docs/latest/api/java/org/apache/spark/s
 &lt;tr>
 &lt;td>S3&lt;br>(Using the &lt;code>s3://&lt;/code> URI)
 &lt;/td>
-&lt;td>&lt;a href="https://beam.apache.org/releases/javadoc/2.26.0/org/apache/beam/sdk/io/FileIO.html">FileIO&lt;/a> + &lt;a href="https://beam.apache.org/releases/javadoc/2.26.0/org/apache/beam/sdk/io/aws/options/S3Options.html">S3Options&lt;/a>
+&lt;td>&lt;a href="https://beam.apache.org/releases/javadoc/2.27.0/org/apache/beam/sdk/io/FileIO.html">FileIO&lt;/a> + &lt;a href="https://beam.apache.org/releases/javadoc/2.27.0/org/apache/beam/sdk/io/aws/options/S3Options.html">S3Options&lt;/a>
 &lt;/td>
 &lt;/tr>
 &lt;tr>
@@ -3119,7 +3176,7 @@ and &lt;a href="https://spark.apache.org/docs/latest/api/java/org/apache/spark/s
 &lt;/td>
 &lt;td>Kafka
 &lt;/td>
-&lt;td>&lt;a href="https://beam.apache.org/releases/javadoc/2.26.0/org/apache/beam/sdk/io/kafka/KafkaIO.html">KafkaIO&lt;/a>
+&lt;td>&lt;a href="https://beam.apache.org/releases/javadoc/2.27.0/org/apache/beam/sdk/io/kafka/KafkaIO.html">KafkaIO&lt;/a>
 &lt;/td>
 &lt;td>&lt;a href="https://spark.apache.org/docs/latest/streaming-kafka-0-10-integration.html">spark-streaming-kafka&lt;/a>
 &lt;/td>
@@ -3127,7 +3184,7 @@ and &lt;a href="https://spark.apache.org/docs/latest/api/java/org/apache/spark/s
 &lt;tr>
 &lt;td>Kinesis
 &lt;/td>
-&lt;td>&lt;a href="https://beam.apache.org/releases/javadoc/2.26.0/org/apache/beam/sdk/io/kinesis/KinesisIO.html">KinesisIO&lt;/a>
+&lt;td>&lt;a href="https://beam.apache.org/releases/javadoc/2.27.0/org/apache/beam/sdk/io/kinesis/KinesisIO.html">KinesisIO&lt;/a>
 &lt;/td>
 &lt;td>&lt;a href="https://spark.apache.org/docs/latest/streaming-kinesis-integration.html">spark-streaming-kinesis&lt;/a>
 &lt;/td>
@@ -3135,7 +3192,7 @@ and &lt;a href="https://spark.apache.org/docs/latest/api/java/org/apache/spark/s
 &lt;tr>
 &lt;td>Cloud Pub/Sub
 &lt;/td>
-&lt;td>&lt;a href="https://beam.apache.org/releases/javadoc/2.26.0/org/apache/beam/sdk/io/gcp/pubsub/PubsubIO.html">PubsubIO&lt;/a>
+&lt;td>&lt;a href="https://beam.apache.org/releases/javadoc/2.27.0/org/apache/beam/sdk/io/gcp/pubsub/PubsubIO.html">PubsubIO&lt;/a>
 &lt;/td>
 &lt;td>&lt;a href="https://github.com/apache/bahir/tree/master/streaming-pubsub">spark-streaming-pubsub&lt;/a> from &lt;a href="https://bahir.apache.org">Apache Bahir&lt;/a>
 &lt;/td>
@@ -3171,7 +3228,7 @@ and &lt;a href="https://spark.apache.org/docs/latest/api/java/org/apache/spark/s
 &lt;/td>
 &lt;td>Local
 &lt;/td>
-&lt;td>&lt;a href="https://beam.apache.org/releases/pydoc/2.26.0/apache_beam.io.textio.html">io.textio&lt;/a>
+&lt;td>&lt;a href="https://beam.apache.org/releases/pydoc/2.27.0/apache_beam.io.textio.html">io.textio&lt;/a>
 &lt;/td>
 &lt;td>&lt;a href="https://spark.apache.org/docs/latest/api/python/pyspark.streaming.html#pyspark.streaming.StreamingContext.textFileStream">textFileStream&lt;/a>
 &lt;/td>
@@ -3179,7 +3236,7 @@ and &lt;a href="https://spark.apache.org/docs/latest/api/java/org/apache/spark/s
 &lt;tr>
 &lt;td>HDFS
 &lt;/td>
-&lt;td>&lt;a href="https://beam.apache.org/releases/pydoc/2.26.0/apache_beam.io.hadoopfilesystem.html">io.hadoopfilesystem&lt;/a>
+&lt;td>&lt;a href="https://beam.apache.org/releases/pydoc/2.27.0/apache_beam.io.hadoopfilesystem.html">io.hadoopfilesystem&lt;/a>
 &lt;/td>
 &lt;td>&lt;a href="https://spark.apache.org/docs/latest/api/java/org/apache/spark/SparkContext.html#hadoopConfiguration--">hadoopConfiguration&lt;/a> (Access through &lt;code>sc._jsc&lt;/code> with Py4J)
 and &lt;a href="https://spark.apache.org/docs/latest/api/python/pyspark.streaming.html#pyspark.streaming.StreamingContext.textFileStream">textFileStream&lt;/a>
@@ -3190,7 +3247,7 @@ and &lt;a href="https://spark.apache.org/docs/latest/api/python/pyspark.streamin
 &lt;/td>
 &lt;td>Google Cloud Storage
 &lt;/td>
-&lt;td>&lt;a href="https://beam.apache.org/releases/pydoc/2.26.0/apache_beam.io.gcp.gcsio.html">io.gcp.gcsio&lt;/a>
+&lt;td>&lt;a href="https://beam.apache.org/releases/pydoc/2.27.0/apache_beam.io.gcp.gcsio.html">io.gcp.gcsio&lt;/a>
 &lt;/td>
 &lt;td rowspan="2" >&lt;a href="https://spark.apache.org/docs/latest/api/python/pyspark.streaming.html#pyspark.streaming.StreamingContext.textFileStream">textFileStream&lt;/a>
 &lt;/td>
@@ -3222,7 +3279,7 @@ and &lt;a href="https://spark.apache.org/docs/latest/api/python/pyspark.streamin
 &lt;tr>
 &lt;td>Cloud Pub/Sub
 &lt;/td>
-&lt;td>&lt;a href="https://beam.apache.org/releases/pydoc/2.26.0/apache_beam.io.gcp.pubsub.html">io.gcp.pubsub&lt;/a>
+&lt;td>&lt;a href="https://beam.apache.org/releases/pydoc/2.27.0/apache_beam.io.gcp.pubsub.html">io.gcp.pubsub&lt;/a>
 &lt;/td>
 &lt;td>N/A
 &lt;/td>
@@ -4145,21 +4202,21 @@ has other limitations that make it insufficient for this task&lt;/em>).&lt;/p>
 &lt;/ul>
 &lt;h2 id="beam-source-api">Beam Source API&lt;/h2>
 &lt;p>Apache Beam historically provides a Source API
-(&lt;a href="https://beam.apache.org/releases/javadoc/2.26.0/org/apache/beam/sdk/io/BoundedSource.html">BoundedSource&lt;/a>
+(&lt;a href="https://beam.apache.org/releases/javadoc/2.27.0/org/apache/beam/sdk/io/BoundedSource.html">BoundedSource&lt;/a>
 and
-&lt;a href="https://beam.apache.org/releases/javadoc/2.26.0/org/apache/beam/sdk/io/UnboundedSource.html">UnboundedSource&lt;/a>) which does
+&lt;a href="https://beam.apache.org/releases/javadoc/2.27.0/org/apache/beam/sdk/io/UnboundedSource.html">UnboundedSource&lt;/a>) which does
 not have these limitations and allows development of efficient data sources for
 batch and streaming systems. Pipelines use this API via the
-&lt;a href="https://beam.apache.org/releases/javadoc/2.26.0/org/apache/beam/sdk/io/Read.html">&lt;code>Read.from(Source)&lt;/code>&lt;/a> built-in &lt;code>PTransform&lt;/code>.&lt;/p>
+&lt;a href="https://beam.apache.org/releases/javadoc/2.27.0/org/apache/beam/sdk/io/Read.html">&lt;code>Read.from(Source)&lt;/code>&lt;/a> built-in &lt;code>PTransform&lt;/code>.&lt;/p>
 &lt;p>The Source API is largely similar to that of most other data processing
 frameworks, and allows the system to read data in parallel using multiple
 workers, as well as checkpoint and resume reading from an unbounded data source.
 Additionally, the Beam
-&lt;a href="https://beam.apache.org/releases/javadoc/2.26.0/org/apache/beam/sdk/io/BoundedSource.html">&lt;code>BoundedSource&lt;/code>&lt;/a>
+&lt;a href="https://beam.apache.org/releases/javadoc/2.27.0/org/apache/beam/sdk/io/BoundedSource.html">&lt;code>BoundedSource&lt;/code>&lt;/a>
 API provides advanced features such as progress reporting and &lt;a href="/blog/2016/05/18/splitAtFraction-method.html">dynamic
 rebalancing&lt;/a>
 (which together enable autoscaling), and
-&lt;a href="https://beam.apache.org/releases/javadoc/2.26.0/org/apache/beam/sdk/io/UnboundedSource.html">&lt;code>UnboundedSource&lt;/code>&lt;/a> supports
+&lt;a href="https://beam.apache.org/releases/javadoc/2.27.0/org/apache/beam/sdk/io/UnboundedSource.html">&lt;code>UnboundedSource&lt;/code>&lt;/a> supports
 reporting the source&amp;rsquo;s watermark and backlog &lt;em>(until SDF, we believed that
 &amp;ldquo;batch&amp;rdquo; and &amp;ldquo;streaming&amp;rdquo; data sources are fundamentally different and thus
 require fundamentally different APIs)&lt;/em>.&lt;/p>
@@ -5325,64 +5382,6 @@ several times larger than before graduation.&lt;/p>
 &lt;p>Hopefully these perspectives entice you to join us on this exciting ride, either
 as a user or a contributor, as we work towards our first release with API
 stability. If you’d like to try out Apache Beam today, check out the latest
-&lt;a href="/get-started/downloads/">0.4.0 release&lt;/a>. We welcome
-contribution and participation from anyone through our mailing lists, issue
-tracker, pull requests, and events.&lt;/p></description></item><item><title>Blog: Apache Beam established as a new top-level project</title><link>/blog/beam-graduates/</link><pubDate>Tue, 10 Jan 2017 00:00:01 -0800</pubDate><guid>/blog/beam-graduates/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>Today, the Apache Software Foundation &lt;a href="https://blogs.apache.org/foundation/entry/the-apache-software-foundation-announces">announced&lt;/a>
-that Apache Beam has successfully graduated from incubation, becoming a new
-Top-Level Project at the foundation and signifying that its &amp;ldquo;community and
-products have been well-governed under the foundation’s meritocratic process
-and principles&amp;rdquo;.&lt;/p>
-&lt;p>Graduation is an exciting milestone for Apache Beam. Becoming a top-level
-project is a recognition of the amazing growth of the Apache Beam community,
-both in terms of size and diversity. It is fantastic to see ever-increasing
-participation on our development and user mailing lists, in pull requests,
-and at conferences and meetups. Contributions of additional runners and IO
-connectors further show the significant interest from other projects and
-organizations in being part of our growing community.&lt;/p>
-&lt;p>Although graduation is a statement about community, our technical progress has
-also been impressive. We started with code donations from several companies
-that were tailored with a specific vendor and scenario in mind and had fragile
-component boundaries. The whole community worked extremely hard over the past
-year to refactor the codebase and documentation into a truly vendor-neutral and
-extensible framework. We have established an impressive engineering system and
-processes that promote test-driven development. This concerted focus on quality
-and execution excellence enabled us to publish four releases, each significantly
-better than the previous.&lt;/p>
-&lt;p>Going forward, we will continue to extend the core abstractions to distill
-additional complex data processing patterns into intuitive APIs, and, at the
-same time, enhance the ability to interconnect additional storage/messaging
-systems and execution engines. Together, we are excited to push forward the
-state of the art in distributed data processing.&lt;/p>
-&lt;p>This is also an opportunity to thank those who helped and supported us reaching
-this milestone. None of this would be possible without the Apache Software
-Foundation and its amazing volunteers who have wholeheartedly welcomed us into
-the family. In particular, we’d like to thank the Apache Incubator community
-for their guidance producing releases and following processes. We are especially
-thankful to the Apache Infra team for their assistance establishing Beam’s
-engineering system, particularly in the areas of testing infrastructure and
-development productivity.&lt;/p>
-&lt;p>On behalf of the whole Apache Beam community, thank you to our incubation
-mentors Ted Dunning, Venkatesh Seetharam, and, previously, Bertrand Delacretaz
-and Jim Jagielski, for teaching us the Apache Way and guiding us through
-incubation. In particular, special thanks goes to our incubation champion and
-mentor Jean-Baptiste Onofré, whose extraordinary help, day after day, was
-instrumental in getting us here, and who continues as an active code contributor
-and a member of the project management committee.&lt;/p>
-&lt;p>Please consider joining us, whether as a user or a contributor, as we work
-towards our first release with API stability. If you’d like to try out Apache
-Beam today, check out the latest
 &lt;a href="/get-started/downloads/">0.4.0 release&lt;/a>. We welcome
 contribution and participation from anyone through our mailing lists, issue
 tracker, pull requests, and events.&lt;/p></description></item></channel></rss>
