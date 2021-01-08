@@ -101,7 +101,7 @@ class BeamModulePlugin implements Plugin<Project> {
     boolean checkerTooSlowOnTests = false
 
     /** Controls whether the dependency analysis plugin is enabled. */
-    boolean enableStrictDependencies = true
+    boolean enableStrictDependencies = false
 
     /** Override the default "beam-" + `dash separated path` archivesBaseName. */
     String archivesBaseName = null
