@@ -69,6 +69,7 @@ class JulHandlerPrintStreamAdapterFactory {
     private int carryOverBytes;
     private byte[] carryOverByteArray;
 
+    @SuppressWarnings("ForbidDefaultCharset")
     private JulHandlerPrintStream(Handler handler, String loggerName, Level logLevel)
         throws UnsupportedEncodingException {
       super(
