@@ -88,6 +88,14 @@ versions denoted `0.x.y`.
 
 ## Releases
 
+### 2.27.0 (2020-12-22)
+Official [source code download](http://www.apache.org/dyn/closer.cgi/beam/2.27.0/apache-beam-2.27.0-source-release.zip).
+[SHA-512](https://downloads.apache.org/beam/2.27.0/apache-beam-2.27.0-source-release.zip.sha512).
+[signature](https://downloads.apache.org/beam/2.27.0/apache-beam-2.27.0-source-release.zip.asc).
+
+[Release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12349380).
+[Blog post](/blog/beam-2.27.0).
+
 ### 2.26.0 (2020-12-11)
 Official [source code download](http://www.apache.org/dyn/closer.cgi/beam/2.26.0/apache-beam-2.26.0-source-release.zip).
 [SHA-512](https://downloads.apache.org/beam/2.26.0/apache-beam-2.26.0-source-release.zip.sha512).
