@@ -16,7 +16,7 @@
 -->
   <modelVersion>4.0.0</modelVersion>
   <groupId>org.apache.beam</groupId>
-  <artifactId>beam-sdks-java-bom</artifactId>
+  <artifactId>${artifactId}</artifactId>
   <version>${version}</version>
   <packaging>pom</packaging>
   <url>http://beam.apache.org</url>
@@ -71,11 +71,13 @@
   </issueManagement>
   <dependencyManagement>
     <dependencies>
-    <% modules.each { moduleName -> %>
+    <% modules.each { module -> %>
       <dependency>
-        <groupId>org.apache.beam</groupId>
-        <artifactId>${moduleName}</artifactId>
-        <version>${version}</version>
+        <groupId>${module.groupId}</groupId>
+        <artifactId>${module.artifactId}</artifactId>
+        <version>${module.version}</version>
+        <% if (module.isPom) { %><type>pom</type>
+        <scope>import</scope><% } %>
       </dependency>
     <% } %>
     </dependencies>
