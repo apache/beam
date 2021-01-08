@@ -37,7 +37,6 @@ from typing import Sequence
 from typing import Tuple
 from typing import Type
 from typing import TypeVar
-from typing import Union
 from typing import overload
 
 import google.protobuf.wrappers_pb2
@@ -88,6 +87,7 @@ __all__ = [
     'NullableCoder',
     'PickleCoder',
     'ProtoCoder',
+    'ShardedKeyCoder',
     'SingletonCoder',
     'StrUtf8Coder',
     'TimestampCoder',
@@ -358,26 +358,17 @@ class Coder(object):
 
   @classmethod
   def from_runner_api(cls, coder_proto, context):
-    # type: (Type[CoderT], beam_runner_api_pb2.Coder, PipelineContext) -> Union[CoderT, ExternalCoder]
+    # type: (Type[CoderT], beam_runner_api_pb2.Coder, PipelineContext) -> CoderT
 
     """Converts from an FunctionSpec to a Fn object.
 
     Prefer registering a urn with its parameter type and constructor.
     """
-    if (context.allow_proto_holders and
-        coder_proto.spec.urn not in cls._known_urns):
-      # We hold this in proto form since there's no coder available in Python
-      # SDK.
-      # This is potentially a coder that is only available in an external SDK.
-      return ExternalCoder(coder_proto)
-    else:
-      parameter_type, constructor = cls._known_urns[coder_proto.spec.urn]
-      return constructor(
-          proto_utils.parse_Bytes(coder_proto.spec.payload, parameter_type), [
-              context.coders.get_by_id(c)
-              for c in coder_proto.component_coder_ids
-          ],
-          context)
+    parameter_type, constructor = cls._known_urns[coder_proto.spec.urn]
+    return constructor(
+        proto_utils.parse_Bytes(coder_proto.spec.payload, parameter_type),
+        [context.coders.get_by_id(c) for c in coder_proto.component_coder_ids],
+        context)
 
   def to_runner_api_parameter(self, context):
     # type: (Optional[PipelineContext]) -> Tuple[str, Any, Sequence[Coder]]
@@ -1485,6 +1476,21 @@ class ShardedKeyCoder(FastCoder):
         ],
     }
 
+  def to_type_hint(self):
+    from apache_beam.typehints import sharded_key_type
+    return sharded_key_type.ShardedKeyTypeConstraint(
+        self._key_coder.to_type_hint())
+
+  @staticmethod
+  def from_type_hint(typehint, registry):
+    from apache_beam.typehints import sharded_key_type
+    if isinstance(typehint, sharded_key_type.ShardedKeyTypeConstraint):
+      return ShardedKeyCoder(registry.get_coder(typehint.key_type))
+    else:
+      raise ValueError((
+          'Expected an instance of ShardedKeyTypeConstraint'
+          ', but got a %s' % typehint))
+
   def __eq__(self, other):
     return type(self) == type(other) and self._key_coder == other._key_coder
 
@@ -1494,50 +1500,3 @@ class ShardedKeyCoder(FastCoder):
 
 Coder.register_structured_urn(
     common_urns.coders.SHARDED_KEY.urn, ShardedKeyCoder)
-
-
-class CoderElementType(typehints.TypeConstraint):
-  """An element type that just holds a coder."""
-  def __init__(self, coder):
-    self.coder = coder
-
-
-class ExternalCoder(Coder):
-  """A `Coder` that holds a runner API `Coder` proto.
-
-  This is used for coders for which corresponding objects cannot be
-  initialized in Python SDK. For example, coders for remote SDKs that may
-  be available in Python SDK transform graph when expanding a cross-language
-  transform.
-  """
-  def __init__(self, coder_proto):
-    self._coder_proto = coder_proto
-
-  def as_cloud_object(self, coders_context=None):
-    if not coders_context:
-      raise Exception(
-          'coders_context must be specified to correctly encode external coders'
-      )
-    coder_id = coders_context.get_by_proto(self._coder_proto, deduplicate=True)
-
-    # 'kind:external' is just a placeholder kind. Dataflow will get the actual
-    # coder from pipeline proto using the pipeline_proto_coder_id property.
-    return {'@type': 'kind:external', 'pipeline_proto_coder_id': coder_id}
-
-  @staticmethod
-  def from_type_hint(typehint, unused_registry):
-    if isinstance(typehint, CoderElementType):
-      return typehint.coder
-    else:
-      raise ValueError((
-          'Expected an instance of CoderElementType'
-          ', but got a %s' % typehint))
-
-  def to_runner_api_parameter(self, context):
-    return (
-        self._coder_proto.spec.urn,
-        self._coder_proto.spec.payload,
-        self._coder_proto.component_coder_ids)
-
-  def to_type_hint(self):
-    return CoderElementType(self)

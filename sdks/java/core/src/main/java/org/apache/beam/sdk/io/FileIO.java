@@ -562,9 +562,9 @@ public class FileIO {
     /**
      * See {@link MatchConfiguration#continuously}. The returned {@link PCollection} is unbounded.
      *
-     * <p>This works only in runners supporting {@link Experimental.Kind#SPLITTABLE_DO_FN}.
+     * <p>This works only in runners supporting splittable {@link
+     * org.apache.beam.sdk.transforms.DoFn}.
      */
-    @Experimental(Kind.SPLITTABLE_DO_FN)
     public Match continuously(
         Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {
       return withConfiguration(getConfiguration().continuously(pollInterval, terminationCondition));
@@ -613,7 +613,6 @@ public class FileIO {
     }
 
     /** Like {@link Match#continuously}. */
-    @Experimental(Kind.SPLITTABLE_DO_FN)
     public MatchAll continuously(
         Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {
       return withConfiguration(getConfiguration().continuously(pollInterval, terminationCondition));

@@ -1,0 +1,229 @@
+/*!
+ *  Licensed to the Apache Software Foundation (ASF) under one or more
+ *  contributor license agreements.  See the NOTICE file distributed with
+ *  this work for additional information regarding copyright ownership.
+ *  The ASF licenses this file to You under the Apache License, Version 2.0
+ *  (the "License"); you may not use this file except in compliance with
+ *  the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+@import "media";
+
+.arrow-list {
+  margin-top: 26px;
+  ul {
+    font-size: 16px;
+    font-weight: normal;
+    line-height: 1.63;
+    letter-spacing: 0.43px;
+    position: relative;
+    li:before {
+      content: "\2192";
+      position: absolute;
+      color: #ff6d05;
+      font-size: 24px;
+      line-height: 20px;
+      left: 0;
+    }
+    li {
+      list-style-type: none;
+      list-style-position: outside;
+      margin-bottom: 6px;
+      p {
+        margin: 0;
+      }
+    }
+  }
+}
+.arrow-lists-desktop {
+  margin-top: 36px;
+}
+.arrow-lists-mobile {
+  display: none;
+  .arrow-list-header {
+    color: #333333;
+    text-decoration: none;
+    display: flex;
+    p {
+      font-size: 24px;
+      line-height: 1.25;
+      font-weight: 500;
+      letter-spacing: normal;
+      margin: 20px 0;
+    }
+    img {
+      margin-top: 17px;
+      width: 18px;
+      height: 18px;
+      padding-right: 16px;
+      transform: rotate(-90deg);
+    }
+  }
+  .rotate {
+    img {
+      transform: rotate(0deg);
+      margin-top: 26px;
+    }
+  }
+}
+@media (max-width: $mobile) {
+  .arrow-lists-desktop {
+    display: none;
+  }
+  .arrow-lists-mobile {
+    display: block;
+  }
+}
+.list {
+  margin-top: 32px;
+  max-width: 640px;
+}
+.icon-list {
+  .list-item {
+    display: flex;
+    margin-bottom: 31px;
+    position: relative;
+
+    img {
+      position: absolute;
+      top: 7px;
+      z-index: 2;
+    }
+    .reverse {
+      transform: rotate(-180deg);
+    }
+
+    .cirkle {
+      width: 24px;
+      height: 24px;
+      background: #ff6d05;
+      border-radius: 50%;
+      text-align: center;
+      z-index: 5;
+      position: relative;
+      i {
+        vertical-align: bottom;
+        color: #fff;
+      }
+    }
+    .list-item-icon {
+      width: 44px;
+      height: 44px;
+      display: block;
+      margin-right: 25px;
+    }
+    .list-item-header {
+      font-size: 22px;
+      font-weight: 500;
+      letter-spacing: normal;
+      line-height: 1.36;
+      margin-top: 10px;
+      @media (max-width: $mobile) {
+        font-weight: 500;
+      }
+    }
+  }
+  .pillars-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 14px;
+    .pillars-item-icon {
+      margin-right: 28px;
+    }
+
+    .pillars-item-description {
+      width: 100%;
+      max-width: 684px;
+
+      .pillars-item-header {
+        font-size: 16px;
+        font-weight: bold;
+        line-height: 1.2;
+        letter-spacing: 0.43px;
+        margin-bottom: 6px;
+      }
+
+      .pillars-item-text {
+        font-size: 14px;
+        font-weight: normal;
+        line-height: 1.57;
+        letter-spacing: 0.43px;
+      }
+    }
+  }
+}
+.documentation-list {
+  padding-left: 12px;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  .row {
+    display: flex;
+    flex-direction: column;
+    margin-top: 63px;
+    @media (max-width: $mobile) {
+      max-width: 260px;
+    }
+
+    .item-icon {
+      height: 93px;
+      max-width: 260px;
+      display: flex;
+      align-items: center;
+      @media (max-width: $mobile) {
+        justify-content: center;
+      }
+    }
+    a {
+      font-size: 16px;
+      font-weight: bold;
+      line-height: 1.63;
+      letter-spacing: 0.43px;
+      color: #333333;
+    }
+    .item-description {
+      width: 260px;
+      margin-right: 32px;
+      margin-top: 20px;
+      @media (max-width: $mobile) {
+        margin-right: 0;
+        width: auto;
+      }
+    }
+  }
+  .collapsable-list {
+    margin: 52px 0;
+    a {
+      font-size: 14px;
+      font-weight: bold;
+      font-stretch: normal;
+      font-style: normal;
+      line-height: 1.14;
+      letter-spacing: 0.6px;
+      color: #f26628;
+    }
+    li {
+      a {
+        font-size: 16px;
+        line-height: 1.63;
+        letter-spacing: 0.43px;
+        color: #333333;
+      }
+    }
+  }
+}
+.mobile-column {
+  @media (max-width: $mobile) {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+}

@@ -57,26 +57,22 @@
 {{ end }}
 
 {{ define "pillars-section" }}
-  <div class="pillars">
-    <h2 class="pillars-title">
+  <div class="pillars section">
+    <div class="pillars__title">
       {{ T "home-pillars-title" }}
-    </h2>
-    <div class="pillars-content">
+    </div>
+    <div class="pillars__cols">
       {{ $data := index $.Site.Data .Site.Language.Lang }}
       {{ range $pillar := $data.pillars }}
-          {{ partial "pillars/pillars-item" (dict "logo" $pillar.icon  "header" $pillar.title "text" $pillar.body) }}
-      {{ end }}
-    </div>
-    <div class="pillars-social">
-      <div class="pillars-social-icons">
-        {{ $data := index $.Site.Data .Site.Language.Lang }}
-        {{ range $pillars_social := $data.pillars_social }}
-            {{ partial "pillars/pillars-social" (dict "icon" $pillars_social.icon  "url" $pillars_social.url "name" $pillars_social.name) }}
-        {{ end }}
+      <div class="pillars__cols__col">
+        <div class="pillars__cols__col__title">
+          {{ $pillar.title }}
+        </div>
+        <div class="pillars__cols__col__body">
+          {{ $pillar.body }}
+        </div>
       </div>
-      <p class="pillars-social-text">
-        {{ T "home-pillars-social-text" }}
-      </p>
+      {{ end }}
     </div>
   </div>
 {{ end }}
@@ -89,79 +85,14 @@
   </div>
 {{ end }}
 
-{{/*
-  TODO:
-    This is the implementation of the design.
-    The event sync functionality will be implemented when we have the event page.
-*/}}
-{{ define "calendar-section" }}
-  <div class="calendar">
-    <h2 class="calendar-title">
-      {{ T "home-calendar-title" }}
-    </h2>
-    <div class="calendar-content">
-      <a href="#">
-        <div class="calendar-card-big calendar-card-big-left">
-            <div class="calendar-category">
-              <p class="calendar-category-tag">{{ T "home-calendar-category-tag-first" }}</p>
-              <p class="calendar-category-date">{{ T "home-calendar-category-date-first" }}</p>
-            </div>
-            <h4 class="calendar-card-big-title">
-              {{ T "home-calendar-card-title-first" }}
-            </h4>
-            <p class="calendar-card-author">{{ T "home-calendar-card-author-first" }}</p>
-        </div>
-      </a>
-      <div class="calendar-card-box">
-        <a href="#">
-          <div class="calendar-card-small">
-            <div class="calendar-category">
-              <p class="calendar-category-tag">{{ T "home-calendar-category-tag-second" }}</p>
-              <p class="calendar-category-date">{{ T "home-calendar-category-date-second" }}</p>
-            </div>
-            <h4 class="calendar-card-small-title">
-              {{ T "home-calendar-card-title-second" }}
-            </h4>
-            <p class="calendar-card-author">{{ T "home-calendar-card-author-second" }}</p>
-          </div>
-        </a>
-        <a href="#">
-          <div class="calendar-card-small">
-            <div class="calendar-category">
-              <p class="calendar-category-tag">{{ T "home-calendar-category-tag-third" }}</p>
-              <p class="calendar-category-date">{{ T "home-calendar-category-date-third" }}</p>
-            </div>
-            <h4 class="calendar-card-small-title">
-              {{ T "home-calendar-card-title-third" }}
-            </h4>
-            <p class="calendar-card-author">{{ T "home-calendar-card-author-third" }}</p>
-          </div>
-        </a>
-      </div>
-      <div class="calendar-card-big calendar-card-big-right">
-        <p class="calendar-card-event-title">{{ T "home-calendar-card-events-title" }}</p>
-        <div class="calendar-card-events">
-          {{ $data := index $.Site.Data .Site.Language.Lang }}
-          {{ range $event := $data.calendar_events }}
-              {{ partial "calendar/calendar-events" (dict "icon" $event.icon  "title" $event.title "place" $event.place "time" $event.time "url" $event.url) }}
-          {{ end }}
-        </div>
-        <a href="">
-          <button class="calendar-card-events-button"><span>{{ T "home-calendar-card-events-button" }}</span></button>
-        </a>
-      </div>
-    </div>
-  </div>
-{{ end }}
-
 {{ define "logos-section" }}
-  <div class="logos">
-    <div class="logos-title">
+  <div class="logos section">
+    <div class="logos__title">
       {{ T "home-logos-title" }}
     </div>
-    <div class="logos-logos">
+    <div class="logos__logos">
       {{ range $logo := $.Site.Data.works_with }}
-      <div class="logos-logo">
+      <div class="logos__logos__logo">
         <a href="{{ $logo.url }}"><img src="{{ $logo.image_url }}" alt="{{ $logo.title }}"></a>
       </div>
       {{ end }}

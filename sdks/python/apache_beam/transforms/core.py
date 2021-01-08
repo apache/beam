@@ -38,7 +38,6 @@ from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam import typehints
 from apache_beam.coders import typecoders
-from apache_beam.coders.coders import ExternalCoder
 from apache_beam.internal import pickler
 from apache_beam.internal import util
 from apache_beam.options.pipeline_options import TypeOptions
@@ -69,7 +68,6 @@ from apache_beam.typehints.decorators import with_input_types
 from apache_beam.typehints.decorators import with_output_types
 from apache_beam.typehints.trivial_inference import element_type
 from apache_beam.typehints.typehints import is_consistent_with
-from apache_beam.utils import proto_utils
 from apache_beam.utils import urns
 from apache_beam.utils.timestamp import Duration
 
@@ -220,7 +218,10 @@ class RestrictionProvider(object):
 
   To denote a ``DoFn`` class to be Splittable ``DoFn``, ``DoFn.process()``
   method of that class should have exactly one parameter whose default value is
-  an instance of ``RestrictionProvider``.
+  an instance of ``RestrictionParam``. This ``RestrictionParam`` can either be
+  constructed with an explicit ``RestrictionProvider``, or, if no
+  ``RestrictionProvider`` is provided, the ``DoFn`` itself must be a
+  ``RestrictionProvider``.
 
   The provided ``RestrictionProvider`` instance must provide suitable overrides
   for the following methods:
@@ -407,95 +408,6 @@ def get_function_args_defaults(f):
   return args, defaults
 
 
-class RunnerAPIPTransformHolder(PTransform):
-  """A `PTransform` that holds a runner API `PTransform` proto.
-
-  This is used for transforms, for which corresponding objects
-  cannot be initialized in Python SDK. For example, for `ParDo` transforms for
-  remote SDKs that may be available in Python SDK transform graph when expanding
-  a cross-language transform since a Python `ParDo` object cannot be generated
-  without a serialized Python `DoFn` object.
-  """
-  def __init__(self, proto, context):
-    self._proto = proto
-    self._context = context
-
-    # For ParDos with side-inputs, this will be populated after this object is
-    # created.
-    self.side_inputs = []
-    self.is_pardo_with_stateful_dofn = bool(self._get_pardo_state_specs())
-
-  def proto(self):
-    """Runner API payload for a `PTransform`"""
-    return self._proto
-
-  def to_runner_api(self, context, **extra_kwargs):
-    # TODO(BEAM-7850): no need to copy around Environment if it is a direct
-    #  attribute of PTransform.
-    id_to_proto_map = self._context.environments.get_id_to_proto_map()
-    for env_id in id_to_proto_map:
-      if env_id not in context.environments:
-        context.environments.put_proto(env_id, id_to_proto_map[env_id])
-      else:
-        env1 = id_to_proto_map[env_id]
-        env2 = context.environments[env_id]
-        assert env1.urn == env2.to_runner_api(context).urn, (
-            'Expected environments with the same ID to be equal but received '
-            'environments with different URNs '
-            '%r and %r',
-            env1.urn, env2.to_runner_api(context).urn)
-        assert env1.payload == env2.to_runner_api(context).payload, (
-            'Expected environments with the same ID to be equal but received '
-            'environments with different payloads '
-            '%r and %r',
-            env1.payload, env2.to_runner_api(context).payload)
-
-    def recursively_add_coder_protos(coder_id, old_context, new_context):
-      coder_proto = old_context.coders.get_proto_from_id(coder_id)
-      new_context.coders.put_proto(coder_id, coder_proto, True)
-      for component_coder_id in coder_proto.component_coder_ids:
-        recursively_add_coder_protos(
-            component_coder_id, old_context, new_context)
-
-    if common_urns.primitives.PAR_DO.urn == self._proto.urn:
-      # If a restriction coder has been set by an external SDK, we have to
-      # explicitly add it (and all component coders recursively) to the context
-      # to make sure that it does not get dropped by Python SDK.
-      par_do_payload = proto_utils.parse_Bytes(
-          self._proto.payload, beam_runner_api_pb2.ParDoPayload)
-      if par_do_payload.restriction_coder_id:
-        recursively_add_coder_protos(
-            par_do_payload.restriction_coder_id, self._context, context)
-    elif (common_urns.composites.COMBINE_PER_KEY.urn == self._proto.urn or
-          common_urns.composites.COMBINE_GLOBALLY.urn == self._proto.urn):
-      # We have to include coders embedded in `CombinePayload`.
-      combine_payload = proto_utils.parse_Bytes(
-          self._proto.payload, beam_runner_api_pb2.CombinePayload)
-      if combine_payload.accumulator_coder_id:
-        recursively_add_coder_protos(
-            combine_payload.accumulator_coder_id, self._context, context)
-
-    return self._proto
-
-  def get_restriction_coder(self):
-    # For some runners, restriction coder ID has to be provided to correctly
-    # encode ParDo transforms that are SDF.
-    if common_urns.primitives.PAR_DO.urn == self._proto.urn:
-      par_do_payload = proto_utils.parse_Bytes(
-          self._proto.payload, beam_runner_api_pb2.ParDoPayload)
-      if par_do_payload.restriction_coder_id:
-        restriction_coder_proto = self._context.coders.get_proto_from_id(
-            par_do_payload.restriction_coder_id)
-
-        return ExternalCoder(restriction_coder_proto)
-
-  def _get_pardo_state_specs(self):
-    if common_urns.primitives.PAR_DO.urn == self._proto.urn:
-      par_do_payload = proto_utils.parse_Bytes(
-          self._proto.payload, beam_runner_api_pb2.ParDoPayload)
-      return par_do_payload.state_specs
-
-
 class WatermarkEstimatorProvider(object):
   """Provides methods for generating WatermarkEstimator.
 
@@ -503,8 +415,11 @@ class WatermarkEstimatorProvider(object):
   information within an SDF.
 
   In order to make an SDF.process() access to the typical WatermarkEstimator,
-  the SDF author should pass a DoFn.WatermarkEstimatorParam with a default value
-  of one WatermarkEstimatorProvider instance.
+  the SDF author should have an argument whose default value is a
+  DoFn.WatermarkEstimatorParam instance.  This DoFn.WatermarkEstimatorParam
+  can either be constructed with an explicit WatermarkEstimatorProvider,
+  or, if no WatermarkEstimatorProvider is provided, the DoFn itself must
+  be a WatermarkEstimatorProvider.
   """
   def initial_estimator_state(self, element, restriction):
     """Returns the initial state of the WatermarkEstimator with given element
@@ -546,9 +461,10 @@ class _DoFnParam(object):
 
 class _RestrictionDoFnParam(_DoFnParam):
   """Restriction Provider DoFn parameter."""
-  def __init__(self, restriction_provider):
-    # type: (RestrictionProvider) -> None
-    if not isinstance(restriction_provider, RestrictionProvider):
+  def __init__(self, restriction_provider=None):
+    # type: (typing.Optional[RestrictionProvider]) -> None
+    if (restriction_provider is not None and
+        not isinstance(restriction_provider, RestrictionProvider)):
       raise ValueError(
           'DoFn.RestrictionParam expected RestrictionProvider object.')
     self.restriction_provider = restriction_provider
@@ -604,12 +520,15 @@ class _BundleFinalizerParam(_DoFnParam):
 
 
 class _WatermarkEstimatorParam(_DoFnParam):
-  """WatermarkEstomator DoFn parameter."""
-  def __init__(self, watermark_estimator_provider):
-    # type: (WatermarkEstimatorProvider) -> None
-    if not isinstance(watermark_estimator_provider, WatermarkEstimatorProvider):
+  """WatermarkEstimator DoFn parameter."""
+  def __init__(
+      self,
+      watermark_estimator_provider: typing.
+      Optional[WatermarkEstimatorProvider] = None):
+    if (watermark_estimator_provider is not None and not isinstance(
+        watermark_estimator_provider, WatermarkEstimatorProvider)):
       raise ValueError(
-          'DoFn._WatermarkEstimatorParam expected'
+          'DoFn.WatermarkEstimatorParam expected'
           'WatermarkEstimatorProvider object.')
     self.watermark_estimator_provider = watermark_estimator_provider
     self.param_id = 'WatermarkEstimatorProvider'
@@ -643,6 +562,7 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   # DoFn.KeyParam
   StateParam = _StateDoFnParam
   TimerParam = _TimerDoFnParam
+  DynamicTimerTagParam = _DoFnParam('DynamicTimerTagParam')
 
   DoFnProcessParams = [
       ElementParam,
@@ -654,7 +574,7 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
       BundleFinalizerParam,
       KeyParam,
       StateParam,
-      TimerParam
+      TimerParam,
   ]
 
   RestrictionParam = _RestrictionDoFnParam
@@ -682,23 +602,30 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     This is invoked by ``DoFnRunner`` for each element of a input
     ``PCollection``.
 
-    If specified, following default arguments are used by the ``DoFnRunner`` to
-    be able to pass the parameters correctly.
+    The following parameters can be used as default values on ``process``
+    arguments to indicate that a DoFn accepts the corresponding parameters. For
+    example, a DoFn might accept the element and its timestamp with the
+    following signature::
 
-    ``DoFn.ElementParam``: element to be processed, should not be mutated.
-    ``DoFn.SideInputParam``: a side input that may be used when processing.
-    ``DoFn.TimestampParam``: timestamp of the input element.
-    ``DoFn.WindowParam``: ``Window`` the input element belongs to.
-    ``DoFn.TimerParam``: a ``userstate.RuntimeTimer`` object defined by the spec
-    of the parameter.
-    ``DoFn.StateParam``: a ``userstate.RuntimeState`` object defined by the spec
-    of the parameter.
-    ``DoFn.KeyParam``: key associated with the element.
-    ``DoFn.RestrictionParam``: an ``iobase.RestrictionTracker`` will be
-    provided here to allow treatment as a Splittable ``DoFn``. The restriction
-    tracker will be derived from the restriction provider in the parameter.
-    ``DoFn.WatermarkEstimatorParam``: a function that can be used to track
-    output watermark of Splittable ``DoFn`` implementations.
+      def process(element=DoFn.ElementParam, timestamp=DoFn.TimestampParam):
+        ...
+
+    The full set of parameters is:
+
+    - ``DoFn.ElementParam``: element to be processed, should not be mutated.
+    - ``DoFn.SideInputParam``: a side input that may be used when processing.
+    - ``DoFn.TimestampParam``: timestamp of the input element.
+    - ``DoFn.WindowParam``: ``Window`` the input element belongs to.
+    - ``DoFn.TimerParam``: a ``userstate.RuntimeTimer`` object defined by the
+      spec of the parameter.
+    - ``DoFn.StateParam``: a ``userstate.RuntimeState`` object defined by the
+      spec of the parameter.
+    - ``DoFn.KeyParam``: key associated with the element.
+    - ``DoFn.RestrictionParam``: an ``iobase.RestrictionTracker`` will be
+      provided here to allow treatment as a Splittable ``DoFn``. The restriction
+      tracker will be derived from the restriction provider in the parameter.
+    - ``DoFn.WatermarkEstimatorParam``: a function that can be used to track
+      output watermark of Splittable ``DoFn`` implementations.
 
     Args:
       element: The element to be processed
@@ -1148,10 +1075,7 @@ class CallableWrapperCombineFn(CombineFn):
       return [self._fn(accumulator, *args, **kwargs)]
 
   def extract_output(self, accumulator, *args, **kwargs):
-    if len(accumulator) == 1:
-      return accumulator[0]
-    else:
-      return self._fn(accumulator, *args, **kwargs)
+    return self._fn(accumulator, *args, **kwargs)
 
   def default_type_hints(self):
     fn_hints = get_type_hints(self._fn)
@@ -1228,10 +1152,7 @@ class NoSideInputsCallableWrapperCombineFn(CallableWrapperCombineFn):
       return [self._fn(accumulator)]
 
   def extract_output(self, accumulator):
-    if len(accumulator) == 1:
-      return accumulator[0]
-    else:
-      return self._fn(accumulator)
+    return self._fn(accumulator)
 
 
 class PartitionFn(WithTypeHints):

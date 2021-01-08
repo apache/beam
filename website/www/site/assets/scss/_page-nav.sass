@@ -16,22 +16,24 @@
  */
 
 .page-nav
-  border-left: 3px solid $color-brand
   overflow-y: auto
   max-height: calc(100vh - 130px)
-  padding: 0 15px
   position: fixed
-  width: 240px
+  width: 248px
+  margin-left: 30px
 
   li
     display: block
     width: 100%
+    min-height: 36px
+    position:relative
 
     a
       color: $color-dark
       display: block
       font-size: 12px
       padding: 5px
+      letter-spacing: 0.43px
 
     span
       font-size: 12
@@ -40,9 +42,47 @@
       padding-left: 20px
 
   .nav
-    > li.active
+    img
+      height: 14px
+      width: 10px
+      vertical-align: text-bottom
+      transition: .3s
+      margin-right: 8px
+
+    .rotate
+      transform: rotate(-90deg)
+      transition: .3s
+
+    > li
+      padding: 0 15px
+      border-left: 3px solid #d8d8d8
+      > :hover
+            border-radius: 8px
+
+      > ul
+        > li
+          > :hover
+              border-radius: 8px
+              background-color: #f2f2f2
+              text-decoration: none
+
+    .chosen
+      position: relative
+      ::before
+        content: ''
+        position: absolute
+        top: 0
+        left: -18px
+        height: 36px
+        border-left: 3px solid #ff6d05
       a
         text-decoration: underline
+        font-weight: 500;
+
+    .active
+      .chosen
+        ::before
+          left: -38px
 
   @media (max-width: $ak-breakpoint-lg)
     margin-top: 0
@@ -54,9 +94,8 @@
 
   #TableOfContents
     > ul
-      padding-left: 0
       margin-bottom: 0
       ul
-        padding-left: 20
+
         ul
           display: none

@@ -17,9 +17,24 @@ $(document).ready(function() {
 
     var CONST = {
       DESKTOP_BREAKPOINT: 1024,
-      PAGENAV_WIDTH: 240
+      PAGENAV_WIDTH: 248
     };
-
+    function checkList () {
+          var items = $(".page-nav > #TableOfContents li");
+          if (items && items.length > 0) {
+            for(var i=0; i<items.length; i++){
+              if(items[i].classList.contains('chosen')){
+                items[i].classList.remove('chosen');
+              };
+              if(items[i].classList.contains('active') || items[i].classList[0] == 'active'){
+                if($('> a',items[i]).length>0){
+                  if(!items[i].querySelector('a').getAttribute('aria-expanded') || items[i].querySelector('a').getAttribute('aria-expanded') == 'false'){
+                      items[i].classList.add('chosen');}
+                  }
+                }
+              }
+            }
+    };
     return {
       "idPageNav": idPageNav,
       "idMainContainer": idMainContainer,
@@ -48,10 +63,43 @@ $(document).ready(function() {
           _self.setPageNav();
         });
       },
+      "setActiveItemClassEvent": function () {
+        $("." + idSectionNav + " a").click(function (e) {
+            var currentItem = document.querySelector(classNavActiveItem);
+            if (currentItem)
+                currentItem.classList.remove(CONST.ACTIVE_CLASS);
+            e.target.classList.add(CONST.ACTIVE_CLASS);
+        });
+    },
+
+    "displayActiveItem": function () {
+        document.querySelector(".page-nav > #TableOfContents").addEventListener('click', function(){
+          setTimeout(checkList,50)
+        });
+        document.addEventListener('scroll', checkList);
+        var items = $(".page-nav > #TableOfContents li");
+        var img = document.createElement("img");
+        img.src = "/images/arrow-expandable.svg";
+        img.classList="rotate";
+        for(i=0; i<items.length; i++){
+          if(items[i].querySelector('ul')){
+            if(items[i].querySelector(':first-child').tagName != "UL"){
+              items[i].querySelector('a').dataset.target ="#collapse"+i;
+              items[i].querySelector('a').dataset.toggle ="collapse";
+              items[i].querySelector('ul').classList.add('collapse');
+              items[i].querySelector('ul').id = "collapse"+i;
+              items[i].querySelector('a').insertAdjacentElement('afterbegin',img);
+              items[i].querySelector('a').addEventListener('click', function(){
+                this.querySelector('img').classList.toggle('rotate');
+          })
+          }}
+        }
+    },
 
       "init": function() {
         this.bindEvents();
         this.setPageNav();
+        this.displayActiveItem();
       }
     }
   }

@@ -22,14 +22,14 @@ import com.google.api.core.ApiFutureCallback;
 import com.google.api.core.ApiFutures;
 import com.google.api.core.ApiService.Listener;
 import com.google.api.core.ApiService.State;
+import com.google.api.gax.rpc.ApiException;
 import com.google.cloud.pubsublite.Message;
 import com.google.cloud.pubsublite.PublishMetadata;
+import com.google.cloud.pubsublite.internal.CheckedApiException;
 import com.google.cloud.pubsublite.internal.ExtractStatus;
 import com.google.cloud.pubsublite.internal.Publisher;
 import com.google.cloud.pubsublite.proto.PubSubMessage;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
-import io.grpc.StatusException;
-import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.concurrent.Executor;
@@ -54,7 +54,7 @@ class PubsubLiteSink extends DoFn<PubSubMessage, Void> {
   private transient int outstanding;
 
   @GuardedBy("this")
-  private transient Deque<StatusException> errorsSinceLastFinish;
+  private transient Deque<CheckedApiException> errorsSinceLastFinish;
 
   private static final Executor executor = Executors.newCachedThreadPool();
 
@@ -63,12 +63,12 @@ class PubsubLiteSink extends DoFn<PubSubMessage, Void> {
   }
 
   @Setup
-  public void setup() throws StatusException {
+  public void setup() throws ApiException {
     Publisher<PublishMetadata> publisher;
     if (options.usesCache()) {
       publisher = PerServerPublisherCache.PUBLISHER_CACHE.get(options);
     } else {
-      publisher = options.getPublisher();
+      publisher = Publishers.newPublisher(options);
     }
     synchronized (this) {
       outstanding = 0;
@@ -101,7 +101,8 @@ class PubsubLiteSink extends DoFn<PubSubMessage, Void> {
   }
 
   @ProcessElement
-  public synchronized void processElement(@Element PubSubMessage message) throws StatusException {
+  public synchronized void processElement(@Element PubSubMessage message)
+      throws CheckedApiException {
     ++outstanding;
     if (publisherOrError.getKind() == Kind.ERROR) {
       throw publisherOrError.error();
@@ -134,13 +135,12 @@ class PubsubLiteSink extends DoFn<PubSubMessage, Void> {
 
   // Intentionally don't flush on bundle finish to allow multi-sink client reuse.
   @FinishBundle
-  public synchronized void finishBundle()
-      throws StatusException, IOException, InterruptedException {
+  public synchronized void finishBundle() throws CheckedApiException, InterruptedException {
     while (outstanding > 0) {
       wait();
     }
     if (!errorsSinceLastFinish.isEmpty()) {
-      StatusException canonical = errorsSinceLastFinish.pop();
+      CheckedApiException canonical = errorsSinceLastFinish.pop();
       while (!errorsSinceLastFinish.isEmpty()) {
         canonical.addSuppressed(errorsSinceLastFinish.pop());
       }

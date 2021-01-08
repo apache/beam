@@ -52,6 +52,7 @@ var (
 	serviceAccountEmail  = flag.String("service_account_email", "", "Service account email (optional).")
 	numWorkers           = flag.Int64("num_workers", 0, "Number of workers (optional).")
 	maxNumWorkers        = flag.Int64("max_num_workers", 0, "Maximum number of workers during scaling (optional).")
+	diskSizeGb           = flag.Int64("disk_size_gb", 0, "Size of root disk for VMs, in GB (optional).")
 	autoscalingAlgorithm = flag.String("autoscaling_algorithm", "", "Autoscaling mode to use (optional).")
 	zone                 = flag.String("zone", "", "GCP zone (optional)")
 	network              = flag.String("network", "", "GCP network (optional)")
@@ -155,6 +156,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 		NoUsePublicIPs:      *noUsePublicIPs,
 		NumWorkers:          *numWorkers,
 		MaxNumWorkers:       *maxNumWorkers,
+		DiskSizeGb:          *diskSizeGb,
 		Algorithm:           *autoscalingAlgorithm,
 		MachineType:         *machineType,
 		Labels:              jobLabels,
@@ -204,8 +206,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 		return nil, nil
 	}
 
-	_, err = dataflowlib.Execute(ctx, model, opts, workerURL, jarURL, modelURL, *endpoint, *executeAsync)
-	return nil, err
+	return dataflowlib.Execute(ctx, model, opts, workerURL, jarURL, modelURL, *endpoint, *executeAsync)
 }
 func gcsRecorderHook(opts []string) perf.CaptureHook {
 	bucket, prefix, err := gcsx.ParseObject(opts[0])

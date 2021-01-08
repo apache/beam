@@ -31,7 +31,7 @@ how to implement Beam concepts in your pipelines.
 {{< language-switcher java py >}}
 
 {{< paragraph class="language-py" >}}
-The Python SDK supports Python 2.7, 3.5, 3.6, and 3.7. New Python SDK releases will stop supporting Python 2.7 in 2020 ([BEAM-8371](https://issues.apache.org/jira/browse/BEAM-8371)). For best results, use Beam with Python 3.
+The Python SDK supports Python 3.6, 3.7, and 3.8. Beam 2.24.0 was the last Python SDK release to support Python 2 and 3.5.
 {{< /paragraph >}}
 
 ## 1. Overview {#overview}
@@ -2511,7 +2511,7 @@ public class TransactionPojo {
   public final double purchaseAmount;
   @SchemaCreate
   public TransactionPojo(String bank, double purchaseAmount) {
-    this.bank = bank.
+    this.bank = bank;
     this.purchaseAmount = purchaseAmount;
   }
 }
@@ -3085,7 +3085,7 @@ The resulting schema is the following:
 </table>
 <br/>
 
-Each resulting row contains one Review and one Review that matched the join condition.
+Each resulting row contains one Transaction and one Review that matched the join condition.
 
 If the fields to match in the two schemas have different names, then the on function can be used. For example, if the
 Review schema named those fields differently than the Transaction schema, then we could write the following:

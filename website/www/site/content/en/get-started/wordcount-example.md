@@ -147,7 +147,7 @@ Pipeline p = Pipeline.create(options);
 {{< /highlight >}}
 
 {{< highlight go >}}
-p := beam.NewPipeline
+p := beam.NewPipeline()
 s := p.Root()
 {{< /highlight >}}
 

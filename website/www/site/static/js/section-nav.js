@@ -24,7 +24,7 @@ $(document).ready(function () {
         var CONST = {
             ACTIVE_CLASS: "active",
             EXPANDED_CLASS: "expanded",
-            DESKTOP_BREAKPOINT: 1024,
+            DESKTOP_BREAKPOINT: 1280,
             OPEN_CLASS: "open"
         };
 
@@ -101,15 +101,16 @@ $(document).ready(function () {
                 var sectionNavHeight = $(sectionNavEl).height();
                 var mainContent = $(".container-main-content");
 
-                mainContent.css({"min-height": sectionNavHeight});
-                sectionNavEl.css({"max-height": mainContent.css("height")});
+                //mainContent.css({"min-height": sectionNavHeight});
+                //sectionNavEl.css({"max-height": mainContent.css("height")});
 
                 $(window).resize(function () {
                     if ($(window).width() > CONST.DESKTOP_BREAKPOINT) {
                         var sectionNavHeight = $(sectionNavEl).height();
-                        $(".container-main-content").css({"min-height": sectionNavHeight});
+                        console.log(sectionNavHeight)
+                       // $(".container-main-content").css({"min-height": sectionNavHeight+200});
                     } else {
-                        $(".container-main-content").css({"min-height": ''});
+                        $(".container-main-content").css({"min-height": '100vh'});
                     }
                 });
 

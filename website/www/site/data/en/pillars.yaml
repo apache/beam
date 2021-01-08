@@ -12,13 +12,7 @@
 
 - title: Unified
   body: Use a single programming model for both batch and streaming use cases.
-  icon: icons/unified-icon.svg 
-- title: Extensible
-  body: Write and share new SDKs, IO connectors, and transformation libraries.
-  icon: icons/extensive-icon.svg
 - title: Portable
   body: Execute pipelines on multiple execution environments.
-  icon: icons/portable-icon.svg
-- title: Open Source
-  body: Use a single programming model for both batch and streaming use cases.
-  icon: icons/open-source-icon.svg
+- title: Extensible
+  body: Write and share new SDKs, IO connectors, and transformation libraries.
