@@ -213,7 +213,9 @@ INTERACTIVE_BEAM_TEST = [
     # notebok utils
     'nbformat>=5.0.5,<6',
     'nbconvert>=5.6.1,<6',
-    'jupyter-client>=6.1.2,<7',
+    # TODO(ningk): Remove the upper limit once
+    # https://github.com/jupyter/jupyter_client/issues/597 is fixed.
+    'jupyter-client>=6.1.2,<6.1.8',
     # headless chrome based integration tests
     'selenium>=3.141.0,<4',
     'needle>=0.5.0,<1',
