@@ -37,7 +37,10 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.Histogram;
 import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.values.FailsafeValueInSingleWindow;
@@ -235,15 +238,14 @@ class BatchedStreamingWrite<ErrorT, ElementT>
         BoundedWindow window,
         PaneInfo pane) {
       String tableSpec = element.getKey();
-      List<FailsafeValueInSingleWindow<TableRow, TableRow>> rows =
-          BigQueryHelpers.getOrCreateMapListValue(tableRows, tableSpec);
-      List<String> uniqueIds =
-          BigQueryHelpers.getOrCreateMapListValue(uniqueIdsForTableRows, tableSpec);
-
       TableRow tableRow = toTableRow.apply(element.getValue().tableRow);
       TableRow failsafeTableRow = toFailsafeTableRow.apply(element.getValue().tableRow);
-      rows.add(FailsafeValueInSingleWindow.of(tableRow, timestamp, window, pane, failsafeTableRow));
-      uniqueIds.add(element.getValue().uniqueId);
+      tableRows
+          .computeIfAbsent(tableSpec, k -> new ArrayList<>())
+          .add(FailsafeValueInSingleWindow.of(tableRow, timestamp, window, pane, failsafeTableRow));
+      uniqueIdsForTableRows
+          .computeIfAbsent(tableSpec, k -> new ArrayList<>())
+          .add(element.getValue().uniqueId);
     }
 
     /** Writes the accumulated rows into BigQuery with streaming API. */
@@ -284,6 +286,12 @@ class BatchedStreamingWrite<ErrorT, ElementT>
           (TableRowInfoCoder) inputCoder.getCoderArguments().get(1);
       PCollectionTuple result =
           input
+              // Apply a global window to avoid GroupIntoBatches below performs tiny grouping
+              // partitioned by windows.
+              .apply(
+                  Window.<KV<String, TableRowInfo<ElementT>>>into(new GlobalWindows())
+                      .triggering(DefaultTrigger.of())
+                      .discardingFiredPanes())
               // Group and batch table rows such that each batch has no more than
               // getMaxStreamingRowsToBatch rows. Also set a buffering time limit to avoid being
               // stuck at a partial batch forever, especially in a global window.
@@ -308,7 +316,7 @@ class BatchedStreamingWrite<ErrorT, ElementT>
       extends DoFn<KV<ShardedKey<String>, Iterable<TableRowInfo<ElementT>>>, Void> {
     @Setup
     public void setup() {
-      // record latency upto 60 seconds in the resolution of 20ms
+      // record latency up to 60 seconds in the resolution of 20ms
       histogram = Histogram.linear(0, 20, 3000);
       lastReportedSystemClockMillis = System.currentTimeMillis();
     }
@@ -325,7 +333,8 @@ class BatchedStreamingWrite<ErrorT, ElementT>
     public void processElement(
         @Element KV<ShardedKey<String>, Iterable<TableRowInfo<ElementT>>> input,
         BoundedWindow window,
-        ProcessContext context)
+        ProcessContext context,
+        MultiOutputReceiver out)
         throws InterruptedException {
       List<FailsafeValueInSingleWindow<TableRow, TableRow>> tableRows = new ArrayList<>();
       List<String> uniqueIds = new ArrayList<>();
@@ -343,7 +352,7 @@ class BatchedStreamingWrite<ErrorT, ElementT>
       flushRows(tableReference, tableRows, uniqueIds, options, failedInserts);
 
       for (ValueInSingleWindow<ErrorT> row : failedInserts) {
-        context.output(failedOutputTag, row.getValue());
+        out.get(failedOutputTag).output(row.getValue());
       }
 
       updateAndLogHistogram(options);

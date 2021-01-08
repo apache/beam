@@ -57,6 +57,7 @@ public class StreamingWriteTables<ElementT>
   private final boolean skipInvalidRows;
   private final boolean ignoreUnknownValues;
   private final boolean ignoreInsertIds;
+  private final boolean autoSharding;
   private final Coder<ElementT> elementCoder;
   private final SerializableFunction<ElementT, TableRow> toTableRow;
   private final SerializableFunction<ElementT, TableRow> toFailsafeTableRow;
@@ -69,6 +70,7 @@ public class StreamingWriteTables<ElementT>
         false, // skipInvalidRows
         false, // ignoreUnknownValues
         false, // ignoreInsertIds
+        false, // autoSharding
         null, // elementCoder
         null, // toTableRow
         null); // toFailsafeTableRow
@@ -81,6 +83,7 @@ public class StreamingWriteTables<ElementT>
       boolean skipInvalidRows,
       boolean ignoreUnknownValues,
       boolean ignoreInsertIds,
+      boolean autoSharding,
       Coder<ElementT> elementCoder,
       SerializableFunction<ElementT, TableRow> toTableRow,
       SerializableFunction<ElementT, TableRow> toFailsafeTableRow) {
@@ -90,6 +93,7 @@ public class StreamingWriteTables<ElementT>
     this.skipInvalidRows = skipInvalidRows;
     this.ignoreUnknownValues = ignoreUnknownValues;
     this.ignoreInsertIds = ignoreInsertIds;
+    this.autoSharding = autoSharding;
     this.elementCoder = elementCoder;
     this.toTableRow = toTableRow;
     this.toFailsafeTableRow = toFailsafeTableRow;
@@ -103,6 +107,7 @@ public class StreamingWriteTables<ElementT>
         skipInvalidRows,
         ignoreUnknownValues,
         ignoreInsertIds,
+        autoSharding,
         elementCoder,
         toTableRow,
         toFailsafeTableRow);
@@ -116,6 +121,7 @@ public class StreamingWriteTables<ElementT>
         skipInvalidRows,
         ignoreUnknownValues,
         ignoreInsertIds,
+        autoSharding,
         elementCoder,
         toTableRow,
         toFailsafeTableRow);
@@ -129,6 +135,7 @@ public class StreamingWriteTables<ElementT>
         skipInvalidRows,
         ignoreUnknownValues,
         ignoreInsertIds,
+        autoSharding,
         elementCoder,
         toTableRow,
         toFailsafeTableRow);
@@ -142,6 +149,7 @@ public class StreamingWriteTables<ElementT>
         skipInvalidRows,
         ignoreUnknownValues,
         ignoreInsertIds,
+        autoSharding,
         elementCoder,
         toTableRow,
         toFailsafeTableRow);
@@ -155,6 +163,7 @@ public class StreamingWriteTables<ElementT>
         skipInvalidRows,
         ignoreUnknownValues,
         ignoreInsertIds,
+        autoSharding,
         elementCoder,
         toTableRow,
         toFailsafeTableRow);
@@ -168,6 +177,21 @@ public class StreamingWriteTables<ElementT>
         skipInvalidRows,
         ignoreUnknownValues,
         ignoreInsertIds,
+        autoSharding,
+        elementCoder,
+        toTableRow,
+        toFailsafeTableRow);
+  }
+
+  StreamingWriteTables<ElementT> withAutoSharding(boolean autoSharding) {
+    return new StreamingWriteTables<>(
+        bigQueryServices,
+        retryPolicy,
+        extendedErrorInfo,
+        skipInvalidRows,
+        ignoreUnknownValues,
+        ignoreInsertIds,
+        autoSharding,
         elementCoder,
         toTableRow,
         toFailsafeTableRow);
@@ -181,6 +205,7 @@ public class StreamingWriteTables<ElementT>
         skipInvalidRows,
         ignoreUnknownValues,
         ignoreInsertIds,
+        autoSharding,
         elementCoder,
         toTableRow,
         toFailsafeTableRow);
@@ -195,6 +220,7 @@ public class StreamingWriteTables<ElementT>
         skipInvalidRows,
         ignoreUnknownValues,
         ignoreInsertIds,
+        autoSharding,
         elementCoder,
         toTableRow,
         toFailsafeTableRow);
@@ -209,6 +235,7 @@ public class StreamingWriteTables<ElementT>
         skipInvalidRows,
         ignoreUnknownValues,
         ignoreInsertIds,
+        autoSharding,
         elementCoder,
         toTableRow,
         toFailsafeTableRow);
@@ -257,7 +284,7 @@ public class StreamingWriteTables<ElementT>
     // different unique ids, this implementation relies on "checkpointing", which is
     // achieved as a side effect of having BigQuery insertion immediately follow a GBK.
 
-    if (options.getEnableStreamingAutoSharding()) {
+    if (autoSharding) {
       // If runner determined dynamic sharding is enabled, group TableRows on table destinations
       // that may be sharded during the runtime. Otherwise, we choose a fixed number of shards per
       // table destination following the logic below in the other branch.
