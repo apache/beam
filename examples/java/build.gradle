@@ -89,7 +89,7 @@ dependencies {
     delegate.add(runner + "PreCommit", project(path: ":examples:java", configuration: "testRuntime"))
   }
   directRunnerPreCommit project(path: ":runners:direct-java", configuration: "shadow")
-  flinkRunnerPreCommit project(":runners:flink:1.10")
+  flinkRunnerPreCommit project(":runners:flink:${project.ext.latestFlinkVersion}")
   // TODO: Make the netty version used configurable, we add netty-all 4.1.17.Final so it appears on the classpath
   // before 4.1.8.Final defined by Apache Beam
   sparkRunnerPreCommit "io.netty:netty-all:4.1.17.Final"

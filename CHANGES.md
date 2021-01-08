@@ -45,8 +45,7 @@
 
 * Fixed X (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 -->
-
-# [2.XX.X] - Unreleased
+# [2.28.0] - Unreleased
 
 ## Highlights
 
@@ -59,7 +58,9 @@
 
 ## New Features / Improvements
 
-* X feature added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* ParquetIO add methods _readGenericRecords_ and _readFilesGenericRecords_ can read files with an unknown schema. See [PR-13554](https://github.com/apache/beam/pull/13554) and ([BEAM-11460](https://issues.apache.org/jira/browse/BEAM-11460))
+* Added support for thrift in KafkaTableProvider ([BEAM-11482](https://issues.apache.org/jira/browse/BEAM-11482))
+* Added support for HadoopFormatIO to skip key/value clone ([BEAM-11457](https://issues.apache.org/jira/browse/BEAM-11457))
 
 ## Breaking Changes
 
@@ -71,9 +72,9 @@
 
 ## Known Issues
 
-* Fixed X (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* X known issue
 
-# [2.27.0] - 2020-12-22
+# [2.27.0] - 2021-01-08
 
 ## Highlights
 
@@ -133,6 +134,10 @@
 
 * BigQuery's DATETIME type now maps to Beam logical type org.apache.beam.sdk.schemas.logicaltypes.SqlTypes.DATETIME
 * Pandas 1.x is now required for dataframe operations.
+
+## Known Issues
+
+* Non-idempotent combiners built via `CombineFn.from_callable()` or `CombineFn.maybe_from_callable()` can lead to incorrect behavior. ([BEAM-11522](https://issues.apache.org/jira/browse/BEAM-11522)).
 
 
 # [2.25.0] - 2020-10-23

@@ -79,7 +79,7 @@ public class ConversionContext {
   }
 
   Map<List<String>, ResolvedNode> getUserDefinedTableValuedFunctions() {
-    return getExpressionConverter().userFunctionDefinitions.sqlTableValuedFunctions;
+    return getExpressionConverter().userFunctionDefinitions.sqlTableValuedFunctions();
   }
 
   Map<String, RexNode> getFunctionArgumentRefMapping() {
