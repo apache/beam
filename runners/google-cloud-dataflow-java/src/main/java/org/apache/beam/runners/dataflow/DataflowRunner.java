@@ -37,6 +37,7 @@ import com.google.api.services.clouddebugger.v2.model.RegisterDebuggeeResponse;
 import com.google.api.services.dataflow.model.DataflowPackage;
 import com.google.api.services.dataflow.model.Job;
 import com.google.api.services.dataflow.model.ListJobsResponse;
+import com.google.api.services.dataflow.model.SdkHarnessContainerImage;
 import com.google.api.services.dataflow.model.WorkerPool;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -172,6 +173,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Utf8;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.joda.time.DateTimeUtils;
 import org.joda.time.DateTimeZone;
@@ -484,8 +486,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                 new StreamingPubsubIOReadOverrideFactory()));
       }
       if (!hasExperiment(options, "enable_custom_pubsub_sink")) {
-        if (hasExperiment(options, "use_runner_v2")
-            || hasExperiment(options, "use_unified_worker")) {
+        if (useUnifiedWorker(options)) {
           overridesBuilder.add(
               PTransformOverride.of(
                   PTransformMatchers.classEqualTo(PubsubUnboundedSink.class),
@@ -1050,6 +1051,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       workerPool.setWorkerHarnessContainerImage(workerHarnessContainerImage);
     }
 
+    configureSdkHarnessContainerImages(options, pipelineProto, newJob, workerHarnessContainerImage);
+
     newJob.getEnvironment().setVersion(getEnvironmentVersion(options));
 
     if (hooks != null) {
@@ -1184,6 +1187,48 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         MonitoringUtil.getGcloudCancelCommand(options, jobResult.getId()));
 
     return dataflowPipelineJob;
+  }
+
+  static void configureSdkHarnessContainerImages(
+      DataflowPipelineOptions options,
+      RunnerApi.Pipeline pipelineProto,
+      Job newJob,
+      String workerHarnessContainerImage) {
+    if (useUnifiedWorker(options)) {
+      ImmutableSet.Builder<String> sdkContainerUrlSetBuilder = ImmutableSet.builder();
+      sdkContainerUrlSetBuilder.add(workerHarnessContainerImage);
+      for (Map.Entry<String, RunnerApi.Environment> entry :
+          pipelineProto.getComponents().getEnvironmentsMap().entrySet()) {
+        if (!BeamUrns.getUrn(RunnerApi.StandardEnvironments.Environments.DOCKER)
+            .equals(entry.getValue().getUrn())) {
+          throw new RuntimeException(
+              "Dataflow can only execute pipeline steps in Docker environments: "
+                  + entry.getValue().getUrn());
+        }
+        RunnerApi.DockerPayload dockerPayload;
+        try {
+          dockerPayload = RunnerApi.DockerPayload.parseFrom(entry.getValue().getPayload());
+        } catch (InvalidProtocolBufferException e) {
+          throw new RuntimeException("Error parsing docker payload.", e);
+        }
+        sdkContainerUrlSetBuilder.add(dockerPayload.getContainerImage());
+      }
+      List<SdkHarnessContainerImage> sdkContainerList =
+          sdkContainerUrlSetBuilder.build().stream()
+              .map(
+                  (String url) -> {
+                    SdkHarnessContainerImage image = new SdkHarnessContainerImage();
+                    image.setContainerImage(url);
+                    if (url.toLowerCase().contains("python")) {
+                      image.setUseSingleCorePerContainer(true);
+                    }
+                    return image;
+                  })
+              .collect(Collectors.toList());
+      for (WorkerPool workerPool : newJob.getEnvironment().getWorkerPools()) {
+        workerPool.setSdkHarnessContainerImages(sdkContainerList);
+      }
+    }
   }
 
   /** Returns true if the specified experiment is enabled, handling null experiments. */
@@ -2176,6 +2221,10 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       return workerHarnessContainerImage.replace(
           "IMAGE", String.format("beam-%s-batch", javaVersionId));
     }
+  }
+
+  static boolean useUnifiedWorker(DataflowPipelineOptions options) {
+    return hasExperiment(options, "use_runner_v2") || hasExperiment(options, "use_unified_worker");
   }
 
   static void verifyDoFnSupportedBatch(DoFn<?, ?> fn) {
