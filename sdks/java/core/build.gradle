@@ -51,9 +51,13 @@ artifact includes entire Apache Beam Java SDK."""
 processResources {
   inputs.property('version', version)
   inputs.property('sdk_version', sdk_version)
+  inputs.property('docker_image_default_repo_root', sdk_version)
+  inputs.property('docker_image_default_repo_prefix', sdk_version)
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
     'pom.version': version,
     'pom.sdk_version': sdk_version,
+    'pom.docker_image_default_repo_root': docker_image_default_repo_root,
+    'pom.docker_image_default_repo_prefix': docker_image_default_repo_prefix,
   ]
 }
 
