@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.state;
 
 import java.util.Map;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 
@@ -54,6 +55,12 @@ public interface MapState<K, V> extends State {
    * <p>Changes will not be reflected in the results returned by previous calls to {@link
    * ReadableState#read} on the results any of the reading methods ({@link #get}, {@link #keys},
    * {@link #values}, and {@link #entries}).
+   *
+   * <p>Since the condition is not evaluated until {@link ReadableState#read} is called, a call to
+   * {@link #putIfAbsent} followed by a call to {@link #remove} followed by a read on the
+   * putIfAbsent return will result in the item being written to the map. Similarly, if there are
+   * multiple calls to {@link #putIfAbsent} for the same key, precedence will be given to the first
+   * one on which read is called.
    */
   ReadableState<V> putIfAbsent(K key, V value);
 
@@ -67,7 +74,7 @@ public interface MapState<K, V> extends State {
   void remove(K key);
 
   /**
-   * A deferred lookup.
+   * A deferred lookup, using null values if the item is not found.
    *
    * <p>A user is encouraged to call {@code get} for all relevant keys and call {@code readLater()}
    * on the results.
@@ -77,6 +84,17 @@ public interface MapState<K, V> extends State {
    */
   ReadableState<V> get(K key);
 
+  /**
+   * A deferred lookup.
+   *
+   * <p>A user is encouraged to call {@code get} for all relevant keys and call {@code readLater()}
+   * on the results.
+   *
+   * <p>When {@code read()} is called, a particular state implementation is encouraged to perform
+   * all pending reads in a single batch.
+   */
+  ReadableState<V> getOrDefault(K key, @Nullable V defaultValue);
+
   /** Returns an {@link Iterable} over the keys contained in this map. */
   ReadableState<Iterable<K>> keys();
 
@@ -85,4 +103,10 @@ public interface MapState<K, V> extends State {
 
   /** Returns an {@link Iterable} over the key-value pairs contained in this map. */
   ReadableState<Iterable<Map.Entry<K, V>>> entries();
+
+  /**
+   * Returns a {@link ReadableState} whose {@link ReadableState#read} method will return true if
+   * this state is empty at the point when that {@link ReadableState#read} call returns.
+   */
+  ReadableState<Boolean> isEmpty();
 }

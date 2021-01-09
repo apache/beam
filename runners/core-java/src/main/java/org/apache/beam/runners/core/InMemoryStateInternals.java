@@ -55,6 +55,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.checkerframework.checker.initialization.qual.Initialized;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 import org.joda.time.Instant;
 
 /**
@@ -641,7 +644,24 @@ public class InMemoryStateInternals<K> implements StateInternals {
 
     @Override
     public ReadableState<V> get(K key) {
-      return ReadableStates.immediate(contents.get(key));
+      return getOrDefault(key, null);
+    }
+
+    @Override
+    public @UnknownKeyFor @NonNull @Initialized ReadableState<V> getOrDefault(
+        K key, @Nullable @org.checkerframework.checker.nullness.qual.Nullable V defaultValue) {
+      return new ReadableState<V>() {
+        @Override
+        public @org.checkerframework.checker.nullness.qual.Nullable V read() {
+          V value = contents.get(key);
+          return value != null ? value : defaultValue;
+        }
+
+        @Override
+        public @UnknownKeyFor @NonNull @Initialized ReadableState<V> readLater() {
+          return this;
+        }
+      };
     }
 
     @Override
@@ -699,6 +719,23 @@ public class InMemoryStateInternals<K> implements StateInternals {
     @Override
     public ReadableState<Iterable<Map.Entry<K, V>>> entries() {
       return CollectionViewState.of(contents.entrySet());
+    }
+
+    @Override
+    public @UnknownKeyFor @NonNull @Initialized ReadableState<
+            @UnknownKeyFor @NonNull @Initialized Boolean>
+        isEmpty() {
+      return new ReadableState<Boolean>() {
+        @Override
+        public @org.checkerframework.checker.nullness.qual.Nullable Boolean read() {
+          return contents.isEmpty();
+        }
+
+        @Override
+        public @UnknownKeyFor @NonNull @Initialized ReadableState<Boolean> readLater() {
+          return this;
+        }
+      };
     }
 
     @Override

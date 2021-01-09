@@ -23,12 +23,15 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.io.IOException;
+import java.util.AbstractMap;
+import java.util.Map;
 import java.util.concurrent.Future;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.SortedListEntry;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.SortedListRange;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.TimestampedValue;
@@ -54,6 +57,7 @@ import org.mockito.MockitoAnnotations;
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class WindmillStateReaderTest {
+  private static final StringUtf8Coder STRING_CODER = StringUtf8Coder.of();
   private static final VarIntCoder INT_CODER = VarIntCoder.of();
 
   private static final String COMPUTATION = "computation";
@@ -62,6 +66,7 @@ public class WindmillStateReaderTest {
   private static final long WORK_TOKEN = 5043L;
   private static final long CONT_POSITION = 1391631351L;
 
+  private static final ByteString STATE_KEY_PREFIX = ByteString.copyFromUtf8("key");
   private static final ByteString STATE_KEY_1 = ByteString.copyFromUtf8("key1");
   private static final ByteString STATE_KEY_2 = ByteString.copyFromUtf8("key2");
   private static final String STATE_FAMILY = "family";
@@ -460,6 +465,139 @@ public class WindmillStateReaderTest {
             TimestampedValue.of(6, Instant.ofEpochMilli(6)),
             TimestampedValue.of(7, Instant.ofEpochMilli(7)),
             TimestampedValue.of(8, Instant.ofEpochMilli(8))));
+    // NOTE: The future will still contain a reference to the underlying reader.
+  }
+
+  @Test
+  public void testReadTagValuePrefix() throws Exception {
+    Future<Iterable<Map.Entry<ByteString, Integer>>> future =
+        underTest.valuePrefixFuture(STATE_KEY_PREFIX, STATE_FAMILY, INT_CODER);
+    Mockito.verifyNoMoreInteractions(mockWindmill);
+
+    Windmill.KeyedGetDataRequest.Builder expectedRequest =
+        Windmill.KeyedGetDataRequest.newBuilder()
+            .setKey(DATA_KEY)
+            .setShardingKey(SHARDING_KEY)
+            .setWorkToken(WORK_TOKEN)
+            .setMaxBytes(WindmillStateReader.MAX_KEY_BYTES)
+            .addTagValuePrefixesToFetch(
+                Windmill.TagValuePrefixRequest.newBuilder()
+                    .setTagPrefix(STATE_KEY_PREFIX)
+                    .setStateFamily(STATE_FAMILY)
+                    .setFetchMaxBytes(WindmillStateReader.MAX_TAG_VALUE_PREFIX_BYTES));
+
+    Windmill.KeyedGetDataResponse.Builder response =
+        Windmill.KeyedGetDataResponse.newBuilder()
+            .setKey(DATA_KEY)
+            .addTagValuePrefixes(
+                Windmill.TagValuePrefixResponse.newBuilder()
+                    .setTagPrefix(STATE_KEY_PREFIX)
+                    .setStateFamily(STATE_FAMILY)
+                    .addTagValues(
+                        Windmill.TagValue.newBuilder()
+                            .setTag(STATE_KEY_1)
+                            .setStateFamily(STATE_FAMILY)
+                            .setValue(intValue(8)))
+                    .addTagValues(
+                        Windmill.TagValue.newBuilder()
+                            .setTag(STATE_KEY_2)
+                            .setStateFamily(STATE_FAMILY)
+                            .setValue(intValue(9))));
+
+    Mockito.when(mockWindmill.getStateData(COMPUTATION, expectedRequest.build()))
+        .thenReturn(response.build());
+
+    Iterable<Map.Entry<ByteString, Integer>> result = future.get();
+    Mockito.verify(mockWindmill).getStateData(COMPUTATION, expectedRequest.build());
+    Mockito.verifyNoMoreInteractions(mockWindmill);
+
+    assertThat(
+        result,
+        Matchers.containsInAnyOrder(
+            new AbstractMap.SimpleEntry<>(STATE_KEY_1, 8),
+            new AbstractMap.SimpleEntry<>(STATE_KEY_2, 9)));
+
+    assertNoReader(future);
+  }
+
+  @Test
+  public void testReadTagValuePrefixWithContinuations() throws Exception {
+    Future<Iterable<Map.Entry<ByteString, Integer>>> future =
+        underTest.valuePrefixFuture(STATE_KEY_PREFIX, STATE_FAMILY, INT_CODER);
+    Mockito.verifyNoMoreInteractions(mockWindmill);
+
+    Windmill.KeyedGetDataRequest.Builder expectedRequest1 =
+        Windmill.KeyedGetDataRequest.newBuilder()
+            .setKey(DATA_KEY)
+            .setShardingKey(SHARDING_KEY)
+            .setWorkToken(WORK_TOKEN)
+            .setMaxBytes(WindmillStateReader.MAX_KEY_BYTES)
+            .addTagValuePrefixesToFetch(
+                Windmill.TagValuePrefixRequest.newBuilder()
+                    .setTagPrefix(STATE_KEY_PREFIX)
+                    .setStateFamily(STATE_FAMILY)
+                    .setFetchMaxBytes(WindmillStateReader.MAX_TAG_VALUE_PREFIX_BYTES));
+
+    final ByteString CONT = ByteString.copyFrom("CONTINUATION", Charsets.UTF_8);
+    Windmill.KeyedGetDataResponse.Builder response1 =
+        Windmill.KeyedGetDataResponse.newBuilder()
+            .setKey(DATA_KEY)
+            .addTagValuePrefixes(
+                Windmill.TagValuePrefixResponse.newBuilder()
+                    .setTagPrefix(STATE_KEY_PREFIX)
+                    .setStateFamily(STATE_FAMILY)
+                    .setContinuationPosition(CONT)
+                    .addTagValues(
+                        Windmill.TagValue.newBuilder()
+                            .setTag(STATE_KEY_1)
+                            .setStateFamily(STATE_FAMILY)
+                            .setValue(intValue(8))));
+
+    Windmill.KeyedGetDataRequest.Builder expectedRequest2 =
+        Windmill.KeyedGetDataRequest.newBuilder()
+            .setKey(DATA_KEY)
+            .setShardingKey(SHARDING_KEY)
+            .setWorkToken(WORK_TOKEN)
+            .setMaxBytes(WindmillStateReader.MAX_KEY_BYTES)
+            .addTagValuePrefixesToFetch(
+                Windmill.TagValuePrefixRequest.newBuilder()
+                    .setTagPrefix(STATE_KEY_PREFIX)
+                    .setStateFamily(STATE_FAMILY)
+                    .setRequestPosition(CONT)
+                    .setFetchMaxBytes(WindmillStateReader.MAX_TAG_VALUE_PREFIX_BYTES));
+
+    Windmill.KeyedGetDataResponse.Builder response2 =
+        Windmill.KeyedGetDataResponse.newBuilder()
+            .setKey(DATA_KEY)
+            .addTagValuePrefixes(
+                Windmill.TagValuePrefixResponse.newBuilder()
+                    .setTagPrefix(STATE_KEY_PREFIX)
+                    .setStateFamily(STATE_FAMILY)
+                    .setRequestPosition(CONT)
+                    .addTagValues(
+                        Windmill.TagValue.newBuilder()
+                            .setTag(STATE_KEY_2)
+                            .setStateFamily(STATE_FAMILY)
+                            .setValue(intValue(9))));
+
+    Mockito.when(mockWindmill.getStateData(COMPUTATION, expectedRequest1.build()))
+        .thenReturn(response1.build());
+    Mockito.when(mockWindmill.getStateData(COMPUTATION, expectedRequest2.build()))
+        .thenReturn(response2.build());
+
+    Iterable<Map.Entry<ByteString, Integer>> results = future.get();
+    Mockito.verify(mockWindmill).getStateData(COMPUTATION, expectedRequest1.build());
+    for (Map.Entry<ByteString, Integer> unused : results) {
+      // Iterate over the results to force loading all the pages.
+    }
+    Mockito.verify(mockWindmill).getStateData(COMPUTATION, expectedRequest2.build());
+    Mockito.verifyNoMoreInteractions(mockWindmill);
+
+    assertThat(
+        results,
+        Matchers.containsInAnyOrder(
+            new AbstractMap.SimpleEntry<>(STATE_KEY_1, 8),
+            new AbstractMap.SimpleEntry<>(STATE_KEY_2, 9)));
     // NOTE: The future will still contain a reference to the underlying reader.
   }
 

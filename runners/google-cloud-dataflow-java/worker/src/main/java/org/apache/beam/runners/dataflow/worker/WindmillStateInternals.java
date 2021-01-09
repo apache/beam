@@ -24,6 +24,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -31,7 +32,9 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Random;
+import java.util.Set;
 import java.util.SortedSet;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -51,6 +54,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.TagSortedListDe
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.TagSortedListInsertRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.TagSortedListUpdateRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
+import org.apache.beam.sdk.coders.BooleanCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.CoderException;
@@ -94,7 +98,10 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.RangeSet
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.TreeRangeSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Futures;
+import org.checkerframework.checker.initialization.qual.Initialized;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -166,17 +173,25 @@ class WindmillStateInternals<K> implements StateInternals {
 
         @Override
         public <T> SetState<T> bindSet(StateTag<SetState<T>> spec, Coder<T> elemCoder) {
-          throw new UnsupportedOperationException(
-              String.format("%s is not supported", SetState.class.getSimpleName()));
+          WindmillSet<T> result = (WindmillSet<T>) cache.get(namespace, spec);
+          if (result == null) {
+            result = new WindmillSet<T>(namespace, spec, stateFamily, elemCoder, isNewKey);
+          }
+          result.initializeForWorkItem(reader, scopedReadStateSupplier);
+          return result;
         }
 
         @Override
         public <KeyT, ValueT> MapState<KeyT, ValueT> bindMap(
-            StateTag<MapState<KeyT, ValueT>> spec,
-            Coder<KeyT> mapKeyCoder,
-            Coder<ValueT> mapValueCoder) {
-          throw new UnsupportedOperationException(
-              String.format("%s is not supported", SetState.class.getSimpleName()));
+            StateTag<MapState<KeyT, ValueT>> spec, Coder<KeyT> keyCoder, Coder<ValueT> valueCoder) {
+          WindmillMap<KeyT, ValueT> result = (WindmillMap<KeyT, ValueT>) cache.get(namespace, spec);
+          if (result == null) {
+            result =
+                new WindmillMap<KeyT, ValueT>(
+                    namespace, spec, stateFamily, keyCoder, valueCoder, isNewKey);
+          }
+          result.initializeForWorkItem(reader, scopedReadStateSupplier);
+          return result;
         }
 
         @Override
@@ -1074,6 +1089,451 @@ class WindmillStateInternals<K> implements StateInternals {
           Range.closedOpen(startSortKey, limitSortKey), stateKey, stateFamily, elemCoder);
     }
   }
+
+  static class WindmillSet<K> extends SimpleWindmillState implements SetState<K> {
+    WindmillMap<K, Boolean> windmillMap;
+
+    WindmillSet(
+        StateNamespace namespace,
+        StateTag<SetState<K>> spec,
+        String stateFamily,
+        Coder<K> keyCoder,
+        boolean isNewKey) {
+      StateTag<MapState<K, Boolean>> mapTag =
+          StateTags.makeSystemTagInternal(StateTags.map(spec.getId(), keyCoder, BooleanCoder.of()));
+      this.windmillMap =
+          new WindmillMap<>(namespace, mapTag, stateFamily, keyCoder, BooleanCoder.of(), isNewKey);
+    }
+
+    @Override
+    protected WorkItemCommitRequest persistDirectly(ForKey cache) throws IOException {
+      return windmillMap.persistDirectly(cache);
+    }
+
+    @Override
+    public @UnknownKeyFor @NonNull @Initialized ReadableState<
+            @UnknownKeyFor @NonNull @Initialized Boolean>
+        contains(K k) {
+      return windmillMap.getOrDefault(k, false);
+    }
+
+    @Override
+    public @UnknownKeyFor @NonNull @Initialized ReadableState<
+            @UnknownKeyFor @NonNull @Initialized Boolean>
+        addIfAbsent(K k) {
+      return new ReadableState<Boolean>() {
+        ReadableState<Boolean> putState = windmillMap.putIfAbsent(k, true);
+
+        @Override
+        public @Nullable Boolean read() {
+          Boolean result = putState.read();
+          return (result != null) ? result : false;
+        }
+
+        @Override
+        public @UnknownKeyFor @NonNull @Initialized ReadableState<Boolean> readLater() {
+          putState = putState.readLater();
+          return this;
+        }
+      };
+    }
+
+    @Override
+    public void remove(K k) {
+      windmillMap.remove(k);
+    }
+
+    @Override
+    public void add(K value) {
+      windmillMap.put(value, true);
+    }
+
+    @Override
+    public @UnknownKeyFor @NonNull @Initialized ReadableState<
+            @UnknownKeyFor @NonNull @Initialized Boolean>
+        isEmpty() {
+      return windmillMap.isEmpty();
+    }
+
+    @Override
+    public @Nullable Iterable<K> read() {
+      return windmillMap.keys().read();
+    }
+
+    @Override
+    public @UnknownKeyFor @NonNull @Initialized SetState<K> readLater() {
+      windmillMap.keys().readLater();
+      return this;
+    }
+
+    @Override
+    public void clear() {
+      windmillMap.clear();
+    }
+  }
+
+  static class WindmillMap<K, V> extends SimpleWindmillState implements MapState<K, V> {
+    private final StateNamespace namespace;
+    private final StateTag<MapState<K, V>> spec;
+    private final ByteString stateKeyPrefix;
+    private final String stateFamily;
+    private final Coder<K> keyCoder;
+    private final Coder<V> valueCoder;
+    private boolean complete;
+
+    //  TODO(reuvenlax): Should we evict items from the cache? We would have to make sure
+    // that anything in the cache that is not committed is not evicted. negativeCache could be
+    // evicted whenever we want.
+    private Map<K, V> cachedValues = Maps.newHashMap();
+    private Set<K> negativeCache = Sets.newHashSet();
+    private boolean cleared = false;
+
+    private Set<K> localAdditions = Sets.newHashSet();
+    private Set<K> localRemovals = Sets.newHashSet();
+
+    WindmillMap(
+        StateNamespace namespace,
+        StateTag<MapState<K, V>> spec,
+        String stateFamily,
+        Coder<K> keyCoder,
+        Coder<V> valueCoder,
+        boolean isNewKey) {
+      this.namespace = namespace;
+      this.spec = spec;
+      this.stateKeyPrefix = encodeKey(namespace, spec);
+      this.stateFamily = stateFamily;
+      this.keyCoder = keyCoder;
+      this.valueCoder = valueCoder;
+      this.complete = isNewKey;
+    }
+
+    private K userKeyFromProtoKey(ByteString tag) throws IOException {
+      Preconditions.checkState(tag.startsWith(stateKeyPrefix));
+      ByteString keyBytes = tag.substring(stateKeyPrefix.size());
+      return keyCoder.decode(keyBytes.newInput(), Context.OUTER);
+    }
+
+    private ByteString protoKeyFromUserKey(K key) throws IOException {
+      ByteString.Output keyStream = ByteString.newOutput();
+      stateKeyPrefix.writeTo(keyStream);
+      keyCoder.encode(key, keyStream, Context.OUTER);
+      return keyStream.toByteString();
+    }
+
+    @Override
+    protected WorkItemCommitRequest persistDirectly(ForKey cache) throws IOException {
+      if (!cleared && localAdditions.isEmpty() && localRemovals.isEmpty()) {
+        // No changes, so return directly.
+        return WorkItemCommitRequest.newBuilder().buildPartial();
+      }
+
+      WorkItemCommitRequest.Builder commitBuilder = WorkItemCommitRequest.newBuilder();
+
+      if (cleared) {
+        commitBuilder
+            .addTagValuePrefixDeletesBuilder()
+            .setStateFamily(stateFamily)
+            .setTagPrefix(stateKeyPrefix);
+      }
+      cleared = false;
+
+      for (K key : localAdditions) {
+        ByteString keyBytes = protoKeyFromUserKey(key);
+        ByteString.Output valueStream = ByteString.newOutput();
+        valueCoder.encode(cachedValues.get(key), valueStream, Context.OUTER);
+        ByteString valueBytes = valueStream.toByteString();
+
+        commitBuilder
+            .addValueUpdatesBuilder()
+            .setTag(keyBytes)
+            .setStateFamily(stateFamily)
+            .getValueBuilder()
+            .setData(valueBytes)
+            .setTimestamp(Long.MAX_VALUE);
+      }
+      localAdditions.clear();
+
+      for (K key : localRemovals) {
+        ByteString.Output keyStream = ByteString.newOutput();
+        stateKeyPrefix.writeTo(keyStream);
+        keyCoder.encode(key, keyStream, Context.OUTER);
+        ByteString keyBytes = keyStream.toByteString();
+        // Leaving data blank means that we delete the tag.
+        commitBuilder
+            .addValueUpdatesBuilder()
+            .setTag(keyBytes)
+            .setStateFamily(stateFamily)
+            .getValueBuilder()
+            .setTimestamp(Long.MAX_VALUE);
+
+        V cachedValue = cachedValues.remove(key);
+        if (cachedValue != null) {
+          ByteString.Output valueStream = ByteString.newOutput();
+          valueCoder.encode(cachedValues.get(key), valueStream, Context.OUTER);
+        }
+      }
+      negativeCache.addAll(localRemovals);
+      localRemovals.clear();
+
+      // TODO(reuvenlax): We should store in the cache parameter, as that would enable caching the
+      // map
+      // between work items, reducing fetches to Windmill. To do so, we need keep track of the
+      // encoded size
+      // of the map, and to do so efficiently (i.e. without iterating over the entire map on every
+      // persist)
+      // we need to track the sizes of each map entry.
+      return commitBuilder.buildPartial();
+    }
+
+    @Override
+    public @UnknownKeyFor @NonNull @Initialized ReadableState<V> get(K key) {
+      return getOrDefault(key, null);
+    }
+
+    @Override
+    public @UnknownKeyFor @NonNull @Initialized ReadableState<V> getOrDefault(
+        K key, @Nullable V defaultValue) {
+      return new ReadableState<V>() {
+        @Override
+        public @Nullable V read() {
+          Future<V> persistedData = getFutureForKey(key);
+          try (Closeable scope = scopedReadState()) {
+            V persistedValue = persistedData.get();
+            if (persistedValue == null) {
+              negativeCache.add(key);
+              return defaultValue;
+            }
+            // TODO: Don't do this if it was already in cache.
+            cachedValues.put(key, persistedValue);
+            return persistedValue;
+          } catch (InterruptedException | ExecutionException | IOException e) {
+            if (e instanceof InterruptedException) {
+              Thread.currentThread().interrupt();
+            }
+            throw new RuntimeException("Unable to read state", e);
+          }
+        }
+
+        @Override
+        @SuppressWarnings("FutureReturnValueIgnored")
+        public @UnknownKeyFor @NonNull @Initialized ReadableState<V> readLater() {
+          WindmillMap.this.getFutureForKey(key);
+          return this;
+        }
+      };
+    }
+
+    @Override
+    public @UnknownKeyFor @NonNull @Initialized ReadableState<
+            @UnknownKeyFor @NonNull @Initialized Iterable<K>>
+        keys() {
+      ReadableState<Iterable<Map.Entry<K, V>>> entries = entries();
+      return new ReadableState<Iterable<K>>() {
+        @Override
+        public @Nullable Iterable<K> read() {
+          return Iterables.transform(entries.read(), e -> e.getKey());
+        }
+
+        @Override
+        public @UnknownKeyFor @NonNull @Initialized ReadableState<Iterable<K>> readLater() {
+          entries.readLater();
+          return this;
+        }
+      };
+    }
+
+    @Override
+    public @UnknownKeyFor @NonNull @Initialized ReadableState<
+            @UnknownKeyFor @NonNull @Initialized Iterable<V>>
+        values() {
+      ReadableState<Iterable<Map.Entry<K, V>>> entries = entries();
+      return new ReadableState<Iterable<V>>() {
+        @Override
+        public @Nullable Iterable<V> read() {
+          return Iterables.transform(entries.read(), e -> e.getValue());
+        }
+
+        @Override
+        public @UnknownKeyFor @NonNull @Initialized ReadableState<Iterable<V>> readLater() {
+          entries.readLater();
+          return this;
+        }
+      };
+    }
+
+    @Override
+    public @UnknownKeyFor @NonNull @Initialized ReadableState<
+            @UnknownKeyFor @NonNull @Initialized Iterable<
+                @UnknownKeyFor @NonNull @Initialized Entry<K, V>>>
+        entries() {
+      return new ReadableState<Iterable<Entry<K, V>>>() {
+        @Override
+        public Iterable<Entry<K, V>> read() {
+          if (complete) {
+            return Iterables.unmodifiableIterable(cachedValues.entrySet());
+          }
+          Future<Iterable<Map.Entry<ByteString, V>>> persistedData = getFuture();
+          try (Closeable scope = scopedReadState()) {
+            Iterable<Map.Entry<ByteString, V>> data = persistedData.get();
+            Iterable<Map.Entry<K, V>> transformedData =
+                Iterables.<Map.Entry<ByteString, V>, Map.Entry<K, V>>transform(
+                    data,
+                    entry -> {
+                      try {
+                        return new AbstractMap.SimpleEntry<>(
+                            userKeyFromProtoKey(entry.getKey()), entry.getValue());
+                      } catch (IOException e) {
+                        throw new RuntimeException(e);
+                      }
+                    });
+
+            if (data instanceof Weighted) {
+              // This is a known amount of data. Cache it all.
+              transformedData.forEach(
+                  e -> {
+                    cachedValues.putIfAbsent(e.getKey(), e.getValue());
+                  });
+              complete = true;
+              return Iterables.unmodifiableIterable(cachedValues.entrySet());
+            } else {
+              // This means that the result might be too large to cache, so don't add it to the
+              // local cache. Instead merge the iterables, giving priority to any local additions
+              // (represented in cachedValued and localRemovals) that may not have been committed
+              // yet.
+              return Iterables.unmodifiableIterable(
+                  Iterables.concat(
+                      cachedValues.entrySet(),
+                      Iterables.filter(
+                          transformedData,
+                          e ->
+                              !cachedValues.containsKey(e.getKey())
+                                  && !localRemovals.contains(e.getKey()))));
+            }
+
+          } catch (InterruptedException | ExecutionException | IOException e) {
+            if (e instanceof InterruptedException) {
+              Thread.currentThread().interrupt();
+            }
+            throw new RuntimeException("Unable to read state", e);
+          }
+        }
+
+        @Override
+        @SuppressWarnings("FutureReturnValueIgnored")
+        public @UnknownKeyFor @NonNull @Initialized ReadableState<Iterable<Entry<K, V>>>
+            readLater() {
+          WindmillMap.this.getFuture();
+          return this;
+        }
+      };
+    }
+
+    @Override
+    public ReadableState<Boolean> isEmpty() {
+      return new ReadableState<Boolean>() {
+        // TODO(reuvenlax): Can we find a more efficient way of implementing isEmpty than reading
+        // the
+        // entire map?
+        ReadableState<Iterable<K>> keys = WindmillMap.this.keys();
+
+        @Override
+        public @Nullable Boolean read() {
+          return Iterables.isEmpty(keys.read());
+        }
+
+        @Override
+        public @UnknownKeyFor @NonNull @Initialized ReadableState<Boolean> readLater() {
+          keys.readLater();
+          return this;
+        }
+      };
+    }
+
+    @Override
+    public void put(K key, V value) {
+      cachedValues.put(key, value);
+      localAdditions.add(key);
+      localRemovals.remove(key);
+      negativeCache.remove(key);
+    }
+
+    @Override
+    public @UnknownKeyFor @NonNull @Initialized ReadableState<V> putIfAbsent(K key, V value) {
+      return new ReadableState<V>() {
+        @Override
+        public @Nullable V read() {
+          Future<V> persistedData = getFutureForKey(key);
+          try (Closeable scope = scopedReadState()) {
+            V persistedValue = persistedData.get();
+            if (persistedValue == null) {
+              // This is a new value. Add it to the map and return null.
+              put(key, value);
+              return null;
+            }
+            // TODO: Don't do this if it was already in cache.
+            cachedValues.put(key, persistedValue);
+            return persistedValue;
+          } catch (InterruptedException | ExecutionException | IOException e) {
+            if (e instanceof InterruptedException) {
+              Thread.currentThread().interrupt();
+            }
+            throw new RuntimeException("Unable to read state", e);
+          }
+        }
+
+        @Override
+        @SuppressWarnings("FutureReturnValueIgnored")
+        public @UnknownKeyFor @NonNull @Initialized ReadableState<V> readLater() {
+          WindmillMap.this.getFutureForKey(key);
+          return this;
+        }
+      };
+    }
+
+    @Override
+    public void remove(K key) {
+      cachedValues.remove(key);
+      localAdditions.remove(key);
+      localRemovals.add(key);
+    }
+
+    @Override
+    public void clear() {
+      cachedValues.clear();
+      localAdditions.clear();
+      localRemovals.clear();
+      negativeCache.clear();
+      cleared = true;
+      complete = true;
+    }
+
+    private Future<V> getFutureForKey(K key) {
+      if (localRemovals.contains(key) || negativeCache.contains(key)) {
+        return Futures.immediateFuture(null);
+      }
+      @Nullable V cachedValue = cachedValues.get(key);
+      if (cachedValue != null || complete) {
+        return Futures.immediateFuture(cachedValue);
+      }
+      try {
+        ByteString.Output keyStream = ByteString.newOutput();
+        stateKeyPrefix.writeTo(keyStream);
+        keyCoder.encode(key, keyStream, Context.OUTER);
+        return reader.valueFuture(keyStream.toByteString(), stateFamily, valueCoder);
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+    }
+
+    private Future<Iterable<Map.Entry<ByteString, V>>> getFuture() {
+      if (complete) {
+        // The caller will merge in local cached values.
+        return Futures.immediateFuture(Collections.emptyList());
+      } else {
+        return reader.valuePrefixFuture(stateKeyPrefix, stateFamily, valueCoder);
+      }
+    }
+  };
 
   private static class WindmillBag<T> extends SimpleWindmillState implements BagState<T> {
 
