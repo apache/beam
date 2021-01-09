@@ -40,7 +40,6 @@ configurations {
 }
 
 dependencies {
-    pulledLicenses project(path: ":sdks:java:container", configuration: "pulledLicenses")
     dockerDependency project(path: ":sdks:java:container", configuration: "dockerDependency")
     sdkHarnessLauncher project(path: ":sdks:java:container", configuration: "sdkHarnessLauncher")
 }
@@ -60,8 +59,12 @@ task copySdkHarnessLauncher(type: Copy) {
     into "build/target"
 }
 
-task copyPulledLicenses(type: Copy) {
-    from configurations.pulledLicenses
+task copyJavaThirdPartyLicenses(type: Copy) {
+    dependsOn ':sdks:java:container:pullLicenses'
+    from("${project(':sdks:java:container').buildDir}/build/target") {
+        include 'third_party_licenses/*'
+        include 'java_third_party_licenses/*'
+    }
     into "build/target"
 }
 
@@ -97,7 +100,7 @@ docker {
 
 if (project.rootProject.hasProperty(["docker-pull-licenses"]) ||
         project.rootProject.hasProperty(["isRelease"])) {
-    dockerPrepare.dependsOn copyPulledLicenses
+    dockerPrepare.dependsOn copyJavaThirdPartyLicenses
     dockerPrepare.dependsOn copyGolangLicenses
 } else {
     dockerPrepare.dependsOn skipPullLicenses
