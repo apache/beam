@@ -2060,6 +2060,30 @@ class BeamModulePlugin implements Plugin<Project> {
         cleanupTask.mustRunAfter pythonTask
         config.cleanupJobServer.mustRunAfter pythonTask
       }
+
+      // Task for running Python-only testcases in Java SDK
+      def javaUsingPythonOnlyTask = project.tasks.create(name: config.name+"JavaUsingPythonOnly", type: Test) {
+        group = "Verification"
+        description = "Validates runner for cross-language capability of using Python-only transforms from Java SDK"
+        systemProperty "beamTestPipelineOptions", JsonOutput.toJson(config.javaPipelineOptions)
+        systemProperty "expansionJar", expansionJar
+        systemProperty "expansionPort", pythonPort
+        classpath = config.classpath
+        testClassesDirs = project.files(project.project(":runners:core-construction-java").sourceSets.test.output.classesDirs)
+        maxParallelForks config.numParallelTests
+        useJUnit {
+          includeCategories 'org.apache.beam.sdk.testing.UsesPythonExpansionService'
+        }
+        // increase maxHeapSize as this is directly correlated to direct memory,
+        // see https://issues.apache.org/jira/browse/BEAM-6698
+        maxHeapSize = '4g'
+        dependsOn setupTask
+        dependsOn config.startJobServer
+      }
+      mainTask.dependsOn javaUsingPythonOnlyTask
+      cleanupTask.mustRunAfter javaUsingPythonOnlyTask
+      config.cleanupJobServer.mustRunAfter javaUsingPythonOnlyTask
+
       // Task for running testcases in Python SDK
       def testOpts = [
         "--attr=UsesSqlExpansionService"
@@ -2075,13 +2099,12 @@ class BeamModulePlugin implements Plugin<Project> {
         description = "Validates runner for cross-language capability of using Java's SqlTransform from Python SDK"
         executable 'sh'
         args '-c', ". $envDir/bin/activate && cd $pythonDir && ./scripts/run_integration_test.sh $cmdArgs"
+        dependsOn setupTask
         dependsOn config.startJobServer
-        dependsOn ':sdks:java:container:java8:docker'
-        dependsOn ':sdks:python:container:py'+pythonContainerSuffix+':docker'
         dependsOn ':sdks:java:extensions:sql:expansion-service:shadowJar'
-        dependsOn ":sdks:python:installGcpTest"
       }
       mainTask.dependsOn pythonSqlTask
+      cleanupTask.mustRunAfter pythonSqlTask
       config.cleanupJobServer.mustRunAfter pythonSqlTask
     }
 

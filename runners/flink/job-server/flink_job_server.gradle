@@ -157,6 +157,7 @@ def portableValidatesRunnerTask(String name, Boolean streaming, Boolean checkpoi
         excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above10MB'
         excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
         excludeCategories 'org.apache.beam.sdk.testing.UsesCrossLanguageTransforms'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesPythonExpansionService'
         excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
         excludeCategories 'org.apache.beam.sdk.testing.UsesFailureMessage'
         excludeCategories 'org.apache.beam.sdk.testing.UsesGaugeMetrics'
