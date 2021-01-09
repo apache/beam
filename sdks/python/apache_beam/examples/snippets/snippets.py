@@ -1117,7 +1117,7 @@ def model_bigqueryio(p, write_project='', write_dataset='', write_table=''):
   # [START model_bigqueryio_read_table]
   max_temperatures = (
       p
-      | 'ReadTable' >> beam.io.ReadFromBigQuery(table_spec)
+      | 'ReadTable' >> beam.io.ReadFromBigQuery(table=table_spec)
       # Each row is a dictionary where the keys are the BigQuery columns
       | beam.Map(lambda elem: elem['max_temperature']))
   # [END model_bigqueryio_read_table]
