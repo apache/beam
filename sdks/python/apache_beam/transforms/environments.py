@@ -36,6 +36,7 @@ from typing import Iterator
 from typing import List
 from typing import Mapping
 from typing import Optional
+from typing import Set
 from typing import Tuple
 from typing import Type
 from typing import TypeVar
@@ -66,7 +67,7 @@ __all__ = [
     'EmbeddedPythonEnvironment',
     'EmbeddedPythonGrpcEnvironment',
     'SubprocessSDKEnvironment',
-    'RunnerAPIEnvironmentHolder'
+    'PyPIArtifactRegistry'
 ]
 
 T = TypeVar('T')
@@ -680,29 +681,17 @@ class SubprocessSDKEnvironment(Environment):
         artifacts=python_sdk_dependencies(options))
 
 
-class RunnerAPIEnvironmentHolder(Environment):
-  def __init__(self, proto):
-    # type: (beam_runner_api_pb2.Environment) -> None
-    self.proto = proto
+class PyPIArtifactRegistry(object):
+  _registered_artifacts = set()  # type: Set[Tuple[str, str]]
 
-  def to_runner_api(self, context):
-    # type: (PipelineContext) -> beam_runner_api_pb2.Environment
-    return self.proto
+  @classmethod
+  def register_artifact(cls, name, version):
+    cls._registered_artifacts.add((name, version))
 
-  def capabilities(self):
-    # type: () -> Iterable[str]
-    return self.proto.capabilities
-
-  def __eq__(self, other):
-    return self.__class__ == other.__class__ and self.proto == other.proto
-
-  def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
-
-  def __hash__(self):
-    # type: () -> int
-    return hash((self.__class__, self.proto))
+  @classmethod
+  def get_artifacts(cls):
+    for artifact in cls._registered_artifacts:
+      yield artifact
 
 
 def python_sdk_capabilities():
@@ -730,4 +719,10 @@ def python_sdk_dependencies(options, tmp_dir=None):
   skip_prestaged_dependencies = options.view_as(
       SetupOptions).prebuild_sdk_container_engine is not None
   return stager.Stager.create_job_resources(
-      options, tmp_dir, skip_prestaged_dependencies=skip_prestaged_dependencies)
+      options,
+      tmp_dir,
+      pypi_requirements=[
+          artifact[0] + artifact[1]
+          for artifact in PyPIArtifactRegistry.get_artifacts()
+      ],
+      skip_prestaged_dependencies=skip_prestaged_dependencies)
