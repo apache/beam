@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.spark;
+package org.apache.beam.runners.spark.structuredstreaming;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -29,42 +29,42 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Test {@link SparkRunnerRegistrar}. */
+/** Test {@link SparkStructuredStreamingRunnerRegistrar}. */
 @RunWith(JUnit4.class)
-public class SparkRunnerRegistrarTest {
+public class SparkStructuredStreamingRunnerRegistrarTest {
   @Test
   public void testOptions() {
     assertEquals(
-        ImmutableList.of(SparkPipelineOptions.class, SparkPortableStreamingPipelineOptions.class),
-        new SparkRunnerRegistrar.Options().getPipelineOptions());
+        ImmutableList.of(SparkStructuredStreamingPipelineOptions.class),
+        new SparkStructuredStreamingRunnerRegistrar.Options().getPipelineOptions());
   }
 
   @Test
   public void testRunners() {
     assertEquals(
-        ImmutableList.of(SparkRunner.class, TestSparkRunner.class),
-        new SparkRunnerRegistrar.Runner().getPipelineRunners());
+        ImmutableList.of(SparkStructuredStreamingRunner.class),
+        new SparkStructuredStreamingRunnerRegistrar.Runner().getPipelineRunners());
   }
 
   @Test
   public void testServiceLoaderForOptions() {
     for (PipelineOptionsRegistrar registrar :
         Lists.newArrayList(ServiceLoader.load(PipelineOptionsRegistrar.class).iterator())) {
-      if (registrar instanceof SparkRunnerRegistrar.Options) {
+      if (registrar instanceof SparkStructuredStreamingRunnerRegistrar.Options) {
         return;
       }
     }
-    fail("Expected to find " + SparkRunnerRegistrar.Options.class);
+    fail("Expected to find " + SparkStructuredStreamingRunnerRegistrar.Options.class);
   }
 
   @Test
   public void testServiceLoaderForRunner() {
     for (PipelineRunnerRegistrar registrar :
         Lists.newArrayList(ServiceLoader.load(PipelineRunnerRegistrar.class).iterator())) {
-      if (registrar instanceof SparkRunnerRegistrar.Runner) {
+      if (registrar instanceof SparkStructuredStreamingRunnerRegistrar.Runner) {
         return;
       }
     }
-    fail("Expected to find " + SparkRunnerRegistrar.Runner.class);
+    fail("Expected to find " + SparkStructuredStreamingRunnerRegistrar.Runner.class);
   }
 }

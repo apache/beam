@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.spark;
+package org.apache.beam.runners.spark.structuredstreaming;
 
 import com.google.auto.service.AutoService;
 import org.apache.beam.sdk.PipelineRunner;
@@ -31,15 +31,15 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  * <p>{@link AutoService} will register Spark's implementations of the {@link PipelineRunner} and
  * {@link PipelineOptions} as available pipeline runner services.
  */
-public final class SparkRunnerRegistrar {
-  private SparkRunnerRegistrar() {}
+public final class SparkStructuredStreamingRunnerRegistrar {
+  private SparkStructuredStreamingRunnerRegistrar() {}
 
   /** Registers the {@link SparkRunner}. */
   @AutoService(PipelineRunnerRegistrar.class)
   public static class Runner implements PipelineRunnerRegistrar {
     @Override
     public Iterable<Class<? extends PipelineRunner<?>>> getPipelineRunners() {
-      return ImmutableList.of(SparkRunner.class, TestSparkRunner.class);
+      return ImmutableList.of(SparkStructuredStreamingRunner.class);
     }
   }
 
@@ -48,8 +48,7 @@ public final class SparkRunnerRegistrar {
   public static class Options implements PipelineOptionsRegistrar {
     @Override
     public Iterable<Class<? extends PipelineOptions>> getPipelineOptions() {
-      return ImmutableList.of(
-          SparkPipelineOptions.class, SparkPortableStreamingPipelineOptions.class);
+      return ImmutableList.of(SparkStructuredStreamingPipelineOptions.class);
     }
   }
 }
