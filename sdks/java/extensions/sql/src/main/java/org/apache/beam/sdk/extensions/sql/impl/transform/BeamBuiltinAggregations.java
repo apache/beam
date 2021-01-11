@@ -428,11 +428,11 @@ public class BeamBuiltinAggregations {
     }
 
     @Override
-    public Long extractOutput(Long accumulator) {
+    public Long extractOutput(Long accum) {
       if (this.isEmpty) {
         return null;
       }
-      return accumulator;
+      return accum;
     }
   }
 
