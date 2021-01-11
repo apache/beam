@@ -118,7 +118,7 @@ class SwitchingDirectRunner(PipelineRunner):
     # Check whether all transforms used in the pipeline are supported by the
     # FnApiRunner, and the pipeline was not meant to be run as streaming.
     if _FnApiRunnerSupportVisitor().accept(pipeline):
-      from apache_beam.runners.portability.api import beam_provision_api_pb2
+      from apache_beam.portability.api import beam_provision_api_pb2
       from apache_beam.runners.portability.fn_api_runner import fn_runner
       from apache_beam.runners.portability.portable_runner import JobServiceHandle
       all_options = options.get_all_options(retain_unknown_options=True)
