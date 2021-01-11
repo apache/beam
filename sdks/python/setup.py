@@ -206,9 +206,7 @@ INTERACTIVE_BEAM = [
     'facets-overview>=1.0.0,<2',
     'ipython>=5.8.0,<8',
     'ipykernel>=5.2.0,<6',
-    # TODO(ningk): Remove the upper limit once
-    # https://github.com/jupyter/jupyter_client/issues/597 is fixed.
-    'jupyter-client>=6.1.2,<6.1.8',
+    'jupyter-client>=6.1.11,<7',
     'timeloop>=1.0.2,<2',
 ]
 
