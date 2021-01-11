@@ -1,6 +1,6 @@
 ---
 title:  "How to validate a Beam Release"
-date:   2020-01-14 00:00:01 -0800
+date:   2020-01-08 00:00:01 -0800
 categories:
   - blog
 authors:
