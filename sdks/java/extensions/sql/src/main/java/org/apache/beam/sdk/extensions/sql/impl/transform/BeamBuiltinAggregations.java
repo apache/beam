@@ -17,11 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.transform;
 
-import java.math.BigDecimal;
-import java.math.MathContext;
-import java.math.RoundingMode;
-import java.util.Map;
-import java.util.function.Function;
 import org.apache.beam.sdk.coders.BigDecimalCoder;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -43,6 +38,12 @@ import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
+
+import java.math.BigDecimal;
+import java.math.MathContext;
+import java.math.RoundingMode;
+import java.util.Map;
+import java.util.function.Function;
 
 /** Built-in aggregations functions for COUNT/MAX/MIN/SUM/AVG/VAR_POP/VAR_SAMP. */
 @SuppressWarnings({
@@ -399,93 +400,6 @@ public class BeamBuiltinAggregations {
    * <p>Note: null values are ignored when mixed with non-null values.
    * (https://issues.apache.org/jira/browse/BEAM-10379)
    */
-  //  static class BitAnd<T extends Number> extends CombineFn<T, Long, Long> {
-  //    // Indicate if input only contains null value.
-  //    private boolean isEmpty = true;
-  //
-  //    @Override
-  //    public Long createAccumulator() {
-  //      return -1L;
-  //    }
-  //
-  //    @Override
-  //    public Long addInput(Long accum, T input) {
-  //      if (input != null) {
-  //        this.isEmpty = false;
-  //        return accum & input.longValue();
-  //      } else {
-  //        return null;
-  //      }
-  //    }
-  //
-  //    @Override
-  //    public Long mergeAccumulators(Iterable<Long> accums) {
-  //      Long merged = createAccumulator();
-  //      for (Long accum : accums) {
-  //        merged = merged & accum;
-  //      }
-  //      return merged;
-  //    }
-  //
-  //    @Override
-  //    public Long extractOutput(Long accum) {
-  //      if (this.isEmpty) {
-  //        return null;
-  //      }
-  //      return accum;
-  //    }
-  //  }
-
-  //  static class BitAnd<T extends Number> extends CombineFn<T, BitAnd.Accum, Long> {
-  //    public static class Accum {
-  //      long val = -1L;
-  //      boolean isEmpty = true;
-  //      boolean seenNull = false;
-  //    }
-  //
-  //    @Override
-  //    public Accum createAccumulator() {
-  //      return new Accum();
-  //    }
-  //
-  //    @Override
-  //    public Accum addInput(Accum accum, T input) {
-  //      if (input == null) {
-  //        accum.seenNull = true;
-  //      } else {
-  //        accum.isEmpty = false;
-  //        accum.val = accum.val & input.longValue();
-  //      }
-  //      return accum;
-  //    }
-  //
-  //    @Override
-  //    public Accum mergeAccumulators(Iterable<Accum> accums) {
-  //      Accum merged = createAccumulator();
-  //      for (Accum accum : accums) {
-  //        if (accum.isEmpty) {
-  //          merged.isEmpty = true;
-  //          break;
-  //        }
-  //        if (accum.seenNull) {
-  //          merged.seenNull = true;
-  //          break;
-  //        }
-  //        merged.val = merged.val & accum.val;
-  //      }
-  //      return merged;
-  //    }
-  //
-  //    @Override
-  //    @Nullable
-  //    public Long extractOutput(Accum accum) {
-  //      if (accum.isEmpty || accum.seenNull) {
-  //        return null;
-  //      }
-  //      return accum.val;
-  //    }
-  //  }
-
   static class BitAnd<T extends Number> extends CombineFn<T, Long, Long> {
     // Indicate if input only contains null value.
     private boolean isEmpty = true;
@@ -528,7 +442,7 @@ public class BeamBuiltinAggregations {
       return new LogicalAnd();
     }
     throw new UnsupportedOperationException(
-        String.format("[%s] is not supported in LOGICAL_AND", fieldType));
+        String.format("LOGICAL_AND only supports [%s] ", fieldType));
   }
 
   public static class LogicalAnd extends CombineFn<Boolean, Boolean, Boolean> {
