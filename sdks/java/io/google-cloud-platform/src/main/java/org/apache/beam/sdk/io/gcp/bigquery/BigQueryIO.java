@@ -2182,12 +2182,7 @@ public class BigQueryIO {
       return toBuilder().setWriteDisposition(writeDisposition).build();
     }
 
-    /**
-     * Allows the schema of the destination table to be updated as a side effect of the write.
-     *
-     * <p>This configuration applies only when writing to BigQuery with {@link Method#FILE_LOADS} as
-     * method.
-     */
+    /** Allows the schema of the destination table to be updated as a side effect of the write. */
     public Write<T> withSchemaUpdateOptions(Set<SchemaUpdateOption> schemaUpdateOptions) {
       checkArgument(schemaUpdateOptions != null, "schemaUpdateOptions can not be null");
       return toBuilder().setSchemaUpdateOptions(schemaUpdateOptions).build();

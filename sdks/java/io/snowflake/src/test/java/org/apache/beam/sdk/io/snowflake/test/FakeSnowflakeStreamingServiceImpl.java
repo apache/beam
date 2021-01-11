@@ -21,7 +21,7 @@ import java.io.BufferedReader;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.zip.GZIPInputStream;
@@ -61,7 +61,7 @@ public class FakeSnowflakeStreamingServiceImpl
     List<String> lines = new ArrayList<>();
     try {
       GZIPInputStream gzip = new GZIPInputStream(new FileInputStream(file));
-      BufferedReader br = new BufferedReader(new InputStreamReader(gzip, StandardCharsets.UTF_8));
+      BufferedReader br = new BufferedReader(new InputStreamReader(gzip, Charset.defaultCharset()));
 
       String line;
       while ((line = br.readLine()) != null) {

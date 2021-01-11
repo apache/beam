@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.extensions.sketching;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
-import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertThat;
 
 import com.tdunning.math.stats.Centroid;
 import com.tdunning.math.stats.MergingDigest;

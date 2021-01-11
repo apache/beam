@@ -198,7 +198,6 @@ class MethodWrapper(object):
     self.restriction_provider_arg_name = None
     self.watermark_estimator_provider = None
     self.watermark_estimator_provider_arg_name = None
-    self.dynamic_timer_tag_arg_name = None
 
     if hasattr(self.method_value, 'unbounded_per_element'):
       self.unbounded_per_element = True
@@ -225,8 +224,6 @@ class MethodWrapper(object):
         self.watermark_estimator_provider = (
             v.watermark_estimator_provider or obj_to_invoke)
         self.watermark_estimator_provider_arg_name = kw
-      elif core.DoFn.DynamicTimerTagParam == v:
-        self.dynamic_timer_tag_arg_name = kw
 
     # Create NoOpWatermarkEstimatorProvider if there is no
     # WatermarkEstimatorParam provided.
@@ -234,13 +231,7 @@ class MethodWrapper(object):
       self.watermark_estimator_provider = NoOpWatermarkEstimatorProvider()
 
   def invoke_timer_callback(
-      self,
-      user_state_context,
-      key,
-      window,
-      timestamp,
-      pane_info,
-      dynamic_timer_tag):
+      self, user_state_context, key, window, timestamp, pane_info):
     # TODO(ccy): support side inputs.
     kwargs = {}
     if self.has_userstate_arguments:
@@ -256,8 +247,6 @@ class MethodWrapper(object):
       kwargs[self.window_arg_name] = window
     if self.key_arg_name:
       kwargs[self.key_arg_name] = key
-    if self.dynamic_timer_tag_arg_name:
-      kwargs[self.dynamic_timer_tag_arg_name] = dynamic_timer_tag
 
     if kwargs:
       return self.method_value(**kwargs)
@@ -538,18 +527,12 @@ class DoFnInvoker(object):
     """
     self.signature.teardown_lifecycle_method.method_value()
 
-  def invoke_user_timer(
-      self, timer_spec, key, window, timestamp, pane_info, dynamic_timer_tag):
+  def invoke_user_timer(self, timer_spec, key, window, timestamp, pane_info):
     # self.output_processor is Optional, but in practice it won't be None here
     self.output_processor.process_outputs(
         WindowedValue(None, timestamp, (window, )),
         self.signature.timer_methods[timer_spec].invoke_timer_callback(
-            self.user_state_context,
-            key,
-            window,
-            timestamp,
-            pane_info,
-            dynamic_timer_tag))
+            self.user_state_context, key, window, timestamp, pane_info))
 
   def invoke_create_watermark_estimator(self, estimator_state):
     return self.signature.create_watermark_estimator_method.method_value(
@@ -717,14 +700,6 @@ class PerWindowInvoker(DoFnInvoker):
 
     residuals = []
     if self.is_splittable:
-      if restriction is None:
-        # This may be a SDF invoked as an ordinary DoFn on runners that don't
-        # understand SDF.  See, e.g. BEAM-11472.
-        # In this case, processing the element is simply processing it against
-        # the entire initial restriction.
-        restriction = self.signature.initial_restriction_method.method_value(
-            windowed_value.value)
-
       with self.splitting_lock:
         self.current_windowed_value = windowed_value
         self.restriction = restriction
@@ -1259,11 +1234,10 @@ class DoFnRunner:
     assert isinstance(self.do_fn_invoker, PerWindowInvoker)
     return self.do_fn_invoker.current_element_progress()
 
-  def process_user_timer(
-      self, timer_spec, key, window, timestamp, pane_info, dynamic_timer_tag):
+  def process_user_timer(self, timer_spec, key, window, timestamp, pane_info):
     try:
       self.do_fn_invoker.invoke_user_timer(
-          timer_spec, key, window, timestamp, pane_info, dynamic_timer_tag)
+          timer_spec, key, window, timestamp, pane_info)
     except BaseException as exn:
       self._reraise_augmented(exn)
 

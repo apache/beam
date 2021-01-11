@@ -748,7 +748,7 @@ class SnippetsTest(unittest.TestCase):
 
   @unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')
   @mock.patch('apache_beam.io.ReadFromPubSub')
-  @mock.patch('apache_beam.io.WriteToPubSub')
+  @mock.patch('apache_beam.io.WriteStringsToPubSub')
   def test_examples_wordcount_streaming(self, *unused_mocks):
     def FakeReadFromPubSub(topic=None, subscription=None, values=None):
       expected_topic = topic
@@ -768,7 +768,7 @@ class SnippetsTest(unittest.TestCase):
       def expand(self, pcoll):
         assert_that(pcoll, self.matcher)
 
-    def FakeWriteToPubSub(topic=None, values=None):
+    def FakeWriteStringsToPubSub(topic=None, values=None):
       expected_topic = topic
 
       def _inner(topic=None, subscription=None):
@@ -785,11 +785,11 @@ class SnippetsTest(unittest.TestCase):
         TimestampedValue(b'a b c c c', 20)
     ]
     output_topic = 'projects/fake-beam-test-project/topic/outtopic'
-    output_values = [b'a: 1', b'a: 2', b'b: 1', b'b: 3', b'c: 3']
+    output_values = ['a: 1', 'a: 2', 'b: 1', 'b: 3', 'c: 3']
     beam.io.ReadFromPubSub = (
         FakeReadFromPubSub(topic=input_topic, values=input_values))
-    beam.io.WriteToPubSub = (
-        FakeWriteToPubSub(topic=output_topic, values=output_values))
+    beam.io.WriteStringsToPubSub = (
+        FakeWriteStringsToPubSub(topic=output_topic, values=output_values))
     snippets.examples_wordcount_streaming([
         '--input_topic',
         'projects/fake-beam-test-project/topic/intopic',

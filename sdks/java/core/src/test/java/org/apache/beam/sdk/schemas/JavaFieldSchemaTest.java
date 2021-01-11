@@ -43,7 +43,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
+import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -86,9 +86,9 @@ import org.junit.Test;
 public class JavaFieldSchemaTest {
   static final DateTime DATE = DateTime.parse("1979-03-14");
   static final Instant INSTANT = DateTime.parse("1979-03-15").toInstant();
-  static final byte[] BYTE_ARRAY = "bytearray".getBytes(StandardCharsets.UTF_8);
+  static final byte[] BYTE_ARRAY = "bytearray".getBytes(Charset.defaultCharset());
   static final ByteBuffer BYTE_BUFFER =
-      ByteBuffer.wrap("byteBuffer".getBytes(StandardCharsets.UTF_8));
+      ByteBuffer.wrap("byteBuffer".getBytes(Charset.defaultCharset()));
 
   private SimplePOJO createSimple(String name) {
     return new SimplePOJO(

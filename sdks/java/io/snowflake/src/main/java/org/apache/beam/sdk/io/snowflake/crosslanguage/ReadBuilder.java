@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.io.snowflake.crosslanguage;
 
 import java.io.Serializable;
-import java.nio.charset.StandardCharsets;
+import java.nio.charset.Charset;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
@@ -59,7 +59,7 @@ public class ReadBuilder
       return parts -> {
         String partsCSV = String.join(",", parts);
 
-        return partsCSV.getBytes(StandardCharsets.UTF_8);
+        return partsCSV.getBytes(Charset.defaultCharset());
       };
     }
   }

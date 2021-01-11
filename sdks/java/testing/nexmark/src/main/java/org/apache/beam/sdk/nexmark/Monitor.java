@@ -39,15 +39,20 @@ public class Monitor<T extends KnownSize> implements Serializable {
   private class MonitorDoFn extends DoFn<T, T> {
     final Counter elementCounter = Metrics.counter(name, prefix + ".elements");
     final Counter bytesCounter = Metrics.counter(name, prefix + ".bytes");
-    final Distribution processingTime = Metrics.distribution(name, prefix + ".processingTime");
-    final Distribution eventTimestamp = Metrics.distribution(name, prefix + ".eventTimestamp");
+    final Distribution startTime = Metrics.distribution(name, prefix + ".startTime");
+    final Distribution endTime = Metrics.distribution(name, prefix + ".endTime");
+    final Distribution startTimestamp = Metrics.distribution(name, prefix + ".startTimestamp");
+    final Distribution endTimestamp = Metrics.distribution(name, prefix + ".endTimestamp");
 
     @ProcessElement
     public void processElement(ProcessContext c) {
       elementCounter.inc();
       bytesCounter.inc(c.element().sizeInBytes());
-      processingTime.update(System.currentTimeMillis());
-      eventTimestamp.update(c.timestamp().getMillis());
+      long now = System.currentTimeMillis();
+      startTime.update(now);
+      endTime.update(now);
+      startTimestamp.update(c.timestamp().getMillis());
+      endTimestamp.update(c.timestamp().getMillis());
       c.output(c.element());
     }
   }

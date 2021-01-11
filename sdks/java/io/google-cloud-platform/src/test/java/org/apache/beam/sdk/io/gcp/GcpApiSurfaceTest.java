@@ -103,8 +103,7 @@ public class GcpApiSurfaceTest {
             classesInPackage("org.apache.beam"),
             classesInPackage("org.apache.commons.logging"),
             classesInPackage("org.codehaus.jackson"),
-            classesInPackage("org.joda.time"),
-            classesInPackage("com.google.gson"));
+            classesInPackage("org.joda.time"));
 
     assertThat(apiSurface, containsOnlyClassesMatching(allowedClasses));
   }

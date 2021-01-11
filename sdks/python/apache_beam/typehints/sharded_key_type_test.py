@@ -23,26 +23,26 @@ from __future__ import absolute_import
 
 from apache_beam.typehints import Tuple
 from apache_beam.typehints import typehints
-from apache_beam.typehints.sharded_key_type import ShardedKeyType
+from apache_beam.typehints.sharded_key_type import ShardedKeyTypeConstraint
 from apache_beam.typehints.typehints_test import TypeHintTestCase
 from apache_beam.utils.sharded_key import ShardedKey
 
 
 class ShardedKeyTypeConstraintTest(TypeHintTestCase):
   def test_compatibility(self):
-    constraint1 = ShardedKeyType[int]
-    constraint2 = ShardedKeyType[str]
+    constraint1 = ShardedKeyTypeConstraint(int)
+    constraint2 = ShardedKeyTypeConstraint(str)
 
     self.assertCompatible(constraint1, constraint1)
     self.assertCompatible(constraint2, constraint2)
     self.assertNotCompatible(constraint1, constraint2)
 
   def test_repr(self):
-    constraint = ShardedKeyType[int]
-    self.assertEqual('ShardedKey[int]', repr(constraint))
+    constraint = ShardedKeyTypeConstraint(int)
+    self.assertEqual('ShardedKey(int)', repr(constraint))
 
   def test_type_check_not_sharded_key(self):
-    constraint = ShardedKeyType[int]
+    constraint = ShardedKeyTypeConstraint(int)
     obj = 5
     with self.assertRaises(TypeError) as e:
       constraint.type_check(obj)
@@ -52,38 +52,29 @@ class ShardedKeyTypeConstraintTest(TypeHintTestCase):
         e.exception.args[0])
 
   def test_type_check_invalid_key_type(self):
-    constraint = ShardedKeyType[int]
+    constraint = ShardedKeyTypeConstraint(int)
     obj = ShardedKey(key='abc', shard_id=b'123')
     with self.assertRaises((TypeError, TypeError)) as e:
       constraint.type_check(obj)
     self.assertEqual(
-        "ShardedKey[int] type-constraint violated. The type of key in "
+        "ShardedKey(int) type-constraint violated. The type of key in "
         "'ShardedKey' is incorrect. Expected an instance of type 'int', "
         "instead received an instance of type 'str'.",
         e.exception.args[0])
 
   def test_type_check_valid_simple_type(self):
-    constraint = ShardedKeyType[str]
+    constraint = ShardedKeyTypeConstraint(str)
     obj = ShardedKey(key='abc', shard_id=b'123')
     self.assertIsNone(constraint.type_check(obj))
 
   def test_type_check_valid_composite_type(self):
-    constraint = ShardedKeyType[Tuple[int, str]]
+    constraint = ShardedKeyTypeConstraint(Tuple[int, str])
     obj = ShardedKey(key=(1, 'a'), shard_id=b'123')
     self.assertIsNone(constraint.type_check(obj))
 
   def test_match_type_variables(self):
     K = typehints.TypeVariable('K')  # pylint: disable=invalid-name
-    constraint = ShardedKeyType[K]
+    constraint = ShardedKeyTypeConstraint(K)
     self.assertEqual({K: int},
-                     constraint.match_type_variables(ShardedKeyType[int]))
-
-  def test_getitem(self):
-    K = typehints.TypeVariable('K')  # pylint: disable=invalid-name
-    T = typehints.TypeVariable('T')  # pylint: disable=invalid-name
-    with self.assertRaisesRegex(TypeError,
-                                'Parameter to ShardedKeyType hint.*'):
-      _ = ShardedKeyType[K, T]
-    with self.assertRaisesRegex(TypeError,
-                                'Parameter to ShardedKeyType hint.*'):
-      _ = ShardedKeyType[(K, T)]
+                     constraint.match_type_variables(
+                         ShardedKeyTypeConstraint(int)))

@@ -1182,7 +1182,6 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       right_on,
       left_index,
       right_index,
-      suffixes,
       **kwargs):
     self_proxy = self._expr.proxy()
     right_proxy = right._expr.proxy()
@@ -1196,14 +1195,14 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
         right_index=right_index,
         **kwargs)
     if not any([on, left_on, right_on, left_index, right_index]):
-      on = [col for col in self_proxy.columns if col in right_proxy.columns]
+      on = [col for col in self_proxy.columns() if col in right_proxy.columns()]
     if not left_on:
       left_on = on
-    if left_on and not isinstance(left_on, list):
+    elif not isinstance(left_on, list):
       left_on = [left_on]
     if not right_on:
       right_on = on
-    if right_on and not isinstance(right_on, list):
+    elif not isinstance(right_on, list):
       right_on = [right_on]
 
     if left_index:
@@ -1216,25 +1215,11 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
     else:
       indexed_right = right.set_index(right_on, drop=False)
 
-    if left_on and right_on:
-      common_cols = set(left_on).intersection(right_on)
-      if len(common_cols):
-        # When merging on the same column name from both dfs, we need to make
-        # sure only one df has the column. Otherwise we end up with
-        # two duplicate columns, one with lsuffix and one with rsuffix.
-        # It's safe to drop from either because the data has already been duped
-        # to the index.
-        indexed_right = indexed_right.drop(columns=common_cols)
-
-
     merged = frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
             'merge',
-            lambda left, right: left.merge(right,
-                                           left_index=True,
-                                           right_index=True,
-                                           suffixes=suffixes,
-                                           **kwargs),
+            lambda left, right: left.merge(
+                right, left_index=True, right_index=True, **kwargs),
             [indexed_left._expr, indexed_right._expr],
             preserves_partition_by=partitionings.Singleton(),
             requires_partition_by=partitionings.Index()))
@@ -1242,7 +1227,6 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
     if left_index or right_index:
       return merged
     else:
-
       return merged.reset_index(drop=True)
 
   @frame_base.args_to_kwargs(pd.DataFrame)

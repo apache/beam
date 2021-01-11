@@ -17,25 +17,33 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsublite;
 
-import com.google.api.gax.rpc.ApiException;
+import com.google.api.core.ApiFuture;
 import com.google.cloud.pubsublite.Offset;
+import com.google.cloud.pubsublite.Partition;
 import com.google.cloud.pubsublite.proto.ComputeMessageStatsResponse;
+import io.grpc.StatusException;
+import java.util.Map;
 
 /**
- * The TopicBacklogReader uses the TopicStats API to aggregate the backlog, or the distance between
- * the current cursor and HEAD for a single {subscription, partition} pair.
+ * The TopicBacklogReader is intended for clients who would like to use the TopicStats API to
+ * aggregate the backlog, or the distance between the current cursor and HEAD across multiple
+ * partitions within a subscription.
  */
-interface TopicBacklogReader extends AutoCloseable {
-  /**
-   * Compute and aggregate message statistics for message between the provided start offset and
-   * HEAD. This method is blocking.
-   *
-   * @param offset The current offset of the subscriber.
-   * @return A ComputeMessageStatsResponse with the aggregated statistics for messages in the
-   *     backlog.
-   */
-  ComputeMessageStatsResponse computeMessageStats(Offset offset) throws ApiException;
+public interface TopicBacklogReader {
 
-  @Override
-  void close();
+  /** Create a TopicBacklogReader from settings. */
+  static TopicBacklogReader create(TopicBacklogReaderSettings settings) throws StatusException {
+    return settings.instantiate();
+  }
+  /**
+   * Compute and aggregate message statistics for message between the provided start offset and HEAD
+   * for each partition.
+   *
+   * @param subscriptionState A map from partition to the current offset of the subscriber in a
+   *     given partition.
+   * @return a future with either an error or a ComputeMessageStatsResponse with the aggregated
+   *     statistics for messages in the backlog on success.
+   */
+  ApiFuture<ComputeMessageStatsResponse> computeMessageStats(
+      Map<Partition, Offset> subscriptionState);
 }

@@ -19,20 +19,22 @@ import (
 	"testing"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
-	"github.com/apache/beam/sdks/go/test/integration"
 )
 
 func TestParDoMultiOutput(t *testing.T) {
-	integration.CheckFilters(t)
-	ptest.RunAndValidate(t, ParDoMultiOutput())
+	if err := ptest.Run(ParDoMultiOutput()); err != nil {
+		t.Error(err)
+	}
 }
 
 func TestParDoSideInput(t *testing.T) {
-	integration.CheckFilters(t)
-	ptest.RunAndValidate(t, ParDoSideInput())
+	if err := ptest.Run(ParDoSideInput()); err != nil {
+		t.Error(err)
+	}
 }
 
 func TestParDoKVSideInput(t *testing.T) {
-	integration.CheckFilters(t)
-	ptest.RunAndValidate(t, ParDoKVSideInput())
+	if err := ptest.Run(ParDoKVSideInput()); err != nil {
+		t.Error(err)
+	}
 }

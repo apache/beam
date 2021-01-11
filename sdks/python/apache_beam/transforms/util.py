@@ -50,7 +50,6 @@ from apache_beam import coders
 from apache_beam import typehints
 from apache_beam.metrics import Metrics
 from apache_beam.portability import common_urns
-from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.transforms import window
 from apache_beam.transforms.combiners import CountCombineFn
 from apache_beam.transforms.core import CombinePerKey
@@ -73,7 +72,6 @@ from apache_beam.transforms.userstate import on_timer
 from apache_beam.transforms.window import NonMergingWindowFn
 from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import TimestampedValue
-from apache_beam.typehints.sharded_key_type import ShardedKeyType
 from apache_beam.utils import windowed_value
 from apache_beam.utils.annotations import deprecated
 from apache_beam.utils.annotations import experimental
@@ -765,12 +763,15 @@ class GroupIntoBatches(PTransform):
       max_buffering_duration_secs: (optional) How long in seconds at most an
         incomplete batch of elements is allowed to be buffered in the states.
         The duration must be a positive second duration and should be given as
-        an int or float. Setting this parameter to zero effectively means no
-        buffering limit.
+        an int or float.
       clock: (optional) an alternative to time.time (mostly for testing)
     """
-    self.params = _GroupIntoBatchesParams(
-        batch_size, max_buffering_duration_secs)
+    self.batch_size = batch_size
+
+    if max_buffering_duration_secs is not None:
+      assert max_buffering_duration_secs > 0, (
+          'max buffering duration should be a positive value')
+    self.max_buffering_duration_secs = max_buffering_duration_secs
     self.clock = clock
 
   def expand(self, pcoll):
@@ -778,30 +779,13 @@ class GroupIntoBatches(PTransform):
     return pcoll | ParDo(
         _pardo_group_into_batches(
             input_coder,
-            self.params.batch_size,
-            self.params.max_buffering_duration_secs,
+            self.batch_size,
+            self.max_buffering_duration_secs,
             self.clock))
 
-  def to_runner_api_parameter(
-      self,
-      unused_context  # type: PipelineContext
-  ):  # type: (...) -> Tuple[str, beam_runner_api_pb2.GroupIntoBatchesPayload]
-    return (
-        common_urns.group_into_batches_components.GROUP_INTO_BATCHES.urn,
-        self.params.get_payload())
-
-  @staticmethod
-  @PTransform.register_urn(
-      common_urns.group_into_batches_components.GROUP_INTO_BATCHES.urn,
-      beam_runner_api_pb2.GroupIntoBatchesPayload)
-  def from_runner_api_parameter(unused_ptransform, proto, unused_context):
-    return GroupIntoBatches(*_GroupIntoBatchesParams.parse_payload(proto))
-
+  @experimental()
   @typehints.with_input_types(Tuple[K, V])
-  @typehints.with_output_types(
-      typehints.Tuple[
-          ShardedKeyType[typehints.TypeVariable(K)],  # type: ignore[misc]
-          typehints.Iterable[typehints.TypeVariable(V)]])
+  @typehints.with_output_types(Tuple[K, Iterable[V]])
   class WithShardedKey(PTransform):
     """A GroupIntoBatches transform that outputs batched elements associated
     with sharded input keys.
@@ -812,16 +796,25 @@ class GroupIntoBatches(PTransform):
     execution time.
     """
     def __init__(self, batch_size, max_buffering_duration_secs=None):
-      """Create a new GroupIntoBatches with sharded output.
-      See ``GroupIntoBatches`` transform for a description of input parameters.
+      """Create a new GroupIntoBatches.WithShardedKey.
+
+      Arguments:
+        batch_size: (required) How many elements should be in a batch
+        max_buffering_duration_secs: (optional) How long in seconds at most an
+          incomplete batch of elements is allowed to be buffered in the states.
+          The duration must be a positive second duration and should be given as
+          an int or float.
       """
-      self.params = _GroupIntoBatchesParams(
-          batch_size, max_buffering_duration_secs)
+      self.batch_size = batch_size
+
+      if max_buffering_duration_secs is not None:
+        assert max_buffering_duration_secs > 0, (
+            'max buffering duration should be a positive value')
+      self.max_buffering_duration_secs = max_buffering_duration_secs
 
     _shard_id_prefix = uuid.uuid4().bytes
 
     def expand(self, pcoll):
-      key_type, value_type = pcoll.element_type.tuple_types
       sharded_pcoll = pcoll | Map(
           lambda key_value: (
               ShardedKey(
@@ -829,70 +822,10 @@ class GroupIntoBatches(PTransform):
                   # Use [uuid, thread id] as the shard id.
                   GroupIntoBatches.WithShardedKey._shard_id_prefix + bytes(
                       threading.get_ident().to_bytes(8, 'big'))),
-              key_value[1])).with_output_types(
-                  typehints.Tuple[
-                      ShardedKeyType[key_type],  # type: ignore[misc]
-                      value_type])
+              key_value[1]))
       return (
           sharded_pcoll
-          | GroupIntoBatches(
-              self.params.batch_size, self.params.max_buffering_duration_secs))
-
-    def to_runner_api_parameter(
-        self,
-        unused_context  # type: PipelineContext
-    ):  # type: (...) -> Tuple[str, beam_runner_api_pb2.GroupIntoBatchesPayload]
-      return (
-          common_urns.composites.GROUP_INTO_BATCHES_WITH_SHARDED_KEY.urn,
-          self.params.get_payload())
-
-    @staticmethod
-    @PTransform.register_urn(
-        common_urns.composites.GROUP_INTO_BATCHES_WITH_SHARDED_KEY.urn,
-        beam_runner_api_pb2.GroupIntoBatchesPayload)
-    def from_runner_api_parameter(unused_ptransform, proto, unused_context):
-      return GroupIntoBatches.WithShardedKey(
-          *_GroupIntoBatchesParams.parse_payload(proto))
-
-
-class _GroupIntoBatchesParams:
-  """This class represents the parameters for
-  :class:`apache_beam.utils.GroupIntoBatches` transform, used to define how
-  elements should be batched.
-  """
-  def __init__(self, batch_size, max_buffering_duration_secs):
-    self.batch_size = batch_size
-    self.max_buffering_duration_secs = (
-        0
-        if max_buffering_duration_secs is None else max_buffering_duration_secs)
-    self._validate()
-
-  def __eq__(self, other):
-    if other is None or not isinstance(other, _GroupIntoBatchesParams):
-      return False
-    return (
-        self.batch_size == other.batch_size and
-        self.max_buffering_duration_secs == other.max_buffering_duration_secs)
-
-  def _validate(self):
-    assert self.batch_size is not None and self.batch_size > 0, (
-        'batch_size must be a positive value')
-    assert (
-        self.max_buffering_duration_secs is not None and
-        self.max_buffering_duration_secs >= 0), (
-            'max_buffering_duration must be a non-negative value')
-
-  def get_payload(self):
-    return beam_runner_api_pb2.GroupIntoBatchesPayload(
-        batch_size=self.batch_size,
-        max_buffering_duration_millis=int(
-            self.max_buffering_duration_secs * 1000))
-
-  @staticmethod
-  def parse_payload(
-      proto  # type: beam_runner_api_pb2.GroupIntoBatchesPayload
-  ):
-    return proto.batch_size, proto.max_buffering_duration_millis / 1000
+          | GroupIntoBatches(self.batch_size, self.max_buffering_duration_secs))
 
 
 def _pardo_group_into_batches(
@@ -917,7 +850,7 @@ def _pardo_group_into_batches(
       element_state.add(element)
       count_state.add(1)
       count = count_state.read()
-      if count == 1 and max_buffering_duration_secs > 0:
+      if count == 1 and max_buffering_duration_secs is not None:
         # This is the first element in batch. Start counting buffering time if a
         # limit was set.
         buffering_timer.set(clock() + max_buffering_duration_secs)

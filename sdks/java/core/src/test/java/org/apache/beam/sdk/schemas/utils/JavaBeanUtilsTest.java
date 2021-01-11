@@ -33,7 +33,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
+import java.nio.charset.Charset;
 import java.util.List;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.FieldValueSetter;
@@ -131,8 +131,8 @@ public class JavaBeanUtilsTest {
     simpleBean.setaBoolean(true);
     simpleBean.setDateTime(DateTime.parse("1979-03-14"));
     simpleBean.setInstant(DateTime.parse("1979-03-15").toInstant());
-    simpleBean.setBytes("bytes1".getBytes(StandardCharsets.UTF_8));
-    simpleBean.setByteBuffer(ByteBuffer.wrap("bytes2".getBytes(StandardCharsets.UTF_8)));
+    simpleBean.setBytes("bytes1".getBytes(Charset.defaultCharset()));
+    simpleBean.setByteBuffer(ByteBuffer.wrap("bytes2".getBytes(Charset.defaultCharset())));
     simpleBean.setBigDecimal(new BigDecimal(42));
     simpleBean.setStringBuilder(new StringBuilder("stringBuilder"));
 
@@ -155,11 +155,11 @@ public class JavaBeanUtilsTest {
     assertEquals(DateTime.parse("1979-03-15").toInstant(), getters.get(7).get(simpleBean));
     assertArrayEquals(
         "Unexpected bytes",
-        "bytes1".getBytes(StandardCharsets.UTF_8),
+        "bytes1".getBytes(Charset.defaultCharset()),
         (byte[]) getters.get(8).get(simpleBean));
     assertArrayEquals(
         "Unexpected bytes",
-        "bytes2".getBytes(StandardCharsets.UTF_8),
+        "bytes2".getBytes(Charset.defaultCharset()),
         (byte[]) getters.get(9).get(simpleBean));
     assertEquals(new BigDecimal(42), getters.get(10).get(simpleBean));
     assertEquals("stringBuilder", getters.get(11).get(simpleBean).toString());
@@ -184,8 +184,8 @@ public class JavaBeanUtilsTest {
     setters.get(5).set(simpleBean, true);
     setters.get(6).set(simpleBean, DateTime.parse("1979-03-14").toInstant());
     setters.get(7).set(simpleBean, DateTime.parse("1979-03-15").toInstant());
-    setters.get(8).set(simpleBean, "bytes1".getBytes(StandardCharsets.UTF_8));
-    setters.get(9).set(simpleBean, "bytes2".getBytes(StandardCharsets.UTF_8));
+    setters.get(8).set(simpleBean, "bytes1".getBytes(Charset.defaultCharset()));
+    setters.get(9).set(simpleBean, "bytes2".getBytes(Charset.defaultCharset()));
     setters.get(10).set(simpleBean, new BigDecimal(42));
     setters.get(11).set(simpleBean, "stringBuilder");
 
@@ -198,9 +198,9 @@ public class JavaBeanUtilsTest {
     assertEquals(DateTime.parse("1979-03-14"), simpleBean.getDateTime());
     assertEquals(DateTime.parse("1979-03-15").toInstant(), simpleBean.getInstant());
     assertArrayEquals(
-        "Unexpected bytes", "bytes1".getBytes(StandardCharsets.UTF_8), simpleBean.getBytes());
+        "Unexpected bytes", "bytes1".getBytes(Charset.defaultCharset()), simpleBean.getBytes());
     assertEquals(
-        ByteBuffer.wrap("bytes2".getBytes(StandardCharsets.UTF_8)), simpleBean.getByteBuffer());
+        ByteBuffer.wrap("bytes2".getBytes(Charset.defaultCharset())), simpleBean.getByteBuffer());
     assertEquals(new BigDecimal(42), simpleBean.getBigDecimal());
     assertEquals("stringBuilder", simpleBean.getStringBuilder().toString());
   }
@@ -259,10 +259,10 @@ public class JavaBeanUtilsTest {
             BEAN_WITH_BYTE_ARRAY_SCHEMA,
             new SetterTypeSupplier(),
             new DefaultTypeConversionsFactory());
-    setters.get(0).set(bean, "field1".getBytes(StandardCharsets.UTF_8));
-    setters.get(1).set(bean, "field2".getBytes(StandardCharsets.UTF_8));
+    setters.get(0).set(bean, "field1".getBytes(Charset.defaultCharset()));
+    setters.get(1).set(bean, "field2".getBytes(Charset.defaultCharset()));
 
-    assertArrayEquals("not equal", "field1".getBytes(StandardCharsets.UTF_8), bean.getBytes1());
-    assertEquals(ByteBuffer.wrap("field2".getBytes(StandardCharsets.UTF_8)), bean.getBytes2());
+    assertArrayEquals("not equal", "field1".getBytes(Charset.defaultCharset()), bean.getBytes1());
+    assertEquals(ByteBuffer.wrap("field2".getBytes(Charset.defaultCharset())), bean.getBytes2());
   }
 }

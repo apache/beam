@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.io.snowflake;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
+import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.InvalidKeyException;
@@ -59,7 +59,7 @@ public class KeyPairUtils {
   public static String readPrivateKeyFile(String privateKeyPath) {
     try {
       byte[] keyBytes = Files.readAllBytes(Paths.get(privateKeyPath));
-      return new String(keyBytes, StandardCharsets.UTF_8);
+      return new String(keyBytes, Charset.defaultCharset());
     } catch (IOException e) {
       throw new RuntimeException("Can't read private key from provided path");
     }

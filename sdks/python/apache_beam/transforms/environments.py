@@ -205,11 +205,16 @@ class Environment(object):
       return None
     parameter_type, constructor = cls._known_urns[proto.urn]
 
-    return constructor(
-        proto_utils.parse_Bytes(proto.payload, parameter_type),
-        proto.capabilities,
-        proto.dependencies,
-        context)
+    try:
+      return constructor(
+          proto_utils.parse_Bytes(proto.payload, parameter_type),
+          proto.capabilities,
+          proto.dependencies,
+          context)
+    except Exception:
+      if context.allow_proto_holders:
+        return RunnerAPIEnvironmentHolder(proto)
+      raise
 
   @classmethod
   def from_options(cls, options):
@@ -234,16 +239,9 @@ class DockerEnvironment(Environment):
   ):
     super(DockerEnvironment, self).__init__(capabilities, artifacts)
     if container_image:
-      logging.info(
-          'Using provided Python SDK container image: %s' % (container_image))
       self.container_image = container_image
     else:
-      logging.info('No image given, using default Python SDK image')
       self.container_image = self.default_docker_image()
-
-    logging.info(
-        'Python SDK container image set to "%s" for Docker environment' %
-        (self.container_image))
 
   def __eq__(self, other):
     return self.__class__ == other.__class__ \
@@ -314,7 +312,9 @@ class DockerEnvironment(Environment):
     image = (
         'apache/beam_python{version_suffix}_sdk:{tag}'.format(
             version_suffix=version_suffix, tag=sdk_version))
-    logging.info('Default Python SDK image for environment is %s' % (image))
+    logging.info(
+        'Using Python SDK docker image: %s. If the image is not '
+        'available at local, we will try to pull from hub.docker.com' % (image))
     return image
 
 

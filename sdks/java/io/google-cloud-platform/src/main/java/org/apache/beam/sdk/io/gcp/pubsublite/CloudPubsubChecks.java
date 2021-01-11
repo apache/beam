@@ -21,10 +21,11 @@ import static com.google.cloud.pubsublite.cloudpubsub.MessageTransforms.toCpsPub
 
 import com.google.cloud.pubsublite.Message;
 import com.google.cloud.pubsublite.proto.PubSubMessage;
-import org.apache.beam.sdk.transforms.MapElements;
+import io.grpc.StatusException;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
  * A class providing a conversion validity check between Cloud Pub/Sub and Pub/Sub Lite message
@@ -41,11 +42,15 @@ public final class CloudPubsubChecks {
    */
   public static PTransform<PCollection<? extends PubSubMessage>, PCollection<PubSubMessage>>
       ensureUsableAsCloudPubsub() {
-    return MapElements.into(TypeDescriptor.of(PubSubMessage.class))
-        .via(
-            message -> {
-              Object unused = toCpsPublishTransformer().transform(Message.fromProto(message));
-              return message;
-            });
+    return ParDo.of(
+        new DoFn<PubSubMessage, PubSubMessage>() {
+          @ProcessElement
+          public void processElement(
+              @Element PubSubMessage message, OutputReceiver<PubSubMessage> output)
+              throws StatusException {
+            Object unused = toCpsPublishTransformer().transform(Message.fromProto(message));
+            output.output(message);
+          }
+        });
   }
 }

@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.kafka;
 import static org.apache.beam.sdk.io.kafka.ConfluentSchemaRegistryDeserializerProviderTest.mockDeserializerProvider;
 import static org.apache.beam.sdk.metrics.MetricResultsMatchers.attemptedMetricsResult;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
-import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasItem;
@@ -29,6 +28,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
 import static org.junit.internal.matchers.ThrowableCauseMatcher.hasCause;
@@ -41,7 +41,7 @@ import io.confluent.kafka.serializers.KafkaAvroSerializer;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
+import java.nio.charset.Charset;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -1408,7 +1408,7 @@ public class KafkaIOTest {
         assertEquals(1, headersArray.length);
         assertEquals(header.getKey(), headersArray[0].key());
         assertEquals(
-            header.getValue(), new String(headersArray[0].value(), StandardCharsets.UTF_8));
+            header.getValue(), new String(headersArray[0].value(), Charset.defaultCharset()));
       }
     }
   }
@@ -1491,7 +1491,7 @@ public class KafkaIOTest {
         headers =
             Arrays.asList(
                 new RecordHeader(
-                    header.getKey(), header.getValue().getBytes(StandardCharsets.UTF_8)));
+                    header.getKey(), header.getValue().getBytes(Charset.defaultCharset())));
       }
       if (isSingleTopic) {
         ctx.output(new ProducerRecord<>(topic, null, ts, kv.getKey(), kv.getValue(), headers));

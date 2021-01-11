@@ -18,11 +18,11 @@
 package org.apache.beam.fn.harness.data;
 
 import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
-import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayList;
@@ -32,7 +32,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.data.BeamFnDataInboundObserver;
 import org.apache.beam.sdk.fn.data.CompletableFutureInboundDataClient;
-import org.apache.beam.sdk.fn.data.DecodingFnDataReceiver;
 import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -57,9 +56,8 @@ public class BeamFnDataInboundObserverTest {
   public void testDecodingElements() throws Exception {
     Collection<WindowedValue<String>> values = new ArrayList<>();
     InboundDataClient readFuture = CompletableFutureInboundDataClient.create();
-    BeamFnDataInboundObserver observer =
-        new BeamFnDataInboundObserver(
-            DATA_ENDPOINT, DecodingFnDataReceiver.create(CODER, values::add), readFuture);
+    BeamFnDataInboundObserver<WindowedValue<String>> observer =
+        new BeamFnDataInboundObserver<>(DATA_ENDPOINT, CODER, values::add, readFuture);
 
     // Test decoding multiple messages
     observer.accept(dataWith("ABC", "DEF", "GHI"), false);
@@ -82,9 +80,8 @@ public class BeamFnDataInboundObserverTest {
   @Test
   public void testConsumptionFailureCompletesReadFutureAndDiscardsMessages() throws Exception {
     InboundDataClient readClient = CompletableFutureInboundDataClient.create();
-    BeamFnDataInboundObserver observer =
-        new BeamFnDataInboundObserver(
-            DATA_ENDPOINT, DecodingFnDataReceiver.create(CODER, this::throwOnDefValue), readClient);
+    BeamFnDataInboundObserver<WindowedValue<String>> observer =
+        new BeamFnDataInboundObserver<>(DATA_ENDPOINT, CODER, this::throwOnDefValue, readClient);
 
     assertFalse(readClient.isDone());
     observer.accept(dataWith("ABC", "DEF", "GHI"), false);

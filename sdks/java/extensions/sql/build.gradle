@@ -27,7 +27,6 @@ applyJavaNature(
   generatedClassPatterns: [
     /^org\.apache\.beam\.sdk\.extensions\.sql\.impl\.parser\.impl.*/,
     /^org\.apache\.beam\.sdk\.extensions\.sql\.meta\.provider\.kafka\.KafkaMessages/,
-    /^org\.apache\.beam\.sdk\.extensions\.sql\.meta\.provider\.kafka\.thrift.*/,
   ],
   automaticModuleName: 'org.apache.beam.sdk.extensions.sql',
   // javacc generated code produces lint warnings
@@ -63,7 +62,6 @@ dependencies {
   fmppTemplates library.java.vendored_calcite_1_20_0
   compile project(":sdks:java:core")
   compile project(":sdks:java:extensions:join-library")
-  compile project(":sdks:java:extensions:sql:udf")
   compile project(path: ":runners:direct-java", configuration: "shadow")
   compile library.java.commons_codec
   compile library.java.commons_csv
@@ -78,7 +76,6 @@ dependencies {
   provided project(":sdks:java:io:google-cloud-platform")
   compile project(":sdks:java:io:mongodb")
   provided project(":sdks:java:io:parquet")
-  provided project(":sdks:java:io:thrift")
   provided library.java.jackson_dataformat_xml
   provided library.java.hadoop_client
   provided library.java.kafka_clients
@@ -180,6 +177,16 @@ task runPojoExample(type: JavaExec) {
   args = ["--runner=DirectRunner"]
 }
 
+// These tests become flaky when run in parallel at more than 3 threads so run them in a separate task
+task runKafkaTableProviderIT(type: Test) {
+  outputs.upToDateWhen { false }
+  include '**/KafkaTableProvider*IT.class'
+  maxParallelForks 2
+  classpath = project(":sdks:java:extensions:sql").sourceSets.test.runtimeClasspath
+  testClassesDirs = files(project(":sdks:java:extensions:sql").sourceSets.test.output.classesDirs)
+  useJUnit { }
+}
+
 task integrationTest(type: Test) {
   def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
   def gcsTempRoot = project.findProperty('gcsTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests/'
@@ -195,6 +202,7 @@ task integrationTest(type: Test) {
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson(pipelineOptions)
 
   include '**/*IT.class'
+  exclude '**/KafkaTableProvider*IT.class'
 
   maxParallelForks 4
   classpath = project(":sdks:java:extensions:sql")
@@ -208,6 +216,7 @@ task integrationTest(type: Test) {
 task postCommit {
   group = "Verification"
   description = "Various integration tests"
+  dependsOn runKafkaTableProviderIT
   dependsOn integrationTest
 }
 

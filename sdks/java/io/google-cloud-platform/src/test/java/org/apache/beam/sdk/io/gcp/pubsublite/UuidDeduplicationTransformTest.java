@@ -72,7 +72,9 @@ public class UuidDeduplicationTransformTest {
     PCollection<SequencedMessage> results =
         pipeline
             .apply(messageStream)
-            .apply(new UuidDeduplicationTransform(UuidDeduplicationOptions.newBuilder().build()));
+            .apply(
+                new UuidDeduplicationTransform(
+                    UuidDeduplicationOptions.newBuilder().setHashPartitions(1).build()));
     PAssert.that(results).containsInAnyOrder(message1, message2);
     pipeline.run();
   }
@@ -90,7 +92,9 @@ public class UuidDeduplicationTransformTest {
     PCollection<SequencedMessage> results =
         pipeline
             .apply(messageStream)
-            .apply(new UuidDeduplicationTransform(UuidDeduplicationOptions.newBuilder().build()));
+            .apply(
+                new UuidDeduplicationTransform(
+                    UuidDeduplicationOptions.newBuilder().setHashPartitions(1).build()));
     PAssert.that(results).containsInAnyOrder(message);
     pipeline.run();
   }
@@ -111,7 +115,9 @@ public class UuidDeduplicationTransformTest {
     PCollection<SequencedMessage> results =
         pipeline
             .apply(messageStream)
-            .apply(new UuidDeduplicationTransform(UuidDeduplicationOptions.newBuilder().build()));
+            .apply(
+                new UuidDeduplicationTransform(
+                    UuidDeduplicationOptions.newBuilder().setHashPartitions(1).build()));
     PAssert.that(results).containsInAnyOrder(message1, message1);
     pipeline.run();
   }
@@ -135,6 +141,7 @@ public class UuidDeduplicationTransformTest {
             .apply(
                 new UuidDeduplicationTransform(
                     UuidDeduplicationOptions.newBuilder()
+                        .setHashPartitions(1)
                         .setUuidExtractor(message -> Uuid.of(ByteString.copyFrom(bytes)))
                         .build()));
     PAssert.that(results)

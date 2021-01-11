@@ -27,7 +27,6 @@ import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
-import java.util.stream.Stream;
 import org.apache.beam.sdk.schemas.annotations.SchemaCaseFormat;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldName;
 import org.apache.beam.sdk.schemas.logicaltypes.OneOfType;
@@ -177,12 +176,19 @@ public abstract class FieldValueTypeInformation implements Serializable {
   }
 
   private static boolean hasNullableAnnotation(Field field) {
-    Stream<Annotation> annotations =
-        Stream.concat(
-            Stream.of(field.getAnnotations()),
-            Stream.of(field.getAnnotatedType().getAnnotations()));
+    for (Annotation annotation : field.getAnnotations()) {
+      if (isNullableAnnotation(annotation)) {
+        return true;
+      }
+    }
 
-    return annotations.anyMatch(FieldValueTypeInformation::isNullableAnnotation);
+    for (Annotation annotation : field.getAnnotatedType().getAnnotations()) {
+      if (isNullableAnnotation(annotation)) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   /**
@@ -190,26 +196,19 @@ public abstract class FieldValueTypeInformation implements Serializable {
    * field is nullable.
    */
   private static boolean hasNullableReturnType(Method method) {
-    Stream<Annotation> annotations =
-        Stream.concat(
-            Stream.of(method.getAnnotations()),
-            Stream.of(method.getAnnotatedReturnType().getAnnotations()));
-
-    return annotations.anyMatch(FieldValueTypeInformation::isNullableAnnotation);
-  }
-
-  private static boolean hasSingleNullableParameter(Method method) {
-    if (method.getParameterCount() != 1) {
-      throw new RuntimeException(
-          "Setter methods should take a single argument " + method.getName());
+    for (Annotation annotation : method.getAnnotations()) {
+      if (isNullableAnnotation(annotation)) {
+        return true;
+      }
     }
 
-    Stream<Annotation> annotations =
-        Stream.concat(
-            Arrays.stream(method.getAnnotatedParameterTypes()[0].getAnnotations()),
-            Arrays.stream(method.getParameterAnnotations()[0]));
+    for (Annotation annotation : method.getAnnotatedReturnType().getAnnotations()) {
+      if (isNullableAnnotation(annotation)) {
+        return true;
+      }
+    }
 
-    return annotations.anyMatch(FieldValueTypeInformation::isNullableAnnotation);
+    return false;
   }
 
   /** Try to accept any Nullable annotation. */
@@ -228,9 +227,13 @@ public abstract class FieldValueTypeInformation implements Serializable {
     } else {
       throw new RuntimeException("Setter has wrong prefix " + method.getName());
     }
-
+    if (method.getParameterCount() != 1) {
+      throw new RuntimeException("Setter methods should take a single argument.");
+    }
     TypeDescriptor type = TypeDescriptor.of(method.getGenericParameterTypes()[0]);
-    boolean nullable = hasSingleNullableParameter(method);
+    boolean nullable =
+        Arrays.stream(method.getParameters()[0].getAnnotatedType().getAnnotations())
+            .anyMatch(annotation -> isNullableAnnotation(annotation));
     return new AutoValue_FieldValueTypeInformation.Builder()
         .setName(name)
         .setNullable(nullable)

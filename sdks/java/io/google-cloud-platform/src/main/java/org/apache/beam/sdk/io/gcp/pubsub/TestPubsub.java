@@ -32,6 +32,7 @@ import com.google.cloud.pubsub.v1.TopicAdminClient;
 import com.google.cloud.pubsub.v1.TopicAdminSettings;
 import com.google.protobuf.ByteString;
 import com.google.pubsub.v1.PushConfig;
+import com.google.pubsub.v1.Subscription;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
@@ -141,23 +142,21 @@ public class TestPubsub implements TestRule {
             pipelineOptions.getProject(), createTopicName(description, EVENTS_TOPIC_NAME));
     topicAdmin.createTopic(eventsTopicPathTmp.getPath());
 
-    // Set this after successful creation; it signals that the topic needs teardown
     eventsTopicPath = eventsTopicPathTmp;
 
     String subscriptionName =
         topicPath().getName() + "_beam_" + ThreadLocalRandom.current().nextLong();
-    SubscriptionPath subscriptionPathTmp =
+    subscriptionPath =
         new SubscriptionPath(
             String.format(
                 "projects/%s/subscriptions/%s", pipelineOptions.getProject(), subscriptionName));
 
-    subscriptionAdmin.createSubscription(
-        subscriptionPathTmp.getPath(),
-        topicPath().getPath(),
-        PushConfig.getDefaultInstance(),
-        DEFAULT_ACK_DEADLINE_SECONDS);
-
-    subscriptionPath = subscriptionPathTmp;
+    Subscription subscription =
+        subscriptionAdmin.createSubscription(
+            subscriptionPath.getPath(),
+            topicPath().getPath(),
+            PushConfig.getDefaultInstance(),
+            DEFAULT_ACK_DEADLINE_SECONDS);
   }
 
   private void tearDown() throws IOException {

@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.gcp.spanner;
 
 import com.google.api.gax.retrying.RetrySettings;
 import com.google.api.gax.rpc.FixedHeaderProvider;
-import com.google.api.gax.rpc.ServerStreamingCallSettings;
 import com.google.api.gax.rpc.UnaryCallSettings;
 import com.google.cloud.NoCredentials;
 import com.google.cloud.ServiceFactory;
@@ -31,8 +30,6 @@ import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
 import com.google.spanner.v1.CommitRequest;
 import com.google.spanner.v1.CommitResponse;
-import com.google.spanner.v1.ExecuteSqlRequest;
-import com.google.spanner.v1.PartialResultSet;
 import io.grpc.CallOptions;
 import io.grpc.Channel;
 import io.grpc.ClientCall;
@@ -125,19 +122,6 @@ class SpannerAccessor implements AutoCloseable {
                   org.threeten.bp.Duration.ofMillis(commitDeadline.get().getMillis()))
               .build());
     }
-    // Setting the timeout for streaming read to 2 hours. This is 1 hour by default
-    // after BEAM 2.20.
-    ServerStreamingCallSettings.Builder<ExecuteSqlRequest, PartialResultSet>
-        executeStreamingSqlSettings =
-            builder.getSpannerStubSettingsBuilder().executeStreamingSqlSettings();
-    RetrySettings.Builder executeSqlStreamingRetrySettings =
-        executeStreamingSqlSettings.getRetrySettings().toBuilder();
-    executeStreamingSqlSettings.setRetrySettings(
-        executeSqlStreamingRetrySettings
-            .setInitialRpcTimeout(org.threeten.bp.Duration.ofMinutes(120))
-            .setMaxRpcTimeout(org.threeten.bp.Duration.ofMinutes(120))
-            .setTotalTimeout(org.threeten.bp.Duration.ofMinutes(120))
-            .build());
 
     ValueProvider<String> projectId = spannerConfig.getProjectId();
     if (projectId != null) {
@@ -173,15 +157,15 @@ class SpannerAccessor implements AutoCloseable {
         spanner, databaseClient, databaseAdminClient, batchClient, spannerConfig);
   }
 
-  public DatabaseClient getDatabaseClient() {
+  DatabaseClient getDatabaseClient() {
     return databaseClient;
   }
 
-  public BatchClient getBatchClient() {
+  BatchClient getBatchClient() {
     return batchClient;
   }
 
-  public DatabaseAdminClient getDatabaseAdminClient() {
+  DatabaseAdminClient getDatabaseAdminClient() {
     return databaseAdminClient;
   }
 

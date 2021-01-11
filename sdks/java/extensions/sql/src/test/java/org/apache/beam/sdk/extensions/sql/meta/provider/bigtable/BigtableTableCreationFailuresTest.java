@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.bigtable;
 
-import static org.apache.beam.sdk.extensions.sql.meta.provider.bigtable.BigtableTableTestUtils.checkMessage;
+import static org.apache.beam.sdk.io.gcp.testing.BigtableTestUtils.checkMessage;
 import static org.junit.Assert.assertThrows;
 
 import org.apache.beam.sdk.extensions.sql.BeamSqlCli;

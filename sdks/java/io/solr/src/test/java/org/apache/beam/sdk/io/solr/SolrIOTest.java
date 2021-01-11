@@ -24,7 +24,7 @@ import com.carrotsearch.ant.tasks.junit4.dependencies.com.google.common.collect.
 import com.carrotsearch.randomizedtesting.RandomizedRunner;
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
+import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Set;
 import org.apache.beam.sdk.Pipeline;
@@ -112,7 +112,7 @@ public class SolrIOTest extends SolrCloudTestCase {
     ZkStateReader zkStateReader = cluster.getSolrClient().getZkStateReader();
     zkStateReader
         .getZkClient()
-        .setData("/security.json", securityJson.getBytes(StandardCharsets.UTF_8), true);
+        .setData("/security.json", securityJson.getBytes(Charset.defaultCharset()), true);
     String zkAddress = cluster.getZkServer().getZkAddress();
     connectionConfiguration =
         SolrIO.ConnectionConfiguration.create(zkAddress).withBasicCredentials("solr", password);

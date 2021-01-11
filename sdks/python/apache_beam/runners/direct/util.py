@@ -61,28 +61,16 @@ class TransformResult(object):
 
 class TimerFiring(object):
   """A single instance of a fired timer."""
-  def __init__(
-      self,
-      encoded_key,
-      window,
-      name,
-      time_domain,
-      timestamp,
-      dynamic_timer_tag=''):
+  def __init__(self, encoded_key, window, name, time_domain, timestamp):
     self.encoded_key = encoded_key
     self.window = window
     self.name = name
     self.time_domain = time_domain
     self.timestamp = timestamp
-    self.dynamic_timer_tag = dynamic_timer_tag
 
   def __repr__(self):
-    return 'TimerFiring({!r}, {!r}, {}, {}, {})'.format(
-        self.encoded_key,
-        self.name,
-        self.time_domain,
-        self.timestamp,
-        self.dynamic_timer_tag)
+    return 'TimerFiring({!r}, {!r}, {}, {})'.format(
+        self.encoded_key, self.name, self.time_domain, self.timestamp)
 
 
 class KeyedWorkItem(object):

@@ -28,7 +28,7 @@ import java.io.ObjectOutputStream;
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -453,7 +453,7 @@ public class AvroUtils {
       } catch (Exception e) {
         throw new AvroRuntimeException(
             "Could not decode avro record from given bytes "
-                + new String(bytes, StandardCharsets.UTF_8),
+                + new String(bytes, Charset.defaultCharset()),
             e);
       }
     }

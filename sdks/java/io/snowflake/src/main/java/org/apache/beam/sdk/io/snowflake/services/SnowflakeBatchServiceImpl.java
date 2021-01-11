@@ -20,7 +20,7 @@ package org.apache.beam.sdk.io.snowflake.services;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.math.BigInteger;
-import java.nio.charset.StandardCharsets;
+import java.nio.charset.Charset;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -98,7 +98,7 @@ public class SnowflakeBatchServiceImpl implements SnowflakeService<SnowflakeBatc
   }
 
   private String getASCIICharRepresentation(String input) {
-    return String.format("0x%x", new BigInteger(1, input.getBytes(StandardCharsets.UTF_8)));
+    return String.format("0x%x", new BigInteger(1, input.getBytes(Charset.defaultCharset())));
   }
 
   /**

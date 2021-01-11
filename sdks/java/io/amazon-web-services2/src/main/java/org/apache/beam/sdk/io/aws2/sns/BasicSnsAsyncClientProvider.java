@@ -18,11 +18,8 @@
 package org.apache.beam.sdk.io.aws2.sns;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.net.URI;
-import java.util.Objects;
-import org.apache.beam.sdk.io.aws2.options.AwsSerializableUtils;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
@@ -31,7 +28,7 @@ import software.amazon.awssdk.services.sns.SnsAsyncClientBuilder;
 
 /** Basic implementation of {@link SnsAsyncClientProvider} used by default in {@link SnsIO}. */
 class BasicSnsAsyncClientProvider implements SnsAsyncClientProvider {
-  private final String awsCredentialsProviderSerialized;
+  private final AwsCredentialsProvider awsCredentialsProvider;
   private final String region;
   private final @Nullable URI serviceEndpoint;
 
@@ -39,9 +36,7 @@ class BasicSnsAsyncClientProvider implements SnsAsyncClientProvider {
       AwsCredentialsProvider awsCredentialsProvider, String region, @Nullable URI serviceEndpoint) {
     checkArgument(awsCredentialsProvider != null, "awsCredentialsProvider can not be null");
     checkArgument(region != null, "region can not be null");
-    this.awsCredentialsProviderSerialized =
-        AwsSerializableUtils.serializeAwsCredentialsProvider(awsCredentialsProvider);
-    checkNotNull(awsCredentialsProviderSerialized, "awsCredentialsProviderString can not be null");
+    this.awsCredentialsProvider = awsCredentialsProvider;
     this.region = region;
     this.serviceEndpoint = serviceEndpoint;
   }
@@ -50,9 +45,7 @@ class BasicSnsAsyncClientProvider implements SnsAsyncClientProvider {
   public SnsAsyncClient getSnsAsyncClient() {
     SnsAsyncClientBuilder builder =
         SnsAsyncClient.builder()
-            .credentialsProvider(
-                AwsSerializableUtils.deserializeAwsCredentialsProvider(
-                    awsCredentialsProviderSerialized))
+            .credentialsProvider(awsCredentialsProvider)
             .region(Region.of(region));
 
     if (serviceEndpoint != null) {
@@ -60,24 +53,5 @@ class BasicSnsAsyncClientProvider implements SnsAsyncClientProvider {
     }
 
     return builder.build();
-  }
-
-  @Override
-  public boolean equals(@Nullable Object o) {
-    if (this == o) {
-      return true;
-    }
-    if (o == null || getClass() != o.getClass()) {
-      return false;
-    }
-    BasicSnsAsyncClientProvider that = (BasicSnsAsyncClientProvider) o;
-    return Objects.equals(awsCredentialsProviderSerialized, that.awsCredentialsProviderSerialized)
-        && Objects.equals(region, that.region)
-        && Objects.equals(serviceEndpoint, that.serviceEndpoint);
-  }
-
-  @Override
-  public int hashCode() {
-    return Objects.hash(awsCredentialsProviderSerialized, region, serviceEndpoint);
   }
 }

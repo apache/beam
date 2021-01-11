@@ -2511,7 +2511,7 @@ public class TransactionPojo {
   public final double purchaseAmount;
   @SchemaCreate
   public TransactionPojo(String bank, double purchaseAmount) {
-    this.bank = bank;
+    this.bank = bank.
     this.purchaseAmount = purchaseAmount;
   }
 }
@@ -3085,7 +3085,7 @@ The resulting schema is the following:
 </table>
 <br/>
 
-Each resulting row contains one Transaction and one Review that matched the join condition.
+Each resulting row contains one Review and one Review that matched the join condition.
 
 If the fields to match in the two schemas have different names, then the on function can be used. For example, if the
 Review schema named those fields differently than the Transaction schema, then we could write the following:

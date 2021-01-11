@@ -131,10 +131,7 @@ class ZetaSQLPlannerImpl {
     }
 
     UserFunctionDefinitions userFunctionDefinitions =
-        UserFunctionDefinitions.newBuilder()
-            .setSqlScalarFunctions(udfBuilder.build())
-            .setSqlTableValuedFunctions(udtvfBuilder.build())
-            .build();
+        new UserFunctionDefinitions(udfBuilder.build(), udtvfBuilder.build());
 
     ExpressionConverter expressionConverter =
         new ExpressionConverter(cluster, params, userFunctionDefinitions);

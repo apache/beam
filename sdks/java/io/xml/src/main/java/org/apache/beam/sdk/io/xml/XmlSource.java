@@ -233,8 +233,6 @@ public class XmlSource<T> extends FileBasedSource<T> {
       int charBytesFound = 0;
 
       ByteBuffer buf = ByteBuffer.allocate(BUF_SIZE);
-      boolean bufSizeChanged = false;
-
       byte[] recordStartBytes =
           ("<" + getCurrentSource().configuration.getRecordElement())
               .getBytes(StandardCharsets.UTF_8);
@@ -283,16 +281,7 @@ public class XmlSource<T> extends FileBasedSource<T> {
               break outer;
             } else {
               // Matching was unsuccessful. Reset the buffer to include bytes read for the char.
-              int bytesToWrite = buf.remaining() + charBytes.length;
-              ByteBuffer newbuf;
-              if (bytesToWrite > BUF_SIZE) {
-                // Avoiding buffer overflow. The number of bytes to push to the buffer might be
-                // larger than BUF_SIZE due to additional 'charBytes'.
-                newbuf = ByteBuffer.allocate(bytesToWrite);
-                bufSizeChanged = true;
-              } else {
-                newbuf = ByteBuffer.allocate(BUF_SIZE);
-              }
+              ByteBuffer newbuf = ByteBuffer.allocate(BUF_SIZE);
               newbuf.put(charBytes);
               offsetInFileOfCurrentByte -= charBytes.length;
               while (buf.hasRemaining()) {
@@ -331,14 +320,7 @@ public class XmlSource<T> extends FileBasedSource<T> {
             recordStartBytesMatched = true;
           }
         }
-        if (bufSizeChanged) {
-          // We have to reset the size of the buffer to 'BUF_SIZE'
-          // to prevent it from infinitely increasing.
-          buf = ByteBuffer.allocate(BUF_SIZE);
-          bufSizeChanged = false;
-        } else {
-          buf.clear();
-        }
+        buf.clear();
       }
 
       if (!fullyMatched) {

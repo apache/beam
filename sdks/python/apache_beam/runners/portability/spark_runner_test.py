@@ -87,7 +87,7 @@ class SparkRunnerTest(portable_runner_test.PortableRunnerTest):
     self.set_spark_job_server_jar(
         known_args.spark_job_server_jar or
         job_server.JavaJarJobServer.path_to_beam_jar(
-            ':runners:spark:job-server:shadowJar'))
+            ':runners:job-server:shadowJar'))
     self.environment_type = known_args.environment_type
     self.environment_options = known_args.environment_options
 
@@ -171,9 +171,6 @@ class SparkRunnerTest(portable_runner_test.PortableRunnerTest):
   def test_sdf_with_dofn_as_watermark_estimator(self):
     # Skip until Spark runner supports SDF and self-checkpoint.
     raise unittest.SkipTest("BEAM-7222")
-
-  def test_pardo_dynamic_timer(self):
-    raise unittest.SkipTest("BEAM-9912")
 
   def test_flattened_side_input(self):
     # Blocked on support for transcoding

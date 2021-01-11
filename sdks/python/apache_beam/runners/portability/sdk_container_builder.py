@@ -238,8 +238,15 @@ class _SdkContainerImageCloudBuilder(SdkContainerImageBuilder):
     operation = client.create_build(project_id=project_id, build=build)
     _LOGGER.info(
         'Building sdk container with Google Cloud Build, this may '
-        'take a few minutes, you may check build log at %s' %
-        operation.metadata.build.log_url)
+        'take a few minutes...')
+    # TODO: we shouldn't need to query build log url with list_builds if log
+    # url is included in operation or build object.
+    build_lists = client.list_builds(
+        project_id=project_id,
+        filter="source.storage_source.bucket=\"%s\" AND source"
+        ".storage_source.object=\"%s\"" % (gcs_bucket, gcs_object))
+    for build in build_lists:
+      _LOGGER.info("Check Google Cloud Build log at %s" % build.log_url)
 
     # block until build finish, if build fails exception will be raised and
     # stops the job submission.

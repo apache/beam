@@ -16,6 +16,7 @@
  */
 
 @import "media";
+@import "typography";
 
 .hero-desktop {
   position: relative;
@@ -35,7 +36,6 @@
 
     h3 {
       @extend .hero-title;
-
       text-transform: uppercase;
       margin: 0 auto 24px auto;
     }
@@ -43,7 +43,8 @@
     h1 {
       @extend .hero-heading;
       width: 506px;
-
+      height: 92px;
+      font-size: 46px;
       margin: 0 auto 36px auto;
     }
 

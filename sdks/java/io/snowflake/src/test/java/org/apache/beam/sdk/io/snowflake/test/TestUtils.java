@@ -26,7 +26,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
+import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -152,7 +152,7 @@ public class TestUtils {
     List<String> lines = new ArrayList<>();
     try {
       GZIPInputStream gzip = new GZIPInputStream(new FileInputStream(file));
-      BufferedReader br = new BufferedReader(new InputStreamReader(gzip, StandardCharsets.UTF_8));
+      BufferedReader br = new BufferedReader(new InputStreamReader(gzip, Charset.defaultCharset()));
 
       String line;
       while ((line = br.readLine()) != null) {
@@ -175,7 +175,7 @@ public class TestUtils {
 
   public static String getRawValidPrivateKey(Class c) throws IOException {
     byte[] keyBytes = Files.readAllBytes(Paths.get(getValidPrivateKeyPath(c)));
-    return new String(keyBytes, StandardCharsets.UTF_8);
+    return new String(keyBytes, Charset.defaultCharset());
   }
 
   public static String getPrivateKeyPassphrase() {

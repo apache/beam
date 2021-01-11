@@ -44,6 +44,7 @@ from future.utils import iteritems
 import apache_beam as beam
 from apache_beam import coders
 from apache_beam import error
+from apache_beam import pvalue
 from apache_beam.internal import pickler
 from apache_beam.internal.gcp import json_value
 from apache_beam.options.pipeline_options import DebugOptions
@@ -65,6 +66,7 @@ from apache_beam.runners.runner import PipelineRunner
 from apache_beam.runners.runner import PipelineState
 from apache_beam.runners.runner import PValueCache
 from apache_beam.transforms import window
+from apache_beam.transforms.core import RunnerAPIPTransformHolder
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.sideinputs import SIDE_INPUT_PREFIX
 from apache_beam.typehints import typehints
@@ -301,6 +303,30 @@ class DataflowRunner(PipelineRunner):
     return GroupByKeyInputVisitor()
 
   @staticmethod
+  def _set_pdone_visitor(pipeline):
+    # Imported here to avoid circular dependencies.
+    from apache_beam.pipeline import PipelineVisitor
+
+    class SetPDoneVisitor(PipelineVisitor):
+      def __init__(self, pipeline):
+        self._pipeline = pipeline
+
+      @staticmethod
+      def _maybe_fix_output(transform_node, pipeline):
+        if not transform_node.outputs:
+          pval = pvalue.PDone(pipeline)
+          pval.producer = transform_node
+          transform_node.outputs = {None: pval}
+
+      def enter_composite_transform(self, transform_node):
+        SetPDoneVisitor._maybe_fix_output(transform_node, self._pipeline)
+
+      def visit_transform(self, transform_node):
+        SetPDoneVisitor._maybe_fix_output(transform_node, self._pipeline)
+
+    return SetPDoneVisitor(pipeline)
+
+  @staticmethod
   def side_input_visitor(use_unified_worker=False, use_fn_api=False):
     # Imported here to avoid circular dependencies.
     # pylint: disable=wrong-import-order, wrong-import-position
@@ -479,11 +505,7 @@ class DataflowRunner(PipelineRunner):
     pipeline.replace_all(DataflowRunner._PTRANSFORM_OVERRIDES)
 
     from apache_beam.runners.dataflow.ptransform_overrides import WriteToBigQueryPTransformOverride
-    from apache_beam.runners.dataflow.ptransform_overrides import GroupIntoBatchesWithShardedKeyPTransformOverride
-    pipeline.replace_all([
-        WriteToBigQueryPTransformOverride(pipeline, options),
-        GroupIntoBatchesWithShardedKeyPTransformOverride(self, options)
-    ])
+    pipeline.replace_all([WriteToBigQueryPTransformOverride(pipeline, options)])
 
     if use_fnapi and not apiclient._use_unified_worker(options):
       pipeline.replace_all(DataflowRunner._JRH_PTRANSFORM_OVERRIDES)
@@ -511,24 +533,29 @@ class DataflowRunner(PipelineRunner):
     self.proto_pipeline, self.proto_context = pipeline.to_runner_api(
         return_context=True, default_environment=self._default_environment)
 
-    # Optimize the pipeline if it not streaming and the
-    # disable_optimize_pipeline_for_dataflow experiment has not been set.
-    if (not options.view_as(StandardOptions).streaming and
-        not options.view_as(DebugOptions).lookup_experiment(
-            "disable_optimize_pipeline_for_dataflow")):
-      from apache_beam.runners.portability.fn_api_runner import translations
-      self.proto_pipeline = translations.optimize_pipeline(
-          self.proto_pipeline,
-          phases=[
-              translations.eliminate_common_key_with_none,
-              translations.pack_combiners,
-              translations.sort_stages,
-          ],
-          known_runner_urns=frozenset(),
-          partial=True)
-
     if use_fnapi:
       self._check_for_unsupported_fnapi_features(self.proto_pipeline)
+
+      # Cross language transform require using a pipeline object constructed
+      # from the full pipeline proto to make sure that expanded version of
+      # external transforms are reflected in the Pipeline job graph.
+      # TODO(chamikara): remove following pipeline and pipeline proto recreation
+      # after portable job submission path is fully in place.
+      from apache_beam import Pipeline
+      pipeline = Pipeline.from_runner_api(
+          self.proto_pipeline,
+          pipeline.runner,
+          options,
+          allow_proto_holders=True)
+
+      # Pipelines generated from proto do not have output set to PDone set for
+      # leaf elements.
+      pipeline.visit(self._set_pdone_visitor(pipeline))
+
+      # We need to generate a new context that maps to the new pipeline object.
+      self.proto_pipeline, self.proto_context = pipeline.to_runner_api(
+          return_context=True, default_environment=self._default_environment)
+
     else:
       # Performing configured PTransform overrides which should not be reflected
       # in the proto representation of the graph.
@@ -548,12 +575,6 @@ class DataflowRunner(PipelineRunner):
     if worker_options.min_cpu_platform:
       debug_options.add_experiment(
           'min_cpu_platform=' + worker_options.min_cpu_platform)
-
-    if (apiclient._use_unified_worker(options) and
-        pipeline.contains_external_transforms):
-      # All Dataflow multi-language pipelines (supported by Runner v2 only) use
-      # portable job submission by default.
-      debug_options.add_experiment("use_portable_job_submission")
 
     # Elevate "enable_streaming_engine" to pipeline option, but using the
     # existing experiment.
@@ -677,6 +698,8 @@ class DataflowRunner(PipelineRunner):
   def _get_encoded_output_coder(
       self, transform_node, window_value=True, output_tag=None):
     """Returns the cloud encoding of the coder for the output of a transform."""
+    is_external_transform = isinstance(
+        transform_node.transform, RunnerAPIPTransformHolder)
 
     if output_tag in transform_node.outputs:
       element_type = transform_node.outputs[output_tag].element_type
@@ -684,7 +707,10 @@ class DataflowRunner(PipelineRunner):
       output_tag = DataflowRunner._only_element(transform_node.outputs.keys())
       # TODO(robertwb): Handle type hints for multi-output transforms.
       element_type = transform_node.outputs[output_tag].element_type
-
+    elif is_external_transform:
+      raise ValueError(
+          'For external transforms, output_tag must be specified '
+          'since we cannot fallback to a Python only coder.')
     else:
       # TODO(silviuc): Remove this branch (and assert) when typehints are
       # propagated everywhere. Returning an 'Any' as type hint will trigger
@@ -701,18 +727,6 @@ class DataflowRunner(PipelineRunner):
       window_coder = None
     return self._get_typehint_based_encoding(element_type, window_coder)
 
-  def get_pcoll_with_auto_sharding(self):
-    if not hasattr(self, '_pcoll_with_auto_sharding'):
-      return set()
-    return self._pcoll_with_auto_sharding
-
-  def add_pcoll_with_auto_sharding(self, applied_ptransform):
-    if not hasattr(self, '_pcoll_with_auto_sharding'):
-      self.__setattr__('_pcoll_with_auto_sharding', set())
-    output = DataflowRunner._only_element(applied_ptransform.outputs.keys())
-    self._pcoll_with_auto_sharding.add(
-        applied_ptransform.outputs[output]._unique_name())
-
   def _add_step(self, step_kind, step_label, transform_node, side_tags=()):
     """Creates a Step object and adds it to the cache."""
     # Import here to avoid adding the dependency for local running scenarios.
@@ -723,15 +737,19 @@ class DataflowRunner(PipelineRunner):
     step.add_property(PropertyNames.USER_NAME, step_label)
     # Cache the node/step association for the main output of the transform node.
 
-    # External transforms may not use 'None' as an output tag.
-    output_tags = ([None] +
-                   list(side_tags) if None in transform_node.outputs.keys() else
-                   list(transform_node.outputs.keys()))
+    # Main output key of external transforms can be ambiguous, so we only tag if
+    # there's only one tag instead of None.
+    output_tag = (
+        DataflowRunner._only_element(transform_node.outputs.keys()) if len(
+            transform_node.outputs.keys()) == 1 else None)
 
-    # We have to cache output for all tags since some transforms may produce
-    # multiple outputs.
-    for output_tag in output_tags:
-      self._cache.cache_output(transform_node, output_tag, step)
+    self._cache.cache_output(transform_node, output_tag, step)
+    # If side_tags is not () then this is a multi-output transform node and we
+    # need to cache the (node, tag, step) for each of the tags used to access
+    # the outputs. This is essential because the keys used to search in the
+    # cache always contain the tag.
+    for tag in side_tags:
+      self._cache.cache_output(transform_node, tag, step)
 
     # Finally, we add the display data items to the pipeline step.
     # If the transform contains no display data then an empty list is added.
@@ -858,6 +876,12 @@ class DataflowRunner(PipelineRunner):
 
     parent = pcoll.producer
     if parent:
+      # Skip the check because we can assume that any x-lang transform is
+      # properly formed (the onus is on the expansion service to construct
+      # transforms correctly).
+      if isinstance(parent.transform, RunnerAPIPTransformHolder):
+        return
+
       coder = parent.transform._infer_output_coder()  # pylint: disable=protected-access
     if not coder:
       coder = self._get_coder(pcoll.element_type or typehints.Any, None)
@@ -899,32 +923,35 @@ class DataflowRunner(PipelineRunner):
         PropertyNames.SERIALIZED_FN,
         self.serialize_windowing_strategy(windowing, self._default_environment))
 
-  def run_ExternalTransform(self, transform_node, options):
-    # Adds a dummy step to the Dataflow job description so that inputs and
-    # outputs are mapped correctly in the presence of external transforms.
-    #
-    # Note that Dataflow Python multi-language pipelines use Portable Job
-    # Submission by default, hence this step and rest of the Dataflow step
-    # definitions defined here are not used at Dataflow service but we have to
-    # maintain the mapping correctly till we can fully drop the Dataflow step
-    # definitions from the SDK.
+  def run_RunnerAPIPTransformHolder(self, transform_node, options):
+    """Adding Dataflow runner job description for transform holder objects.
 
-    # AppliedTransform node outputs have to be updated to correctly map the
-    # outputs for external transforms.
-    transform_node.outputs = ({
-        output.tag: output
-        for output in transform_node.outputs.values()
-    })
-
-    self.run_Impulse(transform_node, options)
+    These holder transform objects are generated for some of the transforms that
+    become available after a cross-language transform expansion, usually if the
+    corresponding transform object cannot be generated in Python SDK (for
+    example, a python `ParDo` transform cannot be generated without a serialized
+    Python `DoFn` object).
+    """
+    urn = transform_node.transform.proto().urn
+    assert urn
+    # TODO(chamikara): support other transforms that requires holder objects in
+    #  Python SDk.
+    if common_urns.primitives.PAR_DO.urn == urn:
+      self.run_ParDo(transform_node, options)
+    else:
+      raise NotImplementedError(
+          '%s uses unsupported URN: %s' % (transform_node.full_label, urn))
 
   def run_ParDo(self, transform_node, options):
     transform = transform_node.transform
     input_tag = transform_node.inputs[0].tag
     input_step = self._cache.get_pvalue(transform_node.inputs[0])
 
+    is_external_transform = isinstance(transform, RunnerAPIPTransformHolder)
+
     # Attach side inputs.
     si_dict = {}
+    all_input_labels = transform_node.input_tags_to_preserve
     si_labels = {}
     full_label_counts = defaultdict(int)
     lookup_label = lambda side_pval: si_labels[side_pval]
@@ -934,10 +961,13 @@ class DataflowRunner(PipelineRunner):
       assert isinstance(side_pval, AsSideInput)
       step_name = 'SideInput-' + self._get_unique_step_name()
       si_label = ((SIDE_INPUT_PREFIX + '%d-%s') %
-                  (ix, transform_node.full_label))
+                  (ix, transform_node.full_label)
+                  if side_pval.pvalue not in all_input_labels else
+                  all_input_labels[side_pval.pvalue])
       old_label = (SIDE_INPUT_PREFIX + '%d') % ix
 
-      label_renames[old_label] = si_label
+      if not is_external_transform:
+        label_renames[old_label] = si_label
 
       assert old_label in named_inputs
       pcollection_label = '%s.%s' % (
@@ -1038,7 +1068,7 @@ class DataflowRunner(PipelineRunner):
     # external transforms, we leave tags unmodified.
     #
     # Python SDK uses 'None' as the tag of the main output.
-    main_output_tag = 'None'
+    main_output_tag = (all_output_tags[0] if is_external_transform else 'None')
 
     step.encoding = self._get_encoded_output_coder(
         transform_node, output_tag=main_output_tag)
@@ -1076,23 +1106,11 @@ class DataflowRunner(PipelineRunner):
           self._get_cloud_encoding(restriction_coder))
 
     if options.view_as(StandardOptions).streaming:
-      is_stateful_dofn = (DoFnSignature(transform.dofn).is_stateful_dofn())
+      is_stateful_dofn = (
+          transform.is_pardo_with_stateful_dofn if is_external_transform else
+          DoFnSignature(transform.dofn).is_stateful_dofn())
       if is_stateful_dofn:
         step.add_property(PropertyNames.USES_KEYED_STATE, 'true')
-
-        # Also checks whether the step allows shardable keyed states.
-        # TODO(BEAM-11360): remove this when migrated to portable job
-        #  submission since we only consider supporting the property in runner
-        #  v2.
-        for pcoll in transform_node.outputs.values():
-          if pcoll._unique_name() in self.get_pcoll_with_auto_sharding():
-            step.add_property(PropertyNames.ALLOWS_SHARDABLE_STATE, 'true')
-            # Currently we only allow auto-sharding to be enabled through the
-            # GroupIntoBatches transform. So we also add the following property
-            # which GroupIntoBatchesDoFn has, to allow the backend to perform
-            # graph optimization.
-            step.add_property(PropertyNames.PRESERVES_KEYS, 'true')
-            break
 
   @staticmethod
   def _pardo_fn_data(transform_node, get_label):

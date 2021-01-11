@@ -18,13 +18,13 @@
 package org.apache.beam.sdk.io.gcp.bigtable;
 
 import static java.util.stream.Collectors.toList;
-import static org.apache.beam.sdk.io.gcp.bigtable.BigtableTestUtils.FAMILY_TEST;
-import static org.apache.beam.sdk.io.gcp.bigtable.BigtableTestUtils.LATER;
-import static org.apache.beam.sdk.io.gcp.bigtable.BigtableTestUtils.LONG_COLUMN_SCHEMA;
-import static org.apache.beam.sdk.io.gcp.bigtable.BigtableTestUtils.STRING_COLUMN;
-import static org.apache.beam.sdk.io.gcp.bigtable.BigtableTestUtils.TEST_FAMILY_SCHEMA;
-import static org.apache.beam.sdk.io.gcp.bigtable.BigtableTestUtils.TEST_SCHEMA;
-import static org.apache.beam.sdk.io.gcp.bigtable.BigtableTestUtils.bigtableRow;
+import static org.apache.beam.sdk.io.gcp.bigtable.TestUtils.bigtableRow;
+import static org.apache.beam.sdk.io.gcp.testing.BigtableTestUtils.FAMILY_TEST;
+import static org.apache.beam.sdk.io.gcp.testing.BigtableTestUtils.LATER;
+import static org.apache.beam.sdk.io.gcp.testing.BigtableTestUtils.LONG_COLUMN_SCHEMA;
+import static org.apache.beam.sdk.io.gcp.testing.BigtableTestUtils.STRING_COLUMN;
+import static org.apache.beam.sdk.io.gcp.testing.BigtableTestUtils.TEST_FAMILY_SCHEMA;
+import static org.apache.beam.sdk.io.gcp.testing.BigtableTestUtils.TEST_SCHEMA;
 
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.testing.PAssert;
@@ -71,7 +71,8 @@ public class BigtableRowToBeamRowTest {
             false,
             Row.withSchema(LONG_COLUMN_SCHEMA).attachValues(2L, LATER, ImmutableList.of("label1")),
             ImmutableList.of("value1", "value2"),
-            5.5);
+            5.5,
+            new byte[] {2, 1, 0});
   }
 
   private static class SortStringColumn extends SimpleFunction<Row, Row> {

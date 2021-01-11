@@ -17,20 +17,10 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable;
 
-import com.google.protobuf.ByteString;
-
 public class RowUtils {
   public static final String KEY = "key";
   public static final String VALUE = "val";
   public static final String TIMESTAMP_MICROS = "timestampMicros";
   public static final String LABELS = "labels";
   public static final String COLUMNS_MAPPING = "columnsMapping";
-
-  public static ByteString byteString(byte[] bytes) {
-    return ByteString.copyFrom(bytes);
-  }
-
-  public static ByteString byteStringUtf8(String value) {
-    return ByteString.copyFromUtf8(value);
-  }
 }

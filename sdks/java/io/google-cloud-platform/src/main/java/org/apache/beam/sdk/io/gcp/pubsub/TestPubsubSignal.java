@@ -17,23 +17,18 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
+import static java.util.stream.Collectors.toList;
 import static org.apache.beam.sdk.io.gcp.pubsub.TestPubsub.createTopicName;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
-import com.google.api.gax.rpc.ApiException;
-import com.google.cloud.pubsub.v1.AckReplyConsumer;
-import com.google.cloud.pubsub.v1.MessageReceiver;
-import com.google.cloud.pubsub.v1.Subscriber;
-import com.google.cloud.pubsub.v1.SubscriptionAdminClient;
-import com.google.cloud.pubsub.v1.SubscriptionAdminSettings;
-import com.google.cloud.pubsub.v1.TopicAdminClient;
-import com.google.cloud.pubsub.v1.TopicAdminSettings;
-import com.google.pubsub.v1.PushConfig;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import java.io.IOException;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.IncomingMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
 import org.apache.beam.sdk.state.BagState;
@@ -60,7 +55,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
-import org.joda.time.Seconds;
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
@@ -82,16 +76,12 @@ public class TestPubsubSignal implements TestRule {
   private static final String RESULT_SUCCESS_MESSAGE = "SUCCESS";
   private static final String START_TOPIC_NAME = "start";
   private static final String START_SIGNAL_MESSAGE = "START SIGNAL";
-  private static final Integer DEFAULT_ACK_DEADLINE_SECONDS = 60;
 
   private static final String NO_ID_ATTRIBUTE = null;
   private static final String NO_TIMESTAMP_ATTRIBUTE = null;
 
-  private final TestPubsubOptions pipelineOptions;
-  private final String pubsubEndpoint;
-
-  private @Nullable TopicAdminClient topicAdmin = null;
-  private @Nullable SubscriptionAdminClient subscriptionAdmin = null;
+  PubsubClient pubsub;
+  private TestPubsubOptions pipelineOptions;
   private @Nullable TopicPath resultTopicPath = null;
   private @Nullable TopicPath startTopicPath = null;
 
@@ -107,7 +97,6 @@ public class TestPubsubSignal implements TestRule {
 
   private TestPubsubSignal(TestPubsubOptions pipelineOptions) {
     this.pipelineOptions = pipelineOptions;
-    this.pubsubEndpoint = PubsubOptions.targetForRootUrl(this.pipelineOptions.getPubsubRootUrl());
   }
 
   @Override
@@ -115,7 +104,7 @@ public class TestPubsubSignal implements TestRule {
     return new Statement() {
       @Override
       public void evaluate() throws Throwable {
-        if (topicAdmin != null || subscriptionAdmin != null) {
+        if (TestPubsubSignal.this.pubsub != null) {
           throw new AssertionError(
               "Pubsub client was not shutdown in previous test. "
                   + "Topic path is'"
@@ -136,18 +125,9 @@ public class TestPubsubSignal implements TestRule {
   }
 
   private void initializePubsub(Description description) throws IOException {
-    topicAdmin =
-        TopicAdminClient.create(
-            TopicAdminSettings.newBuilder()
-                .setCredentialsProvider(pipelineOptions::getGcpCredential)
-                .setEndpoint(pubsubEndpoint)
-                .build());
-    subscriptionAdmin =
-        SubscriptionAdminClient.create(
-            SubscriptionAdminSettings.newBuilder()
-                .setCredentialsProvider(pipelineOptions::getGcpCredential)
-                .setEndpoint(pubsubEndpoint)
-                .build());
+    pubsub =
+        PubsubGrpcClient.FACTORY.newClient(
+            NO_TIMESTAMP_ATTRIBUTE, NO_ID_ATTRIBUTE, pipelineOptions);
 
     // Example topic name:
     //    integ-test-TestClassName-testMethodName-2018-12-11-23-32-333-<random-long>-result
@@ -158,8 +138,8 @@ public class TestPubsubSignal implements TestRule {
         PubsubClient.topicPathFromName(
             pipelineOptions.getProject(), createTopicName(description, START_TOPIC_NAME));
 
-    topicAdmin.createTopic(resultTopicPathTmp.getPath());
-    topicAdmin.createTopic(startTopicPathTmp.getPath());
+    pubsub.createTopic(resultTopicPathTmp);
+    pubsub.createTopic(startTopicPathTmp);
 
     // Set these after successful creation; this signals that they need teardown
     resultTopicPath = resultTopicPathTmp;
@@ -167,34 +147,21 @@ public class TestPubsubSignal implements TestRule {
   }
 
   private void tearDown() throws IOException {
-    if (subscriptionAdmin == null || topicAdmin == null) {
+    if (pubsub == null) {
       return;
     }
 
     try {
       if (resultTopicPath != null) {
-        for (String subscriptionPath :
-            topicAdmin.listTopicSubscriptions(resultTopicPath.getPath()).iterateAll()) {
-          subscriptionAdmin.deleteSubscription(subscriptionPath);
-        }
-        topicAdmin.deleteTopic(resultTopicPath.getPath());
+        pubsub.deleteTopic(resultTopicPath);
       }
       if (startTopicPath != null) {
-        for (String subscriptionPath :
-            topicAdmin.listTopicSubscriptions(startTopicPath.getPath()).iterateAll()) {
-          subscriptionAdmin.deleteSubscription(subscriptionPath);
-        }
-        topicAdmin.deleteTopic(startTopicPath.getPath());
+        pubsub.deleteTopic(startTopicPath);
       }
     } finally {
-      subscriptionAdmin.close();
-      topicAdmin.close();
-
-      subscriptionAdmin = null;
-      topicAdmin = null;
-
+      pubsub.close();
+      pubsub = null;
       resultTopicPath = null;
-      startTopicPath = null;
     }
   }
 
@@ -248,11 +215,8 @@ public class TestPubsubSignal implements TestRule {
             pipelineOptions.getProject(),
             "start-subscription-" + String.valueOf(ThreadLocalRandom.current().nextLong()));
 
-    subscriptionAdmin.createSubscription(
-        startSubscriptionPath.getPath(),
-        startTopicPath.getPath(),
-        PushConfig.getDefaultInstance(),
-        (int) duration.getStandardSeconds());
+    pubsub.createSubscription(
+        startTopicPath, startSubscriptionPath, (int) duration.getStandardSeconds());
 
     return Suppliers.memoize(
         () -> {
@@ -264,8 +228,8 @@ public class TestPubsubSignal implements TestRule {
             throw new RuntimeException(e);
           } finally {
             try {
-              subscriptionAdmin.deleteSubscription(startSubscriptionPath.getPath());
-            } catch (ApiException e) {
+              pubsub.deleteSubscription(startSubscriptionPath);
+            } catch (IOException e) {
               LOG.error(String.format("Leaked PubSub subscription '%s'", startSubscriptionPath));
             }
           }
@@ -279,17 +243,14 @@ public class TestPubsubSignal implements TestRule {
             pipelineOptions.getProject(),
             "result-subscription-" + String.valueOf(ThreadLocalRandom.current().nextLong()));
 
-    subscriptionAdmin.createSubscription(
-        resultSubscriptionPath.getPath(),
-        resultTopicPath.getPath(),
-        PushConfig.getDefaultInstance(),
-        (int) duration.getStandardSeconds());
+    pubsub.createSubscription(
+        resultTopicPath, resultSubscriptionPath, (int) duration.getStandardSeconds());
 
     String result = pollForResultForDuration(resultSubscriptionPath, duration);
 
     try {
-      subscriptionAdmin.deleteSubscription(resultSubscriptionPath.getPath());
-    } catch (ApiException e) {
+      pubsub.deleteSubscription(resultSubscriptionPath);
+    } catch (IOException e) {
       LOG.error(String.format("Leaked PubSub subscription '%s'", resultSubscriptionPath));
     }
 
@@ -299,50 +260,39 @@ public class TestPubsubSignal implements TestRule {
   }
 
   private String pollForResultForDuration(
-      SubscriptionPath signalSubscriptionPath, Duration timeoutDuration) throws IOException {
+      SubscriptionPath signalSubscriptionPath, Duration duration) throws IOException {
 
-    AtomicReference<String> result = new AtomicReference<>(null);
+    List<PubsubClient.IncomingMessage> signal = null;
+    DateTime endPolling = DateTime.now().plus(duration.getMillis());
 
-    MessageReceiver receiver =
-        (com.google.pubsub.v1.PubsubMessage message, AckReplyConsumer replyConsumer) -> {
-          // Ignore empty messages
-          if (message.getData().isEmpty()) {
-            replyConsumer.ack();
-          }
-          if (result.compareAndSet(null, message.getData().toStringUtf8())) {
-            replyConsumer.ack();
-          } else {
-            replyConsumer.nack();
-          }
-        };
-
-    Subscriber subscriber =
-        Subscriber.newBuilder(signalSubscriptionPath.getPath(), receiver)
-            .setCredentialsProvider(pipelineOptions::getGcpCredential)
-            .setEndpoint(pubsubEndpoint)
-            .build();
-    subscriber.startAsync();
-
-    DateTime startTime = new DateTime();
-    int timeoutSeconds = timeoutDuration.toStandardSeconds().getSeconds();
-    while (result.get() == null
-        && Seconds.secondsBetween(startTime, new DateTime()).getSeconds() < timeoutSeconds) {
+    do {
       try {
-        Thread.sleep(1000);
-      } catch (InterruptedException ignored) {
+        signal = pubsub.pull(DateTime.now().getMillis(), signalSubscriptionPath, 1, false);
+        if (signal.isEmpty()) {
+          continue;
+        }
+        pubsub.acknowledge(
+            signalSubscriptionPath, signal.stream().map(IncomingMessage::ackId).collect(toList()));
+        break;
+      } catch (StatusRuntimeException e) {
+        if (!Status.DEADLINE_EXCEEDED.equals(e.getStatus())) {
+          LOG.warn(
+              "(Will retry) Error while polling {} for signal: {}",
+              signalSubscriptionPath,
+              e.getStatus());
+        }
+        sleep(500);
       }
-    }
+    } while (DateTime.now().isBefore(endPolling));
 
-    subscriber.stopAsync();
-    subscriber.awaitTerminated();
-
-    if (result.get() == null) {
+    if (signal == null || signal.isEmpty()) {
       throw new AssertionError(
           String.format(
               "Did not receive signal on %s in %ss",
-              signalSubscriptionPath, timeoutDuration.getStandardSeconds()));
+              signalSubscriptionPath, duration.getStandardSeconds()));
     }
-    return result.get();
+
+    return signal.get(0).message().getData().toStringUtf8();
   }
 
   private void sleep(long t) {

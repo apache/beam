@@ -697,12 +697,12 @@ def examples_wordcount_streaming(argv):
         | 'Group' >> beam.GroupByKey()
         |
         'Sum' >> beam.Map(lambda word_ones: (word_ones[0], sum(word_ones[1])))
-        | 'Format' >>
-        beam.MapTuple(lambda word, count: f'{word}: {count}'.encode('utf-8')))
+        |
+        'Format' >> beam.Map(lambda word_and_count: '%s: %d' % word_and_count))
 
     # [START example_wordcount_streaming_write]
     # Write to Pub/Sub
-    output | beam.io.WriteToPubSub(known_args.output_topic)
+    output | beam.io.WriteStringsToPubSub(known_args.output_topic)
     # [END example_wordcount_streaming_write]
 
 

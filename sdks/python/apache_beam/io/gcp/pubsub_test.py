@@ -829,7 +829,6 @@ class TestWriteToPubSub(unittest.TestCase):
 
   def test_write_messages_deprecated(self, mock_pubsub):
     data = 'data'
-    data_bytes = b'data'
     payloads = [data]
 
     options = PipelineOptions([])
@@ -840,7 +839,7 @@ class TestWriteToPubSub(unittest.TestCase):
           | Create(payloads)
           | WriteStringsToPubSub('projects/fakeprj/topics/a_topic'))
     mock_pubsub.return_value.publish.assert_has_calls(
-        [mock.call(mock.ANY, data_bytes)])
+        [mock.call(mock.ANY, data)])
 
   def test_write_messages_with_attributes_success(self, mock_pubsub):
     data = b'data'

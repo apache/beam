@@ -54,6 +54,7 @@ processResources {
     'pom.sdk_version': sdk_version,
     'pom.docker_image_default_repo_root': docker_image_default_repo_root,
     'pom.docker_image_default_repo_prefix': docker_image_default_repo_prefix,
+    'timestamp': new Date().format("yyyy-MM-dd HH:mm")
   ]
 }
 

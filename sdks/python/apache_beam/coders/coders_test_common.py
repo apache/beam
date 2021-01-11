@@ -80,6 +80,7 @@ class CodersTest(unittest.TestCase):
         coders.Coder,
         coders.AvroGenericCoder,
         coders.DeterministicProtoCoder,
+        coders.ExternalCoder,
         coders.FastCoder,
         coders.ProtoCoder,
         coders.ToBytesCoder

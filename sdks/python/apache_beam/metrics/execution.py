@@ -34,7 +34,6 @@ Available classes:
 
 from __future__ import absolute_import
 
-import threading
 from builtins import object
 from typing import TYPE_CHECKING
 from typing import Any
@@ -250,7 +249,6 @@ class MetricsContainer(object):
   """
   def __init__(self, step_name):
     self.step_name = step_name
-    self.lock = threading.Lock()
     self.metrics = dict()  # type: Dict[_TypedMetricName, MetricCell]
 
   def get_counter(self, metric_name):
@@ -275,8 +273,7 @@ class MetricsContainer(object):
     # type: (_TypedMetricName) -> MetricCell
     cell = self.metrics.get(typed_metric_name, None)
     if cell is None:
-      with self.lock:
-        cell = self.metrics[typed_metric_name] = typed_metric_name.cell_type()
+      cell = self.metrics[typed_metric_name] = typed_metric_name.cell_type()
     return cell
 
   def get_cumulative(self):
@@ -316,12 +313,10 @@ class MetricsContainer(object):
     # type: (str) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]
 
     """Returns a list of MonitoringInfos for the metrics in this container."""
-    with self.lock:
-      items = list(self.metrics.items())
     all_metrics = [
         cell.to_runner_api_monitoring_info(key.metric_name, transform_id)
         for key,
-        cell in items
+        cell in self.metrics.items()
     ]
     return {
         monitoring_infos.to_key(mi): mi

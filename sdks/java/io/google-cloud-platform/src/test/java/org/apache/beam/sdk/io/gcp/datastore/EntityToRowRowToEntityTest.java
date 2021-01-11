@@ -31,7 +31,7 @@ import com.google.datastore.v1.Entity;
 import com.google.datastore.v1.Key;
 import com.google.datastore.v1.Value;
 import com.google.protobuf.ByteString;
-import java.nio.charset.StandardCharsets;
+import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.UUID;
@@ -91,7 +91,7 @@ public class EntityToRowRowToEntityTest {
               makeValue(Collections.singletonList(makeValue(NESTED_ENTITY).build())).build())
           .putProperties("double", makeValue(Double.MAX_VALUE).build())
           .putProperties(
-              "bytes", makeValue(ByteString.copyFrom("hello", StandardCharsets.UTF_8)).build())
+              "bytes", makeValue(ByteString.copyFrom("hello", Charset.defaultCharset())).build())
           .putProperties("string", makeValue("string").build())
           .putProperties("nullable", Value.newBuilder().build())
           .build();
@@ -105,7 +105,7 @@ public class EntityToRowRowToEntityTest {
           Arrays.asList("string1", "string2"),
           Collections.singletonList(row(NESTED_ROW_SCHEMA, Long.MIN_VALUE)),
           Double.MAX_VALUE,
-          "hello".getBytes(StandardCharsets.UTF_8),
+          "hello".getBytes(Charset.defaultCharset()),
           "string",
           null);
 

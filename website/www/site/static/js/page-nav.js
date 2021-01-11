@@ -27,7 +27,7 @@ $(document).ready(function() {
                 items[i].classList.remove('chosen');
               };
               if(items[i].classList.contains('active') || items[i].classList[0] == 'active'){
-                if($('> a',items[i]).length>0){
+                if($('> a',items[i]).length>0){console.log($('> a',items[i]).length)
                   if(!items[i].querySelector('a').getAttribute('aria-expanded') || items[i].querySelector('a').getAttribute('aria-expanded') == 'false'){
                       items[i].classList.add('chosen');}
                   }

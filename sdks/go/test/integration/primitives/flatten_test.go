@@ -19,15 +19,16 @@ import (
 	"testing"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
-	"github.com/apache/beam/sdks/go/test/integration"
 )
 
 func TestFlatten(t *testing.T) {
-	integration.CheckFilters(t)
-	ptest.RunAndValidate(t, Flatten())
+	if err := ptest.Run(Flatten()); err != nil {
+		t.Error(err)
+	}
 }
 
 func TestFlattenDup(t *testing.T) {
-	integration.CheckFilters(t)
-	ptest.RunAndValidate(t, FlattenDup())
+	if err := ptest.Run(FlattenDup()); err != nil {
+		t.Error(err)
+	}
 }

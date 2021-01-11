@@ -325,14 +325,8 @@ class _TransformWatermarks(object):
         if had_realtime_timer:
           has_realtime_timer = True
         for expired in timers:
-          window, (name, time_domain, timestamp, dynamic_timer_tag) = expired
+          window, (name, time_domain, timestamp) = expired
           fired_timers.append(
-              TimerFiring(
-                  encoded_key,
-                  window,
-                  name,
-                  time_domain,
-                  timestamp,
-                  dynamic_timer_tag=dynamic_timer_tag))
+              TimerFiring(encoded_key, window, name, time_domain, timestamp))
       self._fired_timers.update(fired_timers)
       return fired_timers, has_realtime_timer

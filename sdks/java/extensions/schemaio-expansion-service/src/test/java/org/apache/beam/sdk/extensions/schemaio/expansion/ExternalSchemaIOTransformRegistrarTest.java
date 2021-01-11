@@ -23,7 +23,7 @@ import static org.mockito.Mockito.when;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
+import java.nio.charset.Charset;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.extensions.schemaio.expansion.ExternalSchemaIOTransformRegistrar.Configuration;
@@ -49,7 +49,7 @@ public class ExternalSchemaIOTransformRegistrarTest {
   Row validConfigRow = Row.withSchema(validConfigSchema).addValue("value").build();
 
   byte[] validSchemaBytes = SchemaTranslation.schemaToProto(validDataSchema, true).toByteArray();
-  byte[] invalidBytes = "Nice try".getBytes(StandardCharsets.UTF_8);
+  byte[] invalidBytes = "Nice try".getBytes(Charset.defaultCharset());
 
   SchemaIO schemaIO = Mockito.mock(SchemaIO.class);
   SchemaIOProvider schemaIOProvider = Mockito.mock(SchemaIOProvider.class);

@@ -17,7 +17,7 @@
 <title>{{ if .Title }}{{ .Title }}{{ else }}{{ .Site.Title }}{{ end }}</title>
 <meta name="description" content="{{ .Description | default $.Site.Params.description }}">
 
-<link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400,500,700" rel="stylesheet">
 
 {{ $scssMain := "scss/main.scss"}}
 {{ if .Site.IsServer }}
@@ -54,7 +54,6 @@
   ga('create', 'UA-73650088-1', 'auto');
   ga('send', 'pageview');
 </script>
-
 <!-- Hotjar Tracking Code for https://beam.apache.org/ -->
 <script>
   (function(h,o,t,j,a,r){
