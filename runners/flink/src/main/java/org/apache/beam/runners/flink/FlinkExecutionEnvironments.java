@@ -86,8 +86,9 @@ public class FlinkExecutionEnvironments {
     } else if ("[auto]".equals(flinkMasterHostPort)) {
       flinkBatchEnv = ExecutionEnvironment.getExecutionEnvironment();
       if (flinkBatchEnv instanceof LocalEnvironment) {
-        disableClassLoaderLeakCheck(flinkConfiguration);
-        flinkBatchEnv = ExecutionEnvironment.createLocalEnvironment(flinkConfiguration);
+        Configuration autoConfiguration = flinkBatchEnv.getConfiguration();
+        disableClassLoaderLeakCheck(autoConfiguration);
+        flinkBatchEnv = ExecutionEnvironment.createLocalEnvironment(autoConfiguration);
       }
     } else {
       int defaultPort = flinkConfiguration.getInteger(RestOptions.PORT);
