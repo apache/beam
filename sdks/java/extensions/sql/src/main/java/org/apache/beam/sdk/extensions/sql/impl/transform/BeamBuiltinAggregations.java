@@ -63,9 +63,8 @@ public class BeamBuiltinAggregations {
               .put("$SUM0", BeamBuiltinAggregations::createSum)
               .put("AVG", BeamBuiltinAggregations::createAvg)
               .put("BIT_OR", BeamBuiltinAggregations::createBitOr)
-              // JIRA link:https://issues.apache.org/jira/browse/BEAM-10379
-              // .put("BIT_AND", BeamBuiltinAggregations::createBitAnd)
               .put("LOGICAL_AND", BeamBuiltinAggregations::createLogicalAnd)
+              // JIRA link:https://issues.apache.org/jira/browse/BEAM-10379
               .put("BIT_AND", BeamBuiltinAggregations::createBitAnd)
               .put("VAR_POP", t -> VarianceFn.newPopulation(t.getTypeName()))
               .put("VAR_SAMP", t -> VarianceFn.newSample(t.getTypeName()))
