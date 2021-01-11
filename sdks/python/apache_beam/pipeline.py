@@ -71,7 +71,6 @@ from typing import Type
 from typing import Union
 
 from future.utils import with_metaclass
-from past.builtins import unicode
 
 from apache_beam import pvalue
 from apache_beam.internal import pickler
@@ -88,7 +87,6 @@ from apache_beam.runners import PipelineRunner
 from apache_beam.runners import create_runner
 from apache_beam.transforms import ParDo
 from apache_beam.transforms import ptransform
-from apache_beam.transforms.sideinputs import SIDE_INPUT_PREFIX
 from apache_beam.transforms.sideinputs import get_sideinput_index
 from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints import typehints
@@ -1135,24 +1133,19 @@ class AppliedPTransform(object):
   def named_inputs(self):
     # type: () -> Dict[str, pvalue.PValue]
     # TODO(BEAM-1833): Push names up into the sdk construction.
-    main_inputs = {
-        str(ix): input
-        for ix,
-        input in enumerate(self.inputs)
-        if isinstance(input, pvalue.PCollection)
-    }
-    side_inputs = {(SIDE_INPUT_PREFIX + '%s') % ix: si.pvalue
-                   for (ix, si) in enumerate(self.side_inputs)}
-    return dict(main_inputs, **side_inputs)
+    if self.transform is None:
+      assert not self.inputs and not self.side_inputs
+      return {}
+    else:
+      return self.transform._named_inputs(self.inputs, self.side_inputs)
 
   def named_outputs(self):
     # type: () -> Dict[str, pvalue.PCollection]
-    return {
-        try_unicode(tag): output
-        for tag,
-        output in self.outputs.items()
-        if isinstance(output, pvalue.PCollection)
-    }
+    if self.transform is None:
+      assert not self.outputs
+      return {}
+    else:
+      return self.transform._named_outputs(self.outputs)
 
   def to_runner_api(self, context):
     # type: (PipelineContext) -> beam_runner_api_pb2.PTransform
@@ -1382,15 +1375,3 @@ class ComponentIdMap(object):
         obj_type.__name__,
         label or type(obj).__name__,
         self._counters[obj_type])
-
-
-if sys.version_info >= (3, ):
-  try_unicode = str
-
-else:
-
-  def try_unicode(s):
-    try:
-      return unicode(s)
-    except UnicodeDecodeError:
-      return str(s).decode('ascii', 'replace')

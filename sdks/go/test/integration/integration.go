@@ -15,6 +15,22 @@
 
 // Package integration provides functionality that needs to be shared between all
 // integration tests.
+//
+// Integration tests are implemented through Go's test framework, as test
+// functions that create and execute pipelines using the ptest package. Tests
+// should be placed in appropriate sub-packages for organizational purposes, and
+// to allow greater parallelism, since tests are only run in parallel across
+// different packages. Integration tests should always begin with a call to
+// CheckFilters to allow the test to be filtered.
+//
+// Running integration tests can be done with a go test call with any flags that
+// are required by the test pipelines, such as --runner or --endpoint.
+// Example:
+//    go test -v ./sdks/go/test/integration/... --runner=portable --endpoint=localhost:8099
+//
+// Alternatively, tests can be executed by running the
+// run_validatesrunner_tests.sh script, which also performs much of the
+// environment setup, or by calling gradle commands in :sdks:go:test.
 package integration
 
 import (
@@ -67,6 +83,13 @@ var sparkFilters = []string{
 	"TestParDoKVSideInput",
 }
 
+var dataflowFilters = []string{
+	// TODO(BEAM-11574): XLang needs to be enabled for Dataflow.
+	"TestXLang.*",
+	// TODO(BEAM-11576): TestFlattenDup failing on this runner.
+	"TestFlattenDup",
+}
+
 // CheckFilters checks if an integration test is filtered to be skipped, either
 // because the intended runner does not support it, or the test is sickbayed.
 // This method should be called at the beginning of any integration test. If
@@ -103,6 +126,8 @@ func CheckFilters(t *testing.T) {
 		filters = flinkFilters
 	case "spark", "SparkRunner":
 		filters = sparkFilters
+	case "dataflow", "DataflowRunner":
+		filters = dataflowFilters
 	default:
 		return
 	}

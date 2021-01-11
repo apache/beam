@@ -45,7 +45,7 @@ call *one* row of the main table and *all* rows of the side table. The runner
 may use some caching techniques to share the side inputs between calls in order
 to avoid excessive reading:::
 
-  main_table = pipeline | 'VeryBig' >> beam.io.ReadFroBigQuery(...)
+  main_table = pipeline | 'VeryBig' >> beam.io.ReadFromBigQuery(...)
   side_table = pipeline | 'NotBig' >> beam.io.ReadFromBigQuery(...)
   results = (
       main_table
