@@ -199,8 +199,7 @@ class SubprocessSdkWorker(object):
     control_descriptor = text_format.MessageToString(
         endpoints_pb2.ApiServiceDescriptor(url=self._control_address))
     pipeline_options = json_format.MessageToJson(
-      self._provision_info.provision_info.pipeline_options
-    )
+        self._provision_info.provision_info.pipeline_options)
 
     env_dict = dict(
         os.environ,

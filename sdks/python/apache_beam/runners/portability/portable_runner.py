@@ -174,7 +174,8 @@ class JobServiceHandle(object):
     return self.encode_pipeline_options(all_options)
 
   @staticmethod
-  def encode_pipeline_options(all_options: Dict[str, Any]) -> 'struct_pb2.Struct':
+  def encode_pipeline_options(
+      all_options: Dict[str, Any]) -> 'struct_pb2.Struct':
     def convert_pipeline_option_value(v):
       # convert int values: BEAM-5509
       if type(v) == int:

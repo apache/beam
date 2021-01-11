@@ -124,7 +124,8 @@ class SwitchingDirectRunner(PipelineRunner):
       all_options = options.get_all_options(retain_unknown_options=True)
       encoded_options = JobServiceHandle.encode_pipeline_options(all_options)
       provision_info = fn_runner.ExtendedProvisionInfo(
-        beam_provision_api_pb2.ProvisionInfo(pipeline_options=encoded_options))
+          beam_provision_api_pb2.ProvisionInfo(
+              pipeline_options=encoded_options))
       runner = fn_runner.FnApiRunner(provision_info=provision_info)
     else:
       runner = BundleBasedDirectRunner()
