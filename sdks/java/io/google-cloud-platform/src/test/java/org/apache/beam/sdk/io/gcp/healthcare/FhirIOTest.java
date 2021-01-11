@@ -62,7 +62,7 @@ public class FhirIOTest {
 
   @Test
   public void test_FhirIO_failedSearches() {
-    List<KV<String, Map<String, String>>> input = Arrays.asList(KV.of("resource-type-1", null));
+    List<KV<String, Map<String, Object>>> input = Arrays.asList(KV.of("resource-type-1", null));
     FhirIO.Search.Result searchResult =
         pipeline.apply(Create.of(input)).apply(FhirIO.searchResources("bad-store"));
 

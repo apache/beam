@@ -1417,7 +1417,7 @@ public class FhirIO {
 
   /** The type Search. */
   public static class Search
-      extends PTransform<PCollection<KV<String, Map<String, String>>>, FhirIO.Search.Result> {
+      extends PTransform<PCollection<KV<String, Map<String, Object>>>, FhirIO.Search.Result> {
     private static final Logger LOG = LoggerFactory.getLogger(Search.class);
 
     private final ValueProvider<String> fhirStore;
@@ -1502,7 +1502,7 @@ public class FhirIO {
         new TupleTag<HealthcareIOError<String>>() {};
 
     @Override
-    public FhirIO.Search.Result expand(PCollection<KV<String, Map<String, String>>> input) {
+    public FhirIO.Search.Result expand(PCollection<KV<String, Map<String, Object>>> input) {
       return input.apply("Fetch Fhir messages", new SearchResourcesJsonString(this.fhirStore));
     }
 
@@ -1525,7 +1525,7 @@ public class FhirIO {
      * </ul>
      */
     static class SearchResourcesJsonString
-        extends PTransform<PCollection<KV<String, Map<String, String>>>, FhirIO.Search.Result> {
+        extends PTransform<PCollection<KV<String, Map<String, Object>>>, FhirIO.Search.Result> {
 
       private final ValueProvider<String> fhirStore;
 
@@ -1534,7 +1534,7 @@ public class FhirIO {
       }
 
       @Override
-      public FhirIO.Search.Result expand(PCollection<KV<String, Map<String, String>>> resourceIds) {
+      public FhirIO.Search.Result expand(PCollection<KV<String, Map<String, Object>>> resourceIds) {
         return new FhirIO.Search.Result(
             resourceIds.apply(
                 ParDo.of(new SearchResourcesFn(this.fhirStore))
@@ -1543,7 +1543,7 @@ public class FhirIO {
       }
 
       /** DoFn for searching messages from the Fhir store with error handling. */
-      static class SearchResourcesFn extends DoFn<KV<String, Map<String, String>>, JsonArray> {
+      static class SearchResourcesFn extends DoFn<KV<String, Map<String, Object>>, JsonArray> {
 
         private Distribution searchLatencyMs =
             Metrics.distribution(SearchResourcesFn.class, "fhir-search-latency-ms");
@@ -1577,7 +1577,7 @@ public class FhirIO {
          */
         @ProcessElement
         public void processElement(ProcessContext context) {
-          KV<String, Map<String, String>> elementValues = context.element();
+          KV<String, Map<String, Object>> elementValues = context.element();
           try {
             context.output(
                 searchResources(
@@ -1601,7 +1601,7 @@ public class FhirIO {
             HealthcareApiClient client,
             String fhirStore,
             String resourceType,
-            @Nullable Map<String, String> parameters)
+            @Nullable Map<String, Object> parameters)
             throws NoSuchElementException {
           long startTime = System.currentTimeMillis();
 

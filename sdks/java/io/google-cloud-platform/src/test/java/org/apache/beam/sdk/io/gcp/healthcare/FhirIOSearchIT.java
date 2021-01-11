@@ -24,6 +24,8 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -32,6 +34,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.direct.DirectOptions;
+import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -68,7 +71,7 @@ public class FhirIOSearchIT {
       "FHIR_store_search_it_" + System.currentTimeMillis() + "_" + (new SecureRandom().nextInt(32));
   private String fhirStoreId;
   private static final int MAX_NUM_OF_SEARCHES = 100;
-  private List<KV<String, Map<String, String>>> input = new ArrayList<>();
+  private List<KV<String, Map<String, Object>>> input = new ArrayList<>();
 
   public String version;
 
@@ -95,7 +98,7 @@ public class FhirIOSearchIT {
 
     JsonArray fhirResources =
         JsonParser.parseString(bundles.get(0)).getAsJsonObject().getAsJsonArray("entry");
-    HashMap<String, String> searchParameters = new HashMap<>();
+    HashMap<String, Object> searchParameters = new HashMap<>();
     searchParameters.put("_count", Integer.toString(100));
     int searches = 0;
     for (JsonElement resource : fhirResources) {
@@ -122,18 +125,37 @@ public class FhirIOSearchIT {
     }
   }
 
+  public static class StringObjectCoder extends CustomCoder<Object> {
+    private static final org.apache.beam.sdk.io.gcp.healthcare.FhirIOSearchIT.StringObjectCoder CODER = new org.apache.beam.sdk.io.gcp.healthcare.FhirIOSearchIT.StringObjectCoder();
+    private static final StringUtf8Coder STRING_CODER = StringUtf8Coder.of();
+
+    public static org.apache.beam.sdk.io.gcp.healthcare.FhirIOSearchIT.StringObjectCoder of() {
+      return CODER;
+    }
+
+    @Override
+    public void encode(Object value, OutputStream outStream) throws IOException {
+      STRING_CODER.encode((String) value, outStream);
+    }
+
+    @Override
+    public Object decode(InputStream inStream) throws IOException {
+      return STRING_CODER.decode(inStream);
+    }
+  }
+
   @Test
   public void testFhirIOSearch() {
     pipeline.getOptions().as(DirectOptions.class).setBlockOnRun(false);
 
     // Search using the resource type of each written resource and empty search parameters.
-    PCollection<KV<String, Map<String, String>>> searchConfigs =
+    PCollection<KV<String, Map<String, Object>>> searchConfigs =
         pipeline.apply(
             Create.of(input)
                 .withCoder(
                     KvCoder.of(
                         StringUtf8Coder.of(),
-                        MapCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))));
+                        MapCoder.of(StringUtf8Coder.of(), StringObjectCoder.of()))));
     FhirIO.Search.Result result =
         searchConfigs.apply(
             FhirIO.searchResources(healthcareDataset + "/fhirStores/" + fhirStoreId));
