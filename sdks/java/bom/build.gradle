@@ -27,17 +27,14 @@ for (p in rootProject.subprojects) {
   }
 }
 
-def bomModuleNames = new ArrayList<>()
+def bomModules = new ArrayList<>()
 for (p in rootProject.subprojects) {
   def subproject = p // project(':' + p.name)
   if (subproject.ext.properties.containsKey('includeInJavaBom') &&
       subproject.ext.properties.includeInJavaBom) {
-    bomModuleNames.add(subproject.archivesBaseName)
+    bomModules.add([groupId: project.mavenGroupId, artifactId: subproject.archivesBaseName, version: project.version])
   }
 }
-
-def bomModules = new ArrayList<>()
-bomModuleNames.forEach{ moduleName -> bomModules.add([groupId: project.mavenGroupId, artifactId: moduleName, version: project.version])}
 
 project.ext.bomModules = bomModules
 project.ext.pomTemplate = 'pom.xml.template'
