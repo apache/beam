@@ -18,6 +18,8 @@
 package org.apache.beam.examples.complete.datatokenization.transforms.io;
 
 import org.apache.beam.examples.complete.datatokenization.options.ProtegrityDataTokenizationOptions;
+import org.apache.beam.examples.complete.datatokenization.utils.FailsafeElement;
+import org.apache.beam.examples.complete.datatokenization.utils.FailsafeElementCoder;
 import org.apache.beam.examples.complete.datatokenization.utils.RowToCsv;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.NullableCoder;

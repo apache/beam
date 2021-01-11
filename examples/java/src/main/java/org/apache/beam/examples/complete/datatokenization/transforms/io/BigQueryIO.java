@@ -19,6 +19,9 @@ package org.apache.beam.examples.complete.datatokenization.transforms.io;
 
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
+import java.io.IOException;
+import org.apache.beam.examples.complete.datatokenization.utils.FailsafeElement;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryInsertError;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
 import org.apache.beam.sdk.io.gcp.bigquery.InsertRetryPolicy;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteResult;
@@ -60,29 +63,29 @@ public class BigQueryIO {
                 .to(bigQueryTableName));
   }
 
-//  /**
-//   * Method to wrap a {@link BigQueryInsertError} into a {@link FailsafeElement}.
-//   *
-//   * @param insertError BigQueryInsert error.
-//   * @return FailsafeElement object.
-//   */
-//  public static FailsafeElement<String, String> wrapBigQueryInsertError(
-//      BigQueryInsertError insertError) {
-//
-//    FailsafeElement<String, String> failsafeElement;
-//    try {
-//
-//      failsafeElement =
-//          FailsafeElement.of(
-//              insertError.getRow().toPrettyString(), insertError.getRow().toPrettyString());
-//      failsafeElement.setErrorMessage(insertError.getError().toPrettyString());
-//
-//    } catch (IOException e) {
-//      BigQueryIO.LOG.error("Failed to wrap BigQuery insert error.");
-//      throw new RuntimeException(e);
-//    }
-//    return failsafeElement;
-//  }
+  /**
+   * Method to wrap a {@link BigQueryInsertError} into a {@link FailsafeElement}.
+   *
+   * @param insertError BigQueryInsert error.
+   * @return FailsafeElement object.
+   */
+  public static FailsafeElement<String, String> wrapBigQueryInsertError(
+      BigQueryInsertError insertError) {
+
+    FailsafeElement<String, String> failsafeElement;
+    try {
+
+      failsafeElement =
+          FailsafeElement.of(
+              insertError.getRow().toPrettyString(), insertError.getRow().toPrettyString());
+      failsafeElement.setErrorMessage(insertError.getError().toPrettyString());
+
+    } catch (IOException e) {
+      BigQueryIO.LOG.error("Failed to wrap BigQuery insert error.");
+      throw new RuntimeException(e);
+    }
+    return failsafeElement;
+  }
 
   /**
    * The {@link RowToTableRowFn} class converts a row to tableRow using {@link

@@ -74,6 +74,7 @@ dependencies {
   compile library.java.proto_google_cloud_datastore_v1
   compile library.java.slf4j_api
   compile library.java.slf4j_jdk14
+  provided library.java.commons_io
   runtime project(path: ":runners:direct-java", configuration: "shadow")
   testCompile project(":sdks:java:io:google-cloud-platform")
   testCompile project(":sdks:java:extensions:ml")

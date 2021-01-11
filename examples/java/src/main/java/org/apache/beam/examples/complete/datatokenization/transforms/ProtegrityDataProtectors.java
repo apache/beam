@@ -34,6 +34,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.apache.beam.examples.complete.datatokenization.utils.FailsafeElement;
+import org.apache.beam.examples.complete.datatokenization.utils.FailsafeElementCoder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
@@ -143,7 +145,7 @@ public class ProtegrityDataProtectors {
       public abstract Builder<T> setBatchSize(int batchSize);
 
       public abstract Builder<T> setDataElements(Map<String, String> fieldsDataElements);
-      
+
       public abstract Builder<T> setDsgURI(String dsgURI);
 
       public abstract RowToTokenizedRow<T> build();
