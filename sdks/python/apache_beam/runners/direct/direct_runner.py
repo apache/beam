@@ -46,7 +46,6 @@ from apache_beam.runners.direct.clock import TestClock
 from apache_beam.runners.runner import PipelineResult
 from apache_beam.runners.runner import PipelineRunner
 from apache_beam.runners.runner import PipelineState
-from apache_beam.runners.portability.portable_runner import JobServiceHandle
 from apache_beam.transforms import userstate
 from apache_beam.transforms.core import CombinePerKey
 from apache_beam.transforms.core import CombineValuesDoFn
@@ -119,8 +118,9 @@ class SwitchingDirectRunner(PipelineRunner):
     # Check whether all transforms used in the pipeline are supported by the
     # FnApiRunner, and the pipeline was not meant to be run as streaming.
     if _FnApiRunnerSupportVisitor().accept(pipeline):
-      from apache_beam.runners.portability.fn_api_runner import fn_runner
       from apache_beam.runners.portability.api import beam_provision_api_pb2
+      from apache_beam.runners.portability.fn_api_runner import fn_runner
+      from apache_beam.runners.portability.portable_runner import JobServiceHandle
       all_options = options.get_all_options(retain_unknown_options=True)
       encoded_options = JobServiceHandle.encode_pipeline_options(all_options)
       provision_info = fn_runner.ExtendedProvisionInfo(
