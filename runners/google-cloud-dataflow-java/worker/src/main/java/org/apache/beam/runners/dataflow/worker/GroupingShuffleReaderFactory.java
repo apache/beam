@@ -20,11 +20,10 @@ package org.apache.beam.runners.dataflow.worker;
 import static com.google.api.client.util.Base64.decodeBase64;
 import static org.apache.beam.runners.dataflow.util.Structs.getBoolean;
 import static org.apache.beam.runners.dataflow.util.Structs.getString;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
 import com.google.auto.service.AutoService;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.util.CloudObject;
@@ -37,8 +36,13 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Creates a GroupingShuffleReader from a CloudObject spec. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class GroupingShuffleReaderFactory implements ReaderFactory {
 
   /** A {@link ReaderFactory.Registrar} for grouping shuffle sources. */
@@ -51,21 +55,20 @@ public class GroupingShuffleReaderFactory implements ReaderFactory {
     }
   }
 
-  // Findbugs does not correctly understand inheritance + nullability.
-  //
-  // options may be null due to parent class signature, and must be checked, despite not
-  // being nullable here
   @Override
   public NativeReader<?> create(
       CloudObject spec,
       @Nullable Coder<?> coder,
-      PipelineOptions options,
+      @Nullable PipelineOptions options,
       @Nullable DataflowExecutionContext executionContext,
       DataflowOperationContext operationContext)
       throws Exception {
 
-    checkArgument(options != null, "options must not be null");
-    @SuppressWarnings({"rawtypes", "unchecked"})
+    options = checkArgumentNotNull(options);
+    @SuppressWarnings({
+      "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+      "unchecked"
+    })
     Coder<WindowedValue<KV<Object, Iterable<Object>>>> typedCoder = (Coder) coder;
     return createTyped(spec, typedCoder, options, executionContext, operationContext);
   }

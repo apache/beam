@@ -42,7 +42,6 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -60,6 +59,10 @@ import org.apache.spark.streaming.api.java.JavaPairDStream;
 import scala.Tuple2;
 
 /** A set of utilities to help translating Beam transformations into Spark transformations. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public final class TranslationUtils {
 
   private TranslationUtils() {}
@@ -273,7 +276,8 @@ public final class TranslationUtils {
               SparkRunner.class.getSimpleName()));
     }
 
-    if (signature.timerDeclarations().size() > 0) {
+    if (signature.timerDeclarations().size() > 0
+        || signature.timerFamilyDeclarations().size() > 0) {
       throw new UnsupportedOperationException(
           String.format(
               "Found %s annotations on %s, but %s cannot yet be used with timers in the %s.",
@@ -349,12 +353,12 @@ public final class TranslationUtils {
    * @return mapping between TupleTag and a coder
    */
   public static Map<TupleTag<?>, Coder<WindowedValue<?>>> getTupleTagCoders(
-      Map<TupleTag<?>, PValue> outputs) {
+      Map<TupleTag<?>, PCollection<?>> outputs) {
     Map<TupleTag<?>, Coder<WindowedValue<?>>> coderMap = new HashMap<>(outputs.size());
 
-    for (Map.Entry<TupleTag<?>, PValue> output : outputs.entrySet()) {
+    for (Map.Entry<TupleTag<?>, PCollection<?>> output : outputs.entrySet()) {
       // we get the first PValue as all of them are fro the same type.
-      PCollection<?> pCollection = (PCollection<?>) output.getValue();
+      PCollection<?> pCollection = output.getValue();
       Coder<?> coder = pCollection.getCoder();
       Coder<? extends BoundedWindow> wCoder =
           pCollection.getWindowingStrategy().getWindowFn().windowCoder();

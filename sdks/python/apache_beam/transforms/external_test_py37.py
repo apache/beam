@@ -17,6 +17,8 @@
 
 """Unit tests for the transform.external classes."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import dataclasses
@@ -36,9 +38,7 @@ def get_payload(cls):
 
 
 class ExternalDataclassesPayloadTest(PayloadBase, unittest.TestCase):
-
   def get_payload_from_typing_hints(self, values):
-
     @dataclasses.dataclass
     class DataclassTransform(beam.ExternalTransform):
       URN = 'beam:external:fakeurn:v1'
@@ -47,14 +47,13 @@ class ExternalDataclassesPayloadTest(PayloadBase, unittest.TestCase):
       boolean: bool
       string_example: str
       list_of_strings: typing.List[str]
-      optional_kv: typing.Optional[typing.Tuple[str, float]] = None
+      mapping: typing.Mapping[str, float] = dataclasses.field(default=dict)
       optional_integer: typing.Optional[int] = None
       expansion_service: dataclasses.InitVar[typing.Optional[str]] = None
 
     return get_payload(DataclassTransform(**values))
 
   def get_payload_from_beam_typehints(self, values):
-
     @dataclasses.dataclass
     class DataclassTransform(beam.ExternalTransform):
       URN = 'beam:external:fakeurn:v1'
@@ -63,7 +62,7 @@ class ExternalDataclassesPayloadTest(PayloadBase, unittest.TestCase):
       boolean: bool
       string_example: str
       list_of_strings: typehints.List[str]
-      optional_kv: typehints.Optional[typehints.KV[str, float]] = None
+      mapping: typehints.Dict[str, float] = {}
       optional_integer: typehints.Optional[int] = None
       expansion_service: dataclasses.InitVar[typehints.Optional[str]] = None
 

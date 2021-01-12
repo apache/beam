@@ -30,6 +30,7 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A restriction represented by a range of integers [from, to). */
 public class OffsetRange
@@ -64,7 +65,7 @@ public class OffsetRange
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (this == o) {
       return true;
     }

@@ -45,7 +45,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
@@ -81,6 +80,7 @@ import org.apache.beam.sdk.util.common.Reiterable;
 import org.apache.beam.sdk.util.common.Reiterator;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.junit.After;
 import org.junit.Before;
@@ -90,6 +90,10 @@ import org.junit.runners.JUnit4;
 
 /** Tests for GroupingShuffleReader. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class GroupingShuffleReaderTest {
   private static final byte[] EMPTY_BYTE_ARRAY = new byte[0];
   private static final List<KV<Integer, List<KV<Integer, Integer>>>> NO_KVS =
@@ -231,7 +235,10 @@ public class GroupingShuffleReaderTest {
         iter.getCurrent();
 
         // safe co-variant cast from Reiterable to Iterable
-        @SuppressWarnings({"rawtypes", "unchecked"})
+        @SuppressWarnings({
+          "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+          "unchecked"
+        })
         WindowedValue<KV<Integer, Iterable<KV<Integer, Integer>>>> windowedValue =
             (WindowedValue) iter.getCurrent();
         // Verify that the byte size observer is lazy for every value the GroupingShuffleReader
@@ -575,7 +582,7 @@ public class GroupingShuffleReaderTest {
     return fabricatePosition(shard, (Integer) null);
   }
 
-  static ByteArrayShufflePosition fabricatePosition(int shard, @Nullable byte[] key)
+  static ByteArrayShufflePosition fabricatePosition(int shard, byte @Nullable [] key)
       throws Exception {
     return fabricatePosition(shard, key == null ? null : Arrays.hashCode(key));
   }

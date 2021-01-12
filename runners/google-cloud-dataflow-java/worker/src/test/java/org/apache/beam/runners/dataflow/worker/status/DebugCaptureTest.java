@@ -26,7 +26,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.api.client.json.JsonFactory;
-import com.google.api.client.json.jackson.JacksonFactory;
+import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.GetDebugConfigRequest;
 import com.google.api.services.dataflow.model.GetDebugConfigResponse;
@@ -42,6 +42,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link DebugCapture}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DebugCaptureTest {
   private static final String PROJECT_ID = "some-project";
   private static final String REGION = "some-region";

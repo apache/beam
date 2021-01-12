@@ -17,13 +17,13 @@
  */
 package org.apache.beam.sdk.fn.stream;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 
 import java.util.concurrent.Executors;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.CallStreamObserver;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.CallStreamObserver;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -33,6 +33,9 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link OutboundObserverFactory}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class OutboundObserverFactoryTest {
   @Mock private StreamObserver<Integer> mockRequestObserver;
   @Mock private CallStreamObserver<String> mockResponseObserver;

@@ -18,10 +18,13 @@
 package org.apache.beam.sdk.transforms.splittabledofn;
 
 import com.google.auto.value.AutoValue;
-import javax.annotation.Nullable;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A representation of a split result. */
 @AutoValue
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public abstract class SplitResult<RestrictionT> {
   /** Returns a {@link SplitResult} for the specified primary and residual restrictions. */
   public static <RestrictionT> SplitResult<RestrictionT> of(
@@ -30,10 +33,8 @@ public abstract class SplitResult<RestrictionT> {
   }
 
   /** Returns the primary restriction. */
-  @Nullable
-  public abstract RestrictionT getPrimary();
+  public abstract @Nullable RestrictionT getPrimary();
 
   /** Returns the residual restriction. */
-  @Nullable
-  public abstract RestrictionT getResidual();
+  public abstract @Nullable RestrictionT getResidual();
 }

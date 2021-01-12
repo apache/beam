@@ -29,8 +29,9 @@ import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.function.Predicate;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -47,6 +48,7 @@ import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.http.HttpStatus;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -78,8 +80,17 @@ import org.slf4j.LoggerFactory;
  *   <li>need to specify AwsClientsProvider. You can pass on the default one BasicSnsProvider
  *   <li>an output tag where you can get results. Example in SnsIOTest
  * </ul>
+ *
+ * <p>By default, the output PublishResult contains only the messageId, all other fields are null.
+ * If you need the full ResponseMetadata and SdkHttpMetadata you can call {@link
+ * Write#withFullPublishResult}. If you need the HTTP status code but not the response headers you
+ * can call {@link Write#withFullPublishResultWithoutHeaders}.
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@Experimental(Kind.SOURCE_SINK)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public final class SnsIO {
 
   // Write data tp SNS
@@ -97,6 +108,8 @@ public final class SnsIO {
    * </ul>
    */
   @AutoValue
+  @AutoValue.CopyAnnotations
+  @SuppressWarnings({"rawtypes"})
   public abstract static class RetryConfiguration implements Serializable {
     @VisibleForTesting
     static final RetryPredicate DEFAULT_RETRY_PREDICATE = new DefaultRetryPredicate();
@@ -135,7 +148,7 @@ public final class SnsIO {
     /**
      * An interface used to control if we retry the SNS Publish call when a {@link Throwable}
      * occurs. If {@link RetryPredicate#test(Object)} returns true, {@link Write} tries to resend
-     * the requests to the Solr server if the {@link RetryConfiguration} permits it.
+     * the requests to SNS if the {@link RetryConfiguration} permits it.
      */
     @FunctionalInterface
     interface RetryPredicate extends Predicate<Throwable>, Serializable {}
@@ -156,19 +169,20 @@ public final class SnsIO {
 
   /** Implementation of {@link #write}. */
   @AutoValue
+  @AutoValue.CopyAnnotations
+  @SuppressWarnings({"rawtypes"})
   public abstract static class Write
       extends PTransform<PCollection<PublishRequest>, PCollectionTuple> {
-    @Nullable
-    abstract String getTopicName();
 
-    @Nullable
-    abstract AwsClientsProvider getAWSClientsProvider();
+    abstract @Nullable String getTopicName();
 
-    @Nullable
-    abstract RetryConfiguration getRetryConfiguration();
+    abstract @Nullable AwsClientsProvider getAWSClientsProvider();
 
-    @Nullable
-    abstract TupleTag<PublishResult> getResultOutputTag();
+    abstract @Nullable RetryConfiguration getRetryConfiguration();
+
+    abstract @Nullable TupleTag<PublishResult> getResultOutputTag();
+
+    abstract @Nullable Coder getCoder();
 
     abstract Builder builder();
 
@@ -182,6 +196,8 @@ public final class SnsIO {
       abstract Builder setRetryConfiguration(RetryConfiguration retryConfiguration);
 
       abstract Builder setResultOutputTag(TupleTag<PublishResult> results);
+
+      abstract Builder setCoder(Coder coder);
 
       abstract Write build();
     }
@@ -256,12 +272,38 @@ public final class SnsIO {
       return builder().setResultOutputTag(results).build();
     }
 
+    /**
+     * Encode the full {@code PublishResult} object, including sdkResponseMetadata and
+     * sdkHttpMetadata with the HTTP response headers.
+     */
+    public Write withFullPublishResult() {
+      return withCoder(PublishResultCoders.fullPublishResult());
+    }
+
+    /**
+     * Encode the full {@code PublishResult} object, including sdkResponseMetadata and
+     * sdkHttpMetadata but excluding the HTTP response headers.
+     */
+    public Write withFullPublishResultWithoutHeaders() {
+      return withCoder(PublishResultCoders.fullPublishResultWithoutHeaders());
+    }
+
+    /** Encode the {@code PublishResult} with the given coder. */
+    public Write withCoder(Coder<PublishResult> coder) {
+      return builder().setCoder(coder).build();
+    }
+
     @Override
     public PCollectionTuple expand(PCollection<PublishRequest> input) {
       checkArgument(getTopicName() != null, "withTopicName() is required");
-      return input.apply(
-          ParDo.of(new SnsWriterFn(this))
-              .withOutputTags(getResultOutputTag(), TupleTagList.empty()));
+      PCollectionTuple result =
+          input.apply(
+              ParDo.of(new SnsWriterFn(this))
+                  .withOutputTags(getResultOutputTag(), TupleTagList.empty()));
+      if (getCoder() != null) {
+        result.get(getResultOutputTag()).setCoder(getCoder());
+      }
+      return result;
     }
 
     static class SnsWriterFn extends DoFn<PublishRequest, PublishResult> {
@@ -319,7 +361,7 @@ public final class SnsIO {
             if (spec.getRetryConfiguration() == null
                 || !spec.getRetryConfiguration().getRetryPredicate().test(ex)) {
               SNS_WRITE_FAILURES.inc();
-              LOG.info("Unable to publish message {} due to {} ", request.getMessage(), ex);
+              LOG.info("Unable to publish message {}.", request.getMessage(), ex);
               throw new IOException("Error writing to SNS (no attempt made to retry)", ex);
             }
 

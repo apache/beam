@@ -35,12 +35,13 @@ import org.apache.beam.runners.fnexecution.ServerFactory;
 import org.apache.beam.runners.fnexecution.control.FnApiControlClient;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.ManagedChannelBuilder;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ManagedChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.testing.GrpcCleanupRule;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.net.HostAndPort;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -49,7 +50,13 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link BeamFnControlService}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BeamFnControlServiceTest {
+  @Rule
+  public GrpcCleanupRule grpcCleanupRule = new GrpcCleanupRule().setTimeout(10, TimeUnit.SECONDS);
+
   @Mock private StreamObserver<BeamFnApi.InstructionRequest> requestObserver;
   @Mock private StreamObserver<BeamFnApi.InstructionRequest> anotherRequestObserver;
 
@@ -85,19 +92,17 @@ public class BeamFnControlServiceTest {
             descriptor,
             ServerStreamObserverFactory.fromOptions(options)::from,
             GrpcContextHeaderAccessorProvider.getHeaderAccessor());
-    Server server = ServerFactory.createDefault().create(ImmutableList.of(service), descriptor);
+    grpcCleanupRule.register(
+        ServerFactory.createDefault().create(ImmutableList.of(service), descriptor));
     String url = service.getApiServiceDescriptor().getUrl();
     BeamFnControlGrpc.BeamFnControlStub clientStub =
-        BeamFnControlGrpc.newStub(ManagedChannelBuilder.forTarget(url).usePlaintext(true).build());
+        BeamFnControlGrpc.newStub(ManagedChannelBuilder.forTarget(url).usePlaintext().build());
 
     // Connect from the client.
     clientStub.control(requestObserver);
     try (FnApiControlClient client = service.get()) {
       assertNotNull(client);
     }
-    server.shutdown();
-    server.awaitTermination(1, TimeUnit.SECONDS);
-    server.shutdownNow();
 
     requestCompleted.await(5, TimeUnit.SECONDS); // Wait until request streams have been closed.
 
@@ -130,13 +135,14 @@ public class BeamFnControlServiceTest {
             descriptor,
             ServerStreamObserverFactory.fromOptions(options)::from,
             GrpcContextHeaderAccessorProvider.getHeaderAccessor());
-    Server server = ServerFactory.createDefault().create(ImmutableList.of(service), descriptor);
+    grpcCleanupRule.register(
+        ServerFactory.createDefault().create(ImmutableList.of(service), descriptor));
 
     String url = service.getApiServiceDescriptor().getUrl();
     BeamFnControlGrpc.BeamFnControlStub clientStub =
-        BeamFnControlGrpc.newStub(ManagedChannelBuilder.forTarget(url).usePlaintext(true).build());
+        BeamFnControlGrpc.newStub(ManagedChannelBuilder.forTarget(url).usePlaintext().build());
     BeamFnControlGrpc.BeamFnControlStub anotherClientStub =
-        BeamFnControlGrpc.newStub(ManagedChannelBuilder.forTarget(url).usePlaintext(true).build());
+        BeamFnControlGrpc.newStub(ManagedChannelBuilder.forTarget(url).usePlaintext().build());
 
     // Connect from the client.
     clientStub.control(requestObserver);
@@ -150,11 +156,6 @@ public class BeamFnControlServiceTest {
         assertNotNull(anotherClient);
       }
     }
-
-    server.shutdown();
-    server.awaitTermination(1, TimeUnit.SECONDS);
-    server.shutdownNow();
-
     requestCompleted.await(5, TimeUnit.SECONDS); // Wait until request streams have been closed.
 
     verify(requestObserver).onCompleted();

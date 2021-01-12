@@ -19,6 +19,8 @@ package org.apache.beam.sdk.options;
 
 import static java.util.Locale.ROOT;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps.uniqueIndex;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
@@ -31,8 +33,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeFalse;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -74,7 +76,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ListMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
-import org.hamcrest.Matchers;
+import org.apache.commons.lang3.SystemUtils;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -84,6 +86,10 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link PipelineOptionsFactory}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class PipelineOptionsFactoryTest {
   private static final String DEFAULT_RUNNER_NAME = "DirectRunner";
   private static final Class<? extends PipelineRunner<?>> REGISTERED_RUNNER =
@@ -506,7 +512,7 @@ public class PipelineOptionsFactoryTest {
             + "PipelineOptionsFactoryTest$MultipleGettersWithInconsistentJsonIgnore]");
 
     expectedException.expectMessage(
-        Matchers.anyOf(
+        anyOf(
             containsString(
                 java.util.Arrays.toString(
                     new String[] {
@@ -640,12 +646,18 @@ public class PipelineOptionsFactoryTest {
     GetterWithDefault options = PipelineOptionsFactory.as(GetterWithDefault.class);
 
     expectedException.expect(IllegalArgumentException.class);
+
+    // Make sure the error message says what the problem is, generally
+    expectedException.expectMessage("contradictory annotations");
+
+    // Make sure the error message gives actionable details about what
+    // annotations were contradictory.
+    // Note that the quotes in the unparsed string are present in Java 11 but absent in Java 8
     expectedException.expectMessage(
-        "Property [object] is marked with contradictory annotations. Found ["
-            + "[Default.Integer(value=1) on org.apache.beam.sdk.options.PipelineOptionsFactoryTest"
-            + "$GetterWithDefault#getObject()], "
-            + "[Default.String(value=abc) on org.apache.beam.sdk.options.PipelineOptionsFactoryTest"
-            + "$GetterWithInconsistentDefaultType#getObject()]].");
+        anyOf(
+            containsString("Default.String(value=\"abc\")"),
+            containsString("Default.String(value=abc)")));
+    expectedException.expectMessage("Default.Integer(value=1");
 
     // When we attempt to convert, we should error at this moment.
     options.as(GetterWithInconsistentDefaultType.class);
@@ -697,12 +709,18 @@ public class PipelineOptionsFactoryTest {
   @Test
   public void testGettersWithMultipleDefaults() throws Exception {
     expectedException.expect(IllegalArgumentException.class);
+
+    // Make sure the error message says what the problem is, generally
+    expectedException.expectMessage("contradictory annotations");
+
+    // Make sure the error message gives actionable details about what annotations were
+    // contradictory.
+    // Note that the quotes in the unparsed string are present in Java 11 but absent in Java 8
     expectedException.expectMessage(
-        "Property [object] is marked with contradictory annotations. Found ["
-            + "[Default.String(value=abc) on org.apache.beam.sdk.options.PipelineOptionsFactoryTest"
-            + "$GettersWithMultipleDefault#getObject()], "
-            + "[Default.Integer(value=0) on org.apache.beam.sdk.options.PipelineOptionsFactoryTest"
-            + "$GettersWithMultipleDefault#getObject()]].");
+        anyOf(
+            containsString("Default.String(value=\"abc\")"),
+            containsString("Default.String(value=abc)")));
+    expectedException.expectMessage("Default.Integer(value=0)");
 
     // When we attempt to create, we should error at this moment.
     PipelineOptionsFactory.as(GettersWithMultipleDefault.class);
@@ -757,7 +775,7 @@ public class PipelineOptionsFactoryTest {
             + "PipelineOptionsFactoryTest$MultipleGettersWithInconsistentDefault]");
 
     expectedException.expectMessage(
-        Matchers.anyOf(
+        anyOf(
             containsString(
                 java.util.Arrays.toString(
                     new String[] {
@@ -1493,7 +1511,8 @@ public class PipelineOptionsFactoryTest {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(
         emptyStringErrorMessage(
-            "java.util.Map<java.lang.Integer, java.util.Map<java.lang.Integer, java.lang.Integer>>"));
+            "java.util.Map<java.lang.Integer, java.util.Map<java.lang.Integer,"
+                + " java.lang.Integer>>"));
     PipelineOptionsFactory.fromArgs(missingArg).as(Maps.class);
   }
 
@@ -1845,15 +1864,16 @@ public class PipelineOptionsFactoryTest {
 
   @Test
   public void testAllFromPipelineOptions() {
+    // TODO: Java core test failing on windows, https://issues.apache.org/jira/browse/BEAM-10724
+    assumeFalse(SystemUtils.IS_OS_WINDOWS);
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(
-        "All inherited interfaces of [org.apache.beam.sdk.options.PipelineOptionsFactoryTest"
-            + "$PipelineOptionsInheritedInvalid] should inherit from the PipelineOptions interface. "
-            + "The following inherited interfaces do not:\n"
-            + " - org.apache.beam.sdk.options.PipelineOptionsFactoryTest"
-            + "$InvalidPipelineOptions1\n"
-            + " - org.apache.beam.sdk.options.PipelineOptionsFactoryTest"
-            + "$InvalidPipelineOptions2");
+        "All inherited interfaces of"
+            + " [org.apache.beam.sdk.options.PipelineOptionsFactoryTest$PipelineOptionsInheritedInvalid]"
+            + " should inherit from the PipelineOptions interface. The following inherited"
+            + " interfaces do not:\n"
+            + " - org.apache.beam.sdk.options.PipelineOptionsFactoryTest$InvalidPipelineOptions1\n"
+            + " - org.apache.beam.sdk.options.PipelineOptionsFactoryTest$InvalidPipelineOptions2");
 
     PipelineOptionsFactory.as(PipelineOptionsInheritedInvalid.class);
   }

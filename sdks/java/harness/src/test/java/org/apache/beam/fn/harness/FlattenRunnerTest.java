@@ -18,10 +18,10 @@
 package org.apache.beam.fn.harness;
 
 import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasSize;
-import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.mock;
 
 import java.util.ArrayList;
@@ -42,6 +42,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link FlattenRunner}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class FlattenRunnerTest {
 
   /**
@@ -82,6 +85,7 @@ public class FlattenRunnerTest {
             PipelineOptionsFactory.create(),
             null /* beamFnDataClient */,
             null /* beamFnStateClient */,
+            null /* beamFnTimerClient */,
             pTransformId,
             pTransform,
             Suppliers.ofInstance("57L")::get,
@@ -90,9 +94,12 @@ public class FlattenRunnerTest {
             Collections.emptyMap(),
             consumers,
             null /* startFunctionRegistry */,
-            null, /* finishFunctionRegistry */
-            null, /* tearDownRegistry */
-            null /* splitListener */);
+            null /* finishFunctionRegistry */,
+            null /* addResetFunction */,
+            null /* tearDownRegistry */,
+            null /* addProgressRequestCallback */,
+            null /* splitListener */,
+            null /* bundleFinalizer */);
 
     mainOutputValues.clear();
     assertThat(
@@ -150,6 +157,7 @@ public class FlattenRunnerTest {
             PipelineOptionsFactory.create(),
             null /* beamFnDataClient */,
             null /* beamFnStateClient */,
+            null /* beamFnTimerClient */,
             pTransformId,
             pTransform,
             Suppliers.ofInstance("57L")::get,
@@ -158,9 +166,12 @@ public class FlattenRunnerTest {
             Collections.emptyMap(),
             consumers,
             null /* startFunctionRegistry */,
-            null, /* finishFunctionRegistry */
-            null, /* tearDownRegistry */
-            null /* splitListener */);
+            null /* finishFunctionRegistry */,
+            null /* addResetFunction */,
+            null /* tearDownRegistry */,
+            null /* addProgressRequestCallback */,
+            null /* splitListener */,
+            null /* bundleFinalizer */);
 
     mainOutputValues.clear();
     assertThat(consumers.keySet(), containsInAnyOrder("inputATarget", "mainOutputTarget"));

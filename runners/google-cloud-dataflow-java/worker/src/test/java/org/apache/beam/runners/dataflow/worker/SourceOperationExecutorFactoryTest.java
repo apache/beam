@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertThat;
 
 import com.google.api.services.dataflow.model.SourceOperationRequest;
 import com.google.api.services.dataflow.model.SourceSplitRequest;
@@ -35,6 +35,9 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link SourceOperationExecutorFactory}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SourceOperationExecutorFactoryTest {
 
   @Mock public DataflowExecutionContext<?> executionContext;

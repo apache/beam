@@ -17,12 +17,12 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.control.FnApiControlClient;
 import org.apache.beam.runners.fnexecution.data.GrpcDataService;
 import org.apache.beam.runners.fnexecution.state.GrpcStateService;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Registry used to manage all the connections (Control, Data, State) from SdkHarness */
 public interface SdkHarnessRegistry {
@@ -31,7 +31,7 @@ public interface SdkHarnessRegistry {
    *
    * @param controlClient
    */
-  void registerWorkerClient(@Nullable FnApiControlClient controlClient);
+  void registerWorkerClient(FnApiControlClient controlClient);
 
   /**
    * Unregister the {@link FnApiControlClient} to stop allocating work to the client
@@ -57,16 +57,12 @@ public interface SdkHarnessRegistry {
   /** Class to keep client and associated data */
   interface SdkWorkerHarness {
 
-    @Nullable
-    public FnApiControlClient getControlClientHandler();
+    public @Nullable FnApiControlClient getControlClientHandler();
 
-    @Nullable
-    public String getWorkerId();
+    public @Nullable String getWorkerId();
 
-    @Nullable
-    public GrpcFnServer<GrpcDataService> getGrpcDataFnServer();
+    public @Nullable GrpcFnServer<GrpcDataService> getGrpcDataFnServer();
 
-    @Nullable
-    public GrpcFnServer<GrpcStateService> getGrpcStateFnServer();
+    public @Nullable GrpcFnServer<GrpcStateService> getGrpcStateFnServer();
   }
 }

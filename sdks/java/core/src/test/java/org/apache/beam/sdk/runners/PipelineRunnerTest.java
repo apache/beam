@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.runners;
 
 import static org.apache.beam.sdk.metrics.MetricResultsMatchers.metricsResult;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasItem;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import org.apache.beam.sdk.PipelineResult;
@@ -34,6 +34,7 @@ import org.apache.beam.sdk.testing.CrashingRunner;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.UsesCommittedMetrics;
 import org.apache.beam.sdk.testing.UsesCounterMetrics;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -80,7 +81,7 @@ public class PipelineRunnerTest {
   }
 
   @Test
-  @Category({NeedsRunner.class, UsesCounterMetrics.class})
+  @Category({NeedsRunner.class, UsesCommittedMetrics.class, UsesCounterMetrics.class})
   public void testRunPTransform() {
     final String namespace = PipelineRunnerTest.class.getName();
     final Counter counter = Metrics.counter(namespace, "count");

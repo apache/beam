@@ -17,13 +17,15 @@
 
 # This module is experimental. No backwards-compatibility guarantees.
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import contextlib
 import threading
-from collections import namedtuple
 from typing import TYPE_CHECKING
 from typing import Dict
+from typing import NamedTuple
 from typing import Optional
 from typing import Union
 
@@ -80,13 +82,11 @@ def for_test():
   return get_current_tracker()
 
 
-StateSamplerInfo = namedtuple(
+StateSamplerInfo = NamedTuple(
     'StateSamplerInfo',
-    ['state_name',
-     'transition_count',
-     'time_since_transition',
-     'tracked_thread'])
-
+    [('state_name', CounterName), ('transition_count', int),
+     ('time_since_transition', int),
+     ('tracked_thread', Optional[threading.Thread])])
 
 # Default period for sampling current state of pipeline execution.
 DEFAULT_SAMPLING_PERIOD_MS = 200
@@ -100,7 +100,8 @@ class StateSampler(statesampler_impl.StateSampler):
                sampling_period_ms=DEFAULT_SAMPLING_PERIOD_MS):
     self._prefix = prefix
     self._counter_factory = counter_factory
-    self._states_by_name = {}  # type: Dict[CounterName, statesampler_impl.ScopedState]
+    self._states_by_name = {
+    }  # type: Dict[CounterName, statesampler_impl.ScopedState]
     self.sampling_period_ms = sampling_period_ms
     self.tracked_thread = None  # type: Optional[threading.Thread]
     self.finished = False
@@ -131,6 +132,7 @@ class StateSampler(statesampler_impl.StateSampler):
 
   def get_info(self):
     # type: () -> StateSamplerInfo
+
     """Returns StateSamplerInfo with transition statistics."""
     return StateSamplerInfo(
         self.current_state().name,
@@ -145,6 +147,7 @@ class StateSampler(statesampler_impl.StateSampler):
                    metrics_container=None  # type: Optional[MetricsContainer]
                   ):
     # type: (...) -> statesampler_impl.ScopedState
+
     """Returns a ScopedState object associated to a Step and a State.
 
     Args:
@@ -160,24 +163,27 @@ class StateSampler(statesampler_impl.StateSampler):
     if not isinstance(name_context, common.NameContext):
       name_context = common.NameContext(name_context)
 
-    counter_name = CounterName(state_name + '-msecs',
-                               stage_name=self._prefix,
-                               step_name=name_context.metrics_name(),
-                               io_target=io_target)
+    counter_name = CounterName(
+        state_name + '-msecs',
+        stage_name=self._prefix,
+        step_name=name_context.metrics_name(),
+        io_target=io_target)
     if counter_name in self._states_by_name:
       return self._states_by_name[counter_name]
     else:
-      output_counter = self._counter_factory.get_counter(counter_name,
-                                                         Counter.SUM)
-      self._states_by_name[counter_name] = super(
-          StateSampler, self)._scoped_state(counter_name,
-                                            name_context,
-                                            output_counter,
-                                            metrics_container)
+      output_counter = self._counter_factory.get_counter(
+          counter_name, Counter.SUM)
+      self._states_by_name[counter_name] = super(StateSampler,
+                                                 self)._scoped_state(
+                                                     counter_name,
+                                                     name_context,
+                                                     output_counter,
+                                                     metrics_container)
       return self._states_by_name[counter_name]
 
   def commit_counters(self):
     # type: () -> None
+
     """Updates output counters with latest state statistics."""
     for state in self._states_by_name.values():
       state_msecs = int(1e-6 * state.nsecs)

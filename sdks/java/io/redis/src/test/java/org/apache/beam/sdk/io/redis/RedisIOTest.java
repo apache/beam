@@ -43,6 +43,9 @@ import redis.embedded.RedisServer;
 
 /** Test on the Redis IO. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class RedisIOTest {
 
   private static final String REDIS_HOST = "localhost";
@@ -175,7 +178,7 @@ public class RedisIOTest {
   }
 
   @Test
-  public void testWriteUsingINCRBY() throws Exception {
+  public void testWriteUsingINCRBY() {
     String key = "key_incr";
     List<String> values = Arrays.asList("0", "1", "2", "-3", "2", "4", "0", "5");
     List<KV<String, String>> data = buildConstantKeyList(key, values);
@@ -190,7 +193,7 @@ public class RedisIOTest {
   }
 
   @Test
-  public void testWriteUsingDECRBY() throws Exception {
+  public void testWriteUsingDECRBY() {
     String key = "key_decr";
 
     List<String> values = Arrays.asList("-10", "1", "2", "-3", "2", "4", "0", "5");

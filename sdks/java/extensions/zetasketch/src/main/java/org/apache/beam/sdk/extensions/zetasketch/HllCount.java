@@ -19,7 +19,6 @@ package org.apache.beam.sdk.extensions.zetasketch;
 
 import com.google.zetasketch.HyperLogLogPlusPlus;
 import java.nio.ByteBuffer;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -27,6 +26,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -236,7 +236,7 @@ public final class HllCount {
      * @param <InputT> element type or value type in {@code KV}s of the input {@code PCollection} to
      *     the {@code PTransform} being built
      */
-    public static final class Builder<InputT> {
+    public static final class Builder<InputT extends @Nullable Object> {
 
       private final HllCountInitFn<InputT, ?> initFn;
 
@@ -316,7 +316,7 @@ public final class HllCount {
      * <p>Returns a singleton {@code PCollection} with an "empty sketch" (byte array of length 0) if
      * the input {@code PCollection} is empty.
      */
-    public static Combine.Globally<byte[], byte[]> globally() {
+    public static Combine.Globally<byte @Nullable [], byte[]> globally() {
       return Combine.globally(HllCountMergePartialFn.create());
     }
 
@@ -332,7 +332,7 @@ public final class HllCount {
      * <p>Only sketches of the same type can be merged together. If incompatible sketches are
      * provided, a runtime error will occur.
      */
-    public static <K> Combine.PerKey<K, byte[], byte[]> perKey() {
+    public static <K> Combine.PerKey<K, byte @Nullable [], byte[]> perKey() {
       return Combine.perKey(HllCountMergePartialFn.create());
     }
   }

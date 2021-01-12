@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.dataflow;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -43,6 +43,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link DataflowPTransformMatchers}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DataflowPTransformMatchersTest {
 
   /**

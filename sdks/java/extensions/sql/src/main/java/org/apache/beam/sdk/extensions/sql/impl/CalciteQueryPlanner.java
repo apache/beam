@@ -17,9 +17,12 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.Factory;
+import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters.Kind;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
 import org.apache.beam.sdk.extensions.sql.impl.planner.RelMdNodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
@@ -60,6 +63,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RelConver
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RuleSet;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.ValidationException;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.BuiltInMethod;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -67,18 +71,32 @@ import org.slf4j.LoggerFactory;
  * The core component to handle through a SQL statement, from explain execution plan, to generate a
  * Beam pipeline.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class CalciteQueryPlanner implements QueryPlanner {
   private static final Logger LOG = LoggerFactory.getLogger(CalciteQueryPlanner.class);
 
   private final Planner planner;
   private final JdbcConnection connection;
 
-  public CalciteQueryPlanner(JdbcConnection connection, RuleSet[] ruleSets) {
+  /** Called by {@link BeamSqlEnv}.instantiatePlanner() reflectively. */
+  public CalciteQueryPlanner(JdbcConnection connection, Collection<RuleSet> ruleSets) {
     this.connection = connection;
     this.planner = Frameworks.getPlanner(defaultConfig(connection, ruleSets));
   }
 
-  public FrameworkConfig defaultConfig(JdbcConnection connection, RuleSet[] ruleSets) {
+  public static final Factory FACTORY =
+      new Factory() {
+        @Override
+        public QueryPlanner createPlanner(
+            JdbcConnection jdbcConnection, Collection<RuleSet> ruleSets) {
+          return new CalciteQueryPlanner(jdbcConnection, ruleSets);
+        }
+      };
+
+  public FrameworkConfig defaultConfig(JdbcConnection connection, Collection<RuleSet> ruleSets) {
     final CalciteConnectionConfig config = connection.config();
     final SqlParser.ConfigBuilder parserConfig =
         SqlParser.configBuilder()
@@ -112,7 +130,7 @@ public class CalciteQueryPlanner implements QueryPlanner {
         .defaultSchema(defaultSchema)
         .traitDefs(traitDefs)
         .context(Contexts.of(connection.config()))
-        .ruleSets(ruleSets)
+        .ruleSets(ruleSets.toArray(new RuleSet[0]))
         .costFactory(BeamCostModel.FACTORY)
         .typeSystem(connection.getTypeFactory().getTypeSystem())
         .operatorTable(ChainedSqlOperatorTable.of(opTab0, catalogReader))
@@ -133,10 +151,16 @@ public class CalciteQueryPlanner implements QueryPlanner {
     return parsed;
   }
 
-  /** It parses and validate the input query, then convert into a {@link BeamRelNode} tree. */
+  /**
+   * It parses and validate the input query, then convert into a {@link BeamRelNode} tree. Note that
+   * query parameters are not yet supported.
+   */
   @Override
-  public BeamRelNode convertToBeamRel(String sqlStatement)
+  public BeamRelNode convertToBeamRel(String sqlStatement, QueryParameters queryParameters)
       throws ParseException, SqlConversionException {
+    Preconditions.checkArgument(
+        queryParameters.getKind() == Kind.NONE,
+        "Beam SQL Calcite dialect does not yet support query parameters.");
     BeamRelNode beamRelNode;
     try {
       SqlNode parsed = planner.parse(sqlStatement);

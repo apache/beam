@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.worker.fn.logging;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.junit.Assert.assertThat;
 
 import java.net.InetAddress;
 import java.net.ServerSocket;
@@ -38,12 +38,12 @@ import org.apache.beam.runners.dataflow.harness.test.TestStreams;
 import org.apache.beam.runners.dataflow.worker.fn.stream.ServerStreamObserverFactory;
 import org.apache.beam.runners.fnexecution.GrpcContextHeaderAccessorProvider;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.BindableService;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.ManagedChannel;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.inprocess.InProcessChannelBuilder;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.inprocess.InProcessServerBuilder;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.BindableService;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.inprocess.InProcessChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.inprocess.InProcessServerBuilder;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.net.HostAndPort;
 import org.junit.After;
 import org.junit.Test;
@@ -52,6 +52,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link BeamFnLoggingService}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BeamFnLoggingServiceTest {
   private Server server;
 

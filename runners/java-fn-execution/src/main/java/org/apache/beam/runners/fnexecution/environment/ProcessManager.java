@@ -35,6 +35,9 @@ import org.slf4j.LoggerFactory;
 
 /** A simple process manager which forks processes and kills them if necessary. */
 @ThreadSafe
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ProcessManager {
   private static final Logger LOG = LoggerFactory.getLogger(ProcessManager.class);
 
@@ -47,19 +50,12 @@ public class ProcessManager {
   /** A list of all managers to ensure all processes shutdown on JVM exit . */
   private static final List<ProcessManager> ALL_PROCESS_MANAGERS = new ArrayList<>();
 
-  static {
-    // Install a shutdown hook to ensure processes are stopped/killed.
-    Runtime.getRuntime().addShutdownHook(ShutdownHook.create());
-  }
+  @VisibleForTesting static Thread shutdownHook = null;
 
   private final Map<String, Process> processes;
 
   public static ProcessManager create() {
-    synchronized (ALL_PROCESS_MANAGERS) {
-      ProcessManager processManager = new ProcessManager();
-      ALL_PROCESS_MANAGERS.add(processManager);
-      return processManager;
-    }
+    return new ProcessManager();
   }
 
   private ProcessManager() {
@@ -126,6 +122,7 @@ public class ProcessManager {
     return startProcess(id, command, args, env, outputFile);
   }
 
+  @SuppressFBWarnings("ST_WRITE_TO_STATIC_FROM_INSTANCE_METHOD")
   public RunningProcess startProcess(
       String id, String command, List<String> args, Map<String, String> env, File outputFile)
       throws IOException {
@@ -149,6 +146,15 @@ public class ProcessManager {
     LOG.debug("Attempting to start process with command: {}", pb.command());
     Process newProcess = pb.start();
     Process oldProcess = processes.put(id, newProcess);
+    synchronized (ALL_PROCESS_MANAGERS) {
+      if (!ALL_PROCESS_MANAGERS.contains(this)) {
+        ALL_PROCESS_MANAGERS.add(this);
+      }
+      if (shutdownHook == null) {
+        shutdownHook = ShutdownHook.create();
+        Runtime.getRuntime().addShutdownHook(shutdownHook);
+      }
+    }
     if (oldProcess != null) {
       stopProcess(id, oldProcess);
       stopProcess(id, newProcess);
@@ -159,10 +165,23 @@ public class ProcessManager {
   }
 
   /** Stops a previously started process identified by its unique id. */
+  @SuppressFBWarnings("ST_WRITE_TO_STATIC_FROM_INSTANCE_METHOD")
   public void stopProcess(String id) {
     checkNotNull(id, "Process id must not be null");
-    Process process = checkNotNull(processes.remove(id), "Process for id does not exist: " + id);
-    stopProcess(id, process);
+    try {
+      Process process = checkNotNull(processes.remove(id), "Process for id does not exist: " + id);
+      stopProcess(id, process);
+    } finally {
+      synchronized (ALL_PROCESS_MANAGERS) {
+        if (processes.isEmpty()) {
+          ALL_PROCESS_MANAGERS.remove(this);
+        }
+        if (ALL_PROCESS_MANAGERS.isEmpty() && shutdownHook != null) {
+          Runtime.getRuntime().removeShutdownHook(shutdownHook);
+          shutdownHook = null;
+        }
+      }
+    }
   }
 
   private void stopProcess(String id, Process process) {
@@ -170,31 +189,28 @@ public class ProcessManager {
       LOG.debug("Attempting to stop process with id {}", id);
       // first try to kill gracefully
       process.destroy();
-      long maxTimeToWait = 2000;
-      if (waitForProcessToDie(process, maxTimeToWait)) {
-        LOG.debug("Process for worker {} shut down gracefully.", id);
-      } else {
-        LOG.info("Process for worker {} still running. Killing.", id);
-        process.destroyForcibly();
+      long maxTimeToWait = 500;
+      try {
         if (waitForProcessToDie(process, maxTimeToWait)) {
-          LOG.debug("Process for worker {} killed.", id);
-        } else {
-          LOG.warn("Process for worker {} could not be killed.", id);
+          LOG.debug("Process for worker {} shut down gracefully.", id);
+        }
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      } finally {
+        if (process.isAlive()) {
+          LOG.info("Process for worker {} still running. Killing.", id);
+          process.destroyForcibly();
         }
       }
     }
   }
 
   /** Returns true if the process exists within maxWaitTimeMillis. */
-  private static boolean waitForProcessToDie(Process process, long maxWaitTimeMillis) {
+  private static boolean waitForProcessToDie(Process process, long maxWaitTimeMillis)
+      throws InterruptedException {
     final long startTime = System.currentTimeMillis();
     while (process.isAlive() && System.currentTimeMillis() - startTime < maxWaitTimeMillis) {
-      try {
-        Thread.sleep(100);
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        throw new RuntimeException("Interrupted while waiting on process", e);
-      }
+      Thread.sleep(50);
     }
     return !process.isAlive();
   }
@@ -212,19 +228,18 @@ public class ProcessManager {
     public void run() {
       synchronized (ALL_PROCESS_MANAGERS) {
         ALL_PROCESS_MANAGERS.forEach(ProcessManager::stopAllProcesses);
-        for (ProcessManager pm : ALL_PROCESS_MANAGERS) {
-          if (pm.processes.values().stream().anyMatch(Process::isAlive)) {
-            try {
-              // Graceful shutdown period
-              Thread.sleep(200);
-              break;
-            } catch (InterruptedException e) {
-              Thread.currentThread().interrupt();
-              throw new RuntimeException(e);
-            }
+        // If any processes are still alive, wait for 200 ms.
+        try {
+          if (ALL_PROCESS_MANAGERS.stream()
+              .anyMatch(pm -> pm.processes.values().stream().anyMatch(Process::isAlive))) {
+            // Graceful shutdown period after asking processes to quit
+            Thread.sleep(200);
           }
+        } catch (InterruptedException ignored) {
+          // Ignore interruptions here to proceed with killing processes
+        } finally {
+          ALL_PROCESS_MANAGERS.forEach(ProcessManager::killAllProcesses);
         }
-        ALL_PROCESS_MANAGERS.forEach(ProcessManager::killAllProcesses);
       }
     }
   }

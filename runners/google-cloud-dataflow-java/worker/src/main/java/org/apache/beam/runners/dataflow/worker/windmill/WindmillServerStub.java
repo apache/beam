@@ -28,17 +28,20 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
-import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.status.StatusDataProvider;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitStatus;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataResponse;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.net.HostAndPort;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /** Stub for communicating with a Windmill server. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public abstract class WindmillServerStub implements StatusDataProvider {
 
   /**
@@ -105,12 +108,6 @@ public abstract class WindmillServerStub implements StatusDataProvider {
 
     /** Waits for the server to close its end of the connection, with timeout. */
     boolean awaitTermination(int time, TimeUnit unit) throws InterruptedException;
-
-    /**
-     * Cleanly closes the stream after implementation-speficied timeout, unless the stream is
-     * aborted before the timeout is reached.
-     */
-    void closeAfterDefaultTimeout() throws InterruptedException;
 
     /** Returns when the stream was opened. */
     Instant startTime();

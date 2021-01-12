@@ -17,8 +17,11 @@
 
 """Bigquery data verifier for end-to-end test."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
+import concurrent
 import logging
 import sys
 import time
@@ -32,7 +35,6 @@ from apache_beam.testing.util import equal_to
 from apache_beam.utils import retry
 
 __all__ = ['BigqueryMatcher', 'BigQueryTableMatcher']
-
 
 # Protect against environments where bigquery library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -48,9 +50,11 @@ MAX_RETRIES = 5
 _LOGGER = logging.getLogger(__name__)
 
 
-def retry_on_http_and_value_error(exception):
+def retry_on_http_timeout_and_value_error(exception):
   """Filter allowing retries on Bigquery errors and value error."""
-  return isinstance(exception, (GoogleCloudError, ValueError))
+  return isinstance(
+      exception,
+      (GoogleCloudError, ValueError, concurrent.futures.TimeoutError))
 
 
 class BigqueryMatcher(BaseMatcher):
@@ -59,21 +63,21 @@ class BigqueryMatcher(BaseMatcher):
   Fetch Bigquery data with given query, compute a hash string and compare
   with expected checksum.
   """
-
-  def __init__(self, project, query, checksum):
+  def __init__(self, project, query, checksum, timeout_secs=0):
     """Initialize BigQueryMatcher object.
     Args:
       project: The name (string) of the project.
       query: The query (string) to perform.
       checksum: SHA-1 hash generated from a sorted list of lines
         read from expected output.
+      timeout_secs: Duration to retry query until checksum matches. This
+        is useful for DF streaming pipelines or BQ streaming inserts. The
+        default (0) never retries.
     """
     if bigquery is None:
-      raise ImportError(
-          'Bigquery dependencies are not installed.')
+      raise ImportError('Bigquery dependencies are not installed.')
     if not query or not isinstance(query, str):
-      raise ValueError(
-          'Invalid argument: query. Please use non-empty string')
+      raise ValueError('Invalid argument: query. Please use non-empty string')
     if not checksum or not isinstance(checksum, str):
       raise ValueError(
           'Invalid argument: checksum. Please use non-empty string')
@@ -81,20 +85,40 @@ class BigqueryMatcher(BaseMatcher):
     self.query = query
     self.expected_checksum = checksum
     self.checksum = None
+    self.timeout_secs = timeout_secs
 
   def _matches(self, _):
-    if self.checksum is None:
+    @retry.with_exponential_backoff(
+        num_retries=1000,
+        initial_delay_secs=0.5,
+        max_delay_secs=30,
+        stop_after_secs=self.timeout_secs,
+    )
+    def get_checksum():
       response = self._query_with_retry()
-      _LOGGER.info('Read from given query (%s), total rows %d',
-                   self.query, len(response))
+      _LOGGER.info(
+          'Read from given query (%s), total rows %d',
+          self.query,
+          len(response))
       self.checksum = compute_hash(response)
       _LOGGER.info('Generate checksum: %s', self.checksum)
+      if self.checksum != self.expected_checksum:
+        # This exception is never raised beyond the enclosing method.
+        raise ValueError(
+            'Checksums do not match. Expected: %s, got: %s' %
+            (self.expected_checksum, self.checksum))
+
+    if self.checksum is None:
+      try:
+        get_checksum()
+      except ValueError:
+        pass
 
     return self.checksum == self.expected_checksum
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
-      retry_filter=retry_on_http_and_value_error)
+      retry_filter=retry_on_http_timeout_and_value_error)
   def _query_with_retry(self):
     """Run Bigquery query with retry if got error http response"""
     _LOGGER.info('Attempting to perform query %s to BQ', self.query)
@@ -120,7 +144,6 @@ class BigqueryFullResultMatcher(BigqueryMatcher):
 
   Fetch Bigquery data with given query, compare to the expected data.
   """
-
   def __init__(self, project, query, data):
     """Initialize BigQueryMatcher object.
     Args:
@@ -128,8 +151,8 @@ class BigqueryFullResultMatcher(BigqueryMatcher):
       query: The query (string) to perform.
       data: List of tuples with the expected data.
     """
-    super(BigqueryFullResultMatcher, self).__init__(project, query,
-                                                    'unused_checksum')
+    super(BigqueryFullResultMatcher,
+          self).__init__(project, query, 'unused_checksum')
     self.expected_data = data
     self.actual_data = None
 
@@ -168,11 +191,11 @@ class BigqueryFullResultStreamingMatcher(BigqueryFullResultMatcher):
   A timeout can be specified.
   """
 
-  DEFAULT_TIMEOUT = 5*60
+  DEFAULT_TIMEOUT = 5 * 60
 
   def __init__(self, project, query, data, timeout=DEFAULT_TIMEOUT):
-    super(BigqueryFullResultStreamingMatcher, self).__init__(
-        project, query, data)
+    super(BigqueryFullResultStreamingMatcher,
+          self).__init__(project, query, data)
     self.timeout = timeout
 
   def _get_query_result(self):
@@ -183,19 +206,17 @@ class BigqueryFullResultStreamingMatcher(BigqueryFullResultMatcher):
         return response
       _LOGGER.debug('Query result contains %d rows' % len(response))
       time.sleep(1)
-    if sys.version_info >= (3,):
-      raise TimeoutError('Timeout exceeded for matcher.') # noqa: F821
+    if sys.version_info >= (3, ):
+      raise TimeoutError('Timeout exceeded for matcher.')  # noqa: F821
     else:
       raise RuntimeError('Timeout exceeded for matcher.')
 
 
 class BigQueryTableMatcher(BaseMatcher):
   """Matcher that verifies the properties of a Table in BigQuery."""
-
   def __init__(self, project, dataset, table, expected_properties):
     if bigquery is None:
-      raise ImportError(
-          'Bigquery dependencies are not installed.')
+      raise ImportError('Bigquery dependencies are not installed.')
 
     self.project = project
     self.dataset = dataset
@@ -204,7 +225,7 @@ class BigQueryTableMatcher(BaseMatcher):
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
-      retry_filter=retry_on_http_and_value_error)
+      retry_filter=retry_on_http_timeout_and_value_error)
   def _get_table_with_retry(self, bigquery_wrapper):
     return bigquery_wrapper.get_table(self.project, self.dataset, self.table)
 
@@ -218,8 +239,8 @@ class BigQueryTableMatcher(BaseMatcher):
     _LOGGER.info('Table proto is %s', self.actual_table)
 
     return all(
-        self._match_property(v, self._get_or_none(self.actual_table, k))
-        for k, v in self.expected_properties.items())
+        self._match_property(v, self._get_or_none(self.actual_table, k)) for k,
+        v in self.expected_properties.items())
 
   @staticmethod
   def _get_or_none(obj, attr):
@@ -237,8 +258,8 @@ class BigQueryTableMatcher(BaseMatcher):
     if isinstance(expected, dict):
       return all(
           BigQueryTableMatcher._match_property(
-              v, BigQueryTableMatcher._get_or_none(actual, k))
-          for k, v in expected.items())
+              v, BigQueryTableMatcher._get_or_none(actual, k)) for k,
+          v in expected.items())
     else:
       return expected == actual
 

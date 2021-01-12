@@ -21,9 +21,9 @@ import static org.apache.beam.sdk.TestUtils.KvMatcher.isKv;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.hasItem;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
-import static org.junit.Assert.assertThat;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -47,7 +47,6 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
-import org.apache.beam.sdk.testing.DataflowPortabilityApiUnsupported;
 import org.apache.beam.sdk.testing.LargeKeys;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
@@ -74,6 +73,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matcher;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -87,7 +87,10 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** Tests for GroupByKey. */
-@SuppressWarnings({"rawtypes", "unchecked"})
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "unchecked"
+})
 @RunWith(Enclosed.class)
 public class GroupByKeyTest implements Serializable {
   /** Shared test base class with setup/teardown helpers. */
@@ -411,7 +414,7 @@ public class GroupByKeyTest implements Serializable {
 
     /** Verify that runners correctly hash/group on the encoded value and not the value itself. */
     @Test
-    @Category({ValidatesRunner.class, DataflowPortabilityApiUnsupported.class})
+    @Category({ValidatesRunner.class})
     public void testGroupByKeyWithBadEqualsHashCode() throws Exception {
       final int numValues = 10;
       final int numKeys = 5;
@@ -756,7 +759,7 @@ public class GroupByKeyTest implements Serializable {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       return false;
     }
 

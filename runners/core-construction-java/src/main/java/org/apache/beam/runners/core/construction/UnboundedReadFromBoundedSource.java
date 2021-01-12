@@ -29,7 +29,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.ListCoder;
@@ -51,6 +50,7 @@ import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -70,6 +70,9 @@ import org.slf4j.LoggerFactory;
  * <p>This transform is intended to be used by a runner during pipeline translation to convert a
  * Read.Bounded into a Read.Unbounded.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PCollection<T>> {
 
   private static final Logger LOG = LoggerFactory.getLogger(UnboundedReadFromBoundedSource.class);
@@ -169,7 +172,10 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PColle
       return boundedSource.getDefaultOutputCoder();
     }
 
-    @SuppressWarnings({"rawtypes", "unchecked"})
+    @SuppressWarnings({
+      "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+      "unchecked"
+    })
     @Override
     public Coder<Checkpoint<T>> getCheckpointMarkCoder() {
       return new CheckpointCoder<>(boundedSource.getDefaultOutputCoder());

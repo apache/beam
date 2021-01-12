@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.jet.processors;
 
+import com.hazelcast.cluster.Address;
 import com.hazelcast.jet.Traverser;
 import com.hazelcast.jet.Traversers;
 import com.hazelcast.jet.core.AbstractProcessor;
@@ -25,7 +26,6 @@ import com.hazelcast.jet.core.ProcessorMetaSupplier;
 import com.hazelcast.jet.core.ProcessorSupplier;
 import com.hazelcast.jet.core.Watermark;
 import com.hazelcast.jet.impl.util.ExceptionUtil;
-import com.hazelcast.nio.Address;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
@@ -42,6 +42,11 @@ import org.apache.beam.sdk.util.WindowedValue;
  * Jet {@link com.hazelcast.jet.core.Processor} implementation for reading from an unbounded Beam
  * source.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness",
+  "keyfor"
+}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class UnboundedSourceP<T, CmT extends UnboundedSource.CheckpointMark>
     extends AbstractProcessor {
 

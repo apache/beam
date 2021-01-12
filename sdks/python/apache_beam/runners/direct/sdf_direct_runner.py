@@ -18,20 +18,23 @@
 """This module contains Splittable DoFn logic that is specific to DirectRunner.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import uuid
 from builtins import object
 from threading import Lock
 from threading import Timer
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import Iterable
+from typing import Optional
 
 import apache_beam as beam
 from apache_beam import TimeDomain
 from apache_beam import pvalue
 from apache_beam.coders import typecoders
-from apache_beam.io.iobase import RestrictionTracker
 from apache_beam.pipeline import AppliedPTransform
 from apache_beam.pipeline import PTransformOverride
 from apache_beam.runners.common import DoFnContext
@@ -44,8 +47,11 @@ from apache_beam.runners.direct.watermark_manager import WatermarkManager
 from apache_beam.transforms.core import ParDo
 from apache_beam.transforms.core import ProcessContinuation
 from apache_beam.transforms.ptransform import PTransform
-from apache_beam.transforms.trigger import _ValueStateTag
+from apache_beam.transforms.trigger import _ReadModifyWriteStateTag
 from apache_beam.utils.windowed_value import WindowedValue
+
+if TYPE_CHECKING:
+  from apache_beam.iobase import WatermarkEstimator
 
 
 class SplittableParDoOverride(PTransformOverride):
@@ -54,7 +60,6 @@ class SplittableParDoOverride(PTransformOverride):
   Replaces the ParDo transform with a SplittableParDo transform that performs
   SDF specific logic.
   """
-
   def matches(self, applied_ptransform):
     assert isinstance(applied_ptransform, AppliedPTransform)
     transform = applied_ptransform.transform
@@ -62,7 +67,9 @@ class SplittableParDoOverride(PTransformOverride):
       signature = DoFnSignature(transform.fn)
       return signature.is_splittable_dofn()
 
-  def get_replacement_transform(self, ptransform):
+  def get_replacement_transform_for_applied_ptransform(
+      self, applied_ptransform):
+    ptransform = applied_ptransform.transform
     assert isinstance(ptransform, ParDo)
     do_fn = ptransform.fn
     signature = DoFnSignature(do_fn)
@@ -74,7 +81,6 @@ class SplittableParDoOverride(PTransformOverride):
 
 class SplittableParDo(PTransform):
   """A transform that processes a PCollection using a Splittable DoFn."""
-
   def __init__(self, ptransform):
     assert isinstance(ptransform, ParDo)
     self._ptransform = ptransform
@@ -82,66 +88,73 @@ class SplittableParDo(PTransform):
   def expand(self, pcoll):
     sdf = self._ptransform.fn
     signature = DoFnSignature(sdf)
-    invoker = DoFnInvoker.create_invoker(signature, process_invocation=False)
-
+    restriction_coder = signature.get_restriction_coder()
     element_coder = typecoders.registry.get_coder(pcoll.element_type)
-    restriction_coder = invoker.invoke_restriction_coder()
 
-    keyed_elements = (pcoll
-                      | 'pair' >> ParDo(PairWithRestrictionFn(sdf))
-                      | 'split' >> ParDo(SplitRestrictionFn(sdf))
-                      | 'explode' >> ParDo(ExplodeWindowsFn())
-                      | 'random' >> ParDo(RandomUniqueKeyFn()))
+    keyed_elements = (
+        pcoll
+        | 'pair' >> ParDo(PairWithRestrictionFn(sdf))
+        | 'split' >> ParDo(SplitRestrictionFn(sdf))
+        | 'explode' >> ParDo(ExplodeWindowsFn())
+        | 'random' >> ParDo(RandomUniqueKeyFn()))
 
     return keyed_elements | ProcessKeyedElements(
-        sdf, element_coder, restriction_coder,
-        pcoll.windowing, self._ptransform.args, self._ptransform.kwargs,
+        sdf,
+        element_coder,
+        restriction_coder,
+        pcoll.windowing,
+        self._ptransform.args,
+        self._ptransform.kwargs,
         self._ptransform.side_inputs)
 
 
 class ElementAndRestriction(object):
-  """A holder for an element and a restriction."""
-
-  def __init__(self, element, restriction):
+  """A holder for an element, restriction, and watermark estimator state."""
+  def __init__(self, element, restriction, watermark_estimator_state):
     self.element = element
     self.restriction = restriction
+    self.watermark_estimator_state = watermark_estimator_state
 
 
 class PairWithRestrictionFn(beam.DoFn):
   """A transform that pairs each element with a restriction."""
-
   def __init__(self, do_fn):
-    self._do_fn = do_fn
+    self._signature = DoFnSignature(do_fn)
 
   def start_bundle(self):
-    signature = DoFnSignature(self._do_fn)
     self._invoker = DoFnInvoker.create_invoker(
-        signature, process_invocation=False)
+        self._signature,
+        output_processor=_NoneShallPassOutputProcessor(),
+        process_invocation=False)
 
   def process(self, element, window=beam.DoFn.WindowParam, *args, **kwargs):
     initial_restriction = self._invoker.invoke_initial_restriction(element)
-    yield ElementAndRestriction(element, initial_restriction)
+    watermark_estimator_state = (
+        self._signature.process_method.watermark_estimator_provider.
+        initial_estimator_state(element, initial_restriction))
+    yield ElementAndRestriction(
+        element, initial_restriction, watermark_estimator_state)
 
 
 class SplitRestrictionFn(beam.DoFn):
   """A transform that perform initial splitting of Splittable DoFn inputs."""
-
   def __init__(self, do_fn):
     self._do_fn = do_fn
 
   def start_bundle(self):
     signature = DoFnSignature(self._do_fn)
     self._invoker = DoFnInvoker.create_invoker(
-        signature, process_invocation=False)
+        signature,
+        output_processor=_NoneShallPassOutputProcessor(),
+        process_invocation=False)
 
   def process(self, element_and_restriction, *args, **kwargs):
     element = element_and_restriction.element
     restriction = element_and_restriction.restriction
-    restriction_parts = self._invoker.invoke_split(
-        element,
-        restriction)
+    restriction_parts = self._invoker.invoke_split(element, restriction)
     for part in restriction_parts:
-      yield ElementAndRestriction(element, part)
+      yield ElementAndRestriction(
+          element, part, element_and_restriction.watermark_estimator_state)
 
 
 class ExplodeWindowsFn(beam.DoFn):
@@ -150,14 +163,12 @@ class ExplodeWindowsFn(beam.DoFn):
   This is done to make sure that Splittable DoFn proceses an element for each of
   the windows that element belongs to.
   """
-
   def process(self, element, window=beam.DoFn.WindowParam, *args, **kwargs):
     yield element
 
 
 class RandomUniqueKeyFn(beam.DoFn):
   """A transform that assigns a unique key to each element."""
-
   def process(self, element, window=beam.DoFn.WindowParam, *args, **kwargs):
     # We ignore UUID collisions here since they are extremely rare.
     yield (uuid.uuid4().bytes, element)
@@ -169,10 +180,15 @@ class ProcessKeyedElements(PTransform):
   Input to this transform should be a PCollection of keyed ElementAndRestriction
   objects.
   """
-
   def __init__(
-      self, sdf, element_coder, restriction_coder, windowing_strategy,
-      ptransform_args, ptransform_kwargs, ptransform_side_inputs):
+      self,
+      sdf,
+      element_coder,
+      restriction_coder,
+      windowing_strategy,
+      ptransform_args,
+      ptransform_kwargs,
+      ptransform_side_inputs):
     self.sdf = sdf
     self.element_coder = element_coder
     self.restriction_coder = restriction_coder
@@ -187,24 +203,21 @@ class ProcessKeyedElements(PTransform):
 
 class ProcessKeyedElementsViaKeyedWorkItemsOverride(PTransformOverride):
   """A transform override for ProcessElements transform."""
-
   def matches(self, applied_ptransform):
-    return isinstance(
-        applied_ptransform.transform, ProcessKeyedElements)
+    return isinstance(applied_ptransform.transform, ProcessKeyedElements)
 
-  def get_replacement_transform(self, ptransform):
-    return ProcessKeyedElementsViaKeyedWorkItems(ptransform)
+  def get_replacement_transform_for_applied_ptransform(
+      self, applied_ptransform):
+    return ProcessKeyedElementsViaKeyedWorkItems(applied_ptransform.transform)
 
 
 class ProcessKeyedElementsViaKeyedWorkItems(PTransform):
   """A transform that processes Splittable DoFn input via KeyedWorkItems."""
-
   def __init__(self, process_keyed_elements_transform):
     self._process_keyed_elements_transform = process_keyed_elements_transform
 
   def expand(self, pcoll):
-    process_elements = ProcessElements(
-        self._process_keyed_elements_transform)
+    process_elements = ProcessElements(self._process_keyed_elements_transform)
     process_elements.args = (
         self._process_keyed_elements_transform.ptransform_args)
     process_elements.kwargs = (
@@ -220,7 +233,6 @@ class ProcessElements(PTransform):
   Will be evaluated by
   `runners.direct.transform_evaluator._ProcessElementsEvaluator`.
   """
-
   def __init__(self, process_keyed_elements_transform):
     self._process_keyed_elements_transform = process_keyed_elements_transform
     self.sdf = self._process_keyed_elements_transform.sdf
@@ -251,18 +263,22 @@ class ProcessFn(beam.DoFn):
   (4) after the final invocation of a given element clear any previous state set
   for re-invoking the element and release the output watermark.
   """
-
-  def __init__(
-      self, sdf, args_for_invoker, kwargs_for_invoker):
+  def __init__(self, sdf, args_for_invoker, kwargs_for_invoker):
     self.sdf = sdf
-    self._element_tag = _ValueStateTag('element')
-    self._restriction_tag = _ValueStateTag('restriction')
-    self.watermark_hold_tag = _ValueStateTag('watermark_hold')
+    self._element_tag = _ReadModifyWriteStateTag('element')
+    self._restriction_tag = _ReadModifyWriteStateTag('restriction')
+    self._watermark_state_tag = _ReadModifyWriteStateTag(
+        'watermark_estimator_state')
+    self.watermark_hold_tag = _ReadModifyWriteStateTag('watermark_hold')
     self._process_element_invoker = None
+    self._output_processor = _OutputProcessor()
 
     self.sdf_invoker = DoFnInvoker.create_invoker(
-        DoFnSignature(self.sdf), context=DoFnContext('unused_context'),
-        input_args=args_for_invoker, input_kwargs=kwargs_for_invoker)
+        DoFnSignature(self.sdf),
+        context=DoFnContext('unused_context'),
+        output_processor=self._output_processor,
+        input_args=args_for_invoker,
+        input_kwargs=kwargs_for_invoker)
 
     self._step_context = None
 
@@ -279,8 +295,13 @@ class ProcessFn(beam.DoFn):
     assert isinstance(process_element_invoker, SDFProcessElementInvoker)
     self._process_element_invoker = process_element_invoker
 
-  def process(self, element, timestamp=beam.DoFn.TimestampParam,
-              window=beam.DoFn.WindowParam, *args, **kwargs):
+  def process(
+      self,
+      element,
+      timestamp=beam.DoFn.TimestampParam,
+      window=beam.DoFn.WindowParam,
+      *args,
+      **kwargs):
     if isinstance(element, KeyedWorkItem):
       # Must be a timer firing.
       key = element.encoded_key
@@ -306,6 +327,8 @@ class ProcessFn(beam.DoFn):
     if not is_seed_call:
       element = state.get_state(window, self._element_tag)
       restriction = state.get_state(window, self._restriction_tag)
+      watermark_estimator_state = state.get_state(
+          window, self._watermark_state_tag)
       windowed_element = WindowedValue(element, timestamp, [window])
     else:
       # After values iterator is expanded above we should have gotten a list
@@ -314,6 +337,8 @@ class ProcessFn(beam.DoFn):
       element_and_restriction = value
       element = element_and_restriction.element
       restriction = element_and_restriction.restriction
+      watermark_estimator_state = (
+          element_and_restriction.watermark_estimator_state)
 
       if isinstance(value, WindowedValue):
         windowed_element = WindowedValue(
@@ -321,13 +346,17 @@ class ProcessFn(beam.DoFn):
       else:
         windowed_element = WindowedValue(element, timestamp, [window])
 
-    tracker = self.sdf_invoker.invoke_create_tracker(restriction)
     assert self._process_element_invoker
-    assert isinstance(self._process_element_invoker,
-                      SDFProcessElementInvoker)
+    assert isinstance(self._process_element_invoker, SDFProcessElementInvoker)
 
     output_values = self._process_element_invoker.invoke_process_element(
-        self.sdf_invoker, windowed_element, tracker, *args, **kwargs)
+        self.sdf_invoker,
+        self._output_processor,
+        windowed_element,
+        restriction,
+        watermark_estimator_state,
+        *args,
+        **kwargs)
 
     sdf_result = None
     for output in output_values:
@@ -345,16 +374,19 @@ class ProcessFn(beam.DoFn):
       # All work for current residual and restriction pair is complete.
       state.clear_state(window, self._element_tag)
       state.clear_state(window, self._restriction_tag)
+      state.clear_state(window, self._watermark_state_tag)
       # Releasing output watermark by setting it to positive infinity.
-      state.add_state(window, self.watermark_hold_tag,
-                      WatermarkManager.WATERMARK_POS_INF)
+      state.add_state(
+          window, self.watermark_hold_tag, WatermarkManager.WATERMARK_POS_INF)
     else:
       state.add_state(window, self._element_tag, element)
-      state.add_state(window, self._restriction_tag,
-                      sdf_result.residual_restriction)
+      state.add_state(
+          window, self._restriction_tag, sdf_result.residual_restriction)
+      state.add_state(
+          window, self._watermark_state_tag, watermark_estimator_state)
       # Holding output watermark by setting it to negative infinity.
-      state.add_state(window, self.watermark_hold_tag,
-                      WatermarkManager.WATERMARK_NEG_INF)
+      state.add_state(
+          window, self.watermark_hold_tag, WatermarkManager.WATERMARK_NEG_INF)
 
       # Setting a timer to be reinvoked to continue processing the element.
       # Currently Python SDK only supports setting timers based on watermark. So
@@ -390,10 +422,11 @@ class SDFProcessElementInvoker(object):
   produced this class ends the execution and performs steps to finalize the
   current invocation.
   """
-
   class Result(object):
     def __init__(
-        self, residual_restriction=None, process_continuation=None,
+        self,
+        residual_restriction=None,
+        process_continuation=None,
         future_output_watermark=None):
       """Returned as a result of a `invoke_process_element()` invocation.
 
@@ -412,8 +445,7 @@ class SDFProcessElementInvoker(object):
       self.process_continuation = process_continuation
       self.future_output_watermark = future_output_watermark
 
-  def __init__(
-      self, max_num_outputs, max_duration):
+  def __init__(self, max_num_outputs, max_duration):
     self._max_num_outputs = max_num_outputs
     self._max_duration = max_duration
     self._checkpoint_lock = Lock()
@@ -422,22 +454,25 @@ class SDFProcessElementInvoker(object):
     raise ValueError
 
   def invoke_process_element(
-      self, sdf_invoker, element, tracker, *args, **kwargs):
+      self,
+      sdf_invoker,
+      output_processor,
+      element,
+      restriction,
+      watermark_estimator_state,
+      *args,
+      **kwargs):
     """Invokes `process()` method of a Splittable `DoFn` for a given element.
 
      Args:
        sdf_invoker: a `DoFnInvoker` for the Splittable `DoFn`.
        element: the element to process
-       tracker: a `RestrictionTracker` for the element that will be passed when
-                invoking the `process()` method of the Splittable `DoFn`.
      Returns:
        a `SDFProcessElementInvoker.Result` object.
      """
     assert isinstance(sdf_invoker, DoFnInvoker)
-    assert isinstance(tracker, RestrictionTracker)
 
     class CheckpointState(object):
-
       def __init__(self):
         self.checkpointed = None
         self.residual_restriction = None
@@ -448,14 +483,24 @@ class SDFProcessElementInvoker(object):
       with self._checkpoint_lock:
         if checkpoint_state.checkpointed:
           return
-      checkpoint_state.residual_restriction = tracker.checkpoint()
-      checkpoint_state.checkpointed = object()
+        checkpoint_state.checkpointed = object()
+      split = sdf_invoker.try_split(0)
+      if split:
+        _, checkpoint_state.residual_restriction = split
+      else:
+        # Clear the checkpoint if the split didn't happen. This counters
+        # a very unlikely race condition that the Timer attempted to initiate
+        # a checkpoint before invoke_process set the current element allowing
+        # for another attempt to checkpoint.
+        checkpoint_state.checkpointed = None
 
-    output_processor = _OutputProcessor()
+    output_processor.reset()
     Timer(self._max_duration, initiate_checkpoint).start()
     sdf_invoker.invoke_process(
-        element, restriction_tracker=tracker, output_processor=output_processor,
-        additional_args=args, additional_kwargs=kwargs)
+        element,
+        additional_args=args,
+        restriction=restriction,
+        watermark_estimator_state=watermark_estimator_state)
 
     assert output_processor.output_iter is not None
     output_count = 0
@@ -486,20 +531,29 @@ class SDFProcessElementInvoker(object):
       if self._max_num_outputs and output_count >= self._max_num_outputs:
         initiate_checkpoint()
 
-    tracker.check_done()
     result = (
         SDFProcessElementInvoker.Result(
             residual_restriction=checkpoint_state.residual_restriction)
-        if checkpoint_state.residual_restriction
-        else SDFProcessElementInvoker.Result())
+        if checkpoint_state.residual_restriction else
+        SDFProcessElementInvoker.Result())
     yield result
 
 
 class _OutputProcessor(OutputProcessor):
-
   def __init__(self):
     self.output_iter = None
 
-  def process_outputs(self, windowed_input_element, output_iter):
-    # type: (WindowedValue, Iterable[Any]) -> None
+  def process_outputs(
+      self, windowed_input_element, output_iter, watermark_estimator=None):
+    # type: (WindowedValue, Iterable[Any], Optional[WatermarkEstimator]) -> None
     self.output_iter = output_iter
+
+  def reset(self):
+    self.output_iter = None
+
+
+class _NoneShallPassOutputProcessor(OutputProcessor):
+  def process_outputs(
+      self, windowed_input_element, output_iter, watermark_estimator=None):
+    # type: (WindowedValue, Iterable[Any], Optional[WatermarkEstimator]) -> None
+    raise RuntimeError()

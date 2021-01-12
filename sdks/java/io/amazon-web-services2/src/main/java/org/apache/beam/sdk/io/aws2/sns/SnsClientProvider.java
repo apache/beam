@@ -21,7 +21,7 @@ import java.io.Serializable;
 import software.amazon.awssdk.services.sns.SnsClient;
 
 /**
- * Provides instances of DynamoDB clients.
+ * Provides instances of SNS client.
  *
  * <p>Please note, that any instance of {@link SnsClientProvider} must be {@link Serializable} to
  * ensure it can be sent to worker machines.

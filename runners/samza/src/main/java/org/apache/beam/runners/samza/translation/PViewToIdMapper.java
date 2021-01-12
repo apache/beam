@@ -29,6 +29,10 @@ import org.apache.beam.sdk.values.PValue;
  * This class generates an ID for each {@link PValue} during a topological traversal of the BEAM
  * {@link Pipeline}.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class PViewToIdMapper extends Pipeline.PipelineVisitor.Defaults {
   private final Map<PValue, String> idMap = new HashMap<>();
   private int nextId;

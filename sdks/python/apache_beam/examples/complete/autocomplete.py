@@ -17,6 +17,8 @@
 
 """A workflow emitting the top k most common words for each prefix."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import argparse
@@ -34,32 +36,30 @@ from apache_beam.options.pipeline_options import SetupOptions
 def run(argv=None):
 
   parser = argparse.ArgumentParser()
-  parser.add_argument('--input',
-                      required=True,
-                      help='Input file to process.')
-  parser.add_argument('--output',
-                      required=True,
-                      help='Output file to write results to.')
+  parser.add_argument('--input', required=True, help='Input file to process.')
+  parser.add_argument(
+      '--output', required=True, help='Output file to write results to.')
   known_args, pipeline_args = parser.parse_known_args(argv)
   # We use the save_main_session option because one or more DoFn's in this
   # workflow rely on global context (e.g., a module imported at module level).
   pipeline_options = PipelineOptions(pipeline_args)
   pipeline_options.view_as(SetupOptions).save_main_session = True
   with beam.Pipeline(options=pipeline_options) as p:
+
     def format_result(prefix_candidates):
       (prefix, candidates) = prefix_candidates
       return '%s: %s' % (prefix, candidates)
 
-    (p  # pylint: disable=expression-not-assigned
-     | 'read' >> ReadFromText(known_args.input)
-     | 'split' >> beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
-     | 'TopPerPrefix' >> TopPerPrefix(5)
-     | 'format' >> beam.Map(format_result)
-     | 'write' >> WriteToText(known_args.output))
+    (  # pylint: disable=expression-not-assigned
+        p
+        | 'read' >> ReadFromText(known_args.input)
+        | 'split' >> beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
+        | 'TopPerPrefix' >> TopPerPrefix(5)
+        | 'format' >> beam.Map(format_result)
+        | 'write' >> WriteToText(known_args.output))
 
 
 class TopPerPrefix(beam.PTransform):
-
   def __init__(self, count):
     # TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.
     # super(TopPerPrefix, self).__init__()
@@ -76,10 +76,11 @@ class TopPerPrefix(beam.PTransform):
       A PCollection of most common words with each prefix, in the form
           (prefix, [(count, word), (count, word), ...])
     """
-    return (words
-            | beam.combiners.Count.PerElement()
-            | beam.FlatMap(extract_prefixes)
-            | beam.combiners.Top.LargestPerKey(self._count))
+    return (
+        words
+        | beam.combiners.Count.PerElement()
+        | beam.FlatMap(extract_prefixes)
+        | beam.combiners.Top.LargestPerKey(self._count))
 
 
 def extract_prefixes(element):

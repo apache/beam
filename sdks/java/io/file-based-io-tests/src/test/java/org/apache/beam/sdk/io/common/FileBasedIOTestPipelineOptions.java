@@ -17,10 +17,10 @@
  */
 package org.apache.beam.sdk.io.common;
 
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.Validation;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Pipeline options for all file based IOITs. */
 public interface FileBasedIOTestPipelineOptions extends IOTestPipelineOptions {

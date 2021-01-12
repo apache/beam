@@ -37,15 +37,12 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
-import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.RegisterRequest;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput;
-import org.apache.beam.model.pipeline.v1.RunnerApi.StandardPTransforms;
 import org.apache.beam.runners.core.SideInputReader;
-import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
@@ -80,13 +77,14 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.MutableNetwork;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.Network;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Converts a {@link Network} representation of {@link MapTask} destined for the SDK harness into an
@@ -94,30 +92,33 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.Network;
  *
  * <p>Testing of all the layers of translation are performed via local service runner tests.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>, Node> {
   /** Must match declared fields within {@code ProcessBundleHandler}. */
-  private static final String DATA_INPUT_URN = "beam:source:runner:0.1";
+  private static final String DATA_INPUT_URN = "beam:runner:source:v1";
 
-  private static final String DATA_OUTPUT_URN = "beam:sink:runner:0.1";
+  private static final String DATA_OUTPUT_URN = "beam:runner:sink:v1";
   private static final String JAVA_SOURCE_URN = "beam:source:java:0.1";
 
   public static final String COMBINE_PER_KEY_URN =
-      BeamUrns.getUrn(StandardPTransforms.Composites.COMBINE_PER_KEY);
+      PTransformTranslation.COMBINE_PER_KEY_TRANSFORM_URN;
   public static final String COMBINE_PRECOMBINE_URN =
-      BeamUrns.getUrn(StandardPTransforms.CombineComponents.COMBINE_PER_KEY_PRECOMBINE);
+      PTransformTranslation.COMBINE_PER_KEY_PRECOMBINE_TRANSFORM_URN;
   public static final String COMBINE_MERGE_URN =
-      BeamUrns.getUrn(StandardPTransforms.CombineComponents.COMBINE_PER_KEY_MERGE_ACCUMULATORS);
+      PTransformTranslation.COMBINE_PER_KEY_MERGE_ACCUMULATORS_TRANSFORM_URN;
   public static final String COMBINE_EXTRACT_URN =
-      BeamUrns.getUrn(StandardPTransforms.CombineComponents.COMBINE_PER_KEY_EXTRACT_OUTPUTS);
+      PTransformTranslation.COMBINE_PER_KEY_EXTRACT_OUTPUTS_TRANSFORM_URN;
   public static final String COMBINE_GROUPED_VALUES_URN =
-      BeamUrns.getUrn(StandardPTransforms.CombineComponents.COMBINE_GROUPED_VALUES);
+      PTransformTranslation.COMBINE_GROUPED_VALUES_TRANSFORM_URN;
 
   private static final String SERIALIZED_SOURCE = "serialized_source";
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
   private final IdGenerator idGenerator;
   private final Endpoints.ApiServiceDescriptor stateApiServiceDescriptor;
-  private final @Nullable RunnerApi.Pipeline pipeline;
+  private final RunnerApi.@Nullable Pipeline pipeline;
 
   /**
    * Returns a {@link RegisterNodeFunction} for a portable Pipeline. UDF-bearing transform payloads
@@ -126,8 +127,10 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
   public static RegisterNodeFunction forPipeline(
       RunnerApi.Pipeline pipeline,
       IdGenerator idGenerator,
-      Endpoints.ApiServiceDescriptor stateApiServiceDescriptor) {
-    return new RegisterNodeFunction(pipeline, idGenerator, stateApiServiceDescriptor);
+      Endpoints.ApiServiceDescriptor stateApiServiceDescriptor,
+      Endpoints.ApiServiceDescriptor timerApiServiceDescriptor) {
+    return new RegisterNodeFunction(
+        pipeline, idGenerator, stateApiServiceDescriptor, timerApiServiceDescriptor);
   }
 
   /**
@@ -136,14 +139,18 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
    * harnesses, then this method should be removed.
    */
   public static RegisterNodeFunction withoutPipeline(
-      IdGenerator idGenerator, Endpoints.ApiServiceDescriptor stateApiServiceDescriptor) {
-    return new RegisterNodeFunction(null, idGenerator, stateApiServiceDescriptor);
+      IdGenerator idGenerator,
+      Endpoints.ApiServiceDescriptor stateApiServiceDescriptor,
+      Endpoints.ApiServiceDescriptor timerApiServiceDescriptor) {
+    return new RegisterNodeFunction(
+        null, idGenerator, stateApiServiceDescriptor, timerApiServiceDescriptor);
   }
 
   private RegisterNodeFunction(
-      @Nullable RunnerApi.Pipeline pipeline,
+      RunnerApi.@Nullable Pipeline pipeline,
       IdGenerator idGenerator,
-      Endpoints.ApiServiceDescriptor stateApiServiceDescriptor) {
+      Endpoints.ApiServiceDescriptor stateApiServiceDescriptor,
+      Endpoints.ApiServiceDescriptor timerApiServiceDescriptor) {
     this.pipeline = pipeline;
     this.idGenerator = idGenerator;
     this.stateApiServiceDescriptor = stateApiServiceDescriptor;
@@ -190,9 +197,7 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
 
     // For intermediate PCollections we fabricate, we make a bogus WindowingStrategy
     // TODO: create a correct windowing strategy, including coders and environment
-    // An SdkFunctionSpec is invalid without a working environment reference. We can revamp that
-    // when we inline SdkFunctionSpec and FunctionSpec, both slated for inlining wherever they occur
-    SdkComponents sdkComponents = SdkComponents.create(pipeline.getComponents());
+    SdkComponents sdkComponents = SdkComponents.create(pipeline.getComponents(), null);
 
     // Default to use the Java environment if pipeline doesn't have environment specified.
     if (pipeline.getComponents().getEnvironmentsMap().isEmpty()) {
@@ -220,6 +225,8 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
     ImmutableMap.Builder<String, Iterable<PCollectionView<?>>> ptransformIdToPCollectionViews =
         ImmutableMap.builder();
     ImmutableMap.Builder<String, NameContext> pcollectionIdToNameContexts = ImmutableMap.builder();
+    ImmutableMap.Builder<InstructionOutputNode, String> instructionOutputNodeToCoderIdBuilder =
+        ImmutableMap.builder();
 
     // For each instruction output node:
     // 1. Generate new Coder and register it with SDKComponents and ProcessBundleDescriptor.
@@ -229,6 +236,7 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
       InstructionOutput instructionOutput = node.getInstructionOutput();
 
       String coderId = "generatedCoder" + idGenerator.getId();
+      instructionOutputNodeToCoderIdBuilder.put(node, coderId);
       try (ByteString.Output output = ByteString.newOutput()) {
         try {
           Coder<?> javaCoder =
@@ -278,6 +286,8 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
               instructionOutput.getName()));
     }
     processBundleDescriptor.putAllCoders(sdkComponents.toComponents().getCodersMap());
+    Map<InstructionOutputNode, String> instructionOutputNodeToCoderIdMap =
+        instructionOutputNodeToCoderIdBuilder.build();
 
     for (ParallelInstructionNode node :
         Iterables.filter(input.nodes(), ParallelInstructionNode.class)) {
@@ -351,7 +361,7 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
                 .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
                 .setPayload(parDoPayload.toByteString());
           } else {
-            // legacy path - bytes are the SdkFunctionSpec's payload field, basically, and
+            // legacy path - bytes are the FunctionSpec's payload field, basically, and
             // SDKs expect it in the PTransform's payload field
             byte[] userFnBytes = getBytes(userFnSpec, PropertyNames.SERIALIZED_FN);
             transformSpec
@@ -412,22 +422,33 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
       Set<Node> predecessors = input.predecessors(node);
       Set<Node> successors = input.successors(node);
       if (predecessors.isEmpty() && !successors.isEmpty()) {
+        Node instructionOutputNode = Iterables.getOnlyElement(successors);
         pTransform.putOutputs(
             "generatedOutput" + idGenerator.getId(),
-            nodesToPCollections.get(Iterables.getOnlyElement(successors)));
+            nodesToPCollections.get(instructionOutputNode));
         pTransform.setSpec(
             RunnerApi.FunctionSpec.newBuilder()
                 .setUrn(DATA_INPUT_URN)
-                .setPayload(node.getRemoteGrpcPort().toByteString())
+                .setPayload(
+                    node.getRemoteGrpcPort()
+                        .toBuilder()
+                        .setCoderId(instructionOutputNodeToCoderIdMap.get(instructionOutputNode))
+                        .build()
+                        .toByteString())
                 .build());
       } else if (!predecessors.isEmpty() && successors.isEmpty()) {
+        Node instructionOutputNode = Iterables.getOnlyElement(predecessors);
         pTransform.putInputs(
-            "generatedInput" + idGenerator.getId(),
-            nodesToPCollections.get(Iterables.getOnlyElement(predecessors)));
+            "generatedInput" + idGenerator.getId(), nodesToPCollections.get(instructionOutputNode));
         pTransform.setSpec(
             RunnerApi.FunctionSpec.newBuilder()
                 .setUrn(DATA_OUTPUT_URN)
-                .setPayload(node.getRemoteGrpcPort().toByteString())
+                .setPayload(
+                    node.getRemoteGrpcPort()
+                        .toBuilder()
+                        .setCoderId(instructionOutputNodeToCoderIdMap.get(instructionOutputNode))
+                        .build()
+                        .toByteString())
                 .build());
       } else {
         throw new IllegalStateException(

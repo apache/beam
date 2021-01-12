@@ -19,14 +19,13 @@ package org.apache.beam.sdk.io.elasticsearch;
 
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.ConnectionConfiguration;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.ES_TYPE;
-import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.UPDATE_INDEX;
-import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.UPDATE_TYPE;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.getEsIndex;
 
 import java.io.IOException;
 import java.io.Serializable;
 import org.apache.beam.sdk.io.common.NetworkTestHelper;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.elasticsearch.client.Request;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.node.Node;
@@ -45,6 +44,9 @@ import org.slf4j.LoggerFactory;
 
 /** Tests for {@link ElasticsearchIO} version 2.x. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ElasticsearchIOTest implements Serializable {
 
   private static final Logger LOG = LoggerFactory.getLogger(ElasticsearchIOTest.class);
@@ -86,15 +88,16 @@ public class ElasticsearchIOTest implements Serializable {
     connectionConfiguration =
         ConnectionConfiguration.create(
                 new String[] {"http://" + ES_IP + ":" + esHttpPort}, getEsIndex(), ES_TYPE)
-            .withSocketAndRetryTimeout(120000)
+            .withSocketTimeout(120000)
             .withConnectTimeout(5000);
     restClient = connectionConfiguration.createClient();
     elasticsearchIOTestCommon =
         new ElasticsearchIOTestCommon(connectionConfiguration, restClient, false);
     int waitingTime = 0;
     int healthCheckFrequency = 500;
+    Request request = new Request("HEAD", "/");
     while ((waitingTime < MAX_STARTUP_WAITING_TIME_MSEC)
-        && restClient.performRequest("HEAD", "/").getStatusLine().getStatusCode() != 200) {
+        && restClient.performRequest(request).getStatusLine().getStatusCode() != 200) {
       try {
         Thread.sleep(healthCheckFrequency);
         waitingTime += healthCheckFrequency;
@@ -202,18 +205,6 @@ public class ElasticsearchIOTest implements Serializable {
   }
 
   @Test
-  public void testWritePartialUpdateWithErrors() throws Exception {
-    // cannot share elasticsearchIOTestCommon because tests run in parallel.
-    ConnectionConfiguration connectionConfiguration =
-        ConnectionConfiguration.create(
-            new String[] {"http://" + ES_IP + ":" + esHttpPort}, UPDATE_INDEX, UPDATE_TYPE);
-    ElasticsearchIOTestCommon elasticsearchIOTestCommonWithErrors =
-        new ElasticsearchIOTestCommon(connectionConfiguration, restClient, false);
-    elasticsearchIOTestCommonWithErrors.setPipeline(pipeline);
-    elasticsearchIOTestCommonWithErrors.testWritePartialUpdateWithErrors();
-  }
-
-  @Test
   public void testReadWithMetadata() throws Exception {
     elasticsearchIOTestCommon.setPipeline(pipeline);
     elasticsearchIOTestCommon.testReadWithMetadata();
@@ -235,5 +226,12 @@ public class ElasticsearchIOTest implements Serializable {
   public void testWriteRetryValidRequest() throws Exception {
     elasticsearchIOTestCommon.setPipeline(pipeline);
     elasticsearchIOTestCommon.testWriteRetryValidRequest();
+  }
+
+  @Test
+  public void testWriteWithIsDeleteFn() throws Exception {
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.testWriteWithIsDeletedFnWithPartialUpdates();
+    elasticsearchIOTestCommon.testWriteWithIsDeletedFnWithoutPartialUpdate();
   }
 }

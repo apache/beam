@@ -20,7 +20,7 @@ package org.apache.beam.runners.portability.testing;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.io.IOException;
-import org.apache.beam.runners.fnexecution.jobsubmission.JobServerDriver;
+import org.apache.beam.runners.jobsubmission.JobServerDriver;
 import org.apache.beam.runners.portability.PortableRunner;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;

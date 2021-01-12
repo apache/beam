@@ -23,7 +23,7 @@ import org.apache.spark.util.AccumulatorV2;
 /** {@link AccumulatorV2} implementation for {@link MetricsContainerStepMap}. */
 public class MetricsContainerStepMapAccumulator
     extends AccumulatorV2<MetricsContainerStepMap, MetricsContainerStepMap> {
-  private static final MetricsContainerStepMap empty = new MetricsContainerStepMap();
+  private static final MetricsContainerStepMap empty = new SparkMetricsContainerStepMap();
 
   private MetricsContainerStepMap value;
 
@@ -38,14 +38,14 @@ public class MetricsContainerStepMapAccumulator
 
   @Override
   public MetricsContainerStepMapAccumulator copy() {
-    MetricsContainerStepMap newContainer = new MetricsContainerStepMap();
+    MetricsContainerStepMap newContainer = new SparkMetricsContainerStepMap();
     newContainer.updateAll(value);
     return new MetricsContainerStepMapAccumulator(newContainer);
   }
 
   @Override
   public void reset() {
-    this.value = new MetricsContainerStepMap();
+    this.value = new SparkMetricsContainerStepMap();
   }
 
   @Override

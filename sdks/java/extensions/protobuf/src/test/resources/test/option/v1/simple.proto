@@ -1,0 +1,67 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto3";
+
+import "test/option/v1/option.proto";
+
+package test.option.v1;
+
+message MessageWithOptions {
+    string test_name = 1;
+    int32 test_index = 2;
+
+    int32 field_with_fieldoption_double = 700 [(test.option.v1.fieldoption_double) = 100.1];
+    int32 field_with_fieldoption_float = 701 [(test.option.v1.fieldoption_float) = 101.2];
+    int32 field_with_fieldoption_int32 = 702 [(test.option.v1.fieldoption_int32) = 102];
+    int32 field_with_fieldoption_int64 = 703 [(test.option.v1.fieldoption_int64) = 103];
+    int32 field_with_fieldoption_uint32 = 704 [(test.option.v1.fieldoption_uint32) = 104];
+    int32 field_with_fieldoption_uint64 = 705 [(test.option.v1.fieldoption_uint64) = 105];
+    int32 field_with_fieldoption_sint32 = 706 [(test.option.v1.fieldoption_sint32) = 106];
+    int32 field_with_fieldoption_sint64 = 707 [(test.option.v1.fieldoption_sint64) = 107];
+    int32 field_with_fieldoption_fixed32 = 708;
+    int32 field_with_fieldoption_fixed64 = 709;
+    int32 field_with_fieldoption_sfixed32 = 710;
+    int32 field_with_fieldoption_sfixed64 = 711;
+    int32 field_with_fieldoption_bool = 712 [(test.option.v1.fieldoption_bool) = true];
+    int32 field_with_fieldoption_string = 713 [(test.option.v1.fieldoption_string) = "Oh yeah"];
+    int32 field_with_fieldoption_bytes = 714;
+    int32 field_with_fieldoption_message = 715;
+    int32 field_with_fieldoption_enum = 716 [(test.option.v1.fieldoption_enum) = ENUM1];
+
+    int32 field_with_fieldoption_repeated_double = 800;
+    int32 field_with_fieldoption_repeated_float = 801;
+    int32 field_with_fieldoption_repeated_int32 = 802;
+    int32 field_with_fieldoption_repeated_int64 = 803;
+    int32 field_with_fieldoption_repeated_uint32 = 804;
+    int32 field_with_fieldoption_repeated_uint64 = 805;
+    int32 field_with_fieldoption_repeated_sint32 = 806;
+    int32 field_with_fieldoption_repeated_sint64 = 807;
+    int32 field_with_fieldoption_repeated_fixed32 = 808;
+    int32 field_with_fieldoption_repeated_fixed64 = 809;
+    int32 field_with_fieldoption_repeated_sfixed32 = 810;
+    int32 field_with_fieldoption_repeated_sfixed64 = 811;
+    int32 field_with_fieldoption_repeated_bool = 812;
+    int32 field_with_fieldoption_repeated_string = 813 [(test.option.v1.fieldoption_repeated_string) = "Oh yeah",
+                                                       (test.option.v1.fieldoption_repeated_string) = "Oh no"];
+    int32 field_with_fieldoption_repeated_bytes = 814;
+    int32 field_with_fieldoption_repeated_message = 815;
+    int32 field_with_fieldoption_repeated_enum = 816;
+
+}
+

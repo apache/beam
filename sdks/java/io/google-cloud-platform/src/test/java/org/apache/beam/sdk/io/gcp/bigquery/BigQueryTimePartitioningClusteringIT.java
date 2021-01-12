@@ -25,7 +25,6 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
 import java.util.Arrays;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
@@ -38,6 +37,7 @@ import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -46,6 +46,9 @@ import org.junit.runners.JUnit4;
 
 /** Integration test that partitions and clusters sample data in BigQuery. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BigQueryTimePartitioningClusteringIT {
   private static final String WEATHER_SAMPLES_TABLE =
       "clouddataflow-readonly:samples.weather_stations";
@@ -103,9 +106,8 @@ public class BigQueryTimePartitioningClusteringIT {
       this.tableName = tableName;
     }
 
-    @Nullable
     @Override
-    public Coder<TableDestination> getDestinationCoder() {
+    public @Nullable Coder<TableDestination> getDestinationCoder() {
       return TableDestinationCoderV3.of();
     }
 

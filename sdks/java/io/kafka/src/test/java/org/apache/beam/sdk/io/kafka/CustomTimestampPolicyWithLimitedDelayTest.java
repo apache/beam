@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.Is.is;
-import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -36,6 +36,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link CustomTimestampPolicyWithLimitedDelay}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class CustomTimestampPolicyWithLimitedDelayTest {
 
   // Takes offsets of timestamps from now returns the results as offsets from 'now'.

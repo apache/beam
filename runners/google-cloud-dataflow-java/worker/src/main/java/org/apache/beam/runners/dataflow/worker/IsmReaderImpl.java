@@ -74,6 +74,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Ordering
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Ints;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Longs;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@link NativeReader} that reads Ism files.
@@ -82,6 +83,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Longs
  */
 // Possible real inconsistency - https://issues.apache.org/jira/browse/BEAM-6560
 @SuppressFBWarnings("IS2_INCONSISTENT_SYNC")
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class IsmReaderImpl<V> extends IsmReader<V> {
   /**
    * This constant represents the distance we would rather read and drop bytes for versus doing an
@@ -445,7 +449,7 @@ public class IsmReaderImpl<V> extends IsmReader<V> {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
       if (!(obj instanceof IsmShardKey)) {
         return false;
       }

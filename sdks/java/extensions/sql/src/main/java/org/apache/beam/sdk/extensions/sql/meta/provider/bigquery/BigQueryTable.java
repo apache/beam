@@ -35,6 +35,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryOptions;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.ConversionOptions;
@@ -63,13 +64,19 @@ import org.slf4j.LoggerFactory;
  * support being a source.
  */
 @Experimental
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class BigQueryTable extends SchemaBaseBeamTable implements Serializable {
   @VisibleForTesting static final String METHOD_PROPERTY = "method";
+  @VisibleForTesting static final String WRITE_DISPOSITION_PROPERTY = "writeDisposition";
   @VisibleForTesting final String bqLocation;
   private final ConversionOptions conversionOptions;
   private BeamTableStatistics rowCountStatistics = null;
-  private static final Logger LOGGER = LoggerFactory.getLogger(BigQueryTable.class);
+  private static final Logger LOG = LoggerFactory.getLogger(BigQueryTable.class);
   @VisibleForTesting final Method method;
+  @VisibleForTesting final WriteDisposition writeDisposition;
 
   BigQueryTable(Table table, BigQueryUtils.ConversionOptions options) {
     super(table.getSchema());
@@ -85,23 +92,45 @@ class BigQueryTable extends SchemaBaseBeamTable implements Serializable {
       if (validMethods.contains(selectedMethod)) {
         method = Method.valueOf(selectedMethod);
       } else {
-        InvalidPropertyException e =
-            new InvalidPropertyException(
-                "Invalid method "
-                    + "'"
-                    + selectedMethod
-                    + "'. "
-                    + "Supported methods are: "
-                    + validMethods.toString()
-                    + ".");
-
-        throw e;
+        throw new InvalidPropertyException(
+            "Invalid method "
+                + "'"
+                + selectedMethod
+                + "'. "
+                + "Supported methods are: "
+                + validMethods.toString()
+                + ".");
       }
     } else {
-      method = Method.DEFAULT;
+      method = Method.DIRECT_READ;
     }
 
-    LOGGER.info("BigQuery method is set to: " + method.toString());
+    LOG.info("BigQuery method is set to: " + method.toString());
+
+    if (table.getProperties().containsKey(WRITE_DISPOSITION_PROPERTY)) {
+      List<String> validWriteDispositions =
+          Arrays.stream(WriteDisposition.values()).map(Enum::toString).collect(Collectors.toList());
+      // toUpperCase should make it case-insensitive
+      String selectedWriteDisposition =
+          table.getProperties().getString(WRITE_DISPOSITION_PROPERTY).toUpperCase();
+
+      if (validWriteDispositions.contains(selectedWriteDisposition)) {
+        writeDisposition = WriteDisposition.valueOf(selectedWriteDisposition);
+      } else {
+        throw new InvalidPropertyException(
+            "Invalid write disposition "
+                + "'"
+                + selectedWriteDisposition
+                + "'. "
+                + "Supported write dispositions are: "
+                + validWriteDispositions.toString()
+                + ".");
+      }
+    } else {
+      writeDisposition = WriteDisposition.WRITE_EMPTY;
+    }
+
+    LOG.info("BigQuery writeDisposition is set to: " + writeDisposition.toString());
   }
 
   @Override
@@ -128,7 +157,7 @@ class BigQueryTable extends SchemaBaseBeamTable implements Serializable {
   public PCollection<Row> buildIOReader(
       PBegin begin, BeamSqlTableFilter filters, List<String> fieldNames) {
     if (!method.equals(Method.DIRECT_READ)) {
-      LOGGER.info("Predicate/project push-down only available for `DIRECT_READ` method, skipping.");
+      LOG.info("Predicate/project push-down only available for `DIRECT_READ` method, skipping.");
       return buildIOReader(begin);
     }
 
@@ -143,7 +172,7 @@ class BigQueryTable extends SchemaBaseBeamTable implements Serializable {
       if (!bigQueryFilter.getSupported().isEmpty()) {
         String rowRestriction = generateRowRestrictions(getSchema(), bigQueryFilter.getSupported());
         if (!rowRestriction.isEmpty()) {
-          LOGGER.info("Pushing down the following filter: " + rowRestriction);
+          LOG.info("Pushing down the following filter: " + rowRestriction);
           typedRead = typedRead.withRowRestriction(rowRestriction);
         }
       }
@@ -162,6 +191,7 @@ class BigQueryTable extends SchemaBaseBeamTable implements Serializable {
         BigQueryIO.<Row>write()
             .withSchema(BigQueryUtils.toTableSchema(getSchema()))
             .withFormatFunction(BigQueryUtils.toTableRow())
+            .withWriteDisposition(writeDisposition)
             .to(bqLocation));
   }
 
@@ -188,8 +218,7 @@ class BigQueryTable extends SchemaBaseBeamTable implements Serializable {
 
     // TODO: BigQuerySqlDialectWithTypeTranslation can be replaced with BigQuerySqlDialect after
     // updating vendor Calcite version.
-    SqlImplementor.SimpleContext context =
-        new SqlImplementor.SimpleContext(BeamBigQuerySqlDialect.DEFAULT, field);
+    SqlImplementor.Context context = new BeamSqlUnparseContext(field);
 
     // Create a single SqlNode from a list of RexNodes
     SqlNode andSqlNode = null;
@@ -229,7 +258,7 @@ class BigQueryTable extends SchemaBaseBeamTable implements Serializable {
       return BeamTableStatistics.createBoundedTableStatistics(rowCount.doubleValue());
 
     } catch (IOException | InterruptedException e) {
-      LOGGER.warn("Could not get the row count for the table " + bqLocation, e);
+      LOG.warn("Could not get the row count for the table " + bqLocation, e);
     }
 
     return BeamTableStatistics.BOUNDED_UNKNOWN;

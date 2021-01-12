@@ -23,6 +23,7 @@ import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionIn
 import com.amazonaws.services.kinesis.model.ShardIteratorType;
 import java.io.Serializable;
 import java.util.Objects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
@@ -30,6 +31,9 @@ import org.joda.time.Instant;
  * expressed either as an {@link InitialPositionInStream} enum constant or a timestamp, in which
  * case the reader will start reading at the specified point in time.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class StartingPoint implements Serializable {
 
   private final InitialPositionInStream position;
@@ -58,7 +62,7 @@ class StartingPoint implements Serializable {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (this == o) {
       return true;
     }

@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.testutils.metrics;
 
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+
 import java.util.Collection;
 import java.util.NoSuchElementException;
 import java.util.Optional;
@@ -163,5 +165,18 @@ public class MetricsReader {
    */
   private boolean isCredible(long value) {
     return (Math.abs(value - now) <= Duration.standardDays(10000).getMillis());
+  }
+
+  /**
+   * Factory method. Returns instance of {@link MetricsReader}.
+   *
+   * @param results pipeline from which metrics are read from
+   * @param namespace namespace is required due to fact methods uses it internally
+   * @return instance of {@link MetricsReader}
+   */
+  public static MetricsReader ofResults(final PipelineResult results, final String namespace) {
+    checkNotNull(results);
+    checkNotNull(namespace);
+    return new MetricsReader(results, namespace);
   }
 }

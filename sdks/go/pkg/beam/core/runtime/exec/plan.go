@@ -21,10 +21,10 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/metrics"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	fnpb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
 )
 
 // Plan represents the bundle execution plan. It will generally be constructed
@@ -37,6 +37,12 @@ type Plan struct {
 	parDoIDs []string
 
 	status Status
+
+	// While the store is threadsafe, the reference to it
+	// is not, so we need to protect the store field to be
+	// able to asynchronously provide tentative metrics.
+	storeMu sync.Mutex
+	store   *metrics.Store
 
 	// TODO: there can be more than 1 DataSource in a bundle.
 	source *DataSource
@@ -97,14 +103,20 @@ func (p *Plan) SourcePTransformID() string {
 // be reused for further bundles. Does not panic. Blocking.
 func (p *Plan) Execute(ctx context.Context, id string, manager DataContext) error {
 	ctx = metrics.SetBundleID(ctx, p.id)
+	p.storeMu.Lock()
+	p.store = metrics.GetStore(ctx)
+	p.storeMu.Unlock()
 	if p.status == Initializing {
 		for _, u := range p.units {
 			if err := callNoPanic(ctx, u.Up); err != nil {
 				p.status = Broken
-				return err
+				return errors.Wrapf(err, "while executing Up for %v", p)
 			}
 		}
 		p.status = Up
+	}
+	if p.source != nil {
+		p.source.InitSplittable()
 	}
 
 	if p.status != Up {
@@ -117,19 +129,19 @@ func (p *Plan) Execute(ctx context.Context, id string, manager DataContext) erro
 	for _, root := range p.roots {
 		if err := callNoPanic(ctx, func(ctx context.Context) error { return root.StartBundle(ctx, id, manager) }); err != nil {
 			p.status = Broken
-			return err
+			return errors.Wrapf(err, "while executing StartBundle for %v", p)
 		}
 	}
 	for _, root := range p.roots {
 		if err := callNoPanic(ctx, root.Process); err != nil {
 			p.status = Broken
-			return err
+			return errors.Wrapf(err, "while executing Process for %v", p)
 		}
 	}
 	for _, root := range p.roots {
 		if err := callNoPanic(ctx, root.FinishBundle); err != nil {
 			p.status = Broken
-			return err
+			return errors.Wrapf(err, "while executing FinishBundle for %v", p)
 		}
 	}
 
@@ -169,48 +181,54 @@ func (p *Plan) String() string {
 	return fmt.Sprintf("Plan[%v]:\n%v", p.ID(), strings.Join(units, "\n"))
 }
 
-// Metrics returns a snapshot of input progress of the plan, and associated metrics.
-func (p *Plan) Metrics() *fnpb.Metrics {
-	transforms := make(map[string]*fnpb.Metrics_PTransform)
-
+// Progress returns a snapshot of input progress of the plan, and associated metrics.
+func (p *Plan) Progress() (ProgressReportSnapshot, bool) {
 	if p.source != nil {
-		snapshot := p.source.Progress()
+		return p.source.Progress(), true
+	}
+	return ProgressReportSnapshot{}, false
+}
 
-		transforms[snapshot.ID] = &fnpb.Metrics_PTransform{
-			ProcessedElements: &fnpb.Metrics_PTransform_ProcessedElements{
-				Measured: &fnpb.Metrics_PTransform_Measured{
-					OutputElementCounts: map[string]int64{
-						snapshot.Name: snapshot.Count,
-					},
-				},
-			},
-		}
-	}
-
-	for _, pt := range p.parDoIDs {
-		transforms[pt] = &fnpb.Metrics_PTransform{
-			User: metrics.ToProto(p.id, pt),
-		}
-	}
-	return &fnpb.Metrics{
-		Ptransforms: transforms,
-	}
+// Store returns the metric store for the last use of this plan.
+func (p *Plan) Store() *metrics.Store {
+	p.storeMu.Lock()
+	defer p.storeMu.Unlock()
+	return p.store
 }
 
 // SplitPoints captures the split requested by the Runner.
 type SplitPoints struct {
 	// Splits is a list of desired split indices.
 	Splits []int64
-	Frac   float32
+	Frac   float64
+
+	// Estimated total number of elements (including unsent) for the source.
+	// A zero value indicates unknown, instead use locally known size.
+	BufSize int64
+}
+
+// SplitResult contains the result of performing a split on a Plan.
+type SplitResult struct {
+	// Indices are always included, for both channel and sub-element splits.
+	PI int64 // Primary index, last element of the primary.
+	RI int64 // Residual index, first element of the residual.
+
+	// Extra information included for sub-element splits. If PS and RS are
+	// present then a sub-element split occurred.
+	PS   [][]byte // Primary splits. If an element is split, these are the encoded primaries.
+	RS   [][]byte // Residual splits. If an element is split, these are the encoded residuals.
+	TId  string   // Transform ID of the transform receiving the split elements.
+	InId string   // Input ID of the input the split elements are received from.
 }
 
 // Split takes a set of potential split indexes, and if successful returns
-// the split index of the first element of the residual, on which processing
-// will be halted.
+// the split result.
 // Returns an error when unable to split.
-func (p *Plan) Split(s SplitPoints) (int64, error) {
+func (p *Plan) Split(s SplitPoints) (SplitResult, error) {
+	// TODO: When bundles with multiple sources, are supported, perform splits
+	// on all sources.
 	if p.source != nil {
-		return p.source.Split(s.Splits, s.Frac)
+		return p.source.Split(s.Splits, s.Frac, s.BufSize)
 	}
-	return 0, fmt.Errorf("failed to split at requested splits: {%v}, Source not initialized", s)
+	return SplitResult{}, fmt.Errorf("failed to split at requested splits: {%v}, Source not initialized", s)
 }

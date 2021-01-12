@@ -17,8 +17,9 @@
  */
 package org.apache.beam.runners.core.construction;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.Matchers.hasItem;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -28,10 +29,13 @@ import java.util.Set;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.CombinePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
+import org.apache.beam.runners.core.construction.CoderTranslation.TranslationContext;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderRegistry;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -43,6 +47,10 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.WithKeys;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
@@ -62,6 +70,10 @@ import org.junit.runners.Parameterized.Parameters;
 
 /** Tests for {@link PipelineTranslation}. */
 @RunWith(Parameterized.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class PipelineTranslationTest {
   @Parameter(0)
   public Pipeline pipeline;
@@ -109,18 +121,21 @@ public class PipelineTranslationTest {
   @Test
   public void testProtoDirectly() {
     final RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, false);
-    pipeline.traverseTopologically(new PipelineProtoVerificationVisitor(pipelineProto, false));
+    pipeline.traverseTopologically(
+        new PipelineProtoVerificationVisitor(pipelineProto, pipeline.getCoderRegistry(), false));
   }
 
   @Test
   public void testProtoDirectlyWithViewTransform() {
     final RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, true);
-    pipeline.traverseTopologically(new PipelineProtoVerificationVisitor(pipelineProto, true));
+    pipeline.traverseTopologically(
+        new PipelineProtoVerificationVisitor(pipelineProto, pipeline.getCoderRegistry(), true));
   }
 
   private static class PipelineProtoVerificationVisitor extends PipelineVisitor.Defaults {
 
     private final RunnerApi.Pipeline pipelineProto;
+    private final CoderRegistry coderRegistry;
     private boolean useDeprecatedViewTransforms;
     Set<Node> transforms;
     Set<PCollection<?>> pcollections;
@@ -129,8 +144,11 @@ public class PipelineTranslationTest {
     int missingViewTransforms = 0;
 
     public PipelineProtoVerificationVisitor(
-        RunnerApi.Pipeline pipelineProto, boolean useDeprecatedViewTransforms) {
+        RunnerApi.Pipeline pipelineProto,
+        CoderRegistry coderRegistry,
+        boolean useDeprecatedViewTransforms) {
       this.pipelineProto = pipelineProto;
+      this.coderRegistry = coderRegistry;
       this.useDeprecatedViewTransforms = useDeprecatedViewTransforms;
       transforms = new HashSet<>();
       pcollections = new HashSet<>();
@@ -180,6 +198,28 @@ public class PipelineTranslationTest {
               PTransformTranslation.urnForTransformOrNull(node.getTransform()))) {
         missingViewTransforms += 1;
       }
+      if (PTransformTranslation.PAR_DO_TRANSFORM_URN.equals(
+          PTransformTranslation.urnForTransformOrNull(node.getTransform()))) {
+        final DoFn<?, ?> doFn;
+        if (node.getTransform() instanceof ParDo.SingleOutput) {
+          doFn = ((ParDo.SingleOutput) node.getTransform()).getFn();
+        } else if (node.getTransform() instanceof ParDo.MultiOutput) {
+          doFn = ((ParDo.MultiOutput) node.getTransform()).getFn();
+        } else {
+          throw new IllegalStateException(
+              "Unexpected type of ParDo " + node.getTransform().getClass());
+        }
+        final DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
+        final String restrictionCoderId;
+        if (signature.processElement().isSplittable()) {
+          DoFnInvoker<?, ?> doFnInvoker = DoFnInvokers.invokerFor(doFn);
+          final Coder<?> restrictionAndWatermarkStateCoder =
+              KvCoder.of(
+                  doFnInvoker.invokeGetRestrictionCoder(coderRegistry),
+                  doFnInvoker.invokeGetWatermarkEstimatorStateCoder(coderRegistry));
+          addCoders(restrictionAndWatermarkStateCoder);
+        }
+      }
     }
 
     @Override
@@ -212,7 +252,9 @@ public class PipelineTranslationTest {
             .orElseThrow(() -> new IOException("Transform does not contain an AccumulatorCoder"));
     Components components = sdkComponents.toComponents();
     return CoderTranslation.fromProto(
-        components.getCodersOrThrow(id), RehydratedComponents.forComponents(components));
+        components.getCodersOrThrow(id),
+        RehydratedComponents.forComponents(components),
+        TranslationContext.DEFAULT);
   }
 
   private static Optional<CombinePayload> getCombinePayload(
@@ -227,5 +269,23 @@ public class PipelineTranslationTest {
     } else {
       return Optional.empty();
     }
+  }
+
+  // Static, out-of-line for serialization.
+  private static class DoFnRequiringStableInput extends DoFn<Integer, String> {
+    @RequiresStableInput
+    @ProcessElement
+    public void process(ProcessContext c) {
+      // actually never executed and no effect on translation
+    }
+  }
+
+  @Test
+  public void testRequirements() {
+    Pipeline pipeline = Pipeline.create();
+    pipeline.apply(Create.of(1, 2, 3)).apply(ParDo.of(new DoFnRequiringStableInput()));
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, false);
+    assertThat(
+        pipelineProto.getRequirementsList(), hasItem(ParDoTranslation.REQUIRES_STABLE_INPUT_URN));
   }
 }

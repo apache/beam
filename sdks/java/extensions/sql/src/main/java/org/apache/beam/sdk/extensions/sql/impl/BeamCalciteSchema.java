@@ -31,8 +31,10 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Schema;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.SchemaPlus;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.SchemaVersion;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Schemas;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Adapter from {@link TableProvider} to {@link Schema}. */
+@SuppressWarnings({"keyfor", "nullness"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class BeamCalciteSchema implements Schema {
   private JdbcConnection connection;
   private TableProvider tableProvider;
@@ -89,7 +91,7 @@ public class BeamCalciteSchema implements Schema {
   }
 
   @Override
-  public RelProtoDataType getType(String name) {
+  public @Nullable RelProtoDataType getType(String name) {
     return null;
   }
 

@@ -27,15 +27,27 @@ Currently it is possible to have following metrics types:
 * total_bytes_count
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
+import json
 import logging
 import time
 import uuid
+from typing import Any
 from typing import List
+from typing import Mapping
+from typing import Optional
+from typing import Union
+
+import requests
+from requests.auth import HTTPBasicAuth
 
 import apache_beam as beam
 from apache_beam.metrics import Metrics
+from apache_beam.transforms.window import TimestampedValue
+from apache_beam.utils.timestamp import Timestamp
 
 try:
   from google.cloud import bigquery
@@ -54,24 +66,21 @@ SUBMIT_TIMESTAMP_LABEL = 'timestamp'
 METRICS_TYPE_LABEL = 'metric'
 VALUE_LABEL = 'value'
 
-SCHEMA = [
-    {'name': ID_LABEL,
-     'field_type': 'STRING',
-     'mode': 'REQUIRED'
-    },
-    {'name': SUBMIT_TIMESTAMP_LABEL,
-     'field_type': 'TIMESTAMP',
-     'mode': 'REQUIRED'
-    },
-    {'name': METRICS_TYPE_LABEL,
-     'field_type': 'STRING',
-     'mode': 'REQUIRED'
-    },
-    {'name': VALUE_LABEL,
-     'field_type': 'FLOAT',
-     'mode': 'REQUIRED'
-    }
-]
+SCHEMA = [{
+    'name': ID_LABEL, 'field_type': 'STRING', 'mode': 'REQUIRED'
+},
+          {
+              'name': SUBMIT_TIMESTAMP_LABEL,
+              'field_type': 'TIMESTAMP',
+              'mode': 'REQUIRED'
+          },
+          {
+              'name': METRICS_TYPE_LABEL,
+              'field_type': 'STRING',
+              'mode': 'REQUIRED'
+          }, {
+              'name': VALUE_LABEL, 'field_type': 'FLOAT', 'mode': 'REQUIRED'
+          }]
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -123,11 +132,9 @@ def get_generic_distributions(generic_dists, metric_id):
   Returns:
     list of dictionaries made from :class:`DistributionMetric`
   """
-  return sum(
-      (get_all_distributions_by_type(dist, metric_id)
-       for dist in generic_dists),
-      []
-  )
+  return sum((
+      get_all_distributions_by_type(dist, metric_id) for dist in generic_dists),
+             [])
 
 
 def get_all_distributions_by_type(dist, metric_id):
@@ -141,12 +148,16 @@ def get_all_distributions_by_type(dist, metric_id):
     list of :class:`DistributionMetric` objects
   """
   submit_timestamp = time.time()
-  dist_types = ['mean', 'max', 'min', 'sum']
-  return [
-      get_distribution_dict(dist_type, submit_timestamp,
-                            dist, metric_id)
-      for dist_type in dist_types
-  ]
+  dist_types = ['count', 'max', 'min', 'sum']
+  distribution_dicts = []
+  for dist_type in dist_types:
+    try:
+      distribution_dicts.append(
+          get_distribution_dict(dist_type, submit_timestamp, dist, metric_id))
+    except ValueError:
+      # Ignore metrics with 'None' values.
+      continue
+  return distribution_dicts
 
 
 def get_distribution_dict(metric_type, submit_timestamp, dist, metric_id):
@@ -171,19 +182,27 @@ class MetricsReader(object):
   A :class:`MetricsReader` retrieves metrics from pipeline result,
   prepares it for publishers and setup publishers.
   """
-  publishers = []  # type: List[ConsoleMetricsPublisher]
+  publishers = []  # type: List[Any]
 
-  def __init__(self, project_name=None, bq_table=None, bq_dataset=None,
-               publish_to_bq=False, filters=None):
+  def __init__(
+      self,
+      project_name=None,
+      bq_table=None,
+      bq_dataset=None,
+      publish_to_bq=False,
+      influxdb_options=None,  # type: Optional[InfluxDBMetricsPublisherOptions]
+      namespace=None,
+      filters=None):
     """Initializes :class:`MetricsReader` .
 
     Args:
       project_name (str): project with BigQuery where metrics will be saved
       bq_table (str): BigQuery table where metrics will be saved
       bq_dataset (str): BigQuery dataset where metrics will be saved
+      namespace (str): Namespace of the metrics
       filters: MetricFilter to query only filtered metrics
     """
-    self._namespace = bq_table
+    self._namespace = namespace
     self.publishers.append(ConsoleMetricsPublisher())
 
     check = project_name and bq_table and bq_dataset and publish_to_bq
@@ -191,6 +210,12 @@ class MetricsReader(object):
       bq_publisher = BigQueryMetricsPublisher(
           project_name, bq_table, bq_dataset)
       self.publishers.append(bq_publisher)
+    if influxdb_options and influxdb_options.validate():
+      self.publishers.append(InfluxDBMetricsPublisher(influxdb_options))
+    else:
+      _LOGGER.info(
+          'Missing InfluxDB options. Metrics will not be published to '
+          'InfluxDB')
     self.filters = filters
 
   def publish_metrics(self, result):
@@ -205,6 +230,21 @@ class MetricsReader(object):
     if len(insert_dicts) > 0:
       for publisher in self.publishers:
         publisher.publish(insert_dicts)
+
+  def publish_values(self, labeled_values):
+    """The method to publish simple labeled values.
+
+    Args:
+      labeled_values (List[Tuple(str, int)]): list of (label, value)
+    """
+    metric_dicts = [
+        Metric(time.time(), uuid.uuid4().hex, value, label=label).as_dict()
+        for label,
+        value in labeled_values
+    ]
+
+    for publisher in self.publishers:
+      publisher.publish(metric_dicts)
 
   def _prepare_all_metrics(self, metrics):
     metric_id = uuid.uuid4().hex
@@ -235,9 +275,8 @@ class MetricsReader(object):
 
 class Metric(object):
   """Metric base class in ready-to-save format."""
-
-  def __init__(self, submit_timestamp, metric_id, value,
-               metric=None, label=None):
+  def __init__(
+      self, submit_timestamp, metric_id, value, metric=None, label=None):
     """Initializes :class:`Metric`
 
     Args:
@@ -255,11 +294,12 @@ class Metric(object):
     self.value = value
 
   def as_dict(self):
-    return {SUBMIT_TIMESTAMP_LABEL: self.submit_timestamp,
-            ID_LABEL: self.metric_id,
-            VALUE_LABEL: self.value,
-            METRICS_TYPE_LABEL: self.label
-           }
+    return {
+        SUBMIT_TIMESTAMP_LABEL: self.submit_timestamp,
+        ID_LABEL: self.metric_id,
+        VALUE_LABEL: self.value,
+        METRICS_TYPE_LABEL: self.label
+    }
 
 
 class CounterMetric(Metric):
@@ -271,9 +311,9 @@ class CounterMetric(Metric):
     metric_id (uuid): unique id to identify test run
   """
   def __init__(self, counter_metric, submit_timestamp, metric_id):
-    value = counter_metric.committed
-    super(CounterMetric, self).__init__(submit_timestamp, metric_id,
-                                        value, counter_metric)
+    value = counter_metric.result
+    super(CounterMetric,
+          self).__init__(submit_timestamp, metric_id, value, counter_metric)
 
 
 class DistributionMetric(Metric):
@@ -289,7 +329,12 @@ class DistributionMetric(Metric):
                    '_' + parse_step(dist_metric.key.step) + \
                    '_' + metric_type + \
                    '_' + dist_metric.key.metric.name
-    value = getattr(dist_metric.committed, metric_type)
+    value = getattr(dist_metric.result, metric_type)
+    if value is None:
+      msg = '%s: the result is expected to be an integer, ' \
+            'not None.' % custom_label
+      _LOGGER.debug(msg)
+      raise ValueError(msg)
     super(DistributionMetric, self) \
       .__init__(submit_timestamp, metric_id, value, dist_metric, custom_label)
 
@@ -309,8 +354,8 @@ class RuntimeMetric(Metric):
     # out of many steps
     label = runtime_list[0].key.metric.namespace + \
             '_' + RUNTIME_METRIC
-    super(RuntimeMetric, self).__init__(submit_timestamp, metric_id,
-                                        value, None, label)
+    super(RuntimeMetric,
+          self).__init__(submit_timestamp, metric_id, value, None, label)
 
   def _prepare_runtime_metrics(self, distributions):
     min_values = []
@@ -396,12 +441,82 @@ class BigQueryClient(object):
     except NotFound:
       raise ValueError(
           'Dataset {} does not exist in your project. '
-          'You have to create table first.'
-          .format(dataset_name))
+          'You have to create table first.'.format(dataset_name))
     return bq_dataset
 
   def save(self, results):
     return self._client.insert_rows(self._bq_table, results)
+
+
+class InfluxDBMetricsPublisherOptions(object):
+  def __init__(
+      self,
+      measurement,  # type: str
+      db_name,  # type: str
+      hostname,  # type: str
+      user=None,  # type: Optional[str]
+      password=None  # type: Optional[str]
+    ):
+    self.measurement = measurement
+    self.db_name = db_name
+    self.hostname = hostname
+    self.user = user
+    self.password = password
+
+  def validate(self):
+    # type: () -> bool
+    return bool(self.measurement) and bool(self.db_name)
+
+  def http_auth_enabled(self):
+    # type: () -> bool
+    return self.user is not None and self.password is not None
+
+
+class InfluxDBMetricsPublisher(object):
+  """Publishes collected metrics to InfluxDB database."""
+  def __init__(
+      self,
+      options  # type: InfluxDBMetricsPublisherOptions
+  ):
+    self.options = options
+
+  def publish(self, results):
+    # type: (List[Mapping[str, Union[float, str, int]]]) -> None
+    url = '{}/write'.format(self.options.hostname)
+    payload = self._build_payload(results)
+    query_str = {'db': self.options.db_name, 'precision': 's'}
+
+    auth = HTTPBasicAuth(self.options.user, self.options.password) if \
+      self.options.http_auth_enabled() else None
+
+    try:
+      response = requests.post(url, params=query_str, data=payload, auth=auth)
+    except requests.exceptions.RequestException as e:
+      _LOGGER.warning('Failed to publish metrics to InfluxDB: ' + str(e))
+    else:
+      if response.status_code != 204:
+        content = json.loads(response.content)
+        _LOGGER.warning(
+            'Failed to publish metrics to InfluxDB. Received status code %s '
+            'with an error message: %s' %
+            (response.status_code, content['error']))
+
+  def _build_payload(self, results):
+    # type: (List[Mapping[str, Union[float, str, int]]]) -> str
+    def build_kv(mapping, key):
+      return '{}={}'.format(key, mapping[key])
+
+    points = []
+    for result in results:
+      comma_separated = [
+          self.options.measurement,
+          build_kv(result, METRICS_TYPE_LABEL),
+          build_kv(result, ID_LABEL),
+      ]
+      point = ','.join(comma_separated) + ' ' + build_kv(result, VALUE_LABEL) \
+              + ' ' + str(int(result[SUBMIT_TIMESTAMP_LABEL]))
+      points.append(point)
+    return '\n'.join(points)
 
 
 class MeasureTime(beam.DoFn):
@@ -456,3 +571,36 @@ class CountMessages(beam.DoFn):
   def process(self, element):
     self.counter.inc(1)
     yield element
+
+
+class MeasureLatency(beam.DoFn):
+  """A distribution metric which captures the latency based on the timestamps
+  of the processed elements."""
+  LABEL = 'latency'
+
+  def __init__(self, namespace):
+    """Initializes :class:`MeasureLatency`.
+
+      namespace(str): namespace of  metric
+    """
+    self.namespace = namespace
+    self.latency_ms = Metrics.distribution(self.namespace, self.LABEL)
+    self.time_fn = time.time
+
+  def process(self, element, timestamp=beam.DoFn.TimestampParam):
+    self.latency_ms.update(
+        int(self.time_fn() * 1000) - (timestamp.micros // 1000))
+    yield element
+
+
+class AssignTimestamps(beam.DoFn):
+  """DoFn to assigned timestamps to elements."""
+  def __init__(self):
+    # Avoid having to use save_main_session
+    self.time_fn = time.time
+    self.timestamp_val_fn = TimestampedValue
+    self.timestamp_fn = Timestamp
+
+  def process(self, element):
+    yield self.timestamp_val_fn(
+        element, self.timestamp_fn(micros=int(self.time_fn() * 1000000)))

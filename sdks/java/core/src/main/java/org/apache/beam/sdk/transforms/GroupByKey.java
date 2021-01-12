@@ -169,8 +169,10 @@ public class GroupByKey<K, V>
     if (!triggerIsSafe(windowingStrategy)) {
       throw new IllegalArgumentException(
           String.format(
-              "Unsafe trigger may lose data, see"
-                  + " https://s.apache.org/finishing-triggers-drop-data: %s",
+              "Unsafe trigger '%s' may lose data, did you mean to wrap it in"
+                  + "`Repeatedly.forever(...)`?%nSee "
+                  + "https://s.apache.org/finishing-triggers-drop-data "
+                  + "for details.",
               windowingStrategy.getTrigger()));
     }
   }

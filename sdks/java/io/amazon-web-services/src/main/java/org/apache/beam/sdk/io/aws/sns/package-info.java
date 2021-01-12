@@ -16,4 +16,8 @@
  * limitations under the License.
  */
 /** Defines IO connectors for Amazon Web Services SNS. */
+@Experimental(Kind.SOURCE_SINK)
 package org.apache.beam.sdk.io.aws.sns;
+
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;

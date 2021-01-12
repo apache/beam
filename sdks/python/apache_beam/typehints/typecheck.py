@@ -20,6 +20,8 @@
 For internal use only; no backwards-compatibility guarantees.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import collections
@@ -45,7 +47,6 @@ from apache_beam.typehints.typehints import check_constraint
 
 class AbstractDoFnWrapper(DoFn):
   """An abstract class to create wrapper around DoFn"""
-
   def __init__(self, dofn):
     super(AbstractDoFnWrapper, self).__init__()
     self.dofn = dofn
@@ -62,6 +63,9 @@ class AbstractDoFnWrapper(DoFn):
   def wrapper(self, method, args, kwargs):
     return method(*args, **kwargs)
 
+  def setup(self):
+    return self.dofn.setup()
+
   def start_bundle(self, *args, **kwargs):
     return self.wrapper(self.dofn.start_bundle, args, kwargs)
 
@@ -71,10 +75,12 @@ class AbstractDoFnWrapper(DoFn):
   def finish_bundle(self, *args, **kwargs):
     return self.wrapper(self.dofn.finish_bundle, args, kwargs)
 
+  def teardown(self):
+    return self.dofn.teardown()
+
 
 class OutputCheckWrapperDoFn(AbstractDoFnWrapper):
   """A DoFn that verifies against common errors in the output type."""
-
   def __init__(self, dofn, full_label):
     super(OutputCheckWrapperDoFn, self).__init__(dofn)
     self.full_label = full_label
@@ -83,32 +89,35 @@ class OutputCheckWrapperDoFn(AbstractDoFnWrapper):
     try:
       result = method(*args, **kwargs)
     except TypeCheckError as e:
-      error_msg = ('Runtime type violation detected within ParDo(%s): '
-                   '%s' % (self.full_label, e))
+      # TODO(BEAM-10710): Remove the 'ParDo' prefix for the label name
+      error_msg = (
+          'Runtime type violation detected within ParDo(%s): '
+          '%s' % (self.full_label, e))
       raise_with_traceback(TypeCheckError(error_msg))
     else:
       return self._check_type(result)
 
-  def _check_type(self, output):
+  @staticmethod
+  def _check_type(output):
     if output is None:
       return output
+
     elif isinstance(output, (dict, bytes, str, unicode)):
       object_type = type(output).__name__
-      raise TypeCheckError('Returning a %s from a ParDo or FlatMap is '
-                           'discouraged. Please use list("%s") if you really '
-                           'want this behavior.' %
-                           (object_type, output))
+      raise TypeCheckError(
+          'Returning a %s from a ParDo or FlatMap is '
+          'discouraged. Please use list("%s") if you really '
+          'want this behavior.' % (object_type, output))
     elif not isinstance(output, collections.Iterable):
-      raise TypeCheckError('FlatMap and ParDo must return an '
-                           'iterable. %s was returned instead.'
-                           % type(output))
+      raise TypeCheckError(
+          'FlatMap and ParDo must return an '
+          'iterable. %s was returned instead.' % type(output))
     return output
 
 
 class TypeCheckWrapperDoFn(AbstractDoFnWrapper):
   """A wrapper around a DoFn which performs type-checking of input and output.
   """
-
   def __init__(self, dofn, type_hints, label=None):
     super(TypeCheckWrapperDoFn, self).__init__(dofn)
     self._process_fn = self.dofn._process_argspec_fn()
@@ -142,7 +151,7 @@ class TypeCheckWrapperDoFn(AbstractDoFnWrapper):
     def type_check_output(o):
       # TODO(robertwb): Multi-output.
       x = o.value if isinstance(o, (TaggedOutput, WindowedValue)) else o
-      self._type_check(self._output_type_hint, x, is_input=False)
+      self.type_check(self._output_type_hint, x, is_input=False)
 
     # If the return type is a generator, then we will need to interleave our
     # type-checking with its normal iteration so we don't deplete the
@@ -153,7 +162,8 @@ class TypeCheckWrapperDoFn(AbstractDoFnWrapper):
       type_check_output(o)
     return transform_results
 
-  def _type_check(self, type_constraint, datum, is_input):
+  @staticmethod
+  def type_check(type_constraint, datum, is_input):
     """Typecheck a PTransform related datum according to a type constraint.
 
     This function is used to optionally type-check either an input or an output
@@ -176,21 +186,24 @@ class TypeCheckWrapperDoFn(AbstractDoFnWrapper):
     except CompositeTypeHintError as e:
       raise_with_traceback(TypeCheckError(e.args[0]))
     except SimpleTypeHintError:
-      error_msg = ("According to type-hint expected %s should be of type %s. "
-                   "Instead, received '%s', an instance of type %s."
-                   % (datum_type, type_constraint, datum, type(datum)))
+      error_msg = (
+          "According to type-hint expected %s should be of type %s. "
+          "Instead, received '%s', an instance of type %s." %
+          (datum_type, type_constraint, datum, type(datum)))
       raise_with_traceback(TypeCheckError(error_msg))
 
 
 class TypeCheckCombineFn(core.CombineFn):
   """A wrapper around a CombineFn performing type-checking of input and output.
   """
-
   def __init__(self, combinefn, type_hints, label=None):
     self._combinefn = combinefn
     self._input_type_hint = type_hints.input_types
     self._output_type_hint = type_hints.simple_output_type(label)
     self._label = label
+
+  def setup(self, *args, **kwargs):
+    self._combinefn.setup(*args, **kwargs)
 
   def create_accumulator(self, *args, **kwargs):
     return self._combinefn.create_accumulator(*args, **kwargs)
@@ -199,11 +212,14 @@ class TypeCheckCombineFn(core.CombineFn):
     if self._input_type_hint:
       try:
         _check_instance_type(
-            self._input_type_hint[0][0].tuple_types[1], element, 'element',
+            self._input_type_hint[0][0].tuple_types[1],
+            element,
+            'element',
             True)
       except TypeCheckError as e:
-        error_msg = ('Runtime type violation detected within %s: '
-                     '%s' % (self._label, e))
+        error_msg = (
+            'Runtime type violation detected within %s: '
+            '%s' % (self._label, e))
         raise_with_traceback(TypeCheckError(error_msg))
     return self._combinefn.add_input(accumulator, element, *args, **kwargs)
 
@@ -220,10 +236,14 @@ class TypeCheckCombineFn(core.CombineFn):
         _check_instance_type(
             self._output_type_hint.tuple_types[1], result, None, True)
       except TypeCheckError as e:
-        error_msg = ('Runtime type violation detected within %s: '
-                     '%s' % (self._label, e))
+        error_msg = (
+            'Runtime type violation detected within %s: '
+            '%s' % (self._label, e))
         raise_with_traceback(TypeCheckError(error_msg))
     return result
+
+  def teardown(self, *args, **kwargs):
+    self._combinefn.teardown(*args, **kwargs)
 
 
 class TypeCheckVisitor(pipeline.PipelineVisitor):
@@ -255,3 +275,71 @@ class TypeCheckVisitor(pipeline.PipelineVisitor):
                 transform.get_type_hints(),
                 applied_transform.full_label),
             applied_transform.full_label)
+
+
+class PerformanceTypeCheckVisitor(pipeline.PipelineVisitor):
+  def visit_transform(self, applied_transform):
+    transform = applied_transform.transform
+    full_label = applied_transform.full_label
+
+    # Store output type hints in current transform
+    output_type_hints = self.get_output_type_hints(transform)
+    if output_type_hints:
+      transform._add_type_constraint_from_consumer(
+          full_label, output_type_hints)
+
+    # Store input type hints in producer transform
+    input_type_hints = self.get_input_type_hints(transform)
+    if input_type_hints and len(applied_transform.inputs):
+      producer = applied_transform.inputs[0].producer
+      if producer:
+        producer.transform._add_type_constraint_from_consumer(
+            full_label, input_type_hints)
+
+  def get_input_type_hints(self, transform):
+    type_hints = transform.get_type_hints()
+
+    input_types = None
+    if type_hints.input_types:
+      normal_hints, kwarg_hints = type_hints.input_types
+      if kwarg_hints:
+        input_types = kwarg_hints
+      if normal_hints:
+        input_types = normal_hints
+
+    parameter_name = 'Unknown Parameter'
+    if hasattr(transform, 'fn'):
+      try:
+        argspec = inspect.getfullargspec(transform.fn._process_argspec_fn())
+      except TypeError:
+        # An unsupported callable was passed to getfullargspec
+        pass
+      else:
+        if len(argspec.args):
+          arg_index = 0
+          if argspec.args[0] == 'self' and len(argspec.args) > 1:
+            arg_index = 1
+          parameter_name = argspec.args[arg_index]
+          if isinstance(input_types, dict):
+            input_types = (input_types[argspec.args[arg_index]], )
+
+    if input_types and len(input_types):
+      input_types = input_types[0]
+
+    return parameter_name, input_types
+
+  def get_output_type_hints(self, transform):
+    type_hints = transform.get_type_hints()
+
+    output_types = None
+    if type_hints.output_types:
+      normal_hints, kwarg_hints = type_hints.output_types
+      if kwarg_hints:
+        output_types = kwarg_hints
+      if normal_hints:
+        output_types = normal_hints
+
+    if output_types and len(output_types):
+      output_types = output_types[0]
+
+    return None, output_types

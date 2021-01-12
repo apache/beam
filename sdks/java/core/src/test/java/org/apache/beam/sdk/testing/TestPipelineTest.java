@@ -17,11 +17,11 @@
  */
 package org.apache.beam.sdk.testing;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.Serializable;
@@ -40,6 +40,7 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.PCollection;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.junit.Rule;
@@ -132,7 +133,7 @@ public class TestPipelineTest implements Serializable {
       }
 
       @Override
-      public boolean equals(Object obj) {
+      public boolean equals(@Nullable Object obj) {
         if (!(obj instanceof TestMatcher)) {
           return false;
         }

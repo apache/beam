@@ -19,6 +19,8 @@ package org.apache.beam.sdk.extensions.protobuf;
 
 import com.google.protobuf.Int32Value;
 import com.google.protobuf.Int64Value;
+import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.Nested;
+import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.Primitive;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -37,19 +39,19 @@ public class ProtoDomainTest {
 
   @Test
   public void testContainsDescriptor() {
-    ProtoDomain domainFromInt32 = ProtoDomain.buildFrom(Int32Value.getDescriptor());
-    Assert.assertTrue(domainFromInt32.contains(Int32Value.getDescriptor()));
+    ProtoDomain domainFromInt32 = ProtoDomain.buildFrom(Primitive.getDescriptor());
+    Assert.assertTrue(domainFromInt32.contains(Primitive.getDescriptor()));
   }
 
   @Test
   public void testContainsOtherDescriptorSameFile() {
-    ProtoDomain domain = ProtoDomain.buildFrom(Int32Value.getDescriptor());
-    Assert.assertTrue(domain.contains(Int64Value.getDescriptor()));
+    ProtoDomain domain = ProtoDomain.buildFrom(Primitive.getDescriptor());
+    Assert.assertTrue(domain.contains(Nested.getDescriptor()));
   }
 
   @Test
   public void testBuildForFile() {
-    ProtoDomain domain = ProtoDomain.buildFrom(Int32Value.getDescriptor().getFile());
+    ProtoDomain domain = ProtoDomain.buildFrom(Primitive.getDescriptor().getFile());
     Assert.assertNotNull(domain.getFileDescriptor("google/protobuf/wrappers.proto"));
   }
 }

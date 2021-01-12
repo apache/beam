@@ -28,9 +28,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import javax.annotation.Nullable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTimeUtils.MillisProvider;
 
 /** Monitors the execution of one or more execution threads. */
@@ -67,7 +67,7 @@ public class ExecutionStateSampler {
 
   private static final long PERIOD_MS = 200;
 
-  @Nullable private Future<Void> executionSamplerFuture = null;
+  private @Nullable Future<Void> executionSamplerFuture = null;
 
   /** Reset the state sampler. */
   public void reset() {

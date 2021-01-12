@@ -28,18 +28,19 @@ import com.google.api.services.bigquery.model.JobStatistics;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
-import com.google.cloud.bigquery.storage.v1beta1.Storage.CreateReadSessionRequest;
-import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadRowsRequest;
-import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadRowsResponse;
-import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadSession;
-import com.google.cloud.bigquery.storage.v1beta1.Storage.SplitReadStreamRequest;
-import com.google.cloud.bigquery.storage.v1beta1.Storage.SplitReadStreamResponse;
+import com.google.cloud.bigquery.storage.v1.CreateReadSessionRequest;
+import com.google.cloud.bigquery.storage.v1.ReadRowsRequest;
+import com.google.cloud.bigquery.storage.v1.ReadRowsResponse;
+import com.google.cloud.bigquery.storage.v1.ReadSession;
+import com.google.cloud.bigquery.storage.v1.SplitReadStreamRequest;
+import com.google.cloud.bigquery.storage.v1.SplitReadStreamResponse;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
-import javax.annotation.Nullable;
-import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.util.Histogram;
+import org.apache.beam.sdk.values.FailsafeValueInSingleWindow;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** An interface for real, mock, or fake implementations of Cloud BigQuery services. */
 public interface BigQueryServices extends Serializable {
@@ -50,8 +51,10 @@ public interface BigQueryServices extends Serializable {
   /** Returns a real, mock, or fake {@link DatasetService}. */
   DatasetService getDatasetService(BigQueryOptions bqOptions);
 
+  /** Returns a real, mock, or fake {@link DatasetService}. */
+  DatasetService getDatasetService(BigQueryOptions bqOptions, Histogram requestLatencies);
+
   /** Returns a real, mock, or fake {@link StorageClient}. */
-  @Experimental(Experimental.Kind.SOURCE_SINK)
   StorageClient getStorageClient(BigQueryOptions bqOptions) throws IOException;
 
   /** An interface for the Cloud BigQuery load service. */
@@ -152,13 +155,14 @@ public interface BigQueryServices extends Serializable {
      */
     <T> long insertAll(
         TableReference ref,
-        List<ValueInSingleWindow<TableRow>> rowList,
+        List<FailsafeValueInSingleWindow<TableRow, TableRow>> rowList,
         @Nullable List<String> insertIdList,
         InsertRetryPolicy retryPolicy,
         List<ValueInSingleWindow<T>> failedInserts,
         ErrorContainer<T> errorContainer,
         boolean skipInvalidRows,
-        boolean ignoreUnknownValues)
+        boolean ignoreUnknownValues,
+        boolean ignoreInsertIds)
         throws IOException, InterruptedException;
 
     /** Patch BigQuery {@link Table} description. */
@@ -180,7 +184,6 @@ public interface BigQueryServices extends Serializable {
   }
 
   /** An interface representing a client object for making calls to the BigQuery Storage API. */
-  @Experimental(Experimental.Kind.SOURCE_SINK)
   interface StorageClient extends AutoCloseable {
     /** Create a new read session against an existing table. */
     ReadSession createReadSession(CreateReadSessionRequest request);

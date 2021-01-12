@@ -26,11 +26,11 @@ import static org.apache.beam.sdk.io.hcatalog.test.HCatalogIOTestUtils.getConfig
 import static org.apache.beam.sdk.io.hcatalog.test.HCatalogIOTestUtils.getExpectedRecords;
 import static org.apache.beam.sdk.io.hcatalog.test.HCatalogIOTestUtils.getReaderContext;
 import static org.apache.beam.sdk.io.hcatalog.test.HCatalogIOTestUtils.insertTestData;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
@@ -57,6 +57,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Watch;
+import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -82,6 +83,9 @@ import org.junit.runners.model.Statement;
 
 /** Test for HCatalogIO. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class HCatalogIOTest implements Serializable {
   private static final PipelineOptions OPTIONS = PipelineOptionsFactory.create();
 
@@ -290,6 +294,31 @@ public class HCatalogIOTest implements Serializable {
     HCatalogIO.read()
         .withConfigProperties(getConfigPropertiesAsMap(service.getHiveConf()))
         .expand(null);
+  }
+
+  /** Regression test for BEAM-10694. */
+  @Test
+  public void testReadTransformCanBeSerializedMultipleTimes() throws Exception {
+    ReaderContext context = getReaderContext(getConfigPropertiesAsMap(service.getHiveConf()));
+    HCatalogIO.Read spec =
+        HCatalogIO.read()
+            .withConfigProperties(getConfigPropertiesAsMap(service.getHiveConf()))
+            .withContext(context)
+            .withTable(TEST_TABLE);
+    SerializableUtils.clone(SerializableUtils.clone(spec));
+  }
+
+  /** Regression test for BEAM-10694. */
+  @Test
+  public void testSourceCanBeSerializedMultipleTimes() throws Exception {
+    ReaderContext context = getReaderContext(getConfigPropertiesAsMap(service.getHiveConf()));
+    HCatalogIO.Read spec =
+        HCatalogIO.read()
+            .withConfigProperties(getConfigPropertiesAsMap(service.getHiveConf()))
+            .withContext(context)
+            .withTable(TEST_TABLE);
+    BoundedHCatalogSource source = new BoundedHCatalogSource(spec);
+    SerializableUtils.clone(SerializableUtils.clone(source));
   }
 
   /** Test of Read using SourceTestUtils.readFromSource(..). */

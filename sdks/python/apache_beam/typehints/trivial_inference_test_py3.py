@@ -18,6 +18,8 @@
 """Tests for apache_beam.typehints.trivial_inference that use Python 3 syntax.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import unittest
@@ -27,7 +29,6 @@ from apache_beam.typehints import typehints
 
 
 class TrivialInferenceTest(unittest.TestCase):
-
   def assertReturnType(self, expected, f, inputs=(), depth=5):
     self.assertEqual(
         expected,
@@ -35,15 +36,18 @@ class TrivialInferenceTest(unittest.TestCase):
 
   def testBuildListUnpack(self):
     # Lambda uses BUILD_LIST_UNPACK opcode in Python 3.
-    self.assertReturnType(typehints.List[int],
-                          lambda _list: [*_list, *_list, *_list],
-                          [typehints.List[int]])
+    self.assertReturnType(
+        typehints.List[int],
+        lambda _list: [*_list, *_list, *_list], [typehints.List[int]])
 
   def testBuildTupleUnpack(self):
     # Lambda uses BUILD_TUPLE_UNPACK opcode in Python 3.
-    self.assertReturnType(typehints.Tuple[int, str, str],
-                          lambda _list1, _list2: (*_list1, *_list2, *_list2),
-                          [typehints.List[int], typehints.List[str]])
+    # yapf: disable
+    self.assertReturnType(
+        typehints.Tuple[int, str, str],
+        lambda _list1, _list2: (*_list1, *_list2, *_list2),
+        [typehints.List[int], typehints.List[str]])
+    # yapf: enable
 
 
 if __name__ == '__main__':

@@ -41,7 +41,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.ListCoder;
@@ -74,6 +73,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -109,6 +109,9 @@ import org.slf4j.LoggerFactory;
  *       UnboundedSource.UnboundedReader} instances to execute concurrently and thus hide latency.
  * </ul>
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<PubsubMessage>> {
   private static final Logger LOG = LoggerFactory.getLogger(PubsubUnboundedSource.class);
 
@@ -218,14 +221,14 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
      * CAUTION: Between a checkpoint being taken and {@link #finalizeCheckpoint()} being called the
      * 'true' active reader may have changed.
      */
-    @Nullable private PubsubReader reader;
+    private @Nullable PubsubReader reader;
 
     /**
      * If the checkpoint is for persisting: The ACK ids of messages which have been passed
      * downstream since the last checkpoint. If the checkpoint is for restoring: {@literal null}.
      * Not persisted in durable checkpoint.
      */
-    @Nullable private List<String> safeToAckIds;
+    private @Nullable List<String> safeToAckIds;
 
     /**
      * If the checkpoint is for persisting: The ACK ids of messages which have been received from
@@ -245,8 +248,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
       this.notYetReadIds = notYetReadIds;
     }
 
-    @Nullable
-    private SubscriptionPath getSubscription() {
+    private @Nullable SubscriptionPath getSubscription() {
       return subscriptionPath == null
           ? null
           : PubsubClient.subscriptionPathFromPath(subscriptionPath);
@@ -438,7 +440,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     private long lastWatermarkMsSinceEpoch;
 
     /** The current message, or {@literal null} if none. */
-    @Nullable private PubsubClient.IncomingMessage current;
+    private PubsubClient.@Nullable IncomingMessage current;
 
     /** Stats only: System time (ms since epoch) we last logs stats, or -1 if never. */
     private long lastLogTimestampMsSinceEpoch;
@@ -727,18 +729,18 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
       // Capture the received messages.
       for (PubsubClient.IncomingMessage incomingMessage : receivedMessages) {
         notYetRead.add(incomingMessage);
-        notYetReadBytes += incomingMessage.elementBytes.length;
+        notYetReadBytes += incomingMessage.message().getData().size();
         inFlight.put(
-            incomingMessage.ackId,
+            incomingMessage.ackId(),
             new InFlightState(requestTimeMsSinceEpoch, deadlineMsSinceEpoch));
         numReceived++;
         numReceivedRecently.add(requestTimeMsSinceEpoch, 1L);
         minReceivedTimestampMsSinceEpoch.add(
-            requestTimeMsSinceEpoch, incomingMessage.timestampMsSinceEpoch);
+            requestTimeMsSinceEpoch, incomingMessage.timestampMsSinceEpoch());
         maxReceivedTimestampMsSinceEpoch.add(
-            requestTimeMsSinceEpoch, incomingMessage.timestampMsSinceEpoch);
+            requestTimeMsSinceEpoch, incomingMessage.timestampMsSinceEpoch());
         minUnreadTimestampMsSinceEpoch.add(
-            requestTimeMsSinceEpoch, incomingMessage.timestampMsSinceEpoch);
+            requestTimeMsSinceEpoch, incomingMessage.timestampMsSinceEpoch());
       }
     }
 
@@ -837,7 +839,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
 
       if (current != null) {
         // Current is consumed. It can no longer contribute to holding back the watermark.
-        minUnreadTimestampMsSinceEpoch.remove(current.requestTimeMsSinceEpoch);
+        minUnreadTimestampMsSinceEpoch.remove(current.requestTimeMsSinceEpoch());
         current = null;
       }
 
@@ -864,18 +866,18 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
         // Try again later.
         return false;
       }
-      notYetReadBytes -= current.elementBytes.length;
+      notYetReadBytes -= current.message().getData().size();
       checkState(notYetReadBytes >= 0);
       long nowMsSinceEpoch = now();
-      numReadBytes.add(nowMsSinceEpoch, current.elementBytes.length);
-      minReadTimestampMsSinceEpoch.add(nowMsSinceEpoch, current.timestampMsSinceEpoch);
-      if (current.timestampMsSinceEpoch < lastWatermarkMsSinceEpoch) {
+      numReadBytes.add(nowMsSinceEpoch, current.message().getData().size());
+      minReadTimestampMsSinceEpoch.add(nowMsSinceEpoch, current.timestampMsSinceEpoch());
+      if (current.timestampMsSinceEpoch() < lastWatermarkMsSinceEpoch) {
         numLateMessages.add(nowMsSinceEpoch, 1L);
       }
 
       // Current message can be considered 'read' and will be persisted by the next
       // checkpoint. So it is now safe to ACK back to Pubsub.
-      safeToAckIds.add(current.ackId);
+      safeToAckIds.add(current.ackId());
       return true;
     }
 
@@ -884,7 +886,10 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
       if (current == null) {
         throw new NoSuchElementException();
       }
-      return new PubsubMessage(current.elementBytes, current.attributes, current.recordId);
+      return new PubsubMessage(
+          current.message().getData().toByteArray(),
+          current.message().getAttributesMap(),
+          current.recordId());
     }
 
     @Override
@@ -892,7 +897,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
       if (current == null) {
         throw new NoSuchElementException();
       }
-      return new Instant(current.timestampMsSinceEpoch);
+      return new Instant(current.timestampMsSinceEpoch());
     }
 
     @Override
@@ -900,7 +905,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
       if (current == null) {
         throw new NoSuchElementException();
       }
-      return current.recordId.getBytes(StandardCharsets.UTF_8);
+      return current.recordId().getBytes(StandardCharsets.UTF_8);
     }
 
     /**
@@ -984,7 +989,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
       List<String> snapshotSafeToAckIds = Lists.newArrayList(safeToAckIds);
       List<String> snapshotNotYetReadIds = new ArrayList<>(notYetRead.size());
       for (PubsubClient.IncomingMessage incomingMessage : notYetRead) {
-        snapshotNotYetReadIds.add(incomingMessage.ackId);
+        snapshotNotYetReadIds.add(incomingMessage.ackId());
       }
       if (outer.subscriptionPath == null) {
         // need to include the subscription in case we resume, as it's not stored in the source.
@@ -1066,7 +1071,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
           checkpoint.nackAll(reader);
         } catch (IOException e) {
           LOG.error(
-              "Pubsub {} cannot have {} lost messages NACKed, ignoring: {}",
+              "Pubsub {} cannot have {} lost messages NACKed, ignoring exception.",
               subscriptionPath,
               checkpoint.notYetReadIds.size(),
               e);
@@ -1075,9 +1080,8 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
       return reader;
     }
 
-    @Nullable
     @Override
-    public Coder<PubsubCheckpoint> getCheckpointMarkCoder() {
+    public @Nullable Coder<PubsubCheckpoint> getCheckpointMarkCoder() {
       return CHECKPOINT_CODER;
     }
 
@@ -1114,10 +1118,10 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     private final Counter elementCounter = SourceMetrics.elementsRead();
 
     private final PubsubClientFactory pubsubFactory;
-    @Nullable private final ValueProvider<SubscriptionPath> subscription;
-    @Nullable private final ValueProvider<TopicPath> topic;
-    @Nullable private final String timestampAttribute;
-    @Nullable private final String idAttribute;
+    private final @Nullable ValueProvider<SubscriptionPath> subscription;
+    private final @Nullable ValueProvider<TopicPath> topic;
+    private final @Nullable String timestampAttribute;
+    private final @Nullable String idAttribute;
 
     public StatsFn(
         PubsubClientFactory pubsubFactory,
@@ -1156,19 +1160,19 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
   // ================================================================================
 
   /** For testing only: Clock to use for all timekeeping. If {@literal null} use system clock. */
-  @Nullable private Clock clock;
+  private @Nullable Clock clock;
 
   /** Factory for creating underlying Pubsub transport. */
   private final PubsubClientFactory pubsubFactory;
 
   /** Project under which to create a subscription if only the {@link #topic} was given. */
-  @Nullable private final ValueProvider<ProjectPath> project;
+  private final @Nullable ValueProvider<ProjectPath> project;
 
   /**
    * Topic to read from. If {@literal null}, then {@link #subscription} must be given. Otherwise
    * {@link #subscription} must be null.
    */
-  @Nullable private final ValueProvider<TopicPath> topic;
+  private final @Nullable ValueProvider<TopicPath> topic;
 
   /**
    * Subscription to read from. If {@literal null} then {@link #topic} must be given. Otherwise
@@ -1177,19 +1181,19 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
    * <p>If no subscription is given a random one will be created when the transorm is applied. This
    * field will be update with that subscription's path. The created subscription is never deleted.
    */
-  @Nullable private ValueProvider<SubscriptionPath> subscription;
+  private @Nullable ValueProvider<SubscriptionPath> subscription;
 
   /**
    * Pubsub metadata field holding timestamp of each element, or {@literal null} if should use
    * Pubsub message publish timestamp instead.
    */
-  @Nullable private final String timestampAttribute;
+  private final @Nullable String timestampAttribute;
 
   /**
    * Pubsub metadata field holding id for each element, or {@literal null} if need to generate a
    * unique id ourselves.
    */
-  @Nullable private final String idAttribute;
+  private final @Nullable String idAttribute;
 
   /** Whether this source should load the attributes of the PubsubMessage, or only the payload. */
   private final boolean needsAttributes;
@@ -1288,44 +1292,37 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
   }
 
   /** Get the project path. */
-  @Nullable
-  public ProjectPath getProject() {
+  public @Nullable ProjectPath getProject() {
     return project == null ? null : project.get();
   }
 
   /** Get the topic being read from. */
-  @Nullable
-  public TopicPath getTopic() {
+  public @Nullable TopicPath getTopic() {
     return topic == null ? null : topic.get();
   }
 
   /** Get the {@link ValueProvider} for the topic being read from. */
-  @Nullable
-  public ValueProvider<TopicPath> getTopicProvider() {
+  public @Nullable ValueProvider<TopicPath> getTopicProvider() {
     return topic;
   }
 
   /** Get the subscription being read from. */
-  @Nullable
-  public SubscriptionPath getSubscription() {
+  public @Nullable SubscriptionPath getSubscription() {
     return subscription == null ? null : subscription.get();
   }
 
   /** Get the {@link ValueProvider} for the subscription being read from. */
-  @Nullable
-  public ValueProvider<SubscriptionPath> getSubscriptionProvider() {
+  public @Nullable ValueProvider<SubscriptionPath> getSubscriptionProvider() {
     return subscription;
   }
 
   /** Get the timestamp attribute. */
-  @Nullable
-  public String getTimestampAttribute() {
+  public @Nullable String getTimestampAttribute() {
     return timestampAttribute;
   }
 
   /** Get the id attribute. */
-  @Nullable
-  public String getIdAttribute() {
+  public @Nullable String getIdAttribute() {
     return idAttribute;
   }
 

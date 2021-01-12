@@ -50,6 +50,9 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link GroupByKey} for the {@link DataflowRunner}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DataflowGroupByKeyTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
 
@@ -68,6 +71,7 @@ public class DataflowGroupByKeyTest {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setRunner(DataflowRunner.class);
     options.setProject("someproject");
+    options.setRegion("some-region1");
     options.setGcpTempLocation("gs://staging");
     options.setPathValidatorClass(NoopPathValidator.class);
     options.setDataflowClient(dataflow);

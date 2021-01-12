@@ -11,7 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 """Runs a batch job for performing Tensorflow Model Analysis."""
+
+# pytype: skip-file
 
 from __future__ import absolute_import, division, print_function
 
@@ -22,21 +25,23 @@ import tensorflow_model_analysis as tfma
 from tensorflow_model_analysis.evaluators import evaluator
 
 import apache_beam as beam
+from apache_beam.io.gcp.bigquery import ReadFromBigQuery
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
 from apache_beam.testing.load_tests.load_test_metrics_utils import MetricsReader
 from trainer import taxi
 
 
-def process_tfma(schema_file,
-                 big_query_table=None,
-                 eval_model_dir=None,
-                 max_eval_rows=None,
-                 pipeline_args=None,
-                 publish_to_bq=False,
-                 project=None,
-                 metrics_table=None,
-                 metrics_dataset=None):
+def process_tfma(
+    schema_file,
+    big_query_table=None,
+    eval_model_dir=None,
+    max_eval_rows=None,
+    pipeline_args=None,
+    publish_to_bq=False,
+    project=None,
+    metrics_table=None,
+    metrics_dataset=None):
   """Runs a batch job to evaluate the eval_model against the given input.
 
   Args:
@@ -59,8 +64,7 @@ def process_tfma(schema_file,
   """
 
   if big_query_table is None:
-    raise ValueError(
-        '--big_query_table should be provided.')
+    raise ValueError('--big_query_table should be provided.')
 
   slice_spec = [
       tfma.slicer.SingleSliceSpec(),
@@ -80,11 +84,12 @@ def process_tfma(schema_file,
   metrics_monitor = None
   if publish_to_bq:
     metrics_monitor = MetricsReader(
+        publish_to_bq=publish_to_bq,
         project_name=project,
         bq_table=metrics_table,
         bq_dataset=metrics_dataset,
-        filters=MetricsFilter().with_namespace(metrics_namespace)
-    )
+        namespace=metrics_namespace,
+        filters=MetricsFilter().with_namespace(metrics_namespace))
 
   pipeline = beam.Pipeline(argv=pipeline_args)
 
@@ -92,11 +97,11 @@ def process_tfma(schema_file,
   raw_feature_spec = taxi.get_raw_feature_spec(schema)
   raw_data = (
       pipeline
-      | 'ReadBigQuery' >> beam.io.Read(
-          beam.io.BigQuerySource(query=query, use_standard_sql=True))
+      | 'ReadBigQuery' >> ReadFromBigQuery(
+          query=query, project=project, use_standard_sql=True)
       | 'Measure time: Start' >> beam.ParDo(MeasureTime(metrics_namespace))
-      | 'CleanData' >> beam.Map(lambda x: (
-          taxi.clean_raw_data_dict(x, raw_feature_spec))))
+      | 'CleanData' >>
+      beam.Map(lambda x: (taxi.clean_raw_data_dict(x, raw_feature_spec))))
 
   # Examples must be in clean tf-example format.
   coder = taxi.make_proto_coder(schema)
@@ -116,12 +121,9 @@ def process_tfma(schema_file,
       | 'ToSerializedTFExample' >> beam.Map(coder.encode)
       | 'Extract Results' >> tfma.InputsToExtracts()
       | 'Extract and evaluate' >> tfma.ExtractAndEvaluate(
-          extractors=extractors,
-          evaluators=evaluators)
+          extractors=extractors, evaluators=evaluators)
       | 'Map Evaluations to PCollection' >> MapEvalToPCollection()
-      | 'Measure time: End' >> beam.ParDo(
-          MeasureTime(metrics_namespace))
-  )
+      | 'Measure time: End' >> beam.ParDo(MeasureTime(metrics_namespace)))
   result = pipeline.run()
   result.wait_until_finish()
   if metrics_monitor:
@@ -160,10 +162,7 @@ def main():
       default=None,
       type=bool)
   parser.add_argument(
-      '--metrics_dataset',
-      help='BQ dataset',
-      default=None,
-      type=str)
+      '--metrics_dataset', help='BQ dataset', default=None, type=str)
   parser.add_argument(
       '--metrics_table',
       help='BQ table for storing metrics',

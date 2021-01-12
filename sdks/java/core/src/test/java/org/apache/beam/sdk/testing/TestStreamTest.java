@@ -78,6 +78,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link TestStream}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class TestStreamTest implements Serializable {
   @Rule public transient TestPipeline p = TestPipeline.create();
   @Rule public transient ExpectedException thrown = ExpectedException.none();
@@ -191,7 +194,7 @@ public class TestStreamTest implements Serializable {
                 TimestampedValue.of("firstPane", new Instant(100)),
                 TimestampedValue.of("alsoFirstPane", new Instant(200)))
             .addElements(TimestampedValue.of("onTimePane", new Instant(500)))
-            .advanceWatermarkTo(new Instant(1001L))
+            .advanceWatermarkTo(new Instant(1000L))
             .addElements(
                 TimestampedValue.of("finalLatePane", new Instant(750)),
                 TimestampedValue.of("alsoFinalLatePane", new Instant(250)))
@@ -469,8 +472,7 @@ public class TestStreamTest implements Serializable {
   }
 
   @Test
-  @Category(UsesTestStreamWithProcessingTime.class)
-  public void testCoder() throws Exception {
+  public void testTestStreamCoder() throws Exception {
     TestStream<String> testStream =
         TestStream.create(StringUtf8Coder.of())
             .addElements("hey")

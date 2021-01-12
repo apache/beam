@@ -18,12 +18,10 @@
 package org.apache.beam.runners.samza.state;
 
 import java.util.Iterator;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.SetState;
 
 /** Samza's extended SetState, allowing extra access methods to the state. */
-@Experimental(Experimental.Kind.STATE)
 public interface SamzaSetState<T> extends SetState<T> {
 
   /**

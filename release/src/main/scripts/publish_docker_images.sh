@@ -24,70 +24,107 @@
 
 set -e
 
-source release/src/main/scripts/build_release_candidate.sh
+DOCKER_IMAGE_DEFAULT_REPO_ROOT=apache
+DOCKER_IMAGE_DEFAULT_REPO_PREFIX=beam_
+
+JAVA_VER=("java8" "java11")
+PYTHON_VER=("python3.6" "python3.7" "python3.8")
+FLINK_VER=("1.8" "1.9" "1.10")
 
 echo "Publish SDK docker images to Docker Hub."
+
+echo "================Setting Up Environment Variables==========="
+echo "Which release version are you working on: "
+read RELEASE
+
+echo "Which release candidate will be the source of final docker images? (ex: 1)"
+read RC_NUM
+RC_VERSION="rc${RC_NUM}"
+
+echo "================Confirming Release and RC version==========="
+echo "We are using ${RC_VERSION} to push docker images for ${RELEASE}."
 echo "Do you want to proceed? [y|N]"
 read confirmation
 if [[ $confirmation = "y" ]]; then
-  echo "============Publishing SDK docker images on docker hub========="
-  cd ~
-  if [[ -d ${LOCAL_PYTHON_STAGING_DIR} ]]; then
-    rm -rf ${LOCAL_PYTHON_STAGING_DIR}
-  fi
-  mkdir -p ${LOCAL_PYTHON_STAGING_DIR}
-  cd ${LOCAL_PYTHON_STAGING_DIR}
 
-  echo '-------------------Cloning Beam Release Branch-----------------'
-  git clone ${GIT_REPO_URL}
-  cd ${BEAM_ROOT_DIR}
-  git checkout ${RELEASE_BRANCH}
-
-  echo '-------------------Generating and Pushing Python images-----------------'
-  ./gradlew :sdks:python:container:buildAll -Pdocker-tag=${RELEASE}
+  echo '-------------------Tagging and Pushing Python images-----------------'
   for ver in "${PYTHON_VER[@]}"; do
-     docker push apachebeam/${ver}_sdk:${RELEASE}
-     docker tag apachebeam/${ver}_sdk:${RELEASE} apachebeam/${ver}_sdk:latest
-     docker push apachebeam/${ver}_sdk:latest
+    # Pull verified RC from dockerhub.
+    docker pull ${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}${ver}_sdk:${RELEASE}_${RC_VERSION}
+
+    # Tag with ${RELEASE} and push to dockerhub.
+    docker tag ${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}${ver}_sdk:${RELEASE}_${RC_VERSION} ${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}${ver}_sdk:${RELEASE}
+    docker push ${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}${ver}_sdk:${RELEASE}
+
+    # Tag with latest and push to dockerhub.
+    docker tag ${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}${ver}_sdk:${RELEASE}_${RC_VERSION} ${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}${ver}_sdk:latest
+    docker push ${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}${ver}_sdk:latest
+
+    # Cleanup images from local
+    docker rmi -f ${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}${ver}_sdk:${RELEASE}_${RC_VERSION}
+    docker rmi -f ${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}${ver}_sdk:${RELEASE}
+    docker rmi -f ${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}${ver}_sdk:latest
   done
 
-  echo '-------------------Generating and Pushing Java images-----------------'
-  ./gradlew :sdks:java:container:dockerPush -Pdocker-tag=${RELEASE}
-  docker tag apachebeam/java_sdk:${RELEASE} apachebeam/java_sdk:latest
-  docker push apachebeam/java_sdk:latest
+  echo '-------------------Tagging and Pushing Java images-----------------'
+  for ver in "${JAVA_VER[@]}"; do
+    # Pull verified RC from dockerhub.
+    docker pull ${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}${ver}_sdk:${RELEASE}_${RC_VERSION}
 
-  echo '-------------------Generating and Pushing Go images-----------------'
-  ./gradlew :sdks:go:container:dockerPush -Pdocker-tag=${RELEASE}
-  docker tag apachebeam/go_sdk:${RELEASE} apachebeam/go_sdk:latest
-  docker push apachebeam/go_sdk:latest
+    # Tag with ${RELEASE} and push to dockerhub.
+    docker tag ${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}${ver}_sdk:${RELEASE}_${RC_VERSION} ${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}${ver}_sdk:${RELEASE}
+    docker push ${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}${ver}_sdk:${RELEASE}
 
-  echo '-------------Generating and Pushing Flink job server images-------------'
-  echo "Building containers for the following Flink versions:" "${FLINK_VER[@]}"
+    # Tag with latest and push to dockerhub.
+    docker tag ${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}${ver}_sdk:${RELEASE}_${RC_VERSION} ${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}${ver}_sdk:latest
+    docker push ${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}${ver}_sdk:latest
+
+    # Cleanup images from local
+    docker rmi -f ${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}${ver}_sdk:${RELEASE}_${RC_VERSION}
+    docker rmi -f ${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}${ver}_sdk:${RELEASE}
+    docker rmi -f ${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}${ver}_sdk:latest
+  done
+
+  echo '-------------Tagging and Pushing Flink job server images-------------'
+  echo "Publishing images for the following Flink versions:" "${FLINK_VER[@]}"
+  echo "Make sure the versions are correct, then press any key to proceed."
+  read
   for ver in "${FLINK_VER[@]}"; do
-     ./gradlew ":runners:flink:${ver}:job-server-container:docker" -Pdocker-tag="${RELEASE}"
-     FLINK_IMAGE_NAME=apachebeam/flink${ver}_job_server
-     docker push "${FLINK_IMAGE_NAME}:${RELEASE}"
-     docker tag "${FLINK_IMAGE_NAME}:${RELEASE}" "${FLINK_IMAGE_NAME}:latest"
-     docker push "${FLINK_IMAGE_NAME}:latest"
-  done
+    FLINK_IMAGE_NAME=${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}flink${ver}_job_server
 
-  rm -rf ~/${PYTHON_ARTIFACTS_DIR}
+    # Pull verified RC from dockerhub.
+    docker pull "${FLINK_IMAGE_NAME}:${RELEASE}_${RC_VERSION}"
 
-  echo "-------------------Clean up SDK docker images at local-------------------"
-  for ver in "${PYTHON_VER[@]}"; do
-    docker rmi -f apachebeam/${ver}_sdk:${RELEASE}
-    docker rmi -f apachebeam/${ver}_sdk:latest
-  done
+    # Tag with ${RELEASE} and push to dockerhub.
+    docker tag "${FLINK_IMAGE_NAME}:${RELEASE}_${RC_VERSION}" "${FLINK_IMAGE_NAME}:${RELEASE}"
+    docker push "${FLINK_IMAGE_NAME}:${RELEASE}"
 
-  docker rmi -f apachebeam/java_sdk:${RELEASE}
-  docker rmi -f apachebeam/java_sdk:latest
+    # Tag with latest and push to dockerhub.
+    docker tag "${FLINK_IMAGE_NAME}:${RELEASE}_${RC_VERSION}" "${FLINK_IMAGE_NAME}:latest"
+    docker push "${FLINK_IMAGE_NAME}:latest"
 
-  docker rmi -f apachebeam/go_sdk:${RELEASE}
-  docker rmi -f apachebeam/go_sdk:latest
-
-  for ver in "${FLINK_VER[@]}"; do
-    FLINK_IMAGE_NAME=apachebeam/flink${ver}_job_server
+    # Cleanup images from local
+    docker rmi -f "${FLINK_IMAGE_NAME}:${RELEASE}_${RC_VERSION}"
     docker rmi -f "${FLINK_IMAGE_NAME}:${RELEASE}"
     docker rmi -f "${FLINK_IMAGE_NAME}:latest"
   done
+
+  echo '-------------Tagging and Pushing Spark job server image-------------'
+  SPARK_IMAGE_NAME=${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}spark_job_server
+
+  # Pull verified RC from dockerhub.
+  docker pull "${SPARK_IMAGE_NAME}:${RELEASE}_${RC_VERSION}"
+
+  # Tag with ${RELEASE} and push to dockerhub.
+  docker tag "${SPARK_IMAGE_NAME}:${RELEASE}_${RC_VERSION}" "${SPARK_IMAGE_NAME}:${RELEASE}"
+  docker push "${SPARK_IMAGE_NAME}:${RELEASE}"
+
+  # Tag with latest and push to dockerhub.
+  docker tag "${SPARK_IMAGE_NAME}:${RELEASE}_${RC_VERSION}" "${SPARK_IMAGE_NAME}:latest"
+  docker push "${SPARK_IMAGE_NAME}:latest"
+
+  # Cleanup images from local
+  docker rmi -f "${SPARK_IMAGE_NAME}:${RELEASE}_${RC_VERSION}"
+  docker rmi -f "${SPARK_IMAGE_NAME}:${RELEASE}"
+  docker rmi -f "${SPARK_IMAGE_NAME}:latest"
 fi

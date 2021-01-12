@@ -32,8 +32,12 @@ import (
 )
 
 //go:generate go install github.com/apache/beam/sdks/go/cmd/starcgen
-//go:generate starcgen --package=top --identifiers=combineFn
+//go:generate starcgen --package=top
 //go:generate go fmt
+
+func init() {
+	beam.RegisterDoFn(reflect.TypeOf((*combineFn)(nil)))
+}
 
 var (
 	sig = funcx.MakePredicate(beam.TType, beam.TType) // (T, T) -> bool
@@ -212,6 +216,10 @@ func (f *combineFn) MergeAccumulators(a, b accum) accum {
 
 func (f *combineFn) ExtractOutput(a accum) []beam.T {
 	var ret []beam.T
+	a.enc, a.dec = f.enc, f.dec
+	if err := a.unmarshal(); err != nil {
+		panic(err)
+	}
 	for _, elm := range a.list {
 		ret = append(ret, elm) // implicitly wrap T
 	}

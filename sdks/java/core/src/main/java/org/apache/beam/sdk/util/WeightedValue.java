@@ -17,11 +17,14 @@
  */
 package org.apache.beam.sdk.util;
 
+import org.apache.beam.sdk.annotations.Internal;
+
 /**
  * A {@code T} with an accompanying weight. Units are unspecified.
  *
  * @param <T> the underlying type of object
  */
+@Internal
 public final class WeightedValue<T> implements Weighted {
 
   private final T value;

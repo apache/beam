@@ -45,14 +45,16 @@ import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
-import org.apache.beam.sdk.testing.DataflowPortabilityApiUnsupported;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.UsesSideInputs;
+import org.apache.beam.sdk.testing.UsesTestStream;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.InvalidWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
@@ -79,6 +81,9 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 @Category(UsesSideInputs.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ViewTest implements Serializable {
   // This test is Serializable, just so that it's easy to have
   // anonymous inner classes inside the non-static test methods.
@@ -148,6 +153,47 @@ public class ViewTest implements Serializable {
                     .withSideInputs(view));
 
     PAssert.that(output).containsInAnyOrder(47, 47, 48);
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesTestStream.class})
+  public void testWindowedSideInputNotPresent() {
+    PCollection<KV<Integer, Integer>> input =
+        pipeline.apply(
+            TestStream.create(KvCoder.of(VarIntCoder.of(), VarIntCoder.of()))
+                .advanceWatermarkTo(new Instant(0))
+                .addElements(TimestampedValue.of(KV.of(1000, 1000), new Instant(1000)))
+                .advanceWatermarkTo(new Instant(20000))
+                .advanceWatermarkToInfinity());
+
+    final PCollectionView<Integer> view =
+        input
+            .apply(Values.create())
+            .apply("SideWindowInto", Window.into(FixedWindows.of(Duration.standardSeconds(100))))
+            .apply("ViewCombine", Combine.globally(Sum.ofIntegers()).withoutDefaults())
+            .apply("Rewindow", Window.into(FixedWindows.of(Duration.standardSeconds(10))))
+            .apply(View.<Integer>asSingleton().withDefaultValue(0));
+
+    PCollection<Integer> output =
+        input
+            .apply("MainWindowInto", Window.into(FixedWindows.of(Duration.standardSeconds(10))))
+            .apply(GroupByKey.create())
+            .apply(
+                "OutputSideInputs",
+                ParDo.of(
+                        new DoFn<KV<Integer, Iterable<Integer>>, Integer>() {
+                          @ProcessElement
+                          public void processElement(ProcessContext c) {
+                            c.output(c.sideInput(view));
+                          }
+                        })
+                    .withSideInputs(view));
+
+    PAssert.that(output)
+        .inWindow(new IntervalWindow(new Instant(0), new Instant(10000)))
+        .containsInAnyOrder(0);
 
     pipeline.run();
   }
@@ -612,7 +658,7 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, DataflowPortabilityApiUnsupported.class})
+  @Category({ValidatesRunner.class})
   public void testMultimapSideInputWithNonDeterministicKeyCoder() {
 
     final PCollectionView<Map<String, Iterable<Integer>>> view =
@@ -748,7 +794,7 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, DataflowPortabilityApiUnsupported.class})
+  @Category({ValidatesRunner.class})
   public void testWindowedMultimapSideInputWithNonDeterministicKeyCoder() {
 
     final PCollectionView<Map<String, Iterable<Integer>>> view =
@@ -831,7 +877,7 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, DataflowPortabilityApiUnsupported.class})
+  @Category({ValidatesRunner.class})
   public void testEmptyMultimapSideInputWithNonDeterministicKeyCoder() throws Exception {
 
     final PCollectionView<Map<String, Iterable<Integer>>> view =
@@ -978,7 +1024,7 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, DataflowPortabilityApiUnsupported.class})
+  @Category({ValidatesRunner.class})
   public void testMapSideInputWithNonDeterministicKeyCoder() {
 
     final PCollectionView<Map<String, Integer>> view =
@@ -1100,7 +1146,7 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, DataflowPortabilityApiUnsupported.class})
+  @Category({ValidatesRunner.class})
   public void testWindowedMapSideInputWithNonDeterministicKeyCoder() {
 
     final PCollectionView<Map<String, Integer>> view =
@@ -1178,7 +1224,7 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  @Category({ValidatesRunner.class, DataflowPortabilityApiUnsupported.class})
+  @Category({ValidatesRunner.class})
   public void testEmptyMapSideInputWithNonDeterministicKeyCoder() throws Exception {
 
     final PCollectionView<Map<String, Integer>> view =
@@ -1236,7 +1282,8 @@ public class ViewTest implements Serializable {
                             c.output(
                                 KV.of(
                                     c.element(),
-                                    c.sideInput(view).get(c.element().substring(0, 1))));
+                                    c.sideInput(view)
+                                        .getOrDefault(c.element().substring(0, 1), 0)));
                           }
                         })
                     .withSideInputs(view));

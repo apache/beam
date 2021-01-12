@@ -29,31 +29,8 @@ import (
 )
 
 //go:generate go install github.com/apache/beam/sdks/go/cmd/starcgen
-//go:generate starcgen --package=passert --identifiers=diffFn,failFn,failKVFn,failGBKFn,hashFn,sumFn
+//go:generate starcgen --package=passert --identifiers=diffFn,failFn,failIfBadEntries,failKVFn,failGBKFn,hashFn,sumFn,errFn,elmCountCombineFn
 //go:generate go fmt
-
-// Equals verifies the given collection has the same values as the given
-// values, under coder equality. The values can be provided as single
-// PCollection.
-func Equals(s beam.Scope, col beam.PCollection, values ...interface{}) beam.PCollection {
-	if len(values) == 0 {
-		return Empty(s, col)
-	}
-	if other, ok := values[0].(beam.PCollection); ok && len(values) == 1 {
-		return equals(s, col, other)
-	}
-
-	other := beam.Create(s, values...)
-	return equals(s, col, other)
-}
-
-// equals verifies that the actual values match the expected ones.
-func equals(s beam.Scope, actual, expected beam.PCollection) beam.PCollection {
-	bad, _, bad2 := Diff(s, actual, expected)
-	fail(s, bad, "value %v present, but not expected")
-	fail(s, bad2, "value %v expected, but not present")
-	return actual
-}
 
 // Diff splits 2 incoming PCollections into 3: left only, both, right only. Duplicates are
 // preserved, so a value may appear multiple times and in multiple collections. Coder

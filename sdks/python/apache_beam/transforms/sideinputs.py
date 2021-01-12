@@ -24,8 +24,11 @@ directly by pipeline writers. Instead, users should use the helper methods
 AsSingleton, AsIter, AsList and AsDict in apache_beam.pvalue.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
+import re
 from builtins import object
 from typing import TYPE_CHECKING
 from typing import Any
@@ -38,6 +41,11 @@ if TYPE_CHECKING:
   from apache_beam import pvalue
 
 WindowMappingFn = Callable[[window.BoundedWindow], window.BoundedWindow]
+
+SIDE_INPUT_PREFIX = 'python_side_input'
+
+SIDE_INPUT_REGEX = SIDE_INPUT_PREFIX + '([0-9]+)(-.*)?$'
+
 
 # Top-level function so we can identify it later.
 def _global_window_mapping_fn(w, global_window=window.GlobalWindow()):
@@ -52,20 +60,29 @@ def default_window_mapping_fn(target_window_fn):
 
   def map_via_end(source_window):
     # type: (window.BoundedWindow) -> window.BoundedWindow
-    return list(target_window_fn.assign(
-        window.WindowFn.AssignContext(source_window.max_timestamp())))[-1]
+    return list(
+        target_window_fn.assign(
+            window.WindowFn.AssignContext(source_window.max_timestamp())))[-1]
 
   return map_via_end
 
 
+def get_sideinput_index(tag):
+  # type: (str) -> int
+  match = re.match(SIDE_INPUT_REGEX, tag, re.DOTALL)
+  if match:
+    return int(match.group(1))
+  else:
+    raise RuntimeError("Invalid tag %r" % tag)
+
+
 class SideInputMap(object):
   """Represents a mapping of windows to side input values."""
-
-  def __init__(self,
-               view_class,  # type: pvalue.AsSideInput
-               view_options,
-               iterable
-              ):
+  def __init__(
+      self,
+      view_class,  # type: pvalue.AsSideInput
+      view_options,
+      iterable):
     self._window_mapping_fn = view_options.get(
         'window_mapping_fn', _global_window_mapping_fn)
     self._view_class = view_class
@@ -89,7 +106,6 @@ class SideInputMap(object):
 class _FilteringIterable(object):
   """An iterable containing only those values in the given window.
   """
-
   def __init__(self, iterable, target_window):
     self._iterable = iterable
     self._target_window = target_window
@@ -101,4 +117,4 @@ class _FilteringIterable(object):
 
   def __reduce__(self):
     # Pickle self as an already filtered list.
-    return list, (list(self),)
+    return list, (list(self), )

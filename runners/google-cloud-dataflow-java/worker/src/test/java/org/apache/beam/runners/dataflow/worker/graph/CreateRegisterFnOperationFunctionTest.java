@@ -17,12 +17,12 @@
  */
 package org.apache.beam.runners.dataflow.worker.graph;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.when;
 
@@ -58,6 +58,9 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link CreateRegisterFnOperationFunction}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class CreateRegisterFnOperationFunctionTest {
 
   @Mock private Supplier<Node> portSupplier;

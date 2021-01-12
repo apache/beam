@@ -20,7 +20,6 @@ package org.apache.beam.sdk.extensions.euphoria.core.client.operator;
 import static java.util.Objects.requireNonNull;
 
 import java.util.Optional;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.BinaryFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
@@ -29,6 +28,7 @@ import org.apache.beam.sdk.extensions.euphoria.core.client.operator.Join.Type;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Full outer join of two input datasets producing single new dataset.
@@ -54,6 +54,9 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * </ol>
  */
 @Audience(Audience.Type.CLIENT)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class FullJoin {
 
   /**

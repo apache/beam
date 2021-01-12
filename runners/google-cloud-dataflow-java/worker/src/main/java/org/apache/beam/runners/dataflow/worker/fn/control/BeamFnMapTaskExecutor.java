@@ -40,9 +40,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
-import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.Metrics;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleProgressResponse;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.DistributionData;
@@ -50,7 +48,6 @@ import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.GaugeData;
 import org.apache.beam.runners.core.metrics.MetricUpdates;
 import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
-import org.apache.beam.runners.core.metrics.MetricsTranslation;
 import org.apache.beam.runners.dataflow.worker.DataflowMapTaskExecutor;
 import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
@@ -66,6 +63,7 @@ import org.apache.beam.sdk.util.MoreFutures;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -75,6 +73,10 @@ import org.slf4j.LoggerFactory;
  * <p>Note that this executor is meant to be used with the Fn API. Several of the methods to request
  * splitting, checkpointing, work progress are unimplemented.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
   private static final Logger LOG = LoggerFactory.getLogger(BeamFnMapTaskExecutor.class);
 
@@ -133,8 +135,7 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
   }
 
   @Override
-  @Nullable
-  public Progress getWorkerProgress() throws Exception {
+  public @Nullable Progress getWorkerProgress() throws Exception {
     return progressTracker.getWorkerProgress();
   }
 
@@ -173,14 +174,13 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
   }
 
   @Override
-  @Nullable
-  public DynamicSplitResult requestCheckpoint() throws Exception {
+  public @Nullable DynamicSplitResult requestCheckpoint() throws Exception {
     return progressTracker.requestCheckpoint();
   }
 
   @Override
-  @Nullable
-  public DynamicSplitResult requestDynamicSplit(DynamicSplitRequest splitRequest) throws Exception {
+  public @Nullable DynamicSplitResult requestDynamicSplit(DynamicSplitRequest splitRequest)
+      throws Exception {
     return progressTracker.requestDynamicSplit(splitRequest);
   }
 
@@ -196,8 +196,8 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
   }
 
   private interface ProgressTracker {
-    @Nullable
-    public Progress getWorkerProgress() throws Exception;
+
+    public @Nullable Progress getWorkerProgress() throws Exception;
 
     /**
      * Returns an metric updates accumulated since the last call to {@link #extractMetricUpdates()}.
@@ -207,11 +207,9 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
 
     public List<CounterUpdate> extractCounterUpdates();
 
-    @Nullable
-    public DynamicSplitResult requestCheckpoint() throws Exception;
+    public @Nullable DynamicSplitResult requestCheckpoint() throws Exception;
 
-    @Nullable
-    public DynamicSplitResult requestDynamicSplit(DynamicSplitRequest splitRequest)
+    public @Nullable DynamicSplitResult requestDynamicSplit(DynamicSplitRequest splitRequest)
         throws Exception;
 
     public default void start() {}
@@ -220,9 +218,8 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
   }
 
   private static class NullProgressTracker implements ProgressTracker {
-    @Nullable
     @Override
-    public Progress getWorkerProgress() {
+    public @Nullable Progress getWorkerProgress() {
       return null;
     }
 
@@ -236,15 +233,13 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
       return Collections.emptyList();
     }
 
-    @Nullable
     @Override
-    public DynamicSplitResult requestCheckpoint() {
+    public @Nullable DynamicSplitResult requestCheckpoint() {
       return null;
     }
 
-    @Nullable
     @Override
-    public DynamicSplitResult requestDynamicSplit(DynamicSplitRequest splitRequest) {
+    public @Nullable DynamicSplitResult requestDynamicSplit(DynamicSplitRequest splitRequest) {
       return null;
     }
   }
@@ -256,9 +251,8 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
       this.readOperation = readOperation;
     }
 
-    @Nullable
     @Override
-    public Progress getWorkerProgress() throws Exception {
+    public @Nullable Progress getWorkerProgress() throws Exception {
       return readOperation.getProgress();
     }
 
@@ -272,15 +266,13 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
       return Collections.emptyList();
     }
 
-    @Nullable
     @Override
-    public DynamicSplitResult requestCheckpoint() throws Exception {
+    public @Nullable DynamicSplitResult requestCheckpoint() throws Exception {
       return readOperation.requestCheckpoint();
     }
 
-    @Nullable
     @Override
-    public DynamicSplitResult requestDynamicSplit(DynamicSplitRequest splitRequest)
+    public @Nullable DynamicSplitResult requestDynamicSplit(DynamicSplitRequest splitRequest)
         throws Exception {
       return readOperation.requestDynamicSplit(splitRequest);
     }
@@ -341,30 +333,16 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
           grpcWriteOperation.abortWait();
         }
 
-        // TODO(BEAM-6189): Replace getProcessBundleProgress with getMonitoringInfos when Metrics
-        // is deprecated.
         ProcessBundleProgressResponse processBundleProgressResponse =
             MoreFutures.get(bundleProcessOperation.getProcessBundleProgress());
 
         final List<MonitoringInfo> monitoringInfosList =
             processBundleProgressResponse.getMonitoringInfosList();
 
-        // Supporting deprecated metrics until all supported runners are migrated to using
-        // MonitoringInfos
-        Metrics metrics = processBundleProgressResponse.getMetrics();
+        updateMetrics(monitoringInfosList);
+
         double elementsConsumed =
             bundleProcessOperation.getInputElementsConsumed(monitoringInfosList);
-
-        if (elementsConsumed == 0) {
-          elementsConsumed = bundleProcessOperation.getInputElementsConsumed(metrics);
-        }
-
-        updateMetrics(monitoringInfosList);
-        updateMetricsDeprecated(metrics);
-
-        // todo(migryz): utilize monitoringInfos here.
-        // Requires Element Count metrics to be implemented.
-
         grpcWriteOperationElementsProcessed.accept((int) elementsConsumed);
         progressInterpolator.addPoint(
             grpcWriteOperation.getElementsSent(), readOperation.getProgress());
@@ -430,39 +408,8 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
               .collect(Collectors.toList());
     }
 
-    /**
-     * Updates internal metrics from provided (deprecated) Metrics object.
-     *
-     * @param metrics Metrics object received from FnApi.
-     */
-    @Deprecated
-    private void updateMetricsDeprecated(Metrics metrics) {
-      metrics
-          .getPtransformsMap()
-          .entrySet()
-          .forEach(
-              ptransformEntry -> {
-                MetricUpdates ptransformMetricUpdates =
-                    MetricsTranslation.metricUpdatesFromProto(
-                        ptransformEntry.getKey(), ptransformEntry.getValue().getUserList());
-                for (MetricUpdate<Long> update : ptransformMetricUpdates.counterUpdates()) {
-                  deprecatedCounterUpdates.put(update.getKey(), update);
-                }
-
-                for (MetricUpdate<DistributionData> update :
-                    ptransformMetricUpdates.distributionUpdates()) {
-                  deprecatedDistributionUpdates.put(update.getKey(), update);
-                }
-
-                for (MetricUpdate<GaugeData> update : ptransformMetricUpdates.gaugeUpdates()) {
-                  deprecatedGaugeUpdates.put(update.getKey(), update);
-                }
-              });
-    }
-
-    @Nullable
     @Override
-    public Progress getWorkerProgress() throws Exception {
+    public @Nullable Progress getWorkerProgress() throws Exception {
       return latestProgress.get();
     }
 
@@ -483,16 +430,14 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
           snapshotGaugeUpdates.values());
     }
 
-    @Nullable
     @Override
-    public DynamicSplitResult requestCheckpoint() throws Exception {
+    public @Nullable DynamicSplitResult requestCheckpoint() throws Exception {
       // TODO: Implement checkpointing
       return null;
     }
 
-    @Nullable
     @Override
-    public DynamicSplitResult requestDynamicSplit(DynamicSplitRequest splitRequest)
+    public @Nullable DynamicSplitResult requestDynamicSplit(DynamicSplitRequest splitRequest)
         throws Exception {
       return readOperation.requestDynamicSplit(splitRequest);
     }
@@ -529,7 +474,6 @@ public class BeamFnMapTaskExecutor extends DataflowMapTaskExecutor {
       deprecatedGaugeUpdates.clear();
       try {
         updateMetrics(MoreFutures.get(bundleProcessOperation.getFinalMonitoringInfos()));
-        updateMetricsDeprecated(MoreFutures.get(bundleProcessOperation.getFinalMetrics()));
       } catch (ExecutionException | InterruptedException exn) {
         LOG.info("Failed to get final metrics for bundle", exn);
       }

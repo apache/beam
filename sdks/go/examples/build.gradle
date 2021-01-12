@@ -32,6 +32,8 @@ def getLocalPlatform = {
 // "./github.com/apache/beam/sdks/go"
 resolveBuildDependencies.dependsOn ":sdks:go:goBuild"
 
+clean.dependsOn cleanVendor
+
 dependencies {
   golang {
     // TODO(herohde): use "./" prefix to prevent gogradle use base github path, for now.
@@ -68,5 +70,10 @@ golang {
     go 'build -o ./build/bin/${GOOS}_${GOARCH}/windowed_wordcount github.com/apache/beam/sdks/go/examples/windowed_wordcount'
     go 'build -o ./build/bin/${GOOS}_${GOARCH}/wordcount github.com/apache/beam/sdks/go/examples/wordcount'
     go 'build -o ./build/bin/${GOOS}_${GOARCH}/yatzy github.com/apache/beam/sdks/go/examples/yatzy'
+  }
+
+  // Ignore spurious vet errors during check for [BEAM-8992].
+  goVet {
+    continueOnFailure = true
   }
 }

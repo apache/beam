@@ -20,6 +20,8 @@
 This module is experimental. No backwards-compatibility guarantees.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -42,11 +44,11 @@ if TYPE_CHECKING:
 class PipelineGraphRenderer(with_metaclass(abc.ABCMeta, BeamPlugin)):  # type: ignore[misc]
   """Abstract class for renderers, who decide how pipeline graphs are rendered.
   """
-
   @classmethod
   @abc.abstractmethod
   def option(cls):
     # type: () -> str
+
     """The corresponding rendering option for the renderer.
     """
     raise NotImplementedError
@@ -54,6 +56,7 @@ class PipelineGraphRenderer(with_metaclass(abc.ABCMeta, BeamPlugin)):  # type: i
   @abc.abstractmethod
   def render_pipeline_graph(self, pipeline_graph):
     # type: (PipelineGraph) -> str
+
     """Renders the pipeline graph in HTML-compatible format.
 
     Args:
@@ -68,7 +71,6 @@ class PipelineGraphRenderer(with_metaclass(abc.ABCMeta, BeamPlugin)):  # type: i
 class MuteRenderer(PipelineGraphRenderer):
   """Use this renderer to mute the pipeline display.
   """
-
   @classmethod
   def option(cls):
     # type: () -> str
@@ -82,7 +84,6 @@ class MuteRenderer(PipelineGraphRenderer):
 class TextRenderer(PipelineGraphRenderer):
   """This renderer simply returns the dot representation in text format.
   """
-
   @classmethod
   def option(cls):
     # type: () -> str
@@ -100,7 +101,6 @@ class PydotRenderer(PipelineGraphRenderer):
     1. The software Graphviz: https://www.graphviz.org/
     2. The python module pydot: https://pypi.org/project/pydot/
   """
-
   @classmethod
   def option(cls):
     # type: () -> str
@@ -113,6 +113,7 @@ class PydotRenderer(PipelineGraphRenderer):
 
 def get_renderer(option=None):
   # type: (Optional[str]) -> Type[PipelineGraphRenderer]
+
   """Get an instance of PipelineGraphRenderer given rendering option.
 
   Args:
@@ -132,12 +133,13 @@ def get_renderer(option=None):
     else:
       option = 'text'
 
-  renderer = [r for r in PipelineGraphRenderer.get_all_subclasses()
-              if option == r.option()]
+  renderer = [
+      r for r in PipelineGraphRenderer.get_all_subclasses()
+      if option == r.option()
+  ]
   if len(renderer) == 0:
     raise ValueError()
   elif len(renderer) == 1:
     return renderer[0]()
   else:
-    raise ValueError('Found more than one renderer for option: %s',
-                     option)
+    raise ValueError('Found more than one renderer for option: %s', option)

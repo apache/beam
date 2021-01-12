@@ -20,12 +20,15 @@
 # All constants are for internal use only; no backwards-compatibility
 # guarantees.
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 # Standard file names used for staging files.
 from builtins import object
 
-DATAFLOW_SDK_TARBALL_FILE = 'dataflow_python_sdk.tar'
+# Referenced by Dataflow legacy worker.
+from apache_beam.runners.internal.names import PICKLED_MAIN_SESSION_FILE  # pylint: disable=unused-import
 
 # String constants related to sources framework
 SOURCE_FORMAT = 'custom_source'
@@ -38,22 +41,10 @@ SERIALIZED_SOURCE_KEY = 'serialized_source'
 
 # Update this version to the next version whenever there is a change that will
 # require changes to legacy Dataflow worker execution environment.
-BEAM_CONTAINER_VERSION = 'beam-master-20191112'
+BEAM_CONTAINER_VERSION = 'beam-master-20201214'
 # Update this version to the next version whenever there is a change that
 # requires changes to SDK harness container or SDK harness launcher.
-BEAM_FNAPI_CONTAINER_VERSION = 'beam-master-20191112'
-
-# TODO(BEAM-5939): Remove these shared names once Dataflow worker is updated.
-PICKLED_MAIN_SESSION_FILE = 'pickled_main_session'
-STAGED_PIPELINE_FILENAME = 'pipeline.pb'
-STAGED_PIPELINE_URL_METADATA_FIELD = 'pipeline_url'
-
-# Package names for different distributions
-BEAM_PACKAGE_NAME = 'apache-beam'
-
-# SDK identifiers for different distributions
-BEAM_SDK_NAME = 'Apache Beam SDK for Python'
-# TODO(BEAM-5393): End duplicated constants (see above).
+BEAM_FNAPI_CONTAINER_VERSION = 'beam-master-20201214'
 
 DATAFLOW_CONTAINER_IMAGE_REPOSITORY = 'gcr.io/cloud-dataflow/v1beta3'
 
@@ -78,6 +69,8 @@ class PropertyNames(object):
 
   Property strings as they are expected in the CloudWorkflow protos.
   """
+  # If uses_keyed_state, whether the state can be sharded.
+  ALLOWS_SHARDABLE_STATE = 'allows_shardable_state'
   BIGQUERY_CREATE_DISPOSITION = 'create_disposition'
   BIGQUERY_DATASET = 'dataset'
   BIGQUERY_EXPORT_FORMAT = 'bigquery_export_format'
@@ -107,6 +100,9 @@ class PropertyNames(object):
   OUTPUT_NAME = 'output_name'
   PARALLEL_INPUT = 'parallel_input'
   PIPELINE_PROTO_TRANSFORM_ID = 'pipeline_proto_transform_id'
+  # If the input element is a key/value pair, then the output element(s) all
+  # have the same key as the input.
+  PRESERVES_KEYS = 'preserves_keys'
   PUBSUB_ID_LABEL = 'pubsub_id_label'
   PUBSUB_SERIALIZED_ATTRIBUTES_FN = 'pubsub_serialized_attributes_fn'
   PUBSUB_SUBSCRIPTION = 'pubsub_subscription'
@@ -121,6 +117,7 @@ class PropertyNames(object):
   USE_INDEXED_FORMAT = 'use_indexed_format'
   USER_FN = 'user_fn'
   USER_NAME = 'user_name'
+  USES_KEYED_STATE = 'uses_keyed_state'
   VALIDATE_SINK = 'validate_sink'
   VALIDATE_SOURCE = 'validate_source'
   VALUE = 'value'

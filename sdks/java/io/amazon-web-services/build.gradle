@@ -18,8 +18,13 @@ import groovy.json.JsonOutput
  * limitations under the License.
  */
 
-plugins { id 'org.apache.beam.module' }
-applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.io.aws')
+plugins {
+  id 'org.apache.beam.module'
+}
+
+applyJavaNature(
+  automaticModuleName: 'org.apache.beam.sdk.io.aws',
+)
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Amazon Web Services"
 ext.summary = "IO library to read and write Amazon Web Services services from Beam."
@@ -33,22 +38,24 @@ dependencies {
   compile library.java.aws_java_sdk_s3
   compile library.java.aws_java_sdk_sns
   compile library.java.aws_java_sdk_sqs
+  compile library.java.aws_java_sdk_sts
   compile "commons-lang:commons-lang:2.6"
   compile library.java.jackson_core
   compile library.java.jackson_annotations
   compile library.java.jackson_databind
   compile library.java.slf4j_api
-  runtime 'commons-codec:commons-codec:1.9'
-  runtime "org.apache.httpcomponents:httpclient:4.5.6"
+  runtime library.java.commons_codec
+  runtime "org.apache.httpcomponents:httpclient:4.5.12"
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
-  testCompile "io.findify:s3mock_2.12:0.2.4"
+  testCompile "io.findify:s3mock_2.12:0.2.6"
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
   testCompile library.java.mockito_core
   testCompile library.java.junit
-  testCompile 'org.elasticmq:elasticmq-rest-sqs_2.12:0.14.1'
-  testCompile 'org.testcontainers:localstack:1.11.2'
+  testCompile library.java.testcontainers_localstack
+  testCompile "org.assertj:assertj-core:3.11.1"
+  testCompile 'org.elasticmq:elasticmq-rest-sqs_2.12:0.15.6'
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

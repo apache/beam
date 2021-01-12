@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.util;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
 
 import java.util.Arrays;
 import org.apache.beam.sdk.coders.Coder;
@@ -75,6 +75,12 @@ public class WindowedValueTest {
   public void testFullWindowedValueCoderIsSerializableWithWellKnownCoderType() {
     CoderProperties.coderSerializable(
         WindowedValue.getFullCoder(GlobalWindow.Coder.INSTANCE, GlobalWindow.Coder.INSTANCE));
+  }
+
+  @Test
+  public void testParamWindowedValueCoderIsSerializableWithWellKnownCoderType() {
+    CoderProperties.coderSerializable(
+        WindowedValue.getParamWindowedValueCoder(GlobalWindow.Coder.INSTANCE));
   }
 
   @Test

@@ -19,9 +19,11 @@ package org.apache.beam.runners.samza.translation;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import java.util.Map;
+import java.util.Objects;
 import org.apache.beam.runners.samza.SamzaExecutionEnvironment;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.SamzaRunner;
@@ -32,6 +34,8 @@ import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Filter;
+import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.KV;
@@ -46,16 +50,20 @@ import org.apache.samza.job.yarn.YarnJobFactory;
 import org.apache.samza.runtime.LocalApplicationRunner;
 import org.apache.samza.runtime.RemoteApplicationRunner;
 import org.apache.samza.storage.kv.RocksDbKeyValueStorageEngineFactory;
+import org.apache.samza.storage.kv.inmemory.InMemoryKeyValueStorageEngineFactory;
 import org.apache.samza.zk.ZkJobCoordinatorFactory;
 import org.junit.Test;
 
 /** Test config generations for {@link org.apache.beam.runners.samza.SamzaRunner}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ConfigGeneratorTest {
   private static final String APP_RUNNER_CLASS = "app.runner.class";
   private static final String JOB_FACTORY_CLASS = "job.factory.class";
 
   @Test
-  public void testBeamStoreConfig() {
+  public void testStatefulBeamStoreConfig() {
     SamzaPipelineOptions options = PipelineOptionsFactory.create().as(SamzaPipelineOptions.class);
     options.setJobName("TestStoreConfig");
     options.setRunner(SamzaRunner.class);
@@ -73,8 +81,8 @@ public class ConfigGeneratorTest {
     assertEquals(
         RocksDbKeyValueStorageEngineFactory.class.getName(),
         config.get("stores.beamStore.factory"));
-    assertEquals("byteSerde", config.get("stores.beamStore.key.serde"));
-    assertEquals("byteSerde", config.get("stores.beamStore.msg.serde"));
+    assertEquals("byteArraySerde", config.get("stores.beamStore.key.serde"));
+    assertEquals("stateValueSerde", config.get("stores.beamStore.msg.serde"));
     assertNull(config.get("stores.beamStore.changelog"));
 
     options.setStateDurable(true);
@@ -82,6 +90,36 @@ public class ConfigGeneratorTest {
     final Config config2 = configBuilder.build();
     assertEquals(
         "TestStoreConfig-1-beamStore-changelog", config2.get("stores.beamStore.changelog"));
+  }
+
+  @Test
+  public void testStatelessBeamStoreConfig() {
+    SamzaPipelineOptions options = PipelineOptionsFactory.create().as(SamzaPipelineOptions.class);
+    options.setJobName("TestStoreConfig");
+    options.setRunner(SamzaRunner.class);
+
+    Pipeline pipeline = Pipeline.create(options);
+    pipeline.apply(Impulse.create()).apply(Filter.by(Objects::nonNull));
+
+    pipeline.replaceAll(SamzaTransformOverrides.getDefaultOverrides());
+
+    final Map<PValue, String> idMap = PViewToIdMapper.buildIdMap(pipeline);
+    final ConfigBuilder configBuilder = new ConfigBuilder(options);
+    SamzaPipelineTranslator.createConfig(pipeline, options, idMap, configBuilder);
+    final Config config = configBuilder.build();
+
+    assertEquals(
+        InMemoryKeyValueStorageEngineFactory.class.getName(),
+        config.get("stores.beamStore.factory"));
+    assertEquals("byteArraySerde", config.get("stores.beamStore.key.serde"));
+    assertEquals("stateValueSerde", config.get("stores.beamStore.msg.serde"));
+    assertNull(config.get("stores.beamStore.changelog"));
+
+    options.setStateDurable(true);
+    SamzaPipelineTranslator.createConfig(pipeline, options, idMap, configBuilder);
+    final Config config2 = configBuilder.build();
+    // For stateless jobs, ignore state durable pipeline option.
+    assertNull(config2.get("stores.beamStore.changelog"));
   }
 
   @Test
@@ -203,8 +241,8 @@ public class ConfigGeneratorTest {
     assertEquals(
         RocksDbKeyValueStorageEngineFactory.class.getName(),
         config.get("stores.testState.factory"));
-    assertEquals("byteSerde", config.get("stores.testState.key.serde"));
-    assertEquals("byteSerde", config.get("stores.testState.msg.serde"));
+    assertEquals("byteArraySerde", config.get("stores.testState.key.serde"));
+    assertEquals("stateValueSerde", config.get("stores.testState.msg.serde"));
     assertNull(config.get("stores.testState.changelog"));
 
     options.setStateDurable(true);
@@ -212,5 +250,50 @@ public class ConfigGeneratorTest {
     final Config config2 = configBuilder.build();
     assertEquals(
         "TestStoreConfig-1-testState-changelog", config2.get("stores.testState.changelog"));
+  }
+
+  @Test
+  public void testDuplicateStateIdConfig() {
+    SamzaPipelineOptions options = PipelineOptionsFactory.create().as(SamzaPipelineOptions.class);
+    options.setJobName("TestStoreConfig");
+    options.setRunner(SamzaRunner.class);
+
+    Pipeline pipeline = Pipeline.create(options);
+    pipeline
+        .apply(
+            Create.empty(TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.strings())))
+        .apply(
+            ParDo.of(
+                new DoFn<KV<String, String>, KV<String, String>>() {
+                  private static final String testState = "testState";
+
+                  @StateId(testState)
+                  private final StateSpec<ValueState<Integer>> state = StateSpecs.value();
+
+                  @ProcessElement
+                  public void processElement(
+                      ProcessContext context, @StateId(testState) ValueState<Integer> state) {
+                    context.output(context.element());
+                  }
+                }))
+        .apply(
+            ParDo.of(
+                new DoFn<KV<String, String>, Void>() {
+                  private static final String testState = "testState";
+
+                  @StateId(testState)
+                  private final StateSpec<ValueState<Integer>> state = StateSpecs.value();
+
+                  @ProcessElement
+                  public void processElement(
+                      ProcessContext context, @StateId(testState) ValueState<Integer> state) {}
+                }));
+
+    final Map<PValue, String> idMap = PViewToIdMapper.buildIdMap(pipeline);
+    final ConfigBuilder configBuilder = new ConfigBuilder(options);
+
+    assertThrows(
+        IllegalStateException.class,
+        () -> SamzaPipelineTranslator.createConfig(pipeline, options, idMap, configBuilder));
   }
 }

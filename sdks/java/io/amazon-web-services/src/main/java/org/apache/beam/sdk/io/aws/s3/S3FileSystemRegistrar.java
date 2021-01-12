@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import com.google.auto.service.AutoService;
 import javax.annotation.Nonnull;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.FileSystem;
 import org.apache.beam.sdk.io.FileSystemRegistrar;
 import org.apache.beam.sdk.io.aws.options.S3Options;
@@ -30,11 +31,11 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 
 /** {@link AutoService} registrar for the {@link S3FileSystem}. */
 @AutoService(FileSystemRegistrar.class)
-@Experimental(Experimental.Kind.FILESYSTEM)
+@Experimental(Kind.FILESYSTEM)
 public class S3FileSystemRegistrar implements FileSystemRegistrar {
 
   @Override
-  public Iterable<FileSystem> fromOptions(@Nonnull PipelineOptions options) {
+  public Iterable<FileSystem<?>> fromOptions(@Nonnull PipelineOptions options) {
     checkNotNull(options, "Expect the runner have called FileSystems.setDefaultPipelineOptions().");
     return ImmutableList.of(new S3FileSystem(options.as(S3Options.class)));
   }

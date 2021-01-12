@@ -19,12 +19,14 @@ package org.apache.beam.runners.core.construction;
 
 import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
 import java.util.Set;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardCoders;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 
 /** Utilities and constants ot interact with coders that are part of the Beam Model. */
@@ -53,8 +55,20 @@ public class ModelCoders {
       getUrn(StandardCoders.Enum.INTERVAL_WINDOW);
 
   public static final String WINDOWED_VALUE_CODER_URN = getUrn(StandardCoders.Enum.WINDOWED_VALUE);
+  public static final String PARAM_WINDOWED_VALUE_CODER_URN =
+      getUrn(StandardCoders.Enum.PARAM_WINDOWED_VALUE);
 
   public static final String ROW_CODER_URN = getUrn(StandardCoders.Enum.ROW);
+
+  public static final String STATE_BACKED_ITERABLE_CODER_URN =
+      "beam:coder:state_backed_iterable:v1";
+
+  public static final String SHARDED_KEY_CODER_URN = getUrn(StandardCoders.Enum.SHARDED_KEY);
+
+  static {
+    checkState(
+        STATE_BACKED_ITERABLE_CODER_URN.equals(getUrn(StandardCoders.Enum.STATE_BACKED_ITERABLE)));
+  }
 
   private static final Set<String> MODEL_CODER_URNS =
       ImmutableSet.of(
@@ -70,7 +84,10 @@ public class ModelCoders {
           INTERVAL_WINDOW_CODER_URN,
           WINDOWED_VALUE_CODER_URN,
           DOUBLE_CODER_URN,
-          ROW_CODER_URN);
+          ROW_CODER_URN,
+          PARAM_WINDOWED_VALUE_CODER_URN,
+          STATE_BACKED_ITERABLE_CODER_URN,
+          SHARDED_KEY_CODER_URN);
 
   public static Set<String> urns() {
     return MODEL_CODER_URNS;
@@ -90,6 +107,18 @@ public class ModelCoders {
         .build();
   }
 
+  public static Coder paramWindowedValueCoder(
+      String elementCoderId, String windowCoderId, byte[] payload) {
+    return Coder.newBuilder()
+        .setSpec(
+            FunctionSpec.newBuilder()
+                .setUrn(PARAM_WINDOWED_VALUE_CODER_URN)
+                .setPayload(ByteString.copyFrom(payload)))
+        .addComponentCoderIds(elementCoderId)
+        .addComponentCoderIds(windowCoderId)
+        .build();
+  }
+
   /** Components of a Windowed Value {@link Coder} with names. */
   @AutoValue
   public abstract static class WindowedValueCoderComponents {
@@ -99,7 +128,11 @@ public class ModelCoders {
   }
 
   public static KvCoderComponents getKvCoderComponents(Coder coder) {
-    checkArgument(KV_CODER_URN.equals(coder.getSpec().getUrn()));
+    checkArgument(
+        KV_CODER_URN.equals(coder.getSpec().getUrn()),
+        "Provided coder %s is not of type %s",
+        coder.getSpec().getUrn(),
+        KV_CODER_URN);
     return new AutoValue_ModelCoders_KvCoderComponents(
         coder.getComponentCoderIds(0), coder.getComponentCoderIds(1));
   }

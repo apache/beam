@@ -23,14 +23,17 @@ import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.Job;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A wrapper to allow Hadoop {@link Configuration}s to be serialized using Java's standard
  * serialization mechanisms.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SerializableConfiguration implements Externalizable {
   private static final long serialVersionUID = 0L;
 
@@ -81,6 +84,17 @@ public class SerializableConfiguration implements Externalizable {
       }
       return job;
     }
+  }
+
+  /** Returns a new configuration instance using provided flags. */
+  public static SerializableConfiguration fromMap(Map<String, String> entries) {
+    Configuration hadoopConfiguration = new Configuration();
+
+    for (Map.Entry<String, String> entry : entries.entrySet()) {
+      hadoopConfiguration.set(entry.getKey(), entry.getValue());
+    }
+
+    return new SerializableConfiguration(hadoopConfiguration);
   }
 
   /** Returns new populated {@link Configuration} object. */

@@ -17,9 +17,12 @@
  */
 package org.apache.beam.sdk.testing;
 
+import org.apache.beam.sdk.annotations.Internal;
+
 /**
  * Subcategory for {@link UsesTestStream} tests which use {@link TestStream} # across multiple
  * stages. Some Runners do not properly support quiescence in a way that {@link TestStream} demands
  * it.
  */
+@Internal
 public interface UsesTestStreamWithMultipleStages extends UsesTestStream {}

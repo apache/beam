@@ -17,9 +17,10 @@
 
 """Unit tests for BigQuery file loads utilities."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
-import json
 import logging
 import os
 import random
@@ -32,9 +33,10 @@ from hamcrest.core import assert_that as hamcrest_assert
 from hamcrest.core.core.allof import all_of
 from hamcrest.core.core.is_ import is_
 from nose.plugins.attrib import attr
+from parameterized import param
+from parameterized import parameterized
 
 import apache_beam as beam
-from apache_beam import coders
 from apache_beam.io.filebasedsink_test import _TestCaseWithTempDirCleanUp
 from apache_beam.io.gcp import bigquery_file_loads as bqfl
 from apache_beam.io.gcp import bigquery
@@ -55,63 +57,67 @@ from apache_beam.typehints.typehints import Tuple
 try:
   from apitools.base.py.exceptions import HttpError
 except ImportError:
-  HttpError = None
-
+  raise unittest.SkipTest('GCP dependencies are not installed')
 
 _LOGGER = logging.getLogger(__name__)
 
 _DESTINATION_ELEMENT_PAIRS = [
     # DESTINATION 1
-    ('project1:dataset1.table1', '{"name":"beam", "language":"py"}'),
-    ('project1:dataset1.table1', '{"name":"beam", "language":"java"}'),
-    ('project1:dataset1.table1', '{"name":"beam", "language":"go"}'),
-    ('project1:dataset1.table1', '{"name":"flink", "language":"java"}'),
-    ('project1:dataset1.table1', '{"name":"flink", "language":"scala"}'),
+    ('project1:dataset1.table1', {
+        'name': 'beam', 'language': 'py'
+    }),
+    ('project1:dataset1.table1', {
+        'name': 'beam', 'language': 'java'
+    }),
+    ('project1:dataset1.table1', {
+        'name': 'beam', 'language': 'go'
+    }),
+    ('project1:dataset1.table1', {
+        'name': 'flink', 'language': 'java'
+    }),
+    ('project1:dataset1.table1', {
+        'name': 'flink', 'language': 'scala'
+    }),
 
     # DESTINATION 3
-    ('project1:dataset1.table3', '{"name":"spark", "language":"scala"}'),
+    ('project1:dataset1.table3', {
+        'name': 'spark', 'language': 'scala'
+    }),
 
     # DESTINATION 1
-    ('project1:dataset1.table1', '{"name":"spark", "language":"py"}'),
-    ('project1:dataset1.table1', '{"name":"spark", "language":"scala"}'),
+    ('project1:dataset1.table1', {
+        'name': 'spark', 'language': 'py'
+    }),
+    ('project1:dataset1.table1', {
+        'name': 'spark', 'language': 'scala'
+    }),
 
     # DESTINATION 2
-    ('project1:dataset1.table2', '{"name":"beam", "foundation":"apache"}'),
-    ('project1:dataset1.table2', '{"name":"flink", "foundation":"apache"}'),
-    ('project1:dataset1.table2', '{"name":"spark", "foundation":"apache"}'),
+    ('project1:dataset1.table2', {
+        'name': 'beam', 'foundation': 'apache'
+    }),
+    ('project1:dataset1.table2', {
+        'name': 'flink', 'foundation': 'apache'
+    }),
+    ('project1:dataset1.table2', {
+        'name': 'spark', 'foundation': 'apache'
+    }),
 ]
 
-_NAME_LANGUAGE_ELEMENTS = [
-    json.loads(elm[1])
-    for elm in _DESTINATION_ELEMENT_PAIRS if "language" in elm[1]
-]
+_DISTINCT_DESTINATIONS = list({elm[0] for elm in _DESTINATION_ELEMENT_PAIRS})
+
+_ELEMENTS = [elm[1] for elm in _DESTINATION_ELEMENT_PAIRS]
+
+_ELEMENTS_SCHEMA = bigquery.WriteToBigQuery.get_dict_table_schema(
+    bigquery_api.TableSchema(
+        fields=[
+            bigquery_api.TableFieldSchema(
+                name="name", type="STRING", mode="REQUIRED"),
+            bigquery_api.TableFieldSchema(name="language", type="STRING"),
+            bigquery_api.TableFieldSchema(name="foundation", type="STRING"),
+        ]))
 
 
-_DISTINCT_DESTINATIONS = list(
-    set([elm[0] for elm in _DESTINATION_ELEMENT_PAIRS]))
-
-
-_ELEMENTS = list([json.loads(elm[1]) for elm in _DESTINATION_ELEMENT_PAIRS])
-
-
-class CustomRowCoder(coders.Coder):
-  """
-  Custom row coder that also expects strings as input data when encoding
-  """
-
-  def __init__(self):
-    self.coder = bigquery_tools.RowAsDictJsonCoder()
-
-  def encode(self, table_row):
-    if type(table_row) == str:
-      table_row = json.loads(table_row)
-    return self.coder.encode(table_row)
-
-  def decode(self, encoded_table_row):
-    return self.coder.decode(encoded_table_row)
-
-
-@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestWriteRecordsToFile(_TestCaseWithTempDirCleanUp):
   maxDiff = None
 
@@ -123,16 +129,22 @@ class TestWriteRecordsToFile(_TestCaseWithTempDirCleanUp):
       output_pcs = (
           p
           | beam.Create(_DESTINATION_ELEMENT_PAIRS, reshuffle=False)
-          | beam.ParDo(fn, self.tmpdir)
-          .with_outputs(fn.WRITTEN_FILE_TAG, fn.UNWRITTEN_RECORD_TAG))
+          | beam.ParDo(fn, self.tmpdir).with_outputs(
+              fn.WRITTEN_FILE_TAG, fn.UNWRITTEN_RECORD_TAG))
 
       checks(output_pcs)
       return output_pcs
 
-  def test_files_created(self):
+  @parameterized.expand([
+      param(file_format=bigquery_tools.FileFormat.AVRO),
+      param(file_format=bigquery_tools.FileFormat.JSON),
+      param(file_format=None),
+  ])
+  def test_files_created(self, file_format):
     """Test that the files are created and written."""
 
-    fn = bqfl.WriteRecordsToFile(coder=CustomRowCoder())
+    fn = bqfl.WriteRecordsToFile(
+        schema=_ELEMENTS_SCHEMA, file_format=file_format)
     self.tmpdir = self._new_tempdir()
 
     def check_files_created(output_pcs):
@@ -147,10 +159,12 @@ class TestWriteRecordsToFile(_TestCaseWithTempDirCleanUp):
 
       destinations = (
           dest_file_pc
-          | "GetDests" >> beam.Map(
-              lambda x: bigquery_tools.get_hashable_destination(x[0])))
-      assert_that(destinations, equal_to(list(_DISTINCT_DESTINATIONS)),
-                  label='check destinations ')
+          | "GetDests" >>
+          beam.Map(lambda x: bigquery_tools.get_hashable_destination(x[0])))
+      assert_that(
+          destinations,
+          equal_to(list(_DISTINCT_DESTINATIONS)),
+          label='check destinations ')
 
     self._consume_input(fn, check_files_created)
 
@@ -161,26 +175,26 @@ class TestWriteRecordsToFile(_TestCaseWithTempDirCleanUp):
     file length is very small, so only a couple records fit in each file.
     """
 
-    fn = bqfl.WriteRecordsToFile(max_file_size=50, coder=CustomRowCoder())
+    fn = bqfl.WriteRecordsToFile(schema=_ELEMENTS_SCHEMA, max_file_size=50)
     self.tmpdir = self._new_tempdir()
 
     def check_many_files(output_pcs):
       dest_file_pc = output_pcs[bqfl.WriteRecordsToFile.WRITTEN_FILE_TAG]
 
-      files_per_dest = (dest_file_pc
-                        | beam.Map(lambda x: x).with_output_types(
-                            beam.typehints.KV[str, Tuple[str, int]])
-                        | combiners.Count.PerKey())
+      files_per_dest = (
+          dest_file_pc
+          | beam.Map(lambda x: x).with_output_types(
+              beam.typehints.KV[str, Tuple[str, int]])
+          | combiners.Count.PerKey())
       files_per_dest = (
           files_per_dest
           | "GetDests" >> beam.Map(
-              lambda x: (bigquery_tools.get_hashable_destination(x[0]),
-                         x[1]))
-      )
-      assert_that(files_per_dest,
-                  equal_to([('project1:dataset1.table1', 4),
-                            ('project1:dataset1.table2', 2),
-                            ('project1:dataset1.table3', 1)]))
+              lambda x: (bigquery_tools.get_hashable_destination(x[0]), x[1])))
+      assert_that(
+          files_per_dest,
+          equal_to([('project1:dataset1.table1', 4),
+                    ('project1:dataset1.table2', 2),
+                    ('project1:dataset1.table3', 1)]))
 
       # Check that the files exist
       _ = dest_file_pc | beam.Map(lambda x: x[1][0]) | beam.Map(
@@ -188,7 +202,11 @@ class TestWriteRecordsToFile(_TestCaseWithTempDirCleanUp):
 
     self._consume_input(fn, check_many_files)
 
-  def test_records_are_spilled(self):
+  @parameterized.expand([
+      param(file_format=bigquery_tools.FileFormat.AVRO),
+      param(file_format=bigquery_tools.FileFormat.JSON),
+  ])
+  def test_records_are_spilled(self, file_format):
     """Forces records to be written to many files.
 
     For each destination multiple files are necessary, and at most two files
@@ -196,8 +214,10 @@ class TestWriteRecordsToFile(_TestCaseWithTempDirCleanUp):
     processing.
     """
 
-    fn = bqfl.WriteRecordsToFile(max_files_per_bundle=2,
-                                 coder=CustomRowCoder())
+    fn = bqfl.WriteRecordsToFile(
+        schema=_ELEMENTS_SCHEMA,
+        max_files_per_bundle=2,
+        file_format=file_format)
     self.tmpdir = self._new_tempdir()
 
     def check_many_files(output_pcs):
@@ -205,25 +225,25 @@ class TestWriteRecordsToFile(_TestCaseWithTempDirCleanUp):
       spilled_records_pc = output_pcs[
           bqfl.WriteRecordsToFile.UNWRITTEN_RECORD_TAG]
 
-      spilled_records_count = (spilled_records_pc |
-                               combiners.Count.Globally())
+      spilled_records_count = (spilled_records_pc | combiners.Count.Globally())
       assert_that(spilled_records_count, equal_to([3]), label='spilled count')
 
-      files_per_dest = (dest_file_pc
-                        | beam.Map(lambda x: x).with_output_types(
-                            beam.typehints.KV[str, Tuple[str, int]])
-                        | combiners.Count.PerKey())
+      files_per_dest = (
+          dest_file_pc
+          | beam.Map(lambda x: x).with_output_types(
+              beam.typehints.KV[str, Tuple[str, int]])
+          | combiners.Count.PerKey())
       files_per_dest = (
           files_per_dest
           | "GetDests" >> beam.Map(
-              lambda x: (bigquery_tools.get_hashable_destination(x[0]),
-                         x[1])))
+              lambda x: (bigquery_tools.get_hashable_destination(x[0]), x[1])))
 
       # Only table1 and table3 get files. table2 records get spilled.
-      assert_that(files_per_dest,
-                  equal_to([('project1:dataset1.table1', 1),
-                            ('project1:dataset1.table3', 1)]),
-                  label='file count')
+      assert_that(
+          files_per_dest,
+          equal_to([('project1:dataset1.table1', 1),
+                    ('project1:dataset1.table3', 1)]),
+          label='file count')
 
       # Check that the files exist
       _ = dest_file_pc | beam.Map(lambda x: x[1][0]) | beam.Map(
@@ -232,26 +252,31 @@ class TestWriteRecordsToFile(_TestCaseWithTempDirCleanUp):
     self._consume_input(fn, check_many_files)
 
 
-@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestWriteGroupedRecordsToFile(_TestCaseWithTempDirCleanUp):
-
   def _consume_input(self, fn, input, checks):
     if checks is None:
       return
 
     with TestPipeline() as p:
-      res = (p
-             | beam.Create(input)
-             | beam.GroupByKey()
-             | beam.ParDo(fn, self.tmpdir))
+      res = (
+          p
+          | beam.Create(input)
+          | beam.GroupByKey()
+          | beam.ParDo(fn, self.tmpdir))
 
       checks(res)
       return res
 
-  def test_files_are_created(self):
+  @parameterized.expand([
+      param(file_format=bigquery_tools.FileFormat.AVRO),
+      param(file_format=bigquery_tools.FileFormat.JSON),
+      param(file_format=None),
+  ])
+  def test_files_are_created(self, file_format):
     """Test that the files are created and written."""
 
-    fn = bqfl.WriteGroupedRecordsToFile(coder=CustomRowCoder())
+    fn = bqfl.WriteGroupedRecordsToFile(
+        schema=_ELEMENTS_SCHEMA, file_format=file_format)
     self.tmpdir = self._new_tempdir()
 
     def check_files_created(output_pc):
@@ -264,13 +289,14 @@ class TestWriteGroupedRecordsToFile(_TestCaseWithTempDirCleanUp):
 
       destinations = (
           output_pc
-          | "GetDests" >> beam.Map(
-              lambda x: bigquery_tools.get_hashable_destination(x[0])))
-      assert_that(destinations, equal_to(list(_DISTINCT_DESTINATIONS)),
-                  label='check destinations ')
+          | "GetDests" >>
+          beam.Map(lambda x: bigquery_tools.get_hashable_destination(x[0])))
+      assert_that(
+          destinations,
+          equal_to(list(_DISTINCT_DESTINATIONS)),
+          label='check destinations ')
 
-    self._consume_input(
-        fn, _DESTINATION_ELEMENT_PAIRS, check_files_created)
+    self._consume_input(fn, _DESTINATION_ELEMENT_PAIRS, check_files_created)
 
   def test_multiple_files(self):
     """Forces records to be written to many files.
@@ -278,8 +304,8 @@ class TestWriteGroupedRecordsToFile(_TestCaseWithTempDirCleanUp):
     For each destination multiple files are necessary. This is because the max
     file length is very small, so only a couple records fit in each file.
     """
-    fn = bqfl.WriteGroupedRecordsToFile(max_file_size=50,
-                                        coder=CustomRowCoder())
+    fn = bqfl.WriteGroupedRecordsToFile(
+        schema=_ELEMENTS_SCHEMA, max_file_size=50)
     self.tmpdir = self._new_tempdir()
 
     def check_multiple_files(output_pc):
@@ -287,12 +313,14 @@ class TestWriteGroupedRecordsToFile(_TestCaseWithTempDirCleanUp):
       files_per_dest = (
           files_per_dest
           | "GetDests" >> beam.Map(
-              lambda x: (bigquery_tools.get_hashable_destination(x[0]),
-                         x[1])))
-      assert_that(files_per_dest,
-                  equal_to([('project1:dataset1.table1', 4),
-                            ('project1:dataset1.table2', 2),
-                            ('project1:dataset1.table3', 1), ]))
+              lambda x: (bigquery_tools.get_hashable_destination(x[0]), x[1])))
+      assert_that(
+          files_per_dest,
+          equal_to([
+              ('project1:dataset1.table1', 4),
+              ('project1:dataset1.table2', 2),
+              ('project1:dataset1.table3', 1),
+          ]))
 
       # Check that the files exist
       _ = output_pc | beam.Map(lambda x: x[1][0]) | beam.Map(os.path.exists)
@@ -300,11 +328,11 @@ class TestWriteGroupedRecordsToFile(_TestCaseWithTempDirCleanUp):
     self._consume_input(fn, _DESTINATION_ELEMENT_PAIRS, check_multiple_files)
 
 
-@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestPartitionFiles(unittest.TestCase):
 
-  _ELEMENTS = [('destination0', [('file0', 50), ('file1', 50),
-                                 ('file2', 50), ('file3', 50)]),
+  _ELEMENTS = [(
+      'destination0', [('file0', 50), ('file1', 50), ('file2', 50),
+                       ('file3', 50)]),
                ('destination1', [('file0', 50), ('file1', 50)])]
 
   def test_partition(self):
@@ -328,18 +356,22 @@ class TestPartitionFiles(unittest.TestCase):
       destination_file_pairs = p | beam.Create(self._ELEMENTS, reshuffle=False)
       partitioned_files = (
           destination_file_pairs
-          | beam.ParDo(bqfl.PartitionFiles(1000, 2))
-          .with_outputs(bqfl.PartitionFiles.MULTIPLE_PARTITIONS_TAG,
-                        bqfl.PartitionFiles.SINGLE_PARTITION_TAG))
+          | beam.ParDo(bqfl.PartitionFiles(1000, 2)).with_outputs(
+              bqfl.PartitionFiles.MULTIPLE_PARTITIONS_TAG,
+              bqfl.PartitionFiles.SINGLE_PARTITION_TAG))
       multiple_partitions = partitioned_files[bqfl.PartitionFiles\
                                               .MULTIPLE_PARTITIONS_TAG]
       single_partition = partitioned_files[bqfl.PartitionFiles\
                                            .SINGLE_PARTITION_TAG]
 
-    assert_that(multiple_partitions, equal_to(multiple_partitions_result),
-                label='CheckMultiplePartitions')
-    assert_that(single_partition, equal_to(single_partition_result),
-                label='CheckSinglePartition')
+    assert_that(
+        multiple_partitions,
+        equal_to(multiple_partitions_result),
+        label='CheckMultiplePartitions')
+    assert_that(
+        single_partition,
+        equal_to(single_partition_result),
+        label='CheckSinglePartition')
 
   def test_partition_files_dofn_size_split(self):
     """Force partitions to split based on max_partition_size"""
@@ -350,23 +382,25 @@ class TestPartitionFiles(unittest.TestCase):
       destination_file_pairs = p | beam.Create(self._ELEMENTS, reshuffle=False)
       partitioned_files = (
           destination_file_pairs
-          | beam.ParDo(bqfl.PartitionFiles(150, 10))
-          .with_outputs(bqfl.PartitionFiles.MULTIPLE_PARTITIONS_TAG,
-                        bqfl.PartitionFiles.SINGLE_PARTITION_TAG))
+          | beam.ParDo(bqfl.PartitionFiles(150, 10)).with_outputs(
+              bqfl.PartitionFiles.MULTIPLE_PARTITIONS_TAG,
+              bqfl.PartitionFiles.SINGLE_PARTITION_TAG))
       multiple_partitions = partitioned_files[bqfl.PartitionFiles\
                                               .MULTIPLE_PARTITIONS_TAG]
       single_partition = partitioned_files[bqfl.PartitionFiles\
                                            .SINGLE_PARTITION_TAG]
 
-    assert_that(multiple_partitions, equal_to(multiple_partitions_result),
-                label='CheckMultiplePartitions')
-    assert_that(single_partition, equal_to(single_partition_result),
-                label='CheckSinglePartition')
+    assert_that(
+        multiple_partitions,
+        equal_to(multiple_partitions_result),
+        label='CheckMultiplePartitions')
+    assert_that(
+        single_partition,
+        equal_to(single_partition_result),
+        label='CheckSinglePartition')
 
 
-@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
-
   def test_records_traverse_transform_with_mocks(self):
     destination = 'project1:dataset1.table1'
 
@@ -391,7 +425,7 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
         custom_gcs_temp_location=self._new_tempdir(),
         test_client=bq_client,
         validate=False,
-        coder=CustomRowCoder())
+        temp_file_format=bigquery_tools.FileFormat.JSON)
 
     # Need to test this with the DirectRunner to avoid serializing mocks
     with TestPipeline('DirectRunner') as p:
@@ -406,33 +440,28 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
       destinations = (
           dest_files
           | "GetDests" >> beam.Map(
-              lambda x: (
-                  bigquery_tools.get_hashable_destination(x[0]), x[1]))
+              lambda x: (bigquery_tools.get_hashable_destination(x[0]), x[1]))
           | "GetUniques" >> combiners.Count.PerKey()
-          | "GetFinalDests" >>beam.Keys())
+          | "GetFinalDests" >> beam.Keys())
 
       # All files exist
-      _ = (files | beam.Map(
-          lambda x: hamcrest_assert(os.path.exists(x), is_(True))))
+      _ = (
+          files
+          | beam.Map(lambda x: hamcrest_assert(os.path.exists(x), is_(True))))
 
       # One file per destination
-      assert_that(files | combiners.Count.Globally(),
-                  equal_to([1]),
-                  label='CountFiles')
+      assert_that(
+          files | combiners.Count.Globally(), equal_to([1]), label='CountFiles')
 
-      assert_that(destinations,
-                  equal_to([destination]),
-                  label='CheckDestinations')
+      assert_that(
+          destinations, equal_to([destination]), label='CheckDestinations')
 
-      assert_that(jobs,
-                  equal_to([job_reference]), label='CheckJobs')
+      assert_that(jobs, equal_to([job_reference]), label='CheckJobs')
 
-  @unittest.skipIf(sys.version_info[0] == 2,
-                   'Mock pickling problems in Py 2')
+  @unittest.skipIf(sys.version_info[0] == 2, 'Mock pickling problems in Py 2')
   @mock.patch('time.sleep')
   def test_wait_for_job_completion(self, sleep_mock):
-    job_references = [bigquery_api.JobReference(),
-                      bigquery_api.JobReference()]
+    job_references = [bigquery_api.JobReference(), bigquery_api.JobReference()]
     job_references[0].projectId = 'project1'
     job_references[0].jobId = 'jobId1'
     job_references[1].projectId = 'project1'
@@ -450,10 +479,8 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
 
     bq_client = mock.Mock()
     bq_client.jobs.Get.side_effect = [
-        job_1_waiting,
-        job_2_done,
-        job_1_done,
-        job_2_done]
+        job_1_waiting, job_2_done, job_1_done, job_2_done
+    ]
 
     waiting_dofn = bqfl.WaitForBQJobs(bq_client)
 
@@ -461,21 +488,16 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
 
     with TestPipeline('DirectRunner') as p:
       references = beam.pvalue.AsList(p | 'job_ref' >> beam.Create(dest_list))
-      outputs = (p
-                 | beam.Create([''])
-                 | beam.ParDo(waiting_dofn, references))
+      outputs = (p | beam.Create(['']) | beam.ParDo(waiting_dofn, references))
 
-      assert_that(outputs,
-                  equal_to(dest_list))
+      assert_that(outputs, equal_to(dest_list))
 
     sleep_mock.assert_called_once()
 
-  @unittest.skipIf(sys.version_info[0] == 2,
-                   'Mock pickling problems in Py 2')
+  @unittest.skipIf(sys.version_info[0] == 2, 'Mock pickling problems in Py 2')
   @mock.patch('time.sleep')
   def test_one_job_failed_after_waiting(self, sleep_mock):
-    job_references = [bigquery_api.JobReference(),
-                      bigquery_api.JobReference()]
+    job_references = [bigquery_api.JobReference(), bigquery_api.JobReference()]
     job_references[0].projectId = 'project1'
     job_references[0].jobId = 'jobId1'
     job_references[1].projectId = 'project1'
@@ -493,10 +515,8 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
 
     bq_client = mock.Mock()
     bq_client.jobs.Get.side_effect = [
-        job_1_waiting,
-        job_2_done,
-        job_1_error,
-        job_2_done]
+        job_1_waiting, job_2_done, job_1_error, job_2_done
+    ]
 
     waiting_dofn = bqfl.WaitForBQJobs(bq_client)
 
@@ -505,9 +525,7 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
     with self.assertRaises(Exception):
       with TestPipeline('DirectRunner') as p:
         references = beam.pvalue.AsList(p | 'job_ref' >> beam.Create(dest_list))
-        _ = (p
-             | beam.Create([''])
-             | beam.ParDo(waiting_dofn, references))
+        _ = (p | beam.Create(['']) | beam.ParDo(waiting_dofn, references))
 
     sleep_mock.assert_called_once()
 
@@ -532,20 +550,20 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
     bq_client.tables.Delete.return_value = None
 
     with TestPipeline('DirectRunner') as p:
-      outputs = (p
-                 | beam.Create(_ELEMENTS, reshuffle=False)
-                 | bqfl.BigQueryBatchFileLoads(
-                     destination,
-                     custom_gcs_temp_location=self._new_tempdir(),
-                     test_client=bq_client,
-                     validate=False,
-                     coder=CustomRowCoder(),
-                     max_file_size=45,
-                     max_partition_size=80,
-                     max_files_per_partition=2))
+      outputs = (
+          p
+          | beam.Create(_ELEMENTS, reshuffle=False)
+          | bqfl.BigQueryBatchFileLoads(
+              destination,
+              custom_gcs_temp_location=self._new_tempdir(),
+              test_client=bq_client,
+              validate=False,
+              temp_file_format=bigquery_tools.FileFormat.JSON,
+              max_file_size=45,
+              max_partition_size=80,
+              max_files_per_partition=2))
 
-      dest_files = outputs[
-          bqfl.BigQueryBatchFileLoads.DESTINATION_FILE_PAIRS]
+      dest_files = outputs[bqfl.BigQueryBatchFileLoads.DESTINATION_FILE_PAIRS]
       dest_load_jobs = outputs[
           bqfl.BigQueryBatchFileLoads.DESTINATION_JOBID_PAIRS]
       dest_copy_jobs = outputs[
@@ -558,61 +576,65 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
       destinations = (
           dest_files
           | "GetDests" >> beam.Map(
-              lambda x: (
-                  bigquery_tools.get_hashable_destination(x[0]), x[1]))
+              lambda x: (bigquery_tools.get_hashable_destination(x[0]), x[1]))
           | "GetUniques" >> combiners.Count.PerKey()
-          | "GetFinalDests" >>beam.Keys())
+          | "GetFinalDests" >> beam.Keys())
 
       # All files exist
-      _ = (files | beam.Map(
-          lambda x: hamcrest_assert(os.path.exists(x), is_(True))))
+      _ = (
+          files
+          | beam.Map(lambda x: hamcrest_assert(os.path.exists(x), is_(True))))
 
       # One file per destination
-      assert_that(files | "CountFiles" >> combiners.Count.Globally(),
-                  equal_to([6]),
-                  label='CheckFileCount')
+      assert_that(
+          files | "CountFiles" >> combiners.Count.Globally(),
+          equal_to([6]),
+          label='CheckFileCount')
 
-      assert_that(destinations,
-                  equal_to([destination]),
-                  label='CheckDestinations')
+      assert_that(
+          destinations, equal_to([destination]), label='CheckDestinations')
 
-      assert_that(load_jobs | "CountLoadJobs" >> combiners.Count.Globally(),
-                  equal_to([6]), label='CheckLoadJobCount')
-      assert_that(copy_jobs | "CountCopyJobs" >> combiners.Count.Globally(),
-                  equal_to([6]), label='CheckCopyJobCount')
+      assert_that(
+          load_jobs | "CountLoadJobs" >> combiners.Count.Globally(),
+          equal_to([6]),
+          label='CheckLoadJobCount')
+      assert_that(
+          copy_jobs | "CountCopyJobs" >> combiners.Count.Globally(),
+          equal_to([6]),
+          label='CheckCopyJobCount')
 
 
-@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class BigQueryFileLoadsIT(unittest.TestCase):
 
   BIG_QUERY_DATASET_ID = 'python_bq_file_loads_'
   BIG_QUERY_SCHEMA = (
       '{"fields": [{"name": "name","type": "STRING"},'
-      '{"name": "language","type": "STRING"}]}'
-  )
+      '{"name": "language","type": "STRING"}]}')
 
   BIG_QUERY_SCHEMA_2 = (
       '{"fields": [{"name": "name","type": "STRING"},'
-      '{"name": "foundation","type": "STRING"}]}'
-  )
+      '{"name": "foundation","type": "STRING"}]}')
 
-  BIG_QUERY_STREAMING_SCHEMA = (
-      {'fields': [{'name': 'Integr', 'type': 'INTEGER', 'mode': 'NULLABLE'}]}
-  )
+  BIG_QUERY_STREAMING_SCHEMA = ({
+      'fields': [{
+          'name': 'Integr', 'type': 'INTEGER', 'mode': 'NULLABLE'
+      }]
+  })
 
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
     self.runner_name = type(self.test_pipeline.runner).__name__
     self.project = self.test_pipeline.get_option('project')
 
-    self.dataset_id = '%s%s%d' % (self.BIG_QUERY_DATASET_ID,
-                                  str(int(time.time())),
-                                  random.randint(0, 10000))
+    self.dataset_id = '%s%s%d' % (
+        self.BIG_QUERY_DATASET_ID,
+        str(int(time.time())),
+        random.randint(0, 10000))
     self.bigquery_client = bigquery_tools.BigQueryWrapper()
     self.bigquery_client.get_or_create_dataset(self.project, self.dataset_id)
     self.output_table = "%s.output_table" % (self.dataset_id)
-    _LOGGER.info("Created dataset %s in project %s",
-                 self.dataset_id, self.project)
+    _LOGGER.info(
+        "Created dataset %s in project %s", self.dataset_id, self.project)
 
   @attr('IT')
   def test_multiple_destinations_transform(self):
@@ -625,39 +647,33 @@ class BigQueryFileLoadsIT(unittest.TestCase):
     schema2 = bigquery.WriteToBigQuery.get_dict_table_schema(
         bigquery_tools.parse_table_schema_from_json(self.BIG_QUERY_SCHEMA_2))
 
-    schema_kv_pairs = [(output_table_1, schema1),
-                       (output_table_2, schema2),
-                       (output_table_3, schema1),
-                       (output_table_4, schema2)]
+    schema_kv_pairs = [(output_table_1, schema1), (output_table_2, schema2),
+                       (output_table_3, schema1), (output_table_4, schema2)]
     pipeline_verifiers = [
         BigqueryFullResultMatcher(
             project=self.project,
             query="SELECT name, language FROM %s" % output_table_1,
-            data=[(d['name'], d['language'])
-                  for d in _ELEMENTS
+            data=[(d['name'], d['language']) for d in _ELEMENTS
                   if 'language' in d]),
         BigqueryFullResultMatcher(
             project=self.project,
             query="SELECT name, foundation FROM %s" % output_table_2,
-            data=[(d['name'], d['foundation'])
-                  for d in _ELEMENTS
+            data=[(d['name'], d['foundation']) for d in _ELEMENTS
                   if 'foundation' in d]),
         BigqueryFullResultMatcher(
             project=self.project,
             query="SELECT name, language FROM %s" % output_table_3,
-            data=[(d['name'], d['language'])
-                  for d in _ELEMENTS
+            data=[(d['name'], d['language']) for d in _ELEMENTS
                   if 'language' in d]),
         BigqueryFullResultMatcher(
             project=self.project,
             query="SELECT name, foundation FROM %s" % output_table_4,
-            data=[(d['name'], d['foundation'])
-                  for d in _ELEMENTS
-                  if 'foundation' in d])]
+            data=[(d['name'], d['foundation']) for d in _ELEMENTS
+                  if 'foundation' in d])
+    ]
 
     args = self.test_pipeline.get_full_options_as_args(
-        on_success_matcher=all_of(*pipeline_verifiers),
-        experiments='use_beam_bq_sink')
+        on_success_matcher=all_of(*pipeline_verifiers))
 
     with beam.Pipeline(argv=args) as p:
       input = p | beam.Create(_ELEMENTS, reshuffle=False)
@@ -670,33 +686,35 @@ class BigQueryFileLoadsIT(unittest.TestCase):
                                            ('table2', output_table_2)]))
 
       # Get all input in same machine
-      input = (input
-               | beam.Map(lambda x: (None, x))
-               | beam.GroupByKey()
-               | beam.FlatMap(lambda elm: elm[1]))
+      input = (
+          input
+          | beam.Map(lambda x: (None, x))
+          | beam.GroupByKey()
+          | beam.FlatMap(lambda elm: elm[1]))
 
-      _ = (input |
-           "WriteWithMultipleDestsFreely" >> bigquery.WriteToBigQuery(
-               table=lambda x, tables: (tables['table1']
-                                        if 'language' in x
-                                        else tables['table2']),
-               table_side_inputs=(table_record_pcv,),
-               schema=lambda dest, schema_map: schema_map.get(dest, None),
-               schema_side_inputs=(schema_map_pcv,),
-               create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-               write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY))
+      _ = (
+          input | "WriteWithMultipleDestsFreely" >> bigquery.WriteToBigQuery(
+              table=lambda x,
+              tables:
+              (tables['table1'] if 'language' in x else tables['table2']),
+              table_side_inputs=(table_record_pcv, ),
+              schema=lambda dest,
+              schema_map: schema_map.get(dest, None),
+              schema_side_inputs=(schema_map_pcv, ),
+              create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+              write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY))
 
-      _ = (input |
-           "WriteWithMultipleDests" >> bigquery.WriteToBigQuery(
-               table=lambda x: (output_table_3
-                                if 'language' in x
-                                else output_table_4),
-               schema=lambda dest, schema_map: schema_map.get(dest, None),
-               schema_side_inputs=(schema_map_pcv,),
-               create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-               write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY,
-               max_file_size=20,
-               max_files_per_bundle=-1))
+      _ = (
+          input | "WriteWithMultipleDests" >> bigquery.WriteToBigQuery(
+              table=lambda x:
+              (output_table_3 if 'language' in x else output_table_4),
+              schema=lambda dest,
+              schema_map: schema_map.get(dest, None),
+              schema_side_inputs=(schema_map_pcv, ),
+              create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+              write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY,
+              max_file_size=20,
+              max_files_per_bundle=-1))
 
   @attr('IT')
   def test_bqfl_streaming(self):
@@ -710,30 +728,22 @@ class BigQueryFileLoadsIT(unittest.TestCase):
     state_matcher = PipelineStateMatcher(PipelineState.RUNNING)
     bq_matcher = BigqueryFullResultStreamingMatcher(
         project=self.project,
-        query="SELECT Integr FROM %s"
-        % output_table,
-        data=[(i,) for i in range(100)])
+        query="SELECT Integr FROM %s" % output_table,
+        data=[(i, ) for i in range(100)])
 
     args = self.test_pipeline.get_full_options_as_args(
-        on_success_matcher=all_of(state_matcher, bq_matcher),
-        experiments='use_beam_bq_sink',
-        streaming=True)
+        on_success_matcher=all_of(state_matcher, bq_matcher), streaming=True)
     with beam.Pipeline(argv=args) as p:
-      stream_source = (TestStream()
-                       .advance_watermark_to(0)
-                       .advance_processing_time(100)
-                       .add_elements(l[:_SIZE//4])
-                       .advance_processing_time(100)
-                       .advance_watermark_to(100)
-                       .add_elements(l[_SIZE//4:2*_SIZE//4])
-                       .advance_processing_time(100)
-                       .advance_watermark_to(200)
-                       .add_elements(l[2*_SIZE//4:3*_SIZE//4])
-                       .advance_processing_time(100)
-                       .advance_watermark_to(300)
-                       .add_elements(l[3*_SIZE//4:])
-                       .advance_processing_time(100)
-                       .advance_watermark_to_infinity())
+      stream_source = (
+          TestStream().advance_watermark_to(0).advance_processing_time(
+              100).add_elements(l[:_SIZE // 4]).
+          advance_processing_time(100).advance_watermark_to(100).add_elements(
+              l[_SIZE // 4:2 * _SIZE // 4]).advance_processing_time(
+                  100).advance_watermark_to(200).add_elements(
+                      l[2 * _SIZE // 4:3 * _SIZE // 4]).advance_processing_time(
+                          100).advance_watermark_to(300).add_elements(
+                              l[3 * _SIZE // 4:]).advance_processing_time(
+                                  100).advance_watermark_to_infinity())
       _ = (p
            | stream_source
            | bigquery.WriteToBigQuery(output_table,
@@ -752,13 +762,19 @@ class BigQueryFileLoadsIT(unittest.TestCase):
     output_table_2 = '%s%s' % (self.output_table, 2)
 
     self.bigquery_client.get_or_create_table(
-        self.project, self.dataset_id, output_table_1.split('.')[1],
+        self.project,
+        self.dataset_id,
+        output_table_1.split('.')[1],
         bigquery_tools.parse_table_schema_from_json(self.BIG_QUERY_SCHEMA),
-        None, None)
+        None,
+        None)
     self.bigquery_client.get_or_create_table(
-        self.project, self.dataset_id, output_table_2.split('.')[1],
+        self.project,
+        self.dataset_id,
+        output_table_2.split('.')[1],
         bigquery_tools.parse_table_schema_from_json(self.BIG_QUERY_SCHEMA_2),
-        None, None)
+        None,
+        None)
 
     pipeline_verifiers = [
         BigqueryFullResultMatcher(
@@ -768,40 +784,43 @@ class BigQueryFileLoadsIT(unittest.TestCase):
         BigqueryFullResultMatcher(
             project=self.project,
             query="SELECT name, foundation FROM %s" % output_table_2,
-            data=[])]
+            data=[])
+    ]
 
-    args = self.test_pipeline.get_full_options_as_args(
-        experiments='use_beam_bq_sink')
+    args = self.test_pipeline.get_full_options_as_args()
 
     with self.assertRaises(Exception):
+      # The pipeline below fails because neither a schema nor SCHEMA_AUTODETECT
+      # are specified.
       with beam.Pipeline(argv=args) as p:
         input = p | beam.Create(_ELEMENTS)
         input2 = p | "Broken record" >> beam.Create(['language_broken_record'])
 
         input = (input, input2) | beam.Flatten()
 
-        _ = (input |
-             "WriteWithMultipleDests" >> bigquery.WriteToBigQuery(
-                 table=lambda x: (output_table_1
-                                  if 'language' in x
-                                  else output_table_2),
-                 create_disposition=(
-                     beam.io.BigQueryDisposition.CREATE_IF_NEEDED),
-                 write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND))
+        _ = (
+            input | "WriteWithMultipleDests" >> bigquery.WriteToBigQuery(
+                table=lambda x:
+                (output_table_1 if 'language' in x else output_table_2),
+                create_disposition=(
+                    beam.io.BigQueryDisposition.CREATE_IF_NEEDED),
+                write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
+                temp_file_format=bigquery_tools.FileFormat.JSON))
 
     hamcrest_assert(p, all_of(*pipeline_verifiers))
 
   def tearDown(self):
     request = bigquery_api.BigqueryDatasetsDeleteRequest(
-        projectId=self.project, datasetId=self.dataset_id,
-        deleteContents=True)
+        projectId=self.project, datasetId=self.dataset_id, deleteContents=True)
     try:
-      _LOGGER.info("Deleting dataset %s in project %s",
-                   self.dataset_id, self.project)
+      _LOGGER.info(
+          "Deleting dataset %s in project %s", self.dataset_id, self.project)
       self.bigquery_client.client.datasets.Delete(request)
     except HttpError:
-      _LOGGER.debug('Failed to clean up dataset %s in project %s',
-                    self.dataset_id, self.project)
+      _LOGGER.debug(
+          'Failed to clean up dataset %s in project %s',
+          self.dataset_id,
+          self.project)
 
 
 if __name__ == '__main__':

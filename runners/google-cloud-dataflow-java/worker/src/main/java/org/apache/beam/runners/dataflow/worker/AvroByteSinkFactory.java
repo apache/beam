@@ -21,7 +21,6 @@ import static org.apache.beam.runners.dataflow.util.Structs.getString;
 
 import com.google.auto.service.AutoService;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.worker.util.WorkerPropertyNames;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Sink;
@@ -29,8 +28,12 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Creates an {@link AvroByteSink} from a {@link CloudObject} spec. */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public final class AvroByteSinkFactory implements SinkFactory {
 
   /** A {@link SinkFactory.Registrar} for Avro byte sinks. */

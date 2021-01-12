@@ -17,25 +17,34 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
+import static org.apache.beam.sdk.io.kafka.ConfluentSchemaRegistryDeserializerProviderTest.mockDeserializerProvider;
 import static org.apache.beam.sdk.metrics.MetricResultsMatchers.attemptedMetricsResult;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
 import static org.junit.internal.matchers.ThrowableCauseMatcher.hasCause;
 import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
+import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
+import io.confluent.kafka.schemaregistry.testutil.MockSchemaRegistry;
+import io.confluent.kafka.serializers.AbstractKafkaAvroSerDeConfig;
+import io.confluent.kafka.serializers.KafkaAvroSerializer;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -52,20 +61,17 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
-import org.apache.beam.sdk.coders.CoderRegistry;
-import org.apache.beam.sdk.coders.InstantCoder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.io.AvroGeneratedUser;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
-import org.apache.beam.sdk.io.kafka.serialization.InstantDeserializer;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
@@ -112,6 +118,9 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.header.Header;
+import org.apache.kafka.common.header.Headers;
+import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.Deserializer;
@@ -120,8 +129,8 @@ import org.apache.kafka.common.serialization.IntegerSerializer;
 import org.apache.kafka.common.serialization.LongDeserializer;
 import org.apache.kafka.common.serialization.LongSerializer;
 import org.apache.kafka.common.serialization.Serializer;
-import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.utils.Utils;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.collection.IsIterableContainingInAnyOrder;
 import org.hamcrest.collection.IsIterableWithSize;
 import org.joda.time.Duration;
@@ -140,6 +149,9 @@ import org.slf4j.LoggerFactory;
  * specific Kafka version.
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class KafkaIOTest {
 
   private static final Logger LOG = LoggerFactory.getLogger(KafkaIOTest.class);
@@ -167,7 +179,9 @@ public class KafkaIOTest {
       int partitionsPerTopic,
       int numElements,
       OffsetResetStrategy offsetResetStrategy,
-      Map<String, Object> config) {
+      Map<String, Object> config,
+      SerializableFunction<Integer, byte[]> keyFunction,
+      SerializableFunction<Integer, byte[]> valueFunction) {
 
     final List<TopicPartition> partitions = new ArrayList<>();
     final Map<TopicPartition, List<ConsumerRecord<byte[], byte[]>>> records = new HashMap<>();
@@ -200,8 +214,8 @@ public class KafkaIOTest {
       int pIdx = i % numPartitions;
       TopicPartition tp = partitions.get(pIdx);
 
-      byte[] key = ByteBuffer.wrap(new byte[4]).putInt(i).array(); // key is 4 byte record id
-      byte[] value = ByteBuffer.wrap(new byte[8]).putLong(i).array(); // value is 8 byte record id
+      byte[] key = keyFunction.apply(i);
+      byte[] value = valueFunction.apply(i);
 
       records
           .get(tp)
@@ -302,6 +316,8 @@ public class KafkaIOTest {
     private final int partitionsPerTopic;
     private final int numElements;
     private final OffsetResetStrategy offsetResetStrategy;
+    private SerializableFunction<Integer, byte[]> keyFunction;
+    private SerializableFunction<Integer, byte[]> valueFunction;
 
     ConsumerFactoryFn(
         List<String> topics,
@@ -312,11 +328,35 @@ public class KafkaIOTest {
       this.partitionsPerTopic = partitionsPerTopic;
       this.numElements = numElements;
       this.offsetResetStrategy = offsetResetStrategy;
+      keyFunction = i -> ByteBuffer.wrap(new byte[4]).putInt(i).array();
+      valueFunction = i -> ByteBuffer.wrap(new byte[8]).putLong(i).array();
+    }
+
+    ConsumerFactoryFn(
+        List<String> topics,
+        int partitionsPerTopic,
+        int numElements,
+        OffsetResetStrategy offsetResetStrategy,
+        SerializableFunction<Integer, byte[]> keyFunction,
+        SerializableFunction<Integer, byte[]> valueFunction) {
+      this.topics = topics;
+      this.partitionsPerTopic = partitionsPerTopic;
+      this.numElements = numElements;
+      this.offsetResetStrategy = offsetResetStrategy;
+      this.keyFunction = keyFunction;
+      this.valueFunction = valueFunction;
     }
 
     @Override
     public Consumer<byte[], byte[]> apply(Map<String, Object> config) {
-      return mkMockConsumer(topics, partitionsPerTopic, numElements, offsetResetStrategy, config);
+      return mkMockConsumer(
+          topics,
+          partitionsPerTopic,
+          numElements,
+          offsetResetStrategy,
+          config,
+          keyFunction,
+          valueFunction);
     }
   }
 
@@ -392,6 +432,158 @@ public class KafkaIOTest {
   }
 
   @Test
+  public void testReadAvroGenericRecordsWithConfluentSchemaRegistry() {
+    int numElements = 100;
+    String topic = "my_topic";
+    String schemaRegistryUrl = "mock://my-scope-name";
+    String keySchemaSubject = topic + "-key";
+    String valueSchemaSubject = topic + "-value";
+
+    List<KV<GenericRecord, GenericRecord>> inputs = new ArrayList<>();
+    for (int i = 0; i < numElements; i++) {
+      inputs.add(
+          KV.of(
+              new AvroGeneratedUser("KeyName" + i, i, "color" + i),
+              new AvroGeneratedUser("ValueName" + i, i, "color" + i)));
+    }
+
+    KafkaIO.Read<GenericRecord, GenericRecord> reader =
+        KafkaIO.<GenericRecord, GenericRecord>read()
+            .withBootstrapServers("localhost:9092")
+            .withTopic(topic)
+            .withKeyDeserializer(
+                mockDeserializerProvider(schemaRegistryUrl, keySchemaSubject, null))
+            .withValueDeserializer(
+                mockDeserializerProvider(schemaRegistryUrl, valueSchemaSubject, null))
+            .withConsumerFactoryFn(
+                new ConsumerFactoryFn(
+                    ImmutableList.of(topic),
+                    1,
+                    numElements,
+                    OffsetResetStrategy.EARLIEST,
+                    new KeyAvroSerializableFunction(topic, schemaRegistryUrl),
+                    new ValueAvroSerializableFunction(topic, schemaRegistryUrl)))
+            .withMaxNumRecords(numElements);
+
+    PCollection<KV<GenericRecord, GenericRecord>> input = p.apply(reader.withoutMetadata());
+
+    PAssert.that(input).containsInAnyOrder(inputs);
+    p.run();
+  }
+
+  @Test
+  public void testReadAvroSpecificRecordsWithConfluentSchemaRegistry() {
+    int numElements = 100;
+    String topic = "my_topic";
+    String schemaRegistryUrl = "mock://my-scope-name";
+    String valueSchemaSubject = topic + "-value";
+
+    List<KV<Integer, AvroGeneratedUser>> inputs = new ArrayList<>();
+    for (int i = 0; i < numElements; i++) {
+      inputs.add(KV.of(i, new AvroGeneratedUser("ValueName" + i, i, "color" + i)));
+    }
+
+    KafkaIO.Read<Integer, AvroGeneratedUser> reader =
+        KafkaIO.<Integer, AvroGeneratedUser>read()
+            .withBootstrapServers("localhost:9092")
+            .withTopic(topic)
+            .withKeyDeserializer(IntegerDeserializer.class)
+            .withValueDeserializer(
+                mockDeserializerProvider(schemaRegistryUrl, valueSchemaSubject, null))
+            .withConsumerFactoryFn(
+                new ConsumerFactoryFn(
+                    ImmutableList.of(topic),
+                    1,
+                    numElements,
+                    OffsetResetStrategy.EARLIEST,
+                    i -> ByteBuffer.wrap(new byte[4]).putInt(i).array(),
+                    new ValueAvroSerializableFunction(topic, schemaRegistryUrl)))
+            .withMaxNumRecords(numElements);
+
+    PCollection<KV<Integer, AvroGeneratedUser>> input = p.apply(reader.withoutMetadata());
+
+    PAssert.that(input).containsInAnyOrder(inputs);
+    p.run();
+  }
+
+  public static class IntegerDeserializerWithHeadersAssertor extends IntegerDeserializer
+      implements Deserializer<Integer> {
+    ConsumerSpEL consumerSpEL = null;
+
+    @Override
+    public Integer deserialize(String topic, byte[] data) {
+      StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
+      if (consumerSpEL == null) {
+        consumerSpEL = new ConsumerSpEL();
+      }
+      if (consumerSpEL.deserializerSupportsHeaders()) {
+        // Assert we have the default deserializer with headers API in the stack trace for Kafka API
+        // 2.1.0 onwards
+        try {
+          assertEquals(Deserializer.class, Class.forName(stackTraceElements[3].getClassName()));
+          assertEquals("deserialize", stackTraceElements[3].getMethodName());
+        } catch (ClassNotFoundException e) {
+        }
+      } else {
+        assertNotEquals("deserialize", stackTraceElements[3].getMethodName());
+      }
+      return super.deserialize(topic, data);
+    }
+  }
+
+  public static class LongDeserializerWithHeadersAssertor extends LongDeserializer
+      implements Deserializer<Long> {
+    ConsumerSpEL consumerSpEL = null;
+
+    @Override
+    public Long deserialize(String topic, byte[] data) {
+      if (consumerSpEL == null) {
+        consumerSpEL = new ConsumerSpEL();
+      }
+      StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
+      if (consumerSpEL.deserializerSupportsHeaders()) {
+        // Assert we have the default deserializer with headers API in the stack trace for Kafka API
+        // 2.1.0 onwards
+        try {
+          assertEquals(Deserializer.class, Class.forName(stackTraceElements[3].getClassName()));
+          assertEquals("deserialize", stackTraceElements[3].getMethodName());
+        } catch (ClassNotFoundException e) {
+        }
+      } else {
+        assertNotEquals("deserialize", stackTraceElements[3].getMethodName());
+      }
+      return super.deserialize(topic, data);
+    }
+  }
+
+  @Test
+  public void testDeserializationWithHeaders() throws Exception {
+    // To assert that we continue to prefer the Deserializer API with headers in Kafka API 2.1.0
+    // onwards
+    int numElements = 1000;
+    String topic = "my_topic";
+
+    KafkaIO.Read<Integer, Long> reader =
+        KafkaIO.<Integer, Long>read()
+            .withBootstrapServers("none")
+            .withTopic("my_topic")
+            .withConsumerFactoryFn(
+                new ConsumerFactoryFn(
+                    ImmutableList.of(topic), 10, numElements, OffsetResetStrategy.EARLIEST))
+            .withMaxNumRecords(numElements)
+            .withKeyDeserializerAndCoder(
+                KafkaIOTest.IntegerDeserializerWithHeadersAssertor.class,
+                BigEndianIntegerCoder.of())
+            .withValueDeserializerAndCoder(
+                KafkaIOTest.LongDeserializerWithHeadersAssertor.class, BigEndianLongCoder.of());
+
+    PCollection<Long> input = p.apply(reader.withoutMetadata()).apply(Values.create());
+
+    addCountingAsserts(input, numElements);
+    p.run();
+  }
+
+  @Test
   public void testUnboundedSource() {
     int numElements = 1000;
 
@@ -422,16 +614,48 @@ public class KafkaIOTest {
                     .withValueDeserializer(LongDeserializer.class)
                     .withConsumerConfigUpdates(
                         ImmutableMap.of(
-                            ConsumerConfig.REQUEST_TIMEOUT_MS_CONFIG, 10,
-                            ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG, 5,
-                            ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, 8,
-                            ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, 8))
+                            ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG,
+                            5,
+                            ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG,
+                            8,
+                            ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG,
+                            8,
+                            "default.api.timeout.ms",
+                            10))
                     .withMaxNumRecords(10)
                     .withoutMetadata())
             .apply(Values.create());
 
     addCountingAsserts(input, numElements);
     p.run();
+  }
+
+  @Test
+  public void testResolveDefaultApiTimeout() {
+
+    final String defaultApiTimeoutConfig = "default.api.timeout.ms";
+
+    assertEquals(
+        Duration.millis(20),
+        KafkaUnboundedReader.resolveDefaultApiTimeout(
+            KafkaIO.<Integer, Long>read()
+                .withConsumerConfigUpdates(
+                    ImmutableMap.of(
+                        defaultApiTimeoutConfig,
+                        20,
+                        ConsumerConfig.REQUEST_TIMEOUT_MS_CONFIG,
+                        30))));
+
+    assertEquals(
+        Duration.millis(2 * 30),
+        KafkaUnboundedReader.resolveDefaultApiTimeout(
+            KafkaIO.<Integer, Long>read()
+                .withConsumerConfigUpdates(
+                    ImmutableMap.of(ConsumerConfig.REQUEST_TIMEOUT_MS_CONFIG, 30))));
+
+    assertEquals(
+        Duration.millis(60 * 1000),
+        KafkaUnboundedReader.resolveDefaultApiTimeout(KafkaIO.<Integer, Long>read()));
   }
 
   @Test
@@ -1140,6 +1364,51 @@ public class KafkaIOTest {
         assertEquals(i, record.key().intValue());
         assertEquals(i, record.value().longValue());
         assertEquals(i, record.timestamp().intValue());
+        assertEquals(0, record.headers().toArray().length);
+      }
+    }
+  }
+
+  @Test
+  public void testKafkaWriteHeaders() throws Exception {
+    // Set different output topic names
+    int numElements = 1;
+    SimpleEntry<String, String> header = new SimpleEntry<>("header_key", "header_value");
+    try (MockProducerWrapper producerWrapper = new MockProducerWrapper()) {
+
+      ProducerSendCompletionThread completionThread =
+          new ProducerSendCompletionThread(producerWrapper.mockProducer).start();
+
+      String defaultTopic = "test";
+      p.apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn()).withoutMetadata())
+          .apply(
+              ParDo.of(
+                  new KV2ProducerRecord(defaultTopic, true, System.currentTimeMillis(), header)))
+          .setCoder(ProducerRecordCoder.of(VarIntCoder.of(), VarLongCoder.of()))
+          .apply(
+              KafkaIO.<Integer, Long>writeRecords()
+                  .withBootstrapServers("none")
+                  .withKeySerializer(IntegerSerializer.class)
+                  .withValueSerializer(LongSerializer.class)
+                  .withInputTimestamp()
+                  .withProducerFactoryFn(new ProducerFactoryFn(producerWrapper.producerKey)));
+
+      p.run();
+
+      completionThread.shutdown();
+
+      // Verify that appropriate header is written with producer record
+      List<ProducerRecord<Integer, Long>> sent = producerWrapper.mockProducer.history();
+
+      for (int i = 0; i < numElements; i++) {
+        ProducerRecord<Integer, Long> record = sent.get(i);
+        Headers headers = record.headers();
+        assertNotNull(headers);
+        Header[] headersArray = headers.toArray();
+        assertEquals(1, headersArray.length);
+        assertEquals(header.getKey(), headersArray[0].key());
+        assertEquals(
+            header.getValue(), new String(headersArray[0].value(), StandardCharsets.UTF_8));
       }
     }
   }
@@ -1188,6 +1457,7 @@ public class KafkaIOTest {
     final String topic;
     final boolean isSingleTopic;
     final Long ts;
+    final SimpleEntry<String, String> header;
 
     KV2ProducerRecord(String topic) {
       this(topic, true);
@@ -1202,21 +1472,36 @@ public class KafkaIOTest {
     }
 
     KV2ProducerRecord(String topic, boolean isSingleTopic, Long ts) {
+      this(topic, isSingleTopic, ts, null);
+    }
+
+    KV2ProducerRecord(
+        String topic, boolean isSingleTopic, Long ts, SimpleEntry<String, String> header) {
       this.topic = topic;
       this.isSingleTopic = isSingleTopic;
       this.ts = ts;
+      this.header = header;
     }
 
     @ProcessElement
     public void processElement(ProcessContext ctx) {
       KV<Integer, Long> kv = ctx.element();
+      List<Header> headers = null;
+      if (header != null) {
+        headers =
+            Arrays.asList(
+                new RecordHeader(
+                    header.getKey(), header.getValue().getBytes(StandardCharsets.UTF_8)));
+      }
       if (isSingleTopic) {
-        ctx.output(new ProducerRecord<>(topic, null, ts, kv.getKey(), kv.getValue()));
+        ctx.output(new ProducerRecord<>(topic, null, ts, kv.getKey(), kv.getValue(), headers));
       } else {
         if (kv.getKey() % 2 == 0) {
-          ctx.output(new ProducerRecord<>(topic + "_2", null, ts, kv.getKey(), kv.getValue()));
+          ctx.output(
+              new ProducerRecord<>(topic + "_2", null, ts, kv.getKey(), kv.getValue(), headers));
         } else {
-          ctx.output(new ProducerRecord<>(topic + "_1", null, ts, kv.getKey(), kv.getValue()));
+          ctx.output(
+              new ProducerRecord<>(topic + "_1", null, ts, kv.getKey(), kv.getValue(), headers));
         }
       }
     }
@@ -1410,77 +1695,6 @@ public class KafkaIOTest {
     }
   }
 
-  // interface for testing coder inference
-  private interface DummyInterface<T> {}
-
-  // interface for testing coder inference
-  private interface DummyNonparametricInterface {}
-
-  // class for testing coder inference
-  private static class DeserializerWithInterfaces
-      implements DummyInterface<String>, DummyNonparametricInterface, Deserializer<Long> {
-
-    @Override
-    public void configure(Map<String, ?> configs, boolean isKey) {}
-
-    @Override
-    public Long deserialize(String topic, byte[] bytes) {
-      return 0L;
-    }
-
-    @Override
-    public void close() {}
-  }
-
-  // class for which a coder cannot be infered
-  private static class NonInferableObject {}
-
-  // class for testing coder inference
-  private static class NonInferableObjectDeserializer implements Deserializer<NonInferableObject> {
-
-    @Override
-    public void configure(Map<String, ?> configs, boolean isKey) {}
-
-    @Override
-    public NonInferableObject deserialize(String topic, byte[] bytes) {
-      return new NonInferableObject();
-    }
-
-    @Override
-    public void close() {}
-  }
-
-  @Test
-  public void testInferKeyCoder() {
-    CoderRegistry registry = CoderRegistry.createDefault();
-
-    assertTrue(
-        KafkaIO.inferCoder(registry, LongDeserializer.class).getValueCoder()
-            instanceof VarLongCoder);
-
-    assertTrue(
-        KafkaIO.inferCoder(registry, StringDeserializer.class).getValueCoder()
-            instanceof StringUtf8Coder);
-
-    assertTrue(
-        KafkaIO.inferCoder(registry, InstantDeserializer.class).getValueCoder()
-            instanceof InstantCoder);
-
-    assertTrue(
-        KafkaIO.inferCoder(registry, DeserializerWithInterfaces.class).getValueCoder()
-            instanceof VarLongCoder);
-  }
-
-  @Rule public ExpectedException cannotInferException = ExpectedException.none();
-
-  @Test
-  public void testInferKeyCoderFailure() throws Exception {
-    cannotInferException.expect(RuntimeException.class);
-
-    CoderRegistry registry = CoderRegistry.createDefault();
-    KafkaIO.inferCoder(registry, NonInferableObjectDeserializer.class);
-  }
-
   @Test
   public void testSinkMetrics() throws Exception {
     // Simply read from kafka source and write to kafka sink. Then verify the metrics are reported.
@@ -1527,49 +1741,6 @@ public class KafkaIOTest {
 
       completionThread.shutdown();
     }
-  }
-
-  @Test
-  public void testOffsetConsumerConfigOverrides() throws Exception {
-    KafkaUnboundedReader reader1 =
-        new KafkaUnboundedReader(
-            new KafkaUnboundedSource(
-                KafkaIO.read()
-                    .withBootstrapServers("broker_1:9092,broker_2:9092")
-                    .withTopic("my_topic")
-                    .withOffsetConsumerConfigOverrides(null),
-                0),
-            null);
-    assertTrue(
-        reader1
-            .getOffsetConsumerConfig()
-            .get(ConsumerConfig.GROUP_ID_CONFIG)
-            .toString()
-            .matches(".*_offset_consumer_\\d+_none"));
-    assertEquals(
-        false, reader1.getOffsetConsumerConfig().get(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG));
-    assertEquals(
-        "read_uncommitted",
-        reader1.getOffsetConsumerConfig().get(ConsumerConfig.ISOLATION_LEVEL_CONFIG));
-
-    String offsetGroupId = "group.offsetConsumer";
-    KafkaUnboundedReader reader2 =
-        new KafkaUnboundedReader(
-            new KafkaUnboundedSource(
-                KafkaIO.read()
-                    .withBootstrapServers("broker_1:9092,broker_2:9092")
-                    .withTopic("my_topic")
-                    .withOffsetConsumerConfigOverrides(
-                        ImmutableMap.of(ConsumerConfig.GROUP_ID_CONFIG, offsetGroupId)),
-                0),
-            null);
-    assertEquals(
-        offsetGroupId, reader2.getOffsetConsumerConfig().get(ConsumerConfig.GROUP_ID_CONFIG));
-    assertEquals(
-        false, reader2.getOffsetConsumerConfig().get(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG));
-    assertEquals(
-        "read_uncommitted",
-        reader2.getOffsetConsumerConfig().get(ConsumerConfig.ISOLATION_LEVEL_CONFIG));
   }
 
   private static void verifyProducerRecords(
@@ -1782,6 +1953,57 @@ public class KafkaIOTest {
         Thread.currentThread().interrupt();
         throw new RuntimeException(e);
       }
+    }
+  }
+
+  private abstract static class BaseAvroSerializableFunction
+      implements SerializableFunction<Integer, byte[]> {
+    static transient Serializer<AvroGeneratedUser> serializer = null;
+    final String topic;
+    final String schemaRegistryUrl;
+    final boolean isKey;
+
+    BaseAvroSerializableFunction(String topic, String schemaRegistryUrl, boolean isKey) {
+      this.topic = topic;
+      this.schemaRegistryUrl = schemaRegistryUrl;
+      this.isKey = isKey;
+    }
+
+    static Serializer<AvroGeneratedUser> getSerializer(boolean isKey, String schemaRegistryUrl) {
+      if (serializer == null) {
+        SchemaRegistryClient mockRegistryClient =
+            MockSchemaRegistry.getClientForScope(schemaRegistryUrl);
+        Map<String, Object> map = new HashMap<>();
+        map.put(AbstractKafkaAvroSerDeConfig.AUTO_REGISTER_SCHEMAS, true);
+        map.put(AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, schemaRegistryUrl);
+        serializer = (Serializer) new KafkaAvroSerializer(mockRegistryClient);
+        serializer.configure(map, isKey);
+      }
+      return serializer;
+    }
+  }
+
+  private static class KeyAvroSerializableFunction extends BaseAvroSerializableFunction {
+    KeyAvroSerializableFunction(String topic, String schemaRegistryUrl) {
+      super(topic, schemaRegistryUrl, true);
+    }
+
+    @Override
+    public byte[] apply(Integer i) {
+      return getSerializer(isKey, schemaRegistryUrl)
+          .serialize(topic, new AvroGeneratedUser("KeyName" + i, i, "color" + i));
+    }
+  }
+
+  private static class ValueAvroSerializableFunction extends BaseAvroSerializableFunction {
+    ValueAvroSerializableFunction(String topic, String schemaRegistryUrl) {
+      super(topic, schemaRegistryUrl, false);
+    }
+
+    @Override
+    public byte[] apply(Integer i) {
+      return getSerializer(isKey, schemaRegistryUrl)
+          .serialize(topic, new AvroGeneratedUser("ValueName" + i, i, "color" + i));
     }
   }
 }

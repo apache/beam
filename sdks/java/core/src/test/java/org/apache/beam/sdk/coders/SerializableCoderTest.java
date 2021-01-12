@@ -17,10 +17,10 @@
  */
 package org.apache.beam.sdk.coders;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.mock;
 
 import java.io.ByteArrayInputStream;
@@ -45,6 +45,7 @@ import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Description;
 import org.hamcrest.Matchers;
 import org.hamcrest.TypeSafeMatcher;
@@ -58,6 +59,9 @@ import org.mockito.stubbing.Answer;
 
 /** Tests SerializableCoder. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SerializableCoderTest implements Serializable {
   @Rule public ExpectedLogs expectedLogs = ExpectedLogs.none(SerializableCoder.class);
 
@@ -72,7 +76,7 @@ public class SerializableCoderTest implements Serializable {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -321,7 +325,7 @@ public class SerializableCoderTest implements Serializable {
     private int x;
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }

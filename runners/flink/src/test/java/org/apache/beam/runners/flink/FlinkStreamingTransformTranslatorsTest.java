@@ -27,9 +27,10 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.flink.FlinkStreamingTransformTranslators.UnboundedSourceWrapperNoValueWithRecordId;
+import org.apache.beam.runners.flink.streaming.StreamSources;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.UnboundedSourceWrapper;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
@@ -43,14 +44,19 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.PValues;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
-import org.apache.flink.streaming.api.transformations.SourceTransformation;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Test;
 
 /** Tests for Flink streaming transform translators. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class FlinkStreamingTransformTranslatorsTest {
 
   @Test
@@ -59,17 +65,19 @@ public class FlinkStreamingTransformTranslatorsTest {
     final int maxParallelism = 6;
     final int parallelism = 2;
 
-    Read.Bounded transform = Read.from(new TestBoundedSource(maxParallelism));
+    SplittableParDo.PrimitiveBoundedRead<String> transform =
+        new SplittableParDo.PrimitiveBoundedRead<>(
+            Read.from(new TestBoundedSource(maxParallelism)));
     StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
     env.setParallelism(parallelism);
     env.setMaxParallelism(maxParallelism);
 
-    SourceTransformation<?> sourceTransform =
-        (SourceTransformation)
-            applyReadSourceTransform(transform, PCollection.IsBounded.BOUNDED, env);
+    Object sourceTransform =
+        applyReadSourceTransform(transform, PCollection.IsBounded.BOUNDED, env);
 
     UnboundedSourceWrapperNoValueWithRecordId source =
-        (UnboundedSourceWrapperNoValueWithRecordId) sourceTransform.getOperator().getUserFunction();
+        (UnboundedSourceWrapperNoValueWithRecordId)
+            SourceTransformationCompat.getOperator(sourceTransform).getUserFunction();
 
     assertEquals(maxParallelism, source.getUnderlyingSource().getSplitSources().size());
   }
@@ -79,16 +87,17 @@ public class FlinkStreamingTransformTranslatorsTest {
 
     final int parallelism = 2;
 
-    Read.Bounded transform = Read.from(new TestBoundedSource(parallelism));
+    SplittableParDo.PrimitiveBoundedRead<String> transform =
+        new SplittableParDo.PrimitiveBoundedRead<>(Read.from(new TestBoundedSource(parallelism)));
     StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
     env.setParallelism(parallelism);
 
-    SourceTransformation<?> sourceTransform =
-        (SourceTransformation)
-            applyReadSourceTransform(transform, PCollection.IsBounded.BOUNDED, env);
+    Object sourceTransform =
+        applyReadSourceTransform(transform, PCollection.IsBounded.BOUNDED, env);
 
     UnboundedSourceWrapperNoValueWithRecordId source =
-        (UnboundedSourceWrapperNoValueWithRecordId) sourceTransform.getOperator().getUserFunction();
+        (UnboundedSourceWrapperNoValueWithRecordId)
+            SourceTransformationCompat.getOperator(sourceTransform).getUserFunction();
 
     assertEquals(parallelism, source.getUnderlyingSource().getSplitSources().size());
   }
@@ -99,7 +108,8 @@ public class FlinkStreamingTransformTranslatorsTest {
     final int maxParallelism = 6;
     final int parallelism = 2;
 
-    Read.Unbounded transform = Read.from(new TestUnboundedSource());
+    SplittableParDo.PrimitiveUnboundedRead<String> transform =
+        new SplittableParDo.PrimitiveUnboundedRead<>(Read.from(new TestUnboundedSource()));
     StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
     env.setParallelism(parallelism);
     env.setMaxParallelism(maxParallelism);
@@ -110,7 +120,8 @@ public class FlinkStreamingTransformTranslatorsTest {
 
     UnboundedSourceWrapper source =
         (UnboundedSourceWrapper)
-            ((SourceTransformation) sourceTransform.getInput()).getOperator().getUserFunction();
+            SourceTransformationCompat.getOperator(StreamSources.getOnlyInput(sourceTransform))
+                .getUserFunction();
 
     assertEquals(maxParallelism, source.getSplitSources().size());
   }
@@ -120,7 +131,8 @@ public class FlinkStreamingTransformTranslatorsTest {
 
     final int parallelism = 2;
 
-    Read.Unbounded transform = Read.from(new TestUnboundedSource());
+    SplittableParDo.PrimitiveUnboundedRead<String> transform =
+        new SplittableParDo.PrimitiveUnboundedRead<>(Read.from(new TestUnboundedSource()));
     StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
     env.setParallelism(parallelism);
 
@@ -130,7 +142,8 @@ public class FlinkStreamingTransformTranslatorsTest {
 
     UnboundedSourceWrapper source =
         (UnboundedSourceWrapper)
-            ((SourceTransformation) sourceTransform.getInput()).getOperator().getUserFunction();
+            SourceTransformationCompat.getOperator(StreamSources.getOnlyInput(sourceTransform))
+                .getUserFunction();
 
     assertEquals(parallelism, source.getSplitSources().size());
   }
@@ -153,7 +166,11 @@ public class FlinkStreamingTransformTranslatorsTest {
     outputs.put(new TupleTag<>(), pc);
     AppliedPTransform<?, ?, ?> appliedTransform =
         AppliedPTransform.of(
-            "test-transform", Collections.emptyMap(), outputs, transform, Pipeline.create());
+            "test-transform",
+            Collections.emptyMap(),
+            PValues.fullyExpand(outputs),
+            transform,
+            Pipeline.create());
 
     ctx.setCurrentTransform(appliedTransform);
     translator.translateNode(transform, ctx);

@@ -46,6 +46,7 @@ import org.slf4j.LoggerFactory;
 import scala.Tuple2;
 
 /** Functions for GroupByKey with Non-Merging windows translations to Spark. */
+@SuppressWarnings({"keyfor", "nullness"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class GroupNonMergingWindowsFunctions {
 
   private static final Logger LOG = LoggerFactory.getLogger(GroupNonMergingWindowsFunctions.class);

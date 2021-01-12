@@ -55,6 +55,10 @@ import org.apache.samza.context.Context;
 import org.joda.time.Instant;
 
 /** A factory for Samza runner translator to create underlying DoFnRunner used in {@link DoFnOp}. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SamzaDoFnRunners {
 
   /** Create DoFnRunner for java runner. */
@@ -85,7 +89,7 @@ public class SamzaDoFnRunners {
 
     final SamzaExecutionContext executionContext =
         (SamzaExecutionContext) context.getApplicationContainerContext();
-    if (signature.usesState()) {
+    if (DoFnSignatures.isStateful(doFn)) {
       keyedInternals = new KeyedInternals(stateInternalsFactory, timerInternalsFactory);
       stateInternals = keyedInternals.stateInternals();
       timerInternals = keyedInternals.timerInternals();
@@ -95,6 +99,7 @@ public class SamzaDoFnRunners {
       timerInternals = timerInternalsFactory.timerInternalsForKey(null);
     }
 
+    final StepContext stepContext = createStepContext(stateInternals, timerInternals);
     final DoFnRunner<InT, FnOutT> underlyingRunner =
         DoFnRunners.simpleRunner(
             pipelineOptions,
@@ -103,7 +108,7 @@ public class SamzaDoFnRunners {
             outputManager,
             mainOutputTag,
             sideOutputTags,
-            createStepContext(stateInternals, timerInternals),
+            stepContext,
             inputCoder,
             outputCoders,
             windowingStrategy,
@@ -120,7 +125,9 @@ public class SamzaDoFnRunners {
       final DoFnRunner<InT, FnOutT> statefulDoFnRunner =
           DoFnRunners.defaultStatefulDoFnRunner(
               doFn,
+              inputCoder,
               doFnRunnerWithMetrics,
+              stepContext,
               windowingStrategy,
               new StatefulDoFnRunner.TimeInternalsCleanupTimer(timerInternals, windowingStrategy),
               createStateCleaner(doFn, windowingStrategy, keyedInternals.stateInternals()));
@@ -261,8 +268,14 @@ public class SamzaDoFnRunners {
     }
 
     @Override
-    public void onTimer(
-        String timerId, BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {}
+    public <KeyT> void onTimer(
+        String timerId,
+        String timerFamilyId,
+        KeyT key,
+        BoundedWindow window,
+        Instant timestamp,
+        Instant outputTimestamp,
+        TimeDomain timeDomain) {}
 
     @Override
     public void finishBundle() {
@@ -278,6 +291,9 @@ public class SamzaDoFnRunners {
         inputReceiver = null;
       }
     }
+
+    @Override
+    public <KeyT> void onWindowExpiration(BoundedWindow window, Instant timestamp, KeyT key) {}
 
     @Override
     public DoFn<InT, FnOutT> getFn() {

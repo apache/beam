@@ -18,19 +18,17 @@
 package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
 import static org.apache.beam.runners.core.construction.PTransformTranslation.PAR_DO_TRANSFORM_URN;
+import static org.apache.beam.runners.flink.translation.wrappers.streaming.StreamRecordStripper.stripStreamRecordFromWindowedValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.iterableWithSize;
 import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
@@ -47,12 +45,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
-import javax.annotation.Nullable;
+import java.util.function.BiConsumer;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
+import org.apache.beam.repackaged.core.org.apache.commons.lang3.SerializationUtils;
+import org.apache.beam.repackaged.core.org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.beam.runners.core.InMemoryStateInternals;
 import org.apache.beam.runners.core.InMemoryTimerInternals;
 import org.apache.beam.runners.core.StateNamespace;
@@ -60,18 +60,23 @@ import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.core.StatefulDoFnRunner;
 import org.apache.beam.runners.core.TimerInternals;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
+import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.metrics.DoFnRunnerWithMetricsUpdate;
 import org.apache.beam.runners.flink.streaming.FlinkStateInternalsTest;
 import org.apache.beam.runners.flink.translation.functions.FlinkExecutableStageContextFactory;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
-import org.apache.beam.runners.flink.translation.utils.NoopLock;
+import org.apache.beam.runners.fnexecution.control.BundleCheckpointHandler;
+import org.apache.beam.runners.fnexecution.control.BundleFinalizationHandler;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
 import org.apache.beam.runners.fnexecution.control.ExecutableStageContext;
+import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors;
 import org.apache.beam.runners.fnexecution.control.RemoteBundle;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
+import org.apache.beam.runners.fnexecution.control.TimerReceiverFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandlers;
@@ -80,29 +85,27 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
-import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.util.NoopLock;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.sdk.v2.sdk.extensions.protobuf.ByteStringCoder;
-import org.apache.commons.lang3.SerializationUtils;
-import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -112,6 +115,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.OutputTag;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -127,6 +131,10 @@ import org.powermock.reflect.Whitebox;
 
 /** Tests for {@link ExecutableStageDoFnOperator}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ExecutableStageDoFnOperatorTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
 
@@ -136,6 +144,7 @@ public class ExecutableStageDoFnOperatorTest {
   @Mock private StageBundleFactory stageBundleFactory;
   @Mock private StateRequestHandler stateRequestHandler;
   @Mock private ProcessBundleDescriptors.ExecutableProcessBundleDescriptor processBundleDescriptor;
+  @Mock private InstructionRequestHandler instructionRequestHandler;
 
   // NOTE: ExecutableStage.fromPayload expects exactly one input, so we provide one here. These unit
   // tests in general ignore the executable stage itself and mock around it.
@@ -184,13 +193,17 @@ public class ExecutableStageDoFnOperatorTest {
     when(processBundleDescriptor.getTimerSpecs()).thenReturn(Collections.emptyMap());
     when(processBundleDescriptor.getBagUserStateSpecs()).thenReturn(Collections.emptyMap());
     when(stageBundleFactory.getProcessBundleDescriptor()).thenReturn(processBundleDescriptor);
+    when(stageBundleFactory.getInstructionRequestHandler()).thenReturn(instructionRequestHandler);
   }
 
   @Test
   public void sdkErrorsSurfaceOnClose() throws Exception {
     TupleTag<Integer> mainOutput = new TupleTag<>("main-output");
     DoFnOperator.MultiOutputOutputManagerFactory<Integer> outputManagerFactory =
-        new DoFnOperator.MultiOutputOutputManagerFactory(mainOutput, VoidCoder.of());
+        new DoFnOperator.MultiOutputOutputManagerFactory(
+            mainOutput,
+            VoidCoder.of(),
+            new SerializablePipelineOptions(FlinkPipelineOptions.defaults()));
     ExecutableStageDoFnOperator<Integer, Integer> operator =
         getOperator(mainOutput, Collections.emptyList(), outputManagerFactory);
 
@@ -201,7 +214,7 @@ public class ExecutableStageDoFnOperatorTest {
 
     @SuppressWarnings("unchecked")
     RemoteBundle bundle = Mockito.mock(RemoteBundle.class);
-    when(stageBundleFactory.getBundle(any(), any(), any())).thenReturn(bundle);
+    when(stageBundleFactory.getBundle(any(), any(), any(), any(), any(), any())).thenReturn(bundle);
 
     @SuppressWarnings("unchecked")
     FnDataReceiver<WindowedValue<?>> receiver = Mockito.mock(FnDataReceiver.class);
@@ -219,13 +232,16 @@ public class ExecutableStageDoFnOperatorTest {
   public void expectedInputsAreSent() throws Exception {
     TupleTag<Integer> mainOutput = new TupleTag<>("main-output");
     DoFnOperator.MultiOutputOutputManagerFactory<Integer> outputManagerFactory =
-        new DoFnOperator.MultiOutputOutputManagerFactory(mainOutput, VoidCoder.of());
+        new DoFnOperator.MultiOutputOutputManagerFactory(
+            mainOutput,
+            VoidCoder.of(),
+            new SerializablePipelineOptions(FlinkPipelineOptions.defaults()));
     ExecutableStageDoFnOperator<Integer, Integer> operator =
         getOperator(mainOutput, Collections.emptyList(), outputManagerFactory);
 
     @SuppressWarnings("unchecked")
     RemoteBundle bundle = Mockito.mock(RemoteBundle.class);
-    when(stageBundleFactory.getBundle(any(), any(), any())).thenReturn(bundle);
+    when(stageBundleFactory.getBundle(any(), any(), any(), any(), any(), any())).thenReturn(bundle);
 
     @SuppressWarnings("unchecked")
     FnDataReceiver<WindowedValue<?>> receiver = Mockito.mock(FnDataReceiver.class);
@@ -263,8 +279,12 @@ public class ExecutableStageDoFnOperatorTest {
     TupleTag<Integer> additionalOutput2 = new TupleTag<>("output-2");
     ImmutableMap<TupleTag<?>, OutputTag<?>> tagsToOutputTags =
         ImmutableMap.<TupleTag<?>, OutputTag<?>>builder()
-            .put(additionalOutput1, new OutputTag<String>(additionalOutput1.getId()) {})
-            .put(additionalOutput2, new OutputTag<String>(additionalOutput2.getId()) {})
+            .put(
+                additionalOutput1,
+                new OutputTag<WindowedValue<String>>(additionalOutput1.getId()) {})
+            .put(
+                additionalOutput2,
+                new OutputTag<WindowedValue<String>>(additionalOutput2.getId()) {})
             .build();
     ImmutableMap<TupleTag<?>, Coder<WindowedValue<?>>> tagsToCoders =
         ImmutableMap.<TupleTag<?>, Coder<WindowedValue<?>>>builder()
@@ -281,7 +301,11 @@ public class ExecutableStageDoFnOperatorTest {
 
     DoFnOperator.MultiOutputOutputManagerFactory<Integer> outputManagerFactory =
         new DoFnOperator.MultiOutputOutputManagerFactory(
-            mainOutput, tagsToOutputTags, tagsToCoders, tagsToIds);
+            mainOutput,
+            tagsToOutputTags,
+            tagsToCoders,
+            tagsToIds,
+            new SerializablePipelineOptions(FlinkPipelineOptions.defaults()));
 
     WindowedValue<Integer> zero = WindowedValue.valueInGlobalWindow(0);
     WindowedValue<Integer> three = WindowedValue.valueInGlobalWindow(3);
@@ -297,8 +321,11 @@ public class ExecutableStageDoFnOperatorTest {
           @Override
           public RemoteBundle getBundle(
               OutputReceiverFactory receiverFactory,
+              TimerReceiverFactory timerReceiverFactory,
               StateRequestHandler stateRequestHandler,
-              BundleProgressHandler progressHandler) {
+              BundleProgressHandler progressHandler,
+              BundleFinalizationHandler finalizationHandler,
+              BundleCheckpointHandler checkpointHandler) {
             return new RemoteBundle() {
               @Override
               public String getId() {
@@ -312,6 +339,21 @@ public class ExecutableStageDoFnOperatorTest {
                     input -> {
                       /* Ignore input*/
                     });
+              }
+
+              @Override
+              public Map<KV<String, String>, FnDataReceiver<Timer>> getTimerReceivers() {
+                return Collections.emptyMap();
+              }
+
+              @Override
+              public void requestProgress() {
+                throw new UnsupportedOperationException();
+              }
+
+              @Override
+              public void split(double fractionOfRemainder) {
+                throw new UnsupportedOperationException();
               }
 
               @Override
@@ -332,6 +374,11 @@ public class ExecutableStageDoFnOperatorTest {
           public ProcessBundleDescriptors.ExecutableProcessBundleDescriptor
               getProcessBundleDescriptor() {
             return processBundleDescriptor;
+          }
+
+          @Override
+          public InstructionRequestHandler getInstructionRequestHandler() {
+            return null;
           }
 
           @Override
@@ -364,10 +411,7 @@ public class ExecutableStageDoFnOperatorTest {
 
     testHarness.close(); // triggers finish bundle
 
-    assertThat(
-        testHarness.getOutput(),
-        contains(
-            new StreamRecord<>(three), new Watermark(watermark), new Watermark(Long.MAX_VALUE)));
+    assertThat(stripStreamRecordFromWindowedValue(testHarness.getOutput()), contains(three));
 
     assertThat(
         testHarness.getSideOutput(tagsToOutputTags.get(additionalOutput1)),
@@ -379,10 +423,149 @@ public class ExecutableStageDoFnOperatorTest {
   }
 
   @Test
+  public void testWatermarkHandling() throws Exception {
+    TupleTag<Integer> mainOutput = new TupleTag<>("main-output");
+    DoFnOperator.MultiOutputOutputManagerFactory<Integer> outputManagerFactory =
+        new DoFnOperator.MultiOutputOutputManagerFactory(
+            mainOutput,
+            VoidCoder.of(),
+            new SerializablePipelineOptions(FlinkPipelineOptions.defaults()));
+    ExecutableStageDoFnOperator<KV<String, Integer>, Integer> operator =
+        getOperator(
+            mainOutput,
+            Collections.emptyList(),
+            outputManagerFactory,
+            WindowingStrategy.of(FixedWindows.of(Duration.millis(10))),
+            StringUtf8Coder.of(),
+            WindowedValue.getFullCoder(
+                KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()), IntervalWindow.getCoder()));
+
+    KeyedOneInputStreamOperatorTestHarness<
+            String, WindowedValue<KV<String, Integer>>, WindowedValue<Integer>>
+        testHarness =
+            new KeyedOneInputStreamOperatorTestHarness<>(
+                operator,
+                val -> val.getValue().getKey(),
+                new CoderTypeInformation<>(StringUtf8Coder.of(), FlinkPipelineOptions.defaults()));
+    RemoteBundle bundle = Mockito.mock(RemoteBundle.class);
+    when(bundle.getInputReceivers())
+        .thenReturn(
+            ImmutableMap.<String, FnDataReceiver<WindowedValue>>builder()
+                .put("input", Mockito.mock(FnDataReceiver.class))
+                .build());
+    when(bundle.getTimerReceivers())
+        .thenReturn(
+            ImmutableMap.<KV<String, String>, FnDataReceiver<WindowedValue>>builder()
+                .put(KV.of("transform", "timer"), Mockito.mock(FnDataReceiver.class))
+                .put(KV.of("transform", "timer2"), Mockito.mock(FnDataReceiver.class))
+                .put(KV.of("transform", "timer3"), Mockito.mock(FnDataReceiver.class))
+                .build());
+    when(stageBundleFactory.getBundle(any(), any(), any(), any(), any(), any())).thenReturn(bundle);
+
+    testHarness.open();
+    assertThat(
+        operator.getCurrentOutputWatermark(), is(BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis()));
+
+    // No bundle has been started, watermark can be freely advanced
+    testHarness.processWatermark(0);
+    assertThat(operator.getCurrentOutputWatermark(), is(0L));
+
+    // Trigger a new bundle
+    IntervalWindow intervalWindow = new IntervalWindow(new Instant(0), new Instant(9));
+    WindowedValue<KV<String, Integer>> windowedValue =
+        WindowedValue.of(KV.of("one", 1), Instant.now(), intervalWindow, PaneInfo.NO_FIRING);
+    testHarness.processElement(new StreamRecord<>(windowedValue));
+
+    // The output watermark should be held back during the bundle
+    testHarness.processWatermark(1);
+    assertThat(operator.getEffectiveInputWatermark(), is(1L));
+    assertThat(operator.getCurrentOutputWatermark(), is(0L));
+
+    // After the bundle has been finished, the watermark should be advanced
+    operator.invokeFinishBundle();
+    assertThat(operator.getCurrentOutputWatermark(), is(1L));
+
+    // Bundle finished, watermark can be freely advanced
+    testHarness.processWatermark(2);
+    assertThat(operator.getEffectiveInputWatermark(), is(2L));
+    assertThat(operator.getCurrentOutputWatermark(), is(2L));
+
+    // Trigger a new bundle
+    testHarness.processElement(new StreamRecord<>(windowedValue));
+    assertThat(testHarness.numEventTimeTimers(), is(1)); // cleanup timer
+
+    // Set at timer
+    Instant timerTarget = new Instant(5);
+    Instant timerTarget2 = new Instant(6);
+    operator.getLockToAcquireForStateAccessDuringBundles().lock();
+
+    BiConsumer<String, Instant> timerConsumer =
+        (timerId, timestamp) ->
+            operator.setTimer(
+                Timer.of(
+                    windowedValue.getValue().getKey(),
+                    "",
+                    windowedValue.getWindows(),
+                    timestamp,
+                    timestamp,
+                    PaneInfo.NO_FIRING),
+                TimerInternals.TimerData.of(
+                    TimerReceiverFactory.encodeToTimerDataTimerId("transform", timerId),
+                    "",
+                    StateNamespaces.window(IntervalWindow.getCoder(), intervalWindow),
+                    timestamp,
+                    timestamp,
+                    TimeDomain.EVENT_TIME));
+
+    timerConsumer.accept("timer", timerTarget);
+    timerConsumer.accept("timer2", timerTarget2);
+    assertThat(testHarness.numEventTimeTimers(), is(3));
+
+    // Advance input watermark past the timer
+    // Check the output watermark is held back
+    long targetWatermark = timerTarget.getMillis() + 100;
+    testHarness.processWatermark(targetWatermark);
+    // Do not yet advance the output watermark because we are still processing a bundle
+    assertThat(testHarness.numEventTimeTimers(), is(3));
+    assertThat(operator.getCurrentOutputWatermark(), is(2L));
+
+    // Check that the timers are fired but the output watermark is advanced no further than
+    // the minimum timer timestamp of the previous bundle because we are still processing a
+    // bundle which might contain more timers.
+    // Timers can create loops if they keep rescheduling themselves when firing
+    // Thus, we advance the watermark asynchronously to allow for checkpointing to run
+    operator.invokeFinishBundle();
+    assertThat(testHarness.numEventTimeTimers(), is(3));
+    testHarness.setProcessingTime(testHarness.getProcessingTime() + 1);
+    assertThat(testHarness.numEventTimeTimers(), is(0));
+    assertThat(operator.getCurrentOutputWatermark(), is(5L));
+
+    // Output watermark is advanced synchronously when the bundle finishes,
+    // no more timers are scheduled
+    operator.invokeFinishBundle();
+    assertThat(operator.getCurrentOutputWatermark(), is(targetWatermark));
+    assertThat(testHarness.numEventTimeTimers(), is(0));
+
+    // Watermark is advanced in a blocking fashion on close, not via a timers
+    // Create a bundle with a pending timer to simulate that
+    testHarness.processElement(new StreamRecord<>(windowedValue));
+    timerConsumer.accept("timer3", new Instant(targetWatermark));
+    assertThat(testHarness.numEventTimeTimers(), is(1));
+
+    // This should be blocking until the watermark reaches Long.MAX_VALUE.
+    testHarness.close();
+    assertThat(testHarness.numEventTimeTimers(), is(0));
+    assertThat(operator.getCurrentOutputWatermark(), is(Long.MAX_VALUE));
+  }
+
+  @Test
   public void testStageBundleClosed() throws Exception {
     TupleTag<Integer> mainOutput = new TupleTag<>("main-output");
     DoFnOperator.MultiOutputOutputManagerFactory<Integer> outputManagerFactory =
-        new DoFnOperator.MultiOutputOutputManagerFactory(mainOutput, VoidCoder.of());
+        new DoFnOperator.MultiOutputOutputManagerFactory(
+            mainOutput,
+            VoidCoder.of(),
+            new SerializablePipelineOptions(FlinkPipelineOptions.defaults()));
     ExecutableStageDoFnOperator<Integer, Integer> operator =
         getOperator(mainOutput, Collections.emptyList(), outputManagerFactory);
 
@@ -395,12 +578,12 @@ public class ExecutableStageDoFnOperatorTest {
             ImmutableMap.<String, FnDataReceiver<WindowedValue>>builder()
                 .put("input", Mockito.mock(FnDataReceiver.class))
                 .build());
-    when(stageBundleFactory.getBundle(any(), any(), any())).thenReturn(bundle);
+    when(stageBundleFactory.getBundle(any(), any(), any(), any(), any(), any())).thenReturn(bundle);
 
     testHarness.open();
     testHarness.close();
 
-    verify(stageBundleFactory).getProcessBundleDescriptor();
+    verify(stageBundleFactory).getInstructionRequestHandler();
     verify(stageBundleFactory).close();
     verify(stageContext).close();
     verifyNoMoreInteractions(stageBundleFactory);
@@ -416,7 +599,10 @@ public class ExecutableStageDoFnOperatorTest {
   public void testEnsureStateCleanupWithKeyedInput() throws Exception {
     TupleTag<Integer> mainOutput = new TupleTag<>("main-output");
     DoFnOperator.MultiOutputOutputManagerFactory<Integer> outputManagerFactory =
-        new DoFnOperator.MultiOutputOutputManagerFactory(mainOutput, VarIntCoder.of());
+        new DoFnOperator.MultiOutputOutputManagerFactory(
+            mainOutput,
+            VarIntCoder.of(),
+            new SerializablePipelineOptions(FlinkPipelineOptions.defaults()));
     VarIntCoder keyCoder = VarIntCoder.of();
     ExecutableStageDoFnOperator<Integer, Integer> operator =
         getOperator(
@@ -430,7 +616,9 @@ public class ExecutableStageDoFnOperatorTest {
     KeyedOneInputStreamOperatorTestHarness<Integer, WindowedValue<Integer>, WindowedValue<Integer>>
         testHarness =
             new KeyedOneInputStreamOperatorTestHarness(
-                operator, val -> val, new CoderTypeInformation<>(keyCoder));
+                operator,
+                val -> val,
+                new CoderTypeInformation<>(keyCoder, FlinkPipelineOptions.defaults()));
 
     RemoteBundle bundle = Mockito.mock(RemoteBundle.class);
     when(bundle.getInputReceivers())
@@ -438,7 +626,7 @@ public class ExecutableStageDoFnOperatorTest {
             ImmutableMap.<String, FnDataReceiver<WindowedValue>>builder()
                 .put("input", Mockito.mock(FnDataReceiver.class))
                 .build());
-    when(stageBundleFactory.getBundle(any(), any(), any())).thenReturn(bundle);
+    when(stageBundleFactory.getBundle(any(), any(), any(), any(), any(), any())).thenReturn(bundle);
 
     testHarness.open();
 
@@ -456,8 +644,8 @@ public class ExecutableStageDoFnOperatorTest {
     KeyedStateBackend keyedStateBackend = Mockito.mock(KeyedStateBackend.class);
     Lock stateBackendLock = Mockito.mock(Lock.class);
     StringUtf8Coder keyCoder = StringUtf8Coder.of();
-    GlobalWindow window = GlobalWindow.INSTANCE;
-    GlobalWindow.Coder windowCoder = GlobalWindow.Coder.INSTANCE;
+    IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(10));
+    Coder<IntervalWindow> windowCoder = IntervalWindow.getCoder();
 
     // Test that cleanup timer is set correctly
     ExecutableStageDoFnOperator.CleanupTimer cleanupTimer =
@@ -480,7 +668,7 @@ public class ExecutableStageDoFnOperatorTest {
   }
 
   @Test
-  public void testEnsureStateCleanupWithKeyedInputStateCleaner() {
+  public void testEnsureStateCleanupWithKeyedInputStateCleaner() throws Exception {
     GlobalWindow.Coder windowCoder = GlobalWindow.Coder.INSTANCE;
     InMemoryStateInternals<String> stateInternals = InMemoryStateInternals.forKey("key");
     List<String> userStateNames = ImmutableList.of("state1", "state2");
@@ -502,13 +690,13 @@ public class ExecutableStageDoFnOperatorTest {
     // Test that state is cleaned up correctly
     ExecutableStageDoFnOperator.StateCleaner stateCleaner =
         new ExecutableStageDoFnOperator.StateCleaner(
-            userStateNames, windowCoder, () -> key.getValue());
+            userStateNames, windowCoder, key::getValue, ts -> false, null);
     for (BagState<String> bagState : bagStates) {
       assertThat(Iterables.size(bagState.read()), is(1));
     }
 
     stateCleaner.clearForWindow(GlobalWindow.INSTANCE);
-    stateCleaner.cleanupState(stateInternals, (k) -> key.setValue(k));
+    stateCleaner.cleanupState(stateInternals, key::setValue);
 
     for (BagState<String> bagState : bagStates) {
       assertThat(Iterables.size(bagState.read()), is(0));
@@ -518,6 +706,10 @@ public class ExecutableStageDoFnOperatorTest {
   @Test
   public void testEnsureDeferredStateCleanupTimerFiring() throws Exception {
     testEnsureDeferredStateCleanupTimerFiring(false);
+  }
+
+  @Test
+  public void testEnsureDeferredStateCleanupTimerFiringWithCheckpointing() throws Exception {
     testEnsureDeferredStateCleanupTimerFiring(true);
   }
 
@@ -525,7 +717,10 @@ public class ExecutableStageDoFnOperatorTest {
       throws Exception {
     TupleTag<Integer> mainOutput = new TupleTag<>("main-output");
     DoFnOperator.MultiOutputOutputManagerFactory<Integer> outputManagerFactory =
-        new DoFnOperator.MultiOutputOutputManagerFactory(mainOutput, VoidCoder.of());
+        new DoFnOperator.MultiOutputOutputManagerFactory(
+            mainOutput,
+            VoidCoder.of(),
+            new SerializablePipelineOptions(FlinkPipelineOptions.defaults()));
     StringUtf8Coder keyCoder = StringUtf8Coder.of();
 
     WindowingStrategy windowingStrategy =
@@ -543,18 +738,18 @@ public class ExecutableStageDoFnOperatorTest {
 
     @SuppressWarnings("unchecked")
     RemoteBundle bundle = Mockito.mock(RemoteBundle.class);
-    when(stageBundleFactory.getBundle(any(), any(), any())).thenReturn(bundle);
+    when(stageBundleFactory.getBundle(any(), any(), any(), any(), any(), any())).thenReturn(bundle);
 
-    String timerInputId = "timerInput";
+    KV<String, String> timerInputKey = KV.of("transformId", "timerId");
     AtomicBoolean timerInputReceived = new AtomicBoolean();
     IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(1000));
     IntervalWindow.IntervalWindowCoder windowCoder = IntervalWindow.IntervalWindowCoder.of();
-    WindowedValue<KV<String, Integer>> one =
+    WindowedValue<KV<String, Integer>> windowedValue =
         WindowedValue.of(
             KV.of("one", 1), window.maxTimestamp(), ImmutableList.of(window), PaneInfo.NO_FIRING);
 
-    FnDataReceiver<WindowedValue<?>> receiver = Mockito.mock(FnDataReceiver.class);
-    FnDataReceiver<WindowedValue<?>> timerReceiver = Mockito.mock(FnDataReceiver.class);
+    FnDataReceiver receiver = Mockito.mock(FnDataReceiver.class);
+    FnDataReceiver<Timer> timerReceiver = Mockito.mock(FnDataReceiver.class);
     doAnswer(
             (invocation) -> {
               timerInputReceived.set(true);
@@ -563,89 +758,196 @@ public class ExecutableStageDoFnOperatorTest {
         .when(timerReceiver)
         .accept(any());
 
-    when(bundle.getInputReceivers())
-        .thenReturn(ImmutableMap.of("input", receiver, timerInputId, timerReceiver));
+    when(bundle.getInputReceivers()).thenReturn(ImmutableMap.of("input", receiver));
+    when(bundle.getTimerReceivers()).thenReturn(ImmutableMap.of(timerInputKey, timerReceiver));
 
     KeyedOneInputStreamOperatorTestHarness<
-            String, WindowedValue<KV<String, Integer>>, WindowedValue<KV<String, Integer>>>
+            ByteBuffer, WindowedValue<KV<String, Integer>>, WindowedValue<Integer>>
         testHarness =
             new KeyedOneInputStreamOperatorTestHarness(
-                operator, val -> val, new CoderTypeInformation<>(keyCoder));
+                operator,
+                operator.keySelector,
+                new CoderTypeInformation<>(
+                    FlinkKeyUtils.ByteBufferCoder.of(), FlinkPipelineOptions.defaults()));
 
     testHarness.open();
 
-    Lock stateBackendLock = (Lock) Whitebox.getInternalState(operator, "stateBackendLock");
+    Lock stateBackendLock = Whitebox.getInternalState(operator, "stateBackendLock");
     stateBackendLock.lock();
 
     KeyedStateBackend<ByteBuffer> keyedStateBackend = operator.getKeyedStateBackend();
-    ByteBuffer key = FlinkKeyUtils.encodeKey(one.getValue().getKey(), keyCoder);
+    ByteBuffer key = FlinkKeyUtils.encodeKey(windowedValue.getValue().getKey(), keyCoder);
     keyedStateBackend.setCurrentKey(key);
 
     DoFnOperator.FlinkTimerInternals timerInternals =
-        (DoFnOperator.FlinkTimerInternals) Whitebox.getInternalState(operator, "timerInternals");
+        Whitebox.getInternalState(operator, "timerInternals");
 
     Object doFnRunner = Whitebox.getInternalState(operator, "doFnRunner");
     Object delegate = Whitebox.getInternalState(doFnRunner, "delegate");
     Object stateCleaner = Whitebox.getInternalState(delegate, "stateCleaner");
-    Collection<?> cleanupTimers =
-        (Collection) Whitebox.getInternalState(stateCleaner, "cleanupQueue");
+    Collection<?> cleanupQueue = Whitebox.getInternalState(stateCleaner, "cleanupQueue");
 
     // create some state which can be cleaned up
     assertThat(testHarness.numKeyedStateEntries(), is(0));
     StateNamespace stateNamespace = StateNamespaces.window(windowCoder, window);
-    BagState<String> state =
+    BagState<ByteString> state = // State from the SDK Harness is stored as ByteStrings
         operator.keyedStateInternals.state(
-            stateNamespace, StateTags.bag(stateId, StringUtf8Coder.of()));
-    state.add("testUserState");
+            stateNamespace, StateTags.bag(stateId, ByteStringCoder.of()));
+    state.add(ByteString.copyFrom("userstate".getBytes(Charsets.UTF_8)));
     assertThat(testHarness.numKeyedStateEntries(), is(1));
 
     // user timer that fires after the end of the window and after state cleanup
     TimerInternals.TimerData userTimer =
         TimerInternals.TimerData.of(
-            timerInputId, stateNamespace, window.maxTimestamp().plus(1), TimeDomain.EVENT_TIME);
+            TimerReceiverFactory.encodeToTimerDataTimerId(
+                timerInputKey.getKey(), timerInputKey.getValue()),
+            stateNamespace,
+            window.maxTimestamp(),
+            window.maxTimestamp(),
+            TimeDomain.EVENT_TIME);
     timerInternals.setTimer(userTimer);
 
     // start of bundle
-    testHarness.processElement(new StreamRecord<>(one));
-    verify(receiver).accept(one);
+    testHarness.processElement(new StreamRecord<>(windowedValue));
+    verify(receiver).accept(windowedValue);
 
-    // move watermark past cleanup and user timer while bundle in progress
-    operator.processWatermark(new Watermark(window.maxTimestamp().plus(2).getMillis()));
+    // move watermark past user timer while bundle is in progress
+    testHarness.processWatermark(new Watermark(window.maxTimestamp().plus(1).getMillis()));
 
-    // due to watermark hold the timers won't fire at this point
-    assertFalse("Watermark must be held back until bundle is complete.", timerInputReceived.get());
-    assertThat(cleanupTimers, hasSize(0));
+    // Output watermark is held back and timers do not yet fire (they can still be changed!)
+    assertThat(timerInputReceived.get(), is(false));
+    assertThat(
+        operator.getCurrentOutputWatermark(), is(BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis()));
+    // The timer fires on bundle finish
+    operator.invokeFinishBundle();
+    assertThat(timerInputReceived.getAndSet(false), is(true));
+
+    // Move watermark past the cleanup timer
+    testHarness.processWatermark(new Watermark(window.maxTimestamp().plus(2).getMillis()));
+    operator.invokeFinishBundle();
+
+    // Cleanup timer has fired and cleanup queue is prepared for bundle finish
+    assertThat(testHarness.numEventTimeTimers(), is(0));
+    assertThat(testHarness.numKeyedStateEntries(), is(1));
+    assertThat(cleanupQueue, hasSize(1));
+
+    // Cleanup timer are rescheduled if a new timer is created during the bundle
+    TimerInternals.TimerData userTimer2 =
+        TimerInternals.TimerData.of(
+            TimerReceiverFactory.encodeToTimerDataTimerId(
+                timerInputKey.getKey(), timerInputKey.getValue()),
+            stateNamespace,
+            window.maxTimestamp(),
+            window.maxTimestamp(),
+            TimeDomain.EVENT_TIME);
+    operator.setTimer(
+        Timer.of(
+            windowedValue.getValue().getKey(),
+            "",
+            windowedValue.getWindows(),
+            window.maxTimestamp(),
+            window.maxTimestamp(),
+            PaneInfo.NO_FIRING),
+        userTimer2);
+    assertThat(testHarness.numEventTimeTimers(), is(1));
 
     if (withCheckpointing) {
-      // Upon checkpointing, the bundle is finished and the watermark advances;
-      // timers can fire. Note: The bundle is ensured to be finished.
+      // Upon checkpointing, the bundle will be finished.
       testHarness.snapshot(0, 0);
-
-      // The user timer was scheduled to fire after cleanup, but executes first
-      assertTrue("Timer should have been triggered.", timerInputReceived.get());
-      // Cleanup will be executed after the bundle is complete
-      assertThat(cleanupTimers, hasSize(0));
-      verifyNoMoreInteractions(receiver);
     } else {
-      // Upon finishing a bundle, the watermark advances; timers can fire.
-      // Note that this will finish the current bundle, but will also start a new one
-      // when timers fire as part of advancing the watermark
       operator.invokeFinishBundle();
-
-      // The user timer was scheduled to fire after cleanup, but executes first
-      assertTrue("Timer should have been triggered.", timerInputReceived.get());
-      // Cleanup will be executed after the bundle is complete
-      assertThat(cleanupTimers, hasSize(1));
-      verifyNoMoreInteractions(receiver);
-
-      // Finish bundle which has been started by finishing the bundle
-      operator.invokeFinishBundle();
-      assertThat(cleanupTimers, hasSize(0));
     }
 
+    // Cleanup queue has been processed and cleanup timer has been re-added due to pending timers
+    // for the window.
+    assertThat(cleanupQueue, hasSize(0));
+    verifyNoMoreInteractions(receiver);
+    assertThat(testHarness.numKeyedStateEntries(), is(2));
+    assertThat(testHarness.numEventTimeTimers(), is(2));
+
+    // No timer has been fired but bundle should be ended
+    assertThat(timerInputReceived.get(), is(false));
+    assertThat(Whitebox.getInternalState(operator, "bundleStarted"), is(false));
+
+    // Allow user timer and cleanup timer to fire by triggering watermark advancement
+    testHarness.setProcessingTime(testHarness.getProcessingTime() + 1);
+    assertThat(timerInputReceived.getAndSet(false), is(true));
+    assertThat(cleanupQueue, hasSize(1));
+
+    // Cleanup will be executed after the bundle is complete because there are no more pending
+    // timers for the window
+    operator.invokeFinishBundle();
+    assertThat(cleanupQueue, hasSize(0));
     assertThat(testHarness.numKeyedStateEntries(), is(0));
 
     testHarness.close();
+    verifyNoMoreInteractions(receiver);
+  }
+
+  @Test
+  public void testEnsureStateCleanupOnFinalWatermark() throws Exception {
+    TupleTag<Integer> mainOutput = new TupleTag<>("main-output");
+    DoFnOperator.MultiOutputOutputManagerFactory<Integer> outputManagerFactory =
+        new DoFnOperator.MultiOutputOutputManagerFactory(
+            mainOutput,
+            VoidCoder.of(),
+            new SerializablePipelineOptions(FlinkPipelineOptions.defaults()));
+
+    StringUtf8Coder keyCoder = StringUtf8Coder.of();
+
+    WindowingStrategy windowingStrategy = WindowingStrategy.globalDefault();
+    Coder<BoundedWindow> windowCoder = windowingStrategy.getWindowFn().windowCoder();
+
+    KvCoder<String, Integer> kvCoder = KvCoder.of(keyCoder, VarIntCoder.of());
+    ExecutableStageDoFnOperator<Integer, Integer> operator =
+        getOperator(
+            mainOutput,
+            Collections.emptyList(),
+            outputManagerFactory,
+            windowingStrategy,
+            keyCoder,
+            WindowedValue.getFullCoder(kvCoder, windowCoder));
+
+    KeyedOneInputStreamOperatorTestHarness<
+            ByteBuffer, WindowedValue<KV<String, Integer>>, WindowedValue<Integer>>
+        testHarness =
+            new KeyedOneInputStreamOperatorTestHarness(
+                operator,
+                operator.keySelector,
+                new CoderTypeInformation<>(
+                    FlinkKeyUtils.ByteBufferCoder.of(), FlinkPipelineOptions.defaults()));
+
+    RemoteBundle bundle = Mockito.mock(RemoteBundle.class);
+    when(bundle.getInputReceivers())
+        .thenReturn(
+            ImmutableMap.<String, FnDataReceiver<WindowedValue>>builder()
+                .put("input", Mockito.mock(FnDataReceiver.class))
+                .build());
+    when(stageBundleFactory.getBundle(any(), any(), any(), any(), any(), any())).thenReturn(bundle);
+
+    testHarness.open();
+
+    KeyedStateBackend<ByteBuffer> keyedStateBackend = operator.getKeyedStateBackend();
+    ByteBuffer key = FlinkKeyUtils.encodeKey("key1", keyCoder);
+    keyedStateBackend.setCurrentKey(key);
+
+    // create some state which can be cleaned up
+    assertThat(testHarness.numKeyedStateEntries(), is(0));
+    StateNamespace stateNamespace = StateNamespaces.window(windowCoder, GlobalWindow.INSTANCE);
+    BagState<ByteString> state = // State from the SDK Harness is stored as ByteStrings
+        operator.keyedStateInternals.state(
+            stateNamespace, StateTags.bag(stateId, ByteStringCoder.of()));
+    state.add(ByteString.copyFrom("userstate".getBytes(Charsets.UTF_8)));
+    // No timers have been set for cleanup
+    assertThat(testHarness.numEventTimeTimers(), is(0));
+    // State has been created
+    assertThat(testHarness.numKeyedStateEntries(), is(1));
+
+    // Generate final watermark to trigger state cleanup
+    testHarness.processWatermark(
+        new Watermark(BoundedWindow.TIMESTAMP_MAX_VALUE.plus(1).getMillis()));
+
+    assertThat(testHarness.numKeyedStateEntries(), is(0));
   }
 
   @Test
@@ -653,72 +955,63 @@ public class ExecutableStageDoFnOperatorTest {
     InMemoryStateInternals test = InMemoryStateInternals.forKey("test");
     KeyedStateBackend<ByteBuffer> stateBackend = FlinkStateInternalsTest.createStateBackend();
 
+    ExecutableStageDoFnOperator.BagUserStateFactory<Integer, GlobalWindow> bagUserStateFactory =
+        new ExecutableStageDoFnOperator.BagUserStateFactory<>(
+            test, stateBackend, NoopLock.get(), null);
+
+    ByteString key1 = ByteString.copyFrom("key1", Charsets.UTF_8);
+    ByteString key2 = ByteString.copyFrom("key2", Charsets.UTF_8);
+
+    Map<String, Map<String, ProcessBundleDescriptors.BagUserStateSpec>> userStateMapMock =
+        Mockito.mock(Map.class);
+    Map<String, ProcessBundleDescriptors.BagUserStateSpec> transformMap = Mockito.mock(Map.class);
+
+    final String userState1 = "userstate1";
+    ProcessBundleDescriptors.BagUserStateSpec bagUserStateSpec1 = mockBagUserState(userState1);
+    when(transformMap.get(userState1)).thenReturn(bagUserStateSpec1);
+
+    final String userState2 = "userstate2";
+    ProcessBundleDescriptors.BagUserStateSpec bagUserStateSpec2 = mockBagUserState(userState2);
+    when(transformMap.get(userState2)).thenReturn(bagUserStateSpec2);
+
+    when(userStateMapMock.get(anyString())).thenReturn(transformMap);
+    when(processBundleDescriptor.getBagUserStateSpecs()).thenReturn(userStateMapMock);
+    StateRequestHandler stateRequestHandler =
+        StateRequestHandlers.forBagUserStateHandlerFactory(
+            processBundleDescriptor, bagUserStateFactory);
+
     // User state the cache token is valid for the lifetime of the operator
-    for (String expectedToken : new String[] {"first token", "second token"}) {
-      final IdGenerator cacheTokenGenerator = () -> expectedToken;
-      ExecutableStageDoFnOperator.BagUserStateFactory<Integer, GlobalWindow> bagUserStateFactory =
-          new ExecutableStageDoFnOperator.BagUserStateFactory<>(
-              cacheTokenGenerator, test, stateBackend, NoopLock.get(), null);
+    final BeamFnApi.ProcessBundleRequest.CacheToken expectedCacheToken =
+        Iterables.getOnlyElement(stateRequestHandler.getCacheTokens());
 
-      ByteString key1 = ByteString.copyFrom("key1", Charsets.UTF_8);
-      ByteString key2 = ByteString.copyFrom("key2", Charsets.UTF_8);
+    // Make a request to generate initial cache token
+    stateRequestHandler.handle(getRequest(key1, userState1));
+    BeamFnApi.ProcessBundleRequest.CacheToken returnedCacheToken =
+        Iterables.getOnlyElement(stateRequestHandler.getCacheTokens());
+    assertThat(returnedCacheToken.hasUserState(), is(true));
+    assertThat(returnedCacheToken, is(expectedCacheToken));
 
-      Map<String, Map<String, ProcessBundleDescriptors.BagUserStateSpec>> userStateMapMock =
-          Mockito.mock(Map.class);
-      Map<String, ProcessBundleDescriptors.BagUserStateSpec> transformMap = Mockito.mock(Map.class);
+    List<RequestGenerator> generators =
+        Arrays.asList(
+            ExecutableStageDoFnOperatorTest::getRequest,
+            ExecutableStageDoFnOperatorTest::getAppend,
+            ExecutableStageDoFnOperatorTest::getClear);
 
-      final String userState1 = "userstate1";
-      ProcessBundleDescriptors.BagUserStateSpec bagUserStateSpec1 = mockBagUserState(userState1);
-      when(transformMap.get(userState1)).thenReturn(bagUserStateSpec1);
+    for (RequestGenerator req : generators) {
+      // For every state read the tokens remains unchanged
+      stateRequestHandler.handle(req.makeRequest(key1, userState1));
+      assertThat(
+          Iterables.getOnlyElement(stateRequestHandler.getCacheTokens()), is(expectedCacheToken));
 
-      final String userState2 = "userstate2";
-      ProcessBundleDescriptors.BagUserStateSpec bagUserStateSpec2 = mockBagUserState(userState2);
-      when(transformMap.get(userState2)).thenReturn(bagUserStateSpec2);
+      // The token is still valid for another key in the same key range
+      stateRequestHandler.handle(req.makeRequest(key2, userState1));
+      assertThat(
+          Iterables.getOnlyElement(stateRequestHandler.getCacheTokens()), is(expectedCacheToken));
 
-      when(userStateMapMock.get(anyString())).thenReturn(transformMap);
-      when(processBundleDescriptor.getBagUserStateSpecs()).thenReturn(userStateMapMock);
-      StateRequestHandler stateRequestHandler =
-          StateRequestHandlers.forBagUserStateHandlerFactory(
-              processBundleDescriptor, bagUserStateFactory);
-
-      // There should be no cache token available before any requests have been made
-      assertThat(stateRequestHandler.getCacheTokens(), iterableWithSize(0));
-
-      // Make a request to generate initial cache token
-      stateRequestHandler.handle(getRequest(key1, userState1));
-      BeamFnApi.ProcessBundleRequest.CacheToken cacheTokenStruct =
-          Iterables.getOnlyElement(stateRequestHandler.getCacheTokens());
-      assertThat(cacheTokenStruct.hasUserState(), is(true));
-      ByteString cacheToken = cacheTokenStruct.getToken();
-      final ByteString expectedCacheToken =
-          ByteString.copyFrom(expectedToken.getBytes(Charsets.UTF_8));
-      assertThat(cacheToken, is(expectedCacheToken));
-
-      List<RequestGenerator> generators =
-          Arrays.asList(
-              ExecutableStageDoFnOperatorTest::getRequest,
-              ExecutableStageDoFnOperatorTest::getAppend,
-              ExecutableStageDoFnOperatorTest::getClear);
-
-      for (RequestGenerator req : generators) {
-        // For every state read the tokens remains unchanged
-        stateRequestHandler.handle(req.makeRequest(key1, userState1));
-        assertThat(
-            Iterables.getOnlyElement(stateRequestHandler.getCacheTokens()).getToken(),
-            is(expectedCacheToken));
-
-        // The token is still valid for another key in the same key range
-        stateRequestHandler.handle(req.makeRequest(key2, userState1));
-        assertThat(
-            Iterables.getOnlyElement(stateRequestHandler.getCacheTokens()).getToken(),
-            is(expectedCacheToken));
-
-        // The token is still valid for another state cell in the same key range
-        stateRequestHandler.handle(req.makeRequest(key2, userState2));
-        assertThat(
-            Iterables.getOnlyElement(stateRequestHandler.getCacheTokens()).getToken(),
-            is(expectedCacheToken));
-      }
+      // The token is still valid for another state cell in the same key range
+      stateRequestHandler.handle(req.makeRequest(key2, userState2));
+      assertThat(
+          Iterables.getOnlyElement(stateRequestHandler.getCacheTokens()), is(expectedCacheToken));
     }
   }
 
@@ -801,15 +1094,18 @@ public class ExecutableStageDoFnOperatorTest {
 
     DoFnOperator.MultiOutputOutputManagerFactory<Integer> outputManagerFactory =
         new DoFnOperator.MultiOutputOutputManagerFactory(
-            mainOutput, tagsToOutputTags, tagsToCoders, tagsToIds);
+            mainOutput,
+            tagsToOutputTags,
+            tagsToCoders,
+            tagsToIds,
+            new SerializablePipelineOptions(FlinkPipelineOptions.defaults()));
 
-    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
 
     ExecutableStageDoFnOperator<Integer, Integer> operator =
         new ExecutableStageDoFnOperator<>(
             "transform",
-            null,
-            null,
+            WindowedValue.getValueOnlyCoder(VarIntCoder.of()),
             Collections.emptyMap(),
             mainOutput,
             ImmutableList.of(additionalOutput),
@@ -836,7 +1132,8 @@ public class ExecutableStageDoFnOperatorTest {
    * #runtimeContext}. The context factory is mocked to return {@link #stageContext} every time. The
    * behavior of the stage context itself is unchanged.
    */
-  private ExecutableStageDoFnOperator<Integer, Integer> getOperator(
+  @SuppressWarnings("rawtypes")
+  private ExecutableStageDoFnOperator getOperator(
       TupleTag<Integer> mainOutput,
       List<TupleTag<?>> additionalOutputs,
       DoFnOperator.MultiOutputOutputManagerFactory<Integer> outputManagerFactory) {
@@ -849,13 +1146,14 @@ public class ExecutableStageDoFnOperatorTest {
         WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE));
   }
 
-  private ExecutableStageDoFnOperator<Integer, Integer> getOperator(
+  @SuppressWarnings("rawtypes")
+  private ExecutableStageDoFnOperator getOperator(
       TupleTag<Integer> mainOutput,
       List<TupleTag<?>> additionalOutputs,
       DoFnOperator.MultiOutputOutputManagerFactory<Integer> outputManagerFactory,
       WindowingStrategy windowingStrategy,
       @Nullable Coder keyCoder,
-      @Nullable Coder windowedInputCoder) {
+      Coder windowedInputCoder) {
 
     FlinkExecutableStageContextFactory contextFactory =
         Mockito.mock(FlinkExecutableStageContextFactory.class);
@@ -872,7 +1170,6 @@ public class ExecutableStageDoFnOperatorTest {
         new ExecutableStageDoFnOperator<>(
             "transform",
             windowedInputCoder,
-            null,
             Collections.emptyMap(),
             mainOutput,
             additionalOutputs,
@@ -880,14 +1177,14 @@ public class ExecutableStageDoFnOperatorTest {
             Collections.emptyMap() /* sideInputTagMapping */,
             Collections.emptyList() /* sideInputs */,
             Collections.emptyMap() /* sideInputId mapping */,
-            PipelineOptionsFactory.as(FlinkPipelineOptions.class),
+            FlinkPipelineOptions.defaults(),
             stagePayload,
             jobInfo,
             contextFactory,
             createOutputMap(mainOutput, additionalOutputs),
             windowingStrategy,
             keyCoder,
-            keyCoder != null ? new KvToByteBufferKeySelector<>(keyCoder) : null);
+            keyCoder != null ? new KvToByteBufferKeySelector<>(keyCoder, null) : null);
 
     Whitebox.setInternalState(operator, "stateRequestHandler", stateRequestHandler);
     return operator;

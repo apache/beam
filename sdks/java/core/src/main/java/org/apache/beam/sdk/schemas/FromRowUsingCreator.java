@@ -25,9 +25,12 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
+import org.apache.beam.sdk.schemas.logicaltypes.OneOfType;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.RowWithGetters;
@@ -36,8 +39,14 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Collecti
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Function to convert a {@link Row} to a user type using a creator factory. */
+@Experimental(Kind.SCHEMAS)
+@SuppressWarnings({
+  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes"
+})
 class FromRowUsingCreator<T> implements SerializableFunction<Row, T> {
   private final Class<T> clazz;
   private final GetterBasedSchemaProvider schemaProvider;
@@ -80,13 +89,7 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T> {
       FieldValueTypeInformation typeInformation = checkNotNull(typeInformations.get(i));
       params[i] =
           fromValue(
-              type,
-              row.getValue(i),
-              typeInformation.getRawType(),
-              typeInformation.getElementType(),
-              typeInformation.getMapKeyType(),
-              typeInformation.getMapValueType(),
-              typeFactory);
+              type, row.getValue(i), typeInformation.getRawType(), typeInformation, typeFactory);
     }
 
     SchemaUserTypeCreator creator = schemaTypeCreatorFactory.create(clazz, schema);
@@ -94,15 +97,15 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T> {
   }
 
   @SuppressWarnings("unchecked")
-  @Nullable
-  private <ValueT> ValueT fromValue(
+  private @Nullable <ValueT> ValueT fromValue(
       FieldType type,
       ValueT value,
       Type fieldType,
-      FieldValueTypeInformation elementType,
-      FieldValueTypeInformation keyType,
-      FieldValueTypeInformation valueType,
+      FieldValueTypeInformation fieldValueTypeInformation,
       Factory<List<FieldValueTypeInformation>> typeFactory) {
+    FieldValueTypeInformation elementType = fieldValueTypeInformation.getElementType();
+    FieldValueTypeInformation keyType = fieldValueTypeInformation.getMapKeyType();
+    FieldValueTypeInformation valueType = fieldValueTypeInformation.getMapValueType();
     if (value == null) {
       return null;
     }
@@ -127,6 +130,26 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T> {
               valueType,
               typeFactory);
     } else {
+      if (type.isLogicalType(OneOfType.IDENTIFIER)) {
+        OneOfType oneOfType = type.getLogicalType(OneOfType.class);
+        EnumerationType oneOfEnum = oneOfType.getCaseEnumType();
+        OneOfType.Value oneOfValue = (OneOfType.Value) value;
+        FieldValueTypeInformation oneOfFieldValueTypeInformation =
+            checkNotNull(
+                fieldValueTypeInformation
+                    .getOneOfTypes()
+                    .get(oneOfEnum.toString(oneOfValue.getCaseType())));
+        Object fromValue =
+            fromValue(
+                oneOfType.getFieldType(oneOfValue),
+                oneOfValue.getValue(),
+                oneOfFieldValueTypeInformation.getRawType(),
+                oneOfFieldValueTypeInformation,
+                typeFactory);
+        return (ValueT) oneOfType.createValue(oneOfValue.getCaseType(), fromValue);
+      } else if (type.getTypeName().isLogicalType()) {
+        return (ValueT) type.getLogicalType().toBaseType(value);
+      }
       return value;
     }
   }
@@ -156,9 +179,7 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T> {
                 elementType,
                 element,
                 elementTypeInformation.getType().getType(),
-                elementTypeInformation.getElementType(),
-                elementTypeInformation.getMapKeyType(),
-                elementTypeInformation.getMapValueType(),
+                elementTypeInformation,
                 typeFactory));
   }
 
@@ -175,9 +196,7 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T> {
                 elementType,
                 element,
                 elementTypeInformation.getType().getType(),
-                elementTypeInformation.getElementType(),
-                elementTypeInformation.getMapKeyType(),
-                elementTypeInformation.getMapValueType(),
+                elementTypeInformation,
                 typeFactory));
   }
 
@@ -196,18 +215,14 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T> {
               keyType,
               entry.getKey(),
               keyTypeInformation.getType().getType(),
-              keyTypeInformation.getElementType(),
-              keyTypeInformation.getMapKeyType(),
-              keyTypeInformation.getMapValueType(),
+              keyTypeInformation,
               typeFactory);
       Object value =
           fromValue(
               valueType,
               entry.getValue(),
               valueTypeInformation.getType().getType(),
-              valueTypeInformation.getElementType(),
-              valueTypeInformation.getMapKeyType(),
-              valueTypeInformation.getMapValueType(),
+              valueTypeInformation,
               typeFactory);
       newMap.put(key, value);
     }
@@ -215,7 +230,7 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T> {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (this == o) {
       return true;
     }

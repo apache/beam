@@ -19,8 +19,8 @@ package org.apache.beam.fn.harness.data;
 
 import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
 import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -47,13 +47,13 @@ import org.apache.beam.sdk.fn.test.TestStreams;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.ManagedChannel;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.inprocess.InProcessChannelBuilder;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.inprocess.InProcessServerBuilder;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.CallStreamObserver;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.inprocess.InProcessChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.inprocess.InProcessServerBuilder;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.CallStreamObserver;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -72,9 +72,9 @@ public class QueueingBeamFnDataClientTest {
   private static final Coder<WindowedValue<String>> CODER =
       LengthPrefixCoder.of(
           WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE));
-  private static final LogicalEndpoint ENDPOINT_A = LogicalEndpoint.of("12L", "34L");
+  private static final LogicalEndpoint ENDPOINT_A = LogicalEndpoint.data("12L", "34L");
 
-  private static final LogicalEndpoint ENDPOINT_B = LogicalEndpoint.of("56L", "78L");
+  private static final LogicalEndpoint ENDPOINT_B = LogicalEndpoint.data("56L", "78L");
 
   private static final BeamFnApi.Elements ELEMENTS_A_1;
   private static final BeamFnApi.Elements ELEMENTS_A_2;
@@ -106,7 +106,8 @@ public class QueueingBeamFnDataClientTest {
               .addData(
                   BeamFnApi.Elements.Data.newBuilder()
                       .setInstructionId(ENDPOINT_A.getInstructionId())
-                      .setTransformId(ENDPOINT_A.getTransformId()))
+                      .setTransformId(ENDPOINT_A.getTransformId())
+                      .setIsLast(true))
               .build();
       ELEMENTS_B_1 =
           BeamFnApi.Elements.newBuilder()
@@ -122,7 +123,8 @@ public class QueueingBeamFnDataClientTest {
               .addData(
                   BeamFnApi.Elements.Data.newBuilder()
                       .setInstructionId(ENDPOINT_B.getInstructionId())
-                      .setTransformId(ENDPOINT_B.getTransformId()))
+                      .setTransformId(ENDPOINT_B.getTransformId())
+                      .setIsLast(true))
               .build();
     } catch (Exception e) {
       throw new ExceptionInInitializerError(e);

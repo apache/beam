@@ -23,6 +23,7 @@ import java.util.Collections;
 import java.util.List;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.coders.StructuredCoder;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /** The default window into which all data is placed (via {@link GlobalWindows}). */
@@ -44,7 +45,7 @@ public class GlobalWindow extends BoundedWindow {
   }
 
   @Override
-  public boolean equals(Object other) {
+  public boolean equals(@Nullable Object other) {
     return other instanceof GlobalWindow;
   }
 

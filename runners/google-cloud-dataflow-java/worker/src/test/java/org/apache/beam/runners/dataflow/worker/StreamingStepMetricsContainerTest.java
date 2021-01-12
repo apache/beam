@@ -18,10 +18,10 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor.longToSplitInt;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.sameInstance;
-import static org.junit.Assert.assertThat;
 
 import com.google.api.services.dataflow.model.CounterMetadata;
 import com.google.api.services.dataflow.model.CounterStructuredName;
@@ -39,6 +39,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link StreamingStepMetricsContainer}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class StreamingStepMetricsContainerTest {
 
   private MetricsContainerRegistry registry = StreamingStepMetricsContainer.createRegistry();

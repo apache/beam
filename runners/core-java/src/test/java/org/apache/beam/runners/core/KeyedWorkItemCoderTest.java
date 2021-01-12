@@ -43,7 +43,11 @@ public class KeyedWorkItemCoderTest {
   public void testEncodeDecodeEqual() throws Exception {
     Iterable<TimerData> timers =
         ImmutableList.of(
-            TimerData.of(StateNamespaces.global(), new Instant(500L), TimeDomain.EVENT_TIME));
+            TimerData.of(
+                StateNamespaces.global(),
+                new Instant(500L),
+                new Instant(500L),
+                TimeDomain.EVENT_TIME));
     Iterable<WindowedValue<Integer>> elements =
         ImmutableList.of(
             WindowedValue.valueInGlobalWindow(1),

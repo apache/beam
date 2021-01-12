@@ -25,6 +25,9 @@ import org.hamcrest.Matchers;
 import org.hamcrest.TypeSafeMatcher;
 
 /** Hamcrest matcher for asserts on {@link LogRecord} instances. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public final class LogRecordMatcher extends TypeSafeMatcher<LogRecord> {
   private final String substring;
   private final Matcher<Level> levelMatcher;
@@ -72,6 +75,15 @@ public final class LogRecordMatcher extends TypeSafeMatcher<LogRecord> {
     description.appendText("level ");
     levelMatcher.describeTo(description);
     description.appendText(String.format(" and message containing <%s>", substring));
+  }
+
+  @Override
+  public void describeMismatchSafely(LogRecord item, Description description) {
+    description
+        .appendText("was log with message \"")
+        .appendText(item.getMessage())
+        .appendText("\" at severity ")
+        .appendValue(item.getLevel());
   }
 
   @Override

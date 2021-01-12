@@ -27,7 +27,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateClearRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.stream.DataStreams;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 
 /**
@@ -42,6 +42,10 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
  *
  * <p>TODO: Support block level caching and prefetch.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BagUserState<T> {
   private final BeamFnStateClient beamFnStateClient;
   private final StateRequest request;
@@ -77,7 +81,7 @@ public class BagUserState<T> {
             new DataStreams.DataStreamDecoder(
                 valueCoder,
                 DataStreams.inbound(
-                    StateFetchingIterators.forFirstChunk(beamFnStateClient, request))));
+                    StateFetchingIterators.readAllStartingFrom(beamFnStateClient, request))));
     this.newValues = new ArrayList<>();
   }
 

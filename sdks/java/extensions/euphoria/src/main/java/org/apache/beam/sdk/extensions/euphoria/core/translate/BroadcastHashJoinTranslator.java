@@ -19,7 +19,6 @@ package org.apache.beam.sdk.extensions.euphoria.core.translate;
 
 import java.util.Collections;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.euphoria.core.client.accumulators.AccumulatorProvider;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.BinaryFunctor;
 import org.apache.beam.sdk.extensions.euphoria.core.client.functional.UnaryFunction;
@@ -34,6 +33,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashBasedTable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Table;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Translator for {@link org.apache.beam.sdk.extensions.euphoria.core.client.operator.RightJoin} and
@@ -48,6 +48,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Table;
  *   <li>Key extractor of broadcast side has to be the same {@link UnaryFunction} instance
  * </ul>
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BroadcastHashJoinTranslator<LeftT, RightT, KeyT, OutputT>
     extends AbstractJoinTranslator<LeftT, RightT, KeyT, OutputT> {
 

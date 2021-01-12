@@ -18,10 +18,10 @@
 package org.apache.beam.runners.fnexecution.data;
 
 import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
-import static org.junit.Assert.assertThat;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -47,10 +47,10 @@ import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.fn.test.TestStreams;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.ManagedChannel;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.inprocess.InProcessChannelBuilder;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.inprocess.InProcessChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -94,7 +94,7 @@ public class GrpcDataServiceTest {
 
       for (int i = 0; i < 3; ++i) {
         CloseableFnDataReceiver<WindowedValue<String>> consumer =
-            service.send(LogicalEndpoint.of(Integer.toString(i), TRANSFORM_ID), CODER);
+            service.send(LogicalEndpoint.data(Integer.toString(i), TRANSFORM_ID), CODER);
 
         consumer.accept(WindowedValue.valueInGlobalWindow("A" + i));
         consumer.accept(WindowedValue.valueInGlobalWindow("B" + i));
@@ -150,7 +150,7 @@ public class GrpcDataServiceTest {
         serverInboundValues.add(serverInboundValue);
         readFutures.add(
             service.receive(
-                LogicalEndpoint.of(Integer.toString(i), TRANSFORM_ID),
+                LogicalEndpoint.data(Integer.toString(i), TRANSFORM_ID),
                 CODER,
                 serverInboundValue::add));
       }
@@ -191,7 +191,10 @@ public class GrpcDataServiceTest {
                                 encodeToByteArray(
                                     CODER, WindowedValue.valueInGlobalWindow("C" + id))))))
         .addData(
-            BeamFnApi.Elements.Data.newBuilder().setInstructionId(id).setTransformId(TRANSFORM_ID))
+            BeamFnApi.Elements.Data.newBuilder()
+                .setInstructionId(id)
+                .setTransformId(TRANSFORM_ID)
+                .setIsLast(true))
         .build();
   }
 }

@@ -22,8 +22,11 @@ import static org.junit.Assert.assertEquals;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.ReduceByKey;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Test suite for @{link Sums}. */
+@RunWith(JUnit4.class)
 public class SumsTest {
 
   @Test

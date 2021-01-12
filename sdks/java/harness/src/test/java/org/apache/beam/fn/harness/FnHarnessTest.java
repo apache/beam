@@ -27,6 +27,7 @@ import com.google.auto.service.AutoService;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
@@ -42,12 +43,14 @@ import org.apache.beam.sdk.fn.test.TestStreams;
 import org.apache.beam.sdk.harness.JvmInitializer;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.TextFormat;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.ServerBuilder;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ServerBuilder;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Uninterruptibles;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.InOrder;
@@ -70,6 +73,10 @@ public class FnHarnessTest {
   private static @Mock Runnable onStartupMock = mock(Runnable.class);
   private static @Mock Consumer<PipelineOptions> beforeProcessingMock = mock(Consumer.class);
 
+  @Rule
+  public Timeout timeout =
+      Timeout.builder().withLookingForStuckThread(true).withTimeout(1, TimeUnit.MINUTES).build();
+
   /**
    * Fake JvmInitializer that simply forwards calls to mocked functions so that they can be observed
    * in tests.
@@ -87,7 +94,7 @@ public class FnHarnessTest {
     }
   }
 
-  @Test(timeout = 10 * 1000)
+  @Test
   @SuppressWarnings("FutureReturnValueIgnored") // failure will cause test to timeout.
   public void testLaunchFnHarnessAndTeardownCleanly() throws Exception {
     Function<String, String> environmentVariableMock = mock(Function.class);

@@ -17,6 +17,8 @@
 
 """Unit tests for cross-language parquet io read/write."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import print_function
 
@@ -32,8 +34,9 @@ from apache_beam import coders
 from apache_beam.coders.avro_record import AvroRecord
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.transforms.external import ImplicitSchemaPayloadBuilder
 
-PARQUET_WRITE_URN = "beam:transforms:xlang:parquet_write"
+PARQUET_WRITE_URN = "beam:transforms:xlang:test:parquet_write"
 
 
 @attr('UsesCrossLanguageTransforms')
@@ -46,22 +49,23 @@ PARQUET_WRITE_URN = "beam:transforms:xlang:parquet_write"
 class XlangParquetIOTest(unittest.TestCase):
   # TODO: add verification for the file written by external transform
   #  after fixing BEAM-7612
-  def test_write(self):
+  def test_xlang_parquetio_write(self):
     expansion_jar = os.environ.get('EXPANSION_JAR')
     port = os.environ.get('EXPANSION_PORT')
     address = 'localhost:%s' % port
     try:
-      test_pipeline = TestPipeline()
-      test_pipeline.get_pipeline_options().view_as(
-          DebugOptions).experiments.append('jar_packages='+expansion_jar)
-      test_pipeline.not_use_test_runner_api = True
-      with test_pipeline as p:
+      with TestPipeline() as p:
+        p.get_pipeline_options().view_as(DebugOptions).experiments.append(
+            'jar_packages=' + expansion_jar)
+        p.not_use_test_runner_api = True
         _ = p \
           | beam.Create([
               AvroRecord({"name": "abc"}), AvroRecord({"name": "def"}),
               AvroRecord({"name": "ghi"})]) \
           | beam.ExternalTransform(
-              PARQUET_WRITE_URN, b'/tmp/test.parquet', address)
+              PARQUET_WRITE_URN,
+              ImplicitSchemaPayloadBuilder({'data': u'/tmp/test.parquet'}),
+              address)
     except RuntimeError as e:
       if re.search(PARQUET_WRITE_URN, str(e)):
         print("looks like URN not implemented in expansion service, skipping.")

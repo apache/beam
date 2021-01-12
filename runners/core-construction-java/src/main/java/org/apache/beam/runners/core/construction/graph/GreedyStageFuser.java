@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.core.construction.graph;
 
+import static org.apache.beam.runners.core.construction.graph.ExecutableStage.DEFAULT_WIRE_CODER_SETTINGS;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.ArrayDeque;
@@ -45,6 +46,9 @@ import org.slf4j.LoggerFactory;
  * <p>A {@link PCollectionNode} with consumers that execute in an environment other than a stage is
  * materialized, and its consumers execute in independent stages.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class GreedyStageFuser {
   // TODO: Provide a way to merge in a compatible subgraph (e.g. one where all of the siblings
   // consume a PCollection materialized by this subgraph and can be fused into it).
@@ -138,7 +142,8 @@ public class GreedyStageFuser {
         userStates,
         timers,
         fusedTransforms.build(),
-        materializedPCollections);
+        materializedPCollections,
+        DEFAULT_WIRE_CODER_SETTINGS);
   }
 
   private static Environment getStageEnvironment(

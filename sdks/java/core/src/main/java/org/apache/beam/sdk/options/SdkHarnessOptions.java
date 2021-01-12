@@ -24,9 +24,10 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 
 /** Options that are used to control configuration of the SDK harness. */
-@Experimental
+@Experimental(Kind.PORTABILITY)
 @Description("Options that are used to control configuration of the SDK harness.")
 public interface SdkHarnessOptions extends PipelineOptions {
   /** The set of log levels that can be used in the SDK harness. */
@@ -80,6 +81,20 @@ public interface SdkHarnessOptions extends PipelineOptions {
   SdkHarnessLogLevelOverrides getSdkHarnessLogLevelOverrides();
 
   void setSdkHarnessLogLevelOverrides(SdkHarnessLogLevelOverrides value);
+
+  /**
+   * Size (in MB) of each grouping table used to pre-combine elements. If unset, defaults to 100 MB.
+   *
+   * <p>CAUTION: If set too large, workers may run into OOM conditions more easily, each worker may
+   * have many grouping tables in-memory concurrently.
+   */
+  @Description(
+      "The size (in MB) of the grouping tables used to pre-combine elements before "
+          + "shuffling.  Larger values may reduce the amount of data shuffled.")
+  @Default.Integer(100)
+  int getGroupingTableMaxSizeMb();
+
+  void setGroupingTableMaxSizeMb(int value);
 
   /**
    * Defines a log level override for a specific class, package, or name.

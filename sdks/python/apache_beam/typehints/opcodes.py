@@ -18,7 +18,8 @@
 """Defines the actions various bytecodes have on the frame.
 
 Each function here corresponds to a bytecode documented in
-https://docs.python.org/2/library/dis.html.  The first argument is a (mutable)
+https://docs.python.org/2/library/dis.html or
+https://docs.python.org/3/library/dis.html. The first argument is a (mutable)
 FrameState object, the second the integer opcode argument.
 
 Bytecodes with more complicated behavior (e.g. modifying the program counter)
@@ -26,6 +27,8 @@ are handled inline rather than here.
 
 For internal use only; no backwards-compatibility guarantees.
 """
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import inspect
@@ -36,17 +39,22 @@ from functools import reduce
 
 from past.builtins import unicode
 
-from . import typehints
-from .trivial_inference import BoundMethod
-from .trivial_inference import Const
-from .trivial_inference import element_type
-from .trivial_inference import union
-from .typehints import Any
-from .typehints import Dict
-from .typehints import Iterable
-from .typehints import List
-from .typehints import Tuple
-from .typehints import Union
+from apache_beam.typehints import row_type
+from apache_beam.typehints import typehints
+from apache_beam.typehints.trivial_inference import BoundMethod
+from apache_beam.typehints.trivial_inference import Const
+from apache_beam.typehints.trivial_inference import element_type
+from apache_beam.typehints.trivial_inference import union
+from apache_beam.typehints.typehints import Any
+from apache_beam.typehints.typehints import Dict
+from apache_beam.typehints.typehints import Iterable
+from apache_beam.typehints.typehints import List
+from apache_beam.typehints.typehints import Tuple
+from apache_beam.typehints.typehints import Union
+
+# This is missing in the builtin types module.  str.upper is arbitrary, any
+# method on a C-implemented type will do.
+_MethodDescriptorType = type(str.upper)
 
 
 def pop_one(state, unused_arg):
@@ -62,7 +70,6 @@ def pop_three(state, unused_arg):
 
 
 def push_value(v):
-
   def pusher(state, unused_arg):
     state.stack.append(v)
 
@@ -118,7 +125,7 @@ def get_iter(state, unused_arg):
 
 def symmetric_binary_op(state, unused_arg):
   # TODO(robertwb): This may not be entirely correct...
-  b, a = state.stack.pop(), state.stack.pop()
+  b, a = Const.unwrap(state.stack.pop()), Const.unwrap(state.stack.pop())
   if a == b:
     state.stack.append(a)
   elif type(a) == type(b) and isinstance(a, typehints.SequenceTypeConstraint):
@@ -152,11 +159,11 @@ binary_subtract = inplace_subtract = symmetric_binary_op
 
 def binary_subscr(state, unused_arg):
   index = state.stack.pop()
-  base = state.stack.pop()
+  base = Const.unwrap(state.stack.pop())
   if base in (str, unicode):
     out = base
-  elif (isinstance(index, Const) and isinstance(index.value, int)
-        and isinstance(base, typehints.IndexableTypeConstraint)):
+  elif (isinstance(index, Const) and isinstance(index.value, int) and
+        isinstance(base, typehints.IndexableTypeConstraint)):
     try:
       out = base._constraint_for_index(index.value)
     except IndexError:
@@ -175,33 +182,16 @@ binary_and = inplace_and = symmetric_binary_op
 binary_xor = inplace_xor = symmetric_binary_op
 binary_or = inpalce_or = symmetric_binary_op
 
-# As far as types are concerned.
-slice_0 = nop
-slice_1 = slice_2 = pop_top
-slice_3 = pop_two
-store_slice_0 = store_slice_1 = store_slice_2 = store_slice_3 = nop
-delete_slice_0 = delete_slice_1 = delete_slice_2 = delete_slice_3 = nop
-
 
 def store_subscr(unused_state, unused_args):
   # TODO(robertwb): Update element/value type of iterable/dict.
   pass
 
 
-binary_divide = binary_floor_divide = binary_modulo = symmetric_binary_op
-binary_divide = binary_floor_divide = binary_modulo = symmetric_binary_op
-binary_divide = binary_floor_divide = binary_modulo = symmetric_binary_op
-
-# print_expr
 print_item = pop_top
-# print_item_to
 print_newline = nop
 
-# print_newline_to
 
-
-# break_loop
-# continue_loop
 def list_append(state, arg):
   new_element_type = Const.unwrap(state.stack.pop())
   state.stack[-arg] = List[Union[element_type(state.stack[-arg]),
@@ -209,29 +199,23 @@ def list_append(state, arg):
 
 
 def map_add(state, arg):
-  new_key_type = Const.unwrap(state.stack.pop())
-  new_value_type = Const.unwrap(state.stack.pop())
-  state.stack[-arg] = Dict[
-      Union[state.stack[-arg].key_type, new_key_type],
-      Union[state.stack[-arg].value_type, new_value_type]]
+  if sys.version_info >= (3, 8):
+    # PEP 572 The MAP_ADD expects the value as the first element in the stack
+    # and the key as the second element.
+    new_value_type = Const.unwrap(state.stack.pop())
+    new_key_type = Const.unwrap(state.stack.pop())
+  else:
+    new_key_type = Const.unwrap(state.stack.pop())
+    new_value_type = Const.unwrap(state.stack.pop())
+  state.stack[-arg] = Dict[Union[state.stack[-arg].key_type, new_key_type],
+                           Union[state.stack[-arg].value_type, new_value_type]]
 
 
 load_locals = push_value(Dict[str, Any])
-
-# return_value
-# yield_value
-# import_star
 exec_stmt = pop_three
-# pop_block
-# end_finally
 build_class = pop_three
 
-# setup_with
-# with_cleanup
 
-
-# store_name
-# delete_name
 def unpack_sequence(state, arg):
   t = state.stack.pop()
   if isinstance(t, Const):
@@ -241,8 +225,8 @@ def unpack_sequence(state, arg):
         unpacked = [Any] * arg
     except TypeError:
       unpacked = [Any] * arg
-  elif (isinstance(t, typehints.TupleHint.TupleConstraint)
-        and len(t.tuple_types) == arg):
+  elif (isinstance(t, typehints.TupleHint.TupleConstraint) and
+        len(t.tuple_types) == arg):
     unpacked = list(t.tuple_types)
   else:
     unpacked = [element_type(t)] * arg
@@ -281,18 +265,45 @@ def build_list(state, arg):
 
 
 # A Dict[Union[], Union[]] is the type of an empty dict.
-def build_map(state, unused_arg):
-  state.stack.append(Dict[Union[()], Union[()]])
+def build_map(state, arg):
+  if sys.version_info <= (2, ) or arg == 0:
+    state.stack.append(Dict[Union[()], Union[()]])
+  else:
+    state.stack[-2 * arg:] = [
+        Dict[reduce(union, state.stack[-2 * arg::2], Union[()]),
+             reduce(union, state.stack[-2 * arg + 1::2], Union[()])]
+    ]
+
+
+def build_const_key_map(state, arg):
+  key_tuple = state.stack.pop()
+  if isinstance(key_tuple, typehints.TupleHint.TupleConstraint):
+    key_types = key_tuple.tuple_types
+  elif isinstance(key_tuple, Const):
+    key_types = [Const(v) for v in key_tuple.value]
+  else:
+    key_types = [Any]
+  state.stack[-arg:] = [
+      Dict[reduce(union, key_types, Union[()]),
+           reduce(union, state.stack[-arg:], Union[()])]
+  ]
 
 
 def load_attr(state, arg):
   """Replaces the top of the stack, TOS, with
   getattr(TOS, co_names[arg])
+
+  Will replace with Any for builtin methods, but these don't have bytecode in
+  CPython so that's okay.
   """
   o = state.stack.pop()
   name = state.get_name(arg)
+  state.stack.append(_getattr(o, name))
+
+
+def _getattr(o, name):
   if isinstance(o, Const) and hasattr(o.value, name):
-    state.stack.append(Const(getattr(o.value, name)))
+    return Const(getattr(o.value, name))
   elif (inspect.isclass(o) and
         isinstance(getattr(o, name, None),
                    (types.MethodType, types.FunctionType))):
@@ -300,10 +311,12 @@ def load_attr(state, arg):
     if sys.version_info[0] == 2:
       func = getattr(o, name).__func__
     else:
-      func = getattr(o, name) # Python 3 has no unbound methods
-    state.stack.append(Const(BoundMethod(func, o)))
+      func = getattr(o, name)  # Python 3 has no unbound methods
+    return Const(BoundMethod(func, o))
+  elif isinstance(o, row_type.RowTypeConstraint):
+    return o.get_type_for(name)
   else:
-    state.stack.append(Any)
+    return Any
 
 
 def load_method(state, arg):
@@ -314,8 +327,15 @@ def load_method(state, arg):
     method = Const(getattr(o.value, name))
   elif isinstance(o, typehints.AnyTypeConstraint):
     method = typehints.Any
+  elif hasattr(o, name):
+    attr = getattr(o, name)
+    if isinstance(attr, _MethodDescriptorType):
+      # Skip builtins since they don't disassemble.
+      method = typehints.Any
+    else:
+      method = Const(BoundMethod(attr, o))
   else:
-    method = Const(BoundMethod(getattr(o, name), o))
+    method = typehints.Any
 
   state.stack.append(method)
 
@@ -331,18 +351,11 @@ def import_name(state, unused_arg):
 
 import_from = push_value(Any)
 
-# jump
-
-# for_iter
-
 
 def load_global(state, arg):
   state.stack.append(state.get_global(arg))
 
 
-# setup_loop
-# setup_except
-# setup_finally
 store_map = pop_two
 
 
@@ -364,14 +377,13 @@ def load_closure(state, arg):
 
 def load_deref(state, arg):
   state.stack.append(state.closure_type(arg))
-# raise_varargs
 
 
 def make_function(state, arg):
   """Creates a function with the arguments at the top of the stack.
   """
   # TODO(luke-zhu): Handle default argument types
-  globals = state.f.__globals__ # Inherits globals from the current frame
+  globals = state.f.__globals__  # Inherits globals from the current frame
   if sys.version_info[0] == 2:
     func_code = state.stack[-1].value
     func = types.FunctionType(func_code, globals)
@@ -387,8 +399,9 @@ def make_function(state, arg):
       num_default_pos_args = (arg & 0xff)
       num_default_kwonly_args = ((arg >> 8) & 0xff)
       num_annotations = ((arg >> 16) & 0x7fff)
-      pop_count += (num_default_pos_args + 2 * num_default_kwonly_args +
-                    num_annotations + num_annotations > 0)
+      pop_count += (
+          num_default_pos_args + 2 * num_default_kwonly_args + num_annotations +
+          num_annotations > 0)
     elif sys.version_info >= (3, 6):
       # arg contains flags, with corresponding stack values if positive.
       # https://docs.python.org/3.6/library/dis.html#opcode-MAKE_FUNCTION
@@ -396,12 +409,11 @@ def make_function(state, arg):
       if arg & 0x08:
         # Convert types in Tuple constraint to a tuple of CPython cells.
         # https://stackoverflow.com/a/44670295
-        closure = tuple(
-            (lambda _: lambda: _)(t).__closure__[0]
-            for t in state.stack[-3].tuple_types)
+        closure = tuple((lambda _: lambda: _)(t).__closure__[0]
+                        for t in state.stack[-3].tuple_types)
 
-    func = types.FunctionType(func_code, globals, name=func_name,
-                              closure=closure)
+    func = types.FunctionType(
+        func_code, globals, name=func_name, closure=closure)
 
   assert pop_count <= len(state.stack)
   state.stack[-pop_count:] = [Const(func)]

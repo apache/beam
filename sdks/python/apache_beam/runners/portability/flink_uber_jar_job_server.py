@@ -17,28 +17,23 @@
 
 """A job server submitting portable pipelines as uber jars to Flink."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import print_function
 
-import json
 import logging
 import os
-import shutil
 import tempfile
 import time
-import zipfile
-from concurrent import futures
+import urllib
 
-import grpc
 import requests
 from google.protobuf import json_format
 
 from apache_beam.options import pipeline_options
-from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 from apache_beam.portability.api import beam_job_api_pb2
-from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners.portability import abstract_job_service
-from apache_beam.runners.portability import artifact_service
 from apache_beam.runners.portability import job_server
 
 _LOGGER = logging.getLogger(__name__)
@@ -50,14 +45,14 @@ class FlinkUberJarJobServer(abstract_job_service.AbstractJobServiceServicer):
   The jar contains the Beam pipeline definition, dependencies, and
   the pipeline artifacts.
   """
-
   def __init__(self, master_url, options):
     super(FlinkUberJarJobServer, self).__init__()
     self._master_url = master_url
-    self._executable_jar = (options.view_as(pipeline_options.FlinkRunnerOptions)
-                            .flink_job_server_jar)
-    self._artifact_port = (options.view_as(pipeline_options.JobServerOptions)
-                           .artifact_port)
+    self._executable_jar = (
+        options.view_as(
+            pipeline_options.FlinkRunnerOptions).flink_job_server_jar)
+    self._artifact_port = (
+        options.view_as(pipeline_options.JobServerOptions).artifact_port)
     self._temp_dir = tempfile.mkdtemp(prefix='apache-beam-flink')
 
   def start(self):
@@ -67,14 +62,25 @@ class FlinkUberJarJobServer(abstract_job_service.AbstractJobServiceServicer):
     pass
 
   def executable_jar(self):
-    url = (self._executable_jar or
-           job_server.JavaJarJobServer.path_to_beam_jar(
-               'runners:flink:%s:job-server:shadowJar' % self.flink_version()))
+    if self._executable_jar:
+      if not os.path.exists(self._executable_jar):
+        parsed = urllib.parse.urlparse(self._executable_jar)
+        if not parsed.scheme:
+          raise ValueError(
+              'Unable to parse jar URL "%s". If using a full URL, make sure '
+              'the scheme is specified. If using a local file path, make sure '
+              'the file exists; you may have to first build the job server '
+              'using `./gradlew runners:flink:%s:job-server:shadowJar`.' %
+              (self._executable_jar, self._flink_version))
+      url = self._executable_jar
+    else:
+      url = job_server.JavaJarJobServer.path_to_beam_jar(
+          ':runners:flink:%s:job-server:shadowJar' % self.flink_version())
     return job_server.JavaJarJobServer.local_jar(url)
 
   def flink_version(self):
-    full_version = requests.get(
-        '%s/v1/config' % self._master_url).json()['flink-version']
+    full_version = requests.get('%s/v1/config' %
+                                self._master_url).json()['flink-version']
     # Only return up to minor version.
     return '.'.join(full_version.split('.')[:2])
 
@@ -88,78 +94,43 @@ class FlinkUberJarJobServer(abstract_job_service.AbstractJobServiceServicer):
         options,
         artifact_port=self._artifact_port)
 
+  def GetJobMetrics(self, request, context=None):
+    if request.job_id not in self._jobs:
+      raise LookupError("Job {} does not exist".format(request.job_id))
+    metrics_text = self._jobs[request.job_id].get_metrics()
+    response = beam_job_api_pb2.GetJobMetricsResponse()
+    json_format.Parse(metrics_text, response)
+    return response
 
-class FlinkBeamJob(abstract_job_service.AbstractBeamJob):
+
+class FlinkBeamJob(abstract_job_service.UberJarBeamJob):
   """Runs a single Beam job on Flink by staging all contents into a Jar
   and uploading it via the Flink Rest API."""
-
-  # These must agree with those defined in PortablePipelineJarUtils.java.
-  PIPELINE_FOLDER = 'BEAM-PIPELINE'
-  PIPELINE_MANIFEST = PIPELINE_FOLDER + '/pipeline-manifest.json'
-
-  # We only stage a single pipeline in the jar.
-  PIPELINE_NAME = 'pipeline'
-  PIPELINE_PATH = '/'.join(
-      [PIPELINE_FOLDER, PIPELINE_NAME, "pipeline.json"])
-  PIPELINE_OPTIONS_PATH = '/'.join(
-      [PIPELINE_FOLDER, PIPELINE_NAME, 'pipeline-options.json'])
-  ARTIFACT_MANIFEST_PATH = '/'.join(
-      [PIPELINE_FOLDER, PIPELINE_NAME, 'artifact-manifest.json'])
-  ARTIFACT_FOLDER = '/'.join([PIPELINE_FOLDER, PIPELINE_NAME, 'artifacts'])
-
   def __init__(
-      self, master_url, executable_jar, job_id, job_name, pipeline, options,
+      self,
+      master_url,
+      executable_jar,
+      job_id,
+      job_name,
+      pipeline,
+      options,
       artifact_port=0):
-    super(FlinkBeamJob, self).__init__(job_id, job_name, pipeline, options)
+    super(FlinkBeamJob, self).__init__(
+        executable_jar,
+        job_id,
+        job_name,
+        pipeline,
+        options,
+        artifact_port=artifact_port)
     self._master_url = master_url
-    self._executable_jar = executable_jar
-    self._jar_uploaded = False
-    self._artifact_port = artifact_port
-
-  def prepare(self):
-    # Copy the executable jar, injecting the pipeline and options as resources.
-    with tempfile.NamedTemporaryFile(suffix='.jar') as tout:
-      self._jar = tout.name
-    shutil.copy(self._executable_jar, self._jar)
-    with zipfile.ZipFile(self._jar, 'a', compression=zipfile.ZIP_DEFLATED) as z:
-      with z.open(self.PIPELINE_PATH, 'w') as fout:
-        fout.write(json_format.MessageToJson(
-            self._pipeline_proto).encode('utf-8'))
-      with z.open(self.PIPELINE_OPTIONS_PATH, 'w') as fout:
-        fout.write(json_format.MessageToJson(
-            self._pipeline_options).encode('utf-8'))
-      with z.open(self.PIPELINE_MANIFEST, 'w') as fout:
-        fout.write(json.dumps(
-            {'defaultJobName': self.PIPELINE_NAME}).encode('utf-8'))
-    self._start_artifact_service(self._jar, self._artifact_port)
-
-  def _start_artifact_service(self, jar, requested_port):
-    self._artifact_staging_service = artifact_service.ZipFileArtifactService(
-        jar, self.ARTIFACT_FOLDER)
-    self._artifact_staging_server = grpc.server(futures.ThreadPoolExecutor())
-    port = self._artifact_staging_server.add_insecure_port(
-        '[::]:%s' % requested_port)
-    beam_artifact_api_pb2_grpc.add_ArtifactStagingServiceServicer_to_server(
-        self._artifact_staging_service, self._artifact_staging_server)
-    self._artifact_staging_endpoint = endpoints_pb2.ApiServiceDescriptor(
-        url='localhost:%d' % port)
-    self._artifact_staging_server.start()
-    _LOGGER.info('Artifact server started on port %s', port)
-    return port
-
-  def _stop_artifact_service(self):
-    self._artifact_staging_server.stop(1)
-    self._artifact_staging_service.close()
-    self._artifact_manifest_location = (
-        self._artifact_staging_service.retrieval_token(self._job_id))
-
-  def artifact_staging_endpoint(self):
-    return self._artifact_staging_endpoint
 
   def request(self, method, path, expected_status=200, **kwargs):
-    response = method('%s/%s' % (self._master_url, path), **kwargs)
+    url = '%s/%s' % (self._master_url, path)
+    response = method(url, **kwargs)
     if response.status_code != expected_status:
-      raise RuntimeError(response.text)
+      raise RuntimeError(
+          "Request to %s failed with status %d: %s" %
+          (url, response.status_code, response.text))
     if response.text:
       return response.json()
 
@@ -174,12 +145,6 @@ class FlinkBeamJob(abstract_job_service.AbstractBeamJob):
 
   def run(self):
     self._stop_artifact_service()
-    # Move the artifact manifest to the expected location.
-    with zipfile.ZipFile(self._jar, 'a', compression=zipfile.ZIP_DEFLATED) as z:
-      with z.open(self._artifact_manifest_location) as fin:
-        manifest_contents = fin.read()
-      with z.open(self.ARTIFACT_MANIFEST_PATH, 'w') as fout:
-        fout.write(manifest_contents)
 
     # Upload the jar and start the job.
     with open(self._jar, 'rb') as jar_file:
@@ -215,8 +180,8 @@ class FlinkBeamJob(abstract_job_service.AbstractBeamJob):
       timestamp will be None if the state has not changed since the last query.
     """
     # For just getting the status, execution-result seems cheaper.
-    flink_status = self.get(
-        'v1/jobs/%s/execution-result' % self._flink_job_id)['status']['id']
+    flink_status = self.get('v1/jobs/%s/execution-result' %
+                            self._flink_job_id)['status']['id']
     if flink_status == 'COMPLETED':
       flink_status = self.get('v1/jobs/%s' % self._flink_job_id)['state']
     beam_state = {
@@ -250,10 +215,7 @@ class FlinkBeamJob(abstract_job_service.AbstractBeamJob):
     def _state_iter():
       sleep_secs = 1.0
       while True:
-        current_state, timestamp = self._get_state()
-        if timestamp is not None:
-          # non-None indicates that the state has changed
-          yield current_state, timestamp
+        yield self.get_state()
         sleep_secs = min(60, sleep_secs * 1.2)
         time.sleep(sleep_secs)
 
@@ -270,10 +232,19 @@ class FlinkBeamJob(abstract_job_service.AbstractBeamJob):
           yield beam_job_api_pb2.JobMessage(
               message_id='message%d' % ix,
               time=str(exc['timestamp']),
-              importance=
-              beam_job_api_pb2.JobMessage.MessageImportance.JOB_MESSAGE_ERROR,
+              importance=beam_job_api_pb2.JobMessage.MessageImportance.
+              JOB_MESSAGE_ERROR,
               message_text=exc['exception'])
         yield state, timestamp
         break
       else:
         yield state, timestamp
+
+  def get_metrics(self):
+    accumulators = self.get('v1/jobs/%s/accumulators' %
+                            self._flink_job_id)['user-task-accumulators']
+    for accumulator in accumulators:
+      if accumulator['name'] == '__metricscontainers':
+        return accumulator['value']
+    raise LookupError(
+        "Found no metrics container for job {}".format(self._flink_job_id))

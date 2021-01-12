@@ -20,9 +20,9 @@ package org.apache.beam.runners.direct;
 import static org.apache.beam.sdk.metrics.MetricNameFilter.inNamespace;
 import static org.apache.beam.sdk.metrics.MetricResultsMatchers.attemptedMetricsResult;
 import static org.apache.beam.sdk.metrics.MetricResultsMatchers.committedMetricsResult;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.junit.Assert.assertThat;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -48,6 +48,9 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link DirectMetrics}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DirectMetricsTest {
 
   @Mock private CommittedBundle<Object> bundle1;

@@ -22,7 +22,6 @@ import java.util.Collections;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.dataflow.DataflowRunner;
@@ -33,13 +32,16 @@ import org.apache.beam.runners.dataflow.worker.fn.data.BeamFnDataGrpcService;
 import org.apache.beam.runners.dataflow.worker.fn.logging.BeamFnLoggingService;
 import org.apache.beam.runners.dataflow.worker.fn.stream.ServerStreamObserverFactory;
 import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingInitializer;
+import org.apache.beam.runners.dataflow.worker.status.SdkWorkerStatusServlet;
 import org.apache.beam.runners.fnexecution.GrpcContextHeaderAccessorProvider;
 import org.apache.beam.runners.fnexecution.ServerFactory;
 import org.apache.beam.runners.fnexecution.control.FnApiControlClient;
 import org.apache.beam.runners.fnexecution.state.GrpcStateService;
+import org.apache.beam.runners.fnexecution.status.BeamWorkerStatusGrpcService;
 import org.apache.beam.sdk.io.FileSystems;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.Server;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,17 +53,21 @@ import org.slf4j.LoggerFactory;
  * instructions (such as map tasks) from the Dataflow Service/DFE into Fn API instructions, and vice
  * versa.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DataflowRunnerHarness {
   private static final Logger LOG = LoggerFactory.getLogger(DataflowRunnerHarness.class);
 
   /** Fetches and processes work units from the Dataflow service. */
   public static void main(String[] unusedArgs) throws Exception {
-    @Nullable RunnerApi.Pipeline pipeline = DataflowWorkerHarnessHelper.getPipelineFromEnv();
+    RunnerApi.@Nullable Pipeline pipeline = DataflowWorkerHarnessHelper.getPipelineFromEnv();
 
     // This descriptor is used for all services except logging. They are isolated to keep
     // critical traffic protected from best effort traffic.
     ApiServiceDescriptor controlApiService = DataflowWorkerHarnessHelper.getControlDescriptor();
     ApiServiceDescriptor loggingApiService = DataflowWorkerHarnessHelper.getLoggingDescriptor();
+    ApiServiceDescriptor statusApiService = DataflowWorkerHarnessHelper.getStatusDescriptor();
 
     LOG.info(
         "{} started, using port {} for control, {} for logging.",
@@ -93,6 +99,7 @@ public class DataflowRunnerHarness {
 
     Server servicesServer = null;
     Server loggingServer = null;
+    Server statusServer = null;
     try (BeamFnLoggingService beamFnLoggingService =
             new BeamFnLoggingService(
                 loggingApiService,
@@ -110,6 +117,11 @@ public class DataflowRunnerHarness {
                 controlApiService,
                 streamObserverFactory::from,
                 GrpcContextHeaderAccessorProvider.getHeaderAccessor());
+        BeamWorkerStatusGrpcService beamWorkerStatusGrpcService =
+            statusApiService == null
+                ? null
+                : BeamWorkerStatusGrpcService.create(
+                    statusApiService, GrpcContextHeaderAccessorProvider.getHeaderAccessor());
         GrpcStateService beamFnStateService = GrpcStateService.create()) {
 
       servicesServer =
@@ -120,22 +132,41 @@ public class DataflowRunnerHarness {
       loggingServer =
           serverFactory.create(ImmutableList.of(beamFnLoggingService), loggingApiService);
 
+      // gRPC server for obtaining SDK harness runtime status information.
+      if (beamWorkerStatusGrpcService != null) {
+        statusServer =
+            serverFactory.create(ImmutableList.of(beamWorkerStatusGrpcService), statusApiService);
+      }
+
       start(
           pipeline,
           pipelineOptions,
           beamFnControlService,
           beamFnDataService,
           controlApiService,
-          beamFnStateService);
+          beamFnStateService,
+          beamWorkerStatusGrpcService);
+
+      if (statusServer != null) {
+        statusServer.shutdown();
+      }
       servicesServer.shutdown();
       loggingServer.shutdown();
+
+      // wait 30 secs for outstanding requests to finish.
+      if (statusServer != null) {
+        statusServer.awaitTermination(30, TimeUnit.SECONDS);
+      }
+      servicesServer.awaitTermination(30, TimeUnit.SECONDS);
+      loggingServer.awaitTermination(30, TimeUnit.SECONDS);
     } finally {
-      if (servicesServer != null) {
-        servicesServer.awaitTermination(30, TimeUnit.SECONDS);
+      if (statusServer != null && !statusServer.isTerminated()) {
+        statusServer.shutdownNow();
+      }
+      if (servicesServer != null && !servicesServer.isTerminated()) {
         servicesServer.shutdownNow();
       }
-      if (loggingServer != null) {
-        loggingServer.awaitTermination(30, TimeUnit.SECONDS);
+      if (loggingServer != null && !loggingServer.isTerminated()) {
         loggingServer.shutdownNow();
       }
     }
@@ -143,12 +174,13 @@ public class DataflowRunnerHarness {
 
   @SuppressWarnings("InfiniteLoopStatement")
   public static void start(
-      @Nullable RunnerApi.Pipeline pipeline,
+      RunnerApi.@Nullable Pipeline pipeline,
       DataflowWorkerHarnessOptions pipelineOptions,
       BeamFnControlService beamFnControlService,
       BeamFnDataGrpcService beamFnDataService,
       ApiServiceDescriptor stateApiServiceDescriptor,
-      GrpcStateService beamFnStateService)
+      GrpcStateService beamFnStateService,
+      BeamWorkerStatusGrpcService beamWorkerStatusGrpcService)
       throws Exception {
 
     SdkHarnessRegistry sdkHarnessRegistry =
@@ -161,6 +193,12 @@ public class DataflowRunnerHarness {
       StreamingDataflowWorker worker =
           StreamingDataflowWorker.forStreamingFnWorkerHarness(
               Collections.emptyList(), client, pipelineOptions, pipeline, sdkHarnessRegistry);
+      // Add SDK status servlet and capture page only if Fn worker status server is started.
+      if (beamWorkerStatusGrpcService != null) {
+        SdkWorkerStatusServlet sdkWorkerStatusServlet =
+            new SdkWorkerStatusServlet(beamWorkerStatusGrpcService);
+        worker.addWorkerStatusPage(sdkWorkerStatusServlet);
+      }
       worker.startStatusPages();
       worker.start();
       ExecutorService executor = Executors.newSingleThreadExecutor();

@@ -49,7 +49,6 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.UUID;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.gcp.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -58,10 +57,14 @@ import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Sleeper;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class V1TestUtil {
   private static final Logger LOG = LoggerFactory.getLogger(V1TestUtil.class);
 
@@ -117,9 +120,9 @@ class V1TestUtil {
   /** A DoFn that creates entity for a long number. */
   static class CreateEntityFn extends DoFn<Long, Entity> {
     private final String kind;
-    @Nullable private final String namespace;
+    private final @Nullable String namespace;
     private final int largePropertySize;
-    private Key ancestorKey;
+    private com.google.datastore.v1.Key ancestorKey;
 
     CreateEntityFn(
         String kind, @Nullable String namespace, String ancestor, int largePropertySize) {
@@ -319,7 +322,7 @@ class V1TestUtil {
     private static final int QUERY_BATCH_LIMIT = 500;
     private final Datastore datastore;
     private final Query query;
-    @Nullable private final String namespace;
+    private final @Nullable String namespace;
     private boolean moreResults;
     private Iterator<EntityResult> entities;
     // Current batch of query results

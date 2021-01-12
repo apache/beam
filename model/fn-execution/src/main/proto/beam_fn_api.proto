@@ -34,7 +34,7 @@ syntax = "proto3";
 
 package org.apache.beam.model.fn_execution.v1;
 
-option go_package = "fnexecution_v1";
+option go_package = "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1;fnexecution_v1";
 option java_package = "org.apache.beam.model.fnexecution.v1";
 option java_outer_classname = "BeamFnApi";
 
@@ -43,7 +43,6 @@ import "endpoints.proto";
 import "google/protobuf/descriptor.proto";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/duration.proto";
-import "google/protobuf/wrappers.proto";
 import "metrics.proto";
 
 // A descriptor for connecting to a remote port using the Beam Fn Data API.
@@ -81,6 +80,16 @@ service BeamFnControl {
       returns (
           // A stream of instructions requested of the SDK to be performed.
           stream InstructionRequest) {}
+
+  // Used to get the full process bundle descriptors for bundles one
+  // is asked to process.
+  rpc GetProcessBundleDescriptor(GetProcessBundleDescriptorRequest) returns (
+      ProcessBundleDescriptor) {}
+}
+
+// Requests the ProcessBundleDescriptor with the given id.
+message GetProcessBundleDescriptorRequest {
+  string process_bundle_descriptor_id = 1;
 }
 
 // A request sent by a runner which the SDK is asked to fulfill.
@@ -94,11 +103,15 @@ message InstructionRequest {
 
   // (Required) A request that the SDK Harness needs to interpret.
   oneof request {
-    RegisterRequest register = 1000;
     ProcessBundleRequest process_bundle = 1001;
     ProcessBundleProgressRequest process_bundle_progress = 1002;
     ProcessBundleSplitRequest process_bundle_split = 1003;
     FinalizeBundleRequest finalize_bundle = 1004;
+    MonitoringInfosMetadataRequest monitoring_infos = 1005;
+    HarnessMonitoringInfosRequest harness_monitoring_infos = 1006;
+
+    // DEPRECATED
+    RegisterRequest register = 1000;
   }
 }
 
@@ -118,12 +131,47 @@ message InstructionResponse {
   // If the instruction did not fail, it is required to return an equivalent
   // response type depending on the request this matches.
   oneof response {
-    RegisterResponse register = 1000;
     ProcessBundleResponse process_bundle = 1001;
     ProcessBundleProgressResponse process_bundle_progress = 1002;
     ProcessBundleSplitResponse process_bundle_split = 1003;
     FinalizeBundleResponse finalize_bundle = 1004;
+    MonitoringInfosMetadataResponse monitoring_infos = 1005;
+    HarnessMonitoringInfosResponse harness_monitoring_infos = 1006;
+
+    // DEPRECATED
+    RegisterResponse register = 1000;
   }
+}
+
+// A request to provide full MonitoringInfo associated with the entire SDK
+// harness process, not specific to a bundle.
+//
+// An SDK can report metrics using an identifier that only contains the
+// associated payload. A runner who wants to receive the full metrics
+// information can request all the monitoring metadata via a
+// MonitoringInfosMetadataRequest providing a list of ids as necessary.
+//
+// The SDK is allowed to reuse the identifiers
+// for the lifetime of the associated control connection as long
+// as the MonitoringInfo could be reconstructed fully by overwriting its
+// payload field with the bytes specified here.
+message HarnessMonitoringInfosRequest {
+}
+
+message HarnessMonitoringInfosResponse {
+  // An identifier to MonitoringInfo.payload mapping containing
+  // Metrics associated with the SDK harness, not a specific bundle.
+  //
+  // An SDK can report metrics using an identifier that only contains the
+  // associated payload. A runner who wants to receive the full metrics
+  // information can request all the monitoring metadata via a
+  // MonitoringInfosMetadataRequest providing a list of ids as necessary.
+  //
+  // The SDK is allowed to reuse the identifiers
+  // for the lifetime of the associated control connection as long
+  // as the MonitoringInfo could be reconstructed fully by overwriting its
+  // payload field with the bytes specified here.
+  map<string, bytes> monitoring_data = 1;
 }
 
 // A list of objects which can be referred to by the runner in
@@ -164,6 +212,11 @@ message ProcessBundleDescriptor {
   // data plane or if any of the transforms rely on user state or side inputs.
   org.apache.beam.model.pipeline.v1.ApiServiceDescriptor
       state_api_service_descriptor = 7;
+
+  // A descriptor describing the end point to use for Data API for user timers.
+  // Required if the ProcessBundleDescriptor contains any transforms that have user timers.
+  org.apache.beam.model.pipeline.v1.ApiServiceDescriptor
+      timer_api_service_descriptor = 8;
 }
 
 // One of the applications specifying the scope of work for a bundle.
@@ -189,36 +242,23 @@ message BundleApplication {
   // use MIN_TIMESTAMP by default.
   map<string, google.protobuf.Timestamp> output_watermarks = 4;
 
-  // (Required) Whether this application potentially produces an unbounded
+  // Whether this application potentially produces an unbounded
   // amount of data. Note that this should only be set to BOUNDED if and
   // only if the application is known to produce a finite amount of output.
   org.apache.beam.model.pipeline.v1.IsBounded.Enum is_bounded = 5;
-
-  // Contains additional monitoring information related to this application.
-  //
-  // Each application is able to report information that some runners
-  // will use when providing a UI or for making scaling and performance
-  // decisions. See https://s.apache.org/beam-bundles-backlog-splitting for
-  // details about what types of signals may be useful to report.
-  repeated org.apache.beam.model.pipeline.v1.MonitoringInfo monitoring_infos = 6;
 }
 
 // An Application should be scheduled for execution after a delay.
 // Either an absolute timestamp or a relative timestamp can represent a
 // scheduled execution time.
 message DelayedBundleApplication {
-  // Recommended time at which the application should be scheduled to execute
-  // by the runner. Times in the past may be scheduled to execute immediately.
-  // TODO(BEAM-8536): Migrate usage of absolute time to requested_time_delay.
-  google.protobuf.Timestamp requested_execution_time = 1;
-
   // (Required) The application that should be scheduled.
-  BundleApplication application = 2;
+  BundleApplication application = 1;
 
   // Recommended time delay at which the application should be scheduled to
   // execute by the runner. Time delay that equals 0 may be scheduled to execute
   // immediately. The unit of time delay should be microsecond.
-  google.protobuf.Duration requested_time_delay = 3;
+  google.protobuf.Duration requested_time_delay = 2;
 }
 
 // A request to process a given bundle.
@@ -232,13 +272,15 @@ message ProcessBundleRequest {
   // of cached elements which have a cache token associated.
   message CacheToken {
 
-    // A flag to indicate a cache token is valid for user state.
+    // A flag to indicate a cache token is valid for all user state.
     message UserState {}
 
     // A flag to indicate a cache token is valid for a side input.
     message SideInput {
-      // The id of a side input.
-      string side_input = 1;
+      // (Required) The id of the PTransform containing a side input.
+      string transform_id = 1;
+      // (Required) The id of the side input.
+      string side_input_id = 2;
     }
 
     // The scope of a cache token.
@@ -257,18 +299,13 @@ message ProcessBundleRequest {
 }
 
 message ProcessBundleResponse {
-  // (Optional) If metrics reporting is supported by the SDK, this represents
-  // the final metrics to record for this bundle.
-  // DEPRECATED
-  Metrics metrics = 1;
-
   // (Optional) Specifies that the bundle has not been completed and the
   // following applications need to be scheduled and executed in the future.
   // A runner that does not yet support residual roots MUST still check that
   // this is empty for correctness.
   repeated DelayedBundleApplication residual_roots = 2;
 
-  // (Required) The list of metrics or other MonitoredState
+  // DEPRECATED (Required) The list of metrics or other MonitoredState
   // collected while processing this bundle.
   repeated org.apache.beam.model.pipeline.v1.MonitoringInfo monitoring_infos = 3;
 
@@ -277,6 +314,20 @@ message ProcessBundleResponse {
   // FinalizeBundleRequest with the instruction id of the ProcessBundleRequest
   // that is related to this ProcessBundleResponse.
   bool requires_finalization = 4;
+
+  // An identifier to MonitoringInfo.payload mapping.
+  //
+  // An SDK can report metrics using an identifier that only contains the
+  // associated payload. A runner who wants to receive the full metrics
+  // information can request all the monitoring metadata via a
+  // MonitoringInfosMetadataRequest providing a list of ids as necessary.
+  //
+  // The SDK is allowed to reuse the identifiers across multiple bundles as long
+  // as the MonitoringInfo could be reconstructed fully by overwriting its
+  // payload field with the bytes specified here.
+  map<string, bytes> monitoring_data = 5;
+
+  reserved 1;
 }
 
 // A request to report progress information for a given bundle.
@@ -288,134 +339,58 @@ message ProcessBundleProgressRequest {
   string instruction_id = 1;
 }
 
-// DEPRECATED
-message Metrics {
-  // PTransform level metrics.
-  // These metrics are split into processed and active element groups for
-  // progress reporting purposes. This allows a Runner to see what is measured,
-  // what is estimated and what can be extrapolated to be able to accurately
-  // estimate the amount of remaining work.
-  message PTransform {
-    // Metrics that are measured for processed and active element groups.
-    message Measured {
-      // (Optional) Map from local input name to number of elements processed
-      // from this input.
-      // If unset, assumed to be the sum of the outputs of all producers to
-      // this transform (for ProcessedElements) and 0 (for ActiveElements).
-      map<string, int64> input_element_counts = 1;
-
-      // (Required) Map from local output name to number of elements produced
-      // for this output.
-      map<string, int64> output_element_counts = 2;
-
-      // (Optional) The total time spent so far in processing the elements in
-      // this group, in seconds.
-      double total_time_spent = 3;
-
-      // TODO: Add other element group level metrics.
-    }
-
-    // Metrics for fully processed elements.
-    message ProcessedElements {
-      // (Required)
-      Measured measured = 1;
-    }
-
-    // Metrics for active elements.
-    // An element is considered active if the SDK has started but not finished
-    // processing it yet.
-    message ActiveElements {
-      // (Required)
-      Measured measured = 1;
-
-      // Estimated metrics.
-
-      // (Optional) Sum of estimated fraction of known work remaining for all
-      // active elements, as reported by this transform.
-      // If not reported, a Runner could extrapolate this from the processed
-      // elements.
-      // TODO: Handle the case when known work is infinite.
-      double fraction_remaining = 2;
-
-      // (Optional) Map from local output name to sum of estimated number
-      // of elements remaining for this output from all active elements,
-      // as reported by this transform.
-      // If not reported, a Runner could extrapolate this from the processed
-      // elements.
-      map<string, int64> output_elements_remaining = 3;
-    }
-
-    // (Required): Metrics for processed elements.
-    ProcessedElements processed_elements = 1;
-    // (Required): Metrics for active elements.
-    ActiveElements active_elements = 2;
-
-    // (Optional): Map from local output name to its watermark.
-    // The watermarks reported are tentative, to get a better sense of progress
-    // while processing a bundle but before it is committed. At bundle commit
-    // time, a Runner needs to also take into account the timers set to compute
-    // the actual watermarks.
-    map<string, int64> watermarks = 3;
-
-    repeated User user = 4;
-    // TODO: Define other transform level system metrics.
-  }
-
-  // User defined metrics
-  message User {
-    // A key for identifying a metric at the most granular level.
-    message MetricName {
-      // (Required): The namespace of this metric.
-      string namespace = 2;
-
-      // (Required): The name of this metric.
-      string name = 3;
-    }
-
-    // Data associated with a counter metric.
-    message CounterData {
-      int64 value = 1;
-    }
-
-    // Data associated with a distribution metric.
-    message DistributionData {
-      int64 count = 1;
-      int64 sum = 2;
-      int64 min = 3;
-      int64 max = 4;
-    }
-
-    // Data associated with a Gauge metric.
-    message GaugeData {
-      int64 value = 1;
-      google.protobuf.Timestamp timestamp = 2;
-    }
-
-    // (Required) The identifier for this metric.
-    MetricName metric_name = 1;
-
-    // (Required) The data for this metric.
-    oneof data {
-      CounterData counter_data = 1001;
-      DistributionData distribution_data = 1002;
-      GaugeData gauge_data = 1003;
-    }
-  }
-
-  map<string, PTransform> ptransforms = 1;
+// A request to provide full MonitoringInfo for a set of provided ids.
+//
+// An SDK can report metrics using an identifier that only contains the
+// associated payload. A runner who wants to receive the full metrics
+// information can request all the monitoring metadata via a
+// MonitoringInfosMetadataRequest providing a list of ids as necessary.
+//
+// The SDK is allowed to reuse the identifiers for the lifetime of the
+// associated control connection as long as the MonitoringInfo could be
+// reconstructed fully by overwriting its payload field with the bytes specified
+// here.
+message MonitoringInfosMetadataRequest {
+  // A list of ids for which the full MonitoringInfo is requested for.
+  repeated string monitoring_info_id = 1;
 }
 
 message ProcessBundleProgressResponse {
-  // DEPRECATED (Required)
-  Metrics metrics = 1;
-
-  // (Required) The list of metrics or other MonitoredState
+  // DEPRECATED (Required) The list of metrics or other MonitoredState
   // collected while processing this bundle.
   repeated org.apache.beam.model.pipeline.v1.MonitoringInfo monitoring_infos = 3;
 
-  // The list of currently active primary roots that are being
-  // executed. Required to be populated for PTransforms which can be split.
-  repeated BundleApplication primary_roots = 4;
+  // An identifier to MonitoringInfo.payload mapping.
+  //
+  // An SDK can report metrics using an identifier that only contains the
+  // associated payload. A runner who wants to receive the full metrics
+  // information can request all the monitoring metadata via a
+  // MonitoringInfosMetadataRequest providing a list of ids as necessary.
+  //
+  // The SDK is allowed to reuse the identifiers
+  // for the lifetime of the associated control connection as long
+  // as the MonitoringInfo could be reconstructed fully by overwriting its
+  // payload field with the bytes specified here.
+  map<string, bytes> monitoring_data = 5;
+
+  reserved 1, 2, 4;
+}
+
+// A response that contains the full mapping information associated with
+// a specified set of identifiers.
+//
+// An SDK can report metrics using an identifier that only contains the
+// associated payload. A runner who wants to receive the full metrics
+// information can request all the monitoring metadata via a
+// MonitoringInfosMetadataRequest providing a list of ids as necessary.
+//
+// The SDK is allowed to reuse the identifiers
+// for the lifetime of the associated control connection as long
+// as the MonitoringInfo could be reconstructed fully by overwriting its
+// payload field with the bytes specified here.
+message MonitoringInfosMetadataResponse {
+  // A mapping from an identifier to the full metrics information.
+  map<string, org.apache.beam.model.pipeline.v1.MonitoringInfo> monitoring_info = 1;
 }
 
 // Represents a request to the SDK to split a currently active bundle.
@@ -431,7 +406,7 @@ message ProcessBundleSplitRequest {
     //
     // Set to 0 to "checkpoint" as soon as possible (keeping as little work as
     // possible and returning the remainder).
-    float fraction_of_remainder = 1;
+    double fraction_of_remainder = 1;
 
     // A set of allowed element indices where the SDK may split. When this is
     // empty, there are no constraints on where to split.
@@ -486,12 +461,12 @@ message ProcessBundleSplitResponse {
     // The last element of the input channel that should be entirely considered
     // part of the primary, identified by its absolute index in the (ordered)
     // channel.
-    int32 last_primary_element = 2;
+    int64 last_primary_element = 2;
 
     // The first element of the input channel that should be entirely considered
     // part of the residual, identified by its absolute index in the (ordered)
     // channel.
-    int32 first_residual_element = 3;
+    int64 first_residual_element = 3;
   }
 
   // Partitions of input data channels into primary and residual elements,
@@ -538,14 +513,45 @@ message Elements {
     // (Optional) Represents a part of a logical byte stream. Elements within
     // the logical byte stream are encoded in the nested context and
     // concatenated together.
-    //
-    // An empty data block represents the end of stream for the given
-    // instruction and transform.
     bytes data = 3;
+
+    // (Optional) Set this bit to indicate the this is the last data block
+    // for the given instruction and transform, ending the stream.
+    bool is_last = 4;
   }
 
-  // (Required) A list containing parts of logical byte streams.
+  // Represent the encoded user timer for a given instruction, transform and
+  // timer id.
+  message Timers {
+    // (Required) A reference to an active instruction request with the given
+    // instruction id.
+    string instruction_id = 1;
+
+    // (Required) A definition representing a consumer or producer of this data.
+    // If received by a harness, this represents the consumer within that
+    // harness that should consume these timers. If sent by a harness, this
+    // represents the producer of these timers.
+    string transform_id = 2;
+
+    // (Required) The local timer family name used to identify the associated
+    // timer family specification
+    string timer_family_id = 3;
+
+    // (Optional) Represents a logical byte stream of timers. Encoded according
+    // to the coder in the timer spec.
+    bytes timers = 4;
+
+    // (Optional) Set this bit to indicate the this is the last data block
+    // for the given instruction and transform, ending the stream.
+    bool is_last = 5;
+  }
+
+
+  // (Optional) A list containing parts of logical byte streams.
   repeated Data data = 1;
+
+  // (Optional)  A list of timer byte streams.
+  repeated Timers timers = 2;
 }
 
 // Stable
@@ -893,4 +899,33 @@ service BeamFnExternalWorkerPool {
   rpc StartWorker (StartWorkerRequest) returns (StartWorkerResponse) {}
   // Stop the SDK worker.
   rpc StopWorker (StopWorkerRequest) returns (StopWorkerResponse) {}
+}
+
+// Request from runner to SDK Harness asking for its status. For more details see
+// https://s.apache.org/beam-fn-api-harness-status
+message WorkerStatusRequest {
+  // (Required) Unique ID identifying this request.
+  string id = 1;
+}
+
+// Response from SDK Harness to runner containing the debug related status info.
+message WorkerStatusResponse {
+  // (Required) Unique ID from the original request.
+  string id = 1;
+
+  // (Optional) Error message if exception encountered generating the status response.
+  string error = 2;
+
+  // (Optional) Status debugging info reported by SDK harness worker. Content and
+  // format is not strongly enforced but should be print-friendly and
+  // appropriate as an HTTP response body for end user. For details of the preferred
+  // info to include in the message see
+  // https://s.apache.org/beam-fn-api-harness-status
+  string status_info = 3;
+}
+
+// API for SDKs to report debug-related statuses to runner during pipeline execution.
+service BeamFnWorkerStatus {
+  rpc WorkerStatus (stream WorkerStatusResponse)
+    returns (stream WorkerStatusRequest) {}
 }

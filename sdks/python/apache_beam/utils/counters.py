@@ -23,6 +23,8 @@
 For internal use only; no backwards-compatibility guarantees.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import threading
@@ -45,12 +47,13 @@ if TYPE_CHECKING:
 # It may represent the consumption of Shuffle IO, or the consumption of
 # side inputs. The way in which each is represented is explained in the
 # documentation of the side_input_id, and shuffle_id functions.
-IOTargetName = namedtuple('IOTargetName', ['requesting_step_name',
-                                           'input_index'])
+IOTargetName = namedtuple(
+    'IOTargetName', ['requesting_step_name', 'input_index'])
 
 
 def side_input_id(step_name, input_index):
   # type: (str, int) -> IOTargetName
+
   """Create an IOTargetName that identifies the reading of a side input.
 
   Given a step "s4" that receives two side inputs, then the CounterName
@@ -67,6 +70,7 @@ def side_input_id(step_name, input_index):
 
 def shuffle_id(step_name):
   # type: (str) -> IOTargetName
+
   """Create an IOTargetName that identifies a GBK step.
 
   Given a step "s6" that is downstream from a GBK "s5", then "s6" will read
@@ -83,14 +87,18 @@ def shuffle_id(step_name):
   return IOTargetName(step_name, None)
 
 
-_CounterName = namedtuple('_CounterName', ['name',
-                                           'stage_name',
-                                           'step_name',
-                                           'system_name',
-                                           'namespace',
-                                           'origin',
-                                           'output_index',
-                                           'io_target'])
+_CounterName = namedtuple(
+    '_CounterName',
+    [
+        'name',
+        'stage_name',
+        'step_name',
+        'system_name',
+        'namespace',
+        'origin',
+        'output_index',
+        'io_target'
+    ])
 
 
 class CounterName(_CounterName):
@@ -98,13 +106,27 @@ class CounterName(_CounterName):
   SYSTEM = object()
   USER = object()
 
-  def __new__(cls, name, stage_name=None, step_name=None,
-              system_name=None, namespace=None,
-              origin=None, output_index=None, io_target=None):
+  def __new__(
+      cls,
+      name,
+      stage_name=None,
+      step_name=None,
+      system_name=None,
+      namespace=None,
+      origin=None,
+      output_index=None,
+      io_target=None):
     origin = origin or CounterName.SYSTEM
-    return super(CounterName, cls).__new__(cls, name, stage_name, step_name,
-                                           system_name, namespace,
-                                           origin, output_index, io_target)
+    return super(CounterName, cls).__new__(
+        cls,
+        name,
+        stage_name,
+        step_name,
+        system_name,
+        namespace,
+        origin,
+        output_index,
+        io_target)
 
   def __repr__(self):
     return '<CounterName<%s> at %s>' % (self._str_internal(), hex(id(self)))
@@ -149,6 +171,7 @@ class Counter(object):
 
   def __init__(self, name, combine_fn):
     # type: (CounterName, core.CombineFn) -> None
+
     """Creates a Counter object.
 
     Args:
@@ -177,13 +200,12 @@ class Counter(object):
     return '<%s at %s>' % (self._str_internal(), hex(id(self)))
 
   def _str_internal(self):
-    return '%s %s %s' % (self.name, self.combine_fn.__class__.__name__,
-                         self.value())
+    return '%s %s %s' % (
+        self.name, self.combine_fn.__class__.__name__, self.value())
 
 
 class AccumulatorCombineFnCounter(Counter):
   """Counter optimized for a mutating accumulator that holds all the logic."""
-
   def __init__(self, name, combine_fn):
     # type: (CounterName, cy_combiners.AccumulatorCombineFn) -> None
     assert isinstance(combine_fn, cy_combiners.AccumulatorCombineFn)
@@ -200,7 +222,6 @@ class AccumulatorCombineFnCounter(Counter):
 
 class CounterFactory(object):
   """Keeps track of unique counters."""
-
   def __init__(self):
     self.counters = {}  # type: Dict[CounterName, Counter]
 
@@ -209,6 +230,7 @@ class CounterFactory(object):
 
   def get_counter(self, name, combine_fn):
     # type: (CounterName, core.CombineFn) -> Counter
+
     """Returns a counter with the requested name.
 
     Passing in the same name will return the same counter; the

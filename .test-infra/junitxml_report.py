@@ -20,8 +20,8 @@
 Example usage, comparing nosetests and pytest test collection:
 $ cd sdks/python
 $ rm *.xml
-$ tox --recreate -e py27-gcp
-$ tox --recreate -e py27-gcp-pytest
+$ tox --recreate -e py38-gcp
+$ tox --recreate -e py38-gcp-pytest
 $ python3 ../../.test-infra/junitxml_report.py nosetests*.xml | sort -u > nosetests.out
 $ python3 ../../.test-infra/junitxml_report.py pytest*.xml | sort -u > pytest.out
 $ diff -u nosetests.out pytest.out | less
@@ -41,6 +41,9 @@ def print_testsuite(testsuite):
       if child.tag == 'skipped':
         assert status == ''
         status = 'S'
+      elif child.tag == 'failure':
+        assert status == ''
+        status = 'F'
       elif child.tag in ['system-err', 'system-out']:
         pass
       else:

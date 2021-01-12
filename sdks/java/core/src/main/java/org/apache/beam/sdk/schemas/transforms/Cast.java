@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
@@ -44,8 +45,11 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 
 /** Set of utilities for casting rows between schemas. */
-@Experimental(Experimental.Kind.SCHEMAS)
+@Experimental(Kind.SCHEMAS)
 @AutoValue
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public abstract class Cast<T> extends PTransform<PCollection<T>, PCollection<Row>> {
 
   public abstract Schema outputSchema();

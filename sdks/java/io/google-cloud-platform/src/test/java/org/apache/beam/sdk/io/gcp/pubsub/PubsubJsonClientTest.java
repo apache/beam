@@ -34,6 +34,7 @@ import com.google.api.services.pubsub.model.PullResponse;
 import com.google.api.services.pubsub.model.ReceivedMessage;
 import com.google.api.services.pubsub.model.Subscription;
 import com.google.api.services.pubsub.model.Topic;
+import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
@@ -56,6 +57,9 @@ import org.mockito.Mockito;
 
 /** Tests for PubsubJsonClient. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class PubsubJsonClientTest {
   private Pubsub mockPubsub;
   private PubsubClient client;
@@ -73,6 +77,7 @@ public class PubsubJsonClientTest {
   private static final String DATA = "testData";
   private static final String RECORD_ID = "testRecordId";
   private static final String ACK_ID = "testAckId";
+  private static final String ORDERING_KEY = "testOrderingKey";
 
   @Before
   public void setup() {
@@ -98,7 +103,8 @@ public class PubsubJsonClientTest {
             .setPublishTime(String.valueOf(PUB_TIME))
             .setAttributes(
                 ImmutableMap.of(
-                    TIMESTAMP_ATTRIBUTE, String.valueOf(MESSAGE_TIME), ID_ATTRIBUTE, RECORD_ID));
+                    TIMESTAMP_ATTRIBUTE, String.valueOf(MESSAGE_TIME), ID_ATTRIBUTE, RECORD_ID))
+            .setOrderingKey(ORDERING_KEY);
     ReceivedMessage expectedReceivedMessage =
         new ReceivedMessage().setMessage(expectedPubsubMessage).setAckId(ACK_ID);
     PullResponse expectedResponse =
@@ -113,11 +119,42 @@ public class PubsubJsonClientTest {
     List<IncomingMessage> acutalMessages = client.pull(REQ_TIME, SUBSCRIPTION, 10, true);
     assertEquals(1, acutalMessages.size());
     IncomingMessage actualMessage = acutalMessages.get(0);
-    assertEquals(ACK_ID, actualMessage.ackId);
-    assertEquals(DATA, new String(actualMessage.elementBytes, StandardCharsets.UTF_8));
-    assertEquals(RECORD_ID, actualMessage.recordId);
-    assertEquals(REQ_TIME, actualMessage.requestTimeMsSinceEpoch);
-    assertEquals(MESSAGE_TIME, actualMessage.timestampMsSinceEpoch);
+    assertEquals(ACK_ID, actualMessage.ackId());
+    assertEquals(DATA, actualMessage.message().getData().toStringUtf8());
+    assertEquals(RECORD_ID, actualMessage.recordId());
+    assertEquals(REQ_TIME, actualMessage.requestTimeMsSinceEpoch());
+    assertEquals(MESSAGE_TIME, actualMessage.timestampMsSinceEpoch());
+    assertEquals(ORDERING_KEY, actualMessage.message().getOrderingKey());
+  }
+
+  @Test
+  public void pullOneMessageEmptyAttributes() throws IOException {
+    client = new PubsubJsonClient(null, null, mockPubsub);
+    String expectedSubscription = SUBSCRIPTION.getPath();
+    PullRequest expectedRequest = new PullRequest().setReturnImmediately(true).setMaxMessages(10);
+    PubsubMessage expectedPubsubMessage =
+        new PubsubMessage()
+            .setMessageId(MESSAGE_ID)
+            .encodeData(DATA.getBytes(StandardCharsets.UTF_8))
+            .setPublishTime(String.valueOf(PUB_TIME));
+    ReceivedMessage expectedReceivedMessage =
+        new ReceivedMessage().setMessage(expectedPubsubMessage).setAckId(ACK_ID);
+    PullResponse expectedResponse =
+        new PullResponse().setReceivedMessages(ImmutableList.of(expectedReceivedMessage));
+    when((Object)
+            (mockPubsub
+                .projects()
+                .subscriptions()
+                .pull(expectedSubscription, expectedRequest)
+                .execute()))
+        .thenReturn(expectedResponse);
+    List<IncomingMessage> acutalMessages = client.pull(REQ_TIME, SUBSCRIPTION, 10, true);
+    assertEquals(1, acutalMessages.size());
+    IncomingMessage actualMessage = acutalMessages.get(0);
+    assertEquals(ACK_ID, actualMessage.ackId());
+    assertEquals(DATA, actualMessage.message().getData().toStringUtf8());
+    assertEquals(REQ_TIME, actualMessage.requestTimeMsSinceEpoch());
+    assertEquals(PUB_TIME, actualMessage.timestampMsSinceEpoch());
   }
 
   @Test
@@ -146,7 +183,7 @@ public class PubsubJsonClientTest {
     List<IncomingMessage> acutalMessages = client.pull(REQ_TIME, SUBSCRIPTION, 10, true);
     assertEquals(1, acutalMessages.size());
     IncomingMessage actualMessage = acutalMessages.get(0);
-    assertArrayEquals(new byte[0], actualMessage.elementBytes);
+    assertArrayEquals(new byte[0], actualMessage.message().getData().toByteArray());
   }
 
   @Test
@@ -160,7 +197,8 @@ public class PubsubJsonClientTest {
                     .put(TIMESTAMP_ATTRIBUTE, String.valueOf(MESSAGE_TIME))
                     .put(ID_ATTRIBUTE, RECORD_ID)
                     .put("k", "v")
-                    .build());
+                    .build())
+            .set("orderingKey", ORDERING_KEY);
     PublishRequest expectedRequest =
         new PublishRequest().setMessages(ImmutableList.of(expectedPubsubMessage));
     PublishResponse expectedResponse =
@@ -171,7 +209,14 @@ public class PubsubJsonClientTest {
     Map<String, String> attrs = new HashMap<>();
     attrs.put("k", "v");
     OutgoingMessage actualMessage =
-        new OutgoingMessage(DATA.getBytes(StandardCharsets.UTF_8), attrs, MESSAGE_TIME, RECORD_ID);
+        OutgoingMessage.of(
+            com.google.pubsub.v1.PubsubMessage.newBuilder()
+                .setData(ByteString.copyFromUtf8(DATA))
+                .putAllAttributes(attrs)
+                .setOrderingKey(ORDERING_KEY)
+                .build(),
+            MESSAGE_TIME,
+            RECORD_ID);
     int n = client.publish(TOPIC, ImmutableList.of(actualMessage));
     assertEquals(1, n);
   }
@@ -195,8 +240,12 @@ public class PubsubJsonClientTest {
             (mockPubsub.projects().topics().publish(expectedTopic, expectedRequest).execute()))
         .thenReturn(expectedResponse);
     OutgoingMessage actualMessage =
-        new OutgoingMessage(
-            DATA.getBytes(StandardCharsets.UTF_8), ImmutableMap.of(), MESSAGE_TIME, RECORD_ID);
+        OutgoingMessage.of(
+            com.google.pubsub.v1.PubsubMessage.newBuilder()
+                .setData(ByteString.copyFromUtf8(DATA))
+                .build(),
+            MESSAGE_TIME,
+            RECORD_ID);
     int n = client.publish(TOPIC, ImmutableList.of(actualMessage));
     assertEquals(1, n);
   }
@@ -222,7 +271,13 @@ public class PubsubJsonClientTest {
     Map<String, String> attrs = new HashMap<>();
     attrs.put("k", "v");
     OutgoingMessage actualMessage =
-        new OutgoingMessage(DATA.getBytes(StandardCharsets.UTF_8), attrs, MESSAGE_TIME, RECORD_ID);
+        OutgoingMessage.of(
+            com.google.pubsub.v1.PubsubMessage.newBuilder()
+                .setData(ByteString.copyFromUtf8(DATA))
+                .putAllAttributes(attrs)
+                .build(),
+            MESSAGE_TIME,
+            RECORD_ID);
     int n = client.publish(TOPIC, ImmutableList.of(actualMessage));
     assertEquals(1, n);
   }

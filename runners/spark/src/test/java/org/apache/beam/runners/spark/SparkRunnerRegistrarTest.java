@@ -37,7 +37,10 @@ public class SparkRunnerRegistrarTest {
   @Test
   public void testOptions() {
     assertEquals(
-        ImmutableList.of(SparkPipelineOptions.class, SparkStructuredStreamingPipelineOptions.class),
+        ImmutableList.of(
+            SparkPipelineOptions.class,
+            SparkStructuredStreamingPipelineOptions.class,
+            SparkPortableStreamingPipelineOptions.class),
         new SparkRunnerRegistrar.Options().getPipelineOptions());
   }
 

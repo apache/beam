@@ -17,48 +17,53 @@
  */
 package org.apache.beam.runners.portability;
 
+import java.util.Iterator;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import javax.annotation.Nullable;
 import org.apache.beam.model.jobmanagement.v1.JobApi;
 import org.apache.beam.model.jobmanagement.v1.JobApi.CancelJobRequest;
 import org.apache.beam.model.jobmanagement.v1.JobApi.CancelJobResponse;
 import org.apache.beam.model.jobmanagement.v1.JobApi.GetJobStateRequest;
+import org.apache.beam.model.jobmanagement.v1.JobApi.JobMessage;
+import org.apache.beam.model.jobmanagement.v1.JobApi.JobMessagesRequest;
+import org.apache.beam.model.jobmanagement.v1.JobApi.JobMessagesResponse;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobStateEvent;
 import org.apache.beam.model.jobmanagement.v1.JobServiceGrpc.JobServiceBlockingStub;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricResults;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@SuppressWarnings({"keyfor", "nullness"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class JobServicePipelineResult implements PipelineResult, AutoCloseable {
 
-  private static final long POLL_INTERVAL_MS = 10 * 1000;
+  private static final long POLL_INTERVAL_MS = 3_000;
 
   private static final Logger LOG = LoggerFactory.getLogger(JobServicePipelineResult.class);
 
   private final ByteString jobId;
   private final CloseableResource<JobServiceBlockingStub> jobService;
-  @Nullable private State terminationState;
-  @Nullable private final Runnable cleanup;
+  private @Nullable State terminalState;
+  private final @Nullable Runnable cleanup;
   private org.apache.beam.model.jobmanagement.v1.JobApi.MetricResults jobMetrics;
 
   JobServicePipelineResult(
       ByteString jobId, CloseableResource<JobServiceBlockingStub> jobService, Runnable cleanup) {
     this.jobId = jobId;
     this.jobService = jobService;
-    this.terminationState = null;
+    this.terminalState = null;
     this.cleanup = cleanup;
   }
 
   @Override
   public State getState() {
-    if (terminationState != null) {
-      return terminationState;
+    if (terminalState != null) {
+      return terminalState;
     }
     JobServiceBlockingStub stub = jobService.get();
     JobStateEvent response =
@@ -98,26 +103,16 @@ class JobServicePipelineResult implements PipelineResult, AutoCloseable {
 
   @Override
   public State waitUntilFinish() {
-    if (terminationState != null) {
-      return terminationState;
+    if (terminalState != null) {
+      return terminalState;
     }
-    JobServiceBlockingStub stub = jobService.get();
-    GetJobStateRequest request = GetJobStateRequest.newBuilder().setJobIdBytes(jobId).build();
-    JobStateEvent response = stub.getState(request);
-    State lastState = getJavaState(response.getState());
-    while (!lastState.isTerminal()) {
-      try {
-        Thread.sleep(POLL_INTERVAL_MS);
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        throw new RuntimeException(e);
-      }
-      response = stub.getState(request);
-      lastState = getJavaState(response.getState());
+    try {
+      waitForTerminalState();
+      propagateErrors();
+      return terminalState;
+    } finally {
+      close();
     }
-    close();
-    terminationState = lastState;
-    return lastState;
   }
 
   @Override
@@ -136,6 +131,41 @@ class JobServicePipelineResult implements PipelineResult, AutoCloseable {
       }
     } catch (Exception e) {
       LOG.warn("Error cleaning up job service", e);
+    }
+  }
+
+  private void waitForTerminalState() {
+    JobServiceBlockingStub stub = jobService.get();
+    GetJobStateRequest request = GetJobStateRequest.newBuilder().setJobIdBytes(jobId).build();
+    JobStateEvent response = stub.getState(request);
+    State lastState = getJavaState(response.getState());
+    while (!lastState.isTerminal()) {
+      try {
+        Thread.sleep(POLL_INTERVAL_MS);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new RuntimeException(e);
+      }
+      response = stub.getState(request);
+      lastState = getJavaState(response.getState());
+    }
+    terminalState = lastState;
+  }
+
+  private void propagateErrors() {
+    if (terminalState != State.DONE) {
+      JobMessagesRequest messageStreamRequest =
+          JobMessagesRequest.newBuilder().setJobIdBytes(jobId).build();
+      Iterator<JobMessagesResponse> messageStreamIterator =
+          jobService.get().getMessageStream(messageStreamRequest);
+      while (messageStreamIterator.hasNext()) {
+        JobMessage messageResponse = messageStreamIterator.next().getMessageResponse();
+        if (messageResponse.getImportance() == JobMessage.MessageImportance.JOB_MESSAGE_ERROR) {
+          throw new RuntimeException(
+              "The Runner experienced the following error during execution:\n"
+                  + messageResponse.getMessageText());
+        }
+      }
     }
   }
 

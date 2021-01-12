@@ -28,6 +28,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -37,6 +39,11 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.joda.time.ReadableInstant;
 
 /** A set of utilities for inferring a Beam {@link Schema} from static Java types. */
+@Experimental(Kind.SCHEMAS)
+@SuppressWarnings({
+  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes"
+})
 public class StaticSchemaInference {
   public static List<FieldValueTypeInformation> sortBySchema(
       List<FieldValueTypeInformation> types, Schema schema) {

@@ -15,9 +15,6 @@
 # limitations under the License.
 #
 
-# Mocked object returned by invoking get_ipython() in an ipython environment.
-_mocked_get_ipython = None
-
 
 def mock_get_ipython():
   """Mock an ipython environment w/o setting up real ipython kernel.
@@ -27,26 +24,30 @@ def mock_get_ipython():
 
   Examples::
 
-    # Usage, before each test function, append:
-    @patch('IPython.get_ipython', mock_get_ipython)
+    # Usage, before each test function, prepend:
+    @patch('IPython.get_ipython', new_callable=mock_get_ipython)
 
-    # Group lines of code into a cell:
-    with mock_get_ipython():
+    # In the test function's signature, add an argument for the patch, e.g.:
+    def some_test(self, cell):
+
+    # Group lines of code into a cell using the argument:
+    with cell:
       # arbitrary python code
       # ...
       # arbitrary python code
 
     # Next cell with prompt increased by one:
-    with mock_get_ipython():  # Auto-incremental
+    with cell:  # Auto-incremental
       # arbitrary python code
       # ...
       # arbitrary python code
   """
-
   class MockedGetIpython(object):
-
     def __init__(self):
       self._execution_count = 0
+
+    def __call__(self):
+      return self
 
     @property
     def execution_count(self):
@@ -61,7 +62,4 @@ def mock_get_ipython():
       """Marks exiting of a cell/prompt."""
       pass
 
-  global _mocked_get_ipython
-  if not _mocked_get_ipython:
-    _mocked_get_ipython = MockedGetIpython()
-  return _mocked_get_ipython
+  return MockedGetIpython()

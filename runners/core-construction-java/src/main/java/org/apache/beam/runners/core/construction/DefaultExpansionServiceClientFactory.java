@@ -23,17 +23,22 @@ import java.util.function.Function;
 import org.apache.beam.model.expansion.v1.ExpansionApi;
 import org.apache.beam.model.expansion.v1.ExpansionServiceGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ManagedChannel;
 
 /** Default factory for ExpansionServiceClient used by External transform. */
 public class DefaultExpansionServiceClientFactory implements ExpansionServiceClientFactory {
   private Map<Endpoints.ApiServiceDescriptor, ExpansionServiceClient> expansionServiceMap;
   private Function<Endpoints.ApiServiceDescriptor, ManagedChannel> channelFactory;
 
-  DefaultExpansionServiceClientFactory(
+  private DefaultExpansionServiceClientFactory(
       Function<Endpoints.ApiServiceDescriptor, ManagedChannel> channelFactory) {
     this.expansionServiceMap = new ConcurrentHashMap<>();
     this.channelFactory = channelFactory;
+  }
+
+  public static DefaultExpansionServiceClientFactory create(
+      Function<Endpoints.ApiServiceDescriptor, ManagedChannel> channelFactory) {
+    return new DefaultExpansionServiceClientFactory(channelFactory);
   }
 
   @Override

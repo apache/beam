@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.schemas.logicaltypes;
 
+import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
@@ -25,13 +26,20 @@ import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.LogicalType;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType.Value;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashBiMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** This {@link LogicalType} represent an enumeration over a fixed set of values. */
+@Experimental(Kind.SCHEMAS)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class EnumerationType implements LogicalType<Value, Integer> {
   public static final String IDENTIFIER = "Enum";
   final BiMap<String, Integer> enumValues = HashBiMap.create();
@@ -71,12 +79,12 @@ public class EnumerationType implements LogicalType<Value, Integer> {
   }
   /** Return an {@link Value} corresponding to one of the enumeration strings. */
   public Value valueOf(String stringValue) {
-    return new Value(stringValue, enumValues.get(stringValue));
+    return new Value(enumValues.get(stringValue));
   }
 
   /** Return an {@link Value} corresponding to one of the enumeration integer values. */
   public Value valueOf(int value) {
-    return new Value(enumValues.inverse().get(value), value);
+    return new Value(value);
   }
 
   @Override
@@ -117,6 +125,10 @@ public class EnumerationType implements LogicalType<Value, Integer> {
     return values;
   }
 
+  public String toString(EnumerationType.Value value) {
+    return enumValues.inverse().get(value.getValue());
+  }
+
   @Override
   public String toString() {
     return "Enumeration: " + enumValues;
@@ -125,12 +137,10 @@ public class EnumerationType implements LogicalType<Value, Integer> {
   /**
    * This class represents a single enum value. It can be referenced as a String or as an integer.
    */
-  public static class Value {
-    private final String stringValue;
+  public static class Value implements Serializable {
     private final int value;
 
-    public Value(String stringValue, int value) {
-      this.stringValue = stringValue;
+    public Value(int value) {
       this.value = value;
     }
 
@@ -139,14 +149,8 @@ public class EnumerationType implements LogicalType<Value, Integer> {
       return value;
     }
 
-    /** Return the String enum value. */
     @Override
-    public String toString() {
-      return stringValue;
-    }
-
-    @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -154,12 +158,17 @@ public class EnumerationType implements LogicalType<Value, Integer> {
         return false;
       }
       Value enumValue = (Value) o;
-      return value == enumValue.value && Objects.equals(stringValue, enumValue.stringValue);
+      return value == enumValue.value;
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(stringValue, value);
+      return Objects.hash(value);
+    }
+
+    @Override
+    public String toString() {
+      return "enum value: " + value;
     }
   }
 }

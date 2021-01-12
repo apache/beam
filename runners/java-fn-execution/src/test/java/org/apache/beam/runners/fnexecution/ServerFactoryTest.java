@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.fnexecution;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.contains;
@@ -26,7 +27,6 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThan;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assume.assumeTrue;
 
 import java.net.Inet4Address;
@@ -35,6 +35,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.model.fnexecution.v1.BeamFnDataGrpc;
@@ -42,14 +43,16 @@ import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
 import org.apache.beam.sdk.fn.test.TestStreams;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.ManagedChannel;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.CallStreamObserver;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.grpc.v1p21p0.io.netty.channel.epoll.Epoll;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.CallStreamObserver;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.testing.GrpcCleanupRule;
+import org.apache.beam.vendor.grpc.v1p26p0.io.netty.channel.epoll.Epoll;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.net.HostAndPort;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Uninterruptibles;
+import org.junit.Rule;
 import org.junit.Test;
 
 /** Tests for {@link ServerFactory}. */
@@ -63,6 +66,9 @@ public class ServerFactoryTest {
       BeamFnApi.Elements.newBuilder()
           .addData(BeamFnApi.Elements.Data.newBuilder().setInstructionId("1"))
           .build();
+
+  @Rule
+  public GrpcCleanupRule grpcCleanupRule = new GrpcCleanupRule().setTimeout(10, TimeUnit.SECONDS);
 
   @Test
   public void defaultServerWorks() throws Exception {
@@ -84,10 +90,8 @@ public class ServerFactoryTest {
         TestStreams.withOnNext((Elements unused) -> {}).withOnCompleted(() -> {}).build();
     TestDataService service = new TestDataService(observer);
     ApiServiceDescriptor.Builder descriptorBuilder = ApiServiceDescriptor.newBuilder();
-    Server server =
-        serverFactory.allocateAddressAndCreate(ImmutableList.of(service), descriptorBuilder);
-    // Immediately terminate server. We don't actually use it here.
-    server.shutdown();
+    grpcCleanupRule.register(
+        serverFactory.allocateAddressAndCreate(ImmutableList.of(service), descriptorBuilder));
     assertThat(descriptorBuilder.getUrl(), is("foo"));
   }
 
@@ -115,15 +119,9 @@ public class ServerFactoryTest {
         TestStreams.withOnNext((Elements unused) -> {}).withOnCompleted(() -> {}).build();
     TestDataService service = new TestDataService(observer);
     ApiServiceDescriptor.Builder descriptorBuilder = ApiServiceDescriptor.newBuilder();
-    Server server = null;
-    try {
-      server = serverFactory.allocateAddressAndCreate(ImmutableList.of(service), descriptorBuilder);
-      assertThat(descriptorBuilder.getUrl(), is("foo:65535"));
-    } finally {
-      if (server != null) {
-        server.shutdown();
-      }
-    }
+    grpcCleanupRule.register(
+        serverFactory.allocateAddressAndCreate(ImmutableList.of(service), descriptorBuilder));
+    assertThat(descriptorBuilder.getUrl(), is("foo:65535"));
   }
 
   @Test

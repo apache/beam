@@ -17,39 +17,36 @@
  */
 package org.apache.beam.runners.core.construction;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Optional;
-import org.apache.beam.model.pipeline.v1.RunnerApi.CombinePayload;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.DockerPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ProcessPayload;
-import org.apache.beam.model.pipeline.v1.RunnerApi.ReadPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardEnvironments;
-import org.apache.beam.model.pipeline.v1.RunnerApi.WindowIntoPayload;
+import org.apache.beam.runners.core.construction.Environments.JavaVersion;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.io.CountingSource;
-import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.Sum;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.FixedWindows;
-import org.apache.beam.sdk.transforms.windowing.PartitioningWindowFn;
-import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.joda.time.Duration;
-import org.joda.time.Instant;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -59,18 +56,23 @@ import org.junit.runners.JUnit4;
 public class EnvironmentsTest implements Serializable {
   @Test
   public void createEnvironments() throws IOException {
+    PortablePipelineOptions options = PipelineOptionsFactory.as(PortablePipelineOptions.class);
+    options.setDefaultEnvironmentType(Environments.ENVIRONMENT_DOCKER);
+    options.setDefaultEnvironmentConfig("java");
     assertThat(
-        Environments.createOrGetDefaultEnvironment(Environments.ENVIRONMENT_DOCKER, "java"),
+        Environments.createOrGetDefaultEnvironment(options),
         is(
             Environment.newBuilder()
                 .setUrn(BeamUrns.getUrn(StandardEnvironments.Environments.DOCKER))
                 .setPayload(
                     DockerPayload.newBuilder().setContainerImage("java").build().toByteString())
+                .addAllCapabilities(Environments.getJavaCapabilities())
                 .build()));
+    options.setDefaultEnvironmentType(Environments.ENVIRONMENT_PROCESS);
+    options.setDefaultEnvironmentConfig(
+        "{\"os\": \"linux\", \"arch\": \"amd64\", \"command\": \"run.sh\", \"env\":{\"k1\": \"v1\", \"k2\": \"v2\"} }");
     assertThat(
-        Environments.createOrGetDefaultEnvironment(
-            Environments.ENVIRONMENT_PROCESS,
-            "{\"os\": \"linux\", \"arch\": \"amd64\", \"command\": \"run.sh\", \"env\":{\"k1\": \"v1\", \"k2\": \"v2\"} }"),
+        Environments.createOrGetDefaultEnvironment(options),
         is(
             Environment.newBuilder()
                 .setUrn(BeamUrns.getUrn(StandardEnvironments.Environments.PROCESS))
@@ -83,15 +85,33 @@ public class EnvironmentsTest implements Serializable {
                         .putEnv("k2", "v2")
                         .build()
                         .toByteString())
+                .addAllCapabilities(Environments.getJavaCapabilities())
                 .build()));
+    options.setDefaultEnvironmentType(Environments.ENVIRONMENT_PROCESS);
+    options.setDefaultEnvironmentConfig("{\"command\": \"run.sh\"}");
     assertThat(
-        Environments.createOrGetDefaultEnvironment(
-            Environments.ENVIRONMENT_PROCESS, "{\"command\": \"run.sh\"}"),
+        Environments.createOrGetDefaultEnvironment(options),
         is(
             Environment.newBuilder()
                 .setUrn(BeamUrns.getUrn(StandardEnvironments.Environments.PROCESS))
                 .setPayload(ProcessPayload.newBuilder().setCommand("run.sh").build().toByteString())
+                .addAllCapabilities(Environments.getJavaCapabilities())
                 .build()));
+  }
+
+  @Test
+  public void testCapabilities() {
+    assertThat(Environments.getJavaCapabilities(), hasItem(ModelCoders.LENGTH_PREFIX_CODER_URN));
+    assertThat(Environments.getJavaCapabilities(), hasItem(ModelCoders.ROW_CODER_URN));
+    assertThat(
+        Environments.getJavaCapabilities(),
+        hasItem(BeamUrns.getUrn(RunnerApi.StandardProtocols.Enum.MULTI_CORE_BUNDLE_PROCESSING)));
+    assertThat(
+        Environments.getJavaCapabilities(),
+        hasItem(
+            BeamUrns.getUrn(
+                RunnerApi.StandardPTransforms.SplittableParDoComponents
+                    .TRUNCATE_SIZED_RESTRICTION)));
   }
 
   @Test
@@ -112,9 +132,11 @@ public class EnvironmentsTest implements Serializable {
   }
 
   @Test
-  public void getEnvironmentParDo() throws IOException {
+  public void getEnvironmentPTransform() throws IOException {
+    Pipeline p = Pipeline.create();
     SdkComponents components = SdkComponents.create();
-    components.registerEnvironment(Environments.createDockerEnvironment("java"));
+    Environment env = Environments.createDockerEnvironment("java");
+    components.registerEnvironment(env);
     ParDoPayload payload =
         ParDoTranslation.translateParDo(
             ParDo.of(
@@ -123,150 +145,38 @@ public class EnvironmentsTest implements Serializable {
                       public void process(ProcessContext ctxt) {}
                     })
                 .withOutputTags(new TupleTag<>(), TupleTagList.empty()),
+            PCollection.createPrimitiveOutputInternal(
+                p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED, StringUtf8Coder.of()),
             DoFnSchemaInformation.create(),
             Pipeline.create(),
             components);
     RehydratedComponents rehydratedComponents =
         RehydratedComponents.forComponents(components.toComponents());
-    PTransform builder =
+    PTransform ptransform =
         PTransform.newBuilder()
             .setSpec(
                 FunctionSpec.newBuilder()
                     .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
                     .setPayload(payload.toByteString())
                     .build())
+            .setEnvironmentId(components.getOnlyEnvironmentId())
             .build();
-    Environment env = Environments.getEnvironment(builder, rehydratedComponents).get();
+    Environment env1 = Environments.getEnvironment(ptransform, rehydratedComponents).get();
     assertThat(
-        env,
-        equalTo(
-            components
-                .toComponents()
-                .getEnvironmentsOrThrow(payload.getDoFn().getEnvironmentId())));
+        env1,
+        equalTo(components.toComponents().getEnvironmentsOrThrow(ptransform.getEnvironmentId())));
   }
 
   @Test
-  public void getEnvironmentWindowIntoKnown() throws IOException {
-    SdkComponents components = SdkComponents.create();
-    components.registerEnvironment(Environments.createDockerEnvironment("java"));
-    WindowIntoPayload payload =
-        WindowIntoPayload.newBuilder()
-            .setWindowFn(
-                WindowingStrategyTranslation.toProto(
-                    FixedWindows.of(Duration.standardMinutes(5L)), components))
-            .build();
-    RehydratedComponents rehydratedComponents =
-        RehydratedComponents.forComponents(components.toComponents());
-    PTransform builder =
-        PTransform.newBuilder()
-            .setSpec(
-                FunctionSpec.newBuilder()
-                    .setUrn(PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN)
-                    .setPayload(payload.toByteString())
-                    .build())
-            .build();
-    Environment env = Environments.getEnvironment(builder, rehydratedComponents).get();
-    assertThat(
-        env,
-        equalTo(
-            components
-                .toComponents()
-                .getEnvironmentsOrThrow(payload.getWindowFn().getEnvironmentId())));
+  public void testJavaVersion() {
+    assertEquals(JavaVersion.v8, JavaVersion.forSpecification("1.8"));
+    assertEquals("java8", JavaVersion.v8.toString());
+    assertEquals(JavaVersion.v11, JavaVersion.forSpecification("11"));
+    assertEquals("java11", JavaVersion.v11.toString());
   }
 
-  @Test
-  public void getEnvironmentWindowIntoCustom() throws IOException {
-    SdkComponents components = SdkComponents.create();
-    components.registerEnvironment(Environments.createDockerEnvironment("java"));
-    WindowIntoPayload payload =
-        WindowIntoPayload.newBuilder()
-            .setWindowFn(
-                WindowingStrategyTranslation.toProto(
-                    new PartitioningWindowFn<Object, BoundedWindow>() {
-                      @Override
-                      public BoundedWindow assignWindow(Instant timestamp) {
-                        return null;
-                      }
-
-                      @Override
-                      public boolean isCompatible(WindowFn<?, ?> other) {
-                        return false;
-                      }
-
-                      @Override
-                      public Coder<BoundedWindow> windowCoder() {
-                        return null;
-                      }
-                    },
-                    components))
-            .build();
-    RehydratedComponents rehydratedComponents =
-        RehydratedComponents.forComponents(components.toComponents());
-    PTransform builder =
-        PTransform.newBuilder()
-            .setSpec(
-                FunctionSpec.newBuilder()
-                    .setUrn(PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN)
-                    .setPayload(payload.toByteString())
-                    .build())
-            .build();
-    Environment env = Environments.getEnvironment(builder, rehydratedComponents).get();
-    assertThat(
-        env,
-        equalTo(
-            components
-                .toComponents()
-                .getEnvironmentsOrThrow(payload.getWindowFn().getEnvironmentId())));
-  }
-
-  @Test
-  public void getEnvironmentRead() throws IOException {
-    SdkComponents components = SdkComponents.create();
-    components.registerEnvironment(Environments.createDockerEnvironment("java"));
-    ReadPayload payload = ReadTranslation.toProto(Read.from(CountingSource.upTo(10)), components);
-    RehydratedComponents rehydratedComponents =
-        RehydratedComponents.forComponents(components.toComponents());
-    PTransform builder =
-        PTransform.newBuilder()
-            .setSpec(
-                FunctionSpec.newBuilder()
-                    .setUrn(PTransformTranslation.COMBINE_PER_KEY_TRANSFORM_URN)
-                    .setPayload(payload.toByteString())
-                    .build())
-            .build();
-    Environment env = Environments.getEnvironment(builder, rehydratedComponents).get();
-    assertThat(
-        env,
-        equalTo(
-            components
-                .toComponents()
-                .getEnvironmentsOrThrow(payload.getSource().getEnvironmentId())));
-  }
-
-  @Test
-  public void getEnvironmentCombine() throws IOException {
-    SdkComponents components = SdkComponents.create();
-    components.registerEnvironment(Environments.createDockerEnvironment("java"));
-    CombinePayload payload =
-        CombinePayload.newBuilder()
-            .setCombineFn(CombineTranslation.toProto(Sum.ofLongs(), components))
-            .build();
-    RehydratedComponents rehydratedComponents =
-        RehydratedComponents.forComponents(components.toComponents());
-    PTransform builder =
-        PTransform.newBuilder()
-            .setSpec(
-                FunctionSpec.newBuilder()
-                    .setUrn(PTransformTranslation.COMBINE_PER_KEY_TRANSFORM_URN)
-                    .setPayload(payload.toByteString())
-                    .build())
-            .build();
-    Environment env = Environments.getEnvironment(builder, rehydratedComponents).get();
-    assertThat(
-        env,
-        equalTo(
-            components
-                .toComponents()
-                .getEnvironmentsOrThrow(payload.getCombineFn().getEnvironmentId())));
+  @Test(expected = UnsupportedOperationException.class)
+  public void testJavaVersionInvalid() {
+    assertEquals(JavaVersion.v8, JavaVersion.forSpecification("invalid"));
   }
 }

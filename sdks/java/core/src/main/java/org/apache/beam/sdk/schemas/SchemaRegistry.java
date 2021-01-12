@@ -23,7 +23,6 @@ import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.function.Function;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
@@ -36,6 +35,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@link SchemaRegistry} allows registering {@link Schema}s for a given Java {@link Class} or a
@@ -49,6 +49,10 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
  * optional modules to register schemas as well.
  */
 @Experimental(Kind.SCHEMAS)
+@SuppressWarnings({
+  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes"
+})
 public class SchemaRegistry {
   private static final List<SchemaProvider> REGISTERED_SCHEMA_PROVIDERS;
 
@@ -75,9 +79,8 @@ public class SchemaRegistry {
       providers.put(typeDescriptor, schemaProvider);
     }
 
-    @Nullable
     @Override
-    public <T> Schema schemaFor(TypeDescriptor<T> typeDescriptor) {
+    public <T> @Nullable Schema schemaFor(TypeDescriptor<T> typeDescriptor) {
       TypeDescriptor<?> type = typeDescriptor;
       do {
         SchemaProvider schemaProvider = providers.get(type);
@@ -92,9 +95,9 @@ public class SchemaRegistry {
       } while (true);
     }
 
-    @Nullable
     @Override
-    public <T> SerializableFunction<T, Row> toRowFunction(TypeDescriptor<T> typeDescriptor) {
+    public <T> @Nullable SerializableFunction<T, Row> toRowFunction(
+        TypeDescriptor<T> typeDescriptor) {
       TypeDescriptor<?> type = typeDescriptor;
       do {
         SchemaProvider schemaProvider = providers.get(type);
@@ -109,9 +112,9 @@ public class SchemaRegistry {
       } while (true);
     }
 
-    @Nullable
     @Override
-    public <T> SerializableFunction<Row, T> fromRowFunction(TypeDescriptor<T> typeDescriptor) {
+    public <T> @Nullable SerializableFunction<Row, T> fromRowFunction(
+        TypeDescriptor<T> typeDescriptor) {
       TypeDescriptor<?> type = typeDescriptor;
       do {
         SchemaProvider schemaProvider = providers.get(type);
@@ -226,27 +229,16 @@ public class SchemaRegistry {
   }
 
   /**
-   * Get a schema for a given {@link Class} type. If no schema exists, throws {@link
+   * Retrieve a {@link Schema} for a given {@link Class} type. If no schema exists, throws {@link
    * NoSuchSchemaException}.
    */
   public <T> Schema getSchema(Class<T> clazz) throws NoSuchSchemaException {
     return getSchema(TypeDescriptor.of(clazz));
   }
 
-  private <ReturnT> ReturnT getProviderResult(Function<SchemaProvider, ReturnT> f)
-      throws NoSuchSchemaException {
-    for (SchemaProvider provider : providers) {
-      ReturnT result = f.apply(provider);
-      if (result != null) {
-        return result;
-      }
-    }
-    throw new NoSuchSchemaException();
-  }
-
   /**
-   * Retrieve a schema for a given {@link TypeDescriptor} type. If no schema exists, throws {@link
-   * NoSuchSchemaException}.
+   * Retrieve a {@link Schema} for a given {@link TypeDescriptor} type. If no schema exists, throws
+   * {@link NoSuchSchemaException}.
    */
   public <T> Schema getSchema(TypeDescriptor<T> typeDescriptor) throws NoSuchSchemaException {
     SchemaEntry entry = entries.get(typeDescriptor);
@@ -256,13 +248,17 @@ public class SchemaRegistry {
     return getProviderResult((SchemaProvider p) -> p.schemaFor(typeDescriptor));
   }
 
-  /** Rerieve the function that converts an object of the specified type to a {@link Row} object. */
+  /**
+   * Retrieve the function that converts an object of the specified type to a {@link Row} object.
+   */
   public <T> SerializableFunction<T, Row> getToRowFunction(Class<T> clazz)
       throws NoSuchSchemaException {
     return getToRowFunction(TypeDescriptor.of(clazz));
   }
 
-  /** Rerieve the function that converts an object of the specified type to a {@link Row} object. */
+  /**
+   * Retrieve the function that converts an object of the specified type to a {@link Row} object.
+   */
   public <T> SerializableFunction<T, Row> getToRowFunction(TypeDescriptor<T> typeDescriptor)
       throws NoSuchSchemaException {
     SchemaEntry entry = entries.get(typeDescriptor);
@@ -286,6 +282,38 @@ public class SchemaRegistry {
       return entry.fromRow;
     }
     return getProviderResult((SchemaProvider p) -> p.fromRowFunction(typeDescriptor));
+  }
+
+  /**
+   * Retrieve a {@link SchemaCoder} for a given {@link Class} type. If no schema exists, throws
+   * {@link * NoSuchSchemaException}.
+   */
+  public <T> SchemaCoder<T> getSchemaCoder(Class<T> clazz) throws NoSuchSchemaException {
+    return getSchemaCoder(TypeDescriptor.of(clazz));
+  }
+
+  /**
+   * Retrieve a {@link SchemaCoder} for a given {@link TypeDescriptor} type. If no schema exists,
+   * throws {@link * NoSuchSchemaException}.
+   */
+  public <T> SchemaCoder<T> getSchemaCoder(TypeDescriptor<T> typeDescriptor)
+      throws NoSuchSchemaException {
+    return SchemaCoder.of(
+        getSchema(typeDescriptor),
+        typeDescriptor,
+        getToRowFunction(typeDescriptor),
+        getFromRowFunction(typeDescriptor));
+  }
+
+  private <ReturnT> ReturnT getProviderResult(Function<SchemaProvider, ReturnT> f)
+      throws NoSuchSchemaException {
+    for (SchemaProvider provider : providers) {
+      ReturnT result = f.apply(provider);
+      if (result != null) {
+        return result;
+      }
+    }
+    throw new NoSuchSchemaException();
   }
 
   static {

@@ -21,6 +21,8 @@ For an explanation of the TF-IDF algorithm see the following link:
 http://en.wikipedia.org/wiki/Tf-idf
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 
@@ -55,7 +57,6 @@ class TfIdf(beam.PTransform):
   the value is a piece of the document's content.
   The output is mapping from terms to scores for each document URI.
   """
-
   def expand(self, uri_to_content):
 
     # Compute the total number of documents, and prepare a singleton
@@ -120,9 +121,10 @@ class TfIdf(beam.PTransform):
     #         'word counts': [(word, count),  # Counts of specific words
     #                         (word, count),  # within this URI's document.
     #                         ... ]}
-    uri_to_word_and_count_and_total = (
-        {'word totals': uri_to_word_total, 'word counts': uri_to_word_and_count}
-        | 'CoGroupByUri' >> beam.CoGroupByKey())
+    uri_to_word_and_count_and_total = ({
+        'word totals': uri_to_word_total, 'word counts': uri_to_word_and_count
+    }
+                                       | 'CoGroupByUri' >> beam.CoGroupByKey())
 
     # Compute a mapping from each word to a (URI, term frequency) pair for each
     # URI. A word's term frequency for a document is simply the number of times
@@ -159,14 +161,14 @@ class TfIdf(beam.PTransform):
     word_to_df = (
         word_to_doc_count
         | 'ComputeDocFrequencies' >> beam.Map(
-            div_word_count_by_total,
-            AsSingleton(total_documents)))
+            div_word_count_by_total, AsSingleton(total_documents)))
 
     # Join the term frequency and document frequency collections,
     # each keyed on the word.
-    word_to_uri_and_tf_and_df = (
-        {'tf': word_to_uri_and_tf, 'df': word_to_df}
-        | 'CoGroupWordsByTf-df' >> beam.CoGroupByKey())
+    word_to_uri_and_tf_and_df = ({
+        'tf': word_to_uri_and_tf, 'df': word_to_df
+    }
+                                 | 'CoGroupWordsByTf-df' >> beam.CoGroupByKey())
 
     # Compute a mapping from each word to a (URI, TF-IDF) score for each URI.
     # There are a variety of definitions of TF-IDF
@@ -190,12 +192,9 @@ class TfIdf(beam.PTransform):
 def run(argv=None, save_main_session=True):
   """Main entry point; defines and runs the tfidf pipeline."""
   parser = argparse.ArgumentParser()
-  parser.add_argument('--uris',
-                      required=True,
-                      help='URIs to process.')
-  parser.add_argument('--output',
-                      required=True,
-                      help='Output file to write results to.')
+  parser.add_argument('--uris', required=True, help='URIs to process.')
+  parser.add_argument(
+      '--output', required=True, help='Output file to write results to.')
   known_args, pipeline_args = parser.parse_known_args(argv)
   # We use the save_main_session option because one or more DoFn's in this
   # workflow rely on global context (e.g., a module imported at module level).

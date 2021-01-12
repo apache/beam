@@ -29,10 +29,10 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A (partial) implementation of {@link PubsubClient} for use by unit tests. Only suitable for
@@ -40,6 +40,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
  * methods. Relies on statics to mimic the Pubsub service, though we try to hide that.
  */
 @Experimental
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class PubsubTestClient extends PubsubClient implements Serializable {
   /**
    * Mimic the state of the simulated Pubsub 'service'.
@@ -309,12 +312,17 @@ public class PubsubTestClient extends PubsubClient implements Serializable {
         IncomingMessage incomingMessage = pendItr.next();
         pendItr.remove();
         IncomingMessage incomingMessageWithRequestTime =
-            incomingMessage.withRequestTime(requestTimeMsSinceEpoch);
+            IncomingMessage.of(
+                incomingMessage.message(),
+                incomingMessage.timestampMsSinceEpoch(),
+                requestTimeMsSinceEpoch,
+                incomingMessage.ackId(),
+                incomingMessage.recordId());
         incomingMessages.add(incomingMessageWithRequestTime);
         STATE.pendingAckIncomingMessages.put(
-            incomingMessageWithRequestTime.ackId, incomingMessageWithRequestTime);
+            incomingMessageWithRequestTime.ackId(), incomingMessageWithRequestTime);
         STATE.ackDeadline.put(
-            incomingMessageWithRequestTime.ackId,
+            incomingMessageWithRequestTime.ackId(),
             requestTimeMsSinceEpoch + STATE.ackTimeoutSec * 1000);
         if (incomingMessages.size() >= batchSize) {
           break;

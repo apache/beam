@@ -87,6 +87,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Odd's 'n Ends used throughout queries and driver. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class NexmarkUtils {
   private static final Logger LOG = LoggerFactory.getLogger(NexmarkUtils.class);
 
@@ -133,6 +136,14 @@ public class NexmarkUtils {
     SUBSCRIBE_ONLY,
     /** Both publish and consume, but as separate jobs. */
     COMBINED
+  }
+
+  /** Controls how the event objects are serialized before publishing to pubsub. */
+  public enum PubsubMessageSerializationMethod {
+    /** Use coder to serialize the event objects to byte array. */
+    CODER,
+    /** Use encode with UTF-8 to serialize event object string representation. */
+    TO_STRING
   }
 
   /** Possible side input sources. */
@@ -206,7 +217,7 @@ public class NexmarkUtils {
     throw new RuntimeException("Unrecognized enum " + options.getResourceNameMode());
   }
 
-  private static String processingMode(boolean isStreaming) {
+  public static String processingMode(boolean isStreaming) {
     return isStreaming ? "streaming" : "batch";
   }
 
@@ -453,7 +464,7 @@ public class NexmarkUtils {
         new DoFn<T, T>() {
           @ProcessElement
           public void processElement(ProcessContext c) {
-            LOG.info("%s: %s", name, c.element());
+            LOG.info("{}: {}", name, c.element());
             c.output(c.element());
           }
         });

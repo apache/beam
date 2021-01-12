@@ -32,6 +32,9 @@ import org.joda.time.Duration;
 /** [Internal] Options for configuring StreamingDataflowWorker. */
 @Description("[Internal] Options for configuring StreamingDataflowWorker.")
 @Hidden
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public interface StreamingDataflowWorkerOptions extends DataflowWorkerHarnessOptions {
   @Description("Stub for communicating with Windmill.")
   @Default.InstanceFactory(WindmillServerStubFactory.class)
@@ -69,6 +72,12 @@ public interface StreamingDataflowWorkerOptions extends DataflowWorkerHarnessOpt
 
   void setActiveWorkRefreshPeriodMillis(int value);
 
+  @Description("Necessary duration for a commit to be considered stuck and invalidated.")
+  @Default.Integer(10 * 60 * 1000)
+  int getStuckCommitDurationMillis();
+
+  void setStuckCommitDurationMillis(int value);
+
   @Description(
       "Period for sending 'global get config' requests to the service. The duration is "
           + "specified as seconds in 'PTx.yS' format, e.g. 'PT5.125S'."
@@ -91,6 +100,26 @@ public interface StreamingDataflowWorkerOptions extends DataflowWorkerHarnessOpt
   int getWindmillServiceStreamingRpcBatchLimit();
 
   void setWindmillServiceStreamingRpcBatchLimit(int value);
+
+  @Description("Log streaming rpc errors once out of every N.")
+  @Default.Integer(20)
+  int getWindmillServiceStreamingLogEveryNStreamFailures();
+
+  void setWindmillServiceStreamingLogEveryNStreamFailures(int value);
+
+  @Description("The health check period and timeout for grpc channel healthchecks")
+  @Default.Integer(40)
+  int getWindmillServiceRpcChannelAliveTimeoutSec();
+
+  void setWindmillServiceRpcChannelAliveTimeoutSec(int value);
+
+  @Description(
+      "If positive, frequency at which windmill service streaming rpcs will have application "
+          + "level health checks.")
+  @Default.Integer(10000)
+  int getWindmillServiceStreamingRpcHealthCheckPeriodMs();
+
+  void setWindmillServiceStreamingRpcHealthCheckPeriodMs(int value);
 
   /**
    * Factory for creating local Windmill address. Reads from system propery 'windmill.hostport' for

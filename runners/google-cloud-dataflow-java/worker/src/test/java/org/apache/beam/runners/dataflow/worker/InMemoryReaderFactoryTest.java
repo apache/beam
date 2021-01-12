@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.runners.dataflow.util.Structs.addLong;
 import static org.apache.beam.runners.dataflow.util.Structs.addStringList;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 import com.google.api.services.dataflow.model.Source;
 import java.util.Arrays;
@@ -39,6 +40,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for InMemoryReaderFactory. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class InMemoryReaderFactoryTest {
   static <T> Source createInMemoryCloudSource(
       List<T> elements, Long start, Long end, Coder<T> coder) throws Exception {
@@ -73,7 +77,7 @@ public class InMemoryReaderFactoryTest {
                 PipelineOptionsFactory.create(),
                 BatchModeExecutionContext.forTesting(PipelineOptionsFactory.create(), "testStage"),
                 TestOperationContext.create());
-    Assert.assertThat(reader, new IsInstanceOf(InMemoryReader.class));
+    assertThat(reader, new IsInstanceOf(InMemoryReader.class));
     InMemoryReader<?> inMemoryReader = (InMemoryReader<?>) reader;
     Assert.assertEquals(
         InMemoryReaderTest.encodedElements(elements, coder), inMemoryReader.encodedElements);

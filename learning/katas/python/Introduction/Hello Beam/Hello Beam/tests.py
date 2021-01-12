@@ -14,16 +14,7 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-from test_helper import run_common_tests, failed, passed, get_answer_placeholders, get_file_output
-
-
-def test_answer_placeholders():
-    placeholders = get_answer_placeholders()
-    placeholder = placeholders[0]
-    if 'beam.Create' in placeholder:
-        passed()
-    else:
-        failed('Use beam.Create')
+from test_helper import failed, passed, get_file_output, test_is_not_empty
 
 
 def test_output():
@@ -36,6 +27,5 @@ def test_output():
 
 
 if __name__ == '__main__':
-    run_common_tests()
-    test_answer_placeholders()
+    test_is_not_empty()
     test_output()

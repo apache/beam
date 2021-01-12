@@ -38,7 +38,6 @@ import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -60,6 +59,10 @@ import scala.Tuple2;
  * @param <InputT>
  * @param <OutputT>
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class ParDoTranslatorBatch<InputT, OutputT>
     implements TransformTranslator<PTransform<PCollection<InputT>, PCollectionTuple>> {
 
@@ -72,15 +75,17 @@ class ParDoTranslatorBatch<InputT, OutputT>
     // TODO: add support of Splittable DoFn
     DoFn<InputT, OutputT> doFn = getDoFn(context);
     checkState(
-        !DoFnSignatures.signatureForDoFn(doFn).processElement().isSplittable(),
+        !DoFnSignatures.isSplittable(doFn),
         "Not expected to directly translate splittable DoFn, should have been overridden: %s",
         doFn);
 
     // TODO: add support of states and timers
-    DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
-    boolean stateful =
-        signature.stateDeclarations().size() > 0 || signature.timerDeclarations().size() > 0;
-    checkState(!stateful, "States and timers are not supported for the moment.");
+    checkState(
+        !DoFnSignatures.isStateful(doFn), "States and timers are not supported for the moment.");
+
+    checkState(
+        !DoFnSignatures.requiresTimeSortedInput(doFn),
+        "@RequiresTimeSortedInput is not " + "supported for the moment");
 
     DoFnSchemaInformation doFnSchemaInformation =
         ParDoTranslation.getSchemaInformation(context.getCurrentTransform());
@@ -88,7 +93,7 @@ class ParDoTranslatorBatch<InputT, OutputT>
     // Init main variables
     PValue input = context.getInput();
     Dataset<WindowedValue<InputT>> inputDataSet = context.getDataset(input);
-    Map<TupleTag<?>, PValue> outputs = context.getOutputs();
+    Map<TupleTag<?>, PCollection<?>> outputs = context.getOutputs();
     TupleTag<?> mainOutputTag = getTupleTag(context);
     List<TupleTag<?>> outputTags = new ArrayList<>(outputs.keySet());
     WindowingStrategy<?, ?> windowingStrategy =
@@ -141,7 +146,7 @@ class ParDoTranslatorBatch<InputT, OutputT>
         inputDataSet.mapPartitions(doFnWrapper, EncoderHelpers.fromBeamCoder(multipleOutputCoder));
     if (outputs.entrySet().size() > 1) {
       allOutputs.persist();
-      for (Map.Entry<TupleTag<?>, PValue> output : outputs.entrySet()) {
+      for (Map.Entry<TupleTag<?>, PCollection<?>> output : outputs.entrySet()) {
         pruneOutputFilteredByTag(context, allOutputs, output, windowCoder);
       }
     } else {
@@ -218,7 +223,7 @@ class ParDoTranslatorBatch<InputT, OutputT>
   private void pruneOutputFilteredByTag(
       TranslationContext context,
       Dataset<Tuple2<TupleTag<?>, WindowedValue<?>>> allOutputs,
-      Map.Entry<TupleTag<?>, PValue> output,
+      Map.Entry<TupleTag<?>, PCollection<?>> output,
       Coder<? extends BoundedWindow> windowCoder) {
     Dataset<Tuple2<TupleTag<?>, WindowedValue<?>>> filteredDataset =
         allOutputs.filter(new DoFnFilterFunction(output.getKey()));

@@ -22,7 +22,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.Set;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.CloudObjects;
 import org.apache.beam.runners.dataflow.worker.util.CloudSourceUtils;
@@ -34,11 +33,16 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * An immutable registry from {@link String} identifiers (provided to the worker by the Dataflow
  * service) to appropriate {@link ReaderFactory} instances.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ReaderRegistry implements ReaderFactory {
 
   /**

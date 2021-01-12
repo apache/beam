@@ -44,10 +44,14 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Rule;
 import org.junit.Test;
 
 /** Test Jackson transforms {@link ParseJsons} and {@link AsJsons}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class JacksonTransformsTest implements Serializable {
   private static final List<String> VALID_JSONS =
       Arrays.asList("{\"myString\":\"abc\",\"myInt\":3}", "{\"myString\":\"def\",\"myInt\":4}");
@@ -366,7 +370,7 @@ public class JacksonTransformsTest implements Serializable {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -401,7 +405,7 @@ public class JacksonTransformsTest implements Serializable {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }

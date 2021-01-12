@@ -17,7 +17,8 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.extensions.sketching')
+applyJavaNature(
+  automaticModuleName: 'org.apache.beam.sdk.extensions.sketching')
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: Sketching"
 
@@ -31,7 +32,6 @@ dependencies {
   compile "com.tdunning:t-digest:$tdigest_version"
   compile library.java.slf4j_api
   testCompile library.java.avro
-  testCompile library.java.commons_lang3
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library

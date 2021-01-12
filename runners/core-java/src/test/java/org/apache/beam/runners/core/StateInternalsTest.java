@@ -53,12 +53,16 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Test;
 
 /** Tests for {@link StateInternals}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public abstract class StateInternalsTest {
 
   private static final BoundedWindow WINDOW_1 = new IntervalWindow(new Instant(0), new Instant(10));
@@ -672,7 +676,7 @@ public abstract class StateInternalsTest {
     public void verifyDeterministic() throws NonDeterministicException {}
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       return other == this;
     }
 

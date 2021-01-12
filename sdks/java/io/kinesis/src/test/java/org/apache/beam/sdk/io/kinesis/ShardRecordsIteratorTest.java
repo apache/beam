@@ -20,8 +20,8 @@ package org.apache.beam.sdk.io.kinesis;
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyListOf;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.when;
 
 import com.amazonaws.services.kinesis.model.ExpiredIteratorException;
@@ -39,6 +39,9 @@ import org.mockito.stubbing.Answer;
 
 /** Tests {@link ShardRecordsIterator}. */
 @RunWith(MockitoJUnitRunner.Silent.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ShardRecordsIteratorTest {
 
   private static final String INITIAL_ITERATOR = "INITIAL_ITERATOR";
@@ -88,7 +91,7 @@ public class ShardRecordsIteratorTest {
     when(secondResult.getRecords()).thenReturn(Collections.emptyList());
     when(thirdResult.getRecords()).thenReturn(Collections.emptyList());
 
-    when(recordFilter.apply(anyListOf(KinesisRecord.class), any(ShardCheckpoint.class)))
+    when(recordFilter.apply(anyList(), any(ShardCheckpoint.class)))
         .thenAnswer(new IdentityAnswer());
 
     WatermarkPolicyFactory watermarkPolicyFactory = WatermarkPolicyFactory.withArrivalTimePolicy();
@@ -150,6 +153,30 @@ public class ShardRecordsIteratorTest {
     iterator.ackRecord(a);
     assertThat(iterator.readNextBatch()).isEqualTo(singletonList(b));
     assertThat(iterator.readNextBatch()).isEqualTo(Collections.emptyList());
+  }
+
+  @Test
+  public void tracksLatestRecordTimestamp() {
+    when(firstResult.getRecords()).thenReturn(singletonList(a));
+    when(secondResult.getRecords()).thenReturn(asList(b, c));
+    when(thirdResult.getRecords()).thenReturn(singletonList(c));
+
+    when(a.getApproximateArrivalTimestamp()).thenReturn(NOW);
+    when(b.getApproximateArrivalTimestamp()).thenReturn(NOW.plus(Duration.standardSeconds(4)));
+    when(c.getApproximateArrivalTimestamp()).thenReturn(NOW.plus(Duration.standardSeconds(2)));
+    when(d.getApproximateArrivalTimestamp()).thenReturn(NOW.plus(Duration.standardSeconds(6)));
+
+    iterator.ackRecord(a);
+    assertThat(iterator.getLatestRecordTimestamp()).isEqualTo(NOW);
+    iterator.ackRecord(b);
+    assertThat(iterator.getLatestRecordTimestamp())
+        .isEqualTo(NOW.plus(Duration.standardSeconds(4)));
+    iterator.ackRecord(c);
+    assertThat(iterator.getLatestRecordTimestamp())
+        .isEqualTo(NOW.plus(Duration.standardSeconds(4)));
+    iterator.ackRecord(d);
+    assertThat(iterator.getLatestRecordTimestamp())
+        .isEqualTo(NOW.plus(Duration.standardSeconds(6)));
   }
 
   private static class IdentityAnswer implements Answer<Object> {

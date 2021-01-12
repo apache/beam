@@ -45,6 +45,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
  * Creates any tables needed before performing streaming writes to the tables. This is a side-effect
  * {@link DoFn}, and returns the original collection unchanged.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class CreateTables<DestinationT, ElementT>
     extends PTransform<
         PCollection<KV<DestinationT, ElementT>>, PCollection<KV<TableDestination, ElementT>>> {

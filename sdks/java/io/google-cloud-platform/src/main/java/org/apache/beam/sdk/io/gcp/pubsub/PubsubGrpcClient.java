@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.gcp.pubsub;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auth.Credentials;
-import com.google.protobuf.ByteString;
 import com.google.protobuf.Timestamp;
 import com.google.pubsub.v1.AcknowledgeRequest;
 import com.google.pubsub.v1.DeleteSubscriptionRequest;
@@ -56,38 +55,40 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import javax.annotation.Nullable;
-import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
-/**
- * A helper class for talking to Pubsub via grpc.
- *
- * <p>CAUTION: Currently uses the application default credentials and does not respect any
- * credentials-related arguments in {@link GcpOptions}.
- */
+/** A helper class for talking to Pubsub via grpc. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class PubsubGrpcClient extends PubsubClient {
-  private static final String PUBSUB_ADDRESS = "pubsub.googleapis.com";
-  private static final int PUBSUB_PORT = 443;
   private static final int LIST_BATCH_SIZE = 1000;
 
-  private static final int DEFAULT_TIMEOUT_S = 15;
+  private static final int DEFAULT_TIMEOUT_S = 60;
+
+  private static ManagedChannel channelForRootUrl(String urlString) throws IOException {
+    String format = PubsubOptions.targetForRootUrl(urlString);
+
+    return NettyChannelBuilder.forTarget(format)
+        .negotiationType(NegotiationType.TLS)
+        .sslContext(GrpcSslContexts.forClient().ciphers(null).build())
+        .build();
+  }
 
   private static class PubsubGrpcClientFactory implements PubsubClientFactory {
     @Override
     public PubsubClient newClient(
         @Nullable String timestampAttribute, @Nullable String idAttribute, PubsubOptions options)
         throws IOException {
-      ManagedChannel channel =
-          NettyChannelBuilder.forAddress(PUBSUB_ADDRESS, PUBSUB_PORT)
-              .negotiationType(NegotiationType.TLS)
-              .sslContext(GrpcSslContexts.forClient().ciphers(null).build())
-              .build();
-
       return new PubsubGrpcClient(
-          timestampAttribute, idAttribute, DEFAULT_TIMEOUT_S, channel, options.getGcpCredential());
+          timestampAttribute,
+          idAttribute,
+          DEFAULT_TIMEOUT_S,
+          channelForRootUrl(options.getPubsubRootUrl()),
+          options.getGcpCredential());
     }
 
     @Override
@@ -103,7 +104,7 @@ public class PubsubGrpcClient extends PubsubClient {
   private final int timeoutSec;
 
   /** Underlying netty channel, or {@literal null} if closed. */
-  @Nullable private ManagedChannel publisherChannel;
+  private @Nullable ManagedChannel publisherChannel;
 
   /** Credentials determined from options and environment. */
   private final Credentials credentials;
@@ -112,13 +113,13 @@ public class PubsubGrpcClient extends PubsubClient {
    * Attribute to use for custom timestamps, or {@literal null} if should use Pubsub publish time
    * instead.
    */
-  @Nullable private final String timestampAttribute;
+  private final @Nullable String timestampAttribute;
 
   /** Attribute to use for custom ids, or {@literal null} if should use Pubsub provided ids. */
-  @Nullable private final String idAttribute;
+  private final @Nullable String idAttribute;
 
   /** Cached stubs, or null if not cached. */
-  @Nullable private PublisherGrpc.PublisherBlockingStub cachedPublisherStub;
+  private PublisherGrpc.@Nullable PublisherBlockingStub cachedPublisherStub;
 
   private SubscriberGrpc.SubscriberBlockingStub cachedSubscriberStub;
 
@@ -188,21 +189,15 @@ public class PubsubGrpcClient extends PubsubClient {
   public int publish(TopicPath topic, List<OutgoingMessage> outgoingMessages) throws IOException {
     PublishRequest.Builder request = PublishRequest.newBuilder().setTopic(topic.getPath());
     for (OutgoingMessage outgoingMessage : outgoingMessages) {
-      PubsubMessage.Builder message =
-          PubsubMessage.newBuilder().setData(ByteString.copyFrom(outgoingMessage.elementBytes));
-
-      if (outgoingMessage.attributes != null) {
-        message.putAllAttributes(outgoingMessage.attributes);
-      }
+      PubsubMessage.Builder message = outgoingMessage.message().toBuilder();
 
       if (timestampAttribute != null) {
-        message
-            .getMutableAttributes()
-            .put(timestampAttribute, String.valueOf(outgoingMessage.timestampMsSinceEpoch));
+        message.putAttributes(
+            timestampAttribute, String.valueOf(outgoingMessage.timestampMsSinceEpoch()));
       }
 
-      if (idAttribute != null && !Strings.isNullOrEmpty(outgoingMessage.recordId)) {
-        message.getMutableAttributes().put(idAttribute, outgoingMessage.recordId);
+      if (idAttribute != null && !Strings.isNullOrEmpty(outgoingMessage.recordId())) {
+        message.putAttributes(idAttribute, outgoingMessage.recordId());
       }
 
       request.addMessages(message);
@@ -234,9 +229,6 @@ public class PubsubGrpcClient extends PubsubClient {
       PubsubMessage pubsubMessage = message.getMessage();
       @Nullable Map<String, String> attributes = pubsubMessage.getAttributes();
 
-      // Payload.
-      byte[] elementBytes = pubsubMessage.getData().toByteArray();
-
       // Timestamp.
       String pubsubTimestampString = null;
       Timestamp timestampProto = pubsubMessage.getPublishTime();
@@ -262,13 +254,8 @@ public class PubsubGrpcClient extends PubsubClient {
       }
 
       incomingMessages.add(
-          new IncomingMessage(
-              elementBytes,
-              attributes,
-              timestampMsSinceEpoch,
-              requestTimeMsSinceEpoch,
-              ackId,
-              recordId));
+          IncomingMessage.of(
+              pubsubMessage, timestampMsSinceEpoch, requestTimeMsSinceEpoch, ackId, recordId));
     }
     return incomingMessages;
   }

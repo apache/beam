@@ -31,7 +31,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Test;
@@ -42,6 +42,9 @@ import org.mockito.MockitoAnnotations;
 
 /** Unit tests for {@link PubsubReader}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class PubsubReaderTest {
   @Mock StreamingModeExecutionContext mockContext;
 

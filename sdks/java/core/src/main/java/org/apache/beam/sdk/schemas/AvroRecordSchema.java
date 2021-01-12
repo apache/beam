@@ -31,6 +31,9 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * rows that bind to the appropriate fields. This provider also infers schemas from Java POJO
  * objects, creating a schema that matches that inferred by the AVRO libraries.
  */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class AvroRecordSchema extends GetterBasedSchemaProvider {
   @Override
   public <T> Schema schemaFor(TypeDescriptor<T> typeDescriptor) {

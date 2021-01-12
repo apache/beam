@@ -28,14 +28,14 @@ import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
 import com.amazonaws.services.cloudwatch.AmazonCloudWatchClientBuilder;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
-import javax.annotation.Nullable;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Basic implementation of {@link AwsClientsProvider} used by default in {@link DynamoDBIO}. */
 public class BasicDynamoDBProvider implements AwsClientsProvider {
   private final String accessKey;
   private final String secretKey;
   private final Regions region;
-  @Nullable private final String serviceEndpoint;
+  private final @Nullable String serviceEndpoint;
 
   BasicDynamoDBProvider(
       String accessKey, String secretKey, Regions region, @Nullable String serviceEndpoint) {

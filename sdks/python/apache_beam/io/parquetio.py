@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 """``PTransforms`` for reading from and writing to Parquet files.
 
 Provides two read ``PTransform``\\s, ``ReadFromParquet`` and
@@ -27,6 +28,8 @@ Additionally, this module provides a write ``PTransform`` ``WriteToParquet``
 that can be used to write a given ``PCollection`` of Python objects to a
 Parquet file.
 """
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 from functools import partial
@@ -47,9 +50,17 @@ try:
 except ImportError:
   pa = None
   pq = None
+  ARROW_MAJOR_VERSION = None
+else:
+  ARROW_MAJOR_VERSION, _, _ = map(int, pa.__version__.split('.'))
 
-__all__ = ['ReadFromParquet', 'ReadAllFromParquet', 'ReadFromParquetBatched',
-           'ReadAllFromParquetBatched', 'WriteToParquet']
+__all__ = [
+    'ReadFromParquet',
+    'ReadAllFromParquet',
+    'ReadFromParquetBatched',
+    'ReadAllFromParquetBatched',
+    'WriteToParquet'
+]
 
 
 class _ArrowTableToRowDictionaries(DoFn):
@@ -69,9 +80,8 @@ class ReadFromParquetBatched(PTransform):
   """A :class:`~apache_beam.transforms.ptransform.PTransform` for reading
      Parquet files as a `PCollection` of `pyarrow.Table`. This `PTransform` is
      currently experimental. No backward-compatibility guarantees."""
-
-  def __init__(self, file_pattern=None, min_bundle_size=0,
-               validate=True, columns=None):
+  def __init__(
+      self, file_pattern=None, min_bundle_size=0, validate=True, columns=None):
     """ Initializes :class:`~ReadFromParquetBatched`
 
     An alternative to :class:`~ReadFromParquet` that yields each row group from
@@ -95,7 +105,7 @@ class ReadFromParquetBatched(PTransform):
 
       Traceback (most recent call last):
        ...
-      IOError: No files found based on the file pattern
+      OSError: No files found based on the file pattern
 
     See also: :class:`~ReadFromParquet`.
 
@@ -129,9 +139,8 @@ class ReadFromParquet(PTransform):
   """A :class:`~apache_beam.transforms.ptransform.PTransform` for reading
      Parquet files as a `PCollection` of dictionaries. This `PTransform` is
      currently experimental. No backward-compatibility guarantees."""
-
-  def __init__(self, file_pattern=None, min_bundle_size=0,
-               validate=True, columns=None):
+  def __init__(
+      self, file_pattern=None, min_bundle_size=0, validate=True, columns=None):
     """Initializes :class:`ReadFromParquet`.
 
     Uses source ``_ParquetSource`` to read a set of Parquet files defined by
@@ -154,7 +163,7 @@ class ReadFromParquet(PTransform):
 
       Traceback (most recent call last):
        ...
-      IOError: No files found based on the file pattern
+      OSError: No files found based on the file pattern
 
     Each element of this :class:`~apache_beam.pvalue.PCollection` will contain
     a Python dictionary representing a single record. The keys will be of type
@@ -203,10 +212,12 @@ class ReadAllFromParquetBatched(PTransform):
 
   DEFAULT_DESIRED_BUNDLE_SIZE = 64 * 1024 * 1024  # 64MB
 
-  def __init__(self, min_bundle_size=0,
-               desired_bundle_size=DEFAULT_DESIRED_BUNDLE_SIZE,
-               columns=None,
-               label='ReadAllFiles'):
+  def __init__(
+      self,
+      min_bundle_size=0,
+      desired_bundle_size=DEFAULT_DESIRED_BUNDLE_SIZE,
+      columns=None,
+      label='ReadAllFiles'):
     """Initializes ``ReadAllFromParquet``.
 
     Args:
@@ -222,11 +233,13 @@ class ReadAllFromParquetBatched(PTransform):
     source_from_file = partial(
         _create_parquet_source,
         min_bundle_size=min_bundle_size,
-        columns=columns
-    )
+        columns=columns)
     self._read_all_files = filebasedsource.ReadAllFiles(
-        True, CompressionTypes.UNCOMPRESSED, desired_bundle_size,
-        min_bundle_size, source_from_file)
+        True,
+        CompressionTypes.UNCOMPRESSED,
+        desired_bundle_size,
+        min_bundle_size,
+        source_from_file)
 
     self.label = label
 
@@ -242,10 +255,8 @@ class ReadAllFromParquet(PTransform):
     return pvalue | self._read_batches | ParDo(_ArrowTableToRowDictionaries())
 
 
-def _create_parquet_source(file_pattern=None,
-                           min_bundle_size=0,
-                           validate=False,
-                           columns=None):
+def _create_parquet_source(
+    file_pattern=None, min_bundle_size=0, validate=False, columns=None):
   return \
     _ParquetSource(
         file_pattern=file_pattern,
@@ -285,8 +296,7 @@ class _ParquetSource(filebasedsource.FileBasedSource):
     super(_ParquetSource, self).__init__(
         file_pattern=file_pattern,
         min_bundle_size=min_bundle_size,
-        validate=validate
-    )
+        validate=validate)
     self._columns = columns
 
   def read_records(self, file_name, range_tracker):
@@ -339,18 +349,18 @@ class WriteToParquet(PTransform):
     This ``PTransform`` is currently experimental. No backward-compatibility
     guarantees.
   """
-
-  def __init__(self,
-               file_path_prefix,
-               schema,
-               row_group_buffer_size=64*1024*1024,
-               record_batch_size=1000,
-               codec='none',
-               use_deprecated_int96_timestamps=False,
-               file_name_suffix='',
-               num_shards=0,
-               shard_name_template=None,
-               mime_type='application/x-parquet'):
+  def __init__(
+      self,
+      file_path_prefix,
+      schema,
+      row_group_buffer_size=64 * 1024 * 1024,
+      record_batch_size=1000,
+      codec='none',
+      use_deprecated_int96_timestamps=False,
+      file_name_suffix='',
+      num_shards=0,
+      shard_name_template=None,
+      mime_type='application/x-parquet'):
     """Initialize a WriteToParquet transform.
 
     Writes parquet files from a :class:`~apache_beam.pvalue.PCollection` of
@@ -447,16 +457,17 @@ class WriteToParquet(PTransform):
     return {'sink_dd': self._sink}
 
 
-def _create_parquet_sink(file_path_prefix,
-                         schema,
-                         codec,
-                         row_group_buffer_size,
-                         record_batch_size,
-                         use_deprecated_int96_timestamps,
-                         file_name_suffix,
-                         num_shards,
-                         shard_name_template,
-                         mime_type):
+def _create_parquet_sink(
+    file_path_prefix,
+    schema,
+    codec,
+    row_group_buffer_size,
+    record_batch_size,
+    use_deprecated_int96_timestamps,
+    file_name_suffix,
+    num_shards,
+    shard_name_template,
+    mime_type):
   return \
     _ParquetSink(
         file_path_prefix,
@@ -474,18 +485,18 @@ def _create_parquet_sink(file_path_prefix,
 
 class _ParquetSink(filebasedsink.FileBasedSink):
   """A sink for parquet files."""
-
-  def __init__(self,
-               file_path_prefix,
-               schema,
-               codec,
-               row_group_buffer_size,
-               record_batch_size,
-               use_deprecated_int96_timestamps,
-               file_name_suffix,
-               num_shards,
-               shard_name_template,
-               mime_type):
+  def __init__(
+      self,
+      file_path_prefix,
+      schema,
+      codec,
+      row_group_buffer_size,
+      record_batch_size,
+      use_deprecated_int96_timestamps,
+      file_name_suffix,
+      num_shards,
+      shard_name_template,
+      mime_type):
     super(_ParquetSink, self).__init__(
         file_path_prefix,
         file_name_suffix=file_name_suffix,
@@ -498,6 +509,11 @@ class _ParquetSink(filebasedsink.FileBasedSink):
         compression_type=CompressionTypes.UNCOMPRESSED)
     self._schema = schema
     self._codec = codec
+    if ARROW_MAJOR_VERSION == 1 and self._codec.lower() == "lz4":
+      raise ValueError(
+          "Due to ARROW-9424, writing with LZ4 compression is not supported in "
+          "pyarrow 1.x, please use a different pyarrow version or a different "
+          f"codec. Your pyarrow version: {pa.__version__}")
     self._row_group_buffer_size = row_group_buffer_size
     self._use_deprecated_int96_timestamps = use_deprecated_int96_timestamps
     self._buffer = [[] for _ in range(len(schema.names))]
@@ -509,9 +525,10 @@ class _ParquetSink(filebasedsink.FileBasedSink):
   def open(self, temp_path):
     self._file_handle = super(_ParquetSink, self).open(temp_path)
     return pq.ParquetWriter(
-        self._file_handle, self._schema, compression=self._codec,
-        use_deprecated_int96_timestamps=self._use_deprecated_int96_timestamps
-    )
+        self._file_handle,
+        self._schema,
+        compression=self._codec,
+        use_deprecated_int96_timestamps=self._use_deprecated_int96_timestamps)
 
   def write_record(self, writer, value):
     if len(self._buffer[0]) >= self._buffer_size:
@@ -558,5 +575,6 @@ class _ParquetSink(filebasedsink.FileBasedSink):
     size = 0
     for x in arrays:
       for b in x.buffers():
-        size = size + b.size
+        if b is not None:
+          size = size + b.size
     self._record_batches_byte_size = self._record_batches_byte_size + size

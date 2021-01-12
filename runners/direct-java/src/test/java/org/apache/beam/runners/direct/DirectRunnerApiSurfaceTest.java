@@ -18,7 +18,7 @@
 package org.apache.beam.runners.direct;
 
 import static org.apache.beam.sdk.util.ApiSurface.containsOnlyPackages;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.util.Set;
 import org.apache.beam.sdk.Pipeline;
@@ -35,6 +35,9 @@ import org.junit.runners.JUnit4;
 
 /** API surface verification for {@link org.apache.beam.runners.direct}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DirectRunnerApiSurfaceTest {
   @Test
   public void testDirectRunnerApiSurface() throws Exception {
@@ -42,11 +45,7 @@ public class DirectRunnerApiSurfaceTest {
     @SuppressWarnings("unchecked")
     final Set<String> allowed =
         ImmutableSet.of(
-            "org.apache.beam.sdk",
-            "org.apache.beam.runners.direct",
-            "org.joda.time",
-            "javax.annotation",
-            "java.math");
+            "org.apache.beam.sdk", "org.apache.beam.runners.direct", "org.joda.time", "java.math");
 
     final Package thisPackage = getClass().getPackage();
     final ClassLoader thisClassLoader = getClass().getClassLoader();
@@ -64,11 +63,9 @@ public class DirectRunnerApiSurfaceTest {
             .pruningClass(DirectGraphs.class)
             .pruningClass(
                 WatermarkManager.class /* TODO: BEAM-4237 Consider moving to local-java */)
-            .pruningPattern(
-                "org[.]apache[.]beam[.]runners[.]direct[.]portable.*"
-                /* TODO: BEAM-4237 reconsider package layout with the ReferenceRunner */ )
             .pruningPattern("org[.]apache[.]beam[.].*Test.*")
             .pruningPattern("org[.]apache[.]beam[.].*IT")
+            .pruningPattern("org[.]checkerframework[.].*[.]qual[.].*")
             .pruningPattern("java[.]io.*")
             .pruningPattern("java[.]lang.*")
             .pruningPattern("java[.]util.*");

@@ -28,8 +28,16 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
 import java.io.IOException;
-import java.util.*;
-import java.util.concurrent.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Queue;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -50,6 +58,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** An in-memory Windmill server that offers provided work and data. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class FakeWindmillServer extends WindmillServerStub {
   private static final Logger LOG = LoggerFactory.getLogger(FakeWindmillServer.class);
 
@@ -64,6 +75,8 @@ class FakeWindmillServer extends WindmillServerStub {
   private final AtomicInteger expectedExceptionCount;
   private final ErrorCollector errorCollector;
   private boolean isReady = true;
+  private boolean dropStreamingCommits = false;
+  private final ConcurrentHashMap<Long, Consumer<Windmill.CommitStatus>> droppedStreamingCommits;
 
   public FakeWindmillServer(ErrorCollector errorCollector) {
     workToOffer = new ConcurrentLinkedQueue<>();
@@ -73,6 +86,11 @@ class FakeWindmillServer extends WindmillServerStub {
     expectedExceptionCount = new AtomicInteger();
     this.errorCollector = errorCollector;
     statsReceived = new ArrayList<>();
+    droppedStreamingCommits = new ConcurrentHashMap<>();
+  }
+
+  public void setDropStreamingCommits(boolean dropStreamingCommits) {
+    this.dropStreamingCommits = dropStreamingCommits;
   }
 
   public void addWorkToOffer(Windmill.GetWorkResponse work) {
@@ -188,7 +206,12 @@ class FakeWindmillServer extends WindmillServerStub {
     final CountDownLatch done = new CountDownLatch(1);
     return new GetWorkStream() {
       @Override
-      public void closeAfterDefaultTimeout() {
+      public void close() {
+        done.countDown();
+      }
+
+      @Override
+      public boolean awaitTermination(int time, TimeUnit unit) throws InterruptedException {
         while (done.getCount() > 0) {
           Windmill.GetWorkResponse response = workToOffer.poll();
           if (response == null) {
@@ -210,15 +233,6 @@ class FakeWindmillServer extends WindmillServerStub {
             }
           }
         }
-      }
-
-      @Override
-      public void close() {
-        done.countDown();
-      }
-
-      @Override
-      public boolean awaitTermination(int time, TimeUnit unit) throws InterruptedException {
         return done.await(time, unit);
       }
 
@@ -280,9 +294,6 @@ class FakeWindmillServer extends WindmillServerStub {
       }
 
       @Override
-      public void closeAfterDefaultTimeout() {}
-
-      @Override
       public Instant startTime() {
         return startTime;
       }
@@ -303,9 +314,15 @@ class FakeWindmillServer extends WindmillServerStub {
         errorCollector.checkThat(
             request.getShardingKey(), allOf(greaterThan(0L), lessThan(Long.MAX_VALUE)));
         errorCollector.checkThat(request.getCacheToken(), not(equalTo(0L)));
-        commitsReceived.put(request.getWorkToken(), request);
-        onDone.accept(Windmill.CommitStatus.OK);
-        return true; // The request was accepted.
+        if (dropStreamingCommits) {
+          droppedStreamingCommits.put(request.getWorkToken(), onDone);
+        } else {
+          commitsReceived.put(request.getWorkToken(), request);
+          onDone.accept(Windmill.CommitStatus.OK);
+        }
+        // Return true to indicate the request was accepted even if we are dropping the commit
+        // to simulate a dropped commit.
+        return true;
       }
 
       @Override
@@ -318,9 +335,6 @@ class FakeWindmillServer extends WindmillServerStub {
       public boolean awaitTermination(int time, TimeUnit unit) {
         return true;
       }
-
-      @Override
-      public void closeAfterDefaultTimeout() {}
 
       @Override
       public Instant startTime() {
@@ -356,6 +370,22 @@ class FakeWindmillServer extends WindmillServerStub {
 
     LOG.debug("waitForAndGetCommitsResponse: {}", commitsReceived);
     return commitsReceived;
+  }
+
+  public void clearCommitsReceived() {
+    commitsRequested = 0;
+    commitsReceived.clear();
+  }
+
+  public ConcurrentHashMap<Long, Consumer<Windmill.CommitStatus>> waitForDroppedCommits(
+      int droppedCommits) {
+    LOG.debug("waitForDroppedCommits: {}", droppedCommits);
+    int maxTries = 10;
+    while (maxTries-- > 0 && droppedStreamingCommits.size() < droppedCommits) {
+      Uninterruptibles.sleepUninterruptibly(1000, TimeUnit.MILLISECONDS);
+    }
+    assertEquals(droppedCommits, droppedStreamingCommits.size());
+    return droppedStreamingCommits;
   }
 
   public void setExpectedExceptionCount(int i) {

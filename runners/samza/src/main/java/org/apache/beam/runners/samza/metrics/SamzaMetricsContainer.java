@@ -27,6 +27,7 @@ import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsContainer;
+import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.samza.metrics.Counter;
 import org.apache.samza.metrics.Gauge;
 import org.apache.samza.metrics.Metric;
@@ -36,6 +37,9 @@ import org.apache.samza.metrics.MetricsRegistryMap;
  * This class holds the {@link MetricsContainer}s for BEAM metrics, and update the results to Samza
  * metrics.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SamzaMetricsContainer {
   private static final String BEAM_METRICS_GROUP = "BeamMetrics";
   private static final String DELIMITER = "-";
@@ -56,11 +60,12 @@ public class SamzaMetricsContainer {
     return this.metricsContainers;
   }
 
-  public void updateMetrics() {
+  public void updateMetrics(String stepName) {
     assert metricsRegistry != null;
 
     final MetricResults metricResults = asAttemptedOnlyMetricResults(metricsContainers);
-    final MetricQueryResults results = metricResults.allMetrics();
+    final MetricQueryResults results =
+        metricResults.queryMetrics(MetricsFilter.builder().addStep(stepName).build());
 
     final CounterUpdater updateCounter = new CounterUpdater();
     results.getCounters().forEach(updateCounter);

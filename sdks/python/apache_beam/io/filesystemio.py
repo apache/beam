@@ -14,7 +14,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 """Utilities for ``FileSystem`` implementations."""
+
+# pytype: skip-file
 
 from __future__ import absolute_import
 
@@ -25,8 +28,13 @@ from builtins import object
 
 from future.utils import with_metaclass
 
-__all__ = ['Downloader', 'Uploader', 'DownloaderStream', 'UploaderStream',
-           'PipeStream']
+__all__ = [
+    'Downloader',
+    'Uploader',
+    'DownloaderStream',
+    'UploaderStream',
+    'PipeStream'
+]
 
 
 class Downloader(with_metaclass(abc.ABCMeta, object)):  # type: ignore[misc]
@@ -34,8 +42,8 @@ class Downloader(with_metaclass(abc.ABCMeta, object)):  # type: ignore[misc]
 
   Implementations should support random access reads.
   """
-
-  @abc.abstractproperty
+  @property
+  @abc.abstractmethod
   def size(self):
     """Size of file to download."""
 
@@ -57,7 +65,6 @@ class Downloader(with_metaclass(abc.ABCMeta, object)):  # type: ignore[misc]
 
 class Uploader(with_metaclass(abc.ABCMeta, object)):  # type: ignore[misc]
   """Upload interface for a single file."""
-
   @abc.abstractmethod
   def put(self, data):
     """Write data to file sequentially.
@@ -79,11 +86,8 @@ class Uploader(with_metaclass(abc.ABCMeta, object)):  # type: ignore[misc]
 
 class DownloaderStream(io.RawIOBase):
   """Provides a stream interface for Downloader objects."""
-
-  def __init__(self,
-               downloader,
-               read_buffer_size=io.DEFAULT_BUFFER_SIZE,
-               mode='rb'):
+  def __init__(
+      self, downloader, read_buffer_size=io.DEFAULT_BUFFER_SIZE, mode='rb'):
     """Initializes the stream.
 
     Args:
@@ -175,7 +179,6 @@ class DownloaderStream(io.RawIOBase):
 
 class UploaderStream(io.RawIOBase):
   """Provides a stream interface for Uploader objects."""
-
   def __init__(self, uploader, mode='wb'):
     """Initializes the stream.
 
@@ -230,7 +233,6 @@ class PipeStream(object):
   Remembers the last ``size`` bytes read and allows rewinding the stream by that
   amount exactly. See BEAM-6380 for more.
   """
-
   def __init__(self, recv_pipe):
     self.conn = recv_pipe
     self.closed = False
@@ -254,7 +256,7 @@ class PipeStream(object):
     """
     data_list = []
     bytes_read = 0
-    self.last_block_position = self.position
+    last_block_position = self.position
 
     while bytes_read < size:
       bytes_from_remaining = min(size - bytes_read, len(self.remaining))
@@ -267,8 +269,12 @@ class PipeStream(object):
           self.remaining = self.conn.recv_bytes()
         except EOFError:
           break
-    self.last_block = b''.join(data_list)
-    return self.last_block
+
+    last_block = b''.join(data_list)
+    if last_block:
+      self.last_block_position = last_block_position
+      self.last_block = last_block
+    return last_block
 
   def tell(self):
     """Tell the file's current offset.
@@ -297,8 +303,8 @@ class PipeStream(object):
         self.last_block = b''
         return
     raise NotImplementedError(
-        'offset: %s, whence: %s, position: %s, last: %s' % (
-            offset, whence, self.position, self.last_block_position))
+        'offset: %s, whence: %s, position: %s, last: %s' %
+        (offset, whence, self.position, self.last_block_position))
 
   def _check_open(self):
     if self.closed:

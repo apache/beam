@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
+	"github.com/apache/beam/sdks/go/pkg/beam/log"
 )
 
 // Writer returns a row of data to be inserted into a table.
@@ -54,6 +55,10 @@ func (w *writer) add(row []interface{}) error {
 
 func (w *writer) write(ctx context.Context, db *sql.DB) error {
 	values := strings.Repeat(w.valueTempate+",", w.rowCount)
+	if len(values) == 0 {
+		log.Info(ctx, "No value(s) to be written....")
+		return nil
+	}
 	SQL := w.sqlTemplate + string(values[:len(values)-1])
 	resultSet, err := db.ExecContext(ctx, SQL, w.binding...)
 	if err != nil {

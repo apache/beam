@@ -23,7 +23,6 @@ import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.util.OutputReference;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -39,7 +38,9 @@ import org.apache.beam.sdk.values.TupleTag;
  * A {@link TransformTranslator} knows how to translate a particular subclass of {@link PTransform}
  * for the Cloud Dataflow service. It does so by mutating the {@link TranslationContext}.
  */
-@Internal
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public interface TransformTranslator<TransformT extends PTransform> {
   void translate(TransformT transform, TranslationContext context);
 
@@ -64,12 +65,14 @@ public interface TransformTranslator<TransformT extends PTransform> {
     DataflowPipelineOptions getPipelineOptions();
 
     /** Returns the input of the currently being translated transform. */
-    <InputT extends PInput> Map<TupleTag<?>, PValue> getInputs(PTransform<InputT, ?> transform);
+    <InputT extends PInput> Map<TupleTag<?>, PCollection<?>> getInputs(
+        PTransform<InputT, ?> transform);
 
     <InputT extends PValue> InputT getInput(PTransform<InputT, ?> transform);
 
     /** Returns the output of the currently being translated transform. */
-    <OutputT extends POutput> Map<TupleTag<?>, PValue> getOutputs(PTransform<?, OutputT> transform);
+    <OutputT extends POutput> Map<TupleTag<?>, PCollection<?>> getOutputs(
+        PTransform<?, OutputT> transform);
 
     <OutputT extends PValue> OutputT getOutput(PTransform<?, OutputT> transform);
 

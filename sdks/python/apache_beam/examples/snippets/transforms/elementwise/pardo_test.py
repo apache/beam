@@ -16,6 +16,8 @@
 # limitations under the License.
 #
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import print_function
 
@@ -53,7 +55,8 @@ def check_plants(actual):
 
 def check_dofn_params(actual):
   # pylint: disable=line-too-long
-  expected = '\n'.join('''[START dofn_params]
+  expected = '\n'.join(
+      '''[START dofn_params]
 # timestamp
 type(timestamp) -> <class 'apache_beam.utils.timestamp.Timestamp'>
 timestamp.micros -> 1584675660000000
@@ -95,8 +98,9 @@ class ParDoTest(unittest.TestCase):
 
   # TODO: Remove this after Python 2 deprecation.
   # https://issues.apache.org/jira/browse/BEAM-8124
-  @unittest.skipIf(sys.version_info[0] == 2 and platform.system() == 'Windows',
-                   'Python 2 on Windows uses `long` rather than `int`')
+  @unittest.skipIf(
+      sys.version_info[0] == 2 and platform.system() == 'Windows',
+      'Python 2 on Windows uses `long` rather than `int`')
   def test_pardo_dofn_params(self):
     pardo.pardo_dofn_params(check_dofn_params)
 

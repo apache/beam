@@ -40,6 +40,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link HadoopFileSystemRegistrar}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class HadoopFileSystemRegistrarTest {
 
   @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
@@ -68,7 +71,7 @@ public class HadoopFileSystemRegistrarTest {
     for (FileSystemRegistrar registrar :
         Lists.newArrayList(ServiceLoader.load(FileSystemRegistrar.class).iterator())) {
       if (registrar instanceof HadoopFileSystemRegistrar) {
-        Iterable<FileSystem> fileSystems = registrar.fromOptions(options);
+        Iterable<FileSystem<?>> fileSystems = registrar.fromOptions(options);
         assertEquals(
             hdfsClusterBaseUri.getScheme(),
             ((HadoopFileSystem) Iterables.getOnlyElement(fileSystems)).getScheme());

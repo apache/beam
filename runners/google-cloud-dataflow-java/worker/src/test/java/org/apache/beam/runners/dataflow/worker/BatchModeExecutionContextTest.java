@@ -19,11 +19,11 @@ package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor.longToSplitInt;
 import static org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor.splitIntToLong;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.hasItems;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 
 import com.google.api.services.dataflow.model.CounterMetadata;
 import com.google.api.services.dataflow.model.CounterStructuredName;
@@ -51,6 +51,9 @@ import org.mockito.Mockito;
 
 /** Tests for {@link BatchModeExecutionContext}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BatchModeExecutionContextTest {
 
   @Test
@@ -233,10 +236,10 @@ public class BatchModeExecutionContextTest {
             .getCounter(
                 MetricName.named(
                     BatchModeExecutionContext.DATASTORE_THROTTLE_TIME_NAMESPACE,
-                    "cumulativeThrottlingSeconds"));
-    counter.inc(12);
-    counter.inc(17);
-    counter.inc(1);
+                    BatchModeExecutionContext.THROTTLE_TIME_COUNTER_NAME));
+    counter.inc(12000);
+    counter.inc(17000);
+    counter.inc(1000);
 
     assertEquals(30L, (long) executionContext.extractThrottleTime());
   }

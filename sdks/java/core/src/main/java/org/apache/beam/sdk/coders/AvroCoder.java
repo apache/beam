@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.coders;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -31,10 +32,10 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.SortedSet;
-import javax.annotation.Nullable;
 import org.apache.avro.AvroRuntimeException;
+import org.apache.avro.Conversion;
+import org.apache.avro.LogicalType;
 import org.apache.avro.Schema;
-import org.apache.avro.data.TimeConversions.TimestampConversion;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
@@ -59,6 +60,9 @@ import org.apache.beam.sdk.util.EmptyOnDeserializationThreadLocal;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Suppliers;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 
 /**
  * A {@link Coder} using Avro binary format.
@@ -99,6 +103,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Suppliers;
  *
  * @param <T> the type of elements handled by this coder
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class AvroCoder<T> extends CustomCoder<T> {
 
   /**
@@ -207,6 +214,10 @@ public class AvroCoder<T> extends CustomCoder<T> {
    * serialization and hence is able to encode the {@link Schema} object directly.
    */
   private static class SerializableSchemaSupplier implements Serializable, Supplier<Schema> {
+    // writeReplace makes this object serializable. This is a limitation of FindBugs as discussed
+    // here:
+    // http://stackoverflow.com/questions/26156523/is-writeobject-not-neccesary-using-the-serialization-proxy-pattern
+    @SuppressFBWarnings("SE_BAD_FIELD")
     private final Schema schema;
 
     private SerializableSchemaSupplier(Schema schema) {
@@ -239,7 +250,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
     @Override
     public ReflectData get() {
       ReflectData reflectData = new ReflectData(clazz.getClassLoader());
-      reflectData.addLogicalTypeConversion(new TimestampConversion());
+      reflectData.addLogicalTypeConversion(new JodaTimestampConversion());
       return reflectData;
     }
   }
@@ -487,7 +498,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
 
     private void checkString(String context, TypeDescriptor<?> type) {
       // For types that are encoded as strings, we need to make sure they're in an approved
-      // whitelist. For other types that are annotated @Stringable, Avro will just use the
+      // list. For other types that are annotated @Stringable, Avro will just use the
       // #toString() methods, which has no guarantees of determinism.
       if (!DETERMINISTIC_STRINGABLE_CLASSES.contains(type.getRawType())) {
         reportError(context, "%s may not have deterministic #toString()", type);
@@ -699,7 +710,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
   }
 
   @Override
-  public boolean equals(Object other) {
+  public boolean equals(@Nullable Object other) {
     if (other == this) {
       return true;
     }
@@ -714,5 +725,36 @@ public class AvroCoder<T> extends CustomCoder<T> {
   @Override
   public int hashCode() {
     return Objects.hash(schemaSupplier.get(), typeDescriptor);
+  }
+
+  /**
+   * Conversion for DateTime.
+   *
+   * <p>This is a copy from Avro 1.8's TimestampConversion, which is renamed in Avro 1.9. Defining
+   * own copy gives flexibility for Beam Java SDK to work with Avro 1.8 and 1.9 at runtime.
+   *
+   * @see <a href="https://issues.apache.org/jira/browse/BEAM-9144">BEAM-9144: Beam's own Avro
+   *     TimeConversion class in beam-sdk-java-core</a>
+   */
+  public static class JodaTimestampConversion extends Conversion<DateTime> {
+    @Override
+    public Class<DateTime> getConvertedType() {
+      return DateTime.class;
+    }
+
+    @Override
+    public String getLogicalTypeName() {
+      return "timestamp-millis";
+    }
+
+    @Override
+    public DateTime fromLong(Long millisFromEpoch, Schema schema, LogicalType type) {
+      return new DateTime(millisFromEpoch, DateTimeZone.UTC);
+    }
+
+    @Override
+    public Long toLong(DateTime timestamp, Schema schema, LogicalType type) {
+      return timestamp.getMillis();
+    }
   }
 }

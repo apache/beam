@@ -30,6 +30,26 @@ services:
       - POSTGRES_USER=admin
       - POSTGRES_PASSWORD=<PGPasswordHere>
       - POSTGRES_DB=beam_metrics
+  influxdb:
+    image: influxdb:1.8.0
+    ports:
+      - "8086:8086"
+      - "8088:8088"
+    expose:
+      - 8086
+    container_name: influxdb
+    volumes:
+      - beam-influxdb-storage:/var/lib/influxdb
+    environment:
+      - INFLUXDB_BIND_ADDRESS=:8088
+  influxdb-restore:
+    build: ./influxdb
+    depends_on:
+      - influxdb
+    container_name: restore-backup
+    entrypoint: "sh"
+    command: ["-c", "./wait-for-it.sh influxdb:8086 -t 60 && \
+              influxd restore -portable -host influxdb:8088 /backup"]
   grafana:
     image: beamgrafana
     build: ./grafana
@@ -44,11 +64,14 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=<GrafanaPasswordHere>
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_AUTH_ANONYMOUS_ORG_NAME=Beam
-      - DB_HOST=beampostgresql
-      - DB_PORT=5432
-      - DB_DBNAME=beam_metrics
-      - DB_DBUSERNAME=admin
-      - DB_DBPWD=<PGPasswordHere>
+      - PSQL_DB_HOST=beampostgresql
+      - PSQL_DB_PORT=5432
+      - PSQL_DB_DBNAME=beam_metrics
+      - PSQL_DB_DBUSERNAME=admin
+      - PSQL_DB_DBPWD=<PGPasswordHere>
+      - INFLUX_DB_HOST=influxdb
+      - INFLUX_DB_PORT=8086
+      - INFLUX_DB_DBNAME=beam_test_metrics
   syncgithub:
     image: syncgithub
     container_name: beamsyncgithub
@@ -86,35 +109,9 @@ services:
       - DB_DBNAME=beam_metrics
       - DB_DBUSERNAME=admin
       - DB_DBPWD=<PGPasswordHere>
-  prometheus:
-    image: prom/prometheus
-    ports:
-      - 9090:9090
-    container_name: prometheus
-    volumes:
-      - ./prometheus/prometheus/config:/etc/prometheus:ro
-      - prometheus-storage:/prometheus
-    command:
-      - --config.file=/etc/prometheus/prometheus.yml
-      - --web.console.libraries=/etc/prometheus/console_libraries
-      - --web.console.templates=/etc/prometheus/consoles
-      - --storage.tsdb.path=/prometheus
-      - --storage.tsdb.retention.time=365d
-  pushgateway:
-    image: prom/pushgateway
-    container_name: pushgateway
-    ports:
-      - 9091:9091
-  alertmanager:
-    image: prom/alertmanager
-    container_name: alertmanager
-    ports:
-      - 9093:9093
-    volumes:
-      - ./prometheus/alertmanager/config:/etc/alertmanager:ro
 volumes:
   beam-postgresql-data:
   beam-grafana-libdata:
   beam-grafana-etcdata:
   beam-grafana-logdata:
-  prometheus-storage:
+  beam-influxdb-storage:

@@ -139,6 +139,12 @@ public class BigQueryTornadoes {
 
     void setInput(String value);
 
+    @Description("SQL Query to read from, will be used if Input is not set.")
+    @Default.String("")
+    String getInputQuery();
+
+    void setInputQuery(String value);
+
     @Description("Mode to use when reading from BigQuery")
     @Default.Enum("EXPORT")
     TypedRead.Method getReadMethod();
@@ -167,20 +173,38 @@ public class BigQueryTornadoes {
 
     switch (options.getReadMethod()) {
       case DIRECT_READ:
-        rowsFromBigQuery =
-            p.apply(
-                BigQueryIO.readTableRows()
-                    .from(options.getInput())
-                    .withMethod(Method.DIRECT_READ)
-                    .withSelectedFields(Lists.newArrayList("month", "tornado")));
+        if (!options.getInputQuery().isEmpty()) {
+          rowsFromBigQuery =
+              p.apply(
+                  BigQueryIO.readTableRows()
+                      .fromQuery(options.getInputQuery())
+                      .usingStandardSql()
+                      .withMethod(Method.DIRECT_READ));
+        } else {
+          rowsFromBigQuery =
+              p.apply(
+                  BigQueryIO.readTableRows()
+                      .from(options.getInput())
+                      .withMethod(Method.DIRECT_READ)
+                      .withSelectedFields(Lists.newArrayList("month", "tornado")));
+        }
         break;
 
       default:
-        rowsFromBigQuery =
-            p.apply(
-                BigQueryIO.readTableRows()
-                    .from(options.getInput())
-                    .withMethod(options.getReadMethod()));
+        if (!options.getInputQuery().isEmpty()) {
+          rowsFromBigQuery =
+              p.apply(
+                  BigQueryIO.readTableRows()
+                      .fromQuery(options.getInputQuery())
+                      .usingStandardSql()
+                      .withMethod(options.getReadMethod()));
+        } else {
+          rowsFromBigQuery =
+              p.apply(
+                  BigQueryIO.readTableRows()
+                      .from(options.getInput())
+                      .withMethod(options.getReadMethod()));
+        }
         break;
     }
 

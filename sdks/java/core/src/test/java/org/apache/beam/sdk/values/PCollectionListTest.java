@@ -18,10 +18,10 @@
 package org.apache.beam.sdk.values;
 
 import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 import com.google.common.testing.EqualsTester;
@@ -130,5 +130,18 @@ public class PCollectionListTest {
     tester.addEqualityGroup(PCollectionList.empty(TestPipeline.create()));
 
     tester.testEquals();
+  }
+
+  @Test
+  public void testTagNames() {
+    Pipeline p = TestPipeline.create();
+    PCollection<String> first = p.apply("first", Create.of("1"));
+    PCollection<String> second = p.apply("second", Create.of("2"));
+    PCollection<String> third = p.apply("third", Create.of("3"));
+
+    PCollectionList<String> list = PCollectionList.of(first).and(second).and(third);
+    assertThat(list.pcollections.get(0).getTag().id, equalTo("0"));
+    assertThat(list.pcollections.get(1).getTag().id, equalTo("1"));
+    assertThat(list.pcollections.get(2).getTag().id, equalTo("2"));
   }
 }

@@ -25,6 +25,9 @@ import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 /**
  * A Class for registering SimpleExecutionStates with and extracting execution time MonitoringInfos.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SimpleStateRegistry {
   private List<SimpleExecutionState> executionStates = new ArrayList<SimpleExecutionState>();
 
@@ -48,7 +51,7 @@ public class SimpleStateRegistry {
       for (Map.Entry<String, String> entry : state.getLabels().entrySet()) {
         builder.setLabel(entry.getKey(), entry.getValue());
       }
-      builder.setInt64Value(state.getTotalMillis());
+      builder.setInt64SumValue(state.getTotalMillis());
       monitoringInfos.add(builder.build());
     }
     return monitoringInfos;

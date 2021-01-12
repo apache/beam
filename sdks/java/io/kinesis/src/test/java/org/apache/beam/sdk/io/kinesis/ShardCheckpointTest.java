@@ -23,7 +23,7 @@ import static com.amazonaws.services.kinesis.model.ShardIteratorType.AFTER_SEQUE
 import static com.amazonaws.services.kinesis.model.ShardIteratorType.AT_SEQUENCE_NUMBER;
 import static com.amazonaws.services.kinesis.model.ShardIteratorType.AT_TIMESTAMP;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Matchers.anyString;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Matchers.isNull;
 import static org.mockito.Mockito.mock;
@@ -42,6 +42,9 @@ import org.mockito.runners.MockitoJUnitRunner;
 
 /** */
 @RunWith(MockitoJUnitRunner.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ShardCheckpointTest {
 
   private static final String AT_SEQUENCE_SHARD_IT = "AT_SEQUENCE_SHARD_IT";

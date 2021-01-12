@@ -28,6 +28,7 @@ Usage:
         --test-pipeline-options="
           --runner=TestDataflowRunner
           --project=...
+          --region=...
           --staging_location=gs://...
           --temp_location=gs://...
           --output=gs://...
@@ -42,13 +43,13 @@ Usage:
       "
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 
 import json
 import logging
-import os
-import sys
 import unittest
 import uuid
 
@@ -68,9 +69,9 @@ from apache_beam.transforms.util import CoGroupByKey
 
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
-  from avro.schema import Parse # avro-python3 library for python3
+  from avro.schema import Parse  # avro-python3 library for python3
 except ImportError:
-  from avro.schema import parse as Parse # avro library for python2
+  from avro.schema import parse as Parse  # avro library for python2
 # pylint: enable=wrong-import-order, wrong-import-position
 
 LABELS = ['abc', 'def', 'ghi', 'jkl', 'mno', 'pqr', 'stu', 'vwx']
@@ -86,10 +87,6 @@ def record(i):
   }
 
 
-@unittest.skipIf(sys.version_info[0] >= 3 and
-                 os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-                 'Due to a known issue in avro-python3 package, this'
-                 'test is skipped until BEAM-6522 is addressed. ')
 class FastavroIT(unittest.TestCase):
 
   SCHEMA_STRING = '''
@@ -108,10 +105,7 @@ class FastavroIT(unittest.TestCase):
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
     self.uuid = str(uuid.uuid4())
-    self.output = '/'.join([
-        self.test_pipeline.get_option('output'),
-        self.uuid
-    ])
+    self.output = '/'.join([self.test_pipeline.get_option('output'), self.uuid])
 
   @attr('IT')
   def test_avro_it(self):
@@ -161,43 +155,42 @@ class FastavroIT(unittest.TestCase):
     result.wait_until_finish()
     assert result.state == PipelineState.DONE
 
-    fastavro_read_pipeline = TestPipeline(is_integration_test=True)
+    with TestPipeline(is_integration_test=True) as fastavro_read_pipeline:
 
-    fastavro_records = \
-        fastavro_read_pipeline \
-        | 'create-fastavro' >> Create(['%s*' % fastavro_output]) \
-        | 'read-fastavro' >> ReadAllFromAvro(use_fastavro=True) \
-        | Map(lambda rec: (rec['number'], rec))
+      fastavro_records = \
+          fastavro_read_pipeline \
+          | 'create-fastavro' >> Create(['%s*' % fastavro_output]) \
+          | 'read-fastavro' >> ReadAllFromAvro(use_fastavro=True) \
+          | Map(lambda rec: (rec['number'], rec))
 
-    avro_records = \
-        fastavro_read_pipeline \
-        | 'create-avro' >> Create(['%s*' % avro_output]) \
-        | 'read-avro' >> ReadAllFromAvro(use_fastavro=False) \
-        | Map(lambda rec: (rec['number'], rec))
+      avro_records = \
+          fastavro_read_pipeline \
+          | 'create-avro' >> Create(['%s*' % avro_output]) \
+          | 'read-avro' >> ReadAllFromAvro(use_fastavro=False) \
+          | Map(lambda rec: (rec['number'], rec))
 
-    def check(elem):
-      v = elem[1]
+      def check(elem):
+        v = elem[1]
 
-      def assertEqual(l, r):
-        if l != r:
-          raise BeamAssertException('Assertion failed: %s == %s' % (l, r))
+        def assertEqual(l, r):
+          if l != r:
+            raise BeamAssertException('Assertion failed: %s == %s' % (l, r))
 
-      assertEqual(v.keys(), ['avro', 'fastavro'])
-      avro_values = v['avro']
-      fastavro_values = v['fastavro']
-      assertEqual(avro_values, fastavro_values)
-      assertEqual(len(avro_values), 1)
+        assertEqual(sorted(v.keys()), ['avro', 'fastavro'])
+        avro_values = v['avro']
+        fastavro_values = v['fastavro']
+        assertEqual(avro_values, fastavro_values)
+        assertEqual(len(avro_values), 1)
 
-    # pylint: disable=expression-not-assigned
-    {
-        'avro': avro_records,
-        'fastavro': fastavro_records
-    } \
-    | CoGroupByKey() \
-    | Map(check)
+      # pylint: disable=expression-not-assigned
+      {
+          'avro': avro_records,
+          'fastavro': fastavro_records
+      } \
+      | CoGroupByKey() \
+      | Map(check)
 
-    self.addCleanup(delete_files, [self.output])
-    fastavro_read_pipeline.run().wait_until_finish()
+      self.addCleanup(delete_files, [self.output])
     assert result.state == PipelineState.DONE
 
 

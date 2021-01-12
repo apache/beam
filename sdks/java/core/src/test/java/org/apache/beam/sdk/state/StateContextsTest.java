@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.state;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -37,6 +37,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link StateContexts}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class StateContextsTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
 

@@ -32,6 +32,7 @@ import org.junit.Rule;
 import org.junit.Test;
 
 /** This test Outer Right Join functionality. */
+@SuppressWarnings("initialization.fields.uninitialized")
 public class OuterRightJoinTest {
   private List<KV<String, Long>> leftListOfKv;
   private List<KV<String, String>> rightListOfKv;
@@ -148,6 +149,7 @@ public class OuterRightJoinTest {
     p.run();
   }
 
+  @SuppressWarnings("nullness")
   @Test(expected = NullPointerException.class)
   public void testJoinLeftCollectionNull() {
     p.enableAbandonedNodeEnforcement(false);
@@ -159,6 +161,7 @@ public class OuterRightJoinTest {
         "");
   }
 
+  @SuppressWarnings("nullness")
   @Test(expected = NullPointerException.class)
   public void testJoinRightCollectionNull() {
     p.enableAbandonedNodeEnforcement(false);

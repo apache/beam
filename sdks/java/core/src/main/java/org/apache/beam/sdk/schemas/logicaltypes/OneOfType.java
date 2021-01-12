@@ -22,13 +22,18 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.LogicalType;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
 import org.apache.beam.sdk.values.Row;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A logical type representing a union of fields. This logical type is initialized with a set of
@@ -36,6 +41,10 @@ import org.apache.beam.sdk.values.Row;
  * containing one nullable field matching each input field, and one additional {@link
  * EnumerationType} logical type field that indicates which field is set.
  */
+@Experimental(Kind.SCHEMAS)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class OneOfType implements LogicalType<OneOfType.Value, Row> {
   public static final String IDENTIFIER = "OneOf";
 
@@ -44,15 +53,22 @@ public class OneOfType implements LogicalType<OneOfType.Value, Row> {
   private final byte[] schemaProtoRepresentation;
 
   private OneOfType(List<Field> fields) {
+    this(fields, null);
+  }
+
+  private OneOfType(List<Field> fields, @Nullable Map<String, Integer> enumMap) {
     List<Field> nullableFields =
-        fields.stream()
-            .map(f -> Field.nullable(f.getName(), f.getType()))
-            .collect(Collectors.toList());
-    List<String> enumValues =
-        nullableFields.stream().map(Field::getName).collect(Collectors.toList());
+        fields.stream().map(f -> f.withNullable(true)).collect(Collectors.toList());
+    if (enumMap != null) {
+      nullableFields.stream().forEach(f -> checkArgument(enumMap.containsKey(f.getName())));
+      enumerationType = EnumerationType.create(enumMap);
+    } else {
+      List<String> enumValues =
+          nullableFields.stream().map(Field::getName).collect(Collectors.toList());
+      enumerationType = EnumerationType.create(enumValues);
+    }
     oneOfSchema = Schema.builder().addFields(nullableFields).build();
-    enumerationType = EnumerationType.create(enumValues);
-    schemaProtoRepresentation = SchemaTranslation.schemaToProto(oneOfSchema).toByteArray();
+    schemaProtoRepresentation = SchemaTranslation.schemaToProto(oneOfSchema, false).toByteArray();
   }
 
   /** Create an {@link OneOfType} logical type. */
@@ -63,6 +79,14 @@ public class OneOfType implements LogicalType<OneOfType.Value, Row> {
   /** Create an {@link OneOfType} logical type. */
   public static OneOfType create(List<Field> fields) {
     return new OneOfType(fields);
+  }
+
+  /**
+   * Create an {@link OneOfType} logical type. This method allows control over the integer values in
+   * the generated enum.
+   */
+  public static OneOfType create(List<Field> fields, Map<String, Integer> enumValues) {
+    return new OneOfType(fields, enumValues);
   }
 
   /** Returns the schema of the underlying {@link Row} that is used to represent the union. */
@@ -96,19 +120,28 @@ public class OneOfType implements LogicalType<OneOfType.Value, Row> {
   }
 
   /** Create a {@link Value} specifying which field to set and the value to set. */
-  public <T> Value createValue(String caseType, T value) {
-    return createValue(getCaseEnumType().valueOf(caseType), value);
+  public <T> Value createValue(String caseValue, T value) {
+    return createValue(getCaseEnumType().valueOf(caseValue), value);
+  }
+
+  /** Create a {@link Value} specifying which field to set and the value to set. */
+  public <T> Value createValue(int caseValue, T value) {
+    return createValue(getCaseEnumType().valueOf(caseValue), value);
   }
 
   /** Create a {@link Value} specifying which field to set and the value to set. */
   public <T> Value createValue(EnumerationType.Value caseType, T value) {
-    return new Value(caseType, oneOfSchema.getField(caseType.toString()).getType(), value);
+    return new Value(caseType, value);
+  }
+
+  public FieldType getFieldType(OneOfType.Value oneOneValue) {
+    return oneOfSchema.getField(enumerationType.toString(oneOneValue.getCaseType())).getType();
   }
 
   @Override
   public Row toBaseType(Value input) {
     EnumerationType.Value caseType = input.getCaseType();
-    int setFieldIndex = oneOfSchema.indexOf(caseType.toString());
+    int setFieldIndex = oneOfSchema.indexOf(enumerationType.toString(caseType));
     Row.Builder builder = Row.withSchema(oneOfSchema);
     for (int i = 0; i < oneOfSchema.getFieldCount(); ++i) {
       Object value = (i == setFieldIndex) ? input.getValue() : null;
@@ -144,12 +177,10 @@ public class OneOfType implements LogicalType<OneOfType.Value, Row> {
    */
   public static class Value {
     private final EnumerationType.Value caseType;
-    private final FieldType fieldType;
     private final Object value;
 
-    public Value(EnumerationType.Value caseType, FieldType fieldType, Object value) {
+    public Value(EnumerationType.Value caseType, Object value) {
       this.caseType = caseType;
-      this.fieldType = fieldType;
       this.value = value;
     }
 
@@ -158,15 +189,36 @@ public class OneOfType implements LogicalType<OneOfType.Value, Row> {
       return caseType;
     }
 
-    /** Returns the current value of the OneOf. */
-    @SuppressWarnings("TypeParameterUnusedInFormals")
-    public <T> T getValue() {
+    /** Returns the current value of the OneOf as the destination type. */
+    public <T> T getValue(Class<T> clazz) {
       return (T) value;
     }
 
-    /** Return the type of this union field. */
-    public FieldType getFieldType() {
-      return fieldType;
+    /** Returns the current value of the OneOf. */
+    public Object getValue() {
+      return value;
+    }
+
+    @Override
+    public String toString() {
+      return "caseType: " + caseType + " Value: " + value;
+    }
+
+    @Override
+    public boolean equals(@Nullable Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      Value value1 = (Value) o;
+      return Objects.equals(caseType, value1.caseType) && Objects.equals(value, value1.value);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(caseType, value);
     }
   }
 }

@@ -24,18 +24,20 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateTag;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.MapState;
+import org.apache.beam.sdk.state.OrderedListState;
 import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.state.State;
@@ -51,6 +53,7 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.runtime.state.OperatorStateBackend;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * {@link StateInternals} that uses a Flink {@link OperatorStateBackend} to manage the broadcast
@@ -59,6 +62,9 @@ import org.apache.flink.runtime.state.OperatorStateBackend;
  *
  * <p>Note: Ignore index of key. Mainly for SideInputs.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class FlinkBroadcastStateInternals<K> implements StateInternals {
 
   private int indexInSubtaskGroup;
@@ -66,17 +72,22 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
   // stateName -> <namespace, state>
   private Map<String, Map<String, ?>> stateForNonZeroOperator;
 
-  public FlinkBroadcastStateInternals(int indexInSubtaskGroup, OperatorStateBackend stateBackend) {
+  private final SerializablePipelineOptions pipelineOptions;
+
+  public FlinkBroadcastStateInternals(
+      int indexInSubtaskGroup,
+      OperatorStateBackend stateBackend,
+      SerializablePipelineOptions pipelineOptions) {
     this.stateBackend = stateBackend;
     this.indexInSubtaskGroup = indexInSubtaskGroup;
+    this.pipelineOptions = pipelineOptions;
     if (indexInSubtaskGroup != 0) {
       stateForNonZeroOperator = new HashMap<>();
     }
   }
 
   @Override
-  @Nullable
-  public K getKey() {
+  public @Nullable K getKey() {
     return null;
   }
 
@@ -90,13 +101,15 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
           @Override
           public <T2> ValueState<T2> bindValue(StateTag<ValueState<T2>> address, Coder<T2> coder) {
 
-            return new FlinkBroadcastValueState<>(stateBackend, address, namespace, coder);
+            return new FlinkBroadcastValueState<>(
+                stateBackend, address, namespace, coder, pipelineOptions.get());
           }
 
           @Override
           public <T2> BagState<T2> bindBag(StateTag<BagState<T2>> address, Coder<T2> elemCoder) {
 
-            return new FlinkBroadcastBagState<>(stateBackend, address, namespace, elemCoder);
+            return new FlinkBroadcastBagState<>(
+                stateBackend, address, namespace, elemCoder, pipelineOptions.get());
           }
 
           @Override
@@ -115,6 +128,13 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
           }
 
           @Override
+          public <ElemT> OrderedListState<ElemT> bindOrderedList(
+              StateTag<OrderedListState<ElemT>> spec, Coder<ElemT> elemCoder) {
+            throw new UnsupportedOperationException(
+                String.format("%s is not supported", OrderedListState.class.getSimpleName()));
+          }
+
+          @Override
           public <InputT, AccumT, OutputT>
               CombiningState<InputT, AccumT, OutputT> bindCombiningValue(
                   StateTag<CombiningState<InputT, AccumT, OutputT>> address,
@@ -122,7 +142,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
                   Combine.CombineFn<InputT, AccumT, OutputT> combineFn) {
 
             return new FlinkCombiningState<>(
-                stateBackend, address, combineFn, namespace, accumCoder);
+                stateBackend, address, combineFn, namespace, accumCoder, pipelineOptions.get());
           }
 
           @Override
@@ -167,14 +187,15 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
         OperatorStateBackend flinkStateBackend,
         String name,
         StateNamespace namespace,
-        Coder<T> coder) {
+        Coder<T> coder,
+        PipelineOptions pipelineOptions) {
       this.name = name;
 
       this.namespace = namespace;
       this.flinkStateBackend = flinkStateBackend;
 
       CoderTypeInformation<Map<String, T>> typeInfo =
-          new CoderTypeInformation<>(MapCoder.of(StringUtf8Coder.of(), coder));
+          new CoderTypeInformation<>(MapCoder.of(StringUtf8Coder.of(), coder), pipelineOptions);
 
       flinkStateDescriptor =
           new ListStateDescriptor<>(name, typeInfo.createSerializer(new ExecutionConfig()));
@@ -282,8 +303,9 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
         OperatorStateBackend flinkStateBackend,
         StateTag<ValueState<T>> address,
         StateNamespace namespace,
-        Coder<T> coder) {
-      super(flinkStateBackend, address.getId(), namespace, coder);
+        Coder<T> coder,
+        PipelineOptions pipelineOptions) {
+      super(flinkStateBackend, address.getId(), namespace, coder, pipelineOptions);
 
       this.namespace = namespace;
       this.address = address;
@@ -305,7 +327,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -341,8 +363,9 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
         OperatorStateBackend flinkStateBackend,
         StateTag<BagState<T>> address,
         StateNamespace namespace,
-        Coder<T> coder) {
-      super(flinkStateBackend, address.getId(), namespace, ListCoder.of(coder));
+        Coder<T> coder,
+        PipelineOptions pipelineOptions) {
+      super(flinkStateBackend, address.getId(), namespace, ListCoder.of(coder), pipelineOptions);
 
       this.namespace = namespace;
       this.address = address;
@@ -395,7 +418,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -428,8 +451,9 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
         StateTag<CombiningState<InputT, AccumT, OutputT>> address,
         Combine.CombineFn<InputT, AccumT, OutputT> combineFn,
         StateNamespace namespace,
-        Coder<AccumT> accumCoder) {
-      super(flinkStateBackend, address.getId(), namespace, accumCoder);
+        Coder<AccumT> accumCoder,
+        PipelineOptions pipelineOptions) {
+      super(flinkStateBackend, address.getId(), namespace, accumCoder, pipelineOptions);
 
       this.namespace = namespace;
       this.address = address;
@@ -509,7 +533,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -544,8 +568,9 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
         Combine.CombineFn<InputT, AccumT, OutputT> combineFn,
         StateNamespace namespace,
         Coder<AccumT> accumCoder,
-        FlinkBroadcastStateInternals<K2> flinkStateInternals) {
-      super(flinkStateBackend, address.getId(), namespace, accumCoder);
+        FlinkBroadcastStateInternals<K2> flinkStateInternals,
+        PipelineOptions pipelineOptions) {
+      super(flinkStateBackend, address.getId(), namespace, accumCoder, pipelineOptions);
 
       this.namespace = namespace;
       this.address = address;
@@ -641,7 +666,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -679,7 +704,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
         Coder<AccumT> accumCoder,
         FlinkBroadcastStateInternals<K2> flinkStateInternals,
         CombineWithContext.Context context) {
-      super(flinkStateBackend, address.getId(), namespace, accumCoder);
+      super(flinkStateBackend, address.getId(), namespace, accumCoder, pipelineOptions.get());
 
       this.namespace = namespace;
       this.address = address;
@@ -776,7 +801,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }

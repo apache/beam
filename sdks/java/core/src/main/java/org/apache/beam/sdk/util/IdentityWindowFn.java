@@ -20,6 +20,7 @@ package org.apache.beam.sdk.util;
 import java.util.Collection;
 import java.util.Collections;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -48,6 +49,7 @@ import org.joda.time.Instant;
  * <p>This {@link WindowFn} is an internal implementation detail of sdk-provided utilities, and
  * should not be used by {@link Pipeline} writers.
  */
+@Internal
 public class IdentityWindowFn<T> extends NonMergingWindowFn<T, BoundedWindow> {
 
   /**

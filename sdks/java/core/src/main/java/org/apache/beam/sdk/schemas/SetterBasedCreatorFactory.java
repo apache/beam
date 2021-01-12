@@ -21,10 +21,13 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 
 /**
- * A {@link UserTypeCreatorFactory} that uses a default constructor and a list of setters to
- * construct a class.
+ * A {@link Factory} that uses a default constructor and a list of setters to construct a {@link
+ * SchemaUserTypeCreator}.
  */
-class SetterBasedCreatorFactory implements UserTypeCreatorFactory {
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
+class SetterBasedCreatorFactory implements Factory<SchemaUserTypeCreator> {
   private final Factory<List<FieldValueSetter>> setterFactory;
 
   public SetterBasedCreatorFactory(Factory<List<FieldValueSetter>> setterFactory) {

@@ -27,6 +27,9 @@ public class TypeAwareness {
 
   @SuppressWarnings("unchecked")
   public static <T> TypeDescriptor<T> orObjects(Optional<TypeDescriptor<T>> maybeType) {
-    return maybeType.orElse((TypeDescriptor) OBJECT_TYPE);
+    if (maybeType.isPresent() && !maybeType.get().hasUnresolvedParameters()) {
+      return maybeType.get();
+    }
+    return (TypeDescriptor) OBJECT_TYPE;
   }
 }

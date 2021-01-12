@@ -24,7 +24,6 @@ import java.io.IOException;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Objects;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.DefaultCoder;
@@ -36,6 +35,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -54,6 +54,9 @@ import org.joda.time.Instant;
  * <p>To produce a bounded source, use {@link #createSourceForSubrange(long, long)}. To produce an
  * unbounded source, use {@link #createUnboundedFrom(long)}.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class CountingSource {
   /**
    * Creates a {@link BoundedSource} that will produce the specified number of elements, from {@code
@@ -137,7 +140,7 @@ public class CountingSource {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       return other instanceof NowTimestampFn;
     }
 
@@ -191,7 +194,7 @@ public class CountingSource {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       if (!(other instanceof BoundedCountingSource)) {
         return false;
       }
@@ -360,7 +363,7 @@ public class CountingSource {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       if (!(other instanceof UnboundedCountingSource)) {
         return false;
       }
@@ -388,10 +391,10 @@ public class CountingSource {
     private long current;
 
     // Initialized on first advance()
-    @Nullable private Instant currentTimestamp;
+    private @Nullable Instant currentTimestamp;
 
     // Initialized in start()
-    @Nullable private Instant firstStarted;
+    private @Nullable Instant firstStarted;
 
     private final Counter elementsRead = SourceMetrics.elementsRead();
 
@@ -432,7 +435,8 @@ public class CountingSource {
     }
 
     private long expectedValue() {
-      if (source.period.getMillis() == 0L) {
+      // Within the SDF unbounded wrapper, we will query the initial size before we start to read.
+      if (source.period.getMillis() == 0L || firstStarted == null) {
         return Long.MAX_VALUE;
       }
       double periodsElapsed =

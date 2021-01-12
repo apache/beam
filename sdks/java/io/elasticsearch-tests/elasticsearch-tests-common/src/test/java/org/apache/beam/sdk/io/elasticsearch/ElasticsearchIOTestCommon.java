@@ -22,18 +22,19 @@ import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.ConnectionCon
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.Read;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.RetryConfiguration.DEFAULT_RETRY_PREDICATE;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.Write;
+import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.getBackendVersion;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.FAMOUS_SCIENTISTS;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.NUM_SCIENTISTS;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.countByMatch;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.countByScientistName;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.refreshIndexAndGetCurrentNumDocs;
 import static org.apache.beam.sdk.testing.SourceTestUtils.readFromSource;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.lessThan;
 import static org.hamcrest.core.Is.isA;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -63,6 +64,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.http.HttpEntity;
 import org.apache.http.entity.ContentType;
 import org.apache.http.nio.entity.NStringEntity;
+import org.elasticsearch.client.Request;
 import org.elasticsearch.client.Response;
 import org.elasticsearch.client.RestClient;
 import org.hamcrest.CustomMatcher;
@@ -72,6 +74,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Common test class for {@link ElasticsearchIO}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class ElasticsearchIOTestCommon implements Serializable {
 
   private static final Logger LOG = LoggerFactory.getLogger(ElasticsearchIOTestCommon.class);
@@ -440,7 +445,11 @@ class ElasticsearchIOTestCommon implements Serializable {
     for (String scientist : FAMOUS_SCIENTISTS) {
       String index = scientist.toLowerCase();
       long count =
-          refreshIndexAndGetCurrentNumDocs(restClient, index, connectionConfiguration.getType());
+          refreshIndexAndGetCurrentNumDocs(
+              restClient,
+              index,
+              connectionConfiguration.getType(),
+              getBackendVersion(connectionConfiguration));
       assertEquals(scientist + " index holds incorrect count", docsPerScientist, count);
     }
   }
@@ -485,7 +494,11 @@ class ElasticsearchIOTestCommon implements Serializable {
     for (int i = 0; i < 2; i++) {
       String type = "TYPE_" + i;
       long count =
-          refreshIndexAndGetCurrentNumDocs(restClient, connectionConfiguration.getIndex(), type);
+          refreshIndexAndGetCurrentNumDocs(
+              restClient,
+              connectionConfiguration.getIndex(),
+              type,
+              getBackendVersion(connectionConfiguration));
       assertEquals(type + " holds incorrect count", adjustedNumDocs / 2, count);
     }
   }
@@ -514,7 +527,9 @@ class ElasticsearchIOTestCommon implements Serializable {
       String index = scientist.toLowerCase();
       for (int i = 0; i < 2; i++) {
         String type = "TYPE_" + scientist.hashCode() % 2;
-        long count = refreshIndexAndGetCurrentNumDocs(restClient, index, type);
+        long count =
+            refreshIndexAndGetCurrentNumDocs(
+                restClient, index, type, getBackendVersion(connectionConfiguration));
         assertEquals("Incorrect count for " + index + "/" + type, numDocs / NUM_SCIENTISTS, count);
       }
     }
@@ -563,41 +578,6 @@ class ElasticsearchIOTestCommon implements Serializable {
     assertEquals(numDocs / 2, countByMatch(connectionConfiguration, restClient, "group", "1"));
   }
 
-  /** Tests partial updates with errors by adding some invalid info to test set. */
-  void testWritePartialUpdateWithErrors() throws Exception {
-    // put a mapping to simulate error of insertion
-    ElasticsearchIOTestUtils.setIndexMapping(connectionConfiguration, restClient);
-
-    if (!useAsITests) {
-      ElasticsearchIOTestUtils.insertTestDocuments(connectionConfiguration, numDocs, restClient);
-    }
-
-    // try to partial update a document with an incompatible date format for the age to generate
-    // an update error
-    List<String> data = new ArrayList<>();
-    data.add("{\"id\" : 1, \"age\" : \"2018-08-10:00:00\"}");
-
-    try {
-      pipeline
-          .apply(Create.of(data))
-          .apply(
-              ElasticsearchIO.write()
-                  .withConnectionConfiguration(connectionConfiguration)
-                  .withIdFn(new ExtractValueFn("id"))
-                  .withUsePartialUpdate(true));
-      pipeline.run();
-    } catch (Exception e) {
-      boolean matches =
-          e.getLocalizedMessage()
-              .matches(
-                  "(?is).*Error writing to Elasticsearch, some elements could not be inserted:"
-                      + ".*Document id .+: failed to parse .*Caused by: .*"
-                      + ".*For input string: \"2018-08-10:00:00\".*");
-
-      assertTrue(matches);
-    }
-  }
-
   /**
    * Function for checking if any string in iterable contains expected substring. Fails if no match
    * is found.
@@ -627,13 +607,15 @@ class ElasticsearchIOTestCommon implements Serializable {
   void testDefaultRetryPredicate(RestClient restClient) throws IOException {
 
     HttpEntity entity1 = new NStringEntity(BAD_REQUEST, ContentType.APPLICATION_JSON);
-    Response response1 =
-        restClient.performRequest("POST", "/_bulk", Collections.emptyMap(), entity1);
+    Request request = new Request("POST", "/_bulk");
+    request.addParameters(Collections.emptyMap());
+    request.setEntity(entity1);
+    Response response1 = restClient.performRequest(request);
     assertTrue(CUSTOM_RETRY_PREDICATE.test(response1.getEntity()));
 
     HttpEntity entity2 = new NStringEntity(OK_REQUEST, ContentType.APPLICATION_JSON);
-    Response response2 =
-        restClient.performRequest("POST", "/_bulk", Collections.emptyMap(), entity2);
+    request.setEntity(entity2);
+    Response response2 = restClient.performRequest(request);
     assertFalse(DEFAULT_RETRY_PREDICATE.test(response2.getEntity()));
   }
 
@@ -683,5 +665,89 @@ class ElasticsearchIOTestCommon implements Serializable {
 
     int count = countByScientistName(connectionConfiguration, restClient, "Einstein");
     assertEquals(numDocs / NUM_SCIENTISTS, count);
+  }
+
+  /**
+   * Tests deletion of documents from Elasticsearch index. Documents with odd integer as id are
+   * deleted and those with even integer are partially updated. Documents to be deleted needs to
+   * have criteria within the fields of the document.
+   */
+  void testWriteWithIsDeletedFnWithPartialUpdates() throws Exception {
+    if (!useAsITests) {
+      ElasticsearchIOTestUtils.insertTestDocuments(connectionConfiguration, numDocs, restClient);
+    }
+
+    long currentNumDocs = refreshIndexAndGetCurrentNumDocs(connectionConfiguration, restClient);
+    assertEquals(numDocs, currentNumDocs);
+
+    // partial documents containing the ID and group only
+    List<String> data = new ArrayList<>();
+    for (int i = 0; i < numDocs; i++) {
+      // Scientist names at odd index to be deleted.
+      data.add(String.format("{\"id\" : %s, \"is_deleted\": %b}", i, i % 2 == 1));
+    }
+
+    pipeline
+        .apply(Create.of(data))
+        .apply(
+            ElasticsearchIO.write()
+                .withConnectionConfiguration(connectionConfiguration)
+                .withIdFn(new ExtractValueFn("id"))
+                .withUsePartialUpdate(true)
+                .withIsDeleteFn(doc -> doc.get("is_deleted").asBoolean()));
+    pipeline.run();
+
+    currentNumDocs = refreshIndexAndGetCurrentNumDocs(connectionConfiguration, restClient);
+
+    // check we have not unwittingly modified existing behaviour
+    assertEquals(
+        numDocs / NUM_SCIENTISTS,
+        countByScientistName(connectionConfiguration, restClient, "Einstein"));
+
+    // Check if documents are deleted as expected
+    assertEquals(numDocs / 2, currentNumDocs);
+    assertEquals(0, countByScientistName(connectionConfiguration, restClient, "Darwin"));
+  }
+
+  /**
+   * Tests deletion of documents from Elasticsearch index. Documents with odd integer as id are
+   * deleted. Documents to be deleted needs to have criteria within the fields of the document.
+   */
+  void testWriteWithIsDeletedFnWithoutPartialUpdate() throws Exception {
+    if (!useAsITests) {
+      ElasticsearchIOTestUtils.insertTestDocuments(connectionConfiguration, numDocs, restClient);
+    }
+
+    long currentNumDocs = refreshIndexAndGetCurrentNumDocs(connectionConfiguration, restClient);
+    assertEquals(numDocs, currentNumDocs);
+
+    // partial documents containing the ID and group only
+    List<String> data = new ArrayList<>();
+    for (int i = 0; i < numDocs; i++) {
+      // Scientist names at odd index to be deleted.
+      if (i % 2 == 1) {
+        data.add(String.format("{\"id\" : %s, \"is_deleted\": %b}", i, true));
+      }
+    }
+
+    pipeline
+        .apply(Create.of(data))
+        .apply(
+            ElasticsearchIO.write()
+                .withConnectionConfiguration(connectionConfiguration)
+                .withIdFn(new ExtractValueFn("id"))
+                .withIsDeleteFn(doc -> doc.get("is_deleted").asBoolean()));
+    pipeline.run();
+
+    currentNumDocs = refreshIndexAndGetCurrentNumDocs(connectionConfiguration, restClient);
+
+    // check we have not unwittingly modified existing behaviour
+    assertEquals(
+        numDocs / NUM_SCIENTISTS,
+        countByScientistName(connectionConfiguration, restClient, "Einstein"));
+
+    // Check if documents are deleted as expected
+    assertEquals(numDocs / 2, currentNumDocs);
+    assertEquals(0, countByScientistName(connectionConfiguration, restClient, "Darwin"));
   }
 }

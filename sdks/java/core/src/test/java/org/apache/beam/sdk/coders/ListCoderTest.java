@@ -18,9 +18,9 @@
 package org.apache.beam.sdk.coders;
 
 import static junit.framework.TestCase.assertTrue;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -38,6 +38,9 @@ import org.junit.runners.JUnit4;
 
 /** Unit tests for {@link ListCoder}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ListCoderTest {
 
   private static final Coder<List<Integer>> TEST_CODER = ListCoder.of(VarIntCoder.of());

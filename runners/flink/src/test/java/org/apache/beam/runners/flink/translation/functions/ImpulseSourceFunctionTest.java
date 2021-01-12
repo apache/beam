@@ -34,6 +34,7 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
@@ -44,6 +45,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Tests for {@link ImpulseSourceFunction}. */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class ImpulseSourceFunctionTest {
 
   private static final Logger LOG = LoggerFactory.getLogger(ImpulseSourceFunctionTest.class);
@@ -61,12 +65,12 @@ public class ImpulseSourceFunctionTest {
   @Test
   public void testInstanceOfSourceFunction() {
     // should be a non-parallel source function
-    assertThat(new ImpulseSourceFunction(false), instanceOf(SourceFunction.class));
+    assertThat(new ImpulseSourceFunction(0), instanceOf(SourceFunction.class));
   }
 
   @Test(timeout = 10_000)
   public void testImpulseInitial() throws Exception {
-    ImpulseSourceFunction source = new ImpulseSourceFunction(false);
+    ImpulseSourceFunction source = new ImpulseSourceFunction(0);
     // No state available from previous runs
     ListState<Object> mockListState = getMockListState(Collections.emptyList());
     source.initializeState(getInitializationContext(mockListState));
@@ -75,8 +79,9 @@ public class ImpulseSourceFunctionTest {
     source.run(sourceContext);
     // 2) Should use checkpoint lock
     verify(sourceContext).getCheckpointLock();
-    // 3) Should emit impulse element
+    // 3) Should emit impulse element and the final watermark
     verify(sourceContext).collect(argThat(elementMatcher));
+    verify(sourceContext).emitWatermark(Watermark.MAX_WATERMARK);
     verifyNoMoreInteractions(sourceContext);
     // 4) Should modify checkpoint state
     verify(mockListState).get();
@@ -86,23 +91,25 @@ public class ImpulseSourceFunctionTest {
 
   @Test(timeout = 10_000)
   public void testImpulseRestored() throws Exception {
-    ImpulseSourceFunction source = new ImpulseSourceFunction(false);
+    ImpulseSourceFunction source = new ImpulseSourceFunction(0);
     // Previous state available
     ListState<Object> mockListState = getMockListState(Collections.singletonList(true));
     source.initializeState(getInitializationContext(mockListState));
 
     // 1) Should finish
     source.run(sourceContext);
-    // 2) Should _not_ emit impulse element
-    verifyNoMoreInteractions(sourceContext);
-    // 3) Should keep checkpoint state
+    // 2) Should keep checkpoint state
     verify(mockListState).get();
     verifyNoMoreInteractions(mockListState);
+    // 3) Should always emit the final watermark
+    verify(sourceContext).emitWatermark(Watermark.MAX_WATERMARK);
+    // 4) Should _not_ emit impulse element
+    verifyNoMoreInteractions(sourceContext);
   }
 
   @Test(timeout = 10_000)
   public void testKeepAlive() throws Exception {
-    ImpulseSourceFunction source = new ImpulseSourceFunction(true);
+    ImpulseSourceFunction source = new ImpulseSourceFunction(Long.MAX_VALUE);
 
     // No previous state available (=impulse should be emitted)
     ListState<Object> mockListState = getMockListState(Collections.emptyList());
@@ -128,6 +135,7 @@ public class ImpulseSourceFunctionTest {
       sourceThread.join();
     }
     verify(sourceContext).collect(argThat(elementMatcher));
+    verify(sourceContext).emitWatermark(Watermark.MAX_WATERMARK);
     verify(mockListState).add(true);
     verify(mockListState).get();
     verifyNoMoreInteractions(mockListState);
@@ -135,7 +143,7 @@ public class ImpulseSourceFunctionTest {
 
   @Test(timeout = 10_000)
   public void testKeepAliveDuringInterrupt() throws Exception {
-    ImpulseSourceFunction source = new ImpulseSourceFunction(true);
+    ImpulseSourceFunction source = new ImpulseSourceFunction(Long.MAX_VALUE);
 
     // No previous state available (=impulse should not be emitted)
     ListState<Object> mockListState = getMockListState(Collections.singletonList(true));
@@ -162,7 +170,9 @@ public class ImpulseSourceFunctionTest {
     sourceThread.interrupt();
     sourceThread.join();
 
-    // nothing should have been emitted because the impulse was emitted before restore
+    // Should always emit the final watermark
+    verify(sourceContext).emitWatermark(Watermark.MAX_WATERMARK);
+    // no element should have been emitted because the impulse was emitted before restore
     verifyNoMoreInteractions(sourceContext);
   }
 

@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.coders;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
 
 import java.math.BigDecimal;
 import org.apache.beam.sdk.testing.CoderProperties;
@@ -33,6 +33,9 @@ import org.junit.runners.JUnit4;
 
 /** Test case for {@link BigDecimalCoder}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BigDecimalCoderTest {
 
   @Rule public ExpectedException thrown = ExpectedException.none();

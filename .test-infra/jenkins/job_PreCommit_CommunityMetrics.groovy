@@ -22,7 +22,6 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
     nameBase: 'CommunityMetrics',
     gradleTask: ':communityMetricsPreCommit',
-    triggerPathPatterns: ['^.test-infra/metrics/.*$']
-)
+    triggerPathPatterns: ['^.test-infra/metrics/.*$'])
 builder.build()
 

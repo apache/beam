@@ -18,14 +18,15 @@
 package org.apache.beam.sdk.schemas.transforms;
 
 import java.io.Serializable;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A transform that performs equijoins across two schema {@link PCollection}s.
@@ -51,7 +52,11 @@ import org.apache.beam.sdk.values.Row;
  *
  * <p>Full outer joins, left outer joins, and right outer joins are also supported.
  */
-@Experimental(Experimental.Kind.SCHEMAS)
+@Experimental(Kind.SCHEMAS)
+@SuppressWarnings({
+  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes"
+})
 public class Join {
   public static final String LHS_TAG = "lhs";
   public static final String RHS_TAG = "rhs";
@@ -144,18 +149,30 @@ public class Join {
     return new Impl<>(JoinType.RIGHT_OUTER, rhs);
   };
 
+  /** Perform an inner join, broadcasting the right side. */
+  public static <LhsT, RhsT> Impl<LhsT, RhsT> innerBroadcastJoin(PCollection<RhsT> rhs) {
+    return new Impl<>(JoinType.INNER_BROADCAST, rhs);
+  }
+
+  /** Perform a left outer join, broadcasting the right side. */
+  public static <LhsT, RhsT> Impl<LhsT, RhsT> leftOuterBroadcastJoin(PCollection<RhsT> rhs) {
+    return new Impl<>(JoinType.LEFT_OUTER_BROADCAST, rhs);
+  }
+
   private enum JoinType {
     INNER,
     OUTER,
     LEFT_OUTER,
-    RIGHT_OUTER
+    RIGHT_OUTER,
+    INNER_BROADCAST,
+    LEFT_OUTER_BROADCAST,
   };
 
   /** Implementation class . */
   public static class Impl<LhsT, RhsT> extends PTransform<PCollection<LhsT>, PCollection<Row>> {
     private final JoinType joinType;
     private final transient PCollection<RhsT> rhs;
-    @Nullable private final FieldsEqual.Impl predicate;
+    private final FieldsEqual.@Nullable Impl predicate;
 
     private Impl(JoinType joinType, PCollection<RhsT> rhs) {
       this(joinType, rhs, null);
@@ -207,6 +224,13 @@ public class Join {
               CoGroup.join(LHS_TAG, CoGroup.By.fieldAccessDescriptor(resolvedPredicate.lhs))
                   .join(RHS_TAG, CoGroup.By.fieldAccessDescriptor(resolvedPredicate.rhs))
                   .crossProductJoin());
+        case INNER_BROADCAST:
+          return tuple.apply(
+              CoGroup.join(LHS_TAG, CoGroup.By.fieldAccessDescriptor(resolvedPredicate.lhs))
+                  .join(
+                      RHS_TAG,
+                      CoGroup.By.fieldAccessDescriptor(resolvedPredicate.rhs).withSideInput())
+                  .crossProductJoin());
         case OUTER:
           return tuple.apply(
               CoGroup.join(
@@ -225,6 +249,15 @@ public class Join {
                       RHS_TAG,
                       CoGroup.By.fieldAccessDescriptor(resolvedPredicate.rhs)
                           .withOptionalParticipation())
+                  .crossProductJoin());
+        case LEFT_OUTER_BROADCAST:
+          return tuple.apply(
+              CoGroup.join(LHS_TAG, CoGroup.By.fieldAccessDescriptor(resolvedPredicate.lhs))
+                  .join(
+                      RHS_TAG,
+                      CoGroup.By.fieldAccessDescriptor(resolvedPredicate.rhs)
+                          .withOptionalParticipation()
+                          .withSideInput())
                   .crossProductJoin());
         case RIGHT_OUTER:
           return tuple.apply(

@@ -36,6 +36,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
 import org.apache.beam.sdk.transforms.ParDo.SingleOutput;
+import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
@@ -44,7 +45,6 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
-import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -120,8 +120,8 @@ public class BatchStatefulParDoOverrides {
     }
 
     @Override
-    public Map<PValue, ReplacementOutput> mapOutputs(
-        Map<TupleTag<?>, PValue> outputs, PCollection<OutputT> newOutput) {
+    public Map<PCollection<?>, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PCollection<?>> outputs, PCollection<OutputT> newOutput) {
       return ReplacementOutputs.singleton(outputs, newOutput);
     }
   }
@@ -150,8 +150,8 @@ public class BatchStatefulParDoOverrides {
     }
 
     @Override
-    public Map<PValue, ReplacementOutput> mapOutputs(
-        Map<TupleTag<?>, PValue> outputs, PCollectionTuple newOutput) {
+    public Map<PCollection<?>, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PCollection<?>> outputs, PCollectionTuple newOutput) {
       return ReplacementOutputs.tagged(outputs, newOutput);
     }
   }
@@ -176,14 +176,11 @@ public class BatchStatefulParDoOverrides {
     public PCollection<OutputT> expand(PCollection<KV<K, InputT>> input) {
       DoFn<KV<K, InputT>, OutputT> fn = originalParDo.getFn();
       verifyFnIsStateful(fn);
-      DataflowRunner.verifyStateSupported(fn);
+      DataflowRunner.verifyDoFnSupportedBatch(fn);
       DataflowRunner.verifyStateSupportForWindowingStrategy(input.getWindowingStrategy());
 
       if (isFnApi) {
-        return input
-            .apply(GroupByKey.create())
-            .apply(ParDo.of(new ExpandGbkFn<>()))
-            .apply(originalParDo);
+        return input.apply(Reshuffle.of()).apply(originalParDo);
       }
 
       PTransform<
@@ -212,14 +209,11 @@ public class BatchStatefulParDoOverrides {
     public PCollectionTuple expand(PCollection<KV<K, InputT>> input) {
       DoFn<KV<K, InputT>, OutputT> fn = originalParDo.getFn();
       verifyFnIsStateful(fn);
-      DataflowRunner.verifyStateSupported(fn);
+      DataflowRunner.verifyDoFnSupportedBatch(fn);
       DataflowRunner.verifyStateSupportForWindowingStrategy(input.getWindowingStrategy());
 
       if (isFnApi) {
-        return input
-            .apply(GroupByKey.create())
-            .apply(ParDo.of(new ExpandGbkFn<>()))
-            .apply(originalParDo);
+        return input.apply(Reshuffle.of()).apply(originalParDo);
       }
 
       PTransform<
@@ -289,20 +283,6 @@ public class BatchStatefulParDoOverrides {
               c.element().getKey(),
               KV.of(
                   c.timestamp(), WindowedValue.of(c.element(), c.timestamp(), window, c.pane()))));
-    }
-  }
-
-  /**
-   * A key preserving {@link DoFn} that expands the output of a GBK {@code KV<K, Iterable<V>>} into
-   * individual KVs.
-   */
-  static class ExpandGbkFn<K, V> extends DoFn<KV<K, Iterable<V>>, KV<K, V>> {
-    @ProcessElement
-    public void processElement(ProcessContext c) {
-      K k = c.element().getKey();
-      for (V v : c.element().getValue()) {
-        c.output(KV.of(k, v));
-      }
     }
   }
 

@@ -28,16 +28,19 @@ import com.google.api.services.dataflow.model.Position;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.NativeReaderIterator;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.Progress;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Helpers for testing {@link NativeReader} and related classes, especially {@link
  * NativeReaderIterator#getProgress} and {@link NativeReaderIterator#requestDynamicSplit}.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ReaderTestUtils {
   public static Position positionAtIndex(@Nullable Long index) {
     return new Position().setRecordIndex(index);

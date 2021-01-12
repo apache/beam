@@ -17,8 +17,9 @@ package beam
 
 import (
 	"fmt"
-
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
@@ -35,7 +36,14 @@ func TryParDo(s Scope, dofn interface{}, col PCollection, opts ...Option) ([]PCo
 		return nil, addParDoCtx(err, s)
 	}
 
-	fn, err := graph.NewDoFn(dofn)
+	doFnOpt := graph.NumMainInputs(graph.MainSingle)
+	// Check the PCollection for any keyed type (not just KV specifically).
+	if typex.IsKV(col.Type()) {
+		doFnOpt = graph.NumMainInputs(graph.MainKv)
+	} else if typex.IsCoGBK(col.Type()) {
+		doFnOpt = graph.CoGBKMainInput(len(col.Type().Components()))
+	}
+	fn, err := graph.NewDoFn(dofn, doFnOpt)
 	if err != nil {
 		return nil, addParDoCtx(err, s)
 	}
@@ -44,7 +52,17 @@ func TryParDo(s Scope, dofn interface{}, col PCollection, opts ...Option) ([]PCo
 	for _, s := range side {
 		in = append(in, s.Input.n)
 	}
-	edge, err := graph.NewParDo(s.real, s.scope, fn, in, typedefs)
+
+	var rc *coder.Coder
+	if fn.IsSplittable() {
+		sdf := (*graph.SplittableDoFn)(fn)
+		rc, err = inferCoder(typex.New(sdf.RestrictionT()))
+		if err != nil {
+			return nil, addParDoCtx(err, s)
+		}
+	}
+
+	edge, err := graph.NewParDo(s.real, s.scope, fn, in, rc, typedefs)
 	if err != nil {
 		return nil, addParDoCtx(err, s)
 	}
@@ -67,7 +85,7 @@ func ParDoN(s Scope, dofn interface{}, col PCollection, opts ...Option) []PColle
 func ParDo0(s Scope, dofn interface{}, col PCollection, opts ...Option) {
 	ret := MustN(TryParDo(s, dofn, col, opts...))
 	if len(ret) != 0 {
-		panic(fmt.Sprintf("expected 0 output. Found: %v", ret))
+		panic(formatParDoError(dofn, len(ret), 0))
 	}
 }
 
@@ -205,6 +223,87 @@ func ParDo0(s Scope, dofn interface{}, col PCollection, opts ...Option) {
 // DoFn instance via output PCollections, in the absence of external
 // communication mechanisms written by user code.
 //
+// Splittable DoFns (Experimental)
+//
+// Warning: Splittable DoFns are still experimental, largely untested, and
+// likely to have bugs.
+//
+// Splittable DoFns are DoFns that are able to split work within an element,
+// as opposed to only at element boundaries like normal DoFns. This is useful
+// for DoFns that emit many outputs per input element and can distribute that
+// work among multiple workers. The most common examples of this are sources.
+//
+// In order to split work within an element, splittable DoFns use the concept of
+// restrictions, which are objects that are associated with an element and
+// describe a portion of work on that element. For example, a restriction
+// associated with a filename might describe what byte range within that file to
+// process. In addition to restrictions, splittable DoFns also rely on
+// restriction trackers to track progress and perform splits on a restriction
+// currently being processed. See the `RTracker` interface in core/sdf/sdf.go
+// for more details.
+//
+// Splitting
+//
+// Splitting means taking one restriction and splitting into two or more that
+// cover the entire input space of the original one. In other words, processing
+// all the split restrictions should produce identical output to processing
+// the original one.
+//
+// Splitting occurs in two stages. The initial splitting occurs before any
+// restrictions have started processing. This step is used to split large
+// restrictions into smaller ones that can then be distributed among multiple
+// workers for processing. Initial splitting is user-defined and optional.
+//
+// Dynamic splitting occurs during the processing of a restriction in runners
+// that have implemented it. If there are available workers, runners may split
+// the unprocessed portion of work from a busy worker and shard it to available
+// workers in order to better distribute work. With unsplittable DoFns this can
+// only occur on element boundaries, but for splittable DoFns this split
+// can land within a restriction and will require splitting that restriction.
+//
+// * Note: The Go SDK currently does not support dynamic splitting for SDFs,
+//   only initial splitting. Only initially split restrictions can be
+//   distributed by liquid sharding. Stragglers will not be split during
+//   execution with dynamic splitting.
+//
+// Splittable DoFn Methods
+//
+// Making a splittable DoFn requires the following methods to be implemented on
+// a DoFn in addition to the usual DoFn requirements. In the following
+// method signatures `elem` represents the main input elements to the DoFn, and
+// should match the types used in ProcessElement. `restriction` represents the
+// user-defined restriction, and can be any type as long as it is consistent
+// throughout all the splittable DoFn methods:
+//
+// * `CreateInitialRestriction(element) restriction`
+//     CreateInitialRestriction creates an initial restriction encompassing an
+//     entire element. The restriction created stays associated with the element
+//     it describes.
+// * `SplitRestriction(elem, restriction) []restriction`
+//     SplitRestriction takes an element and its initial restriction, and
+//     optionally performs an initial split on it, returning a slice of all the
+//     split restrictions. If no splits are desired, the method returns a slice
+//     containing only the original restriction. This method will always be
+//     called on each newly created restriction before they are processed.
+// * `RestrictionSize(elem, restriction) float64`
+//     RestrictionSize returns a cheap size estimation for a restriction. This
+//     size is an abstract scalar value that represents how much work a
+//     restriction takes compared to other restrictions in the same DoFn. For
+//     example, a size of 200 represents twice as much work as a size of
+//     100, but the numbers do not represent anything on their own. Size is
+//     used by runners to estimate work for liquid sharding.
+// * `CreateTracker(restriction) restrictionTracker`
+//     CreateTracker creates and returns a restriction tracker (a concrete type
+//     implementing the `sdf.RTracker` interface) given a restriction. The
+//     restriction tracker is used to track progress processing a restriction,
+//     and to allow for dynamic splits. This method is called on each
+//     restriction right before processing begins.
+// * `ProcessElement(sdf.RTracker, element, func emit(output))`
+//     For splittable DoFns, ProcessElement requires a restriction tracker
+//     before inputs, and generally requires emits to be used for outputs, since
+//     restrictions will generally produce multiple outputs. For more details
+//     on processing restrictions in a splittable DoFn, see `sdf.RTracker`.
+//
 // Fault Tolerance
 //
 // In a distributed system, things can fail: machines can crash, machines can
@@ -257,7 +356,7 @@ func ParDo0(s Scope, dofn interface{}, col PCollection, opts ...Option) {
 func ParDo(s Scope, dofn interface{}, col PCollection, opts ...Option) PCollection {
 	ret := MustN(TryParDo(s, dofn, col, opts...))
 	if len(ret) != 1 {
-		panic(fmt.Sprintf("expected 1 output. Found: %v", ret))
+		panic(formatParDoError(dofn, len(ret), 1))
 	}
 	return ret[0]
 }
@@ -268,7 +367,7 @@ func ParDo(s Scope, dofn interface{}, col PCollection, opts ...Option) PCollecti
 func ParDo2(s Scope, dofn interface{}, col PCollection, opts ...Option) (PCollection, PCollection) {
 	ret := MustN(TryParDo(s, dofn, col, opts...))
 	if len(ret) != 2 {
-		panic(fmt.Sprintf("expected 2 output. Found: %v", ret))
+		panic(formatParDoError(dofn, len(ret), 2))
 	}
 	return ret[0], ret[1]
 }
@@ -277,7 +376,7 @@ func ParDo2(s Scope, dofn interface{}, col PCollection, opts ...Option) (PCollec
 func ParDo3(s Scope, dofn interface{}, col PCollection, opts ...Option) (PCollection, PCollection, PCollection) {
 	ret := MustN(TryParDo(s, dofn, col, opts...))
 	if len(ret) != 3 {
-		panic(fmt.Sprintf("expected 3 output. Found: %v", ret))
+		panic(formatParDoError(dofn, len(ret), 3))
 	}
 	return ret[0], ret[1], ret[2]
 }
@@ -286,7 +385,7 @@ func ParDo3(s Scope, dofn interface{}, col PCollection, opts ...Option) (PCollec
 func ParDo4(s Scope, dofn interface{}, col PCollection, opts ...Option) (PCollection, PCollection, PCollection, PCollection) {
 	ret := MustN(TryParDo(s, dofn, col, opts...))
 	if len(ret) != 4 {
-		panic(fmt.Sprintf("expected 4 output. Found: %v", ret))
+		panic(formatParDoError(dofn, len(ret), 4))
 	}
 	return ret[0], ret[1], ret[2], ret[3]
 }
@@ -295,7 +394,7 @@ func ParDo4(s Scope, dofn interface{}, col PCollection, opts ...Option) (PCollec
 func ParDo5(s Scope, dofn interface{}, col PCollection, opts ...Option) (PCollection, PCollection, PCollection, PCollection, PCollection) {
 	ret := MustN(TryParDo(s, dofn, col, opts...))
 	if len(ret) != 5 {
-		panic(fmt.Sprintf("expected 5 output. Found: %v", ret))
+		panic(formatParDoError(dofn, len(ret), 5))
 	}
 	return ret[0], ret[1], ret[2], ret[3], ret[4]
 }
@@ -304,7 +403,7 @@ func ParDo5(s Scope, dofn interface{}, col PCollection, opts ...Option) (PCollec
 func ParDo6(s Scope, dofn interface{}, col PCollection, opts ...Option) (PCollection, PCollection, PCollection, PCollection, PCollection, PCollection) {
 	ret := MustN(TryParDo(s, dofn, col, opts...))
 	if len(ret) != 6 {
-		panic(fmt.Sprintf("expected 6 output. Found: %v", ret))
+		panic(formatParDoError(dofn, len(ret), 6))
 	}
 	return ret[0], ret[1], ret[2], ret[3], ret[4], ret[5]
 }
@@ -313,7 +412,36 @@ func ParDo6(s Scope, dofn interface{}, col PCollection, opts ...Option) (PCollec
 func ParDo7(s Scope, dofn interface{}, col PCollection, opts ...Option) (PCollection, PCollection, PCollection, PCollection, PCollection, PCollection, PCollection) {
 	ret := MustN(TryParDo(s, dofn, col, opts...))
 	if len(ret) != 7 {
-		panic(fmt.Sprintf("expected 7 output. Found: %v", ret))
+		panic(formatParDoError(dofn, len(ret), 7))
 	}
 	return ret[0], ret[1], ret[2], ret[3], ret[4], ret[5], ret[6]
+}
+
+// formatParDoError is a helper function to provide a more concise error
+// message to the users when a DoFn and its ParDo pairing is incorrect.
+//
+// We construct a new graph.Fn using the doFn which is passed. We explicitly
+// ignore the error since we already know that its already a DoFn type as
+// TryParDo would have panicked otherwise.
+func formatParDoError(doFn interface{}, emitSize int, parDoSize int) string {
+	doFun, _ := graph.NewFn(doFn)
+	doFnName := doFun.Name()
+
+	thisParDo := parDoForSize(parDoSize) // Conveniently keeps the API slim.
+	correctParDo := parDoForSize(emitSize)
+
+	return fmt.Sprintf("DoFn %v has %v outputs, but %v requires %v outputs, use %v instead.", doFnName, emitSize, thisParDo, parDoSize, correctParDo)
+}
+
+// parDoForSize takes a in a DoFns emit dimension and recommends the correct
+// ParDo to use.
+func parDoForSize(emitDim int) string {
+	switch emitDim {
+	case 0, 2, 3, 4, 5, 6, 7:
+		return fmt.Sprintf("ParDo%d", emitDim)
+	case 1:
+		return "ParDo"
+	default:
+		return "ParDoN"
+	}
 }

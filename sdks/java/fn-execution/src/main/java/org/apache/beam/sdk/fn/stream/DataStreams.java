@@ -27,7 +27,7 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.concurrent.BlockingQueue;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.CountingInputStream;
 
@@ -36,6 +36,10 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.CountingInput
  * {@link #outbound(OutputChunkConsumer)} treats a single {@link OutputStream} as multiple {@link
  * ByteString}s.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DataStreams {
   public static final int DEFAULT_OUTBOUND_BUFFER_LIMIT_BYTES = 1_000_000;
 

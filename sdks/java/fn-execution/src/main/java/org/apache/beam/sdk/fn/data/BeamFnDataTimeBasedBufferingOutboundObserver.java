@@ -25,7 +25,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 
@@ -33,6 +33,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.
  * A buffering outbound {@link FnDataReceiver} with both size-based buffer and time-based buffer
  * enabled for the Beam Fn Data API.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BeamFnDataTimeBasedBufferingOutboundObserver<T>
     extends BeamFnDataSizeBasedBufferingOutboundObserver<T> {
 

@@ -24,7 +24,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import java.io.IOException;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.sdk.util.RowJson.RowJsonDeserializer.UnsupportedRowJsonException;
+import org.apache.beam.sdk.util.RowJson.UnsupportedRowJsonException;
 import org.apache.beam.sdk.values.Row;
 
 /**

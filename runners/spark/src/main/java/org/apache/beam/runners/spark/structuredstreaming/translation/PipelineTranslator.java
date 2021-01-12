@@ -18,7 +18,7 @@
 package org.apache.beam.runners.spark.structuredstreaming.translation;
 
 import org.apache.beam.runners.core.construction.PTransformTranslation;
-import org.apache.beam.runners.core.construction.PipelineResources;
+import org.apache.beam.runners.core.construction.resources.PipelineResources;
 import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.PipelineTranslatorBatch;
 import org.apache.beam.runners.spark.structuredstreaming.translation.streaming.PipelineTranslatorStreaming;
@@ -38,6 +38,9 @@ import org.slf4j.LoggerFactory;
  * PipelineTranslatorStreaming}. If we have a batch job, it is instantiated as a {@link
  * PipelineTranslatorBatch}.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public abstract class PipelineTranslator extends Pipeline.PipelineVisitor.Defaults {
   private int depth = 0;
   private static final Logger LOG = LoggerFactory.getLogger(PipelineTranslator.class);
@@ -53,7 +56,7 @@ public abstract class PipelineTranslator extends Pipeline.PipelineVisitor.Defaul
    */
   public static void prepareFilesToStageForRemoteClusterExecution(
       SparkStructuredStreamingPipelineOptions options) {
-    if (!options.getSparkMaster().matches("local\\[?\\d*]?")) {
+    if (!PipelineTranslator.isLocalSparkMaster(options)) {
       options.setFilesToStage(
           PipelineResources.prepareFilesForStaging(
               options.getFilesToStage(), options.getTempLocation()));
@@ -133,6 +136,11 @@ public abstract class PipelineTranslator extends Pipeline.PipelineVisitor.Defaul
       builder.append("|   ");
     }
     return builder.toString();
+  }
+
+  /** Detects if the pipeline is run in local spark mode. */
+  public static boolean isLocalSparkMaster(SparkStructuredStreamingPipelineOptions options) {
+    return options.getSparkMaster().matches("local\\[?\\d*]?");
   }
 
   /** Get a {@link TransformTranslator} for the given {@link TransformHierarchy.Node}. */

@@ -20,27 +20,41 @@ import CommonJobProperties as commonJobProperties
 import PostcommitJobBuilder
 
 
-PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java11_ValidatesRunner_Dataflow',
-  'Run Dataflow ValidatesRunner Java 11', 'Google Cloud Dataflow Runner ValidatesRunner Tests On Java 11', this) {
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Dataflow_Java11',
+    'Run Dataflow ValidatesRunner Java 11', 'Google Cloud Dataflow Runner ValidatesRunner Tests On Java 11', this) {
 
-  description('Runs the ValidatesRunner suite on the Dataflow runner with Java 11 worker harness.')
+      description('Runs the ValidatesRunner suite on the Dataflow runner with Java 11 worker harness.')
 
-  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 270)
+      def JAVA_11_HOME = '/usr/lib/jvm/java-11-openjdk-amd64'
+      def JAVA_8_HOME = '/usr/lib/jvm/java-8-openjdk-amd64'
 
-  publishers {
-    archiveJunit('**/build/test-results/**/*.xml')
-  }
+      commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 270)
+      publishers {
+        archiveJunit('**/build/test-results/**/*.xml')
+      }
 
-  steps {
-    gradle {
-      rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':runners:google-cloud-dataflow-java:validatesJava11Runner')
-      // Increase parallel worker threads above processor limit since most time is
-      // spent waiting on Dataflow jobs. ValidatesRunner tests on Dataflow are slow
-      // because each one launches a Dataflow job with about 3 mins of overhead.
-      // 3 x num_cores strikes a good balance between maxing out parallelism without
-      // overloading the machines.
-      commonJobProperties.setGradleSwitches(delegate, 3 * Runtime.runtime.availableProcessors())
+      steps {
+        gradle {
+          rootBuildScriptDir(commonJobProperties.checkoutDir)
+          tasks(':runners:google-cloud-dataflow-java:testJar')
+          tasks(':runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar')
+          switches("-Dorg.gradle.java.home=${JAVA_8_HOME}")
+        }
+
+        gradle {
+          rootBuildScriptDir(commonJobProperties.checkoutDir)
+          tasks(':runners:google-cloud-dataflow-java:validatesRunner')
+          switches('-x shadowJar')
+          switches('-x shadowTestJar')
+          switches('-x compileJava')
+          switches('-x compileTestJava')
+          switches('-x jar')
+          switches('-x testJar')
+          switches('-x classes')
+          switches('-x testClasses')
+          switches("-Dorg.gradle.java.home=${JAVA_11_HOME}")
+
+          commonJobProperties.setGradleSwitches(delegate, 3 * Runtime.runtime.availableProcessors())
+        }
+      }
     }
-  }
-}

@@ -27,8 +27,8 @@ import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.Phaser;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.concurrent.ThreadSafe;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.CallStreamObserver;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.CallStreamObserver;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 
 /**
@@ -41,6 +41,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
  * becomes ready.
  */
 @ThreadSafe
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public final class BufferingStreamObserver<T> implements StreamObserver<T> {
   private static final Object POISON_PILL = new Object();
   private final LinkedBlockingDeque<T> queue;

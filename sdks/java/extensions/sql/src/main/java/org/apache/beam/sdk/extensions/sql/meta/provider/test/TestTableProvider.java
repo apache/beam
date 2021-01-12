@@ -29,7 +29,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
 import org.apache.beam.sdk.extensions.sql.meta.BaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
@@ -44,7 +43,6 @@ import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.FieldTypeDescriptors;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
-import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.transforms.Filter;
 import org.apache.beam.sdk.schemas.transforms.Select;
 import org.apache.beam.sdk.transforms.Create;
@@ -69,6 +67,10 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTyp
  * <p>Keeps global state and tracks class instances. Works only in DirectRunner.
  */
 @AutoService(TableProvider.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class TestTableProvider extends InMemoryMetaTableProvider {
   static final Map<Long, Map<String, TableWithRows>> GLOBAL_TABLES = new ConcurrentHashMap<>();
   public static final String PUSH_DOWN_OPTION = "push_down";
@@ -159,10 +161,6 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
       }
     }
 
-    public Coder<Row> rowCoder() {
-      return SchemaCoder.of(tableWithRows.table.getSchema());
-    }
-
     @Override
     public BeamTableStatistics getTableStatistics(PipelineOptions options) {
       return BeamTableStatistics.createBoundedTableStatistics(
@@ -175,7 +173,7 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
           GLOBAL_TABLES
               .get(this.tableWithRows.tableProviderInstanceId)
               .get(this.tableWithRows.table.getName());
-      return begin.apply(Create.of(tableWithRows.rows).withCoder(rowCoder()));
+      return begin.apply(Create.of(tableWithRows.rows).withRowSchema(getSchema()));
     }
 
     @Override
@@ -183,12 +181,12 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
         PBegin begin, BeamSqlTableFilter filters, List<String> fieldNames) {
       if (!(filters instanceof DefaultTableFilter)
           && (options == PushDownOptions.NONE || options == PushDownOptions.PROJECT)) {
-        throw new RuntimeException(
+        throw new UnsupportedOperationException(
             "Filter push-down is not supported, yet non-default filter was passed.");
       }
       if ((!fieldNames.isEmpty() && fieldNames.size() < getSchema().getFieldCount())
           && (options == PushDownOptions.NONE || options == PushDownOptions.FILTER)) {
-        throw new RuntimeException(
+        throw new UnsupportedOperationException(
             "Project push-down is not supported, yet a list of fieldNames was passed.");
       }
 
@@ -206,7 +204,7 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
             result = result.apply("IOPushDownFilter_" + node.toString(), filterFromNode(node));
           }
         } else {
-          throw new RuntimeException(
+          throw new UnsupportedOperationException(
               "Was expecting a filter of type TestTableFilter, but received: "
                   + filters.getClass().getSimpleName());
         }
@@ -218,9 +216,7 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
         result =
             result.apply(
                 "IOPushDownProject",
-                Select.fieldAccess(
-                    FieldAccessDescriptor.withFieldNames(fieldNames)
-                        .withOrderByFieldInsertionOrder()));
+                Select.fieldAccess(FieldAccessDescriptor.withFieldNames(fieldNames)));
       }
 
       return result;
@@ -228,7 +224,7 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
 
     @Override
     public POutput buildIOWriter(PCollection<Row> input) {
-      input.apply(ParDo.of(new CollectorFn(tableWithRows)));
+      input.apply(ParDo.of(new CollectorFn(tableWithRows))).setRowSchema(input.getSchema());
       return PDone.in(input.getPipeline());
     }
 
@@ -270,7 +266,7 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
         operands.add(node);
         operands.add(RexLiteral.fromJdbcString(node.getType(), SqlTypeName.BOOLEAN, "true"));
       } else {
-        throw new RuntimeException(
+        throw new UnsupportedOperationException(
             "Was expecting a RexCall or a boolean RexInputRef, but received: "
                 + node.getClass().getSimpleName());
       }
@@ -284,7 +280,7 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
           RexLiteral literal = (RexLiteral) operand;
           literals.add(literal);
         } else {
-          throw new RuntimeException(
+          throw new UnsupportedOperationException(
               "Encountered an unexpected operand: " + operand.getClass().getSimpleName());
         }
       }
@@ -313,7 +309,8 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
           comparison = i -> i != 0;
           break;
         default:
-          throw new RuntimeException("Unsupported node kind: " + node.getKind().toString());
+          throw new UnsupportedOperationException(
+              "Unsupported node kind: " + node.getKind().toString());
       }
 
       return Filter.<Row>create()
@@ -365,7 +362,7 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
       } else if (operands.get(0) instanceof RexInputRef) { // First operand is a column value
         return row -> comparison.apply(row.<Comparable>getValue(op0).compareTo(op1));
       } else {
-        throw new RuntimeException(
+        throw new UnsupportedOperationException(
             "Was expecting a RexLiteral and a RexInputRef, but received: "
                 + operands.stream()
                     .map(o -> o.getClass().getSimpleName())
@@ -382,11 +379,11 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
     }
 
     @ProcessElement
-    public void procesElement(ProcessContext context) {
+    public void processElement(@Element Row element, OutputReceiver<Row> o) {
       long instanceId = tableWithRows.tableProviderInstanceId;
       String tableName = tableWithRows.table.getName();
-      GLOBAL_TABLES.get(instanceId).get(tableName).rows.add(context.element());
-      context.output(context.element());
+      GLOBAL_TABLES.get(instanceId).get(tableName).rows.add(element);
+      o.output(element);
     }
   }
 

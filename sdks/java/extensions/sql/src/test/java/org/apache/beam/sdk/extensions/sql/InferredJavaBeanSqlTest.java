@@ -30,10 +30,14 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Rule;
 import org.junit.Test;
 
 /** Tests for automatic inferring schema from the input {@link PCollection} of JavaBeans. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class InferredJavaBeanSqlTest {
 
   @Rule public final TestPipeline pipeline = TestPipeline.create();
@@ -68,7 +72,7 @@ public class InferredJavaBeanSqlTest {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -115,7 +119,7 @@ public class InferredJavaBeanSqlTest {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }

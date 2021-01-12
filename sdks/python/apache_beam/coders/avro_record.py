@@ -17,6 +17,8 @@
 
 """AvroRecord for AvroGenericCoder."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 __all__ = ['AvroRecord']
@@ -24,15 +26,11 @@ __all__ = ['AvroRecord']
 
 class AvroRecord(object):
   """Simple wrapper class for dictionary records."""
-
   def __init__(self, value):
     self.record = value
 
   def __eq__(self, other):
-    return (
-        issubclass(type(other), AvroRecord) and
-        self.record == other.record
-    )
+    return issubclass(type(other), AvroRecord) and self.record == other.record
 
   def __hash__(self):
     return hash(self.record)

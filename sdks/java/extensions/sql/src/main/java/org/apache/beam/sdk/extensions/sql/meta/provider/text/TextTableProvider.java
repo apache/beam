@@ -21,19 +21,18 @@ import static org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils.beam
 import static org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils.csvLines2BeamRows;
 import static org.apache.beam.sdk.util.RowJsonUtils.jsonToRow;
 import static org.apache.beam.sdk.util.RowJsonUtils.newObjectMapperWith;
-import static org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Preconditions.checkArgument;
 
 import com.alibaba.fastjson.JSONObject;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.InMemoryMetaTableProvider;
+import org.apache.beam.sdk.extensions.sql.meta.provider.InvalidTableException;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.schemas.Schema;
@@ -45,7 +44,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.ToJson;
 import org.apache.beam.sdk.util.RowJson.RowJsonDeserializer;
-import org.apache.beam.sdk.util.RowJson.RowJsonDeserializer.UnsupportedRowJsonException;
+import org.apache.beam.sdk.util.RowJson.UnsupportedRowJsonException;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
@@ -56,6 +55,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.annotations.Visi
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableSet;
 import org.apache.commons.csv.CSVFormat;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Text table provider.
@@ -74,6 +74,9 @@ import org.apache.commons.csv.CSVFormat;
  * }</pre>
  */
 @AutoService(TableProvider.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class TextTableProvider extends InMemoryMetaTableProvider {
 
   @Override
@@ -113,15 +116,16 @@ public class TextTableProvider extends InMemoryMetaTableProvider {
         return new TextJsonTable(
             schema, filePattern, JsonToRow.create(schema, deadLetterFile), RowToJson.create());
       case "lines":
-        checkArgument(
-            schema.getFieldCount() == 1
-                && schema.getField(0).getType().getTypeName().equals(TypeName.STRING),
-            "Table with type 'text' and format 'lines' "
-                + "must have exactly one STRING/VARCHAR/CHAR column ");
+        if (!(schema.getFieldCount() == 1
+            && schema.getField(0).getType().getTypeName().equals(TypeName.STRING))) {
+          throw new InvalidTableException(
+              "Table with type 'text' and format 'lines' "
+                  + "must have exactly one STRING/VARCHAR/CHAR column ");
+        }
         return new TextTable(
             schema, filePattern, new LinesReadConverter(), new LinesWriteConverter());
       default:
-        throw new IllegalArgumentException(
+        throw new InvalidTableException(
             "Table with type 'text' must have format 'csv' or 'lines' or 'json'");
     }
   }
@@ -170,8 +174,7 @@ public class TextTableProvider extends InMemoryMetaTableProvider {
 
     public abstract Schema schema();
 
-    @Nullable
-    public abstract String deadLetterFile();
+    public abstract @Nullable String deadLetterFile();
 
     public static JsonToRow create(Schema schema, @Nullable String deadLetterFile) {
       return new AutoValue_TextTableProvider_JsonToRow(schema, deadLetterFile);

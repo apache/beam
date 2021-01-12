@@ -95,7 +95,7 @@ public class MinimalWordCount {
         // individual word in Shakespeare's collected texts.
         .apply(
             FlatMapElements.into(TypeDescriptors.strings())
-                .via((String word) -> Arrays.asList(word.split("[^\\p{L}]+"))))
+                .via((String line) -> Arrays.asList(line.split("[^\\p{L}]+"))))
         // We use a Filter transform to avoid empty word
         .apply(Filter.by((String word) -> !word.isEmpty()))
         // Concept #3: Apply the Count transform to our PCollection of individual words. The Count

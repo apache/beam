@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.direct;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doThrow;
@@ -42,6 +42,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link DoFnLifecycleManagerRemovingTransformEvaluator}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DoFnLifecycleManagerRemovingTransformEvaluatorTest {
   private DoFnLifecycleManager lifecycleManager;
 
@@ -95,7 +98,7 @@ public class DoFnLifecycleManagerRemovingTransformEvaluatorTest {
     ParDoEvaluator<Object> underlying = mock(ParDoEvaluator.class);
     doThrow(IllegalArgumentException.class)
         .when(underlying)
-        .onTimer(any(TimerData.class), any(BoundedWindow.class));
+        .onTimer(any(TimerData.class), any(Object.class), any(BoundedWindow.class));
 
     DoFn<?, ?> original = lifecycleManager.get();
     assertThat(original, not(nullValue()));
@@ -104,7 +107,13 @@ public class DoFnLifecycleManagerRemovingTransformEvaluatorTest {
 
     try {
       evaluator.onTimer(
-          TimerData.of("foo", StateNamespaces.global(), new Instant(0), TimeDomain.EVENT_TIME),
+          TimerData.of(
+              "foo",
+              StateNamespaces.global(),
+              new Instant(0),
+              new Instant(0),
+              TimeDomain.EVENT_TIME),
+          "",
           GlobalWindow.INSTANCE);
     } catch (Exception e) {
       assertThat(lifecycleManager.get(), not(Matchers.theInstance(original)));

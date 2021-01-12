@@ -17,14 +17,7 @@
 #
 # This script will be run by Jenkins as a Python dependency test.
 
-set -e
-set -v
-
-# Virtualenv for the rest of the script to run setup
-rm -rf sdks/
-virtualenv sdks/python
-. sdks/python/bin/activate
-pip install -e .[gcp,test,docs]
+set -euv
 
 mkdir -p $WORKSPACE/src/build/dependencyUpdates
 rm -f $WORKSPACE/src/build/dependencyUpdates/python_dependency_report.txt

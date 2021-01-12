@@ -20,11 +20,12 @@ package org.apache.beam.fn.harness;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import org.apache.beam.fn.harness.control.AddHarnessIdInterceptor;
 import org.apache.beam.fn.harness.control.BeamFnControlClient;
+import org.apache.beam.fn.harness.control.FinalizeBundleHandler;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler;
-import org.apache.beam.fn.harness.control.RegisterHandler;
 import org.apache.beam.fn.harness.data.BeamFnDataGrpcClient;
 import org.apache.beam.fn.harness.logging.BeamFnLoggingClient;
 import org.apache.beam.fn.harness.state.BeamFnStateGrpcClientCache;
@@ -32,6 +33,7 @@ import org.apache.beam.fn.harness.stream.HarnessStreamObserverFactories;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse.Builder;
+import org.apache.beam.model.fnexecution.v1.BeamFnControlGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
@@ -44,8 +46,12 @@ import org.apache.beam.sdk.function.ThrowingFunction;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheLoader;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.LoadingCache;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -67,6 +73,9 @@ import org.slf4j.LoggerFactory;
  *       for further details.
  * </ul>
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class FnHarness {
   private static final String HARNESS_ID = "HARNESS_ID";
   private static final String CONTROL_API_SERVICE_DESCRIPTOR = "CONTROL_API_SERVICE_DESCRIPTOR";
@@ -182,7 +191,11 @@ public class FnHarness {
               ThrowingFunction<InstructionRequest, Builder>>
           handlers = new EnumMap<>(BeamFnApi.InstructionRequest.RequestCase.class);
 
-      RegisterHandler fnApiRegistry = new RegisterHandler();
+      ManagedChannel channel = channelFactory.forDescriptor(controlApiServiceDescriptor);
+      BeamFnControlGrpc.BeamFnControlStub controlStub = BeamFnControlGrpc.newStub(channel);
+      BeamFnControlGrpc.BeamFnControlBlockingStub blockingControlStub =
+          BeamFnControlGrpc.newBlockingStub(channel);
+
       BeamFnDataGrpcClient beamFnDataMultiplexer =
           new BeamFnDataGrpcClient(options, channelFactory::forDescriptor, outboundObserverFactory);
 
@@ -190,17 +203,51 @@ public class FnHarness {
           new BeamFnStateGrpcClientCache(
               idGenerator, channelFactory::forDescriptor, outboundObserverFactory);
 
+      FinalizeBundleHandler finalizeBundleHandler =
+          new FinalizeBundleHandler(options.as(GcsOptions.class).getExecutorService());
+
+      LoadingCache<String, BeamFnApi.ProcessBundleDescriptor> processBundleDescriptors =
+          CacheBuilder.newBuilder()
+              .maximumSize(1000)
+              .expireAfterAccess(10, TimeUnit.MINUTES)
+              .build(
+                  new CacheLoader<String, BeamFnApi.ProcessBundleDescriptor>() {
+                    @Override
+                    public BeamFnApi.ProcessBundleDescriptor load(String id) {
+                      return blockingControlStub.getProcessBundleDescriptor(
+                          BeamFnApi.GetProcessBundleDescriptorRequest.newBuilder()
+                              .setProcessBundleDescriptorId(id)
+                              .build());
+                    }
+                  });
+
       ProcessBundleHandler processBundleHandler =
           new ProcessBundleHandler(
-              options, fnApiRegistry::getById, beamFnDataMultiplexer, beamFnStateGrpcClientCache);
-      handlers.put(BeamFnApi.InstructionRequest.RequestCase.REGISTER, fnApiRegistry::register);
-      // TODO(BEAM-6597): Collect MonitoringInfos in ProcessBundleProgressResponses.
+              options,
+              processBundleDescriptors::getUnchecked,
+              beamFnDataMultiplexer,
+              beamFnStateGrpcClientCache,
+              finalizeBundleHandler);
+      // TODO(BEAM-9729): Remove once runners no longer send this instruction.
+      handlers.put(
+          BeamFnApi.InstructionRequest.RequestCase.REGISTER,
+          request ->
+              BeamFnApi.InstructionResponse.newBuilder()
+                  .setRegister(BeamFnApi.RegisterResponse.getDefaultInstance()));
+      handlers.put(
+          BeamFnApi.InstructionRequest.RequestCase.FINALIZE_BUNDLE,
+          finalizeBundleHandler::finalizeBundle);
       handlers.put(
           BeamFnApi.InstructionRequest.RequestCase.PROCESS_BUNDLE,
           processBundleHandler::processBundle);
+      handlers.put(
+          BeamFnApi.InstructionRequest.RequestCase.PROCESS_BUNDLE_PROGRESS,
+          processBundleHandler::progress);
+      handlers.put(
+          BeamFnApi.InstructionRequest.RequestCase.PROCESS_BUNDLE_SPLIT,
+          processBundleHandler::trySplit);
       BeamFnControlClient control =
-          new BeamFnControlClient(
-              id, controlApiServiceDescriptor, channelFactory, outboundObserverFactory, handlers);
+          new BeamFnControlClient(id, controlStub, outboundObserverFactory, handlers);
 
       JvmInitializers.runBeforeProcessing(options);
 

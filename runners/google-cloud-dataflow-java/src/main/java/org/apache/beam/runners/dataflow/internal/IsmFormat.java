@@ -30,7 +30,6 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.util.RandomAccessData;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
@@ -47,6 +46,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.HashFunction;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * An Ism file is a prefix encoded composite key value file broken into shards. Each composite key
@@ -99,6 +99,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
  * the number of shard index records followed by that many shard index records. See {@link
  * IsmShardCoder} for further details as to its encoding scheme.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class IsmFormat {
   private static final int HASH_SEED = 1225801234;
   private static final HashFunction HASH_FUNCTION = Hashing.murmur3_32(HASH_SEED);
@@ -117,12 +120,10 @@ public class IsmFormat {
   public abstract static class IsmRecord<V> {
     abstract List<?> keyComponents();
 
-    @Nullable
-    abstract V value();
+    abstract @Nullable V value();
 
     @SuppressWarnings("mutable")
-    @Nullable
-    abstract byte[] metadata();
+    abstract byte @Nullable [] metadata();
 
     IsmRecord() {} // Prevent public constructor
 
@@ -403,7 +404,7 @@ public class IsmFormat {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       if (other == this) {
         return true;
       }
@@ -458,7 +459,7 @@ public class IsmFormat {
         }
 
         @Override
-        public boolean equals(Object obj) {
+        public boolean equals(@Nullable Object obj) {
           return this == obj;
         }
 

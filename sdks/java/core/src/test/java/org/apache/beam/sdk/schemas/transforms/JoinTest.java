@@ -40,6 +40,9 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link org.apache.beam.sdk.schemas.transforms.Join}. */
 @RunWith(JUnit4.class)
 @Category(UsesSchema.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class JoinTest {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
@@ -91,9 +94,14 @@ public class JoinTest {
             .addRowField(Join.RHS_TAG, CG_SCHEMA_1)
             .build();
 
-    PCollection<Row> joined = pc1.apply(Join.<Row, Row>innerJoin(pc2).using("user", "country"));
+    PCollection<Row> joined1 =
+        pc1.apply(
+            "innerBroadcast", Join.<Row, Row>innerBroadcastJoin(pc2).using("user", "country"));
+    PCollection<Row> joined2 =
+        pc1.apply("inner", Join.<Row, Row>innerJoin(pc2).using("user", "country"));
 
-    assertEquals(expectedSchema, joined.getSchema());
+    assertEquals(expectedSchema, joined1.getSchema());
+    assertEquals(expectedSchema, joined2.getSchema());
 
     List<Row> expectedJoinedRows =
         innerJoin(
@@ -103,7 +111,9 @@ public class JoinTest {
             new String[] {"user", "country"},
             expectedSchema);
 
-    PAssert.that(joined).containsInAnyOrder(expectedJoinedRows);
+    PAssert.that(joined1).containsInAnyOrder(expectedJoinedRows);
+    PAssert.that(joined2).containsInAnyOrder(expectedJoinedRows);
+
     pipeline.run();
   }
 
@@ -142,12 +152,19 @@ public class JoinTest {
             .addRowField(Join.RHS_TAG, CG_SCHEMA_2)
             .build();
 
-    PCollection<Row> joined =
+    PCollection<Row> joined1 =
         pc1.apply(
+            "innerBroadcast",
+            Join.<Row, Row>innerBroadcastJoin(pc2)
+                .on(FieldsEqual.left("user", "country").right("user2", "country2")));
+    PCollection<Row> joined2 =
+        pc1.apply(
+            "inner",
             Join.<Row, Row>innerJoin(pc2)
                 .on(FieldsEqual.left("user", "country").right("user2", "country2")));
 
-    assertEquals(expectedSchema, joined.getSchema());
+    assertEquals(expectedSchema, joined1.getSchema());
+    assertEquals(expectedSchema, joined2.getSchema());
 
     List<Row> expectedJoinedRows =
         innerJoin(
@@ -157,7 +174,8 @@ public class JoinTest {
             new String[] {"user2", "country2"},
             expectedSchema);
 
-    PAssert.that(joined).containsInAnyOrder(expectedJoinedRows);
+    PAssert.that(joined1).containsInAnyOrder(expectedJoinedRows);
+    PAssert.that(joined2).containsInAnyOrder(expectedJoinedRows);
     pipeline.run();
   }
 
@@ -198,6 +216,7 @@ public class JoinTest {
 
     PCollection<Row> joined =
         pc1.apply(
+            "outer",
             Join.<Row, Row>fullOuterJoin(pc2)
                 .on(FieldsEqual.left("user", "country").right("user2", "country2")));
 
@@ -258,7 +277,8 @@ public class JoinTest {
             .addNullableField(Join.RHS_TAG, Schema.FieldType.row(CG_SCHEMA_1))
             .build();
 
-    PCollection<Row> joined = pc1.apply(Join.<Row, Row>fullOuterJoin(pc2).using("user", "country"));
+    PCollection<Row> joined =
+        pc1.apply("outer", Join.<Row, Row>fullOuterJoin(pc2).using("user", "country"));
 
     assertEquals(expectedSchema, joined.getSchema());
 
@@ -317,9 +337,14 @@ public class JoinTest {
             .addNullableField(Join.RHS_TAG, Schema.FieldType.row(CG_SCHEMA_1))
             .build();
 
-    PCollection<Row> joined = pc1.apply(Join.<Row, Row>leftOuterJoin(pc2).using("user", "country"));
+    PCollection<Row> joined1 =
+        pc1.apply(
+            "leftBroadcast", Join.<Row, Row>leftOuterBroadcastJoin(pc2).using("user", "country"));
+    PCollection<Row> joined2 =
+        pc1.apply("left", Join.<Row, Row>leftOuterJoin(pc2).using("user", "country"));
 
-    assertEquals(expectedSchema, joined.getSchema());
+    assertEquals(expectedSchema, joined1.getSchema());
+    assertEquals(expectedSchema, joined2.getSchema());
 
     List<Row> expectedJoinedRows =
         innerJoin(
@@ -333,7 +358,8 @@ public class JoinTest {
             .addValues(Row.withSchema(CG_SCHEMA_1).addValues("user3", 8, "ar").build(), null)
             .build());
 
-    PAssert.that(joined).containsInAnyOrder(expectedJoinedRows);
+    PAssert.that(joined1).containsInAnyOrder(expectedJoinedRows);
+    PAssert.that(joined2).containsInAnyOrder(expectedJoinedRows);
     pipeline.run();
   }
 
@@ -373,7 +399,7 @@ public class JoinTest {
             .build();
 
     PCollection<Row> joined =
-        pc1.apply(Join.<Row, Row>rightOuterJoin(pc2).using("user", "country"));
+        pc1.apply("right", Join.<Row, Row>rightOuterJoin(pc2).using("user", "country"));
 
     assertEquals(expectedSchema, joined.getSchema());
 

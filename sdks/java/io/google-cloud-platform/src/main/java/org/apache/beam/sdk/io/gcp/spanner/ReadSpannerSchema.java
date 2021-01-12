@@ -27,6 +27,9 @@ import org.apache.beam.sdk.transforms.DoFn;
  * This {@link DoFn} reads Cloud Spanner 'information_schema.*' tables to build the {@link
  * SpannerSchema}.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class ReadSpannerSchema extends DoFn<Void, SpannerSchema> {
 
   private final SpannerConfig config;
@@ -39,7 +42,7 @@ class ReadSpannerSchema extends DoFn<Void, SpannerSchema> {
 
   @Setup
   public void setup() throws Exception {
-    spannerAccessor = config.connectToSpanner();
+    spannerAccessor = SpannerAccessor.getOrCreate(config);
   }
 
   @Teardown

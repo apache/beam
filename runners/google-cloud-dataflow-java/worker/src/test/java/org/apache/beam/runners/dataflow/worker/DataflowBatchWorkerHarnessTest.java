@@ -18,7 +18,7 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Matchers.anyString;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.when;
 
@@ -46,6 +46,9 @@ import org.mockito.MockitoAnnotations;
 
 /** Unit tests for {@link DataflowBatchWorkerHarness}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DataflowBatchWorkerHarnessTest {
   @Rule public TestRule restoreSystemProperties = new RestoreSystemProperties();
   @Rule public TestRule restoreLogging = new RestoreDataflowLoggingMDC();

@@ -23,7 +23,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.Function;
-import org.apache.beam.fn.harness.data.BeamFnDataGrpcClient;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnStateGrpc;
@@ -31,8 +30,8 @@ import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.ManagedChannel;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,8 +40,11 @@ import org.slf4j.LoggerFactory;
  *
  * <p>TODO: Add the ability to close which cancels any pending and stops any future requests.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BeamFnStateGrpcClientCache {
-  private static final Logger LOG = LoggerFactory.getLogger(BeamFnDataGrpcClient.class);
+  private static final Logger LOG = LoggerFactory.getLogger(BeamFnStateGrpcClientCache.class);
 
   private final ConcurrentMap<ApiServiceDescriptor, BeamFnStateClient> cache;
   private final Function<ApiServiceDescriptor, ManagedChannel> channelFactory;

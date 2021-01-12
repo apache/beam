@@ -17,13 +17,13 @@
  */
 package org.apache.beam.sdk.io.hdfs;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 
 import java.io.FileNotFoundException;
 import java.io.InputStream;
@@ -66,6 +66,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link HadoopFileSystem}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class HadoopFileSystemTest {
 
   @Rule public TestPipeline p = TestPipeline.create();

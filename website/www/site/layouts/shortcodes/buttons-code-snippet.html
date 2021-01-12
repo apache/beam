@@ -1,0 +1,32 @@
+{{/*
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+*/}}
+
+{{ $colab_logo := "https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" }}
+{{ $github_logo := "https://www.tensorflow.org/images/GitHub-Mark-32px.png" }}
+
+{{ $ctx := . }}
+{{ with (.Get "py") }}
+  {{ with ($ctx.Get "notebook") }}
+    <table align="left" style="margin-right:1em" class=".language-py .notebook-skip" >
+      <td>
+        <a class="button" target="_blank" href="https://colab.research.google.com/github/{{ $ctx.Site.Params.branch_repo }}/{{ $ctx.Get `notebook` }}-py.ipynb"><img src="{{ $colab_logo }}" width="32px" height="32px" alt="Run code now" /> Run code now</a>
+      </td>
+    </table>
+  {{ end }}
+  <table align="left" style="margin-right:1em" class=".language-py" >
+    <td>
+      <a class="button" target="_blank" href="https://github.com/{{ $ctx.Site.Params.branch_repo }}/{{ $ctx.Get `py` }}"><img src="{{ $github_logo }}" width="32px" height="32px" alt="View source code" /> View source code</a>
+    </td>
+  </table>
+{{ end }}
+
+<p><br><br><br></p>

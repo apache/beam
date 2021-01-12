@@ -31,6 +31,9 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 /** Test class for MetricsGraphiteSink. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class MetricsGraphiteSinkTest {
   private static NetworkMockServer graphiteServer;
   private static int port;
@@ -69,20 +72,20 @@ public class MetricsGraphiteSinkTest {
     countDownLatch.await();
     String join = String.join("\n", graphiteServer.getMessages());
     String regexpr =
-        "beam.counter.ns1.n1.committed.value 10 [0-9]+\\n"
-            + "beam.counter.ns1.n1.attempted.value 20 [0-9]+\\n"
-            + "beam.gauge.ns1.n3.committed.value 100 [0-9]+\\n"
-            + "beam.gauge.ns1.n3.attempted.value 120 [0-9]+\\n"
-            + "beam.distribution.ns1.n2.committed.min 5 [0-9]+\\n"
-            + "beam.distribution.ns1.n2.attempted.min 3 [0-9]+\\n"
-            + "beam.distribution.ns1.n2.committed.max 8 [0-9]+\\n"
-            + "beam.distribution.ns1.n2.attempted.max 9 [0-9]+\\n"
-            + "beam.distribution.ns1.n2.committed.count 2 [0-9]+\\n"
-            + "beam.distribution.ns1.n2.attempted.count 4 [0-9]+\\n"
-            + "beam.distribution.ns1.n2.committed.sum 10 [0-9]+\\n"
-            + "beam.distribution.ns1.n2.attempted.sum 25 [0-9]+\\n"
-            + "beam.distribution.ns1.n2.committed.mean 5.0 [0-9]+\\n"
-            + "beam.distribution.ns1.n2.attempted.mean 6.25 [0-9]+";
+        "beam.counter.ns1.n1.s1.committed.value 10 [0-9]+\\n"
+            + "beam.counter.ns1.n1.s1.attempted.value 20 [0-9]+\\n"
+            + "beam.gauge.ns1.n3.s3.committed.value 100 [0-9]+\\n"
+            + "beam.gauge.ns1.n3.s3.attempted.value 120 [0-9]+\\n"
+            + "beam.distribution.ns1.n2.s2.committed.min 5 [0-9]+\\n"
+            + "beam.distribution.ns1.n2.s2.attempted.min 3 [0-9]+\\n"
+            + "beam.distribution.ns1.n2.s2.committed.max 8 [0-9]+\\n"
+            + "beam.distribution.ns1.n2.s2.attempted.max 9 [0-9]+\\n"
+            + "beam.distribution.ns1.n2.s2.committed.count 2 [0-9]+\\n"
+            + "beam.distribution.ns1.n2.s2.attempted.count 4 [0-9]+\\n"
+            + "beam.distribution.ns1.n2.s2.committed.sum 10 [0-9]+\\n"
+            + "beam.distribution.ns1.n2.s2.attempted.sum 25 [0-9]+\\n"
+            + "beam.distribution.ns1.n2.s2.committed.mean 5.0 [0-9]+\\n"
+            + "beam.distribution.ns1.n2.s2.attempted.mean 6.25 [0-9]+";
     assertTrue(join.matches(regexpr));
   }
 
@@ -99,13 +102,13 @@ public class MetricsGraphiteSinkTest {
     countDownLatch.await();
     String join = String.join("\n", graphiteServer.getMessages());
     String regexpr =
-        "beam.counter.ns1.n1.attempted.value 20 [0-9]+\\n"
-            + "beam.gauge.ns1.n3.attempted.value 120 [0-9]+\\n"
-            + "beam.distribution.ns1.n2.attempted.min 3 [0-9]+\\n"
-            + "beam.distribution.ns1.n2.attempted.max 9 [0-9]+\\n"
-            + "beam.distribution.ns1.n2.attempted.count 4 [0-9]+\\n"
-            + "beam.distribution.ns1.n2.attempted.sum 25 [0-9]+\\n"
-            + "beam.distribution.ns1.n2.attempted.mean 6.25 [0-9]+";
+        "beam.counter.ns1.n1.s1.attempted.value 20 [0-9]+\\n"
+            + "beam.gauge.ns1.n3.s3.attempted.value 120 [0-9]+\\n"
+            + "beam.distribution.ns1.n2.s2.attempted.min 3 [0-9]+\\n"
+            + "beam.distribution.ns1.n2.s2.attempted.max 9 [0-9]+\\n"
+            + "beam.distribution.ns1.n2.s2.attempted.count 4 [0-9]+\\n"
+            + "beam.distribution.ns1.n2.s2.attempted.sum 25 [0-9]+\\n"
+            + "beam.distribution.ns1.n2.s2.attempted.mean 6.25 [0-9]+";
     assertTrue(join.matches(regexpr));
   }
 }
