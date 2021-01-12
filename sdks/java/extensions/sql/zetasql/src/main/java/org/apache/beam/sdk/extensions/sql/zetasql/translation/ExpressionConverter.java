@@ -667,7 +667,9 @@ public class ExpressionConverter {
       }
     } else if (USER_DEFINED_FUNCTIONS.equals(funGroup)) {
       ResolvedCreateFunctionStmt createFunctionStmt =
-          userFunctionDefinitions.sqlScalarFunctions.get(functionCall.getFunction().getNamePath());
+          userFunctionDefinitions
+              .sqlScalarFunctions()
+              .get(functionCall.getFunction().getNamePath());
       ResolvedExpr functionExpression = createFunctionStmt.getFunctionExpression();
       ImmutableMap.Builder<String, RexNode> innerFunctionArguments = ImmutableMap.builder();
       for (int i = 0; i < functionCall.getArgumentList().size(); i++) {

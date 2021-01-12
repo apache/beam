@@ -41,10 +41,14 @@ import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
+import org.apache.beam.sdk.extensions.sql.meta.provider.kafka.thrift.ItThriftMessage;
+import org.apache.beam.sdk.io.thrift.ThriftCoder;
+import org.apache.beam.sdk.io.thrift.ThriftSchema;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.Validation;
+import org.apache.beam.sdk.schemas.RowMessages;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.state.BagState;
@@ -59,12 +63,15 @@ import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.thrift.protocol.TBinaryProtocol;
+import org.apache.thrift.protocol.TProtocolFactory;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Assert;
 import org.junit.Before;
@@ -109,7 +116,8 @@ public class KafkaTableProviderIT {
           {new KafkaJsonObjectProvider(), "json_topic"},
           {new KafkaAvroObjectProvider(), "avro_topic"},
           {new KafkaProtoObjectProvider(), "proto_topic"},
-          {new KafkaCsvObjectProvider(), "csv_topic"}
+          {new KafkaCsvObjectProvider(), "csv_topic"},
+          {new KafkaThriftObjectProvider(), "thrift_topic"}
         });
   }
 
@@ -393,6 +401,43 @@ public class KafkaTableProviderIT {
     @Override
     protected String getPayloadFormat() {
       return "avro";
+    }
+  }
+
+  private static class KafkaThriftObjectProvider extends KafkaObjectProvider {
+    private final Class<ItThriftMessage> thriftClass = ItThriftMessage.class;
+    private final TProtocolFactory protocolFactory = new TBinaryProtocol.Factory();
+    private final SimpleFunction<Row, byte[]> toBytesFn =
+        RowMessages.rowToBytesFn(
+            ThriftSchema.provider(),
+            TypeDescriptor.of(thriftClass),
+            ThriftCoder.of(thriftClass, protocolFactory));
+
+    @Override
+    protected ProducerRecord<String, byte[]> generateProducerRecord(int i) {
+      return new ProducerRecord<>(
+          kafkaOptions.getKafkaTopic(), "k" + i, toBytesFn.apply(generateRow(i)));
+    }
+
+    @Override
+    protected String getKafkaPropertiesString() {
+      return "{ "
+          + "\"format\" : \"thrift\","
+          + "\"bootstrap.servers\" : \""
+          + kafkaOptions.getKafkaBootstrapServerAddress()
+          + "\",\"topics\":[\""
+          + kafkaOptions.getKafkaTopic()
+          + "\"],"
+          + "\"thriftClass\": \""
+          + thriftClass.getName()
+          + "\", \"thriftProtocolFactoryClass\": \""
+          + protocolFactory.getClass().getName()
+          + "\"}";
+    }
+
+    @Override
+    protected String getPayloadFormat() {
+      return "thrift";
     }
   }
 

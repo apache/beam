@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
 
 import com.google.api.gax.longrunning.OperationFuture;
 import com.google.cloud.spanner.Database;

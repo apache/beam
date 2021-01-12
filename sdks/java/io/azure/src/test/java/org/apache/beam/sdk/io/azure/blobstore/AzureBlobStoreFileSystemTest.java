@@ -19,10 +19,10 @@ package org.apache.beam.sdk.io.azure.blobstore;
 
 import static java.util.UUID.randomUUID;
 import static org.apache.beam.sdk.io.fs.CreateOptions.StandardCreateOptions.builder;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
