@@ -18,24 +18,23 @@
 package org.apache.beam.examples.complete.kafkatopubsub;
 
 import static org.apache.beam.examples.complete.kafkatopubsub.transforms.FormatTransform.readFromKafka;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasProperty;
 
 import com.google.auth.Credentials;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
-import java.util.function.Supplier;
 import org.apache.beam.examples.complete.kafkatopubsub.utils.RunKafkaContainer;
 import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.extensions.gcp.auth.NoopCredentialFactory;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
-import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
-import org.apache.beam.sdk.io.gcp.pubsub.PubsubJsonClient;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubOptions;
-import org.apache.beam.sdk.io.gcp.pubsub.TestPubsubSignal;
+import org.apache.beam.sdk.io.gcp.pubsub.TestPubsub;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Values;
@@ -52,15 +51,12 @@ import org.testcontainers.utility.DockerImageName;
 public class KafkaToPubsubE2ETest {
 
   @Rule public final transient TestPipeline pipeline = TestPipeline.fromOptions(OPTIONS);
-  @Rule public transient TestPubsubSignal signal = TestPubsubSignal.fromOptions(OPTIONS);
+  @Rule public final transient TestPubsub testPubsub = TestPubsub.fromOptions(OPTIONS);
 
   private static final String PUBSUB_EMULATOR_IMAGE =
       "gcr.io/google.com/cloudsdktool/cloud-sdk:316.0.0-emulators";
   private static final String PUBSUB_MESSAGE = "test pubsub message";
   private static final String PROJECT_ID = "try-kafka-pubsub";
-  private static final String TOPIC_NAME = "listen-to-kafka";
-  private static final PubsubClient.TopicPath TOPIC_PATH =
-      PubsubClient.topicPathFromName(PROJECT_ID, TOPIC_NAME);
   private static final PipelineOptions OPTIONS = TestPipeline.testingPipelineOptions();
 
   @BeforeClass
@@ -69,18 +65,17 @@ public class KafkaToPubsubE2ETest {
     OPTIONS.as(GcpOptions.class).setGcpCredential(credentials);
     OPTIONS.as(GcpOptions.class).setProject(PROJECT_ID);
     setupPubsubContainer(OPTIONS.as(PubsubOptions.class));
-    createPubsubTopicForTest(OPTIONS.as(PubsubOptions.class));
   }
 
   @Test
-  public void testKafkaToPubsubE2E() throws IOException {
+  public void testKafkaToPubsubE2E() throws IOException, InterruptedException {
     pipeline.getOptions().as(DirectOptions.class).setBlockOnRun(false);
 
     RunKafkaContainer rkc = new RunKafkaContainer(PUBSUB_MESSAGE);
     String bootstrapServer = rkc.getBootstrapServer();
-    String[] kafkaTopicsList = new String[] {rkc.getTopicName()};
+    String[] kafkaTopicsList = new String[]{rkc.getTopicName()};
 
-    String pubsubTopicPath = TOPIC_PATH.getPath();
+    String pubsubTopicPath = testPubsub.topicPath().getPath();
 
     Map<String, Object> kafkaConfig = new HashMap<>();
     Map<String, String> sslConfig = new HashMap<>();
@@ -90,32 +85,17 @@ public class KafkaToPubsubE2ETest {
             "readFromKafka",
             readFromKafka(bootstrapServer, Arrays.asList(kafkaTopicsList), kafkaConfig, sslConfig));
 
-    PCollection<String> readFromPubsub =
-        readStrings
-            .apply(Values.create())
-            .apply("writeToPubSub", PubsubIO.writeStrings().to(pubsubTopicPath))
-            .getPipeline()
-            .apply("readFromPubsub", PubsubIO.readStrings().fromTopic(pubsubTopicPath));
+    readStrings
+        .apply(Values.create())
+        .apply("writeToPubSub", PubsubIO.writeStrings().to(pubsubTopicPath));
 
-    readFromPubsub.apply(
-        "waitForTestMessage",
-        signal.signalSuccessWhen(
-            readFromPubsub.getCoder(),
-            input -> {
-              if (input == null) {
-                return false;
-              }
-              return input.stream().anyMatch(message -> Objects.equals(message, PUBSUB_MESSAGE));
-            }));
-
-    Supplier<Void> start = signal.waitForStart(Duration.standardSeconds(10));
-    pipeline.apply(signal.signalStart());
     PipelineResult job = pipeline.run();
-    start.get();
-    signal.waitForSuccess(Duration.standardMinutes(2));
+    testPubsub.assertThatTopicEventuallyReceives(
+        hasProperty("payload", equalTo(PUBSUB_MESSAGE.getBytes(StandardCharsets.UTF_8)))
+    ).waitForUpTo(Duration.standardMinutes(2));
     try {
       job.cancel();
-    } catch (IOException | UnsupportedOperationException e) {
+    } catch (UnsupportedOperationException e) {
       throw new AssertionError("Could not stop pipeline.", e);
     }
   }
@@ -126,14 +106,5 @@ public class KafkaToPubsubE2ETest {
     emulator.start();
     String pubsubUrl = emulator.getEmulatorEndpoint();
     options.setPubsubRootUrl("http://" + pubsubUrl);
-  }
-
-  private static void createPubsubTopicForTest(PubsubOptions options) {
-    try {
-      PubsubClient pubsubClient = PubsubJsonClient.FACTORY.newClient(null, null, options);
-      pubsubClient.createTopic(TOPIC_PATH);
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
   }
 }
