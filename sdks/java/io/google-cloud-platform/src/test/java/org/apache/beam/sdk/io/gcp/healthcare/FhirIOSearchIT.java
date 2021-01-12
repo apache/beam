@@ -160,7 +160,7 @@ public class FhirIOSearchIT {
 
   public static class IntegerListObjectCoder extends CustomCoder<Object> {
     private static final IntegerListObjectCoder CODER = new IntegerListObjectCoder();
-    private static final ListCoder<Integer> STRING_LIST_CODER = ListCoder.of(VarIntCoder.of());
+    private static final ListCoder<Integer> INTEGER_LIST_CODER = ListCoder.of(VarIntCoder.of());
 
     public static IntegerListObjectCoder of() {
       return CODER;
@@ -168,14 +168,13 @@ public class FhirIOSearchIT {
 
     @Override
     public void encode(Object value, OutputStream outStream) throws IOException {
-      STRING_LIST_CODER.encode((List<Integer>) value, outStream);
+      INTEGER_LIST_CODER.encode((List<Integer>) value, outStream);
     }
 
     @Override
     public Object decode(InputStream inStream) throws IOException {
-      return STRING_LIST_CODER.decode(inStream);
+      return INTEGER_LIST_CODER.decode(inStream);
     }
-
   }
 
   @Test
