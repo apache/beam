@@ -39,7 +39,6 @@ public final class NexmarkQuery<T extends KnownSize>
   final NexmarkConfiguration configuration;
   public final Monitor<Event> eventMonitor;
   public final Monitor<T> resultMonitor;
-  private final Monitor<Event> endOfStreamMonitor;
   private final Counter fatalCounter;
   private final NexmarkQueryTransform<T> transform;
   private transient PCollection<KV<Long, String>> sideInput = null;
@@ -51,12 +50,10 @@ public final class NexmarkQuery<T extends KnownSize>
     if (configuration.debug) {
       eventMonitor = new Monitor<>(name + ".Events", "event");
       resultMonitor = new Monitor<>(name + ".Results", "result");
-      endOfStreamMonitor = new Monitor<>(name + ".EndOfStream", "end");
       fatalCounter = Metrics.counter(name, "fatal");
     } else {
       eventMonitor = null;
       resultMonitor = null;
-      endOfStreamMonitor = null;
       fatalCounter = null;
     }
   }
