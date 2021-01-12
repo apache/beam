@@ -1,6 +1,6 @@
 ---
 title:  "How to validate a Beam Release"
-date:   2020-01-08 00:00:01 -0800
+date:   2021-01-10 00:00:01 -0800
 categories:
   - blog
 authors:
@@ -61,7 +61,7 @@ Beam 2.27.0, this was `https://repository.apache.org/content/repositories/orgapa
             <repositories>
                 <repository>
                     <id>apache.beam.newrelease</id>
-                    <url>https://repository.apache.org/content/repositories/orgapachebeam-XXXX/</url>
+                    <url>${beam.release.repo}</url>
                 </repository>
             </repositories>
         </profile>
@@ -72,7 +72,7 @@ with the new release, you can run your `mvn` command activating the new profile,
 and the new Beam version:
 
 ```
-mvn test -Pvalidaterelease -Dbeam.version=2.27.0
+mvn test -Pvalidaterelease -Dbeam.version=2.27.0 -Dbeam.release.repo=https://repository.apache.org/content/repositories/orgapachebeam-XXXX/
 ```
 
 This should build your project against the new release, and run basic tests.
@@ -83,4 +83,13 @@ finalized, so your concerns can be addressed by the community.
 
 ### Configuring a Python build to validate a Beam release candidate
 
-TODO
+For Python SDK, you can install the SDK from the source code published
+by the release manager. Python artifacts are published as wheel files,
+and a zip file with the source code. You can find them in these paths:
+
+```
+https://dist.apache.org/repos/dist/dev/beam/${RELEASE}/python/
+```
+
+After choosing a wheel file that works for you, you can install it
+in your environment, and run your tests.
