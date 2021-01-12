@@ -151,11 +151,13 @@ match BigQuery&rsquo;s exported JSON format. This method is convenient, but can 
 use <code>readTableRows</code>.</p></li></ol></span><p class=language-java><em><strong>Note:</strong></em> <code>BigQueryIO.read()</code> is deprecated as of Beam SDK 2.2.0. Instead, use
 <code>read(SerializableFunction&lt;SchemaAndRecord, T>)</code> to parse BigQuery rows from
 Avro <code>GenericRecord</code> into your custom type, or use <code>readTableRows()</code> to parse
-them into JSON <code>TableRow</code> objects.</p><p class=language-py>To read from a BigQuery table using the Beam SDK for Python, apply a <code>Read</code>
-transform on a <code>BigQuerySource</code>. Read returns a <code>PCollection</code> of dictionaries,
+them into JSON <code>TableRow</code> objects.</p><p class=language-py>To read from a BigQuery table using the Beam SDK for Python, apply a <code>ReadFromBigQuery</code>
+transfrom. <code>ReadFromBigQuery</code> returns a <code>PCollection</code> of dictionaries,
 where each element in the <code>PCollection</code> represents a single row in the table.
 Integer values in the <code>TableRow</code> objects are encoded as strings to match
-BigQuery&rsquo;s exported JSON format.</p><h3 id=reading-from-a-table>Reading from a table</h3><p class=language-java>To read an entire BigQuery table, use the <code>from</code> method with a BigQuery table
+BigQuery&rsquo;s exported JSON format.</p><p class=language-py><em><strong>Note:</strong></em> <code>BigQuerySource()</code> is deprecated as of Beam SDK 2.25.0. Before 2.25.0, to read from
+a BigQuery table using the Beam SDK, you will apply a <code>Read</code> transform on a <code>BigQuerySource</code>. For example,
+<code>beam.io.Read(beam.io.BigQuerySource(table_spec))</code>.</p><h3 id=reading-from-a-table>Reading from a table</h3><p class=language-java>To read an entire BigQuery table, use the <code>from</code> method with a BigQuery table
 name. This example uses <code>readTableRows</code>.</p><p class=language-py>To read an entire BigQuery table, use the <code>table</code> parameter with the BigQuery
 table name.</p><p>The following code reads an entire table that contains weather station data and
 then extracts the <code>max_temperature</code> column.</p><div class=language-java><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=kn>import</span> <span class=nn>org.apache.beam.examples.snippets.transforms.io.gcp.bigquery.BigQueryMyData.MyData</span><span class=o>;</span>
@@ -188,11 +190,11 @@ then extracts the <code>max_temperature</code> column.</p><div class=language-ja
   <span class=o>}</span>
 <span class=o>}</span></code></pre></div></div><div class=language-py><div class=highlight><pre class=chroma><code class=language-py data-lang=py><span class=n>max_temperatures</span> <span class=o>=</span> <span class=p>(</span>
     <span class=n>p</span>
-    <span class=o>|</span> <span class=s1>&#39;ReadTable&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>io</span><span class=o>.</span><span class=n>Read</span><span class=p>(</span><span class=n>beam</span><span class=o>.</span><span class=n>io</span><span class=o>.</span><span class=n>BigQuerySource</span><span class=p>(</span><span class=n>table_spec</span><span class=p>))</span>
+    <span class=o>|</span> <span class=s1>&#39;ReadTable&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>io</span><span class=o>.</span><span class=n>ReadFromBigQuery</span><span class=p>(</span><span class=n>table</span><span class=o>=</span><span class=n>table_spec</span><span class=p>)</span>
     <span class=c1># Each row is a dictionary where the keys are the BigQuery columns</span>
     <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>lambda</span> <span class=n>elem</span><span class=p>:</span> <span class=n>elem</span><span class=p>[</span><span class=s1>&#39;max_temperature&#39;</span><span class=p>]))</span></code></pre></div></div><h3 id=reading-with-a-query-string>Reading with a query string</h3><p class=language-java>If you don&rsquo;t want to read an entire table, you can supply a query string with
 the <code>fromQuery</code> method.</p><p class=language-py>If you don&rsquo;t want to read an entire table, you can supply a query string to
-<code>BigQuerySource</code> by specifying the <code>query</code> parameter.</p><p class=language-py>The following code uses a SQL query to only read the <code>max_temperature</code> column.</p><div class=language-java><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=kn>import</span> <span class=nn>org.apache.beam.examples.snippets.transforms.io.gcp.bigquery.BigQueryMyData.MyData</span><span class=o>;</span>
+<code>ReadFromBigQuery</code> by specifying the <code>query</code> parameter.</p><p class=language-py>The following code uses a SQL query to only read the <code>max_temperature</code> column.</p><div class=language-java><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=kn>import</span> <span class=nn>org.apache.beam.examples.snippets.transforms.io.gcp.bigquery.BigQueryMyData.MyData</span><span class=o>;</span>
 <span class=kn>import</span> <span class=nn>org.apache.beam.sdk.Pipeline</span><span class=o>;</span>
 <span class=kn>import</span> <span class=nn>org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO</span><span class=o>;</span>
 <span class=kn>import</span> <span class=nn>org.apache.beam.sdk.transforms.MapElements</span><span class=o>;</span>
@@ -224,9 +226,9 @@ the <code>fromQuery</code> method.</p><p class=language-py>If you don&rsquo;t wa
   <span class=o>}</span>
 <span class=o>}</span></code></pre></div></div><div class=language-py><div class=highlight><pre class=chroma><code class=language-py data-lang=py><span class=n>max_temperatures</span> <span class=o>=</span> <span class=p>(</span>
     <span class=n>p</span>
-    <span class=o>|</span> <span class=s1>&#39;QueryTable&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>io</span><span class=o>.</span><span class=n>Read</span><span class=p>(</span><span class=n>beam</span><span class=o>.</span><span class=n>io</span><span class=o>.</span><span class=n>BigQuerySource</span><span class=p>(</span>
+    <span class=o>|</span> <span class=s1>&#39;QueryTable&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>io</span><span class=o>.</span><span class=n>ReadFromBigQuery</span><span class=p>(</span>
         <span class=n>query</span><span class=o>=</span><span class=s1>&#39;SELECT max_temperature FROM &#39;</span>\
-              <span class=s1>&#39;[clouddataflow-readonly:samples.weather_stations]&#39;</span><span class=p>))</span>
+              <span class=s1>&#39;[clouddataflow-readonly:samples.weather_stations]&#39;</span><span class=p>)</span>
     <span class=c1># Each row is a dictionary where the keys are the BigQuery columns</span>
     <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>lambda</span> <span class=n>elem</span><span class=p>:</span> <span class=n>elem</span><span class=p>[</span><span class=s1>&#39;max_temperature&#39;</span><span class=p>]))</span></code></pre></div></div><p>You can also use BigQuery&rsquo;s standard SQL dialect with a query string, as shown
 in the following example:</p><div class=language-java><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=n>PCollection</span><span class=o>&lt;</span><span class=n>Double</span><span class=o>&gt;</span> <span class=n>maxTemperatures</span> <span class=o>=</span>
@@ -238,10 +240,10 @@ in the following example:</p><div class=language-java><div class=highlight><pre 
             <span class=o>.</span><span class=na>usingStandardSql</span><span class=o>()</span>
             <span class=o>.</span><span class=na>withCoder</span><span class=o>(</span><span class=n>DoubleCoder</span><span class=o>.</span><span class=na>of</span><span class=o>()));</span></code></pre></div></div><div class=language-py><div class=highlight><pre class=chroma><code class=language-py data-lang=py><span class=n>max_temperatures</span> <span class=o>=</span> <span class=p>(</span>
     <span class=n>p</span>
-    <span class=o>|</span> <span class=s1>&#39;QueryTableStdSQL&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>io</span><span class=o>.</span><span class=n>Read</span><span class=p>(</span><span class=n>beam</span><span class=o>.</span><span class=n>io</span><span class=o>.</span><span class=n>BigQuerySource</span><span class=p>(</span>
+    <span class=o>|</span> <span class=s1>&#39;QueryTableStdSQL&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>io</span><span class=o>.</span><span class=n>ReadFromBigQuery</span><span class=p>(</span>
         <span class=n>query</span><span class=o>=</span><span class=s1>&#39;SELECT max_temperature FROM &#39;</span>\
               <span class=s1>&#39;`clouddataflow-readonly.samples.weather_stations`&#39;</span><span class=p>,</span>
-        <span class=n>use_standard_sql</span><span class=o>=</span><span class=bp>True</span><span class=p>))</span>
+        <span class=n>use_standard_sql</span><span class=o>=</span><span class=bp>True</span><span class=p>)</span>
     <span class=c1># Each row is a dictionary where the keys are the BigQuery columns</span>
     <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>lambda</span> <span class=n>elem</span><span class=p>:</span> <span class=n>elem</span><span class=p>[</span><span class=s1>&#39;max_temperature&#39;</span><span class=p>]))</span></code></pre></div></div><h3 id=storage-api>Using the BigQuery Storage API</h3><p>The <a href=https://cloud.google.com/bigquery/docs/reference/storage/>BigQuery Storage API</a>
 allows you to directly access tables in BigQuery storage, and supports features
