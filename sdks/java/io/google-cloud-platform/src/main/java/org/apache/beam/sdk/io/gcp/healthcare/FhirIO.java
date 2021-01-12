@@ -1612,15 +1612,13 @@ public class FhirIO {
             HealthcareApiClient client,
             String fhirStore,
             String resourceType,
-            Map<String, T> parameters)
+            @Nullable Map<String, T> parameters)
             throws NoSuchElementException {
           long startTime = System.currentTimeMillis();
 
           HashMap<String, Object> parameterObjects = new HashMap<>();
           if (parameters != null) {
-            for (Map.Entry<String, T> entry : parameters.entrySet()) {
-              parameterObjects.put(entry.getKey(), entry.getValue());
-            }
+            parameters.forEach(parameterObjects::put);
           }
           HttpHealthcareApiClient.FhirResourcePages.FhirResourcePagesIterator iter =
               new HttpHealthcareApiClient.FhirResourcePages.FhirResourcePagesIterator(
