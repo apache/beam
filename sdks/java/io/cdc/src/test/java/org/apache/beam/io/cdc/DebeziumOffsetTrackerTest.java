@@ -21,7 +21,7 @@ public class DebeziumOffsetTrackerTest implements Serializable {
         int maxNumRecords = 10;
         Map<String, Object> position = new HashMap<>();
         KafkaSourceConsumerFn<String> kafkaSourceConsumerFn = new KafkaSourceConsumerFn<String>(MySqlConnector.class,
-                new SourceRecordJson.SourceRecordJsonMapper());
+                new SourceRecordJson.SourceRecordJsonMapper(), maxNumRecords);
         DebeziumOffsetHolder restriction = kafkaSourceConsumerFn.getInitialRestriction(new HashMap<>());
         DebeziumOffsetTracker tracker = new DebeziumOffsetTracker(restriction);
         for (int records=0; records<maxNumRecords; records++) {

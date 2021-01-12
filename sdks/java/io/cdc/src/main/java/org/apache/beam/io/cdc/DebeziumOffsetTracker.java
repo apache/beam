@@ -33,7 +33,6 @@ public class DebeziumOffsetTracker extends RestrictionTracker<DebeziumOffsetHold
 
     private DebeziumOffsetHolder restriction;
     private static final long MILLIS = 60 * 1000;
-    private final Integer maxRecords = 10;
 
     DebeziumOffsetTracker(DebeziumOffsetHolder holder) {
         this.restriction = holder;
@@ -67,7 +66,7 @@ public class DebeziumOffsetTracker extends RestrictionTracker<DebeziumOffsetHold
         this.restriction = new DebeziumOffsetHolder(position, this.restriction.history, fetchedRecords);
         LOG.debug("-------------- History: {}", this.restriction.history);
         if (KafkaSourceConsumerFn.minutesToRun < 0) {
-            return fetchedRecords < maxRecords;
+            return fetchedRecords < KafkaSourceConsumerFn.maxRecords;
         }
         return elapsedTime < (KafkaSourceConsumerFn.minutesToRun * MILLIS);
     }

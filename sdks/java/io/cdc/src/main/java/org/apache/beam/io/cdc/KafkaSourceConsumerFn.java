@@ -44,6 +44,7 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
     public static final String BEAM_INSTANCE_PROPERTY = "beam.parent.instance";
 
     public static long minutesToRun = -1;
+    public static long maxRecords = 10;
     public static DateTime startTime;
 
     private final Class<? extends SourceConnector> connectorClass;
@@ -57,9 +58,10 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
         KafkaSourceConsumerFn.minutesToRun = minutesToRun;
     }
 
-    public KafkaSourceConsumerFn(Class<?> connectorClass, SourceRecordMapper<T> fn) {
+    public KafkaSourceConsumerFn(Class<?> connectorClass, SourceRecordMapper<T> fn, int recordsToFetch) {
         this.connectorClass = (Class<? extends SourceConnector>) connectorClass;
         this.fn = fn;
+        KafkaSourceConsumerFn.maxRecords = recordsToFetch;
     }
 
     @GetInitialRestriction

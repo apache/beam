@@ -132,7 +132,7 @@ public class DebeziumIO {
                             .withCoder(MapCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of())))
                     .apply(ParDo.of(new KafkaSourceConsumerFn<>(
                             getConnectorConfiguration().getConnectorClass().get(),
-                            getFormatFunction())))
+                            getFormatFunction(), 10)))
                     .setCoder(getCoder());
         }
     }

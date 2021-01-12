@@ -64,7 +64,7 @@ public class KafkaSourceConsumerFnTest implements Serializable {
                         .withCoder(MapCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of())))
                 .apply(ParDo.of(new KafkaSourceConsumerFn<>(
                         CounterSourceConnector.class,
-                        sourceRecord -> (Integer) sourceRecord.value())))
+                        sourceRecord -> (Integer) sourceRecord.value(), 10)))
                 .setCoder(VarIntCoder.of());
 
         PAssert.that(counts).containsInAnyOrder(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
