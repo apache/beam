@@ -1560,7 +1560,7 @@ public class FhirIO {
             Metrics.distribution(SearchResourcesFn.class, "fhir-search-latency-ms");
         private Counter failedSearches =
             Metrics.counter(SearchResourcesFn.class, "failed-fhir-searches");
-        private final Logger LOG = LoggerFactory.getLogger(SearchResourcesFn.class);
+        private final Logger log = LoggerFactory.getLogger(SearchResourcesFn.class);
         private final Counter successfulSearches =
             Metrics.counter(SearchResourcesFn.class, "successful-fhir-searches");
         private HealthcareApiClient client;
@@ -1598,7 +1598,7 @@ public class FhirIO {
                     elementValues.getValue()));
           } catch (IllegalArgumentException | NoSuchElementException e) {
             failedSearches.inc();
-            LOG.warn(
+            log.warn(
                 String.format(
                     "Error search FHIR messages writing to Dead Letter "
                         + "Queue. Cause: %s Stack Trace: %s",
