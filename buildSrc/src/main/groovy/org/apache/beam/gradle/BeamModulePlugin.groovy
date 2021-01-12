@@ -449,6 +449,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def spark_version = "2.4.7"
     def spotbugs_version = "4.0.6"
     def testcontainers_version = "1.15.1"
+    def jsr305_version = "3.0.2"
 
     // A map of maps containing common libraries used per language. To use:
     // dependencies {
@@ -576,7 +577,7 @@ class BeamModulePlugin implements Plugin<Project> {
         jaxb_impl                                   : "com.sun.xml.bind:jaxb-impl:$jaxb_api_version",
         joda_time                                   : "joda-time:joda-time:2.10.5",
         jsonassert                                  : "org.skyscreamer:jsonassert:1.5.0",
-        jsr305                                      : "com.google.code.findbugs:jsr305:3.0.2",
+        jsr305                                      : "com.google.code.findbugs:jsr305:$jsr305_version",
         junit                                       : "junit:junit:4.13-beta-3",
         kafka                                       : "org.apache.kafka:kafka_2.11:$kafka_version",
         kafka_clients                               : "org.apache.kafka:kafka-clients:$kafka_version",
@@ -858,7 +859,7 @@ class BeamModulePlugin implements Plugin<Project> {
         "com.google.auto.value:auto-value-annotations:1.7.2",
         "com.google.auto.service:auto-service-annotations:1.0-rc6",
         "com.google.j2objc:j2objc-annotations:1.3",
-        "com.google.code.findbugs:jsr305:3.0.2",
+        "com.google.code.findbugs:jsr305:$jsr305_version",
         // These dependencies are needed to avoid error-prone warnings on package-info.java files,
         // also to include the annotations to suppress warnings.
         //
@@ -894,7 +895,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
         // Add common annotation processors to all Java projects
         def annotationProcessorDeps = [
-          "com.google.auto.value:auto-value:1.7",
+          "com.google.auto.value:auto-value:1.7.2",
           "com.google.auto.service:auto-service:1.0-rc6",
         ]
 
@@ -973,7 +974,7 @@ class BeamModulePlugin implements Plugin<Project> {
         project.apply plugin: 'com.github.spotbugs'
         project.dependencies {
           spotbugs "com.github.spotbugs:spotbugs:$spotbugs_version"
-          spotbugs "com.google.auto.value:auto-value:1.7"
+          spotbugs "com.google.auto.value:auto-value:1.7.2"
           compileOnlyAnnotationDeps.each { dep -> spotbugs dep }
         }
         project.spotbugs {
