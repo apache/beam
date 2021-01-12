@@ -246,6 +246,28 @@ class UtilTest(unittest.TestCase):
     self.assertEqual(
         docker_payload.container_image, 'new_dummy_container_image')
 
+  def test_dataflow_container_image_override(self):
+    test_environment = DockerEnvironment(
+        container_image='apache/beam_java11_sdk:x.yz.0')
+    proto_pipeline, _ = Pipeline().to_runner_api(
+        return_context=True, default_environment=test_environment)
+
+    # Accessing non-public method for testing.
+    apiclient.DataflowApplicationClient._apply_sdk_environment_overrides(
+        proto_pipeline, dict())
+
+    self.assertIsNotNone(1, len(proto_pipeline.components.environments))
+    env = list(proto_pipeline.components.environments.values())[0]
+
+    from apache_beam.utils import proto_utils
+    docker_payload = proto_utils.parse_Bytes(
+        env.payload, beam_runner_api_pb2.DockerPayload)
+
+    # Container image should be overridden by a the given override.
+    self.assertTrue(
+        docker_payload.container_image.startswith(
+            names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY))
+
   def test_invalid_default_job_name(self):
     # Regexp for job names in dataflow.
     regexp = '^[a-z]([-a-z0-9]{0,61}[a-z0-9])?$'
