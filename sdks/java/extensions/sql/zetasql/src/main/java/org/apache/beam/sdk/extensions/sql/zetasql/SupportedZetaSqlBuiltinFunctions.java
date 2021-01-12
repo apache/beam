@@ -547,14 +547,14 @@ class SupportedZetaSqlBuiltinFunctions {
           // FunctionSignatureId.FN_NET_IPV4_TO_INT64, // net.ipv4_to_int64(bytes)
 
           // Hashing functions.
-          // FunctionSignatureId.FN_MD5_BYTES, // md5(bytes)
-          // FunctionSignatureId.FN_MD5_STRING, // md5(string)
-          // FunctionSignatureId.FN_SHA1_BYTES, // sha1(bytes)
-          // FunctionSignatureId.FN_SHA1_STRING, // sha1(string)
-          // FunctionSignatureId.FN_SHA256_BYTES, // sha256(bytes)
-          // FunctionSignatureId.FN_SHA256_STRING, // sha256(string)
-          // FunctionSignatureId.FN_SHA512_BYTES, // sha512(bytes)
-          // FunctionSignatureId.FN_SHA512_STRING, // sha512(string)
+          FunctionSignatureId.FN_MD5_BYTES, // md5(bytes)
+          FunctionSignatureId.FN_MD5_STRING, // md5(string)
+          FunctionSignatureId.FN_SHA1_BYTES, // sha1(bytes)
+          FunctionSignatureId.FN_SHA1_STRING, // sha1(string)
+          FunctionSignatureId.FN_SHA256_BYTES, // sha256(bytes)
+          FunctionSignatureId.FN_SHA256_STRING, // sha256(string)
+          FunctionSignatureId.FN_SHA512_BYTES, // sha512(bytes)
+          FunctionSignatureId.FN_SHA512_STRING, // sha512(string)
 
           // Fingerprinting functions
           // FunctionSignatureId.FN_FARM_FINGERPRINT_BYTES, // farm_fingerprint(bytes) -> int64
