@@ -450,6 +450,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def spotbugs_version = "4.0.6"
     def testcontainers_version = "1.15.1"
     def jsr305_version = "3.0.2"
+    def autovalue_version = "1.7.2"
 
     // A map of maps containing common libraries used per language. To use:
     // dependencies {
@@ -856,7 +857,7 @@ class BeamModulePlugin implements Plugin<Project> {
       // configurations because they are never required to be shaded or become a
       // dependency of the output.
       def compileOnlyAnnotationDeps = [
-        "com.google.auto.value:auto-value-annotations:1.7.2",
+        "com.google.auto.value:auto-value-annotations:$autovalue_version",
         "com.google.auto.service:auto-service-annotations:1.0-rc6",
         "com.google.j2objc:j2objc-annotations:1.3",
         "com.google.code.findbugs:jsr305:$jsr305_version",
@@ -895,7 +896,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
         // Add common annotation processors to all Java projects
         def annotationProcessorDeps = [
-          "com.google.auto.value:auto-value:1.7.2",
+          "com.google.auto.value:auto-value:$autovalue_version",
           "com.google.auto.service:auto-service:1.0-rc6",
         ]
 
@@ -974,7 +975,7 @@ class BeamModulePlugin implements Plugin<Project> {
         project.apply plugin: 'com.github.spotbugs'
         project.dependencies {
           spotbugs "com.github.spotbugs:spotbugs:$spotbugs_version"
-          spotbugs "com.google.auto.value:auto-value:1.7.2"
+          spotbugs "com.google.auto.value:auto-value:$autovalue_version"
           compileOnlyAnnotationDeps.each { dep -> spotbugs dep }
         }
         project.spotbugs {
