@@ -250,6 +250,9 @@ jobs:
     steps:
       - name: Checkout code on master branch
         uses: actions/checkout@master
+        with:
+          persist-credentials: false
+          submodules: recursive
       - name: Tag commit
         run: |
           BRANCH_NAME=${GITHUB_REF##*/}
