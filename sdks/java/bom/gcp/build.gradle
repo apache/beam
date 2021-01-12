@@ -23,9 +23,9 @@ javaPlatform {
 }
 
 dependencies {
+  api platform(project(":sdks:java:bom"))
   api platform(project.library.java.google_cloud_platform_libraries_bom)
   constraints {
     api project.library.java.guava
-    api platform(project(":sdks:java:bom"))
   }
 }
