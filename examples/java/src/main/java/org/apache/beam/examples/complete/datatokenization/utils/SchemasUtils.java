@@ -18,26 +18,33 @@
 package org.apache.beam.examples.complete.datatokenization.utils;
 
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.fromTableSchema;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.services.bigquery.model.TableSchema;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.Reader;
 import java.lang.reflect.Type;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.io.fs.MatchResult;
+import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.common.io.ByteStreams;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.gson.Gson;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.gson.reflect.TypeToken;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.CharStreams;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -132,6 +139,40 @@ public class SchemasUtils {
 
   public String getJsonBeamSchema() {
     return jsonBeamSchema;
+  }
+
+  /**
+   * Reads a file from GCS and returns it as a
+   * string.
+   *
+   * @param filePath path to file in GCS
+   * @return contents of the file as a string
+   * @throws IOException thrown if not able to read file
+   */
+  public static String getGcsFileAsString(String filePath) {
+    MatchResult result;
+    try {
+      result = FileSystems.match(filePath);
+      checkArgument(
+          result.status() == MatchResult.Status.OK && !result.metadata().isEmpty(),
+          "Failed to match any files with the pattern: " + filePath);
+
+      List<ResourceId> rId =
+          result.metadata().stream()
+              .map(MatchResult.Metadata::resourceId)
+              .collect(Collectors.toList());
+
+      checkArgument(rId.size() == 1, "Expected exactly 1 file, but got " + rId.size() + " files.");
+
+      Reader reader =
+          Channels.newReader(FileSystems.open(rId.get(0)), StandardCharsets.UTF_8.name());
+
+      return CharStreams.toString(reader);
+
+    } catch (IOException ioe) {
+      LOG.error("File system i/o error: " + ioe.getMessage());
+      throw new RuntimeException(ioe);
+    }
   }
 
   public static final String DEADLETTER_SCHEMA =

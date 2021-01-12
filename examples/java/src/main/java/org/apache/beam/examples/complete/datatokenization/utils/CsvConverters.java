@@ -13,15 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.complete.datatokenization.transforms;
+package org.apache.beam.examples.complete.datatokenization.utils;
 
-import static org.apache.beam.vendor.guava.v20_0.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.examples.complete.datatokenization.utils.SchemasUtils.getGcsFileAsString;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
-import com.google.cloud.teleport.v2.transforms.JavascriptTextTransformer.FailsafeJavascriptUdf;
-import com.google.cloud.teleport.v2.transforms.JavascriptTextTransformer.JavascriptTextTransformerOptions;
-import com.google.cloud.teleport.v2.utils.SchemaUtils;
-import com.google.cloud.teleport.v2.values.FailsafeElement;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -33,9 +30,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
-import org.apache.avro.Schema;
-import org.apache.avro.generic.GenericData;
-import org.apache.avro.generic.GenericRecord;
+import org.apache.beam.examples.complete.datatokenization.utils.JavascriptTextTransformer.FailsafeJavascriptUdf;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.FileIO.ReadableFile;
 import org.apache.beam.sdk.io.TextIO;
@@ -56,8 +51,7 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Splitter;
-import org.apache.beam.vendor.guava.v20_0.com.google.common.base.Throwables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.slf4j.Logger;
@@ -178,7 +172,7 @@ public class CsvConverters {
   }
 
   /** Necessary {@link PipelineOptions} options for Csv Pipelines. */
-  public interface CsvPipelineOptions extends PipelineOptions, JavascriptTextTransformerOptions {
+  public interface CsvPipelineOptions extends PipelineOptions {
     @Description("Pattern to where data lives, ex: gs://mybucket/somepath/*.csv")
     String getInputFileSpec();
 
@@ -300,7 +294,7 @@ public class CsvConverters {
 
         String schema;
         if (jsonSchemaPath() != null) {
-          schema = SchemaUtils.getGcsFileAsString(jsonSchemaPath());
+          schema = getGcsFileAsString(jsonSchemaPath());
         } else {
           schema = jsonSchema();
         }
@@ -558,100 +552,6 @@ public class CsvConverters {
       }
       outputReceiver.get(this.headerTag).output(headers);
       records.forEach(r -> outputReceiver.get(this.linesTag).output(r));
-    }
-  }
-
-  /**
-   * The {@link StringToGenericRecordFn} class takes in a String as input and outputs a {@link
-   * GenericRecord}.
-   */
-  public static class StringToGenericRecordFn extends DoFn<String, GenericRecord> {
-    String schemaLocation;
-    String delimiter;
-    Schema schema;
-
-    public StringToGenericRecordFn(String schemaLocation, String delimiter) {
-      this.schemaLocation = schemaLocation;
-      this.delimiter = delimiter;
-    }
-
-    @Setup
-    public void setup() {
-      schema = SchemaUtils.getAvroSchema(schemaLocation);
-    }
-
-    @ProcessElement
-    public void processElement(ProcessContext context) throws IllegalArgumentException {
-      GenericRecord genericRecord = new GenericData.Record(schema);
-      String[] rowValue =
-          Splitter.on(delimiter).splitToList(context.element()).toArray(new String[0]);
-      List<Schema.Field> fields = schema.getFields();
-
-      try {
-        for (int index = 0; index < fields.size(); ++index) {
-          Schema.Field field = fields.get(index);
-          String fieldType = field.schema().getType().getName().toLowerCase();
-
-          // Handle null values to be added in generic records, if present in Csv data.
-          if (fieldType.equals("union")) {
-            String dataType1 = field.schema().getTypes().get(0).getType().getName().toLowerCase();
-            String dataType2 = field.schema().getTypes().get(1).getType().getName().toLowerCase();
-
-            // Check if Csv data is null.
-            if ((dataType1.equals("null") || dataType2.equals("null"))
-                && rowValue[index].length() == 0) {
-              genericRecord.put(field.name(), null);
-            } else {
-              // Add valid data type to generic record.
-              if (dataType1.equals("null")) {
-                populateGenericRecord(genericRecord, dataType2, rowValue[index], field.name());
-              } else {
-                populateGenericRecord(genericRecord, dataType1, rowValue[index], field.name());
-              }
-            }
-          } else {
-            populateGenericRecord(genericRecord, fieldType, rowValue[index], field.name());
-          }
-        }
-      } catch (ArrayIndexOutOfBoundsException e) {
-        LOG.error("Number of fields in the Avro schema and number of Csv headers do not match.");
-        throw new RuntimeException(
-            "Number of fields in the Avro schema and number of Csv headers do not match.");
-      }
-      context.output(genericRecord);
-    }
-
-    private void populateGenericRecord(
-        GenericRecord genericRecord, String fieldType, String data, String fieldName) {
-
-      try {
-        switch (fieldType) {
-          case "string":
-            genericRecord.put(fieldName, data);
-            break;
-          case "int":
-            genericRecord.put(fieldName, Integer.valueOf(data));
-            break;
-          case "long":
-            genericRecord.put(fieldName, Long.valueOf(data));
-            break;
-          case "float":
-            genericRecord.put(fieldName, Float.valueOf(data));
-            break;
-          case "double":
-            genericRecord.put(fieldName, Double.valueOf(data));
-            break;
-          case "boolean":
-            genericRecord.put(fieldName, Boolean.valueOf(data));
-            break;
-          default:
-            LOG.error(fieldType + " field type is not supported.");
-            throw new IllegalArgumentException(fieldType + " field type is not supported.");
-        }
-      } catch (Exception e) {
-        LOG.error("Failed to convert Strings to Generic Record.");
-        throw new RuntimeException("Failed to convert Strings to Generic Record.");
-      }
     }
   }
 }

@@ -75,6 +75,7 @@ dependencies {
   compile library.java.slf4j_api
   compile library.java.slf4j_jdk14
   provided library.java.commons_io
+  provided library.java.commons_csv
   runtime project(path: ":runners:direct-java", configuration: "shadow")
   testCompile project(":sdks:java:io:google-cloud-platform")
   testCompile project(":sdks:java:extensions:ml")

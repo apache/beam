@@ -24,7 +24,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import org.apache.beam.examples.complete.datatokenization.options.ProtegrityDataTokenizationOptions;
-import org.apache.beam.examples.complete.datatokenization.transforms.ErrorConverters;
+import org.apache.beam.examples.complete.datatokenization.utils.ErrorConverters;
 import org.apache.beam.examples.complete.datatokenization.transforms.ProtegrityDataProtectors.RowToTokenizedRow;
 import org.apache.beam.examples.complete.datatokenization.transforms.io.BigQueryIO;
 import org.apache.beam.examples.complete.datatokenization.transforms.io.BigTableIO;
