@@ -36,13 +36,8 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Py_VR_Dataflow_V2', 'Run Pyt
       steps {
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
-          // TODO: Enable following tests after making sure we have enough capacity.
-          // tasks(':sdks:python:test-suites:dataflow:py36:validatesRunnerBatchTests')
-          // tasks(':sdks:python:test-suites:dataflow:py37:validatesRunnerBatchTests')
-          tasks(':sdks:python:test-suites:dataflow:py38:validatesRunnerBatchTests')
-          // tasks(':sdks:python:test-suites:dataflow:py36:validatesRunnerBatchTests')
-          // tasks(':sdks:python:test-suites:dataflow:py37:validatesRunnerStreamingTests')
-          tasks(':sdks:python:test-suites:dataflow:py38:validatesRunnerStreamingTests')
+          tasks(':sdks:python:test-suites:dataflow:validatesRunnerBatchTestsV2')
+          tasks(':sdks:python:test-suites:dataflow:validatesRunnerStreamingTestsV2')
           switches('-PuseRunnerV2')
           commonJobProperties.setGradleSwitches(delegate)
         }
