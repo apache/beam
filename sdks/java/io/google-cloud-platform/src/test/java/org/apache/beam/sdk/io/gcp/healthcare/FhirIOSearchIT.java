@@ -102,9 +102,9 @@ public class FhirIOSearchIT {
     JsonArray fhirResources =
         JsonParser.parseString(bundles.get(0)).getAsJsonObject().getAsJsonArray("entry");
     HashMap<String, String> searchParameters = new HashMap<>();
-    searchParameters.put("_count", Integer.toString(100));
+    searchParameters.put("_count", Integer.toString(50));
     HashMap<String, Object> genericSearchParameters = new HashMap<>();
-    genericSearchParameters.put("_count", Arrays.asList(100));
+    genericSearchParameters.put("_count", Arrays.asList(50));
     int searches = 0;
     for (JsonElement resource : fhirResources) {
       String resourceType =
