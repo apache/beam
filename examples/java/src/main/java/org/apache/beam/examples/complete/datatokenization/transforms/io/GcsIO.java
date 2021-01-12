@@ -42,60 +42,41 @@ import org.apache.beam.sdk.values.TypeDescriptors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * The {@link GcsIO} class to read/write data from/into Google Cloud Storage.
- */
+/** The {@link GcsIO} class to read/write data from/into Google Cloud Storage. */
 public class GcsIO {
 
-  /**
-   * The tag for the headers of the CSV if required.
-   */
-  static final TupleTag<String> CSV_HEADERS = new TupleTag<String>() {
-  };
+  /** The tag for the headers of the CSV if required. */
+  static final TupleTag<String> CSV_HEADERS = new TupleTag<String>() {};
 
-  /**
-   * The tag for the lines of the CSV.
-   */
-  static final TupleTag<String> CSV_LINES = new TupleTag<String>() {
-  };
+  /** The tag for the lines of the CSV. */
+  static final TupleTag<String> CSV_LINES = new TupleTag<String>() {};
 
-  /**
-   * The tag for the dead-letter output.
-   */
+  /** The tag for the dead-letter output. */
   static final TupleTag<FailsafeElement<String, String>> PROCESSING_DEADLETTER_OUT =
-      new TupleTag<FailsafeElement<String, String>>() {
-      };
+      new TupleTag<FailsafeElement<String, String>>() {};
 
-  /**
-   * The tag for the main output.
-   */
+  /** The tag for the main output. */
   static final TupleTag<FailsafeElement<String, String>> PROCESSING_OUT =
-      new TupleTag<FailsafeElement<String, String>>() {
-      };
+      new TupleTag<FailsafeElement<String, String>>() {};
 
   /* Logger for class. */
   private static final Logger LOG = LoggerFactory.getLogger(GcsIO.class);
 
   public static final String DEAD_LETTER_PREFIX = "CSV_CONVERTOR";
 
-  /**
-   * String/String Coder for FailsafeElement.
-   */
+  /** String/String Coder for FailsafeElement. */
   private static final FailsafeElementCoder<String, String> FAILSAFE_ELEMENT_CODER =
       FailsafeElementCoder.of(
           NullableCoder.of(StringUtf8Coder.of()), NullableCoder.of(StringUtf8Coder.of()));
 
-  /**
-   * Supported format to read from GCS.
-   */
+  /** Supported format to read from GCS. */
   public enum FORMAT {
     JSON,
     CSV
   }
 
   /**
-   * Necessary {@link PipelineOptions} options for Pipelines that operate with JSON/CSV data in
-   * GCS.
+   * Necessary {@link PipelineOptions} options for Pipelines that operate with JSON/CSV data in GCS.
    */
   public interface GcsPipelineOptions extends PipelineOptions {
 

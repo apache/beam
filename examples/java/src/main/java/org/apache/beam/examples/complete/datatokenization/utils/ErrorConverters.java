@@ -1,9 +1,11 @@
 /*
- * Copyright (C) 2019 Google Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
@@ -19,7 +21,6 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.auto.value.AutoValue;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import org.apache.beam.examples.complete.datatokenization.utils.FailsafeElement;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
@@ -34,17 +35,13 @@ import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
-/**
- * Transforms & DoFns & Options for Teleport Error logging.
- */
+/** Transforms & DoFns & Options for Teleport Error logging. */
 public class ErrorConverters {
 
-  /**
-   * Writes all Errors to GCS, place at the end of your pipeline.
-   */
+  /** Writes all Errors to GCS, place at the end of your pipeline. */
   @AutoValue
-  public abstract static class WriteStringMessageErrorsAsCsv extends
-      PTransform<PCollection<FailsafeElement<String, String>>, PDone> {
+  public abstract static class WriteStringMessageErrorsAsCsv
+      extends PTransform<PCollection<FailsafeElement<String, String>>, PDone> {
 
     public static Builder newBuilder() {
       return new AutoValue_ErrorConverters_WriteStringMessageErrorsAsCsv.Builder();
@@ -58,14 +55,11 @@ public class ErrorConverters {
     public PDone expand(PCollection<FailsafeElement<String, String>> pCollection) {
 
       return pCollection
-          .apply("GetFormattedErrorRow",
-              ParDo.of(new FailedStringToCsvRowFn(csvDelimiter())))
+          .apply("GetFormattedErrorRow", ParDo.of(new FailedStringToCsvRowFn(csvDelimiter())))
           .apply(TextIO.write().to(errorWritePath()).withNumShards(1));
     }
 
-    /**
-     * Builder for {@link WriteStringMessageErrorsAsCsv}.
-     */
+    /** Builder for {@link WriteStringMessageErrorsAsCsv}. */
     @AutoValue.Builder
     public abstract static class Builder {
 
@@ -81,8 +75,7 @@ public class ErrorConverters {
    * The {@link FailedStringToCsvRowFn} converts string objects which have failed processing into
    * {@link String} objects contained CSV which can be output to a filesystem.
    */
-  public static class FailedStringToCsvRowFn
-      extends DoFn<FailsafeElement<String, String>, String> {
+  public static class FailedStringToCsvRowFn extends DoFn<FailsafeElement<String, String>, String> {
 
     /**
      * The formatter used to convert timestamps into a BigQuery compatible <a
@@ -148,9 +141,7 @@ public class ErrorConverters {
                   .withWriteDisposition(WriteDisposition.WRITE_APPEND));
     }
 
-    /**
-     * Builder for {@link WriteStringMessageErrors}.
-     */
+    /** Builder for {@link WriteStringMessageErrors}. */
     @AutoValue.Builder
     public abstract static class Builder {
 

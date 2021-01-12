@@ -22,13 +22,12 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.Map;
 import org.apache.beam.examples.complete.datatokenization.options.ProtegrityDataTokenizationOptions;
-import org.apache.beam.examples.complete.datatokenization.utils.ErrorConverters;
-import org.apache.beam.examples.complete.datatokenization.transforms.ProtegrityDataProtectors.RowToTokenizedRow;
+import org.apache.beam.examples.complete.datatokenization.transforms.DataProtectors.RowToTokenizedRow;
 import org.apache.beam.examples.complete.datatokenization.transforms.io.BigQueryIO;
 import org.apache.beam.examples.complete.datatokenization.transforms.io.BigTableIO;
 import org.apache.beam.examples.complete.datatokenization.transforms.io.GcsIO;
+import org.apache.beam.examples.complete.datatokenization.utils.ErrorConverters;
 import org.apache.beam.examples.complete.datatokenization.utils.FailsafeElement;
 import org.apache.beam.examples.complete.datatokenization.utils.FailsafeElementCoder;
 import org.apache.beam.examples.complete.datatokenization.utils.RowToCsv;
@@ -56,40 +55,26 @@ import org.apache.beam.sdk.values.TypeDescriptors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * The {@link ProtegrityDataTokenization} pipeline.
- */
-public class ProtegrityDataTokenization {
+/** The {@link DataTokenization} pipeline. */
+public class DataTokenization {
 
-  /**
-   * Logger for class.
-   */
-  private static final Logger LOG = LoggerFactory.getLogger(ProtegrityDataTokenization.class);
+  /** Logger for class. */
+  private static final Logger LOG = LoggerFactory.getLogger(DataTokenization.class);
 
-  /**
-   * String/String Coder for FailsafeElement.
-   */
+  /** String/String Coder for FailsafeElement. */
   private static final FailsafeElementCoder<String, String> FAILSAFE_ELEMENT_CODER =
       FailsafeElementCoder.of(
           NullableCoder.of(StringUtf8Coder.of()), NullableCoder.of(StringUtf8Coder.of()));
 
-  /**
-   * The default suffix for error tables if dead letter table is not specified.
-   */
+  /** The default suffix for error tables if dead letter table is not specified. */
   private static final String DEFAULT_DEADLETTER_TABLE_SUFFIX = "_error_records";
 
-  /**
-   * The tag for the main output for the UDF.
-   */
-  private static final TupleTag<Row> TOKENIZATION_OUT = new TupleTag<Row>() {
-  };
+  /** The tag for the main output for the UDF. */
+  private static final TupleTag<Row> TOKENIZATION_OUT = new TupleTag<Row>() {};
 
-  /**
-   * The tag for the dead-letter output of the udf.
-   */
+  /** The tag for the dead-letter output of the udf. */
   static final TupleTag<FailsafeElement<Row, Row>> TOKENIZATION_DEADLETTER_OUT =
-      new TupleTag<FailsafeElement<Row, Row>>() {
-      };
+      new TupleTag<FailsafeElement<Row, Row>>() {};
 
   /**
    * Main entry point for pipeline execution.
@@ -112,8 +97,7 @@ public class ProtegrityDataTokenization {
    * @param options The execution options.
    * @return The pipeline result.
    */
-  public static PipelineResult run(
-      ProtegrityDataTokenizationOptions options) {
+  public static PipelineResult run(ProtegrityDataTokenizationOptions options) {
     SchemasUtils schema = null;
     try {
       schema = new SchemasUtils(options.getDataSchemaGcsPath(), StandardCharsets.UTF_8);
@@ -122,43 +106,39 @@ public class ProtegrityDataTokenization {
     }
     checkArgument(schema != null, "Data schema is mandatory.");
 
-    Map<String, String> dataElements =
-        schema.getDataElementsToTokenize(options.getPayloadConfigGcsPath());
-
     // Create the pipeline
     Pipeline pipeline = Pipeline.create(options);
     // Register the coder for pipeline
     CoderRegistry coderRegistry = pipeline.getCoderRegistry();
     coderRegistry.registerCoderForType(
         FAILSAFE_ELEMENT_CODER.getEncodedTypeDescriptor(), FAILSAFE_ELEMENT_CODER);
-    coderRegistry
-        .registerCoderForType(RowCoder.of(schema.getBeamSchema()).getEncodedTypeDescriptor(),
-            RowCoder.of(schema.getBeamSchema()));
+    coderRegistry.registerCoderForType(
+        RowCoder.of(schema.getBeamSchema()).getEncodedTypeDescriptor(),
+        RowCoder.of(schema.getBeamSchema()));
 
     /*
      * Row/Row Coder for FailsafeElement.
      */
-    FailsafeElementCoder<Row, Row> coder = FailsafeElementCoder.of(
-        RowCoder.of(schema.getBeamSchema()),
-        RowCoder.of(schema.getBeamSchema())
-    );
+    FailsafeElementCoder<Row, Row> coder =
+        FailsafeElementCoder.of(
+            RowCoder.of(schema.getBeamSchema()), RowCoder.of(schema.getBeamSchema()));
 
-    coderRegistry
-        .registerCoderForType(coder.getEncodedTypeDescriptor(), coder);
+    coderRegistry.registerCoderForType(coder.getEncodedTypeDescriptor(), coder);
 
     PCollection<String> jsons;
     if (options.getInputGcsFilePattern() != null) {
       jsons = new GcsIO(options).read(pipeline, schema.getJsonBeamSchema());
     } else if (options.getPubsubTopic() != null) {
-      jsons = pipeline
-          .apply("ReadMessagesFromPubsub",
-              PubsubIO.readStrings().fromTopic(options.getPubsubTopic()));
+      jsons =
+          pipeline.apply(
+              "ReadMessagesFromPubsub", PubsubIO.readStrings().fromTopic(options.getPubsubTopic()));
     } else {
       throw new IllegalStateException("No source is provided, please configure GCS or Pub/Sub");
     }
 
-    JsonToRow.ParseResult rows = jsons
-        .apply("JsonToRow",
+    JsonToRow.ParseResult rows =
+        jsons.apply(
+            "JsonToRow",
             JsonToRow.withExceptionReporting(schema.getBeamSchema()).withExtendedErrorInfo());
 
     if (options.getNonTokenizedDeadLetterGcsPath() != null) {
@@ -166,13 +146,15 @@ public class ProtegrityDataTokenization {
        * Write Row conversion errors to filesystem specified path
        */
       rows.getFailedToParseLines()
-          .apply("ToFailsafeElement",
+          .apply(
+              "ToFailsafeElement",
               MapElements.into(FAILSAFE_ELEMENT_CODER.getEncodedTypeDescriptor())
-                  .via((Row errRow) -> FailsafeElement
-                      .of(errRow.getString("line"), errRow.getString("line"))
-                      .setErrorMessage(errRow.getString("err"))
-                  ))
-          .apply("WriteCsvConversionErrorsToGcs",
+                  .via(
+                      (Row errRow) ->
+                          FailsafeElement.of(errRow.getString("line"), errRow.getString("line"))
+                              .setErrorMessage(errRow.getString("err"))))
+          .apply(
+              "WriteCsvConversionErrorsToGcs",
               ErrorConverters.WriteStringMessageErrorsAsCsv.newBuilder()
                   .setCsvDelimiter(options.getCsvDelimiter())
                   .setErrorWritePath(options.getNonTokenizedDeadLetterGcsPath())
@@ -186,16 +168,15 @@ public class ProtegrityDataTokenization {
             .setRowSchema(schema.getBeamSchema())
             .apply(
                 MapElements.into(
-                    TypeDescriptors.kvs(TypeDescriptors.integers(), TypeDescriptors.rows()))
+                        TypeDescriptors.kvs(TypeDescriptors.integers(), TypeDescriptors.rows()))
                     .via((Row row) -> KV.of(0, row)))
             .setCoder(KvCoder.of(VarIntCoder.of(), RowCoder.of(schema.getBeamSchema())))
             .apply(
                 "DsgTokenization",
                 RowToTokenizedRow.newBuilder()
                     .setBatchSize(options.getBatchSize())
-                    .setDsgURI(options.getDsgUri())
+                    .setRpcURI(options.getDsgUri())
                     .setSchema(schema.getBeamSchema())
-                    .setDataElements(dataElements)
                     .setSuccessTag(TOKENIZATION_OUT)
                     .setFailureTag(TOKENIZATION_DEADLETTER_OUT)
                     .build());
@@ -224,10 +205,7 @@ public class ProtegrityDataTokenization {
     }
 
     if (options.getOutputGcsDirectory() != null) {
-      new GcsIO(options).write(
-          tokenizedRows.get(TOKENIZATION_OUT),
-          schema.getBeamSchema()
-      );
+      new GcsIO(options).write(tokenizedRows.get(TOKENIZATION_OUT), schema.getBeamSchema());
     } else if (options.getBigQueryTableName() != null) {
       WriteResult writeResult =
           BigQueryIO.write(

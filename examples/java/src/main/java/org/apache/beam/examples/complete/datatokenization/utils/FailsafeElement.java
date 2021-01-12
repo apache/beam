@@ -1,9 +1,11 @@
 /*
- * Copyright (C) 2019 Google Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
@@ -32,10 +34,8 @@ public class FailsafeElement<OriginalT, CurrentT> {
 
   private final OriginalT originalPayload;
   private final CurrentT payload;
-  @Nullable
-  private String errorMessage;
-  @Nullable
-  private String stacktrace;
+  @Nullable private String errorMessage;
+  @Nullable private String stacktrace;
 
   private FailsafeElement(OriginalT originalPayload, CurrentT payload) {
     this.originalPayload = originalPayload;

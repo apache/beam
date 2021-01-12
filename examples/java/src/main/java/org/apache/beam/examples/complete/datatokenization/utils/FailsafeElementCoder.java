@@ -1,9 +1,11 @@
 /*
- * Copyright (C) 2019 Google Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
@@ -36,7 +38,7 @@ import org.apache.beam.sdk.values.TypeParameter;
  * explicitly specifying the schema for the type.
  *
  * @param <OriginalT> The type of the original payload to be encoded.
- * @param <CurrentT>  The type of the current payload to be encoded.
+ * @param <CurrentT> The type of the current payload to be encoded.
  */
 public class FailsafeElementCoder<OriginalT, CurrentT>
     extends CustomCoder<FailsafeElement<OriginalT, CurrentT>> {
@@ -97,11 +99,8 @@ public class FailsafeElementCoder<OriginalT, CurrentT>
 
   @Override
   public TypeDescriptor<FailsafeElement<OriginalT, CurrentT>> getEncodedTypeDescriptor() {
-    return new TypeDescriptor<FailsafeElement<OriginalT, CurrentT>>() {
-    }.where(
-        new TypeParameter<OriginalT>() {
-        }, originalPayloadCoder.getEncodedTypeDescriptor())
-        .where(new TypeParameter<CurrentT>() {
-        }, currentPayloadCoder.getEncodedTypeDescriptor());
+    return new TypeDescriptor<FailsafeElement<OriginalT, CurrentT>>() {}.where(
+            new TypeParameter<OriginalT>() {}, originalPayloadCoder.getEncodedTypeDescriptor())
+        .where(new TypeParameter<CurrentT>() {}, currentPayloadCoder.getEncodedTypeDescriptor());
   }
 }
