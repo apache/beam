@@ -21,14 +21,13 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import java.util.List;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ComponentsOrBuilder;
 import org.apache.beam.model.pipeline.v1.RunnerApi.MessageWithComponents;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.runners.PTransformOverride;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A way to apply a Proto-based {@link PTransformOverride}.
@@ -37,7 +36,6 @@ import org.apache.beam.sdk.runners.PTransformOverride;
  * code should rely on the more powerful and native {@link
  * org.apache.beam.sdk.Pipeline#replaceAll(List)}.
  */
-@Experimental
 public class ProtoOverrides {
   /**
    * Update all composites present in the {@code originalPipeline} with an URN equal to the provided

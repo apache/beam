@@ -24,14 +24,16 @@ import org.apache.spark.sql.types.StructType;
 
 /** A {@link SchemaHelpers} for the Spark Batch Runner. */
 public class SchemaHelpers {
+  private static final StructType BINARY_SCHEMA =
+      new StructType(
+          new StructField[] {
+            StructField.apply("binaryStructField", DataTypes.BinaryType, true, Metadata.empty())
+          });
+
   public static StructType binarySchema() {
     // we use a binary schema for now because:
     // using a empty schema raises a indexOutOfBoundsException
     // using a NullType schema stores null in the elements
-    StructField[] array = new StructField[1];
-    StructField binaryStructField =
-        StructField.apply("binaryStructField", DataTypes.BinaryType, true, Metadata.empty());
-    array[0] = binaryStructField;
-    return new StructType(array);
+    return BINARY_SCHEMA;
   }
 }

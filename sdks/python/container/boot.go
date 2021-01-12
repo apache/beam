@@ -19,26 +19,34 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/artifact"
-	pbjob "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
-	pbpipeline "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/provision"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/execx"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/grpcx"
+	"github.com/golang/protobuf/jsonpb"
 	"github.com/golang/protobuf/proto"
 	"github.com/nightlyone/lockfile"
 )
 
 var (
-	acceptableWhlSpecs = []string{"cp27-cp27mu-manylinux1_x86_64.whl"}
+	acceptableWhlSpecs []string
+
+	// SetupOnly option is used to invoke the boot sequence to only process the provided artifacts and builds new dependency pre-cached images.
+	setupOnly = flag.Bool("setup_only", false, "Execute boot program in setup only mode (optional).")
+	artifacts = flag.String("artifacts", "", "Path to artifacts metadata file used in setup only mode (optional).")
 
 	// Contract: https://s.apache.org/beam-fn-api-container-contract.
 
@@ -59,10 +67,19 @@ const (
 	sdkSrcFile        = "dataflow_python_sdk.tar"
 	extraPackagesFile = "extra_packages.txt"
 	workerPoolIdEnv   = "BEAM_PYTHON_WORKER_POOL_ID"
+
+	standardArtifactFileTypeUrn = "beam:artifact:type:file:v1"
 )
 
 func main() {
 	flag.Parse()
+
+	if *setupOnly {
+		if err := processArtifactsInSetupOnlyMode(); err != nil {
+			log.Fatalf("Setup unsuccessful with error: %v", err)
+		}
+		return
+	}
 
 	if *workerPool == true {
 		workerPoolId := fmt.Sprintf("%d", os.Getpid())
@@ -80,14 +97,34 @@ func main() {
 	if *id == "" {
 		log.Fatal("No id provided.")
 	}
+	if *provisionEndpoint == "" {
+		log.Fatal("No provision endpoint provided.")
+	}
+
+	ctx := grpcx.WriteWorkerID(context.Background(), *id)
+
+	info, err := provision.Info(ctx, *provisionEndpoint)
+	if err != nil {
+		log.Fatalf("Failed to obtain provisioning information: %v", err)
+	}
+	log.Printf("Provision info:\n%v", info)
+
+	// TODO(BEAM-8201): Simplify once flags are no longer used.
+	if info.GetLoggingEndpoint().GetUrl() != "" {
+		*loggingEndpoint = info.GetLoggingEndpoint().GetUrl()
+	}
+	if info.GetArtifactEndpoint().GetUrl() != "" {
+		*artifactEndpoint = info.GetArtifactEndpoint().GetUrl()
+	}
+	if info.GetControlEndpoint().GetUrl() != "" {
+		*controlEndpoint = info.GetControlEndpoint().GetUrl()
+	}
+
 	if *loggingEndpoint == "" {
 		log.Fatal("No logging endpoint provided.")
 	}
 	if *artifactEndpoint == "" {
 		log.Fatal("No artifact endpoint provided.")
-	}
-	if *provisionEndpoint == "" {
-		log.Fatal("No provision endpoint provided.")
 	}
 	if *controlEndpoint == "" {
 		log.Fatal("No control endpoint provided.")
@@ -95,14 +132,8 @@ func main() {
 
 	log.Printf("Initializing python harness: %v", strings.Join(os.Args, " "))
 
-	ctx := grpcx.WriteWorkerID(context.Background(), *id)
-
 	// (1) Obtain the pipeline options
 
-	info, err := provision.Info(ctx, *provisionEndpoint)
-	if err != nil {
-		log.Fatalf("Failed to obtain provisioning information: %v", err)
-	}
 	options, err := provision.ProtoToJSON(info.GetPipelineOptions())
 	if err != nil {
 		log.Fatalf("Failed to convert pipeline options: %v", err)
@@ -116,14 +147,20 @@ func main() {
 	materializeArtifactsFunc := func() {
 		dir := filepath.Join(*semiPersistDir, "staged")
 
-		files, err := artifact.Materialize(ctx, *artifactEndpoint, info.GetRetrievalToken(), dir)
+		files, err := artifact.Materialize(ctx, *artifactEndpoint, info.GetDependencies(), info.GetRetrievalToken(), dir)
 		if err != nil {
 			log.Fatalf("Failed to retrieve staged files: %v", err)
 		}
 
 		// TODO(herohde): the packages to install should be specified explicitly. It
 		// would also be possible to install the SDK in the Dockerfile.
-		if setupErr := installSetupPackages(files, dir); setupErr != nil {
+		fileNames := make([]string, len(files))
+		for i, v := range files {
+			log.Printf("Found artifact: %s", v.Name)
+			fileNames[i] = v.Name
+		}
+
+		if setupErr := installSetupPackages(fileNames, dir); setupErr != nil {
 			log.Fatalf("Failed to install required packages: %v", setupErr)
 		}
 	}
@@ -140,8 +177,12 @@ func main() {
 	os.Setenv("WORKER_ID", *id)
 	os.Setenv("PIPELINE_OPTIONS", options)
 	os.Setenv("SEMI_PERSISTENT_DIRECTORY", *semiPersistDir)
-	os.Setenv("LOGGING_API_SERVICE_DESCRIPTOR", proto.MarshalTextString(&pbpipeline.ApiServiceDescriptor{Url: *loggingEndpoint}))
-	os.Setenv("CONTROL_API_SERVICE_DESCRIPTOR", proto.MarshalTextString(&pbpipeline.ApiServiceDescriptor{Url: *controlEndpoint}))
+	os.Setenv("LOGGING_API_SERVICE_DESCRIPTOR", proto.MarshalTextString(&pipepb.ApiServiceDescriptor{Url: *loggingEndpoint}))
+	os.Setenv("CONTROL_API_SERVICE_DESCRIPTOR", proto.MarshalTextString(&pipepb.ApiServiceDescriptor{Url: *controlEndpoint}))
+
+	if info.GetStatusEndpoint() != nil {
+		os.Setenv("STATUS_API_SERVICE_DESCRIPTOR", proto.MarshalTextString(info.GetStatusEndpoint()))
+	}
 
 	args := []string{
 		"-m",
@@ -152,14 +193,36 @@ func main() {
 	log.Fatalf("Python exited: %v", execx.Execute("python", args...))
 }
 
+// setup wheel specs according to installed python version
+func setupAcceptableWheelSpecs() error {
+	cmd := exec.Command("python", "-V")
+	stdoutStderr, err := cmd.CombinedOutput()
+	if err != nil {
+		return err
+	}
+	re := regexp.MustCompile(`Python (\d)\.(\d).*`)
+	pyVersions := re.FindStringSubmatch(string(stdoutStderr[:]))
+	if len(pyVersions) != 3 {
+		return fmt.Errorf("cannot get parse Python version from %s", stdoutStderr)
+	}
+	pyVersion := fmt.Sprintf("%s%s", pyVersions[1], pyVersions[2])
+	var wheelName string
+	switch pyVersion {
+	case "36", "37":
+		wheelName = fmt.Sprintf("cp%s-cp%sm-manylinux1_x86_64.whl", pyVersion, pyVersion)
+	default:
+		wheelName = fmt.Sprintf("cp%s-cp%s-manylinux1_x86_64.whl", pyVersion, pyVersion)
+	}
+	acceptableWhlSpecs = append(acceptableWhlSpecs, wheelName)
+	return nil
+}
+
 // installSetupPackages installs Beam SDK and user dependencies.
-func installSetupPackages(mds []*pbjob.ArtifactMetadata, workDir string) error {
+func installSetupPackages(files []string, workDir string) error {
 	log.Printf("Installing setup packages ...")
 
-	files := make([]string, len(mds))
-	for i, v := range mds {
-		log.Printf("Found artifact: %s", v.Name)
-		files[i] = v.Name
+	if err := setupAcceptableWheelSpecs(); err != nil {
+		log.Printf("Failed to setup acceptable wheel specs, leave it as empty: %v", err)
 	}
 
 	// Install the Dataflow Python SDK and worker packages.
@@ -232,4 +295,46 @@ func multiProcessExactlyOnce(actionFunc func(), completeFileName string) {
 	// mark install complete
 	os.OpenFile(installCompleteFile, os.O_RDONLY|os.O_CREATE, 0666)
 
+}
+
+// processArtifactsInSetupOnlyMode installs the dependencies found in artifacts
+// when flag --setup_only and --artifacts exist. The setup mode will only
+// process the provided artifacts and skip the actual worker program start up.
+// The mode is useful for building new images with dependencies pre-installed so
+// that the installation can be skipped at the pipeline runtime.
+func processArtifactsInSetupOnlyMode() error {
+	if *artifacts == "" {
+		log.Fatal("No --artifacts provided along with --setup_only flag.")
+	}
+	workDir := filepath.Dir(*artifacts)
+	metadata, err := ioutil.ReadFile(*artifacts)
+	if err != nil {
+		log.Fatalf("Unable to open artifacts metadata file %v with error %v", *artifacts, err)
+	}
+	var infoJsons []string
+	if err := json.Unmarshal(metadata, &infoJsons); err != nil {
+		log.Fatalf("Unable to parse metadata, error: %v", err)
+	}
+
+	files := make([]string, len(infoJsons))
+	for i, info := range infoJsons {
+		var artifactInformation pipepb.ArtifactInformation
+		if err := jsonpb.UnmarshalString(info, &artifactInformation); err != nil {
+			log.Fatalf("Unable to unmarshal artifact information from json string %v", info)
+		}
+
+		// For now we only expect artifacts in file type. The condition should be revisited if the assumption is not valid any more.
+		if artifactInformation.GetTypeUrn() != standardArtifactFileTypeUrn {
+			log.Fatalf("Expect file artifact type in setup only mode, found %v.", artifactInformation.GetTypeUrn())
+		}
+		filePayload := &pipepb.ArtifactFilePayload{}
+		if err := proto.Unmarshal(artifactInformation.GetTypePayload(), filePayload); err != nil {
+			log.Fatal("Unable to unmarshal artifact information type payload.")
+		}
+		files[i] = filePayload.GetPath()
+	}
+	if setupErr := installSetupPackages(files, workDir); setupErr != nil {
+		log.Fatalf("Failed to install required packages: %v", setupErr)
+	}
+	return nil
 }

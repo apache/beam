@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.dataflow.worker.graph;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 
 import com.google.api.services.dataflow.model.InstructionOutput;
 import com.google.api.services.dataflow.model.ParDoInstruction;
@@ -28,10 +28,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
-import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
@@ -54,7 +53,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Equivalence;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Equivalence.Wrapper;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -63,6 +62,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.ImmutableN
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.MutableNetwork;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.Network;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.NetworkBuilder;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -88,7 +88,7 @@ public class InsertFetchAndFilterStreamingSideInputNodesTest {
   public void testSdkParDoWithSideInput() throws Exception {
     Pipeline p = Pipeline.create();
     PCollection<String> pc = p.apply(Create.of("a", "b", "c"));
-    PCollectionView<Iterable<String>> pcView = pc.apply(View.asIterable());
+    PCollectionView<List<String>> pcView = pc.apply(View.asList());
     pc.apply(ParDo.of(new TestDoFn(pcView)).withSideInputs(pcView));
     RunnerApi.Pipeline pipeline = PipelineTranslation.toProto(p);
 
@@ -175,9 +175,9 @@ public class InsertFetchAndFilterStreamingSideInputNodesTest {
   }
 
   private static class TestDoFn extends DoFn<String, Iterable<String>> {
-    @Nullable private final PCollectionView<Iterable<String>> pCollectionView;
+    private final @Nullable PCollectionView<List<String>> pCollectionView;
 
-    private TestDoFn(@Nullable PCollectionView<Iterable<String>> pCollectionView) {
+    private TestDoFn(@Nullable PCollectionView<List<String>> pCollectionView) {
       this.pCollectionView = pCollectionView;
     }
 
@@ -194,9 +194,9 @@ public class InsertFetchAndFilterStreamingSideInputNodesTest {
           && b instanceof FetchAndFilterStreamingSideInputsNode) {
         FetchAndFilterStreamingSideInputsNode nodeA = (FetchAndFilterStreamingSideInputsNode) a;
         FetchAndFilterStreamingSideInputsNode nodeB = (FetchAndFilterStreamingSideInputsNode) b;
-        Map.Entry<PCollectionView<?>, SdkFunctionSpec> nodeAEntry =
+        Map.Entry<PCollectionView<?>, FunctionSpec> nodeAEntry =
             Iterables.getOnlyElement(nodeA.getPCollectionViewsToWindowMappingFns().entrySet());
-        Map.Entry<PCollectionView<?>, SdkFunctionSpec> nodeBEntry =
+        Map.Entry<PCollectionView<?>, FunctionSpec> nodeBEntry =
             Iterables.getOnlyElement(nodeB.getPCollectionViewsToWindowMappingFns().entrySet());
         return Objects.equals(
                 nodeAEntry.getKey().getTagInternal(), nodeBEntry.getKey().getTagInternal())

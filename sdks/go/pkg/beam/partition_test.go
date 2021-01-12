@@ -28,6 +28,9 @@ func init() {
 	beam.RegisterFunction(identityMinus2)
 	beam.RegisterFunction(mod2)
 	beam.RegisterFunction(less3)
+	beam.RegisterFunction(extractKV)
+	beam.RegisterFunction(combineKV)
+	beam.RegisterFunction(mod2Keys)
 }
 
 func identity(n int) int { return n }
@@ -80,6 +83,56 @@ func TestPartition(t *testing.T) {
 		p, s, in, exp := ptest.CreateList2(test.in, test.out0)
 		out := beam.Partition(s, test.n, test.fn, in)
 		passert.Equals(s, out[0], exp)
+
+		if err := ptest.Run(p); err != nil {
+			t.Errorf("Partition(%v)[0] != %v: %v", test.in, test.out0, err)
+		}
+	}
+}
+
+type kvIntInt struct {
+	K, V int
+}
+
+func extractKV(v kvIntInt) (int, int) {
+	return v.K, v.V
+}
+
+func combineKV(k, v int) kvIntInt {
+	return kvIntInt{k, v}
+}
+
+func mod2Keys(k, v int) int {
+	return mod2(k)
+}
+
+func TestPartitionKV(t *testing.T) {
+	tests := []struct {
+		in   []kvIntInt
+		n    int
+		fn   interface{}
+		out0 []kvIntInt
+	}{
+		{
+			[]kvIntInt{{1, 1}, {1, 2}, {2, 3}, {3, 4}},
+			2,
+			mod2Keys,
+			[]kvIntInt{{2, 3}},
+		},
+		{
+			[]kvIntInt{{1, 1}, {1, 2}, {2, 3}, {3, 4}},
+			11,
+			mod2Keys,
+			[]kvIntInt{{2, 3}},
+		},
+	}
+
+	for _, test := range tests {
+		p, s, in, exp := ptest.CreateList2(test.in, test.out0)
+		kvs := beam.ParDo(s, extractKV, in)
+		parts := beam.Partition(s, test.n, test.fn, kvs)
+		out := beam.ParDo(s, combineKV, parts[0])
+		passert.Equals(s, out, exp)
 
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("Partition(%v)[0] != %v: %v", test.in, test.out0, err)

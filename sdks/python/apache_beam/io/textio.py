@@ -17,6 +17,7 @@
 
 """A source and a sink for reading from and writing to text files."""
 
+# pytype: skip-file
 
 from __future__ import absolute_import
 
@@ -39,9 +40,12 @@ from apache_beam.io.iobase import Write
 from apache_beam.transforms import PTransform
 from apache_beam.transforms.display import DisplayDataItem
 
-__all__ = ['ReadFromText', 'ReadFromTextWithFilename', 'ReadAllFromText',
-           'WriteToText']
-
+__all__ = [
+    'ReadFromText',
+    'ReadFromTextWithFilename',
+    'ReadAllFromText',
+    'WriteToText'
+]
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -83,8 +87,9 @@ class _TextSource(filebasedsource.FileBasedSource):
     def position(self, value):
       assert isinstance(value, (int, long))
       if value > len(self._data):
-        raise ValueError('Cannot set position to %d since it\'s larger than '
-                         'size of data %d.' % (value, len(self._data)))
+        raise ValueError(
+            'Cannot set position to %d since it\'s larger than '
+            'size of data %d.' % (value, len(self._data)))
       self._position = value
 
     def reset(self):
@@ -119,17 +124,19 @@ class _TextSource(filebasedsource.FileBasedSource):
     Please refer to documentation in class `ReadFromText` for the rest
     of the arguments.
     """
-    super(_TextSource, self).__init__(file_pattern, min_bundle_size,
-                                      compression_type=compression_type,
-                                      validate=validate)
+    super(_TextSource, self).__init__(
+        file_pattern,
+        min_bundle_size,
+        compression_type=compression_type,
+        validate=validate)
 
     self._strip_trailing_newlines = strip_trailing_newlines
     self._compression_type = compression_type
     self._coder = coder
     self._buffer_size = buffer_size
     if skip_header_lines < 0:
-      raise ValueError('Cannot skip negative number of header lines: %d'
-                       % skip_header_lines)
+      raise ValueError(
+          'Cannot skip negative number of header lines: %d' % skip_header_lines)
     elif skip_header_lines > 10:
       _LOGGER.warning(
           'Skipping %d header lines. Skipping large number of header '
@@ -140,14 +147,10 @@ class _TextSource(filebasedsource.FileBasedSource):
   def display_data(self):
     parent_dd = super(_TextSource, self).display_data()
     parent_dd['strip_newline'] = DisplayDataItem(
-        self._strip_trailing_newlines,
-        label='Strip Trailing New Lines')
+        self._strip_trailing_newlines, label='Strip Trailing New Lines')
     parent_dd['buffer_size'] = DisplayDataItem(
-        self._buffer_size,
-        label='Buffer Size')
-    parent_dd['coder'] = DisplayDataItem(
-        self._coder.__class__,
-        label='Coder')
+        self._buffer_size, label='Buffer Size')
+    parent_dd['coder'] = DisplayDataItem(self._coder.__class__, label='Coder')
     return parent_dd
 
   def read_records(self, file_name, range_tracker):
@@ -157,8 +160,9 @@ class _TextSource(filebasedsource.FileBasedSource):
     next_record_start_position = -1
 
     def split_points_unclaimed(stop_position):
-      return (0 if stop_position <= next_record_start_position
-              else iobase.RangeTracker.SPLIT_POINTS_UNKNOWN)
+      return (
+          0 if stop_position <= next_record_start_position else
+          iobase.RangeTracker.SPLIT_POINTS_UNKNOWN)
 
     range_tracker.set_split_points_unclaimed_callback(split_points_unclaimed)
 
@@ -317,18 +321,20 @@ class _TextSource(filebasedsource.FileBasedSource):
 
     if self._strip_trailing_newlines:
       # Current record should not contain the separator.
-      return (read_buffer.data[record_start_position_in_buffer:sep_bounds[0]],
-              sep_bounds[1] - record_start_position_in_buffer)
+      return (
+          read_buffer.data[record_start_position_in_buffer:sep_bounds[0]],
+          sep_bounds[1] - record_start_position_in_buffer)
     else:
       # Current record should contain the separator.
-      return (read_buffer.data[record_start_position_in_buffer:sep_bounds[1]],
-              sep_bounds[1] - record_start_position_in_buffer)
+      return (
+          read_buffer.data[record_start_position_in_buffer:sep_bounds[1]],
+          sep_bounds[1] - record_start_position_in_buffer)
 
 
 class _TextSourceWithFilename(_TextSource):
   def read_records(self, file_name, range_tracker):
-    records = super(_TextSourceWithFilename, self).read_records(file_name,
-                                                                range_tracker)
+    records = super(_TextSourceWithFilename,
+                    self).read_records(file_name, range_tracker)
     for record in records:
       yield (file_name, record)
 
@@ -342,9 +348,10 @@ class _TextSink(filebasedsink.FileBasedSink):
                append_trailing_newlines=True,
                num_shards=0,
                shard_name_template=None,
-               coder=coders.ToStringCoder(),  # type: coders.Coder
+               coder=coders.ToBytesCoder(),  # type: coders.Coder
                compression_type=CompressionTypes.AUTO,
-               header=None):
+               header=None,
+               footer=None):
     """Initialize a _TextSink.
 
     Args:
@@ -376,6 +383,8 @@ class _TextSink(filebasedsink.FileBasedSink):
         compression.
       header: String to write at beginning of file as a header. If not None and
         append_trailing_newlines is set, '\n' will be added.
+      footer: String to write at the end of file as a footer. If not None and
+        append_trailing_newlines is set, '\n' will be added.
 
     Returns:
       A _TextSink object usable for writing.
@@ -390,20 +399,27 @@ class _TextSink(filebasedsink.FileBasedSink):
         compression_type=compression_type)
     self._append_trailing_newlines = append_trailing_newlines
     self._header = header
+    self._footer = footer
 
   def open(self, temp_path):
     file_handle = super(_TextSink, self).open(temp_path)
     if self._header is not None:
-      file_handle.write(coders.ToStringCoder().encode(self._header))
+      file_handle.write(coders.ToBytesCoder().encode(self._header))
       if self._append_trailing_newlines:
         file_handle.write(b'\n')
     return file_handle
 
+  def close(self, file_handle):
+    if self._footer is not None:
+      file_handle.write(coders.ToBytesCoder().encode(self._footer))
+      if self._append_trailing_newlines:
+        file_handle.write(b'\n')
+    super(_TextSink, self).close(file_handle)
+
   def display_data(self):
     dd_parent = super(_TextSink, self).display_data()
     dd_parent['append_newline'] = DisplayDataItem(
-        self._append_trailing_newlines,
-        label='Append Trailing New Lines')
+        self._append_trailing_newlines, label='Append Trailing New Lines')
     return dd_parent
 
   def write_encoded_record(self, file_handle, encoded_value):
@@ -414,19 +430,26 @@ class _TextSink(filebasedsink.FileBasedSink):
 
 
 def _create_text_source(
-    file_pattern=None, min_bundle_size=None, compression_type=None,
-    strip_trailing_newlines=None, coder=None, skip_header_lines=None):
+    file_pattern=None,
+    min_bundle_size=None,
+    compression_type=None,
+    strip_trailing_newlines=None,
+    coder=None,
+    skip_header_lines=None):
   return _TextSource(
-      file_pattern=file_pattern, min_bundle_size=min_bundle_size,
+      file_pattern=file_pattern,
+      min_bundle_size=min_bundle_size,
       compression_type=compression_type,
       strip_trailing_newlines=strip_trailing_newlines,
-      coder=coder, validate=False, skip_header_lines=skip_header_lines)
+      coder=coder,
+      validate=False,
+      skip_header_lines=skip_header_lines)
 
 
 class ReadAllFromText(PTransform):
   """A ``PTransform`` for reading a ``PCollection`` of text files.
 
-   Reads a ``PCollection`` of text files or file patterns and and produces a
+   Reads a ``PCollection`` of text files or file patterns and produces a
    ``PCollection`` of strings.
 
   Parses a text file as newline-delimited elements, by default assuming
@@ -470,15 +493,20 @@ class ReadAllFromText(PTransform):
     """
     super(ReadAllFromText, self).__init__(**kwargs)
     source_from_file = partial(
-        _create_text_source, min_bundle_size=min_bundle_size,
+        _create_text_source,
+        min_bundle_size=min_bundle_size,
         compression_type=compression_type,
-        strip_trailing_newlines=strip_trailing_newlines, coder=coder,
+        strip_trailing_newlines=strip_trailing_newlines,
+        coder=coder,
         skip_header_lines=skip_header_lines)
     self._desired_bundle_size = desired_bundle_size
     self._min_bundle_size = min_bundle_size
     self._compression_type = compression_type
     self._read_all_files = ReadAllFiles(
-        True, compression_type, desired_bundle_size, min_bundle_size,
+        True,
+        compression_type,
+        desired_bundle_size,
+        min_bundle_size,
         source_from_file)
 
   def expand(self, pvalue):
@@ -535,8 +563,12 @@ class ReadFromText(PTransform):
 
     super(ReadFromText, self).__init__(**kwargs)
     self._source = self._source_class(
-        file_pattern, min_bundle_size, compression_type,
-        strip_trailing_newlines, coder, validate=validate,
+        file_pattern,
+        min_bundle_size,
+        compression_type,
+        strip_trailing_newlines,
+        coder,
+        validate=validate,
         skip_header_lines=skip_header_lines)
 
   def expand(self, pvalue):
@@ -565,9 +597,10 @@ class WriteToText(PTransform):
       append_trailing_newlines=True,
       num_shards=0,
       shard_name_template=None,  # type: Optional[str]
-      coder=coders.ToStringCoder(),  # type: coders.Coder
+      coder=coders.ToBytesCoder(),  # type: coders.Coder
       compression_type=CompressionTypes.AUTO,
-      header=None):
+      header=None,
+      footer=None):
     r"""Initialize a :class:`WriteToText` transform.
 
     Args:
@@ -603,11 +636,21 @@ class WriteToText(PTransform):
       header (str): String to write at beginning of file as a header.
         If not :data:`None` and **append_trailing_newlines** is set, ``\n`` will
         be added.
+      footer (str): String to write at the end of file as a footer.
+        If not :data:`None` and **append_trailing_newlines** is set, ``\n`` will
+        be added.
     """
 
-    self._sink = _TextSink(file_path_prefix, file_name_suffix,
-                           append_trailing_newlines, num_shards,
-                           shard_name_template, coder, compression_type, header)
+    self._sink = _TextSink(
+        file_path_prefix,
+        file_name_suffix,
+        append_trailing_newlines,
+        num_shards,
+        shard_name_template,
+        coder,
+        compression_type,
+        header,
+        footer)
 
   def expand(self, pcoll):
     return pcoll | Write(self._sink)

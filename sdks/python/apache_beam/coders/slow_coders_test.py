@@ -16,18 +16,18 @@
 #
 
 """Unit tests for uncompiled implementation of coder impls."""
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging
 import unittest
-
 
 # Run all the standard coder test cases.
 from apache_beam.coders.coders_test_common import *
 
 
 class SlowCoders(unittest.TestCase):
-
   def test_using_slow_impl(self):
     try:
       # pylint: disable=wrong-import-position

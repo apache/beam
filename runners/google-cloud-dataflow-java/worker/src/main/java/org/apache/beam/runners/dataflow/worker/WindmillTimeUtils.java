@@ -17,16 +17,15 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /** Some timestamp conversion helpers for working with Windmill. */
 public class WindmillTimeUtils {
   /** Convert a Windmill watermark to a harness watermark. */
-  @Nullable
-  public static Instant windmillToHarnessWatermark(long watermarkUs) {
+  public static @Nullable Instant windmillToHarnessWatermark(long watermarkUs) {
     if (watermarkUs == Long.MIN_VALUE) {
       // Not yet known.
       return null;

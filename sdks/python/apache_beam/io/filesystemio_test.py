@@ -14,7 +14,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 """Tests for filesystemio."""
+
+# pytype: skip-file
 
 from __future__ import absolute_import
 
@@ -32,7 +35,6 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class FakeDownloader(filesystemio.Downloader):
-
   def __init__(self, data):
     self._data = data
     self.last_read_size = -1
@@ -47,7 +49,6 @@ class FakeDownloader(filesystemio.Downloader):
 
 
 class FakeUploader(filesystemio.Uploader):
-
   def __init__(self):
     self.data = b''
     self.last_write_size = -1
@@ -66,7 +67,6 @@ class FakeUploader(filesystemio.Uploader):
 
 
 class TestDownloaderStream(unittest.TestCase):
-
   def test_file_attributes(self):
     downloader = FakeDownloader(data=None)
     stream = filesystemio.DownloaderStream(downloader)
@@ -95,8 +95,8 @@ class TestDownloaderStream(unittest.TestCase):
     data = b'abcde'
     downloader = FakeDownloader(data)
     buffer_size = 2
-    stream = io.BufferedReader(filesystemio.DownloaderStream(downloader),
-                               buffer_size)
+    stream = io.BufferedReader(
+        filesystemio.DownloaderStream(downloader), buffer_size)
 
     # Verify that buffering works and is reading ahead.
     self.assertEqual(stream.read(1), data[0:1])
@@ -105,7 +105,6 @@ class TestDownloaderStream(unittest.TestCase):
 
 
 class TestUploaderStream(unittest.TestCase):
-
   def test_file_attributes(self):
     uploader = FakeUploader()
     stream = filesystemio.UploaderStream(uploader)
@@ -138,8 +137,8 @@ class TestUploaderStream(unittest.TestCase):
     data = b'abcde'
     uploader = FakeUploader()
     buffer_size = 2
-    stream = io.BufferedWriter(filesystemio.UploaderStream(uploader),
-                               buffer_size)
+    stream = io.BufferedWriter(
+        filesystemio.UploaderStream(uploader), buffer_size)
 
     # Verify that buffering works: doesn't write to uploader until buffer is
     # filled.
@@ -151,7 +150,6 @@ class TestUploaderStream(unittest.TestCase):
 
 
 class TestPipeStream(unittest.TestCase):
-
   def _read_and_verify(self, stream, expected, buffer_size, success):
     data_list = []
     bytes_read = 0
@@ -220,6 +218,31 @@ class TestPipeStream(unittest.TestCase):
         parent_conn.close()
         child_thread.join()
         self.assertTrue(success[0], 'error in test thread')
+
+  def test_pipe_stream_rewind_buffer(self):
+    buffer_size = 512
+    data = os.urandom(buffer_size)
+
+    parent_conn, child_conn = multiprocessing.Pipe()
+    parent_conn.send_bytes(data)
+    parent_conn.close()
+    stream = filesystemio.PipeStream(child_conn)
+
+    # Regular read.
+    read_data = stream.read(buffer_size)
+    self.assertEqual(data, read_data)
+
+    # Rewind buffer_size bytes.
+    stream.seek(0)
+    read_data = stream.read(buffer_size)
+    self.assertEqual(data, read_data)
+
+    # Read 0 bytes. Rewind buffer still points to offset 0.
+    read_data = stream.read(buffer_size)
+    self.assertFalse(read_data)
+    stream.seek(0)
+    read_data = stream.read(buffer_size)
+    self.assertEqual(data, read_data)
 
 
 if __name__ == '__main__':

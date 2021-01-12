@@ -22,8 +22,7 @@ ext {
     kryoVersion = '4.0.2'
 }
 
-applyJavaNature(
-    automaticModuleName: 'org.apache.beam.sdk.extensions.kryo',
+applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.extensions.kryo',
     exportJavadoc: false,
     shadowClosure: {
     dependencies {

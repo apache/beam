@@ -25,27 +25,31 @@ syntax = "proto3";
 
 package org.apache.beam.model.pipeline.v1;
 
-option go_package = "pipeline_v1";
+option go_package = "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1;pipeline_v1";
 option java_package = "org.apache.beam.model.pipeline.v1";
 option java_outer_classname = "RunnerApi";
 
 import "endpoints.proto";
-import "google/protobuf/any.proto";
 import "google/protobuf/descriptor.proto";
-import "google/protobuf/timestamp.proto";
 
 message BeamConstants {
   enum Constants {
     // All timestamps in milliseconds since Jan 1, 1970.
+
+    // All timestamps of elements or window boundaries must be within
+    // the interval [MIN_TIMESTAMP_MILLIS, MAX_TIMESTAMP_MILLIS].
+    // The smallest representable timestamp of an element or a window boundary.
     MIN_TIMESTAMP_MILLIS = 0 [(beam_constant) = "-9223372036854775"];
+    // The largest representable timestamp of an element or a window boundary.
     MAX_TIMESTAMP_MILLIS = 1 [(beam_constant) =  "9223372036854775"];
+
     // The maximum timestamp for the global window.
-    // Triggers use maxTimestamp to set timers' timestamp. Timers fires when
+    // Triggers use max timestamp to set timers' timestamp. Timers fire when
     // the watermark passes their timestamps. So, the timestamp needs to be
     // smaller than the MAX_TIMESTAMP_MILLIS.
     // One standard day is subtracted from MAX_TIMESTAMP_MILLIS to make sure
-    // the maxTimestamp is smaller than MAX_TIMESTAMP_MILLIS even after rounding up
-    // to seconds or minutes. See also GlobalWindow in the Java SDK.
+    // the max timestamp is smaller than MAX_TIMESTAMP_MILLIS even after rounding up
+    // to seconds or minutes.
     GLOBAL_WINDOW_MAX_TIMESTAMP_MILLIS = 2 [(beam_constant) = "9223371950454775"];
   }
 }
@@ -70,33 +74,56 @@ message Components {
 }
 
 // A Pipeline is a hierarchical graph of PTransforms, linked
-// by PCollections.
+// by PCollections. A typical graph may look like:
 //
-// This is represented by a number of by-reference maps to nodes,
-// PCollections, SDK environments, UDF, etc., for
+//   Impulse -> PCollection -> ParDo -> PCollection -> GroupByKey -> ...
+//                                   \> PCollection -> ParDo      -> ...
+//                                                  \> ParDo      -> ...
+//   Impulse -> PCollection -> ParDo -> PCollection -> ...
+//
+// This is represented by a number of by-reference maps to transforms,
+// PCollections, SDK environments, coders, etc., for
 // supporting compact reuse and arbitrary graph structure.
-//
-// All of the keys in the maps here are arbitrary strings that are only
-// required to be internally consistent within this proto message.
 message Pipeline {
 
   // (Required) The coders, UDFs, graph nodes, etc, that make up
   // this pipeline.
   Components components = 1;
 
-  // (Required) The ids of all PTransforms that are not contained within another PTransform.
-  // These must be in shallow topological order, so that traversing them recursively
-  // in this order yields a recursively topological traversal.
+  // (Required) The ids of all PTransforms that are not contained within another
+  // PTransform. These must be in shallow topological order, so that traversing
+  // them recursively in this order yields a recursively topological traversal.
   repeated string root_transform_ids = 2;
 
   // (Optional) Static display data for the pipeline. If there is none,
   // it may be omitted.
-  DisplayData display_data = 3;
+  repeated DisplayData display_data = 3;
+
+  // (Optional) A set of requirements that the runner MUST understand and be
+  // able to faithfully provide in order to execute this pipeline. These
+  // may indicate that a runner must inspect new fields on a component or
+  // provide additional guarantees when processing specific transforms.
+  // A runner should reject any pipelines with unknown requirements.
+  repeated string requirements = 4;
 }
 
-// An applied PTransform! This does not contain the graph data, but only the
-// fields specific to a graph node that is a Runner API transform
-// between PCollections.
+// Transforms are the operations in your pipeline, and provide a generic
+// processing framework. You provide processing logic in the form of a function
+// object (colloquially referred to as “user code”), and your user code is
+// applied to each element of an input PCollection (or more than one
+// PCollection). Depending on the pipeline runner and back-end that you choose,
+// many different workers across a cluster may execute instances of your user
+// code in parallel. The user code running on each worker generates the output
+// elements that are ultimately added to the final output PCollection that the
+// transform produces.
+//
+// The Beam SDKs contain a number of different transforms that you can apply to
+// your pipeline’s PCollections. These include general-purpose core transforms,
+// such as ParDo or Combine. There are also pre-written composite transforms
+// included in the SDKs, which combine one or more of the core transforms in a
+// useful processing pattern, such as counting or combining elements in a
+// collection. You can also define your own more complex composite transforms to
+// fit your pipeline’s exact use case.
 message PTransform {
 
   // (Required) A unique name for the application node.
@@ -117,20 +144,14 @@ message PTransform {
   //
   // For primitive transform in the Runner API, this is required, and the
   // payloads are well-defined messages. When the URN indicates ParDo it
-  // is a ParDoPayload, and so on.
-  //
-  // TODO: document the standardized URNs and payloads
-  // TODO: separate standardized payloads into a separate proto file
-  //
-  // For some special composite transforms, the payload is also officially
-  // defined:
-  //
-  //  - when the URN is "beam:transforms:combine" it is a CombinePayload
-  //
+  // is a ParDoPayload, and so on. For some special composite transforms,
+  // the payload is also officially defined. See StandardPTransforms for
+  // details.
   FunctionSpec spec = 1;
 
-  // (Optional) if this node is a composite, a list of the ids of
-  // transforms that it contains.
+  // (Optional) A list of the ids of transforms that it contains.
+  //
+  // Primitive transforms are not allowed to specify this.
   repeated string subtransforms = 2;
 
   // (Required) A map from local names of inputs (unique only with this map, and
@@ -145,7 +166,6 @@ message PTransform {
   //
   // All inputs are recorded here so that the topological ordering of
   // the graph is consistent whether or not the payload is understood.
-  //
   map<string, string> inputs = 3;
 
   // (Required) A map from local names of outputs (unique only within this map,
@@ -157,38 +177,91 @@ message PTransform {
   //
   //  - for a ParDo transform, these are tags on PCollections, which will be
   //    embedded in the DoFn.
-  //
   map<string, string> outputs = 4;
 
   // (Optional) Static display data for this PTransform application. If
-  // there is none, or it is not relevant (such as use by the Fn API)
-  // then it may be omitted.
-  DisplayData display_data = 6;
+  // there is none, it may be omitted.
+  repeated DisplayData display_data = 6;
+
+  // Environment where the current PTransform should be executed in.
+  //
+  // Transforms that are required to be implemented by a runner must omit this.
+  // All other transforms are required to specify this.
+  string environment_id = 7;
 }
 
 message StandardPTransforms {
+  // Primitive transforms may not specify composite sub-transforms.
   enum Primitives {
-    // Represents Beam's parallel do operation.
-    // Payload: ParDoPayload.
-    // TODO(BEAM-3595): Change this to beam:transform:pardo:v1.
+    // ParDo is a Beam transform for generic parallel processing. The ParDo
+    // processing paradigm is similar to the “Map” phase of a
+    // Map/Shuffle/Reduce-style algorithm: a ParDo transform considers each
+    // element in the input PCollection, performs some processing function
+    // (your user code) on that element, and emits zero, one, or multiple
+    // elements to an output PCollection.
+    //
+    // See https://beam.apache.org/documentation/programming-guide/#pardo
+    // for additional details.
+    //
+    // Payload: ParDoPayload
     PAR_DO = 0 [(beam_urn) = "beam:transform:pardo:v1"];
 
-    // Represents Beam's flatten operation.
-    // Payload: None.
+    // Flatten is a Beam transform for PCollection objects that store the same
+    // data type. Flatten merges multiple PCollection objects into a single
+    // logical PCollection.
+    //
+    // See https://beam.apache.org/documentation/programming-guide/#flatten
+    // for additional details.
+    //
+    // Payload: None
     FLATTEN = 1 [(beam_urn) = "beam:transform:flatten:v1"];
 
-    // Represents Beam's group-by-key operation.
+    // GroupByKey is a Beam transform for processing collections of key/value
+    // pairs. It’s a parallel reduction operation, analogous to the Shuffle
+    // phase of a Map/Shuffle/Reduce-style algorithm. The input to GroupByKey is
+    // a collection of key/value pairs that represents a multimap, where the
+    // collection contains multiple pairs that have the same key, but different
+    // values. Given such a collection, you use GroupByKey to collect all of the
+    // values associated with each unique key.
+    //
+    // See https://beam.apache.org/documentation/programming-guide/#groupbykey
+    // for additional details.
+    //
+    // Never defines an environment as the runner is required to implement this
+    // transform.
+    //
     // Payload: None
     GROUP_BY_KEY = 2 [(beam_urn) = "beam:transform:group_by_key:v1"];
 
-    // Represents the operation generating a single empty element.
+    // A transform which produces a single empty byte array at the minimum
+    // timestamp in the GlobalWindow.
+    //
+    // Never defines an environment as the runner is required to implement this
+    // transform.
+    //
+    // Payload: None
     IMPULSE = 3 [(beam_urn) = "beam:transform:impulse:v1"];
 
-    // Represents the Window.into() operation.
-    // Payload: WindowIntoPayload.
+    // Windowing subdivides a PCollection according to the timestamps of its
+    // individual elements. Transforms that aggregate multiple elements, such as
+    // GroupByKey and Combine, work implicitly on a per-window basis — they
+    // process each PCollection as a succession of multiple, finite windows,
+    // though the entire collection itself may be of unbounded size.
+    //
+    // See https://beam.apache.org/documentation/programming-guide/#windowing
+    // for additional details.
+    //
+    // Payload: WindowIntoPayload
     ASSIGN_WINDOWS = 4 [(beam_urn) = "beam:transform:window_into:v1"];
 
-    // Represents the TestStream.
+    // A testing input that generates an unbounded {@link PCollection} of
+    // elements, advancing the watermark and processing time as elements are
+    // emitted. After all of the specified elements are emitted, ceases to
+    // produce output.
+    //
+    // See https://beam.apache.org/blog/2016/10/20/test-stream.html
+    // for additional details.
+    //
     // Payload: TestStreamPayload
     TEST_STREAM = 5 [(beam_urn) = "beam:transform:teststream:v1"];
 
@@ -202,7 +275,7 @@ message StandardPTransforms {
     // nonce is used by a runner to associate each input with its output.
     // The nonce is represented as an opaque set of bytes.
     //
-    // Payload: WindowMappingFn from SideInputSpec.
+    // Payload: SideInput#window_mapping_fn FunctionSpec
     MAP_WINDOWS = 6 [(beam_urn) = "beam:transform:map_windows:v1"];
 
     // Used to merge windows during a GroupByKey.
@@ -219,8 +292,24 @@ message StandardPTransforms {
     // to associate each input with its output. The nonce is represented as an
     // opaque set of bytes.
     //
-    // Payload: WindowFn from WindowingStrategy.
+    // Payload: WindowingStrategy#window_fn FunctionSpec
     MERGE_WINDOWS = 7 [(beam_urn) = "beam:transform:merge_windows:v1"];
+
+    // A transform that translates a given element to its human-readable
+    // representation.
+    // 
+    // Input: KV<nonce, element>
+    // Output: KV<nonce, string>
+    // 
+    // For each given element, the implementation returns the best-effort
+    // human-readable representation. When possible, the implementation could
+    // call a user-overridable method on the type. For example, Java could
+    // call `toString()`, Python could call `str()`, Golang could call
+    // `String()`.  The nonce is used by a runner to associate each input with
+    // its output. The nonce is represented as an opaque set of bytes.
+    //
+    // Payload: none
+    TO_STRING = 8 [(beam_urn) = "beam:transform:to_string:v1"];
   }
   enum DeprecatedPrimitives {
     // Represents the operation to read a Bounded or Unbounded source.
@@ -249,6 +338,16 @@ message StandardPTransforms {
 
     // Less well-known. Payload: WriteFilesPayload.
     WRITE_FILES = 3 [(beam_urn) = "beam:transform:write_files:v1"];
+
+    // Payload: PubSubReadPayload.
+    PUBSUB_READ = 4 [(beam_urn) = "beam:transform:pubsub_read:v1"];
+
+    // Payload: PubSubWritePayload.
+    PUBSUB_WRITE = 5 [(beam_urn) = "beam:transform:pubsub_write:v1"];
+
+    // Represents the GroupIntoBatches.WithShardedKey operation.
+    // Payload: GroupIntoBatchesPayload
+    GROUP_INTO_BATCHES_WITH_SHARDED_KEY = 6 [(beam_urn) = "beam:transform:group_into_batches_with_sharded_key:v1"];
   }
   // Payload for all of these: CombinePayload
   enum CombineComponents {
@@ -275,6 +374,14 @@ message StandardPTransforms {
     // https://s.apache.org/beam-runner-api-combine-model#heading=h.aj86ew4v1wk
     // Payload: CombinePayload
     COMBINE_GROUPED_VALUES = 3 [(beam_urn) = "beam:transform:combine_grouped_values:v1"];
+
+    // Represents the Convert To Accumulators transform, as described in the
+    // following document:
+    // https://s.apache.org/beam-runner-api-combine-model#heading=h.h5697l1scd9x
+    // Payload: CombinePayload
+    COMBINE_PER_KEY_CONVERT_TO_ACCUMULATORS = 4
+        [(beam_urn) =
+             "beam:transform:combine_per_key_convert_to_accumulators:v1"];
   }
   // Payload for all of these: ParDoPayload containing the user's SDF
   enum SplittableParDoComponents {
@@ -282,38 +389,38 @@ message StandardPTransforms {
     // Input: element; output: KV(element, restriction).
     PAIR_WITH_RESTRICTION = 0 [(beam_urn) = "beam:transform:sdf_pair_with_restriction:v1"];
 
-    // Splits the restriction inside an element/restriction pair.
-    // Input: KV(element, restriction); output: KV(element, restriction).
-    SPLIT_RESTRICTION = 1 [(beam_urn) = "beam:transform:sdf_split_restriction:v1"];
-
-    // Applies the DoFn to every element/restriction pair in a uniquely keyed
-    // collection, in a splittable fashion.
-    // Input: KV(bytes, KV(element, restriction)); output: DoFn's output.
-    // The first "bytes" is an opaque unique key using the standard bytes coder.
-    // Typically a runner would rewrite this into a runner-specific grouping
-    // operation supporting state and timers, followed by PROCESS_ELEMENTS,
-    // with some runner-specific glue code in between.
-    PROCESS_KEYED_ELEMENTS = 2 [(beam_urn) = "beam:transform:sdf_process_keyed_elements:v1"];
-
-    // Like PROCESS_KEYED_ELEMENTS, but without the unique key - just elements
-    // and restrictions.
-    // Input: KV(element, restriction); output: DoFn's output.
-    PROCESS_ELEMENTS = 3 [(beam_urn) = "beam:transform:sdf_process_elements:v1"];
-
     // Splits the restriction of each element/restriction pair and returns the
-    // resulting splits, with a corresponding floating point size estimations
+    // resulting splits, with a corresponding floating point size estimation
     // for each.
+    //
     // A reasonable value for size is the number of bytes expected to be
     // produced by this (element, restriction) pair.
+    //
     // Input: KV(element, restriction)
     // Output: KV(KV(element, restriction), size))
-    SPLIT_AND_SIZE_RESTRICTIONS = 4 [(beam_urn) = "beam:transform:sdf_split_and_size_restrictions:v1"];
+    SPLIT_AND_SIZE_RESTRICTIONS = 1 [(beam_urn) = "beam:transform:sdf_split_and_size_restrictions:v1"];
 
-    // Like PROCESS_ELEMENTS, but accepts the sized output produced by
-    // SPLIT_RESTRICTION_WITH_SIZING.
+    // Applies the DoFn to every element and restriction.
+    //
+    // All primary and residuals returned from checkpointing or splitting must
+    // have the same type as the input to this transform.
+    //
     // Input: KV(KV(element, restriction), size); output: DoFn's output.
-    PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS = 5 [(beam_urn) = "beam:transform:sdf_process_sized_element_and_restrictions:v1"];
+    PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS = 2 [(beam_urn) = "beam:transform:sdf_process_sized_element_and_restrictions:v1"];
 
+    // Truncates the restriction of each element/restriction pair and returns
+    // the finite restriction which will be processed when a pipeline is
+    // drained. See
+    // https://docs.google.com/document/d/1NExwHlj-2q2WUGhSO4jTu8XGhDPmm3cllSN8IMmWci8/edit#.
+    // for additional details about drain.
+    //
+    // Input: KV(KV(element, restriction), size);
+    // Output: KV(KV(element, restriction), size).
+    TRUNCATE_SIZED_RESTRICTION = 3 [(beam_urn) = "beam:transform:sdf_truncate_sized_restrictions:v1"];
+  }
+  // Payload for all of these: GroupIntoBatchesPayload
+  enum GroupIntoBatchesComponents {
+    GROUP_INTO_BATCHES = 0 [(beam_urn) = "beam:transform:group_into_batches:v1"];
   }
 }
 
@@ -355,68 +462,52 @@ message PCollection {
   // (Required) The id of the windowing strategy for this PCollection.
   string windowing_strategy_id = 4;
 
-  // (Optional) Static display data for this PTransform application. If
-  // there is none, or it is not relevant (such as use by the Fn API)
-  // then it may be omitted.
-  DisplayData display_data = 5;
+  // (Optional) Static display data for the PCollection. If there is none,
+  // it may be omitted.
+  repeated DisplayData display_data = 5;
 }
 
 // The payload for the primitive ParDo transform.
 message ParDoPayload {
 
-  // (Required) The SdkFunctionSpec of the DoFn.
-  SdkFunctionSpec do_fn = 1;
-
-  // (Required) Additional pieces of context the DoFn may require that
-  // are not otherwise represented in the payload.
-  // (may force runners to execute the ParDo differently)
-  repeated Parameter parameters = 2;
+  // (Required) The FunctionSpec of the DoFn.
+  FunctionSpec do_fn = 1;
 
   // (Optional) A mapping of local input names to side inputs, describing
   // the expected access pattern.
   map<string, SideInput> side_inputs = 3;
 
   // (Optional) A mapping of local state names to state specifications.
+  // If this is set, the stateful processing requirement should also
+  // be placed in the pipeline requirements.
   map<string, StateSpec> state_specs = 4;
 
-  // (Optional) A mapping of local timer names to timer specifications.
-  map<string, TimerSpec> timer_specs = 5;
+  // (Optional) A mapping of local timer family names to timer family
+  // specifications. If this is set, the stateful processing requirement should
+  // also be placed in the pipeline requirements.
+  map<string, TimerFamilySpec> timer_family_specs = 9;
 
-  // Whether the DoFn is splittable
-  bool splittable = 6;
-
-  // (Required if splittable == true) Id of the restriction coder.
+  // (Optional) Only set when this ParDo contains a splittable DoFn.
+  // If this is set, the corresponding standard requirement should also
+  // be placed in the pipeline requirements.
   string restriction_coder_id = 7;
 
   // (Optional) Only set when this ParDo can request bundle finalization.
+  // If this is set, the corresponding standard requirement should also
+  // be placed in the pipeline requirements.
   bool requests_finalization = 8;
-}
 
-// Parameters that a UDF might require.
-//
-// The details of how a runner sends these parameters to the SDK harness
-// are the subject of the Fn API.
-//
-// The details of how an SDK harness delivers them to the UDF is entirely
-// up to the SDK. (for some SDKs there may be parameters that are not
-// represented here if the runner doesn't need to do anything)
-//
-// Here, the parameters are simply indicators to the runner that they
-// need to run the function a particular way.
-//
-// TODO: the evolution of the Fn API will influence what needs explicit
-// representation here
-message Parameter {
-  Type.Enum type = 1;
+  // Whether this stage requires time sorted input.
+  // If this is set, the corresponding standard requirement should also
+  // be placed in the pipeline requirements.
+  bool requires_time_sorted_input = 10;
 
-  message Type {
-    enum Enum {
-      UNSPECIFIED = 0;
-      WINDOW = 1;
-      PIPELINE_OPTIONS = 2;
-      RESTRICTION_TRACKER = 3;
-    }
-  }
+  // Whether this stage requires stable input.
+  // If this is set, the corresponding standard requirement should also
+  // be placed in the pipeline requirements.
+  bool requires_stable_input = 11;
+
+  reserved 6;
 }
 
 message StateSpec {
@@ -426,6 +517,7 @@ message StateSpec {
     CombiningStateSpec combining_spec = 3;
     MapStateSpec map_spec = 4;
     SetStateSpec set_spec = 5;
+    OrderedListStateSpec ordered_list_spec = 6;
   }
 }
 
@@ -437,9 +529,13 @@ message BagStateSpec {
   string element_coder_id = 1;
 }
 
+message OrderedListStateSpec {
+  string element_coder_id = 1;
+}
+
 message CombiningStateSpec {
   string accumulator_coder_id = 1;
-  SdkFunctionSpec combine_fn = 2;
+  FunctionSpec combine_fn = 2;
 }
 
 message MapStateSpec {
@@ -451,9 +547,9 @@ message SetStateSpec {
   string element_coder_id = 1;
 }
 
-message TimerSpec {
+message TimerFamilySpec {
   TimeDomain.Enum time_domain = 1;
-  string timer_coder_id = 2;
+  string timer_family_coder_id = 2;
 }
 
 message IsBounded {
@@ -467,8 +563,8 @@ message IsBounded {
 // The payload for the primitive Read transform.
 message ReadPayload {
 
-  // (Required) The SdkFunctionSpec of the source for this Read.
-  SdkFunctionSpec source = 1;
+  // (Required) The FunctionSpec of the source for this Read.
+  FunctionSpec source = 1;
 
   // (Required) Whether the source is bounded or unbounded
   IsBounded.Enum is_bounded = 2;
@@ -479,15 +575,15 @@ message ReadPayload {
 // The payload for the WindowInto transform.
 message WindowIntoPayload {
 
-  // (Required) The SdkFunctionSpec of the WindowFn.
-  SdkFunctionSpec window_fn = 1;
+  // (Required) The FunctionSpec of the WindowFn.
+  FunctionSpec window_fn = 1;
 }
 
 // The payload for the special-but-not-primitive Combine transform.
 message CombinePayload {
 
-  // (Required) The SdkFunctionSpec of the CombineFn.
-  SdkFunctionSpec combine_fn = 1;
+  // (Required) The FunctionSpec of the CombineFn.
+  FunctionSpec combine_fn = 1;
 
   // (Required) A reference to the Coder to use for accumulators of the CombineFn
   string accumulator_coder_id = 2;
@@ -557,22 +653,75 @@ service TestStreamService {
   // A TestStream will request for events using this RPC.
   rpc Events(EventsRequest) returns (stream TestStreamPayload.Event) {}
 }
-message EventsRequest {}
+
+message EventsRequest {
+  // The set of PCollections to read from. These are the PTransform outputs
+  // local names. These are a subset of the TestStream's outputs. This allows
+  // Interactive Beam to cache many PCollections from a pipeline then replay a
+  // subset of them.
+  repeated string output_ids = 1;
+}
 
 // The payload for the special-but-not-primitive WriteFiles transform.
 message WriteFilesPayload {
 
-  // (Required) The SdkFunctionSpec of the FileBasedSink.
-  SdkFunctionSpec sink = 1;
+  // (Required) The FunctionSpec of the FileBasedSink.
+  FunctionSpec sink = 1;
 
   // (Required) The format function.
-  SdkFunctionSpec format_function = 2;
+  FunctionSpec format_function = 2;
 
   bool windowed_writes = 3;
 
   bool runner_determined_sharding = 4;
 
   map<string, SideInput> side_inputs = 5;
+}
+
+// Payload used by Google Cloud Pub/Sub read transform.
+// This can be used by runners that wish to override Beam Pub/Sub read transform
+// with a native implementation.
+message PubSubReadPayload {
+
+  // Topic to read from. Exactly one of topic or subscription should be set.
+  string topic = 1;
+
+  // Subscription to read from. Exactly one of topic or subscription should be set.
+  string subscription = 2;
+
+  // Attribute that provides element timestamps.
+  string timestamp_attribute = 3;
+
+  // Attribute to be used for uniquely identifying messages.
+  string id_attribute = 4;
+
+  // If true, reads Pub/Sub payload as well as attributes. If false, reads only the payload.
+  bool with_attributes = 5;
+}
+
+// Payload used by Google Cloud Pub/Sub write transform.
+// This can be used by runners that wish to override Beam Pub/Sub write transform
+// with a native implementation.
+message PubSubWritePayload {
+
+  // Topic to write to.
+  string topic = 1;
+
+  // Attribute that provides element timestamps.
+  string timestamp_attribute = 2;
+
+  // Attribute that uniquely identify messages.
+  string id_attribute = 3;
+}
+
+// Payload for GroupIntoBatches composite transform.
+message GroupIntoBatchesPayload {
+
+  // (Required) Max size of a batch.
+  int64 batch_size = 1;
+
+  // (Optional) Max duration a batch is allowed to be cached in states.
+  int64 max_buffering_duration_millis = 2;
 }
 
 // A coder, the binary format for serialization and deserialization of data in
@@ -588,7 +737,7 @@ message Coder {
 
   // (Optional) If this coder is parametric, such as ListCoder(VarIntCoder),
   // this is a list of the components. In order for encodings to be identical,
-  // the SdkFunctionSpec and all components must be identical, recursively.
+  // the FunctionSpec and all components must be identical, recursively.
   repeated string component_coder_ids = 2;
 }
 
@@ -635,9 +784,14 @@ message StandardCoders {
     // Components: Coder for a single element.
     ITERABLE = 3 [(beam_urn) = "beam:coder:iterable:v1"];
 
-    // Encodes a timer containing a timestamp and a user specified payload.
-    // The encoding is represented as: timestamp payload
-    //   timestamp - a big endian 8 byte integer representing millis-since-epoch.
+    // Encodes a timer containing a user key, a dynamic timer tag, a clear bit,
+    // a fire timestamp, a hold timestamp, the windows and the paneinfo.
+    // The encoding is represented as:
+    //   user key - user defined key, uses the component coder.
+    //   dynamic timer tag - a string which identifies a timer.
+    //   windows - uses component coders.
+    //   clear bit - a boolean set for clearing the timer.
+    //   fire timestamp - a big endian 8 byte integer representing millis-since-epoch.
     //     The encoded representation is shifted so that the byte representation of
     //     negative values are lexicographically ordered before the byte representation
     //     of positive values. This is typically done by subtracting -9223372036854775808
@@ -650,8 +804,9 @@ message StandardCoders {
     //                        1: 80 00 00 00 00 00 00 01
     //                      256: 80 00 00 00 00 00 01 00
     //      9223372036854775807: FF FF FF FF FF FF FF FF
-    //   payload - user defined data, uses the component coder
-    // Components: Coder for the payload.
+    //   hold timestamp - similar to the fire timestamp.
+    //   paneinfo - similar to the paneinfo of the windowed_value.
+    // Components: Coder for the key and windows.
     TIMER = 4 [(beam_urn) = "beam:coder:timer:v1"];
 
     /*
@@ -667,10 +822,65 @@ message StandardCoders {
     // Components: None
     GLOBAL_WINDOW = 7 [(beam_urn) = "beam:coder:global_window:v1"];
 
-    // Encodes an element, the window the value is in, the timestamp of the element, and the pane
-    // of the element
-    // Components: The element coder and the window coder, in that order
+    // Encodes an element, the windows it is in, the timestamp of the element,
+    // and the pane of the element. The encoding is represented as:
+    // timestamp windows pane element
+    //   timestamp - A big endian 8 byte integer representing millis-since-epoch.
+    //     The encoded representation is shifted so that the byte representation
+    //     of negative values are lexicographically ordered before the byte
+    //     representation of positive values. This is typically done by
+    //     subtracting -9223372036854775808 from the value and encoding it as a
+    //     signed big endian integer. Example values:
+    //
+    //     -9223372036854775808: 00 00 00 00 00 00 00 00
+    //                     -255: 7F FF FF FF FF FF FF 01
+    //                       -1: 7F FF FF FF FF FF FF FF
+    //                        0: 80 00 00 00 00 00 00 00
+    //                        1: 80 00 00 00 00 00 00 01
+    //                      256: 80 00 00 00 00 00 01 00
+    //      9223372036854775807: FF FF FF FF FF FF FF FF
+    //
+    //   windows - The windows are encoded using the beam:coder:iterable:v1
+    //     format, where the windows are encoded using the supplied window
+    //     coder.
+    //
+    //   pane - The first byte of the pane info determines which type of
+    //     encoding is used, as well as the is_first, is_last, and timing
+    //     fields. If this byte is bits [0 1 2 3 4 5 6 7], then:
+    //     * bits [0 1 2 3] determine the encoding as follows:
+    //         0000 - The entire pane info is encoded as a single byte.
+    //                The is_first, is_last, and timing fields are encoded
+    //                as below, and the index and non-speculative index are
+    //                both zero (and hence are not encoded here).
+    //         0001 - The pane info is encoded as this byte plus a single
+    //                VarInt encoed integer representing the pane index. The
+    //                non-speculative index can be derived as follows:
+    //                  -1 if the pane is early, otherwise equal to index.
+    //         0010 - The pane info is encoded as this byte plus two VarInt
+    //                encoded integers representing the pane index and
+    //                non-speculative index respectively.
+    //     * bits [4 5] encode the timing as follows:
+    //         00 - early
+    //         01 - on time
+    //         10 - late
+    //         11 - unknown
+    //     * bit 6 is 1 if this is the first pane, 0 otherwise.
+    //     * bit 7 is 1 if this is the last pane, 0 otherwise.
+    //
+    //   element - The element incoded using the supplied element coder.
+    //
+    // Components: The element coder and the window coder, in that order.
     WINDOWED_VALUE = 8 [(beam_urn) = "beam:coder:windowed_value:v1"];
+
+    // A windowed value coder with parameterized timestamp, windows and pane info.
+    // Encodes an element with only the value of the windowed value.
+    // Decodes the value and assigns the parameterized timestamp, windows and pane info to the
+    // windowed value.
+    // Components: The element coder and the window coder, in that order
+    // The payload of this coder is an encoded windowed value using the
+    // beam:coder:windowed_value:v1 coder parameterized by a beam:coder:bytes:v1
+    // element coder and the window coder that this param_windowed_value coder uses.
+    PARAM_WINDOWED_VALUE = 14 [(beam_urn) = "beam:coder:param_windowed_value:v1"];
 
     // Encodes an iterable of elements, some of which may be stored elsewhere.
     //
@@ -724,14 +934,53 @@ message StandardCoders {
     //     BOOLEAN:   beam:coder:bool:v1
     //     BYTES:     beam:coder:bytes:v1
     //   ArrayType:   beam:coder:iterable:v1 (always has a known length)
-    //   MapType:     not yet a standard coder (BEAM-7996)
+    //   MapType:     not a standard coder, specification defined below.
     //   RowType:     beam:coder:row:v1
     //   LogicalType: Uses the coder for its representation.
     //
+    // The MapType is encoded by:
+    //   - An INT32 representing the size of the map (N)
+    //   - Followed by N interleaved keys and values, encoded with their
+    //     corresponding coder.
+    //
+    // Nullable types in container types (ArrayType, MapType) are encoded by:
+    //   - A one byte null indicator, 0x00 for null values, or 0x01 for present
+    //     values.
+    //   - For present values the null indicator is followed by the value
+    //     encoded with it's corresponding coder.
+    // 
+    // Well known logical types:
+    //   beam:logical_type:micros_instant:v1
+    //   - Representation type: ROW<seconds: INT64, micros: INT64>
+    //   - A timestamp without a timezone where seconds + micros represents the
+    //     amount of time since the epoch.
+    // 
     // The payload for RowCoder is an instance of Schema.
     // Components: None
     // Experimental.
     ROW = 13 [(beam_urn) = "beam:coder:row:v1"];
+
+    // Encodes a user key and a shard id which is an opaque byte string.
+    //
+    // The encoding for a sharded key consists of a shard id byte string and the
+    // encoded user key in the following order:
+    //
+    //     - shard id using beam:coder:bytes:v1
+    //     - encoded user key
+    //
+    // Examples:
+    // user key with an empty shard id
+    //     0x00
+    //     encode(user_key)
+    //
+    // user key with a shard id taking up two bytes.
+    //     0x02
+    //     0x11 0x22
+    //     encode(user_key)
+    //
+    // Components: the user key coder.
+    // Experimental.
+    SHARDED_KEY = 15 [(beam_urn) = "beam:coder:sharded_key:v1"];
   }
 }
 
@@ -741,10 +990,10 @@ message StandardCoders {
 // TODO: consider inlining field on PCollection
 message WindowingStrategy {
 
-  // (Required) The SdkFunctionSpec of the UDF that assigns windows,
+  // (Required) The FunctionSpec of the UDF that assigns windows,
   // merges windows, and shifts timestamps before they are
   // combined according to the OutputTime.
-  SdkFunctionSpec window_fn = 1;
+  FunctionSpec window_fn = 1;
 
   // (Required) Whether or not the window fn is merging.
   //
@@ -787,6 +1036,11 @@ message WindowingStrategy {
   //
   // This knowledge is required for some optimizations
   bool assigns_to_one_window = 10;
+
+  // (Optional) Environment where the current window_fn should be applied in.
+  // Runner that executes the pipeline may choose to override this if needed.
+  // If not specified, environment will be decided by the runner.
+  string environment_id = 11;
 }
 
 // Whether or not a PCollection's WindowFn is non-merging, merging, or
@@ -1043,20 +1297,114 @@ message SideInput {
   // URN)
   FunctionSpec access_pattern = 1;
 
-  // (Required) The SdkFunctionSpec of the UDF that adapts a particular
+  // (Required) The FunctionSpec of the UDF that adapts a particular
   // access_pattern to a user-facing view type.
   //
   // For example, View.asSingleton() may include a `view_fn` that adapts a
   // specially-designed multimap to a single value per window.
-  SdkFunctionSpec view_fn = 2;
+  FunctionSpec view_fn = 2;
 
-  // (Required) The SdkFunctionSpec of the UDF that maps a main input window
+  // (Required) The FunctionSpec of the UDF that maps a main input window
   // to a side input window.
   //
   // For example, when the main input is in fixed windows of one hour, this
   // can specify that the side input should be accessed according to the day
   // in which that hour falls.
-  SdkFunctionSpec window_mapping_fn = 3;
+  FunctionSpec window_mapping_fn = 3;
+}
+
+message StandardArtifacts {
+  enum Types {
+    // A URN for locally-accessible artifact files.
+    // payload: ArtifactFilePayload
+    FILE      = 0 [(beam_urn) = "beam:artifact:type:file:v1"];
+
+    // A URN for artifacts described by URLs.
+    // payload: ArtifactUrlPayload
+    URL       = 1 [(beam_urn) = "beam:artifact:type:url:v1"];
+
+    // A URN for artifacts embedded in ArtifactInformation proto.
+    // payload: EmbeddedFilePayload.
+    EMBEDDED  = 2 [(beam_urn) = "beam:artifact:type:embedded:v1"];
+
+    // A URN for Python artifacts hosted on PYPI.
+    // payload: PypiPayload
+    PYPI      = 3 [(beam_urn) = "beam:artifact:type:pypi:v1"];
+
+    // A URN for Java artifacts hosted on a Maven repository.
+    // payload: MavenPayload
+    MAVEN     = 4 [(beam_urn) = "beam:artifact:type:maven:v1"];
+
+    // A URN for deferred artifacts.
+    // payload: DeferredArtifactPayload
+    DEFERRED = 5 [(beam_urn) = "beam:artifact:type:deferred:v1"];
+  }
+  enum Roles {
+    // A URN for staging-to role.
+    // payload: ArtifactStagingToRolePayload
+    STAGING_TO  = 0 [(beam_urn) = "beam:artifact:role:staging_to:v1"];
+  }
+}
+
+message ArtifactFilePayload {
+  // a string for an artifact file path e.g. "/tmp/foo.jar"
+  string path = 1;
+
+  // The hex-encoded sha256 checksum of the artifact.
+  string sha256 = 2;
+}
+
+message ArtifactUrlPayload {
+  // a string for an artifact URL e.g. "https://.../foo.jar" or "gs://tmp/foo.jar"
+  string url = 1;
+}
+
+message EmbeddedFilePayload {
+  // raw data bytes for an embedded artifact
+  bytes data = 1;
+}
+
+message PyPIPayload {
+  // Pypi compatible artifact id e.g. "apache-beam"
+  string artifact_id = 1;
+
+  // Pypi compatible version string.
+  string version = 2;
+}
+
+message MavenPayload {
+  // A string specifying Maven artifact.
+  // The standard format is "groupId:artifactId:version[:packaging[:classifier]]"
+  string artifact = 1;
+
+  // (Optional) Repository URL. If not specified, Maven central is used by default.
+  string repository_url = 2;
+}
+
+message DeferredArtifactPayload {
+  // A unique string identifier assigned by the creator of this payload. The creator may use this key to confirm
+  // whether they can parse the data.
+  string key = 1;
+
+  // Data for deferred artifacts. Interpretation of bytes is delegated to the creator of this payload.
+  bytes data = 2;
+}
+
+message ArtifactStagingToRolePayload {
+  // A generated staged name (relative path under staging directory).
+  string staged_name = 1;
+}
+
+message ArtifactInformation {
+  // A URN that describes the type of artifact
+  string type_urn = 1;
+
+  bytes type_payload = 2;
+
+  // A URN that describes the role of artifact
+  string role_urn = 3;
+
+  bytes role_payload = 4;
 }
 
 // An environment for executing UDFs. By default, an SDK container URL, but
@@ -1068,6 +1416,20 @@ message Environment {
   // (Optional) The data specifying any parameters to the URN. If
   // the URN does not require any arguments, this may be omitted.
   bytes payload = 3;
+
+  // (Optional) Static display data for the environment. If there is none,
+  // it may be omitted.
+  repeated DisplayData display_data = 4;
+
+  // (Optional) A set of capabilities this environment supports. This is
+  // typically a list of common URNs designating coders, transforms, etc. that
+  // this environment understands (and a runner MAY use) despite not
+  // appearing in the pipeline proto. This may also be used to indicate
+  // support of optional protocols not tied to a concrete component.
+  repeated string capabilities = 5;
+
+  // (Optional) artifact dependency information used for executing UDFs in this environment.
+  repeated ArtifactInformation dependencies = 6;
 
   reserved 1;
 }
@@ -1099,16 +1461,57 @@ message ExternalPayload {
   map<string, string> params = 2;  // Arbitrary extra parameters to pass
 }
 
-// A specification of a user defined function.
-//
-message SdkFunctionSpec {
+// These URNs are used to indicate capabilities of environments that cannot
+// simply be expressed as a component (such as a Coder or PTransform) that this
+// environment understands.
+message StandardProtocols {
+  enum Enum {
+    // Indicates suport for progress reporting via the legacy Metrics proto.
+    LEGACY_PROGRESS_REPORTING = 0 [(beam_urn) = "beam:protocol:progress_reporting:v0"];
 
-  // (Required) A full specification of this function.
-  FunctionSpec spec = 1;
+    // Indicates suport for progress reporting via the new MonitoringInfo proto.
+    PROGRESS_REPORTING = 1 [(beam_urn) = "beam:protocol:progress_reporting:v1"];
 
-  // (Required) Reference to an execution environment capable of
-  // invoking this function.
-  string environment_id = 2;
+    // Indicates suport for worker status protocol defined at
+    // https://s.apache.org/beam-fn-api-harness-status.
+    WORKER_STATUS = 2 [(beam_urn) = "beam:protocol:worker_status:v1"];
+
+    // Indicates this SDK can take advantage of multiple cores when processing
+    // concurrent process bundle requests. (Note that all SDKs must process
+    // an unbounded number of concurrent process bundle requests; this capability
+    // simply indicates this SDK can actually parallelize the work across multiple
+    // cores.
+    MULTI_CORE_BUNDLE_PROCESSING = 3 [(beam_urn) = "beam:protocol:multi_core_bundle_processing:v1"];
+  }
+}
+
+// These URNs are used to indicate requirements of a pipeline that cannot
+// simply be expressed as a component (such as a Coder or PTransform) that the
+// runner must understand. In many cases, this indicates a particular field
+// of a transform must be inspected and respected (which allows new fields
+// to be added in a forwards-compatible way).
+message StandardRequirements {
+  enum Enum {
+    // This requirement indicates the state_spec and time_spec fields of ParDo
+    // transform payloads must be inspected.
+    REQUIRES_STATEFUL_PROCESSING = 0 [(beam_urn) = "beam:requirement:pardo:stateful:v1"];
+
+    // This requirement indicates the requests_finalization field of ParDo
+    // transform payloads must be inspected.
+    REQUIRES_BUNDLE_FINALIZATION = 1 [(beam_urn) = "beam:requirement:pardo:finalization:v1"];
+
+    // This requirement indicates the requires_stable_input field of ParDo
+    // transform payloads must be inspected.
+    REQUIRES_STABLE_INPUT = 2 [(beam_urn) = "beam:requirement:pardo:stable_input:v1"];
+
+    // This requirement indicates the requires_time_sorted_input field of ParDo
+    // transform payloads must be inspected.
+    REQUIRES_TIME_SORTED_INPUT = 3 [(beam_urn) = "beam:requirement:pardo:time_sorted_input:v1"];
+
+    // This requirement indicates the restriction_coder_id field of ParDo
+    // transform payloads must be inspected.
+    REQUIRES_SPLITTABLE_DOFN = 4 [(beam_urn) = "beam:requirement:pardo:splittable_dofn:v1"];
+  }
 }
 
 extend google.protobuf.EnumValueOptions {
@@ -1160,7 +1563,7 @@ extend google.protobuf.EnumValueOptions {
 //
 // 1. The runner understands the URN. For example, it might be
 //    a well-known URN like "beam:transform:Top" or
-//    "beam:windowfn:FixedWindows" with
+//    "beam:window_fn:FixedWindows" with
 //    an agreed-upon payload (e.g. a number or duration,
 //    respectively).
 // 2. The runner does not understand the URN. It might be an
@@ -1183,58 +1586,58 @@ message FunctionSpec {
   bytes payload = 3;
 }
 
-// TODO: transfer javadoc here
+// A set of well known URNs describing display data.
+//
+// All descriptions must contain how the value should be classified and how it
+// is encoded. Note that some types are logical types which convey contextual
+// information about the pipeline in addition to an encoding while others only
+// specify the encoding itself.
+message StandardDisplayData {
+  enum DisplayData {
+    // A string label and value. Has a payload containing an encoded
+    // LabelledStringPayload.
+    LABELLED_STRING = 0 [(beam_urn) = "beam:display_data:labelled_string:v1"];
+
+    // Some samples that are being considered to become standard display data
+    // types follow:
+
+    // A path/location of a resource that this transform accesses. Encoded as
+    // the well known google.protobuf.StringValue type.
+    // INPUT_PATH = 1 [(beam_urn) = "beam:display_data:input_path:v1"];
+
+    // A timestamp encoded as the well known protobuf type
+    // google.protobuf.timestamp. Note that the value may be outside of the
+    // RFC3339 limit imposed.
+    // TIMESTAMP = 2 [(beam_urn) = "beam:display_data:timestamp:v1"];
+
+    // A duration encoded as the well known protobuf type
+    // google.protobuf.duration. Note that the value may be outside of the
+    // RFC3339 limit imposed.
+    // DURATION = 3 [(beam_urn) = "beam:display_data:duration:v1"];
+  }
+}
+
+message LabelledStringPayload {
+  // (Required) A human readable label for the value.
+  string label = 1;
+
+  // (Required) A value which will be displayed to the user. The urn describes
+  // how the value can be interpreted and/or categorized.
+  string value = 2;
+}
+
+// Static display data associated with a pipeline component. Display data is
+// useful for pipeline runners IOs and diagnostic dashboards to display details
+// about annotated components.
 message DisplayData {
+  // A key used to describe the type of display data. See StandardDisplayData
+  // for the set of well known urns describing how the payload is meant to be
+  // interpreted.
+  string urn = 1;
 
-  // (Required) The list of display data.
-  repeated Item items = 1;
-
-  // A complete identifier for a DisplayData.Item
-  message Identifier {
-
-    // (Required) The transform originating this display data.
-    string transform_id = 1;
-
-    // (Optional) The URN indicating the type of the originating transform,
-    // if there is one.
-    string transform_urn = 2;
-
-    string key = 3;
-  }
-
-  // A single item of display data.
-  message Item {
-    // (Required)
-    Identifier id = 1;
-
-    // (Required)
-    Type.Enum type = 2;
-
-    // (Required)
-    google.protobuf.Any value = 3;
-
-    // (Optional)
-    google.protobuf.Any short_value = 4;
-
-    // (Optional)
-    string label = 5;
-
-    // (Optional)
-    string link_url = 6;
-  }
-
-  message Type {
-    enum Enum {
-      UNSPECIFIED = 0;
-      STRING = 1;
-      INTEGER = 2;
-      FLOAT = 3;
-      BOOLEAN = 4;
-      TIMESTAMP = 5;
-      DURATION = 6;
-      JAVA_CLASS = 7;
-    }
-  }
+  // (Optional) The data specifying any parameters to the URN. If
+  // the URN does not require any arguments, this may be omitted.
+  bytes payload = 2;
 }
 
 
@@ -1258,7 +1661,7 @@ message MessageWithComponents {
   oneof root {
     Coder coder = 2;
     CombinePayload combine_payload = 3;
-    SdkFunctionSpec sdk_function_spec = 4;
+    FunctionSpec function_spec = 4;
     ParDoPayload par_do_payload = 6;
     PTransform ptransform = 7;
     PCollection pcollection = 8;
@@ -1266,7 +1669,6 @@ message MessageWithComponents {
     SideInput side_input = 11;
     WindowIntoPayload window_into_payload = 12;
     WindowingStrategy windowing_strategy = 13;
-    FunctionSpec function_spec = 14;
   }
 }
 
@@ -1279,6 +1681,9 @@ message ExecutableStagePayload {
   // We use an environment rather than environment id
   // because ExecutableStages use environments directly. This may change in the future.
   Environment environment = 1;
+
+  // The wire coder settings of this executable stage
+  repeated WireCoderSetting wire_coder_settings = 9;
 
   // (Required) Input PCollection id. This must be present as a value in the inputs of any
   // PTransform the ExecutableStagePayload is the payload of.
@@ -1308,6 +1713,10 @@ message ExecutableStagePayload {
   // this ExecutableStagePayload must be represented within this field.
   repeated TimerId timers = 8;
 
+  // The timerfamilies required for this executable stage. Each timer familyof each PTransform within
+  // this ExecutableStagePayload must be represented within this field.
+  repeated TimerFamilyId timerFamilies = 10;
+
   // A reference to a side input. Side inputs are uniquely identified by PTransform id and
   // local name.
   message SideInputId {
@@ -1336,5 +1745,37 @@ message ExecutableStagePayload {
 
     // (Required) The local name of this timer for the PTransform that references it.
     string local_name = 2;
+  }
+
+  // A reference to a timer. Timers are uniquely identified by PTransform id and
+  // local name.
+  message TimerFamilyId {
+    // (Required) The id of the PTransform that references this timer family.
+    string transform_id = 1;
+
+    // (Required) The local name of this timer family for the PTransform that references it.
+    string local_name = 2;
+  }
+  // Settings that decide the coder type of wire coder.
+  message WireCoderSetting {
+    // (Required) The URN of the wire coder.
+    // Note that only windowed value coder or parameterized windowed value coder are supported.
+    string urn = 1;
+
+    // (Optional) The data specifying any parameters to the URN. If
+    // the URN is beam:coder:windowed_value:v1, this may be omitted. If the URN is
+    // beam:coder:param_windowed_value:v1, the payload is an encoded windowed
+    // value using the beam:coder:windowed_value:v1 coder parameterized by
+    // a beam:coder:bytes:v1 element coder and the window coder that this
+    // param_windowed_value coder uses.
+    bytes payload = 2;
+
+    // (Required) The target(PCollection or Timer) this setting applies to.
+    oneof target {
+      // The input or output PCollection id this setting applies to.
+      string input_or_output_id = 3;
+      // The timer id this setting applies to.
+      TimerId timer = 4;
+    }
   }
 }

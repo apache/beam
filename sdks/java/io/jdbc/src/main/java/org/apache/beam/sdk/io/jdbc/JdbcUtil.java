@@ -19,6 +19,8 @@ package org.apache.beam.sdk.io.jdbc;
 
 import java.sql.Date;
 import java.sql.JDBCType;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.Calendar;
@@ -29,29 +31,26 @@ import java.util.TimeZone;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.DateTime;
 
 /** Provides utility functions for working with {@link JdbcIO}. */
-public class JdbcUtil {
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
+class JdbcUtil {
 
-  /** Generates an insert statement based on {@Link Schema.Field}. * */
-  public static String generateStatement(String tableName, List<Schema.Field> fields) {
-
+  /** Generates an insert statement based on {@link Schema.Field}. * */
+  static String generateStatement(String tableName, List<Schema.Field> fields) {
     String fieldNames =
         IntStream.range(0, fields.size())
-            .mapToObj(
-                (index) -> {
-                  return fields.get(index).getName();
-                })
+            .mapToObj((index) -> fields.get(index).getName())
             .collect(Collectors.joining(", "));
 
     String valuePlaceholder =
         IntStream.range(0, fields.size())
-            .mapToObj(
-                (index) -> {
-                  return "?";
-                })
+            .mapToObj((index) -> "?")
             .collect(Collectors.joining(", "));
 
     return String.format("INSERT INTO %s(%s) VALUES(%s)", tableName, fieldNames, valuePlaceholder);
@@ -59,7 +58,7 @@ public class JdbcUtil {
 
   /** PreparedStatementSetCaller for Schema Field types. * */
   private static Map<Schema.TypeName, JdbcIO.PreparedStatementSetCaller> typeNamePsSetCallerMap =
-      new EnumMap<Schema.TypeName, JdbcIO.PreparedStatementSetCaller>(
+      new EnumMap<>(
           ImmutableMap.<Schema.TypeName, JdbcIO.PreparedStatementSetCaller>builder()
               .put(
                   Schema.TypeName.BYTE,
@@ -105,44 +104,42 @@ public class JdbcUtil {
               .build());
 
   /** PreparedStatementSetCaller for Schema Field Logical types. * */
-  public static JdbcIO.PreparedStatementSetCaller getPreparedStatementSetCaller(
+  static JdbcIO.PreparedStatementSetCaller getPreparedStatementSetCaller(
       Schema.FieldType fieldType) {
     switch (fieldType.getTypeName()) {
       case ARRAY:
       case ITERABLE:
-        return (element, ps, i, fieldWithIndex) -> {
-          ps.setArray(
-              i + 1,
-              ps.getConnection()
-                  .createArrayOf(
-                      fieldType.getCollectionElementType().getTypeName().name(),
-                      element.getArray(fieldWithIndex.getIndex()).toArray()));
-        };
+        return (element, ps, i, fieldWithIndex) ->
+            ps.setArray(
+                i + 1,
+                ps.getConnection()
+                    .createArrayOf(
+                        fieldType.getCollectionElementType().getTypeName().name(),
+                        element.getArray(fieldWithIndex.getIndex()).toArray()));
       case LOGICAL_TYPE:
         {
           String logicalTypeName = fieldType.getLogicalType().getIdentifier();
           JDBCType jdbcType = JDBCType.valueOf(logicalTypeName);
           switch (jdbcType) {
             case DATE:
-              return (element, ps, i, fieldWithIndex) -> {
-                ps.setDate(
-                    i + 1,
-                    new Date(
-                        getDateOrTimeOnly(
-                                element.getDateTime(fieldWithIndex.getIndex()).toDateTime(), true)
-                            .getTime()
-                            .getTime()));
-              };
+              return (element, ps, i, fieldWithIndex) ->
+                  ps.setDate(
+                      i + 1,
+                      new Date(
+                          getDateOrTimeOnly(
+                                  element.getDateTime(fieldWithIndex.getIndex()).toDateTime(), true)
+                              .getTime()
+                              .getTime()));
             case TIME:
-              return (element, ps, i, fieldWithIndex) -> {
-                ps.setTime(
-                    i + 1,
-                    new Time(
-                        getDateOrTimeOnly(
-                                element.getDateTime(fieldWithIndex.getIndex()).toDateTime(), false)
-                            .getTime()
-                            .getTime()));
-              };
+              return (element, ps, i, fieldWithIndex) ->
+                  ps.setTime(
+                      i + 1,
+                      new Time(
+                          getDateOrTimeOnly(
+                                  element.getDateTime(fieldWithIndex.getIndex()).toDateTime(),
+                                  false)
+                              .getTime()
+                              .getTime()));
             case TIMESTAMP_WITH_TIMEZONE:
               return (element, ps, i, fieldWithIndex) -> {
                 Calendar calendar =
@@ -164,6 +161,28 @@ public class JdbcUtil {
                     + " in schema is not supported while writing. Please provide statement and preparedStatementSetter");
           }
         }
+    }
+  }
+
+  static class BeamRowPreparedStatementSetter implements JdbcIO.PreparedStatementSetter<Row> {
+    @Override
+    public void setParameters(Row row, PreparedStatement statement) {
+      Schema schema = row.getSchema();
+      List<Schema.Field> fieldTypes = schema.getFields();
+      IntStream.range(0, fieldTypes.size())
+          .forEachOrdered(
+              i -> {
+                Schema.FieldType type = fieldTypes.get(i).getType();
+                try {
+                  JdbcUtil.getPreparedStatementSetCaller(type)
+                      .set(row, statement, i, SchemaUtil.FieldWithIndex.of(schema.getField(i), i));
+                } catch (SQLException throwables) {
+                  throwables.printStackTrace();
+                  throw new RuntimeException(
+                      String.format("Unable to create prepared statement for type: %s", type),
+                      throwables);
+                }
+              });
     }
   }
 

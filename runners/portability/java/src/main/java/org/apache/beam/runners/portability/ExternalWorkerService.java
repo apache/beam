@@ -25,7 +25,7 @@ import org.apache.beam.runners.fnexecution.FnService;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.ServerFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,7 +34,7 @@ import org.slf4j.LoggerFactory;
  */
 public class ExternalWorkerService extends BeamFnExternalWorkerPoolImplBase implements FnService {
 
-  private static final Logger LOG = LoggerFactory.getLogger(BeamFnExternalWorkerPoolImplBase.class);
+  private static final Logger LOG = LoggerFactory.getLogger(ExternalWorkerService.class);
 
   private final PipelineOptions options;
   private final ServerFactory serverFactory = ServerFactory.createDefault();

@@ -17,7 +17,15 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(automaticModuleName: 'org.apache.beam.runners.core')
+applyJavaNature(
+  classesTriggerCheckerBugs: [
+    'InMemoryStateInternals': 'https://github.com/typetools/checker-framework/issues/3792',
+    'MergingActiveWindowSetTest': 'https://github.com/typetools/checker-framework/issues/3792',
+    'ReduceFnRunnerTest': 'https://github.com/typetools/checker-framework/issues/3776',
+    'SplittableParDoViaKeyedWorkItems': 'https://github.com/typetools/checker-framework/issues/3793',
+  ],
+  automaticModuleName: 'org.apache.beam.runners.core',
+)
 
 description = "Apache Beam :: Runners :: Core Java"
 ext.summary = "Beam Runners Core provides utilities to aid runner authors."

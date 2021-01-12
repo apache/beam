@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Prec
 import java.lang.reflect.Method;
 import java.sql.SQLException;
 import java.util.AbstractMap.SimpleEntry;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -31,6 +32,7 @@ import java.util.Set;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.BeamSqlUdf;
+import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRuleSets;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.udf.BeamBuiltinFunctionProvider;
@@ -56,6 +58,10 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RuleSet;
  */
 @Internal
 @Experimental
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BeamSqlEnv {
   JdbcConnection connection;
   QueryPlanner planner;
@@ -100,7 +106,12 @@ public class BeamSqlEnv {
   }
 
   public BeamRelNode parseQuery(String query) throws ParseException {
-    return planner.convertToBeamRel(query);
+    return planner.convertToBeamRel(query, QueryParameters.ofNone());
+  }
+
+  public BeamRelNode parseQuery(String query, QueryParameters queryParameters)
+      throws ParseException {
+    return planner.convertToBeamRel(query, queryParameters);
   }
 
   public boolean isDdl(String sqlStatement) throws ParseException {
@@ -122,7 +133,7 @@ public class BeamSqlEnv {
 
   public String explain(String sqlString) throws ParseException {
     try {
-      return RelOptUtil.toString(planner.convertToBeamRel(sqlString));
+      return RelOptUtil.toString(planner.convertToBeamRel(sqlString, QueryParameters.ofNone()));
     } catch (Exception e) {
       throw new ParseException("Unable to parse statement", e);
     }
@@ -140,7 +151,7 @@ public class BeamSqlEnv {
     private boolean autoLoadBuiltinFunctions;
     private boolean autoLoadUdfs;
     private PipelineOptions pipelineOptions;
-    private RuleSet[] ruleSets;
+    private Collection<RuleSet> ruleSets;
 
     private BeamSqlEnvBuilder(TableProvider tableProvider) {
       checkNotNull(tableProvider, "Table provider for the default schema must be sets.");
@@ -172,7 +183,7 @@ public class BeamSqlEnv {
     }
 
     /** Set the ruleSet used for query optimizer. */
-    public BeamSqlEnvBuilder setRuleSets(RuleSet[] ruleSets) {
+    public BeamSqlEnvBuilder setRuleSets(Collection<RuleSet> ruleSets) {
       this.ruleSets = ruleSets;
       return this;
     }
@@ -303,16 +314,28 @@ public class BeamSqlEnv {
       }
     }
 
-    private QueryPlanner instantiatePlanner(JdbcConnection jdbcConnection, RuleSet[] ruleSets) {
+    private QueryPlanner instantiatePlanner(
+        JdbcConnection jdbcConnection, Collection<RuleSet> ruleSets) {
+      Class<?> queryPlannerClass;
       try {
-        return (QueryPlanner)
-            Class.forName(queryPlannerClassName)
-                .getConstructor(JdbcConnection.class, RuleSet[].class)
-                .newInstance(jdbcConnection, ruleSets);
-      } catch (Exception e) {
+        queryPlannerClass = Class.forName(queryPlannerClassName);
+      } catch (ClassNotFoundException exc) {
         throw new RuntimeException(
-            String.format("Cannot construct query planner %s", queryPlannerClassName), e);
+            "Cannot find requested QueryPlanner class: " + queryPlannerClassName, exc);
       }
+
+      QueryPlanner.Factory factory;
+      try {
+        factory = (QueryPlanner.Factory) queryPlannerClass.getField("FACTORY").get(null);
+      } catch (NoSuchFieldException | IllegalAccessException exc) {
+        throw new RuntimeException(
+            String.format(
+                "QueryPlanner class %s does not have an accessible static field 'FACTORY' of type QueryPlanner.Factory",
+                queryPlannerClassName),
+            exc);
+      }
+
+      return factory.createPlanner(jdbcConnection, ruleSets);
     }
   }
 }

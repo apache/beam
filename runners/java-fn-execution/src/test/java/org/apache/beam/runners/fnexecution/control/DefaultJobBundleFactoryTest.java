@@ -17,6 +17,10 @@
  */
 package org.apache.beam.runners.fnexecution.control;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.equalTo;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -26,7 +30,13 @@ import static org.mockito.Mockito.when;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
@@ -55,10 +65,11 @@ import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Assert;
 import org.junit.Before;
@@ -67,12 +78,16 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link DefaultJobBundleFactory}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DefaultJobBundleFactoryTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
   @Mock private EnvironmentFactory envFactory;
@@ -82,6 +97,7 @@ public class DefaultJobBundleFactoryTest {
   @Mock GrpcFnServer<GrpcLoggingService> loggingServer;
   @Mock GrpcFnServer<ArtifactRetrievalService> retrievalServer;
   @Mock GrpcFnServer<StaticGrpcProvisionService> provisioningServer;
+  @Mock private StaticGrpcProvisionService provisionService;
   @Mock private GrpcFnServer<GrpcDataService> dataServer;
   @Mock private GrpcFnServer<GrpcStateService> stateServer;
 
@@ -103,7 +119,7 @@ public class DefaultJobBundleFactoryTest {
   @Before
   public void setUpMocks() throws Exception {
     MockitoAnnotations.initMocks(this);
-    when(envFactory.createEnvironment(environment)).thenReturn(remoteEnvironment);
+    when(envFactory.createEnvironment(eq(environment), any())).thenReturn(remoteEnvironment);
     when(remoteEnvironment.getInstructionRequestHandler()).thenReturn(instructionHandler);
     when(instructionHandler.handle(any()))
         .thenReturn(CompletableFuture.completedFuture(instructionResponse));
@@ -118,6 +134,7 @@ public class DefaultJobBundleFactoryTest {
     when(stateService.registerForProcessBundleInstructionId(any(), any()))
         .thenReturn(mock(StateDelegator.Registration.class));
     when(stateServer.getService()).thenReturn(stateService);
+    when(provisioningServer.getService()).thenReturn(provisionService);
     serverInfo =
         new AutoValue_DefaultJobBundleFactory_ServerInfo.Builder()
             .setControlServer(controlServer)
@@ -134,7 +151,7 @@ public class DefaultJobBundleFactoryTest {
     try (DefaultJobBundleFactory bundleFactory =
         createDefaultJobBundleFactory(envFactoryProviderMap)) {
       bundleFactory.forStage(getExecutableStage(environment));
-      verify(envFactory).createEnvironment(environment);
+      verify(envFactory).createEnvironment(eq(environment), any());
     }
   }
 
@@ -153,8 +170,8 @@ public class DefaultJobBundleFactoryTest {
             .setPayload(ByteString.copyFrom(new byte[2]))
             .build();
     EnvironmentFactory envFactoryA = mock(EnvironmentFactory.class);
-    when(envFactoryA.createEnvironment(environmentA)).thenReturn(remoteEnvironment);
-    when(envFactoryA.createEnvironment(environmentAA)).thenReturn(remoteEnvironment);
+    when(envFactoryA.createEnvironment(eq(environmentA), any())).thenReturn(remoteEnvironment);
+    when(envFactoryA.createEnvironment(eq(environmentAA), any())).thenReturn(remoteEnvironment);
     EnvironmentFactory.Provider environmentProviderFactoryA =
         mock(EnvironmentFactory.Provider.class);
     when(environmentProviderFactoryA.createEnvironmentFactory(
@@ -164,7 +181,7 @@ public class DefaultJobBundleFactoryTest {
 
     Environment environmentB = Environment.newBuilder().setUrn("env:urn:b").build();
     EnvironmentFactory envFactoryB = mock(EnvironmentFactory.class);
-    when(envFactoryB.createEnvironment(environmentB)).thenReturn(remoteEnvironment);
+    when(envFactoryB.createEnvironment(eq(environmentB), any())).thenReturn(remoteEnvironment);
     EnvironmentFactory.Provider environmentProviderFactoryB =
         mock(EnvironmentFactory.Provider.class);
     when(environmentProviderFactoryB.createEnvironmentFactory(
@@ -183,16 +200,16 @@ public class DefaultJobBundleFactoryTest {
           .createEnvironmentFactory(any(), any(), any(), any(), any(), any());
       verify(environmentProviderFactoryB, Mockito.times(0))
           .createEnvironmentFactory(any(), any(), any(), any(), any(), any());
-      verify(envFactoryA, Mockito.times(1)).createEnvironment(environmentA);
-      verify(envFactoryA, Mockito.times(0)).createEnvironment(environmentAA);
+      verify(envFactoryA, Mockito.times(1)).createEnvironment(eq(environmentA), any());
+      verify(envFactoryA, Mockito.times(0)).createEnvironment(eq(environmentAA), any());
 
       bundleFactory.forStage(getExecutableStage(environmentAA));
       verify(environmentProviderFactoryA, Mockito.times(2))
           .createEnvironmentFactory(any(), any(), any(), any(), any(), any());
       verify(environmentProviderFactoryB, Mockito.times(0))
           .createEnvironmentFactory(any(), any(), any(), any(), any(), any());
-      verify(envFactoryA, Mockito.times(1)).createEnvironment(environmentA);
-      verify(envFactoryA, Mockito.times(1)).createEnvironment(environmentAA);
+      verify(envFactoryA, Mockito.times(1)).createEnvironment(eq(environmentA), any());
+      verify(envFactoryA, Mockito.times(1)).createEnvironment(eq(environmentAA), any());
     }
   }
 
@@ -205,7 +222,7 @@ public class DefaultJobBundleFactoryTest {
             .setPayload(ByteString.copyFrom(new byte[1]))
             .build();
     EnvironmentFactory envFactoryA = mock(EnvironmentFactory.class);
-    when(envFactoryA.createEnvironment(environmentA)).thenReturn(remoteEnvironment);
+    when(envFactoryA.createEnvironment(eq(environmentA), any())).thenReturn(remoteEnvironment);
     EnvironmentFactory.Provider environmentProviderFactoryA =
         mock(EnvironmentFactory.Provider.class);
     when(environmentProviderFactoryA.createEnvironmentFactory(
@@ -230,24 +247,24 @@ public class DefaultJobBundleFactoryTest {
       bundleFactory.forStage(getExecutableStage(environmentA));
       verify(environmentProviderFactoryA, Mockito.times(1))
           .createEnvironmentFactory(any(), any(), any(), any(), any(), any());
-      verify(envFactoryA, Mockito.times(1)).createEnvironment(environmentA);
+      verify(envFactoryA, Mockito.times(1)).createEnvironment(eq(environmentA), any());
 
       bundleFactory.forStage(getExecutableStage(environmentA));
       verify(environmentProviderFactoryA, Mockito.times(2))
           .createEnvironmentFactory(any(), any(), any(), any(), any(), any());
-      verify(envFactoryA, Mockito.times(2)).createEnvironment(environmentA);
+      verify(envFactoryA, Mockito.times(2)).createEnvironment(eq(environmentA), any());
 
       // round robin, no new environment created
       bundleFactory.forStage(getExecutableStage(environmentA));
       verify(environmentProviderFactoryA, Mockito.times(2))
           .createEnvironmentFactory(any(), any(), any(), any(), any(), any());
-      verify(envFactoryA, Mockito.times(2)).createEnvironment(environmentA);
+      verify(envFactoryA, Mockito.times(2)).createEnvironment(eq(environmentA), any());
     }
 
     portableOptions.setSdkWorkerParallelism(0);
     pipelineOptions = PipelineOptionsTranslation.toProto(portableOptions);
     Mockito.reset(envFactoryA);
-    when(envFactoryA.createEnvironment(environmentA)).thenReturn(remoteEnvironment);
+    when(envFactoryA.createEnvironment(eq(environmentA), any())).thenReturn(remoteEnvironment);
     int expectedParallelism = Math.max(1, Runtime.getRuntime().availableProcessors() - 1);
     try (DefaultJobBundleFactory bundleFactory =
         new DefaultJobBundleFactory(
@@ -261,7 +278,8 @@ public class DefaultJobBundleFactoryTest {
       for (int i = 0; i < numStageBundleFactories; i++) {
         stageBundleFactorySet.add(bundleFactory.forStage(getExecutableStage(environmentA)));
       }
-      verify(envFactoryA, Mockito.times(expectedParallelism)).createEnvironment(environmentA);
+      verify(envFactoryA, Mockito.times(expectedParallelism))
+          .createEnvironment(eq(environmentA), any());
       Assert.assertEquals(numStageBundleFactories, stageBundleFactorySet.size());
     }
   }
@@ -272,7 +290,7 @@ public class DefaultJobBundleFactoryTest {
 
     Environment environmentA = Environment.newBuilder().setUrn("env:urn:a").build();
     EnvironmentFactory envFactoryA = mock(EnvironmentFactory.class);
-    when(envFactoryA.createEnvironment(environmentA)).thenReturn(remoteEnvironment);
+    when(envFactoryA.createEnvironment(eq(environmentA), any())).thenReturn(remoteEnvironment);
     EnvironmentFactory.Provider environmentProviderFactoryA =
         mock(EnvironmentFactory.Provider.class);
     when(environmentProviderFactoryA.createEnvironmentFactory(
@@ -282,7 +300,7 @@ public class DefaultJobBundleFactoryTest {
 
     Environment environmentB = Environment.newBuilder().setUrn("env:urn:b").build();
     EnvironmentFactory envFactoryB = mock(EnvironmentFactory.class);
-    when(envFactoryB.createEnvironment(environmentB)).thenReturn(remoteEnvironment);
+    when(envFactoryB.createEnvironment(eq(environmentB), any())).thenReturn(remoteEnvironment);
     EnvironmentFactory.Provider environmentProviderFactoryB =
         mock(EnvironmentFactory.Provider.class);
     when(environmentProviderFactoryB.createEnvironmentFactory(
@@ -301,8 +319,8 @@ public class DefaultJobBundleFactoryTest {
       bundleFactory.forStage(getExecutableStage(environmentB));
       bundleFactory.forStage(getExecutableStage(environmentA));
     }
-    verify(envFactoryA).createEnvironment(environmentA);
-    verify(envFactoryB).createEnvironment(environmentB);
+    verify(envFactoryA).createEnvironment(eq(environmentA), any());
+    verify(envFactoryB).createEnvironment(eq(environmentB), any());
   }
 
   @Test
@@ -311,7 +329,7 @@ public class DefaultJobBundleFactoryTest {
 
     Environment environmentA = Environment.newBuilder().setUrn("env:urn:a").build();
     EnvironmentFactory envFactoryA = mock(EnvironmentFactory.class);
-    when(envFactoryA.createEnvironment(environmentA)).thenReturn(remoteEnvironment);
+    when(envFactoryA.createEnvironment(eq(environmentA), any())).thenReturn(remoteEnvironment);
     EnvironmentFactory.Provider environmentProviderFactoryA =
         mock(EnvironmentFactory.Provider.class);
     when(environmentProviderFactoryA.createEnvironmentFactory(
@@ -342,7 +360,7 @@ public class DefaultJobBundleFactoryTest {
       Thread.sleep(10); // allow environment to expire
       sbf.getBundle(orf, srh, BundleProgressHandler.ignored()).close();
     }
-    verify(envFactoryA, Mockito.times(3)).createEnvironment(environmentA);
+    verify(envFactoryA, Mockito.times(3)).createEnvironment(eq(environmentA), any());
     verify(remoteEnvironment, Mockito.times(3)).close();
   }
 
@@ -356,17 +374,42 @@ public class DefaultJobBundleFactoryTest {
   }
 
   @Test
+  public void closesFnServices() throws Exception {
+    InOrder inOrder =
+        Mockito.inOrder(
+            loggingServer,
+            controlServer,
+            dataServer,
+            stateServer,
+            provisioningServer,
+            remoteEnvironment);
+
+    try (DefaultJobBundleFactory bundleFactory =
+        createDefaultJobBundleFactory(envFactoryProviderMap)) {
+      bundleFactory.forStage(getExecutableStage(environment));
+    }
+
+    // Close logging service first to avoid spaming the logs
+    inOrder.verify(loggingServer).close();
+    inOrder.verify(controlServer).close();
+    inOrder.verify(dataServer).close();
+    inOrder.verify(stateServer).close();
+    inOrder.verify(provisioningServer).close();
+    inOrder.verify(remoteEnvironment).close();
+  }
+
+  @Test
   public void cachesEnvironment() throws Exception {
     try (DefaultJobBundleFactory bundleFactory =
         createDefaultJobBundleFactory(envFactoryProviderMap)) {
       StageBundleFactory bf1 = bundleFactory.forStage(getExecutableStage(environment));
       StageBundleFactory bf2 = bundleFactory.forStage(getExecutableStage(environment));
       // NOTE: We hang on to stage bundle references to ensure their underlying environments are not
-      // garbage collected. For additional safety, we print the factories to ensure the referernces
+      // garbage collected. For additional safety, we print the factories to ensure the references
       // are not optimized away.
       System.out.println("bundle factory 1:" + bf1);
       System.out.println("bundle factory 1:" + bf2);
-      verify(envFactory).createEnvironment(environment);
+      verify(envFactory).createEnvironment(eq(environment), any());
       verifyNoMoreInteractions(envFactory);
     }
   }
@@ -379,7 +422,7 @@ public class DefaultJobBundleFactoryTest {
     Map<String, EnvironmentFactory.Provider> envFactoryProviderMapFoo =
         ImmutableMap.of(
             environment.getUrn(), envFactoryProvider, envFoo.getUrn(), envFactoryProvider);
-    when(envFactory.createEnvironment(envFoo)).thenReturn(remoteEnvFoo);
+    when(envFactory.createEnvironment(eq(envFoo), any())).thenReturn(remoteEnvFoo);
     when(remoteEnvFoo.getInstructionRequestHandler()).thenReturn(fooInstructionHandler);
     // Don't bother creating a distinct instruction response because we don't use it here.
     when(fooInstructionHandler.handle(any()))
@@ -389,10 +432,93 @@ public class DefaultJobBundleFactoryTest {
         createDefaultJobBundleFactory(envFactoryProviderMapFoo)) {
       bundleFactory.forStage(getExecutableStage(environment));
       bundleFactory.forStage(getExecutableStage(envFoo));
-      verify(envFactory).createEnvironment(environment);
-      verify(envFactory).createEnvironment(envFoo);
+      verify(envFactory).createEnvironment(eq(environment), any());
+      verify(envFactory).createEnvironment(eq(envFoo), any());
       verifyNoMoreInteractions(envFactory);
     }
+  }
+
+  @Test
+  public void loadBalancesBundles() throws Exception {
+    PortablePipelineOptions portableOptions =
+        PipelineOptionsFactory.as(PortablePipelineOptions.class);
+    portableOptions.setSdkWorkerParallelism(2);
+    portableOptions.setLoadBalanceBundles(true);
+    Struct pipelineOptions = PipelineOptionsTranslation.toProto(portableOptions);
+
+    try (DefaultJobBundleFactory bundleFactory =
+        new DefaultJobBundleFactory(
+            JobInfo.create("testJob", "testJob", "token", pipelineOptions),
+            envFactoryProviderMap,
+            stageIdGenerator,
+            serverInfo)) {
+      OutputReceiverFactory orf = mock(OutputReceiverFactory.class);
+      StateRequestHandler srh = mock(StateRequestHandler.class);
+      when(srh.getCacheTokens()).thenReturn(Collections.emptyList());
+      StageBundleFactory sbf = bundleFactory.forStage(getExecutableStage(environment));
+      RemoteBundle b1 = sbf.getBundle(orf, srh, BundleProgressHandler.ignored());
+      verify(envFactory, Mockito.times(1)).createEnvironment(eq(environment), any());
+      final RemoteBundle b2 = sbf.getBundle(orf, srh, BundleProgressHandler.ignored());
+      verify(envFactory, Mockito.times(2)).createEnvironment(eq(environment), any());
+
+      AtomicBoolean b2Closing = new AtomicBoolean(false);
+      ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+      ScheduledFuture<Optional<Exception>> closingFuture =
+          executor.schedule(
+              () -> {
+                try {
+                  b2Closing.compareAndSet(false, true);
+                  b2.close();
+                  return Optional.empty();
+                } catch (Exception e) {
+                  return Optional.of(e);
+                }
+              },
+              100,
+              TimeUnit.MILLISECONDS);
+
+      assertThat(b2Closing.get(), equalTo(false));
+
+      // This call should block until closingFuture has finished closing b2 (100ms)
+      RemoteBundle b3 = sbf.getBundle(orf, srh, BundleProgressHandler.ignored());
+
+      // ensure the previous call waited for close
+      assertThat(b2Closing.get(), equalTo(true));
+
+      // Join closingFuture and check if an exception occurred
+      Optional<Exception> closingException = closingFuture.get();
+      if (closingException.isPresent()) {
+        throw new AssertionError("Exception occurred while closing b2", closingException.get());
+      }
+
+      verify(envFactory, Mockito.times(2)).createEnvironment(eq(environment), any());
+      b3.close();
+      b1.close();
+
+      executor.shutdown();
+    }
+  }
+
+  @Test
+  public void rejectsStateCachingWithLoadBalancing() throws Exception {
+    PortablePipelineOptions portableOptions =
+        PipelineOptionsFactory.as(PortablePipelineOptions.class);
+    portableOptions.setLoadBalanceBundles(true);
+    ExperimentalOptions options = portableOptions.as(ExperimentalOptions.class);
+    ExperimentalOptions.addExperiment(options, "state_cache_size=1");
+    Struct pipelineOptions = PipelineOptionsTranslation.toProto(options);
+
+    Exception e =
+        Assert.assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                new DefaultJobBundleFactory(
+                        JobInfo.create("testJob", "testJob", "token", pipelineOptions),
+                        envFactoryProviderMap,
+                        stageIdGenerator,
+                        serverInfo)
+                    .close());
+    assertThat(e.getMessage(), containsString("state_cache_size"));
   }
 
   private DefaultJobBundleFactory createDefaultJobBundleFactory(

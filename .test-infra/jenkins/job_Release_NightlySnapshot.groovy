@@ -49,17 +49,17 @@ job('beam_Release_NightlySnapshot') {
       tasks('clean')
     }
     /*
-    * Skipping verification on 'ubuntu' labelled nodes since they don't have access to the
-    * some required GCP resouces.
-    * TODO: Uncomment this after we publishing snapshots on 'beam' nodes.
-    gradle {
-      rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks('build')
-      commonJobProperties.setGradleSwitches(delegate)
-      switches('--no-parallel')
-      switches('--continue')
-    }
-    */
+     * Skipping verification on 'ubuntu' labelled nodes since they don't have access to the
+     * some required GCP resouces.
+     * TODO: Uncomment this after we publishing snapshots on 'beam' nodes.
+     gradle {
+     rootBuildScriptDir(commonJobProperties.checkoutDir)
+     tasks('build')
+     commonJobProperties.setGradleSwitches(delegate)
+     switches('--no-parallel')
+     switches('--continue')
+     }
+     */
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks('publish')

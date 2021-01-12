@@ -28,7 +28,7 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
       '^sdks/python/.*$',
       '^release/.*$',
     ]
-)
+    )
 builder.build {
   // Publish all test results to Jenkins.
   publishers {

@@ -28,7 +28,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  * Contains the {@link PipelineRunnerRegistrar} and {@link PipelineOptionsRegistrar} for the {@link
  * JetRunner}.
  *
- * <p>{@link AutoService} will register Apex's implementations of the {@link PipelineRunner} and
+ * <p>{@link AutoService} will register Jet's implementations of the {@link PipelineRunner} and
  * {@link PipelineOptions} as available pipeline runner services.
  */
 public final class JetRunnerRegistrar {

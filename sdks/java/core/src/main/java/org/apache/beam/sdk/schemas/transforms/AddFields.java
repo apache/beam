@@ -28,11 +28,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor.FieldDescriptor.Qualifier;
-import org.apache.beam.sdk.schemas.FieldAccessDescriptor.FieldDescriptor.Qualifier.Kind;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -46,6 +45,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimaps;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A transform to add new nullable fields to a PCollection's schema. Elements are extended to have
@@ -63,7 +63,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap
  *       .field("userDetails.isSpecialUser", "FieldType.BOOLEAN", false));
  * }</pre>
  */
-@Experimental(Experimental.Kind.SCHEMAS)
+@Experimental(Kind.SCHEMAS)
+@SuppressWarnings({"nullness", "keyfor"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class AddFields {
   public static <T> Inner<T> create() {
     return new Inner<>();
@@ -80,8 +81,7 @@ public class AddFields {
 
       abstract Schema.FieldType getFieldType();
 
-      @Nullable
-      abstract Object getDefaultValue();
+      abstract @Nullable Object getDefaultValue();
 
       @AutoValue.Builder
       abstract static class Builder {
@@ -138,8 +138,8 @@ public class AddFields {
     @AutoValue
     abstract static class AddFieldsInformation implements Serializable {
       // The new output fieldtype after adding the new field.
-      @Nullable
-      abstract Schema.FieldType getOutputFieldType();
+
+      abstract Schema.@Nullable FieldType getOutputFieldType();
 
       // A list of default values corresponding to this level of the schema.
       abstract List<Object> getDefaultValues();
@@ -282,7 +282,8 @@ public class AddFields {
           // Alternatives would be to always create a default key type (e.g. FieldType.STRING) or
           // extend our selector
           // syntax to allow specifying key types.
-          checkArgument(!qualifier.getKind().equals(Kind.MAP), "Map qualifiers not supported here");
+          checkArgument(
+              !qualifier.getKind().equals(Qualifier.Kind.MAP), "Map qualifiers not supported here");
           fieldType = FieldType.array(fieldType).withNullable(true);
         }
         if (!inputSchema.hasField(fieldName)) {
@@ -372,7 +373,7 @@ public class AddFields {
         }
       }
 
-      return Row.withSchema(outputSchema).attachValues(newValues).build();
+      return Row.withSchema(outputSchema).attachValues(newValues);
     }
 
     private static Object fillNewFields(

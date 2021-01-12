@@ -37,6 +37,10 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 /** Unit tests for {@link SchemaRegistry}. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SchemaRegistryTest {
   static final Schema EMPTY_SCHEMA = Schema.builder().build();
   static final Schema STRING_SCHEMA = Schema.builder().addStringField("string").build();
@@ -224,5 +228,25 @@ public class SchemaRegistryTest {
     registry.registerJavaBean(SimpleBean.class);
     Schema schema = registry.getSchema(SimpleBean.class);
     assertTrue(SIMPLE_BEAN_SCHEMA.equivalent(schema));
+  }
+
+  @Test
+  public void testGetSchemaCoder() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    registry.registerJavaBean(SimpleBean.class);
+
+    Schema schema = registry.getSchema(SimpleBean.class);
+    SerializableFunction<SimpleBean, Row> toRowFunction =
+        registry.getToRowFunction(SimpleBean.class);
+    SerializableFunction<Row, SimpleBean> fromRowFunction =
+        registry.getFromRowFunction(SimpleBean.class);
+    SchemaCoder schemaCoder = registry.getSchemaCoder(SimpleBean.class);
+
+    assertTrue(schema.equivalent(schemaCoder.getSchema()));
+    assertTrue(toRowFunction.equals(schemaCoder.getToRowFunction()));
+    assertTrue(fromRowFunction.equals(schemaCoder.getFromRowFunction()));
+
+    thrown.expect(NoSuchSchemaException.class);
+    registry.getSchemaCoder(Double.class);
   }
 }

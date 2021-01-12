@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.storage;
 
+import static org.apache.beam.sdk.testing.FileChecksumMatcher.fileContentsHaveChecksum;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertNotNull;
@@ -36,10 +37,10 @@ import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
-import org.apache.beam.sdk.testing.FileChecksumMatcher;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.testing.UsesKms;
+import org.apache.beam.sdk.util.NumberedShardedFile;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -53,6 +54,9 @@ import org.junit.runners.JUnit4;
 /** Integration test for GCS CMEK support. */
 @RunWith(JUnit4.class)
 @Category(UsesKms.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class GcsKmsKeyIT {
 
   private static final String INPUT_FILE = "gs://dataflow-samples/shakespeare/kinglear.txt";
@@ -87,7 +91,7 @@ public class GcsKmsKeyIT {
     assertThat(state, equalTo(State.DONE));
 
     String filePattern = filenamePrefix + "*-of-*";
-    assertThat(result, new FileChecksumMatcher(EXPECTED_CHECKSUM, filePattern));
+    assertThat(new NumberedShardedFile(filePattern), fileContentsHaveChecksum(EXPECTED_CHECKSUM));
 
     // Verify objects have KMS key set.
     try {

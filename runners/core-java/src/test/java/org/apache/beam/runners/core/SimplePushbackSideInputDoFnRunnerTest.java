@@ -18,13 +18,13 @@
 package org.apache.beam.runners.core;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.when;
 
@@ -34,6 +34,8 @@ import java.util.List;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
@@ -75,6 +77,10 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link SimplePushbackSideInputDoFnRunner}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SimplePushbackSideInputDoFnRunnerTest {
   @Mock StepContext mockStepContext;
   @Mock private ReadyCheckingSideInputReader reader;
@@ -109,7 +115,7 @@ public class SimplePushbackSideInputDoFnRunnerTest {
             .apply(Window.into(new IdentitySideInputWindowFn()))
             .apply(Sum.integersGlobally().asSingletonView());
 
-    underlying = new TestDoFnRunner<>();
+    underlying = new TestDoFnRunner<>(VarIntCoder.of());
 
     DoFn<KV<String, Integer>, Integer> fn = new MyDoFn();
 
@@ -125,11 +131,28 @@ public class SimplePushbackSideInputDoFnRunnerTest {
     statefulRunner =
         DoFnRunners.defaultStatefulDoFnRunner(
             fn,
+            KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()),
             getDoFnRunner(fn),
+            asStepContext(stateInternals, timerInternals),
             WINDOWING_STRATEGY,
             new StatefulDoFnRunner.TimeInternalsCleanupTimer(timerInternals, WINDOWING_STRATEGY),
             new StatefulDoFnRunner.StateInternalsStateCleaner<>(
                 fn, stateInternals, (Coder) WINDOWING_STRATEGY.getWindowFn().windowCoder()));
+  }
+
+  private StepContext asStepContext(StateInternals stateInternals, TimerInternals timerInternals) {
+    return new StepContext() {
+
+      @Override
+      public StateInternals stateInternals() {
+        return stateInternals;
+      }
+
+      @Override
+      public TimerInternals timerInternals() {
+        return timerInternals;
+      }
+    };
   }
 
   private SimplePushbackSideInputDoFnRunner<Integer, Integer> createRunner(
@@ -283,7 +306,14 @@ public class SimplePushbackSideInputDoFnRunnerTest {
 
     // Mocking is not easily compatible with annotation analysis, so we manually record
     // the method call.
-    runner.onTimer(timerId, window, new Instant(timestamp), TimeDomain.EVENT_TIME);
+    runner.onTimer(
+        timerId,
+        "",
+        null,
+        window,
+        new Instant(timestamp),
+        new Instant(timestamp),
+        TimeDomain.EVENT_TIME);
 
     assertThat(
         underlying.firedTimers,
@@ -292,14 +322,20 @@ public class SimplePushbackSideInputDoFnRunnerTest {
                 timerId,
                 StateNamespaces.window(IntervalWindow.getCoder(), window),
                 timestamp,
+                timestamp,
                 TimeDomain.EVENT_TIME)));
   }
 
   private static class TestDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT> {
+    private final Coder<InputT> inputCoder;
     List<WindowedValue<InputT>> inputElems;
     List<TimerData> firedTimers;
     private boolean started = false;
     private boolean finished = false;
+
+    TestDoFnRunner(Coder<InputT> inputCoder) {
+      this.inputCoder = inputCoder;
+    }
 
     @Override
     public DoFn<InputT, OutputT> getFn() {
@@ -319,13 +355,21 @@ public class SimplePushbackSideInputDoFnRunnerTest {
     }
 
     @Override
-    public void onTimer(
-        String timerId, BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {
+    public <KeyT> void onTimer(
+        String timerId,
+        String timerFamilyId,
+        KeyT key,
+        BoundedWindow window,
+        Instant timestamp,
+        Instant outputTimestamp,
+        TimeDomain timeDomain) {
       firedTimers.add(
           TimerData.of(
               timerId,
+              timerFamilyId,
               StateNamespaces.window(IntervalWindow.getCoder(), (IntervalWindow) window),
               timestamp,
+              outputTimestamp,
               timeDomain));
     }
 
@@ -333,6 +377,9 @@ public class SimplePushbackSideInputDoFnRunnerTest {
     public void finishBundle() {
       finished = true;
     }
+
+    @Override
+    public <KeyT> void onWindowExpiration(BoundedWindow window, Instant timestamp, KeyT key) {}
   }
 
   private SimplePushbackSideInputDoFnRunner<KV<String, Integer>, Integer> createRunner(
@@ -458,7 +505,14 @@ public class SimplePushbackSideInputDoFnRunnerTest {
       StateNamespace namespace = timer.getNamespace();
       checkArgument(namespace instanceof StateNamespaces.WindowNamespace);
       BoundedWindow window = ((StateNamespaces.WindowNamespace) namespace).getWindow();
-      toTrigger.onTimer(timer.getTimerId(), window, timer.getTimestamp(), timer.getDomain());
+      toTrigger.onTimer(
+          timer.getTimerId(),
+          timer.getTimerFamilyId(),
+          null,
+          window,
+          timer.getTimestamp(),
+          timer.getOutputTimestamp(),
+          timer.getDomain());
     }
   }
 

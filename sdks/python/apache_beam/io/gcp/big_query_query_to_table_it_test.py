@@ -14,9 +14,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 """
 Integration test for Google Cloud BigQuery.
 """
+
+# pytype: skip-file
 
 from __future__ import absolute_import
 
@@ -45,7 +48,6 @@ try:
 except ImportError:
   pass
 
-
 _LOGGER = logging.getLogger(__name__)
 
 WAIT_UNTIL_FINISH_DURATION_MS = 15 * 60 * 1000
@@ -56,22 +58,35 @@ NEW_TYPES_OUTPUT_SCHEMA = (
     '{"fields": [{"name": "bytes","type": "BYTES"},'
     '{"name": "date","type": "DATE"},{"name": "time","type": "TIME"}]}')
 NEW_TYPES_OUTPUT_VERIFY_QUERY = ('SELECT bytes, date, time FROM `%s`;')
-NEW_TYPES_OUTPUT_EXPECTED = [
-    (b'xyw', datetime.date(2011, 1, 1), datetime.time(23, 59, 59, 999999),),
-    (b'abc', datetime.date(2000, 1, 1), datetime.time(0, 0),),
-    (b'\xe4\xbd\xa0\xe5\xa5\xbd', datetime.date(3000, 12, 31),
-     datetime.time(23, 59, 59, 990000),),
-    (b'\xab\xac\xad', datetime.date(2000, 1, 1), datetime.time(0, 0),)]
+NEW_TYPES_OUTPUT_EXPECTED = [(
+    b'xyw',
+    datetime.date(2011, 1, 1),
+    datetime.time(23, 59, 59, 999999),
+),
+                             (
+                                 b'abc',
+                                 datetime.date(2000, 1, 1),
+                                 datetime.time(0, 0),
+                             ),
+                             (
+                                 b'\xe4\xbd\xa0\xe5\xa5\xbd',
+                                 datetime.date(3000, 12, 31),
+                                 datetime.time(23, 59, 59, 990000),
+                             ),
+                             (
+                                 b'\xab\xac\xad',
+                                 datetime.date(2000, 1, 1),
+                                 datetime.time(0, 0),
+                             )]
 LEGACY_QUERY = (
     'SELECT * FROM (SELECT "apple" as fruit), (SELECT "orange" as fruit),')
 STANDARD_QUERY = (
     'SELECT * FROM (SELECT "apple" as fruit) '
     'UNION ALL (SELECT "orange" as fruit)')
-NEW_TYPES_QUERY = (
-    'SELECT bytes, date, time FROM [%s.%s]')
+NEW_TYPES_QUERY = ('SELECT bytes, date, time FROM [%s.%s]')
 DIALECT_OUTPUT_SCHEMA = ('{"fields": [{"name": "fruit","type": "STRING"}]}')
 DIALECT_OUTPUT_VERIFY_QUERY = ('SELECT fruit from `%s`;')
-DIALECT_OUTPUT_EXPECTED = [(u'apple',), (u'orange',)]
+DIALECT_OUTPUT_EXPECTED = [(u'apple', ), (u'orange', )]
 
 
 class BigQueryQueryToTableIT(unittest.TestCase):
@@ -81,15 +96,14 @@ class BigQueryQueryToTableIT(unittest.TestCase):
     self.project = self.test_pipeline.get_option('project')
 
     self.bigquery_client = BigQueryWrapper()
-    self.dataset_id = '%s%s%d' % (BIG_QUERY_DATASET_ID, str(int(time.time())),
-                                  random.randint(0, 10000))
+    self.dataset_id = '%s%s%d' % (
+        BIG_QUERY_DATASET_ID, str(int(time.time())), random.randint(0, 10000))
     self.bigquery_client.get_or_create_dataset(self.project, self.dataset_id)
     self.output_table = "%s.output_table" % (self.dataset_id)
 
   def tearDown(self):
     request = bigquery.BigqueryDatasetsDeleteRequest(
-        projectId=self.project, datasetId=self.dataset_id,
-        deleteContents=True)
+        projectId=self.project, datasetId=self.dataset_id, deleteContents=True)
     try:
       self.bigquery_client.client.datasets.Delete(request)
     except HttpError:
@@ -118,36 +132,50 @@ class BigQueryQueryToTableIT(unittest.TestCase):
     request = bigquery.BigqueryTablesInsertRequest(
         projectId=self.project, datasetId=self.dataset_id, table=table)
     self.bigquery_client.client.tables.Insert(request)
-    table_data = [
-        {'bytes':b'xyw', 'date':'2011-01-01', 'time':'23:59:59.999999'},
-        {'bytes':b'abc', 'date':'2000-01-01', 'time':'00:00:00'},
-        {'bytes':b'\xe4\xbd\xa0\xe5\xa5\xbd', 'date':'3000-12-31',
-         'time':'23:59:59.990000'},
-        {'bytes':b'\xab\xac\xad', 'date':'2000-01-01', 'time':'00:00:00'}
-    ]
+    table_data = [{
+        'bytes': b'xyw', 'date': '2011-01-01', 'time': '23:59:59.999999'
+    }, {
+        'bytes': b'abc', 'date': '2000-01-01', 'time': '00:00:00'
+    },
+                  {
+                      'bytes': b'\xe4\xbd\xa0\xe5\xa5\xbd',
+                      'date': '3000-12-31',
+                      'time': '23:59:59.990000'
+                  },
+                  {
+                      'bytes': b'\xab\xac\xad',
+                      'date': '2000-01-01',
+                      'time': '00:00:00'
+                  }]
     # the API Tools bigquery client expects byte values to be base-64 encoded
     # TODO BEAM-4850: upgrade to google-cloud-bigquery which does not require
     # handling the encoding in beam
     for row in table_data:
       row['bytes'] = base64.b64encode(row['bytes']).decode('utf-8')
-    self.bigquery_client.insert_rows(
+    passed, errors = self.bigquery_client.insert_rows(
         self.project, self.dataset_id, NEW_TYPES_INPUT_TABLE, table_data)
+    self.assertTrue(passed, 'Error in BQ setup: %s' % errors)
 
   @attr('IT')
   def test_big_query_legacy_sql(self):
     verify_query = DIALECT_OUTPUT_VERIFY_QUERY % self.output_table
     expected_checksum = test_utils.compute_hash(DIALECT_OUTPUT_EXPECTED)
-    pipeline_verifiers = [PipelineStateMatcher(), BigqueryMatcher(
-        project=self.project,
-        query=verify_query,
-        checksum=expected_checksum)]
+    pipeline_verifiers = [
+        PipelineStateMatcher(),
+        BigqueryMatcher(
+            project=self.project,
+            query=verify_query,
+            checksum=expected_checksum)
+    ]
 
-    extra_opts = {'query': LEGACY_QUERY,
-                  'output': self.output_table,
-                  'output_schema': DIALECT_OUTPUT_SCHEMA,
-                  'use_standard_sql': False,
-                  'wait_until_finish_duration': WAIT_UNTIL_FINISH_DURATION_MS,
-                  'on_success_matcher': all_of(*pipeline_verifiers)}
+    extra_opts = {
+        'query': LEGACY_QUERY,
+        'output': self.output_table,
+        'output_schema': DIALECT_OUTPUT_SCHEMA,
+        'use_standard_sql': False,
+        'wait_until_finish_duration': WAIT_UNTIL_FINISH_DURATION_MS,
+        'on_success_matcher': all_of(*pipeline_verifiers),
+    }
     options = self.test_pipeline.get_full_options_as_args(**extra_opts)
     big_query_query_to_table_pipeline.run_bq_pipeline(options)
 
@@ -155,17 +183,22 @@ class BigQueryQueryToTableIT(unittest.TestCase):
   def test_big_query_standard_sql(self):
     verify_query = DIALECT_OUTPUT_VERIFY_QUERY % self.output_table
     expected_checksum = test_utils.compute_hash(DIALECT_OUTPUT_EXPECTED)
-    pipeline_verifiers = [PipelineStateMatcher(), BigqueryMatcher(
-        project=self.project,
-        query=verify_query,
-        checksum=expected_checksum)]
+    pipeline_verifiers = [
+        PipelineStateMatcher(),
+        BigqueryMatcher(
+            project=self.project,
+            query=verify_query,
+            checksum=expected_checksum)
+    ]
 
-    extra_opts = {'query': STANDARD_QUERY,
-                  'output': self.output_table,
-                  'output_schema': DIALECT_OUTPUT_SCHEMA,
-                  'use_standard_sql': True,
-                  'wait_until_finish_duration': WAIT_UNTIL_FINISH_DURATION_MS,
-                  'on_success_matcher': all_of(*pipeline_verifiers)}
+    extra_opts = {
+        'query': STANDARD_QUERY,
+        'output': self.output_table,
+        'output_schema': DIALECT_OUTPUT_SCHEMA,
+        'use_standard_sql': True,
+        'wait_until_finish_duration': WAIT_UNTIL_FINISH_DURATION_MS,
+        'on_success_matcher': all_of(*pipeline_verifiers),
+    }
     options = self.test_pipeline.get_full_options_as_args(**extra_opts)
     big_query_query_to_table_pipeline.run_bq_pipeline(options)
 
@@ -175,21 +208,26 @@ class BigQueryQueryToTableIT(unittest.TestCase):
       self.skipTest("This test doesn't work on DirectRunner.")
     verify_query = DIALECT_OUTPUT_VERIFY_QUERY % self.output_table
     expected_checksum = test_utils.compute_hash(DIALECT_OUTPUT_EXPECTED)
-    pipeline_verifiers = [PipelineStateMatcher(), BigqueryMatcher(
-        project=self.project,
-        query=verify_query,
-        checksum=expected_checksum)]
+    pipeline_verifiers = [
+        PipelineStateMatcher(),
+        BigqueryMatcher(
+            project=self.project,
+            query=verify_query,
+            checksum=expected_checksum)
+    ]
     kms_key = self.test_pipeline.get_option('kms_key_name')
     self.assertTrue(kms_key)
-    extra_opts = {'query': STANDARD_QUERY,
-                  'output': self.output_table,
-                  'output_schema': DIALECT_OUTPUT_SCHEMA,
-                  'use_standard_sql': True,
-                  'wait_until_finish_duration': WAIT_UNTIL_FINISH_DURATION_MS,
-                  'on_success_matcher': all_of(*pipeline_verifiers),
-                  'kms_key': kms_key,
-                  'native': True,
-                 }
+    extra_opts = {
+        'query': STANDARD_QUERY,
+        'output': self.output_table,
+        'output_schema': DIALECT_OUTPUT_SCHEMA,
+        'use_standard_sql': True,
+        'wait_until_finish_duration': WAIT_UNTIL_FINISH_DURATION_MS,
+        'on_success_matcher': all_of(*pipeline_verifiers),
+        'kms_key': kms_key,
+        'native': True,
+        'experiments': 'use_legacy_bq_sink',
+    }
     options = self.test_pipeline.get_full_options_as_args(**extra_opts)
     big_query_query_to_table_pipeline.run_bq_pipeline(options)
 
@@ -204,10 +242,13 @@ class BigQueryQueryToTableIT(unittest.TestCase):
   def test_big_query_new_types(self):
     expected_checksum = test_utils.compute_hash(NEW_TYPES_OUTPUT_EXPECTED)
     verify_query = NEW_TYPES_OUTPUT_VERIFY_QUERY % self.output_table
-    pipeline_verifiers = [PipelineStateMatcher(), BigqueryMatcher(
-        project=self.project,
-        query=verify_query,
-        checksum=expected_checksum)]
+    pipeline_verifiers = [
+        PipelineStateMatcher(),
+        BigqueryMatcher(
+            project=self.project,
+            query=verify_query,
+            checksum=expected_checksum)
+    ]
     self._setup_new_types_env()
     extra_opts = {
         'query': NEW_TYPES_QUERY % (self.dataset_id, NEW_TYPES_INPUT_TABLE),
@@ -215,7 +256,60 @@ class BigQueryQueryToTableIT(unittest.TestCase):
         'output_schema': NEW_TYPES_OUTPUT_SCHEMA,
         'use_standard_sql': False,
         'wait_until_finish_duration': WAIT_UNTIL_FINISH_DURATION_MS,
-        'on_success_matcher': all_of(*pipeline_verifiers)}
+        'use_json_exports': True,
+        'on_success_matcher': all_of(*pipeline_verifiers)
+    }
+    options = self.test_pipeline.get_full_options_as_args(**extra_opts)
+    big_query_query_to_table_pipeline.run_bq_pipeline(options)
+
+  @attr('IT')
+  def test_big_query_new_types_avro(self):
+    expected_checksum = test_utils.compute_hash(NEW_TYPES_OUTPUT_EXPECTED)
+    verify_query = NEW_TYPES_OUTPUT_VERIFY_QUERY % self.output_table
+    pipeline_verifiers = [
+        PipelineStateMatcher(),
+        BigqueryMatcher(
+            project=self.project,
+            query=verify_query,
+            checksum=expected_checksum)
+    ]
+    self._setup_new_types_env()
+    extra_opts = {
+        'query': NEW_TYPES_QUERY % (self.dataset_id, NEW_TYPES_INPUT_TABLE),
+        'output': self.output_table,
+        'output_schema': NEW_TYPES_OUTPUT_SCHEMA,
+        'use_standard_sql': False,
+        'wait_until_finish_duration': WAIT_UNTIL_FINISH_DURATION_MS,
+        'on_success_matcher': all_of(*pipeline_verifiers),
+    }
+    options = self.test_pipeline.get_full_options_as_args(**extra_opts)
+    big_query_query_to_table_pipeline.run_bq_pipeline(options)
+
+  @attr('IT')
+  def test_big_query_new_types_native(self):
+    expected_checksum = test_utils.compute_hash(NEW_TYPES_OUTPUT_EXPECTED)
+    verify_query = NEW_TYPES_OUTPUT_VERIFY_QUERY % self.output_table
+    pipeline_verifiers = [
+        PipelineStateMatcher(),
+        BigqueryMatcher(
+            project=self.project,
+            query=verify_query,
+            checksum=expected_checksum,
+            timeout_secs=30,
+        )
+    ]
+    self._setup_new_types_env()
+    extra_opts = {
+        'query': NEW_TYPES_QUERY % (self.dataset_id, NEW_TYPES_INPUT_TABLE),
+        'output': self.output_table,
+        'output_schema': NEW_TYPES_OUTPUT_SCHEMA,
+        'use_standard_sql': False,
+        'native': True,
+        'use_json_exports': True,
+        'wait_until_finish_duration': WAIT_UNTIL_FINISH_DURATION_MS,
+        'on_success_matcher': all_of(*pipeline_verifiers),
+        'experiments': 'use_legacy_bq_sink',
+    }
     options = self.test_pipeline.get_full_options_as_args(**extra_opts)
     big_query_query_to_table_pipeline.run_bq_pipeline(options)
 

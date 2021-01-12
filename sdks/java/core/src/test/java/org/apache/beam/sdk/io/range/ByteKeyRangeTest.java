@@ -17,11 +17,11 @@
  */
 package org.apache.beam.sdk.io.range;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -35,6 +35,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link ByteKeyRange}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ByteKeyRangeTest {
   // A set of ranges for testing.
   private static final ByteKeyRange RANGE_1_10 = ByteKeyRange.of(ByteKey.of(1), ByteKey.of(10));
@@ -361,8 +364,11 @@ public class ByteKeyRangeTest {
     assertThat("Too many hash collisions", collisions, lessThan(totalUnequalTests / 2));
   }
 
-  /** Asserts the two keys are equal except trailing zeros. */
-  private static void assertEqualExceptPadding(ByteKey expected, ByteKey key) {
+  /**
+   * Asserts the two keys are equal except trailing zeros. Note that this can only be used for
+   * testing split logic. *
+   */
+  public static void assertEqualExceptPadding(ByteKey expected, ByteKey key) {
     ByteBuffer shortKey = expected.getValue();
     ByteBuffer longKey = key.getValue();
     if (shortKey.remaining() > longKey.remaining()) {

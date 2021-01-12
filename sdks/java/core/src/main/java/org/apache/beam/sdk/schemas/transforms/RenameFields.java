@@ -55,6 +55,9 @@ import org.apache.commons.compress.utils.Lists;
  * }</pre>
  */
 @Experimental(Kind.SCHEMAS)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class RenameFields {
   /** Create an instance of this transform. */
   public static <T> Inner<T> create() {
@@ -180,7 +183,7 @@ public class RenameFields {
                   new DoFn<T, Row>() {
                     @ProcessElement
                     public void processElement(@Element Row row, OutputReceiver<Row> o) {
-                      o.output(Row.withSchema(outputSchema).attachValues(row.getValues()).build());
+                      o.output(Row.withSchema(outputSchema).attachValues(row.getValues()));
                     }
                   }))
           .setRowSchema(outputSchema);

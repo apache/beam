@@ -20,7 +20,8 @@ package org.apache.beam.sdk.io.hadoop;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
-import org.apache.commons.lang3.SerializationUtils;
+import org.apache.beam.repackaged.core.org.apache.commons.lang3.SerializationUtils;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.Job;
 import org.junit.Rule;
@@ -31,6 +32,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for SerializableConfiguration. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SerializableConfigurationTest {
   @Rule public final ExpectedException thrown = ExpectedException.none();
   private static final SerializableConfiguration DEFAULT_SERIALIZABLE_CONF =
@@ -69,5 +73,13 @@ public class SerializableConfigurationTest {
     assertNotNull(jobFromNull);
     Job job = SerializableConfiguration.newJob(DEFAULT_SERIALIZABLE_CONF);
     assertNotNull(job);
+  }
+
+  @Test
+  public void testFromMap() {
+    SerializableConfiguration testConf =
+        SerializableConfiguration.fromMap(ImmutableMap.of("hadoop.silly.test", "test-value"));
+
+    assertEquals("test-value", testConf.get().get("hadoop.silly.test", "default-value"));
   }
 }

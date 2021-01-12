@@ -32,8 +32,8 @@ import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.function.ThrowingFunction;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.Status;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.Status;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -74,11 +74,24 @@ public class BeamFnControlClient {
               BeamFnApi.InstructionRequest.RequestCase,
               ThrowingFunction<BeamFnApi.InstructionRequest, BeamFnApi.InstructionResponse.Builder>>
           handlers) {
+    this(
+        id,
+        BeamFnControlGrpc.newStub(channelFactory.forDescriptor(apiServiceDescriptor)),
+        outboundObserverFactory,
+        handlers);
+  }
+
+  public BeamFnControlClient(
+      String id,
+      BeamFnControlGrpc.BeamFnControlStub controlStub,
+      OutboundObserverFactory outboundObserverFactory,
+      EnumMap<
+              BeamFnApi.InstructionRequest.RequestCase,
+              ThrowingFunction<BeamFnApi.InstructionRequest, BeamFnApi.InstructionResponse.Builder>>
+          handlers) {
     this.bufferedInstructions = new LinkedBlockingDeque<>();
     this.outboundObserver =
-        outboundObserverFactory.outboundObserverFor(
-            BeamFnControlGrpc.newStub(channelFactory.forDescriptor(apiServiceDescriptor))::control,
-            new InboundObserver());
+        outboundObserverFactory.outboundObserverFor(controlStub::control, new InboundObserver());
     this.handlers = handlers;
     this.onFinish = new CompletableFuture<>();
   }

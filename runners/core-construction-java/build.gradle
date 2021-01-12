@@ -17,7 +17,23 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(automaticModuleName: 'org.apache.beam.runners.core.construction')
+applyJavaNature(
+  classesTriggerCheckerBugs: [
+    'WindowIntoTranslation': 'https://github.com/typetools/checker-framework/issues/3791',
+    'FlattenTranslator': 'https://github.com/typetools/checker-framework/issues/3791',
+    'WriteFilesTranslation': 'https://github.com/typetools/checker-framework/issues/3791',
+    'CreatePCollectionViewTranslation': 'https://github.com/typetools/checker-framework/issues/3791',
+    'ReshuffleTranslation': 'https://github.com/typetools/checker-framework/issues/3791',
+    'TestStreamTranslation': 'https://github.com/typetools/checker-framework/issues/3791',
+    'ImpulseTranslation': 'https://github.com/typetools/checker-framework/issues/3791',
+    'CombineTranslation': 'https://github.com/typetools/checker-framework/issues/3791',
+    'SplittableParDo': 'https://github.com/typetools/checker-framework/issues/3791',
+    'ReadTranslation': 'https://github.com/typetools/checker-framework/issues/3791',
+    'GroupByKeyTranslation': 'https://github.com/typetools/checker-framework/issues/3791',
+    'ParDoTranslation': 'https://github.com/typetools/checker-framework/issues/3791',
+  ],
+  automaticModuleName: 'org.apache.beam.runners.core.construction',
+)
 
 description = "Apache Beam :: Runners :: Core Construction Java"
 ext.summary = """Beam Runners Core provides utilities to aid runner authors interact with a Pipeline
@@ -36,8 +52,10 @@ dependencies {
   compile project(path: ":model:pipeline", configuration: "shadow")
   compile project(path: ":model:job-management", configuration: "shadow")
   compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile library.java.vendored_grpc_1_21_0
+  compile project(path: ":sdks:java:fn-execution")
+  compile library.java.vendored_grpc_1_26_0
   compile library.java.vendored_guava_26_0_jre
+  compile library.java.classgraph
   compile library.java.jackson_core
   compile library.java.jackson_databind
   compile library.java.joda_time
@@ -49,11 +67,6 @@ dependencies {
   testCompile library.java.jackson_annotations
   testCompile library.java.jackson_dataformat_yaml
   testCompile project(path: ":model:fn-execution", configuration: "shadow")
+  testCompile project(path: ":sdks:java:core", configuration: "testRuntime")
   testRuntimeOnly library.java.slf4j_jdk14
-}
-
-task runExpansionService (type: JavaExec) {
-  main = "org.apache.beam.runners.core.construction.expansion.ExpansionService"
-  classpath = sourceSets.main.runtimeClasspath
-  args = [project.findProperty("constructionService.port") ?: "8097"]
 }

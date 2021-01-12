@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.jet;
 
-import com.hazelcast.jet.IMapJet;
 import com.hazelcast.jet.Job;
 import com.hazelcast.jet.core.JobStatus;
+import com.hazelcast.map.IMap;
 import java.io.IOException;
 import java.util.Objects;
 import java.util.concurrent.CancellationException;
@@ -38,9 +38,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Jet specific implementation of {@link PipelineResult}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class JetPipelineResult implements PipelineResult {
 
-  private static final Logger LOG = LoggerFactory.getLogger(JetRunner.class);
+  private static final Logger LOG = LoggerFactory.getLogger(JetPipelineResult.class);
 
   private final Job job;
   private final JetMetricResults metricResults;
@@ -48,7 +51,7 @@ public class JetPipelineResult implements PipelineResult {
 
   private CompletableFuture<Void> completionFuture;
 
-  JetPipelineResult(@Nonnull Job job, @Nonnull IMapJet<String, MetricUpdates> metricsAccumulator) {
+  JetPipelineResult(@Nonnull Job job, @Nonnull IMap<String, MetricUpdates> metricsAccumulator) {
     this.job = Objects.requireNonNull(job);
     // save the terminal state when the job completes because the `job` instance will become invalid
     // afterwards

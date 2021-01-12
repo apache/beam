@@ -36,7 +36,7 @@ public class BeamPCollectionTable<InputT> extends SchemaBaseBeamTable {
   public BeamPCollectionTable(PCollection<InputT> upstream) {
     super(upstream.getSchema());
     if (!upstream.hasSchema()) {
-      throw new RuntimeException("SQL can only run over PCollections that have schemas.");
+      throw new IllegalArgumentException("SQL can only run over PCollections that have schemas.");
     }
     this.upstream = upstream;
   }

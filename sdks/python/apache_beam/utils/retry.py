@@ -25,6 +25,8 @@ should find all such places. For this reason even places where retry is not
 needed right now use a @retry.no_retries decorator.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import functools
@@ -46,10 +48,18 @@ from apache_beam.io.filesystem import BeamIOError
 # TODO(sourabhbajaj): Remove the GCP specific error code to a submodule
 try:
   from apitools.base.py.exceptions import HttpError
-except ImportError:
+except ImportError as e:
   HttpError = None
-# pylint: enable=wrong-import-order, wrong-import-position
 
+# Protect against environments where aws tools are not available.
+# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
+try:
+  from apache_beam.io.aws.clients.s3 import messages as _s3messages
+except ImportError:
+  S3ClientError = None
+else:
+  S3ClientError = _s3messages.S3ClientError
+# pylint: enable=wrong-import-order, wrong-import-position
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -77,10 +87,19 @@ class FuzzedExponentialIntervals(object):
     max_delay_secs: Maximum delay (in seconds). After this limit is reached,
       further tries use max_delay_sec instead of exponentially increasing
       the time. Defaults to 1 hour.
+    stop_after_secs: Places a limit on the sum of intervals returned (in
+      seconds), such that the sum is <= stop_after_secs. Defaults to disabled
+      (None). You may need to increase num_retries to effectively use this
+      feature.
   """
-
-  def __init__(self, initial_delay_secs, num_retries, factor=2, fuzz=0.5,
-               max_delay_secs=60 * 60 * 1):
+  def __init__(
+      self,
+      initial_delay_secs,
+      num_retries,
+      factor=2,
+      fuzz=0.5,
+      max_delay_secs=60 * 60 * 1,
+      stop_after_secs=None):
     self._initial_delay_secs = initial_delay_secs
     if num_retries > 10000:
       raise ValueError('num_retries parameter cannot exceed 10000.')
@@ -90,12 +109,19 @@ class FuzzedExponentialIntervals(object):
       raise ValueError('fuzz parameter expected to be in [0, 1] range.')
     self._fuzz = fuzz
     self._max_delay_secs = max_delay_secs
+    self._stop_after_secs = stop_after_secs
 
   def __iter__(self):
     current_delay_secs = min(self._max_delay_secs, self._initial_delay_secs)
+    total_delay_secs = 0
     for _ in range(self._num_retries):
       fuzz_multiplier = 1 - self._fuzz + random.random() * self._fuzz
-      yield current_delay_secs * fuzz_multiplier
+      delay_secs = current_delay_secs * fuzz_multiplier
+      total_delay_secs += delay_secs
+      if (self._stop_after_secs is not None and
+          total_delay_secs > self._stop_after_secs):
+        break
+      yield delay_secs
       current_delay_secs = min(
           self._max_delay_secs, current_delay_secs * self._factor)
 
@@ -104,6 +130,8 @@ def retry_on_server_errors_filter(exception):
   """Filter allowing retries on server errors and non-HttpErrors."""
   if (HttpError is not None) and isinstance(exception, HttpError):
     return exception.status_code >= 500
+  if (S3ClientError is not None) and isinstance(exception, S3ClientError):
+    return exception.code >= 500
   return not isinstance(exception, PermanentException)
 
 
@@ -120,6 +148,9 @@ def retry_on_server_errors_and_timeout_filter(exception):
   if HttpError is not None and isinstance(exception, HttpError):
     if exception.status_code == 408:  # 408 Request Timeout
       return True
+  if S3ClientError is not None and isinstance(exception, S3ClientError):
+    if exception.code == 408:  # 408 Request Timeout
+      return True
   return retry_on_server_errors_filter(exception)
 
 
@@ -131,6 +162,9 @@ def retry_on_server_errors_timeout_or_quota_issues_filter(exception):
   if HttpError is not None and isinstance(exception, HttpError):
     if exception.status_code == 403:
       return True
+  if S3ClientError is not None and isinstance(exception, S3ClientError):
+    if exception.code == 403:
+      return True
   return retry_on_server_errors_and_timeout_filter(exception)
 
 
@@ -139,26 +173,36 @@ def retry_on_beam_io_error_filter(exception):
   return isinstance(exception, BeamIOError)
 
 
+def retry_if_valid_input_but_server_error_and_timeout_filter(exception):
+  if isinstance(exception, ValueError):
+    return False
+  return retry_on_server_errors_and_timeout_filter(exception)
+
+
 SERVER_ERROR_OR_TIMEOUT_CODES = [408, 500, 502, 503, 504, 598, 599]
 
 
 class Clock(object):
   """A simple clock implementing sleep()."""
-
   def sleep(self, value):
     time.sleep(value)
 
 
 def no_retries(fun):
   """A retry decorator for places where we do not want retries."""
-  return with_exponential_backoff(
-      retry_filter=lambda _: False, clock=None)(fun)
+  return with_exponential_backoff(retry_filter=lambda _: False, clock=None)(fun)
 
 
 def with_exponential_backoff(
-    num_retries=7, initial_delay_secs=5.0, logger=_LOGGER.warning,
+    num_retries=7,
+    initial_delay_secs=5.0,
+    logger=_LOGGER.warning,
     retry_filter=retry_on_server_errors_filter,
-    clock=Clock(), fuzz=True, factor=2, max_delay_secs=60 * 60):
+    clock=Clock(),
+    fuzz=True,
+    factor=2,
+    max_delay_secs=60 * 60,
+    stop_after_secs=None):
   """Decorator with arguments that control the retry logic.
 
   Args:
@@ -180,6 +224,10 @@ def with_exponential_backoff(
     max_delay_secs: Maximum delay (in seconds). After this limit is reached,
       further tries use max_delay_sec instead of exponentially increasing
       the time. Defaults to 1 hour.
+    stop_after_secs: Places a limit on the sum of delays between retries, such
+      that the sum is <= stop_after_secs. Retries will stop after the limit is
+      reached. Defaults to disabled (None). You may need to increase num_retries
+      to effectively use this feature.
 
   Returns:
     As per Python decorators with arguments pattern returns a decorator
@@ -195,15 +243,18 @@ def with_exponential_backoff(
   @retry.with_exponential_backoff()
   make_http_request(args)
   """
-
   def real_decorator(fun):
     """The real decorator whose purpose is to return the wrapped function."""
     @functools.wraps(fun)
     def wrapper(*args, **kwargs):
       retry_intervals = iter(
           FuzzedExponentialIntervals(
-              initial_delay_secs, num_retries, factor,
-              fuzz=0.5 if fuzz else 0, max_delay_secs=max_delay_secs))
+              initial_delay_secs,
+              num_retries,
+              factor,
+              fuzz=0.5 if fuzz else 0,
+              max_delay_secs=max_delay_secs,
+              stop_after_secs=stop_after_secs))
       while True:
         try:
           return fun(*args, **kwargs)

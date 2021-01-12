@@ -22,18 +22,21 @@ import static java.util.stream.Collectors.toList;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.sql.impl.TableName;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.CustomTableResolver;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Base class for table providers that look up table metadata using full table names, instead of
  * querying it by parts of the name separately.
  */
 @Experimental
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public abstract class FullNameTableProvider implements TableProvider, CustomTableResolver {
 
   private List<TableName> knownTables;
@@ -65,7 +68,7 @@ public abstract class FullNameTableProvider implements TableProvider, CustomTabl
     // Because this is a getSubProvider() call it means Calcite expects
     // the sub-schema/sub-provider to be returned, not a table,
     // so we only need to check against known compound table identifiers.
-    // If 'name' acutally represents a simple identifier then it will be checked
+    // If 'name' actually represents a simple identifier then it will be checked
     // in a 'getTable()' call later. Unless there's the same sub-provider name,
     // in which case it's a conflict and we will use the sub-schema and not assume it's a table.
     // Calcite does the same.
@@ -132,9 +135,8 @@ public abstract class FullNameTableProvider implements TableProvider, CustomTabl
       return "google.cloud.datacatalog.subprovider";
     }
 
-    @Nullable
     @Override
-    public Table getTable(String name) {
+    public @Nullable Table getTable(String name) {
 
       // This is called only after getSubProvider() returned null,
       // and since we are tracking the actual parsed table names, this should

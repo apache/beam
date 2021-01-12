@@ -19,6 +19,7 @@ package org.apache.beam.sdk.schemas.utils;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
+import com.google.auto.value.AutoValue;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -31,49 +32,43 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimaps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Primitives;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A set of reflection helper methods. */
+@Internal
+@SuppressWarnings({
+  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes"
+})
 public class ReflectUtils {
   /** Represents a class and a schema. */
-  public static class ClassWithSchema {
-    private final Class clazz;
-    private final Schema schema;
+  @AutoValue
+  @Experimental(Kind.SCHEMAS)
+  public abstract static class ClassWithSchema {
+    public abstract Class getClazz();
 
-    public ClassWithSchema(Class clazz, Schema schema) {
-      this.clazz = clazz;
-      this.schema = schema;
-    }
+    public abstract Schema getSchema();
 
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-      ClassWithSchema that = (ClassWithSchema) o;
-      return Objects.equals(clazz, that.clazz) && Objects.equals(schema, that.schema);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(clazz, schema);
+    public static ClassWithSchema create(Class clazz, Schema schema) {
+      return new AutoValue_ReflectUtils_ClassWithSchema(clazz, schema);
     }
   }
 
-  private static final Map<Class, List<Method>> DECLARED_METHODS = Maps.newHashMap();
-  private static final Map<Class, Method> ANNOTATED_CONSTRUCTORS = Maps.newHashMap();
-  private static final Map<Class, List<Field>> DECLARED_FIELDS = Maps.newHashMap();
+  private static final Map<Class, List<Method>> DECLARED_METHODS = Maps.newConcurrentMap();
+  private static final Map<Class, Method> ANNOTATED_CONSTRUCTORS = Maps.newConcurrentMap();
+  private static final Map<Class, List<Field>> DECLARED_FIELDS = Maps.newConcurrentMap();
 
   /**
    * Returns the list of non private/protected, non-static methods in the class, caching the
@@ -94,8 +89,11 @@ public class ReflectUtils {
         });
   }
 
-  @Nullable
-  public static Constructor getAnnotatedConstructor(Class clazz) {
+  public static Multimap<String, Method> getMethodsMap(Class clazz) {
+    return Multimaps.index(getMethods(clazz), Method::getName);
+  }
+
+  public static @Nullable Constructor getAnnotatedConstructor(Class clazz) {
     return Arrays.stream(clazz.getDeclaredConstructors())
         .filter(m -> !Modifier.isPrivate(m.getModifiers()))
         .filter(m -> !Modifier.isProtected(m.getModifiers()))
@@ -104,8 +102,7 @@ public class ReflectUtils {
         .orElse(null);
   }
 
-  @Nullable
-  public static Method getAnnotatedCreateMethod(Class clazz) {
+  public static @Nullable Method getAnnotatedCreateMethod(Class clazz) {
     return ANNOTATED_CONSTRUCTORS.computeIfAbsent(
         clazz,
         c -> {
@@ -194,8 +191,7 @@ public class ReflectUtils {
   }
 
   /** For an array T[] or a subclass of Iterable<T>, return a TypeDescriptor describing T. */
-  @Nullable
-  public static TypeDescriptor getIterableComponentType(TypeDescriptor valueType) {
+  public static @Nullable TypeDescriptor getIterableComponentType(TypeDescriptor valueType) {
     TypeDescriptor componentType = null;
     if (valueType.isArray()) {
       Type component = valueType.getComponentType().getType();

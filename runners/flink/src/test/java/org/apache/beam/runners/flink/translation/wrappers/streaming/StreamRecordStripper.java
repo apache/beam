@@ -17,12 +17,15 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Function;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIterable;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class StreamRecordStripper {
 
   @SuppressWarnings("Guava")
@@ -33,10 +36,9 @@ class StreamRecordStripper {
                 o instanceof StreamRecord && ((StreamRecord) o).getValue() instanceof WindowedValue)
         .transform(
             new Function<Object, WindowedValue<T>>() {
-              @Nullable
               @Override
               @SuppressWarnings({"unchecked", "rawtypes"})
-              public WindowedValue<T> apply(@Nullable Object o) {
+              public @Nullable WindowedValue<T> apply(@Nullable Object o) {
                 if (o instanceof StreamRecord
                     && ((StreamRecord) o).getValue() instanceof WindowedValue) {
                   return (WindowedValue) ((StreamRecord) o).getValue();

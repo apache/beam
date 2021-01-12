@@ -23,23 +23,26 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Objects;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.util.SerializableThrowable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
 import org.apache.tika.metadata.Metadata;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * The result of parsing a single file with Tika: contains the file's location, metadata, extracted
  * text, and optionally an error. If there is an error, the metadata and extracted text may be
  * partial (i.e. not represent the entire file).
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ParseResult implements Serializable {
   private final String fileLocation;
   private final String content;
   private final Metadata metadata;
   private final String[] metadataNames;
-  @Nullable private final SerializableThrowable error;
+  private final @Nullable SerializableThrowable error;
 
   public static ParseResult success(String fileLocation, String content, Metadata metadata) {
     return new ParseResult(fileLocation, content, metadata, null);
@@ -109,7 +112,7 @@ public class ParseResult implements Serializable {
   }
 
   @Override
-  public boolean equals(Object obj) {
+  public boolean equals(@Nullable Object obj) {
     if (!(obj instanceof ParseResult)) {
       return false;
     }

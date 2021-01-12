@@ -29,6 +29,7 @@ import java.util.stream.Stream;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
 import org.apache.beam.sdk.extensions.sql.meta.SchemaBaseBeamTable;
+import org.apache.beam.sdk.extensions.sql.meta.provider.InvalidTableException;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
@@ -52,13 +53,16 @@ import org.slf4j.LoggerFactory;
  * {@code BeamKafkaTable} represent a Kafka topic, as source or target. Need to extend to convert
  * between {@code BeamSqlRow} and {@code KV<byte[], byte[]>}.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public abstract class BeamKafkaTable extends SchemaBaseBeamTable {
   private String bootstrapServers;
   private List<String> topics;
   private List<TopicPartition> topicPartitions;
   private Map<String, Object> configUpdates;
   private BeamTableStatistics rowCountStatistics = null;
-  private static final Logger LOGGER = LoggerFactory.getLogger(BeamKafkaTable.class);
+  private static final Logger LOG = LoggerFactory.getLogger(BeamKafkaTable.class);
   // This is the number of records looked from each partition when the rate is estimated
   protected int numberOfRecordsForRate = 50;
 
@@ -90,10 +94,10 @@ public abstract class BeamKafkaTable extends SchemaBaseBeamTable {
     return PCollection.IsBounded.UNBOUNDED;
   }
 
-  public abstract PTransform<PCollection<KV<byte[], byte[]>>, PCollection<Row>>
+  protected abstract PTransform<PCollection<KV<byte[], byte[]>>, PCollection<Row>>
       getPTransformForInput();
 
-  public abstract PTransform<PCollection<Row>, PCollection<KV<byte[], byte[]>>>
+  protected abstract PTransform<PCollection<Row>, PCollection<KV<byte[], byte[]>>>
       getPTransformForOutput();
 
   @Override
@@ -123,7 +127,7 @@ public abstract class BeamKafkaTable extends SchemaBaseBeamTable {
               .withKeyDeserializerAndCoder(ByteArrayDeserializer.class, ByteArrayCoder.of())
               .withValueDeserializerAndCoder(ByteArrayDeserializer.class, ByteArrayCoder.of());
     } else {
-      throw new IllegalArgumentException("One of topics and topicPartitions must be configurated.");
+      throw new InvalidTableException("One of topics and topicPartitions must be configurated.");
     }
     return kafkaRead;
   }
@@ -162,7 +166,7 @@ public abstract class BeamKafkaTable extends SchemaBaseBeamTable {
             BeamTableStatistics.createUnboundedTableStatistics(
                 this.computeRate(numberOfRecordsForRate));
       } catch (Exception e) {
-        LOGGER.warn("Could not get the row count for the topics " + getTopics(), e);
+        LOG.warn("Could not get the row count for the topics " + getTopics(), e);
         rowCountStatistics = BeamTableStatistics.UNBOUNDED_UNKNOWN;
       }
     }

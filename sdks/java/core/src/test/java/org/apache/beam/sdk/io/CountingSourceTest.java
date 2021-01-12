@@ -17,10 +17,10 @@
  */
 package org.apache.beam.sdk.io;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
@@ -30,7 +30,6 @@ import org.apache.beam.sdk.io.CountingSource.CounterMark;
 import org.apache.beam.sdk.io.CountingSource.UnboundedCountingSource;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.testing.DataflowPortabilityApiUnsupported;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -57,6 +56,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests of {@link CountingSource}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class CountingSourceTest {
 
   public static void addCountingAsserts(PCollection<Long> input, long numElements) {
@@ -95,8 +97,7 @@ public class CountingSourceTest {
   @Test
   @Category({
     ValidatesRunner.class,
-    UsesStatefulParDo.class, // This test fails if State is unsupported despite no direct usage.
-    DataflowPortabilityApiUnsupported.class
+    UsesStatefulParDo.class // This test fails if State is unsupported despite no direct usage.
   })
   public void testBoundedSourceSplits() throws Exception {
     long numElements = 1000;
@@ -221,8 +222,7 @@ public class CountingSourceTest {
   @Test
   @Category({
     ValidatesRunner.class,
-    UsesStatefulParDo.class, // This test fails if State is unsupported despite no direct usage.
-    DataflowPortabilityApiUnsupported.class
+    UsesStatefulParDo.class // This test fails if State is unsupported despite no direct usage.
   })
   public void testUnboundedSourceSplits() throws Exception {
     long numElements = 1000;

@@ -14,28 +14,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-from test_helper import run_common_tests, failed, passed, \
-    get_answer_placeholders, get_file_output
-
-
-def test_dofn_process_method():
-    placeholders = get_answer_placeholders()
-    placeholder = placeholders[0]
-
-    if 'pvalue.TaggedOutput' in placeholder:
-        passed()
-    else:
-        failed('Use pvalue.TaggedOutput')
-
-
-def test_pardo():
-    placeholders = get_answer_placeholders()
-    placeholder = placeholders[1]
-
-    if all(['beam.ParDo(ProcessNumbersDoFn())', '.with_outputs,']) in placeholder:
-        passed()
-    else:
-        failed('Use beam.ParDo that outputs multiple outputs')
+from test_helper import failed, passed, get_file_output, test_is_not_empty
 
 
 def test_output():
@@ -59,7 +38,5 @@ def test_output():
 
 
 if __name__ == '__main__':
-    run_common_tests()
-    test_dofn_process_method()
-    test_pardo()
+    test_is_not_empty()
     test_output()

@@ -17,61 +17,54 @@
  */
 package org.apache.beam.runners.core.construction;
 
+import com.fasterxml.jackson.core.Base64Variants;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import javax.annotation.Nullable;
+import java.util.Set;
+import java.util.UUID;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
-import org.apache.beam.model.pipeline.v1.RunnerApi.CombinePayload;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.ArtifactInformation;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.DockerPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExternalPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
-import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ProcessPayload;
-import org.apache.beam.model.pipeline.v1.RunnerApi.ReadPayload;
+import org.apache.beam.model.pipeline.v1.RunnerApi.StandardArtifacts;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardEnvironments;
-import org.apache.beam.model.pipeline.v1.RunnerApi.WindowIntoPayload;
+import org.apache.beam.model.pipeline.v1.RunnerApi.StandardPTransforms.SplittableParDoComponents;
+import org.apache.beam.model.pipeline.v1.RunnerApi.StandardProtocols;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.util.ReleaseInfo;
+import org.apache.beam.sdk.util.ZipFiles;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.HashCode;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Files;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Utilities for interacting with portability {@link Environment environments}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class Environments {
-  private static final ImmutableMap<String, EnvironmentIdExtractor> KNOWN_URN_SPEC_EXTRACTORS =
-      ImmutableMap.<String, EnvironmentIdExtractor>builder()
-          .put(PTransformTranslation.COMBINE_PER_KEY_TRANSFORM_URN, Environments::combineExtractor)
-          .put(
-              PTransformTranslation.COMBINE_PER_KEY_PRECOMBINE_TRANSFORM_URN,
-              Environments::combineExtractor)
-          .put(
-              PTransformTranslation.COMBINE_PER_KEY_MERGE_ACCUMULATORS_TRANSFORM_URN,
-              Environments::combineExtractor)
-          .put(
-              PTransformTranslation.COMBINE_PER_KEY_EXTRACT_OUTPUTS_TRANSFORM_URN,
-              Environments::combineExtractor)
-          .put(PTransformTranslation.PAR_DO_TRANSFORM_URN, Environments::parDoExtractor)
-          .put(PTransformTranslation.SPLITTABLE_PROCESS_ELEMENTS_URN, Environments::parDoExtractor)
-          .put(
-              PTransformTranslation.SPLITTABLE_PAIR_WITH_RESTRICTION_URN,
-              Environments::parDoExtractor)
-          .put(
-              PTransformTranslation.SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN,
-              Environments::parDoExtractor)
-          .put(
-              PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN,
-              Environments::parDoExtractor)
-          .put(PTransformTranslation.READ_TRANSFORM_URN, Environments::readExtractor)
-          .put(PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN, Environments::windowExtractor)
-          .build();
-
-  private static final EnvironmentIdExtractor DEFAULT_SPEC_EXTRACTOR = transform -> null;
+  private static final Logger LOG = LoggerFactory.getLogger(Environments.class);
 
   private static final ObjectMapper MAPPER =
       new ObjectMapper()
@@ -82,6 +75,38 @@ public class Environments {
   public static final String ENVIRONMENT_EMBEDDED = "EMBEDDED"; // Non Public urn for testing
   public static final String ENVIRONMENT_LOOPBACK = "LOOPBACK"; // Non Public urn for testing
 
+  public enum JavaVersion {
+    v8("java8", "1.8"),
+    v11("java11", "11");
+
+    private final String name;
+    private final String specification;
+
+    JavaVersion(final String name, final String specification) {
+      this.name = name;
+      this.specification = specification;
+    }
+
+    @Override
+    public String toString() {
+      return this.name;
+    }
+
+    public String specification() {
+      return this.specification;
+    }
+
+    public static JavaVersion forSpecification(String specification) {
+      for (JavaVersion ver : JavaVersion.values()) {
+        if (ver.specification.equals(specification)) {
+          return ver;
+        }
+      }
+      throw new UnsupportedOperationException(
+          String.format("unsupported Java version: %s", specification));
+    }
+  }
+
   /* For development, use the container build by the current user to ensure that the SDK harness and
    * the SDK agree on how they should interact. This should be changed to a version-specific
    * container during a release.
@@ -89,30 +114,43 @@ public class Environments {
    * See https://beam.apache.org/contribute/docker-images/ for more information on how to build a
    * container.
    */
+
   private static final String JAVA_SDK_HARNESS_CONTAINER_URL =
-      "apachebeam/java_sdk:" + ReleaseInfo.getReleaseInfo().getVersion();
+      getDefaultJavaSdkHarnessContainerUrl();
   public static final Environment JAVA_SDK_HARNESS_ENVIRONMENT =
       createDockerEnvironment(JAVA_SDK_HARNESS_CONTAINER_URL);
 
   private Environments() {}
 
-  public static Environment createOrGetDefaultEnvironment(String type, String config) {
-    if (Strings.isNullOrEmpty(type)) {
-      return JAVA_SDK_HARNESS_ENVIRONMENT;
-    }
+  public static Environment createOrGetDefaultEnvironment(PortablePipelineOptions options) {
+    String type = options.getDefaultEnvironmentType();
+    String config = options.getDefaultEnvironmentConfig();
 
-    switch (type) {
-      case ENVIRONMENT_EMBEDDED:
-        return createEmbeddedEnvironment(config);
-      case ENVIRONMENT_EXTERNAL:
-      case ENVIRONMENT_LOOPBACK:
-        return createExternalEnvironment(config);
-      case ENVIRONMENT_PROCESS:
-        return createProcessEnvironment(config);
-      case ENVIRONMENT_DOCKER:
-      default:
-        return createDockerEnvironment(config);
+    Environment defaultEnvironment;
+    if (Strings.isNullOrEmpty(type)) {
+      defaultEnvironment = JAVA_SDK_HARNESS_ENVIRONMENT;
+    } else {
+      switch (type) {
+        case ENVIRONMENT_EMBEDDED:
+          defaultEnvironment = createEmbeddedEnvironment(config);
+          break;
+        case ENVIRONMENT_EXTERNAL:
+        case ENVIRONMENT_LOOPBACK:
+          defaultEnvironment = createExternalEnvironment(config);
+          break;
+        case ENVIRONMENT_PROCESS:
+          defaultEnvironment = createProcessEnvironment(config);
+          break;
+        case ENVIRONMENT_DOCKER:
+        default:
+          defaultEnvironment = createDockerEnvironment(config);
+      }
     }
+    return defaultEnvironment
+        .toBuilder()
+        .addAllDependencies(getDeferredArtifacts(options))
+        .addAllCapabilities(getJavaCapabilities())
+        .build();
   }
 
   public static Environment createDockerEnvironment(String dockerImageUrl) {
@@ -181,97 +219,187 @@ public class Environments {
   }
 
   public static Optional<Environment> getEnvironment(String ptransformId, Components components) {
-    try {
-      PTransform ptransform = components.getTransformsOrThrow(ptransformId);
-      String envId =
-          KNOWN_URN_SPEC_EXTRACTORS
-              .getOrDefault(ptransform.getSpec().getUrn(), DEFAULT_SPEC_EXTRACTOR)
-              .getEnvironmentId(ptransform);
-      if (Strings.isNullOrEmpty(envId)) {
-        // Some PTransform payloads may have an unspecified (empty) Environment ID, for example a
-        // WindowIntoPayload with a known WindowFn. Others will never have an Environment ID, such
-        // as a GroupByKeyPayload, and the Default extractor returns null in this case.
-        return Optional.empty();
-      } else {
-        return Optional.of(components.getEnvironmentsOrThrow(envId));
-      }
-    } catch (IOException e) {
-      throw new RuntimeException(e);
+    PTransform ptransform = components.getTransformsOrThrow(ptransformId);
+    String envId = ptransform.getEnvironmentId();
+    if (Strings.isNullOrEmpty(envId)) {
+      // Some PTransform payloads may have an unspecified (empty) Environment ID, for example a
+      // WindowIntoPayload with a known WindowFn. Others will never have an Environment ID, such
+      // as a GroupByKeyPayload, and we return null in this case.
+      return Optional.empty();
+    } else {
+      return Optional.of(components.getEnvironmentsOrThrow(envId));
     }
   }
 
   public static Optional<Environment> getEnvironment(
       PTransform ptransform, RehydratedComponents components) {
-    try {
-      String envId =
-          KNOWN_URN_SPEC_EXTRACTORS
-              .getOrDefault(ptransform.getSpec().getUrn(), DEFAULT_SPEC_EXTRACTOR)
-              .getEnvironmentId(ptransform);
-      if (!Strings.isNullOrEmpty(envId)) {
-        // Some PTransform payloads may have an empty (default) Environment ID, for example a
-        // WindowIntoPayload with a known WindowFn. Others will never have an Environment ID, such
-        // as a GroupByKeyPayload, and the Default extractor returns null in this case.
-        return Optional.of(components.getEnvironment(envId));
-      } else {
-        return Optional.empty();
-      }
-    } catch (IOException e) {
-      throw new RuntimeException(e);
+    String envId = ptransform.getEnvironmentId();
+    if (Strings.isNullOrEmpty(envId)) {
+      return Optional.empty();
+    } else {
+      // Some PTransform payloads may have an empty (default) Environment ID, for example a
+      // WindowIntoPayload with a known WindowFn. Others will never have an Environment ID, such
+      // as a GroupByKeyPayload, and we return null in this case.
+      return Optional.of(components.getEnvironment(envId));
     }
   }
 
-  private interface EnvironmentIdExtractor {
-    @Nullable
-    String getEnvironmentId(PTransform transform) throws IOException;
+  public static List<ArtifactInformation> getArtifacts(List<String> stagingFiles) {
+    ImmutableList.Builder<ArtifactInformation> artifactsBuilder = ImmutableList.builder();
+    Set<String> deduplicatedStagingFiles = new LinkedHashSet<>(stagingFiles);
+    for (String path : deduplicatedStagingFiles) {
+      File file;
+      String stagedName = null;
+      if (path.contains("=")) {
+        String[] components = path.split("=", 2);
+        file = new File(components[1]);
+        stagedName = components[0];
+      } else {
+        file = new File(path);
+      }
+      // Spurious items get added to the classpath. Filter by just those that exist.
+      if (file.exists()) {
+        ArtifactInformation.Builder artifactBuilder = ArtifactInformation.newBuilder();
+        artifactBuilder.setTypeUrn(BeamUrns.getUrn(StandardArtifacts.Types.FILE));
+        artifactBuilder.setRoleUrn(BeamUrns.getUrn(StandardArtifacts.Roles.STAGING_TO));
+        HashCode hashCode;
+        if (file.isDirectory()) {
+          File zippedFile;
+          try {
+            zippedFile = zipDirectory(file);
+            hashCode = Files.asByteSource(zippedFile).hash(Hashing.sha256());
+          } catch (IOException e) {
+            throw new RuntimeException(e);
+          }
+
+          artifactBuilder.setTypePayload(
+              RunnerApi.ArtifactFilePayload.newBuilder()
+                  .setPath(zippedFile.getPath())
+                  .setSha256(hashCode.toString())
+                  .build()
+                  .toByteString());
+
+        } else {
+          try {
+            hashCode = Files.asByteSource(file).hash(Hashing.sha256());
+          } catch (IOException e) {
+            throw new RuntimeException(e);
+          }
+          artifactBuilder.setTypePayload(
+              RunnerApi.ArtifactFilePayload.newBuilder()
+                  .setPath(file.getPath())
+                  .setSha256(hashCode.toString())
+                  .build()
+                  .toByteString());
+        }
+        if (stagedName == null) {
+          stagedName = createStagingFileName(file, hashCode);
+        }
+        artifactBuilder.setRolePayload(
+            RunnerApi.ArtifactStagingToRolePayload.newBuilder()
+                .setStagedName(stagedName)
+                .build()
+                .toByteString());
+        artifactsBuilder.add(artifactBuilder.build());
+      }
+    }
+    return artifactsBuilder.build();
   }
 
-  private static String parDoExtractor(PTransform pTransform)
-      throws InvalidProtocolBufferException {
-    return ParDoPayload.parseFrom(pTransform.getSpec().getPayload()).getDoFn().getEnvironmentId();
+  public static List<ArtifactInformation> getDeferredArtifacts(PipelineOptions options) {
+    List<String> stagingFiles = options.as(PortablePipelineOptions.class).getFilesToStage();
+    if (stagingFiles == null || stagingFiles.isEmpty()) {
+      return ImmutableList.of();
+    }
+
+    String key = UUID.randomUUID().toString();
+    DefaultArtifactResolver.INSTANCE.register(
+        (info) -> {
+          if (BeamUrns.getUrn(StandardArtifacts.Types.DEFERRED).equals(info.getTypeUrn())) {
+            RunnerApi.DeferredArtifactPayload deferredArtifactPayload;
+            try {
+              deferredArtifactPayload =
+                  RunnerApi.DeferredArtifactPayload.parseFrom(info.getTypePayload());
+            } catch (InvalidProtocolBufferException e) {
+              throw new RuntimeException("Error parsing deferred artifact payload.", e);
+            }
+            if (key.equals(deferredArtifactPayload.getKey())) {
+              return Optional.of(getArtifacts(stagingFiles));
+            } else {
+              return Optional.empty();
+            }
+          } else {
+            return Optional.empty();
+          }
+        });
+
+    return ImmutableList.of(
+        ArtifactInformation.newBuilder()
+            .setTypeUrn(BeamUrns.getUrn(StandardArtifacts.Types.DEFERRED))
+            .setTypePayload(
+                RunnerApi.DeferredArtifactPayload.newBuilder().setKey(key).build().toByteString())
+            .build());
   }
 
-  private static String combineExtractor(PTransform pTransform)
-      throws InvalidProtocolBufferException {
-    return CombinePayload.parseFrom(pTransform.getSpec().getPayload())
-        .getCombineFn()
-        .getEnvironmentId();
+  public static Set<String> getJavaCapabilities() {
+    ImmutableSet.Builder<String> capabilities = ImmutableSet.builder();
+    capabilities.addAll(ModelCoders.urns());
+    capabilities.add(BeamUrns.getUrn(StandardProtocols.Enum.MULTI_CORE_BUNDLE_PROCESSING));
+    capabilities.add(BeamUrns.getUrn(StandardProtocols.Enum.PROGRESS_REPORTING));
+    capabilities.add("beam:version:sdk_base:" + JAVA_SDK_HARNESS_CONTAINER_URL);
+    capabilities.add(BeamUrns.getUrn(SplittableParDoComponents.TRUNCATE_SIZED_RESTRICTION));
+    return capabilities.build();
   }
 
-  private static String readExtractor(PTransform transform) throws InvalidProtocolBufferException {
-    return ReadPayload.parseFrom(transform.getSpec().getPayload()).getSource().getEnvironmentId();
+  public static JavaVersion getJavaVersion() {
+    return JavaVersion.forSpecification(System.getProperty("java.specification.version"));
   }
 
-  private static String windowExtractor(PTransform transform)
-      throws InvalidProtocolBufferException {
-    return WindowIntoPayload.parseFrom(transform.getSpec().getPayload())
-        .getWindowFn()
-        .getEnvironmentId();
+  public static String createStagingFileName(File path, HashCode hash) {
+    String encodedHash = Base64Variants.MODIFIED_FOR_URL.encode(hash.asBytes());
+    String fileName = Files.getNameWithoutExtension(path.getAbsolutePath());
+    String ext = path.isDirectory() ? "jar" : Files.getFileExtension(path.getAbsolutePath());
+    String suffix = Strings.isNullOrEmpty(ext) ? "" : "." + ext;
+    return String.format("%s-%s%s", fileName, encodedHash, suffix);
+  }
+
+  private static File zipDirectory(File directory) throws IOException {
+    File zipFile = File.createTempFile(directory.getName(), ".zip");
+    try (FileOutputStream fos = new FileOutputStream(zipFile)) {
+      ZipFiles.zipDirectory(directory, fos);
+    }
+    return zipFile;
   }
 
   private static class ProcessPayloadReferenceJSON {
-    @Nullable private String os;
-    @Nullable private String arch;
-    @Nullable private String command;
-    @Nullable private Map<String, String> env;
+    private @Nullable String os;
+    private @Nullable String arch;
+    private @Nullable String command;
+    private @Nullable Map<String, String> env;
 
-    @Nullable
-    public String getOs() {
+    public @Nullable String getOs() {
       return os;
     }
 
-    @Nullable
-    public String getArch() {
+    public @Nullable String getArch() {
       return arch;
     }
 
-    @Nullable
-    public String getCommand() {
+    public @Nullable String getCommand() {
       return command;
     }
 
-    @Nullable
-    public Map<String, String> getEnv() {
+    public @Nullable Map<String, String> getEnv() {
       return env;
     }
+  }
+
+  private static String getDefaultJavaSdkHarnessContainerUrl() {
+    return String.format(
+        "%s/%s%s_sdk:%s",
+        ReleaseInfo.getReleaseInfo().getDefaultDockerRepoRoot(),
+        ReleaseInfo.getReleaseInfo().getDefaultDockerRepoPrefix(),
+        getJavaVersion().toString(),
+        ReleaseInfo.getReleaseInfo().getSdkVersion());
   }
 }

@@ -20,6 +20,8 @@ Implements a Cloud Datastore query splitter.
 
 For internal use only. No backwards compatibility guarantees.
 """
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 
@@ -72,7 +74,7 @@ def get_splits(client, query, num_splits):
     A list of split queries, of a max length of `num_splits`
 
   Raises:
-    QuerySplitterError if split could not be performed owing to query or split
+    QuerySplitterError: if split could not be performed owing to query or split
       parameters.
   """
   if num_splits <= 1:
@@ -125,9 +127,12 @@ def _create_scatter_query(query, num_splits):
   # scatter entity for the last region.
   limit = (num_splits - 1) * KEYS_PER_SPLIT
   scatter_query = types.Query(
-      kind=query.kind, project=query.project, namespace=query.namespace,
+      kind=query.kind,
+      project=query.project,
+      namespace=query.namespace,
       order=[SCATTER_PROPERTY_NAME],
-      projection=[KEY_PROPERTY_NAME], limit=limit)
+      projection=[KEY_PROPERTY_NAME],
+      limit=limit)
   return scatter_query
 
 
@@ -204,9 +209,9 @@ def _get_scatter_keys(client, query, num_splits):
   scatter_point_query = _create_scatter_query(query, num_splits)
   client_query = scatter_point_query._to_client_query(client)
   client_key_splits = [
-      client_entity.key
-      for client_entity in client_query.fetch(client=client,
-                                              limit=scatter_point_query.limit)]
+      client_entity.key for client_entity in client_query.fetch(
+          client=client, limit=scatter_point_query.limit)
+  ]
   client_key_splits.sort(key=client_key_sort_key)
   return client_key_splits
 

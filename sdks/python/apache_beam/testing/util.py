@@ -17,6 +17,8 @@
 
 """Utilities for testing Beam pipelines."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import collections
@@ -34,7 +36,6 @@ from apache_beam.transforms.core import ParDo
 from apache_beam.transforms.core import WindowInto
 from apache_beam.transforms.ptransform import PTransform
 from apache_beam.transforms.util import CoGroupByKey
-from apache_beam.utils.annotations import experimental
 
 __all__ = [
     'assert_that',
@@ -46,7 +47,7 @@ __all__ = [
     # open_shards is internal and has no backwards compatibility guarantees.
     'open_shards',
     'TestWindowedValue',
-    ]
+]
 
 
 class BeamAssertException(Exception):
@@ -85,6 +86,7 @@ def contains_in_any_order(iterable):
       return "InAnyOrder(%s)" % self._counter
 
   return InAnyOrder(iterable)
+
 
 class _EqualToPerWindowMatcher(object):
   def __init__(self, expected_window_to_elements):
@@ -135,6 +137,7 @@ class _EqualToPerWindowMatcher(object):
             'Failed assert: unmatched elements {} in window {}'.format(
                 _expected[win], win))
 
+
 def equal_to_per_window(expected_window_to_elements):
   """Matcher used by assert_that to check to assert expected windows.
 
@@ -152,37 +155,46 @@ def equal_to_per_window(expected_window_to_elements):
 # Note that equal_to checks if expected and actual are permutations of each
 # other. However, only permutations of the top level are checked. Therefore
 # [1,2] and [2,1] are considered equal and [[1,2]] and [[2,1]] are not.
-def equal_to(expected):
-
-  def _equal(actual):
+def equal_to(expected, equals_fn=None):
+  def _equal(actual, equals_fn=equals_fn):
     expected_list = list(expected)
 
     # Try to compare actual and expected by sorting. This fails with a
     # TypeError in Python 3 if different types are present in the same
     # collection. It can also raise false negatives for types that don't have
     # a deterministic sort order, like pyarrow Tables as of 0.14.1
-    try:
-      sorted_expected = sorted(expected)
-      sorted_actual = sorted(actual)
-      if sorted_expected != sorted_actual:
-        raise BeamAssertException(
-            'Failed assert: %r == %r' % (sorted_expected, sorted_actual))
+    if not equals_fn:
+      equals_fn = lambda e, a: e == a
+      try:
+        sorted_expected = sorted(expected)
+        sorted_actual = sorted(actual)
+        if sorted_expected == sorted_actual:
+          return
+      except TypeError:
+        pass
     # Slower method, used in two cases:
     # 1) If sorted expected != actual, use this method to verify the inequality.
     #    This ensures we don't raise any false negatives for types that don't
     #    have a deterministic sort order.
     # 2) As a fallback if we encounter a TypeError in python 3. this method
     #    works on collections that have different types.
-    except (BeamAssertException, TypeError):
-      for element in actual:
-        try:
-          expected_list.remove(element)
-        except ValueError:
-          raise BeamAssertException(
-              'Failed assert: %r == %r' % (expected, actual))
+    unexpected = []
+    for element in actual:
+      found = False
+      for i, v in enumerate(expected_list):
+        if equals_fn(v, element):
+          found = True
+          expected_list.pop(i)
+          break
+      if not found:
+        unexpected.append(element)
+    if unexpected or expected_list:
+      msg = 'Failed assert: %r == %r' % (expected, actual)
+      if unexpected:
+        msg = msg + ', unexpected elements %r' % unexpected
       if expected_list:
-        raise BeamAssertException(
-            'Failed assert: %r == %r' % (expected, actual))
+        msg = msg + ', missing elements %r' % expected_list
+      raise BeamAssertException(msg)
 
   return _equal
 
@@ -208,8 +220,8 @@ def is_empty():
   def _empty(actual):
     actual = list(actual)
     if actual:
-      raise BeamAssertException(
-          'Failed assert: [] == %r' % actual)
+      raise BeamAssertException('Failed assert: [] == %r' % actual)
+
   return _empty
 
 
@@ -223,11 +235,16 @@ def is_not_empty():
     actual = list(actual)
     if not actual:
       raise BeamAssertException('Failed assert: pcol is empty')
+
   return _not_empty
 
 
-def assert_that(actual, matcher, label='assert_that',
-                reify_windows=False, use_global_window=True):
+def assert_that(
+    actual,
+    matcher,
+    label='assert_that',
+    reify_windows=False,
+    use_global_window=True):
   """A PTransform that checks a PCollection has an expected value.
 
   Note that assert_that should be used only for testing pipelines since the
@@ -247,18 +264,16 @@ def assert_that(actual, matcher, label='assert_that',
   Returns:
     Ignored.
   """
-  assert isinstance(
-      actual,
-      pvalue.PCollection), ('%s is not a supported type for Beam assert'
-                            % type(actual))
+  assert isinstance(actual, pvalue.PCollection), (
+      '%s is not a supported type for Beam assert' % type(actual))
 
   if isinstance(matcher, _EqualToPerWindowMatcher):
     reify_windows = True
     use_global_window = True
 
   class ReifyTimestampWindow(DoFn):
-    def process(self, element, timestamp=DoFn.TimestampParam,
-                window=DoFn.WindowParam):
+    def process(
+        self, element, timestamp=DoFn.TimestampParam, window=DoFn.WindowParam):
       # This returns TestWindowedValue instead of
       # beam.utils.windowed_value.WindowedValue because ParDo will extract
       # the timestamp and window out of the latter.
@@ -269,7 +284,6 @@ def assert_that(actual, matcher, label='assert_that',
       yield element, window
 
   class AssertThat(PTransform):
-
     def expand(self, pcoll):
       if reify_windows:
         pcoll = pcoll | ParDo(ReifyTimestampWindow())
@@ -298,7 +312,6 @@ def assert_that(actual, matcher, label='assert_that',
   actual | AssertThat()  # pylint: disable=expression-not-assigned
 
 
-@experimental()
 def open_shards(glob_pattern, mode='rt', encoding='utf-8'):
   """Returns a composite file of all shards matching the given glob pattern.
 

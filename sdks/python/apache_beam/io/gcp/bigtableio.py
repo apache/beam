@@ -35,16 +35,23 @@ those generated rows in the table.
                                   instance_id,
                                   table_id))
 """
+# pytype: skip-file
+
 from __future__ import absolute_import
+
+import logging
 
 import apache_beam as beam
 from apache_beam.metrics import Metrics
 from apache_beam.transforms.display import DisplayDataItem
 
+_LOGGER = logging.getLogger(__name__)
+
 try:
   from google.cloud.bigtable import Client
 except ImportError:
-  pass
+  _LOGGER.warning(
+      'ImportError: from google.cloud.bigtable import Client', exc_info=True)
 
 __all__ = ['WriteToBigTable']
 
@@ -58,7 +65,6 @@ class _BigTableWriteFn(beam.DoFn):
     table_id(str): GCP Table ID
 
   """
-
   def __init__(self, project_id, instance_id, table_id):
     """ Constructor of the Write connector of Bigtable
     Args:
@@ -67,9 +73,11 @@ class _BigTableWriteFn(beam.DoFn):
       table_id(str): GCP Table to write the `DirectRows`
     """
     super(_BigTableWriteFn, self).__init__()
-    self.beam_options = {'project_id': project_id,
-                         'instance_id': instance_id,
-                         'table_id': table_id}
+    self.beam_options = {
+        'project_id': project_id,
+        'instance_id': instance_id,
+        'table_id': table_id
+    }
     self.table = None
     self.batcher = None
     self.written = Metrics.counter(self.__class__, 'Written Row')
@@ -107,13 +115,14 @@ class _BigTableWriteFn(beam.DoFn):
     self.batcher = None
 
   def display_data(self):
-    return {'projectId': DisplayDataItem(self.beam_options['project_id'],
-                                         label='Bigtable Project Id'),
-            'instanceId': DisplayDataItem(self.beam_options['instance_id'],
-                                          label='Bigtable Instance Id'),
-            'tableId': DisplayDataItem(self.beam_options['table_id'],
-                                       label='Bigtable Table Id')
-           }
+    return {
+        'projectId': DisplayDataItem(
+            self.beam_options['project_id'], label='Bigtable Project Id'),
+        'instanceId': DisplayDataItem(
+            self.beam_options['instance_id'], label='Bigtable Instance Id'),
+        'tableId': DisplayDataItem(
+            self.beam_options['table_id'], label='Bigtable Table Id')
+    }
 
 
 class WriteToBigTable(beam.PTransform):
@@ -122,8 +131,7 @@ class WriteToBigTable(beam.PTransform):
   A PTransform that write a list of `DirectRow` into the Bigtable Table
 
   """
-  def __init__(self, project_id=None, instance_id=None,
-               table_id=None):
+  def __init__(self, project_id=None, instance_id=None, table_id=None):
     """ The PTransform to access the Bigtable Write connector
     Args:
       project_id(str): GCP Project of to write the Rows
@@ -131,13 +139,18 @@ class WriteToBigTable(beam.PTransform):
       table_id(str): GCP Table to write the `DirectRows`
     """
     super(WriteToBigTable, self).__init__()
-    self.beam_options = {'project_id': project_id,
-                         'instance_id': instance_id,
-                         'table_id': table_id}
+    self.beam_options = {
+        'project_id': project_id,
+        'instance_id': instance_id,
+        'table_id': table_id
+    }
 
   def expand(self, pvalue):
     beam_options = self.beam_options
-    return (pvalue
-            | beam.ParDo(_BigTableWriteFn(beam_options['project_id'],
-                                          beam_options['instance_id'],
-                                          beam_options['table_id'])))
+    return (
+        pvalue
+        | beam.ParDo(
+            _BigTableWriteFn(
+                beam_options['project_id'],
+                beam_options['instance_id'],
+                beam_options['table_id'])))

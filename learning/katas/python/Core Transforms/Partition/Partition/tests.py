@@ -14,17 +14,7 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-from test_helper import run_common_tests, failed, passed, get_answer_placeholders, get_file_output
-
-
-def test_partition():
-    placeholders = get_answer_placeholders()
-    placeholder = placeholders[1]
-
-    if 'beam.Partition' in placeholder:
-        passed()
-    else:
-        failed('Use beam.Partition')
+from test_helper import failed, passed, get_file_output, test_is_not_empty
 
 
 def test_output():
@@ -48,6 +38,5 @@ def test_output():
 
 
 if __name__ == '__main__':
-    run_common_tests()
-    test_partition()
+    test_is_not_empty()
     test_output()

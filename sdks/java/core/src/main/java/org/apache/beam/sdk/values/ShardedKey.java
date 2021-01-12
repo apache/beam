@@ -19,6 +19,7 @@ package org.apache.beam.sdk.values;
 
 import java.io.Serializable;
 import java.util.Objects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A key and a shard number. */
 public class ShardedKey<K> implements Serializable {
@@ -49,7 +50,7 @@ public class ShardedKey<K> implements Serializable {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (!(o instanceof ShardedKey)) {
       return false;
     }

@@ -17,11 +17,12 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming;
 
-import static org.apache.beam.runners.core.construction.PipelineResources.detectClassPathResourcesToStage;
+import static org.apache.beam.runners.core.construction.resources.PipelineResources.detectClassPathResourcesToStage;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.core.metrics.MetricsPusher;
 import org.apache.beam.runners.spark.structuredstreaming.aggregators.AggregatorsAccumulator;
 import org.apache.beam.runners.spark.structuredstreaming.metrics.AggregatorMetricSource;
@@ -34,9 +35,9 @@ import org.apache.beam.runners.spark.structuredstreaming.translation.batch.Pipel
 import org.apache.beam.runners.spark.structuredstreaming.translation.streaming.PipelineTranslatorStreaming;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.metrics.MetricsOptions;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
@@ -66,7 +67,9 @@ import org.slf4j.LoggerFactory;
  * SparkStructuredStreamingPipelineResult result = (SparkStructuredStreamingPipelineResult) p.run();
  * }
  */
-@Experimental(value = Experimental.Kind.WITH_EXCEPTIONS)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public final class SparkStructuredStreamingRunner
     extends PipelineRunner<SparkStructuredStreamingPipelineResult> {
 
@@ -109,9 +112,11 @@ public final class SparkStructuredStreamingRunner
     SparkStructuredStreamingPipelineOptions sparkOptions =
         PipelineOptionsValidator.validate(SparkStructuredStreamingPipelineOptions.class, options);
 
-    if (sparkOptions.getFilesToStage() == null) {
+    if (sparkOptions.getFilesToStage() == null
+        && !PipelineTranslator.isLocalSparkMaster(sparkOptions)) {
       sparkOptions.setFilesToStage(
-          detectClassPathResourcesToStage(SparkStructuredStreamingRunner.class.getClassLoader()));
+          detectClassPathResourcesToStage(
+              SparkStructuredStreamingRunner.class.getClassLoader(), options));
       LOG.info(
           "PipelineOptions.filesToStage was not specified. "
               + "Defaulting to files from the classpath: will stage {} files. "
@@ -180,6 +185,16 @@ public final class SparkStructuredStreamingRunner
 
   private TranslationContext translatePipeline(Pipeline pipeline) {
     PipelineTranslator.detectTranslationMode(pipeline, options);
+
+    // Default to using the primitive versions of Read.Bounded and Read.Unbounded if we are
+    // executing an unbounded pipeline or the user specifically requested it.
+    if (options.isStreaming()
+        || ExperimentalOptions.hasExperiment(
+            pipeline.getOptions(), "beam_fn_api_use_deprecated_read")
+        || ExperimentalOptions.hasExperiment(pipeline.getOptions(), "use_deprecated_read")) {
+      SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReads(pipeline);
+    }
+
     PipelineTranslator.replaceTransforms(pipeline, options);
     PipelineTranslator.prepareFilesToStageForRemoteClusterExecution(options);
     PipelineTranslator pipelineTranslator =

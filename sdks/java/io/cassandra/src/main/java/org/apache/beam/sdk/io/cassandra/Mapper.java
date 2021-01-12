@@ -21,6 +21,7 @@ import com.datastax.driver.core.ResultSet;
 import java.util.Iterator;
 import java.util.concurrent.Future;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 
 /**
@@ -41,7 +42,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
  *        .withMapperFactoryFn(factory));
  * }</pre>
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@Experimental(Kind.SOURCE_SINK)
 public interface Mapper<T> {
 
   /**

@@ -17,18 +17,13 @@
  */
 package org.apache.beam.sdk.extensions.sql.zetasql.translation;
 
-import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_DATETIME;
-import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_NUMERIC;
 import static org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.zetasql.ZetaSQLType.TypeKind;
-import com.google.zetasql.resolvedast.ResolvedColumn;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedTableScan;
 import java.util.List;
 import java.util.Properties;
 import org.apache.beam.sdk.extensions.sql.zetasql.TableResolution;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.config.CalciteConnectionConfigImpl;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptCluster;
@@ -45,16 +40,12 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Translat
 /** Converts table scan. */
 class TableScanConverter extends RelConverter<ResolvedTableScan> {
 
-  private static final ImmutableSet<TypeKind> UNSUPPORTED_DATA_TYPES =
-      ImmutableSet.of(TYPE_DATETIME, TYPE_NUMERIC);
-
   TableScanConverter(ConversionContext context) {
     super(context);
   }
 
   @Override
   public RelNode convert(ResolvedTableScan zetaNode, List<RelNode> inputs) {
-    checkTableScanSchema(zetaNode.getColumnList());
 
     List<String> tablePath = getTablePath(zetaNode.getTable());
 
@@ -89,13 +80,13 @@ class TableScanConverter extends RelConverter<ResolvedTableScan> {
     if (calciteTable instanceof TranslatableTable) {
       return ((TranslatableTable) calciteTable).toRel(createToRelContext(), relOptTable);
     } else {
-      throw new RuntimeException("Does not support non TranslatableTable type table!");
+      throw new UnsupportedOperationException("Does not support non TranslatableTable type table!");
     }
   }
 
   private List<String> getTablePath(com.google.zetasql.Table table) {
     if (!getTrait().isTableResolved(table)) {
-      throw new RuntimeException(
+      throw new IllegalArgumentException(
           "Unexpected table found when converting to Calcite rel node: " + table);
     }
 
@@ -115,16 +106,5 @@ class TableScanConverter extends RelConverter<ResolvedTableScan> {
         return TableScanConverter.this.getCluster();
       }
     };
-  }
-
-  private void checkTableScanSchema(List<ResolvedColumn> columnList) {
-    if (columnList != null) {
-      for (ResolvedColumn resolvedColumn : columnList) {
-        if (UNSUPPORTED_DATA_TYPES.contains(resolvedColumn.getType().getKind())) {
-          throw new IllegalArgumentException(
-              "Does not support " + UNSUPPORTED_DATA_TYPES + " types in source tables");
-        }
-      }
-    }
   }
 }

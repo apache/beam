@@ -50,6 +50,8 @@ import java.util.TimeZone;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -58,6 +60,10 @@ import org.joda.time.LocalDate;
 import org.joda.time.chrono.ISOChronology;
 
 /** Provides utility functions for working with Beam {@link Schema} types. */
+@Experimental(Kind.SCHEMAS)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class SchemaUtil {
   /**
    * Interface implemented by functions that extract values of different types from a JDBC
@@ -359,10 +365,10 @@ class SchemaUtil {
   /**
    * checks nullability for fields.
    *
-   * @param fields
+   * @param fields list of fields
    * @return TRUE if any field is not nullable
    */
-  public static boolean checkNullabilityForFields(List<Schema.Field> fields) {
+  static boolean checkNullabilityForFields(List<Schema.Field> fields) {
     return fields.stream().anyMatch(field -> !field.getType().getNullable());
   }
 
@@ -373,7 +379,7 @@ class SchemaUtil {
    * @param b FieldType 2
    * @return TRUE if FieldType are equal. Otherwise FALSE
    */
-  public static boolean compareSchemaFieldType(Schema.FieldType a, Schema.FieldType b) {
+  static boolean compareSchemaFieldType(Schema.FieldType a, Schema.FieldType b) {
     if (a.getTypeName().equals(b.getTypeName())) {
       return !a.getTypeName().equals(Schema.TypeName.LOGICAL_TYPE)
           || compareSchemaFieldType(
@@ -395,7 +401,7 @@ class SchemaUtil {
       this.index = index;
     }
 
-    public static FieldWithIndex of(Schema.Field field, Integer index) {
+    static FieldWithIndex of(Schema.Field field, Integer index) {
       checkArgument(field != null);
       checkArgument(index != null);
       return new FieldWithIndex(field, index);

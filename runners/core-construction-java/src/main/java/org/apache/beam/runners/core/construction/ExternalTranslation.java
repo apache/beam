@@ -23,28 +23,30 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Translating External transforms to proto. */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class ExternalTranslation {
   public static final String EXTERNAL_TRANSFORM_URN = "beam:transform:external:v1";
 
   /** Translator for ExpandableTransform. */
   public static class ExternalTranslator
-      implements PTransformTranslation.TransformTranslator<External.ExpandableTransform<?>> {
+      implements PTransformTranslation.TransformTranslator<External.ExpandableTransform<?, ?>> {
     public static PTransformTranslation.TransformTranslator create() {
       return new ExternalTranslator();
     }
 
-    @Nullable
     @Override
-    public String getUrn(External.ExpandableTransform transform) {
+    public @Nullable String getUrn(External.ExpandableTransform transform) {
       return EXTERNAL_TRANSFORM_URN;
     }
 
@@ -66,28 +68,24 @@ public class ExternalTranslation {
           (External.ExpandableTransform) appliedPTransform.getTransform();
       String nameSpace = expandableTransform.getNamespace();
       String impulsePrefix = expandableTransform.getImpulsePrefix();
-      ImmutableMap.Builder<String, String> pColRenameMapBuilder = ImmutableMap.builder();
       RunnerApi.PTransform expandedTransform = expandableTransform.getExpandedTransform();
       RunnerApi.Components expandedComponents = expandableTransform.getExpandedComponents();
       Map<PCollection, String> externalPCollectionIdMap =
           expandableTransform.getExternalPCollectionIdMap();
+      Map<Coder, String> externalCoderIdMap = expandableTransform.getExternalCoderIdMap();
 
-      for (PValue pcol : appliedPTransform.getInputs().values()) {
-        if (!(pcol instanceof PCollection)) {
-          throw new RuntimeException("unknown input type.");
-        }
-        pColRenameMapBuilder.put(
-            externalPCollectionIdMap.get(pcol), components.registerPCollection((PCollection) pcol));
+      ImmutableMap.Builder<String, String> pColRenameMapBuilder = ImmutableMap.builder();
+      for (Map.Entry<PCollection, String> entry : externalPCollectionIdMap.entrySet()) {
+        pColRenameMapBuilder.put(entry.getValue(), components.registerPCollection(entry.getKey()));
       }
-      for (PValue pcol : appliedPTransform.getOutputs().values()) {
-        if (!(pcol instanceof PCollection)) {
-          throw new RuntimeException("unknown input type.");
-        }
-        pColRenameMapBuilder.put(
-            externalPCollectionIdMap.get(pcol), components.registerPCollection((PCollection) pcol));
-      }
-
       ImmutableMap<String, String> pColRenameMap = pColRenameMapBuilder.build();
+
+      ImmutableMap.Builder<String, String> coderRenameMapBuilder = ImmutableMap.builder();
+      for (Map.Entry<Coder, String> entry : externalCoderIdMap.entrySet()) {
+        coderRenameMapBuilder.put(entry.getValue(), components.registerCoder(entry.getKey()));
+      }
+      ImmutableMap<String, String> coderRenameMap = coderRenameMapBuilder.build();
+
       RunnerApi.Components.Builder mergingComponentsBuilder = RunnerApi.Components.newBuilder();
       for (Map.Entry<String, RunnerApi.Coder> entry :
           expandedComponents.getCodersMap().entrySet()) {
@@ -110,7 +108,14 @@ public class ExternalTranslation {
       for (Map.Entry<String, RunnerApi.PCollection> entry :
           expandedComponents.getPcollectionsMap().entrySet()) {
         if (entry.getKey().startsWith(nameSpace)) {
-          mergingComponentsBuilder.putPcollections(entry.getKey(), entry.getValue());
+          String coderId = entry.getValue().getCoderId();
+          mergingComponentsBuilder.putPcollections(
+              entry.getKey(),
+              entry
+                  .getValue()
+                  .toBuilder()
+                  .setCoderId(coderRenameMap.getOrDefault(coderId, coderId))
+                  .build());
         }
       }
       for (Map.Entry<String, RunnerApi.PTransform> entry :
@@ -125,6 +130,7 @@ public class ExternalTranslation {
         transformBuilder
             .setUniqueName(proto.getUniqueName())
             .setSpec(proto.getSpec())
+            .setEnvironmentId(proto.getEnvironmentId())
             .addAllSubtransforms(proto.getSubtransformsList());
         for (Map.Entry<String, String> inputEntry : proto.getInputsMap().entrySet()) {
           transformBuilder.putInputs(
@@ -144,13 +150,14 @@ public class ExternalTranslation {
           .setUniqueName(expandedTransform.getUniqueName())
           .setSpec(expandedTransform.getSpec())
           .addAllSubtransforms(expandedTransform.getSubtransformsList())
+          .setEnvironmentId(expandedTransform.getEnvironmentId())
           .putAllInputs(expandedTransform.getInputsMap());
       for (Map.Entry<String, String> outputEntry : expandedTransform.getOutputsMap().entrySet()) {
         rootTransformBuilder.putOutputs(
             outputEntry.getKey(),
             pColRenameMap.getOrDefault(outputEntry.getValue(), outputEntry.getValue()));
       }
-      components.mergeFrom(mergingComponentsBuilder.build());
+      components.mergeFrom(mergingComponentsBuilder.build(), null);
 
       return rootTransformBuilder.build();
     }

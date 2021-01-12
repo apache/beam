@@ -67,6 +67,9 @@ import org.slf4j.LoggerFactory;
  * the job is restarted the bounded source will be consumed from the beginning.
  */
 // TODO: instrumentation for the consumer
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BoundedSourceSystem {
   private static final Logger LOG = LoggerFactory.getLogger(BoundedSourceSystem.class);
 
@@ -303,7 +306,7 @@ public class BoundedSourceSystem {
 
       private <X> X invoke(FnWithMetricsWrapper.SupplierWithException<X> fn) throws Exception {
         if (metricsWrapper != null) {
-          return metricsWrapper.wrap(fn);
+          return metricsWrapper.wrap(fn, true);
         } else {
           return fn.get();
         }

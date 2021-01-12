@@ -17,12 +17,12 @@
  */
 package org.apache.beam.sdk.testing;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -59,6 +59,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -70,6 +71,10 @@ import org.junit.runners.JUnit4;
 
 /** Test case for {@link PAssert}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class PAssertTest implements Serializable {
 
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
@@ -79,7 +84,7 @@ public class PAssertTest implements Serializable {
   private static class NotSerializableObject {
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       return (other instanceof NotSerializableObject);
     }
 
@@ -170,7 +175,7 @@ public class PAssertTest implements Serializable {
    * the {@link PCollection} to be serializable.
    */
   @Test
-  @Category({ValidatesRunner.class, DataflowPortabilityApiUnsupported.class})
+  @Category({ValidatesRunner.class})
   public void testContainsInAnyOrderNotSerializable() throws Exception {
     PCollection<NotSerializableObject> pcollection =
         pipeline.apply(
@@ -188,7 +193,7 @@ public class PAssertTest implements Serializable {
    * arbitrary {@link SerializableFunction}, though.
    */
   @Test
-  @Category({ValidatesRunner.class, DataflowPortabilityApiUnsupported.class})
+  @Category({ValidatesRunner.class})
   public void testSerializablePredicate() throws Exception {
     PCollection<NotSerializableObject> pcollection =
         pipeline.apply(
@@ -209,7 +214,7 @@ public class PAssertTest implements Serializable {
    * arbitrary {@link SerializableFunction}, though.
    */
   @Test
-  @Category({ValidatesRunner.class, DataflowPortabilityApiUnsupported.class})
+  @Category({ValidatesRunner.class})
   public void testWindowedSerializablePredicate() throws Exception {
     PCollection<NotSerializableObject> pcollection =
         pipeline
@@ -383,7 +388,7 @@ public class PAssertTest implements Serializable {
 
     String message = thrown.getMessage();
 
-    assertThat(message, containsString("Create.Values/Read(CreateSource).out"));
+    assertThat(message, containsString("Create.Values/Read(CreateSource)"));
     assertThat(message, containsString("Expected: <44>"));
     assertThat(message, containsString("but: was <42>"));
   }
@@ -498,7 +503,7 @@ public class PAssertTest implements Serializable {
 
     String message = thrown.getMessage();
 
-    assertThat(message, containsString("GenerateSequence/Read(BoundedCountingSource).out"));
+    assertThat(message, containsString("GenerateSequence/Read(BoundedCountingSource)"));
     assertThat(message, containsString("Expected: iterable with items [] in any order"));
   }
 

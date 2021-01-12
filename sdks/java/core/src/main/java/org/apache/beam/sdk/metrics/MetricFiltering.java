@@ -19,6 +19,7 @@ package org.apache.beam.sdk.metrics;
 
 import java.util.Set;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Implements matching for metrics filters. Specifically, matching for metric name, namespace, and
@@ -38,9 +39,23 @@ public class MetricFiltering {
    * @return whether the filter matches the key or not
    */
   public static boolean matches(MetricsFilter filter, MetricKey key) {
-    return filter == null
-        || (matchesName(key.metricName(), filter.names())
-            && matchesScope(key.stepName(), filter.steps()));
+    if (filter == null) {
+      return true;
+    }
+
+    @Nullable String stepName = key.stepName();
+    if (stepName == null) {
+      if (!filter.steps().isEmpty()) {
+        // The filter specifies steps, but the metric is not associated with a step.
+        return false;
+      }
+    } else if (!matchesScope(stepName, filter.steps())) {
+      // The filter specifies steps that differ from the metric's step
+      return false;
+    }
+
+    // The filter's steps match the metric's step.
+    return matchesName(key.metricName(), filter.names());
   }
 
   /**
@@ -67,6 +82,12 @@ public class MetricFiltering {
    * any of the filters in {@code scopes}. A metric scope is a path of type "A/B/D". A path is
    * matched by a filter if the filter is equal to the path (e.g. "A/B/D", or if it represents a
    * subpath within it (e.g. "A/B" or "B/D", but not "A/D").
+   *
+   * <p>Per https://docs.oracle.com/en/java/javase/14/docs/api/java.base/java/util/Set.html "sets
+   * contain ... at most one null element" / "Some set implementations have restrictions on the
+   * elements that they may contain. For example, some implementations prohibit null elements".
+   * Since sets cannot in general contain null it is not safe to check for membership of null, so
+   * the caller must determine what to do with a null {@code actualScope}.
    */
   public static boolean matchesScope(String actualScope, Set<String> scopes) {
     if (scopes.isEmpty() || scopes.contains(actualScope)) {
@@ -90,7 +111,8 @@ public class MetricFiltering {
       return true;
     }
     for (MetricNameFilter nameFilter : nameFilters) {
-      if ((nameFilter.getName() == null || nameFilter.getName().equals(metricName.getName()))
+      @Nullable String name = nameFilter.getName();
+      if (((name == null) || name.equals(metricName.getName()))
           && Objects.equal(metricName.getNamespace(), nameFilter.getNamespace())) {
         return true;
       }

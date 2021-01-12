@@ -41,6 +41,7 @@ import org.apache.beam.sdk.testutils.NamedTestResult;
 import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
+import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -76,6 +77,9 @@ import org.postgresql.ds.PGSimpleDataSource;
  * performance testing framework.
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class JdbcIOIT {
 
   private static final String NAMESPACE = JdbcIOIT.class.getName();
@@ -85,6 +89,7 @@ public class JdbcIOIT {
   private static String bigQueryDataset;
   private static String bigQueryTable;
   private static Long tableSize;
+  private static InfluxDBSettings settings;
   @Rule public TestPipeline pipelineWrite = TestPipeline.create();
   @Rule public TestPipeline pipelineRead = TestPipeline.create();
 
@@ -100,6 +105,12 @@ public class JdbcIOIT {
     tableName = DatabaseTestHelper.getTestTableName("IT");
     executeWithRetry(JdbcIOIT::createTable);
     tableSize = DatabaseTestHelper.getPostgresTableSize(dataSource, tableName).orElse(0L);
+    settings =
+        InfluxDBSettings.builder()
+            .withHost(options.getInfluxHost())
+            .withDatabase(options.getInfluxDatabase())
+            .withMeasurement(options.getInfluxMeasurement())
+            .get();
   }
 
   private static void createTable() throws SQLException {
@@ -134,11 +145,13 @@ public class JdbcIOIT {
     IOITMetrics writeMetrics =
         new IOITMetrics(metricSuppliers, writeResult, NAMESPACE, uuid, timestamp);
     writeMetrics.publish(bigQueryDataset, bigQueryTable);
+    writeMetrics.publishToInflux(settings);
 
     IOITMetrics readMetrics =
         new IOITMetrics(
             getReadMetricSuppliers(uuid, timestamp), readResult, NAMESPACE, uuid, timestamp);
     readMetrics.publish(bigQueryDataset, bigQueryTable);
+    readMetrics.publishToInflux(settings);
   }
 
   private Set<Function<MetricsReader, NamedTestResult>> getWriteMetricSuppliers(

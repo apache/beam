@@ -11,14 +11,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 """Setup dependencies for local and cloud deployment."""
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import setuptools
 
-# LINT.IfChange
 TF_VERSION = '1.14.0'
-# LINT.ThenChange(train_mlengine.sh, start_model_server_mlengine.sh)
 
 if __name__ == '__main__':
   setuptools.setup(
@@ -34,6 +35,6 @@ if __name__ == '__main__':
           'tensorflow-model-analysis>=0.13.2,<0.14',
           'tensorflow-serving-api>=1.13.0,<1.14',
           'tensorflow-transform>=0.13.0,<0.14',
-          ],
+      ],
       python_requires='>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,<4',
   )

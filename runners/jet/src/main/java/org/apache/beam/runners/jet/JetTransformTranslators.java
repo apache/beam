@@ -17,14 +17,13 @@
  */
 package org.apache.beam.runners.jet;
 
+import com.hazelcast.function.SupplierEx;
 import com.hazelcast.jet.core.Processor;
 import com.hazelcast.jet.core.ProcessorMetaSupplier;
 import com.hazelcast.jet.core.Vertex;
-import com.hazelcast.jet.function.SupplierEx;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.beam.runners.core.construction.CreatePCollectionViewTranslation;
@@ -62,7 +61,11 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 
-@SuppressWarnings("unchecked")
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "unchecked",
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class JetTransformTranslators {
 
   /** A map from a Transform URN to the translator. */
@@ -92,9 +95,8 @@ class JetTransformTranslators {
         AppliedPTransform<?, ?, ?> appliedTransform,
         Node node,
         JetTranslationContext context) {
-      Map.Entry<TupleTag<?>, PValue> output = Utils.getOutput(appliedTransform);
-      Coder outputCoder =
-          Utils.getCoder((PCollection) Utils.getOutput(appliedTransform).getValue());
+      Map.Entry<TupleTag<?>, PCollection<?>> output = Utils.getOutput(appliedTransform);
+      Coder outputCoder = Utils.getCoder(output.getValue());
 
       String transformName = appliedTransform.getFullName();
       DAGBuilder dagBuilder = context.getDagBuilder();
@@ -153,7 +155,7 @@ class JetTransformTranslators {
       boolean usesStateOrTimers = Utils.usesStateOrTimers(appliedTransform);
       DoFn<?, ?> doFn = Utils.getDoFn(appliedTransform);
 
-      Map<TupleTag<?>, PValue> outputs = Utils.getOutputs(appliedTransform);
+      Map<TupleTag<?>, PCollection<?>> outputs = Utils.getOutputs(appliedTransform);
 
       TupleTag<?> mainOutputTag;
       try {
@@ -186,12 +188,14 @@ class JetTransformTranslators {
       SerializablePipelineOptions pipelineOptions = context.getOptions();
       Coder inputValueCoder = ((PCollection) Utils.getInput(appliedTransform)).getCoder();
       Coder inputCoder = Utils.getCoder((PCollection) Utils.getInput(appliedTransform));
-      List<PCollectionView<?>> sideInputs = Utils.getSideInputs(appliedTransform);
+      Collection<PCollectionView<?>> sideInputs = Utils.getSideInputs(appliedTransform);
       Map<? extends PCollectionView<?>, Coder> sideInputCoders =
           sideInputs.stream()
               .collect(Collectors.toMap(si -> si, si -> Utils.getCoder(si.getPCollection())));
       DoFnSchemaInformation doFnSchemaInformation =
           ParDoTranslation.getSchemaInformation(appliedTransform);
+      Map<String, PCollectionView<?>> sideInputMappings =
+          ParDoTranslation.getSideInputMapping(appliedTransform);
       SupplierEx<Processor> processorSupplier =
           usesStateOrTimers
               ? new StatefulParDoP.Supplier(
@@ -208,7 +212,8 @@ class JetTransformTranslators {
                   outputCoders,
                   inputValueCoder,
                   outputValueCoders,
-                  sideInputs)
+                  sideInputs,
+                  sideInputMappings)
               : new ParDoP.Supplier(
                   stepId,
                   vertexId,
@@ -223,7 +228,8 @@ class JetTransformTranslators {
                   outputCoders,
                   inputValueCoder,
                   outputValueCoders,
-                  sideInputs);
+                  sideInputs,
+                  sideInputMappings);
 
       Vertex vertex = dagBuilder.addVertex(vertexId, processorSupplier);
       dagBuilder.registerConstructionListeners((DAGBuilder.WiringListener) processorSupplier);
@@ -238,7 +244,7 @@ class JetTransformTranslators {
         }
       }
 
-      for (Map.Entry<TupleTag<?>, PValue> entry : outputs.entrySet()) {
+      for (Map.Entry<TupleTag<?>, PCollection<?>> entry : outputs.entrySet()) {
         TupleTag<?> pCollId = entry.getKey();
         String edgeId = Utils.getTupleTagId(entry.getValue());
         dagBuilder.registerCollectionOfEdge(edgeId, pCollId.getId());
@@ -265,7 +271,7 @@ class JetTransformTranslators {
           (PCollection<KV<K, InputT>>) Utils.getInput(appliedTransform);
       WindowedValue.WindowedValueCoder<KV<K, InputT>> inputCoder =
           Utils.getWindowedValueCoder(input);
-      Map.Entry<TupleTag<?>, PValue> output = Utils.getOutput(appliedTransform);
+      Map.Entry<TupleTag<?>, PCollection<?>> output = Utils.getOutput(appliedTransform);
       Coder outputCoder = Utils.getCoder((PCollection) output.getValue());
 
       WindowingStrategy<?, ?> windowingStrategy = input.getWindowingStrategy();
@@ -312,8 +318,8 @@ class JetTransformTranslators {
       String vertexId = dagBuilder.newVertexId(transformName);
       PCollection<T> input = (PCollection<T>) Utils.getInput(appliedTransform);
       Coder inputCoder = Utils.getCoder(input);
-      Map.Entry<TupleTag<?>, PValue> output = Utils.getOutput(appliedTransform);
-      Coder outputCoder = Utils.getCoder((PCollection) output.getValue());
+      Map.Entry<TupleTag<?>, PCollection<?>> output = Utils.getOutput(appliedTransform);
+      Coder outputCoder = Utils.getCoder(output.getValue());
 
       Vertex vertex =
           dagBuilder.addVertex(
@@ -347,8 +353,8 @@ class JetTransformTranslators {
       Map<String, Coder> inputCoders =
           Utils.getCoders(
               Utils.getInputs(appliedTransform), e -> Utils.getTupleTagId(e.getValue()));
-      Map.Entry<TupleTag<?>, PValue> output = Utils.getOutput(appliedTransform);
-      Coder outputCoder = Utils.getCoder((PCollection) output.getValue());
+      Map.Entry<TupleTag<?>, PCollection<?>> output = Utils.getOutput(appliedTransform);
+      Coder outputCoder = Utils.getCoder(output.getValue());
 
       DAGBuilder dagBuilder = context.getDagBuilder();
       String vertexId = dagBuilder.newVertexId(appliedTransform.getFullName());
@@ -384,7 +390,7 @@ class JetTransformTranslators {
       PCollection<WindowedValue> input =
           (PCollection<WindowedValue>) Utils.getInput(appliedTransform);
       Coder inputCoder = Utils.getCoder(input);
-      Map.Entry<TupleTag<?>, PValue> output = Utils.getOutput(appliedTransform);
+      Map.Entry<TupleTag<?>, PCollection<?>> output = Utils.getOutput(appliedTransform);
       Coder outputCoder =
           Utils.getCoder((PCollection) Utils.getOutput(appliedTransform).getValue());
 
@@ -417,7 +423,7 @@ class JetTransformTranslators {
       DAGBuilder dagBuilder = context.getDagBuilder();
       String vertexId = dagBuilder.newVertexId(transformName);
 
-      Map.Entry<TupleTag<?>, PValue> output = Utils.getOutput(appliedTransform);
+      Map.Entry<TupleTag<?>, PCollection<?>> output = Utils.getOutput(appliedTransform);
       Coder outputCoder =
           Utils.getCoder((PCollection) Utils.getOutput(appliedTransform).getValue());
       Vertex vertex = dagBuilder.addVertex(vertexId, ImpulseP.supplier(outputCoder, vertexId));

@@ -41,10 +41,9 @@ dependencies {
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile project(":sdks:java:io:hadoop-common")
   compile library.java.slf4j_api
-  compile "org.apache.hbase:hbase-shaded-client:$hbase_version"
+  provided "org.apache.hbase:hbase-shaded-client:$hbase_version"
   testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
-  testCompile library.java.commons_lang3
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library

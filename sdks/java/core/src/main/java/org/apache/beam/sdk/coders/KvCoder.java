@@ -26,6 +26,7 @@ import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeParameter;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@code KvCoder} encodes {@link KV}s.
@@ -33,7 +34,8 @@ import org.apache.beam.sdk.values.TypeParameter;
  * @param <K> the type of the keys of the KVs being transcoded
  * @param <V> the type of the values of the KVs being transcoded
  */
-public class KvCoder<K, V> extends StructuredCoder<KV<K, V>> {
+public class KvCoder<K extends @Nullable Object, V extends @Nullable Object>
+    extends StructuredCoder<KV<K, V>> {
   public static <K, V> KvCoder<K, V> of(Coder<K> keyCoder, Coder<V> valueCoder) {
     return new KvCoder<>(keyCoder, valueCoder);
   }

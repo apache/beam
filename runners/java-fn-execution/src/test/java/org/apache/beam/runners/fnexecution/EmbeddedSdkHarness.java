@@ -42,6 +42,9 @@ import org.junit.rules.TestRule;
  * {@link FnHarness} to properly execute, and provides access to the associated client and harness
  * during test execution.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class EmbeddedSdkHarness extends ExternalResource implements TestRule {
 
   public static EmbeddedSdkHarness create() {
@@ -92,7 +95,7 @@ public class EmbeddedSdkHarness extends ExternalResource implements TestRule {
                 clientPool.getSource())
             // The EmbeddedEnvironmentFactory can only create Java environments, regardless of the
             // Environment that's passed to it.
-            .createEnvironment(Environment.getDefaultInstance())
+            .createEnvironment(Environment.getDefaultInstance(), "unusedWorkerId")
             .getInstructionRequestHandler();
 
     // TODO: https://issues.apache.org/jira/browse/BEAM-4149 Worker ids cannot currently be set by

@@ -20,10 +20,12 @@ package org.apache.beam.sdk.schemas.transforms;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -35,6 +37,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -44,6 +47,9 @@ import org.junit.runners.JUnit4;
 /** Tests for the {@link Convert} class. */
 @RunWith(JUnit4.class)
 @Category(UsesSchema.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ConvertTest {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
@@ -60,7 +66,7 @@ public class ConvertTest {
             "second", new POJO1Nested());
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -90,7 +96,7 @@ public class ConvertTest {
     public long yard2 = 43;
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -121,6 +127,7 @@ public class ConvertTest {
 
   private static final Row EXPECTED_ROW1_NESTED =
       Row.withSchema(EXPECTED_SCHEMA1_NESTED).addValues("yard2", 43L).build();
+
   private static final Row EXPECTED_ROW1 =
       Row.withSchema(EXPECTED_SCHEMA1)
           .addValue("field1")
@@ -129,6 +136,9 @@ public class ConvertTest {
           .addArray(ImmutableList.of(EXPECTED_ROW1_NESTED, EXPECTED_ROW1_NESTED))
           .addValue(ImmutableMap.of("first", EXPECTED_ROW1_NESTED, "second", EXPECTED_ROW1_NESTED))
           .build();
+
+  private static final GenericRecord EXPECTED_GENERICRECORD1 =
+      AvroUtils.toGenericRecord(EXPECTED_ROW1, AvroUtils.toAvroSchema(EXPECTED_SCHEMA1));
 
   /** Test outer POJO. Different but equivalent schema. * */
   @DefaultSchema(JavaFieldSchema.class)
@@ -143,7 +153,7 @@ public class ConvertTest {
     public String field1 = "field1";
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -173,7 +183,7 @@ public class ConvertTest {
     public String yard1 = "yard2";
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -239,6 +249,15 @@ public class ConvertTest {
             .apply(Select.fieldNames("field2"))
             .apply(Convert.to(TypeDescriptors.longs()));
     PAssert.that(longs).containsInAnyOrder((Long) EXPECTED_ROW1.getValue("field2"));
+    pipeline.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testToGenericRecords() {
+    PCollection<GenericRecord> records =
+        pipeline.apply(Create.of(new POJO1())).apply(Convert.to(GenericRecord.class));
+    PAssert.that(records).containsInAnyOrder(EXPECTED_GENERICRECORD1);
     pipeline.run();
   }
 }

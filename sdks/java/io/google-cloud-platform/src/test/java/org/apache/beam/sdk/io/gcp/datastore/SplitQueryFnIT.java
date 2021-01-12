@@ -22,10 +22,10 @@ import static org.junit.Assert.assertEquals;
 
 import com.google.datastore.v1.Query;
 import java.util.List;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Read.SplitQueryFn;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Read.V1Options;
 import org.apache.beam.sdk.transforms.DoFnTester;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -49,6 +49,9 @@ import org.junit.runners.JUnit4;
  * </ul>
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SplitQueryFnIT {
   /** Tests {@link SplitQueryFn} to generate expected number of splits for a large dataset. */
   @Test

@@ -17,6 +17,8 @@
 
 """A PipelineExpansion service.
 """
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import print_function
 
@@ -34,12 +36,11 @@ from apache_beam.transforms import ptransform
 
 class ExpansionServiceServicer(
     beam_expansion_api_pb2_grpc.ExpansionServiceServicer):
-
   def __init__(self, options=None):
     self._options = options or beam_pipeline.PipelineOptions(
-        environment_type=python_urns.EMBEDDED_PYTHON)
+        environment_type=python_urns.EMBEDDED_PYTHON, sdk_location='container')
 
-  def Expand(self, request, context):
+  def Expand(self, request, context=None):
     try:
       pipeline = beam_pipeline.Pipeline(options=self._options)
 
@@ -53,21 +54,22 @@ class ExpansionServiceServicer(
 
       context = pipeline_context.PipelineContext(
           request.components,
-          default_environment=
-          portable_runner.PortableRunner._create_environment(
-              self._options),
+          default_environment=portable_runner.PortableRunner.
+          _create_environment(self._options),
           namespace=request.namespace)
       producers = {
           pcoll_id: (context.transforms.get_by_id(t_id), pcoll_tag)
-          for t_id, t_proto in request.components.transforms.items()
-          for pcoll_tag, pcoll_id in t_proto.outputs.items()
+          for t_id,
+          t_proto in request.components.transforms.items() for pcoll_tag,
+          pcoll_id in t_proto.outputs.items()
       }
       transform = with_pipeline(
-          ptransform.PTransform.from_runner_api(
-              request.transform.spec, context))
+          ptransform.PTransform.from_runner_api(request.transform, context))
       inputs = transform._pvaluish_from_dict({
-          tag: with_pipeline(context.pcollections.get_by_id(pcoll_id), pcoll_id)
-          for tag, pcoll_id in request.transform.inputs.items()
+          tag:
+          with_pipeline(context.pcollections.get_by_id(pcoll_id), pcoll_id)
+          for tag,
+          pcoll_id in request.transform.inputs.items()
       })
       if not inputs:
         inputs = pipeline
@@ -89,7 +91,8 @@ class ExpansionServiceServicer(
         del pipeline_proto.components.transforms[transform_id]
       return beam_expansion_api_pb2.ExpansionResponse(
           components=pipeline_proto.components,
-          transform=expanded_transform_proto)
+          transform=expanded_transform_proto,
+          requirements=pipeline_proto.requirements)
 
     except Exception:  # pylint: disable=broad-except
       return beam_expansion_api_pb2.ExpansionResponse(

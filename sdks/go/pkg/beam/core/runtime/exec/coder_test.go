@@ -18,6 +18,7 @@ package exec
 import (
 	"bytes"
 	"fmt"
+	"reflect"
 	"testing"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
@@ -45,6 +46,9 @@ func TestCoders(t *testing.T) {
 			coder: coder.NewDouble(),
 			val:   &FullValue{Elm: float64(12.9)},
 		}, {
+			coder: coder.NewString(),
+			val:   &FullValue{Elm: "myString"},
+		}, {
 			coder: func() *coder.Coder {
 				c, _ := coderx.NewString()
 				return &coder.Coder{Kind: coder.Custom, Custom: c, T: typex.New(reflectx.String)}
@@ -53,6 +57,13 @@ func TestCoders(t *testing.T) {
 		}, {
 			coder: coder.NewKV([]*coder.Coder{coder.NewVarInt(), coder.NewBool()}),
 			val:   &FullValue{Elm: int64(72), Elm2: false},
+		}, {
+			coder: coder.NewKV([]*coder.Coder{
+				coder.NewVarInt(),
+				coder.NewKV([]*coder.Coder{
+					coder.NewDouble(),
+					coder.NewBool()})}),
+			val: &FullValue{Elm: int64(42), Elm2: &FullValue{Elm: float64(3.14), Elm2: true}},
 		},
 	} {
 		t.Run(fmt.Sprintf("%v", test.coder), func(t *testing.T) {
@@ -67,18 +78,42 @@ func TestCoders(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Couldn't decode value: %v", err)
 			}
-			// []bytes are incomparable, convert to strings first.
-			if b, ok := test.val.Elm.([]byte); ok {
-				test.val.Elm = string(b)
-				result.Elm = string(result.Elm.([]byte))
-			}
-			if got, want := result.Elm, test.val.Elm; got != want {
-				t.Errorf("got %v, want %v", got, want)
-			}
-			if got, want := result.Elm2, test.val.Elm2; got != want {
-				t.Errorf("got %v, want %v", got, want)
-			}
 
+			compareFV(t, result, test.val)
 		})
+	}
+}
+
+// compareFV compares two *FullValue and fails the test with an error if an
+// element is mismatched. Also performs some setup to be able to compare
+// properly, and is recursive if there are nested KVs.
+func compareFV(t *testing.T, got *FullValue, want *FullValue) {
+	// []bytes are incomparable, convert to strings first.
+	if b, ok := want.Elm.([]byte); ok {
+		want.Elm = string(b)
+		got.Elm = string(got.Elm.([]byte))
+	}
+	if b, ok := want.Elm2.([]byte); ok {
+		want.Elm2 = string(b)
+		got.Elm2 = string(got.Elm.([]byte))
+	}
+
+	// First check if both elements are *FV. In that case recurse to do a deep
+	// comparison instead of a direct pointer comparison.
+	if wantFv, ok := want.Elm.(*FullValue); ok {
+		if gotFv, ok := got.Elm.(*FullValue); ok {
+			compareFV(t, gotFv, wantFv)
+		}
+	} else if got, want := got.Elm, want.Elm; got != want {
+		t.Errorf("got %v [type: %s], want %v [type %s]",
+			got, reflect.TypeOf(got), wantFv, reflect.TypeOf(wantFv))
+	}
+	if wantFv, ok := want.Elm2.(*FullValue); ok {
+		if gotFv, ok := got.Elm2.(*FullValue); ok {
+			compareFV(t, gotFv, wantFv)
+		}
+	} else if got, want := got.Elm2, want.Elm2; got != want {
+		t.Errorf("got %v [type: %s], want %v [type %s]",
+			got, reflect.TypeOf(got), wantFv, reflect.TypeOf(wantFv))
 	}
 }

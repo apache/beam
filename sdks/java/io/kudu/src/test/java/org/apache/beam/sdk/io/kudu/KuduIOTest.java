@@ -65,6 +65,9 @@ import org.slf4j.LoggerFactory;
  * carried out in {@link KuduIOIT}.
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class KuduIOTest {
   private static final Logger LOG = LoggerFactory.getLogger(KuduIOTest.class);
 
@@ -202,7 +205,7 @@ public class KuduIOTest {
     @Override
     public void close() {
       // called on teardown which give no guarantees
-      LOG.debug("FakeWriter[{}] close {}", id);
+      LOG.debug("FakeWriter[{}] closed.", id);
     }
 
     /** Sets the unique id on deserialzation using the shared counter. */

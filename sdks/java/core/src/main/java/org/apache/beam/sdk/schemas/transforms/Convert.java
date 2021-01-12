@@ -17,11 +17,11 @@
  */
 package org.apache.beam.sdk.schemas.transforms;
 
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.DefaultTypeConversionsFactory;
 import org.apache.beam.sdk.schemas.utils.ConvertHelpers;
@@ -32,15 +32,19 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A set of utilities for converting between different objects supporting schemas. */
 @Experimental(Kind.SCHEMAS)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class Convert {
   /**
    * Convert a {@link PCollection}{@literal <InputT>} into a {@link PCollection}{@literal <Row>}.
    *
    * <p>The input {@link PCollection} must have a schema attached. The output collection will have
-   * the same schema as the iput.
+   * the same schema as the input.
    */
   public static <InputT> PTransform<PCollection<InputT>, PCollection<Row>> toRows() {
     return to(Row.class);
@@ -104,8 +108,7 @@ public class Convert {
       this.outputTypeDescriptor = outputTypeDescriptor;
     }
 
-    @Nullable
-    private static Schema getBoxedNestedSchema(Schema schema) {
+    private static @Nullable Schema getBoxedNestedSchema(Schema schema) {
       if (schema.getFieldCount() != 1) {
         return null;
       }
@@ -123,6 +126,10 @@ public class Convert {
         throw new RuntimeException("Convert requires a schema on the input.");
       }
 
+      SchemaCoder<InputT> coder = (SchemaCoder<InputT>) input.getCoder();
+      if (coder.getEncodedTypeDescriptor().equals(outputTypeDescriptor)) {
+        return (PCollection<OutputT>) input;
+      }
       SchemaRegistry registry = input.getPipeline().getSchemaRegistry();
       ConvertHelpers.ConvertedSchemaInformation<OutputT> converted =
           ConvertHelpers.getConvertedSchemaInformation(
@@ -143,12 +150,7 @@ public class Convert {
                             converted.outputSchemaCoder.getFromRowFunction().apply((Row) input));
                       }
                     }));
-        output =
-            output.setSchema(
-                converted.outputSchemaCoder.getSchema(),
-                outputTypeDescriptor,
-                converted.outputSchemaCoder.getToRowFunction(),
-                converted.outputSchemaCoder.getFromRowFunction());
+        output.setCoder(converted.outputSchemaCoder);
       } else {
         SerializableFunction<?, OutputT> convertPrimitive =
             ConvertHelpers.getConvertPrimitive(

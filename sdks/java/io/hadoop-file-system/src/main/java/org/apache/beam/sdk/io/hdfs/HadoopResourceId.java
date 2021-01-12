@@ -26,8 +26,12 @@ import org.apache.beam.sdk.io.fs.ResolveOptions;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.hadoop.fs.Path;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** {@link ResourceId} implementation for the {@link HadoopFileSystem}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class HadoopResourceId implements ResourceId {
   private final URI uri;
 
@@ -65,6 +69,10 @@ class HadoopResourceId implements ResourceId {
 
   @Override
   public String getFilename() {
+    if (isDirectory()) {
+      Path parentPath = new Path(uri).getParent();
+      return parentPath == null ? null : parentPath.getName();
+    }
     return new Path(uri).getName();
   }
 
@@ -79,7 +87,7 @@ class HadoopResourceId implements ResourceId {
   }
 
   @Override
-  public boolean equals(Object obj) {
+  public boolean equals(@Nullable Object obj) {
     if (!(obj instanceof HadoopResourceId)) {
       return false;
     }

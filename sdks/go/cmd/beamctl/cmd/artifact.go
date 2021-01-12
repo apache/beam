@@ -19,7 +19,7 @@ import (
 	"path/filepath"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/artifact"
-	pb "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
+	jobpb "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
 	"github.com/spf13/cobra"
 )
 
@@ -67,7 +67,7 @@ func stageFn(cmd *cobra.Command, args []string) error {
 
 	// (2) Stage files in parallel, commit and print out token
 
-	client := pb.NewArtifactStagingServiceClient(cc)
+	client := jobpb.NewLegacyArtifactStagingServiceClient(cc)
 	list, err := artifact.MultiStage(ctx, client, 10, files, stagingToken)
 	if err != nil {
 		return err
@@ -88,8 +88,8 @@ func listFn(cmd *cobra.Command, args []string) error {
 	}
 	defer cc.Close()
 
-	client := pb.NewArtifactRetrievalServiceClient(cc)
-	md, err := client.GetManifest(ctx, &pb.GetManifestRequest{})
+	client := jobpb.NewLegacyArtifactRetrievalServiceClient(cc)
+	md, err := client.GetManifest(ctx, &jobpb.GetManifestRequest{})
 	if err != nil {
 		return err
 	}

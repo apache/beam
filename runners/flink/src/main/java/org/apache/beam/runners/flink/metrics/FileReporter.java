@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.flink.metrics;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
@@ -30,6 +31,9 @@ import org.apache.flink.metrics.reporter.AbstractReporter;
  * metrics to a file specified via the "metrics.reporter.file.path" config key (assuming an alias of
  * "file" for this reporter in the "metrics.reporters" setting).
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class FileReporter extends AbstractReporter {
   @Override
   public String filterCharacters(String input) {
@@ -40,6 +44,8 @@ public class FileReporter extends AbstractReporter {
   private PrintStream ps;
 
   @Override
+  @SuppressFBWarnings(
+      "DM_DEFAULT_ENCODING") // should this method specify the encoding for the PrintStream?
   public void open(MetricConfig config) {
     synchronized (this) {
       if (path == null) {

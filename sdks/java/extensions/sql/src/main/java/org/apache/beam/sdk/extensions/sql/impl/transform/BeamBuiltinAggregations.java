@@ -22,7 +22,6 @@ import java.math.MathContext;
 import java.math.RoundingMode;
 import java.util.Map;
 import java.util.function.Function;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.BigDecimalCoder;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -33,27 +32,38 @@ import org.apache.beam.sdk.extensions.sql.impl.transform.agg.VarianceFn;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Max;
 import org.apache.beam.sdk.transforms.Min;
+import org.apache.beam.sdk.transforms.Sample;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Built-in aggregations functions for COUNT/MAX/MIN/SUM/AVG/VAR_POP/VAR_SAMP. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BeamBuiltinAggregations {
 
   public static final Map<String, Function<Schema.FieldType, CombineFn<?, ?, ?>>>
       BUILTIN_AGGREGATOR_FACTORIES =
           ImmutableMap.<String, Function<Schema.FieldType, CombineFn<?, ?, ?>>>builder()
+              .put("ANY_VALUE", typeName -> Sample.anyValueCombineFn())
               .put("COUNT", typeName -> Count.combineFn())
               .put("MAX", BeamBuiltinAggregations::createMax)
               .put("MIN", BeamBuiltinAggregations::createMin)
               .put("SUM", BeamBuiltinAggregations::createSum)
               .put("$SUM0", BeamBuiltinAggregations::createSum)
               .put("AVG", BeamBuiltinAggregations::createAvg)
+              .put("BIT_OR", BeamBuiltinAggregations::createBitOr)
+              // JIRA link:https://issues.apache.org/jira/browse/BEAM-10379
+              .put("BIT_AND", BeamBuiltinAggregations::createBitAnd)
               .put("VAR_POP", t -> VarianceFn.newPopulation(t.getTypeName()))
               .put("VAR_SAMP", t -> VarianceFn.newSample(t.getTypeName()))
               .put("COVAR_POP", t -> CovarianceFn.newPopulation(t.getTypeName()))
@@ -97,7 +107,7 @@ public class BeamBuiltinAggregations {
         return Max.ofDoubles();
       default:
         throw new UnsupportedOperationException(
-            String.format("[%s] is not support in MAX", fieldType));
+            String.format("[%s] is not supported in MAX", fieldType));
     }
   }
 
@@ -123,7 +133,7 @@ public class BeamBuiltinAggregations {
         return Min.ofDoubles();
       default:
         throw new UnsupportedOperationException(
-            String.format("[%s] is not support in MIN", fieldType));
+            String.format("[%s] is not supported in MIN", fieldType));
     }
   }
 
@@ -146,7 +156,7 @@ public class BeamBuiltinAggregations {
         return new BigDecimalSum();
       default:
         throw new UnsupportedOperationException(
-            String.format("[%s] is not support in SUM", fieldType));
+            String.format("[%s] is not supported in SUM", fieldType));
     }
   }
 
@@ -169,8 +179,24 @@ public class BeamBuiltinAggregations {
         return new BigDecimalAvg();
       default:
         throw new UnsupportedOperationException(
-            String.format("[%s] is not support in AVG", fieldType));
+            String.format("[%s] is not supported in AVG", fieldType));
     }
+  }
+
+  static CombineFn createBitOr(Schema.FieldType fieldType) {
+    if (fieldType.getTypeName() == TypeName.INT64) {
+      return new BitOr();
+    }
+    throw new UnsupportedOperationException(
+        String.format("[%s] is not supported in BIT_OR", fieldType));
+  }
+
+  static CombineFn createBitAnd(Schema.FieldType fieldType) {
+    if (fieldType.getTypeName() == TypeName.INT64) {
+      return new BitAnd();
+    }
+    throw new UnsupportedOperationException(
+        String.format("[%s] is not supported in BIT_AND", fieldType));
   }
 
   static class CustMax<T extends Comparable<T>> extends Combine.BinaryCombineFn<T> {
@@ -257,8 +283,7 @@ public class BeamBuiltinAggregations {
 
   static class IntegerAvg extends Avg<Integer> {
     @Override
-    @Nullable
-    public Integer extractOutput(KV<Integer, BigDecimal> accumulator) {
+    public @Nullable Integer extractOutput(KV<Integer, BigDecimal> accumulator) {
       return accumulator.getKey() == 0 ? null : prepareOutput(accumulator).intValue();
     }
 
@@ -270,8 +295,7 @@ public class BeamBuiltinAggregations {
 
   static class LongAvg extends Avg<Long> {
     @Override
-    @Nullable
-    public Long extractOutput(KV<Integer, BigDecimal> accumulator) {
+    public @Nullable Long extractOutput(KV<Integer, BigDecimal> accumulator) {
       return accumulator.getKey() == 0 ? null : prepareOutput(accumulator).longValue();
     }
 
@@ -283,8 +307,7 @@ public class BeamBuiltinAggregations {
 
   static class ShortAvg extends Avg<Short> {
     @Override
-    @Nullable
-    public Short extractOutput(KV<Integer, BigDecimal> accumulator) {
+    public @Nullable Short extractOutput(KV<Integer, BigDecimal> accumulator) {
       return accumulator.getKey() == 0 ? null : prepareOutput(accumulator).shortValue();
     }
 
@@ -296,8 +319,7 @@ public class BeamBuiltinAggregations {
 
   static class ByteAvg extends Avg<Byte> {
     @Override
-    @Nullable
-    public Byte extractOutput(KV<Integer, BigDecimal> accumulator) {
+    public @Nullable Byte extractOutput(KV<Integer, BigDecimal> accumulator) {
       return accumulator.getKey() == 0 ? null : prepareOutput(accumulator).byteValue();
     }
 
@@ -309,8 +331,7 @@ public class BeamBuiltinAggregations {
 
   static class FloatAvg extends Avg<Float> {
     @Override
-    @Nullable
-    public Float extractOutput(KV<Integer, BigDecimal> accumulator) {
+    public @Nullable Float extractOutput(KV<Integer, BigDecimal> accumulator) {
       return accumulator.getKey() == 0 ? null : prepareOutput(accumulator).floatValue();
     }
 
@@ -322,8 +343,7 @@ public class BeamBuiltinAggregations {
 
   static class DoubleAvg extends Avg<Double> {
     @Override
-    @Nullable
-    public Double extractOutput(KV<Integer, BigDecimal> accumulator) {
+    public @Nullable Double extractOutput(KV<Integer, BigDecimal> accumulator) {
       return accumulator.getKey() == 0 ? null : prepareOutput(accumulator).doubleValue();
     }
 
@@ -335,14 +355,82 @@ public class BeamBuiltinAggregations {
 
   static class BigDecimalAvg extends Avg<BigDecimal> {
     @Override
-    @Nullable
-    public BigDecimal extractOutput(KV<Integer, BigDecimal> accumulator) {
+    public @Nullable BigDecimal extractOutput(KV<Integer, BigDecimal> accumulator) {
       return accumulator.getKey() == 0 ? null : prepareOutput(accumulator);
     }
 
     @Override
     public BigDecimal toBigDecimal(BigDecimal record) {
       return record;
+    }
+  }
+
+  static class BitOr<T extends Number> extends CombineFn<T, Long, Long> {
+    @Override
+    public Long createAccumulator() {
+      return 0L;
+    }
+
+    @Override
+    public Long addInput(Long accum, T input) {
+      return accum | input.longValue();
+    }
+
+    @Override
+    public Long mergeAccumulators(Iterable<Long> accums) {
+      Long merged = createAccumulator();
+      for (Long accum : accums) {
+        merged = merged | accum;
+      }
+      return merged;
+    }
+
+    @Override
+    public Long extractOutput(Long accum) {
+      return accum;
+    }
+  }
+
+  /**
+   * Bitwise AND function implementation.
+   *
+   * <p>Note: null values are ignored when mixed with non-null values.
+   * (https://issues.apache.org/jira/browse/BEAM-10379)
+   */
+  static class BitAnd<T extends Number> extends CombineFn<T, Long, Long> {
+    // Indicate if input only contains null value.
+    private boolean isEmpty = true;
+
+    @Override
+    public Long createAccumulator() {
+      return -1L;
+    }
+
+    @Override
+    public Long addInput(Long accum, T input) {
+      if (input != null) {
+        this.isEmpty = false;
+        return accum & input.longValue();
+      } else {
+        return null;
+      }
+    }
+
+    @Override
+    public Long mergeAccumulators(Iterable<Long> accums) {
+      Long merged = createAccumulator();
+      for (Long accum : accums) {
+        merged = merged & accum;
+      }
+      return merged;
+    }
+
+    @Override
+    public Long extractOutput(Long accum) {
+      if (this.isEmpty) {
+        return null;
+      }
+      return accum;
     }
   }
 }

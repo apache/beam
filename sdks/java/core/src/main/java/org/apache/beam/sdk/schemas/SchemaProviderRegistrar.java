@@ -17,6 +17,12 @@
  */
 package org.apache.beam.sdk.schemas;
 
+import com.google.auto.service.AutoService;
+import java.util.List;
+import java.util.ServiceLoader;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
+
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -34,12 +40,6 @@ package org.apache.beam.sdk.schemas;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-import com.google.auto.service.AutoService;
-import java.util.List;
-import java.util.ServiceLoader;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 
 /**
  * {@link SchemaProvider} creators have the ability to automatically have their {@link

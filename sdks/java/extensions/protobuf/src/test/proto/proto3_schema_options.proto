@@ -1,0 +1,93 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ * Protocol Buffer options used for testing Proto3 Schema implementation.
+ */
+
+syntax = "proto3";
+
+package proto3_schema_options;
+
+import "google/protobuf/descriptor.proto";
+
+option java_package = "org.apache.beam.sdk.extensions.protobuf";
+
+extend google.protobuf.MessageOptions {
+    OptionTestMessage message_option_message = 66661700;
+    int32 message_option_int = 66661708;
+    string message_option_string = 66661709;
+    repeated string message_option_repeated = 66661710;
+    repeated OptionTestMessage message_option_repeated_message = 66661711;
+}
+
+extend google.protobuf.FieldOptions {
+    OptionTestMessage field_option_message = 66662700;
+    int32 field_option_int = 66662708;
+    string field_option_string = 66662709;
+    repeated string field_option_repeated = 66662710;
+    repeated OptionTestMessage field_option_repeated_message = 66662711;
+}
+
+extend google.protobuf.EnumOptions {
+    OptionTestMessage enum_option_message = 66665700;
+    int32 enum_option_int = 66665708;
+    string enum_option_string = 66665709;
+    repeated string enum_option_repeated = 66665710;
+    repeated OptionTestMessage enum_option_repeated_message = 66665711;
+}
+
+extend google.protobuf.EnumValueOptions {
+    OptionTestMessage enum_value_option_message = 66666700;
+    int32 enum_value_option_int = 66666708;
+    string enum_value_option_string = 66666709;
+    repeated string enum_value_option_repeated = 66666710;
+    repeated OptionTestMessage enum_value_option_repeated_message = 66666711;
+}
+
+extend google.protobuf.OneofOptions {
+    OptionTestMessage oneof_option_message = 66667700;
+    int32 oneof_option_int = 66667708;
+    string oneof_option_string = 66667709;
+    repeated string oneof_option_repeated = 66667710;
+    repeated OptionTestMessage oneof_option_repeated_message = 66667711;
+}
+
+message OptionTestMessage {
+    message OptionTestSubMessage {
+        string sub_message_name = 1;
+    }
+
+    string single_string = 1;
+    repeated string repeated_string = 2;
+
+    int32 single_int32 = 3;
+    repeated int32 repeated_int32 = 4;
+
+    int64 single_int64 = 5;
+
+    bytes single_bytes = 6;
+    repeated bytes repeated_bytes = 7;
+
+    enum OptionEnum {
+        ENUM1 = 0;
+        ENUM2 = 1;
+    }
+    OptionEnum single_enum = 8;
+    OptionTestSubMessage single_message = 9;
+}

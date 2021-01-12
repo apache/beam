@@ -15,6 +15,8 @@
 # limitations under the License.
 #
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging
@@ -30,13 +32,12 @@ from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners.common import NameContext
 from apache_beam.runners.worker import log_handler
 from apache_beam.runners.worker import statesampler
-from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
+from apache_beam.utils import thread_pool_executor
 
 _LOGGER = logging.getLogger(__name__)
 
 
 class BeamFnLoggingServicer(beam_fn_api_pb2_grpc.BeamFnLoggingServicer):
-
   def __init__(self):
     self.log_records_received = []
 
@@ -49,10 +50,9 @@ class BeamFnLoggingServicer(beam_fn_api_pb2_grpc.BeamFnLoggingServicer):
 
 
 class FnApiLogRecordHandlerTest(unittest.TestCase):
-
   def setUp(self):
     self.test_logging_service = BeamFnLoggingServicer()
-    self.server = grpc.server(UnboundedThreadPoolExecutor())
+    self.server = grpc.server(thread_pool_executor.shared_unbounded_instance())
     beam_fn_api_pb2_grpc.add_BeamFnLoggingServicer_to_server(
         self.test_logging_service, self.server)
     self.test_port = self.server.add_insecure_port('[::]:0')
@@ -82,12 +82,12 @@ class FnApiLogRecordHandlerTest(unittest.TestCase):
     num_received_log_entries = 0
     for outer in self.test_logging_service.log_records_received:
       for log_entry in outer.log_entries:
-        self.assertEqual(beam_fn_api_pb2.LogEntry.Severity.INFO,
-                         log_entry.severity)
-        self.assertEqual('%s: %s' % (msg, num_received_log_entries),
-                         log_entry.message)
+        self.assertEqual(
+            beam_fn_api_pb2.LogEntry.Severity.INFO, log_entry.severity)
+        self.assertEqual(
+            '%s: %s' % (msg, num_received_log_entries), log_entry.message)
         self.assertTrue(
-            re.match(r'.*/log_handler_test.py:\d+', log_entry.log_location),
+            re.match(r'.*log_handler_test.py:\d+', log_entry.log_location),
             log_entry.log_location)
         self.assertGreater(log_entry.timestamp.seconds, 0)
         self.assertGreaterEqual(log_entry.timestamp.nanos, 0)
@@ -148,13 +148,14 @@ data = {
 
 
 def _create_test(name, num_logs):
-  setattr(FnApiLogRecordHandlerTest, 'test_%s' % name,
-          lambda self: self._verify_fn_log_handler(num_logs))
+  setattr(
+      FnApiLogRecordHandlerTest,
+      'test_%s' % name,
+      lambda self: self._verify_fn_log_handler(num_logs))
 
 
 for test_name, num_logs_entries in data.items():
   _create_test(test_name, num_logs_entries)
-
 
 if __name__ == '__main__':
   unittest.main()

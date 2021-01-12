@@ -30,9 +30,20 @@ Available classes:
     unit-of-commit (bundle).
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
+import threading
 from builtins import object
+from typing import TYPE_CHECKING
+from typing import Any
+from typing import Dict
+from typing import FrozenSet
+from typing import Optional
+from typing import Type
+from typing import Union
+from typing import cast
 
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.cells import CounterCell
@@ -40,6 +51,14 @@ from apache_beam.metrics.cells import DistributionCell
 from apache_beam.metrics.cells import GaugeCell
 from apache_beam.runners.worker import statesampler
 from apache_beam.runners.worker.statesampler import get_current_tracker
+
+if TYPE_CHECKING:
+  from apache_beam.metrics.cells import GaugeData
+  from apache_beam.metrics.cells import DistributionData
+  from apache_beam.metrics.cells import MetricCell
+  from apache_beam.metrics.cells import MetricCellFactory
+  from apache_beam.metrics.metricbase import MetricName
+  from apache_beam.portability.api import metrics_pb2
 
 
 class MetricKey(object):
@@ -63,9 +82,9 @@ class MetricKey(object):
     self.labels = labels if labels else dict()
 
   def __eq__(self, other):
-    return (self.step == other.step and
-            self.metric == other.metric and
-            self.labels == other.labels)
+    return (
+        self.step == other.step and self.metric == other.metric and
+        self.labels == other.labels)
 
   def __ne__(self, other):
     # TODO(BEAM-5949): Needed for Python 2 compatibility.
@@ -106,9 +125,9 @@ class MetricResult(object):
     self.attempted = attempted
 
   def __eq__(self, other):
-    return (self.key == other.key and
-            self.committed == other.committed and
-            self.attempted == other.attempted)
+    return (
+        self.key == other.key and self.committed == other.committed and
+        self.attempted == other.attempted)
 
   def __ne__(self, other):
     # TODO(BEAM-5949): Needed for Python 2 compatibility.
@@ -145,20 +164,28 @@ class _MetricsEnvironment(object):
       return None
     return sampler.current_state().metrics_container
 
+  def process_wide_container(self):
+    """Returns the MetricsContainer for process wide metrics, e.g. memory."""
+    return PROCESS_WIDE_METRICS_CONTAINER
+
 
 MetricsEnvironment = _MetricsEnvironment()
 
 
 class _TypedMetricName(object):
   """Like MetricName, but also stores the cell type of the metric."""
-  def __init__(self, cell_type, metric_name):
+  def __init__(
+      self,
+      cell_type,  # type: Union[Type[MetricCell], MetricCellFactory]
+      metric_name  # type: Union[str, MetricName]
+  ):
+    # type: (...) -> None
     self.cell_type = cell_type
     self.metric_name = metric_name
     if isinstance(metric_name, str):
       self.fast_name = metric_name
     else:
-      self.fast_name = '%d_%s%s' % (
-          len(metric_name.name), metric_name.name, metric_name.namespace)
+      self.fast_name = metric_name.fast_name()
     # Cached for speed, as this is used as a key for every counter update.
     self._hash = hash((cell_type, self.fast_name))
 
@@ -172,94 +199,145 @@ class _TypedMetricName(object):
   def __hash__(self):
     return self._hash
 
+  def __str__(self):
+    return '%s %s' % (self.cell_type, self.metric_name)
+
   def __reduce__(self):
     return _TypedMetricName, (self.cell_type, self.metric_name)
 
 
-_DEFAULT = None
+_DEFAULT = None  # type: Any
 
 
 class MetricUpdater(object):
   """A callable that updates the metric as quickly as possible."""
-  def __init__(self, cell_type, metric_name, default=None):
+  def __init__(
+      self,
+      cell_type,  # type: Union[Type[MetricCell], MetricCellFactory]
+      metric_name,  # type: Union[str, MetricName]
+      default_value=None,
+      process_wide=False):
+    self.process_wide = process_wide
     self.typed_metric_name = _TypedMetricName(cell_type, metric_name)
-    self.default = default
+    self.default_value = default_value
 
   def __call__(self, value=_DEFAULT):
+    # type: (Any) -> None
     if value is _DEFAULT:
-      if self.default is _DEFAULT:
+      if self.default_value is _DEFAULT:
         raise ValueError(
-            'Missing value for update of %s' % self.metric_name)
-      value = self.default
-    tracker = get_current_tracker()
-    if tracker is not None:
-      tracker.update_metric(self.typed_metric_name, value)
+            'Missing value for update of %s' % self.typed_metric_name.fast_name)
+      value = self.default_value
+    if self.process_wide:
+      MetricsEnvironment.process_wide_container().get_metric_cell(
+          self.typed_metric_name).update(value)
+    else:
+      tracker = get_current_tracker()
+      if tracker is not None:
+        tracker.update_metric(self.typed_metric_name, value)
 
   def __reduce__(self):
     return MetricUpdater, (
         self.typed_metric_name.cell_type,
         self.typed_metric_name.metric_name,
-        self.default)
+        self.default_value)
 
 
 class MetricsContainer(object):
-  """Holds the metrics of a single step and a single bundle."""
+  """Holds the metrics of a single step and a single bundle.
+
+  Or the metrics associated with the process/SDK harness. I.e. memory usage.
+  """
   def __init__(self, step_name):
     self.step_name = step_name
-    self.metrics = dict()
+    self.lock = threading.Lock()
+    self.metrics = dict()  # type: Dict[_TypedMetricName, MetricCell]
 
   def get_counter(self, metric_name):
-    return self.get_metric_cell(_TypedMetricName(CounterCell, metric_name))
+    # type: (MetricName) -> CounterCell
+    return cast(
+        CounterCell,
+        self.get_metric_cell(_TypedMetricName(CounterCell, metric_name)))
 
   def get_distribution(self, metric_name):
-    return self.get_metric_cell(_TypedMetricName(DistributionCell, metric_name))
+    # type: (MetricName) -> DistributionCell
+    return cast(
+        DistributionCell,
+        self.get_metric_cell(_TypedMetricName(DistributionCell, metric_name)))
 
   def get_gauge(self, metric_name):
-    return self.get_metric_cell(_TypedMetricName(GaugeCell, metric_name))
+    # type: (MetricName) -> GaugeCell
+    return cast(
+        GaugeCell,
+        self.get_metric_cell(_TypedMetricName(GaugeCell, metric_name)))
 
   def get_metric_cell(self, typed_metric_name):
+    # type: (_TypedMetricName) -> MetricCell
     cell = self.metrics.get(typed_metric_name, None)
     if cell is None:
-      cell = self.metrics[typed_metric_name] = typed_metric_name.cell_type()
+      with self.lock:
+        cell = self.metrics[typed_metric_name] = typed_metric_name.cell_type()
     return cell
 
   def get_cumulative(self):
+    # type: () -> MetricUpdates
+
     """Return MetricUpdates with cumulative values of all metrics in container.
 
     This returns all the cumulative values for all metrics.
     """
-    counters = {MetricKey(self.step_name, k.metric_name): v.get_cumulative()
-                for k, v in self.metrics.items()
-                if k.cell_type == CounterCell}
+    counters = {
+        MetricKey(self.step_name, k.metric_name): v.get_cumulative()
+        for k,
+        v in self.metrics.items() if k.cell_type == CounterCell
+    }
 
     distributions = {
         MetricKey(self.step_name, k.metric_name): v.get_cumulative()
-        for k, v in self.metrics.items()
-        if k.cell_type == DistributionCell}
+        for k,
+        v in self.metrics.items() if k.cell_type == DistributionCell
+    }
 
-    gauges = {MetricKey(self.step_name, k.metric_name): v.get_cumulative()
-              for k, v in self.metrics.items()
-              if k.cell_type == GaugeCell}
+    gauges = {
+        MetricKey(self.step_name, k.metric_name): v.get_cumulative()
+        for k,
+        v in self.metrics.items() if k.cell_type == GaugeCell
+    }
 
     return MetricUpdates(counters, distributions, gauges)
 
   def to_runner_api(self):
-    return [cell.to_runner_api_user_metric(key.metric_name)
-            for key, cell in self.metrics.items()]
+    return [
+        cell.to_runner_api_user_metric(key.metric_name) for key,
+        cell in self.metrics.items()
+    ]
 
   def to_runner_api_monitoring_infos(self, transform_id):
+    # type: (str) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]
+
     """Returns a list of MonitoringInfos for the metrics in this container."""
-    all_user_metrics = [
+    with self.lock:
+      items = list(self.metrics.items())
+    all_metrics = [
         cell.to_runner_api_monitoring_info(key.metric_name, transform_id)
-        for key, cell in self.metrics.items()]
-    return {monitoring_infos.to_key(mi) : mi for mi in all_user_metrics}
+        for key,
+        cell in items
+    ]
+    return {
+        monitoring_infos.to_key(mi): mi
+        for mi in all_metrics if mi is not None
+    }
 
   def reset(self):
+    # type: () -> None
     for metric in self.metrics.values():
       metric.reset()
 
   def __reduce__(self):
     raise NotImplementedError
+
+
+PROCESS_WIDE_METRICS_CONTAINER = MetricsContainer(None)
 
 
 class MetricUpdates(object):
@@ -269,7 +347,14 @@ class MetricUpdates(object):
   For Distribution metrics, it is DistributionData, and for Counter metrics,
   it's an int.
   """
-  def __init__(self, counters=None, distributions=None, gauges=None):
+  def __init__(
+      self,
+      counters=None,  # type: Optional[Dict[MetricKey, int]]
+      distributions=None,  # type: Optional[Dict[MetricKey, DistributionData]]
+      gauges=None  # type: Optional[Dict[MetricKey, GaugeData]]
+  ):
+    # type: (...) -> None
+
     """Create a MetricUpdates object.
 
     Args:

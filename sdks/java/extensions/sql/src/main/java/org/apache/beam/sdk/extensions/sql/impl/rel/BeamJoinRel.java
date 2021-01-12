@@ -17,32 +17,14 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import static org.apache.beam.sdk.schemas.Schema.toSchema;
-
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.extensions.sql.BeamSqlSeekableTable;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
-import org.apache.beam.sdk.extensions.sql.impl.transform.BeamJoinTransforms;
-import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
-import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.Schema.Field;
-import org.apache.beam.sdk.schemas.SchemaCoder;
-import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
-import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionList;
-import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Optional;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptCluster;
@@ -174,131 +156,11 @@ public abstract class BeamJoinRel extends Join implements BeamRelNode {
     return true;
   }
 
-  protected class ExtractJoinKeys
-      extends PTransform<PCollectionList<Row>, PCollectionList<KV<Row, Row>>> {
-
-    @Override
-    public PCollectionList<KV<Row, Row>> expand(PCollectionList<Row> pinput) {
-      BeamRelNode leftRelNode = BeamSqlRelUtils.getBeamRelInput(left);
-
-      Schema leftSchema = CalciteUtils.toSchema(left.getRowType());
-      Schema rightSchema = CalciteUtils.toSchema(right.getRowType());
-
-      assert pinput.size() == 2;
-      PCollection<Row> leftRows = pinput.get(0);
-      PCollection<Row> rightRows = pinput.get(1);
-
-      int leftRowColumnCount = leftRelNode.getRowType().getFieldCount();
-
-      // extract the join fields
-      List<Pair<RexNode, RexNode>> pairs = extractJoinRexNodes(condition);
-
-      // build the extract key type
-      // the name of the join field is not important
-      Schema extractKeySchemaLeft =
-          pairs.stream()
-              .map(pair -> getFieldBasedOnRexNode(leftSchema, pair.getKey(), 0))
-              .collect(toSchema());
-      Schema extractKeySchemaRight =
-          pairs.stream()
-              .map(pair -> getFieldBasedOnRexNode(rightSchema, pair.getValue(), leftRowColumnCount))
-              .collect(toSchema());
-
-      SchemaCoder<Row> extractKeyRowCoder = SchemaCoder.of(extractKeySchemaLeft);
-
-      // BeamSqlRow -> KV<BeamSqlRow, BeamSqlRow>
-      PCollection<KV<Row, Row>> extractedLeftRows =
-          leftRows
-              .apply(
-                  "left_TimestampCombiner",
-                  Window.<Row>configure().withTimestampCombiner(TimestampCombiner.EARLIEST))
-              .apply(
-                  "left_ExtractJoinFields",
-                  MapElements.via(
-                      new BeamJoinTransforms.ExtractJoinFields(
-                          true, pairs, extractKeySchemaLeft, 0)))
-              .setCoder(KvCoder.of(extractKeyRowCoder, leftRows.getCoder()));
-
-      PCollection<KV<Row, Row>> extractedRightRows =
-          rightRows
-              .apply(
-                  "right_TimestampCombiner",
-                  Window.<Row>configure().withTimestampCombiner(TimestampCombiner.EARLIEST))
-              .apply(
-                  "right_ExtractJoinFields",
-                  MapElements.via(
-                      new BeamJoinTransforms.ExtractJoinFields(
-                          false, pairs, extractKeySchemaRight, leftRowColumnCount)))
-              .setCoder(KvCoder.of(extractKeyRowCoder, rightRows.getCoder()));
-
-      return PCollectionList.of(extractedLeftRows).and(extractedRightRows);
-    }
-  }
-
-  protected Schema buildNullSchema(Schema schema) {
-    Schema.Builder builder = Schema.builder();
-
-    builder.addFields(
-        schema.getFields().stream().map(f -> f.withNullable(true)).collect(Collectors.toList()));
-
-    return builder.build();
-  }
-
-  protected static <K, V> PCollection<KV<K, V>> setValueCoder(
-      PCollection<KV<K, V>> kvs, Coder<V> valueCoder) {
-    // safe case because PCollection of KV always has KvCoder
-    KvCoder<K, V> coder = (KvCoder<K, V>) kvs.getCoder();
-
-    return kvs.setCoder(KvCoder.of(coder.getKeyCoder(), valueCoder));
-  }
-
-  private static Field getFieldBasedOnRexNode(
-      Schema schema, RexNode rexNode, int leftRowColumnCount) {
-    if (rexNode instanceof RexInputRef) {
-      return schema.getField(((RexInputRef) rexNode).getIndex() - leftRowColumnCount);
-    } else if (rexNode instanceof RexFieldAccess) {
-      // need to extract field of Struct/Row.
-      return getFieldBasedOnRexFieldAccess(schema, (RexFieldAccess) rexNode, leftRowColumnCount);
-    }
-
-    throw new UnsupportedOperationException("Does not support " + rexNode.getType() + " in JOIN.");
-  }
-
-  private static Field getFieldBasedOnRexFieldAccess(
-      Schema schema, RexFieldAccess rexFieldAccess, int leftRowColumnCount) {
-    ArrayDeque<RexFieldAccess> fieldAccessStack = new ArrayDeque<>();
-    fieldAccessStack.push(rexFieldAccess);
-
-    RexFieldAccess curr = rexFieldAccess;
-    while (curr.getReferenceExpr() instanceof RexFieldAccess) {
-      curr = (RexFieldAccess) curr.getReferenceExpr();
-      fieldAccessStack.push(curr);
-    }
-
-    // curr.getReferenceExpr() is not a RexFieldAccess. Check if it is RexInputRef, which is only
-    // allowed RexNode type in RexFieldAccess.
-    if (!(curr.getReferenceExpr() instanceof RexInputRef)) {
-      throw new UnsupportedOperationException(
-          "Does not support " + curr.getReferenceExpr().getType() + " in JOIN.");
-    }
-
-    // curr.getReferenceExpr() is a RexInputRef.
-    RexInputRef inputRef = (RexInputRef) curr.getReferenceExpr();
-    Field curField = schema.getField(inputRef.getIndex() - leftRowColumnCount);
-
-    // pop RexFieldAccess from stack one by one to know the final field type.
-    while (fieldAccessStack.size() > 0) {
-      curr = fieldAccessStack.pop();
-      curField = curField.getType().getRowSchema().getField(curr.getField().getIndex());
-    }
-
-    return curField;
-  }
-
   static List<Pair<RexNode, RexNode>> extractJoinRexNodes(RexNode condition) {
     // it's a CROSS JOIN because: condition == true
-    if (condition instanceof RexLiteral && (Boolean) ((RexLiteral) condition).getValue()) {
-      throw new UnsupportedOperationException("CROSS JOIN is not supported!");
+    // or it's a JOIN ON false because: condition == false
+    if (condition instanceof RexLiteral) {
+      throw new UnsupportedOperationException("CROSS JOIN, JOIN ON FALSE is not supported!");
     }
 
     RexCall call = (RexCall) condition;

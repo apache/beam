@@ -39,19 +39,24 @@ import com.google.api.services.pubsub.model.Topic;
 import com.google.auth.Credentials;
 import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.cloud.hadoop.util.ChainingHttpRequestInitializer;
+import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.gcp.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A Pubsub client using JSON transport. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class PubsubJsonClient extends PubsubClient {
 
   private static class PubsubJsonClientFactory implements PubsubClientFactory {
@@ -98,10 +103,10 @@ public class PubsubJsonClient extends PubsubClient {
    * Attribute to use for custom timestamps, or {@literal null} if should use Pubsub publish time
    * instead.
    */
-  @Nullable private final String timestampAttribute;
+  private final @Nullable String timestampAttribute;
 
   /** Attribute to use for custom ids, or {@literal null} if should use Pubsub provided ids. */
-  @Nullable private final String idAttribute;
+  private final @Nullable String idAttribute;
 
   /** Underlying JSON transport. */
   private Pubsub pubsub;
@@ -123,8 +128,12 @@ public class PubsubJsonClient extends PubsubClient {
   public int publish(TopicPath topic, List<OutgoingMessage> outgoingMessages) throws IOException {
     List<PubsubMessage> pubsubMessages = new ArrayList<>(outgoingMessages.size());
     for (OutgoingMessage outgoingMessage : outgoingMessages) {
-      PubsubMessage pubsubMessage = new PubsubMessage().encodeData(outgoingMessage.elementBytes);
+      PubsubMessage pubsubMessage =
+          new PubsubMessage().encodeData(outgoingMessage.message().getData().toByteArray());
       pubsubMessage.setAttributes(getMessageAttributes(outgoingMessage));
+      if (!outgoingMessage.message().getOrderingKey().isEmpty()) {
+        pubsubMessage.setOrderingKey(outgoingMessage.message().getOrderingKey());
+      }
       pubsubMessages.add(pubsubMessage);
     }
     PublishRequest request = new PublishRequest().setMessages(pubsubMessages);
@@ -135,21 +144,22 @@ public class PubsubJsonClient extends PubsubClient {
 
   private Map<String, String> getMessageAttributes(OutgoingMessage outgoingMessage) {
     Map<String, String> attributes = null;
-    if (outgoingMessage.attributes == null) {
+    if (outgoingMessage.message().getAttributesMap() == null) {
       attributes = new TreeMap<>();
     } else {
-      attributes = new TreeMap<>(outgoingMessage.attributes);
+      attributes = new TreeMap<>(outgoingMessage.message().getAttributesMap());
     }
     if (timestampAttribute != null) {
-      attributes.put(timestampAttribute, String.valueOf(outgoingMessage.timestampMsSinceEpoch));
+      attributes.put(timestampAttribute, String.valueOf(outgoingMessage.timestampMsSinceEpoch()));
     }
-    if (idAttribute != null && !Strings.isNullOrEmpty(outgoingMessage.recordId)) {
-      attributes.put(idAttribute, outgoingMessage.recordId);
+    if (idAttribute != null && !Strings.isNullOrEmpty(outgoingMessage.recordId())) {
+      attributes.put(idAttribute, outgoingMessage.recordId());
     }
     return attributes;
   }
 
   @Override
+  @SuppressWarnings("ProtoFieldNullComparison")
   public List<IncomingMessage> pull(
       long requestTimeMsSinceEpoch,
       SubscriptionPath subscription,
@@ -166,7 +176,12 @@ public class PubsubJsonClient extends PubsubClient {
     List<IncomingMessage> incomingMessages = new ArrayList<>(response.getReceivedMessages().size());
     for (ReceivedMessage message : response.getReceivedMessages()) {
       PubsubMessage pubsubMessage = message.getMessage();
-      @Nullable Map<String, String> attributes = pubsubMessage.getAttributes();
+      Map<String, String> attributes;
+      if (pubsubMessage.getAttributes() != null) {
+        attributes = pubsubMessage.getAttributes();
+      } else {
+        attributes = new HashMap<>();
+      }
 
       // Payload.
       byte[] elementBytes = pubsubMessage.getData() == null ? null : pubsubMessage.decodeData();
@@ -184,7 +199,7 @@ public class PubsubJsonClient extends PubsubClient {
 
       // Record id, if any.
       @Nullable String recordId = null;
-      if (idAttribute != null && attributes != null) {
+      if (idAttribute != null) {
         recordId = attributes.get(idAttribute);
       }
       if (Strings.isNullOrEmpty(recordId)) {
@@ -192,10 +207,19 @@ public class PubsubJsonClient extends PubsubClient {
         recordId = pubsubMessage.getMessageId();
       }
 
+      com.google.pubsub.v1.PubsubMessage.Builder protoMessage =
+          com.google.pubsub.v1.PubsubMessage.newBuilder();
+      protoMessage.setData(ByteString.copyFrom(elementBytes));
+      protoMessage.putAllAttributes(attributes);
+      // PubsubMessage uses `null` to represent no ordering key where we want a default of "".
+      if (pubsubMessage.getOrderingKey() != null) {
+        protoMessage.setOrderingKey(pubsubMessage.getOrderingKey());
+      } else {
+        protoMessage.setOrderingKey("");
+      }
       incomingMessages.add(
-          new IncomingMessage(
-              elementBytes,
-              attributes,
+          IncomingMessage.of(
+              protoMessage.build(),
               timestampMsSinceEpoch,
               requestTimeMsSinceEpoch,
               ackId,

@@ -25,6 +25,9 @@ import java.util.Map;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.Schema.LogicalType;
+import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
+import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType.Value;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -154,6 +157,73 @@ public class RowCoderTest {
                     Lists.newArrayList(5, 6, 7, 8),
                     Lists.newArrayList(9, 10, 11, 12)))
             .build();
+
+    CoderProperties.coderDecodeEncodeEqual(RowCoder.of(schema), row);
+  }
+
+  @Test
+  public void testLogicalType() throws Exception {
+    EnumerationType enumeration = EnumerationType.create("one", "two", "three");
+    Schema schema = Schema.builder().addLogicalTypeField("f_enum", enumeration).build();
+    Row row = Row.withSchema(schema).addValue(enumeration.valueOf("two")).build();
+
+    CoderProperties.coderDecodeEncodeEqual(RowCoder.of(schema), row);
+  }
+
+  @Test
+  public void testLogicalTypeInCollection() throws Exception {
+    EnumerationType enumeration = EnumerationType.create("one", "two", "three");
+    Schema schema =
+        Schema.builder().addArrayField("f_enum_array", FieldType.logicalType(enumeration)).build();
+    Row row =
+        Row.withSchema(schema)
+            .addArray(enumeration.valueOf("two"), enumeration.valueOf("three"))
+            .build();
+
+    CoderProperties.coderDecodeEncodeEqual(RowCoder.of(schema), row);
+  }
+
+  private static class NestedLogicalType implements LogicalType<String, EnumerationType.Value> {
+    EnumerationType enumeration;
+
+    NestedLogicalType(EnumerationType enumeration) {
+      this.enumeration = enumeration;
+    }
+
+    @Override
+    public String getIdentifier() {
+      return "";
+    }
+
+    @Override
+    public FieldType getArgumentType() {
+      return FieldType.STRING;
+    }
+
+    @Override
+    public FieldType getBaseType() {
+      return FieldType.logicalType(enumeration);
+    }
+
+    @Override
+    public Value toBaseType(String input) {
+      return enumeration.valueOf(input);
+    }
+
+    @Override
+    public String toInputType(Value base) {
+      return enumeration.toString(base);
+    }
+  }
+
+  @Test
+  public void testNestedLogicalTypes() throws Exception {
+    EnumerationType enumeration = EnumerationType.create("one", "two", "three");
+    Schema schema =
+        Schema.builder()
+            .addLogicalTypeField("f_nested_logical_type", new NestedLogicalType(enumeration))
+            .build();
+    Row row = Row.withSchema(schema).addValue("two").build();
 
     CoderProperties.coderDecodeEncodeEqual(RowCoder.of(schema), row);
   }

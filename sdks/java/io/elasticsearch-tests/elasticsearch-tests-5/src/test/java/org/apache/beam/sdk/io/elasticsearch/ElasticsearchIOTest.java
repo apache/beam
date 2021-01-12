@@ -19,8 +19,6 @@ package org.apache.beam.sdk.io.elasticsearch;
 
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.ConnectionConfiguration;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.ES_TYPE;
-import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.UPDATE_INDEX;
-import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.UPDATE_TYPE;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.getEsIndex;
 import static org.elasticsearch.test.ESIntegTestCase.Scope.SUITE;
 
@@ -49,6 +47,9 @@ Cannot have @BeforeClass @AfterClass with ESIntegTestCase
 @ThreadLeakScope(ThreadLeakScope.Scope.NONE)
 // use cluster of 1 node that has data + master roles
 @ESIntegTestCase.ClusterScope(scope = SUITE, numDataNodes = 1, supportsDedicatedMasters = false)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable {
 
   private ElasticsearchIOTestCommon elasticsearchIOTestCommon;
@@ -95,7 +96,7 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
     if (connectionConfiguration == null) {
       connectionConfiguration =
           ConnectionConfiguration.create(fillAddresses(), getEsIndex(), ES_TYPE)
-              .withSocketAndRetryTimeout(120000)
+              .withSocketTimeout(120000)
               .withConnectTimeout(5000);
       elasticsearchIOTestCommon =
           new ElasticsearchIOTestCommon(connectionConfiguration, getRestClient(), false);
@@ -202,17 +203,6 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
   }
 
   @Test
-  public void testWritePartialUpdateWithErrors() throws Exception {
-    // cannot share elasticsearchIOTestCommon because tests run in parallel.
-    ConnectionConfiguration connectionConfiguration =
-        ConnectionConfiguration.create(fillAddresses(), UPDATE_INDEX, UPDATE_TYPE);
-    ElasticsearchIOTestCommon elasticsearchIOTestCommonWithErrors =
-        new ElasticsearchIOTestCommon(connectionConfiguration, getRestClient(), false);
-    elasticsearchIOTestCommonWithErrors.setPipeline(pipeline);
-    elasticsearchIOTestCommonWithErrors.testWritePartialUpdateWithErrors();
-  }
-
-  @Test
   public void testReadWithMetadata() throws Exception {
     elasticsearchIOTestCommon.setPipeline(pipeline);
     elasticsearchIOTestCommon.testReadWithMetadata();
@@ -234,5 +224,12 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
   public void testWriteRetryValidRequest() throws Throwable {
     elasticsearchIOTestCommon.setPipeline(pipeline);
     elasticsearchIOTestCommon.testWriteRetryValidRequest();
+  }
+
+  @Test
+  public void testWriteWithIsDeleteFn() throws Exception {
+    elasticsearchIOTestCommon.setPipeline(pipeline);
+    elasticsearchIOTestCommon.testWriteWithIsDeletedFnWithPartialUpdates();
+    elasticsearchIOTestCommon.testWriteWithIsDeletedFnWithoutPartialUpdate();
   }
 }

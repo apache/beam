@@ -17,16 +17,30 @@
  */
 package org.apache.beam.sdk.extensions.sql.zetasql.translation;
 
+import com.google.zetasql.resolvedast.ResolvedNode;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.zetasql.QueryTrait;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptCluster;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.FrameworkConfig;
 
 /** Conversion context, some rules need this data to convert the nodes. */
+@Internal
 public class ConversionContext {
   private final FrameworkConfig config;
   private final ExpressionConverter expressionConverter;
   private final RelOptCluster cluster;
   private final QueryTrait trait;
+
+  // SQL native user-defined table-valued function can be resolved by Analyzer. Its sql body is
+  // converted to ResolvedNode, in which function parameters are replaced with ResolvedArgumentRef.
+  // Meanwhile, Analyzer provides values for function parameters because it looks ahead to find
+  // the SELECT query. Thus keep the argument name to values (converted to RexNode) mapping in
+  // Context for future usage in plan conversion.
+  private Map<String, RexNode> functionArgumentRefMapping;
 
   public static ConversionContext of(
       FrameworkConfig config,
@@ -45,6 +59,7 @@ public class ConversionContext {
     this.expressionConverter = expressionConverter;
     this.cluster = cluster;
     this.trait = trait;
+    this.functionArgumentRefMapping = new HashMap<>();
   }
 
   FrameworkConfig getConfig() {
@@ -61,5 +76,21 @@ public class ConversionContext {
 
   QueryTrait getTrait() {
     return trait;
+  }
+
+  Map<List<String>, ResolvedNode> getUserDefinedTableValuedFunctions() {
+    return getExpressionConverter().userFunctionDefinitions.sqlTableValuedFunctions();
+  }
+
+  Map<String, RexNode> getFunctionArgumentRefMapping() {
+    return functionArgumentRefMapping;
+  }
+
+  void addToFunctionArgumentRefMapping(String s, RexNode r) {
+    getFunctionArgumentRefMapping().put(s, r);
+  }
+
+  void clearFunctionArgumentRefMapping() {
+    getFunctionArgumentRefMapping().clear();
   }
 }

@@ -23,6 +23,7 @@ import java.time.Duration;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeoutException;
 import org.apache.beam.fn.harness.FnHarness;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
@@ -47,6 +48,9 @@ import org.slf4j.LoggerFactory;
  * An {@link EnvironmentFactory} that communicates to a {@link FnHarness} which is executing in the
  * same process.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class EmbeddedEnvironmentFactory implements EnvironmentFactory {
   private static final Logger LOG = LoggerFactory.getLogger(EmbeddedEnvironmentFactory.class);
 
@@ -86,14 +90,15 @@ public class EmbeddedEnvironmentFactory implements EnvironmentFactory {
 
   @Override
   @SuppressWarnings("FutureReturnValueIgnored") // no need to monitor shutdown thread
-  public RemoteEnvironment createEnvironment(Environment environment) throws Exception {
+  public RemoteEnvironment createEnvironment(Environment environment, String workerId)
+      throws Exception {
     ExecutorService executor = Executors.newSingleThreadExecutor();
     Future<?> fnHarness =
         executor.submit(
             () -> {
               try {
                 FnHarness.main(
-                    "id",
+                    workerId,
                     options,
                     loggingServer.getApiServiceDescriptor(),
                     controlServer.getApiServiceDescriptor(),
@@ -123,8 +128,23 @@ public class EmbeddedEnvironmentFactory implements EnvironmentFactory {
           }
         });
 
-    // TODO: find some way to populate the actual ID in FnHarness.main()
-    InstructionRequestHandler handler = clientSource.take("", Duration.ofMinutes(1L));
+    InstructionRequestHandler handler = null;
+    // Wait on a client from the gRPC server.
+    while (handler == null) {
+      try {
+        // If the thread is not alive anymore, we abort.
+        if (executor.isShutdown()) {
+          throw new IllegalStateException("FnHarness startup failed");
+        }
+        // TODO: find some way to populate the actual ID in FnHarness.main()
+        handler = clientSource.take("", Duration.ofSeconds(5L));
+      } catch (TimeoutException timeoutEx) {
+        LOG.info("Still waiting for startup of FnHarness");
+      } catch (InterruptedException interruptEx) {
+        Thread.currentThread().interrupt();
+        throw new RuntimeException(interruptEx);
+      }
+    }
     return RemoteEnvironment.forHandler(environment, handler);
   }
 

@@ -17,9 +17,13 @@
  */
 package org.apache.beam.sdk.util;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
 import java.io.ByteArrayOutputStream;
+import java.io.FilterOutputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -29,6 +33,9 @@ import org.junit.runners.JUnit4;
 
 /** Unit tests for {@link UnownedOutputStream}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class UnownedOutputStreamTest {
   @Rule public ExpectedException expectedException = ExpectedException.none();
   private ByteArrayOutputStream baos;
@@ -52,5 +59,39 @@ public class UnownedOutputStreamTest {
     expectedException.expect(UnsupportedOperationException.class);
     expectedException.expectMessage("Caller does not own the underlying");
     os.close();
+  }
+
+  @Test
+  public void testWrite() throws IOException {
+    CallCountOutputStream fsCount = new CallCountOutputStream();
+    FilterOutputStream fs = new FilterOutputStream(fsCount);
+    CallCountOutputStream osCount = new CallCountOutputStream();
+    UnownedOutputStream os = new UnownedOutputStream(osCount);
+
+    byte[] data = "Hello World!".getBytes(StandardCharsets.UTF_8);
+    fs.write(data, 0, data.length);
+    os.write(data, 0, data.length);
+    fs.write('\n');
+    os.write('\n');
+
+    assertEquals(13, fsCount.callCnt);
+    assertEquals(2, osCount.callCnt);
+    assertArrayEquals(fsCount.toByteArray(), osCount.toByteArray());
+  }
+
+  private static final class CallCountOutputStream extends ByteArrayOutputStream {
+    int callCnt;
+
+    @Override
+    public synchronized void write(int b) {
+      callCnt++;
+      super.write(b);
+    }
+
+    @Override
+    public synchronized void write(byte[] b, int off, int len) {
+      callCnt++;
+      super.write(b, off, len);
+    }
   }
 }

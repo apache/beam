@@ -19,6 +19,8 @@
 
 For internal use only. No backwards compatibility guarantees.
 """
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging
@@ -48,13 +50,14 @@ def proxy_info_from_environment_var(proxy_env_var):
     return None
   proxy_protocol = proxy_env_var.lower().split('_')[0]
   if not re.match('^https?://', proxy_url, flags=re.IGNORECASE):
-    logging.warning("proxy_info_from_url requires a protocol, which is always "
-                    "http or https.")
+    logging.warning(
+        "proxy_info_from_url requires a protocol, which is always "
+        "http or https.")
     proxy_url = proxy_protocol + '://' + proxy_url
   return httplib2.proxy_info_from_url(proxy_url, method=proxy_protocol)
 
 
-def get_new_http():
+def get_new_http(timeout_secs=DEFAULT_HTTP_TIMEOUT_SECONDS):
   """Creates and returns a new httplib2.Http instance.
 
   Returns:
@@ -66,5 +69,4 @@ def get_new_http():
       proxy_info = proxy_info_from_environment_var(proxy_env_var)
       break
   # Use a non-infinite SSL timeout to avoid hangs during network flakiness.
-  return httplib2.Http(proxy_info=proxy_info,
-                       timeout=DEFAULT_HTTP_TIMEOUT_SECONDS)
+  return httplib2.Http(proxy_info=proxy_info, timeout=timeout_secs)

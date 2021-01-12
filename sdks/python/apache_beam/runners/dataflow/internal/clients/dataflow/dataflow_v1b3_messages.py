@@ -305,6 +305,21 @@ class ConcatPosition(_messages.Message):
   position = _messages.MessageField('Position', 2)
 
 
+class ContainerSpec(_messages.Message):
+  r"""Container Spec.
+
+  Fields:
+    image: Name of the docker container image. E.g., gcr.io/project/some-image
+    metadata: Metadata describing a template including description and
+      validation rules.
+    sdkInfo: Required. SDK info of the Flex Template.
+  """
+
+  image = _messages.StringField(1)
+  metadata = _messages.MessageField('TemplateMetadata', 2)
+  sdkInfo = _messages.MessageField('SDKInfo', 3)
+
+
 class CounterMetadata(_messages.Message):
   r"""CounterMetadata includes all static non-name non-value counter
   attributes.
@@ -917,6 +932,24 @@ class DataflowProjectsJobsWorkItemsReportStatusRequest(_messages.Message):
   jobId = _messages.StringField(1, required=True)
   projectId = _messages.StringField(2, required=True)
   reportWorkItemStatusRequest = _messages.MessageField('ReportWorkItemStatusRequest', 3)
+
+
+class DataflowProjectsLocationsFlexTemplatesLaunchRequest(_messages.Message):
+  r"""A DataflowProjectsLocationsFlexTemplatesLaunchRequest object.
+
+  Fields:
+    launchFlexTemplateRequest: A LaunchFlexTemplateRequest resource to be
+      passed as the request body.
+    location: Required. The [regional endpoint]
+      (https://cloud.google.com/dataflow/docs/concepts/regional-endpoints) to
+      which to direct the request. E.g., us-central1, us-west1.
+    projectId: Required. The ID of the Cloud Platform project that the job
+      belongs to.
+  """
+
+  launchFlexTemplateRequest = _messages.MessageField('LaunchFlexTemplateRequest', 1)
+  location = _messages.StringField(2, required=True)
+  projectId = _messages.StringField(3, required=True)
 
 
 class DataflowProjectsLocationsJobsCreateRequest(_messages.Message):
@@ -1993,15 +2026,35 @@ class GetDebugConfigResponse(_messages.Message):
 class GetTemplateResponse(_messages.Message):
   r"""The response to a GetTemplate request.
 
+  Enums:
+    TemplateTypeValueValuesEnum: Template Type.
+
   Fields:
     metadata: The template metadata describing the template name, available
       parameters, etc.
+    runtimeMetadata: Describes the runtime metadata with SDKInfo and available
+      parameters.
     status: The status of the get template request. Any problems with the
       request will be indicated in the error_details.
+    templateType: Template Type.
   """
 
+  class TemplateTypeValueValuesEnum(_messages.Enum):
+    r"""Template Type.
+
+    Values:
+      UNKNOWN: Unknown Template Type.
+      LEGACY: Legacy Template.
+      FLEX: Flex Template.
+    """
+    UNKNOWN = 0
+    LEGACY = 1
+    FLEX = 2
+
   metadata = _messages.MessageField('TemplateMetadata', 1)
-  status = _messages.MessageField('Status', 2)
+  runtimeMetadata = _messages.MessageField('RuntimeMetadata', 2)
+  status = _messages.MessageField('Status', 3)
+  templateType = _messages.EnumField('TemplateTypeValueValuesEnum', 4)
 
 
 class Histogram(_messages.Message):
@@ -2678,6 +2731,74 @@ class KeyRangeLocation(_messages.Message):
   start = _messages.StringField(5)
 
 
+class LaunchFlexTemplateParameter(_messages.Message):
+  r"""Launch FlexTemplate Parameter.
+
+  Messages:
+    ParametersValue: The parameters for FlexTemplate. Ex. {"num_workers":"5"}
+
+  Fields:
+    containerSpec: Spec about the container image to launch.
+    containerSpecGcsPath: Gcs path to a file with json serialized
+      ContainerSpec as content.
+    jobName: Required. The job name to use for the created job.
+    parameters: The parameters for FlexTemplate. Ex. {"num_workers":"5"}
+  """
+
+  @encoding.MapUnrecognizedFields('additionalProperties')
+  class ParametersValue(_messages.Message):
+    r"""The parameters for FlexTemplate. Ex. {"num_workers":"5"}
+
+    Messages:
+      AdditionalProperty: An additional property for a ParametersValue object.
+
+    Fields:
+      additionalProperties: Additional properties of type ParametersValue
+    """
+
+    class AdditionalProperty(_messages.Message):
+      r"""An additional property for a ParametersValue object.
+
+      Fields:
+        key: Name of the additional property.
+        value: A string attribute.
+      """
+
+      key = _messages.StringField(1)
+      value = _messages.StringField(2)
+
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+
+  containerSpec = _messages.MessageField('ContainerSpec', 1)
+  containerSpecGcsPath = _messages.StringField(2)
+  jobName = _messages.StringField(3)
+  parameters = _messages.MessageField('ParametersValue', 4)
+
+
+class LaunchFlexTemplateRequest(_messages.Message):
+  r"""A request to launch a Cloud Dataflow job from a FlexTemplate.
+
+  Fields:
+    launchParameter: Required. Parameter to launch a job form Flex Template.
+    validateOnly: If true, the request is validated but not actually executed.
+      Defaults to false.
+  """
+
+  launchParameter = _messages.MessageField('LaunchFlexTemplateParameter', 1)
+  validateOnly = _messages.BooleanField(2)
+
+
+class LaunchFlexTemplateResponse(_messages.Message):
+  r"""Response to the request to launch a job from Flex Template.
+
+  Fields:
+    job: The job that was launched, if the request was not a dry run and the
+      job was successfully launched.
+  """
+
+  job = _messages.MessageField('Job', 1)
+
+
 class LaunchTemplateParameters(_messages.Message):
   r"""Parameters to provide to the template being launched.
 
@@ -2884,8 +3005,11 @@ class ListJobMessagesResponse(_messages.Message):
 
 
 class ListJobsResponse(_messages.Message):
-  r"""Response to a request to list Cloud Dataflow jobs.  This may be a
-  partial response, depending on the page size in the ListJobsRequest.
+  r"""Response to a request to list Cloud Dataflow jobs in a project. This
+  might be a partial response, depending on the page size in the
+  ListJobsRequest. However, if the project does not have any jobs, an instance
+  of ListJobsResponse is not returned and the requests's response body is
+  empty {}.
 
   Fields:
     failedLocation: Zero or more messages describing the [regional endpoints]
@@ -3224,20 +3348,53 @@ class Parameter(_messages.Message):
 class ParameterMetadata(_messages.Message):
   r"""Metadata for a specific parameter.
 
+  Enums:
+    ParamTypeValueValuesEnum: Optional. The type of the parameter. Used for
+      selecting input picker.
+
   Fields:
     helpText: Required. The help text to display for the parameter.
     isOptional: Optional. Whether the parameter is optional. Defaults to
       false.
     label: Required. The label to display for the parameter.
     name: Required. The name of the parameter.
+    paramType: Optional. The type of the parameter. Used for selecting input
+      picker.
     regexes: Optional. Regexes that the parameter must match.
   """
+
+  class ParamTypeValueValuesEnum(_messages.Enum):
+    r"""Optional. The type of the parameter. Used for selecting input picker.
+
+    Values:
+      DEFAULT: Default input type.
+      TEXT: The parameter specifies generic text input.
+      GCS_READ_BUCKET: The parameter specifies a GCS Bucket to read from.
+      GCS_WRITE_BUCKET: The parameter specifies a GCS Bucket to write to.
+      GCS_READ_FILE: The parameter specifies a GCS file path to read from.
+      GCS_WRITE_FILE: The parameter specifies a GCS file path to write to.
+      GCS_READ_FOLDER: The parameter specifies a GCS folder path to read from.
+      GCS_WRITE_FOLDER: The parameter specifies a GCS folder to write to.
+      PUBSUB_TOPIC: The parameter specifies a Pub/Sub Topic.
+      PUBSUB_SUBSCRIPTION: The parameter specifies a Pub/Sub Subscription.
+    """
+    DEFAULT = 0
+    TEXT = 1
+    GCS_READ_BUCKET = 2
+    GCS_WRITE_BUCKET = 3
+    GCS_READ_FILE = 4
+    GCS_WRITE_FILE = 5
+    GCS_READ_FOLDER = 6
+    GCS_WRITE_FOLDER = 7
+    PUBSUB_TOPIC = 8
+    PUBSUB_SUBSCRIPTION = 9
 
   helpText = _messages.StringField(1)
   isOptional = _messages.BooleanField(2)
   label = _messages.StringField(3)
   name = _messages.StringField(4)
-  regexes = _messages.StringField(5, repeated=True)
+  paramType = _messages.EnumField('ParamTypeValueValuesEnum', 5)
+  regexes = _messages.StringField(6, repeated=True)
 
 
 class PartialGroupByKeyInstruction(_messages.Message):
@@ -3665,6 +3822,62 @@ class RuntimeEnvironment(_messages.Message):
   workerRegion = _messages.StringField(13)
   workerZone = _messages.StringField(14)
   zone = _messages.StringField(15)
+
+
+class RuntimeMetadata(_messages.Message):
+  r"""RuntimeMetadata describing a runtime environment.
+
+  Fields:
+    parameters: The parameters for the template.
+    sdkInfo: SDK Info for the template.
+  """
+
+  parameters = _messages.MessageField('ParameterMetadata', 1, repeated=True)
+  sdkInfo = _messages.MessageField('SDKInfo', 2)
+
+
+class SDKInfo(_messages.Message):
+  r"""SDK Information.
+
+  Enums:
+    LanguageValueValuesEnum: Required. The SDK Language.
+
+  Fields:
+    language: Required. The SDK Language.
+    version: Optional. The SDK version.
+  """
+
+  class LanguageValueValuesEnum(_messages.Enum):
+    r"""Required. The SDK Language.
+
+    Values:
+      UNKNOWN: UNKNOWN Language.
+      JAVA: Java.
+      PYTHON: Python.
+    """
+    UNKNOWN = 0
+    JAVA = 1
+    PYTHON = 2
+
+  language = _messages.EnumField('LanguageValueValuesEnum', 1)
+  version = _messages.StringField(2)
+
+
+class SdkHarnessContainerImage(_messages.Message):
+  r"""Defines a SDK harness container for executing Dataflow pipelines.
+
+  Fields:
+    containerImage: A docker container image that resides in Google Container
+      Registry.
+    useSingleCorePerContainer: If true, recommends the Dataflow service to use
+      only one core per SDK container instance with this image. If false (or
+      unset) recommends using more than one core per SDK container instance
+      with this image for efficiency. Note that Dataflow service may choose to
+      override this property if needed.
+  """
+
+  containerImage = _messages.StringField(1)
+  useSingleCorePerContainer = _messages.BooleanField(2)
 
 
 class SdkVersion(_messages.Message):
@@ -5504,6 +5717,10 @@ class WorkerPool(_messages.Message):
       the Google Compute Engine API.
     packages: Packages to be installed on workers.
     poolArgs: Extra arguments for this worker pool.
+    sdkHarnessContainerImages: Set of SDK harness containers needed to execute
+      this pipeline. This will only be set in the Fn API path. For non-cross-
+      language pipelines this should have only one entry. Cross-language
+      pipelines will have two or more entries.
     subnetwork: Subnetwork to which VMs will be assigned, if desired.
       Expected to be of the form "regions/REGION/subnetworks/SUBNETWORK".
     taskrunnerSettings: Settings passed through to Google Compute Engine
@@ -5522,7 +5739,8 @@ class WorkerPool(_messages.Message):
       unspecified, the service will attempt to choose a reasonable default.
     workerHarnessContainerImage: Required. Docker container image that
       executes the Cloud Dataflow worker harness, residing in Google Container
-      Registry.
+      Registry.  Deprecated for the Fn API path. Use
+      sdk_harness_container_images instead.
     zone: Zone to run the worker pools in.  If empty or unspecified, the
       service will attempt to choose a reasonable default.
   """
@@ -5651,11 +5869,12 @@ class WorkerPool(_messages.Message):
   onHostMaintenance = _messages.StringField(14)
   packages = _messages.MessageField('Package', 15, repeated=True)
   poolArgs = _messages.MessageField('PoolArgsValue', 16)
-  subnetwork = _messages.StringField(17)
-  taskrunnerSettings = _messages.MessageField('TaskRunnerSettings', 18)
-  teardownPolicy = _messages.EnumField('TeardownPolicyValueValuesEnum', 19)
-  workerHarnessContainerImage = _messages.StringField(20)
-  zone = _messages.StringField(21)
+  sdkHarnessContainerImages = _messages.MessageField('SdkHarnessContainerImage', 17, repeated=True)
+  subnetwork = _messages.StringField(18)
+  taskrunnerSettings = _messages.MessageField('TaskRunnerSettings', 19)
+  teardownPolicy = _messages.EnumField('TeardownPolicyValueValuesEnum', 20)
+  workerHarnessContainerImage = _messages.StringField(21)
+  zone = _messages.StringField(22)
 
 
 class WorkerSettings(_messages.Message):

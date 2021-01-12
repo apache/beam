@@ -17,6 +17,8 @@
 
 """Unit tests for side inputs."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging
@@ -26,9 +28,14 @@ from nose.plugins.attrib import attr
 
 import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.testing.util import equal_to_per_window
+from apache_beam.transforms import Map
+from apache_beam.transforms import trigger
 from apache_beam.transforms import window
+from apache_beam.utils.timestamp import Timestamp
 
 
 class SideInputsTest(unittest.TestCase):
@@ -38,11 +45,14 @@ class SideInputsTest(unittest.TestCase):
   def create_pipeline(self):
     return TestPipeline()
 
-  def run_windowed_side_inputs(self, elements, main_window_fn,
-                               side_window_fn=None,
-                               side_input_type=beam.pvalue.AsList,
-                               combine_fn=None,
-                               expected=None):
+  def run_windowed_side_inputs(
+      self,
+      elements,
+      main_window_fn,
+      side_window_fn=None,
+      side_input_type=beam.pvalue.AsList,
+      combine_fn=None,
+      expected=None):
     with self.create_pipeline() as p:
       pcoll = p | beam.Create(elements) | beam.Map(
           lambda t: window.TimestampedValue(t, t))
@@ -61,31 +71,31 @@ class SideInputsTest(unittest.TestCase):
       assert_that(res, equal_to(expected))
 
   def test_global_global_windows(self):
-    self.run_windowed_side_inputs(
-        [1, 2, 3],
-        window.GlobalWindows(),
-        expected=[(1, [1, 2, 3]), (2, [1, 2, 3]), (3, [1, 2, 3])])
+    self.run_windowed_side_inputs([1, 2, 3],
+                                  window.GlobalWindows(),
+                                  expected=[(1, [1, 2, 3]), (2, [1, 2, 3]),
+                                            (3, [1, 2, 3])])
 
   def test_same_fixed_windows(self):
-    self.run_windowed_side_inputs(
-        [1, 2, 11],
-        window.FixedWindows(10),
-        expected=[(1, [1, 2]), (2, [1, 2]), (11, [11])])
+    self.run_windowed_side_inputs([1, 2, 11],
+                                  window.FixedWindows(10),
+                                  expected=[(1, [1, 2]), (2, [1, 2]),
+                                            (11, [11])])
 
   def test_different_fixed_windows(self):
-    self.run_windowed_side_inputs(
-        [1, 2, 11, 21, 31],
-        window.FixedWindows(10),
-        window.FixedWindows(20),
-        expected=[(1, [1, 2, 11]), (2, [1, 2, 11]), (11, [1, 2, 11]),
-                  (21, [21, 31]), (31, [21, 31])])
+    self.run_windowed_side_inputs([1, 2, 11, 21, 31],
+                                  window.FixedWindows(10),
+                                  window.FixedWindows(20),
+                                  expected=[(1, [1, 2, 11]), (2, [1, 2, 11]),
+                                            (11, [1, 2, 11]), (21, [21, 31]),
+                                            (31, [21, 31])])
 
   def test_fixed_global_window(self):
-    self.run_windowed_side_inputs(
-        [1, 2, 11],
-        window.FixedWindows(10),
-        window.GlobalWindows(),
-        expected=[(1, [1, 2, 11]), (2, [1, 2, 11]), (11, [1, 2, 11])])
+    self.run_windowed_side_inputs([1, 2, 11],
+                                  window.FixedWindows(10),
+                                  window.GlobalWindows(),
+                                  expected=[(1, [1, 2, 11]), (2, [1, 2, 11]),
+                                            (11, [1, 2, 11])])
 
   def test_sliding_windows(self):
     self.run_windowed_side_inputs(
@@ -108,30 +118,34 @@ class SideInputsTest(unittest.TestCase):
         ])
 
   def test_windowed_iter(self):
-    self.run_windowed_side_inputs(
-        [1, 2, 11],
-        window.FixedWindows(10),
-        side_input_type=beam.pvalue.AsIter,
-        expected=[(1, [1, 2]), (2, [1, 2]), (11, [11])])
+    self.run_windowed_side_inputs([1, 2, 11],
+                                  window.FixedWindows(10),
+                                  side_input_type=beam.pvalue.AsIter,
+                                  expected=[(1, [1, 2]), (2, [1, 2]),
+                                            (11, [11])])
 
   def test_windowed_singleton(self):
-    self.run_windowed_side_inputs(
-        [1, 2, 11],
-        window.FixedWindows(10),
-        side_input_type=beam.pvalue.AsSingleton,
-        combine_fn=sum,
-        expected=[(1, 3), (2, 3), (11, 11)])
+    self.run_windowed_side_inputs([1, 2, 11],
+                                  window.FixedWindows(10),
+                                  side_input_type=beam.pvalue.AsSingleton,
+                                  combine_fn=sum,
+                                  expected=[(1, 3), (2, 3), (11, 11)])
 
   def test_windowed_dict(self):
-    self.run_windowed_side_inputs(
-        [1, 2, 11],
-        window.FixedWindows(10),
-        side_input_type=beam.pvalue.AsDict,
-        expected=[
-            (1, {'k1': 'v1', 'k2': 'v2'}),
-            (2, {'k1': 'v1', 'k2': 'v2'}),
-            (11, {'k11': 'v11'}),
-        ])
+    self.run_windowed_side_inputs([1, 2, 11],
+                                  window.FixedWindows(10),
+                                  side_input_type=beam.pvalue.AsDict,
+                                  expected=[
+                                      (1, {
+                                          'k1': 'v1', 'k2': 'v2'
+                                      }),
+                                      (2, {
+                                          'k1': 'v1', 'k2': 'v2'
+                                      }),
+                                      (11, {
+                                          'k11': 'v11'
+                                      }),
+                                  ])
 
   @attr('ValidatesRunner')
   def test_empty_singleton_side_input(self):
@@ -143,6 +157,7 @@ class SideInputsTest(unittest.TestCase):
       # TODO(robertwb): Should this be an error as in Java?
       v = ('empty' if isinstance(s, beam.pvalue.EmptySideInput) else 'full')
       return [(k, v)]
+
     result = pcol | 'compute' >> beam.FlatMap(
         my_fn, beam.pvalue.AsSingleton(side))
     assert_that(result, equal_to([(1, 'empty'), (2, 'empty')]))
@@ -176,8 +191,7 @@ class SideInputsTest(unittest.TestCase):
     pcol = pipeline | 'start' >> beam.Create([1, 2])
     side = pipeline | 'side' >> beam.Create([3, 4])  # 2 values in side input.
     result = pcol | 'compute' >> beam.FlatMap(
-        lambda x, s: [x * y for y in s],
-        beam.pvalue.AsIter(side))
+        lambda x, s: [x * y for y in s], beam.pvalue.AsIter(side))
     assert_that(result, equal_to([3, 4, 6, 8]))
     pipeline.run()
 
@@ -190,15 +204,19 @@ class SideInputsTest(unittest.TestCase):
     side_list = pipeline | 'side list' >> beam.Create(a_list)
     side_pairs = pipeline | 'side pairs' >> beam.Create(some_pairs)
     results = main_input | 'concatenate' >> beam.Map(
-        lambda x, the_list, the_dict: [x, the_list, the_dict],
-        beam.pvalue.AsList(side_list), beam.pvalue.AsDict(side_pairs))
+        lambda x,
+        the_list,
+        the_dict: [x, the_list, the_dict],
+        beam.pvalue.AsList(side_list),
+        beam.pvalue.AsDict(side_pairs))
 
-    def  matcher(expected_elem, expected_list, expected_pairs):
+    def matcher(expected_elem, expected_list, expected_pairs):
       def match(actual):
         [[actual_elem, actual_list, actual_dict]] = actual
         equal_to([expected_elem])([actual_elem])
         equal_to(expected_list)(actual_list)
         equal_to(expected_pairs)(actual_dict.items())
+
       return match
 
     assert_that(results, matcher(1, a_list, some_pairs))
@@ -214,15 +232,19 @@ class SideInputsTest(unittest.TestCase):
     main_input = pipeline | 'main input' >> beam.Create([1])
     side_list = pipeline | 'side list' >> beam.Create(a_list)
     results = main_input | beam.Map(
-        lambda x, s1, s2: [x, s1, s2],
-        beam.pvalue.AsSingleton(side_list), beam.pvalue.AsSingleton(side_list))
+        lambda x,
+        s1,
+        s2: [x, s1, s2],
+        beam.pvalue.AsSingleton(side_list),
+        beam.pvalue.AsSingleton(side_list))
 
-    def  matcher(expected_elem, expected_singleton):
+    def matcher(expected_elem, expected_singleton):
       def match(actual):
         [[actual_elem, actual_singleton1, actual_singleton2]] = actual
         equal_to([expected_elem])([actual_elem])
         equal_to([expected_singleton])([actual_singleton1])
         equal_to([expected_singleton])([actual_singleton2])
+
       return match
 
     assert_that(results, matcher(1, 2))
@@ -235,16 +257,19 @@ class SideInputsTest(unittest.TestCase):
     main_input = pipeline | 'main input' >> beam.Create([1])
     side_list = pipeline | 'side list' >> beam.Create(a_list)
     results = main_input | beam.Map(
-        lambda x, s1, s2: [x, s1, s2],
+        lambda x,
+        s1,
+        s2: [x, s1, s2],
         beam.pvalue.AsSingleton(side_list, default_value=2),
         beam.pvalue.AsSingleton(side_list, default_value=3))
 
-    def  matcher(expected_elem, expected_singleton1, expected_singleton2):
+    def matcher(expected_elem, expected_singleton1, expected_singleton2):
       def match(actual):
         [[actual_elem, actual_singleton1, actual_singleton2]] = actual
         equal_to([expected_elem])([actual_elem])
         equal_to([expected_singleton1])([actual_singleton1])
         equal_to([expected_singleton2])([actual_singleton2])
+
       return match
 
     assert_that(results, matcher(1, 2, 3))
@@ -259,15 +284,19 @@ class SideInputsTest(unittest.TestCase):
     main_input = pipeline | 'main input' >> beam.Create([1])
     side_list = pipeline | 'side list' >> beam.Create(a_list)
     results = main_input | beam.Map(
-        lambda x, ls1, ls2: [x, ls1, ls2],
-        beam.pvalue.AsList(side_list), beam.pvalue.AsList(side_list))
+        lambda x,
+        ls1,
+        ls2: [x, ls1, ls2],
+        beam.pvalue.AsList(side_list),
+        beam.pvalue.AsList(side_list))
 
-    def  matcher(expected_elem, expected_list):
+    def matcher(expected_elem, expected_list):
       def match(actual):
         [[actual_elem, actual_list1, actual_list2]] = actual
         equal_to([expected_elem])([actual_elem])
         equal_to(expected_list)(actual_list1)
         equal_to(expected_list)(actual_list2)
+
       return match
 
     assert_that(results, matcher(1, [1, 2, 3]))
@@ -280,16 +309,19 @@ class SideInputsTest(unittest.TestCase):
     main_input = pipeline | 'main input' >> beam.Create([1])
     side_kvs = pipeline | 'side kvs' >> beam.Create(some_kvs)
     results = main_input | beam.Map(
-        lambda x, dct1, dct2: [x, dct1, dct2],
+        lambda x,
+        dct1,
+        dct2: [x, dct1, dct2],
         beam.pvalue.AsDict(side_kvs),
         beam.pvalue.AsDict(side_kvs))
 
-    def  matcher(expected_elem, expected_kvs):
+    def matcher(expected_elem, expected_kvs):
       def match(actual):
         [[actual_elem, actual_dict1, actual_dict2]] = actual
         equal_to([expected_elem])([actual_elem])
         equal_to(expected_kvs)(actual_dict1.items())
         equal_to(expected_kvs)(actual_dict2.items())
+
       return match
 
     assert_that(results, matcher(1, some_kvs))
@@ -303,11 +335,71 @@ class SideInputsTest(unittest.TestCase):
         pipeline | 'side1' >> beam.Create(['a']),
         pipeline | 'side2' >> beam.Create(['b'])) | beam.Flatten()
     results = main_input | beam.FlatMap(
-        lambda _, ab: ab,
-        beam.pvalue.AsList(side_input))
+        lambda _, ab: ab, beam.pvalue.AsList(side_input))
 
     assert_that(results, equal_to(['a', 'b']))
     pipeline.run()
+
+  # TODO(BEAM-9499): Disable this test in streaming temporarily.
+  @attr('ValidatesRunner', 'sickbay-batch', 'sickbay-streaming')
+  def test_multi_triggered_gbk_side_input(self):
+    """Test a GBK sideinput, with multiple triggering."""
+    # TODO(BEAM-9322): Remove use of this experiment.
+    # This flag is only necessary when using the multi-output TestStream b/c
+    # it relies on using the PCollection output tags as the PCollection output
+    # ids.
+    with TestPipeline() as p:
+
+      test_stream = (
+          p
+          | 'Mixed TestStream' >> TestStream().advance_watermark_to(
+              3,
+              tag='main').add_elements(['a1'], tag='main').advance_watermark_to(
+                  8, tag='main').add_elements(['a2'], tag='main').add_elements(
+                      [window.TimestampedValue(('k', 100), 2)], tag='side').
+          add_elements([window.TimestampedValue(
+              ('k', 400), 7)], tag='side').advance_watermark_to_infinity(
+                  tag='main').advance_watermark_to_infinity(tag='side'))
+
+      main_data = (
+          test_stream['main']
+          | 'Main windowInto' >> beam.WindowInto(
+              window.FixedWindows(5),
+              accumulation_mode=trigger.AccumulationMode.DISCARDING))
+
+      side_data = (
+          test_stream['side']
+          | 'Side windowInto' >> beam.WindowInto(
+              window.FixedWindows(5),
+              trigger=trigger.AfterWatermark(early=trigger.AfterCount(1)),
+              accumulation_mode=trigger.AccumulationMode.DISCARDING)
+          | beam.CombinePerKey(sum)
+          | 'Values' >> Map(lambda k_vs: k_vs[1]))
+
+      class RecordFn(beam.DoFn):
+        def process(
+            self,
+            elm=beam.DoFn.ElementParam,
+            ts=beam.DoFn.TimestampParam,
+            side=beam.DoFn.SideInputParam):
+          yield (elm, ts, side)
+
+      records = (
+          main_data
+          | beam.ParDo(RecordFn(), beam.pvalue.AsList(side_data)))
+
+      expected_window_to_elements = {
+          window.IntervalWindow(0, 5): [
+              ('a1', Timestamp(3), [100, 0]),
+          ],
+          window.IntervalWindow(5, 10): [('a2', Timestamp(8), [400, 0])],
+      }
+
+      assert_that(
+          records,
+          equal_to_per_window(expected_window_to_elements),
+          use_global_window=False,
+          label='assert per window')
 
 
 if __name__ == '__main__':

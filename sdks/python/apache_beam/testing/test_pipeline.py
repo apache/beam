@@ -17,12 +17,13 @@
 
 """Test Pipeline, a wrapper of Pipeline for test purpose"""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import argparse
 import shlex
-
-from nose.plugins.skip import SkipTest
+from unittest import SkipTest
 
 from apache_beam.internal import pickler
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -31,7 +32,7 @@ from apache_beam.runners.runner import PipelineState
 
 __all__ = [
     'TestPipeline',
-    ]
+]
 
 
 class TestPipeline(Pipeline):
@@ -56,19 +57,18 @@ class TestPipeline(Pipeline):
 
   For example, use assert_that for test validation::
 
-    pipeline = TestPipeline()
-    pcoll = ...
-    assert_that(pcoll, equal_to(...))
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      pcoll = ...
+      assert_that(pcoll, equal_to(...))
   """
-
-  def __init__(self,
-               runner=None,
-               options=None,
-               argv=None,
-               is_integration_test=False,
-               blocking=True,
-               additional_pipeline_args=None):
+  def __init__(
+      self,
+      runner=None,
+      options=None,
+      argv=None,
+      is_integration_test=False,
+      blocking=True,
+      additional_pipeline_args=None):
     """Initialize a pipeline object for test.
 
     Args:
@@ -93,7 +93,7 @@ class TestPipeline(Pipeline):
         included when construction the pipeline options object.
 
     Raises:
-      ~exceptions.ValueError: if either the runner or options argument is not
+      ValueError: if either the runner or options argument is not
         of the expected type.
     """
     self.is_integration_test = is_integration_test
@@ -108,8 +108,8 @@ class TestPipeline(Pipeline):
 
   def run(self, test_runner_api=True):
     result = super(TestPipeline, self).run(
-        test_runner_api=(False if self.not_use_test_runner_api
-                         else test_runner_api))
+        test_runner_api=(
+            False if self.not_use_test_runner_api else test_runner_api))
     if self.blocking:
       state = result.wait_until_finish()
       assert state in (PipelineState.DONE, PipelineState.CANCELLED), \
@@ -133,22 +133,25 @@ class TestPipeline(Pipeline):
       build a pipeline option.
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument('--test-pipeline-options',
-                        type=str,
-                        action='store',
-                        help='only run tests providing service options')
-    parser.add_argument('--not-use-test-runner-api',
-                        action='store_true',
-                        default=False,
-                        help='whether not to use test-runner-api')
+    parser.add_argument(
+        '--test-pipeline-options',
+        type=str,
+        action='store',
+        help='only run tests providing service options')
+    parser.add_argument(
+        '--not-use-test-runner-api',
+        action='store_true',
+        default=False,
+        help='whether not to use test-runner-api')
     known, unused_argv = parser.parse_known_args(argv)
 
     if self.is_integration_test and not known.test_pipeline_options:
       # Skip integration test when argument '--test-pipeline-options' is not
       # specified since nose calls integration tests when runs unit test by
       # 'setup.py test'.
-      raise SkipTest('IT is skipped because --test-pipeline-options '
-                     'is not specified')
+      raise SkipTest(
+          'IT is skipped because --test-pipeline-options '
+          'is not specified')
 
     self.not_use_test_runner_api = known.not_use_test_runner_api
     return shlex.split(known.test_pipeline_options) \
@@ -173,7 +176,7 @@ class TestPipeline(Pipeline):
         options.append('--%s=%s' % (k, v))
     return options
 
-  def get_option(self, opt_name):
+  def get_option(self, opt_name, bool_option=False):
     """Get a pipeline option value by name
 
     Args:
@@ -186,8 +189,9 @@ class TestPipeline(Pipeline):
     parser = argparse.ArgumentParser()
     opt_name = opt_name[:2] if opt_name[:2] == '--' else opt_name
     # Option name should start with '--' when it's used for parsing.
-    parser.add_argument('--' + opt_name,
-                        type=str,
-                        action='store')
+    if bool_option:
+      parser.add_argument('--' + opt_name, action='store_true')
+    else:
+      parser.add_argument('--' + opt_name, type=str, action='store')
     known, _ = parser.parse_known_args(self.options_list)
     return getattr(known, opt_name) if hasattr(known, opt_name) else None

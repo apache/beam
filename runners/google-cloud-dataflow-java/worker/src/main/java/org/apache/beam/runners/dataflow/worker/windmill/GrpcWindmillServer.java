@@ -34,6 +34,8 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Random;
 import java.util.Set;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentHashMap;
@@ -46,10 +48,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.WindmillTimeUtils;
 import org.apache.beam.runners.dataflow.worker.options.StreamingDataflowWorkerOptions;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitStatus;
@@ -84,23 +86,24 @@ import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Sleeper;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.CallCredentials;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.Channel;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.Status;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.StatusRuntimeException;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.auth.MoreCallCredentials;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.inprocess.InProcessChannelBuilder;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.netty.GrpcSslContexts;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.netty.NegotiationType;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.netty.NettyChannelBuilder;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.CallCredentials;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.Channel;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.Status;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.StatusRuntimeException;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.auth.MoreCallCredentials;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.inprocess.InProcessChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.netty.GrpcSslContexts;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.netty.NegotiationType;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.netty.NettyChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Verify;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.net.HostAndPort;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -110,6 +113,9 @@ import org.slf4j.LoggerFactory;
 // Very likely real potential for bugs - https://issues.apache.org/jira/browse/BEAM-6562
 // Very likely real potential for bugs - https://issues.apache.org/jira/browse/BEAM-6564
 @SuppressFBWarnings({"JLM_JSR166_UTILCONCURRENT_MONITORENTER", "IS2_INCONSISTENT_SYNC"})
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class GrpcWindmillServer extends WindmillServerStub {
   private static final Logger LOG = LoggerFactory.getLogger(GrpcWindmillServer.class);
 
@@ -117,8 +123,6 @@ public class GrpcWindmillServer extends WindmillServerStub {
   // high.
   private static final long DEFAULT_UNARY_RPC_DEADLINE_SECONDS = 300;
   private static final long DEFAULT_STREAM_RPC_DEADLINE_SECONDS = 300;
-  // Stream clean close seconds must be set lower than the stream deadline seconds.
-  private static final long DEFAULT_STREAM_CLEAN_CLOSE_SECONDS = 180;
 
   private static final Duration MIN_BACKOFF = Duration.millis(1);
   private static final Duration MAX_BACKOFF = Duration.standardSeconds(30);
@@ -127,6 +131,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
   private static final int COMMIT_STREAM_CHUNK_SIZE = 2 << 20;
   private static final int GET_DATA_STREAM_CHUNK_SIZE = 2 << 20;
 
+  private static final long HEARTBEAT_REQUEST_ID = Long.MAX_VALUE;
   private static final AtomicLong nextId = new AtomicLong(0);
 
   private final StreamingDataflowWorkerOptions options;
@@ -137,20 +142,24 @@ public class GrpcWindmillServer extends WindmillServerStub {
       syncStubList = new ArrayList<>();
   private WindmillApplianceGrpc.WindmillApplianceBlockingStub syncApplianceStub = null;
   private long unaryDeadlineSeconds = DEFAULT_UNARY_RPC_DEADLINE_SECONDS;
+  private long streamDeadlineSeconds = DEFAULT_STREAM_RPC_DEADLINE_SECONDS;
   private ImmutableSet<HostAndPort> endpoints;
   private int logEveryNStreamFailures = 20;
   private Duration maxBackoff = MAX_BACKOFF;
   private final ThrottleTimer getWorkThrottleTimer = new ThrottleTimer();
   private final ThrottleTimer getDataThrottleTimer = new ThrottleTimer();
   private final ThrottleTimer commitWorkThrottleTimer = new ThrottleTimer();
-  Random rand = new Random();
+  private final Random rand = new Random();
 
   private final Set<AbstractWindmillStream<?, ?>> streamRegistry =
       Collections.newSetFromMap(new ConcurrentHashMap<AbstractWindmillStream<?, ?>, Boolean>());
 
+  private final Timer healthCheckTimer;
+
   public GrpcWindmillServer(StreamingDataflowWorkerOptions options) throws IOException {
     this.options = options;
     this.streamingRpcBatchLimit = options.getWindmillServiceStreamingRpcBatchLimit();
+    this.logEveryNStreamFailures = options.getWindmillServiceStreamingLogEveryNStreamFailures();
     this.endpoints = ImmutableSet.of();
     if (options.getWindmillServiceEndpoint() != null) {
       Set<HostAndPort> endpoints = new HashSet<>();
@@ -166,6 +175,27 @@ public class GrpcWindmillServer extends WindmillServerStub {
       int port = Integer.parseInt(options.getLocalWindmillHostport().substring(portStart + 1));
       this.endpoints = ImmutableSet.<HostAndPort>of(HostAndPort.fromParts("localhost", port));
       initializeLocalHost(port);
+    }
+    if (options.getWindmillServiceStreamingRpcHealthCheckPeriodMs() > 0) {
+      this.healthCheckTimer = new Timer("WindmillHealthCheckTimer");
+      this.healthCheckTimer.schedule(
+          new TimerTask() {
+            @Override
+            public void run() {
+              Instant reportThreshold =
+                  Instant.now()
+                      .minus(
+                          Duration.millis(
+                              options.getWindmillServiceStreamingRpcHealthCheckPeriodMs()));
+              for (AbstractWindmillStream<?, ?> stream : streamRegistry) {
+                stream.maybeSendHealthCheck(reportThreshold);
+              }
+            }
+          },
+          0,
+          options.getWindmillServiceStreamingRpcHealthCheckPeriodMs());
+    } else {
+      this.healthCheckTimer = null;
     }
   }
 
@@ -184,6 +214,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
       options.setExperiments(experiments);
     }
     this.stubList.add(CloudWindmillServiceV1Alpha1Grpc.newStub(inProcessChannel(name)));
+    this.healthCheckTimer = null;
   }
 
   private boolean streamingEngineEnabled() {
@@ -213,7 +244,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
   private synchronized void initializeLocalHost(int port) throws IOException {
     this.logEveryNStreamFailures = 1;
     this.maxBackoff = Duration.millis(500);
-    this.unaryDeadlineSeconds = 10; // For local testing use a short deadline.
+    this.unaryDeadlineSeconds = 10; // For local testing use short deadlines.
     Channel channel = localhostChannel(port);
     if (streamingEngineEnabled()) {
       this.stubList.add(CloudWindmillServiceV1Alpha1Grpc.newStub(channel));
@@ -233,11 +264,11 @@ public class GrpcWindmillServer extends WindmillServerStub {
    */
   private static class VendoredRequestMetadataCallbackAdapter
       implements com.google.auth.RequestMetadataCallback {
-    private final org.apache.beam.vendor.grpc.v1p21p0.com.google.auth.RequestMetadataCallback
+    private final org.apache.beam.vendor.grpc.v1p26p0.com.google.auth.RequestMetadataCallback
         callback;
 
     private VendoredRequestMetadataCallbackAdapter(
-        org.apache.beam.vendor.grpc.v1p21p0.com.google.auth.RequestMetadataCallback callback) {
+        org.apache.beam.vendor.grpc.v1p26p0.com.google.auth.RequestMetadataCallback callback) {
       this.callback = callback;
     }
 
@@ -261,7 +292,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
    * delegate to reduce maintenance burden.
    */
   private static class VendoredCredentialsAdapter
-      extends org.apache.beam.vendor.grpc.v1p21p0.com.google.auth.Credentials {
+      extends org.apache.beam.vendor.grpc.v1p26p0.com.google.auth.Credentials {
     private final com.google.auth.Credentials credentials;
 
     private VendoredCredentialsAdapter(com.google.auth.Credentials credentials) {
@@ -282,7 +313,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
     public void getRequestMetadata(
         final URI uri,
         Executor executor,
-        final org.apache.beam.vendor.grpc.v1p21p0.com.google.auth.RequestMetadataCallback
+        final org.apache.beam.vendor.grpc.v1p26p0.com.google.auth.RequestMetadataCallback
             callback) {
       credentials.getRequestMetadata(
           uri, executor, new VendoredRequestMetadataCallbackAdapter(callback));
@@ -348,8 +379,20 @@ public class GrpcWindmillServer extends WindmillServerStub {
   }
 
   private Channel remoteChannel(HostAndPort endpoint) throws IOException {
-    return NettyChannelBuilder.forAddress(endpoint.getHost(), endpoint.getPort())
+    NettyChannelBuilder builder =
+        NettyChannelBuilder.forAddress(endpoint.getHost(), endpoint.getPort());
+    int timeoutSec = options.getWindmillServiceRpcChannelAliveTimeoutSec();
+    if (timeoutSec > 0) {
+      builder =
+          builder
+              .keepAliveTime(timeoutSec, TimeUnit.SECONDS)
+              .keepAliveTimeout(timeoutSec, TimeUnit.SECONDS)
+              .keepAliveWithoutCalls(true);
+    }
+    return builder
+        .flowControlWindow(10 * 1024 * 1024)
         .maxInboundMessageSize(java.lang.Integer.MAX_VALUE)
+        .maxInboundMetadataSize(1024 * 1024)
         .negotiationType(NegotiationType.TLS)
         // Set ciphers(null) to not use GCM, which is disabled for Dataflow
         // due to it being horribly slow.
@@ -588,7 +631,10 @@ public class GrpcWindmillServer extends WindmillServerStub {
     // the atomics which may be read atomically for status pages.
     private StreamObserver<RequestT> requestObserver;
     private final AtomicLong startTimeMs = new AtomicLong();
+    private final AtomicLong lastSendTimeMs = new AtomicLong();
+    private final AtomicLong lastResponseTimeMs = new AtomicLong();
     private final AtomicInteger errorCount = new AtomicInteger();
+    private final AtomicReference<String> lastError = new AtomicReference<>();
     private final BackOff backoff = grpcBackoff();
     private final AtomicLong sleepUntil = new AtomicLong();
     protected final AtomicBoolean clientClosed = new AtomicBoolean();
@@ -599,7 +645,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
       this.clientFactory = clientFactory;
     }
 
-    /** Called on each response from the server */
+    /** Called on each response from the server. */
     protected abstract void onResponse(ResponseT response);
     /** Called when a new underlying stream to the server has been opened. */
     protected abstract void onNewStream();
@@ -607,13 +653,16 @@ public class GrpcWindmillServer extends WindmillServerStub {
     protected abstract boolean hasPendingRequests();
     /**
      * Called when the stream is throttled due to resource exhausted errors. Will be called for each
-     * resource exhausted error not just the first. onResponse() must stop throttling on reciept of
+     * resource exhausted error not just the first. onResponse() must stop throttling on receipt of
      * the first good message.
      */
     protected abstract void startThrottleTimer();
     /** Send a request to the server. */
-    protected final synchronized void send(RequestT request) {
-      requestObserver.onNext(request);
+    protected final void send(RequestT request) {
+      lastSendTimeMs.set(Instant.now().getMillis());
+      synchronized (this) {
+        requestObserver.onNext(request);
+      }
     }
 
     /** Starts the underlying stream. */
@@ -625,6 +674,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
         try {
           synchronized (this) {
             startTimeMs.set(Instant.now().getMillis());
+            lastResponseTimeMs.set(0);
             requestObserver = streamObserverFactory.from(clientFactory, new ResponseObserver());
             onNewStream();
             if (clientClosed.get()) {
@@ -651,22 +701,46 @@ public class GrpcWindmillServer extends WindmillServerStub {
       return executor;
     }
 
+    public final synchronized void maybeSendHealthCheck(Instant lastSendThreshold) {
+      if (lastSendTimeMs.get() < lastSendThreshold.getMillis() && !clientClosed.get()) {
+        try {
+          sendHealthCheck();
+        } catch (RuntimeException e) {
+          LOG.debug("Received exception sending health check.", e);
+        }
+      }
+    }
+
+    protected abstract void sendHealthCheck();
+
+    protected final long debugDuration(long nowMs, long startMs) {
+      if (startMs <= 0) {
+        return -1;
+      }
+      return Math.max(0, nowMs - startMs);
+    }
+
     // Care is taken that synchronization on this is unnecessary for all status page information.
     // Blocking sends are made beneath this stream object's lock which could block status page
     // rendering.
     public final void appendSummaryHtml(PrintWriter writer) {
       appendSpecificHtml(writer);
       if (errorCount.get() > 0) {
-        writer.format(", %d errors", errorCount.get());
+        writer.format(", %d errors, last error [ %s ]", errorCount.get(), lastError.get());
       }
       if (clientClosed.get()) {
         writer.write(", client closed");
       }
-      long sleepLeft = sleepUntil.get() - Instant.now().getMillis();
+      long nowMs = Instant.now().getMillis();
+      long sleepLeft = sleepUntil.get() - nowMs;
       if (sleepLeft > 0) {
         writer.format(", %dms backoff remaining", sleepLeft);
       }
-      writer.format(", current stream is %dms old", Instant.now().getMillis() - startTimeMs.get());
+      writer.format(
+          ", current stream is %dms old, last send %dms, last response %dms",
+          debugDuration(nowMs, startTimeMs.get()),
+          debugDuration(nowMs, lastSendTimeMs.get()),
+          debugDuration(nowMs, lastResponseTimeMs.get()));
     }
 
     // Don't require synchronization on stream, see the appendSummaryHtml comment.
@@ -680,6 +754,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
         } catch (IOException e) {
           // Ignore.
         }
+        lastResponseTimeMs.set(Instant.now().getMillis());
         onResponse(response);
       }
 
@@ -706,13 +781,26 @@ public class GrpcWindmillServer extends WindmillServerStub {
           if (t instanceof StatusRuntimeException) {
             status = ((StatusRuntimeException) t).getStatus();
           }
-          if (errorCount.incrementAndGet() % logEveryNStreamFailures == 0) {
+          String statusError = status.toString();
+          lastError.set(statusError);
+          if (errorCount.getAndIncrement() % logEveryNStreamFailures == 0) {
+            long nowMillis = Instant.now().getMillis();
+            String responseDebug;
+            if (lastResponseTimeMs.get() == 0) {
+              responseDebug = "never received response";
+            } else {
+              responseDebug =
+                  "received response " + (nowMillis - lastResponseTimeMs.get()) + "ms ago";
+            }
             LOG.debug(
-                "{} streaming Windmill RPC errors for a stream, last was: {} with status {}. "
-                    + "This is normal during autoscaling.",
+                "{} streaming Windmill RPC errors for {}, last was: {} with status {}."
+                    + " created {}ms ago, {}. This is normal with autoscaling.",
+                AbstractWindmillStream.this.getClass(),
                 errorCount.get(),
                 t.toString(),
-                status);
+                statusError,
+                nowMillis - startTimeMs.get(),
+                responseDebug);
           }
           // If the stream was stopped due to a resource exhausted error then we are throttled.
           if (status != null && status.getCode() == Status.Code.RESOURCE_EXHAUSTED) {
@@ -728,6 +816,13 @@ public class GrpcWindmillServer extends WindmillServerStub {
           } catch (IOException e) {
             // Ignore.
           }
+        } else {
+          errorCount.incrementAndGet();
+          String error =
+              "Stream completed successfully but did not complete requested operations, "
+                  + "recreating";
+          LOG.warn(error);
+          lastError.set(error);
         }
         executor.execute(AbstractWindmillStream.this::startStream);
       }
@@ -743,15 +838,6 @@ public class GrpcWindmillServer extends WindmillServerStub {
     @Override
     public final boolean awaitTermination(int time, TimeUnit unit) throws InterruptedException {
       return finishLatch.await(time, unit);
-    }
-
-    @Override
-    public final void closeAfterDefaultTimeout() throws InterruptedException {
-      if (!finishLatch.await(DEFAULT_STREAM_CLEAN_CLOSE_SECONDS, TimeUnit.SECONDS)) {
-        // If the stream did not close due to error in the specified amount of time, half-close
-        // the stream cleanly.
-        close();
-      }
     }
 
     @Override
@@ -773,7 +859,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
       super(
           responseObserver ->
               stub()
-                  .withDeadlineAfter(DEFAULT_STREAM_RPC_DEADLINE_SECONDS, TimeUnit.SECONDS)
+                  .withDeadlineAfter(streamDeadlineSeconds, TimeUnit.SECONDS)
                   .getWorkStream(responseObserver));
       this.request = request;
       this.receiver = receiver;
@@ -799,6 +885,18 @@ public class GrpcWindmillServer extends WindmillServerStub {
       writer.format(
           "GetWorkStream: %d buffers, %d inflight messages allowed, %d inflight bytes allowed",
           buffers.size(), inflightMessages.intValue(), inflightBytes.intValue());
+    }
+
+    @Override
+    public void sendHealthCheck() {
+      send(
+          StreamingGetWorkRequest.newBuilder()
+              .setRequestExtension(
+                  StreamingGetWorkRequestExtension.newBuilder()
+                      .setMaxItems(0)
+                      .setMaxBytes(0)
+                      .build())
+              .build());
     }
 
     @Override
@@ -939,14 +1037,33 @@ public class GrpcWindmillServer extends WindmillServerStub {
     @Override
     public void appendSpecificHtml(PrintWriter writer) {
       writer.format(
-          "GetDataStream: %d pending on-wire, %d queued batches", pending.size(), batches.size());
+          "GetDataStream: %d queued batches, %d pending requests [",
+          batches.size(), pending.size());
+      for (Map.Entry<Long, AppendableInputStream> entry : pending.entrySet()) {
+        writer.format("Stream %d ", entry.getKey());
+        if (entry.getValue().cancelled.get()) {
+          writer.append("cancelled ");
+        }
+        if (entry.getValue().complete.get()) {
+          writer.append("complete ");
+        }
+        int queueSize = entry.getValue().queue.size();
+        if (queueSize > 0) {
+          writer.format("%d queued responses ", queueSize);
+        }
+        long blockedMs = entry.getValue().blockedStartMs.get();
+        if (blockedMs > 0) {
+          writer.format("blocked for %dms", Instant.now().getMillis() - blockedMs);
+        }
+      }
+      writer.append("]");
     }
 
     GrpcGetDataStream() {
       super(
           responseObserver ->
               stub()
-                  .withDeadlineAfter(DEFAULT_STREAM_RPC_DEADLINE_SECONDS, TimeUnit.SECONDS)
+                  .withDeadlineAfter(streamDeadlineSeconds, TimeUnit.SECONDS)
                   .getDataStream(responseObserver));
       startStream();
     }
@@ -1031,6 +1148,13 @@ public class GrpcWindmillServer extends WindmillServerStub {
       }
     }
 
+    @Override
+    public void sendHealthCheck() {
+      if (hasPendingRequests()) {
+        send(StreamingGetDataRequest.newBuilder().build());
+      }
+    }
+
     private <ResponseT> ResponseT issueRequest(QueuedRequest request, ParseFn<ResponseT> parseFn) {
       while (true) {
         request.responseStream = new AppendableInputStream();
@@ -1111,6 +1235,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
           send(batchedRequest);
         } catch (IllegalStateException e) {
           // The stream broke before this call went through; onNewStream will retry the fetch.
+          LOG.warn("GetData stream broke before call started.", e);
         }
       }
     }
@@ -1161,7 +1286,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
 
     private class Batcher {
       long queuedBytes = 0;
-      Map<Long, PendingRequest> queue = new HashMap<>();
+      final Map<Long, PendingRequest> queue = new HashMap<>();
 
       boolean canAccept(PendingRequest request) {
         return queue.isEmpty()
@@ -1178,6 +1303,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
       void flush() {
         flushInternal(queue);
         queuedBytes = 0;
+        queue.clear();
       }
     }
 
@@ -1187,7 +1313,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
       super(
           responseObserver ->
               stub()
-                  .withDeadlineAfter(DEFAULT_STREAM_RPC_DEADLINE_SECONDS, TimeUnit.SECONDS)
+                  .withDeadlineAfter(streamDeadlineSeconds, TimeUnit.SECONDS)
                   .commitWorkStream(responseObserver));
       startStream();
     }
@@ -1216,18 +1342,41 @@ public class GrpcWindmillServer extends WindmillServerStub {
     }
 
     @Override
+    public void sendHealthCheck() {
+      if (hasPendingRequests()) {
+        StreamingCommitWorkRequest.Builder builder = StreamingCommitWorkRequest.newBuilder();
+        builder.addCommitChunkBuilder().setRequestId(HEARTBEAT_REQUEST_ID);
+        send(builder.build());
+      }
+    }
+
+    @Override
     protected void onResponse(StreamingCommitResponse response) {
       commitWorkThrottleTimer.stop();
 
+      RuntimeException finalException = null;
       for (int i = 0; i < response.getRequestIdCount(); ++i) {
         long requestId = response.getRequestId(i);
+        if (requestId == HEARTBEAT_REQUEST_ID) {
+          continue;
+        }
         PendingRequest done = pending.remove(requestId);
         if (done == null) {
           LOG.error("Got unknown commit request ID: {}", requestId);
         } else {
-          done.onDone.accept(
-              (i < response.getStatusCount()) ? response.getStatus(i) : CommitStatus.OK);
+          try {
+            done.onDone.accept(
+                (i < response.getStatusCount()) ? response.getStatus(i) : CommitStatus.OK);
+          } catch (RuntimeException e) {
+            // Catch possible exceptions to ensure that an exception for one commit does not prevent
+            // other commits from being processed.
+            LOG.warn("Exception while processing commit response.", e);
+            finalException = e;
+          }
         }
+      }
+      if (finalException != null) {
+        throw finalException;
       }
     }
 
@@ -1252,7 +1401,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
       batcher.flush();
     }
 
-    private final void flushInternal(Map<Long, PendingRequest> requests) {
+    private void flushInternal(Map<Long, PendingRequest> requests) {
       if (requests.isEmpty()) {
         return;
       }
@@ -1266,7 +1415,6 @@ public class GrpcWindmillServer extends WindmillServerStub {
       } else {
         issueBatchedRequest(requests);
       }
-      requests.clear();
     }
 
     private void issueSingleRequest(final long id, PendingRequest pendingRequest) {
@@ -1278,13 +1426,13 @@ public class GrpcWindmillServer extends WindmillServerStub {
           .setShardingKey(pendingRequest.request.getShardingKey())
           .setSerializedWorkItemCommit(pendingRequest.request.toByteString());
       StreamingCommitWorkRequest chunk = requestBuilder.build();
-      try {
-        synchronized (this) {
-          pending.put(id, pendingRequest);
+      synchronized (this) {
+        pending.put(id, pendingRequest);
+        try {
           send(chunk);
+        } catch (IllegalStateException e) {
+          // Stream was broken, request will be retried when stream is reopened.
         }
-      } catch (IllegalStateException e) {
-        // Stream was broken, request will be retried when stream is reopened.
       }
     }
 
@@ -1303,13 +1451,13 @@ public class GrpcWindmillServer extends WindmillServerStub {
         chunkBuilder.setSerializedWorkItemCommit(request.request.toByteString());
       }
       StreamingCommitWorkRequest request = requestBuilder.build();
-      try {
-        synchronized (this) {
-          pending.putAll(requests);
+      synchronized (this) {
+        pending.putAll(requests);
+        try {
           send(request);
+        } catch (IllegalStateException e) {
+          // Stream was broken, request will be retried when stream is reopened.
         }
-      } catch (IllegalStateException e) {
-        // Stream was broken, request will be retried when stream is reopened.
       }
     }
 
@@ -1358,10 +1506,14 @@ public class GrpcWindmillServer extends WindmillServerStub {
     private static final InputStream POISON_PILL = ByteString.EMPTY.newInput();
     private final AtomicBoolean cancelled = new AtomicBoolean(false);
     private final AtomicBoolean complete = new AtomicBoolean(false);
+    private final AtomicLong blockedStartMs = new AtomicLong();
     private final BlockingDeque<InputStream> queue = new LinkedBlockingDeque<>(10);
     private final InputStream stream =
         new SequenceInputStream(
             new Enumeration<InputStream>() {
+              // The first stream is eagerly read on SequenceInputStream creation. For this reason
+              // we use an empty element as the first input to avoid blocking from the queue when
+              // creating the AppendableInputStream.
               InputStream current = ByteString.EMPTY.newInput();
 
               @Override
@@ -1371,6 +1523,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
                 }
 
                 try {
+                  blockedStartMs.set(Instant.now().getMillis());
                   current = queue.take();
                   if (current != POISON_PILL) {
                     return true;
@@ -1393,6 +1546,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
                 if (!hasMoreElements()) {
                   throw new NoSuchElementException();
                 }
+                blockedStartMs.set(0);
                 InputStream next = current;
                 current = null;
                 return next;
@@ -1405,6 +1559,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
         queue.put(chunk);
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
+        LOG.debug("interrupted append");
       }
     }
 
@@ -1417,6 +1572,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
         queue.putFirst(POISON_PILL);
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
+        LOG.debug("interrupted cancel");
       }
     }
 
@@ -1427,6 +1583,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
         queue.put(POISON_PILL);
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
+        LOG.debug("interrupted complete");
       }
     }
 
@@ -1492,7 +1649,7 @@ public class GrpcWindmillServer extends WindmillServerStub {
       }
     }
 
-    /** Returns if the specified type is currently being throttled */
+    /** Returns if the specified type is currently being throttled. */
     public synchronized boolean throttled() {
       return startTime != -1;
     }

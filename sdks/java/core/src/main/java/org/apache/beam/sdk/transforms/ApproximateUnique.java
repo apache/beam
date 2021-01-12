@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.Iterator;
 import java.util.TreeSet;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.CoderException;
@@ -38,25 +37,28 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.HashingOutputStream;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * {@code PTransform}s for estimating the number of distinct elements in a {@code PCollection}, or
  * the number of distinct values associated with each key in a {@code PCollection} of {@code KV}s.
  *
- * <p>Consider using {@code HllCount} in the {@code zetasketch} extension module if you need better
- * performance or need to save intermediate aggregation result into a sketch for later processing.
- *
- * <p>For example, to estimate the number of distinct elements in a {@code PCollection<String>}:
- *
- * <pre>{@code
+ * @deprecated
+ *     <p>Consider using {@code ApproximateCountDistinct} in the {@code zetasketch} extension
+ *     module, which makes use of the {@code HllCount} implementation.
+ *     <p>If {@code ApproximateCountDistinct} does not meet your needs then you can directly use
+ *     {@code HllCount}. Direct usage will also give you access to save intermediate aggregation
+ *     result into a sketch for later processing.
+ *     <p>For example, to estimate the number of distinct elements in a {@code PCollection<String>}:
+ *     <pre>{@code
  * PCollection<String> input = ...;
  * PCollection<Long> countDistinct =
  *     input.apply(HllCount.Init.forStrings().globally()).apply(HllCount.Extract.globally());
  * }</pre>
- *
- * For more details about using {@code HllCount} and the {@code zetasketch} extension module, see
- * https://s.apache.org/hll-in-beam#bookmark=id.v6chsij1ixo7.
+ *     For more details about using {@code HllCount} and the {@code zetasketch} extension module,
+ *     see https://s.apache.org/hll-in-beam#bookmark=id.v6chsij1ixo7.
  */
+@Deprecated
 public class ApproximateUnique {
 
   /**
@@ -167,7 +169,7 @@ public class ApproximateUnique {
     private final long sampleSize;
 
     /** The desired maximum estimation error or null if not specified. */
-    @Nullable private final Double maximumEstimationError;
+    private final @Nullable Double maximumEstimationError;
 
     /** @see ApproximateUnique#globally(int) */
     public Globally(int sampleSize) {
@@ -224,7 +226,7 @@ public class ApproximateUnique {
     private final long sampleSize;
 
     /** The the desired maximum estimation error or null if not specified. */
-    @Nullable private final Double maximumEstimationError;
+    private final @Nullable Double maximumEstimationError;
 
     /** @see ApproximateUnique#perKey(int) */
     public PerKey(int sampleSize) {
@@ -346,7 +348,7 @@ public class ApproximateUnique {
       }
 
       @Override
-      public boolean equals(Object o) {
+      public boolean equals(@Nullable Object o) {
         if (this == o) {
           return true;
         }

@@ -17,6 +17,8 @@
 
 """Unit test for Bigquery verifier"""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging
@@ -45,7 +47,6 @@ except ImportError:
 @unittest.skipIf(bigquery is None, 'Bigquery dependencies are not installed.')
 @mock.patch.object(bigquery, 'Client')
 class BigqueryMatcherTest(unittest.TestCase):
-
   def setUp(self):
     self._mock_result = mock.Mock()
     patch_retry(self, bq_verifier)
@@ -56,38 +57,75 @@ class BigqueryMatcherTest(unittest.TestCase):
     mock_query_result[1].values.return_value = None
     mock_query_result[2].values.return_value = None
 
-    mock_bigquery.return_value.query.return_value.result.return_value = (
-        mock_query_result)
+    mock_query = mock_bigquery.return_value.query
+    mock_query.return_value.result.return_value = mock_query_result
 
     matcher = bq_verifier.BigqueryMatcher(
         'mock_project',
         'mock_query',
         '59f9d6bdee30d67ea73b8aded121c3a0280f9cd8')
     hc_assert_that(self._mock_result, matcher)
+    self.assertEqual(1, mock_query.call_count)
+
+  def test_bigquery_matcher_success_streaming_retry(self, mock_bigquery):
+    # Simulate case where a streaming insert takes time to process, such that
+    # the first query result is incomplete (empty).
+    empty_query_result = []
+    mock_query_result = [mock.Mock(), mock.Mock(), mock.Mock()]
+    mock_query_result[0].values.return_value = []
+    mock_query_result[1].values.return_value = None
+    mock_query_result[2].values.return_value = None
+
+    mock_query = mock_bigquery.return_value.query
+    mock_query.return_value.result.side_effect = [
+        empty_query_result, mock_query_result
+    ]
+
+    matcher = bq_verifier.BigqueryMatcher(
+        'mock_project',
+        'mock_query',
+        '59f9d6bdee30d67ea73b8aded121c3a0280f9cd8',
+        timeout_secs=5,
+    )
+    hc_assert_that(self._mock_result, matcher)
+    self.assertEqual(2, mock_query.call_count)
 
   def test_bigquery_matcher_query_error_retry(self, mock_bigquery):
     mock_query = mock_bigquery.return_value.query
     mock_query.side_effect = NotFound('table not found')
 
-    matcher = bq_verifier.BigqueryMatcher('mock_project',
-                                          'mock_query',
-                                          'mock_checksum')
+    matcher = bq_verifier.BigqueryMatcher(
+        'mock_project', 'mock_query', 'mock_checksum')
     with self.assertRaises(NotFound):
       hc_assert_that(self._mock_result, matcher)
     self.assertEqual(bq_verifier.MAX_RETRIES + 1, mock_query.call_count)
+
+  def test_bigquery_matcher_query_error_checksum(self, mock_bigquery):
+    empty_query_result = []
+
+    mock_query = mock_bigquery.return_value.query
+    mock_query.return_value.result.return_value = empty_query_result
+
+    matcher = bq_verifier.BigqueryMatcher(
+        'mock_project',
+        'mock_query',
+        '59f9d6bdee30d67ea73b8aded121c3a0280f9cd8',
+    )
+    with self.assertRaisesRegex(AssertionError, r'Expected checksum'):
+      hc_assert_that(self._mock_result, matcher)
+    self.assertEqual(1, mock_query.call_count)
 
 
 @unittest.skipIf(bigquery is None, 'Bigquery dependencies are not installed.')
 @mock.patch.object(bigquery_tools, 'BigQueryWrapper')
 class BigqueryTableMatcherTest(unittest.TestCase):
-
   def setUp(self):
     self._mock_result = mock.Mock()
     patch_retry(self, bq_verifier)
 
   def test_bigquery_table_matcher_success(self, mock_bigquery):
-    mock_query_result = mock.Mock(partitioning='a lot of partitioning',
-                                  clustering={'column': 'FRIENDS'})
+    mock_query_result = mock.Mock(
+        partitioning='a lot of partitioning', clustering={'column': 'FRIENDS'})
 
     mock_bigquery.return_value.get_table.return_value = mock_query_result
 
@@ -95,8 +133,12 @@ class BigqueryTableMatcherTest(unittest.TestCase):
         'mock_project',
         'mock_dataset',
         'mock_table',
-        {'partitioning': 'a lot of partitioning',
-         'clustering': {'column': 'FRIENDS'}})
+        {
+            'partitioning': 'a lot of partitioning',
+            'clustering': {
+                'column': 'FRIENDS'
+            }
+        })
     hc_assert_that(self._mock_result, matcher)
 
   def test_bigquery_table_matcher_query_error_retry(self, mock_bigquery):
@@ -107,8 +149,12 @@ class BigqueryTableMatcherTest(unittest.TestCase):
         'mock_project',
         'mock_dataset',
         'mock_table',
-        {'partitioning': 'a lot of partitioning',
-         'clustering': {'column': 'FRIENDS'}})
+        {
+            'partitioning': 'a lot of partitioning',
+            'clustering': {
+                'column': 'FRIENDS'
+            }
+        })
 
     with self.assertRaises(ValueError):
       hc_assert_that(self._mock_result, matcher)
@@ -118,10 +164,8 @@ class BigqueryTableMatcherTest(unittest.TestCase):
 @pytest.mark.no_xdist  # xdist somehow makes the test do real requests.
 @unittest.skipIf(bigquery is None, 'Bigquery dependencies are not installed.')
 @mock.patch.object(
-    bq_verifier.BigqueryFullResultStreamingMatcher,
-    '_query_with_retry')
+    bq_verifier.BigqueryFullResultStreamingMatcher, '_query_with_retry')
 class BigqueryFullResultStreamingMatcher(unittest.TestCase):
-
   def setUp(self):
     self.timeout = 0.01
 
@@ -129,7 +173,7 @@ class BigqueryFullResultStreamingMatcher(unittest.TestCase):
     mock__query_with_retry.side_effect = lambda: []
     matcher = bq_verifier.BigqueryFullResultStreamingMatcher(
         'some-project', 'some-query', [1, 2, 3], timeout=self.timeout)
-    if sys.version_info >= (3,):
+    if sys.version_info >= (3, ):
       with self.assertRaises(TimeoutError):  # noqa: F821
         matcher._get_query_result()
     else:

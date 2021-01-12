@@ -17,5 +17,8 @@
  */
 package org.apache.beam.sdk.testing;
 
+import org.apache.beam.sdk.annotations.Internal;
+
 /** Category tag for validation tests which use multiple side inputs with different coders. */
-public interface UsesSideInputsWithDifferentCoders {}
+@Internal
+public interface UsesSideInputsWithDifferentCoders extends UsesSideInputs {}

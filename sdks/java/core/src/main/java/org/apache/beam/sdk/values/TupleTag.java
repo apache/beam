@@ -22,6 +22,7 @@ import java.util.Random;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashMultiset;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multiset;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@link TupleTag} is a typed tag to use as the key of a heterogeneously typed tuple, like {@link
@@ -149,7 +150,7 @@ public class TupleTag<V> implements Serializable {
   }
 
   @Override
-  public boolean equals(Object that) {
+  public boolean equals(@Nullable Object that) {
     if (that instanceof TupleTag) {
       return this.id.equals(((TupleTag<?>) that).id);
     } else {

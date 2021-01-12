@@ -17,14 +17,15 @@
  */
 package org.apache.beam.runners.core.construction.graph;
 
+import static org.apache.beam.runners.core.construction.graph.ExecutableStage.DEFAULT_WIRE_CODER_SETTINGS;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables.getOnlyElement;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.hasSize;
-import static org.junit.Assert.assertThat;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -48,6 +49,10 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link OutputDeduplicator}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class OutputDeduplicatorTest {
   @Test
   public void unchangedWithNoDuplicates() {
@@ -119,7 +124,8 @@ public class OutputDeduplicatorTest {
             ImmutableList.of(),
             ImmutableList.of(),
             ImmutableList.of(PipelineNode.pTransform("one", one)),
-            ImmutableList.of(PipelineNode.pCollection(oneOut.getUniqueName(), oneOut)));
+            ImmutableList.of(PipelineNode.pCollection(oneOut.getUniqueName(), oneOut)),
+            DEFAULT_WIRE_CODER_SETTINGS);
     ExecutableStage twoStage =
         ImmutableExecutableStage.of(
             components,
@@ -129,7 +135,8 @@ public class OutputDeduplicatorTest {
             ImmutableList.of(),
             ImmutableList.of(),
             ImmutableList.of(PipelineNode.pTransform("two", two)),
-            ImmutableList.of(PipelineNode.pCollection(twoOut.getUniqueName(), twoOut)));
+            ImmutableList.of(PipelineNode.pCollection(twoOut.getUniqueName(), twoOut)),
+            DEFAULT_WIRE_CODER_SETTINGS);
     PTransformNode redTransform = PipelineNode.pTransform("red", red);
     PTransformNode blueTransform = PipelineNode.pTransform("blue", blue);
     QueryablePipeline pipeline = QueryablePipeline.forPrimitivesIn(components);
@@ -237,7 +244,8 @@ public class OutputDeduplicatorTest {
             ImmutableList.of(),
             ImmutableList.of(
                 PipelineNode.pTransform("one", one), PipelineNode.pTransform("shared", shared)),
-            ImmutableList.of(PipelineNode.pCollection(sharedOut.getUniqueName(), sharedOut)));
+            ImmutableList.of(PipelineNode.pCollection(sharedOut.getUniqueName(), sharedOut)),
+            DEFAULT_WIRE_CODER_SETTINGS);
     ExecutableStage twoStage =
         ImmutableExecutableStage.of(
             components,
@@ -248,7 +256,8 @@ public class OutputDeduplicatorTest {
             ImmutableList.of(),
             ImmutableList.of(
                 PipelineNode.pTransform("two", two), PipelineNode.pTransform("shared", shared)),
-            ImmutableList.of(PipelineNode.pCollection(sharedOut.getUniqueName(), sharedOut)));
+            ImmutableList.of(PipelineNode.pCollection(sharedOut.getUniqueName(), sharedOut)),
+            DEFAULT_WIRE_CODER_SETTINGS);
     PTransformNode redTransform = PipelineNode.pTransform("red", red);
     PTransformNode blueTransform = PipelineNode.pTransform("blue", blue);
     QueryablePipeline pipeline = QueryablePipeline.forPrimitivesIn(components);
@@ -367,7 +376,8 @@ public class OutputDeduplicatorTest {
             ImmutableList.of(),
             ImmutableList.of(),
             ImmutableList.of(PipelineNode.pTransform("one", one), sharedTransform),
-            ImmutableList.of(PipelineNode.pCollection(sharedOut.getUniqueName(), sharedOut)));
+            ImmutableList.of(PipelineNode.pCollection(sharedOut.getUniqueName(), sharedOut)),
+            DEFAULT_WIRE_CODER_SETTINGS);
     PTransformNode redTransform = PipelineNode.pTransform("red", red);
     PTransformNode blueTransform = PipelineNode.pTransform("blue", blue);
     QueryablePipeline pipeline = QueryablePipeline.forPrimitivesIn(components);
@@ -540,7 +550,8 @@ public class OutputDeduplicatorTest {
                 PipelineNode.pTransform("otherShared", otherShared)),
             ImmutableList.of(
                 PipelineNode.pCollection(sharedOut.getUniqueName(), sharedOut),
-                PipelineNode.pCollection(otherSharedOut.getUniqueName(), otherSharedOut)));
+                PipelineNode.pCollection(otherSharedOut.getUniqueName(), otherSharedOut)),
+            DEFAULT_WIRE_CODER_SETTINGS);
     ExecutableStage oneStage =
         ImmutableExecutableStage.of(
             components,
@@ -551,7 +562,8 @@ public class OutputDeduplicatorTest {
             ImmutableList.of(),
             ImmutableList.of(
                 PipelineNode.pTransform("one", one), PipelineNode.pTransform("shared", shared)),
-            ImmutableList.of(PipelineNode.pCollection(sharedOut.getUniqueName(), sharedOut)));
+            ImmutableList.of(PipelineNode.pCollection(sharedOut.getUniqueName(), sharedOut)),
+            DEFAULT_WIRE_CODER_SETTINGS);
     ExecutableStage twoStage =
         ImmutableExecutableStage.of(
             components,
@@ -564,7 +576,8 @@ public class OutputDeduplicatorTest {
                 PipelineNode.pTransform("two", two),
                 PipelineNode.pTransform("otherShared", otherShared)),
             ImmutableList.of(
-                PipelineNode.pCollection(otherSharedOut.getUniqueName(), otherSharedOut)));
+                PipelineNode.pCollection(otherSharedOut.getUniqueName(), otherSharedOut)),
+            DEFAULT_WIRE_CODER_SETTINGS);
     PTransformNode redTransform = PipelineNode.pTransform("red", red);
     PTransformNode blueTransform = PipelineNode.pTransform("blue", blue);
     QueryablePipeline pipeline = QueryablePipeline.forPrimitivesIn(components);

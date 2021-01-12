@@ -21,4 +21,7 @@
  *
  * <p>In 'main' because other projects may depend on it.
  */
+@Internal
 package org.apache.beam.sdk.io.hcatalog.test;
+
+import org.apache.beam.sdk.annotations.Internal;

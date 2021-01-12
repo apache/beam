@@ -20,6 +20,8 @@
 For internal use only. No backwards compatibility guarantees.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 from builtins import object
@@ -27,10 +29,14 @@ from builtins import object
 
 class TransformResult(object):
   """Result of evaluating an AppliedPTransform with a TransformEvaluator."""
-
-  def __init__(self, transform_evaluator, uncommitted_output_bundles,
-               unprocessed_bundles, counters, keyed_watermark_holds,
-               undeclared_tag_values=None):
+  def __init__(
+      self,
+      transform_evaluator,
+      uncommitted_output_bundles,
+      unprocessed_bundles,
+      counters,
+      keyed_watermark_holds,
+      undeclared_tag_values=None):
     self.transform = transform_evaluator._applied_ptransform
     self.uncommitted_output_bundles = uncommitted_output_bundles
     self.unprocessed_bundles = unprocessed_bundles
@@ -55,17 +61,28 @@ class TransformResult(object):
 
 class TimerFiring(object):
   """A single instance of a fired timer."""
-
-  def __init__(self, encoded_key, window, name, time_domain, timestamp):
+  def __init__(
+      self,
+      encoded_key,
+      window,
+      name,
+      time_domain,
+      timestamp,
+      dynamic_timer_tag=''):
     self.encoded_key = encoded_key
     self.window = window
     self.name = name
     self.time_domain = time_domain
     self.timestamp = timestamp
+    self.dynamic_timer_tag = dynamic_timer_tag
 
   def __repr__(self):
-    return 'TimerFiring({!r}, {!r}, {}, {})'.format(
-        self.encoded_key, self.name, self.time_domain, self.timestamp)
+    return 'TimerFiring({!r}, {!r}, {}, {}, {})'.format(
+        self.encoded_key,
+        self.name,
+        self.time_domain,
+        self.timestamp,
+        self.dynamic_timer_tag)
 
 
 class KeyedWorkItem(object):

@@ -22,7 +22,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import java.io.IOException;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.util.SerializableUtils;
@@ -30,7 +29,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.InvalidProtocolBufferException;
 
 /** Utilities for interacting with PCollection view protos. */
 public class PCollectionViewTranslation {
@@ -53,12 +52,7 @@ public class PCollectionViewTranslation {
     TupleTag<?> tag = new TupleTag<>(localName);
     WindowMappingFn<?> windowMappingFn = windowMappingFnFromProto(sideInput.getWindowMappingFn());
     ViewFn<?, ?> viewFn = viewFnFromProto(sideInput.getViewFn());
-
     WindowingStrategy<?, ?> windowingStrategy = pCollection.getWindowingStrategy().fixDefaults();
-    checkArgument(
-        sideInput.getAccessPattern().getUrn().equals(Materializations.MULTIMAP_MATERIALIZATION_URN),
-        "Unknown View Materialization URN %s",
-        sideInput.getAccessPattern().getUrn());
 
     PCollectionView<?> view =
         new RunnerPCollectionView<>(
@@ -72,12 +66,12 @@ public class PCollectionViewTranslation {
   }
 
   /**
-   * Converts a {@link org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec} into a {@link
+   * Converts a {@link org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec} into a {@link
    * ViewFn} using the URN.
    */
-  public static ViewFn<?, ?> viewFnFromProto(RunnerApi.SdkFunctionSpec viewFn)
+  public static ViewFn<?, ?> viewFnFromProto(RunnerApi.FunctionSpec viewFn)
       throws InvalidProtocolBufferException {
-    RunnerApi.FunctionSpec spec = viewFn.getSpec();
+    RunnerApi.FunctionSpec spec = viewFn;
     checkArgument(
         spec.getUrn().equals(ParDoTranslation.CUSTOM_JAVA_VIEW_FN_URN),
         "Can't deserialize unknown %s type %s",
@@ -89,12 +83,12 @@ public class PCollectionViewTranslation {
   }
 
   /**
-   * Converts a {@link org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec} into a {@link
+   * Converts a {@link org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec} into a {@link
    * WindowMappingFn} using the URN.
    */
-  public static WindowMappingFn<?> windowMappingFnFromProto(
-      RunnerApi.SdkFunctionSpec windowMappingFn) throws InvalidProtocolBufferException {
-    RunnerApi.FunctionSpec spec = windowMappingFn.getSpec();
+  public static WindowMappingFn<?> windowMappingFnFromProto(RunnerApi.FunctionSpec windowMappingFn)
+      throws InvalidProtocolBufferException {
+    RunnerApi.FunctionSpec spec = windowMappingFn;
     checkArgument(
         spec.getUrn().equals(ParDoTranslation.CUSTOM_JAVA_WINDOW_MAPPING_FN_URN),
         "Can't deserialize unknown %s type %s",

@@ -16,6 +16,8 @@
 # limitations under the License.
 #
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import print_function
 
@@ -40,8 +42,7 @@ def groupbykey(test=None):
             ('winter', '🍆'),
         ])
         | 'Group counts per produce' >> beam.GroupByKey()
-        | beam.Map(print)
-    )
+        | beam.Map(print))
     # [END groupbykey]
     if test:
       test(produce_counts)

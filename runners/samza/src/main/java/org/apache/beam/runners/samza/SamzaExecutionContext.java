@@ -48,6 +48,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Runtime context for the Samza runner. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SamzaExecutionContext implements ApplicationContainerContext {
   private static final Logger LOG = LoggerFactory.getLogger(SamzaExecutionContext.class);
   private static final String SAMZA_WORKER_ID = "samza_py_worker_id";
@@ -122,7 +125,8 @@ public class SamzaExecutionContext implements ApplicationContainerContext {
         final InstructionRequestHandler instructionHandler =
             controlClientPool.getSource().take(SAMZA_WORKER_ID, Duration.ofMillis(waitTimeoutMs));
         final EnvironmentFactory environmentFactory =
-            environment -> RemoteEnvironment.forHandler(environment, instructionHandler);
+            (environment, workerId) ->
+                RemoteEnvironment.forHandler(environment, instructionHandler);
         // TODO: use JobBundleFactoryBase.WrappedSdkHarnessClient.wrapping
         jobBundleFactory =
             SingleEnvironmentInstanceJobBundleFactory.create(

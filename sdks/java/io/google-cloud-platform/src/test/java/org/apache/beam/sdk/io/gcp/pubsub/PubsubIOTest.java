@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.pubsub;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
@@ -26,9 +27,9 @@ import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
 
 import com.google.api.client.util.Clock;
+import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
@@ -64,6 +65,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.junit.After;
@@ -78,6 +80,9 @@ import org.junit.runners.model.Statement;
 
 /** Tests for PubsubIO Read and Write transforms. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class PubsubIOTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
 
@@ -325,7 +330,7 @@ public class PubsubIOTest {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       if (other == null || !(other instanceof GenericClass)) {
         return false;
       }
@@ -391,9 +396,10 @@ public class PubsubIOTest {
                 })
             .map(
                 ba ->
-                    new IncomingMessage(
-                        ba,
-                        null,
+                    IncomingMessage.of(
+                        com.google.pubsub.v1.PubsubMessage.newBuilder()
+                            .setData(ByteString.copyFrom(ba))
+                            .build(),
                         1234L,
                         0,
                         UUID.randomUUID().toString(),

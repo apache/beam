@@ -22,15 +22,16 @@ import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionE
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionFails;
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionSucceedsAndConsistent;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import org.apache.beam.repackaged.core.org.apache.commons.lang3.StringUtils;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.hbase.HBaseIO.HBaseSource;
@@ -43,7 +44,6 @@ import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.HBaseTestingUtility;
@@ -79,6 +79,9 @@ import org.junit.runners.JUnit4;
 
 /** Test HBaseIO. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class HBaseIOTest {
   @Rule public final transient TestPipeline p = TestPipeline.create();
   @Rule public ExpectedException thrown = ExpectedException.none();
@@ -549,11 +552,8 @@ public class HBaseIOTest {
   private PCollection<Result> applyRead(HBaseIO.Read read, boolean useSdf) {
     final String transformId = read.getTableId() + "_" + read.getKeyRange();
     return useSdf
-        ? p.apply(
-                "Create" + transformId, Create.of(HBaseQuery.of(read.getTableId(), read.getScan())))
-            .apply(
-                "ReadAll" + transformId,
-                HBaseIO.readAll().withConfiguration(read.getConfiguration()))
+        ? p.apply("Create" + transformId, Create.of(read))
+            .apply("ReadAll" + transformId, HBaseIO.readAll())
         : p.apply("Read" + transformId, read);
   }
 

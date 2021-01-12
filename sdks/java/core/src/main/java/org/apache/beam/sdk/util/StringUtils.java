@@ -21,8 +21,10 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.beam.sdk.annotations.Internal;
 
 /** Utilities for working with JSON and other human-readable string formats. */
+@Internal
 public class StringUtils {
   /**
    * Converts the given array of bytes into a legal JSON string.

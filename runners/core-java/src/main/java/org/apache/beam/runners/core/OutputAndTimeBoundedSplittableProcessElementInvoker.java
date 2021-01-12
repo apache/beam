@@ -24,13 +24,13 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import javax.annotation.Nullable;
+import java.util.function.Supplier;
 import org.apache.beam.sdk.fn.splittabledofn.RestrictionTrackers;
+import org.apache.beam.sdk.fn.splittabledofn.WatermarkEstimators;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.TimeDomain;
-import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.transforms.DoFn.FinishBundleContext;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
@@ -39,7 +39,8 @@ import org.apache.beam.sdk.transforms.DoFnOutputReceivers;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.splittabledofn.TimestampObservingWatermarkEstimator;
+import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
@@ -48,6 +49,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Futures;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -56,9 +58,15 @@ import org.joda.time.Instant;
  * DoFn.ProcessElement} call either outputs at least a given number of elements (in total over all
  * outputs), or runs for the given duration.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness",
+  "keyfor"
+}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class OutputAndTimeBoundedSplittableProcessElementInvoker<
-        InputT, OutputT, RestrictionT, PositionT>
-    extends SplittableProcessElementInvoker<InputT, OutputT, RestrictionT, PositionT> {
+        InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT>
+    extends SplittableProcessElementInvoker<
+        InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT> {
   private final DoFn<InputT, OutputT> fn;
   private final PipelineOptions pipelineOptions;
   private final OutputWindowedValue<OutputT> output;
@@ -66,6 +74,7 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
   private final ScheduledExecutorService executor;
   private final int maxNumOutputs;
   private final Duration maxDuration;
+  private final Supplier<BundleFinalizer> bundleFinalizer;
 
   /**
    * Creates a new invoker from components.
@@ -90,7 +99,8 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
       SideInputReader sideInputReader,
       ScheduledExecutorService executor,
       int maxNumOutputs,
-      Duration maxDuration) {
+      Duration maxDuration,
+      Supplier<BundleFinalizer> bundleFinalizer) {
     this.fn = fn;
     this.pipelineOptions = pipelineOptions;
     this.output = output;
@@ -98,22 +108,34 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
     this.executor = executor;
     this.maxNumOutputs = maxNumOutputs;
     this.maxDuration = maxDuration;
+    this.bundleFinalizer = bundleFinalizer;
   }
 
   @Override
   public Result invokeProcessElement(
       DoFnInvoker<InputT, OutputT> invoker,
       final WindowedValue<InputT> element,
-      final RestrictionTracker<RestrictionT, PositionT> tracker) {
-    final ProcessContext processContext = new ProcessContext(element, tracker);
+      final RestrictionTracker<RestrictionT, PositionT> tracker,
+      final WatermarkEstimator<WatermarkEstimatorStateT> watermarkEstimator) {
+    final ProcessContext processContext = new ProcessContext(element, tracker, watermarkEstimator);
 
     DoFn.ProcessContinuation cont =
         invoker.invokeProcessElement(
-            new DoFnInvoker.ArgumentProvider<InputT, OutputT>() {
+            new DoFnInvoker.BaseArgumentProvider<InputT, OutputT>() {
+              @Override
+              public String getErrorContext() {
+                return OutputAndTimeBoundedSplittableProcessElementInvoker.class.getSimpleName();
+              }
+
               @Override
               public DoFn<InputT, OutputT>.ProcessContext processContext(
                   DoFn<InputT, OutputT> doFn) {
                 return processContext;
+              }
+
+              @Override
+              public Object restriction() {
+                return tracker.currentRestriction();
               }
 
               @Override
@@ -122,18 +144,14 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
               }
 
               @Override
-              public Object sideInput(String tagId) {
-                throw new UnsupportedOperationException("Not supported in SplittableDoFn");
-              }
-
-              @Override
-              public Object schemaElement(int index) {
-                throw new UnsupportedOperationException("Not supported in SplittableDoFn");
-              }
-
-              @Override
               public Instant timestamp(DoFn<InputT, OutputT> doFn) {
                 return processContext.timestamp();
+              }
+
+              @Override
+              public String timerId(DoFn<InputT, OutputT> doFn) {
+                throw new UnsupportedOperationException(
+                    "Cannot access timerId as parameter outside of @OnTimer method.");
               }
 
               @Override
@@ -162,24 +180,22 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
                 return processContext.tracker;
               }
 
-              // Unsupported methods below.
-
               @Override
-              public BoundedWindow window() {
-                throw new UnsupportedOperationException(
-                    "Access to window of the element not supported in Splittable DoFn");
-              }
-
-              @Override
-              public PaneInfo paneInfo(DoFn<InputT, OutputT> doFn) {
-                throw new UnsupportedOperationException(
-                    "Access to pane of the element not supported in Splittable DoFn");
+              public WatermarkEstimator<?> watermarkEstimator() {
+                return processContext.watermarkEstimator;
               }
 
               @Override
               public PipelineOptions pipelineOptions() {
                 return pipelineOptions;
               }
+
+              @Override
+              public BundleFinalizer bundleFinalizer() {
+                return bundleFinalizer.get();
+              }
+
+              // Unsupported methods below.
 
               @Override
               public StartBundleContext startBundleContext(DoFn<InputT, OutputT> doFn) {
@@ -194,28 +210,11 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
                     "Should not access finishBundleContext() from @"
                         + DoFn.ProcessElement.class.getSimpleName());
               }
-
-              @Override
-              public DoFn<InputT, OutputT>.OnTimerContext onTimerContext(
-                  DoFn<InputT, OutputT> doFn) {
-                throw new UnsupportedOperationException(
-                    "Access to timers not supported in Splittable DoFn");
-              }
-
-              @Override
-              public State state(String stateId) {
-                throw new UnsupportedOperationException(
-                    "Access to state not supported in Splittable DoFn");
-              }
-
-              @Override
-              public Timer timer(String timerId) {
-                throw new UnsupportedOperationException(
-                    "Access to timers not supported in Splittable DoFn");
-              }
             });
     processContext.cancelScheduledCheckpoint();
-    @Nullable KV<RestrictionT, Instant> residual = processContext.getTakenCheckpoint();
+    @Nullable
+    KV<RestrictionT, KV<Instant, WatermarkEstimatorStateT>> residual =
+        processContext.getTakenCheckpoint();
     if (cont.shouldResume()) {
       checkState(
           !processContext.hasClaimFailed,
@@ -226,27 +225,10 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
         // the call says that not the whole restriction has been processed. So we need to take
         // a checkpoint now: checkpoint() guarantees that the primary restriction describes exactly
         // the work that was done in the current ProcessElement call, and returns a residual
-        // restriction that describes exactly the work that wasn't done in the current call.
-        if (processContext.numClaimedBlocks > 0) {
-          residual = checkNotNull(processContext.takeCheckpointNow());
-          processContext.tracker.checkDone();
-        } else {
-          // The call returned resume() without trying to claim any blocks, i.e. it is unaware
-          // of any work to be done at the moment, but more might emerge later. This is a valid
-          // use case: e.g. a DoFn reading from a streaming source might see that there are
-          // currently no new elements (hence not claim anything) and return resume() with a delay
-          // to check again later.
-          // In this case, we must simply reschedule the original restriction - checkpointing a
-          // tracker that hasn't claimed any work is not allowed.
-          //
-          // Note that the situation "a DoFn repeatedly says that it doesn't have any work to claim
-          // and asks to try again later with the same restriction" is different from the situation
-          // "a runner repeatedly checkpoints the DoFn before it has a chance to even attempt
-          // claiming work": the former is valid, and the latter would be a bug, and is addressed
-          // by not checkpointing the tracker until it attempts to claim some work.
-          residual = KV.of(tracker.currentRestriction(), processContext.getLastReportedWatermark());
-          // Don't call tracker.checkDone() - it's not done.
-        }
+        // restriction that describes exactly the work that wasn't done in the current call. The
+        // residual is null when the entire restriction has been processed.
+        residual = processContext.takeCheckpointNow();
+        processContext.tracker.checkDone();
       } else {
         // A checkpoint was taken by the runner, and then the ProcessElement call returned resume()
         // without making more tryClaim() calls (since no tryClaim() calls can succeed after
@@ -267,18 +249,18 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
       processContext.tracker.checkDone();
     }
     if (residual == null) {
-      // Can only be true if cont.shouldResume() is false and no checkpoint was taken.
-      // This means the restriction has been fully processed.
-      checkState(!cont.shouldResume());
-      return new Result(null, cont, BoundedWindow.TIMESTAMP_MAX_VALUE);
+      return new Result(null, cont, null, null);
     }
-    return new Result(residual.getKey(), cont, residual.getValue());
+    return new Result(
+        residual.getKey(), cont, residual.getValue().getKey(), residual.getValue().getValue());
   }
 
   private class ProcessContext extends DoFn<InputT, OutputT>.ProcessContext
       implements RestrictionTrackers.ClaimObserver<PositionT> {
     private final WindowedValue<InputT> element;
     private final RestrictionTracker<RestrictionT, PositionT> tracker;
+    private final WatermarkEstimators.WatermarkAndStateObserver<WatermarkEstimatorStateT>
+        watermarkEstimator;
     private int numClaimedBlocks;
     private boolean hasClaimFailed;
 
@@ -290,17 +272,20 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
     // the call completed before reaching the given number of outputs or duration.
     private @Nullable RestrictionT checkpoint;
     // Watermark captured at the moment before checkpoint was taken, describing a lower bound
-    // on the output from "checkpoint".
-    private @Nullable Instant residualWatermark;
+    // on the output from "checkpoint" and its associated watermark estimator state.
+    private @Nullable KV<Instant, WatermarkEstimatorStateT> residualWatermarkAndState;
+
     // A handle on the scheduled action to take a checkpoint.
     private @Nullable Future<?> scheduledCheckpoint;
-    private @Nullable Instant lastReportedWatermark;
 
     public ProcessContext(
-        WindowedValue<InputT> element, RestrictionTracker<RestrictionT, PositionT> tracker) {
+        WindowedValue<InputT> element,
+        RestrictionTracker<RestrictionT, PositionT> tracker,
+        WatermarkEstimator<WatermarkEstimatorStateT> watermarkEstimator) {
       fn.super();
       this.element = element;
       this.tracker = RestrictionTrackers.observe(tracker, this);
+      this.watermarkEstimator = WatermarkEstimators.threadSafe(watermarkEstimator);
     }
 
     @Override
@@ -338,11 +323,11 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
       }
     }
 
-    synchronized KV<RestrictionT, Instant> takeCheckpointNow() {
+    synchronized KV<RestrictionT, KV<Instant, WatermarkEstimatorStateT>> takeCheckpointNow() {
       // This method may be entered either via .output(), or via scheduledCheckpoint.
       // Only one of them "wins" - tracker.checkpoint() must be called only once.
       if (checkpoint == null) {
-        residualWatermark = lastReportedWatermark;
+        residualWatermarkAndState = watermarkEstimator.getWatermarkAndState();
         SplitResult<RestrictionT> split = tracker.trySplit(0);
         if (split != null) {
           checkpoint = checkNotNull(split.getResidual());
@@ -352,9 +337,9 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
     }
 
     @Nullable
-    synchronized KV<RestrictionT, Instant> getTakenCheckpoint() {
+    synchronized KV<RestrictionT, KV<Instant, WatermarkEstimatorStateT>> getTakenCheckpoint() {
       // The checkpoint may or may not have been taken.
-      return (checkpoint == null) ? null : KV.of(checkpoint, residualWatermark);
+      return (checkpoint == null) ? null : KV.of(checkpoint, residualWatermarkAndState);
     }
 
     @Override
@@ -381,21 +366,6 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
     }
 
     @Override
-    public synchronized void updateWatermark(Instant watermark) {
-      // Updating the watermark without any claimed blocks is allowed.
-      // The watermark is a promise about the timestamps of output from future claimed blocks.
-      // Such a promise can be made even if there are no claimed blocks. E.g. imagine reading
-      // from a streaming source that currently has no new data: there are no blocks to claim, but
-      // we may still want to advance the watermark if we have information about what timestamps
-      // of future elements in the source will be like.
-      lastReportedWatermark = watermark;
-    }
-
-    synchronized Instant getLastReportedWatermark() {
-      return lastReportedWatermark;
-    }
-
-    @Override
     public PipelineOptions getPipelineOptions() {
       return pipelineOptions;
     }
@@ -408,6 +378,9 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
     @Override
     public void outputWithTimestamp(OutputT value, Instant timestamp) {
       noteOutput();
+      if (watermarkEstimator instanceof TimestampObservingWatermarkEstimator) {
+        ((TimestampObservingWatermarkEstimator) watermarkEstimator).observeTimestamp(timestamp);
+      }
       output.outputWindowedValue(value, timestamp, element.getWindows(), element.getPane());
     }
 
@@ -419,6 +392,9 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
     @Override
     public <T> void outputWithTimestamp(TupleTag<T> tag, T value, Instant timestamp) {
       noteOutput();
+      if (watermarkEstimator instanceof TimestampObservingWatermarkEstimator) {
+        ((TimestampObservingWatermarkEstimator) watermarkEstimator).observeTimestamp(timestamp);
+      }
       output.outputWindowedValue(tag, value, timestamp, element.getWindows(), element.getPane());
     }
 

@@ -17,7 +17,9 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.fn')
+applyJavaNature(
+  automaticModuleName: 'org.apache.beam.sdk.fn',
+)
 
 description = "Apache Beam :: SDKs :: Java :: Fn Execution"
 ext.summary = """Contains code shared across the Beam Java SDK Harness and Java Runners to execute using
@@ -27,7 +29,7 @@ dependencies {
   compile project(path: ":model:pipeline", configuration: "shadow")
   compile project(path: ":model:fn-execution", configuration: "shadow")
   compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile library.java.vendored_grpc_1_21_0
+  compile library.java.vendored_grpc_1_26_0
   compile library.java.vendored_guava_26_0_jre
   compile library.java.slf4j_api
   compile library.java.joda_time

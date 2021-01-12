@@ -17,4 +17,8 @@
  */
 
 /** Transforms for reading and writing from JMS (Java Messaging Service). */
+@Experimental(Kind.SOURCE_SINK)
 package org.apache.beam.sdk.io.jms;
+
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;

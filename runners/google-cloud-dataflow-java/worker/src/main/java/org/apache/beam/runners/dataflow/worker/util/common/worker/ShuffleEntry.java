@@ -18,8 +18,12 @@
 package org.apache.beam.runners.dataflow.worker.util.common.worker;
 
 import java.util.Arrays;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Entry written to/read from a shuffle dataset. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ShuffleEntry {
   final ShufflePosition position;
   final byte[] key;
@@ -83,7 +87,7 @@ public class ShuffleEntry {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (this == o) {
       return true;
     }

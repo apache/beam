@@ -39,6 +39,9 @@ import org.junit.Rule;
 import org.junit.Test;
 
 /** Test for custom table resolver and full name table provider. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class CustomTableResolverTest implements Serializable {
 
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
@@ -106,7 +109,7 @@ public class CustomTableResolverTest implements Serializable {
   }
 
   @Test
-  public void testSimpleId() throws Exception {
+  public void testSimpleId() {
     CustomResolutionTestTableProvider tableProvider = new CustomResolutionTestTableProvider();
     tableProvider.createTable(
         Table.builder().name("testtable").schema(BASIC_SCHEMA).type("test").build());
@@ -141,7 +144,7 @@ public class CustomTableResolverTest implements Serializable {
     TestBoundedTable testTable = TestBoundedTable.of(BASIC_SCHEMA).addRows(1, "one");
 
     assertThrows(
-        IllegalArgumentException.class,
+        UnsupportedOperationException.class,
         () ->
             testTable.buildIOReader(
                 pipeline.begin(),
@@ -158,7 +161,7 @@ public class CustomTableResolverTest implements Serializable {
                 },
                 ImmutableList.of()));
     assertThrows(
-        IllegalArgumentException.class,
+        UnsupportedOperationException.class,
         () ->
             testTable.buildIOReader(
                 pipeline.begin(),

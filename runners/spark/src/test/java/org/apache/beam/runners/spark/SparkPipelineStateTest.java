@@ -18,8 +18,8 @@
 package org.apache.beam.runners.spark;
 
 import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 import java.io.Serializable;
@@ -42,6 +42,9 @@ import org.junit.Test;
 import org.junit.rules.TestName;
 
 /** This suite tests that various scenarios result in proper states of the pipeline. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SparkPipelineStateTest implements Serializable {
 
   private static class MyCustomException extends RuntimeException {

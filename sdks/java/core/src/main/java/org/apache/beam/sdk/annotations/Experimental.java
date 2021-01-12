@@ -36,6 +36,7 @@ import java.lang.annotation.Target;
   ElementType.CONSTRUCTOR,
   ElementType.FIELD,
   ElementType.METHOD,
+  ElementType.PACKAGE,
   ElementType.TYPE
 })
 
@@ -73,13 +74,6 @@ public @interface Experimental {
     /** Experimental APIs related to customizing the output time for computed values. */
     OUTPUT_TIME,
 
-    /**
-     * <a href="https://s.apache.org/splittable-do-fn">Splittable DoFn</a>. See <a
-     * href="https://beam.apache.org/documentation/runners/capability-matrix/">capability matrix</a>
-     * for runner support.
-     */
-    SPLITTABLE_DO_FN,
-
     /** Metrics-related experimental APIs. */
     METRICS,
 
@@ -109,5 +103,8 @@ public @interface Experimental {
 
     /** Experimental APIs related to exception handling in PTransforms. */
     WITH_EXCEPTIONS,
+
+    /** Portability related APIs. */
+    PORTABILITY,
   }
 }

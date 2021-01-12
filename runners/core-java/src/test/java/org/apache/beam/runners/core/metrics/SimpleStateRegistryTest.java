@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.core.metrics;
 
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -31,6 +31,9 @@ import org.hamcrest.Matchers;
 import org.junit.Test;
 
 /** Tests for {@link SimpleStateRegistryTest}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SimpleStateRegistryTest {
 
   @Test
@@ -63,20 +66,20 @@ public class SimpleStateRegistryTest {
     List<Matcher<MonitoringInfo>> matchers = new ArrayList<Matcher<MonitoringInfo>>();
     SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
     builder.setUrn(MonitoringInfoConstants.Urns.START_BUNDLE_MSECS);
-    builder.setInt64Value(0);
+    builder.setInt64SumValue(0);
     builder.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, testPTransformId);
     matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
 
     // Check for execution time metrics for the testPTransformId
     builder = new SimpleMonitoringInfoBuilder();
     builder.setUrn(MonitoringInfoConstants.Urns.PROCESS_BUNDLE_MSECS);
-    builder.setInt64Value(0);
+    builder.setInt64SumValue(0);
     builder.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, testPTransformId);
     matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
 
     builder = new SimpleMonitoringInfoBuilder();
     builder.setUrn(MonitoringInfoConstants.Urns.FINISH_BUNDLE_MSECS);
-    builder.setInt64Value(0);
+    builder.setInt64SumValue(0);
     builder.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, testPTransformId);
     matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
 

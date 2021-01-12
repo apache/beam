@@ -44,7 +44,7 @@ public class StaticRemoteEnvironmentFactory implements EnvironmentFactory {
   }
 
   @Override
-  public RemoteEnvironment createEnvironment(Environment environment) {
+  public RemoteEnvironment createEnvironment(Environment environment, String workerId) {
     return StaticRemoteEnvironment.create(environment, this.instructionRequestHandler);
   }
 

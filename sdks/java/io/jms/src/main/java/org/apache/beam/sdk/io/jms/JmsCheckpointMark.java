@@ -17,48 +17,54 @@
  */
 package org.apache.beam.sdk.io.jms;
 
+import java.io.IOException;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-import java.util.function.BiFunction;
-import java.util.function.Supplier;
 import javax.jms.Message;
-import org.apache.beam.sdk.coders.AvroCoder;
-import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Checkpoint for an unbounded JmsIO.Read. Consists of JMS destination name, and the latest message
- * ID consumed so far.
+ * Checkpoint for an unbounded JMS source. Consists of the JMS messages waiting to be acknowledged
+ * and oldest pending message timestamp.
  */
-@DefaultCoder(AvroCoder.class)
-public class JmsCheckpointMark implements UnboundedSource.CheckpointMark {
+class JmsCheckpointMark implements UnboundedSource.CheckpointMark, Serializable {
 
   private static final Logger LOG = LoggerFactory.getLogger(JmsCheckpointMark.class);
 
-  private final State state = new State();
+  private Instant oldestMessageTimestamp = Instant.now();
+  private transient List<Message> messages = new ArrayList<>();
 
-  public JmsCheckpointMark() {}
+  private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
 
-  protected List<Message> getMessages() {
-    return state.getMessages();
+  JmsCheckpointMark() {}
+
+  void add(Message message) throws Exception {
+    lock.writeLock().lock();
+    try {
+      Instant currentMessageTimestamp = new Instant(message.getJMSTimestamp());
+      if (currentMessageTimestamp.isBefore(oldestMessageTimestamp)) {
+        oldestMessageTimestamp = currentMessageTimestamp;
+      }
+      messages.add(message);
+    } finally {
+      lock.writeLock().unlock();
+    }
   }
 
-  protected void addMessage(Message message) throws Exception {
-    Instant currentMessageTimestamp = new Instant(message.getJMSTimestamp());
-    state.atomicWrite(
-        () -> {
-          state.updateOldestPendingTimestampIf(currentMessageTimestamp, Instant::isBefore);
-          state.addMessage(message);
-        });
-  }
-
-  protected Instant getOldestPendingTimestamp() {
-    return state.getOldestPendingTimestamp();
+  Instant getOldestMessageTimestamp() {
+    lock.readLock().lock();
+    try {
+      return this.oldestMessageTimestamp;
+    } finally {
+      lock.readLock().unlock();
+    }
   }
 
   /**
@@ -68,117 +74,46 @@ public class JmsCheckpointMark implements UnboundedSource.CheckpointMark {
    */
   @Override
   public void finalizeCheckpoint() {
-    State snapshot = state.snapshot();
-    for (Message message : snapshot.messages) {
-      try {
-        message.acknowledge();
-        Instant currentMessageTimestamp = new Instant(message.getJMSTimestamp());
-        snapshot.updateOldestPendingTimestampIf(currentMessageTimestamp, Instant::isAfter);
-      } catch (Exception e) {
-        LOG.error("Exception while finalizing message: {}", e);
+    lock.writeLock().lock();
+    try {
+      for (Message message : messages) {
+        try {
+          message.acknowledge();
+          Instant currentMessageTimestamp = new Instant(message.getJMSTimestamp());
+          if (currentMessageTimestamp.isAfter(oldestMessageTimestamp)) {
+            oldestMessageTimestamp = currentMessageTimestamp;
+          }
+        } catch (Exception e) {
+          LOG.error("Exception while finalizing message: ", e);
+        }
       }
+      messages.clear();
+    } finally {
+      lock.writeLock().unlock();
     }
-    state.atomicWrite(
-        () -> {
-          state.removeMessages(snapshot.messages);
-          state.updateOldestPendingTimestampIf(snapshot.oldestPendingTimestamp, Instant::isAfter);
-        });
   }
 
-  /**
-   * Encapsulates the state of a checkpoint mark; the list of messages pending finalisation and the
-   * oldest pending timestamp. Read/write-exclusive access is provided throughout, and constructs
-   * allowing multiple operations to be performed atomically -- i.e. performed within the context of
-   * a single lock operation -- are made available.
-   */
-  private class State {
-    private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
+  // set an empty list to messages when deserialize
+  private void readObject(java.io.ObjectInputStream stream)
+      throws IOException, ClassNotFoundException {
+    stream.defaultReadObject();
+    messages = new ArrayList<>();
+  }
 
-    private final List<Message> messages;
-    private Instant oldestPendingTimestamp;
-
-    public State() {
-      this(new ArrayList<>(), BoundedWindow.TIMESTAMP_MIN_VALUE);
+  @Override
+  public boolean equals(@Nullable Object o) {
+    if (this == o) {
+      return true;
     }
-
-    private State(List<Message> messages, Instant oldestPendingTimestamp) {
-      this.messages = messages;
-      this.oldestPendingTimestamp = oldestPendingTimestamp;
+    if (o == null || getClass() != o.getClass()) {
+      return false;
     }
+    JmsCheckpointMark that = (JmsCheckpointMark) o;
+    return oldestMessageTimestamp.equals(that.oldestMessageTimestamp);
+  }
 
-    /**
-     * Create and return a copy of the current state.
-     *
-     * @return A new {@code State} instance which is a deep copy of the target instance at the time
-     *     of execution.
-     */
-    public State snapshot() {
-      return atomicRead(() -> new State(new ArrayList<>(messages), oldestPendingTimestamp));
-    }
-
-    public Instant getOldestPendingTimestamp() {
-      return atomicRead(() -> oldestPendingTimestamp);
-    }
-
-    public List<Message> getMessages() {
-      return atomicRead(() -> messages);
-    }
-
-    public void addMessage(Message message) {
-      atomicWrite(() -> messages.add(message));
-    }
-
-    public void removeMessages(List<Message> messages) {
-      atomicWrite(() -> this.messages.removeAll(messages));
-    }
-
-    /**
-     * Conditionally sets {@code oldestPendingTimestamp} to the value of the supplied {@code
-     * candidate}, iff the provided {@code check} yields true for the {@code candidate} when called
-     * with the existing {@code oldestPendingTimestamp} value.
-     *
-     * @param candidate The potential new value.
-     * @param check The comparison method to call on {@code candidate} passing the existing {@code
-     *     oldestPendingTimestamp} value as a parameter.
-     */
-    private void updateOldestPendingTimestampIf(
-        Instant candidate, BiFunction<Instant, Instant, Boolean> check) {
-      atomicWrite(
-          () -> {
-            if (check.apply(candidate, oldestPendingTimestamp)) {
-              oldestPendingTimestamp = candidate;
-            }
-          });
-    }
-
-    /**
-     * Call the provided {@link Supplier} under this State's read lock and return its result.
-     *
-     * @param operation The code to execute in the context of this State's read lock.
-     * @param <T> The return type of the provided {@link Supplier}.
-     * @return The value produced by the provided {@link Supplier}.
-     */
-    public <T> T atomicRead(Supplier<T> operation) {
-      lock.readLock().lock();
-      try {
-        return operation.get();
-      } finally {
-        lock.readLock().unlock();
-      }
-    }
-
-    /**
-     * Call the provided {@link Runnable} under this State's write lock.
-     *
-     * @param operation The code to execute in the context of this State's write lock.
-     */
-    public void atomicWrite(Runnable operation) {
-      lock.writeLock().lock();
-      try {
-        operation.run();
-      } finally {
-        lock.writeLock().unlock();
-      }
-    }
+  @Override
+  public int hashCode() {
+    return Objects.hash(oldestMessageTimestamp);
   }
 }

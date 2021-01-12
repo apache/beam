@@ -16,6 +16,8 @@
 # limitations under the License.
 #
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import print_function
 
@@ -32,8 +34,7 @@ def flatmap_simple(test=None):
             '🍅Tomato 🥔Potato',
         ])
         | 'Split words' >> beam.FlatMap(str.split)
-        | beam.Map(print)
-    )
+        | beam.Map(print))
     # [END flatmap_simple]
     if test:
       test(plants)
@@ -54,8 +55,7 @@ def flatmap_function(test=None):
             '🍅Tomato,🥔Potato',
         ])
         | 'Split words' >> beam.FlatMap(split_words)
-        | beam.Map(print)
-    )
+        | beam.Map(print))
     # [END flatmap_function]
     if test:
       test(plants)
@@ -73,8 +73,7 @@ def flatmap_lambda(test=None):
             ['🍅Tomato', '🥔Potato'],
         ])
         | 'Flatten lists' >> beam.FlatMap(lambda elements: elements)
-        | beam.Map(print)
-    )
+        | beam.Map(print))
     # [END flatmap_lambda]
     if test:
       test(plants)
@@ -96,8 +95,7 @@ def flatmap_generator(test=None):
             ['🍅Tomato', '🥔Potato'],
         ])
         | 'Flatten lists' >> beam.FlatMap(generate_elements)
-        | beam.Map(print)
-    )
+        | beam.Map(print))
     # [END flatmap_generator]
     if test:
       test(plants)
@@ -118,8 +116,7 @@ def flatmap_multiple_arguments(test=None):
             '🍅Tomato,🥔Potato',
         ])
         | 'Split words' >> beam.FlatMap(split_words, delimiter=',')
-        | beam.Map(print)
-    )
+        | beam.Map(print))
     # [END flatmap_multiple_arguments]
     if test:
       test(plants)
@@ -145,8 +142,7 @@ def flatmap_tuple(test=None):
             (None, 'Invalid'),
         ])
         | 'Format' >> beam.FlatMapTuple(format_plant)
-        | beam.Map(print)
-    )
+        | beam.Map(print))
     # [END flatmap_tuple]
     if test:
       test(plants)
@@ -166,11 +162,11 @@ def flatmap_side_inputs_singleton(test=None):
             '🍅Tomato,🥔Potato',
         ])
         | 'Split words' >> beam.FlatMap(
-            lambda text, delimiter: text.split(delimiter),
+            lambda text,
+            delimiter: text.split(delimiter),
             delimiter=beam.pvalue.AsSingleton(delimiter),
         )
-        | beam.Map(print)
-    )
+        | beam.Map(print))
     # [END flatmap_side_inputs_singleton]
     if test:
       test(plants)
@@ -195,18 +191,27 @@ def flatmap_side_inputs_iter(test=None):
     valid_plants = (
         pipeline
         | 'Gardening plants' >> beam.Create([
-            {'icon': '🍓', 'name': 'Strawberry', 'duration': 'Perennial'},
-            {'icon': '🥕', 'name': 'Carrot', 'duration': 'BIENNIAL'},
-            {'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'},
-            {'icon': '🍅', 'name': 'Tomato', 'duration': 'annual'},
-            {'icon': '🥔', 'name': 'Potato', 'duration': 'unknown'},
+            {
+                'icon': '🍓', 'name': 'Strawberry', 'duration': 'Perennial'
+            },
+            {
+                'icon': '🥕', 'name': 'Carrot', 'duration': 'BIENNIAL'
+            },
+            {
+                'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'
+            },
+            {
+                'icon': '🍅', 'name': 'Tomato', 'duration': 'annual'
+            },
+            {
+                'icon': '🥔', 'name': 'Potato', 'duration': 'unknown'
+            },
         ])
         | 'Normalize and validate durations' >> beam.FlatMap(
             normalize_and_validate_durations,
             valid_durations=beam.pvalue.AsIter(valid_durations),
         )
-        | beam.Map(print)
-    )
+        | beam.Map(print))
     # [END flatmap_side_inputs_iter]
     if test:
       test(valid_plants)
@@ -231,18 +236,27 @@ def flatmap_side_inputs_dict(test=None):
     valid_plants = (
         pipeline
         | 'Gardening plants' >> beam.Create([
-            {'icon': '🍓', 'name': 'Strawberry', 'duration': 2},
-            {'icon': '🥕', 'name': 'Carrot', 'duration': 1},
-            {'icon': '🍆', 'name': 'Eggplant', 'duration': 2},
-            {'icon': '🍅', 'name': 'Tomato', 'duration': 0},
-            {'icon': '🥔', 'name': 'Potato', 'duration': -1},
+            {
+                'icon': '🍓', 'name': 'Strawberry', 'duration': 2
+            },
+            {
+                'icon': '🥕', 'name': 'Carrot', 'duration': 1
+            },
+            {
+                'icon': '🍆', 'name': 'Eggplant', 'duration': 2
+            },
+            {
+                'icon': '🍅', 'name': 'Tomato', 'duration': 0
+            },
+            {
+                'icon': '🥔', 'name': 'Potato', 'duration': -1
+            },
         ])
         | 'Replace duration if valid' >> beam.FlatMap(
             replace_duration_if_valid,
             durations=beam.pvalue.AsDict(durations),
         )
-        | beam.Map(print)
-    )
+        | beam.Map(print))
     # [END flatmap_side_inputs_dict]
     if test:
       test(valid_plants)

@@ -26,10 +26,10 @@ job('beam_Release_Gradle_Build') {
 
   // Set common parameters.
   commonJobProperties
-  .setTopLevelMainJobProperties(
-    delegate,
-    defaultBranch='master',
-    defaultTimeout=300)
+      .setTopLevelMainJobProperties(
+      delegate,
+      defaultBranch='master',
+      defaultTimeout=300)
 
   // Allows triggering this build against pull requests.
   commonJobProperties.enablePhraseTriggeringFromPullRequest(

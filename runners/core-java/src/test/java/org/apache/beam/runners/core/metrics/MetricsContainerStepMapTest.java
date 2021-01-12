@@ -20,9 +20,9 @@ package org.apache.beam.runners.core.metrics;
 import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAttemptedOnlyMetricResults;
 import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asMetricResults;
 import static org.apache.beam.sdk.metrics.MetricResultsMatchers.metricsResult;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasItem;
-import static org.junit.Assert.assertThat;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -50,6 +50,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Tests for {@link MetricsContainerStepMap}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class MetricsContainerStepMapTest {
   private static final Logger LOG = LoggerFactory.getLogger(MetricsContainerStepMapTest.class);
 
@@ -209,11 +212,11 @@ public class MetricsContainerStepMapTest {
 
     SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
     builder
-        .setUrn(MonitoringInfoConstants.Urns.USER_COUNTER)
+        .setUrn(MonitoringInfoConstants.Urns.USER_SUM_INT64)
         .setLabel(MonitoringInfoConstants.Labels.NAMESPACE, "ns")
         .setLabel(MonitoringInfoConstants.Labels.NAME, "name1");
     builder.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, STEP1);
-    builder.setInt64Value(7);
+    builder.setInt64SumValue(7);
     expected.add(builder.build());
 
     expected.add(MonitoringInfoTestUtil.testElementCountMonitoringInfo(14));
@@ -221,7 +224,7 @@ public class MetricsContainerStepMapTest {
     ArrayList<MonitoringInfo> actual = new ArrayList<MonitoringInfo>();
 
     for (MonitoringInfo mi : testObject.getMonitoringInfos()) {
-      actual.add(SimpleMonitoringInfoBuilder.copyAndClearTimestamp(mi));
+      actual.add(mi);
     }
     assertThat(actual, containsInAnyOrder(expected.toArray()));
   }

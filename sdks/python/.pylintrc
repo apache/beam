@@ -84,12 +84,11 @@ disable =
   attribute-defined-outside-init,
   bad-builtin,
   bad-super-call,
+  bad-continuation,
   broad-except,
-  chained-comparison,
   comparison-with-callable,
   consider-using-enumerate,
   consider-using-in,
-  consider-using-set-comprehension,
   consider-using-sys-exit,
   cyclic-import,
   design,
@@ -179,7 +178,8 @@ indent-after-paren=4
 ignore-long-lines=(?x)
   (^\s*(import|from)\s
    |^\s*(\#\ )?<?(https?|ftp):\/\/[^\s\/$.?#].[^\s]*>?$
-   |# type:
+   |^.*\#\ type\:
+   |^.*LegacyArtifact
    )
 
 [VARIABLES]

@@ -18,15 +18,15 @@
 package org.apache.beam.sdk.schemas;
 
 import java.io.Serializable;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
  *
  * <p>An interface to set a field of a class.
  *
- * <p>Implementations of this interface are generated at runtime to map Row fields back into objet
+ * <p>Implementations of this interface are generated at runtime to map Row fields back into object
  * fields.
  */
 @Internal

@@ -42,6 +42,7 @@ import org.joda.time.Instant;
  * because the code for handling pushback on streaming side inputs in Dataflow is also divergent
  * from the runner-agnostic code in runners-core. If that code is ever unified, so can this class.
  */
+@SuppressWarnings({"keyfor", "nullness"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 class DataflowProcessFnRunner<InputT, OutputT, RestrictionT>
     implements DoFnRunner<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> {
   private final DoFnRunner<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> simpleRunner;
@@ -108,14 +109,25 @@ class DataflowProcessFnRunner<InputT, OutputT, RestrictionT>
   }
 
   @Override
-  public void onTimer(
-      String timerId, BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {
+  public <KeyT> void onTimer(
+      String timerId,
+      String timerFamilyId,
+      KeyT key,
+      BoundedWindow window,
+      Instant timestamp,
+      Instant outputTimestamp,
+      TimeDomain timeDomain) {
     throw new UnsupportedOperationException("Unsupported for ProcessFn");
   }
 
   @Override
   public void finishBundle() {
     simpleRunner.finishBundle();
+  }
+
+  @Override
+  public <KeyT> void onWindowExpiration(BoundedWindow window, Instant timestamp, KeyT key) {
+    simpleRunner.onWindowExpiration(window, timestamp, key);
   }
 
   @Override

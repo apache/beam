@@ -36,7 +36,8 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatterBuilder;
 import java.util.ArrayList;
 import java.util.List;
-import javax.annotation.Nullable;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.apache.avro.Conversions;
 import org.apache.avro.LogicalType;
 import org.apache.avro.LogicalTypes;
@@ -48,6 +49,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.BaseEncoding;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
@@ -57,6 +59,9 @@ import org.joda.time.format.DateTimeFormatter;
  * <p>These utilities are based on the <a href="https://avro.apache.org/docs/1.8.1/spec.html">Avro
  * 1.8.1</a> specification.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class BigQueryAvroUtils {
 
   /**
@@ -165,6 +170,41 @@ class BigQueryAvroUtils {
     return LocalTime.ofNanoOfDay(timeMicros * 1000).format(formatter);
   }
 
+  static TableSchema trimBigQueryTableSchema(TableSchema inputSchema, Schema avroSchema) {
+    List<TableFieldSchema> subSchemas =
+        inputSchema.getFields().stream()
+            .flatMap(fieldSchema -> mapTableFieldSchema(fieldSchema, avroSchema))
+            .collect(Collectors.toList());
+
+    return new TableSchema().setFields(subSchemas);
+  }
+
+  private static Stream<TableFieldSchema> mapTableFieldSchema(
+      TableFieldSchema fieldSchema, Schema avroSchema) {
+    Field avroFieldSchema = avroSchema.getField(fieldSchema.getName());
+    if (avroFieldSchema == null) {
+      return Stream.empty();
+    } else if (avroFieldSchema.schema().getType() != Type.RECORD) {
+      return Stream.of(fieldSchema);
+    }
+
+    List<TableFieldSchema> subSchemas =
+        fieldSchema.getFields().stream()
+            .flatMap(subSchema -> mapTableFieldSchema(subSchema, avroFieldSchema.schema()))
+            .collect(Collectors.toList());
+
+    TableFieldSchema output =
+        new TableFieldSchema()
+            .setCategories(fieldSchema.getCategories())
+            .setDescription(fieldSchema.getDescription())
+            .setFields(subSchemas)
+            .setMode(fieldSchema.getMode())
+            .setName(fieldSchema.getName())
+            .setType(fieldSchema.getType());
+
+    return Stream.of(output);
+  }
+
   /**
    * Utility function to convert from an Avro {@link GenericRecord} to a BigQuery {@link TableRow}.
    *
@@ -193,8 +233,8 @@ class BigQueryAvroUtils {
     return row;
   }
 
-  @Nullable
-  private static Object getTypedCellValue(Schema schema, TableFieldSchema fieldSchema, Object v) {
+  private static @Nullable Object getTypedCellValue(
+      Schema schema, TableFieldSchema fieldSchema, Object v) {
     // Per https://cloud.google.com/bigquery/docs/reference/v2/tables#schema, the mode field
     // is optional (and so it may be null), but defaults to "NULLABLE".
     String mode = firstNonNull(fieldSchema.getMode(), "NULLABLE");
@@ -300,6 +340,7 @@ class BigQueryAvroUtils {
             new Conversions.DecimalConversion()
                 .fromBytes((ByteBuffer) v, Schema.create(avroType), avroLogicalType);
         return numericValue.toString();
+      case "BOOL":
       case "BOOLEAN":
         verify(v instanceof Boolean, "Expected Boolean, got %s", v.getClass());
         return v;
@@ -325,8 +366,7 @@ class BigQueryAvroUtils {
     }
   }
 
-  @Nullable
-  private static Object convertNullableField(
+  private static @Nullable Object convertNullableField(
       Schema avroSchema, TableFieldSchema fieldSchema, Object v) {
     // NULLABLE fields are represented as an Avro Union of the corresponding type and "null".
     verify(

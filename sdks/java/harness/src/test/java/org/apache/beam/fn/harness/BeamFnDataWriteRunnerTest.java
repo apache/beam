@@ -18,11 +18,11 @@
 package org.apache.beam.fn.harness;
 
 import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
@@ -73,6 +73,9 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link BeamFnDataWriteRunner}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BeamFnDataWriteRunnerTest {
 
   private static final String ELEM_CODER_ID = "string-coder-id";
@@ -138,6 +141,7 @@ public class BeamFnDataWriteRunnerTest {
             PipelineOptionsFactory.create(),
             mockBeamFnDataClient,
             null /* beamFnStateClient */,
+            null /* beamFnTimerClient */,
             TRANSFORM_ID,
             pTransform,
             Suppliers.ofInstance(bundleId)::get,
@@ -148,8 +152,11 @@ public class BeamFnDataWriteRunnerTest {
             consumers,
             startFunctionRegistry,
             finishFunctionRegistry,
+            null /* addResetFunction */,
             teardownFunctions::add,
-            null /* splitListener */);
+            null /* addProgressRequestCallback */,
+            null /* splitListener */,
+            null /* bundleFinalizer */);
 
     assertThat(teardownFunctions, empty());
 
@@ -181,7 +188,7 @@ public class BeamFnDataWriteRunnerTest {
     verify(mockBeamFnDataClient)
         .send(
             eq(PORT_SPEC.getApiServiceDescriptor()),
-            eq(LogicalEndpoint.of(bundleId, TRANSFORM_ID)),
+            eq(LogicalEndpoint.data(bundleId, TRANSFORM_ID)),
             eq(WIRE_CODER));
 
     assertThat(consumers.keySet(), containsInAnyOrder(localInputId));
@@ -209,9 +216,9 @@ public class BeamFnDataWriteRunnerTest {
             TRANSFORM_ID,
             RemoteGrpcPortWrite.writeToPort("myWrite", PORT_SPEC).toPTransform(),
             bundleId::get,
-            WIRE_CODER_SPEC,
             COMPONENTS.getCodersMap(),
-            mockBeamFnDataClient);
+            mockBeamFnDataClient,
+            null /* beamFnStateClient */);
 
     // Process for bundle id 0
     writeRunner.registerForOutput();
@@ -219,7 +226,7 @@ public class BeamFnDataWriteRunnerTest {
     verify(mockBeamFnDataClient)
         .send(
             eq(PORT_SPEC.getApiServiceDescriptor()),
-            eq(LogicalEndpoint.of(bundleId.get(), TRANSFORM_ID)),
+            eq(LogicalEndpoint.data(bundleId.get(), TRANSFORM_ID)),
             eq(WIRE_CODER));
 
     writeRunner.consume(valueInGlobalWindow("ABC"));
@@ -238,7 +245,7 @@ public class BeamFnDataWriteRunnerTest {
     verify(mockBeamFnDataClient)
         .send(
             eq(PORT_SPEC.getApiServiceDescriptor()),
-            eq(LogicalEndpoint.of(bundleId.get(), TRANSFORM_ID)),
+            eq(LogicalEndpoint.data(bundleId.get(), TRANSFORM_ID)),
             eq(WIRE_CODER));
 
     writeRunner.consume(valueInGlobalWindow("GHI"));

@@ -18,7 +18,7 @@
 package org.apache.beam.runners.flink;
 
 import java.io.File;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.time.Duration;
 import java.util.Arrays;
@@ -28,11 +28,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.fnexecution.environment.ProcessManager;
-import org.apache.beam.runners.fnexecution.jobsubmission.JobInvocation;
-import org.apache.beam.runners.fnexecution.jobsubmission.JobInvoker;
-import org.apache.beam.runners.fnexecution.jobsubmission.PortablePipelineResult;
-import org.apache.beam.runners.fnexecution.jobsubmission.PortablePipelineRunner;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
+import org.apache.beam.runners.jobsubmission.JobInvocation;
+import org.apache.beam.runners.jobsubmission.JobInvoker;
+import org.apache.beam.runners.jobsubmission.PortablePipelineResult;
+import org.apache.beam.runners.jobsubmission.PortablePipelineRunner;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ListeningExecutorService;
@@ -67,6 +67,9 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Finally Flink launches the job.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class FlinkPortableClientEntryPoint {
   private static final Logger LOG = LoggerFactory.getLogger(FlinkPortableClientEntryPoint.class);
   private static final String JOB_ENDPOINT_FLAG = "--job_endpoint";
@@ -185,7 +188,7 @@ public class FlinkPortableClientEntryPoint {
       String msg =
           String.format(
               "Failed to start job with driver program: %s %s output: %s",
-              executable, args, new String(output, Charset.defaultCharset()));
+              executable, args, new String(output, StandardCharsets.UTF_8));
       throw new RuntimeException(msg, e);
     }
   }

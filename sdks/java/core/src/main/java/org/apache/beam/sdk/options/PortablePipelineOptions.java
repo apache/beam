@@ -18,10 +18,13 @@
 package org.apache.beam.sdk.options;
 
 import java.util.List;
-import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.options.Validation.Required;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Pipeline options common to all portable runners. */
+@Experimental(Kind.PORTABILITY)
 public interface PortablePipelineOptions extends PipelineOptions {
 
   // TODO: https://issues.apache.org/jira/browse/BEAM-4106: Consider pulling this out into a new
@@ -88,23 +91,16 @@ public interface PortablePipelineOptions extends PipelineOptions {
 
   void setEnvironmentExpirationMillis(int environmentExpirationMillis);
 
+  @Description(
+      "Specifies if bundles should be distributed to the next available free SDK worker. By default SDK workers are pinned to runner tasks for the duration of the pipeline. This option can help for pipelines with long and skewed bundle execution times to increase throughput and improve worker utilization.")
+  @Default.Boolean(false)
+  boolean getLoadBalanceBundles();
+
+  void setLoadBalanceBundles(boolean loadBalanceBundles);
+
   @Description("The output path for the executable file to be created.")
   @Nullable
   String getOutputExecutablePath();
 
   void setOutputExecutablePath(String outputExecutablePath);
-
-  /** Enumeration of the different implementations of the artifact retrieval service. */
-  enum RetrievalServiceType {
-    /** Artifacts are to be retrieved from a {@link org.apache.beam.sdk.io.FileSystem}. */
-    FILE_SYSTEM,
-    /** Artifacts are to be retrieved from the runtime {@link ClassLoader}. */
-    CLASSLOADER,
-  }
-
-  @Description("The artifact retrieval service to be used.")
-  @Default.Enum("FILE_SYSTEM")
-  RetrievalServiceType getRetrievalServiceType();
-
-  void setRetrievalServiceType(RetrievalServiceType retrievalServiceType);
 }

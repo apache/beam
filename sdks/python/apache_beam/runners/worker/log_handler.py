@@ -14,7 +14,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 """Beam fn API log handler."""
+
+# pytype: skip-file
+# mypy: disallow-untyped-defs
 
 from __future__ import absolute_import
 from __future__ import print_function
@@ -26,6 +30,12 @@ import sys
 import threading
 import time
 import traceback
+from typing import TYPE_CHECKING
+from typing import Iterable
+from typing import Iterator
+from typing import List
+from typing import Union
+from typing import cast
 
 import grpc
 
@@ -34,6 +44,10 @@ from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.runners.worker import statesampler
 from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
 from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
+from apache_beam.utils.sentinel import Sentinel
+
+if TYPE_CHECKING:
+  from apache_beam.portability.api import endpoints_pb2
 
 # This module is experimental. No backwards-compatibility guarantees.
 
@@ -44,7 +58,7 @@ class FnApiLogRecordHandler(logging.Handler):
   # Maximum number of log entries in a single stream request.
   _MAX_BATCH_SIZE = 1000
   # Used to indicate the end of stream.
-  _FINISHED = object()
+  _FINISHED = Sentinel.sentinel
   # Size of the queue used to buffer messages. Once full, messages will be
   # dropped. If the average log size is 1KB this may use up to 10MB of memory.
   _QUEUE_SIZE = 10000
@@ -60,11 +74,14 @@ class FnApiLogRecordHandler(logging.Handler):
   }
 
   def __init__(self, log_service_descriptor):
+    # type: (endpoints_pb2.ApiServiceDescriptor) -> None
     super(FnApiLogRecordHandler, self).__init__()
 
     self._alive = True
     self._dropped_logs = 0
-    self._log_entry_queue = queue.Queue(maxsize=self._QUEUE_SIZE)  # type: queue.Queue[beam_fn_api_pb2.LogEntry]
+    self._log_entry_queue = queue.Queue(
+        maxsize=self._QUEUE_SIZE
+    )  # type: queue.Queue[Union[beam_fn_api_pb2.LogEntry, Sentinel]]
 
     ch = GRPCChannelFactory.insecure_channel(log_service_descriptor.url)
     # Make sure the channel is ready to avoid [BEAM-4649]
@@ -77,19 +94,21 @@ class FnApiLogRecordHandler(logging.Handler):
     self._reader.start()
 
   def connect(self):
+    # type: () -> Iterable
     if hasattr(self, '_logging_stub'):
-      del self._logging_stub
+      del self._logging_stub  # type: ignore[has-type]
     self._logging_stub = beam_fn_api_pb2_grpc.BeamFnLoggingStub(
         self._log_channel)
     return self._logging_stub.Logging(self._write_log_entries())
 
   def map_log_level(self, level):
+    # type: (int) -> beam_fn_api_pb2.LogEntry.Severity.Enum
     try:
       return self.LOG_LEVEL_MAP[level]
     except KeyError:
       return max(
-          beam_level for python_level, beam_level in self.LOG_LEVEL_MAP.items()
-          if python_level <= level)
+          beam_level for python_level,
+          beam_level in self.LOG_LEVEL_MAP.items() if python_level <= level)
 
   def emit(self, record):
     # type: (logging.LogRecord) -> None
@@ -111,9 +130,8 @@ class FnApiLogRecordHandler(logging.Handler):
     tracker = statesampler.get_current_tracker()
     if tracker:
       current_state = tracker.current_state()
-      if (current_state
-          and current_state.name_context
-          and current_state.name_context.transform_id):
+      if (current_state and current_state.name_context and
+          current_state.name_context.transform_id):
         log_entry.transform_id = current_state.name_context.transform_id
 
     try:
@@ -122,6 +140,8 @@ class FnApiLogRecordHandler(logging.Handler):
       self._dropped_logs += 1
 
   def close(self):
+    # type: () -> None
+
     """Flush out all existing log entries and unregister this handler."""
     try:
       self._alive = False
@@ -141,6 +161,7 @@ class FnApiLogRecordHandler(logging.Handler):
       logging.error("Error closing the logging channel.", exc_info=True)
 
   def _write_log_entries(self):
+    # type: () -> Iterator[beam_fn_api_pb2.LogEntry.List]
     done = False
     while not done:
       log_entries = [self._log_entry_queue.get()]
@@ -153,21 +174,28 @@ class FnApiLogRecordHandler(logging.Handler):
         done = True
         log_entries.pop()
       if log_entries:
-        yield beam_fn_api_pb2.LogEntry.List(log_entries=log_entries)
+        # typing: log_entries was initialized as List[Union[..., Sentinel]],
+        # but now that we've popped the sentinel out (above) we can safely cast
+        yield beam_fn_api_pb2.LogEntry.List(
+            log_entries=cast(List[beam_fn_api_pb2.LogEntry], log_entries))
 
   def _read_log_control_messages(self):
+    # type: () -> None
     # Only reconnect when we are alive.
     # We can drop some logs in the unlikely event of logging connection
     # dropped(not closed) during termination when we still have logs to be sent.
     # This case is unlikely and the chance of reconnection and successful
     # transmission of logs is also very less as the process is terminating.
     # I choose not to handle this case to avoid un-necessary code complexity.
-    while self._alive:
+
+    alive = True  # Force at least one connection attempt.
+    while alive:
       # Loop for reconnection.
       log_control_iterator = self.connect()
       if self._dropped_logs > 0:
-        logging.warning("Dropped %d logs while logging client disconnected",
-                        self._dropped_logs)
+        logging.warning(
+            "Dropped %d logs while logging client disconnected",
+            self._dropped_logs)
         self._dropped_logs = 0
       try:
         for _ in log_control_iterator:
@@ -177,7 +205,9 @@ class FnApiLogRecordHandler(logging.Handler):
         # iterator is closed
         return
       except Exception as ex:
-        print("Logging client failed: {}... resetting".format(ex),
-              file=sys.stderr)
+        print(
+            "Logging client failed: {}... resetting".format(ex),
+            file=sys.stderr)
         # Wait a bit before trying a reconnect
-        time.sleep(0.5) # 0.5 seconds
+        time.sleep(0.5)  # 0.5 seconds
+      alive = self._alive

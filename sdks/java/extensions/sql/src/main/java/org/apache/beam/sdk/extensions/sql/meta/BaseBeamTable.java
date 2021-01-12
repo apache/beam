@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta;
 
-import static org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Preconditions.checkArgument;
-
 import java.util.List;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -32,9 +30,16 @@ public abstract class BaseBeamTable implements BeamSqlTable {
   public PCollection<Row> buildIOReader(
       PBegin begin, BeamSqlTableFilter filters, List<String> fieldNames) {
     String error = "%s does not support predicate/project push-down, yet non-empty %s is passed.";
-    checkArgument(
-        filters instanceof DefaultTableFilter, error, this.getClass().getName(), "'filters'");
-    checkArgument(fieldNames.isEmpty(), error, this.getClass().getName(), "'fieldNames'");
+
+    if (!(filters instanceof DefaultTableFilter)) {
+      throw new UnsupportedOperationException(
+          String.format(error, this.getClass().getName(), "'filters'"));
+    }
+
+    if (!fieldNames.isEmpty()) {
+      throw new UnsupportedOperationException(
+          String.format(error, this.getClass().getName(), "'fieldNames'"));
+    }
 
     return buildIOReader(begin);
   }

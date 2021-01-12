@@ -16,14 +16,16 @@
  * limitations under the License.
  */
 
+import org.apache.beam.gradle.GrpcVendoring_1_26_0
+
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
   automaticModuleName: 'org.apache.beam.vendor.sdks.java.extensions.protobuf',
   exportJavadoc: false,
   shadowClosure: {
     dependencies {
-        include(dependency('com.google.guava:guava:26.0-jre'))
-        include(dependency('com.google.protobuf:protobuf-java:3.7.1'))
+        include(dependency("com.google.guava:guava:${GrpcVendoring_1_26_0.guava_version}"))
+        include(dependency("com.google.protobuf:protobuf-java:${GrpcVendoring_1_26_0.protobuf_version}"))
     }
     // We specifically relocate beam-sdks-extensions-protobuf under a vendored namespace
     // but also vendor guava and protobuf to the same vendored namespace as the model/*
@@ -32,11 +34,11 @@ applyJavaNature(
     relocate "org.apache.beam.sdk.extensions.protobuf", "org.apache.beam.vendor.sdk.v2.sdk.extensions.protobuf"
 
     // guava uses the com.google.common and com.google.thirdparty package namespaces
-    relocate "com.google.common", "org.apache.beam.vendor.grpc.v1p21p0.com.google.common"
-    relocate "com.google.thirdparty", "org.apache.beam.vendor.grpc.v1p21p0.com.google.thirdparty"
+    relocate "com.google.common", "org.apache.beam.vendor.grpc.v1p26p0.com.google.common"
+    relocate "com.google.thirdparty", "org.apache.beam.vendor.grpc.v1p26p0.com.google.thirdparty"
 
-    relocate "com.google.protobuf", "org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf"
-  }
+    relocate "com.google.protobuf", "org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf"
+  },
 )
 
 description = "Apache Beam :: Vendored Dependencies :: SDKs :: Java :: Extensions :: Protobuf"
@@ -54,7 +56,7 @@ compileJava {
 }
 
 dependencies {
-    compile 'com.google.guava:guava:26.0-jre'
-    compile 'com.google.protobuf:protobuf-java:3.7.1'
+    compile "com.google.guava:guava:${GrpcVendoring_1_26_0.guava_version}"
+    compile "com.google.protobuf:protobuf-java:${GrpcVendoring_1_26_0.protobuf_version}"
     shadow project(path: ":sdks:java:core", configuration: "shadow")
 }

@@ -46,6 +46,9 @@ import org.slf4j.LoggerFactory;
  * Copies temporary tables to destination table. The input element is an {@link Iterable} that
  * provides the list of all temporary tables created for a given {@link TableDestination}.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class WriteRename extends DoFn<Iterable<KV<TableDestination, String>>, Void> {
   private static final Logger LOG = LoggerFactory.getLogger(WriteRename.class);
 
@@ -154,7 +157,7 @@ class WriteRename extends DoFn<Iterable<KV<TableDestination, String>>, Void> {
 
     // Make sure each destination table gets a unique job id.
     String jobIdPrefix =
-        BigQueryHelpers.createJobId(
+        BigQueryResourceNaming.createJobIdWithDestination(
             c.sideInput(jobIdToken), finalTableDestination, -1, c.pane().getIndex());
 
     BigQueryHelpers.PendingJob retryJob =
@@ -210,7 +213,7 @@ class WriteRename extends DoFn<Iterable<KV<TableDestination, String>>, Void> {
               try {
                 jobService.startCopyJob(jobRef, copyConfig);
               } catch (IOException | InterruptedException e) {
-                LOG.warn("Copy job {} failed with {}", jobRef, e);
+                LOG.warn("Copy job {} failed.", jobRef, e);
                 throw new RuntimeException(e);
               }
               return null;
@@ -267,6 +270,9 @@ class WriteRename extends DoFn<Iterable<KV<TableDestination, String>>, Void> {
                 .withLabel("Write Disposition"))
         .add(
             DisplayData.item("firstPaneCreateDisposition", firstPaneCreateDisposition.toString())
-                .withLabel("Create Disposition"));
+                .withLabel("Create Disposition"))
+        .add(
+            DisplayData.item("launchesBigQueryJobs", true)
+                .withLabel("This transform launches BigQuery jobs to read/write elements."));
   }
 }

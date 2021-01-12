@@ -20,6 +20,7 @@ package org.apache.beam.runners.core.construction;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.service.AutoService;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.coders.BooleanCoder;
@@ -34,6 +35,8 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow.IntervalWindowCoder;
+import org.apache.beam.sdk.util.ShardedKey;
+import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.BiMap;
@@ -43,6 +46,11 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 
 /** The {@link CoderTranslatorRegistrar} for coders which are shared across languages. */
 @AutoService(CoderTranslatorRegistrar.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness",
+  "keyfor"
+}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class ModelCoderRegistrar implements CoderTranslatorRegistrar {
 
   // The URNs for coders which are shared across languages
@@ -60,8 +68,12 @@ public class ModelCoderRegistrar implements CoderTranslatorRegistrar {
           .put(LengthPrefixCoder.class, ModelCoders.LENGTH_PREFIX_CODER_URN)
           .put(GlobalWindow.Coder.class, ModelCoders.GLOBAL_WINDOW_CODER_URN)
           .put(FullWindowedValueCoder.class, ModelCoders.WINDOWED_VALUE_CODER_URN)
+          .put(
+              WindowedValue.ParamWindowedValueCoder.class,
+              ModelCoders.PARAM_WINDOWED_VALUE_CODER_URN)
           .put(DoubleCoder.class, ModelCoders.DOUBLE_CODER_URN)
           .put(RowCoder.class, ModelCoders.ROW_CODER_URN)
+          .put(ShardedKey.Coder.class, ModelCoders.SHARDED_KEY_CODER_URN)
           .build();
 
   public static final Set<String> WELL_KNOWN_CODER_URNS = BEAM_MODEL_CODER_URNS.values();
@@ -80,8 +92,10 @@ public class ModelCoderRegistrar implements CoderTranslatorRegistrar {
           .put(Timer.Coder.class, CoderTranslators.timer())
           .put(LengthPrefixCoder.class, CoderTranslators.lengthPrefix())
           .put(FullWindowedValueCoder.class, CoderTranslators.fullWindowedValue())
+          .put(WindowedValue.ParamWindowedValueCoder.class, CoderTranslators.paramWindowedValue())
           .put(DoubleCoder.class, CoderTranslators.atomic(DoubleCoder.class))
           .put(RowCoder.class, CoderTranslators.row())
+          .put(ShardedKey.Coder.class, CoderTranslators.shardedKey())
           .build();
 
   static {
@@ -92,7 +106,15 @@ public class ModelCoderRegistrar implements CoderTranslatorRegistrar {
         CoderTranslator.class.getSimpleName(),
         Sets.difference(BEAM_MODEL_CODER_URNS.keySet(), BEAM_MODEL_CODERS.keySet()));
     checkState(
-        ModelCoders.urns().equals(BEAM_MODEL_CODER_URNS.values()),
+        Sets.symmetricDifference(
+                ModelCoders.urns(),
+                /**
+                 * The state backed iterable coder implementation is environment specific and hence
+                 * is not part of the coder translation checks as these are meant to be used only
+                 * during pipeline construction.
+                 */
+                Collections.singleton(ModelCoders.STATE_BACKED_ITERABLE_CODER_URN))
+            .equals(BEAM_MODEL_CODER_URNS.values()),
         "All Model %ss should have an associated java %s",
         Coder.class.getSimpleName(),
         Coder.class.getSimpleName());

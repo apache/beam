@@ -30,6 +30,9 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 /** Tests for {@link FieldAccessDescriptor}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class FieldAccessDescriptorTest {
   private static final Schema SIMPLE_SCHEMA =
       Schema.builder()
@@ -287,19 +290,9 @@ public class FieldAccessDescriptorTest {
   }
 
   @Test
-  public void testFieldAccessIdsDefaultOrdering() {
-    FieldAccessDescriptor fieldAccessDescriptor =
-        FieldAccessDescriptor.withFieldNames("field3", "field2", "field1", "field0")
-            .resolve(SIMPLE_SCHEMA);
-
-    assertEquals(ImmutableList.of(0, 1, 2, 3), fieldAccessDescriptor.fieldIdsAccessed());
-  }
-
-  @Test
   public void testFieldInsertionOrdering() {
     FieldAccessDescriptor fieldAccessDescriptor =
         FieldAccessDescriptor.withFieldNames("field3", "field2", "field1", "field0")
-            .withOrderByFieldInsertionOrder()
             .resolve(SIMPLE_SCHEMA);
 
     assertEquals(ImmutableList.of(3, 2, 1, 0), fieldAccessDescriptor.fieldIdsAccessed());

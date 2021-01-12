@@ -23,12 +23,15 @@ Usage:
   python setup.py nosetests --test-pipeline-options=" \
       --runner=TestDataflowRunner \
       --project=... \
+      --region=... \
       --staging_location=gs://... \
       --temp_location=gs://... \
       --output=gs://... \
       --sdk_location=... \
 
 """
+
+# pytype: skip-file
 
 from __future__ import absolute_import
 
@@ -64,7 +67,7 @@ class LeaderBoardIT(unittest.TestCase):
   OUTPUT_TABLE_TEAMS = 'leader_board_teams'
   DEFAULT_INPUT_COUNT = 500
 
-  WAIT_UNTIL_FINISH_DURATION = 10 * 60 * 1000   # in milliseconds
+  WAIT_UNTIL_FINISH_DURATION = 10 * 60 * 1000  # in milliseconds
 
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
@@ -80,26 +83,25 @@ class LeaderBoardIT(unittest.TestCase):
 
     self.sub_client = pubsub.SubscriberClient()
     self.input_sub = self.sub_client.create_subscription(
-        self.sub_client.subscription_path(self.project,
-                                          self.INPUT_SUB + _unique_id),
+        self.sub_client.subscription_path(
+            self.project, self.INPUT_SUB + _unique_id),
         self.input_topic.name)
 
     # Set up BigQuery environment
-    self.dataset_ref = utils.create_bq_dataset(self.project,
-                                               self.OUTPUT_DATASET)
+    self.dataset_ref = utils.create_bq_dataset(
+        self.project, self.OUTPUT_DATASET)
 
     self._test_timestamp = int(time.time() * 1000)
 
   def _inject_pubsub_game_events(self, topic, message_count):
     """Inject game events as test data to PubSub."""
 
-    logging.debug('Injecting %d game events to topic %s',
-                  message_count, topic.name)
+    logging.debug(
+        'Injecting %d game events to topic %s', message_count, topic.name)
 
     for _ in range(message_count):
-      self.pub_client.publish(topic.name,
-                              (self.INPUT_EVENT % self._test_timestamp
-                              ).encode('utf-8'))
+      self.pub_client.publish(
+          topic.name, (self.INPUT_EVENT % self._test_timestamp).encode('utf-8'))
 
   def _cleanup_pubsub(self):
     test_utils.cleanup_subscriptions(self.sub_client, [self.input_sub])
@@ -110,33 +112,35 @@ class LeaderBoardIT(unittest.TestCase):
     state_verifier = PipelineStateMatcher(PipelineState.RUNNING)
 
     success_condition = 'total_score=5000 LIMIT 1'
-    users_query = ('SELECT total_score FROM `%s.%s.%s` '
-                   'WHERE %s' % (self.project,
-                                 self.dataset_ref.dataset_id,
-                                 self.OUTPUT_TABLE_USERS,
-                                 success_condition))
-    bq_users_verifier = BigqueryMatcher(self.project,
-                                        users_query,
-                                        self.DEFAULT_EXPECTED_CHECKSUM)
+    users_query = (
+        'SELECT total_score FROM `%s.%s.%s` '
+        'WHERE %s' % (
+            self.project,
+            self.dataset_ref.dataset_id,
+            self.OUTPUT_TABLE_USERS,
+            success_condition))
+    bq_users_verifier = BigqueryMatcher(
+        self.project, users_query, self.DEFAULT_EXPECTED_CHECKSUM)
 
-    teams_query = ('SELECT total_score FROM `%s.%s.%s` '
-                   'WHERE %s' % (self.project,
-                                 self.dataset_ref.dataset_id,
-                                 self.OUTPUT_TABLE_TEAMS,
-                                 success_condition))
-    bq_teams_verifier = BigqueryMatcher(self.project,
-                                        teams_query,
-                                        self.DEFAULT_EXPECTED_CHECKSUM)
+    teams_query = (
+        'SELECT total_score FROM `%s.%s.%s` '
+        'WHERE %s' % (
+            self.project,
+            self.dataset_ref.dataset_id,
+            self.OUTPUT_TABLE_TEAMS,
+            success_condition))
+    bq_teams_verifier = BigqueryMatcher(
+        self.project, teams_query, self.DEFAULT_EXPECTED_CHECKSUM)
 
-    extra_opts = {'subscription': self.input_sub.name,
-                  'dataset': self.dataset_ref.dataset_id,
-                  'topic': self.input_topic.name,
-                  'team_window_duration': 1,
-                  'wait_until_finish_duration':
-                      self.WAIT_UNTIL_FINISH_DURATION,
-                  'on_success_matcher': all_of(state_verifier,
-                                               bq_users_verifier,
-                                               bq_teams_verifier)}
+    extra_opts = {
+        'subscription': self.input_sub.name,
+        'dataset': self.dataset_ref.dataset_id,
+        'topic': self.input_topic.name,
+        'team_window_duration': 1,
+        'wait_until_finish_duration': self.WAIT_UNTIL_FINISH_DURATION,
+        'on_success_matcher': all_of(
+            state_verifier, bq_users_verifier, bq_teams_verifier)
+    }
 
     # Register cleanup before pipeline execution.
     # Note that actual execution happens in reverse order.

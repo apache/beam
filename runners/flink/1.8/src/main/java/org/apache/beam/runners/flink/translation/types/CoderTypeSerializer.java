@@ -19,6 +19,8 @@ package org.apache.beam.runners.flink.translation.types;
 
 import java.io.EOFException;
 import java.io.IOException;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
+import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.translation.wrappers.DataInputViewWrapper;
 import org.apache.beam.runners.flink.translation.wrappers.DataOutputViewWrapper;
 import org.apache.beam.sdk.coders.Coder;
@@ -32,18 +34,37 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.io.VersionedIOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Flink {@link org.apache.flink.api.common.typeutils.TypeSerializer} for Beam {@link
  * org.apache.beam.sdk.coders.Coder Coders}.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class CoderTypeSerializer<T> extends TypeSerializer<T> {
 
   private final Coder<T> coder;
 
-  public CoderTypeSerializer(Coder<T> coder) {
+  /**
+   * {@link SerializablePipelineOptions} deserialization will cause {@link
+   * org.apache.beam.sdk.io.FileSystems} registration needed for {@link
+   * org.apache.beam.sdk.transforms.Reshuffle} translation.
+   */
+  private final SerializablePipelineOptions pipelineOptions;
+
+  private final boolean fasterCopy;
+
+  public CoderTypeSerializer(Coder<T> coder, SerializablePipelineOptions pipelineOptions) {
     Preconditions.checkNotNull(coder);
+    Preconditions.checkNotNull(pipelineOptions);
     this.coder = coder;
+    this.pipelineOptions = pipelineOptions;
+
+    FlinkPipelineOptions options = pipelineOptions.get().as(FlinkPipelineOptions.class);
+    this.fasterCopy = options.getFasterCopy();
   }
 
   @Override
@@ -53,7 +74,7 @@ public class CoderTypeSerializer<T> extends TypeSerializer<T> {
 
   @Override
   public CoderTypeSerializer<T> duplicate() {
-    return new CoderTypeSerializer<>(coder);
+    return new CoderTypeSerializer<>(coder, pipelineOptions);
   }
 
   @Override
@@ -63,10 +84,14 @@ public class CoderTypeSerializer<T> extends TypeSerializer<T> {
 
   @Override
   public T copy(T t) {
-    try {
-      return CoderUtils.clone(coder, t);
-    } catch (CoderException e) {
-      throw new RuntimeException("Could not clone.", e);
+    if (fasterCopy) {
+      return t;
+    } else {
+      try {
+        return CoderUtils.clone(coder, t);
+      } catch (CoderException e) {
+        throw new RuntimeException("Could not clone.", e);
+      }
     }
   }
 
@@ -112,7 +137,7 @@ public class CoderTypeSerializer<T> extends TypeSerializer<T> {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (this == o) {
       return true;
     }

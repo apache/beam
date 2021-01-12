@@ -17,6 +17,8 @@
 
 """Wrapper of Beam runners that's built for running and verifying e2e tests."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import print_function
 
@@ -51,8 +53,8 @@ class TestDataflowRunner(DataflowRunner):
     # send this option to remote executors.
     test_options.on_success_matcher = None
 
-    self.result = super(TestDataflowRunner, self).run_pipeline(
-        pipeline, options)
+    self.result = super(TestDataflowRunner,
+                        self).run_pipeline(pipeline, options)
     if self.result.has_job:
       # TODO(markflyhigh)(BEAM-1890): Use print since Nose dosen't show logs
       # in some cases.
@@ -81,8 +83,8 @@ class TestDataflowRunner(DataflowRunner):
     region_id = options.view_as(GoogleCloudOptions).region
     job_id = self.result.job_id()
     return (
-        'https://console.cloud.google.com/dataflow/jobsDetail/locations'
-        '/%s/jobs/%s?project=%s' % (region_id, job_id, project))
+        'https://console.cloud.google.com/dataflow/jobs/%s/%s?project=%s' %
+        (region_id, job_id, project))
 
   def wait_until_in_state(self, expected_state, timeout=WAIT_IN_STATE_TIMEOUT):
     """Wait until Dataflow pipeline enters a certain state."""
@@ -96,7 +98,7 @@ class TestDataflowRunner(DataflowRunner):
         return job_state
       time.sleep(5)
 
-    raise RuntimeError('Timeout after %d seconds while waiting for job %s '
-                       'enters expected state %s. Current state is %s.' %
-                       (timeout, self.result.job_id(),
-                        expected_state, self.result.state))
+    raise RuntimeError(
+        'Timeout after %d seconds while waiting for job %s '
+        'enters expected state %s. Current state is %s.' %
+        (timeout, self.result.job_id(), expected_state, self.result.state))

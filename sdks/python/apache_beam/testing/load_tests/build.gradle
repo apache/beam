@@ -24,8 +24,6 @@ dependencies {
     distTarBall project(path: ":sdks:python", configuration: "distTarBall")
 }
 
-pythonVersion = '2.7'
-
 description = "Apache Beam :: SDKs :: Python :: Load Tests"
 
 def mainClassProperty = "loadTest.mainClass"
@@ -34,6 +32,7 @@ def mainClass = project.findProperty(mainClassProperty)
 def loadTestArgsProperty = "loadTest.args"
 
 def runnerProperty = "runner"
+def withDataflowWorkerJarProperty = "withDataflowWorkerJar"
 
 task run(type: Exec, dependsOn: installGcpTest) {
     def loadTestArgs = project.findProperty(loadTestArgsProperty) ?: ""
@@ -44,10 +43,14 @@ task run(type: Exec, dependsOn: installGcpTest) {
         loadTestArgs +=" --sdk_location=${files(configurations.distTarBall.files).singleFile}"
     }
 
-    environment "LOAD_TEST_ENABLED", 'true'
-    setWorkingDir "${project.rootDir}/sdks/python"
+    String withDataflowWorkerJarArg = project.findProperty(withDataflowWorkerJarProperty).toString() ?: ""
+    if (withDataflowWorkerJarArg.toLowerCase() == 'true') {
+        dependsOn ':runners:google-cloud-dataflow-java:worker:shadowJar'
+        loadTestArgs +=" --dataflow_worker_jar=${project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath}"
+    }
 
-    commandLine 'sh', '-c', "${project.ext.envdir}/bin/python setup.py nosetests --test-pipeline-options=\"${parseOptions(loadTestArgs)}\" --tests ${mainClass} --ignore-files \'.*py3\\d?\\.py\$\'"
+    setWorkingDir "${project.rootDir}/sdks/python"
+    commandLine 'sh', '-c', "${project.ext.envdir}/bin/python -m ${mainClass} --test-pipeline-options=\"${parseOptions(loadTestArgs)}\" --ignore-files \'.*py3\\d?\\.py\$\'"
     ignoreExitValue true
 
     doLast {

@@ -19,47 +19,58 @@
 
 
 class CommonTestProperties {
-    enum SDK {
-        PYTHON,
-        JAVA
+  enum SDK {
+    PYTHON,
+    JAVA,
+    GO,
+  }
+
+  enum Runner {
+    DATAFLOW("DataflowRunner"),
+    TEST_DATAFLOW("TestDataflowRunner"),
+    SPARK("SparkRunner"),
+    SPARK_STRUCTURED_STREAMING("SparkStructuredStreamingRunner"),
+    FLINK("FlinkRunner"),
+    DIRECT("DirectRunner"),
+    PORTABLE("PortableRunner")
+
+    def RUNNER_DEPENDENCY_MAP = [
+      JAVA: [
+        DATAFLOW: ":runners:google-cloud-dataflow-java",
+        TEST_DATAFLOW: ":runners:google-cloud-dataflow-java",
+        SPARK: ":runners:spark",
+        SPARK_STRUCTURED_STREAMING: ":runners:spark",
+        FLINK: ":runners:flink:1.10",
+        DIRECT: ":runners:direct-java"
+      ],
+      PYTHON: [
+        DATAFLOW: "DataflowRunner",
+        TEST_DATAFLOW: "TestDataflowRunner",
+        DIRECT: "DirectRunner",
+        PORTABLE: "PortableRunner"
+      ],
+      GO: [
+        DATAFLOW: "DataflowRunner",
+        SPARK: "SparkRunner",
+        FLINK: "FlinkRunner",
+        DIRECT: "DirectRunner",
+        PORTABLE: "PortableRunner",
+      ],
+    ]
+
+    private final String option
+
+    Runner(String option) {
+      this.option = option
     }
 
-    enum Runner {
-        DATAFLOW("DataflowRunner"),
-        SPARK("SparkRunner"),
-        FLINK("TestFlinkRunner"),
-        DIRECT("DirectRunner"),
-        PORTABLE("PortableRunner")
-
-        def RUNNER_DEPENDENCY_MAP = [
-                JAVA: [
-                        DATAFLOW: ":runners:google-cloud-dataflow-java",
-                        SPARK: ":runners:spark",
-                        FLINK: ":runners:flink:1.9",
-                        DIRECT: ":runners:direct-java"
-                ],
-                PYTHON: [
-                        DATAFLOW: "TestDataflowRunner",
-                        DIRECT: "DirectRunner",
-                        PORTABLE: "PortableRunner"
-                ]
-        ]
-
-        private final String option
-
-        Runner(String option) {
-            this.option = option
-        }
-
-
-        String getDepenedencyBySDK(SDK sdk) {
-            RUNNER_DEPENDENCY_MAP.get(sdk.toString()).get(this.toString())
-        }
-
+    String getDependencyBySDK(SDK sdk) {
+      RUNNER_DEPENDENCY_MAP.get(sdk.toString()).get(this.toString())
     }
+  }
 
-    enum TriggeringContext {
-        PR,
-        POST_COMMIT
-    }
+  enum TriggeringContext {
+    PR,
+    POST_COMMIT
+  }
 }

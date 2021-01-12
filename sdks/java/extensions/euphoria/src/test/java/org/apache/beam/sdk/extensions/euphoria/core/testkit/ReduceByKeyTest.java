@@ -30,7 +30,6 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.euphoria.core.client.io.Collector;
 import org.apache.beam.sdk.extensions.euphoria.core.client.operator.AssignEventTime;
@@ -54,12 +53,19 @@ import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Ignore;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Test operator {@code ReduceByKey}. */
+@RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ReduceByKeyTest extends AbstractOperatorTest {
 
   /** Validates the output type upon a `.reduceBy` operation on global window. */
@@ -580,8 +586,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
     }
 
     @Override
-    @Nullable
-    public WindowMappingFn<CountWindow> getDefaultWindowMappingFn() {
+    public @Nullable WindowMappingFn<CountWindow> getDefaultWindowMappingFn() {
       return null;
     }
   }
@@ -602,7 +607,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       if (other instanceof CountWindow) {
         return value == (((CountWindow) other).value);
       }
@@ -635,7 +640,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
       return obj instanceof UniqueWindow && this.id == ((UniqueWindow) obj).id;
     }
 
@@ -697,8 +702,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
     }
 
     @Override
-    @Nullable
-    public WindowMappingFn<UniqueWindow> getDefaultWindowMappingFn() {
+    public @Nullable WindowMappingFn<UniqueWindow> getDefaultWindowMappingFn() {
       return null;
     }
   }
@@ -713,7 +717,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }

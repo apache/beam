@@ -19,6 +19,8 @@ package org.apache.beam.sdk.schemas.logicaltypes;
 
 import static org.junit.Assert.assertEquals;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Map;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
@@ -29,6 +31,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.junit.Test;
 
 /** Unit tests for logical types. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class LogicalTypesTest {
   @Test
   public void testEnumeration() {
@@ -36,9 +41,9 @@ public class LogicalTypesTest {
     EnumerationType enumeration = EnumerationType.create(enumMap);
     assertEquals(enumeration.valueOf(1), enumeration.valueOf("FIRST"));
     assertEquals(enumeration.valueOf(2), enumeration.valueOf("SECOND"));
-    assertEquals("FIRST", enumeration.valueOf(1).toString());
+    assertEquals("FIRST", enumeration.toString(enumeration.valueOf(1)));
     assertEquals(1, enumeration.valueOf("FIRST").getValue());
-    assertEquals("SECOND", enumeration.valueOf(2).toString());
+    assertEquals("SECOND", enumeration.toString(enumeration.valueOf(2)));
     assertEquals(2, enumeration.valueOf("SECOND").getValue());
 
     Schema schema =
@@ -46,12 +51,12 @@ public class LogicalTypesTest {
     Row row1 = Row.withSchema(schema).addValue(enumeration.valueOf(1)).build();
     Row row2 = Row.withSchema(schema).addValue(enumeration.valueOf("FIRST")).build();
     assertEquals(row1, row2);
-    assertEquals(1, row1.<EnumerationType.Value>getLogicalTypeValue(0).getValue());
+    assertEquals(1, row1.getLogicalTypeValue(0, EnumerationType.Value.class).getValue());
 
     Row row3 = Row.withSchema(schema).addValue(enumeration.valueOf(2)).build();
     Row row4 = Row.withSchema(schema).addValue(enumeration.valueOf("SECOND")).build();
     assertEquals(row3, row4);
-    assertEquals(2, row3.<EnumerationType.Value>getLogicalTypeValue(0).getValue());
+    assertEquals(2, row3.getLogicalTypeValue(0, EnumerationType.Value.class).getValue());
   }
 
   @Test
@@ -62,13 +67,37 @@ public class LogicalTypesTest {
 
     Row stringOneOf =
         Row.withSchema(schema).addValue(oneOf.createValue("string", "stringValue")).build();
-    Value union = stringOneOf.getLogicalTypeValue(0);
-    assertEquals("string", union.getCaseType().toString());
+    Value union = stringOneOf.getLogicalTypeValue(0, OneOfType.Value.class);
+    assertEquals("string", oneOf.getCaseEnumType().toString(union.getCaseType()));
     assertEquals("stringValue", union.getValue());
 
     Row intOneOf = Row.withSchema(schema).addValue(oneOf.createValue("int32", 42)).build();
-    union = intOneOf.getLogicalTypeValue(0);
-    assertEquals("int32", union.getCaseType().toString());
+    union = intOneOf.getLogicalTypeValue(0, OneOfType.Value.class);
+    assertEquals("int32", oneOf.getCaseEnumType().toString(union.getCaseType()));
     assertEquals(42, (int) union.getValue());
+  }
+
+  @Test
+  public void testNanosInstant() {
+    Schema rowSchema = new NanosInstant().getBaseType().getRowSchema();
+    Instant now = Instant.now();
+    Row nowAsRow = Row.withSchema(rowSchema).addValues(now.getEpochSecond(), now.getNano()).build();
+
+    Schema schema = Schema.builder().addLogicalTypeField("now", new NanosInstant()).build();
+    Row row = Row.withSchema(schema).addValues(now).build();
+    assertEquals(now, row.getLogicalTypeValue(0, NanosInstant.class));
+    assertEquals(nowAsRow, row.getBaseValue(0, Row.class));
+  }
+
+  @Test
+  public void testNanosDuration() {
+    Schema rowSchema = new NanosInstant().getBaseType().getRowSchema();
+    Duration duration = Duration.ofSeconds(123, 42);
+    Row durationAsRow = Row.withSchema(rowSchema).addValues(123L, 42).build();
+
+    Schema schema = Schema.builder().addLogicalTypeField("duration", new NanosDuration()).build();
+    Row row = Row.withSchema(schema).addValues(duration).build();
+    assertEquals(duration, row.getLogicalTypeValue(0, NanosDuration.class));
+    assertEquals(durationAsRow, row.getBaseValue(0, Row.class));
   }
 }

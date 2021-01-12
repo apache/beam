@@ -44,6 +44,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@link Coder} using Google Protocol Buffers binary format. {@link ProtoCoder} supports both
@@ -104,6 +105,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
  *
  * @param <T> the Protocol Buffers {@link Message} handled by this {@link Coder}.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ProtoCoder<T extends Message> extends CustomCoder<T> {
 
   public static final long serialVersionUID = -5043999806040629525L;
@@ -205,7 +209,7 @@ public class ProtoCoder<T extends Message> extends CustomCoder<T> {
   }
 
   @Override
-  public boolean equals(Object other) {
+  public boolean equals(@Nullable Object other) {
     if (this == other) {
       return true;
     }

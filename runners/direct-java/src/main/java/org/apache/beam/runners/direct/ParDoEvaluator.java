@@ -23,13 +23,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
+import org.apache.beam.runners.core.KeyedWorkItemCoder;
 import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
 import org.apache.beam.runners.core.ReadyCheckingSideInputReader;
 import org.apache.beam.runners.core.SimplePushbackSideInputDoFnRunner;
+import org.apache.beam.runners.core.StatefulDoFnRunner;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
 import org.apache.beam.runners.local.StructuralKey;
@@ -38,6 +39,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -47,6 +49,10 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
 
   public interface DoFnRunnerFactory<InputT, OutputT> {
@@ -59,7 +65,7 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
         TupleTag<OutputT> mainOutputTag,
         List<TupleTag<?>> additionalOutputTags,
         DirectStepContext stepContext,
-        @Nullable Coder<InputT> inputCoder,
+        Coder<InputT> inputCoder,
         Map<TupleTag<?>, Coder<?>> outputCoders,
         WindowingStrategy<?, ? extends BoundedWindow> windowingStrategy,
         DoFnSchemaInformation doFnSchemaInformation,
@@ -75,7 +81,7 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
         mainOutputTag,
         additionalOutputTags,
         stepContext,
-        schemaCoder,
+        inputCoder,
         outputCoders,
         windowingStrategy,
         doFnSchemaInformation,
@@ -89,11 +95,33 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
               mainOutputTag,
               additionalOutputTags,
               stepContext,
-              schemaCoder,
+              inputCoder,
               outputCoders,
               windowingStrategy,
               doFnSchemaInformation,
               sideInputMapping);
+      if (DoFnSignatures.signatureForDoFn(fn).usesState()) {
+        // the coder specified on the input PCollection doesn't match type
+        // of elements processed by the StatefulDoFnRunner
+        // that is internal detail of how DirectRunner processes stateful DoFns
+        @SuppressWarnings("unchecked")
+        final KeyedWorkItemCoder<?, InputT> keyedWorkItemCoder =
+            (KeyedWorkItemCoder<?, InputT>) inputCoder;
+        underlying =
+            DoFnRunners.defaultStatefulDoFnRunner(
+                fn,
+                keyedWorkItemCoder.getElementCoder(),
+                underlying,
+                stepContext,
+                windowingStrategy,
+                new StatefulDoFnRunner.TimeInternalsCleanupTimer<>(
+                    stepContext.timerInternals(), windowingStrategy),
+                new StatefulDoFnRunner.StateInternalsStateCleaner<>(
+                    fn,
+                    stepContext.stateInternals(),
+                    windowingStrategy.getWindowFn().windowCoder()),
+                true);
+      }
       return SimplePushbackSideInputDoFnRunner.create(underlying, sideInputs, sideInputReader);
     };
   }
@@ -220,9 +248,16 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
     }
   }
 
-  public void onTimer(TimerData timer, BoundedWindow window) {
+  public <KeyT> void onTimer(TimerData timer, KeyT key, BoundedWindow window) {
     try {
-      fnRunner.onTimer(timer.getTimerId(), window, timer.getTimestamp(), timer.getDomain());
+      fnRunner.onTimer(
+          timer.getTimerId(),
+          timer.getTimerFamilyId(),
+          key,
+          window,
+          timer.getTimestamp(),
+          timer.getOutputTimestamp(),
+          timer.getDomain());
     } catch (Exception e) {
       throw UserCodeException.wrap(e);
     }
@@ -248,6 +283,7 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
         .addOutput(outputManager.bundles.values())
         .withTimerUpdate(stepContext.getTimerUpdate())
         .addUnprocessedElements(unprocessedElements.build())
+        .withBundleFinalizations(stepContext.getAndClearFinalizations())
         .build();
   }
 

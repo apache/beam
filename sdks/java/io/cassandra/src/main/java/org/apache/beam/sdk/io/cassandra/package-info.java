@@ -21,4 +21,8 @@
  *
  * @see org.apache.beam.sdk.io.cassandra.CassandraIO
  */
+@Experimental(Kind.SOURCE_SINK)
 package org.apache.beam.sdk.io.cassandra;
+
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;

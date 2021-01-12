@@ -19,11 +19,14 @@
 from __future__ import absolute_import
 from __future__ import print_function
 
+import contextlib
 import glob
+import inspect
 import logging
 import multiprocessing
 import os
 import platform
+import re
 import shutil
 import subprocess
 import sys
@@ -47,6 +50,191 @@ MODEL_RESOURCES = [
 ]
 
 
+def generate_urn_files(log, out_dir):
+  """
+  Create python files with statically defined URN constants.
+
+  Creates a <proto>_pb2_urn.py file for each <proto>_pb2.py file that contains
+  an enum type.
+
+  This works by importing each api.<proto>_pb2 module created by `protoc`,
+  inspecting the module's contents, and generating a new side-car urn module.
+  This is executed at build time rather than dynamically on import to ensure
+  that it is compatible with static type checkers like mypy.
+  """
+  import google.protobuf.message as message
+  import google.protobuf.pyext._message as pyext_message
+
+  class Context(object):
+    INDENT = '  '
+    CAP_SPLIT = re.compile('([A-Z][^A-Z]*|^[a-z]+)')
+
+    def __init__(self, indent=0):
+      self.lines = []
+      self.imports = set()
+      self.empty_types = set()
+      self._indent = indent
+
+    @contextlib.contextmanager
+    def indent(self):
+      self._indent += 1
+      yield
+      self._indent -= 1
+
+    def prepend(self, s):
+      if s:
+        self.lines.insert(0, (self.INDENT * self._indent) + s + '\n')
+      else:
+        self.lines.insert(0, '\n')
+
+    def line(self, s):
+      if s:
+        self.lines.append((self.INDENT * self._indent) + s + '\n')
+      else:
+        self.lines.append('\n')
+
+    def import_type(self, typ):
+      modname = typ.__module__
+      if modname in ('__builtin__', 'builtin'):
+        return typ.__name__
+      else:
+        self.imports.add(modname)
+        return modname + '.' + typ.__name__
+
+    @staticmethod
+    def is_message_type(obj):
+      return isinstance(obj, type) and \
+             issubclass(obj, message.Message)
+
+    @staticmethod
+    def is_enum_type(obj):
+      return type(obj).__name__ == 'EnumTypeWrapper'
+
+    def python_repr(self, obj):
+      if isinstance(obj, message.Message):
+        return self.message_repr(obj)
+      elif isinstance(obj, (list,
+                            pyext_message.RepeatedCompositeContainer,  # pylint: disable=c-extension-no-member
+                            pyext_message.RepeatedScalarContainer)):  # pylint: disable=c-extension-no-member
+        return '[%s]' % ', '.join(self.python_repr(x) for x in obj)
+      else:
+        return repr(obj)
+
+    def empty_type(self, typ):
+      name = ('EMPTY_' +
+              '_'.join(x.upper()
+                       for x in self.CAP_SPLIT.findall(typ.__name__)))
+      self.empty_types.add('%s = %s()' % (name, self.import_type(typ)))
+      return name
+
+    def message_repr(self, msg):
+      parts = []
+      for field, value in msg.ListFields():
+        parts.append('%s=%s' % (field.name, self.python_repr(value)))
+      if parts:
+        return '%s(%s)' % (self.import_type(type(msg)), ', '.join(parts))
+      else:
+        return self.empty_type(type(msg))
+
+    def write_enum(self, enum_name, enum, indent):
+      ctx = Context(indent=indent)
+
+      with ctx.indent():
+        for v in enum.DESCRIPTOR.values:
+          extensions = v.GetOptions().Extensions
+
+          prop = (
+              extensions[beam_runner_api_pb2.beam_urn],
+              extensions[beam_runner_api_pb2.beam_constant],
+              extensions[metrics_pb2.monitoring_info_spec],
+              extensions[metrics_pb2.label_props],
+          )
+          reprs = [self.python_repr(x) for x in prop]
+          if all(x == "''" or x.startswith('EMPTY_') for x in reprs):
+            continue
+          ctx.line('%s = PropertiesFromEnumValue(%s)' %
+                   (v.name, ', '.join(self.python_repr(x) for x in prop)))
+
+      if ctx.lines:
+        ctx.prepend('class %s(object):' % enum_name)
+        ctx.prepend('')
+        ctx.line('')
+      return ctx.lines
+
+    def write_message(self, message_name, message, indent=0):
+      ctx = Context(indent=indent)
+
+      with ctx.indent():
+        for obj_name, obj in inspect.getmembers(message):
+          if self.is_message_type(obj):
+            ctx.lines += self.write_message(obj_name, obj, ctx._indent)
+          elif self.is_enum_type(obj):
+            ctx.lines += self.write_enum(obj_name, obj, ctx._indent)
+
+      if ctx.lines:
+        ctx.prepend('class %s(object):' % message_name)
+        ctx.prepend('')
+      return ctx.lines
+
+  pb2_files = [path for path in glob.glob(os.path.join(out_dir, '*_pb2.py'))]
+  api_path = os.path.dirname(pb2_files[0])
+  sys.path.insert(0, os.path.dirname(api_path))
+
+  def _import(m):
+    # TODO: replace with importlib when we drop support for python2.
+    return __import__('api.%s' % m, fromlist=[None])
+
+  try:
+    beam_runner_api_pb2 = _import('beam_runner_api_pb2')
+    metrics_pb2 = _import('metrics_pb2')
+
+    for pb2_file in pb2_files:
+      modname = os.path.splitext(pb2_file)[0]
+      out_file = modname + '_urns.py'
+      modname = os.path.basename(modname)
+      mod = _import(modname)
+
+      ctx = Context()
+      for obj_name, obj in inspect.getmembers(mod):
+        if ctx.is_message_type(obj):
+          ctx.lines += ctx.write_message(obj_name, obj)
+
+      if ctx.lines:
+        for line in reversed(sorted(ctx.empty_types)):
+          ctx.prepend(line)
+
+        for modname in reversed(sorted(ctx.imports)):
+          ctx.prepend('from . import %s' % modname)
+
+        ctx.prepend('from ..utils import PropertiesFromEnumValue')
+
+        log.info("Writing urn stubs: %s" % out_file)
+        with open(out_file, 'w') as f:
+          f.writelines(ctx.lines)
+
+  finally:
+    sys.path.pop(0)
+
+
+def _find_protoc_gen_mypy():
+  # NOTE: this shouldn't be necessary if the virtualenv's environment
+  #  is passed to tasks below it, since protoc will search the PATH itself
+  fname = 'protoc-gen-mypy'
+  if platform.system() == 'Windows':
+    fname += ".exe"
+
+  pathstr = os.environ.get('PATH')
+  search_paths = pathstr.split(os.pathsep) if pathstr else []
+  # should typically be installed into the venv's bin dir
+  search_paths.insert(0, os.path.dirname(sys.executable))
+  for path in search_paths:
+    fullpath = os.path.join(path, fname)
+    if os.path.exists(fullpath):
+      return fullpath
+  raise RuntimeError("Could not find %s in %s" %
+                     (fname, ', '.join(search_paths)))
+
+
 def generate_proto_files(force=False, log=None):
 
   try:
@@ -55,7 +243,9 @@ def generate_proto_files(force=False, log=None):
     warnings.warn('Installing grpcio-tools is recommended for development.')
 
   if log is None:
+    logging.basicConfig()
     log = logging.getLogger(__name__)
+    log.setLevel(logging.INFO)
 
   py_sdk_root = os.path.dirname(os.path.abspath(__file__))
   common = os.path.join(py_sdk_root, '..', 'common')
@@ -114,25 +304,26 @@ def generate_proto_files(force=False, log=None):
       # Note that this requires a separate module from setup.py for Windows:
       # https://docs.python.org/2/library/multiprocessing.html#windows
       p = multiprocessing.Process(
-          target=_install_grpcio_tools_and_generate_proto_files)
+          target=_install_grpcio_tools_and_generate_proto_files,
+          kwargs={'force': force})
       p.start()
       p.join()
       if p.exitcode:
         raise ValueError("Proto generation failed (see log for details).")
     else:
       log.info('Regenerating Python proto definitions (%s).' % regenerate)
-
-      ret_code = subprocess.call(["pip", "install", "mypy-protobuf==1.12"])
-      if ret_code:
-        raise RuntimeError(
-            'Error installing mypy-protobuf during proto generation')
-
       builtin_protos = pkg_resources.resource_filename('grpc_tools', '_proto')
+
+      protoc_gen_mypy = _find_protoc_gen_mypy()
+
+      log.info('Found protoc_gen_mypy at %s' % protoc_gen_mypy)
+
       args = (
           [sys.executable] +  # expecting to be called from command line
           ['--proto_path=%s' % builtin_protos] +
           ['--proto_path=%s' % d for d in proto_dirs] +
           ['--python_out=%s' % out_dir] +
+          ['--plugin=protoc-gen-mypy=%s' % protoc_gen_mypy] +
           ['--mypy_out=%s' % out_dir] +
           # TODO(robertwb): Remove the prefix once it's the default.
           ['--grpc_python_out=grpc_2_0:%s' % out_dir] +
@@ -147,16 +338,16 @@ def generate_proto_files(force=False, log=None):
       for path in MODEL_RESOURCES:
         shutil.copy2(os.path.join(py_sdk_root, path), out_dir)
 
-      ret_code = subprocess.call(["pip", "install", "future==0.16.0"])
-      if ret_code:
-        raise RuntimeError(
-            'Error installing future during proto generation')
-
       ret_code = subprocess.call(
           ["futurize", "--both-stages", "--write", "--no-diff", out_dir])
       if ret_code:
         raise RuntimeError(
             'Error applying futurize to generated protobuf python files.')
+
+      generate_urn_files(log, out_dir)
+
+  else:
+    log.info('Skipping proto regeneration: all files up to date')
 
 
 # Though wheels are available for grpcio-tools, setup_requires uses
@@ -165,7 +356,7 @@ def generate_proto_files(force=False, log=None):
 # protoc compiler).  Instead, we attempt to install a wheel in a temporary
 # directory and add it to the path as needed.
 # See https://github.com/pypa/setuptools/issues/377
-def _install_grpcio_tools_and_generate_proto_files():
+def _install_grpcio_tools_and_generate_proto_files(force=False):
   py_sdk_root = os.path.dirname(os.path.abspath(__file__))
   install_path = os.path.join(py_sdk_root, '.eggs', 'grpcio-wheels')
   build_path = install_path + '-build'
@@ -186,10 +377,11 @@ def _install_grpcio_tools_and_generate_proto_files():
     shutil.rmtree(build_path, ignore_errors=True)
   sys.path.append(install_path)
   try:
-    generate_proto_files()
+    generate_proto_files(force=force)
   finally:
     sys.stderr.flush()
 
 
 if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.INFO)
   generate_proto_files(force=True)

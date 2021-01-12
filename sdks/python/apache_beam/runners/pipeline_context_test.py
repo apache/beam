@@ -17,6 +17,8 @@
 
 """Unit tests for the windowing classes."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import unittest
@@ -26,7 +28,6 @@ from apache_beam.runners import pipeline_context
 
 
 class PipelineContextTest(unittest.TestCase):
-
   def test_deduplication(self):
     context = pipeline_context.PipelineContext()
     bytes_coder_ref = context.coders.get_id(coders.BytesCoder())
@@ -48,11 +49,22 @@ class PipelineContextTest(unittest.TestCase):
     proto = context.to_runner_api()
     context2 = pipeline_context.PipelineContext.from_runner_api(proto)
     self.assertEqual(
-        coders.FloatCoder(),
-        context2.coders.get_by_id(float_coder_ref))
+        coders.FloatCoder(), context2.coders.get_by_id(float_coder_ref))
     self.assertEqual(
-        coders.BytesCoder(),
-        context2.coders.get_by_id(bytes_coder_ref))
+        coders.BytesCoder(), context2.coders.get_by_id(bytes_coder_ref))
+
+  def test_common_id_assignment(self):
+    context = pipeline_context.PipelineContext()
+    float_coder_ref = context.coders.get_id(coders.FloatCoder())
+    bytes_coder_ref = context.coders.get_id(coders.BytesCoder())
+    context2 = pipeline_context.PipelineContext(
+        component_id_map=context.component_id_map)
+
+    bytes_coder_ref2 = context2.coders.get_id(coders.BytesCoder())
+    float_coder_ref2 = context2.coders.get_id(coders.FloatCoder())
+
+    self.assertEqual(bytes_coder_ref, bytes_coder_ref2)
+    self.assertEqual(float_coder_ref, float_coder_ref2)
 
 
 if __name__ == '__main__':

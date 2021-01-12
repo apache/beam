@@ -20,6 +20,7 @@ package org.apache.beam.sdk.transforms.windowing;
 import java.util.Objects;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -132,7 +133,7 @@ public class FixedWindows extends PartitioningWindowFn<Object, IntervalWindow> {
   }
 
   @Override
-  public boolean equals(Object object) {
+  public boolean equals(@Nullable Object object) {
     if (!(object instanceof FixedWindows)) {
       return false;
     }

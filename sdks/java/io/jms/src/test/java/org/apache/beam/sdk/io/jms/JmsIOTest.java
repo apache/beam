@@ -17,10 +17,10 @@
  */
 package org.apache.beam.sdk.io.jms;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -48,9 +48,11 @@ import org.apache.activemq.security.AuthenticationUser;
 import org.apache.activemq.security.SimpleAuthenticationPlugin;
 import org.apache.activemq.store.memory.MemoryPersistenceAdapter;
 import org.apache.activemq.util.Callback;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
@@ -66,6 +68,10 @@ import org.junit.runners.JUnit4;
 
 /** Tests of {@link JmsIO}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class JmsIOTest {
 
   private static final String BROKER_URL = "vm://localhost";
@@ -404,6 +410,16 @@ public class JmsIOTest {
     // Concurrency issues would cause an exception to be thrown before this method exits, failing
     // the test
     runner.join();
+  }
+
+  /** Test the checkpoint mark default coder, which is actually AvroCoder. */
+  @Test
+  public void testCheckpointMarkDefaultCoder() throws Exception {
+    JmsCheckpointMark jmsCheckpointMark = new JmsCheckpointMark();
+    jmsCheckpointMark.add(new ActiveMQMessage());
+    Coder coder = new JmsIO.UnboundedJmsSource(null).getCheckpointMarkCoder();
+    CoderProperties.coderSerializable(coder);
+    CoderProperties.coderDecodeEncodeEqual(coder, jmsCheckpointMark);
   }
 
   private int count(String queue) throws Exception {

@@ -15,6 +15,8 @@
 # limitations under the License.
 #
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import threading
@@ -26,6 +28,7 @@ from apache_beam.metrics.cells import DistributionCell
 from apache_beam.metrics.cells import DistributionData
 from apache_beam.metrics.cells import GaugeCell
 from apache_beam.metrics.cells import GaugeData
+from apache_beam.metrics.metricbase import MetricName
 
 
 class TestCounterCell(unittest.TestCase):
@@ -42,17 +45,15 @@ class TestCounterCell(unittest.TestCase):
     threads = []
     c = CounterCell()
     for _ in range(TestCounterCell.NUM_THREADS):
-      t = threading.Thread(target=TestCounterCell._modify_counter,
-                           args=(c,))
+      t = threading.Thread(target=TestCounterCell._modify_counter, args=(c, ))
       threads.append(t)
       t.start()
 
     for t in threads:
       t.join()
 
-    total = (self.NUM_ITERATIONS
-             * (self.NUM_ITERATIONS - 1) // 2
-             * self.NUM_THREADS)
+    total = (
+        self.NUM_ITERATIONS * (self.NUM_ITERATIONS - 1) // 2 * self.NUM_THREADS)
     self.assertEqual(c.get_cumulative(), total)
 
   def test_basic_operations(self):
@@ -69,6 +70,14 @@ class TestCounterCell(unittest.TestCase):
     c.inc()
     self.assertEqual(c.get_cumulative(), -8)
 
+  def test_start_time_set(self):
+    c = CounterCell()
+    c.inc(2)
+
+    name = MetricName('namespace', 'name1')
+    mi = c.to_runner_api_monitoring_info(name, 'transform_id')
+    self.assertGreater(mi.start_time.seconds, 0)
+
 
 class TestDistributionCell(unittest.TestCase):
   @classmethod
@@ -84,45 +93,48 @@ class TestDistributionCell(unittest.TestCase):
     threads = []
     d = DistributionCell()
     for _ in range(TestDistributionCell.NUM_THREADS):
-      t = threading.Thread(target=TestDistributionCell._modify_distribution,
-                           args=(d,))
+      t = threading.Thread(
+          target=TestDistributionCell._modify_distribution, args=(d, ))
       threads.append(t)
       t.start()
 
     for t in threads:
       t.join()
 
-    total = (self.NUM_ITERATIONS
-             * (self.NUM_ITERATIONS - 1) // 2
-             * self.NUM_THREADS)
+    total = (
+        self.NUM_ITERATIONS * (self.NUM_ITERATIONS - 1) // 2 * self.NUM_THREADS)
 
     count = (self.NUM_ITERATIONS * self.NUM_THREADS)
 
-    self.assertEqual(d.get_cumulative(),
-                     DistributionData(total, count, 0,
-                                      self.NUM_ITERATIONS - 1))
+    self.assertEqual(
+        d.get_cumulative(),
+        DistributionData(total, count, 0, self.NUM_ITERATIONS - 1))
 
   def test_basic_operations(self):
     d = DistributionCell()
     d.update(10)
-    self.assertEqual(d.get_cumulative(),
-                     DistributionData(10, 1, 10, 10))
+    self.assertEqual(d.get_cumulative(), DistributionData(10, 1, 10, 10))
 
     d.update(2)
-    self.assertEqual(d.get_cumulative(),
-                     DistributionData(12, 2, 2, 10))
+    self.assertEqual(d.get_cumulative(), DistributionData(12, 2, 2, 10))
 
     d.update(900)
-    self.assertEqual(d.get_cumulative(),
-                     DistributionData(912, 3, 2, 900))
+    self.assertEqual(d.get_cumulative(), DistributionData(912, 3, 2, 900))
 
   def test_integer_only(self):
     d = DistributionCell()
     d.update(3.1)
     d.update(3.2)
     d.update(3.3)
-    self.assertEqual(d.get_cumulative(),
-                     DistributionData(9, 3, 3, 3))
+    self.assertEqual(d.get_cumulative(), DistributionData(9, 3, 3, 3))
+
+  def test_start_time_set(self):
+    d = DistributionCell()
+    d.update(3.1)
+
+    name = MetricName('namespace', 'name1')
+    mi = d.to_runner_api_monitoring_info(name, 'transform_id')
+    self.assertGreater(mi.start_time.seconds, 0)
 
 
 class TestGaugeCell(unittest.TestCase):
@@ -150,6 +162,14 @@ class TestGaugeCell(unittest.TestCase):
     # the final result.
     result = g2.combine(g1)
     self.assertEqual(result.data.value, 1)
+
+  def test_start_time_set(self):
+    g1 = GaugeCell()
+    g1.set(3)
+
+    name = MetricName('namespace', 'name1')
+    mi = g1.to_runner_api_monitoring_info(name, 'transform_id')
+    self.assertGreater(mi.start_time.seconds, 0)
 
 
 if __name__ == '__main__':

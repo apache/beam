@@ -30,6 +30,9 @@ import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.K
 import org.junit.Before;
 import org.junit.Test;
 
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SumCounterUpdateAggregatorTest {
   private List<CounterUpdate> counterUpdates;
   private SumCounterUpdateAggregator aggregator;

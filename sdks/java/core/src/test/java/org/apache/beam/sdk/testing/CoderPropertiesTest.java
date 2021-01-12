@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.testing;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 import java.io.IOException;
@@ -30,6 +30,7 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.CoreMatchers;
 import org.junit.Rule;
 import org.junit.Test;
@@ -39,6 +40,9 @@ import org.junit.runners.JUnit4;
 
 /** Unit tests for {@link CoderProperties}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class CoderPropertiesTest {
   @Rule public ExpectedException expectedException = ExpectedException.none();
 
@@ -148,7 +152,7 @@ public class CoderPropertiesTest {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       return other instanceof StateChangingSerializingCoder
           && ((StateChangingSerializingCoder) other).changedState == this.changedState;
     }
@@ -194,7 +198,7 @@ public class CoderPropertiesTest {
     }
 
     @Override
-    public boolean equals(Object other) {
+    public boolean equals(@Nullable Object other) {
       return (other instanceof ForgetfulSerializingCoder)
           && ((ForgetfulSerializingCoder) other).lostState == lostState;
     }

@@ -27,6 +27,7 @@ import com.google.cloud.bigquery.TableId;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Collections;
+import java.util.List;
 import java.util.UUID;
 import java.util.function.Function;
 import org.apache.avro.generic.GenericData;
@@ -47,6 +48,7 @@ import org.apache.beam.sdk.testutils.NamedTestResult;
 import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
+import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
@@ -76,6 +78,9 @@ import org.junit.runners.JUnit4;
  * </pre>
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BigQueryIOIT {
   private static final String NAMESPACE = BigQueryIOIT.class.getName();
   private static final String TEST_ID = UUID.randomUUID().toString();
@@ -92,6 +97,7 @@ public class BigQueryIOIT {
   private static String tempRoot;
   private static BigQueryPerfTestOptions options;
   private static WriteFormat writeFormat;
+  private static InfluxDBSettings settings;
 
   @BeforeClass
   public static void setup() throws IOException {
@@ -108,6 +114,12 @@ public class BigQueryIOIT {
     tableQualifier =
         String.format(
             "%s:%s.%s", bigQueryOptions.getProjectId(), testBigQueryDataset, testBigQueryTable);
+    settings =
+        InfluxDBSettings.builder()
+            .withHost(options.getInfluxHost())
+            .withDatabase(options.getInfluxDatabase())
+            .withMeasurement(options.getInfluxMeasurement())
+            .get();
   }
 
   @AfterClass
@@ -163,7 +175,7 @@ public class BigQueryIOIT {
     BigQueryIO.Write.Method method = BigQueryIO.Write.Method.valueOf(options.getWriteMethod());
     pipeline
         .apply("Read from source", Read.from(new SyntheticBoundedSource(sourceOptions)))
-        .apply("Gather time", ParDo.of(new TimeMonitor<>(NAMESPACE, WRITE_TIME_METRIC_NAME)))
+        .apply("Gather time", ParDo.of(new TimeMonitor<>(NAMESPACE, metricName)))
         .apply("Map records", ParDo.of(new MapKVToV()))
         .apply(
             "Write to BQ",
@@ -193,14 +205,11 @@ public class BigQueryIOIT {
   }
 
   private void extractAndPublishTime(PipelineResult pipelineResult, String writeTimeMetricName) {
-    NamedTestResult metricResult =
+    final NamedTestResult metricResult =
         getMetricSupplier(writeTimeMetricName).apply(new MetricsReader(pipelineResult, NAMESPACE));
-    IOITMetrics.publish(
-        TEST_ID,
-        TEST_TIMESTAMP,
-        metricsBigQueryDataset,
-        metricsBigQueryTable,
-        Collections.singletonList(metricResult));
+    final List<NamedTestResult> listResults = Collections.singletonList(metricResult);
+    IOITMetrics.publish(metricsBigQueryDataset, metricsBigQueryTable, listResults);
+    IOITMetrics.publishToInflux(TEST_ID, TEST_TIMESTAMP, listResults, settings);
   }
 
   private static Function<MetricsReader, NamedTestResult> getMetricSupplier(String metricName) {

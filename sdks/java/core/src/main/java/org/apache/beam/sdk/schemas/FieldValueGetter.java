@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.schemas;
 
 import java.io.Serializable;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>

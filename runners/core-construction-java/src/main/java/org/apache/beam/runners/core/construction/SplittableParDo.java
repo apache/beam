@@ -25,23 +25,28 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
-import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
-import org.apache.beam.model.pipeline.v1.RunnerApi.Parameter;
-import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StateSpec;
-import org.apache.beam.model.pipeline.v1.RunnerApi.TimerSpec;
+import org.apache.beam.model.pipeline.v1.RunnerApi.TimerFamilySpec;
 import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
 import org.apache.beam.runners.core.construction.ParDoTranslation.ParDoLike;
 import org.apache.beam.runners.core.construction.ReadTranslation.BoundedReadPayloadTranslator;
 import org.apache.beam.runners.core.construction.ReadTranslation.UnboundedReadPayloadTranslator;
-import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
+import org.apache.beam.sdk.options.ExperimentalOptions;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
@@ -50,12 +55,19 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.WithKeys;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvoker.ArgumentProvider;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvoker.BaseArgumentProvider;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.NameUtils;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -64,8 +76,10 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
@@ -85,8 +99,10 @@ import org.joda.time.Instant;
  * <p>This transform is intended as a helper for internal use by runners when implementing {@code
  * ParDo.of(splittable DoFn)}, but not for direct use by pipeline writers.
  */
-@Experimental(Experimental.Kind.SPLITTABLE_DO_FN)
-public class SplittableParDo<InputT, OutputT, RestrictionT>
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
+public class SplittableParDo<InputT, OutputT, RestrictionT, WatermarkEstimatorStateT>
     extends PTransform<PCollection<InputT>, PCollectionTuple> {
   /**
    * A {@link PTransformOverrideFactory} that overrides a <a
@@ -104,8 +120,8 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
     }
 
     @Override
-    public Map<PValue, ReplacementOutput> mapOutputs(
-        Map<TupleTag<?>, PValue> outputs, PCollectionTuple newOutput) {
+    public Map<PCollection<?>, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PCollection<?>> outputs, PCollectionTuple newOutput) {
       return ReplacementOutputs.tagged(outputs, newOutput);
     }
   }
@@ -145,13 +161,13 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
    * ParDo}. Instead {@link ParDoTranslation} will be used to extract fields.
    */
   @SuppressWarnings({"unchecked", "rawtypes"})
-  public static <InputT, OutputT> SplittableParDo<InputT, OutputT, ?> forAppliedParDo(
+  public static <InputT, OutputT> SplittableParDo<InputT, OutputT, ?, ?> forAppliedParDo(
       AppliedPTransform<PCollection<InputT>, PCollectionTuple, ?> parDo) {
     checkArgument(parDo != null, "parDo must not be null");
 
     try {
       Map<TupleTag<?>, Coder<?>> outputTagsToCoders = Maps.newHashMap();
-      for (Map.Entry<TupleTag<?>, PValue> entry : parDo.getOutputs().entrySet()) {
+      for (Map.Entry<TupleTag<?>, PCollection<?>> entry : parDo.getOutputs().entrySet()) {
         outputTagsToCoders.put(entry.getKey(), ((PCollection) entry.getValue()).getCoder());
       }
       return new SplittableParDo(
@@ -170,6 +186,9 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
     Coder<RestrictionT> restrictionCoder =
         DoFnInvokers.invokerFor(doFn)
             .invokeGetRestrictionCoder(input.getPipeline().getCoderRegistry());
+    Coder<WatermarkEstimatorStateT> watermarkEstimatorStateCoder =
+        DoFnInvokers.invokerFor(doFn)
+            .invokeGetWatermarkEstimatorStateCoder(input.getPipeline().getCoderRegistry());
     Coder<KV<InputT, RestrictionT>> splitCoder = KvCoder.of(input.getCoder(), restrictionCoder);
 
     PCollection<KV<byte[], KV<InputT, RestrictionT>>> keyedRestrictions =
@@ -192,6 +211,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
             doFn,
             input.getCoder(),
             restrictionCoder,
+            watermarkEstimatorStateCoder,
             (WindowingStrategy<InputT, ?>) input.getWindowingStrategy(),
             sideInputs,
             mainOutputTag,
@@ -221,11 +241,12 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
    * method for a splittable {@link DoFn} on each {@link KV} of the input {@link PCollection} of
    * {@link KV KVs} keyed with arbitrary but globally unique keys.
    */
-  public static class ProcessKeyedElements<InputT, OutputT, RestrictionT>
+  public static class ProcessKeyedElements<InputT, OutputT, RestrictionT, WatermarkEstimatorStateT>
       extends PTransform<PCollection<KV<byte[], KV<InputT, RestrictionT>>>, PCollectionTuple> {
     private final DoFn<InputT, OutputT> fn;
     private final Coder<InputT> elementCoder;
     private final Coder<RestrictionT> restrictionCoder;
+    private final Coder<WatermarkEstimatorStateT> watermarkEstimatorStateCoder;
     private final WindowingStrategy<InputT, ?> windowingStrategy;
     private final List<PCollectionView<?>> sideInputs;
     private final TupleTag<OutputT> mainOutputTag;
@@ -245,6 +266,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
         DoFn<InputT, OutputT> fn,
         Coder<InputT> elementCoder,
         Coder<RestrictionT> restrictionCoder,
+        Coder<WatermarkEstimatorStateT> watermarkEstimatorStateCoder,
         WindowingStrategy<InputT, ?> windowingStrategy,
         List<PCollectionView<?>> sideInputs,
         TupleTag<OutputT> mainOutputTag,
@@ -253,6 +275,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
       this.fn = fn;
       this.elementCoder = elementCoder;
       this.restrictionCoder = restrictionCoder;
+      this.watermarkEstimatorStateCoder = watermarkEstimatorStateCoder;
       this.windowingStrategy = windowingStrategy;
       this.sideInputs = sideInputs;
       this.mainOutputTag = mainOutputTag;
@@ -270,6 +293,10 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
 
     public Coder<RestrictionT> getRestrictionCoder() {
       return restrictionCoder;
+    }
+
+    public Coder<WatermarkEstimatorStateT> getWatermarkEstimatorStateCoder() {
+      return watermarkEstimatorStateCoder;
     }
 
     public WindowingStrategy<InputT, ?> getInputWindowingStrategy() {
@@ -340,7 +367,8 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
 
   /** A translator for {@link ProcessKeyedElements}. */
   public static class ProcessKeyedElementsTranslator
-      implements PTransformTranslation.TransformPayloadTranslator<ProcessKeyedElements<?, ?, ?>> {
+      implements PTransformTranslation.TransformPayloadTranslator<
+          ProcessKeyedElements<?, ?, ?, ?>> {
 
     public static TransformPayloadTranslator create() {
       return new ProcessKeyedElementsTranslator();
@@ -349,15 +377,16 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
     private ProcessKeyedElementsTranslator() {}
 
     @Override
-    public String getUrn(ProcessKeyedElements<?, ?, ?> transform) {
+    public String getUrn(ProcessKeyedElements<?, ?, ?, ?> transform) {
       return PTransformTranslation.SPLITTABLE_PROCESS_KEYED_URN;
     }
 
     @Override
     public FunctionSpec translate(
-        AppliedPTransform<?, ?, ProcessKeyedElements<?, ?, ?>> transform, SdkComponents components)
+        AppliedPTransform<?, ?, ProcessKeyedElements<?, ?, ?, ?>> transform,
+        SdkComponents components)
         throws IOException {
-      ProcessKeyedElements<?, ?, ?> pke = transform.getTransform();
+      ProcessKeyedElements<?, ?, ?, ?> pke = transform.getTransform();
       final DoFn<?, ?> fn = pke.getFn();
       final DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
       final String restrictionCoderId = components.registerCoder(pke.getRestrictionCoder());
@@ -366,7 +395,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
           ParDoTranslation.payloadForParDoLike(
               new ParDoLike() {
                 @Override
-                public SdkFunctionSpec translateDoFn(SdkComponents newComponents) {
+                public FunctionSpec translateDoFn(SdkComponents newComponents) {
                   // Schemas not yet supported on splittable DoFn.
                   return ParDoTranslation.translateDoFn(
                       fn,
@@ -374,12 +403,6 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
                       Collections.emptyMap(),
                       DoFnSchemaInformation.create(),
                       newComponents);
-                }
-
-                @Override
-                public List<Parameter> translateParameters() {
-                  return ParDoTranslation.translateParameters(
-                      signature.processElement().extraParameters());
                 }
 
                 @Override
@@ -394,14 +417,51 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
                 }
 
                 @Override
-                public Map<String, TimerSpec> translateTimerSpecs(SdkComponents components) {
+                public Map<String, TimerFamilySpec> translateTimerFamilySpecs(
+                    SdkComponents newComponents) {
                   // SDFs don't have timers.
                   return ImmutableMap.of();
                 }
 
                 @Override
+                public boolean isStateful() {
+                  return !signature.stateDeclarations().isEmpty()
+                      || !signature.timerDeclarations().isEmpty()
+                      || !signature.timerFamilyDeclarations().isEmpty();
+                }
+
+                @Override
                 public boolean isSplittable() {
                   return true;
+                }
+
+                @Override
+                public boolean isRequiresStableInput() {
+                  return signature.processElement().requiresStableInput();
+                }
+
+                @Override
+                public boolean isRequiresTimeSortedInput() {
+                  return signature.processElement().requiresTimeSortedInput();
+                }
+
+                @Override
+                public boolean requestsFinalization() {
+                  return (signature.startBundle() != null
+                          && signature
+                              .startBundle()
+                              .extraParameters()
+                              .contains(DoFnSignature.Parameter.bundleFinalizer()))
+                      || (signature.processElement() != null
+                          && signature
+                              .processElement()
+                              .extraParameters()
+                              .contains(DoFnSignature.Parameter.bundleFinalizer()))
+                      || (signature.finishBundle() != null
+                          && signature
+                              .finishBundle()
+                              .extraParameters()
+                              .contains(DoFnSignature.Parameter.bundleFinalizer()));
                 }
 
                 @Override
@@ -452,9 +512,43 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
     }
 
     @ProcessElement
-    public void processElement(ProcessContext context) {
+    public void processElement(ProcessContext context, BoundedWindow w) {
       context.output(
-          KV.of(context.element(), invoker.invokeGetInitialRestriction(context.element())));
+          KV.of(
+              context.element(),
+              invoker.invokeGetInitialRestriction(
+                  new BaseArgumentProvider<InputT, OutputT>() {
+                    @Override
+                    public InputT element(DoFn<InputT, OutputT> doFn) {
+                      return context.element();
+                    }
+
+                    @Override
+                    public Instant timestamp(DoFn<InputT, OutputT> doFn) {
+                      return context.timestamp();
+                    }
+
+                    @Override
+                    public PipelineOptions pipelineOptions() {
+                      return context.getPipelineOptions();
+                    }
+
+                    @Override
+                    public PaneInfo paneInfo(DoFn<InputT, OutputT> doFn) {
+                      return context.pane();
+                    }
+
+                    @Override
+                    public BoundedWindow window() {
+                      return w;
+                    }
+
+                    @Override
+                    public String getErrorContext() {
+                      return PairWithRestrictionFn.class.getSimpleName()
+                          + ".invokeGetInitialRestriction";
+                    }
+                  })));
     }
 
     @Teardown
@@ -483,28 +577,231 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
     }
 
     @ProcessElement
-    public void processElement(final ProcessContext c) {
-      final InputT element = c.element().getKey();
+    public void processElement(final ProcessContext c, BoundedWindow w) {
       invoker.invokeSplitRestriction(
-          element,
-          c.element().getValue(),
-          new OutputReceiver<RestrictionT>() {
-            @Override
-            public void output(RestrictionT part) {
-              c.output(KV.of(element, part));
-            }
+          (ArgumentProvider)
+              new BaseArgumentProvider<InputT, RestrictionT>() {
+                @Override
+                public InputT element(DoFn<InputT, RestrictionT> doFn) {
+                  return c.element().getKey();
+                }
 
-            @Override
-            public void outputWithTimestamp(RestrictionT part, Instant timestamp) {
-              throw new UnsupportedOperationException();
-            }
-          });
+                @Override
+                public Object restriction() {
+                  return c.element().getValue();
+                }
+
+                @Override
+                public RestrictionTracker<?, ?> restrictionTracker() {
+                  return invoker.invokeNewTracker((DoFnInvoker.BaseArgumentProvider) this);
+                }
+
+                @Override
+                public Instant timestamp(DoFn<InputT, RestrictionT> doFn) {
+                  return c.timestamp();
+                }
+
+                @Override
+                public PipelineOptions pipelineOptions() {
+                  return c.getPipelineOptions();
+                }
+
+                @Override
+                public PaneInfo paneInfo(DoFn<InputT, RestrictionT> doFn) {
+                  return c.pane();
+                }
+
+                @Override
+                public BoundedWindow window() {
+                  return w;
+                }
+
+                @Override
+                public OutputReceiver<RestrictionT> outputReceiver(
+                    DoFn<InputT, RestrictionT> doFn) {
+                  return new OutputReceiver<RestrictionT>() {
+                    @Override
+                    public void output(RestrictionT part) {
+                      c.output(KV.of(c.element().getKey(), part));
+                    }
+
+                    @Override
+                    public void outputWithTimestamp(RestrictionT part, Instant timestamp) {
+                      throw new UnsupportedOperationException();
+                    }
+                  };
+                }
+
+                @Override
+                public String getErrorContext() {
+                  return SplitRestrictionFn.class.getSimpleName() + ".invokeSplitRestriction";
+                }
+              });
     }
 
     @Teardown
     public void tearDown() {
       invoker.invokeTeardown();
       invoker = null;
+    }
+  }
+
+  /**
+   * Converts {@link Read} based Splittable DoFn expansions to primitive reads implemented by {@link
+   * PrimitiveBoundedRead} and {@link PrimitiveUnboundedRead} if either the experiment {@code
+   * use_deprecated_read} or {@code beam_fn_api_use_deprecated_read} are specified.
+   *
+   * <p>TODO(BEAM-10670): Remove the primitive Read and make the splittable DoFn the only option.
+   */
+  public static void convertReadBasedSplittableDoFnsToPrimitiveReadsIfNecessary(Pipeline pipeline) {
+    if (ExperimentalOptions.hasExperiment(pipeline.getOptions(), "beam_fn_api_use_deprecated_read")
+        || ExperimentalOptions.hasExperiment(pipeline.getOptions(), "use_deprecated_read")) {
+      convertReadBasedSplittableDoFnsToPrimitiveReads(pipeline);
+    }
+  }
+
+  /**
+   * Converts {@link Read} based Splittable DoFn expansions to primitive reads implemented by {@link
+   * PrimitiveBoundedRead} and {@link PrimitiveUnboundedRead}.
+   *
+   * <p>TODO(BEAM-10670): Remove the primitive Read and make the splittable DoFn the only option.
+   */
+  public static void convertReadBasedSplittableDoFnsToPrimitiveReads(Pipeline pipeline) {
+    pipeline.replaceAll(
+        ImmutableList.of(PRIMITIVE_BOUNDED_READ_OVERRIDE, PRIMITIVE_UNBOUNDED_READ_OVERRIDE));
+  }
+
+  /**
+   * A transform override for {@link Read.Bounded} that converts it to a {@link
+   * PrimitiveBoundedRead}.
+   */
+  public static final PTransformOverride PRIMITIVE_BOUNDED_READ_OVERRIDE =
+      PTransformOverride.of(
+          PTransformMatchers.classEqualTo(Read.Bounded.class), new BoundedReadOverrideFactory<>());
+  /**
+   * A transform override for {@link Read.Unbounded} that converts it to a {@link
+   * PrimitiveUnboundedRead}.
+   */
+  public static final PTransformOverride PRIMITIVE_UNBOUNDED_READ_OVERRIDE =
+      PTransformOverride.of(
+          PTransformMatchers.classEqualTo(Read.Unbounded.class),
+          new UnboundedReadOverrideFactory<>());
+
+  private static class BoundedReadOverrideFactory<T>
+      implements PTransformOverrideFactory<PBegin, PCollection<T>, Read.Bounded<T>> {
+    @Override
+    public PTransformReplacement<PBegin, PCollection<T>> getReplacementTransform(
+        AppliedPTransform<PBegin, PCollection<T>, Read.Bounded<T>> transform) {
+      return PTransformReplacement.of(
+          transform.getPipeline().begin(), new PrimitiveBoundedRead<>(transform.getTransform()));
+    }
+
+    @Override
+    public Map<PCollection<?>, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PCollection<?>> outputs, PCollection<T> newOutput) {
+      return ReplacementOutputs.singleton(outputs, newOutput);
+    }
+  }
+
+  private static class UnboundedReadOverrideFactory<T>
+      implements PTransformOverrideFactory<PBegin, PCollection<T>, Read.Unbounded<T>> {
+    @Override
+    public PTransformReplacement<PBegin, PCollection<T>> getReplacementTransform(
+        AppliedPTransform<PBegin, PCollection<T>, Read.Unbounded<T>> transform) {
+      return PTransformReplacement.of(
+          transform.getPipeline().begin(), new PrimitiveUnboundedRead<>(transform.getTransform()));
+    }
+
+    @Override
+    public Map<PCollection<?>, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PCollection<?>> outputs, PCollection<T> newOutput) {
+      return ReplacementOutputs.singleton(outputs, newOutput);
+    }
+  }
+
+  /**
+   * Base class that ensures the overridden transform has the same contract as if interacting with
+   * the original {@link Read.Bounded Read.Bounded}/{@link Read.Unbounded Read.Unbounded}
+   * implementations.
+   */
+  private abstract static class PrimitiveRead<T> extends PTransform<PBegin, PCollection<T>> {
+    private final PTransform<PBegin, PCollection<T>> originalTransform;
+    protected final Object source;
+
+    public PrimitiveRead(PTransform<PBegin, PCollection<T>> originalTransform, Object source) {
+      this.originalTransform = originalTransform;
+      this.source = source;
+    }
+
+    @Override
+    public void validate(@Nullable PipelineOptions options) {
+      originalTransform.validate(options);
+    }
+
+    @Override
+    public Map<TupleTag<?>, PValue> getAdditionalInputs() {
+      return originalTransform.getAdditionalInputs();
+    }
+
+    @Override
+    public <CoderT> Coder<CoderT> getDefaultOutputCoder(PBegin input, PCollection<CoderT> output)
+        throws CannotProvideCoderException {
+      return originalTransform.getDefaultOutputCoder(input, output);
+    }
+
+    @Override
+    public String getName() {
+      return originalTransform.getName();
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      originalTransform.populateDisplayData(builder);
+    }
+
+    @Override
+    protected String getKindString() {
+      return String.format("Read(%s)", NameUtils.approximateSimpleName(source));
+    }
+  }
+
+  /** The original primitive based {@link Read.Bounded Read.Bounded} expansion. */
+  public static class PrimitiveBoundedRead<T> extends PrimitiveRead<T> {
+    public PrimitiveBoundedRead(Read.Bounded<T> originalTransform) {
+      super(originalTransform, originalTransform.getSource());
+    }
+
+    @Override
+    public PCollection<T> expand(PBegin input) {
+      return PCollection.createPrimitiveOutputInternal(
+          input.getPipeline(),
+          WindowingStrategy.globalDefault(),
+          PCollection.IsBounded.BOUNDED,
+          getSource().getOutputCoder());
+    }
+
+    public BoundedSource<T> getSource() {
+      return (BoundedSource<T>) source;
+    }
+  }
+
+  /** The original primitive based {@link Read.Unbounded Read.Unbounded} expansion. */
+  public static class PrimitiveUnboundedRead<T> extends PrimitiveRead<T> {
+    public PrimitiveUnboundedRead(Read.Unbounded<T> originalTransform) {
+      super(originalTransform, originalTransform.getSource());
+    }
+
+    @Override
+    public PCollection<T> expand(PBegin input) {
+      return PCollection.createPrimitiveOutputInternal(
+          input.getPipeline(),
+          WindowingStrategy.globalDefault(),
+          PCollection.IsBounded.UNBOUNDED,
+          getSource().getOutputCoder());
+    }
+
+    public UnboundedSource<T, ? extends CheckpointMark> getSource() {
+      return (UnboundedSource<T, ? extends CheckpointMark>) source;
     }
   }
 }

@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.io.gcp.testing;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.mockito.Matchers.anyString;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
@@ -26,7 +26,6 @@ import com.google.api.services.bigquery.model.QueryResponse;
 import com.google.api.services.bigquery.model.TableCell;
 import com.google.api.services.bigquery.model.TableRow;
 import java.math.BigInteger;
-import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.junit.Before;
 import org.junit.Rule;
@@ -42,6 +41,9 @@ import org.powermock.modules.junit4.PowerMockRunner;
 /** Tests for {@link BigqueryMatcher}. */
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(BigqueryClient.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BigqueryMatcherTest {
   private final String appName = "test-app";
   private final String projectId = "test-project";
@@ -49,7 +51,6 @@ public class BigqueryMatcherTest {
 
   @Rule public ExpectedException thrown = ExpectedException.none();
   @Mock private BigqueryClient mockBigqueryClient;
-  @Mock private PipelineResult mockResult;
 
   @Before
   public void setUp() {
@@ -61,19 +62,16 @@ public class BigqueryMatcherTest {
   @Test
   public void testBigqueryMatcherThatSucceeds() throws Exception {
     BigqueryMatcher matcher =
-        spy(
-            new BigqueryMatcher(
-                appName, projectId, query, "9bb47f5c90d2a99cad526453dff5ed5ec74650dc"));
+        spy(BigqueryMatcher.queryResultHasChecksum("9bb47f5c90d2a99cad526453dff5ed5ec74650dc"));
     when(mockBigqueryClient.queryWithRetries(anyString(), anyString()))
         .thenReturn(createResponseContainingTestData());
 
-    assertThat(mockResult, matcher);
+    assertThat(BigqueryMatcher.createQuery(appName, projectId, query), matcher);
   }
 
   @Test
   public void testBigqueryMatcherFailsForChecksumMismatch() throws Exception {
-    BigqueryMatcher matcher =
-        spy(new BigqueryMatcher(appName, projectId, query, "incorrect-checksum"));
+    BigqueryMatcher matcher = spy(BigqueryMatcher.queryResultHasChecksum("incorrect-checksum"));
 
     when(mockBigqueryClient.queryWithRetries(anyString(), anyString()))
         .thenReturn(createResponseContainingTestData());
@@ -82,12 +80,12 @@ public class BigqueryMatcherTest {
     thrown.expectMessage("Total number of rows are: 1");
     thrown.expectMessage("abc");
 
-    assertThat(mockResult, matcher);
+    assertThat(BigqueryMatcher.createQuery(appName, projectId, query), matcher);
   }
 
   @Test
   public void testBigqueryMatcherFailsWhenQueryJobNotComplete() throws Exception {
-    BigqueryMatcher matcher = spy(new BigqueryMatcher(appName, projectId, query, "some-checksum"));
+    BigqueryMatcher matcher = spy(BigqueryMatcher.queryResultHasChecksum("some-checksum"));
     when(mockBigqueryClient.queryWithRetries(anyString(), anyString()))
         .thenReturn(new QueryResponse().setJobComplete(false));
 
@@ -95,7 +93,7 @@ public class BigqueryMatcherTest {
     thrown.expectMessage("The query job hasn't completed.");
     thrown.expectMessage("jobComplete=false");
 
-    assertThat(mockResult, matcher);
+    assertThat(BigqueryMatcher.createQuery(appName, projectId, query), matcher);
   }
 
   private QueryResponse createResponseContainingTestData() {

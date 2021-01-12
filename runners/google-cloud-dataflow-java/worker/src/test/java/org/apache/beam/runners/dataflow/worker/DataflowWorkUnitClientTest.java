@@ -18,7 +18,7 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Matchers.anyString;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.when;
 
@@ -59,6 +59,9 @@ import org.slf4j.LoggerFactory;
 
 /** Unit tests for {@link DataflowWorkUnitClient}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DataflowWorkUnitClientTest {
   private static final Logger LOG = LoggerFactory.getLogger(DataflowWorkUnitClientTest.class);
   @Rule public TestRule restoreSystemProperties = new RestoreSystemProperties();

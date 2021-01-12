@@ -35,22 +35,25 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.AbstractIterator;
 
 /** Spark runner process context processes Spark partitions using Beam's {@link DoFnRunner}. */
-class SparkProcessContext<FnInputT, FnOutputT, OutputT> {
+class SparkProcessContext<K, FnInputT, FnOutputT, OutputT> {
 
   private final DoFn<FnInputT, FnOutputT> doFn;
   private final DoFnRunner<FnInputT, FnOutputT> doFnRunner;
   private final SparkOutputManager<OutputT> outputManager;
   private final Iterator<TimerInternals.TimerData> timerDataIterator;
+  private final K key;
 
   SparkProcessContext(
       DoFn<FnInputT, FnOutputT> doFn,
       DoFnRunner<FnInputT, FnOutputT> doFnRunner,
       SparkOutputManager<OutputT> outputManager,
+      K key,
       Iterator<TimerInternals.TimerData> timerDataIterator) {
 
     this.doFn = doFn;
     this.doFnRunner = doFnRunner;
     this.outputManager = outputManager;
+    this.key = key;
     this.timerDataIterator = timerDataIterator;
   }
 
@@ -161,7 +164,14 @@ class SparkProcessContext<FnInputT, FnOutputT, OutputT> {
       StateNamespace namespace = timer.getNamespace();
       checkArgument(namespace instanceof StateNamespaces.WindowNamespace);
       BoundedWindow window = ((StateNamespaces.WindowNamespace) namespace).getWindow();
-      doFnRunner.onTimer(timer.getTimerId(), window, timer.getTimestamp(), timer.getDomain());
+      doFnRunner.onTimer(
+          timer.getTimerId(),
+          timer.getTimerFamilyId(),
+          key,
+          window,
+          timer.getTimestamp(),
+          timer.getOutputTimestamp(),
+          timer.getDomain());
     }
   }
 }
