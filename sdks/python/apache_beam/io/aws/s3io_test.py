@@ -29,6 +29,7 @@ import unittest
 from apache_beam.io.aws import s3io
 from apache_beam.io.aws.clients.s3 import fake_client
 from apache_beam.io.aws.clients.s3 import messages
+from apache_beam.options import pipeline_options
 
 
 class TestS3PathParser(unittest.TestCase):
@@ -99,7 +100,7 @@ class TestS3IO(unittest.TestCase):
       self.aws = s3io.S3IO(self.client)
 
     else:
-      self.aws = s3io.S3IO()
+      self.aws = s3io.S3IO(options=pipeline_options.S3Options())
       self.client = self.aws.client
 
   def test_size(self):
@@ -114,6 +115,7 @@ class TestS3IO(unittest.TestCase):
     self.aws.delete(file_name)
 
   def test_last_updated(self):
+    self.skipTest('BEAM-9532 fix issue with s3 last updated')
     file_name = self.TEST_DATA_PATH + 'dummy_file'
     file_size = 1234
 
@@ -121,9 +123,8 @@ class TestS3IO(unittest.TestCase):
     self.assertTrue(self.aws.exists(file_name))
 
     tolerance = 5 * 60  # 5 mins
-    low_bound, high_bound = time.time() - tolerance, time.time() + tolerance
     result = self.aws.last_updated(file_name)
-    self.assertTrue(low_bound <= result <= high_bound)
+    self.assertAlmostEqual(result, time.time(), delta=tolerance)
 
     # Clean up
     self.aws.delete(file_name)

@@ -86,11 +86,9 @@ disable =
   bad-super-call,
   bad-continuation,
   broad-except,
-  chained-comparison,
   comparison-with-callable,
   consider-using-enumerate,
   consider-using-in,
-  consider-using-set-comprehension,
   consider-using-sys-exit,
   cyclic-import,
   design,
@@ -181,6 +179,7 @@ ignore-long-lines=(?x)
   (^\s*(import|from)\s
    |^\s*(\#\ )?<?(https?|ftp):\/\/[^\s\/$.?#].[^\s]*>?$
    |^.*\#\ type\:
+   |^.*LegacyArtifact
    )
 
 [VARIABLES]

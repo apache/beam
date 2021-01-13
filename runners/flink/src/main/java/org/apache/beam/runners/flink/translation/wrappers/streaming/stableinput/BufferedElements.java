@@ -29,9 +29,13 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /** Elements which can be buffered as part of a checkpoint for @RequiresStableInput. */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 class BufferedElements {
 
   static final class Element implements BufferedElement {
@@ -47,7 +51,7 @@ class BufferedElements {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -64,7 +68,7 @@ class BufferedElements {
     }
   }
 
-  static final class Timer implements BufferedElement {
+  static final class Timer<KeyT> implements BufferedElement {
 
     private final String timerId;
     private final String timerFamilyId;
@@ -72,10 +76,12 @@ class BufferedElements {
     private final Instant timestamp;
     private final Instant outputTimestamp;
     private final TimeDomain timeDomain;
+    private final KeyT key;
 
     Timer(
         String timerId,
         String timerFamilyId,
+        KeyT key,
         BoundedWindow window,
         Instant timestamp,
         Instant outputTimestamp,
@@ -83,6 +89,7 @@ class BufferedElements {
       this.timerId = timerId;
       this.window = window;
       this.timestamp = timestamp;
+      this.key = key;
       this.timeDomain = timeDomain;
       this.outputTimestamp = outputTimestamp;
       this.timerFamilyId = timerFamilyId;
@@ -90,11 +97,12 @@ class BufferedElements {
 
     @Override
     public void processWith(DoFnRunner doFnRunner) {
-      doFnRunner.onTimer(timerId, timerFamilyId, window, timestamp, outputTimestamp, timeDomain);
+      doFnRunner.onTimer(
+          timerId, timerFamilyId, key, window, timestamp, outputTimestamp, timeDomain);
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -123,12 +131,15 @@ class BufferedElements {
 
     private final org.apache.beam.sdk.coders.Coder<WindowedValue> elementCoder;
     private final org.apache.beam.sdk.coders.Coder<BoundedWindow> windowCoder;
+    private final Object key;
 
     public Coder(
         org.apache.beam.sdk.coders.Coder<WindowedValue> elementCoder,
-        org.apache.beam.sdk.coders.Coder<BoundedWindow> windowCoder) {
+        org.apache.beam.sdk.coders.Coder<BoundedWindow> windowCoder,
+        Object key) {
       this.elementCoder = elementCoder;
       this.windowCoder = windowCoder;
+      this.key = key;
     }
 
     @Override
@@ -157,9 +168,10 @@ class BufferedElements {
         case ELEMENT_MAGIC_BYTE:
           return new Element(elementCoder.decode(inStream));
         case TIMER_MAGIC_BYTE:
-          return new Timer(
+          return new Timer<>(
               STRING_CODER.decode(inStream),
               STRING_CODER.decode(inStream),
+              key,
               windowCoder.decode(inStream),
               INSTANT_CODER.decode(inStream),
               INSTANT_CODER.decode(inStream),

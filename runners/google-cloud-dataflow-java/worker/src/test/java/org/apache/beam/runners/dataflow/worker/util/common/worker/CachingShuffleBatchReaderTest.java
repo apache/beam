@@ -37,7 +37,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public final class CachingShuffleBatchReaderTest {
   private final ShuffleBatchReader.Batch testBatch =
-      new ShuffleBatchReader.Batch(new ArrayList<ShuffleEntry>(), null, 0);
+      new ShuffleBatchReader.Batch(new ArrayList<ShuffleEntry>(), null);
 
   @Test
   public void readerShouldCacheReads() throws IOException {

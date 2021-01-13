@@ -20,17 +20,22 @@
 
 from __future__ import absolute_import
 
+import sys
 import unittest
 
 import apache_beam as beam
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.pipeline import PipelineVisitor
 from apache_beam.runners import runner
 from apache_beam.runners.interactive import background_caching_job as bcj
 from apache_beam.runners.interactive import interactive_beam as ib
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import interactive_runner
+from apache_beam.runners.interactive.caching.streaming_cache import StreamingCache
 from apache_beam.runners.interactive.testing.mock_ipython import mock_get_ipython
+from apache_beam.runners.interactive.testing.test_cache_manager import FileRecordsBuilder
 from apache_beam.testing.test_stream import TestStream
+from apache_beam.testing.test_stream_service import TestStreamServiceController
 from apache_beam.transforms.window import TimestampedValue
 
 # TODO(BEAM-8288): clean up the work-around of nose tests using Python2 without
@@ -38,10 +43,11 @@ from apache_beam.transforms.window import TimestampedValue
 try:
   from unittest.mock import patch
 except ImportError:
-  from mock import patch
+  from mock import patch  # type: ignore[misc]
 
 _FOO_PUBSUB_SUB = 'projects/test-project/subscriptions/foo'
 _BAR_PUBSUB_SUB = 'projects/test-project/subscriptions/bar'
+_TEST_CACHE_KEY = 'test'
 
 
 def _build_a_test_stream_pipeline():
@@ -56,19 +62,31 @@ def _build_a_test_stream_pipeline():
 
 
 def _build_an_empty_stream_pipeline():
-  from apache_beam.options.pipeline_options import PipelineOptions
-  from apache_beam.options.pipeline_options import StandardOptions
-  pipeline_options = PipelineOptions()
-  pipeline_options.view_as(StandardOptions).streaming = True
+  pipeline_options = PipelineOptions(streaming=True)
   p = beam.Pipeline(
       interactive_runner.InteractiveRunner(), options=pipeline_options)
   ib.watch({'pipeline': p})
   return p
 
 
+def _setup_test_streaming_cache(pipeline):
+  cache_manager = StreamingCache(cache_dir=None)
+  ie.current_env().set_cache_manager(cache_manager, pipeline)
+  builder = FileRecordsBuilder(tag=_TEST_CACHE_KEY)
+  (builder
+      .advance_watermark(watermark_secs=0)
+      .advance_processing_time(5)
+      .add_element(element='a', event_time_secs=1)
+      .advance_watermark(watermark_secs=100)
+      .advance_processing_time(10)) # yapf: disable
+  cache_manager.write(builder.build(), _TEST_CACHE_KEY)
+
+
 @unittest.skipIf(
     not ie.current_env().is_interactive_ready,
     '[interactive] dependency is not installed.')
+@unittest.skipIf(
+    sys.version_info < (3, 6), 'The tests require at least Python 3.6 to work.')
 class BackgroundCachingJobTest(unittest.TestCase):
   def tearDown(self):
     ie.new_env()
@@ -76,51 +94,106 @@ class BackgroundCachingJobTest(unittest.TestCase):
   # TODO(BEAM-8335): remove the patches when there are appropriate test sources
   # that meet the boundedness checks.
   @patch(
-      'apache_beam.runners.interactive.pipeline_instrument'
-      '.has_unbounded_sources',
+      'apache_beam.runners.interactive.background_caching_job'
+      '.has_source_to_cache',
       lambda x: True)
+  # Disable the clean up so that we can keep the test streaming cache.
+  @patch(
+      'apache_beam.runners.interactive.interactive_environment'
+      '.InteractiveEnvironment.cleanup',
+      lambda x,
+      y: None)
   def test_background_caching_job_starts_when_none_such_job_exists(self):
-    p = _build_a_test_stream_pipeline()
+
+    # Create a fake PipelineResult and PipelineRunner. This is because we want
+    # to test whether the BackgroundCachingJob can be started without having to
+    # rely on a real pipeline run.
+    class FakePipelineResult(beam.runners.runner.PipelineResult):
+      def wait_until_finish(self):
+        return
+
+    class FakePipelineRunner(beam.runners.PipelineRunner):
+      def run_pipeline(self, pipeline, options):
+        return FakePipelineResult(beam.runners.runner.PipelineState.RUNNING)
+
+    p = beam.Pipeline(
+        runner=interactive_runner.InteractiveRunner(FakePipelineRunner()),
+        options=PipelineOptions(streaming=True))
+
+    # pylint: disable=possibly-unused-variable
+    elems = p | 'Read' >> beam.io.ReadFromPubSub(subscription=_FOO_PUBSUB_SUB)
+
+    ib.watch(locals())
+
+    _setup_test_streaming_cache(p)
     p.run()
-    self.assertIsNotNone(ie.current_env().pipeline_result(p, is_main_job=False))
+    self.assertIsNotNone(ie.current_env().get_background_caching_job(p))
+    expected_cached_source_signature = bcj.extract_source_to_cache_signature(p)
+    # This is to check whether the cached source signature is set correctly
+    # when the background caching job is started.
+    self.assertEqual(
+        expected_cached_source_signature,
+        ie.current_env().get_cached_source_signature(p))
 
   @patch(
-      'apache_beam.runners.interactive.pipeline_instrument'
-      '.has_unbounded_sources',
+      'apache_beam.runners.interactive.background_caching_job'
+      '.has_source_to_cache',
       lambda x: False)
   def test_background_caching_job_not_start_for_batch_pipeline(self):
-    p = _build_a_test_stream_pipeline()
+    p = beam.Pipeline()
+
+    # pylint: disable=expression-not-assigned
+    p | beam.Create([])
     p.run()
-    self.assertIsNone(ie.current_env().pipeline_result(p, is_main_job=False))
+    self.assertIsNone(ie.current_env().get_background_caching_job(p))
 
   @patch(
-      'apache_beam.runners.interactive.pipeline_instrument'
-      '.has_unbounded_sources',
+      'apache_beam.runners.interactive.background_caching_job'
+      '.has_source_to_cache',
       lambda x: True)
+  # Disable the clean up so that we can keep the test streaming cache.
+  @patch(
+      'apache_beam.runners.interactive.interactive_environment'
+      '.InteractiveEnvironment.cleanup',
+      lambda x,
+      y: None)
   def test_background_caching_job_not_start_when_such_job_exists(self):
     p = _build_a_test_stream_pipeline()
-    a_running_result = runner.PipelineResult(runner.PipelineState.RUNNING)
-    ie.current_env().set_pipeline_result(p, a_running_result, is_main_job=False)
+    _setup_test_streaming_cache(p)
+    a_running_background_caching_job = bcj.BackgroundCachingJob(
+        runner.PipelineResult(runner.PipelineState.RUNNING), limiters=[])
+    ie.current_env().set_background_caching_job(
+        p, a_running_background_caching_job)
     main_job_result = p.run()
     # No background caching job is started so result is still the running one.
     self.assertIs(
-        a_running_result,
-        ie.current_env().pipeline_result(p, is_main_job=False))
+        a_running_background_caching_job,
+        ie.current_env().get_background_caching_job(p))
     # A new main job is started so result of the main job is set.
     self.assertIs(main_job_result, ie.current_env().pipeline_result(p))
 
   @patch(
-      'apache_beam.runners.interactive.pipeline_instrument'
-      '.has_unbounded_sources',
+      'apache_beam.runners.interactive.background_caching_job'
+      '.has_source_to_cache',
       lambda x: True)
+  # Disable the clean up so that we can keep the test streaming cache.
+  @patch(
+      'apache_beam.runners.interactive.interactive_environment'
+      '.InteractiveEnvironment.cleanup',
+      lambda x,
+      y: None)
   def test_background_caching_job_not_start_when_such_job_is_done(self):
     p = _build_a_test_stream_pipeline()
-    a_done_result = runner.PipelineResult(runner.PipelineState.DONE)
-    ie.current_env().set_pipeline_result(p, a_done_result, is_main_job=False)
+    _setup_test_streaming_cache(p)
+    a_done_background_caching_job = bcj.BackgroundCachingJob(
+        runner.PipelineResult(runner.PipelineState.DONE), limiters=[])
+    ie.current_env().set_background_caching_job(
+        p, a_done_background_caching_job)
     main_job_result = p.run()
     # No background caching job is started so result is still the running one.
     self.assertIs(
-        a_done_result, ie.current_env().pipeline_result(p, is_main_job=False))
+        a_done_background_caching_job,
+        ie.current_env().get_background_caching_job(p))
     # A new main job is started so result of the main job is set.
     self.assertIs(main_job_result, ie.current_env().pipeline_result(p))
 
@@ -148,11 +221,14 @@ class BackgroundCachingJobTest(unittest.TestCase):
     ie.current_env().set_cached_source_signature(
         pipeline, bcj.extract_source_to_cache_signature(pipeline))
 
+    self.assertFalse(bcj.is_cache_complete(str(id(pipeline))))
+
     with cell:  # Cell 2
       read_bar = pipeline | 'Read' >> beam.io.ReadFromPubSub(
           subscription=_BAR_PUBSUB_SUB)
       ib.watch({'read_bar': read_bar})
 
+    self.assertTrue(bcj.is_cache_complete(str(id(pipeline))))
     self.assertTrue(bcj.is_source_to_cache_changed(pipeline))
 
   @patch('IPython.get_ipython', new_callable=mock_get_ipython)
@@ -247,6 +323,33 @@ class BackgroundCachingJobTest(unittest.TestCase):
         pipeline)
     self.assertEqual(signature_with_only_foo, signature_after_pruning_bar)
     self.assertFalse(bcj.is_source_to_cache_changed(pipeline))
+
+  def test_determine_a_test_stream_service_running(self):
+    pipeline = _build_an_empty_stream_pipeline()
+    test_stream_service = TestStreamServiceController(reader=None)
+    test_stream_service.start()
+    ie.current_env().set_test_stream_service_controller(
+        pipeline, test_stream_service)
+    self.assertTrue(bcj.is_a_test_stream_service_running(pipeline))
+    # the test_stream_service will be cleaned up on teardown.
+
+  def test_stop_a_running_test_stream_service(self):
+    pipeline = _build_an_empty_stream_pipeline()
+    test_stream_service = TestStreamServiceController(reader=None)
+    test_stream_service.start()
+    ie.current_env().set_test_stream_service_controller(
+        pipeline, test_stream_service)
+    bcj.attempt_to_stop_test_stream_service(pipeline)
+    self.assertFalse(bcj.is_a_test_stream_service_running(pipeline))
+
+  @patch(
+      'apache_beam.testing.test_stream_service.TestStreamServiceController'
+      '.stop')
+  def test_noop_when_no_test_stream_service_running(self, _mocked_stop):
+    pipeline = _build_an_empty_stream_pipeline()
+    self.assertFalse(bcj.is_a_test_stream_service_running(pipeline))
+    bcj.attempt_to_stop_test_stream_service(pipeline)
+    _mocked_stop.assert_not_called()
 
 
 if __name__ == '__main__':

@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.runners.dataflow.util.Structs.addString;
 import static org.apache.beam.runners.dataflow.util.Structs.getString;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
@@ -85,6 +86,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Ints;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A side input reader over a set of {@link IsmFormat} files constructed by Dataflow. This reader
@@ -92,6 +94,11 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Ints;
  * {@link #getSingletonForWindow} for singleton views, {@link #getListForWindow} for iterable and
  * list views, and {@link #getMapForWindow} for map and multimap views.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "keyfor",
+  "nullness"
+}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class IsmSideInputReader implements SideInputReader {
   private static final String SINGLETON_KIND = "singleton";
   private static final String COLLECTION_KIND = "collection";
@@ -376,7 +383,10 @@ public class IsmSideInputReader implements SideInputReader {
    */
   private <T, W extends BoundedWindow> T getSingletonForWindow(
       TupleTag<?> viewTag, SingletonViewFn<T> viewFn, W window) throws IOException {
-    @SuppressWarnings({"rawtypes", "unchecked"})
+    @SuppressWarnings({
+      "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+      "unchecked"
+    })
     List<IsmReader<WindowedValue<T>>> readers = (List) tagToIsmReaderMap.get(viewTag);
     List<IsmReader<WindowedValue<T>>.IsmPrefixReaderIterator> readerIterators =
         findAndStartReaders(readers, ImmutableList.of(window));
@@ -399,7 +409,10 @@ public class IsmSideInputReader implements SideInputReader {
   @SuppressWarnings("TypeParameterUnusedInFormals")
   private <T, W extends BoundedWindow> T getMapSingletonForViewAndWindow(
       TupleTag<?> viewTag, W window) throws IOException {
-    @SuppressWarnings({"rawtypes", "unchecked"})
+    @SuppressWarnings({
+      "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+      "unchecked"
+    })
     List<IsmReader<WindowedValue<T>>> readers = (List) tagToIsmReaderMap.get(viewTag);
     List<IsmReader<WindowedValue<T>>.IsmPrefixReaderIterator> readerIterators =
         findAndStartReaders(readers, ImmutableList.of(window));
@@ -613,6 +626,7 @@ public class IsmSideInputReader implements SideInputReader {
 
     @Override
     public Iterable<V> get(K k) {
+      k = checkArgumentNotNull(k);
       try {
         return new ListOverReaderIterators<>(
             findAndStartReaders(readers, ImmutableList.of(k, window)), (V value) -> value);
@@ -1065,7 +1079,7 @@ public class IsmSideInputReader implements SideInputReader {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (!(o instanceof Map.Entry)) {
         return false;
       }

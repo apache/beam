@@ -41,9 +41,12 @@ import org.slf4j.LoggerFactory;
  * them to the provided {@link org.apache.beam.model.fnexecution.v1.BeamFnApi.LogEntry} {@link
  * Consumer}.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BeamFnLoggingService extends BeamFnLoggingGrpc.BeamFnLoggingImplBase
     implements BeamFnService {
-  private static final Logger LOGGER = LoggerFactory.getLogger(BeamFnLoggingService.class);
+  private static final Logger LOG = LoggerFactory.getLogger(BeamFnLoggingService.class);
   private final Endpoints.ApiServiceDescriptor apiServiceDescriptor;
   private final Consumer<BeamFnApi.LogEntry> clientLogger;
   private final Function<StreamObserver<BeamFnApi.LogControl>, StreamObserver<BeamFnApi.LogControl>>
@@ -64,7 +67,7 @@ public class BeamFnLoggingService extends BeamFnLoggingGrpc.BeamFnLoggingImplBas
     this.headerAccessor = headerAccessor;
     this.connectedClients = new ConcurrentHashMap<>();
     this.apiServiceDescriptor = apiServiceDescriptor;
-    LOGGER.info("Launched Beam Fn Logging service {}", this.apiServiceDescriptor);
+    LOG.info("Launched Beam Fn Logging service {}", this.apiServiceDescriptor);
   }
 
   @Override
@@ -76,7 +79,7 @@ public class BeamFnLoggingService extends BeamFnLoggingGrpc.BeamFnLoggingImplBas
   public void close() throws Exception {
     Set<InboundObserver> remainingClients = ImmutableSet.copyOf(connectedClients.keySet());
     if (!remainingClients.isEmpty()) {
-      LOGGER.info(
+      LOG.info(
           "{} Beam Fn Logging clients still connected during shutdown.", remainingClients.size());
 
       // Signal server shutting down to all remaining connected clients.
@@ -92,7 +95,7 @@ public class BeamFnLoggingService extends BeamFnLoggingGrpc.BeamFnLoggingImplBas
   @Override
   public StreamObserver<BeamFnApi.LogEntry.List> logging(
       StreamObserver<BeamFnApi.LogControl> outboundObserver) {
-    LOGGER.info("Beam Fn Logging client connected for client {}", headerAccessor.getSdkWorkerId());
+    LOG.info("Beam Fn Logging client connected for client {}", headerAccessor.getSdkWorkerId());
     InboundObserver inboundObserver = new InboundObserver(headerAccessor.getSdkWorkerId());
     connectedClients.put(inboundObserver, streamObserverFactory.apply(outboundObserver));
     return inboundObserver;
@@ -104,7 +107,7 @@ public class BeamFnLoggingService extends BeamFnLoggingGrpc.BeamFnLoggingImplBas
         outboundObserver.onCompleted();
       } catch (RuntimeException ignored) {
         // Completing outbound observer failed, ignoring failure and continuing
-        LOGGER.warn("Beam Fn Logging client failed to be complete.", ignored);
+        LOG.warn("Beam Fn Logging client failed to be complete.", ignored);
       }
     }
   }
@@ -133,7 +136,7 @@ public class BeamFnLoggingService extends BeamFnLoggingGrpc.BeamFnLoggingImplBas
 
     @Override
     public void onError(Throwable t) {
-      LOGGER.warn("Logging client failed unexpectedly. ClientId: {}", t, sdkWorkerId);
+      LOG.warn("Logging client failed unexpectedly. ClientId: {}", sdkWorkerId, t);
       // We remove these from the connected clients map to prevent a race between
       // the close method and this InboundObserver calling a terminal method on the
       // StreamObserver. If we removed it, then we are responsible for the terminal call.
@@ -142,7 +145,7 @@ public class BeamFnLoggingService extends BeamFnLoggingGrpc.BeamFnLoggingImplBas
 
     @Override
     public void onCompleted() {
-      LOGGER.info("Logging client hanged up. ClientId: {}", sdkWorkerId);
+      LOG.info("Logging client hanged up. ClientId: {}", sdkWorkerId);
       // We remove these from the connected clients map to prevent a race between
       // the close method and this InboundObserver calling a terminal method on the
       // StreamObserver. If we removed it, then we are responsible for the terminal call.

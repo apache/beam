@@ -39,6 +39,7 @@ from __future__ import absolute_import
 import argparse
 import logging
 import re
+import time
 
 from past.builtins import unicode
 
@@ -71,19 +72,22 @@ class PrintFn(beam.DoFn):
 class AddTimestampFn(beam.DoFn):
   """A DoFn that attaches timestamps to its elements.
 
-  It takes a string of integers and it attaches to each of them
-  a timestamp of its same value.
+  It takes an element and attaches a timestamp of its same value for integer
+  and current timestamp in other cases.
 
-  For example, [120, 225, 312] will result in:
-  [(120, Timestamp(120)), (225, Timestamp(225)), (312, Timestamp(312))].
+  For example, 120 and Sometext will result in:
+  (120, Timestamp(120) and (Sometext, Timestamp(1234567890).
   """
   def process(self, element):
-    for elem in element.split(' '):
-      logging.info('Adding timestamp to: %s', element)
-      yield beam.window.TimestampedValue(elem, int(elem))
+    logging.info('Adding timestamp to: %s', element)
+    try:
+      timestamp = int(element)
+    except ValueError:
+      timestamp = int(time.time())
+    yield beam.window.TimestampedValue(element, timestamp)
 
 
-def run(argv=None):
+def run(argv=None, save_main_session=True):
   """Build and run the pipeline."""
   parser = argparse.ArgumentParser()
   parser.add_argument(
@@ -108,16 +112,18 @@ def run(argv=None):
   # We use the save_main_session option because one or more DoFn's in this
   # workflow rely on global context (e.g., a module imported at module level).
   pipeline_options = PipelineOptions(pipeline_args)
-  pipeline_options.view_as(SetupOptions).save_main_session = True
+  pipeline_options.view_as(SetupOptions).save_main_session = save_main_session
   pipeline_options.view_as(StandardOptions).streaming = True
   with beam.Pipeline(options=pipeline_options) as p:
 
     # Read from PubSub into a PCollection.
     if known_args.input_subscription:
-      lines = p | beam.io.ReadFromPubSub(
+      messages = p | beam.io.ReadFromPubSub(
           subscription=known_args.input_subscription)
     else:
-      lines = p | beam.io.ReadFromPubSub(topic=known_args.input_topic)
+      messages = p | beam.io.ReadFromPubSub(topic=known_args.input_topic)
+
+    lines = messages | 'decode' >> beam.Map(lambda x: x.decode('utf-8'))
 
     # Count the occurrences of each word.
     def count_ones(word_ones):
@@ -126,10 +132,10 @@ def run(argv=None):
 
     counts = (
         lines
-        | 'AddTimestampFn' >> beam.ParDo(AddTimestampFn())
-        | 'After AddTimestampFn' >> ParDo(PrintFn('After AddTimestampFn'))
         | 'Split' >>
         (beam.ParDo(WordExtractingDoFn()).with_output_types(unicode))
+        | 'AddTimestampFn' >> beam.ParDo(AddTimestampFn())
+        | 'After AddTimestampFn' >> ParDo(PrintFn('After AddTimestampFn'))
         | 'PairWithOne' >> beam.Map(lambda x: (x, 1))
         | beam.WindowInto(window.FixedWindows(5, 0))
         | 'GroupByKey' >> beam.GroupByKey()
@@ -140,11 +146,15 @@ def run(argv=None):
       (word, count) = word_count
       return '%s: %d' % (word, count)
 
-    output = counts | 'format' >> beam.Map(format_result)
+    output = (
+        counts
+        | 'format' >> beam.Map(format_result)
+        | 'encode' >>
+        beam.Map(lambda x: x.encode('utf-8')).with_output_types(bytes))
 
     # Write to PubSub.
     # pylint: disable=expression-not-assigned
-    output | beam.io.WriteStringsToPubSub(known_args.output_topic)
+    output | beam.io.WriteToPubSub(known_args.output_topic)
 
     def check_gbk_format():
       # A matcher that checks that the output of GBK is of the form word: count.
@@ -152,7 +162,7 @@ def run(argv=None):
         # pylint: disable=unused-variable
         actual_elements_in_window, window = elements
         for elm in actual_elements_in_window:
-          assert re.match(r'\S+:\s+\d+', elm) is not None
+          assert re.match(r'\S+:\s+\d+', elm.decode('utf-8')) is not None
 
       return matcher
 
@@ -168,20 +178,26 @@ def run(argv=None):
     # 150, 151, 152, 153, 154 in the window [150, 155)
     # or exactly 1 occurrence of any subset of the elements
     # 210, 211, 212, 213, 214 in the window [210, 215).
+    first_window_val = [
+        '150: 1',
+        '151: 1',
+        '152: 1',
+        '153: 1',
+        '154: 1',
+    ]
+    second_window_val = [
+        '210: 1',
+        '211: 1',
+        '212: 1',
+        '213: 1',
+        '214: 1',
+    ]
     expected_window_to_elements = {
         window.IntervalWindow(150, 155): [
-            ('150: 1'),
-            ('151: 1'),
-            ('152: 1'),
-            ('153: 1'),
-            ('154: 1'),
+            x.encode('utf-8') for x in first_window_val
         ],
         window.IntervalWindow(210, 215): [
-            ('210: 1'),
-            ('211: 1'),
-            ('212: 1'),
-            ('213: 1'),
-            ('214: 1'),
+            x.encode('utf-8') for x in second_window_val
         ],
     }
 

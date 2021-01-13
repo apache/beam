@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.extensions.sql.meta.provider.datacatalog;
 
 import com.alibaba.fastjson.JSONObject;
-import com.google.cloud.datacatalog.Entry;
-import com.google.cloud.datacatalog.GcsFilesetSpec;
+import com.google.cloud.datacatalog.v1beta1.Entry;
+import com.google.cloud.datacatalog.v1beta1.GcsFilesetSpec;
 import java.util.List;
 import java.util.Optional;
 import org.apache.beam.sdk.extensions.sql.meta.Table;

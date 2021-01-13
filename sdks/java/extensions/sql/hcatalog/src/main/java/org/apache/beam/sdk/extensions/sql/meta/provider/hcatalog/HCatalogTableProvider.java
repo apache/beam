@@ -21,11 +21,11 @@ import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.io.hcatalog.HCatalogBeamSchema;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Table provider that represents a schema stored in Hive Metastore.
@@ -36,6 +36,9 @@ import org.apache.beam.sdk.io.hcatalog.HCatalogBeamSchema;
  *
  * <p>If only the table name is provided, then 'db' is assumed to be 'default'.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class HCatalogTableProvider implements TableProvider, Serializable {
 
   private HashMap<String, String> configuration;

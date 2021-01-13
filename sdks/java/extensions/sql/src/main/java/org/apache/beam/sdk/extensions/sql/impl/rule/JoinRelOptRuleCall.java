@@ -31,6 +31,9 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RelBuilde
  * This is a class to catch the built join and check if it is a legal join before passing it to the
  * actual RelOptRuleCall.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class JoinRelOptRuleCall extends RelOptRuleCall {
   private final RelOptRuleCall originalCall;
   private final JoinChecker checker;

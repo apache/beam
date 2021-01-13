@@ -87,5 +87,21 @@ class DoFnLifecycleTest(unittest.TestCase):
     # Assumes that the worker is run in the same process as the test.
 
 
+class LocalDoFnLifecycleTest(unittest.TestCase):
+  def test_dofn_lifecycle(self):
+    from apache_beam.runners.direct import direct_runner
+    from apache_beam.runners.portability import fn_api_runner
+    runners = [
+        direct_runner.BundleBasedDirectRunner(), fn_api_runner.FnApiRunner()
+    ]
+    for r in runners:
+      with TestPipeline(runner=r) as p:
+        _ = (
+            p
+            | 'Start' >> beam.Create([1, 2, 3])
+            | 'Do' >> beam.ParDo(CallSequenceEnforcingDoFn()))
+      # Assumes that the worker is run in the same process as the test.
+
+
 if __name__ == '__main__':
   unittest.main()

@@ -17,13 +17,13 @@
  */
 package org.apache.beam.runners.direct;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.isA;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.theInstance;
-import static org.junit.Assert.assertThat;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -55,6 +55,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link CloningBundleFactory}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class CloningBundleFactoryTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
   @Rule public final TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);

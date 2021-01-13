@@ -17,19 +17,18 @@
  */
 package org.apache.beam.sdk.state;
 
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** <b><i>For internal use only; no backwards-compatibility guarantees.</i></b> */
 @Internal
 public class ReadableStates {
 
   /** A {@link ReadableState} constructed from a constant value, hence immediately available. */
-  public static <T> ReadableState<T> immediate(@Nullable final T value) {
+  public static <T> ReadableState<T> immediate(final @Nullable T value) {
     return new ReadableState<T>() {
       @Override
-      @Nullable
-      public T read() {
+      public @Nullable T read() {
         return value;
       }
 

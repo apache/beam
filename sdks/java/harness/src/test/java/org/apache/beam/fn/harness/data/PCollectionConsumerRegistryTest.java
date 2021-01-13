@@ -18,9 +18,9 @@
 package org.apache.beam.fn.harness.data;
 
 import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doThrow;
@@ -52,6 +52,10 @@ import org.powermock.modules.junit4.PowerMockRunner;
 /** Tests for {@link PCollectionConsumerRegistryTest}. */
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(MetricsEnvironment.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class PCollectionConsumerRegistryTest {
 
   @Rule public ExpectedException expectedException = ExpectedException.none();
@@ -86,15 +90,14 @@ public class PCollectionConsumerRegistryTest {
     SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
     builder.setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT);
     builder.setLabel(MonitoringInfoConstants.Labels.PCOLLECTION, pCollectionA);
-    builder.setInt64Value(numElements);
+    builder.setInt64SumValue(numElements);
     MonitoringInfo expected = builder.build();
 
     // Clear the timestamp before comparison.
-    MonitoringInfo pCollectionCount =
+    MonitoringInfo result =
         Iterables.find(
             metricsContainerRegistry.getMonitoringInfos(),
             monitoringInfo -> monitoringInfo.containsLabels(Labels.PCOLLECTION));
-    MonitoringInfo result = SimpleMonitoringInfoBuilder.copyAndClearTimestamp(pCollectionCount);
     assertEquals(expected, result);
   }
 
@@ -160,15 +163,14 @@ public class PCollectionConsumerRegistryTest {
     SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
     builder.setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT);
     builder.setLabel(MonitoringInfoConstants.Labels.PCOLLECTION, pCollectionA);
-    builder.setInt64Value(numElements);
+    builder.setInt64SumValue(numElements);
     MonitoringInfo expected = builder.build();
 
     // Clear the timestamp before comparison.
-    MonitoringInfo pCollectionCount =
+    MonitoringInfo result =
         Iterables.find(
             metricsContainerRegistry.getMonitoringInfos(),
             monitoringInfo -> monitoringInfo.containsLabels(Labels.PCOLLECTION));
-    MonitoringInfo result = SimpleMonitoringInfoBuilder.copyAndClearTimestamp(pCollectionCount);
     assertEquals(expected, result);
   }
 

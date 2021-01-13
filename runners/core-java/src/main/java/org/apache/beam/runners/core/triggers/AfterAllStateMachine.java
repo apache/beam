@@ -28,6 +28,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  * A {@link TriggerStateMachine} that fires and finishes once after all of its sub-triggers have
  * fired.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class AfterAllStateMachine extends TriggerStateMachine {
 
   private AfterAllStateMachine(List<TriggerStateMachine> subTriggers) {
@@ -46,11 +49,25 @@ public class AfterAllStateMachine extends TriggerStateMachine {
   }
 
   @Override
+  public void prefetchOnElement(PrefetchContext c) {
+    for (ExecutableTriggerStateMachine subTrigger : c.trigger().subTriggers()) {
+      subTrigger.invokePrefetchOnElement(c.forTrigger(subTrigger));
+    }
+  }
+
+  @Override
   public void onElement(OnElementContext c) throws Exception {
     for (ExecutableTriggerStateMachine subTrigger : c.trigger().unfinishedSubTriggers()) {
       // Since subTriggers are all OnceTriggers, they must either CONTINUE or FIRE_AND_FINISH.
       // invokeElement will automatically mark the finish bit if they return FIRE_AND_FINISH.
       subTrigger.invokeOnElement(c);
+    }
+  }
+
+  @Override
+  public void prefetchOnMerge(MergingPrefetchContext c) {
+    for (ExecutableTriggerStateMachine subTrigger : c.trigger().subTriggers()) {
+      subTrigger.invokePrefetchOnMerge(c.forTrigger(subTrigger));
     }
   }
 
@@ -64,6 +81,13 @@ public class AfterAllStateMachine extends TriggerStateMachine {
       allFinished &= c.forTrigger(subTrigger1).trigger().isFinished();
     }
     c.trigger().setFinished(allFinished);
+  }
+
+  @Override
+  public void prefetchShouldFire(PrefetchContext c) {
+    for (ExecutableTriggerStateMachine subTrigger : c.trigger().subTriggers()) {
+      subTrigger.invokePrefetchShouldFire(c.forTrigger(subTrigger));
+    }
   }
 
   /**

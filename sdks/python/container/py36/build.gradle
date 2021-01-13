@@ -21,46 +21,8 @@ plugins {
   id 'org.apache.beam.module'
 }
 applyDockerNature()
+applyPythonNature()
 
-description = "Apache Beam :: SDKs :: Python :: Container :: Python 36 Container"
+pythonVersion = '3.6'
 
-configurations {
-  sdkSourceTarball
-  sdkHarnessLauncher
-}
-
-dependencies {
-  sdkSourceTarball project(path: ":sdks:python", configuration: "distTarBall")
-  sdkHarnessLauncher project(path: ":sdks:python:container", configuration: "sdkHarnessLauncher")
-}
-
-task copyDockerfileDependencies(type: Copy) {
-  from configurations.sdkSourceTarball
-  from file("../base_image_requirements.txt")
-  into "build/target"
-  if(configurations.sdkSourceTarball.isEmpty()) {
-      throw new StopExecutionException();
-  }
-}
-
-task copyLauncherDependencies(type: Copy) {
-  from configurations.sdkHarnessLauncher
-  into "build/target/launcher"
-  if(configurations.sdkHarnessLauncher.isEmpty()) {
-      throw new StopExecutionException();
-  }
-}
-
-docker {
-  name containerImageName(
-          name: "python3.6_sdk",
-          root: project.rootProject.hasProperty(["docker-repository-root"]) ?
-                  project.rootProject["docker-repository-root"] : "apachebeam",
-          tag: project.rootProject.hasProperty(["docker-tag"]) ?
-                  project.rootProject["docker-tag"] : project.sdk_version)
-  files "../Dockerfile", "./build"
-  buildArgs(['py_version': "3.6"])
-}
-
-dockerPrepare.dependsOn copyLauncherDependencies
-dockerPrepare.dependsOn copyDockerfileDependencies
+apply from: "../common.gradle"

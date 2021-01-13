@@ -17,14 +17,15 @@
  */
 package org.apache.beam.runners.fnexecution.provisioning;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
 
 import org.apache.beam.model.fnexecution.v1.ProvisionApi.GetProvisionInfoRequest;
 import org.apache.beam.model.fnexecution.v1.ProvisionApi.GetProvisionInfoResponse;
 import org.apache.beam.model.fnexecution.v1.ProvisionApi.ProvisionInfo;
 import org.apache.beam.model.fnexecution.v1.ProvisionServiceGrpc;
 import org.apache.beam.model.fnexecution.v1.ProvisionServiceGrpc.ProvisionServiceBlockingStub;
+import org.apache.beam.runners.fnexecution.GrpcContextHeaderAccessorProvider;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.InProcessServerFactory;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ListValue;
@@ -65,7 +66,9 @@ public class StaticGrpcProvisionServiceTest {
     ProvisionInfo info = ProvisionInfo.newBuilder().setPipelineOptions(options).build();
     GrpcFnServer<StaticGrpcProvisionService> server =
         GrpcFnServer.allocatePortAndCreateFor(
-            StaticGrpcProvisionService.create(info), InProcessServerFactory.create());
+            StaticGrpcProvisionService.create(
+                info, GrpcContextHeaderAccessorProvider.getHeaderAccessor()),
+            InProcessServerFactory.create());
 
     ProvisionServiceBlockingStub stub =
         ProvisionServiceGrpc.newBlockingStub(

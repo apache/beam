@@ -27,10 +27,14 @@ import org.apache.beam.sdk.extensions.sql.impl.BeamSqlPipelineOptions;
 import org.apache.beam.sdk.extensions.sql.impl.CalciteQueryPlanner;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner;
 import org.apache.beam.sdk.extensions.sql.zetasql.ZetaSQLQueryPlanner;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.Method;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
 import org.apache.beam.sdk.io.gcp.bigquery.TestBigQuery;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.joda.time.Duration;
@@ -48,6 +52,7 @@ public class DataCatalogBigQueryIT {
   public static class DialectSensitiveTests {
     private static final Schema ID_NAME_SCHEMA =
         Schema.builder().addNullableField("id", INT64).addNullableField("name", STRING).build();
+    @Rule public transient TestPipeline writePipeline = TestPipeline.create();
     @Rule public transient TestPipeline readPipeline = TestPipeline.create();
     @Rule public transient TestBigQuery bigQuery = TestBigQuery.create(ID_NAME_SCHEMA);
 
@@ -61,17 +66,29 @@ public class DataCatalogBigQueryIT {
           });
     }
 
+    @SuppressWarnings("initialization.fields.uninitialized")
     @Parameterized.Parameter(0)
     public String dialectName;
 
+    @SuppressWarnings("initialization.fields.uninitialized")
     @Parameterized.Parameter(1)
     public Class<? extends QueryPlanner> queryPlanner;
 
     @Test
     public void testRead() throws Exception {
-      bigQuery.insertRows(ID_NAME_SCHEMA, row(1, "name1"), row(2, "name2"), row(3, "name3"));
-
       TableReference bqTable = bigQuery.tableReference();
+
+      // Streaming inserts do not work with DIRECT_READ mode, there is a several hour lag.
+      PCollection<Row> data =
+          writePipeline.apply(Create.of(row(1, "name1"), row(2, "name2"), row(3, "name3")));
+      data.apply(
+          BigQueryIO.<Row>write()
+              .withSchema(BigQueryUtils.toTableSchema(ID_NAME_SCHEMA))
+              .withFormatFunction(BigQueryUtils.toTableRow())
+              .withMethod(Method.FILE_LOADS)
+              .to(bqTable));
+      writePipeline.run().waitUntilFinish(Duration.standardMinutes(2));
+
       String tableId =
           String.format(
               "bigquery.`table`.`%s`.`%s`.`%s`",
@@ -80,19 +97,20 @@ public class DataCatalogBigQueryIT {
       readPipeline
           .getOptions()
           .as(BeamSqlPipelineOptions.class)
-          .setPlannerName(queryPlanner.getCanonicalName());
+          .setPlannerName(queryPlanner.getName());
 
-      PCollection<Row> result =
-          readPipeline.apply(
-              "query",
-              SqlTransform.query("SELECT id, name FROM " + tableId)
-                  .withDefaultTableProvider(
-                      "datacatalog",
-                      DataCatalogTableProvider.create(
-                          readPipeline.getOptions().as(DataCatalogPipelineOptions.class))));
+      try (DataCatalogTableProvider tableProvider =
+          DataCatalogTableProvider.create(
+              readPipeline.getOptions().as(DataCatalogPipelineOptions.class))) {
+        PCollection<Row> result =
+            readPipeline.apply(
+                "query",
+                SqlTransform.query("SELECT id, name FROM " + tableId)
+                    .withDefaultTableProvider("datacatalog", tableProvider));
 
-      PAssert.that(result).containsInAnyOrder(row(1, "name1"), row(2, "name2"), row(3, "name3"));
-      readPipeline.run().waitUntilFinish(Duration.standardMinutes(2));
+        PAssert.that(result).containsInAnyOrder(row(1, "name1"), row(2, "name2"), row(3, "name3"));
+        readPipeline.run().waitUntilFinish(Duration.standardMinutes(2));
+      }
     }
 
     private static Row row(long id, String name) {

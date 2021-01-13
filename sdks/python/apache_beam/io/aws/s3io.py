@@ -58,11 +58,13 @@ def parse_s3_path(s3_path, object_optional=False):
 
 class S3IO(object):
   """S3 I/O client."""
-  def __init__(self, client=None):
+  def __init__(self, client=None, options=None):
+    if client is None and options is None:
+      raise ValueError('Must provide one of client or options')
     if client is not None:
       self.client = client
     elif BOTO3_INSTALLED:
-      self.client = boto3_client.Client()
+      self.client = boto3_client.Client(options=options)
     else:
       message = 'AWS dependencies are not installed, and no alternative ' \
       'client was provided to S3IO.'
@@ -218,16 +220,16 @@ class S3IO(object):
         try:
           self.client.copy(request)
           results.append((src_path, dest_path, None))
-        except messages.S3ClientError as e:
-          results.append((src_path, dest_path, e))
+        except messages.S3ClientError as err:
+          results.append((src_path, dest_path, err))
 
       # Mismatched paths (one directory, one non-directory) get an error result
       else:
-        err = messages.S3ClientError(
+        e = messages.S3ClientError(
             "Can't copy mismatched paths (one directory, one non-directory):" +
             ' %s, %s' % (src_path, dest_path),
             400)
-        results.append((src_path, dest_path, err))
+        results.append((src_path, dest_path, e))
 
     return results
 

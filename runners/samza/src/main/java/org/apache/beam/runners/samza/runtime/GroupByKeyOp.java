@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.samza.runtime;
 
+import java.util.Collection;
 import java.util.Collections;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
@@ -31,8 +32,6 @@ import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
-import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
-import org.apache.beam.runners.core.serialization.Base64Serializer;
 import org.apache.beam.runners.samza.SamzaExecutionContext;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.metrics.DoFnRunnerWithMetrics;
@@ -54,6 +53,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Samza operator for {@link org.apache.beam.sdk.transforms.GroupByKey}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class GroupByKeyOp<K, InputT, OutputT>
     implements Op<KeyedWorkItem<K, InputT>, KV<K, OutputT>, K> {
   private static final Logger LOG = LoggerFactory.getLogger(GroupByKeyOp.class);
@@ -107,11 +109,10 @@ public class GroupByKeyOp<K, InputT, OutputT>
       Context context,
       Scheduler<KeyedTimerData<K>> timerRegistry,
       OpEmitter<KV<K, OutputT>> emitter) {
-    this.pipelineOptions =
-        Base64Serializer.deserializeUnchecked(
-                config.get("beamPipelineOptions"), SerializablePipelineOptions.class)
-            .get()
-            .as(SamzaPipelineOptions.class);
+
+    final SamzaExecutionContext samzaExecutionContext =
+        (SamzaExecutionContext) context.getApplicationContainerContext();
+    this.pipelineOptions = samzaExecutionContext.getPipelineOptions();
 
     final SamzaStoreStateInternals.Factory<?> nonKeyedStateInternalsFactory =
         SamzaStoreStateInternals.createStateInternalFactory(
@@ -198,11 +199,14 @@ public class GroupByKeyOp<K, InputT, OutputT>
   public void processWatermark(Instant watermark, OpEmitter<KV<K, OutputT>> emitter) {
     timerInternalsFactory.setInputWatermark(watermark);
 
-    fnRunner.startBundle();
-    for (KeyedTimerData<K> keyedTimerData : timerInternalsFactory.removeReadyTimers()) {
-      fireTimer(keyedTimerData.getKey(), keyedTimerData.getTimerData());
+    Collection<KeyedTimerData<K>> readyTimers = timerInternalsFactory.removeReadyTimers();
+    if (!readyTimers.isEmpty()) {
+      fnRunner.startBundle();
+      for (KeyedTimerData<K> keyedTimerData : readyTimers) {
+        fireTimer(keyedTimerData.getKey(), keyedTimerData.getTimerData());
+      }
+      fnRunner.finishBundle();
     }
-    fnRunner.finishBundle();
 
     if (timerInternalsFactory.getOutputWatermark() == null
         || timerInternalsFactory.getOutputWatermark().isBefore(watermark)) {

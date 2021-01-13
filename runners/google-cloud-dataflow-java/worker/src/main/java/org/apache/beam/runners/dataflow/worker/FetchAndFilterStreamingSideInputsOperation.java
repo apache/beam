@@ -25,7 +25,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
-import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputReceiver;
@@ -51,11 +50,16 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * This {@link ReceivingOperation} is responsible for fetching any ready side inputs and also
  * filtering any input elements that aren't ready by pushing them back into state.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class FetchAndFilterStreamingSideInputsOperation<T, W extends BoundedWindow>
     extends ReceivingOperation {
 
@@ -103,9 +107,8 @@ public class FetchAndFilterStreamingSideInputsOperation<T, W extends BoundedWind
       this.delegate = delegate;
     }
 
-    @Nullable
     @Override
-    public PCollection<?> getPCollection() {
+    public @Nullable PCollection<?> getPCollection() {
       return delegate.getPCollection();
     }
 

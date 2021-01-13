@@ -21,6 +21,7 @@ import java.util.Objects;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptCost;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptCostFactory;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptUtil;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * <code>VolcanoCost</code> represents the cost of a plan node.
@@ -141,7 +142,7 @@ public class BeamCostModel implements RelOptCost {
   }
 
   @Override
-  public boolean equals(Object obj) {
+  public boolean equals(@Nullable Object obj) {
     if (obj instanceof BeamCostModel) {
       return equals((BeamCostModel) obj);
     }

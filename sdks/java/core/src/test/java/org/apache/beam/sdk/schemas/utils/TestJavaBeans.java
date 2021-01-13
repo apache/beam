@@ -23,29 +23,33 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.JavaBeanSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.annotations.SchemaCaseFormat;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldName;
 import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.CaseFormat;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
 
 /** Various Java Beans and associated schemas used in tests. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class TestJavaBeans {
   /** A Bean containing one nullable and one non-nullable type. */
   @DefaultSchema(JavaBeanSchema.class)
   public static class NullableBean {
-    @Nullable private String str;
+    private @Nullable String str;
     private int anInt;
 
     public NullableBean() {}
 
-    @Nullable
-    public String getStr() {
+    public @Nullable String getStr() {
       return str;
     }
 
@@ -62,7 +66,7 @@ public class TestJavaBeans {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -82,12 +86,11 @@ public class TestJavaBeans {
   /** A Bean containing nullable getter but a non-nullable setter. */
   @DefaultSchema(JavaBeanSchema.class)
   public static class MismatchingNullableBean {
-    @Nullable private String str;
+    private @Nullable String str;
 
     public MismatchingNullableBean() {}
 
-    @Nullable
-    public String getStr() {
+    public @Nullable String getStr() {
       return str;
     }
 
@@ -96,7 +99,7 @@ public class TestJavaBeans {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -254,7 +257,7 @@ public class TestJavaBeans {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -311,6 +314,193 @@ public class TestJavaBeans {
           .addByteArrayField("byteBuffer")
           .addDecimalField("bigDecimal")
           .addStringField("stringBuilder")
+          .build();
+
+  /** A simple Bean containing basic nullable types. * */
+  @DefaultSchema(JavaBeanSchema.class)
+  public static class AllNullableBean {
+    private @Nullable String str;
+    private @Nullable Byte aByte;
+    private @Nullable Short aShort;
+    private @Nullable Integer anInt;
+    private @Nullable Long aLong;
+    private @Nullable Boolean aBoolean;
+    private @Nullable DateTime dateTime;
+    private @Nullable Instant instant;
+    private byte @Nullable [] bytes;
+    private @Nullable ByteBuffer byteBuffer;
+    private @Nullable BigDecimal bigDecimal;
+    private @Nullable StringBuilder stringBuilder;
+
+    public AllNullableBean() {
+      this.str = null;
+      this.aByte = null;
+      this.aShort = null;
+      this.anInt = null;
+      this.aLong = null;
+      this.aBoolean = null;
+      this.dateTime = null;
+      this.instant = null;
+      this.bytes = null;
+      this.byteBuffer = null;
+      this.bigDecimal = null;
+      this.stringBuilder = null;
+    }
+
+    public @Nullable String getStr() {
+      return str;
+    }
+
+    public void setStr(@Nullable String str) {
+      this.str = str;
+    }
+
+    public @Nullable Byte getaByte() {
+      return aByte;
+    }
+
+    public void setaByte(@Nullable Byte aByte) {
+      this.aByte = aByte;
+    }
+
+    public @Nullable Short getaShort() {
+      return aShort;
+    }
+
+    public void setaShort(@Nullable Short aShort) {
+      this.aShort = aShort;
+    }
+
+    public @Nullable Integer getAnInt() {
+      return anInt;
+    }
+
+    public void setAnInt(@Nullable Integer anInt) {
+      this.anInt = anInt;
+    }
+
+    public @Nullable Long getaLong() {
+      return aLong;
+    }
+
+    public void setaLong(@Nullable Long aLong) {
+      this.aLong = aLong;
+    }
+
+    public @Nullable Boolean isaBoolean() {
+      return aBoolean;
+    }
+
+    public void setaBoolean(@Nullable Boolean aBoolean) {
+      this.aBoolean = aBoolean;
+    }
+
+    public @Nullable DateTime getDateTime() {
+      return dateTime;
+    }
+
+    public void setDateTime(@Nullable DateTime dateTime) {
+      this.dateTime = dateTime;
+    }
+
+    public byte @Nullable [] getBytes() {
+      return bytes;
+    }
+
+    public void setBytes(byte @Nullable [] bytes) {
+      this.bytes = bytes;
+    }
+
+    public @Nullable ByteBuffer getByteBuffer() {
+      return byteBuffer;
+    }
+
+    public void setByteBuffer(@Nullable ByteBuffer byteBuffer) {
+      this.byteBuffer = byteBuffer;
+    }
+
+    public @Nullable Instant getInstant() {
+      return instant;
+    }
+
+    public void setInstant(@Nullable Instant instant) {
+      this.instant = instant;
+    }
+
+    public @Nullable BigDecimal getBigDecimal() {
+      return bigDecimal;
+    }
+
+    public void setBigDecimal(@Nullable BigDecimal bigDecimal) {
+      this.bigDecimal = bigDecimal;
+    }
+
+    public @Nullable StringBuilder getStringBuilder() {
+      return stringBuilder;
+    }
+
+    public void setStringBuilder(@Nullable StringBuilder stringBuilder) {
+      this.stringBuilder = stringBuilder;
+    }
+
+    @Override
+    public boolean equals(@Nullable Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      SimpleBean that = (SimpleBean) o;
+      return Objects.equals(aByte, that.aByte)
+          && Objects.equals(aShort, that.aShort)
+          && Objects.equals(anInt, that.anInt)
+          && Objects.equals(aLong, that.aLong)
+          && Objects.equals(aBoolean, that.aBoolean)
+          && Objects.equals(str, that.str)
+          && Objects.equals(dateTime, that.dateTime)
+          && Objects.equals(instant, that.instant)
+          && Arrays.equals(bytes, that.bytes)
+          && Objects.equals(byteBuffer, that.byteBuffer)
+          && Objects.equals(bigDecimal, that.bigDecimal)
+          && Objects.equals(stringBuilder, that.stringBuilder);
+    }
+
+    @Override
+    public int hashCode() {
+      int result =
+          Objects.hash(
+              str,
+              aByte,
+              aShort,
+              anInt,
+              aLong,
+              aBoolean,
+              dateTime,
+              instant,
+              byteBuffer,
+              bigDecimal,
+              stringBuilder);
+      result = 31 * result + Arrays.hashCode(bytes);
+      return result;
+    }
+  }
+
+  /** The schema for {@link AllNullableBean}. * */
+  public static final Schema ALL_NULLABLE_BEAN_SCHEMA =
+      Schema.builder()
+          .addNullableField("str", FieldType.STRING)
+          .addNullableField("aByte", FieldType.BYTE)
+          .addNullableField("aShort", FieldType.INT16)
+          .addNullableField("anInt", FieldType.INT32)
+          .addNullableField("aLong", FieldType.INT64)
+          .addNullableField("aBoolean", FieldType.BOOLEAN)
+          .addNullableField("dateTime", FieldType.DATETIME)
+          .addNullableField("instant", FieldType.DATETIME)
+          .addNullableField("bytes", FieldType.BYTES)
+          .addNullableField("byteBuffer", FieldType.BYTES)
+          .addNullableField("bigDecimal", FieldType.DECIMAL)
+          .addNullableField("stringBuilder", FieldType.STRING)
           .build();
 
   /** A simple Bean containing basic types. * */
@@ -412,7 +602,7 @@ public class TestJavaBeans {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -474,7 +664,7 @@ public class TestJavaBeans {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -536,7 +726,7 @@ public class TestJavaBeans {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -586,7 +776,7 @@ public class TestJavaBeans {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -627,7 +817,7 @@ public class TestJavaBeans {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -678,7 +868,7 @@ public class TestJavaBeans {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -723,7 +913,7 @@ public class TestJavaBeans {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -764,7 +954,7 @@ public class TestJavaBeans {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -848,7 +1038,7 @@ public class TestJavaBeans {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -909,7 +1099,7 @@ public class TestJavaBeans {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -952,7 +1142,7 @@ public class TestJavaBeans {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -993,7 +1183,7 @@ public class TestJavaBeans {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -1013,4 +1203,148 @@ public class TestJavaBeans {
   /** The schema for {@link NestedArrayBean}. * */
   public static final Schema ARRAY_OF_BYTE_ARRAY_BEAM_SCHEMA =
       Schema.builder().addArrayField("byteBuffers", FieldType.BYTES).build();
+
+  @DefaultSchema(JavaBeanSchema.class)
+  @SchemaCaseFormat(CaseFormat.LOWER_UNDERSCORE)
+  public static class BeanWithCaseFormat {
+    private String user;
+    private int ageInYears;
+    private boolean knowsJavascript;
+
+    @SchemaCreate
+    public BeanWithCaseFormat(String user, int ageInYears, boolean knowsJavascript) {
+      this.user = user;
+      this.ageInYears = ageInYears;
+      this.knowsJavascript = knowsJavascript;
+    }
+
+    public String getUser() {
+      return user;
+    }
+
+    public int getAgeInYears() {
+      return ageInYears;
+    }
+
+    @SchemaCaseFormat(CaseFormat.UPPER_CAMEL)
+    public boolean getKnowsJavascript() {
+      return knowsJavascript;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      BeanWithCaseFormat that = (BeanWithCaseFormat) o;
+      return ageInYears == that.ageInYears
+          && knowsJavascript == that.knowsJavascript
+          && Objects.equals(user, that.user);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(user, ageInYears, knowsJavascript);
+    }
+  }
+
+  public static final Schema CASE_FORMAT_BEAM_SCHEMA =
+      Schema.builder()
+          .addStringField("user")
+          .addInt32Field("age_in_years")
+          .addBooleanField("KnowsJavascript")
+          .build();
+
+  // A Bean that has no way for us to create an instance. Should throw an error during schema
+  // generation.
+  @DefaultSchema(JavaBeanSchema.class)
+  public static class BeanWithNoCreateOption {
+    private String str;
+
+    public String getStr() {
+      return str;
+    }
+  }
+
+  // A Bean that has no @SchemaCreate, so it must be created with Setters.
+  // It also renames fields, which has the potential to make us misidentify setters.
+  @DefaultSchema(JavaBeanSchema.class)
+  @SchemaCaseFormat(CaseFormat.LOWER_UNDERSCORE)
+  public static class BeanWithRenamedFieldsAndSetters {
+    private String user;
+    private int ageInYears;
+    private boolean knowsJavascript;
+
+    @SchemaFieldName("username")
+    public String getUser() {
+      return user;
+    }
+
+    public int getAgeInYears() {
+      return ageInYears;
+    }
+
+    @SchemaCaseFormat(CaseFormat.UPPER_CAMEL)
+    public boolean getKnowsJavascript() {
+      return knowsJavascript;
+    }
+
+    public void setUser(String user) {
+      this.user = user;
+    }
+
+    public void setAgeInYears(int ageInYears) {
+      this.ageInYears = ageInYears;
+    }
+
+    public void setKnowsJavascript(boolean knowsJavascript) {
+      this.knowsJavascript = knowsJavascript;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      BeanWithCaseFormat that = (BeanWithCaseFormat) o;
+      return ageInYears == that.ageInYears
+          && knowsJavascript == that.knowsJavascript
+          && Objects.equals(user, that.user);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(user, ageInYears, knowsJavascript);
+    }
+  }
+
+  public static final Schema RENAMED_FIELDS_AND_SETTERS_BEAM_SCHEMA =
+      Schema.builder()
+          .addStringField("username")
+          .addInt32Field("age_in_years")
+          .addBooleanField("KnowsJavascript")
+          .build();
+
+  @DefaultSchema(JavaBeanSchema.class)
+  public static class ParameterNullableBean {
+
+    @org.apache.avro.reflect.Nullable private Float value;
+
+    public @org.apache.avro.reflect.Nullable Float getValue() {
+      return value;
+    }
+
+    public void setValue(@org.apache.avro.reflect.Nullable Float value) {
+      this.value = value;
+    }
+  }
+
+  public static final Schema PARAMETER_NULLABLE_BEAN_SCHEMA =
+      Schema.builder().addNullableField("value", FieldType.INT64).build();
 }

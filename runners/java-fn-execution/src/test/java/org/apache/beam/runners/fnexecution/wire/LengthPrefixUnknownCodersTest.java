@@ -36,6 +36,7 @@ import org.apache.beam.sdk.coders.LengthPrefixCoder;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -44,6 +45,9 @@ import org.junit.runners.Parameterized.Parameters;
 
 /** Tests for {@link LengthPrefixUnknownCoders}. */
 @RunWith(Parameterized.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class LengthPrefixUnknownCodersTest {
 
   private static class UnknownCoder extends CustomCoder<String> {
@@ -63,7 +67,7 @@ public class LengthPrefixUnknownCodersTest {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
       return obj instanceof UnknownCoder;
     }
   }

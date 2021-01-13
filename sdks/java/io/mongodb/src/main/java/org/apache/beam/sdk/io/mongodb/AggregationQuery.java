@@ -37,8 +37,7 @@ public abstract class AggregationQuery
 
   abstract List<BsonDocument> mongoDbPipeline();
 
-  @Nullable
-  abstract BsonDocument bucket();
+  abstract @Nullable BsonDocument bucket();
 
   private static Builder builder() {
     return new AutoValue_AggregationQuery.Builder().setMongoDbPipeline(new ArrayList<>());

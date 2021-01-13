@@ -46,14 +46,17 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.gcp.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A Pubsub client using JSON transport. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class PubsubJsonClient extends PubsubClient {
 
   private static class PubsubJsonClientFactory implements PubsubClientFactory {
@@ -100,10 +103,10 @@ public class PubsubJsonClient extends PubsubClient {
    * Attribute to use for custom timestamps, or {@literal null} if should use Pubsub publish time
    * instead.
    */
-  @Nullable private final String timestampAttribute;
+  private final @Nullable String timestampAttribute;
 
   /** Attribute to use for custom ids, or {@literal null} if should use Pubsub provided ids. */
-  @Nullable private final String idAttribute;
+  private final @Nullable String idAttribute;
 
   /** Underlying JSON transport. */
   private Pubsub pubsub;
@@ -129,7 +132,7 @@ public class PubsubJsonClient extends PubsubClient {
           new PubsubMessage().encodeData(outgoingMessage.message().getData().toByteArray());
       pubsubMessage.setAttributes(getMessageAttributes(outgoingMessage));
       if (!outgoingMessage.message().getOrderingKey().isEmpty()) {
-        pubsubMessage.put("orderingKey", outgoingMessage.message().getOrderingKey());
+        pubsubMessage.setOrderingKey(outgoingMessage.message().getOrderingKey());
       }
       pubsubMessages.add(pubsubMessage);
     }
@@ -156,6 +159,7 @@ public class PubsubJsonClient extends PubsubClient {
   }
 
   @Override
+  @SuppressWarnings("ProtoFieldNullComparison")
   public List<IncomingMessage> pull(
       long requestTimeMsSinceEpoch,
       SubscriptionPath subscription,
@@ -207,8 +211,12 @@ public class PubsubJsonClient extends PubsubClient {
           com.google.pubsub.v1.PubsubMessage.newBuilder();
       protoMessage.setData(ByteString.copyFrom(elementBytes));
       protoMessage.putAllAttributes(attributes);
-      protoMessage.setOrderingKey(
-          (String) pubsubMessage.getUnknownKeys().getOrDefault("orderingKey", ""));
+      // PubsubMessage uses `null` to represent no ordering key where we want a default of "".
+      if (pubsubMessage.getOrderingKey() != null) {
+        protoMessage.setOrderingKey(pubsubMessage.getOrderingKey());
+      } else {
+        protoMessage.setOrderingKey("");
+      }
       incomingMessages.add(
           IncomingMessage.of(
               protoMessage.build(),

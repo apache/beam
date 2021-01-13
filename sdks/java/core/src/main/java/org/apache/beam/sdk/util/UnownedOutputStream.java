@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@link OutputStream} wrapper which protects against the user attempting to modify the
@@ -40,7 +41,7 @@ public class UnownedOutputStream extends FilterOutputStream {
   }
 
   @Override
-  public boolean equals(Object obj) {
+  public boolean equals(@Nullable Object obj) {
     return obj instanceof UnownedOutputStream && ((UnownedOutputStream) obj).out.equals(out);
   }
 
@@ -52,5 +53,10 @@ public class UnownedOutputStream extends FilterOutputStream {
   @Override
   public String toString() {
     return MoreObjects.toStringHelper(UnownedOutputStream.class).add("out", out).toString();
+  }
+
+  @Override
+  public void write(byte[] b, int off, int len) throws IOException {
+    out.write(b, off, len);
   }
 }

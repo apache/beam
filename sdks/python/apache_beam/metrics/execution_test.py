@@ -104,9 +104,11 @@ class TestMetricsContainer(unittest.TestCase):
     self.assertEqual(len(cumulative.gauges), 10)
 
     self.assertEqual(
-        set(all_values), set([v for _, v in cumulative.counters.items()]))
+        set(all_values), {v
+                          for _, v in cumulative.counters.items()})
     self.assertEqual(
-        set(all_values), set([v.value for _, v in cumulative.gauges.items()]))
+        set(all_values), {v.value
+                          for _, v in cumulative.gauges.items()})
 
 
 if __name__ == '__main__':

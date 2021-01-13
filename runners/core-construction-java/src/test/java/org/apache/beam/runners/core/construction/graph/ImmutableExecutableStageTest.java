@@ -18,12 +18,12 @@
 package org.apache.beam.runners.core.construction.graph;
 
 import static org.apache.beam.runners.core.construction.graph.ExecutableStage.DEFAULT_WIRE_CODER_SETTINGS;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasValue;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
 
 import java.util.Collections;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -62,7 +62,8 @@ public class ImmutableExecutableStageTest {
                             .setDoFn(RunnerApi.FunctionSpec.newBuilder())
                             .putSideInputs("side_input", RunnerApi.SideInput.getDefaultInstance())
                             .putStateSpecs("user_state", RunnerApi.StateSpec.getDefaultInstance())
-                            .putTimerSpecs("timer", RunnerApi.TimerSpec.getDefaultInstance())
+                            .putTimerFamilySpecs(
+                                "timer", RunnerApi.TimerFamilySpec.getDefaultInstance())
                             .build()
                             .toByteString()))
             .build();

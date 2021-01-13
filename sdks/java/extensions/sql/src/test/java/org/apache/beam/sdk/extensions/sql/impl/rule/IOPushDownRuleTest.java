@@ -45,7 +45,6 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.Filte
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.ProjectCalcMergeRule;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.ProjectToCalcRule;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RuleSet;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RuleSets;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.Pair;
 import org.junit.Before;
@@ -55,6 +54,9 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class IOPushDownRuleTest {
   private static final Schema BASIC_SCHEMA =
       Schema.builder()
@@ -88,7 +90,7 @@ public class IOPushDownRuleTest {
     sqlEnv =
         BeamSqlEnv.builder(tableProvider)
             .setPipelineOptions(PipelineOptionsFactory.create())
-            .setRuleSets(new RuleSet[] {RuleSets.ofList(defaultRules)})
+            .setRuleSets(ImmutableList.of(RuleSets.ofList(defaultRules)))
             .build();
   }
 

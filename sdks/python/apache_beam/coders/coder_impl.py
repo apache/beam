@@ -48,7 +48,9 @@ from typing import Iterator
 from typing import List
 from typing import Optional
 from typing import Sequence
+from typing import Set
 from typing import Tuple
+from typing import Type
 
 from fastavro import parse_schema
 from fastavro import schemaless_reader
@@ -59,11 +61,13 @@ from past.builtins import long
 from apache_beam.coders import observable
 from apache_beam.coders.avro_record import AvroRecord
 from apache_beam.utils import windowed_value
+from apache_beam.utils.sharded_key import ShardedKey
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.timestamp import Timestamp
 
 if TYPE_CHECKING:
+  from apache_beam.transforms import userstate
   from apache_beam.transforms.window import IntervalWindow
 
 try:
@@ -363,7 +367,7 @@ ITERABLE_LIKE_TYPE = 10
 # lists, etc. due to being lazy.  The actual type is not preserved
 # through encoding, only the elements. This is particularly useful
 # for the value list types created in GroupByKey.
-_ITERABLE_LIKE_TYPES = set()
+_ITERABLE_LIKE_TYPES = set()  # type: Set[Type]
 
 
 class FastPrimitivesCoderImpl(StreamCoderImpl):
@@ -530,6 +534,92 @@ class BooleanCoderImpl(CoderImpl):
     return 1
 
 
+class MapCoderImpl(StreamCoderImpl):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Note this implementation always uses nested context when encoding keys
+  and values. This differs from Java's MapCoder, which uses
+  nested=False if possible for the last value encoded.
+
+  This difference is acceptable because MapCoder is not standard. It is only
+  used in a standard context by RowCoder which always uses nested context for
+  attribute values.
+
+  A coder for typing.Mapping objects."""
+  def __init__(
+      self,
+      key_coder,  # type: CoderImpl
+      value_coder  # type: CoderImpl
+  ):
+    self._key_coder = key_coder
+    self._value_coder = value_coder
+
+  def encode_to_stream(self, dict_value, out, nested):
+    out.write_bigendian_int32(len(dict_value))
+    for key, value in dict_value.items():
+      # Note this implementation always uses nested context when encoding keys
+      # and values which differs from Java. See note in docstring.
+      self._key_coder.encode_to_stream(key, out, True)
+      self._value_coder.encode_to_stream(value, out, True)
+
+  def decode_from_stream(self, in_stream, nested):
+    size = in_stream.read_bigendian_int32()
+    result = {}
+    for _ in range(size):
+      # Note this implementation always uses nested context when encoding keys
+      # and values which differs from Java. See note in docstring.
+      key = self._key_coder.decode_from_stream(in_stream, True)
+      value = self._value_coder.decode_from_stream(in_stream, True)
+      result[key] = value
+
+    return result
+
+  def estimate_size(self, unused_value, nested=False):
+    estimate = 4  # 4 bytes for int32 size prefix
+    for key, value in unused_value.items():
+      estimate += self._key_coder.estimate_size(key, True)
+      estimate += self._value_coder.estimate_size(value, True)
+    return estimate
+
+
+class NullableCoderImpl(StreamCoderImpl):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  A coder for typing.Optional objects."""
+
+  ENCODE_NULL = 0
+  ENCODE_PRESENT = 1
+
+  def __init__(
+      self,
+      value_coder  # type: CoderImpl
+  ):
+    self._value_coder = value_coder
+
+  def encode_to_stream(self, value, out, nested):
+    if value is None:
+      out.write_byte(self.ENCODE_NULL)
+    else:
+      out.write_byte(self.ENCODE_PRESENT)
+      self._value_coder.encode_to_stream(value, out, nested)
+
+  def decode_from_stream(self, in_stream, nested):
+    null_indicator = in_stream.read_byte()
+    if null_indicator == self.ENCODE_NULL:
+      return None
+    elif null_indicator == self.ENCODE_PRESENT:
+      return self._value_coder.decode_from_stream(in_stream, nested)
+    else:
+      raise ValueError(
+          "Encountered unexpected value for null indicator: '%s'" %
+          null_indicator)
+
+  def estimate_size(self, unused_value, nested=False):
+    return 1 + (
+        self._value_coder.estimate_size(unused_value)
+        if unused_value is not None else 0)
+
+
 class FloatCoderImpl(StreamCoderImpl):
   """For internal use only; no backwards-compatibility guarantees."""
   def encode_to_stream(self, value, out, nested):
@@ -629,22 +719,55 @@ class TimestampCoderImpl(StreamCoderImpl):
 
 class TimerCoderImpl(StreamCoderImpl):
   """For internal use only; no backwards-compatibility guarantees."""
-  def __init__(self, payload_coder_impl):
+  def __init__(self, key_coder_impl, window_coder_impl):
     self._timestamp_coder_impl = TimestampCoderImpl()
-    self._payload_coder_impl = payload_coder_impl
+    self._boolean_coder_impl = BooleanCoderImpl()
+    self._pane_info_coder_impl = PaneInfoCoderImpl()
+    self._key_coder_impl = key_coder_impl
+    self._windows_coder_impl = TupleSequenceCoderImpl(window_coder_impl)
+    from apache_beam.coders.coders import StrUtf8Coder
+    self._tag_coder_impl = StrUtf8Coder().get_impl()
 
   def encode_to_stream(self, value, out, nested):
-    # type: (dict, create_OutputStream, bool) -> None
-    self._timestamp_coder_impl.encode_to_stream(value['timestamp'], out, True)
-    self._payload_coder_impl.encode_to_stream(value.get('payload'), out, True)
+    # type: (userstate.Timer, create_OutputStream, bool) -> None
+    self._key_coder_impl.encode_to_stream(value.user_key, out, True)
+    self._tag_coder_impl.encode_to_stream(value.dynamic_timer_tag, out, True)
+    self._windows_coder_impl.encode_to_stream(value.windows, out, True)
+    self._boolean_coder_impl.encode_to_stream(value.clear_bit, out, True)
+    if not value.clear_bit:
+      self._timestamp_coder_impl.encode_to_stream(
+          value.fire_timestamp, out, True)
+      self._timestamp_coder_impl.encode_to_stream(
+          value.hold_timestamp, out, True)
+      self._pane_info_coder_impl.encode_to_stream(value.paneinfo, out, True)
 
   def decode_from_stream(self, in_stream, nested):
-    # type: (create_InputStream, bool) -> dict
-    # TODO(robertwb): Consider using a concrete class rather than a dict here.
-    return dict(
-        timestamp=self._timestamp_coder_impl.decode_from_stream(
+    # type: (create_InputStream, bool) -> userstate.Timer
+    from apache_beam.transforms import userstate
+    user_key = self._key_coder_impl.decode_from_stream(in_stream, True)
+    dynamic_timer_tag = self._tag_coder_impl.decode_from_stream(in_stream, True)
+    windows = self._windows_coder_impl.decode_from_stream(in_stream, True)
+    clear_bit = self._boolean_coder_impl.decode_from_stream(in_stream, True)
+    if clear_bit:
+      return userstate.Timer(
+          user_key=user_key,
+          dynamic_timer_tag=dynamic_timer_tag,
+          windows=windows,
+          clear_bit=clear_bit,
+          fire_timestamp=None,
+          hold_timestamp=None,
+          paneinfo=None)
+
+    return userstate.Timer(
+        user_key=user_key,
+        dynamic_timer_tag=dynamic_timer_tag,
+        windows=windows,
+        clear_bit=clear_bit,
+        fire_timestamp=self._timestamp_coder_impl.decode_from_stream(
             in_stream, True),
-        payload=self._payload_coder_impl.decode_from_stream(in_stream, True))
+        hold_timestamp=self._timestamp_coder_impl.decode_from_stream(
+            in_stream, True),
+        paneinfo=self._pane_info_coder_impl.decode_from_stream(in_stream, True))
 
 
 small_ints = [chr(_).encode('latin-1') for _ in range(128)]
@@ -853,12 +976,13 @@ class SequenceCoderImpl(StreamCoderImpl):
   # Default buffer size of 64kB of handling iterables of unknown length.
   _DEFAULT_BUFFER_SIZE = 64 * 1024
 
-  def __init__(self,
-               elem_coder,  # type: CoderImpl
-               read_state=None,  # type: Optional[IterableStateReader]
-               write_state=None,  # type: Optional[IterableStateWriter]
-               write_state_threshold=0  # type: int
-              ):
+  def __init__(
+      self,
+      elem_coder,  # type: CoderImpl
+      read_state=None,  # type: Optional[IterableStateReader]
+      write_state=None,  # type: Optional[IterableStateWriter]
+      write_state_threshold=0  # type: int
+  ):
     self._elem_coder = elem_coder
     self._read_state = read_state
     self._write_state = write_state
@@ -1146,8 +1270,7 @@ class WindowedValueCoderImpl(StreamCoderImpl):
     value = self._value_coder.decode_from_stream(in_stream, nested)
     return windowed_value.create(
         value,
-        # Avoid creation of Timestamp object.
-        timestamp,
+        timestamp,  # Avoid creation of Timestamp object.
         windows,
         pane_info)
 
@@ -1243,3 +1366,37 @@ class LengthPrefixCoderImpl(StreamCoderImpl):
     # type: (Any, bool) -> int
     value_size = self._value_coder.estimate_size(value)
     return get_varint_size(value_size) + value_size
+
+
+class ShardedKeyCoderImpl(StreamCoderImpl):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  A coder for sharded user keys.
+
+  The encoding and decoding should follow the order:
+      shard id byte string
+      encoded user key
+  """
+  def __init__(self, key_coder_impl):
+    self._shard_id_coder_impl = BytesCoderImpl()
+    self._key_coder_impl = key_coder_impl
+
+  def encode_to_stream(self, value, out, nested):
+    # type: (ShardedKey, create_OutputStream, bool) -> None
+    self._shard_id_coder_impl.encode_to_stream(value._shard_id, out, True)
+    self._key_coder_impl.encode_to_stream(value.key, out, True)
+
+  def decode_from_stream(self, in_stream, nested):
+    # type: (create_InputStream, bool) -> ShardedKey
+    shard_id = self._shard_id_coder_impl.decode_from_stream(in_stream, True)
+    key = self._key_coder_impl.decode_from_stream(in_stream, True)
+    return ShardedKey(key=key, shard_id=shard_id)
+
+  def estimate_size(self, value, nested=False):
+    # type: (Any, bool) -> int
+    estimated_size = 0
+    estimated_size += (
+        self._shard_id_coder_impl.estimate_size(value._shard_id, nested=True))
+    estimated_size += (
+        self._key_coder_impl.estimate_size(value.key, nested=True))
+    return estimated_size

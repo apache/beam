@@ -1,0 +1,44 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+ 
+- id: home-hero-title
+  translation: "Apache Beam: An advanced unified programming model"
+- id: home-hero-subtitle
+  translation: "Implement batch and streaming data processing jobs that run on any execution engine."
+- id: home-learn-more
+  translation: "Learn more"
+- id: home-try-beam
+  translation: "Try Beam"
+- id: home-download-beam
+  translation: "Download Beam SDK {{ .Site.Params.release_latest }}"
+- id: home-java-quickstart
+  translation: "Java Quickstart"
+- id: home-python-quickstart
+  translation: "Python Quickstart"
+- id: home-go-quickstart
+  translation: "Go Quickstart"
+- id: home-hero-blog-title
+  translation: "The latest from the blog"
+- id: home-pillars-title
+  translation: "All about Apache Beam"
+- id: home-logos-title
+  translation: "Works with"
+- id: home-cards-title
+  translation: "Testimonials"
+- id: home-cards-body
+  translation: "Beam is an open source community and contributions are greatly appreciated! If you’d like to contribute, please see the"
+- id: home-contribute
+  translation: "Contribute"
+- id: home-section
+  translation: "section"
+- id: home-ctas-title
+  translation: "Get started"

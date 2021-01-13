@@ -20,6 +20,7 @@
 
 from __future__ import absolute_import
 
+import datetime
 import decimal
 import json
 import logging
@@ -35,6 +36,7 @@ import uuid
 import future.tests.base  # pylint: disable=unused-import
 import hamcrest as hc
 import mock
+import pytz
 from nose.plugins.attrib import attr
 
 import apache_beam as beam
@@ -44,10 +46,12 @@ from apache_beam.io.filebasedsink_test import _TestCaseWithTempDirCleanUp
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.bigquery import TableRowJsonCoder
 from apache_beam.io.gcp.bigquery import WriteToBigQuery
-from apache_beam.io.gcp.bigquery import _JsonToDictCoder
 from apache_beam.io.gcp.bigquery import _StreamToBigQuery
 from apache_beam.io.gcp.bigquery_file_loads_test import _ELEMENTS
+from apache_beam.io.gcp.bigquery_read_internal import _JsonToDictCoder
+from apache_beam.io.gcp.bigquery_read_internal import bigquery_export_destination_uri
 from apache_beam.io.gcp.bigquery_tools import JSON_COMPLIANCE_ERROR
+from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam.io.gcp.bigquery_tools import RetryStrategy
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.io.gcp.pubsub import ReadFromPubSub
@@ -56,8 +60,10 @@ from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultStreamingMatcher
 from apache_beam.io.gcp.tests.bigquery_matcher import BigQueryTableMatcher
 from apache_beam.options import value_provider
-from apache_beam.options.pipeline_options import GoogleCloudOptions
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
+from apache_beam.options.value_provider import RuntimeValueProvider
+from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.runners.dataflow.test_dataflow_runner import TestDataflowRunner
 from apache_beam.runners.runner import PipelineState
 from apache_beam.testing import test_utils
@@ -166,7 +172,8 @@ class TestTableRowJsonCoder(unittest.TestCase):
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestBigQuerySource(unittest.TestCase):
   def test_display_data_item_on_validate_true(self):
-    source = beam.io.BigQuerySource('dataset.table', validate=True)
+    source = beam.io.BigQuerySource(
+        'dataset.table', validate=True, use_dataflow_native_source=True)
 
     dd = DisplayData.create_from(source)
     expected_items = [
@@ -176,7 +183,8 @@ class TestBigQuerySource(unittest.TestCase):
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_table_reference_display_data(self):
-    source = beam.io.BigQuerySource('dataset.table')
+    source = beam.io.BigQuerySource(
+        'dataset.table', use_dataflow_native_source=True)
     dd = DisplayData.create_from(source)
     expected_items = [
         DisplayDataItemMatcher('validation', False),
@@ -184,7 +192,8 @@ class TestBigQuerySource(unittest.TestCase):
     ]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
-    source = beam.io.BigQuerySource('project:dataset.table')
+    source = beam.io.BigQuerySource(
+        'project:dataset.table', use_dataflow_native_source=True)
     dd = DisplayData.create_from(source)
     expected_items = [
         DisplayDataItemMatcher('validation', False),
@@ -192,7 +201,8 @@ class TestBigQuerySource(unittest.TestCase):
     ]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
-    source = beam.io.BigQuerySource('xyz.com:project:dataset.table')
+    source = beam.io.BigQuerySource(
+        'xyz.com:project:dataset.table', use_dataflow_native_source=True)
     dd = DisplayData.create_from(source)
     expected_items = [
         DisplayDataItemMatcher('validation', False),
@@ -201,27 +211,32 @@ class TestBigQuerySource(unittest.TestCase):
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_parse_table_reference(self):
-    source = beam.io.BigQuerySource('dataset.table')
+    source = beam.io.BigQuerySource(
+        'dataset.table', use_dataflow_native_source=True)
     self.assertEqual(source.table_reference.datasetId, 'dataset')
     self.assertEqual(source.table_reference.tableId, 'table')
 
-    source = beam.io.BigQuerySource('project:dataset.table')
+    source = beam.io.BigQuerySource(
+        'project:dataset.table', use_dataflow_native_source=True)
     self.assertEqual(source.table_reference.projectId, 'project')
     self.assertEqual(source.table_reference.datasetId, 'dataset')
     self.assertEqual(source.table_reference.tableId, 'table')
 
-    source = beam.io.BigQuerySource('xyz.com:project:dataset.table')
+    source = beam.io.BigQuerySource(
+        'xyz.com:project:dataset.table', use_dataflow_native_source=True)
     self.assertEqual(source.table_reference.projectId, 'xyz.com:project')
     self.assertEqual(source.table_reference.datasetId, 'dataset')
     self.assertEqual(source.table_reference.tableId, 'table')
 
-    source = beam.io.BigQuerySource(query='my_query')
+    source = beam.io.BigQuerySource(
+        query='my_query', use_dataflow_native_source=True)
     self.assertEqual(source.query, 'my_query')
     self.assertIsNone(source.table_reference)
     self.assertTrue(source.use_legacy_sql)
 
   def test_query_only_display_data(self):
-    source = beam.io.BigQuerySource(query='my_query')
+    source = beam.io.BigQuerySource(
+        query='my_query', use_dataflow_native_source=True)
     dd = DisplayData.create_from(source)
     expected_items = [
         DisplayDataItemMatcher('validation', False),
@@ -230,25 +245,36 @@ class TestBigQuerySource(unittest.TestCase):
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_specify_query_sql_format(self):
-    source = beam.io.BigQuerySource(query='my_query', use_standard_sql=True)
+    source = beam.io.BigQuerySource(
+        query='my_query',
+        use_standard_sql=True,
+        use_dataflow_native_source=True)
     self.assertEqual(source.query, 'my_query')
     self.assertFalse(source.use_legacy_sql)
 
   def test_specify_query_flattened_records(self):
-    source = beam.io.BigQuerySource(query='my_query', flatten_results=False)
+    source = beam.io.BigQuerySource(
+        query='my_query',
+        flatten_results=False,
+        use_dataflow_native_source=True)
     self.assertFalse(source.flatten_results)
 
   def test_specify_query_unflattened_records(self):
-    source = beam.io.BigQuerySource(query='my_query', flatten_results=True)
+    source = beam.io.BigQuerySource(
+        query='my_query', flatten_results=True, use_dataflow_native_source=True)
     self.assertTrue(source.flatten_results)
 
   def test_specify_query_without_table(self):
-    source = beam.io.BigQuerySource(query='my_query')
+    source = beam.io.BigQuerySource(
+        query='my_query', use_dataflow_native_source=True)
     self.assertEqual(source.query, 'my_query')
     self.assertIsNone(source.table_reference)
 
   def test_date_partitioned_table_name(self):
-    source = beam.io.BigQuerySource('dataset.table$20030102', validate=True)
+    source = beam.io.BigQuerySource(
+        'dataset.table$20030102',
+        validate=True,
+        use_dataflow_native_source=True)
     dd = DisplayData.create_from(source)
     expected_items = [
         DisplayDataItemMatcher('validation', True),
@@ -264,7 +290,8 @@ class TestJsonToDictCoder(unittest.TestCase):
     def _fill_schema(fields):
       for field in fields:
         table_field = bigquery.TableFieldSchema()
-        table_field.name, table_field.type, nested_fields = field
+        table_field.name, table_field.type, table_field.mode, nested_fields, \
+          = field
         if nested_fields:
           table_field.fields = list(_fill_schema(nested_fields))
         yield table_field
@@ -276,10 +303,13 @@ class TestJsonToDictCoder(unittest.TestCase):
   def test_coder_is_pickable(self):
     try:
       schema = self._make_schema([
-          ('record', 'RECORD', [
-              ('float', 'FLOAT', []),
-          ]),
-          ('integer', 'INTEGER', []),
+          (
+              'record',
+              'RECORD',
+              'NULLABLE', [
+                  ('float', 'FLOAT', 'NULLABLE', []),
+              ]),
+          ('integer', 'INTEGER', 'NULLABLE', []),
       ])
       coder = _JsonToDictCoder(schema)
       pickler.loads(pickler.dumps(coder))
@@ -289,8 +319,8 @@ class TestJsonToDictCoder(unittest.TestCase):
   def test_values_are_converted(self):
     input_row = b'{"float": "10.5", "string": "abc"}'
     expected_row = {'float': 10.5, 'string': 'abc'}
-    schema = self._make_schema([('float', 'FLOAT', []),
-                                ('string', 'STRING', [])])
+    schema = self._make_schema([('float', 'FLOAT', 'NULLABLE', []),
+                                ('string', 'STRING', 'NULLABLE', [])])
     coder = _JsonToDictCoder(schema)
 
     actual = coder.decode(input_row)
@@ -299,8 +329,8 @@ class TestJsonToDictCoder(unittest.TestCase):
   def test_null_fields_are_preserved(self):
     input_row = b'{"float": "10.5"}'
     expected_row = {'float': 10.5, 'string': None}
-    schema = self._make_schema([('float', 'FLOAT', []),
-                                ('string', 'STRING', [])])
+    schema = self._make_schema([('float', 'FLOAT', 'NULLABLE', []),
+                                ('string', 'STRING', 'NULLABLE', [])])
     coder = _JsonToDictCoder(schema)
 
     actual = coder.decode(input_row)
@@ -310,10 +340,43 @@ class TestJsonToDictCoder(unittest.TestCase):
     input_row = b'{"record": {"float": "55.5"}, "integer": 10}'
     expected_row = {'record': {'float': 55.5}, 'integer': 10}
     schema = self._make_schema([
-        ('record', 'RECORD', [
-            ('float', 'FLOAT', []),
-        ]),
-        ('integer', 'INTEGER', []),
+        (
+            'record',
+            'RECORD',
+            'NULLABLE', [
+                ('float', 'FLOAT', 'NULLABLE', []),
+            ]),
+        ('integer', 'INTEGER', 'NULLABLE', []),
+    ])
+    coder = _JsonToDictCoder(schema)
+
+    actual = coder.decode(input_row)
+    self.assertEqual(expected_row, actual)
+
+  def test_record_and_repeatable_field_is_properly_converted(self):
+    input_row = b'{"record": [{"float": "55.5"}, {"float": "65.5"}], ' \
+                b'"integer": 10}'
+    expected_row = {'record': [{'float': 55.5}, {'float': 65.5}], 'integer': 10}
+    schema = self._make_schema([
+        (
+            'record',
+            'RECORD',
+            'REPEATED', [
+                ('float', 'FLOAT', 'NULLABLE', []),
+            ]),
+        ('integer', 'INTEGER', 'NULLABLE', []),
+    ])
+    coder = _JsonToDictCoder(schema)
+
+    actual = coder.decode(input_row)
+    self.assertEqual(expected_row, actual)
+
+  def test_repeatable_field_is_properly_converted(self):
+    input_row = b'{"repeated": ["55.5", "65.5"], "integer": "10"}'
+    expected_row = {'repeated': [55.5, 65.5], 'integer': 10}
+    schema = self._make_schema([
+        ('repeated', 'FLOAT', 'REPEATED', []),
+        ('integer', 'INTEGER', 'NULLABLE', []),
     ])
     coder = _JsonToDictCoder(schema)
 
@@ -323,34 +386,112 @@ class TestJsonToDictCoder(unittest.TestCase):
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestReadFromBigQuery(unittest.TestCase):
-  def test_exception_is_raised_when_gcs_location_cannot_be_specified(self):
-    with self.assertRaises(ValueError):
-      p = beam.Pipeline()
-      _ = p | beam.io._ReadFromBigQuery(
-          project='project', dataset='dataset', table='table')
+  @classmethod
+  def setUpClass(cls):
+    class UserDefinedOptions(PipelineOptions):
+      @classmethod
+      def _add_argparse_args(cls, parser):
+        parser.add_value_provider_argument('--gcs_location')
 
-  @mock.patch('apache_beam.io.gcp.bigquery_tools.BigQueryWrapper')
-  def test_fallback_to_temp_location(self, BigQueryWrapper):
-    pipeline_options = beam.pipeline.PipelineOptions()
-    pipeline_options.view_as(GoogleCloudOptions).temp_location = 'gs://bucket'
-    try:
-      p = beam.Pipeline(options=pipeline_options)
-      _ = p | beam.io._ReadFromBigQuery(
-          project='project', dataset='dataset', table='table')
-    except ValueError:
-      self.fail('ValueError was raised unexpectedly')
+    cls.UserDefinedOptions = UserDefinedOptions
 
-  def test_gcs_location_validation_works_properly(self):
-    with self.assertRaises(ValueError) as context:
-      p = beam.Pipeline()
-      _ = p | beam.io._ReadFromBigQuery(
-          project='project',
-          dataset='dataset',
-          table='table',
-          validate=True,
-          gcs_location='fs://bad_location')
+  def tearDown(self):
+    # Reset runtime options to avoid side-effects caused by other tests.
+    RuntimeValueProvider.set_runtime_options(None)
+
+  def test_get_destination_uri_empty_runtime_vp(self):
+    with self.assertRaisesRegex(ValueError,
+                                '^ReadFromBigQuery requires a GCS '
+                                'location to be provided'):
+      # Don't provide any runtime values.
+      RuntimeValueProvider.set_runtime_options({})
+      options = self.UserDefinedOptions()
+
+      bigquery_export_destination_uri(
+          options.gcs_location, None, uuid.uuid4().hex)
+
+  def test_get_destination_uri_none(self):
+    with self.assertRaisesRegex(ValueError,
+                                '^ReadFromBigQuery requires a GCS '
+                                'location to be provided'):
+      bigquery_export_destination_uri(None, None, uuid.uuid4().hex)
+
+  def test_get_destination_uri_runtime_vp(self):
+    # Provide values at job-execution time.
+    RuntimeValueProvider.set_runtime_options({'gcs_location': 'gs://bucket'})
+    options = self.UserDefinedOptions()
+    unique_id = uuid.uuid4().hex
+
+    uri = bigquery_export_destination_uri(options.gcs_location, None, unique_id)
     self.assertEqual(
-        'Invalid GCS location: fs://bad_location', str(context.exception))
+        uri, 'gs://bucket/' + unique_id + '/bigquery-table-dump-*.json')
+
+  def test_get_destination_uri_static_vp(self):
+    unique_id = uuid.uuid4().hex
+    uri = bigquery_export_destination_uri(
+        StaticValueProvider(str, 'gs://bucket'), None, unique_id)
+    self.assertEqual(
+        uri, 'gs://bucket/' + unique_id + '/bigquery-table-dump-*.json')
+
+  def test_get_destination_uri_fallback_temp_location(self):
+    # Don't provide any runtime values.
+    RuntimeValueProvider.set_runtime_options({})
+    options = self.UserDefinedOptions()
+
+    with self.assertLogs('apache_beam.io.gcp.bigquery_read_internal',
+                         level='DEBUG') as context:
+      bigquery_export_destination_uri(
+          options.gcs_location, 'gs://bucket', uuid.uuid4().hex)
+    self.assertEqual(
+        context.output,
+        [
+            'DEBUG:apache_beam.io.gcp.bigquery_read_internal:gcs_location is '
+            'empty, using temp_location instead'
+        ])
+
+  @mock.patch.object(BigQueryWrapper, '_delete_dataset')
+  @mock.patch('apache_beam.io.gcp.internal.clients.bigquery.BigqueryV2')
+  def test_temp_dataset_location_is_configurable(self, api, delete_dataset):
+    temp_dataset = bigquery.DatasetReference(
+        projectId='temp-project', datasetId='bq_dataset')
+    bq = BigQueryWrapper(client=api, temp_dataset_id=temp_dataset.datasetId)
+    gcs_location = 'gs://gcs_location'
+
+    # bq.get_or_create_dataset.return_value = temp_dataset
+    c = beam.io.gcp.bigquery._CustomBigQuerySource(
+        query='select * from test_table',
+        gcs_location=gcs_location,
+        validate=True,
+        pipeline_options=beam.options.pipeline_options.PipelineOptions(),
+        job_name='job_name',
+        step_name='step_name',
+        project='execution_project',
+        **{'temp_dataset': temp_dataset})
+
+    api.datasets.Get.side_effect = HttpError({
+        'status_code': 404, 'status': 404
+    },
+                                             '',
+                                             '')
+
+    c._setup_temporary_dataset(bq)
+    api.datasets.Insert.assert_called_with(
+        bigquery.BigqueryDatasetsInsertRequest(
+            dataset=bigquery.Dataset(datasetReference=temp_dataset),
+            projectId=temp_dataset.projectId))
+
+    api.datasets.Get.return_value = temp_dataset
+    api.datasets.Get.side_effect = None
+    bq.clean_up_temporary_dataset(temp_dataset.projectId)
+    delete_dataset.assert_called_with(
+        temp_dataset.projectId, temp_dataset.datasetId, True)
+
+    self.assertEqual(
+        bq._get_temp_table(temp_dataset.projectId),
+        bigquery.TableReference(
+            projectId=temp_dataset.projectId,
+            datasetId=temp_dataset.datasetId,
+            tableId=BigQueryWrapper.TEMP_TABLE + bq._temporary_table_suffix))
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
@@ -560,6 +701,93 @@ class TestWriteToBigQuery(unittest.TestCase):
         beam.io.gcp.bigquery.WriteToBigQuery.get_dict_table_schema(schema))
     self.assertEqual(expected_dict_schema, dict_schema)
 
+  def test_schema_autodetect_not_allowed_with_avro_file_loads(self):
+    with TestPipeline() as p:
+      pc = p | beam.Impulse()
+
+      with self.assertRaisesRegex(ValueError, '^A schema must be provided'):
+        _ = (
+            pc
+            | 'No Schema' >> beam.io.gcp.bigquery.WriteToBigQuery(
+                "dataset.table",
+                schema=None,
+                temp_file_format=bigquery_tools.FileFormat.AVRO))
+
+      with self.assertRaisesRegex(ValueError,
+                                  '^Schema auto-detection is not supported'):
+        _ = (
+            pc
+            | 'Schema Autodetected' >> beam.io.gcp.bigquery.WriteToBigQuery(
+                "dataset.table",
+                schema=beam.io.gcp.bigquery.SCHEMA_AUTODETECT,
+                temp_file_format=bigquery_tools.FileFormat.AVRO))
+
+  def test_to_from_runner_api(self):
+    """Tests that serialization of WriteToBigQuery is correct.
+
+    This is not intended to be a change-detector test. As such, this only tests
+    the more complicated serialization logic of parameters: ValueProviders,
+    callables, and side inputs.
+    """
+    FULL_OUTPUT_TABLE = 'test_project:output_table'
+
+    p = TestPipeline()
+
+    # Used for testing side input parameters.
+    table_record_pcv = beam.pvalue.AsDict(
+        p | "MakeTable" >> beam.Create([('table', FULL_OUTPUT_TABLE)]))
+
+    # Used for testing value provider parameters.
+    schema = value_provider.StaticValueProvider(str, '"a:str"')
+
+    original = WriteToBigQuery(
+        table=lambda _,
+        side_input: side_input['table'],
+        table_side_inputs=(table_record_pcv, ),
+        schema=schema)
+
+    # pylint: disable=expression-not-assigned
+    p | 'MyWriteToBigQuery' >> original
+
+    # Run the pipeline through to generate a pipeline proto from an empty
+    # context. This ensures that the serialization code ran.
+    pipeline_proto, context = TestPipeline.from_runner_api(
+        p.to_runner_api(), p.runner, p.get_pipeline_options()).to_runner_api(
+            return_context=True)
+
+    # Find the transform from the context.
+    write_to_bq_id = [
+        k for k,
+        v in pipeline_proto.components.transforms.items()
+        if v.unique_name == 'MyWriteToBigQuery'
+    ][0]
+    deserialized_node = context.transforms.get_by_id(write_to_bq_id)
+    deserialized = deserialized_node.transform
+    self.assertIsInstance(deserialized, WriteToBigQuery)
+
+    # Test that the serialization of a value provider is correct.
+    self.assertEqual(original.schema, deserialized.schema)
+
+    # Test that the serialization of a callable is correct.
+    self.assertEqual(
+        deserialized._table(None, {'table': FULL_OUTPUT_TABLE}),
+        FULL_OUTPUT_TABLE)
+
+    # Test that the serialization of a side input is correct.
+    self.assertEqual(
+        len(original.table_side_inputs), len(deserialized.table_side_inputs))
+    original_side_input_data = original.table_side_inputs[0]._side_input_data()
+    deserialized_side_input_data = deserialized.table_side_inputs[
+        0]._side_input_data()
+    self.assertEqual(
+        original_side_input_data.access_pattern,
+        deserialized_side_input_data.access_pattern)
+    self.assertEqual(
+        original_side_input_data.window_mapping_fn,
+        deserialized_side_input_data.window_mapping_fn)
+    self.assertEqual(
+        original_side_input_data.view_fn, deserialized_side_input_data.view_fn)
+
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class BigQueryStreamingInsertTransformTests(unittest.TestCase):
@@ -716,6 +944,7 @@ class PipelineBasedStreamingInsertTest(_TestCaseWithTempDirCleanUp):
               None,
               None,
               None, [],
+              ignore_insert_ids=False,
               test_client=client))
 
     with open(file_name_1) as f1, open(file_name_2) as f2:
@@ -795,8 +1024,7 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
     ]
 
     args = self.test_pipeline.get_full_options_as_args(
-        on_success_matcher=hc.all_of(*pipeline_verifiers),
-        experiments='use_beam_bq_sink')
+        on_success_matcher=hc.all_of(*pipeline_verifiers))
 
     with beam.Pipeline(argv=args) as p:
       input = p | beam.Create([row for row in _ELEMENTS if 'language' in row])
@@ -876,8 +1104,7 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
       ]
 
     args = self.test_pipeline.get_full_options_as_args(
-        on_success_matcher=hc.all_of(*pipeline_verifiers),
-        experiments='use_beam_bq_sink')
+        on_success_matcher=hc.all_of(*pipeline_verifiers))
 
     with beam.Pipeline(argv=args) as p:
       if streaming:
@@ -992,7 +1219,6 @@ class PubSubBigQueryIT(unittest.TestCase):
     args = self.test_pipeline.get_full_options_as_args(
         on_success_matcher=hc.all_of(*matchers),
         wait_until_finish_duration=self.WAIT_UNTIL_FINISH_DURATION,
-        experiments='use_beam_bq_sink',
         streaming=True)
 
     def add_schema_info(element):
@@ -1019,10 +1245,112 @@ class PubSubBigQueryIT(unittest.TestCase):
 
   @attr('IT')
   def test_file_loads(self):
-    if isinstance(self.test_pipeline.runner, TestDataflowRunner):
-      self.skipTest('https://issuetracker.google.com/issues/118375066')
     self._run_pubsub_bq_pipeline(
         WriteToBigQuery.Method.FILE_LOADS, triggering_frequency=20)
+
+
+class BigQueryFileLoadsIntegrationTests(unittest.TestCase):
+  BIG_QUERY_DATASET_ID = 'python_bq_file_loads_'
+
+  def setUp(self):
+    self.test_pipeline = TestPipeline(is_integration_test=True)
+    self.runner_name = type(self.test_pipeline.runner).__name__
+    self.project = self.test_pipeline.get_option('project')
+
+    self.dataset_id = '%s%s%s' % (
+        self.BIG_QUERY_DATASET_ID,
+        str(int(time.time())),
+        random.randint(0, 10000))
+    self.bigquery_client = bigquery_tools.BigQueryWrapper()
+    self.bigquery_client.get_or_create_dataset(self.project, self.dataset_id)
+    self.output_table = '%s.output_table' % (self.dataset_id)
+    self.table_ref = bigquery_tools.parse_table_reference(self.output_table)
+    _LOGGER.info(
+        'Created dataset %s in project %s', self.dataset_id, self.project)
+
+  @attr('IT')
+  def test_avro_file_load(self):
+    # Construct elements such that they can be written via Avro but not via
+    # JSON. See BEAM-8841.
+    from apache_beam.io.gcp import bigquery_file_loads
+    old_max_files = bigquery_file_loads._MAXIMUM_SOURCE_URIS
+    old_max_file_size = bigquery_file_loads._DEFAULT_MAX_FILE_SIZE
+    bigquery_file_loads._MAXIMUM_SOURCE_URIS = 1
+    bigquery_file_loads._DEFAULT_MAX_FILE_SIZE = 100
+    elements = [
+        {
+            'name': u'Negative infinity',
+            'value': -float('inf'),
+            'timestamp': datetime.datetime(1970, 1, 1, tzinfo=pytz.utc),
+        },
+        {
+            'name': u'Not a number',
+            'value': float('nan'),
+            'timestamp': datetime.datetime(2930, 12, 9, tzinfo=pytz.utc),
+        },
+    ]
+
+    schema = beam.io.gcp.bigquery.WriteToBigQuery.get_dict_table_schema(
+        bigquery.TableSchema(
+            fields=[
+                bigquery.TableFieldSchema(
+                    name='name', type='STRING', mode='REQUIRED'),
+                bigquery.TableFieldSchema(
+                    name='value', type='FLOAT', mode='REQUIRED'),
+                bigquery.TableFieldSchema(
+                    name='timestamp', type='TIMESTAMP', mode='REQUIRED'),
+            ]))
+
+    pipeline_verifiers = [
+        # Some gymnastics here to avoid comparing NaN since NaN is not equal to
+        # anything, including itself.
+        BigqueryFullResultMatcher(
+            project=self.project,
+            query="SELECT name, value, timestamp FROM {} WHERE value<0".format(
+                self.output_table),
+            data=[(d['name'], d['value'], d['timestamp'])
+                  for d in elements[:1]],
+        ),
+        BigqueryFullResultMatcher(
+            project=self.project,
+            query="SELECT name, timestamp FROM {}".format(self.output_table),
+            data=[(d['name'], d['timestamp']) for d in elements],
+        ),
+    ]
+
+    args = self.test_pipeline.get_full_options_as_args(
+        on_success_matcher=hc.all_of(*pipeline_verifiers),
+    )
+
+    with beam.Pipeline(argv=args) as p:
+      input = p | 'CreateInput' >> beam.Create(elements)
+      schema_pc = p | 'CreateSchema' >> beam.Create([schema])
+
+      _ = (
+          input
+          | 'WriteToBigQuery' >> beam.io.gcp.bigquery.WriteToBigQuery(
+              table='%s:%s' % (self.project, self.output_table),
+              schema=lambda _,
+              schema: schema,
+              schema_side_inputs=(beam.pvalue.AsSingleton(schema_pc), ),
+              method='FILE_LOADS',
+              temp_file_format=bigquery_tools.FileFormat.AVRO,
+          ))
+    bigquery_file_loads._MAXIMUM_SOURCE_URIS = old_max_files
+    bigquery_file_loads._DEFAULT_MAX_FILE_SIZE = old_max_file_size
+
+  def tearDown(self):
+    request = bigquery.BigqueryDatasetsDeleteRequest(
+        projectId=self.project, datasetId=self.dataset_id, deleteContents=True)
+    try:
+      _LOGGER.info(
+          "Deleting dataset %s in project %s", self.dataset_id, self.project)
+      self.bigquery_client.client.datasets.Delete(request)
+    except HttpError:
+      _LOGGER.debug(
+          'Failed to clean up dataset %s in project %s',
+          self.dataset_id,
+          self.project)
 
 
 if __name__ == '__main__':

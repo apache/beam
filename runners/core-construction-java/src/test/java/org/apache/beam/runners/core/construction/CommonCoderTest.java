@@ -21,13 +21,12 @@ import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects.firstNonNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList.toImmutableList;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap.toImmutableMap;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -43,12 +42,13 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardCoders;
 import org.apache.beam.model.pipeline.v1.SchemaApi;
+import org.apache.beam.runners.core.construction.CoderTranslation.TranslationContext;
 import org.apache.beam.sdk.coders.BooleanCoder;
 import org.apache.beam.sdk.coders.ByteCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -68,6 +68,7 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow.IntervalWindowCoder;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.Row;
@@ -77,6 +78,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.CharStreams;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
@@ -87,6 +89,10 @@ import org.junit.runners.Parameterized.Parameters;
 
 /** Tests that Java SDK coders standardized by the Fn API meet the common spec. */
 @RunWith(Parameterized.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class CommonCoderTest {
   private static final String STANDARD_CODERS_YAML_PATH =
       "/org/apache/beam/model/fnexecution/v1/standard_coders.yaml";
@@ -110,6 +116,7 @@ public class CommonCoderTest {
               getUrn(StandardCoders.Enum.PARAM_WINDOWED_VALUE),
               WindowedValue.ParamWindowedValueCoder.class)
           .put(getUrn(StandardCoders.Enum.ROW), RowCoder.class)
+          .put(getUrn(StandardCoders.Enum.SHARDED_KEY), ShardedKey.Coder.class)
           .build();
 
   @AutoValue
@@ -255,10 +262,34 @@ public class CommonCoderTest {
       return ((Number) value).longValue();
     } else if (s.equals(getUrn(StandardCoders.Enum.TIMER))) {
       Map<String, Object> kvMap = (Map<String, Object>) value;
-      Coder<?> payloadCoder = (Coder) coder.getCoderArguments().get(0);
+      Coder<?> keyCoder = ((Timer.Coder) coder).getValueCoder();
+      Coder<? extends BoundedWindow> windowCoder = ((Timer.Coder) coder).getWindowCoder();
+      List<BoundedWindow> windows = new ArrayList<>();
+      for (Object window : (List<Object>) kvMap.get("windows")) {
+        windows.add(
+            (BoundedWindow) convertValue(window, coderSpec.getComponents().get(1), windowCoder));
+      }
+      if ((boolean) kvMap.get("clearBit")) {
+        return Timer.cleared(
+            convertValue(kvMap.get("userKey"), coderSpec.getComponents().get(0), keyCoder),
+            (String) kvMap.get("dynamicTimerTag"),
+            windows);
+      }
+      Map<String, Object> paneInfoMap = (Map<String, Object>) kvMap.get("pane");
+      PaneInfo paneInfo =
+          PaneInfo.createPane(
+              (boolean) paneInfoMap.get("is_first"),
+              (boolean) paneInfoMap.get("is_last"),
+              PaneInfo.Timing.valueOf((String) paneInfoMap.get("timing")),
+              (int) paneInfoMap.get("index"),
+              (int) paneInfoMap.get("on_time_index"));
       return Timer.of(
-          new Instant(((Number) kvMap.get("timestamp")).longValue()),
-          convertValue(kvMap.get("payload"), coderSpec.getComponents().get(0), payloadCoder));
+          convertValue(kvMap.get("userKey"), coderSpec.getComponents().get(0), keyCoder),
+          (String) kvMap.get("dynamicTimerTag"),
+          windows,
+          new Instant(((Number) kvMap.get("fireTimestamp")).longValue()),
+          new Instant(((Number) kvMap.get("holdTimestamp")).longValue()),
+          paneInfo);
     } else if (s.equals(getUrn(StandardCoders.Enum.INTERVAL_WINDOW))) {
       Map<String, Object> kvMap = (Map<String, Object>) value;
       Instant end = new Instant(((Number) kvMap.get("end")).longValue());
@@ -302,18 +333,29 @@ public class CommonCoderTest {
     } else if (s.equals(getUrn(StandardCoders.Enum.ROW))) {
       Schema schema;
       try {
-        schema = SchemaTranslation.fromProto(SchemaApi.Schema.parseFrom(coderSpec.getPayload()));
+        schema =
+            SchemaTranslation.schemaFromProto(SchemaApi.Schema.parseFrom(coderSpec.getPayload()));
       } catch (InvalidProtocolBufferException e) {
         throw new RuntimeException("Failed to parse schema payload for row coder", e);
       }
 
       return parseField(value, Schema.FieldType.row(schema));
+    } else if (s.equals(getUrn(StandardCoders.Enum.SHARDED_KEY))) {
+      Map<String, Object> kvMap = (Map<String, Object>) value;
+      Coder<?> keyCoder = ((ShardedKey.Coder) coder).getKeyCoder();
+      byte[] shardId = ((String) kvMap.get("shardId")).getBytes(StandardCharsets.ISO_8859_1);
+      return ShardedKey.of(
+          convertValue(kvMap.get("key"), coderSpec.getComponents().get(0), keyCoder), shardId);
     } else {
       throw new IllegalStateException("Unknown coder URN: " + coderSpec.getUrn());
     }
   }
 
   private static Object parseField(Object value, Schema.FieldType fieldType) {
+    if (value == null) {
+      return null;
+    }
+
     switch (fieldType.getTypeName()) {
       case BYTE:
         return ((Number) value).byteValue();
@@ -340,14 +382,18 @@ public class CommonCoderTest {
                 .map((element) -> parseField(element, fieldType.getCollectionElementType()))
                 .collect(toImmutableList());
       case MAP:
-        Map<Object, Object> kvMap = (Map<Object, Object>) value;
-        return kvMap.entrySet().stream()
-            .collect(
-                toImmutableMap(
-                    (pair) -> parseField(pair.getKey(), fieldType.getMapKeyType()),
-                    (pair) -> parseField(pair.getValue(), fieldType.getMapValueType())));
+        Map<Object, Object> kvMap = new HashMap<>();
+        ((Map<Object, Object>) value)
+            .entrySet().stream()
+                .forEach(
+                    (entry) ->
+                        kvMap.put(
+                            parseField(entry.getKey(), fieldType.getMapKeyType()),
+                            parseField(entry.getValue(), fieldType.getMapValueType())));
+        return kvMap;
       case ROW:
-        Map<String, Object> rowMap = (Map<String, Object>) value;
+        // Clone map so we don't mutate the underlying value
+        Map<String, Object> rowMap = new HashMap<>((Map<String, Object>) value);
         Schema schema = fieldType.getRowSchema();
         Row.Builder row = Row.withSchema(schema);
         for (Schema.Field field : schema.getFields()) {
@@ -364,7 +410,13 @@ public class CommonCoderTest {
         }
 
         return row.build();
-      default: // DECIMAL, DATETIME, LOGICAL_TYPE
+      case LOGICAL_TYPE:
+        // Logical types are represented as their representation types in YAML. Parse as the
+        // representation type, then convert to the base type.
+        return fieldType
+            .getLogicalType()
+            .toInputType(parseField(value, fieldType.getLogicalType().getBaseType()));
+      default: // DECIMAL, DATETIME
         throw new IllegalArgumentException("Unsupported type name: " + fieldType.getTypeName());
     }
   }
@@ -382,7 +434,7 @@ public class CommonCoderTest {
     checkNotNull(
         translator, "No translator found for common coder class: " + coderType.getSimpleName());
 
-    return translator.fromComponents(components, coder.getPayload());
+    return translator.fromComponents(components, coder.getPayload(), new TranslationContext() {});
   }
 
   @Test
@@ -433,8 +485,7 @@ public class CommonCoderTest {
       assertFalse(expectedValueIterator.hasNext());
 
     } else if (s.equals(getUrn(StandardCoders.Enum.TIMER))) {
-      assertEquals(((Timer) expectedValue).getTimestamp(), ((Timer) actualValue).getTimestamp());
-      assertThat(((Timer) expectedValue).getPayload(), equalTo(((Timer) actualValue).getPayload()));
+      assertEquals((Timer) expectedValue, (Timer) actualValue);
 
     } else if (s.equals(getUrn(StandardCoders.Enum.GLOBAL_WINDOW))) {
       assertEquals(expectedValue, actualValue);
@@ -449,6 +500,8 @@ public class CommonCoderTest {
 
       assertEquals(expectedValue, actualValue);
     } else if (s.equals(getUrn(StandardCoders.Enum.ROW))) {
+      assertEquals(expectedValue, actualValue);
+    } else if (s.equals(getUrn(StandardCoders.Enum.SHARDED_KEY))) {
       assertEquals(expectedValue, actualValue);
     } else {
       throw new IllegalStateException("Unknown coder URN: " + coder.getUrn());

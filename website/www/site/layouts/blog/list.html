@@ -1,0 +1,50 @@
+{{/*
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+*/}}
+
+{{ define "main" }}
+    <h1>{{ T "blog-title" }}</h1>
+
+    <p>{{ T "blog-subtitle" }}</p>
+
+    {{ range .Pages }}
+        {{ $authors := .Params.authors }}
+
+        <h3><a class="post-link" href="{{ .RelPermalink }}">{{ .Title }}</a></h3>
+        <p><i>
+            {{ .Date.Format "Jan 2, 2006" }}
+            {{ with $authors }} •
+                {{ $count := len . }}
+                {{ range $index, $authorId := . }}
+                    {{ if and (ne $index 0) (gt $count 2) }},{{ end }}
+                    {{ if and (eq $index (sub $count 1)) (gt $count 1) }} &amp;{{ end }}
+                    {{ with index $.Site.Data.authors $authorId }}
+                        {{ .name }} {{ with .twitter }}[<a href="https://twitter.com/{{ . }}">@{{ . }}</a>]{{ end }}
+                    {{ else }}
+                        {{ $authorId }}
+                    {{ end }}
+                {{ end }}
+            {{ end }}
+        </i></p>
+
+        {{ .Summary | markdownify }}
+
+        {{ if .Truncated }}
+            <p>
+                <a class="btn btn-default btn-sm" href="{{ .RelPermalink }}" role="button">
+                {{ T "blog-readmore" }}&nbsp;<span class="glyphicon glyphicon-menu-right" aria-hidden="true"></span>
+                </a>
+            </p>
+        {{ end }}
+
+        <hr>
+    {{ end }}
+{{ end }}

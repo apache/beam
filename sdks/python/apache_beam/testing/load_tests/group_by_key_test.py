@@ -36,6 +36,7 @@ Example test run:
 python -m apache_beam.testing.load_tests.group_by_key_test \
     --test-pipeline-options="
     --project=big-query-project
+    --region=...
     --publish_to_big_query=true
     --metrics_dataset=python_load_tests
     --metrics_table=gbk
@@ -52,6 +53,7 @@ or:
 ./gradlew -PloadTest.args="
     --publish_to_big_query=true
     --project=...
+    --region=...
     --metrics_dataset=python_load_tests
     --metrics_table=gbk
     --fanout=1
@@ -73,6 +75,8 @@ import logging
 
 import apache_beam as beam
 from apache_beam.testing.load_tests.load_test import LoadTest
+from apache_beam.testing.load_tests.load_test_metrics_utils import AssignTimestamps
+from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureLatency
 from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
 from apache_beam.testing.synthetic_pipeline import SyntheticSource
 
@@ -83,27 +87,30 @@ class GroupByKeyTest(LoadTest):
     self.fanout = self.get_option_or_default('fanout', 1)
     self.iterations = self.get_option_or_default('iterations', 1)
 
-  class _UngroupAndReiterate(beam.DoFn):
-    def process(self, element, iterations):
-      key, value = element
-      for i in range(iterations):
-        for v in value:
-          if i == iterations - 1:
-            return key, v
+  @staticmethod
+  def ungroup_and_reiterate(element, iterations):
+    key, value = element
+    for i in range(iterations):
+      for v in value:
+        if i == iterations - 1:
+          return key, v
 
   def test(self):
     pc = (
         self.pipeline
         | beam.io.Read(SyntheticSource(self.parse_synthetic_source_options()))
         | 'Measure time: Start' >> beam.ParDo(
-            MeasureTime(self.metrics_namespace)))
+            MeasureTime(self.metrics_namespace))
+        | 'Assign timestamps' >> beam.ParDo(AssignTimestamps()))
 
     for branch in range(self.fanout):
       (  # pylint: disable=expression-not-assigned
           pc
           | 'GroupByKey %i' % branch >> beam.GroupByKey()
-          | 'Ungroup %i' % branch >> beam.ParDo(
-              self._UngroupAndReiterate(), self.iterations)
+          | 'Ungroup %i' % branch >> beam.Map(self.ungroup_and_reiterate,
+                                              self.iterations)
+          | 'Measure latency %i' % branch >> beam.ParDo(
+              MeasureLatency(self.metrics_namespace))
           | 'Measure time: End %i' % branch >> beam.ParDo(
               MeasureTime(self.metrics_namespace)))
 

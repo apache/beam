@@ -18,9 +18,9 @@
 package org.apache.beam.sdk.transforms;
 
 import static org.apache.beam.sdk.values.TypeDescriptors.integers;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.empty;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 
 import java.io.Serializable;
 import org.apache.beam.sdk.testing.NeedsRunner;
@@ -37,6 +37,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link PTransform} base class. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class PTransformTest implements Serializable {
 
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();

@@ -30,7 +30,6 @@ import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -45,7 +44,6 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
@@ -56,7 +54,10 @@ import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-/** Tests {@link org.apache.beam.sdk.transforms.DoFn.RequiresStableInput} with Flink. */
+/** Tests {@link DoFn.RequiresStableInput} with Flink. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class FlinkRequiresStableInputTest {
 
   @ClassRule public static TemporaryFolder tempFolder = new TemporaryFolder();
@@ -108,22 +109,22 @@ public class FlinkRequiresStableInputTest {
   }
 
   /**
-   * Test for the support of {@link org.apache.beam.sdk.transforms.DoFn.RequiresStableInput} in both
-   * {@link ParDo.SingleOutput} and {@link ParDo.MultiOutput}.
+   * Test for the support of {@link DoFn.RequiresStableInput} in both {@link ParDo.SingleOutput} and
+   * {@link ParDo.MultiOutput}.
    *
    * <p>In each test, a singleton string value is paired with a random key. In the following
    * transform, the value is written to a file, whose path is specified by the random key, and then
    * the transform fails. When the pipeline retries, the latter transform should receive the same
    * input from the former transform, because its {@link DoFn} is annotated with {@link
-   * org.apache.beam.sdk.transforms.DoFn.RequiresStableInput}, and it will not fail due to presence
-   * of the file. Therefore, only one file for each transform is expected.
+   * DoFn.RequiresStableInput}, and it will not fail due to presence of the file. Therefore, only
+   * one file for each transform is expected.
    *
    * <p>A Savepoint is taken until the desired state in the operators has been reached. We then
    * restore the savepoint to check if we produce impotent results.
    */
   @Test(timeout = 30_000)
   public void testParDoRequiresStableInput() throws Exception {
-    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
     options.setParallelism(1);
     // We only want to trigger external savepoints but we require
     // checkpointing to be enabled for @RequiresStableInput
@@ -160,7 +161,7 @@ public class FlinkRequiresStableInputTest {
     } while (!latch.await(100, TimeUnit.MILLISECONDS));
     flinkCluster.cancelJob(jobID).get();
 
-    options.setShutdownSourcesOnFinalWatermark(true);
+    options.setShutdownSourcesAfterIdleMs(0L);
     restoreFromSavepoint(p, savepointDir);
     waitUntilJobIsDone();
 
@@ -207,7 +208,7 @@ public class FlinkRequiresStableInputTest {
 
   private void waitUntilJobIsDone() throws InterruptedException, ExecutionException {
     while (flinkCluster.listJobs().get().stream()
-        .anyMatch(message -> message.getJobState() == JobStatus.RUNNING)) {
+        .anyMatch(message -> message.getJobState().name().equals("RUNNING"))) {
       Thread.sleep(100);
     }
   }

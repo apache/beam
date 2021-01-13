@@ -68,7 +68,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 FILE_BASE="beam-job-server"
-if [ -v GROUP_ID ]; then
+if [ -n "$GROUP_ID" ]; then
   FILE_BASE="$FILE_BASE-$GROUP_ID"
 fi
 
@@ -76,8 +76,12 @@ TEMP_DIR=/tmp
 pid=$TEMP_DIR/$FILE_BASE.pid
 lock=$TEMP_DIR/$FILE_BASE.lock
 
+# Check whether flock exists since some OS distributions (like MacOS)
+# don't have it by default
 command -v flock >/dev/null 2>&1
-if [[ $? -eq 0 ]]; then
+CHECK_FLOCK=$?
+
+if [[ $CHECK_FLOCK -eq 0 ]]; then
   exec 200>$lock
   if ! flock -n 200; then
     echo "script already running."
@@ -115,4 +119,7 @@ case $STARTSTOP in
     fi
     ;;
 esac
-flock -u 200
+
+if [[ $CHECK_FLOCK -eq 0 ]]; then
+  flock -u 200
+fi

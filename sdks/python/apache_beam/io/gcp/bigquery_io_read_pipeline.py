@@ -30,7 +30,7 @@ import random
 import time
 
 import apache_beam as beam
-from apache_beam.io.gcp.bigquery import _ReadFromBigQuery
+from apache_beam.io.gcp.bigquery import ReadFromBigQuery
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -72,14 +72,14 @@ def run(argv=None):
       default=False,
       type=bool,
       help=(
-          'Whether to use the new _ReadFromBigQuery'
+          'Whether to use the new ReadFromBigQuery'
           ' transform, or the BigQuerySource.'))
   known_args, pipeline_args = parser.parse_known_args(argv)
 
   options = PipelineOptions(pipeline_args)
   with TestPipeline(options=options) as p:
     if known_args.beam_bq_source:
-      reader = _ReadFromBigQuery(
+      reader = ReadFromBigQuery(
           table='%s:%s' %
           (options.view_as(GoogleCloudOptions).project, known_args.input_table))
     else:

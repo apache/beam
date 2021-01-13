@@ -87,13 +87,13 @@ class _StateTag(with_metaclass(ABCMeta, object)):  # type: ignore[misc]
     self.tag = tag
 
 
-class _ValueStateTag(_StateTag):
+class _ReadModifyWriteStateTag(_StateTag):
   """StateTag pointing to an element."""
   def __repr__(self):
     return 'ValueStateTag(%s)' % (self.tag)
 
   def with_prefix(self, prefix):
-    return _ValueStateTag(prefix + self.tag)
+    return _ReadModifyWriteStateTag(prefix + self.tag)
 
 
 class _SetStateTag(_StateTag):
@@ -128,11 +128,13 @@ class _CombiningValueStateTag(_StateTag):
 
   def without_extraction(self):
     class NoExtractionCombineFn(core.CombineFn):
+      setup = self.combine_fn.setup
       create_accumulator = self.combine_fn.create_accumulator
       add_input = self.combine_fn.add_input
       merge_accumulators = self.combine_fn.merge_accumulators
       compact = self.combine_fn.compact
       extract_output = staticmethod(lambda x: x)
+      teardown = self.combine_fn.teardown
 
     return _CombiningValueStateTag(self.tag, NoExtractionCombineFn())
 
@@ -253,10 +255,10 @@ class TriggerFn(with_metaclass(ABCMeta, object)):  # type: ignore[misc]
         'after_end_of_window': AfterWatermark,
         'after_processing_time': AfterProcessingTime,
         # after_processing_time, after_synchronized_processing_time
-        # always
+        'always': Always,
         'default': DefaultTrigger,
         'element_count': AfterCount,
-        # never
+        'never': _Never,
         'or_finally': OrFinally,
         'repeat': Repeatedly,
     }[proto.WhichOneof('trigger')].from_runner_api(proto, context)
@@ -365,6 +367,91 @@ class AfterProcessingTime(TriggerFn):
 
   def has_ontime_pane(self):
     return False
+
+
+class Always(TriggerFn):
+  """Repeatedly invoke the given trigger, never finishing."""
+  def __init__(self):
+    pass
+
+  def __repr__(self):
+    return 'Always'
+
+  def __eq__(self, other):
+    return type(self) == type(other)
+
+  def __hash__(self):
+    return 1
+
+  def on_element(self, element, window, context):
+    pass
+
+  def on_merge(self, to_be_merged, merge_result, context):
+    pass
+
+  def has_ontime_pane(self):
+    return False
+
+  def reset(self, window, context):
+    pass
+
+  def should_fire(self, time_domain, watermark, window, context):
+    return True
+
+  def on_fire(self, watermark, window, context):
+    return False
+
+  @staticmethod
+  def from_runner_api(proto, context):
+    return Always()
+
+  def to_runner_api(self, context):
+    return beam_runner_api_pb2.Trigger(
+        always=beam_runner_api_pb2.Trigger.Always())
+
+
+class _Never(TriggerFn):
+  """A trigger that never fires.
+
+  Data may still be released at window closing.
+  """
+  def __init__(self):
+    pass
+
+  def __repr__(self):
+    return 'Never'
+
+  def __eq__(self, other):
+    return type(self) == type(other)
+
+  def __hash__(self):
+    return hash(type(self))
+
+  def on_element(self, element, window, context):
+    pass
+
+  def on_merge(self, to_be_merged, merge_result, context):
+    pass
+
+  def has_ontime_pane(self):
+    False
+
+  def reset(self, window, context):
+    pass
+
+  def should_fire(self, time_domain, watermark, window, context):
+    return False
+
+  def on_fire(self, watermark, window, context):
+    return True
+
+  @staticmethod
+  def from_runner_api(proto, context):
+    return _Never()
+
+  def to_runner_api(self, context):
+    return beam_runner_api_pb2.Trigger(
+        never=beam_runner_api_pb2.Trigger.Never())
 
 
 class AfterWatermark(TriggerFn):
@@ -576,8 +663,7 @@ class Repeatedly(TriggerFn):
     return self.underlying.has_ontime_pane()
 
 
-class _ParallelTriggerFn(with_metaclass(ABCMeta,
-                                        TriggerFn)):  # type: ignore[misc]
+class _ParallelTriggerFn(with_metaclass(ABCMeta, TriggerFn)):  # type: ignore[misc]
   def __init__(self, *triggers):
     self.triggers = triggers
 
@@ -829,7 +915,8 @@ class SimpleState(with_metaclass(ABCMeta, object)):  # type: ignore[misc]
   Only timers must hold the watermark (by their timestamp).
   """
   @abstractmethod
-  def set_timer(self, window, name, time_domain, timestamp):
+  def set_timer(
+      self, window, name, time_domain, timestamp, dynamic_timer_tag=''):
     pass
 
   @abstractmethod
@@ -837,7 +924,7 @@ class SimpleState(with_metaclass(ABCMeta, object)):  # type: ignore[misc]
     pass
 
   @abstractmethod
-  def clear_timer(self, window, name, time_domain):
+  def clear_timer(self, window, name, time_domain, dynamic_timer_tag=''):
     pass
 
   @abstractmethod
@@ -878,22 +965,29 @@ class MergeableStateAdapter(SimpleState):
   # TODO(robertwb): A similar indirection could be used for sliding windows
   # or other window_fns when a single element typically belongs to many windows.
 
-  WINDOW_IDS = _ValueStateTag('window_ids')
+  WINDOW_IDS = _ReadModifyWriteStateTag('window_ids')
 
   def __init__(self, raw_state):
     self.raw_state = raw_state
     self.window_ids = self.raw_state.get_global_state(self.WINDOW_IDS, {})
     self.counter = None
 
-  def set_timer(self, window, name, time_domain, timestamp):
-    self.raw_state.set_timer(self._get_id(window), name, time_domain, timestamp)
+  def set_timer(
+      self, window, name, time_domain, timestamp, dynamic_timer_tag=''):
+    self.raw_state.set_timer(
+        self._get_id(window),
+        name,
+        time_domain,
+        timestamp,
+        dynamic_timer_tag=dynamic_timer_tag)
 
-  def clear_timer(self, window, name, time_domain):
+  def clear_timer(self, window, name, time_domain, dynamic_timer_tag=''):
     for window_id in self._get_ids(window):
-      self.raw_state.clear_timer(window_id, name, time_domain)
+      self.raw_state.clear_timer(
+          window_id, name, time_domain, dynamic_timer_tag=dynamic_timer_tag)
 
   def add_state(self, window, tag, value):
-    if isinstance(tag, _ValueStateTag):
+    if isinstance(tag, _ReadModifyWriteStateTag):
       raise ValueError(
           'Merging requested for non-mergeable state tag: %r.' % tag)
     elif isinstance(tag, _CombiningValueStateTag):
@@ -907,7 +1001,7 @@ class MergeableStateAdapter(SimpleState):
         self.raw_state.get_state(window_id, tag)
         for window_id in self._get_ids(window)
     ]
-    if isinstance(tag, _ValueStateTag):
+    if isinstance(tag, _ReadModifyWriteStateTag):
       raise ValueError(
           'Merging requested for non-mergeable state tag: %r.' % tag)
     elif isinstance(tag, _CombiningValueStateTag):
@@ -981,12 +1075,18 @@ def create_trigger_driver(
     windowing, is_batch=False, phased_combine_fn=None, clock=None):
   """Create the TriggerDriver for the given windowing and options."""
 
+  # TODO(BEAM-10149): Respect closing and on-time behaviors.
+  # For batch, we should always fire once, no matter what.
+  if is_batch and windowing.triggerfn == _Never():
+    windowing = copy.copy(windowing)
+    windowing.triggerfn = Always()
+
   # TODO(robertwb): We can do more if we know elements are in timestamp
   # sorted order.
   if windowing.is_default() and is_batch:
     driver = BatchGlobalTriggerDriver()
   elif (windowing.windowfn == GlobalWindows() and
-        windowing.triggerfn == AfterCount(1) and is_batch):
+        (windowing.triggerfn in [AfterCount(1), Always()]) and is_batch):
     # Here we also just pass through all the values exactly once.
     driver = BatchGlobalTriggerDriver()
   else:
@@ -1021,12 +1121,7 @@ class TriggerDriver(with_metaclass(ABCMeta, object)):  # type: ignore[misc]
       input_watermark=None):
     pass
 
-  def process_entire_key(
-      self,
-      key,
-      windowed_values,
-      unused_output_watermark=None,
-      unused_input_watermark=None):
+  def process_entire_key(self, key, windowed_values):
     state = InMemoryUnmergedState()
     for wvalue in self.process_elements(state,
                                         windowed_values,
@@ -1035,7 +1130,7 @@ class TriggerDriver(with_metaclass(ABCMeta, object)):  # type: ignore[misc]
       yield wvalue.with_value((key, wvalue.value))
     while state.timers:
       fired = state.get_and_clear_timers()
-      for timer_window, (name, time_domain, fire_time) in fired:
+      for timer_window, (name, time_domain, fire_time, _) in fired:
         for wvalue in self.process_timer(timer_window,
                                          name,
                                          time_domain,
@@ -1201,6 +1296,10 @@ class GeneralTriggerDriver(TriggerDriver):
             for window in to_be_merged:
               if window != merge_result:
                 merged_away[window] = merge_result
+                # Clear state associated with PaneInfo since it is
+                # not preserved across merges.
+                state.clear_state(window, self.INDEX)
+                state.clear_state(window, self.NONSPECULATIVE_INDEX)
             state.merge(to_be_merged, merge_result)
             # using the outer self argument.
             self.trigger_fn.on_merge(
@@ -1246,8 +1345,7 @@ class GeneralTriggerDriver(TriggerDriver):
                                      window,
                                      context):
         finished = self.trigger_fn.on_fire(input_watermark, window, context)
-        yield self._output(
-            window, finished, state, input_watermark, output_watermark, False)
+        yield self._output(window, finished, state, output_watermark, False)
 
   def process_timer(
       self,
@@ -1275,20 +1373,12 @@ class GeneralTriggerDriver(TriggerDriver):
               window,
               finished,
               state,
-              input_watermark,
               timestamp,
               time_domain == TimeDomain.WATERMARK)
     else:
       raise Exception('Unexpected time domain: %s' % time_domain)
 
-  def _output(
-      self,
-      window,
-      finished,
-      state,
-      input_watermark,
-      output_watermark,
-      maybe_ontime):
+  def _output(self, window, finished, state, output_watermark, maybe_ontime):
     """Output window and clean up if appropriate."""
     index = state.get_state(window, self.INDEX)
     state.add_state(window, self.INDEX, 1)
@@ -1323,7 +1413,7 @@ class GeneralTriggerDriver(TriggerDriver):
     if timestamp is None:
       # If no watermark hold was set, output at end of window.
       timestamp = window.max_timestamp()
-    elif input_watermark < window.end and self.trigger_fn.has_ontime_pane():
+    elif output_watermark < window.end and self.trigger_fn.has_ontime_pane():
       # Hold the watermark in case there is an empty pane that needs to be fired
       # at the end of the window.
       pass
@@ -1338,8 +1428,8 @@ class InMemoryUnmergedState(UnmergedState):
 
   Used for batch and testing.
   """
-  def __init__(self, defensive_copy=True):
-    # TODO(robertwb): Skip defensive_copy in production if it's too expensive.
+  def __init__(self, defensive_copy=False):
+    # TODO(robertwb): Clean defensive_copy. It is too expensive in production.
     self.timers = collections.defaultdict(dict)
     self.state = collections.defaultdict(lambda: collections.defaultdict(list))
     self.global_state = {}
@@ -1355,7 +1445,7 @@ class InMemoryUnmergedState(UnmergedState):
     return cloned_object
 
   def set_global_state(self, tag, value):
-    assert isinstance(tag, _ValueStateTag)
+    assert isinstance(tag, _ReadModifyWriteStateTag)
     if self.defensive_copy:
       value = copy.deepcopy(value)
     self.global_state[tag.tag] = value
@@ -1363,11 +1453,12 @@ class InMemoryUnmergedState(UnmergedState):
   def get_global_state(self, tag, default=None):
     return self.global_state.get(tag.tag, default)
 
-  def set_timer(self, window, name, time_domain, timestamp):
-    self.timers[window][(name, time_domain)] = timestamp
+  def set_timer(
+      self, window, name, time_domain, timestamp, dynamic_timer_tag=''):
+    self.timers[window][(name, time_domain, dynamic_timer_tag)] = timestamp
 
-  def clear_timer(self, window, name, time_domain):
-    self.timers[window].pop((name, time_domain), None)
+  def clear_timer(self, window, name, time_domain, dynamic_timer_tag=''):
+    self.timers[window].pop((name, time_domain, dynamic_timer_tag), None)
     if not self.timers[window]:
       del self.timers[window]
 
@@ -1377,7 +1468,7 @@ class InMemoryUnmergedState(UnmergedState):
   def add_state(self, window, tag, value):
     if self.defensive_copy:
       value = copy.deepcopy(value)
-    if isinstance(tag, _ValueStateTag):
+    if isinstance(tag, _ReadModifyWriteStateTag):
       self.state[window][tag.tag] = value
     elif isinstance(tag, _CombiningValueStateTag):
       # TODO(robertwb): Store merged accumulators.
@@ -1393,7 +1484,7 @@ class InMemoryUnmergedState(UnmergedState):
 
   def get_state(self, window, tag):
     values = self.state[window][tag.tag]
-    if isinstance(tag, _ValueStateTag):
+    if isinstance(tag, _ReadModifyWriteStateTag):
       return values
     elif isinstance(tag, _CombiningValueStateTag):
       return tag.combine_fn.apply(values)
@@ -1422,7 +1513,8 @@ class InMemoryUnmergedState(UnmergedState):
     expired = []
     has_realtime_timer = False
     for window, timers in list(self.timers.items()):
-      for (name, time_domain), timestamp in list(timers.items()):
+      for (name, time_domain, dynamic_timer_tag), timestamp in list(
+          timers.items()):
         if time_domain == TimeDomain.REAL_TIME:
           time_marker = processing_time
           has_realtime_timer = True
@@ -1433,9 +1525,10 @@ class InMemoryUnmergedState(UnmergedState):
               'TimeDomain error: No timers defined for time domain %s.',
               time_domain)
         if timestamp <= time_marker:
-          expired.append((window, (name, time_domain, timestamp)))
+          expired.append(
+              (window, (name, time_domain, timestamp, dynamic_timer_tag)))
           if clear:
-            del timers[(name, time_domain)]
+            del timers[(name, time_domain, dynamic_timer_tag)]
       if not timers and clear:
         del self.timers[window]
     return expired, has_realtime_timer

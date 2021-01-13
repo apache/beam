@@ -238,17 +238,21 @@ public class BigQueryHllSketchCompatibilityIT {
     TestPipelineOptions options =
         TestPipeline.testingPipelineOptions().as(TestPipelineOptions.class);
     Pipeline p = Pipeline.create(options);
+
+    @SuppressWarnings("nullness") // until we have a stub class for BigQuery TableRow
+    SerializableFunction<byte[], TableRow> formatFn =
+        sketch ->
+            // Empty sketch is represented by empty byte array in Beam and by null in
+            // BigQuery
+            new TableRow().set(SKETCH_FIELD_NAME, sketch.length == 0 ? null : sketch);
+
     p.apply(Create.of(testData).withType(TypeDescriptor.of(String.class)))
         .apply(HllCount.Init.forStrings().globally())
         .apply(
             BigQueryIO.<byte[]>write()
                 .to(tableSpec)
                 .withSchema(tableSchema)
-                .withFormatFunction(
-                    sketch ->
-                        // Empty sketch is represented by empty byte array in Beam and by null in
-                        // BigQuery
-                        new TableRow().set(SKETCH_FIELD_NAME, sketch.length == 0 ? null : sketch))
+                .withFormatFunction(formatFn)
                 .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
     p.run().waitUntilFinish();
 

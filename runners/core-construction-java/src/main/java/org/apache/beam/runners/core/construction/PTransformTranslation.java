@@ -18,7 +18,6 @@
 package org.apache.beam.runners.core.construction;
 
 import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.IOException;
@@ -30,7 +29,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.Set;
-import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardPTransforms;
@@ -47,19 +45,25 @@ import org.apache.beam.sdk.util.common.ReflectHelpers.ObjectsClassComparator;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
-import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSortedSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Utilities for converting {@link PTransform PTransforms} to {@link RunnerApi Runner API protocol
  * buffers}.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness",
+  "keyfor"
+}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class PTransformTranslation {
   // We specifically copy the values here so that they can be used in switch case statements
   // and we validate that the value matches the actual URN in the static block below.
@@ -73,6 +77,11 @@ public class PTransformTranslation {
   public static final String TEST_STREAM_TRANSFORM_URN = "beam:transform:teststream:v1";
   public static final String MAP_WINDOWS_TRANSFORM_URN = "beam:transform:map_windows:v1";
   public static final String MERGE_WINDOWS_TRANSFORM_URN = "beam:transform:merge_windows:v1";
+  public static final String TO_STRING_TRANSFORM_URN = "beam:transform:to_string:v1";
+
+  // Required runner implemented transforms. These transforms should never specify an environment.
+  public static final ImmutableSet<String> RUNNER_IMPLEMENTED_TRANSFORMS =
+      ImmutableSet.of(GROUP_BY_KEY_TRANSFORM_URN, IMPULSE_TRANSFORM_URN);
 
   // DeprecatedPrimitives
   /**
@@ -101,14 +110,16 @@ public class PTransformTranslation {
       "beam:transform:combine_per_key_merge_accumulators:v1";
   public static final String COMBINE_PER_KEY_EXTRACT_OUTPUTS_TRANSFORM_URN =
       "beam:transform:combine_per_key_extract_outputs:v1";
+  public static final String COMBINE_PER_KEY_CONVERT_TO_ACCUMULATORS_TRANSFORM_URN =
+      "beam:transform:combine_per_key_convert_to_accumulators:v1";
   public static final String COMBINE_GROUPED_VALUES_TRANSFORM_URN =
       "beam:transform:combine_grouped_values:v1";
 
   // SplittableParDoComponents
   public static final String SPLITTABLE_PAIR_WITH_RESTRICTION_URN =
       "beam:transform:sdf_pair_with_restriction:v1";
-  public static final String SPLITTABLE_SPLIT_RESTRICTION_URN =
-      "beam:transform:sdf_split_restriction:v1";
+  public static final String SPLITTABLE_TRUNCATE_SIZED_RESTRICTION_URN =
+      "beam:transform:sdf_truncate_sized_restrictions:v1";
   /**
    * @deprecated runners should move away from using `SplittableProcessKeyedElements` and prefer to
    *     internalize any necessary SplittableDoFn expansion.
@@ -116,9 +127,14 @@ public class PTransformTranslation {
   @Deprecated
   public static final String SPLITTABLE_PROCESS_KEYED_URN =
       "beam:transform:sdf_process_keyed_elements:v1";
-
+  /**
+   * @deprecated runners should move away from using `SplittableProcessElements` and prefer to
+   *     internalize any necessary SplittableDoFn expansion.
+   */
+  @Deprecated
   public static final String SPLITTABLE_PROCESS_ELEMENTS_URN =
       "beam:transform:sdf_process_elements:v1";
+
   public static final String SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN =
       "beam:transform:sdf_split_and_size_restrictions:v1";
   public static final String SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN =
@@ -168,6 +184,9 @@ public class PTransformTranslation {
         COMBINE_PER_KEY_EXTRACT_OUTPUTS_TRANSFORM_URN.equals(
             getUrn(CombineComponents.COMBINE_PER_KEY_EXTRACT_OUTPUTS)));
     checkState(
+        COMBINE_PER_KEY_CONVERT_TO_ACCUMULATORS_TRANSFORM_URN.equals(
+            getUrn(CombineComponents.COMBINE_PER_KEY_CONVERT_TO_ACCUMULATORS)));
+    checkState(
         COMBINE_GROUPED_VALUES_TRANSFORM_URN.equals(
             getUrn(CombineComponents.COMBINE_GROUPED_VALUES)));
 
@@ -176,19 +195,14 @@ public class PTransformTranslation {
         SPLITTABLE_PAIR_WITH_RESTRICTION_URN.equals(
             getUrn(SplittableParDoComponents.PAIR_WITH_RESTRICTION)));
     checkState(
-        SPLITTABLE_SPLIT_RESTRICTION_URN.equals(
-            getUrn(SplittableParDoComponents.SPLIT_RESTRICTION)));
-    checkState(
-        SPLITTABLE_PROCESS_KEYED_URN.equals(
-            getUrn(SplittableParDoComponents.PROCESS_KEYED_ELEMENTS)));
-    checkState(
-        SPLITTABLE_PROCESS_ELEMENTS_URN.equals(getUrn(SplittableParDoComponents.PROCESS_ELEMENTS)));
-    checkState(
         SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN.equals(
             getUrn(SplittableParDoComponents.SPLIT_AND_SIZE_RESTRICTIONS)));
     checkState(
         SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN.equals(
             getUrn(SplittableParDoComponents.PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS)));
+    checkState(
+        SPLITTABLE_TRUNCATE_SIZED_RESTRICTION_URN.equals(
+            getUrn(SplittableParDoComponents.TRUNCATE_SIZED_RESTRICTION)));
   }
 
   private static final Collection<TransformTranslator<?>> KNOWN_TRANSLATORS =
@@ -243,8 +257,7 @@ public class PTransformTranslation {
   }
 
   /** Returns the URN for the transform if it is known, otherwise {@code null}. */
-  @Nullable
-  public static String urnForTransformOrNull(PTransform<?, ?> transform) {
+  public static @Nullable String urnForTransformOrNull(PTransform<?, ?> transform) {
     TransformTranslator<?> transformTranslator =
         Iterables.find(
             KNOWN_TRANSLATORS,
@@ -264,8 +277,7 @@ public class PTransformTranslation {
   }
 
   /** Returns the URN for the transform if it is known, otherwise {@code null}. */
-  @Nullable
-  public static String urnForTransformOrNull(RunnerApi.PTransform transform) {
+  public static @Nullable String urnForTransformOrNull(RunnerApi.PTransform transform) {
     return transform.getSpec() == null ? null : transform.getSpec().getUrn();
   }
 
@@ -294,7 +306,7 @@ public class PTransformTranslation {
     private static final TransformTranslator<?> INSTANCE = new DefaultUnknownTransformTranslator();
 
     @Override
-    public String getUrn(PTransform<?, ?> transform) {
+    public @Nullable String getUrn(PTransform<?, ?> transform) {
       return null;
     }
 
@@ -304,7 +316,7 @@ public class PTransformTranslation {
     }
 
     @Override
-    public RunnerApi.PTransform translate(
+    public RunnerApi.@NonNull PTransform translate(
         AppliedPTransform<?, ?, ?> appliedPTransform,
         List<AppliedPTransform<?, ?, ?>> subtransforms,
         SdkComponents components)
@@ -345,10 +357,15 @@ public class PTransformTranslation {
 
       // A composite transform is permitted to have a null spec. There are also some pseudo-
       // primitives not yet supported by the portability framework that have null specs
+      String urn = "";
       if (spec != null) {
+        urn = spec.getUrn();
         transformBuilder.setSpec(spec);
       }
-      transformBuilder.setEnvironmentId(components.getOnlyEnvironmentId());
+
+      if (!RUNNER_IMPLEMENTED_TRANSFORMS.contains(urn)) {
+        transformBuilder.setEnvironmentId(components.getOnlyEnvironmentId());
+      }
       return transformBuilder.build();
     }
   }
@@ -361,11 +378,6 @@ public class PTransformTranslation {
       implements TransformTranslator<T> {
     private static final Map<Class<? extends PTransform>, TransformPayloadTranslator>
         KNOWN_PAYLOAD_TRANSLATORS = loadTransformPayloadTranslators();
-
-    // TODO: BEAM-9001 - set environment ID in all transforms and allow runners to override.
-    private static List<String> sdkTransformsWithEnvironment =
-        ImmutableList.of(
-            PAR_DO_TRANSFORM_URN, COMBINE_PER_KEY_TRANSFORM_URN, ASSIGN_WINDOWS_TRANSFORM_URN);
 
     private static Map<Class<? extends PTransform>, TransformPayloadTranslator>
         loadTransformPayloadTranslators() {
@@ -418,14 +430,20 @@ public class PTransformTranslation {
       if (spec != null) {
         transformBuilder.setSpec(spec);
 
-        if (sdkTransformsWithEnvironment.contains(spec.getUrn())) {
-          transformBuilder.setEnvironmentId(components.getOnlyEnvironmentId());
-        } else if (spec.getUrn().equals(READ_TRANSFORM_URN)
-            && (appliedPTransform.getTransform().getClass() == Read.Bounded.class)) {
-          // Only assigning environment to Bounded reads. Not assigning an environment to Unbounded
-          // reads since they are a Runner translated transform, unless, in the future, we have an
-          // adapter available for splittable DoFn.
-          transformBuilder.setEnvironmentId(components.getOnlyEnvironmentId());
+        // Required runner implemented transforms should not have an environment id.
+        if (!RUNNER_IMPLEMENTED_TRANSFORMS.contains(spec.getUrn())) {
+          // TODO(BEAM-9309): Remove existing hacks around deprecated READ transform.
+          if (spec.getUrn().equals(READ_TRANSFORM_URN)) {
+            // Only assigning environment to Bounded reads. Not assigning an environment to
+            // Unbounded
+            // reads since they are a Runner translated transform, unless, in the future, we have an
+            // adapter available for splittable DoFn.
+            if (appliedPTransform.getTransform().getClass() == Read.Bounded.class) {
+              transformBuilder.setEnvironmentId(components.getOnlyEnvironmentId());
+            }
+          } else {
+            transformBuilder.setEnvironmentId(components.getOnlyEnvironmentId());
+          }
         }
       }
       return transformBuilder.build();
@@ -450,26 +468,15 @@ public class PTransformTranslation {
       SdkComponents components)
       throws IOException {
     RunnerApi.PTransform.Builder transformBuilder = RunnerApi.PTransform.newBuilder();
-    for (Map.Entry<TupleTag<?>, PValue> taggedInput : appliedPTransform.getInputs().entrySet()) {
-      checkArgument(
-          taggedInput.getValue() instanceof PCollection,
-          "Unexpected input type %s",
-          taggedInput.getValue().getClass());
+    for (Map.Entry<TupleTag<?>, PCollection<?>> taggedInput :
+        appliedPTransform.getInputs().entrySet()) {
       transformBuilder.putInputs(
-          toProto(taggedInput.getKey()),
-          components.registerPCollection((PCollection<?>) taggedInput.getValue()));
+          toProto(taggedInput.getKey()), components.registerPCollection(taggedInput.getValue()));
     }
-    for (Map.Entry<TupleTag<?>, PValue> taggedOutput : appliedPTransform.getOutputs().entrySet()) {
-      // TODO: Remove gating
-      if (taggedOutput.getValue() instanceof PCollection) {
-        checkArgument(
-            taggedOutput.getValue() instanceof PCollection,
-            "Unexpected output type %s",
-            taggedOutput.getValue().getClass());
-        transformBuilder.putOutputs(
-            toProto(taggedOutput.getKey()),
-            components.registerPCollection((PCollection<?>) taggedOutput.getValue()));
-      }
+    for (Map.Entry<TupleTag<?>, PCollection<?>> taggedOutput :
+        appliedPTransform.getOutputs().entrySet()) {
+      transformBuilder.putOutputs(
+          toProto(taggedOutput.getKey()), components.registerPCollection(taggedOutput.getValue()));
     }
     for (AppliedPTransform<?, ?, ?> subtransform : subtransforms) {
       transformBuilder.addSubtransforms(components.getExistingPTransformId(subtransform));
@@ -532,14 +539,12 @@ public class PTransformTranslation {
       extends PTransform<InputT, OutputT> {
 
     /** The URN for this transform, if standardized. */
-    @Nullable
-    public String getUrn() {
+    public @Nullable String getUrn() {
       return getSpec() == null ? null : getSpec().getUrn();
     }
 
     /** The payload for this transform, if any. */
-    @Nullable
-    public abstract FunctionSpec getSpec();
+    public abstract @Nullable FunctionSpec getSpec();
 
     /**
      * Build a new payload set in the context of the given {@link SdkComponents}, if applicable.

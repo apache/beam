@@ -23,6 +23,7 @@ import static org.apache.beam.sdk.io.kudu.KuduTestUtils.GenerateUpsert;
 import static org.apache.beam.sdk.io.kudu.KuduTestUtils.SCHEMA;
 import static org.apache.beam.sdk.io.kudu.KuduTestUtils.createTableOptions;
 import static org.apache.beam.sdk.io.kudu.KuduTestUtils.rowCount;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 
 import java.util.Arrays;
@@ -45,7 +46,6 @@ import org.apache.kudu.client.KuduPredicate;
 import org.apache.kudu.client.KuduTable;
 import org.apache.kudu.client.RowResult;
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -89,6 +89,9 @@ import org.slf4j.LoggerFactory;
  * </pre>
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class KuduIOIT {
   private static final Logger LOG = LoggerFactory.getLogger(KuduIOIT.class);
 
@@ -225,7 +228,7 @@ public class KuduIOIT {
                 .withFormatFn(new GenerateUpsert()));
     writePipeline.run().waitUntilFinish();
 
-    Assert.assertThat(
+    assertThat(
         "Wrong number of records in table",
         rowCount(kuduTable),
         equalTo(options.getNumberOfRecords()));

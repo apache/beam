@@ -23,6 +23,7 @@
 from __future__ import absolute_import
 
 import base64
+import datetime
 import logging
 import random
 import time
@@ -36,6 +37,7 @@ from nose.plugins.attrib import attr
 import apache_beam as beam
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam.io.gcp.internal.clients import bigquery
+from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -67,6 +69,18 @@ def skip(runners):
     return wrapped
 
   return inner
+
+
+def datetime_to_utc(element):
+  for k, v in element.items():
+    if isinstance(v, (datetime.time, datetime.date)):
+      element[k] = str(v)
+    if isinstance(v, datetime.datetime) and v.tzinfo:
+      # For datetime objects, we'll
+      offset = v.utcoffset()
+      utc_dt = (v - offset).strftime('%Y-%m-%d %H:%M:%S.%f UTC')
+      element[k] = utc_dt
+  return element
 
 
 class BigQueryReadIntegrationTests(unittest.TestCase):
@@ -156,10 +170,11 @@ class ReadTests(BigQueryReadIntegrationTests):
 
   @attr('IT')
   def test_iobase_source(self):
+    query = StaticValueProvider(str, self.query)
     with beam.Pipeline(argv=self.args) as p:
       result = (
-          p | 'read' >> beam.io._ReadFromBigQuery(
-              query=self.query, use_standard_sql=True, project=self.project))
+          p | 'read with value provider query' >> beam.io.ReadFromBigQuery(
+              query=query, use_standard_sql=True, project=self.project))
       assert_that(result, equal_to(self.TABLE_DATA))
 
 
@@ -236,11 +251,12 @@ class ReadNewTypesTests(BigQueryReadIntegrationTests):
     cls.bigquery_client.insert_rows(
         cls.project, cls.dataset_id, table_name, table_data)
 
-  def get_expected_data(self):
+  def get_expected_data(self, native=True):
+    byts = b'\xab\xac'
     expected_row = {
         'float': 0.33,
         'numeric': Decimal('10'),
-        'bytes': base64.b64encode(b'\xab\xac'),
+        'bytes': base64.b64encode(byts) if native else byts,
         'date': '3000-12-31',
         'time': '23:59:59',
         'datetime': '2018-12-31T12:44:31',
@@ -263,7 +279,8 @@ class ReadNewTypesTests(BigQueryReadIntegrationTests):
   def test_native_source(self):
     with beam.Pipeline(argv=self.args) as p:
       result = (
-          p | 'read' >> beam.io.Read(
+          p
+          | 'read' >> beam.io.Read(
               beam.io.BigQuerySource(query=self.query, use_standard_sql=True)))
       assert_that(result, equal_to(self.get_expected_data()))
 
@@ -271,9 +288,117 @@ class ReadNewTypesTests(BigQueryReadIntegrationTests):
   def test_iobase_source(self):
     with beam.Pipeline(argv=self.args) as p:
       result = (
-          p | 'read' >> beam.io._ReadFromBigQuery(
-              query=self.query, use_standard_sql=True, project=self.project))
-      assert_that(result, equal_to(self.get_expected_data()))
+          p
+          | 'read' >> beam.io.ReadFromBigQuery(
+              query=self.query,
+              use_standard_sql=True,
+              project=self.project,
+              bigquery_job_labels={'launcher': 'apache_beam_tests'})
+          | beam.Map(datetime_to_utc))
+      assert_that(result, equal_to(self.get_expected_data(native=False)))
+
+
+class ReadAllBQTests(BigQueryReadIntegrationTests):
+  TABLE_DATA_1 = [{
+      'number': 1, 'str': 'abc'
+  }, {
+      'number': 2, 'str': 'def'
+  }, {
+      'number': 3, 'str': u'你好'
+  }, {
+      'number': 4, 'str': u'привет'
+  }]
+
+  TABLE_DATA_2 = [{
+      'number': 10, 'str': 'abcd'
+  }, {
+      'number': 20, 'str': 'defg'
+  }, {
+      'number': 30, 'str': u'你好'
+  }, {
+      'number': 40, 'str': u'привет'
+  }]
+
+  TABLE_DATA_3 = [{'number': 10, 'str': 'abcde', 'extra': 3}]
+
+  @classmethod
+  def setUpClass(cls):
+    super(ReadAllBQTests, cls).setUpClass()
+    cls.SCHEMA_BQ = cls.create_bq_schema()
+    cls.SCHEMA_BQ_WITH_EXTRA = cls.create_bq_schema(True)
+
+    cls.table_name1 = 'python_rd_table_1'
+    cls.table_schema1 = cls.create_table(
+        cls.table_name1, cls.TABLE_DATA_1, cls.SCHEMA_BQ)
+    table_id1 = '{}.{}'.format(cls.dataset_id, cls.table_name1)
+    cls.query1 = 'SELECT number, str FROM `%s`' % table_id1
+
+    cls.table_name2 = 'python_rd_table_2'
+    cls.table_schema2 = cls.create_table(
+        cls.table_name2, cls.TABLE_DATA_2, cls.SCHEMA_BQ)
+    table_id2 = '{}.{}'.format(cls.dataset_id, cls.table_name2)
+    cls.query2 = 'SELECT number, str FROM %s' % table_id2
+
+    cls.table_name3 = 'python_rd_table_3'
+    cls.table_schema3 = cls.create_table(
+        cls.table_name3, cls.TABLE_DATA_3, cls.SCHEMA_BQ_WITH_EXTRA)
+    table_id3 = '{}.{}'.format(cls.dataset_id, cls.table_name3)
+    cls.query3 = 'SELECT number, str, extra FROM `%s`' % table_id3
+
+  @classmethod
+  def create_table(cls, table_name, data, table_schema):
+    table = bigquery.Table(
+        tableReference=bigquery.TableReference(
+            projectId=cls.project, datasetId=cls.dataset_id,
+            tableId=table_name),
+        schema=table_schema)
+    request = bigquery.BigqueryTablesInsertRequest(
+        projectId=cls.project, datasetId=cls.dataset_id, table=table)
+    cls.bigquery_client.client.tables.Insert(request)
+    cls.bigquery_client.insert_rows(
+        cls.project, cls.dataset_id, table_name, data)
+    return table_schema
+
+  @classmethod
+  def create_bq_schema(cls, with_extra=False):
+    table_schema = bigquery.TableSchema()
+    table_field = bigquery.TableFieldSchema()
+    table_field.name = 'number'
+    table_field.type = 'INTEGER'
+    table_field.mode = 'NULLABLE'
+    table_schema.fields.append(table_field)
+    table_field = bigquery.TableFieldSchema()
+    table_field.name = 'str'
+    table_field.type = 'STRING'
+    table_field.mode = 'NULLABLE'
+    table_schema.fields.append(table_field)
+    if with_extra:
+      table_field = bigquery.TableFieldSchema()
+      table_field.name = 'extra'
+      table_field.type = 'INTEGER'
+      table_field.mode = 'NULLABLE'
+      table_schema.fields.append(table_field)
+    return table_schema
+
+  @skip(['PortableRunner', 'FlinkRunner'])
+  @attr('IT')
+  def test_read_queries(self):
+    # TODO(BEAM-11311): Remove experiment when tests run on r_v2.
+    args = self.args + ["--experiments=use_runner_v2"]
+    with beam.Pipeline(argv=args) as p:
+      result = (
+          p
+          | beam.Create([
+              beam.io.ReadFromBigQueryRequest(query=self.query1),
+              beam.io.ReadFromBigQueryRequest(
+                  query=self.query2, use_standard_sql=False),
+              beam.io.ReadFromBigQueryRequest(
+                  table='%s.%s' % (self.dataset_id, self.table_name3))
+          ])
+          | beam.io.ReadAllFromBigQuery())
+      assert_that(
+          result,
+          equal_to(self.TABLE_DATA_1 + self.TABLE_DATA_2 + self.TABLE_DATA_3))
 
 
 if __name__ == '__main__':

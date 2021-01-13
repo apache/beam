@@ -25,12 +25,15 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import javax.annotation.Nullable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Tracks the current state of a single execution thread. */
 @SuppressFBWarnings(value = "IS2_INCONSISTENT_SYNC", justification = "Intentional for performance.")
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> {
 
   /**
@@ -38,7 +41,7 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
    * don't use a ThreadLocal to allow testing the implementation of this class without having to run
    * from multiple threads.
    */
-  private static final Map<Thread, ExecutionStateTracker> CURRENT_TRACKERS =
+  private static final Map<Long, ExecutionStateTracker> CURRENT_TRACKERS =
       new ConcurrentHashMap<>();
 
   private static final long LULL_REPORT_MS = TimeUnit.MINUTES.toMillis(5);
@@ -104,7 +107,7 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
   private final ExecutionStateSampler sampler;
 
   /** The thread being managed by this {@link ExecutionStateTracker}. */
-  @Nullable private Thread trackedThread = null;
+  private @Nullable Thread trackedThread = null;
 
   /**
    * The current state of the thread managed by this {@link ExecutionStateTracker}.
@@ -112,7 +115,7 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
    * <p>This variable is written by the Execution thread, and read by the sampling and progress
    * reporting threads, thus it being marked volatile.
    */
-  @Nullable private volatile ExecutionState currentState;
+  private volatile @Nullable ExecutionState currentState;
 
   /**
    * The current number of times that this {@link ExecutionStateTracker} has transitioned state.
@@ -176,9 +179,18 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
    * Return the current {@link ExecutionState} of the current thread, or {@code null} if there
    * either is no current state or if the current thread is not currently tracking the state.
    */
-  @Nullable
-  public static ExecutionState getCurrentExecutionState() {
-    ExecutionStateTracker tracker = CURRENT_TRACKERS.get(Thread.currentThread());
+  public static @Nullable ExecutionState getCurrentExecutionState() {
+    ExecutionStateTracker tracker = CURRENT_TRACKERS.get(Thread.currentThread().getId());
+    return tracker == null ? null : tracker.currentState;
+  }
+
+  /**
+   * Return the current {@link ExecutionState} of the thread with thread id, or {@code null} if
+   * there either is no current state or if the corresponding thread is not currently tracking the
+   * state.
+   */
+  public static @Nullable ExecutionState getCurrentExecutionState(long threadId) {
+    ExecutionStateTracker tracker = CURRENT_TRACKERS.get(threadId);
     return tracker == null ? null : tracker.currentState;
   }
 
@@ -201,7 +213,7 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
     checkState(
         trackedThread == null, "Cannot activate an ExecutionStateTracker that is already in use.");
 
-    ExecutionStateTracker other = CURRENT_TRACKERS.put(thread, this);
+    ExecutionStateTracker other = CURRENT_TRACKERS.put(thread.getId(), this);
     checkState(
         other == null,
         "Execution state of thread {} was already being tracked by {}",
@@ -222,7 +234,9 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
   private synchronized void deactivate() {
     sampler.removeTracker(this);
     Thread thread = this.trackedThread;
-    CURRENT_TRACKERS.remove(thread);
+    if (thread != null) {
+      CURRENT_TRACKERS.remove(thread.getId());
+    }
     this.trackedThread = null;
   }
 

@@ -48,6 +48,9 @@ import org.slf4j.LoggerFactory;
  * An {@link EnvironmentFactory} that communicates to a {@link FnHarness} which is executing in the
  * same process.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class EmbeddedEnvironmentFactory implements EnvironmentFactory {
   private static final Logger LOG = LoggerFactory.getLogger(EmbeddedEnvironmentFactory.class);
 
@@ -87,14 +90,15 @@ public class EmbeddedEnvironmentFactory implements EnvironmentFactory {
 
   @Override
   @SuppressWarnings("FutureReturnValueIgnored") // no need to monitor shutdown thread
-  public RemoteEnvironment createEnvironment(Environment environment) throws Exception {
+  public RemoteEnvironment createEnvironment(Environment environment, String workerId)
+      throws Exception {
     ExecutorService executor = Executors.newSingleThreadExecutor();
     Future<?> fnHarness =
         executor.submit(
             () -> {
               try {
                 FnHarness.main(
-                    "id",
+                    workerId,
                     options,
                     loggingServer.getApiServiceDescriptor(),
                     controlServer.getApiServiceDescriptor(),

@@ -19,6 +19,7 @@ package org.apache.beam.sdk.coders;
 
 import java.util.Arrays;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.BaseEncoding;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A wrapper around a byte[] that uses structural, value-based equality rather than byte[]'s normal
@@ -36,7 +37,7 @@ public class StructuralByteArray {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (o instanceof StructuralByteArray) {
       StructuralByteArray that = (StructuralByteArray) o;
       return Arrays.equals(this.value, that.value);

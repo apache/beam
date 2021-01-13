@@ -41,6 +41,7 @@ import org.apache.beam.sdk.testutils.NamedTestResult;
 import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
+import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -77,6 +78,9 @@ import org.junit.runners.JUnit4;
  * performance testing framework.
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class TFRecordIOIT {
   private static final String TFRECORD_NAMESPACE = TFRecordIOIT.class.getName();
 
@@ -93,6 +97,7 @@ public class TFRecordIOIT {
   private static Integer datasetSize;
   private static String expectedHash;
   private static Compression compressionType;
+  private static InfluxDBSettings settings;
 
   @Rule public TestPipeline writePipeline = TestPipeline.create();
 
@@ -108,6 +113,12 @@ public class TFRecordIOIT {
     filenamePrefix = appendTimestampSuffix(options.getFilenamePrefix());
     bigQueryDataset = options.getBigQueryDataset();
     bigQueryTable = options.getBigQueryTable();
+    settings =
+        InfluxDBSettings.builder()
+            .withHost(options.getInfluxHost())
+            .withDatabase(options.getInfluxDatabase())
+            .withMeasurement(options.getInfluxMeasurement())
+            .get();
   }
 
   private static String createFilenamePattern() {
@@ -176,7 +187,8 @@ public class TFRecordIOIT {
         MetricsReader.ofResults(readResults, TFRECORD_NAMESPACE)
             .readAll(getReadMetricSuppliers(uuid, timestamp)));
 
-    IOITMetrics.publish(uuid, timestamp, bigQueryDataset, bigQueryTable, results);
+    IOITMetrics.publish(bigQueryDataset, bigQueryTable, results);
+    IOITMetrics.publishToInflux(uuid, timestamp, results, settings);
   }
 
   private static Set<Function<MetricsReader, NamedTestResult>> getWriteMetricSuppliers(

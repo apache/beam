@@ -27,6 +27,9 @@ import org.apache.beam.sdk.annotations.Internal;
  * #writeAndOwn(byte[])}, it will return that array directly.
  */
 @Internal
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ExposedByteArrayOutputStream extends ByteArrayOutputStream {
 
   private byte[] swappedBuffer;
@@ -62,6 +65,7 @@ public class ExposedByteArrayOutputStream extends ByteArrayOutputStream {
    *
    * <p><i>Note: After passing any byte array to this method, it must not be modified again.</i>
    */
+  // Takes ownership of input buffer by design - Spotbugs is right to warn that this is dangerous
   public synchronized void writeAndOwn(byte[] b) throws IOException {
     if (b.length == 0) {
       return;
@@ -91,6 +95,7 @@ public class ExposedByteArrayOutputStream extends ByteArrayOutputStream {
   }
 
   @Override
+  // Exposes internal mutable reference by design - Spotbugs is right to warn that this is dangerous
   public synchronized byte[] toByteArray() {
     // Note: count == buf.length is not a correct criteria to "return buf;", because the internal
     // buf may be reused after reset().

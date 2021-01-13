@@ -38,7 +38,7 @@ applyJavaNature(
     relocate "com.google.thirdparty", "org.apache.beam.vendor.grpc.v1p26p0.com.google.thirdparty"
 
     relocate "com.google.protobuf", "org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf"
-  }
+  },
 )
 
 description = "Apache Beam :: Vendored Dependencies :: SDKs :: Java :: Extensions :: Protobuf"

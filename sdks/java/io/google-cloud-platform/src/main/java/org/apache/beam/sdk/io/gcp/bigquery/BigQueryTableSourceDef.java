@@ -33,6 +33,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class BigQueryTableSourceDef implements BigQuerySourceDef {
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryTableSourceDef.class);
 
@@ -87,8 +90,12 @@ class BigQueryTableSourceDef implements BigQuerySourceDef {
   /** {@inheritDoc} */
   @Override
   public <T> BigQuerySourceBase<T> toSource(
-      String stepUuid, Coder<T> coder, SerializableFunction<SchemaAndRecord, T> parseFn) {
-    return BigQueryTableSource.create(stepUuid, this, bqServices, coder, parseFn);
+      String stepUuid,
+      Coder<T> coder,
+      SerializableFunction<SchemaAndRecord, T> parseFn,
+      boolean useAvroLogicalTypes) {
+    return BigQueryTableSource.create(
+        stepUuid, this, bqServices, coder, parseFn, useAvroLogicalTypes);
   }
 
   /** {@inheritDoc} */

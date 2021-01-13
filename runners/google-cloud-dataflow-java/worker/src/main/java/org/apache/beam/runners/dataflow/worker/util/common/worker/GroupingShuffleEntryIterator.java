@@ -22,11 +22,11 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import java.util.Arrays;
 import java.util.NoSuchElementException;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.util.common.ElementByteSizeObservableIterable;
 import org.apache.beam.sdk.util.common.ElementByteSizeObservableIterator;
 import org.apache.beam.sdk.util.common.Reiterable;
 import org.apache.beam.sdk.util.common.Reiterator;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,6 +36,9 @@ import org.slf4j.LoggerFactory;
  * <p>Much like a {@link NativeReader.NativeReaderIterator}, but without {@code start()}, and not
  * used via the interface of that class, hence doesn't inherit it.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public abstract class GroupingShuffleEntryIterator {
   private static final Logger LOG = LoggerFactory.getLogger(GroupingShuffleEntryIterator.class);
 
@@ -56,7 +59,7 @@ public abstract class GroupingShuffleEntryIterator {
    * shuffleIterator.next() is the key of the next KeyGroupedShuffleEntries to return via {@link
    * #advance}/{@link #getCurrent}.
    */
-  @Nullable private byte[] currentKeyBytes = null;
+  private byte @Nullable [] currentKeyBytes = null;
 
   private ShufflePosition lastGroupStart;
 

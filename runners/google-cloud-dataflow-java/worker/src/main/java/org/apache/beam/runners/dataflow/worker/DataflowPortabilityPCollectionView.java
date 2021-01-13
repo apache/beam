@@ -19,7 +19,6 @@ package org.apache.beam.runners.dataflow.worker;
 
 import java.util.Collection;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
@@ -40,6 +39,7 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * The minimal amount of information required to create and use a {@link SideInputReader} when using
@@ -53,6 +53,9 @@ import org.apache.beam.sdk.values.WindowingStrategy;
  * <p>TODO: Migrate to a runner only specific concept of a side input to be used with {@link
  * SideInputReader}s.
  */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class DataflowPortabilityPCollectionView<K, V, W extends BoundedWindow>
     implements PCollectionView<MultimapView<K, V>> {
 
@@ -70,9 +73,8 @@ public class DataflowPortabilityPCollectionView<K, V, W extends BoundedWindow>
     this.coder = coder;
   }
 
-  @Nullable
   @Override
-  public PCollection<?> getPCollection() {
+  public @Nullable PCollection<?> getPCollection() {
     throw new UnsupportedOperationException();
   }
 

@@ -74,11 +74,24 @@ public class BeamFnControlClient {
               BeamFnApi.InstructionRequest.RequestCase,
               ThrowingFunction<BeamFnApi.InstructionRequest, BeamFnApi.InstructionResponse.Builder>>
           handlers) {
+    this(
+        id,
+        BeamFnControlGrpc.newStub(channelFactory.forDescriptor(apiServiceDescriptor)),
+        outboundObserverFactory,
+        handlers);
+  }
+
+  public BeamFnControlClient(
+      String id,
+      BeamFnControlGrpc.BeamFnControlStub controlStub,
+      OutboundObserverFactory outboundObserverFactory,
+      EnumMap<
+              BeamFnApi.InstructionRequest.RequestCase,
+              ThrowingFunction<BeamFnApi.InstructionRequest, BeamFnApi.InstructionResponse.Builder>>
+          handlers) {
     this.bufferedInstructions = new LinkedBlockingDeque<>();
     this.outboundObserver =
-        outboundObserverFactory.outboundObserverFor(
-            BeamFnControlGrpc.newStub(channelFactory.forDescriptor(apiServiceDescriptor))::control,
-            new InboundObserver());
+        outboundObserverFactory.outboundObserverFor(controlStub::control, new InboundObserver());
     this.handlers = handlers;
     this.onFinish = new CompletableFuture<>();
   }

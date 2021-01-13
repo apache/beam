@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.extensions.sql.impl.parser;
 
 import java.util.List;
-import javax.annotation.Nullable;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.jdbc.CalcitePrepare;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlDataTypeSpec;
@@ -29,6 +28,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.parser.SqlP
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.NlsString;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.Pair;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.Util;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Utilities concerning {@link SqlNode} for DDL. */
 public class SqlDdlNodes {

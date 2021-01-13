@@ -25,13 +25,16 @@ import java.util.Date;
 import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.fs.ResolveOptions;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class S3ResourceId implements ResourceId {
 
   static final String SCHEME = "s3";
@@ -154,9 +157,8 @@ class S3ResourceId implements ResourceId {
     return SCHEME;
   }
 
-  @Nullable
   @Override
-  public String getFilename() {
+  public @Nullable String getFilename() {
     if (!isDirectory()) {
       return key.substring(key.lastIndexOf('/') + 1);
     }
@@ -188,7 +190,7 @@ class S3ResourceId implements ResourceId {
   }
 
   @Override
-  public boolean equals(Object obj) {
+  public boolean equals(@Nullable Object obj) {
     if (!(obj instanceof S3ResourceId)) {
       return false;
     }

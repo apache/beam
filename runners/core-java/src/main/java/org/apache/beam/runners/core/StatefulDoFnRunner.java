@@ -48,11 +48,15 @@ import org.joda.time.Instant;
 /**
  * A customized {@link DoFnRunner} that handles late data dropping and garbage collection for
  * stateful {@link DoFn DoFns}. It registers a GC timer in {@link #processElement(WindowedValue)}
- * and does cleanup in {@link #onTimer(String, BoundedWindow, Instant, Instant, TimeDomain)}
+ * and does cleanup in {@link #onTimer(String, String, BoundedWindow, Instant, Instant, TimeDomain)}
  *
  * @param <InputT> the type of the {@link DoFn} (main) input elements
  * @param <OutputT> the type of the {@link DoFn} (main) output elements
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
     implements DoFnRunner<InputT, OutputT> {
 
@@ -130,6 +134,11 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
   }
 
   @Override
+  public <KeyT> void onWindowExpiration(BoundedWindow window, Instant timestamp, KeyT key) {
+    doFnRunner.onWindowExpiration(window, timestamp, key);
+  }
+
+  @Override
   public void processElement(WindowedValue<InputT> input) {
 
     // StatefulDoFnRunner always observes windows, so we need to explode
@@ -156,11 +165,11 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
     StateInternals stateInternals = stepContext.stateInternals();
     TimerInternals timerInternals = stepContext.timerInternals();
 
-    Instant outputWatermark =
+    Instant inputWatermark =
         MoreObjects.firstNonNull(
-            timerInternals.currentOutputWatermarkTime(), BoundedWindow.TIMESTAMP_MIN_VALUE);
+            timerInternals.currentInputWatermarkTime(), BoundedWindow.TIMESTAMP_MIN_VALUE);
 
-    if (!outputWatermark.isAfter(
+    if (!inputWatermark.isAfter(
         value.getTimestamp().plus(windowingStrategy.getAllowedLateness()))) {
 
       StateNamespace namespace = StateNamespaces.window(windowCoder, window);
@@ -172,7 +181,7 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
       if (value.getTimestamp().isBefore(minStamp)) {
         minStamp = value.getTimestamp();
         minStampState.write(minStamp);
-        setupFlushTimerAndWatermarkHold(namespace, window, minStamp);
+        setupFlushTimer(namespace, window, minStamp);
       }
     } else {
       reportDroppedElement(value, window);
@@ -196,9 +205,10 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
   }
 
   @Override
-  public void onTimer(
+  public <KeyT> void onTimer(
       String timerId,
       String timerFamilyId,
+      KeyT key,
       BoundedWindow window,
       Instant timestamp,
       Instant outputTimestamp,
@@ -209,8 +219,8 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
       if (requiresTimeSortedInput) {
         onSortFlushTimer(window, BoundedWindow.TIMESTAMP_MAX_VALUE);
       }
+      doFnRunner.onWindowExpiration(window, outputTimestamp, key);
       stateCleaner.clearForWindow(window);
-      // There should invoke the onWindowExpiration of DoFn
     } else {
       // An event-time timer can never be late because we don't allow setting timers after GC time.
       // It can happen that a processing-time timer fires for a late window, we need to ignore
@@ -224,7 +234,8 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
             window,
             stepContext.timerInternals().currentInputWatermarkTime());
       } else {
-        doFnRunner.onTimer(timerId, timerFamilyId, window, timestamp, outputTimestamp, timeDomain);
+        doFnRunner.onTimer(
+            timerId, timerFamilyId, key, window, timestamp, outputTimestamp, timeDomain);
       }
     }
   }
@@ -255,7 +266,7 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
     keep.forEach(sortBuffer::add);
     minStampState.write(newMinStamp);
     if (newMinStamp.isBefore(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
-      setupFlushTimerAndWatermarkHold(namespace, window, newMinStamp);
+      setupFlushTimer(namespace, window, newMinStamp);
     } else {
       clearWatermarkHold(namespace);
     }
@@ -268,10 +279,10 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
    * <p>Note that this is equivalent to {@link org.apache.beam.sdk.state.Timer#withOutputTimestamp}
    * and should be reworked to use that feature once that is stable.
    */
-  private void setupFlushTimerAndWatermarkHold(
-      StateNamespace namespace, BoundedWindow window, Instant flush) {
+  private void setupFlushTimer(StateNamespace namespace, BoundedWindow window, Instant flush) {
     Instant flushWithLateness = flush.plus(windowingStrategy.getAllowedLateness());
-    Instant windowGcTime = window.maxTimestamp().plus(windowingStrategy.getAllowedLateness());
+    Instant windowGcTime =
+        LateDataUtils.garbageCollectionTime(window, windowingStrategy.getAllowedLateness());
     if (flushWithLateness.isAfter(windowGcTime)) {
       flushWithLateness = windowGcTime;
     }
@@ -285,8 +296,12 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
             flushWithLateness,
             flush,
             TimeDomain.EVENT_TIME);
-    watermark.clear();
-    watermark.add(flush);
+    // [BEAM-10533] check if the hold is set (pipelines before release of [BEAM-10533]
+    // this can be removed in soe future versions, when we can assume there is no
+    // running with this state (beam 2.23.0 and older)
+    if (!watermark.isEmpty().read()) {
+      watermark.clear();
+    }
   }
 
   private void clearWatermarkHold(StateNamespace namespace) {

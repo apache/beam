@@ -38,6 +38,7 @@ t.describe 'Run Apache Beam Java SDK Quickstart - Dataflow'
       -Dexec.mainClass=org.apache.beam.examples.WordCount \
       -Dexec.args="--runner=DataflowRunner \
                    --project=${t.gcpProject()} \
+                   --region=${t.gcpRegion()} \
                    --gcpTempLocation=gs://${t.gcsBucket()}/tmp \
                    --output=gs://${t.gcsBucket()}/counts \
                    --inputFile=gs://apache-beam-samples/shakespeare/*" \

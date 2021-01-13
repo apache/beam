@@ -53,7 +53,7 @@ transcript:
   - input: [1, 2, 10, 11, 80, 81]
   - watermark: 100
   - expect:
-      - {window: [0, 9], values: [1, 2], timestamp: 9, final: false}
+      - {window: [0, 9], values: [1, 2], timestamp: 9}
       - {window: [10, 19], values: [10, 11], timestamp: 19}
       - {window: [80, 89], values: [80, 81], timestamp: 89, late: false}
   - input: [7, 8] # no output
@@ -71,7 +71,7 @@ transcript:
   - input: [1, 2, 3, 10, 11, 25]
   - watermark: 100
   - expect:
-      - {window: [0, 9], values: [1, 2, 3], timestamp: 1, final: false}
+      - {window: [0, 9], values: [1, 2, 3], timestamp: 1}
       - {window: [10, 19], values: [10, 11], timestamp: 10}
       - {window: [20, 29], values: [25], timestamp: 25, late: false}
 
@@ -84,7 +84,7 @@ transcript:
   - input: [1, 2, 3, 10, 11, 25]
   - watermark: 100
   - expect:
-      - {window: [0, 9], values: [1, 2, 3], timestamp: 3, final: false}
+      - {window: [0, 9], values: [1, 2, 3], timestamp: 3}
       - {window: [10, 19], values: [10, 11], timestamp: 11}
       - {window: [20, 29], values: [25], timestamp: 25, late: false}
 
@@ -98,7 +98,7 @@ transcript:
   - input: [1, 2, 3, 10, 11, 25]
   - watermark: 100
   - expect:
-      - {window: [0, 9], values: [1, 2, 3], timestamp: 9, final: false}
+      - {window: [0, 9], values: [1, 2, 3], timestamp: 9}
       - {window: [10, 19], values: [10, 11], timestamp: 19}
       - {window: [20, 29], values: [25], timestamp: 29, late: false}
 
@@ -112,7 +112,7 @@ transcript:
   - input: [1, 2, 3, 10, 11, 25]
   - watermark: 100
   - expect:
-      - {window: [0, 9], values: [1, 2, 3], timestamp: 1, final: false}
+      - {window: [0, 9], values: [1, 2, 3], timestamp: 1}
       - {window: [10, 19], values: [10, 11], timestamp: 10}
       - {window: [20, 29], values: [25], timestamp: 25, late: false}
 
@@ -128,7 +128,7 @@ transcript:
   - input: [1, 2, 3, 10, 11, 25]
   - watermark: 100
   - expect:
-      - {window: [0, 9], values: [1, 2, 3], timestamp: 101, final: false}
+      - {window: [0, 9], values: [1, 2, 3], timestamp: 101}
       - {window: [10, 19], values: [10, 11], timestamp: 110}
       - {window: [20, 29], values: [25], timestamp: 125, late: false}
 
@@ -142,23 +142,23 @@ trigger_fn: AfterWatermark(early=AfterCount(2), late=AfterCount(3))
 allowed_lateness: 100
 timestamp_combiner: OUTPUT_AT_EOW
 transcript:
-    - input: [1, 2, 3]
+    - input: [1, 2]
     - expect:
-        - {window: [1, 12], values: [1, 2, 3], timestamp: 12, early: true, index: 0}
-    - input: [4]    # no output
+        - {window: [1, 11], values: [1, 2], timestamp: 11, early: true, index: 0}
+    - input: [3]    # no output
+    - input: [4]
+    - expect:
+        - {window: [1, 13], values: [1, 2, 3, 4], timestamp: 13, early: true, index: 0}
     - input: [5]
-    - expect:
-        - {window: [1, 14], values: [1, 2, 3, 4, 5], timestamp: 14, early: true, index: 1}
-    - input: [6]
     - watermark: 100
     - expect:
-        - {window: [1, 15], values:[1, 2, 3, 4, 5, 6], timestamp: 15,
-           index: 2, nonspeculative_index: 0}
+        - {window: [1, 14], values:[1, 2, 3, 4, 5], timestamp: 14,
+           index: 0, nonspeculative_index: 0}
     - input: [1]
     - input: [3, 4]
     - expect:
-        - {window: [1, 15], values: [1, 1, 2, 3, 3, 4, 4, 5, 6], timestamp: 15,
-           final: false, index: 3, nonspeculative_index: 1}
+        - {window: [1, 14], values: [1, 1, 2, 3, 3, 4, 4, 5], timestamp: 14,
+           final: false, index: 1, nonspeculative_index: 1}
 
 ---
 name: discarding_early_fixed
@@ -167,9 +167,9 @@ trigger_fn: AfterWatermark(early=AfterCount(2))
 timestamp_combiner: OUTPUT_AT_EOW
 accumulation_mode: discarding
 transcript:
-- input: [1, 2, 3]
+- input: [1, 2]
 - expect:
-  - {window: [0, 9], values: [1, 2, 3], timestamp: 9, early: true, index: 0}
+  - {window: [0, 9], values: [1, 2], timestamp: 9, early: true, index: 0}
 - input: [4]    # no output
 - input: [14]   # no output
 - input: [5]
@@ -181,9 +181,9 @@ transcript:
 - input: [6]
 - watermark: 100
 - expect:
-  - {window: [0, 9], values:[6], timestamp: 9, early: false, late: false,
+  - {window: [0, 9], values: [6], timestamp: 9, early: false, late: false,
      final: true, index: 2, nonspeculative_index: 0}
-  - {window: [10, 19], values:[], timestamp: 19, early: false, late: false,
+  - {window: [10, 19], values: [], timestamp: 19, early: false, late: false,
      final: true, index: 1, nonspeculative_index: 0}
 
 ---

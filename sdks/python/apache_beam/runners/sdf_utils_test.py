@@ -27,8 +27,10 @@ import unittest
 from apache_beam.io.concat_source_test import RangeSource
 from apache_beam.io.restriction_trackers import OffsetRange
 from apache_beam.io.restriction_trackers import OffsetRestrictionTracker
+from apache_beam.io.watermark_estimators import ManualWatermarkEstimator
 from apache_beam.runners.sdf_utils import RestrictionTrackerView
 from apache_beam.runners.sdf_utils import ThreadsafeRestrictionTracker
+from apache_beam.runners.sdf_utils import ThreadsafeWatermarkEstimator
 from apache_beam.utils import timestamp
 
 
@@ -108,6 +110,30 @@ class RestrictionTrackerViewTest(unittest.TestCase):
       tracker_view.try_split()
     with self.assertRaises(AttributeError):
       tracker_view.deferred_status()
+
+
+class ThreadsafeWatermarkEstimatorTest(unittest.TestCase):
+  def test_initialization(self):
+    with self.assertRaises(ValueError):
+      ThreadsafeWatermarkEstimator(None)
+
+  def test_get_estimator_state(self):
+    estimator = ThreadsafeWatermarkEstimator(ManualWatermarkEstimator(None))
+    self.assertIsNone(estimator.get_estimator_state())
+    estimator.set_watermark(timestamp.Timestamp(10))
+    self.assertEqual(estimator.get_estimator_state(), timestamp.Timestamp(10))
+
+  def test_track_timestamp(self):
+    estimator = ThreadsafeWatermarkEstimator(ManualWatermarkEstimator(None))
+    estimator.observe_timestamp(timestamp.Timestamp(10))
+    self.assertIsNone(estimator.current_watermark())
+    estimator.set_watermark(timestamp.Timestamp(20))
+    self.assertEqual(estimator.current_watermark(), timestamp.Timestamp(20))
+
+  def test_non_exsited_attr(self):
+    estimator = ThreadsafeWatermarkEstimator(ManualWatermarkEstimator(None))
+    with self.assertRaises(AttributeError):
+      estimator.non_existed_call()
 
 
 if __name__ == '__main__':

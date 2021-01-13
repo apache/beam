@@ -33,6 +33,9 @@ import org.slf4j.LoggerFactory;
  * set of key value labels in the object which can be retrieved later for reporting purposes via
  * getLabels().
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SimpleExecutionState extends ExecutionState {
   private long totalMillis = 0;
   private HashMap<String, String> labelsMetadata;

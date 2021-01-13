@@ -19,7 +19,13 @@
 import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(exportJavadoc: false, automaticModuleName: 'org.apache.beam.runners.samza')
+applyJavaNature(
+  exportJavadoc: false,
+  classesTriggerCheckerBugs: [
+    'GroupWithoutRepartition': 'https://github.com/typetools/checker-framework/issues/3791',
+  ],
+  automaticModuleName: 'org.apache.beam.runners.samza',
+)
 
 description = "Apache Beam :: Runners :: Samza"
 
@@ -34,7 +40,7 @@ configurations {
   validatesRunner
 }
 
-def samza_version = "1.3.0"
+def samza_version = "1.5.0"
 
 dependencies {
   compile library.java.vendored_guava_26_0_jre
@@ -42,11 +48,18 @@ dependencies {
   compile project(":runners:core-java")
   compile project(":runners:core-construction-java")
   compile project(":runners:java-fn-execution")
+  compile project(":runners:java-job-service")
   compile library.java.jackson_annotations
   compile library.java.slf4j_api
   compile library.java.joda_time
   compile library.java.commons_io
+  compile library.java.commons_lang3
   compile library.java.args4j
+  compile "javax.servlet:javax.servlet-api:3.1.0"
+  compile "io.dropwizard.metrics:metrics-core:3.1.2"
+  compile "org.rocksdb:rocksdbjni:5.7.3"
+  compile "org.apache.commons:commons-collections4:4.0"
+  compile "org.scala-lang:scala-library:2.11.8"
   compile "org.apache.samza:samza-api:$samza_version"
   compile "org.apache.samza:samza-core_2.11:$samza_version"
   compile "org.apache.samza:samza-kafka_2.11:$samza_version"
@@ -80,13 +93,33 @@ task validatesRunner(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
     excludeCategories 'org.apache.beam.sdk.testing.UsesAttemptedMetrics'
     excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime'
     excludeCategories 'org.apache.beam.sdk.testing.UsesMetricsPusher'
     excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
     excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
+  }
+  filter {
+    // TODO(BEAM-10025)
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testOutputTimestampDefaultUnbounded'
+    // TODO(BEAM-11479)
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testOutputTimestamp'
+
+    // These tests fail since there is no support for side inputs in Samza's unbounded splittable DoFn integration
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.SplittableDoFnTest.testWindowedSideInputWithCheckpointsUnbounded'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.SplittableDoFnTest.testSideInputUnbounded'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.SplittableDoFnTest.testWindowedSideInputUnbounded'
+    // These tests produce the output but either the pipeline doesn't shutdown or PAssert fails
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.SplittableDoFnTest.testAdditionalOutputUnbounded'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.SplittableDoFnTest.testPairWithIndexBasicUnbounded'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.SplittableDoFnTest.testPairWithIndexWindowedTimestampedUnbounded'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.SplittableDoFnTest.testOutputAfterCheckpointUnbounded'
+  }
+  filter {
+    // Re-enable the test after Samza runner supports same state id across DoFn(s).
+    excludeTest('ParDoTest$StateTests', 'testValueStateSameId')
   }
 }
 

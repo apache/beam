@@ -28,6 +28,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.extensions.sql.impl.ParseException;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
@@ -40,6 +42,9 @@ import org.apache.beam.sdk.values.Row;
 import org.junit.Test;
 
 /** UnitTest for {@link BeamSqlCli}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BeamSqlCliTest {
   @Test
   public void testExecute_createTextTable() throws Exception {
@@ -268,9 +273,9 @@ public class BeamSqlCliTest {
     assertEquals(3, row.getFieldCount());
 
     // test DATE field
-    assertEquals("2018-11-01", row.getDateTime("f_date").toString("yyyy-MM-dd"));
+    assertEquals("2018-11-01", row.getLogicalTypeValue("f_date", LocalDate.class).toString());
     // test TIME field
-    assertEquals("15:23:59.000", row.getDateTime("f_time").toString("HH:mm:ss.SSS"));
+    assertEquals("15:23:59", row.getLogicalTypeValue("f_time", LocalTime.class).toString());
     // test TIMESTAMP field
     assertEquals(parseTimestampWithUTCTimeZone("2018-07-01 21:26:07.123"), row.getDateTime("f_ts"));
   }

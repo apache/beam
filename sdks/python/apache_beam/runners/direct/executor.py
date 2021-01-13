@@ -492,6 +492,8 @@ class _ExecutorServiceParallelExecutor(object):
 
   def request_shutdown(self):
     self.executor_service.shutdown()
+    self.executor_service.await_completion()
+    self.evaluation_context.shutdown()
 
   def schedule_consumers(self, committed_bundle):
     # type: (_Bundle) -> None

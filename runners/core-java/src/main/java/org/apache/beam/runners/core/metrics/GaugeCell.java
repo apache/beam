@@ -22,6 +22,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.metrics.Gauge;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsContainer;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Tracks the current value (and delta) for a {@link Gauge} metric.
@@ -82,7 +83,7 @@ public class GaugeCell implements Gauge, MetricCell<GaugeData> {
   }
 
   @Override
-  public boolean equals(Object object) {
+  public boolean equals(@Nullable Object object) {
     if (object instanceof GaugeCell) {
       GaugeCell gaugeCell = (GaugeCell) object;
       return Objects.equals(dirty, gaugeCell.dirty)

@@ -42,8 +42,10 @@ cdef class MethodWrapper(object):
   cdef object key_arg_name
   cdef object restriction_provider
   cdef object restriction_provider_arg_name
-  cdef object watermark_estimator
-  cdef object watermark_estimator_arg_name
+  cdef object watermark_estimator_provider
+  cdef object watermark_estimator_provider_arg_name
+  cdef object dynamic_timer_tag_arg_name
+  cdef bint unbounded_per_element
 
 
 cdef class DoFnSignature(object):
@@ -52,8 +54,8 @@ cdef class DoFnSignature(object):
   cdef public MethodWrapper finish_bundle_method
   cdef public MethodWrapper setup_lifecycle_method
   cdef public MethodWrapper teardown_lifecycle_method
+  cdef public MethodWrapper create_watermark_estimator_method
   cdef public MethodWrapper initial_restriction_method
-  cdef public MethodWrapper restriction_coder_method
   cdef public MethodWrapper create_tracker_method
   cdef public MethodWrapper split_method
   cdef public object do_fn
@@ -68,13 +70,12 @@ cdef class DoFnInvoker(object):
   cdef public object bundle_finalizer_param
 
   cpdef invoke_process(self, WindowedValue windowed_value,
-                       restriction_tracker=*,
+                       restriction=*, watermark_estimator_state=*,
                        additional_args=*, additional_kwargs=*)
   cpdef invoke_start_bundle(self)
   cpdef invoke_finish_bundle(self)
   cpdef invoke_split(self, element, restriction)
   cpdef invoke_initial_restriction(self, element)
-  cpdef invoke_restriction_coder(self)
   cpdef invoke_create_tracker(self, restriction)
 
 
@@ -93,10 +94,14 @@ cdef class PerWindowInvoker(DoFnInvoker):
   cdef object process_method
   cdef bint is_splittable
   cdef object threadsafe_restriction_tracker
-  cdef object watermark_estimator
-  cdef object watermark_estimator_param
+  cdef object threadsafe_watermark_estimator
   cdef WindowedValue current_windowed_value
+  cdef object restriction
+  cdef object watermark_estimator_state
+  cdef object current_window_index
+  cdef object stop_window_index
   cdef bint is_key_param_required
+  cdef object splitting_lock
 
 
 cdef class DoFnRunner:
@@ -111,7 +116,8 @@ cdef class DoFnRunner:
 cdef class OutputProcessor(object):
   @cython.locals(windowed_value=WindowedValue,
                  output_element_count=int64_t)
-  cpdef process_outputs(self, WindowedValue element, results)
+  cpdef process_outputs(self, WindowedValue element, results,
+                        watermark_estimator=*)
 
 
 cdef class _OutputProcessor(OutputProcessor):
@@ -121,7 +127,8 @@ cdef class _OutputProcessor(OutputProcessor):
   cdef DataflowDistributionCounter per_element_output_counter
   @cython.locals(windowed_value=WindowedValue,
                  output_element_count=int64_t)
-  cpdef process_outputs(self, WindowedValue element, results)
+  cpdef process_outputs(self, WindowedValue element, results,
+                        watermark_estimator=*)
 
 cdef class DoFnContext(object):
   cdef object label

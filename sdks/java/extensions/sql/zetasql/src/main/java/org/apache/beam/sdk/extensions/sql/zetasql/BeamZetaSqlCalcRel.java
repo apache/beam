@@ -20,15 +20,15 @@ package org.apache.beam.sdk.extensions.sql.zetasql;
 import com.google.zetasql.AnalyzerOptions;
 import com.google.zetasql.PreparedExpression;
 import com.google.zetasql.Value;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.function.IntFunction;
-import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.extensions.sql.impl.BeamSqlPipelineOptions;
+import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
 import org.apache.beam.sdk.extensions.sql.impl.rel.AbstractBeamCalcRel;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.meta.provider.bigquery.BeamBigQuerySqlDialect;
@@ -44,12 +44,14 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptClus
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelTraitSet;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Calc;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rel2sql.SqlImplementor;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataType;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexBuilder;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexProgram;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlDialect;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlIdentifier;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlNode;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -59,10 +61,13 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  * expression evaluator.
  */
 @Internal
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
 
   private static final SqlDialect DIALECT = BeamBigQuerySqlDialect.DEFAULT;
-  private final SqlImplementor.Context context;
+  private final BeamSqlUnparseContext context;
 
   private static String columnName(int i) {
     return "_" + i;
@@ -95,19 +100,27 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
           pinput.size());
       PCollection<Row> upstream = pinput.get(0);
 
-      final List<String> projects =
-          getProgram().getProjectList().stream()
-              .map(BeamZetaSqlCalcRel.this::unparseRexNode)
-              .collect(Collectors.toList());
-      final RexNode condition = getProgram().getCondition();
+      final RexBuilder rexBuilder = getCluster().getRexBuilder();
+      RexNode rex = rexBuilder.makeCall(SqlStdOperatorTable.ROW, getProgram().getProjectList());
 
+      final RexNode condition = getProgram().getCondition();
+      if (condition != null) {
+        rex =
+            rexBuilder.makeCall(
+                SqlStdOperatorTable.CASE, condition, rex, rexBuilder.makeNullLiteral(getRowType()));
+      }
+
+      BeamSqlPipelineOptions options =
+          pinput.getPipeline().getOptions().as(BeamSqlPipelineOptions.class);
       Schema outputSchema = CalciteUtils.toSchema(getRowType());
       CalcFn calcFn =
           new CalcFn(
-              projects,
-              condition == null ? null : unparseRexNode(condition),
+              context.toSql(getProgram(), rex).toSqlString(DIALECT).getSql(),
+              createNullParams(context.getNullParams()),
               upstream.getSchema(),
-              outputSchema);
+              outputSchema,
+              options.getZetaSqlDefaultTimezone(),
+              options.getVerifyRowValues());
 
       // validate prepared expressions
       calcFn.setup();
@@ -116,8 +129,14 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
     }
   }
 
-  private String unparseRexNode(RexNode rex) {
-    return context.toSql(getProgram(), rex).toSqlString(DIALECT).getSql();
+  private static Map<String, Value> createNullParams(Map<String, RelDataType> input) {
+    Map<String, Value> result = new HashMap<>();
+    for (Map.Entry<String, RelDataType> entry : input.entrySet()) {
+      result.put(
+          entry.getKey(),
+          Value.createNullValue(ZetaSqlCalciteTranslationUtils.toZetaSqlType(entry.getValue())));
+    }
+    return result;
   }
 
   /**
@@ -125,84 +144,81 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
    * based on the {@code ZetaSQL} expression evaluator.
    */
   private static class CalcFn extends DoFn<Row, Row> {
-    private final List<String> projects;
-    @Nullable private final String condition;
+    private final String sql;
+    private final Map<String, Value> nullParams;
     private final Schema inputSchema;
     private final Schema outputSchema;
-    private transient List<PreparedExpression> projectExps;
-    @Nullable private transient PreparedExpression conditionExp;
+    private final String defaultTimezone;
+    private final boolean verifyRowValues;
+    private transient PreparedExpression exp;
+    private transient List<Integer> referencedColumns;
+    private transient PreparedExpression.Stream stream;
 
     CalcFn(
-        List<String> projects,
-        @Nullable String condition,
+        String sql,
+        Map<String, Value> nullParams,
         Schema inputSchema,
-        Schema outputSchema) {
-      Preconditions.checkArgument(projects.size() == outputSchema.getFieldCount());
-      this.projects = ImmutableList.copyOf(projects);
-      this.condition = condition;
+        Schema outputSchema,
+        String defaultTimezone,
+        boolean verifyRowValues) {
+      this.sql = sql;
+      this.nullParams = nullParams;
       this.inputSchema = inputSchema;
       this.outputSchema = outputSchema;
+      this.defaultTimezone = defaultTimezone;
+      this.verifyRowValues = verifyRowValues;
     }
 
     @Setup
     public void setup() {
-      AnalyzerOptions options = SqlAnalyzer.initAnalyzerOptions();
+      AnalyzerOptions options =
+          SqlAnalyzer.getAnalyzerOptions(QueryParameters.ofNamed(nullParams), defaultTimezone);
       for (int i = 0; i < inputSchema.getFieldCount(); i++) {
         options.addExpressionColumn(
             columnName(i),
-            ZetaSqlUtils.beamFieldTypeToZetaSqlType(inputSchema.getField(i).getType()));
+            ZetaSqlBeamTranslationUtils.toZetaSqlType(inputSchema.getField(i).getType()));
       }
 
-      // TODO[BEAM-8630]: use a single PreparedExpression for all condition and projects
-      projectExps = new ArrayList<>();
-      for (String project : projects) {
-        PreparedExpression projectExp = new PreparedExpression(project);
-        projectExp.prepare(options);
-        projectExps.add(projectExp);
+      exp = new PreparedExpression(sql);
+      exp.prepare(options);
+
+      ImmutableList.Builder<Integer> columns = new ImmutableList.Builder<>();
+      for (String c : exp.getReferencedColumns()) {
+        columns.add(Integer.parseInt(c.substring(1)));
       }
-      if (condition != null) {
-        conditionExp = new PreparedExpression(condition);
-        conditionExp.prepare(options);
-      }
+      referencedColumns = columns.build();
+
+      stream = exp.stream();
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c) {
+    public void processElement(ProcessContext c) throws InterruptedException {
       Map<String, Value> columns = new HashMap<>();
       Row row = c.element();
-      for (int i = 0; i < inputSchema.getFieldCount(); i++) {
+      for (int i : referencedColumns) {
         columns.put(
             columnName(i),
-            ZetaSqlUtils.javaObjectToZetaSqlValue(
-                row.getValue(i), inputSchema.getField(i).getType()));
+            ZetaSqlBeamTranslationUtils.toZetaSqlValue(
+                row.getBaseValue(i, Object.class), inputSchema.getField(i).getType()));
       }
 
-      // TODO[BEAM-8630]: support parameters in expression evaluation
-      // The map is empty because parameters in the query string have already been substituted.
-      Map<String, Value> params = Collections.emptyMap();
-
-      if (conditionExp != null && !conditionExp.execute(columns, params).getBoolValue()) {
-        return;
+      final Future<Value> vf = stream.execute(columns, nullParams);
+      final Value v;
+      try {
+        v = vf.get();
+      } catch (ExecutionException e) {
+        throw (RuntimeException) e.getCause();
       }
-
-      Row.Builder output = Row.withSchema(outputSchema);
-      for (int i = 0; i < outputSchema.getFieldCount(); i++) {
-        // TODO[BEAM-8630]: performance optimization by bundling the gRPC calls
-        Value v = projectExps.get(i).execute(columns, params);
-        output.addValue(
-            ZetaSqlUtils.zetaSqlValueToJavaObject(v, outputSchema.getField(i).getType()));
+      if (!v.isNull()) {
+        Row outputRow = ZetaSqlBeamTranslationUtils.toBeamRow(v, outputSchema, verifyRowValues);
+        c.output(outputRow);
       }
-      c.output(output.build());
     }
 
     @Teardown
     public void teardown() {
-      for (PreparedExpression projectExp : projectExps) {
-        projectExp.close();
-      }
-      if (conditionExp != null) {
-        conditionExp.close();
-      }
+      stream.close();
+      exp.close();
     }
   }
 }

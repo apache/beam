@@ -18,6 +18,7 @@
 package org.apache.beam.runners.jet.processors;
 
 import com.hazelcast.jet.core.Processor;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -56,6 +57,7 @@ public class ParDoP<InputT, OutputT>
       Coder<InputT> inputValueCoder,
       Map<TupleTag<?>, Coder<?>> outputValueCoders,
       Map<Integer, PCollectionView<?>> ordinalToSideInput,
+      Map<String, PCollectionView<?>> sideInputMapping,
       String ownerId,
       String stepId) {
     super(
@@ -71,6 +73,7 @@ public class ParDoP<InputT, OutputT>
         inputValueCoder,
         outputValueCoders,
         ordinalToSideInput,
+        sideInputMapping,
         ownerId,
         stepId);
   }
@@ -124,7 +127,8 @@ public class ParDoP<InputT, OutputT>
         Map<TupleTag<?>, Coder<?>> outputCoders,
         Coder<InputT> inputValueCoder,
         Map<TupleTag<?>, Coder<?>> outputValueCoders,
-        List<PCollectionView<?>> sideInputs) {
+        Collection<PCollectionView<?>> sideInputs,
+        Map<String, PCollectionView<?>> sideInputMapping) {
       super(
           stepId,
           ownerId,
@@ -139,7 +143,8 @@ public class ParDoP<InputT, OutputT>
           outputCoders,
           inputValueCoder,
           outputValueCoders,
-          sideInputs);
+          sideInputs,
+          sideInputMapping);
     }
 
     @Override
@@ -156,6 +161,7 @@ public class ParDoP<InputT, OutputT>
         Coder<InputT> inputValueCoder,
         Map<TupleTag<?>, Coder<?>> outputValueCoders,
         Map<Integer, PCollectionView<?>> ordinalToSideInput,
+        Map<String, PCollectionView<?>> sideInputMapping,
         String ownerId,
         String stepId) {
       return new ParDoP<>(
@@ -171,6 +177,7 @@ public class ParDoP<InputT, OutputT>
           inputValueCoder,
           outputValueCoders,
           ordinalToSideInput,
+          sideInputMapping,
           ownerId,
           stepId);
     }

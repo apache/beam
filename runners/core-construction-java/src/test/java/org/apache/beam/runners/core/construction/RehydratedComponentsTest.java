@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.core.construction;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.theInstance;
-import static org.junit.Assert.assertThat;
 
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.sdk.coders.Coder;
@@ -39,6 +39,9 @@ import org.junit.runners.JUnit4;
  * other rehydration. The two are tightly coupled, as they recursively invoke each other.
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class RehydratedComponentsTest {
 
   @Test
@@ -91,7 +94,13 @@ public class RehydratedComponentsTest {
         RehydratedComponents.forComponents(sdkComponents.toComponents());
 
     WindowingStrategy<?, ?> rehydratedStrategy = rehydratedComponents.getWindowingStrategy(id);
-    assertThat(rehydratedStrategy, equalTo((WindowingStrategy) windowingStrategy.fixDefaults()));
+    assertThat(
+        rehydratedStrategy,
+        equalTo(
+            (WindowingStrategy)
+                windowingStrategy
+                    .withEnvironmentId(sdkComponents.getOnlyEnvironmentId())
+                    .fixDefaults()));
     assertThat(
         rehydratedComponents.getWindowingStrategy(id),
         theInstance((WindowingStrategy) rehydratedStrategy));

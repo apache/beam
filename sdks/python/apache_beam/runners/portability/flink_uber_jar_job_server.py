@@ -26,9 +26,10 @@ import logging
 import os
 import tempfile
 import time
-import zipfile
+import urllib
 
 import requests
+from google.protobuf import json_format
 
 from apache_beam.options import pipeline_options
 from apache_beam.portability.api import beam_job_api_pb2
@@ -61,9 +62,20 @@ class FlinkUberJarJobServer(abstract_job_service.AbstractJobServiceServicer):
     pass
 
   def executable_jar(self):
-    url = (
-        self._executable_jar or job_server.JavaJarJobServer.path_to_beam_jar(
-            'runners:flink:%s:job-server:shadowJar' % self.flink_version()))
+    if self._executable_jar:
+      if not os.path.exists(self._executable_jar):
+        parsed = urllib.parse.urlparse(self._executable_jar)
+        if not parsed.scheme:
+          raise ValueError(
+              'Unable to parse jar URL "%s". If using a full URL, make sure '
+              'the scheme is specified. If using a local file path, make sure '
+              'the file exists; you may have to first build the job server '
+              'using `./gradlew runners:flink:%s:job-server:shadowJar`.' %
+              (self._executable_jar, self._flink_version))
+      url = self._executable_jar
+    else:
+      url = job_server.JavaJarJobServer.path_to_beam_jar(
+          ':runners:flink:%s:job-server:shadowJar' % self.flink_version())
     return job_server.JavaJarJobServer.local_jar(url)
 
   def flink_version(self):
@@ -81,6 +93,14 @@ class FlinkUberJarJobServer(abstract_job_service.AbstractJobServiceServicer):
         pipeline,
         options,
         artifact_port=self._artifact_port)
+
+  def GetJobMetrics(self, request, context=None):
+    if request.job_id not in self._jobs:
+      raise LookupError("Job {} does not exist".format(request.job_id))
+    metrics_text = self._jobs[request.job_id].get_metrics()
+    response = beam_job_api_pb2.GetJobMetricsResponse()
+    json_format.Parse(metrics_text, response)
+    return response
 
 
 class FlinkBeamJob(abstract_job_service.UberJarBeamJob):
@@ -125,12 +145,6 @@ class FlinkBeamJob(abstract_job_service.UberJarBeamJob):
 
   def run(self):
     self._stop_artifact_service()
-    # Move the artifact manifest to the expected location.
-    with zipfile.ZipFile(self._jar, 'a', compression=zipfile.ZIP_DEFLATED) as z:
-      with z.open(self._artifact_manifest_location) as fin:
-        manifest_contents = fin.read()
-      with z.open(self.ARTIFACT_MANIFEST_PATH, 'w') as fout:
-        fout.write(manifest_contents)
 
     # Upload the jar and start the job.
     with open(self._jar, 'rb') as jar_file:
@@ -201,10 +215,7 @@ class FlinkBeamJob(abstract_job_service.UberJarBeamJob):
     def _state_iter():
       sleep_secs = 1.0
       while True:
-        current_state, timestamp = self._get_state()
-        if timestamp is not None:
-          # non-None indicates that the state has changed
-          yield current_state, timestamp
+        yield self.get_state()
         sleep_secs = min(60, sleep_secs * 1.2)
         time.sleep(sleep_secs)
 
@@ -228,3 +239,12 @@ class FlinkBeamJob(abstract_job_service.UberJarBeamJob):
         break
       else:
         yield state, timestamp
+
+  def get_metrics(self):
+    accumulators = self.get('v1/jobs/%s/accumulators' %
+                            self._flink_job_id)['user-task-accumulators']
+    for accumulator in accumulators:
+      if accumulator['name'] == '__metricscontainers':
+        return accumulator['value']
+    raise LookupError(
+        "Found no metrics container for job {}".format(self._flink_job_id))

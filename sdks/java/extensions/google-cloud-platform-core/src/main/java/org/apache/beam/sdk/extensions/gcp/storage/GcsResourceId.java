@@ -21,11 +21,11 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.fs.ResolveOptions;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** {@link ResourceId} implementation for Google Cloud Storage. */
 public class GcsResourceId implements ResourceId {
@@ -91,8 +91,7 @@ public class GcsResourceId implements ResourceId {
   }
 
   @Override
-  @Nullable
-  public String getFilename() {
+  public @Nullable String getFilename() {
     if (gcsPath.getNameCount() <= 1) {
       return null;
     } else {
@@ -111,7 +110,7 @@ public class GcsResourceId implements ResourceId {
   }
 
   @Override
-  public boolean equals(Object obj) {
+  public boolean equals(@Nullable Object obj) {
     if (!(obj instanceof GcsResourceId)) {
       return false;
     }

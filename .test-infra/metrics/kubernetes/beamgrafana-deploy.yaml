@@ -1,0 +1,184 @@
+################################################################################
+#  Licensed to the Apache Software Foundation (ASF) under one
+#  or more contributor license agreements.  See the NOTICE file
+#  distributed with this work for additional information
+#  regarding copyright ownership.  The ASF licenses this file
+#  to you under the Apache License, Version 2.0 (the
+#  "License"); you may not use this file except in compliance
+#  with the License.  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+# limitations under the License.
+################################################################################
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: beamgrafana
+  labels:
+    app: beammetrics
+spec:
+  selector:
+    matchLabels:
+      app: grafana
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      securityContext:
+        fsGroup: 1000
+      containers:
+      - name: beamgrafana
+        image: gcr.io/apache-beam-testing/beamgrafana
+        imagePullPolicy: Always
+        securityContext:
+          runAsUser: 0
+        env:
+        - name: GF_AUTH_ANONYMOUS_ENABLED
+          value: "true"
+        - name: GF_AUTH_ANONYMOUS_ORG_NAME
+          value: Beam
+        - name: GF_SECURITY_ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: grafana-admin-pwd
+              key: grafana_admin_password
+        - name: PSQL_DB_HOST
+          value: 127.0.0.1
+        - name: PSQL_DB_PORT
+          value: "5432"
+        - name: PSQL_DB_DBNAME
+          value: beammetrics
+        - name: PSQL_DB_DBUSERNAME
+          valueFrom:
+            secretKeyRef:
+              name: beammetrics-psql-db-credentials
+              key: username
+        - name: PSQL_DB_DBPWD
+          valueFrom:
+            secretKeyRef:
+              name: beammetrics-psql-db-credentials
+              key: password
+        - name: INFLUX_DB_HOST
+          value: influxdb
+        - name: INFLUX_DB_PORT
+          value: "8086"
+        - name: INFLUX_DB_DBNAME
+          value: beam_test_metrics
+        - name: INFLUX_DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: influxdb-creds
+              key: INFLUXDB_USER
+        - name: INFLUX_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: influxdb-creds
+              key: INFLUXDB_USER_PASSWORD
+        ports:
+        - containerPort: 3000
+        resources: {}
+        volumeMounts:
+        - mountPath: /var/lib/grafana
+          name: beam-grafana-libdata
+        - mountPath: /etc/grafana
+          name: beam-grafana-etcdata
+        - mountPath: /var/log/grafana
+          name: beam-grafana-logdata
+      - name: cloudsql-proxy
+        image: gcr.io/cloudsql-docker/gce-proxy:1.11
+        command: ["/cloud_sql_proxy",
+                  "-instances=apache-beam-testing:us-west2:beammetrics=tcp:5432"]
+        env:
+          - name: GOOGLE_APPLICATION_CREDENTIALS
+            value: /secrets/cloudsql/config.json
+        volumeMounts:
+          - name: beammetrics-psql-credentials
+            mountPath: /secrets/cloudsql
+            readOnly: true
+      - name: beammetricssyncjenkins
+        image: gcr.io/apache-beam-testing/beammetricssyncjenkins
+        imagePullPolicy: Always
+        env:
+          - name: DB_HOST
+            value: 127.0.0.1
+          - name: DB_PORT
+            value: "5432"
+          - name: DB_DBNAME
+            value: beammetrics
+          - name: DB_DBUSERNAME
+            valueFrom:
+              secretKeyRef:
+                name: beammetrics-psql-db-credentials
+                key: username
+          - name: DB_DBPWD
+            valueFrom:
+              secretKeyRef:
+                name: beammetrics-psql-db-credentials
+                key: password
+      - name: beammetricssyncjira
+        image: gcr.io/apache-beam-testing/beammetricssyncjira
+        imagePullPolicy: Always
+        env:
+          - name: DB_HOST
+            value: 127.0.0.1
+          - name: DB_PORT
+            value: "5432"
+          - name: DB_DBNAME
+            value: beammetrics
+          - name: DB_DBUSERNAME
+            valueFrom:
+              secretKeyRef:
+                name: beammetrics-psql-db-credentials
+                key: username
+          - name: DB_DBPWD
+            valueFrom:
+              secretKeyRef:
+                name: beammetrics-psql-db-credentials
+                key: password
+      - name: beammetricssyncgithub
+        image: gcr.io/apache-beam-testing/beammetricssyncgithub
+        imagePullPolicy: Always
+        env:
+          - name: DB_HOST
+            value: 127.0.0.1
+          - name: DB_PORT
+            value: "5432"
+          - name: DB_DBNAME
+            value: beammetrics
+          - name: DB_DBUSERNAME
+            valueFrom:
+              secretKeyRef:
+                name: beammetrics-psql-db-credentials
+                key: username
+          - name: DB_DBPWD
+            valueFrom:
+              secretKeyRef:
+                name: beammetrics-psql-db-credentials
+                key: password
+          - name: GH_ACCESS_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: beamcrawler-gh-access-token
+                key: token
+      volumes:
+      - name: beammetrics-psql-credentials
+        secret:
+          secretName: beammetrics-psql-credentials
+      - name: beam-grafana-libdata
+        persistentVolumeClaim:
+          claimName: beam-grafana-libdata
+      - name: beam-grafana-etcdata
+        persistentVolumeClaim:
+          claimName: beam-grafana-etcdata
+      - name: beam-grafana-logdata
+        persistentVolumeClaim:
+          claimName: beam-grafana-logdata

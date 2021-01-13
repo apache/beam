@@ -20,6 +20,7 @@ package org.apache.beam.sdk.testing;
 import static org.apache.beam.sdk.testing.FileChecksumMatcher.fileContentsHaveChecksum;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.junit.Assume.assumeFalse;
 
 import java.io.File;
 import java.io.IOException;
@@ -27,6 +28,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.regex.Pattern;
 import org.apache.beam.sdk.util.NumberedShardedFile;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Files;
+import org.apache.commons.lang3.SystemUtils;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -36,6 +38,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link FileChecksumMatcher}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class FileChecksumMatcherTest {
   @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
   @Rule public ExpectedException thrown = ExpectedException.none();
@@ -66,6 +71,8 @@ public class FileChecksumMatcherTest {
 
   @Test
   public void testMatcherThatVerifiesMultipleFiles() throws IOException {
+    // TODO: Java core test failing on windows, https://issues.apache.org/jira/browse/BEAM-10747
+    assumeFalse(SystemUtils.IS_OS_WINDOWS);
     File tmpFile1 = tmpFolder.newFile("result-000-of-002");
     File tmpFile2 = tmpFolder.newFile("result-001-of-002");
     File tmpFile3 = tmpFolder.newFile("tmp");
@@ -80,6 +87,8 @@ public class FileChecksumMatcherTest {
 
   @Test
   public void testMatcherThatVerifiesFileWithEmptyContent() throws IOException {
+    // TODO: Java core test failing on windows, https://issues.apache.org/jira/browse/BEAM-10748
+    assumeFalse(SystemUtils.IS_OS_WINDOWS);
     File emptyFile = tmpFolder.newFile("result-000-of-001");
     Files.write("", emptyFile, StandardCharsets.UTF_8);
 
@@ -91,6 +100,8 @@ public class FileChecksumMatcherTest {
   @Test
   public void testMatcherThatUsesCustomizedTemplate() throws Exception {
     // Customized template: resultSSS-totalNNN
+    // TODO: Java core test failing on windows, https://issues.apache.org/jira/browse/BEAM-10749
+    assumeFalse(SystemUtils.IS_OS_WINDOWS);
     File tmpFile1 = tmpFolder.newFile("result0-total2");
     File tmpFile2 = tmpFolder.newFile("result1-total2");
     Files.write("To be or not to be, ", tmpFile1, StandardCharsets.UTF_8);

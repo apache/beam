@@ -57,6 +57,9 @@ import org.mockito.Mockito;
 
 /** Tests for PubsubJsonClient. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class PubsubJsonClientTest {
   private Pubsub mockPubsub;
   private PubsubClient client;
@@ -101,7 +104,7 @@ public class PubsubJsonClientTest {
             .setAttributes(
                 ImmutableMap.of(
                     TIMESTAMP_ATTRIBUTE, String.valueOf(MESSAGE_TIME), ID_ATTRIBUTE, RECORD_ID))
-            .set("orderingKey", ORDERING_KEY);
+            .setOrderingKey(ORDERING_KEY);
     ReceivedMessage expectedReceivedMessage =
         new ReceivedMessage().setMessage(expectedPubsubMessage).setAckId(ACK_ID);
     PullResponse expectedResponse =

@@ -21,11 +21,13 @@ from __future__ import absolute_import
 import argparse
 import json
 import logging
+import os
 import sys
 
 from apache_beam.metrics import MetricsFilter
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.testing.load_tests.load_test_metrics_utils import InfluxDBMetricsPublisherOptions
 from apache_beam.testing.load_tests.load_test_metrics_utils import MetricsReader
 from apache_beam.testing.test_pipeline import TestPipeline
 
@@ -46,9 +48,29 @@ class LoadTestOptions(PipelineOptions):
         help='A BigQuery table where metrics should be '
         'written.')
     parser.add_argument(
+        '--influx_measurement',
+        help='An InfluxDB measurement where metrics should be published to. '
+        'Measurement can be thought of as a SQL table. If empty, reporting to '
+        'InfluxDB will be disabled.')
+    parser.add_argument(
+        '--influx_db_name',
+        help='InfluxDB database name. If empty, reporting to InfluxDB will be '
+        'disabled.')
+    parser.add_argument(
+        '--influx_hostname',
+        help='Hostname to connect to InfluxDB. Defaults to '
+        '"http://localhost:8086".',
+        default='http://localhost:8086')
+    parser.add_argument(
         '--input_options',
         type=json.loads,
         help='Input specification of SyntheticSource.')
+    parser.add_argument(
+        '--timeout_ms',
+        type=int,
+        default=0,
+        help='Waiting time for the completion of the pipeline in milliseconds.'
+        'Defaults to waiting forever.')
 
   @staticmethod
   def _str_to_boolean(value):
@@ -61,19 +83,36 @@ class LoadTestOptions(PipelineOptions):
 
 
 class LoadTest(object):
-  def __init__(self):
-    self.pipeline = TestPipeline(is_integration_test=True)
+  """Base class for all integration and performance tests which export
+  metrics to external databases: BigQuery or/and InfluxDB.
 
-    load_test_options = self.pipeline.get_pipeline_options().view_as(
-        LoadTestOptions)
-    self.input_options = load_test_options.input_options
-    self.metrics_namespace = load_test_options.metrics_table or 'default'
-    publish_to_bq = load_test_options.publish_to_big_query
+  Refer to :class:`~apache_beam.testing.load_tests.LoadTestOptions` for more
+  information on the required pipeline options.
+
+  If using InfluxDB with Basic HTTP authentication enabled, provide the
+  following environment options: `INFLUXDB_USER` and `INFLUXDB_USER_PASSWORD`.
+  """
+  def __init__(self, metrics_namespace=None):
+    # Be sure to set blocking to false for timeout_ms to work properly
+    self.pipeline = TestPipeline(is_integration_test=True, blocking=False)
+    assert not self.pipeline.blocking
+
+    options = self.pipeline.get_pipeline_options().view_as(LoadTestOptions)
+    self.timeout_ms = options.timeout_ms
+    self.input_options = options.input_options
+
+    if metrics_namespace:
+      self.metrics_namespace = metrics_namespace
+    else:
+      self.metrics_namespace = options.metrics_table \
+        if options.metrics_table else 'default'
+
+    publish_to_bq = options.publish_to_big_query
     if publish_to_bq is None:
       logging.info(
           'Missing --publish_to_big_query option. Metrics will not '
           'be published to BigQuery.')
-    if load_test_options.input_options is None:
+    if options.input_options is None:
       logging.error('--input_options argument is required.')
       sys.exit(1)
 
@@ -84,8 +123,15 @@ class LoadTest(object):
     self._metrics_monitor = MetricsReader(
         publish_to_bq=publish_to_bq,
         project_name=self.project_id,
-        bq_table=load_test_options.metrics_table,
-        bq_dataset=load_test_options.metrics_dataset,
+        bq_table=options.metrics_table,
+        bq_dataset=options.metrics_dataset,
+        namespace=self.metrics_namespace,
+        influxdb_options=InfluxDBMetricsPublisherOptions(
+            options.influx_measurement,
+            options.influx_db_name,
+            options.influx_hostname,
+            os.getenv('INFLUXDB_USER'),
+            os.getenv('INFLUXDB_USER_PASSWORD')),
         # Apply filter to prevent system metrics from being published
         filters=MetricsFilter().with_namespace(self.metrics_namespace))
 
@@ -102,7 +148,8 @@ class LoadTest(object):
       self.test()
       if not hasattr(self, 'result'):
         self.result = self.pipeline.run()
-        self.result.wait_until_finish()
+        # Defaults to waiting forever, unless timeout_ms has been set
+        self.result.wait_until_finish(duration=self.timeout_ms)
       self._metrics_monitor.publish_metrics(self.result)
     finally:
       self.cleanup()
@@ -124,12 +171,15 @@ class LoadTest(object):
     }
 
   def get_option_or_default(self, opt_name, default=0):
-    """Returns a pipeline option or a default value if it was not provided.
+    """Returns a testing option or a default value if it was not provided.
 
-    The returned value is converted to an integer.
+    The returned value is cast to the type of the default value.
     """
-    option = self.pipeline.get_option(opt_name)
-    try:
-      return int(option)
-    except TypeError:
+    option = self.pipeline.get_option(
+        opt_name, bool_option=type(default) == bool)
+    if option is None:
       return default
+    try:
+      return type(default)(option)
+    except:
+      raise

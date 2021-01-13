@@ -27,6 +27,7 @@ import java.util.concurrent.CompletionStage;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest.RequestCase;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.RegisterResponse;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
@@ -59,6 +60,10 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link FnApiWindowMappingFn}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class FnApiWindowMappingFnTest {
   private static final ApiServiceDescriptor DATA_SERVICE =
       ApiServiceDescriptor.newBuilder().setUrl("test://data").build();
@@ -168,6 +173,9 @@ public class FnApiWindowMappingFnTest {
       }
       throw new AssertionError(String.format("Unexpected request %s", request));
     }
+
+    @Override
+    public void registerProcessBundleDescriptor(ProcessBundleDescriptor descriptor) {}
 
     @Override
     public void close() {}

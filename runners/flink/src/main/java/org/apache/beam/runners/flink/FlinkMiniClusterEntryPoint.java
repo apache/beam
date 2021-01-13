@@ -36,6 +36,9 @@ public class FlinkMiniClusterEntryPoint {
     @Option(name = "--rest-port")
     int restPort = 0;
 
+    @Option(name = "--rest-bind-address")
+    String restBindAddress = "";
+
     @Option(name = "--num-task-managers")
     int numTaskManagers = 1;
 
@@ -48,6 +51,9 @@ public class FlinkMiniClusterEntryPoint {
 
     Configuration flinkConfig = new Configuration();
     flinkConfig.setInteger(RestOptions.PORT, miniClusterArgs.restPort);
+    if (!miniClusterArgs.restBindAddress.isEmpty()) {
+      flinkConfig.setString(RestOptions.BIND_ADDRESS, miniClusterArgs.restBindAddress);
+    }
 
     MiniClusterConfiguration clusterConfig =
         new MiniClusterConfiguration.Builder()

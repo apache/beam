@@ -18,12 +18,12 @@
 package org.apache.beam.runners.core.construction.graph;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables.getOnlyElement;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.not;
-import static org.junit.Assert.assertThat;
 
 import java.util.Collections;
 import java.util.Set;
@@ -36,7 +36,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StateSpec;
-import org.apache.beam.model.pipeline.v1.RunnerApi.TimerSpec;
+import org.apache.beam.model.pipeline.v1.RunnerApi.TimerFamilySpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowIntoPayload;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
@@ -54,6 +54,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link GreedyStageFuser}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class GreedyStageFuserTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
 
@@ -339,7 +342,7 @@ public class GreedyStageFuserTest {
                     .setPayload(
                         ParDoPayload.newBuilder()
                             .setDoFn(FunctionSpec.newBuilder())
-                            .putTimerSpecs("timer", TimerSpec.getDefaultInstance())
+                            .putTimerFamilySpecs("timer", TimerFamilySpec.getDefaultInstance())
                             .build()
                             .toByteString()))
             .setEnvironmentId("common")

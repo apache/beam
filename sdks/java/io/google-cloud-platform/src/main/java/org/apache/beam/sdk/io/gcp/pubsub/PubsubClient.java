@@ -30,12 +30,15 @@ import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
-import javax.annotation.Nullable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Objects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** An (abstract) helper class for talking to Pubsub via an underlying transport. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public abstract class PubsubClient implements Closeable {
   /** Factory for creating clients. */
   public interface PubsubClientFactory extends Serializable {
@@ -59,8 +62,7 @@ public abstract class PubsubClient implements Closeable {
    * null} if no timestamp could be found. Throw {@link IllegalArgumentException} if timestamp
    * cannot be recognized.
    */
-  @Nullable
-  private static Long asMsSinceEpoch(@Nullable String timestamp) {
+  private static @Nullable Long asMsSinceEpoch(@Nullable String timestamp) {
     if (Strings.isNullOrEmpty(timestamp)) {
       return null;
     }
@@ -142,7 +144,7 @@ public abstract class PubsubClient implements Closeable {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -205,7 +207,7 @@ public abstract class PubsubClient implements Closeable {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -264,7 +266,7 @@ public abstract class PubsubClient implements Closeable {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -313,8 +315,7 @@ public abstract class PubsubClient implements Closeable {
      * If using an id attribute, the record id to associate with this record's metadata so the
      * receiver can reject duplicates. Otherwise {@literal null}.
      */
-    @Nullable
-    public abstract String recordId();
+    public abstract @Nullable String recordId();
 
     public static OutgoingMessage of(
         PubsubMessage message, long timestampMsSinceEpoch, @Nullable String recordId) {

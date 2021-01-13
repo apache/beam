@@ -25,7 +25,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.api.client.testing.http.FixedClock;
-import javax.annotation.Nullable;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -35,6 +35,9 @@ import org.mockito.MockitoAnnotations;
 
 /** Unit tests for {@link WorkProgressUpdater}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class WorkProgressUpdaterTest {
   /**
    * WorkProgressUpdater relies on subclasses to implement some of its functionality, particularly

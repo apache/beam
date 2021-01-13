@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.spark.translation;
 
-import javax.annotation.Nullable;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.util.ByteArray;
 import org.apache.beam.sdk.coders.Coder;
@@ -33,6 +32,7 @@ import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.Function2;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import scala.Tuple2;
 
 /** A set of group/combine functions to apply to Spark {@link org.apache.spark.rdd.RDD}s. */
@@ -84,7 +84,7 @@ public class GroupCombineFunctions {
     return groupedRDD
         .mapValues(
             it -> Iterables.transform(it, new CoderHelpers.FromByteFunction<>(keyCoder, wvCoder)))
-        .mapValues(it -> Iterables.transform(it, new TranslationUtils.FromPairFunction()))
+        .mapValues(it -> Iterables.transform(it, new TranslationUtils.FromPairFunction<>()))
         .mapValues(
             it -> Iterables.transform(it, new TranslationUtils.ToKVByWindowInValueFunction<>()));
   }
@@ -188,7 +188,7 @@ public class GroupCombineFunctions {
     // Use coders to convert objects in the PCollection to byte arrays, so they
     // can be transferred over the network for the shuffle.
     return rdd.map(CoderHelpers.toByteFunction(wvCoder))
-        .repartition(rdd.getNumPartitions())
+        .repartition(Math.max(rdd.context().defaultParallelism(), rdd.getNumPartitions()))
         .map(CoderHelpers.fromByteFunction(wvCoder));
   }
 }

@@ -32,15 +32,19 @@ from hamcrest.core.base_matcher import BaseMatcher
 
 from apache_beam.internal import pickler
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import WorkerOptions
 from apache_beam.options.pipeline_options_validator import PipelineOptionsValidator
 
 
 # Mock runners to use for validations.
 class MockRunners(object):
   class DataflowRunner(object):
-    pass
+    def get_default_gcp_region(self):
+      # Return a default so we don't have to specify --region in every test
+      # (unless specifically testing it).
+      return 'us-central1'
 
-  class TestDataflowRunner(object):
+  class TestDataflowRunner(DataflowRunner):
     pass
 
   class OtherRunner(object):
@@ -67,7 +71,7 @@ class SetupTest(unittest.TestCase):
           found = True
           break
       if not found:
-        missing.append('Missing error for: ' + arg)
+        missing.append('Missing error for: %s.' % arg)
 
     # Return missing and remaining (not matched) errors.
     return missing + remaining
@@ -82,12 +86,15 @@ class SetupTest(unittest.TestCase):
   def test_missing_required_options(self):
     options = PipelineOptions([''])
     runner = MockRunners.DataflowRunner()
+    # Remove default region for this test.
+    runner.get_default_gcp_region = lambda: None
     validator = PipelineOptionsValidator(options, runner)
     errors = validator.validate()
 
     self.assertEqual(
         self.check_errors_for_arguments(
-            errors, ['project', 'staging_location', 'temp_location']), [])
+            errors, ['project', 'staging_location', 'temp_location', 'region']),
+        [])
 
   def test_gcs_path(self):
     def get_validator(temp_location, staging_location):
@@ -373,10 +380,14 @@ class SetupTest(unittest.TestCase):
         'us-east1-b',
         '--worker_region',
         'us-east1',
+        '--project=example:example',
+        '--temp_location=gs://foo/bar',
     ])
     validator = PipelineOptionsValidator(options, runner)
     errors = validator.validate()
-    self.assertTrue(errors)
+    self.assertEqual(len(errors), 1)
+    self.assertIn('zone', errors[0])
+    self.assertIn('worker_region', errors[0])
 
   def test_zone_and_worker_zone_mutually_exclusive(self):
     runner = MockRunners.DataflowRunner()
@@ -385,10 +396,14 @@ class SetupTest(unittest.TestCase):
         'us-east1-b',
         '--worker_zone',
         'us-east1-c',
+        '--project=example:example',
+        '--temp_location=gs://foo/bar',
     ])
     validator = PipelineOptionsValidator(options, runner)
     errors = validator.validate()
-    self.assertTrue(errors)
+    self.assertEqual(len(errors), 1)
+    self.assertIn('zone', errors[0])
+    self.assertIn('worker_zone', errors[0])
 
   def test_experiment_region_and_worker_region_mutually_exclusive(self):
     runner = MockRunners.DataflowRunner()
@@ -397,10 +412,14 @@ class SetupTest(unittest.TestCase):
         'worker_region=us-west1',
         '--worker_region',
         'us-east1',
+        '--project=example:example',
+        '--temp_location=gs://foo/bar',
     ])
     validator = PipelineOptionsValidator(options, runner)
     errors = validator.validate()
-    self.assertTrue(errors)
+    self.assertEqual(len(errors), 1)
+    self.assertIn('experiment', errors[0])
+    self.assertIn('worker_region', errors[0])
 
   def test_experiment_region_and_worker_zone_mutually_exclusive(self):
     runner = MockRunners.DataflowRunner()
@@ -409,10 +428,15 @@ class SetupTest(unittest.TestCase):
         'worker_region=us-west1',
         '--worker_zone',
         'us-east1-b',
+        '--project=example:example',
+        '--temp_location=gs://foo/bar',
     ])
     validator = PipelineOptionsValidator(options, runner)
     errors = validator.validate()
-    self.assertTrue(errors)
+    self.assertEqual(len(errors), 1)
+    self.assertIn('experiment', errors[0])
+    self.assertIn('worker_region', errors[0])
+    self.assertIn('worker_zone', errors[0])
 
   def test_worker_region_and_worker_zone_mutually_exclusive(self):
     runner = MockRunners.DataflowRunner()
@@ -421,10 +445,40 @@ class SetupTest(unittest.TestCase):
         'us-east1',
         '--worker_zone',
         'us-east1-b',
+        '--project=example:example',
+        '--temp_location=gs://foo/bar',
     ])
     validator = PipelineOptionsValidator(options, runner)
     errors = validator.validate()
-    self.assertTrue(errors)
+    self.assertEqual(len(errors), 1)
+    self.assertIn('worker_region', errors[0])
+    self.assertIn('worker_zone', errors[0])
+
+  def test_zone_alias_worker_zone(self):
+    runner = MockRunners.DataflowRunner()
+    options = PipelineOptions([
+        '--zone=us-east1-b',
+        '--project=example:example',
+        '--temp_location=gs://foo/bar',
+    ])
+    validator = PipelineOptionsValidator(options, runner)
+    errors = validator.validate()
+    self.assertEqual(len(errors), 0)
+    self.assertIsNone(options.view_as(WorkerOptions).zone)
+    self.assertEqual(options.view_as(WorkerOptions).worker_zone, 'us-east1-b')
+
+  def test_region_optional_for_non_service_runner(self):
+    runner = MockRunners.DataflowRunner()
+    # Remove default region for this test.
+    runner.get_default_gcp_region = lambda: None
+    options = PipelineOptions([
+        '--project=example:example',
+        '--temp_location=gs://foo/bar',
+        '--dataflow_endpoint=http://localhost:20281',
+    ])
+    validator = PipelineOptionsValidator(options, runner)
+    errors = validator.validate()
+    self.assertEqual(len(errors), 0)
 
   def test_test_matcher(self):
     def get_validator(matcher):
@@ -501,6 +555,215 @@ class SetupTest(unittest.TestCase):
         errors,
         only_contains(
             contains_string('Invalid transform name mapping format.')))
+
+  def test_type_check_additional(self):
+    runner = MockRunners.OtherRunner()
+    options = PipelineOptions(['--type_check_additional=all'])
+    validator = PipelineOptionsValidator(options, runner)
+    errors = validator.validate()
+    self.assertFalse(errors)
+
+    options = PipelineOptions(['--type_check_additional='])
+    validator = PipelineOptionsValidator(options, runner)
+    errors = validator.validate()
+    self.assertFalse(errors)
+
+  def test_type_check_additional_unrecognized_feature(self):
+    runner = MockRunners.OtherRunner()
+    options = PipelineOptions(['--type_check_additional=all,dfgdf'])
+    validator = PipelineOptionsValidator(options, runner)
+    errors = validator.validate()
+    self.assertTrue(errors)
+
+  def test_environment_options(self):
+    test_cases = [
+        {
+            'options': ['--environment_type=dOcKeR'], 'errors': []
+        },
+        {
+            'options': [
+                '--environment_type=dOcKeR',
+                '--environment_options=docker_container_image=foo'
+            ],
+            'errors': []
+        },
+        {
+            'options': [
+                '--environment_type=dOcKeR', '--environment_config=foo'
+            ],
+            'errors': []
+        },
+        {
+            'options': [
+                '--environment_type=dOcKeR',
+                '--environment_options=docker_container_image=foo',
+                '--environment_config=foo'
+            ],
+            'errors': ['environment_config']
+        },
+        {
+            'options': [
+                '--environment_type=dOcKeR',
+                '--environment_options=process_command=foo',
+                '--environment_options=process_variables=foo=bar',
+                '--environment_options=external_service_address=foo'
+            ],
+            'errors': [
+                'process_command',
+                'process_variables',
+                'external_service_address'
+            ]
+        },
+        {
+            'options': ['--environment_type=pRoCeSs'],
+            'errors': ['process_command']
+        },
+        {
+            'options': [
+                '--environment_type=pRoCeSs',
+                '--environment_options=process_command=foo'
+            ],
+            'errors': []
+        },
+        {
+            'options': [
+                '--environment_type=pRoCeSs', '--environment_config=foo'
+            ],
+            'errors': []
+        },
+        {
+            'options': [
+                '--environment_type=pRoCeSs',
+                '--environment_options=process_command=foo',
+                '--environment_config=foo'
+            ],
+            'errors': ['environment_config']
+        },
+        {
+            'options': [
+                '--environment_type=pRoCeSs',
+                '--environment_options=process_command=foo',
+                '--environment_options=process_variables=foo=bar',
+                '--environment_options=docker_container_image=foo',
+                '--environment_options=external_service_address=foo'
+            ],
+            'errors': ['docker_container_image', 'external_service_address']
+        },
+        {
+            'options': ['--environment_type=eXtErNaL'],
+            'errors': ['external_service_address']
+        },
+        {
+            'options': [
+                '--environment_type=eXtErNaL',
+                '--environment_options=external_service_address=foo'
+            ],
+            'errors': []
+        },
+        {
+            'options': [
+                '--environment_type=eXtErNaL', '--environment_config=foo'
+            ],
+            'errors': []
+        },
+        {
+            'options': [
+                '--environment_type=eXtErNaL',
+                '--environment_options=external_service_address=foo',
+                '--environment_config=foo'
+            ],
+            'errors': ['environment_config']
+        },
+        {
+            'options': [
+                '--environment_type=eXtErNaL',
+                '--environment_options=external_service_address=foo',
+                '--environment_options=process_command=foo',
+                '--environment_options=process_variables=foo=bar',
+                '--environment_options=docker_container_image=foo',
+            ],
+            'errors': [
+                'process_command',
+                'process_variables',
+                'docker_container_image'
+            ]
+        },
+        {
+            'options': ['--environment_type=lOoPbACk'], 'errors': []
+        },
+        {
+            'options': [
+                '--environment_type=lOoPbACk', '--environment_config=foo'
+            ],
+            'errors': ['environment_config']
+        },
+        {
+            'options': [
+                '--environment_type=lOoPbACk',
+                '--environment_options=docker_container_image=foo',
+                '--environment_options=process_command=foo',
+                '--environment_options=process_variables=foo=bar',
+                '--environment_options=external_service_address=foo',
+            ],
+            'errors': [
+                'docker_container_image',
+                'process_command',
+                'process_variables',
+                'external_service_address'
+            ]
+        },
+        {
+            'options': ['--environment_type=beam:env:foo:v1'], 'errors': []
+        },
+        {
+            'options': [
+                '--environment_type=beam:env:foo:v1',
+                '--environment_config=foo'
+            ],
+            'errors': []
+        },
+        {
+            'options': [
+                '--environment_type=beam:env:foo:v1',
+                '--environment_options=docker_container_image=foo',
+                '--environment_options=process_command=foo',
+                '--environment_options=process_variables=foo=bar',
+                '--environment_options=external_service_address=foo',
+            ],
+            'errors': [
+                'docker_container_image',
+                'process_command',
+                'process_variables',
+                'external_service_address'
+            ]
+        },
+        {
+            'options': [
+                '--environment_options=docker_container_image=foo',
+                '--environment_options=process_command=foo',
+                '--environment_options=process_variables=foo=bar',
+                '--environment_options=external_service_address=foo',
+            ],
+            'errors': [
+                'docker_container_image',
+                'process_command',
+                'process_variables',
+                'external_service_address'
+            ]
+        },
+    ]
+    errors = []
+    for case in test_cases:
+      validator = PipelineOptionsValidator(
+          PipelineOptions(case['options']), MockRunners.OtherRunner())
+      validation_result = validator.validate()
+      validation_errors = self.check_errors_for_arguments(
+          validation_result, case['errors'])
+      if validation_errors:
+        errors.append(
+            'Options "%s" had unexpected validation results: "%s"' %
+            (' '.join(case['options']), ' '.join(validation_errors)))
+    self.assertEqual(errors, [])
 
 
 if __name__ == '__main__':

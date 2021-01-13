@@ -116,6 +116,7 @@ function verify_wordcount_dataflow() {
     --runner DataflowRunner \
     --job_name wordcount \
     --project $PROJECT_ID \
+    --region $REGION_ID \
     --num_workers $NUM_WORKERS \
     --sdk_location $BEAM_PYTHON_SDK
 
@@ -177,6 +178,7 @@ function verify_streaming_wordcount_dataflow() {
     --streaming \
     --job_name pyflow-wordstream-candidate \
     --project $PROJECT_ID \
+    --region $REGION_ID \
     --runner DataflowRunner \
     --input_topic projects/$PROJECT_ID/topics/$PUBSUB_TOPIC1 \
     --output_topic projects/$PROJECT_ID/topics/$PUBSUB_TOPIC2 \
@@ -213,7 +215,7 @@ function verify_streaming_wordcount_dataflow() {
 #   VERSION
 # Arguments:
 #   $1 - sdk types: [tar, wheel]
-#   $2 - python interpreter version: [python2.7, python3.5, ...]
+#   $2 - python interpreter version: [python3.7, python3.8, ...]
 #######################################
 function run_release_candidate_python_quickstart(){
   print_separator "Start Quickstarts Examples"

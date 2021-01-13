@@ -27,8 +27,6 @@ import com.google.protobuf.Message;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.Fixed32;
 import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.Fixed64;
 import org.apache.beam.sdk.extensions.protobuf.ProtoSchemaLogicalTypes.SFixed32;
@@ -127,27 +125,37 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
  *       label is specified.
  * </ul>
  */
-@Experimental(Kind.SCHEMAS)
-public class ProtoSchemaTranslator {
-  /** This METADATA tag is used to store the field number of a proto tag. */
-  public static final String PROTO_NUMBER_METADATA_TAG = "PROTO_NUMBER";
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
+class ProtoSchemaTranslator {
+  public static final String SCHEMA_OPTION_META_NUMBER = "beam:option:proto:meta:number";
+
+  public static final String SCHEMA_OPTION_META_TYPE_NAME = "beam:option:proto:meta:type_name";
+
+  /** Option prefix for options on messages. */
+  public static final String SCHEMA_OPTION_MESSAGE_PREFIX = "beam:option:proto:message:";
+
+  /** Option prefix for options on fields. */
+  public static final String SCHEMA_OPTION_FIELD_PREFIX = "beam:option:proto:field:";
 
   /** Attach a proto field number to a type. */
-  public static FieldType withFieldNumber(FieldType fieldType, int index) {
-    return fieldType.withMetadata(PROTO_NUMBER_METADATA_TAG, Long.toString(index));
+  static Field withFieldNumber(Field field, int number) {
+    return field.withOptions(
+        Schema.Options.builder().setOption(SCHEMA_OPTION_META_NUMBER, FieldType.INT32, number));
   }
 
   /** Return the proto field number for a type. */
-  public static int getFieldNumber(FieldType fieldType) {
-    return Integer.parseInt(fieldType.getMetadataString(PROTO_NUMBER_METADATA_TAG));
+  static int getFieldNumber(Field field) {
+    return field.getOptions().getValue(SCHEMA_OPTION_META_NUMBER);
   }
 
   /** Return a Beam scheam representing a proto class. */
-  public static Schema getSchema(Class<? extends Message> clazz) {
+  static Schema getSchema(Class<? extends Message> clazz) {
     return getSchema(ProtobufUtil.getDescriptorForClass(clazz));
   }
 
-  private static Schema getSchema(Descriptors.Descriptor descriptor) {
+  static Schema getSchema(Descriptors.Descriptor descriptor) {
     Set<Integer> oneOfFields = Sets.newHashSet();
     List<Field> fields = Lists.newArrayListWithCapacity(descriptor.getFields().size());
     for (OneofDescriptor oneofDescriptor : descriptor.getOneofs()) {
@@ -155,11 +163,11 @@ public class ProtoSchemaTranslator {
       Map<String, Integer> enumIds = Maps.newHashMap();
       for (FieldDescriptor fieldDescriptor : oneofDescriptor.getFields()) {
         oneOfFields.add(fieldDescriptor.getNumber());
-        // Store proto field number in metadata.
-        FieldType fieldType =
+        // Store proto field number in a field option.
+        FieldType fieldType = beamFieldTypeFromProtoField(fieldDescriptor);
+        subFields.add(
             withFieldNumber(
-                beamFieldTypeFromProtoField(fieldDescriptor), fieldDescriptor.getNumber());
-        subFields.add(Field.nullable(fieldDescriptor.getName(), fieldType));
+                Field.nullable(fieldDescriptor.getName(), fieldType), fieldDescriptor.getNumber()));
         checkArgument(
             enumIds.putIfAbsent(fieldDescriptor.getName(), fieldDescriptor.getNumber()) == null);
       }
@@ -170,13 +178,20 @@ public class ProtoSchemaTranslator {
     for (Descriptors.FieldDescriptor fieldDescriptor : descriptor.getFields()) {
       if (!oneOfFields.contains(fieldDescriptor.getNumber())) {
         // Store proto field number in metadata.
-        FieldType fieldType =
+        FieldType fieldType = beamFieldTypeFromProtoField(fieldDescriptor);
+        fields.add(
             withFieldNumber(
-                beamFieldTypeFromProtoField(fieldDescriptor), fieldDescriptor.getNumber());
-        fields.add(Field.of(fieldDescriptor.getName(), fieldType));
+                    Field.of(fieldDescriptor.getName(), fieldType), fieldDescriptor.getNumber())
+                .withOptions(getFieldOptions(fieldDescriptor)));
       }
     }
-    return Schema.builder().addFields(fields).build();
+    return Schema.builder()
+        .addFields(fields)
+        .setOptions(
+            getSchemaOptions(descriptor)
+                .setOption(
+                    SCHEMA_OPTION_META_TYPE_NAME, FieldType.STRING, descriptor.getFullName()))
+        .build();
   }
 
   private static FieldType beamFieldTypeFromProtoField(
@@ -298,5 +313,51 @@ public class ProtoSchemaTranslator {
         throw new RuntimeException("Field type not matched.");
     }
     return fieldType;
+  }
+
+  private static Schema.Options.Builder getFieldOptions(FieldDescriptor fieldDescriptor) {
+    return getOptions(SCHEMA_OPTION_FIELD_PREFIX, fieldDescriptor.getOptions().getAllFields());
+  }
+
+  private static Schema.Options.Builder getSchemaOptions(Descriptors.Descriptor descriptor) {
+    return getOptions(SCHEMA_OPTION_MESSAGE_PREFIX, descriptor.getOptions().getAllFields());
+  }
+
+  private static Schema.Options.Builder getOptions(
+      String prefix, Map<FieldDescriptor, Object> allFields) {
+    Schema.Options.Builder optionsBuilder = Schema.Options.builder();
+    for (Map.Entry<FieldDescriptor, Object> entry : allFields.entrySet()) {
+      FieldDescriptor fieldDescriptor = entry.getKey();
+      FieldType fieldType = beamFieldTypeFromProtoField(fieldDescriptor);
+
+      switch (fieldType.getTypeName()) {
+        case BYTE:
+        case BYTES:
+        case INT16:
+        case INT32:
+        case INT64:
+        case DECIMAL:
+        case FLOAT:
+        case DOUBLE:
+        case STRING:
+        case BOOLEAN:
+        case LOGICAL_TYPE:
+        case ROW:
+        case ARRAY:
+        case ITERABLE:
+          Field field = Field.of("OPTION", fieldType);
+          ProtoDynamicMessageSchema schema = ProtoDynamicMessageSchema.forSchema(Schema.of(field));
+          optionsBuilder.setOption(
+              prefix + fieldDescriptor.getFullName(),
+              fieldType,
+              schema.createConverter(field).convertFromProtoValue(entry.getValue()));
+          break;
+        case MAP:
+        case DATETIME:
+        default:
+          throw new IllegalStateException("These datatypes are not possible in extentions.");
+      }
+    }
+    return optionsBuilder;
   }
 }

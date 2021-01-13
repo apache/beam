@@ -46,6 +46,9 @@ import org.junit.rules.ExpectedException;
  *
  * <p>Note that, any change in these records would impact tests in this package.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BeamSqlDslBase {
   @Rule public final TestPipeline pipeline = TestPipeline.create();
   @Rule public ExpectedException exceptions = ExpectedException.none();
@@ -213,6 +216,12 @@ public class BeamSqlDslBase {
                 "TO_HEX",
                 "abcABC".getBytes(UTF_8),
                 "TO_HEX",
+                "abcABCжщфЖЩФ".getBytes(UTF_8),
+                "HashingFn",
+                "foobar".getBytes(UTF_8),
+                "HashingFn",
+                " ".getBytes(UTF_8),
+                "HashingFn",
                 "abcABCжщфЖЩФ".getBytes(UTF_8))
             .getRows();
 

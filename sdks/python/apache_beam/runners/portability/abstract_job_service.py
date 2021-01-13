@@ -18,6 +18,7 @@
 
 from __future__ import absolute_import
 
+import copy
 import itertools
 import json
 import logging
@@ -46,7 +47,9 @@ from apache_beam.runners.portability import artifact_service
 from apache_beam.utils.timestamp import Timestamp
 
 if TYPE_CHECKING:
-  from google.protobuf import struct_pb2  # pylint: disable=ungrouped-imports
+  # pylint: disable=ungrouped-imports
+  from typing import BinaryIO
+  from google.protobuf import struct_pb2
   from apache_beam.portability.api import beam_runner_api_pb2
 
 _LOGGER = logging.getLogger(__name__)
@@ -134,8 +137,7 @@ class AbstractJobServiceServicer(beam_job_api_pb2_grpc.JobServiceServicer):
       request,  # type: beam_job_api_pb2.GetJobStateRequest
       context=None):
     # type: (...) -> beam_job_api_pb2.JobStateEvent
-    return beam_job_api_pb2.JobStateEvent(
-        state=self._jobs[request.job_id].get_state())
+    return make_state_event(*self._jobs[request.job_id].get_state())
 
   def GetPipeline(self,
                   request,  # type: beam_job_api_pb2.GetJobPipelineRequest
@@ -154,7 +156,7 @@ class AbstractJobServiceServicer(beam_job_api_pb2_grpc.JobServiceServicer):
     # type: (...) -> beam_job_api_pb2.CancelJobResponse
     self._jobs[request.job_id].cancel()
     return beam_job_api_pb2.CancelJobResponse(
-        state=self._jobs[request.job_id].get_state())
+        state=self._jobs[request.job_id].get_state()[0])
 
   def GetStateStream(self, request, context=None, timeout=None):
     # type: (...) -> Iterator[beam_job_api_pb2.JobStateEvent]
@@ -195,7 +197,7 @@ class AbstractBeamJob(object):
 
   def __init__(self,
                job_id,  # type: str
-               job_name,  # type: str
+               job_name,  # type: Optional[str]
                pipeline,  # type: beam_runner_api_pb2.Pipeline
                options  # type: struct_pb2.Struct
               ):
@@ -278,6 +280,27 @@ class AbstractBeamJob(object):
         state=self.state)
 
 
+class JarArtifactManager(object):
+  def __init__(self, jar_path, root):
+    self._root = root
+    self._zipfile_handle = zipfile.ZipFile(jar_path, 'a')
+
+  def close(self):
+    self._zipfile_handle.close()
+
+  def file_writer(self, path):
+    # type: (str) -> Tuple[BinaryIO, str]
+
+    """Given a relative path, returns an open handle that can be written to
+    and an reference that can later be used to read this file."""
+    full_path = '%s/%s' % (self._root, path)
+    return self._zipfile_handle.open(
+        full_path, 'w', force_zip64=True), 'classpath://%s' % full_path
+
+  def zipfile_handle(self):
+    return self._zipfile_handle
+
+
 class UberJarBeamJob(AbstractBeamJob):
   """Abstract baseclass for creating a Beam job. The resulting job will be
   packaged and run in an executable uber jar."""
@@ -291,8 +314,6 @@ class UberJarBeamJob(AbstractBeamJob):
   PIPELINE_PATH = '/'.join([PIPELINE_FOLDER, PIPELINE_NAME, "pipeline.json"])
   PIPELINE_OPTIONS_PATH = '/'.join(
       [PIPELINE_FOLDER, PIPELINE_NAME, 'pipeline-options.json'])
-  ARTIFACT_MANIFEST_PATH = '/'.join(
-      [PIPELINE_FOLDER, PIPELINE_NAME, 'artifact-manifest.json'])
   ARTIFACT_FOLDER = '/'.join([PIPELINE_FOLDER, PIPELINE_NAME, 'artifacts'])
 
   def __init__(
@@ -313,23 +334,19 @@ class UberJarBeamJob(AbstractBeamJob):
     with tempfile.NamedTemporaryFile(suffix='.jar') as tout:
       self._jar = tout.name
     shutil.copy(self._executable_jar, self._jar)
-    with zipfile.ZipFile(self._jar, 'a', compression=zipfile.ZIP_DEFLATED) as z:
-      with z.open(self.PIPELINE_PATH, 'w') as fout:
-        fout.write(
-            json_format.MessageToJson(self._pipeline_proto).encode('utf-8'))
-      with z.open(self.PIPELINE_OPTIONS_PATH, 'w') as fout:
-        fout.write(
-            json_format.MessageToJson(self._pipeline_options).encode('utf-8'))
-      with z.open(self.PIPELINE_MANIFEST, 'w') as fout:
-        fout.write(
-            json.dumps({
-                'defaultJobName': self.PIPELINE_NAME
-            }).encode('utf-8'))
     self._start_artifact_service(self._jar, self._artifact_port)
 
   def _start_artifact_service(self, jar, requested_port):
-    self._artifact_staging_service = artifact_service.ZipFileArtifactService(
-        jar, self.ARTIFACT_FOLDER)
+    self._artifact_manager = JarArtifactManager(self._jar, self.ARTIFACT_FOLDER)
+    self._artifact_staging_service = artifact_service.ArtifactStagingService(
+        self._artifact_manager.file_writer)
+    self._artifact_staging_service.register_job(
+        self._job_id,
+        {
+            env_id: env.dependencies
+            for (env_id,
+                 env) in self._pipeline_proto.components.environments.items()
+        })
     self._artifact_staging_server = grpc.server(futures.ThreadPoolExecutor())
     port = self._artifact_staging_server.add_insecure_port(
         '[::]:%s' % requested_port)
@@ -343,9 +360,34 @@ class UberJarBeamJob(AbstractBeamJob):
 
   def _stop_artifact_service(self):
     self._artifact_staging_server.stop(1)
-    self._artifact_staging_service.close()
-    self._artifact_manifest_location = (
-        self._artifact_staging_service.retrieval_token(self._job_id))
+
+    # Update dependencies to point to staged files.
+    pipeline = copy.copy(self._pipeline_proto)
+    if any(env.dependencies
+           for env in pipeline.components.environments.values()):
+      for env_id, deps in self._artifact_staging_service.resolved_deps(
+          self._job_id).items():
+        # Slice assignment not supported for repeated fields.
+        env = self._pipeline_proto.components.environments[env_id]
+        del env.dependencies[:]
+        env.dependencies.extend(deps)
+
+    # Copy the pipeline definition and metadata into the jar.
+    z = self._artifact_manager.zipfile_handle()
+    with z.open(self.PIPELINE_PATH, 'w') as fout:
+      fout.write(
+          json_format.MessageToJson(self._pipeline_proto).encode('utf-8'))
+    with z.open(self.PIPELINE_OPTIONS_PATH, 'w') as fout:
+      fout.write(
+          json_format.MessageToJson(self._pipeline_options).encode('utf-8'))
+    with z.open(self.PIPELINE_MANIFEST, 'w') as fout:
+      fout.write(
+          json.dumps({
+              'defaultJobName': self.PIPELINE_NAME
+          }).encode('utf-8'))
+
+    # Closes the jar file.
+    self._artifact_manager.close()
 
   def artifact_staging_endpoint(self):
     return self._artifact_staging_endpoint

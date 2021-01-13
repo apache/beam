@@ -31,6 +31,7 @@ import org.apache.beam.sdk.fn.data.BeamFnDataBufferingOutboundObserver;
 import org.apache.beam.sdk.fn.data.BeamFnDataGrpcMultiplexer;
 import org.apache.beam.sdk.fn.data.BeamFnDataInboundObserver;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
+import org.apache.beam.sdk.fn.data.DecodingFnDataReceiver;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
@@ -49,6 +50,9 @@ import org.slf4j.LoggerFactory;
  * <p>This service transmits all outgoing {@link BeamFnApi.Elements} messages to the first client
  * that connects.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
     implements FnService, FnDataService {
   private static final Logger LOG = LoggerFactory.getLogger(GrpcDataService.class);
@@ -141,8 +145,9 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
         "Registering receiver for instruction {} and transform {}",
         inputLocation.getInstructionId(),
         inputLocation.getTransformId());
-    final BeamFnDataInboundObserver<T> observer =
-        BeamFnDataInboundObserver.forConsumer(coder, listener);
+    final BeamFnDataInboundObserver observer =
+        BeamFnDataInboundObserver.forConsumer(
+            inputLocation, new DecodingFnDataReceiver<T>(coder, listener));
     if (connectedClient.isDone()) {
       try {
         connectedClient.get().registerConsumer(inputLocation, observer);

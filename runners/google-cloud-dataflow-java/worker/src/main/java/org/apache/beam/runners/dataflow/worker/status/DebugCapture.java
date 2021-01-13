@@ -20,7 +20,7 @@ package org.apache.beam.runners.dataflow.worker.status;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.api.client.json.JsonFactory;
-import com.google.api.client.json.jackson.JacksonFactory;
+import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.client.util.Key;
 import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.GetDebugConfigRequest;
@@ -45,6 +45,9 @@ import org.slf4j.LoggerFactory;
  * DebugCapture encapsulates a simple periodic sender for HTML pages to the debug capture service.
  * It is dynamically configured by the service.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DebugCapture {
   private static final Logger LOG = LoggerFactory.getLogger(DebugCapture.class);
   private static final JsonFactory JSON_FACTORY = new JacksonFactory();
@@ -120,11 +123,14 @@ public class DebugCapture {
       region = options.getRegion();
       this.capturables = capturables;
       enabled = !capturables.isEmpty();
+
+      LOG.info("Created Debug Capture Manager");
     }
 
     @SuppressWarnings("FutureReturnValueIgnored")
     public void start() {
       if (!enabled) {
+        LOG.info("Debug Capture Manager disabled");
         return;
       }
 
@@ -133,6 +139,8 @@ public class DebugCapture {
           this::updateConfig, 0, UPDATE_CONFIG_PERIOD_SEC, TimeUnit.SECONDS);
       executor.scheduleAtFixedRate(
           this::maybeSendCapture, 0, SEND_CAPTURE_PERIOD_SEC, TimeUnit.SECONDS);
+
+      LOG.info("Debug Capture Manager initialized");
     }
 
     public void stop() {
@@ -208,6 +216,8 @@ public class DebugCapture {
         synchronized (lock) {
           lastCaptureUsec = DateTime.now().getMillis() * 1000;
         }
+
+        LOG.debug("Sent Debug Capture payload");
       } catch (Exception e) {
         LOG.info("Does not send debug capture data", e);
       }

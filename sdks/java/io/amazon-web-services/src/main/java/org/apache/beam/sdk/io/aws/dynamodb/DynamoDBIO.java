@@ -32,11 +32,11 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
@@ -63,6 +63,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.http.HttpStatus;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -97,6 +98,11 @@ import org.slf4j.LoggerFactory;
  *       writeRequest>
  * </ul>
  *
+ * If primary keys could repeat in your stream (i.e. an upsert stream), you could encounter a
+ * ValidationError, as AWS does not allow writing duplicate keys within a single batch operation.
+ * For such use cases, you can explicitly set the key names corresponding to the primary key to be
+ * deduplicated using the withDeduplicateKeys method
+ *
  * <h3>Reading from DynamoDB</h3>
  *
  * <p>Example usage:
@@ -121,32 +127,32 @@ import org.slf4j.LoggerFactory;
  * </ul>
  */
 @Experimental(Kind.SOURCE_SINK)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public final class DynamoDBIO {
   public static <T> Read<T> read() {
     return new AutoValue_DynamoDBIO_Read.Builder().build();
   }
 
   public static <T> Write<T> write() {
-    return new AutoValue_DynamoDBIO_Write.Builder().build();
+    return new AutoValue_DynamoDBIO_Write.Builder().setDeduplicateKeys(new ArrayList<>()).build();
   }
 
   /** Read data from DynamoDB and return ScanResult. */
   @AutoValue
   public abstract static class Read<T> extends PTransform<PBegin, PCollection<T>> {
-    @Nullable
-    abstract AwsClientsProvider getAwsClientsProvider();
 
-    @Nullable
-    abstract SerializableFunction<Void, ScanRequest> getScanRequestFn();
+    abstract @Nullable AwsClientsProvider getAwsClientsProvider();
 
-    @Nullable
-    abstract Integer getSegmentId();
+    abstract @Nullable SerializableFunction<Void, ScanRequest> getScanRequestFn();
 
-    @Nullable
-    abstract SerializableFunction<ScanResult, T> getScanResultMapperFn();
+    abstract @Nullable Integer getSegmentId();
 
-    @Nullable
-    abstract Coder<T> getCoder();
+    abstract @Nullable SerializableFunction<ScanResult, T> getScanResultMapperFn();
+
+    abstract @Nullable Coder<T> getCoder();
 
     abstract Builder<T> toBuilder();
 
@@ -340,14 +346,13 @@ public final class DynamoDBIO {
   @AutoValue
   public abstract static class Write<T> extends PTransform<PCollection<T>, PCollection<Void>> {
 
-    @Nullable
-    abstract AwsClientsProvider getAwsClientsProvider();
+    abstract @Nullable AwsClientsProvider getAwsClientsProvider();
 
-    @Nullable
-    abstract RetryConfiguration getRetryConfiguration();
+    abstract @Nullable RetryConfiguration getRetryConfiguration();
 
-    @Nullable
-    abstract SerializableFunction<T, KV<String, WriteRequest>> getWriteItemMapperFn();
+    abstract @Nullable SerializableFunction<T, KV<String, WriteRequest>> getWriteItemMapperFn();
+
+    abstract List<String> getDeduplicateKeys();
 
     abstract Builder<T> builder();
 
@@ -360,6 +365,8 @@ public final class DynamoDBIO {
 
       abstract Builder<T> setWriteItemMapperFn(
           SerializableFunction<T, KV<String, WriteRequest>> writeItemMapperFn);
+
+      abstract Builder<T> setDeduplicateKeys(List<String> deduplicateKeys);
 
       abstract Write<T> build();
     }
@@ -409,6 +416,10 @@ public final class DynamoDBIO {
       return builder().setWriteItemMapperFn(writeItemMapperFn).build();
     }
 
+    public Write<T> withDeduplicateKeys(List<String> deduplicateKeys) {
+      return builder().setDeduplicateKeys(deduplicateKeys).build();
+    }
+
     @Override
     public PCollection<Void> expand(PCollection<T> input) {
       return input.apply(ParDo.of(new WriteFn<>(this)));
@@ -427,7 +438,7 @@ public final class DynamoDBIO {
       private static final int BATCH_SIZE = 25;
       private transient AmazonDynamoDB client;
       private final DynamoDBIO.Write spec;
-      private List<KV<String, WriteRequest>> batch;
+      private Map<KV<String, Map<String, AttributeValue>>, KV<String, WriteRequest>> batch;
 
       WriteFn(DynamoDBIO.Write spec) {
         this.spec = spec;
@@ -450,16 +461,32 @@ public final class DynamoDBIO {
 
       @StartBundle
       public void startBundle(StartBundleContext context) {
-        batch = new ArrayList<>();
+        batch = new HashMap<>();
       }
 
       @ProcessElement
       public void processElement(ProcessContext context) throws Exception {
         final KV<String, WriteRequest> writeRequest =
             (KV<String, WriteRequest>) spec.getWriteItemMapperFn().apply(context.element());
-        batch.add(writeRequest);
+        batch.put(
+            KV.of(writeRequest.getKey(), extractDeduplicateKeyValues(writeRequest.getValue())),
+            writeRequest);
         if (batch.size() >= BATCH_SIZE) {
           flushBatch();
+        }
+      }
+
+      private Map<String, AttributeValue> extractDeduplicateKeyValues(WriteRequest request) {
+        if (request.getPutRequest() != null) {
+          return request.getPutRequest().getItem().entrySet().stream()
+              .filter(entry -> spec.getDeduplicateKeys().contains(entry.getKey()))
+              .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+        } else if (request.getDeleteRequest() != null) {
+          return request.getDeleteRequest().getKey().entrySet().stream()
+              .filter(entry -> spec.getDeduplicateKeys().contains(entry.getKey()))
+              .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+        } else {
+          return Collections.emptyMap();
         }
       }
 
@@ -477,7 +504,7 @@ public final class DynamoDBIO {
           // Since each element is a KV<tableName, writeRequest> in the batch, we need to group them
           // by tableName
           Map<String, List<WriteRequest>> mapTableRequest =
-              batch.stream()
+              batch.values().stream()
                   .collect(
                       Collectors.groupingBy(
                           KV::getKey, Collectors.mapping(KV::getValue, Collectors.toList())));
@@ -502,7 +529,7 @@ public final class DynamoDBIO {
                   || !spec.getRetryConfiguration().getRetryPredicate().test(ex)) {
                 DYNAMO_DB_WRITE_FAILURES.inc();
                 LOG.info(
-                    "Unable to write batch items {} due to {} ",
+                    "Unable to write batch items {}.",
                     batchRequest.getRequestItems().entrySet(),
                     ex);
                 throw new IOException("Error writing to DynamoDB (no attempt made to retry)", ex);

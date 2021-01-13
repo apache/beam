@@ -57,28 +57,15 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
 
   static DockerEnvironmentFactory forServicesWithDocker(
       DockerCommand docker,
-      GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
-      GrpcFnServer<GrpcLoggingService> loggingServiceServer,
-      GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
       GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
       ControlClientPool.Source clientSource,
       IdGenerator idGenerator,
       PipelineOptions pipelineOptions) {
     return new DockerEnvironmentFactory(
-        docker,
-        controlServiceServer,
-        loggingServiceServer,
-        retrievalServiceServer,
-        provisioningServiceServer,
-        idGenerator,
-        clientSource,
-        pipelineOptions);
+        docker, provisioningServiceServer, idGenerator, clientSource, pipelineOptions);
   }
 
   private final DockerCommand docker;
-  private final GrpcFnServer<FnApiControlClientPoolService> controlServiceServer;
-  private final GrpcFnServer<GrpcLoggingService> loggingServiceServer;
-  private final GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer;
   private final GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer;
   private final IdGenerator idGenerator;
   private final ControlClientPool.Source clientSource;
@@ -86,17 +73,11 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
 
   private DockerEnvironmentFactory(
       DockerCommand docker,
-      GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
-      GrpcFnServer<GrpcLoggingService> loggingServiceServer,
-      GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
       GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
       IdGenerator idGenerator,
       ControlClientPool.Source clientSource,
       PipelineOptions pipelineOptions) {
     this.docker = docker;
-    this.controlServiceServer = controlServiceServer;
-    this.loggingServiceServer = loggingServiceServer;
-    this.retrievalServiceServer = retrievalServiceServer;
     this.provisioningServiceServer = provisioningServiceServer;
     this.idGenerator = idGenerator;
     this.clientSource = clientSource;
@@ -105,7 +86,8 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
 
   /** Creates a new, active {@link RemoteEnvironment} backed by a local Docker container. */
   @Override
-  public RemoteEnvironment createEnvironment(Environment environment) throws Exception {
+  public RemoteEnvironment createEnvironment(Environment environment, String workerId)
+      throws Exception {
     Preconditions.checkState(
         environment
             .getUrn()
@@ -113,16 +95,12 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
         "The passed environment does not contain a DockerPayload.");
     final RunnerApi.DockerPayload dockerPayload =
         RunnerApi.DockerPayload.parseFrom(environment.getPayload());
-    final String workerId = idGenerator.getId();
 
     // Prepare docker invocation.
     String containerImage = dockerPayload.getContainerImage();
     // TODO: https://issues.apache.org/jira/browse/BEAM-4148 The default service address will not
     // work for Docker for Mac.
-    String loggingEndpoint = loggingServiceServer.getApiServiceDescriptor().getUrl();
-    String artifactEndpoint = retrievalServiceServer.getApiServiceDescriptor().getUrl();
     String provisionEndpoint = provisioningServiceServer.getApiServiceDescriptor().getUrl();
-    String controlEndpoint = controlServiceServer.getApiServiceDescriptor().getUrl();
 
     ImmutableList.Builder<String> dockerOptsBuilder =
         ImmutableList.<String>builder()
@@ -133,20 +111,14 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
             // host networking on Mac)
             .add("--env=DOCKER_MAC_CONTAINER=" + System.getenv("DOCKER_MAC_CONTAINER"));
 
-    Boolean retainDockerContainer =
+    final boolean retainDockerContainer =
         pipelineOptions.as(ManualDockerEnvironmentOptions.class).getRetainDockerContainers();
-    if (!retainDockerContainer) {
-      dockerOptsBuilder.add("--rm");
-    }
 
     String semiPersistDir = pipelineOptions.as(RemoteEnvironmentOptions.class).getSemiPersistDir();
     ImmutableList.Builder<String> argsBuilder =
         ImmutableList.<String>builder()
             .add(String.format("--id=%s", workerId))
-            .add(String.format("--logging_endpoint=%s", loggingEndpoint))
-            .add(String.format("--artifact_endpoint=%s", artifactEndpoint))
-            .add(String.format("--provision_endpoint=%s", provisionEndpoint))
-            .add(String.format("--control_endpoint=%s", controlEndpoint));
+            .add(String.format("--provision_endpoint=%s", provisionEndpoint));
     if (semiPersistDir != null) {
       argsBuilder.add(String.format("--semi_persist_dir=%s", semiPersistDir));
     }
@@ -277,9 +249,6 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
         IdGenerator idGenerator) {
       return DockerEnvironmentFactory.forServicesWithDocker(
           DockerCommand.getDefault(),
-          controlServiceServer,
-          loggingServiceServer,
-          retrievalServiceServer,
           provisioningServiceServer,
           clientPool.getSource(),
           idGenerator,

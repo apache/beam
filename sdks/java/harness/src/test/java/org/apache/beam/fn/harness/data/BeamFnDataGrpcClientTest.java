@@ -19,10 +19,10 @@ package org.apache.beam.fn.harness.data;
 
 import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
 import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.collection.IsEmptyCollection.empty;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 import java.util.Collection;
@@ -59,13 +59,16 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link BeamFnDataGrpcClient}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BeamFnDataGrpcClientTest {
   private static final Coder<WindowedValue<String>> CODER =
       LengthPrefixCoder.of(
           WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE));
-  private static final LogicalEndpoint ENDPOINT_A = LogicalEndpoint.of("12L", "34L");
+  private static final LogicalEndpoint ENDPOINT_A = LogicalEndpoint.data("12L", "34L");
 
-  private static final LogicalEndpoint ENDPOINT_B = LogicalEndpoint.of("56L", "78L");
+  private static final LogicalEndpoint ENDPOINT_B = LogicalEndpoint.data("56L", "78L");
 
   private static final BeamFnApi.Elements ELEMENTS_A_1;
   private static final BeamFnApi.Elements ELEMENTS_A_2;
@@ -97,7 +100,8 @@ public class BeamFnDataGrpcClientTest {
               .addData(
                   BeamFnApi.Elements.Data.newBuilder()
                       .setInstructionId(ENDPOINT_A.getInstructionId())
-                      .setTransformId(ENDPOINT_A.getTransformId()))
+                      .setTransformId(ENDPOINT_A.getTransformId())
+                      .setIsLast(true))
               .build();
       ELEMENTS_B_1 =
           BeamFnApi.Elements.newBuilder()
@@ -113,7 +117,8 @@ public class BeamFnDataGrpcClientTest {
               .addData(
                   BeamFnApi.Elements.Data.newBuilder()
                       .setInstructionId(ENDPOINT_B.getInstructionId())
-                      .setTransformId(ENDPOINT_B.getTransformId()))
+                      .setTransformId(ENDPOINT_B.getTransformId())
+                      .setIsLast(true))
               .build();
     } catch (Exception e) {
       throw new ExceptionInInitializerError(e);

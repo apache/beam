@@ -60,9 +60,12 @@ class TimeDomain(object):
   def to_runner_api(domain):
     return TimeDomain._RUNNER_API_MAPPING[domain]
 
+  @staticmethod
+  def is_event_time(domain):
+    return TimeDomain.from_string(domain) == TimeDomain.WATERMARK
 
-class TimestampCombinerImpl(with_metaclass(ABCMeta,
-                                           object)):  # type: ignore[misc]
+
+class TimestampCombinerImpl(with_metaclass(ABCMeta, object)):  # type: ignore[misc]
   """Implementation of TimestampCombiner."""
   @abstractmethod
   def assign_output_time(self, window, input_timestamp):
@@ -87,8 +90,7 @@ class TimestampCombinerImpl(with_metaclass(ABCMeta,
     return self.combine_all(merging_timestamps)
 
 
-class DependsOnlyOnWindow(with_metaclass(ABCMeta, TimestampCombinerImpl)
-                          ):  # type: ignore[misc]
+class DependsOnlyOnWindow(with_metaclass(ABCMeta, TimestampCombinerImpl)):  # type: ignore[misc]
   """TimestampCombinerImpl that only depends on the window."""
   def merge(self, result_window, unused_merging_timestamps):
     # Since we know that the result only depends on the window, we can ignore

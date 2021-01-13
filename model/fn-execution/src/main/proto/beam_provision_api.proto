@@ -25,10 +25,11 @@ syntax = "proto3";
 
 package org.apache.beam.model.fn_execution.v1;
 
-option go_package = "fnexecution_v1";
+option go_package = "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1;fnexecution_v1";
 option java_package = "org.apache.beam.model.fnexecution.v1";
 option java_outer_classname = "ProvisionApi";
 
+import "beam_runner_api.proto";
 import "endpoints.proto";
 import "google/protobuf/struct.proto";
 
@@ -56,7 +57,7 @@ message ProvisionInfo {
     google.protobuf.Struct pipeline_options = 3;
 
     // (required) The artifact retrieval token produced by
-    // ArtifactStagingService.CommitManifestResponse.
+    // LegacyArtifactStagingService.CommitManifestResponse.
     string retrieval_token = 6;
 
     // (optional) The endpoint that the runner is hosting for the SDK to submit
@@ -73,4 +74,7 @@ message ProvisionInfo {
 
     // (optional) The control endpoint this SDK should use.
     org.apache.beam.model.pipeline.v1.ApiServiceDescriptor control_endpoint = 10;
+
+    // The set of dependencies that should be staged into this environment.
+    repeated org.apache.beam.model.pipeline.v1.ArtifactInformation dependencies = 11;
 }

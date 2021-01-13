@@ -19,9 +19,9 @@ package org.apache.beam.runners.dataflow.worker;
 
 import static com.google.api.client.util.Base64.encodeBase64String;
 import static org.apache.beam.runners.dataflow.util.Structs.addString;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 import com.google.api.services.dataflow.model.Source;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.CloudObjects;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
@@ -36,6 +36,7 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow.IntervalWindowCoder;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.core.IsInstanceOf;
 import org.junit.Assert;
 import org.junit.Test;
@@ -47,7 +48,11 @@ import org.junit.runners.JUnit4;
  * PartitioningShuffleReaderFactory.
  */
 @RunWith(JUnit4.class)
-@SuppressWarnings({"rawtypes", "unchecked"})
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "unchecked",
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ShuffleReaderFactoryTest {
   <T extends NativeReader> T runTestCreateShuffleReader(
       byte[] shuffleReaderConfig,
@@ -74,7 +79,7 @@ public class ShuffleReaderFactoryTest {
     NativeReader<?> reader =
         ReaderRegistry.defaultRegistry()
             .create(cloudSource, PipelineOptionsFactory.create(), context, null);
-    Assert.assertThat(reader, new IsInstanceOf(shuffleReaderClass));
+    assertThat(reader, new IsInstanceOf(shuffleReaderClass));
     return (T) reader;
   }
 

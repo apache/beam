@@ -1,0 +1,16 @@
+{"schema": [
+  {"name":"wp_web_page_sk","type":"identifier"},
+  {"name":"wp_web_page_id","type":"char(16)"},
+  {"name":"wp_rec_start_date","type":"date"},
+  {"name":"wp_rec_end_date","type":"date"},
+  {"name":"wp_creation_date_sk","type":"identifier"},
+  {"name":"wp_access_date_sk","type":"identifier"},
+  {"name":"wp_autogen_flag","type":"char(1)"},
+  {"name":"wp_customer_sk","type":"identifier"},
+  {"name":"wp_url","type":"varchar(100)"},
+  {"name":"wp_type","type":"char(50)"},
+  {"name":"wp_char_count","type":"integer"},
+  {"name":"wp_link_count","type":"integer"},
+  {"name":"wp_image_count","type":"integer"},
+  {"name":"wp_max_ad_count","type":"integer"}
+]}

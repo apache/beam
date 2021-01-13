@@ -18,13 +18,13 @@
 package org.apache.beam.runners.core;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.when;
 
@@ -77,6 +77,10 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link SimplePushbackSideInputDoFnRunner}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SimplePushbackSideInputDoFnRunnerTest {
   @Mock StepContext mockStepContext;
   @Mock private ReadyCheckingSideInputReader reader;
@@ -303,7 +307,13 @@ public class SimplePushbackSideInputDoFnRunnerTest {
     // Mocking is not easily compatible with annotation analysis, so we manually record
     // the method call.
     runner.onTimer(
-        timerId, "", window, new Instant(timestamp), new Instant(timestamp), TimeDomain.EVENT_TIME);
+        timerId,
+        "",
+        null,
+        window,
+        new Instant(timestamp),
+        new Instant(timestamp),
+        TimeDomain.EVENT_TIME);
 
     assertThat(
         underlying.firedTimers,
@@ -311,6 +321,7 @@ public class SimplePushbackSideInputDoFnRunnerTest {
             TimerData.of(
                 timerId,
                 StateNamespaces.window(IntervalWindow.getCoder(), window),
+                timestamp,
                 timestamp,
                 TimeDomain.EVENT_TIME)));
   }
@@ -344,9 +355,10 @@ public class SimplePushbackSideInputDoFnRunnerTest {
     }
 
     @Override
-    public void onTimer(
+    public <KeyT> void onTimer(
         String timerId,
         String timerFamilyId,
+        KeyT key,
         BoundedWindow window,
         Instant timestamp,
         Instant outputTimestamp,
@@ -365,6 +377,9 @@ public class SimplePushbackSideInputDoFnRunnerTest {
     public void finishBundle() {
       finished = true;
     }
+
+    @Override
+    public <KeyT> void onWindowExpiration(BoundedWindow window, Instant timestamp, KeyT key) {}
   }
 
   private SimplePushbackSideInputDoFnRunner<KV<String, Integer>, Integer> createRunner(
@@ -493,6 +508,7 @@ public class SimplePushbackSideInputDoFnRunnerTest {
       toTrigger.onTimer(
           timer.getTimerId(),
           timer.getTimerFamilyId(),
+          null,
           window,
           timer.getTimestamp(),
           timer.getOutputTimestamp(),

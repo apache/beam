@@ -19,39 +19,38 @@ package org.apache.beam.runners.flink;
 
 import static org.apache.flink.streaming.api.environment.StreamExecutionEnvironment.getDefaultLocalParallelism;
 
-import java.net.URL;
-import java.util.Collections;
 import java.util.List;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.net.HostAndPort;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.ExecutionMode;
-import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.CollectionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.client.program.JobWithJars;
-import org.apache.flink.client.program.ProgramInvocationException;
-import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.GlobalConfiguration;
-import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.CheckpointConfig.ExternalizedCheckpointCleanup;
 import org.apache.flink.streaming.api.environment.RemoteStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Utilities for Flink execution environments. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class FlinkExecutionEnvironments {
 
   private static final Logger LOG = LoggerFactory.getLogger(FlinkExecutionEnvironments.class);
@@ -77,6 +76,8 @@ public class FlinkExecutionEnvironments {
 
     // depending on the master, create the right environment.
     if ("[local]".equals(flinkMasterHostPort)) {
+      setManagedMemoryByFraction(flinkConfiguration);
+      disableClassLoaderLeakCheck(flinkConfiguration);
       flinkBatchEnv = ExecutionEnvironment.createLocalEnvironment(flinkConfiguration);
     } else if ("[collection]".equals(flinkMasterHostPort)) {
       flinkBatchEnv = new CollectionEnvironment();
@@ -154,6 +155,8 @@ public class FlinkExecutionEnvironments {
 
     // depending on the master, create the right environment.
     if ("[local]".equals(masterUrl)) {
+      setManagedMemoryByFraction(flinkConfiguration);
+      disableClassLoaderLeakCheck(flinkConfiguration);
       flinkStreamEnv =
           StreamExecutionEnvironment.createLocalEnvironment(
               getDefaultLocalParallelism(), flinkConfiguration);
@@ -172,12 +175,13 @@ public class FlinkExecutionEnvironments {
         savepointRestoreSettings = SavepointRestoreSettings.none();
       }
       flinkStreamEnv =
-          new BeamFlinkRemoteStreamEnvironment(
+          new RemoteStreamEnvironment(
               hostAndPort.getHost(),
               hostAndPort.getPort(),
               flinkConfiguration,
-              savepointRestoreSettings,
-              filesToStage.toArray(new String[filesToStage.size()]));
+              filesToStage.toArray(new String[filesToStage.size()]),
+              null,
+              savepointRestoreSettings);
       LOG.info("Using Flink Master URL {}:{}.", hostAndPort.getHost(), hostAndPort.getPort());
     }
 
@@ -212,6 +216,21 @@ public class FlinkExecutionEnvironments {
       flinkStreamEnv.getConfig().setExecutionRetryDelay(retryDelay);
     }
 
+    configureCheckpointing(options, flinkStreamEnv);
+
+    applyLatencyTrackingInterval(flinkStreamEnv.getConfig(), options);
+
+    if (options.getAutoWatermarkInterval() != null) {
+      flinkStreamEnv.getConfig().setAutoWatermarkInterval(options.getAutoWatermarkInterval());
+    }
+
+    configureStateBackend(options, flinkStreamEnv);
+
+    return flinkStreamEnv;
+  }
+
+  private static void configureCheckpointing(
+      FlinkPipelineOptions options, StreamExecutionEnvironment flinkStreamEnv) {
     // A value of -1 corresponds to disabled checkpointing (see CheckpointConfig in Flink).
     // If the value is not -1, then the validity checks are applied.
     // By default, checkpointing is disabled.
@@ -222,11 +241,18 @@ public class FlinkExecutionEnvironments {
       }
       flinkStreamEnv.enableCheckpointing(
           checkpointInterval, CheckpointingMode.valueOf(options.getCheckpointingMode()));
+
+      if (options.getShutdownSourcesAfterIdleMs() == -1) {
+        // If not explicitly configured, we never shutdown sources when checkpointing is enabled.
+        options.setShutdownSourcesAfterIdleMs(Long.MAX_VALUE);
+      }
+
       if (options.getCheckpointTimeoutMillis() != -1) {
         flinkStreamEnv
             .getCheckpointConfig()
             .setCheckpointTimeout(options.getCheckpointTimeoutMillis());
       }
+
       boolean externalizedCheckpoint = options.isExternalizedCheckpointsEnabled();
       boolean retainOnCancellation = options.getRetainExternalizedCheckpointsOnCancellation();
       if (externalizedCheckpoint) {
@@ -246,25 +272,56 @@ public class FlinkExecutionEnvironments {
       }
       boolean failOnCheckpointingErrors = options.getFailOnCheckpointingErrors();
       flinkStreamEnv.getCheckpointConfig().setFailOnCheckpointingErrors(failOnCheckpointingErrors);
+
+      flinkStreamEnv
+          .getCheckpointConfig()
+          .setMaxConcurrentCheckpoints(options.getNumConcurrentCheckpoints());
+    } else {
+      if (options.getShutdownSourcesAfterIdleMs() == -1) {
+        // If not explicitly configured, we never shutdown sources when checkpointing is enabled.
+        options.setShutdownSourcesAfterIdleMs(0L);
+      }
     }
+  }
 
-    applyLatencyTrackingInterval(flinkStreamEnv.getConfig(), options);
+  private static void configureStateBackend(
+      FlinkPipelineOptions options, StreamExecutionEnvironment env) {
+    final StateBackend stateBackend;
+    if (options.getStateBackend() != null) {
+      final String storagePath = options.getStateBackendStoragePath();
+      Preconditions.checkArgument(
+          storagePath != null,
+          "State backend was set to '%s' but no storage path was provided.",
+          options.getStateBackend());
 
-    if (options.getAutoWatermarkInterval() != null) {
-      flinkStreamEnv.getConfig().setAutoWatermarkInterval(options.getAutoWatermarkInterval());
-    }
-
-    // State backend
-    if (options.getStateBackendFactory() != null) {
-      final StateBackend stateBackend =
+      if (options.getStateBackend().equalsIgnoreCase("rocksdb")) {
+        try {
+          stateBackend = new RocksDBStateBackend(storagePath);
+        } catch (Exception e) {
+          throw new RuntimeException(
+              "Could not create RocksDB state backend. Make sure it is included in the path.", e);
+        }
+      } else if (options.getStateBackend().equalsIgnoreCase("filesystem")) {
+        stateBackend = new FsStateBackend(storagePath);
+      } else {
+        throw new IllegalArgumentException(
+            String.format(
+                "Unknown state backend '%s'. Use 'rocksdb' or 'filesystem' or configure via Flink config file.",
+                options.getStateBackend()));
+      }
+    } else if (options.getStateBackendFactory() != null) {
+      // Legacy way of setting the state backend
+      stateBackend =
           InstanceBuilder.ofType(FlinkStateBackendFactory.class)
               .fromClass(options.getStateBackendFactory())
               .build()
               .createStateBackend(options);
-      flinkStreamEnv.setStateBackend(stateBackend);
+    } else {
+      stateBackend = null;
     }
-
-    return flinkStreamEnv;
+    if (stateBackend != null) {
+      env.setStateBackend(stateBackend);
+    }
   }
 
   /**
@@ -312,77 +369,22 @@ public class FlinkExecutionEnvironments {
     config.setLatencyTrackingInterval(latencyTrackingInterval);
   }
 
-  /**
-   * Remote stream environment that supports job execution with restore from savepoint.
-   *
-   * <p>This class can be removed once Flink provides this functionality.
-   *
-   * <p>TODO: https://issues.apache.org/jira/browse/BEAM-5396
-   */
-  private static class BeamFlinkRemoteStreamEnvironment extends RemoteStreamEnvironment {
-    private final SavepointRestoreSettings restoreSettings;
-
-    public BeamFlinkRemoteStreamEnvironment(
-        String host,
-        int port,
-        Configuration clientConfiguration,
-        SavepointRestoreSettings restoreSettings,
-        String... jarFiles) {
-      super(host, port, clientConfiguration, jarFiles, null);
-      this.restoreSettings = restoreSettings;
+  private static void setManagedMemoryByFraction(final Configuration config) {
+    if (!config.containsKey("taskmanager.memory.managed.size")) {
+      float managedMemoryFraction = config.getFloat(TaskManagerOptions.MANAGED_MEMORY_FRACTION);
+      long freeHeapMemory = EnvironmentInformation.getSizeOfFreeHeapMemoryWithDefrag();
+      long managedMemorySize = (long) (freeHeapMemory * managedMemoryFraction);
+      config.setString("taskmanager.memory.managed.size", String.valueOf(managedMemorySize));
     }
+  }
 
-    // copied from RemoteStreamEnvironment and augmented to pass savepoint restore settings
-    @Override
-    protected JobExecutionResult executeRemotely(StreamGraph streamGraph, List<URL> jarFiles)
-        throws ProgramInvocationException {
-
-      List<URL> globalClasspaths = Collections.emptyList();
-      String host = super.getHost();
-      int port = super.getPort();
-
-      if (LOG.isInfoEnabled()) {
-        LOG.info("Running remotely at {}:{}", host, port);
-      }
-
-      ClassLoader usercodeClassLoader =
-          JobWithJars.buildUserCodeClassLoader(
-              jarFiles, globalClasspaths, getClass().getClassLoader());
-
-      Configuration configuration = new Configuration();
-      configuration.addAll(super.getClientConfiguration());
-
-      configuration.setString(JobManagerOptions.ADDRESS, host);
-      configuration.setInteger(JobManagerOptions.PORT, port);
-
-      configuration.setInteger(RestOptions.PORT, port);
-
-      final ClusterClient<?> client;
-      try {
-        client = new RestClusterClient<>(configuration, "RemoteStreamEnvironment");
-      } catch (Exception e) {
-        throw new ProgramInvocationException(
-            "Cannot establish connection to JobManager: " + e.getMessage(), e);
-      }
-
-      client.setPrintStatusDuringExecution(getConfig().isSysoutLoggingEnabled());
-
-      try {
-        return client
-            .run(streamGraph, jarFiles, globalClasspaths, usercodeClassLoader, restoreSettings)
-            .getJobExecutionResult();
-      } catch (ProgramInvocationException e) {
-        throw e;
-      } catch (Exception e) {
-        String term = e.getMessage() == null ? "." : (": " + e.getMessage());
-        throw new ProgramInvocationException("The program execution failed" + term, e);
-      } finally {
-        try {
-          client.shutdown();
-        } catch (Exception e) {
-          LOG.warn("Could not properly shut down the cluster client.", e);
-        }
-      }
+  /**
+   * Disables classloader.check-leaked-classloader unless set by the user. See
+   * https://issues.apache.org/jira/browse/BEAM-11570.
+   */
+  private static void disableClassLoaderLeakCheck(final Configuration config) {
+    if (!config.containsKey("classloader.check-leaked-classloader")) {
+      config.setBoolean("classloader.check-leaked-classloader", false);
     }
   }
 }

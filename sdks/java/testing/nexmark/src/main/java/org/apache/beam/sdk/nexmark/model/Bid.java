@@ -34,10 +34,14 @@ import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.nexmark.NexmarkUtils;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /** A bid for an item on auction. */
 @DefaultSchema(JavaFieldSchema.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class Bid implements KnownSize, Serializable {
   private static final Coder<Instant> INSTANT_CODER = InstantCoder.of();
   private static final Coder<Long> LONG_CODER = VarLongCoder.of();
@@ -154,7 +158,7 @@ public class Bid implements KnownSize, Serializable {
   }
 
   @Override
-  public boolean equals(Object otherObject) {
+  public boolean equals(@Nullable Object otherObject) {
     if (this == otherObject) {
       return true;
     }

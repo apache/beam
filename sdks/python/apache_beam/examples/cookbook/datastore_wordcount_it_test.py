@@ -22,24 +22,23 @@
 from __future__ import absolute_import
 
 import logging
-import os
-import sys
 import time
 import unittest
 
 from hamcrest.core.core.allof import all_of
 from nose.plugins.attrib import attr
 
-from apache_beam.examples.cookbook import datastore_wordcount
 from apache_beam.testing.pipeline_verifiers import FileChecksumMatcher
 from apache_beam.testing.pipeline_verifiers import PipelineStateMatcher
 from apache_beam.testing.test_pipeline import TestPipeline
 
+# Don't fail during pytest collection scan.
+try:
+  from apache_beam.examples.cookbook import datastore_wordcount
+except ImportError:
+  datastore_wordcount = None
 
-@unittest.skipIf(
-    sys.version_info[0] == 3 and os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-    'This test still needs to be fixed on Python 3'
-    'TODO: BEAM-4543')
+
 class DatastoreWordCountIT(unittest.TestCase):
 
   DATASTORE_WORDCOUNT_KIND = "DatastoreWordCount"
@@ -48,7 +47,6 @@ class DatastoreWordCountIT(unittest.TestCase):
   @attr('IT')
   def test_datastore_wordcount_it(self):
     test_pipeline = TestPipeline(is_integration_test=True)
-    dataset = test_pipeline.get_option("project")
     kind = self.DATASTORE_WORDCOUNT_KIND
     output = '/'.join([
         test_pipeline.get_option('output'),
@@ -64,9 +62,10 @@ class DatastoreWordCountIT(unittest.TestCase):
             output + '*-of-*', self.EXPECTED_CHECKSUM, sleep_secs)
     ]
     extra_opts = {
-        'dataset': dataset,
         'kind': kind,
         'output': output,
+        # Comment this out to regenerate input data on Datastore (delete
+        # existing data first using the bulk delete Dataflow template).
         'read_only': True,
         'on_success_matcher': all_of(*pipeline_verifiers)
     }
@@ -76,5 +75,5 @@ class DatastoreWordCountIT(unittest.TestCase):
 
 
 if __name__ == '__main__':
-  logging.getLogger().setLevel(logging.DEBUG)
+  logging.getLogger().setLevel(logging.INFO)
   unittest.main()

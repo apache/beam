@@ -21,12 +21,15 @@ import static org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.More
 
 import java.util.HashMap;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A test table provider for BigQueryRowCountIT. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BigQueryTestTableProvider extends BigQueryTableProvider {
 
   private Map<String, Table> tableSpecMap;
@@ -42,9 +45,8 @@ public class BigQueryTestTableProvider extends BigQueryTableProvider {
     tableSpecMap.put(name, table);
   }
 
-  @Nullable
   @Override
-  public Table getTable(String tableName) {
+  public @Nullable Table getTable(String tableName) {
     return tableSpecMap.get(tableName);
   }
 

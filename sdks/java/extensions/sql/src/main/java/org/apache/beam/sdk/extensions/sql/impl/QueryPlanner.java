@@ -18,17 +18,22 @@
 package org.apache.beam.sdk.extensions.sql.impl;
 
 import com.google.auto.value.AutoOneOf;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlNode;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RuleSet;
 
 /**
  * An interface that planners should implement to convert sql statement to {@link BeamRelNode} or
  * {@link SqlNode}.
  */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public interface QueryPlanner {
   /** It parses and validate the input query, then convert into a {@link BeamRelNode} tree. */
   BeamRelNode convertToBeamRel(String sqlStatement, QueryParameters queryParameters)
@@ -69,5 +74,9 @@ public interface QueryPlanner {
       return AutoOneOf_QueryPlanner_QueryParameters.positional(
           ImmutableList.copyOf(positionalParams));
     }
+  }
+
+  interface Factory {
+    QueryPlanner createPlanner(JdbcConnection jdbcConnection, Collection<RuleSet> ruleSets);
   }
 }

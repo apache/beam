@@ -91,6 +91,10 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTyp
  *       make much sense to use ORDER BY with WINDOW.
  * </ul>
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BeamSortRel extends Sort implements BeamRelNode {
   private List<Integer> fieldIndices = new ArrayList<>();
   private List<Boolean> orientation = new ArrayList<>();
@@ -304,7 +308,7 @@ public class BeamSortRel extends Sort implements BeamRelNode {
     return new BeamSortRel(getCluster(), traitSet, newInput, newCollation, offset, fetch);
   }
 
-  private static class BeamSqlRowComparator implements Comparator<Row>, Serializable {
+  public static class BeamSqlRowComparator implements Comparator<Row>, Serializable {
     private List<Integer> fieldsIndices;
     private List<Boolean> orientation;
     private List<Boolean> nullsFirst;
@@ -345,8 +349,8 @@ public class BeamSortRel extends Sort implements BeamRelNode {
             case VARCHAR:
             case DATE:
             case TIMESTAMP:
-              Comparable v1 = (Comparable) row1.getValue(fieldIndex);
-              Comparable v2 = (Comparable) row2.getValue(fieldIndex);
+              Comparable v1 = row1.getBaseValue(fieldIndex, Comparable.class);
+              Comparable v2 = row2.getBaseValue(fieldIndex, Comparable.class);
               fieldRet = v1.compareTo(v2);
               break;
             default:

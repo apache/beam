@@ -24,29 +24,38 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
+import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
+import org.apache.beam.runners.fnexecution.control.BundleCheckpointHandler;
+import org.apache.beam.runners.fnexecution.control.BundleFinalizationHandler;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
 import org.apache.beam.runners.fnexecution.control.ExecutableStageContext;
+import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors;
 import org.apache.beam.runners.fnexecution.control.RemoteBundle;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
+import org.apache.beam.runners.fnexecution.control.TimerReceiverFactory;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.runners.spark.metrics.MetricsContainerStepMapAccumulator;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Before;
 import org.junit.Test;
@@ -55,6 +64,10 @@ import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
 /** Unit tests for {@link SparkExecutableStageFunction}. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SparkExecutableStageFunctionTest {
   @Mock private SparkExecutableStageContextFactory contextFactory;
   @Mock private ExecutableStageContext stageContext;
@@ -85,7 +98,8 @@ public class SparkExecutableStageFunctionTest {
     MockitoAnnotations.initMocks(this);
     when(contextFactory.get(any())).thenReturn(stageContext);
     when(stageContext.getStageBundleFactory(any())).thenReturn(stageBundleFactory);
-    when(stageBundleFactory.getBundle(any(), any(), any())).thenReturn(remoteBundle);
+    when(stageBundleFactory.getBundle(any(), any(), any(), any(BundleProgressHandler.class)))
+        .thenReturn(remoteBundle);
     @SuppressWarnings("unchecked")
     ImmutableMap<String, FnDataReceiver> inputReceiver =
         ImmutableMap.of("input", Mockito.mock(FnDataReceiver.class));
@@ -98,7 +112,9 @@ public class SparkExecutableStageFunctionTest {
   public void sdkErrorsSurfaceOnClose() throws Exception {
     SparkExecutableStageFunction<Integer, ?> function = getFunction(Collections.emptyMap());
     doThrow(new Exception()).when(remoteBundle).close();
-    function.call(Collections.emptyIterator());
+    List<WindowedValue<Integer>> inputs = new ArrayList<>();
+    inputs.add(WindowedValue.valueInGlobalWindow(0));
+    function.call(inputs.iterator());
   }
 
   @Test
@@ -106,7 +122,8 @@ public class SparkExecutableStageFunctionTest {
     SparkExecutableStageFunction<Integer, ?> function = getFunction(Collections.emptyMap());
 
     RemoteBundle bundle = Mockito.mock(RemoteBundle.class);
-    when(stageBundleFactory.getBundle(any(), any(), any())).thenReturn(bundle);
+    when(stageBundleFactory.getBundle(any(), any(), any(), any(BundleProgressHandler.class)))
+        .thenReturn(bundle);
 
     @SuppressWarnings("unchecked")
     FnDataReceiver<WindowedValue<?>> receiver = Mockito.mock(FnDataReceiver.class);
@@ -143,8 +160,11 @@ public class SparkExecutableStageFunctionTest {
           @Override
           public RemoteBundle getBundle(
               OutputReceiverFactory receiverFactory,
+              TimerReceiverFactory timerReceiverFactory,
               StateRequestHandler stateRequestHandler,
-              BundleProgressHandler progressHandler) {
+              BundleProgressHandler progressHandler,
+              BundleFinalizationHandler finalizationHandler,
+              BundleCheckpointHandler checkpointHandler) {
             return new RemoteBundle() {
               @Override
               public String getId() {
@@ -158,6 +178,16 @@ public class SparkExecutableStageFunctionTest {
                     input -> {
                       /* Ignore input*/
                     });
+              }
+
+              @Override
+              public Map<KV<String, String>, FnDataReceiver<Timer>> getTimerReceivers() {
+                return Collections.emptyMap();
+              }
+
+              @Override
+              public void requestProgress() {
+                throw new UnsupportedOperationException();
               }
 
               @Override
@@ -186,12 +216,19 @@ public class SparkExecutableStageFunctionTest {
           }
 
           @Override
+          public InstructionRequestHandler getInstructionRequestHandler() {
+            return null;
+          }
+
+          @Override
           public void close() {}
         };
     when(stageContext.getStageBundleFactory(any())).thenReturn(stageBundleFactory);
 
     SparkExecutableStageFunction<Integer, ?> function = getFunction(outputTagMap);
-    Iterator<RawUnionValue> iterator = function.call(Collections.emptyIterator());
+    List<WindowedValue<Integer>> inputs = new ArrayList<>();
+    inputs.add(WindowedValue.valueInGlobalWindow(0));
+    Iterator<RawUnionValue> iterator = function.call(inputs.iterator());
     Iterable<RawUnionValue> iterable = () -> iterator;
 
     assertThat(
@@ -203,11 +240,20 @@ public class SparkExecutableStageFunctionTest {
   @Test
   public void testStageBundleClosed() throws Exception {
     SparkExecutableStageFunction<Integer, ?> function = getFunction(Collections.emptyMap());
-    function.call(Collections.emptyIterator());
-    verify(stageBundleFactory).getBundle(any(), any(), any());
+    List<WindowedValue<Integer>> inputs = new ArrayList<>();
+    inputs.add(WindowedValue.valueInGlobalWindow(0));
+    function.call(inputs.iterator());
+    verify(stageBundleFactory).getBundle(any(), any(), any(), any(BundleProgressHandler.class));
     verify(stageBundleFactory).getProcessBundleDescriptor();
     verify(stageBundleFactory).close();
     verifyNoMoreInteractions(stageBundleFactory);
+  }
+
+  @Test
+  public void testNoCallOnEmptyInputIterator() throws Exception {
+    SparkExecutableStageFunction<Integer, ?> function = getFunction(Collections.emptyMap());
+    function.call(Collections.emptyIterator());
+    verifyZeroInteractions(stageBundleFactory);
   }
 
   private <InputT, SideInputT> SparkExecutableStageFunction<InputT, SideInputT> getFunction(

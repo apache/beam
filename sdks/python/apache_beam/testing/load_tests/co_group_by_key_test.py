@@ -36,6 +36,7 @@ Example test run:
 python -m apache_beam.testing.load_tests.co_group_by_key_test \
     --test-pipeline-options="
       --project=big-query-project
+      --region=...
       --publish_to_big_query=true
       --metrics_dataset=python_load_tests
       --metrics_table=co_gbk
@@ -56,6 +57,7 @@ or:
 ./gradlew -PloadTest.args="
     --publish_to_big_query=true
     --project=...
+    --region=...
     --metrics_dataset=python_load_tests
     --metrics_table=co_gbk
     --iterations=1
@@ -118,7 +120,6 @@ class CoGroupByKeyTest(LoadTest):
         | 'Read ' + self.INPUT_TAG >> beam.io.Read(
             synthetic_pipeline.SyntheticSource(
                 self.parse_synthetic_source_options()))
-        | 'Make ' + self.INPUT_TAG + ' iterable' >> beam.Map(lambda x: (x, x))
         | 'Measure time: Start pc1' >> beam.ParDo(
             MeasureTime(self.metrics_namespace)))
 
@@ -127,8 +128,6 @@ class CoGroupByKeyTest(LoadTest):
         | 'Read ' + self.CO_INPUT_TAG >> beam.io.Read(
             synthetic_pipeline.SyntheticSource(
                 self.parse_synthetic_source_options(self.co_input_options)))
-        |
-        'Make ' + self.CO_INPUT_TAG + ' iterable' >> beam.Map(lambda x: (x, x))
         | 'Measure time: Start pc2' >> beam.ParDo(
             MeasureTime(self.metrics_namespace)))
     # pylint: disable=expression-not-assigned

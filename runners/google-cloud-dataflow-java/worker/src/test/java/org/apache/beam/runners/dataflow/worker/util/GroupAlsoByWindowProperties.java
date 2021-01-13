@@ -17,11 +17,11 @@
  */
 package org.apache.beam.runners.dataflow.worker.util;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
-import static org.junit.Assert.assertThat;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -63,6 +63,9 @@ import org.joda.time.Instant;
  * which the implementation is applicable. For example, some {@code GroupAlsoByWindows} may not
  * support merging windows.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class GroupAlsoByWindowProperties {
 
   /**

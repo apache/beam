@@ -21,9 +21,10 @@
 from __future__ import absolute_import
 
 import unittest
+from typing import Any
+from typing import List
 
 # patches unittest.TestCase to be python3 compatible
-import future.tests.base  # pylint: disable=unused-import
 import mock
 
 import apache_beam as beam
@@ -46,6 +47,7 @@ from apache_beam.transforms.core import DoFn
 from apache_beam.transforms.timeutil import TimeDomain
 from apache_beam.transforms.userstate import BagStateSpec
 from apache_beam.transforms.userstate import CombiningValueStateSpec
+from apache_beam.transforms.userstate import ReadModifyWriteStateSpec
 from apache_beam.transforms.userstate import SetStateSpec
 from apache_beam.transforms.userstate import TimerSpec
 from apache_beam.transforms.userstate import get_dofn_specs
@@ -62,6 +64,7 @@ class TestStatefulDoFn(DoFn):
   EXPIRY_TIMER_1 = TimerSpec('expiry1', TimeDomain.WATERMARK)
   EXPIRY_TIMER_2 = TimerSpec('expiry2', TimeDomain.WATERMARK)
   EXPIRY_TIMER_3 = TimerSpec('expiry3', TimeDomain.WATERMARK)
+  EXPIRY_TIMER_FAMILY = TimerSpec('expiry_family', TimeDomain.WATERMARK)
 
   def process(
       self,
@@ -70,7 +73,8 @@ class TestStatefulDoFn(DoFn):
       buffer_1=DoFn.StateParam(BUFFER_STATE_1),
       buffer_2=DoFn.StateParam(BUFFER_STATE_2),
       timer_1=DoFn.TimerParam(EXPIRY_TIMER_1),
-      timer_2=DoFn.TimerParam(EXPIRY_TIMER_2)):
+      timer_2=DoFn.TimerParam(EXPIRY_TIMER_2),
+      dynamic_timer=DoFn.TimerParam(EXPIRY_TIMER_FAMILY)):
     yield element
 
   @on_timer(EXPIRY_TIMER_1)
@@ -101,6 +105,13 @@ class TestStatefulDoFn(DoFn):
       timer_3=DoFn.TimerParam(EXPIRY_TIMER_3)):
     yield 'expired3'
 
+  @on_timer(EXPIRY_TIMER_FAMILY)
+  def on_expiry_family(
+      self,
+      dynamic_timer=DoFn.TimerParam(EXPIRY_TIMER_FAMILY),
+      dynamic_timer_tag=DoFn.DynamicTimerTagParam):
+    yield (dynamic_timer_tag, 'expired_dynamic_timer')
+
 
 class InterfaceTest(unittest.TestCase):
   def _validate_dofn(self, dofn):
@@ -119,17 +130,24 @@ class InterfaceTest(unittest.TestCase):
     BagStateSpec('statename', VarIntCoder())
     with self.assertRaises(TypeError):
       BagStateSpec(123, VarIntCoder())
+
     CombiningValueStateSpec('statename', VarIntCoder(), TopCombineFn(10))
     with self.assertRaises(TypeError):
       CombiningValueStateSpec(123, VarIntCoder(), TopCombineFn(10))
     with self.assertRaises(TypeError):
       CombiningValueStateSpec('statename', VarIntCoder(), object())
-    SetStateSpec('setstatename', VarIntCoder())
 
+    SetStateSpec('setstatename', VarIntCoder())
     with self.assertRaises(TypeError):
       SetStateSpec(123, VarIntCoder())
     with self.assertRaises(TypeError):
       SetStateSpec('setstatename', object())
+
+    ReadModifyWriteStateSpec('valuestatename', VarIntCoder())
+    with self.assertRaises(TypeError):
+      ReadModifyWriteStateSpec(123, VarIntCoder())
+    with self.assertRaises(TypeError):
+      ReadModifyWriteStateSpec('valuestatename', object())
 
     # TODO: add more spec tests
     with self.assertRaises(ValueError):
@@ -156,16 +174,23 @@ class InterfaceTest(unittest.TestCase):
     class BasicStatefulDoFn(DoFn):
       BUFFER_STATE = BagStateSpec('buffer', BytesCoder())
       EXPIRY_TIMER = TimerSpec('expiry1', TimeDomain.WATERMARK)
+      EXPIRY_TIMER_FAMILY = TimerSpec('expiry_family_1', TimeDomain.WATERMARK)
 
       def process(
           self,
           element,
           buffer=DoFn.StateParam(BUFFER_STATE),
-          timer1=DoFn.TimerParam(EXPIRY_TIMER)):
+          timer1=DoFn.TimerParam(EXPIRY_TIMER),
+          dynamic_timer=DoFn.TimerParam(EXPIRY_TIMER_FAMILY)):
         yield element
 
       @on_timer(EXPIRY_TIMER)
       def expiry_callback(self, element, timer=DoFn.TimerParam(EXPIRY_TIMER)):
+        yield element
+
+      @on_timer(EXPIRY_TIMER_FAMILY)
+      def expiry_family_callback(
+          self, element, dynamic_timer=DoFn.TimerParam(EXPIRY_TIMER_FAMILY)):
         yield element
 
     # Validate get_dofn_specs() and timer callbacks in
@@ -174,11 +199,19 @@ class InterfaceTest(unittest.TestCase):
     signature = self._validate_dofn(stateful_dofn)
     expected_specs = (
         set([BasicStatefulDoFn.BUFFER_STATE]),
-        set([BasicStatefulDoFn.EXPIRY_TIMER]))
+        set([
+            BasicStatefulDoFn.EXPIRY_TIMER,
+            BasicStatefulDoFn.EXPIRY_TIMER_FAMILY
+        ]),
+    )
     self.assertEqual(expected_specs, get_dofn_specs(stateful_dofn))
     self.assertEqual(
         stateful_dofn.expiry_callback,
         signature.timer_methods[BasicStatefulDoFn.EXPIRY_TIMER].method_value)
+    self.assertEqual(
+        stateful_dofn.expiry_family_callback,
+        signature.timer_methods[
+            BasicStatefulDoFn.EXPIRY_TIMER_FAMILY].method_value)
 
     stateful_dofn = TestStatefulDoFn()
     signature = self._validate_dofn(stateful_dofn)
@@ -187,7 +220,8 @@ class InterfaceTest(unittest.TestCase):
         set([
             TestStatefulDoFn.EXPIRY_TIMER_1,
             TestStatefulDoFn.EXPIRY_TIMER_2,
-            TestStatefulDoFn.EXPIRY_TIMER_3
+            TestStatefulDoFn.EXPIRY_TIMER_3,
+            TestStatefulDoFn.EXPIRY_TIMER_FAMILY
         ]))
     self.assertEqual(expected_specs, get_dofn_specs(stateful_dofn))
     self.assertEqual(
@@ -199,6 +233,10 @@ class InterfaceTest(unittest.TestCase):
     self.assertEqual(
         stateful_dofn.on_expiry_3,
         signature.timer_methods[TestStatefulDoFn.EXPIRY_TIMER_3].method_value)
+    self.assertEqual(
+        stateful_dofn.on_expiry_family,
+        signature.timer_methods[
+            TestStatefulDoFn.EXPIRY_TIMER_FAMILY].method_value)
 
   def test_bad_signatures(self):
     # (1) The same state parameter is duplicated on the process method.
@@ -260,12 +298,26 @@ class InterfaceTest(unittest.TestCase):
     with self.assertRaises(ValueError):
       self._validate_dofn(BadStatefulDoFn4())
 
+    # (5) The same timer family parameter is duplicated on the process method.
+    class BadStatefulDoFn5(DoFn):
+      EXPIRY_TIMER_FAMILY = TimerSpec('dynamic_timer', TimeDomain.WATERMARK)
+
+      def process(
+          self,
+          element,
+          dynamic_timer_1=DoFn.TimerParam(EXPIRY_TIMER_FAMILY),
+          dynamic_timer_2=DoFn.TimerParam(EXPIRY_TIMER_FAMILY)):
+        yield element
+
+    with self.assertRaises(ValueError):
+      self._validate_dofn(BadStatefulDoFn5())
+
   def test_validation_typos(self):
     # (1) Here, the user mistakenly used the same timer spec twice for two
     # different timer callbacks.
     with self.assertRaisesRegex(
         ValueError,
-        r'Multiple on_timer callbacks registered for TimerSpec\(expiry1\).'):
+        r'Multiple on_timer callbacks registered for TimerSpec\(.*expiry1\).'):
 
       class StatefulDoFnWithTimerWithTypo1(DoFn):  # pylint: disable=unused-variable
         BUFFER_STATE = BagStateSpec('buffer', BytesCoder())
@@ -315,7 +367,7 @@ class InterfaceTest(unittest.TestCase):
     dofn = StatefulDoFnWithTimerWithTypo2()
     with self.assertRaisesRegex(
         ValueError,
-        (r'The on_timer callback for TimerSpec\(expiry1\) is not the '
+        (r'The on_timer callback for TimerSpec\(.*expiry1\) is not the '
          r'specified .on_expiry_1 method for DoFn '
          r'StatefulDoFnWithTimerWithTypo2 \(perhaps it was overwritten\?\).')):
       validate_stateful_dofn(dofn)
@@ -348,13 +400,13 @@ class InterfaceTest(unittest.TestCase):
     with self.assertRaisesRegex(
         ValueError,
         (r'DoFn StatefulDoFnWithTimerWithTypo3 has a TimerSpec without an '
-         r'associated on_timer callback: TimerSpec\(expiry2\).')):
+         r'associated on_timer callback: TimerSpec\(.*expiry2\).')):
       validate_stateful_dofn(dofn)
 
 
 class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
   # pylint: disable=expression-not-assigned
-  all_records = None
+  all_records = None  # type: List[Any]
 
   def setUp(self):
     # Use state on the TestCase class, since other references would be pickled
@@ -451,6 +503,55 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
           | beam.ParDo(self.record_dofn()))
 
     self.assertEqual(['extra'], StatefulDoFnOnDirectRunnerTest.all_records)
+
+  def test_simple_read_modify_write_stateful_dofn(self):
+    class SimpleTestReadModifyWriteStatefulDoFn(DoFn):
+      VALUE_STATE = ReadModifyWriteStateSpec('value', StrUtf8Coder())
+
+      def process(self, element, last_element=DoFn.StateParam(VALUE_STATE)):
+        last_element.write('%s:%s' % element)
+        yield last_element.read()
+
+    with TestPipeline() as p:
+      test_stream = (
+          TestStream().advance_watermark_to(0).add_elements([
+              ('a', 1)
+          ]).advance_watermark_to(10).add_elements([
+              ('a', 3)
+          ]).advance_watermark_to(20).add_elements([('a', 5)]))
+      (
+          p | test_stream
+          | beam.ParDo(SimpleTestReadModifyWriteStatefulDoFn())
+          | beam.ParDo(self.record_dofn()))
+    self.assertEqual(['a:1', 'a:3', 'a:5'],
+                     StatefulDoFnOnDirectRunnerTest.all_records)
+
+  def test_clearing_read_modify_write_state(self):
+    class SimpleClearingReadModifyWriteStatefulDoFn(DoFn):
+      VALUE_STATE = ReadModifyWriteStateSpec('value', StrUtf8Coder())
+
+      def process(self, element, last_element=DoFn.StateParam(VALUE_STATE)):
+        value = last_element.read()
+        if value is not None:
+          yield value
+        last_element.clear()
+        last_element.write("%s:%s" % (last_element.read(), element[1]))
+        if element[1] == 5:
+          yield last_element.read()
+
+    with TestPipeline() as p:
+      test_stream = (
+          TestStream().advance_watermark_to(0).add_elements([
+              ('a', 1)
+          ]).advance_watermark_to(10).add_elements([
+              ('a', 3)
+          ]).advance_watermark_to(20).add_elements([('a', 5)]))
+      (
+          p | test_stream
+          | beam.ParDo(SimpleClearingReadModifyWriteStatefulDoFn())
+          | beam.ParDo(self.record_dofn()))
+    self.assertEqual(['None:1', 'None:3', 'None:5'],
+                     StatefulDoFnOnDirectRunnerTest.all_records)
 
   def test_simple_set_stateful_dofn(self):
     class SimpleTestSetStatefulDoFn(DoFn):
@@ -766,6 +867,171 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
           | beam.ParDo(self.record_dofn()))
 
     self.assertEqual([('timer1-mykey', 10, 10, 15)],
+                     sorted(StatefulDoFnOnDirectRunnerTest.all_records))
+
+  def test_timer_default_tag(self):
+    class DynamicTimerDoFn(DoFn):
+      EMIT_TIMER_FAMILY = TimerSpec('emit', TimeDomain.WATERMARK)
+
+      def process(self, element, emit=DoFn.TimerParam(EMIT_TIMER_FAMILY)):
+        emit.set(10)
+        emit.set(20, dynamic_timer_tag='')
+
+      @on_timer(EMIT_TIMER_FAMILY)
+      def emit_callback(
+          self, ts=DoFn.TimestampParam, tag=DoFn.DynamicTimerTagParam):
+        yield (tag, ts)
+
+    with TestPipeline() as p:
+      test_stream = (TestStream().advance_watermark_to(10).add_elements(
+          [1])).advance_watermark_to_infinity()
+      (
+          p
+          | test_stream
+          | beam.Map(lambda x: ('mykey', x))
+          | beam.ParDo(DynamicTimerDoFn())
+          | beam.ParDo(self.record_dofn()))
+
+    self.assertEqual([('', 20)],
+                     sorted(StatefulDoFnOnDirectRunnerTest.all_records))
+
+  def test_dynamic_timer_simple_dofn(self):
+    class DynamicTimerDoFn(DoFn):
+      EMIT_TIMER_FAMILY = TimerSpec('emit', TimeDomain.WATERMARK)
+
+      def process(self, element, emit=DoFn.TimerParam(EMIT_TIMER_FAMILY)):
+        emit.set(10, dynamic_timer_tag='emit1')
+        emit.set(20, dynamic_timer_tag='emit2')
+        emit.set(30, dynamic_timer_tag='emit3')
+
+      @on_timer(EMIT_TIMER_FAMILY)
+      def emit_callback(
+          self, ts=DoFn.TimestampParam, tag=DoFn.DynamicTimerTagParam):
+        yield (tag, ts)
+
+    with TestPipeline() as p:
+      test_stream = (TestStream().advance_watermark_to(10).add_elements(
+          [1])).advance_watermark_to_infinity()
+      (
+          p
+          | test_stream
+          | beam.Map(lambda x: ('mykey', x))
+          | beam.ParDo(DynamicTimerDoFn())
+          | beam.ParDo(self.record_dofn()))
+
+    self.assertEqual([('emit1', 10), ('emit2', 20), ('emit3', 30)],
+                     sorted(StatefulDoFnOnDirectRunnerTest.all_records))
+
+  def test_dynamic_timer_clear_timer(self):
+    class DynamicTimerDoFn(DoFn):
+      EMIT_TIMER_FAMILY = TimerSpec('emit', TimeDomain.WATERMARK)
+
+      def process(self, element, emit=DoFn.TimerParam(EMIT_TIMER_FAMILY)):
+        if element[1] == 'set':
+          emit.set(10, dynamic_timer_tag='emit1')
+          emit.set(20, dynamic_timer_tag='emit2')
+          emit.set(30, dynamic_timer_tag='emit3')
+        if element[1] == 'clear':
+          emit.clear(dynamic_timer_tag='emit3')
+
+      @on_timer(EMIT_TIMER_FAMILY)
+      def emit_callback(
+          self, ts=DoFn.TimestampParam, tag=DoFn.DynamicTimerTagParam):
+        yield (tag, ts)
+
+    with TestPipeline() as p:
+      test_stream = (
+          TestStream().advance_watermark_to(5).add_elements(
+              ['set']).advance_watermark_to(10).add_elements(
+                  ['clear']).advance_watermark_to_infinity())
+      (
+          p
+          | test_stream
+          | beam.Map(lambda x: ('mykey', x))
+          | beam.ParDo(DynamicTimerDoFn())
+          | beam.ParDo(self.record_dofn()))
+
+    self.assertEqual([('emit1', 10), ('emit2', 20)],
+                     sorted(StatefulDoFnOnDirectRunnerTest.all_records))
+
+  def test_dynamic_timer_multiple(self):
+    class DynamicTimerDoFn(DoFn):
+      EMIT_TIMER_FAMILY1 = TimerSpec('emit_family_1', TimeDomain.WATERMARK)
+      EMIT_TIMER_FAMILY2 = TimerSpec('emit_family_2', TimeDomain.WATERMARK)
+
+      def process(
+          self,
+          element,
+          emit1=DoFn.TimerParam(EMIT_TIMER_FAMILY1),
+          emit2=DoFn.TimerParam(EMIT_TIMER_FAMILY2)):
+        emit1.set(10, dynamic_timer_tag='emit11')
+        emit1.set(20, dynamic_timer_tag='emit12')
+        emit1.set(30, dynamic_timer_tag='emit13')
+        emit2.set(30, dynamic_timer_tag='emit21')
+        emit2.set(20, dynamic_timer_tag='emit22')
+        emit2.set(10, dynamic_timer_tag='emit23')
+
+      @on_timer(EMIT_TIMER_FAMILY1)
+      def emit_callback(
+          self, ts=DoFn.TimestampParam, tag=DoFn.DynamicTimerTagParam):
+        yield (tag, ts)
+
+      @on_timer(EMIT_TIMER_FAMILY2)
+      def emit_callback_2(
+          self, ts=DoFn.TimestampParam, tag=DoFn.DynamicTimerTagParam):
+        yield (tag, ts)
+
+    with TestPipeline() as p:
+      test_stream = (
+          TestStream().advance_watermark_to(5).add_elements(
+              ['1']).advance_watermark_to_infinity())
+      (
+          p
+          | test_stream
+          | beam.Map(lambda x: ('mykey', x))
+          | beam.ParDo(DynamicTimerDoFn())
+          | beam.ParDo(self.record_dofn()))
+
+    self.assertEqual([('emit11', 10), ('emit12', 20), ('emit13', 30),
+                      ('emit21', 30), ('emit22', 20), ('emit23', 10)],
+                     sorted(StatefulDoFnOnDirectRunnerTest.all_records))
+
+  def test_dynamic_timer_and_simple_timer(self):
+    class DynamicTimerDoFn(DoFn):
+      EMIT_TIMER_FAMILY = TimerSpec('emit', TimeDomain.WATERMARK)
+      GC_TIMER = TimerSpec('gc', TimeDomain.WATERMARK)
+
+      def process(
+          self,
+          element,
+          emit=DoFn.TimerParam(EMIT_TIMER_FAMILY),
+          gc=DoFn.TimerParam(GC_TIMER)):
+        emit.set(10, dynamic_timer_tag='emit1')
+        emit.set(20, dynamic_timer_tag='emit2')
+        emit.set(30, dynamic_timer_tag='emit3')
+        gc.set(40)
+
+      @on_timer(EMIT_TIMER_FAMILY)
+      def emit_callback(
+          self, ts=DoFn.TimestampParam, tag=DoFn.DynamicTimerTagParam):
+        yield (tag, ts)
+
+      @on_timer(GC_TIMER)
+      def gc(self, ts=DoFn.TimestampParam):
+        yield ('gc', ts)
+
+    with TestPipeline() as p:
+      test_stream = (
+          TestStream().advance_watermark_to(5).add_elements(
+              ['1']).advance_watermark_to_infinity())
+      (
+          p
+          | test_stream
+          | beam.Map(lambda x: ('mykey', x))
+          | beam.ParDo(DynamicTimerDoFn())
+          | beam.ParDo(self.record_dofn()))
+
+    self.assertEqual([('emit1', 10), ('emit2', 20), ('emit3', 30), ('gc', 40)],
                      sorted(StatefulDoFnOnDirectRunnerTest.all_records))
 
   def test_index_assignment(self):

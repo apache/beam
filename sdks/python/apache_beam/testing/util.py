@@ -24,12 +24,8 @@ from __future__ import absolute_import
 import collections
 import glob
 import io
-import sys
 import tempfile
-import threading
 from builtins import object
-
-from future.utils import raise_
 
 from apache_beam import pvalue
 from apache_beam.transforms import window
@@ -40,7 +36,6 @@ from apache_beam.transforms.core import ParDo
 from apache_beam.transforms.core import WindowInto
 from apache_beam.transforms.ptransform import PTransform
 from apache_beam.transforms.util import CoGroupByKey
-from apache_beam.utils.annotations import experimental
 
 __all__ = [
     'assert_that',
@@ -317,7 +312,6 @@ def assert_that(
   actual | AssertThat()  # pylint: disable=expression-not-assigned
 
 
-@experimental()
 def open_shards(glob_pattern, mode='rt', encoding='utf-8'):
   """Returns a composite file of all shards matching the given glob pattern.
 
@@ -340,41 +334,3 @@ def open_shards(glob_pattern, mode='rt', encoding='utf-8'):
         out_file.write(in_file.read())
     concatenated_file_name = out_file.name
   return io.open(concatenated_file_name, mode, encoding=encoding)
-
-
-def timeout(timeout_secs):
-  """Test timeout method decorator.
-
-  Annotate test method so that test will fail immediately after
-  test run took longer time than the specified timeout.
-
-  Examples:
-
-    @timeout(5)
-    def test_some_function(self):
-      ...
-
-  """
-  def decorate(fn):
-    exc_info = []
-
-    def wrapper(*args, **kwargs):
-      def call_fn():
-        try:
-          fn(*args, **kwargs)
-        except:  # pylint: disable=bare-except
-          exc_info[:] = sys.exc_info()
-
-      thread = threading.Thread(target=call_fn)
-      thread.daemon = True
-      thread.start()
-      thread.join(timeout_secs)
-      if exc_info:
-        t, v, tb = exc_info  # pylint: disable=unbalanced-tuple-unpacking
-        raise_(t, v, tb)
-      assert not thread.is_alive(), 'timed out after %s seconds' % timeout_secs
-
-    wrapper.__name__ = fn.__name__
-    return wrapper
-
-  return decorate

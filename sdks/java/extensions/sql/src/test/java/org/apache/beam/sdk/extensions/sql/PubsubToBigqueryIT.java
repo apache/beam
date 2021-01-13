@@ -24,10 +24,11 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 
 import java.io.Serializable;
 import java.util.List;
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.meta.provider.bigquery.BigQueryTableProvider;
-import org.apache.beam.sdk.extensions.sql.meta.provider.pubsub.PubsubJsonTableProvider;
+import org.apache.beam.sdk.extensions.sql.meta.provider.pubsub.PubsubTableProvider;
 import org.apache.beam.sdk.io.gcp.bigquery.TestBigQuery;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.TestPubsub;
@@ -55,8 +56,7 @@ public class PubsubToBigqueryIT implements Serializable {
 
   @Test
   public void testSimpleInsert() throws Exception {
-    BeamSqlEnv sqlEnv =
-        BeamSqlEnv.inMemory(new PubsubJsonTableProvider(), new BigQueryTableProvider());
+    BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(new PubsubTableProvider(), new BigQueryTableProvider());
 
     String createTableString =
         "CREATE EXTERNAL TABLE pubsub_topic (\n"
@@ -96,6 +96,10 @@ public class PubsubToBigqueryIT implements Serializable {
 
     pipeline.run();
 
+    // Block until a subscription for this topic exists
+    pubsub.assertSubscriptionEventuallyCreated(
+        pipeline.getOptions().as(GcpOptions.class).getProject(), Duration.standardMinutes(5));
+
     List<PubsubMessage> messages =
         ImmutableList.of(
             message(ts(1), 3, "foo"), message(ts(2), 5, "bar"), message(ts(3), 7, "baz"));
@@ -113,8 +117,7 @@ public class PubsubToBigqueryIT implements Serializable {
 
   @Test
   public void testSimpleInsertFlat() throws Exception {
-    BeamSqlEnv sqlEnv =
-        BeamSqlEnv.inMemory(new PubsubJsonTableProvider(), new BigQueryTableProvider());
+    BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(new PubsubTableProvider(), new BigQueryTableProvider());
 
     String createTableString =
         "CREATE EXTERNAL TABLE pubsub_topic (\n"
@@ -146,6 +149,10 @@ public class PubsubToBigqueryIT implements Serializable {
     BeamSqlRelUtils.toPCollection(pipeline, sqlEnv.parseQuery(insertStatement));
 
     pipeline.run();
+
+    // Block until a subscription for this topic exists
+    pubsub.assertSubscriptionEventuallyCreated(
+        pipeline.getOptions().as(GcpOptions.class).getProject(), Duration.standardMinutes(5));
 
     List<PubsubMessage> messages =
         ImmutableList.of(

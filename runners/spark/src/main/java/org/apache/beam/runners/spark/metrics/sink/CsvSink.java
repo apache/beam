@@ -18,6 +18,7 @@
 package org.apache.beam.runners.spark.metrics.sink;
 
 import com.codahale.metrics.MetricRegistry;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Properties;
 import org.apache.beam.runners.spark.metrics.AggregatorMetric;
 import org.apache.beam.runners.spark.metrics.WithMetricsSupport;
@@ -26,6 +27,8 @@ import org.apache.spark.metrics.sink.Sink;
 /**
  * A Spark {@link Sink} that is tailored to report {@link AggregatorMetric} metrics to a CSV file.
  */
+// Intentionally overriding parent name because inheritors should replace the parent.
+@SuppressFBWarnings("NM_SAME_SIMPLE_NAME_AS_SUPERCLASS")
 public class CsvSink extends org.apache.spark.metrics.sink.CsvSink {
   public CsvSink(
       final Properties properties,

@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.values;
 
 import java.io.Serializable;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -28,6 +27,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@link PCollectionView PCollectionView&lt;T&gt;} is an immutable view of a {@link PCollection}
@@ -47,6 +47,9 @@ import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
  *
  * @param <T> the type of the value(s) accessible via this {@link PCollectionView}
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public interface PCollectionView<T> extends PValue, Serializable {
   /**
    * <b>For internal use only.</b>
@@ -55,8 +58,8 @@ public interface PCollectionView<T> extends PValue, Serializable {
    *
    * <p>The {@link PCollection} may not be available in all contexts.
    */
-  @Nullable
   @Internal
+  @Nullable
   PCollection<?> getPCollection();
   /**
    * <b>For internal use only.</b>

@@ -23,7 +23,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.samza.adapter.TestSourceHelpers.ElementEvent;
 import org.apache.beam.runners.samza.adapter.TestSourceHelpers.Event;
 import org.apache.beam.runners.samza.adapter.TestSourceHelpers.ExceptionEvent;
@@ -36,6 +35,7 @@ import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
@@ -43,6 +43,9 @@ import org.joda.time.Instant;
  *
  * @param <T> element type
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class TestUnboundedSource<T> extends UnboundedSource<T, TestCheckpointMark> {
   // each list of events is a split
   private final List<List<Event<T>>> events;

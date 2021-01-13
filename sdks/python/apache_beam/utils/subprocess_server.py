@@ -19,8 +19,10 @@
 
 from __future__ import absolute_import
 
+import contextlib
 import logging
 import os
+import re
 import shutil
 import signal
 import socket
@@ -72,6 +74,34 @@ class SubprocessServer(object):
     self.stop()
 
   def start(self):
+    try:
+      endpoint = self.start_process()
+      wait_secs = .1
+      channel_options = [("grpc.max_receive_message_length", -1),
+                         ("grpc.max_send_message_length", -1)]
+      channel = grpc.insecure_channel(endpoint, options=channel_options)
+      channel_ready = grpc.channel_ready_future(channel)
+      while True:
+        if self._process is not None and self._process.poll() is not None:
+          _LOGGER.error("Starting job service with %s", self._process.args)
+          raise RuntimeError(
+              'Service failed to start up with error %s' % self._process.poll())
+        try:
+          channel_ready.result(timeout=wait_secs)
+          break
+        except (grpc.FutureTimeoutError, grpc.RpcError):
+          wait_secs *= 1.2
+          logging.log(
+              logging.WARNING if wait_secs > 1 else logging.DEBUG,
+              'Waiting for grpc channel to be ready at %s.',
+              endpoint)
+      return self._stub_class(channel)
+    except:  # pylint: disable=bare-except
+      _LOGGER.exception("Error bringing up service")
+      self.stop()
+      raise
+
+  def start_process(self):
     with self._process_lock:
       if self._process:
         self.stop()
@@ -82,34 +112,27 @@ class SubprocessServer(object):
         port, = pick_port(None)
         cmd = [arg.replace('{{PORT}}', str(port)) for arg in self._cmd]
       endpoint = 'localhost:%s' % port
-      _LOGGER.warning("Starting service with %s", str(cmd).replace("',", "'"))
-      try:
-        self._process = subprocess.Popen(cmd)
-        wait_secs = .1
-        channel = grpc.insecure_channel(endpoint)
-        channel_ready = grpc.channel_ready_future(channel)
-        while True:
-          if self._process.poll() is not None:
-            _LOGGER.error("Starting job service with %s", cmd)
-            raise RuntimeError(
-                'Service failed to start up with error %s' %
-                self._process.poll())
-          try:
-            channel_ready.result(timeout=wait_secs)
-            break
-          except (grpc.FutureTimeoutError, grpc._channel._Rendezvous):
-            wait_secs *= 1.2
-            logging.log(
-                logging.WARNING if wait_secs > 1 else logging.DEBUG,
-                'Waiting for grpc channel to be ready at %s.',
-                endpoint)
-        return self._stub_class(channel)
-      except:  # pylint: disable=bare-except
-        _LOGGER.exception("Error bringing up service")
-        self.stop()
-        raise
+      _LOGGER.info("Starting service with %s", str(cmd).replace("',", "'"))
+      self._process = subprocess.Popen(
+          cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+
+      # Emit the output of this command as info level logging.
+      def log_stdout():
+        line = self._process.stdout.readline()
+        while line:
+          # Remove newline via rstrip() to not print an empty line
+          _LOGGER.info(line.rstrip())
+          line = self._process.stdout.readline()
+
+      t = threading.Thread(target=log_stdout)
+      t.daemon = True
+      t.start()
+      return endpoint
 
   def stop(self):
+    self.stop_process()
+
+  def stop_process(self):
     with self._process_lock:
       if not self._process:
         return
@@ -133,9 +156,27 @@ class JavaJarServer(SubprocessServer):
   BEAM_GROUP_ID = 'org.apache.beam'
   JAR_CACHE = os.path.expanduser("~/.apache_beam/cache/jars")
 
+  _BEAM_SERVICES = type(
+      'local', (threading.local, ),
+      dict(__init__=lambda self: setattr(self, 'replacements', {})))()
+
   def __init__(self, stub_class, path_to_jar, java_arguments):
     super(JavaJarServer, self).__init__(
         stub_class, ['java', '-jar', path_to_jar] + list(java_arguments))
+    self._existing_service = path_to_jar if _is_service_endpoint(
+        path_to_jar) else None
+
+  def start_process(self):
+    if self._existing_service:
+      return self._existing_service
+    else:
+      return super(JavaJarServer, self).start_process()
+
+  def stop_process(self):
+    if self._existing_service:
+      pass
+    else:
+      return super(JavaJarServer, self).stop_process()
 
   @classmethod
   def jar_name(cls, artifact_id, version, classifier=None, appendix=None):
@@ -149,18 +190,22 @@ class JavaJarServer(SubprocessServer):
       group_id,
       version,
       repository=APACHE_REPOSITORY,
-      classifier=None):
+      classifier=None,
+      appendix=None):
     return '/'.join([
         repository,
         group_id.replace('.', '/'),
         artifact_id,
         version,
-        cls.jar_name(artifact_id, version, classifier)
+        cls.jar_name(artifact_id, version, classifier, appendix)
     ])
 
   @classmethod
-  def path_to_beam_jar(cls, gradle_target, appendix=None):
-    gradle_package = gradle_target.strip(':')[:gradle_target.rindex(':')]
+  def path_to_beam_jar(cls, gradle_target, appendix=None, version=beam_version):
+    if gradle_target in cls._BEAM_SERVICES.replacements:
+      return cls._BEAM_SERVICES.replacements[gradle_target]
+
+    gradle_package = gradle_target.strip(':').rsplit(':', 1)[0]
     artifact_id = 'beam-' + gradle_package.replace(':', '-')
     project_root = os.path.sep.join(
         os.path.abspath(__file__).split(os.path.sep)[:-5])
@@ -171,13 +216,13 @@ class JavaJarServer(SubprocessServer):
         'libs',
         cls.jar_name(
             artifact_id,
-            beam_version.replace('.dev', ''),
+            version.replace('.dev', ''),
             classifier='SNAPSHOT',
             appendix=appendix))
     if os.path.exists(local_path):
       _LOGGER.info('Using pre-built snapshot at %s', local_path)
       return local_path
-    elif '.dev' in beam_version:
+    elif '.dev' in version:
       # TODO: Attempt to use nightly snapshots?
       raise RuntimeError(
           (
@@ -186,19 +231,29 @@ class JavaJarServer(SubprocessServer):
           (local_path, os.path.abspath(project_root), gradle_target))
     else:
       return cls.path_to_maven_jar(
-          artifact_id, cls.BEAM_GROUP_ID, beam_version, cls.APACHE_REPOSITORY)
+          artifact_id,
+          cls.BEAM_GROUP_ID,
+          version,
+          cls.APACHE_REPOSITORY,
+          appendix=appendix)
 
   @classmethod
-  def local_jar(cls, url):
+  def local_jar(cls, url, cache_dir=None):
+    if cache_dir is None:
+      cache_dir = cls.JAR_CACHE
     # TODO: Verify checksum?
-    if os.path.exists(url):
+    if _is_service_endpoint(url):
+      return url
+    elif os.path.exists(url):
       return url
     else:
-      _LOGGER.warning('Downloading job server jar from %s' % url)
-      cached_jar = os.path.join(cls.JAR_CACHE, os.path.basename(url))
-      if not os.path.exists(cached_jar):
-        if not os.path.exists(cls.JAR_CACHE):
-          os.makedirs(cls.JAR_CACHE)
+      cached_jar = os.path.join(cache_dir, os.path.basename(url))
+      if os.path.exists(cached_jar):
+        _LOGGER.info('Using cached job server jar from %s' % url)
+      else:
+        _LOGGER.info('Downloading job server jar from %s' % url)
+        if not os.path.exists(cache_dir):
+          os.makedirs(cache_dir)
           # TODO: Clean up this cache according to some policy.
         try:
           url_read = urlopen(url)
@@ -209,6 +264,20 @@ class JavaJarServer(SubprocessServer):
           raise RuntimeError(
               'Unable to fetch remote job server jar at %s: %s' % (url, e))
       return cached_jar
+
+  @classmethod
+  @contextlib.contextmanager
+  def beam_services(cls, replacements):
+    try:
+      old = cls._BEAM_SERVICES.replacements
+      cls._BEAM_SERVICES.replacements = dict(old, **replacements)
+      yield
+    finally:
+      cls._BEAM_SERVICES.replacements = old
+
+
+def _is_service_endpoint(path):
+  return re.match(r'^[a-zA-Z0-9.-]+:\d+$', path)
 
 
 def pick_port(*ports):
@@ -222,11 +291,20 @@ def pick_port(*ports):
     if port:
       return port
     else:
-      s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+      try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+      except OSError as e:
+        # [Errno 97] Address family not supported by protocol
+        # Likely indicates we are in an IPv6-only environment (BEAM-10618). Try
+        # again with AF_INET6.
+        if e.errno == 97:
+          s = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+        else:
+          raise e
+
       sockets.append(s)
       s.bind(('localhost', 0))
-      _, free_port = s.getsockname()
-      return free_port
+      return s.getsockname()[1]
 
   ports = list(map(find_free_port, ports))
   # Close sockets only now to avoid the same port to be chosen twice

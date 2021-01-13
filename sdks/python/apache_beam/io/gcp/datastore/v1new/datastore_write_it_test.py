@@ -42,8 +42,7 @@ from apache_beam.testing.test_pipeline import TestPipeline
 
 try:
   from apache_beam.io.gcp.datastore.v1new import datastore_write_it_pipeline
-# TODO(BEAM-4543): Remove TypeError once googledatastore dependency is removed.
-except (ImportError, TypeError):
+except ImportError:
   datastore_write_it_pipeline = None  # type: ignore
 
 

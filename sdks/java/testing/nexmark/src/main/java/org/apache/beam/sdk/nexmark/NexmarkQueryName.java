@@ -17,10 +17,13 @@
  */
 package org.apache.beam.sdk.nexmark;
 
-import javax.annotation.Nullable;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Known "Nexmark" queries, some of which are of our own devising but use the same data set. */
-@SuppressWarnings("ImmutableEnumChecker")
+@SuppressWarnings({
+  "ImmutableEnumChecker",
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public enum NexmarkQueryName {
   // A baseline
   PASSTHROUGH(0),
@@ -42,8 +45,8 @@ public enum NexmarkQueryName {
   PROCESSING_TIME_WINDOWS(12), // Query "12"
 
   // Other non-numbered queries
-  BOUNDED_SIDE_INPUT_JOIN,
-  SESSION_SIDE_INPUT_JOIN;
+  BOUNDED_SIDE_INPUT_JOIN(13),
+  SESSION_SIDE_INPUT_JOIN(14);
 
   private @Nullable Integer number;
 

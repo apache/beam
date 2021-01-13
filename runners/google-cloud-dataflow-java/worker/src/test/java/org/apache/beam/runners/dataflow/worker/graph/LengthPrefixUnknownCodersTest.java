@@ -31,7 +31,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotSame;
 
 import com.google.api.client.json.GenericJson;
-import com.google.api.client.json.jackson.JacksonFactory;
+import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.services.dataflow.model.InstructionOutput;
 import com.google.api.services.dataflow.model.ParDoInstruction;
 import com.google.api.services.dataflow.model.ParallelInstruction;
@@ -73,6 +73,9 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link LengthPrefixUnknownCoders}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class LengthPrefixUnknownCodersTest {
   private static final Coder<WindowedValue<KV<String, Integer>>> windowedValueCoder =
       WindowedValue.getFullCoder(

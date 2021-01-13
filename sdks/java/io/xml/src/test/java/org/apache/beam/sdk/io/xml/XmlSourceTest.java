@@ -20,9 +20,9 @@ package org.apache.beam.sdk.io.xml;
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionExhaustive;
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionFails;
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionSucceedsAndConsistent;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.io.BufferedWriter;
@@ -44,6 +44,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
@@ -57,6 +58,9 @@ import org.junit.runners.JUnit4;
  * XmlIOTest}.
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class XmlSourceTest {
 
   @Rule public TestPipeline p = TestPipeline.create();
@@ -154,6 +158,12 @@ public class XmlSourceTest {
           + "<train size=\"small\"><name>Cédric</name><number>7</number><color>blue</color></train>"
           + "</trains>";
 
+  private String trainXMLWithTrainTagsTemplate =
+      "<trains>"
+          + "<train><trainTags>%trainTags%</trainTags><name>Thomas</name><number>1</number><color>blue</color></train>"
+          + "<train><trainTags>%trainTags%</trainTags><name>Henry</name><number>3</number><color>green</color></train>"
+          + "</trains>";
+
   @XmlRootElement
   static class TinyTrain {
     TinyTrain(String name) {
@@ -205,7 +215,7 @@ public class XmlSourceTest {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
       if (!(obj instanceof Train)) {
         return false;
       }
@@ -867,6 +877,42 @@ public class XmlSourceTest {
             .withRecordClass(Train.class)
             .createSource();
     assertSplitAtFractionExhaustive(source, options);
+  }
+
+  @Test
+  public void testNoBufferOverflowThrown() throws IOException {
+    // The magicNumber was found imperatively and will be different for different xml content.
+    // Test with the current setup causes BufferOverflow in
+    // XMLReader#getFirstOccurenceOfRecordElement method,
+    // if the specific corner case is not handled
+    final int magicNumber = 51;
+    StringBuilder tagsSb = new StringBuilder();
+    for (int j = 0; j < magicNumber; j++) {
+      // tags which start the same way as the record element, trigger
+      // a special flow, which could end up with BufferOverflow
+      // exception
+      tagsSb.append("<trainTag>").append(j).append("</trainTag>");
+    }
+    File file = tempFolder.newFile("trainXMLWithTags");
+
+    String xmlWithNoise = trainXMLWithTrainTagsTemplate.replace("%trainTags%", tagsSb.toString());
+    Files.write(file.toPath(), xmlWithNoise.getBytes(StandardCharsets.UTF_8));
+
+    PCollection<Train> output =
+        p.apply(
+            "ReadFileData",
+            XmlIO.<Train>read()
+                .from(file.toPath().toString())
+                .withRootElement("trains")
+                .withRecordElement("train")
+                .withRecordClass(Train.class)
+                .withMinBundleSize(1024));
+
+    List<Train> expectedResults =
+        ImmutableList.of(
+            new Train("Thomas", 1, "blue", null), new Train("Henry", 3, "green", null));
+    PAssert.that(output).containsInAnyOrder(expectedResults);
+    p.run();
   }
 
   @Test

@@ -18,9 +18,9 @@
 package org.apache.beam.runners.dataflow.worker.util.common.worker;
 
 import java.io.Closeable;
-import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.sdk.util.common.Reiterator;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * ShuffleEntryReader provides an interface for reading key/value entries from a shuffle dataset.

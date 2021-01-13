@@ -1,5 +1,3 @@
-import org.apache.beam.gradle.BeamModulePlugin
-
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -54,9 +52,10 @@ task copyDockerfileDependencies(type: Copy) {
 }
 
 docker {
-  name containerImageName(name: 'spark-job-server',
+  name containerImageName(name: project.docker_image_default_repo_prefix + 'spark_job_server',
                           root: project.rootProject.hasProperty(["docker-repository-root"]) ?
-                                  project.rootProject["docker-repository-root"] : "apachebeam")
+                                  project.rootProject["docker-repository-root"] :
+                                  project.docker_image_default_repo_root)
   files "./build/"
 }
 

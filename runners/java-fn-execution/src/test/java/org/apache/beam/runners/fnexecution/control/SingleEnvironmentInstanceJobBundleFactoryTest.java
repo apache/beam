@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.fnexecution.control;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doThrow;
@@ -44,7 +44,6 @@ import org.apache.beam.runners.fnexecution.environment.EnvironmentFactory;
 import org.apache.beam.runners.fnexecution.environment.RemoteEnvironment;
 import org.apache.beam.runners.fnexecution.state.GrpcStateService;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -60,6 +59,9 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link SingleEnvironmentInstanceJobBundleFactory}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SingleEnvironmentInstanceJobBundleFactoryTest {
   @Mock private EnvironmentFactory environmentFactory;
   @Mock private InstructionRequestHandler instructionRequestHandler;
@@ -69,6 +71,8 @@ public class SingleEnvironmentInstanceJobBundleFactoryTest {
   private GrpcFnServer<GrpcDataService> dataServer;
   private GrpcFnServer<GrpcStateService> stateServer;
   private JobBundleFactory factory;
+
+  private static final String GENERATED_ID = "staticId";
 
   @Before
   public void setup() throws Exception {
@@ -86,7 +90,7 @@ public class SingleEnvironmentInstanceJobBundleFactoryTest {
 
     factory =
         SingleEnvironmentInstanceJobBundleFactory.create(
-            environmentFactory, dataServer, stateServer, IdGenerators.incrementingLongs());
+            environmentFactory, dataServer, stateServer, () -> GENERATED_ID);
   }
 
   @After
@@ -109,7 +113,8 @@ public class SingleEnvironmentInstanceJobBundleFactoryTest {
             .get();
     RemoteEnvironment remoteEnv = mock(RemoteEnvironment.class);
     when(remoteEnv.getInstructionRequestHandler()).thenReturn(instructionRequestHandler);
-    when(environmentFactory.createEnvironment(stage.getEnvironment())).thenReturn(remoteEnv);
+    when(environmentFactory.createEnvironment(stage.getEnvironment(), GENERATED_ID))
+        .thenReturn(remoteEnv);
 
     factory.forStage(stage);
     factory.close();
@@ -140,11 +145,11 @@ public class SingleEnvironmentInstanceJobBundleFactoryTest {
     RemoteEnvironment firstRemoteEnv = mock(RemoteEnvironment.class, "First Remote Env");
     RemoteEnvironment secondRemoteEnv = mock(RemoteEnvironment.class, "Second Remote Env");
     RemoteEnvironment thirdRemoteEnv = mock(RemoteEnvironment.class, "Third Remote Env");
-    when(environmentFactory.createEnvironment(firstEnvStage.getEnvironment()))
+    when(environmentFactory.createEnvironment(firstEnvStage.getEnvironment(), GENERATED_ID))
         .thenReturn(firstRemoteEnv);
-    when(environmentFactory.createEnvironment(secondEnvStage.getEnvironment()))
+    when(environmentFactory.createEnvironment(secondEnvStage.getEnvironment(), GENERATED_ID))
         .thenReturn(secondRemoteEnv);
-    when(environmentFactory.createEnvironment(thirdEnvStage.getEnvironment()))
+    when(environmentFactory.createEnvironment(thirdEnvStage.getEnvironment(), GENERATED_ID))
         .thenReturn(thirdRemoteEnv);
     when(firstRemoteEnv.getInstructionRequestHandler()).thenReturn(instructionRequestHandler);
     when(secondRemoteEnv.getInstructionRequestHandler()).thenReturn(instructionRequestHandler);

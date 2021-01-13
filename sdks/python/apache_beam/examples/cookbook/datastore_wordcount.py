@@ -32,67 +32,57 @@ counts them and write the output to a set of files.
 
 The following options must be provided to run this pipeline in read-only mode:
 ``
---dataset YOUR_DATASET
+--project GCP_PROJECT
 --kind YOUR_DATASTORE_KIND
 --output [YOUR_LOCAL_FILE *or* gs://YOUR_OUTPUT_PATH]
 --read_only
 ``
 
-Dataset maps to Project ID for v1 version of datastore.
-
 Read-write Mode: In this mode, this example reads words from an input file,
-converts them to Cloud Datastore ``Entity`` objects and writes them to
-Cloud Datastore using the ``datastoreio.Write`` transform. The second pipeline
+converts them to Beam ``Entity`` objects and writes them to Cloud Datastore
+using the ``datastoreio.WriteToDatastore`` transform. The second pipeline
 will then read these Cloud Datastore entities using the
 ``datastoreio.ReadFromDatastore`` transform, extract the words, count them and
 write the output to a set of files.
 
 The following options must be provided to run this pipeline in read-write mode:
 ``
---dataset YOUR_DATASET
+--project GCP_PROJECT
 --kind YOUR_DATASTORE_KIND
 --output [YOUR_LOCAL_FILE *or* gs://YOUR_OUTPUT_PATH]
 ``
-
-Note: We are using the Cloud Datastore protobuf objects directly because
-that is the interface that the ``datastoreio`` exposes.
-See the following links on more information about these protobuf messages.
-https://cloud.google.com/datastore/docs/reference/rpc/google.datastore.v1 and
-https://github.com/googleapis/googleapis/tree/master/google/datastore/v1
 """
 
 # pytype: skip-file
 
 from __future__ import absolute_import
+from __future__ import print_function
 
 import argparse
 import logging
 import re
+import sys
+from typing import Iterable
+from typing import Optional
+from typing import Text
 import uuid
 from builtins import object
 
 import apache_beam as beam
 from apache_beam.io import ReadFromText
-from apache_beam.io.gcp.datastore.v1.datastoreio import ReadFromDatastore
-from apache_beam.io.gcp.datastore.v1.datastoreio import WriteToDatastore
+from apache_beam.io.gcp.datastore.v1new.datastoreio import ReadFromDatastore
+from apache_beam.io.gcp.datastore.v1new.datastoreio import WriteToDatastore
+from apache_beam.io.gcp.datastore.v1new.types import Entity
+from apache_beam.io.gcp.datastore.v1new.types import Key
+from apache_beam.io.gcp.datastore.v1new.types import Query
 from apache_beam.metrics import Metrics
 from apache_beam.metrics.metric import MetricsFilter
+from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.options.pipeline_options import SetupOptions
-
-# Protect against environments where datastore library is not available.
-# pylint: disable=wrong-import-order, wrong-import-position
-try:
-  from google.cloud.proto.datastore.v1 import entity_pb2
-  from google.cloud.proto.datastore.v1 import query_pb2
-  from googledatastore import helper as datastore_helper
-  from googledatastore import PropertyFilter
-  from past.builtins import unicode
-except ImportError:
-  pass
-# pylint: enable=wrong-import-order, wrong-import-position
 
 
+@beam.typehints.with_input_types(Entity)
+@beam.typehints.with_output_types(Text)
 class WordExtractingDoFn(beam.DoFn):
   """Parse each line of input text into words."""
   def __init__(self):
@@ -102,20 +92,21 @@ class WordExtractingDoFn(beam.DoFn):
     self.word_lengths_dist = Metrics.distribution('main', 'word_len_dist')
 
   def process(self, element):
-    """Returns an iterator over words in contents of Cloud Datastore entity.
+    # type: (Entity) -> Optional[Iterable[Text]]
+
+    """Extract words from the 'content' property of Cloud Datastore entities.
+
     The element is a line of text.  If the line is blank, note that, too.
     Args:
-      element: the input element to be processed
+      element: the input entity to be processed
     Returns:
-      The processed element.
+      A list of words found.
     """
-    content_value = element.properties.get('content', None)
-    text_line = ''
-    if content_value:
-      text_line = content_value.string_value
-
+    text_line = element.properties.get('content', '')
     if not text_line:
       self.empty_line_counter.inc()
+      return None
+
     words = re.findall(r'[A-Za-z\']+', text_line)
     for w in words:
       self.word_length_counter.inc(len(w))
@@ -126,80 +117,66 @@ class WordExtractingDoFn(beam.DoFn):
 
 class EntityWrapper(object):
   """Create a Cloud Datastore entity from the given string."""
-  def __init__(self, namespace, kind, ancestor):
+  def __init__(self, project, namespace, kind, ancestor):
+    self._project = project
     self._namespace = namespace
     self._kind = kind
     self._ancestor = ancestor
 
   def make_entity(self, content):
-    entity = entity_pb2.Entity()
-    if self._namespace is not None:
-      entity.key.partition_id.namespace_id = self._namespace
-
-    # All entities created will have the same ancestor
-    datastore_helper.add_key_path(
-        entity.key, self._kind, self._ancestor, self._kind, str(uuid.uuid4()))
-
-    datastore_helper.add_properties(entity, {"content": unicode(content)})
+    ancestor_key = Key([self._kind, self._ancestor],
+                       self._namespace,
+                       self._project)
+    # Namespace and project are inherited from parent key.
+    key = Key([self._kind, str(uuid.uuid4())], parent=ancestor_key)
+    entity = Entity(key)
+    entity.set_properties({'content': content})
     return entity
 
 
-def write_to_datastore(user_options, pipeline_options):
+def write_to_datastore(project, user_options, pipeline_options):
   """Creates a pipeline that writes entities to Cloud Datastore."""
   with beam.Pipeline(options=pipeline_options) as p:
-
-    # pylint: disable=expression-not-assigned
-    (
+    _ = (
         p
         | 'read' >> ReadFromText(user_options.input)
         | 'create entity' >> beam.Map(
             EntityWrapper(
+                project,
                 user_options.namespace,
                 user_options.kind,
                 user_options.ancestor).make_entity)
-        | 'write to datastore' >> WriteToDatastore(user_options.dataset))
+        | 'write to datastore' >> WriteToDatastore(project))
 
 
-def make_ancestor_query(kind, namespace, ancestor):
+def make_ancestor_query(project, kind, namespace, ancestor):
   """Creates a Cloud Datastore ancestor query.
 
   The returned query will fetch all the entities that have the parent key name
   set to the given `ancestor`.
   """
-  ancestor_key = entity_pb2.Key()
-  datastore_helper.add_key_path(ancestor_key, kind, ancestor)
-  if namespace is not None:
-    ancestor_key.partition_id.namespace_id = namespace
-
-  query = query_pb2.Query()
-  query.kind.add().name = kind
-
-  datastore_helper.set_property_filter(
-      query.filter, '__key__', PropertyFilter.HAS_ANCESTOR, ancestor_key)
-
-  return query
+  ancestor_key = Key([kind, ancestor], project=project, namespace=namespace)
+  return Query(kind, project, namespace, ancestor_key)
 
 
-def read_from_datastore(user_options, pipeline_options):
+def read_from_datastore(project, user_options, pipeline_options):
   """Creates a pipeline that reads entities from Cloud Datastore."""
   p = beam.Pipeline(options=pipeline_options)
   # Create a query to read entities from datastore.
   query = make_ancestor_query(
-      user_options.kind, user_options.namespace, user_options.ancestor)
+      project, user_options.kind, user_options.namespace, user_options.ancestor)
 
   # Read entities from Cloud Datastore into a PCollection.
-  lines = p | 'read from datastore' >> ReadFromDatastore(
-      user_options.dataset, query, user_options.namespace)
+  lines = p | 'read from datastore' >> ReadFromDatastore(query)
 
   # Count the occurrences of each word.
   def count_ones(word_ones):
     (word, ones) = word_ones
-    return (word, sum(ones))
+    return word, sum(ones)
 
   counts = (
       lines
-      | 'split' >>
-      (beam.ParDo(WordExtractingDoFn()).with_output_types(unicode))
+      | 'split' >> beam.ParDo(WordExtractingDoFn())
       | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
       | 'group' >> beam.GroupByKey()
       | 'count' >> beam.Map(count_ones))
@@ -232,10 +209,6 @@ def run(argv=None):
       default='gs://dataflow-samples/shakespeare/kinglear.txt',
       help='Input file to process.')
   parser.add_argument(
-      '--dataset',
-      dest='dataset',
-      help='Dataset ID to read from Cloud Datastore.')
-  parser.add_argument(
       '--kind', dest='kind', required=True, help='Datastore Kind')
   parser.add_argument(
       '--namespace', dest='namespace', help='Datastore Namespace')
@@ -265,14 +238,18 @@ def run(argv=None):
   # We use the save_main_session option because one or more DoFn's in this
   # workflow rely on global context (e.g., a module imported at module level).
   pipeline_options = PipelineOptions(pipeline_args)
-  pipeline_options.view_as(SetupOptions).save_main_session = True
+  project = pipeline_options.view_as(GoogleCloudOptions).project
+  if project is None:
+    parser.print_usage()
+    print(sys.argv[0] + ': error: argument --project is required')
+    sys.exit(1)
 
   # Write to Datastore if `read_only` options is not specified.
   if not known_args.read_only:
-    write_to_datastore(known_args, pipeline_options)
+    write_to_datastore(project, known_args, pipeline_options)
 
   # Read entities from Datastore.
-  result = read_from_datastore(known_args, pipeline_options)
+  result = read_from_datastore(project, known_args, pipeline_options)
 
   empty_lines_filter = MetricsFilter().with_name('empty_lines')
   query_result = result.metrics().query(empty_lines_filter)

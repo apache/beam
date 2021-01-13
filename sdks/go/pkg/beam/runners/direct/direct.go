@@ -34,10 +34,11 @@ import (
 
 func init() {
 	beam.RegisterRunner("direct", Execute)
+	beam.RegisterRunner("DirectRunner", Execute)
 }
 
 // Execute runs the pipeline in-process.
-func Execute(ctx context.Context, p *beam.Pipeline) error {
+func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error) {
 	log.Info(ctx, "Executing pipeline with the direct runner.")
 
 	if !beam.Initialized() {
@@ -49,33 +50,33 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 
 	if *jobopts.Strict {
 		log.Info(ctx, "Strict mode enabled, applying additional validation.")
-		if err := vet.Execute(ctx, p); err != nil {
-			return errors.Wrap(err, "strictness check failed")
+		if _, err := vet.Execute(ctx, p); err != nil {
+			return nil, errors.Wrap(err, "strictness check failed")
 		}
 		log.Info(ctx, "Strict mode validation passed.")
 	}
 
 	edges, _, err := p.Build()
 	if err != nil {
-		return errors.Wrap(err, "invalid pipeline")
+		return nil, errors.Wrap(err, "invalid pipeline")
 	}
 	plan, err := Compile(edges)
 	if err != nil {
-		return errors.Wrap(err, "translation failed")
+		return nil, errors.Wrap(err, "translation failed")
 	}
 	log.Info(ctx, plan)
 
 	if err = plan.Execute(ctx, "", exec.DataContext{}); err != nil {
 		plan.Down(ctx) // ignore any teardown errors
-		return err
+		return nil, err
 	}
 	if err = plan.Down(ctx); err != nil {
-		return err
+		return nil, err
 	}
 	// TODO(lostluck) 2020/01/24: What's the right way to expose the
 	// metrics store for the direct runner?
-	metrics.DumpToLogFromStore(ctx, plan.Store)
-	return nil
+	metrics.DumpToLogFromStore(ctx, plan.Store())
+	return nil, nil
 }
 
 // Compile translates a pipeline to a multi-bundle execution plan.
@@ -239,17 +240,20 @@ func (b *builder) makeLink(id linkID) (exec.Node, error) {
 			Out:     out,
 			PID:     path.Base(edge.DoFn.Name()),
 		}
+		u = pardo
+		if edge.DoFn.IsSplittable() {
+			u = &exec.SdfFallback{PDo: pardo}
+		}
 		if len(edge.Input) == 1 {
-			u = pardo
 			break
 		}
 
 		// ParDo w/ side input. We need to insert buffering and wait. We also need to
 		// ensure that we return the correct link node.
 
-		b.units = append(b.units, pardo)
+		b.units = append(b.units, u)
 
-		w := &wait{UID: b.idgen.New(), need: len(edge.Input) - 1, next: pardo}
+		w := &wait{UID: b.idgen.New(), need: len(edge.Input) - 1, next: u}
 		b.units = append(b.units, w)
 		b.links[linkID{edge.ID(), 0}] = w
 
@@ -293,6 +297,12 @@ func (b *builder) makeLink(id linkID) (exec.Node, error) {
 			b.links[linkID{edge.ID(), i}] = n
 		}
 
+		return b.links[id], nil
+
+	case graph.Reshuffle:
+		// Reshuffle is a no-op in the direct runner, as there's only a single bundle
+		// on a single worker. Hoist the next node up in the cache.
+		b.links[id] = out[0]
 		return b.links[id], nil
 
 	case graph.Flatten:

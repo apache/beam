@@ -20,6 +20,7 @@ package org.apache.beam.runners.core.construction.graph;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.Map;
+import java.util.Set;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.CombinePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
@@ -31,7 +32,9 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.TestStreamPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowIntoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowingStrategy;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 
 /**
@@ -42,7 +45,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 public class PipelineValidator {
   @FunctionalInterface
   private interface TransformValidator {
-    void validate(String transformId, PTransform transform, Components components) throws Exception;
+    void validate(
+        String transformId, PTransform transform, Components components, Set<String> requirements)
+        throws Exception;
   }
 
   private static final ImmutableMap<String, TransformValidator> VALIDATORS =
@@ -78,9 +83,6 @@ public class PipelineValidator {
           .put(
               PTransformTranslation.SPLITTABLE_PAIR_WITH_RESTRICTION_URN,
               PipelineValidator::validateParDo)
-          .put(
-              PTransformTranslation.SPLITTABLE_SPLIT_RESTRICTION_URN,
-              PipelineValidator::validateParDo)
           .put(PTransformTranslation.SPLITTABLE_PROCESS_KEYED_URN, PipelineValidator::validateParDo)
           .put(ExecutableStage.URN, PipelineValidator::validateExecutableStage)
           .build();
@@ -95,10 +97,11 @@ public class PipelineValidator {
           transformId);
     }
 
-    validateComponents("pipeline", components);
+    validateComponents("pipeline", components, ImmutableSet.copyOf(p.getRequirementsList()));
   }
 
-  private static void validateComponents(String context, Components components) {
+  private static void validateComponents(
+      String context, Components components, Set<String> requirements) {
     {
       Map<String, String> uniqueNamesById = Maps.newHashMap();
       for (String transformId : components.getTransformsMap().keySet()) {
@@ -114,7 +117,7 @@ public class PipelineValidator {
             transformId,
             previousId,
             transform.getUniqueName());
-        validateTransform(transformId, transform, components);
+        validateTransform(transformId, transform, components, requirements);
       }
     }
     {
@@ -172,7 +175,8 @@ public class PipelineValidator {
     }
   }
 
-  private static void validateTransform(String id, PTransform transform, Components components) {
+  private static void validateTransform(
+      String id, PTransform transform, Components components, Set<String> requirements) {
     for (String subtransformId : transform.getSubtransformsList()) {
       checkArgument(
           components.containsTransforms(subtransformId),
@@ -201,16 +205,26 @@ public class PipelineValidator {
     }
 
     String urn = transform.getSpec().getUrn();
+    if (PTransformTranslation.RUNNER_IMPLEMENTED_TRANSFORMS.contains(urn)) {
+      checkArgument(
+          transform.getEnvironmentId().isEmpty(),
+          "Transform %s references environment %s when no environment should be specified since it is a required runner implemented transform %s.",
+          id,
+          transform.getEnvironmentId(),
+          urn);
+    }
+
     if (VALIDATORS.containsKey(urn)) {
       try {
-        VALIDATORS.get(urn).validate(id, transform, components);
+        VALIDATORS.get(urn).validate(id, transform, components, requirements);
       } catch (Exception e) {
         throw new RuntimeException(String.format("Failed to validate transform %s", id), e);
       }
     }
   }
 
-  private static void validateParDo(String id, PTransform transform, Components components)
+  private static void validateParDo(
+      String id, PTransform transform, Components components, Set<String> requirements)
       throws Exception {
     ParDoPayload payload = ParDoPayload.parseFrom(transform.getSpec().getPayload());
     // side_inputs
@@ -221,33 +235,51 @@ public class PipelineValidator {
           id,
           sideInputId);
     }
-    // TODO: Validate state_specs and timer_specs
+    if (payload.getStateSpecsCount() > 0 || payload.getTimerFamilySpecsCount() > 0) {
+      checkArgument(requirements.contains(ParDoTranslation.REQUIRES_STATEFUL_PROCESSING_URN));
+      // TODO: Validate state_specs and timer_specs
+    }
     if (!payload.getRestrictionCoderId().isEmpty()) {
       checkArgument(components.containsCoders(payload.getRestrictionCoderId()));
+      checkArgument(requirements.contains(ParDoTranslation.REQUIRES_SPLITTABLE_DOFN_URN));
+    }
+    if (payload.getRequestsFinalization()) {
+      checkArgument(requirements.contains(ParDoTranslation.REQUIRES_BUNDLE_FINALIZATION_URN));
+    }
+    if (payload.getRequiresStableInput()) {
+      checkArgument(requirements.contains(ParDoTranslation.REQUIRES_STABLE_INPUT_URN));
+    }
+    if (payload.getRequiresTimeSortedInput()) {
+      checkArgument(requirements.contains(ParDoTranslation.REQUIRES_TIME_SORTED_INPUT_URN));
     }
   }
 
-  private static void validateAssignWindows(String id, PTransform transform, Components components)
+  private static void validateAssignWindows(
+      String id, PTransform transform, Components components, Set<String> requirements)
       throws Exception {
     WindowIntoPayload.parseFrom(transform.getSpec().getPayload());
   }
 
-  private static void validateTestStream(String id, PTransform transform, Components components)
+  private static void validateTestStream(
+      String id, PTransform transform, Components components, Set<String> requirements)
       throws Exception {
     TestStreamPayload.parseFrom(transform.getSpec().getPayload());
   }
 
-  private static void validateCombine(String id, PTransform transform, Components components)
+  private static void validateCombine(
+      String id, PTransform transform, Components components, Set<String> requirements)
       throws Exception {
     CombinePayload payload = CombinePayload.parseFrom(transform.getSpec().getPayload());
     checkArgument(
         components.containsCoders(payload.getAccumulatorCoderId()),
         "Transform %s uses unknown accumulator coder id %s",
+        id,
         payload.getAccumulatorCoderId());
   }
 
   private static void validateExecutableStage(
-      String id, PTransform transform, Components outerComponents) throws Exception {
+      String id, PTransform transform, Components outerComponents, Set<String> requirements)
+      throws Exception {
     ExecutableStagePayload payload =
         ExecutableStagePayload.parseFrom(transform.getSpec().getPayload());
 
@@ -278,7 +310,7 @@ public class PipelineValidator {
           outputId);
     }
 
-    validateComponents("ExecutableStage " + id, components);
+    validateComponents("ExecutableStage " + id, components, requirements);
 
     // TODO: Also validate that side inputs of all transforms within components.getTransforms()
     // are contained within payload.getSideInputsList()

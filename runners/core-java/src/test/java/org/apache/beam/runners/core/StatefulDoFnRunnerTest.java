@@ -27,7 +27,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.BiFunction;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.sdk.coders.Coder;
@@ -50,6 +49,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -61,6 +61,10 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link StatefulDoFnRunnerTest}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class StatefulDoFnRunnerTest {
 
   private static final long WINDOW_SIZE = 10;
@@ -131,6 +135,47 @@ public class StatefulDoFnRunnerTest {
   @Test(expected = UnsupportedOperationException.class)
   public void testOutputOrderedUnsupported() throws Exception {
     testOutput(true, (fn, output) -> createStatefulDoFnRunner(fn, output, false));
+  }
+
+  @Test
+  public void testDataDroppedBasedOnInputWatermarkWhenOrdered() throws Exception {
+    MetricsContainerImpl container = new MetricsContainerImpl("any");
+    MetricsEnvironment.setCurrentContainer(container);
+    Instant timestamp = new Instant(0);
+
+    MyDoFn fn = MyDoFn.create(true);
+
+    DoFnRunner<KV<String, Integer>, Integer> runner = createStatefulDoFnRunner(fn);
+
+    runner.startBundle();
+
+    IntervalWindow window = new IntervalWindow(timestamp, timestamp.plus(WINDOW_SIZE));
+
+    runner.processElement(
+        WindowedValue.of(KV.of("hello", 1), timestamp, window, PaneInfo.NO_FIRING));
+
+    long droppedValues =
+        container
+            .getCounter(
+                MetricName.named(
+                    StatefulDoFnRunner.class, StatefulDoFnRunner.DROPPED_DUE_TO_LATENESS_COUNTER))
+            .getCumulative();
+    assertEquals(0L, droppedValues);
+
+    timerInternals.advanceInputWatermark(timestamp.plus(ALLOWED_LATENESS + 1));
+
+    runner.processElement(
+        WindowedValue.of(KV.of("hello", 1), timestamp, window, PaneInfo.NO_FIRING));
+
+    droppedValues =
+        container
+            .getCounter(
+                MetricName.named(
+                    StatefulDoFnRunner.class, StatefulDoFnRunner.DROPPED_DUE_TO_LATENESS_COUNTER))
+            .getCumulative();
+    assertEquals(1L, droppedValues);
+
+    runner.finishBundle();
   }
 
   private void testLateDropping(boolean ordered) throws Exception {
@@ -391,6 +436,7 @@ public class StatefulDoFnRunnerTest {
       toTrigger.onTimer(
           timer.getTimerId(),
           timer.getTimerFamilyId(),
+          null,
           window,
           timer.getTimestamp(),
           timer.getOutputTimestamp(),

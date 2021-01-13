@@ -51,6 +51,9 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link View} for a {@link DataflowRunner}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DataflowViewTest {
   @Rule public transient ExpectedException thrown = ExpectedException.none();
 
@@ -65,6 +68,7 @@ public class DataflowViewTest {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setRunner(DataflowRunner.class);
     options.setProject("someproject");
+    options.setRegion("some-region1");
     options.setGcpTempLocation("gs://staging");
     options.setPathValidatorClass(NoopPathValidator.class);
     options.setDataflowClient(dataflow);
@@ -76,6 +80,7 @@ public class DataflowViewTest {
     options.setRunner(DataflowRunner.class);
     options.setStreaming(true);
     options.setProject("someproject");
+    options.setRegion("some-region1");
     options.setGcpTempLocation("gs://staging");
     options.setPathValidatorClass(NoopPathValidator.class);
     options.setDataflowClient(dataflow);

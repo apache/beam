@@ -28,6 +28,9 @@ import unittest
 
 # patches unittest.TestCase to be python3 compatible
 import future.tests.base  # pylint: disable=unused-import
+from hamcrest import all_of
+from hamcrest import assert_that
+from hamcrest import has_entry
 
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.runners.worker import sdk_worker_main
@@ -58,33 +61,39 @@ class SdkWorkerMainTest(unittest.TestCase):
     wrapped_method_for_test()
 
   def test_parse_pipeline_options(self):
-    expected_options = PipelineOptions([])
-    expected_options.view_as(
-        SdkWorkerMainTest.MockOptions).m_m_option = ['beam_fn_api']
-    expected_options.view_as(
-        SdkWorkerMainTest.MockOptions).m_option = '/tmp/requirements.txt'
-    self.assertEqual(
-        expected_options.get_all_options(),
+    assert_that(
         sdk_worker_main._parse_pipeline_options(
             '{"options": {' + '"m_option": "/tmp/requirements.txt", ' +
-            '"m_m_option":["beam_fn_api"]' + '}}').get_all_options())
-    self.assertEqual(
-        expected_options.get_all_options(),
+            '"m_m_option":["beam_fn_api"]' + '}}').get_all_options(),
+        all_of(
+            has_entry('m_m_option', ['beam_fn_api']),
+            has_entry('m_option', '/tmp/requirements.txt')))
+
+    assert_that(
         sdk_worker_main._parse_pipeline_options(
             '{"beam:option:m_option:v1": "/tmp/requirements.txt", ' +
-            '"beam:option:m_m_option:v1":["beam_fn_api"]}').get_all_options())
-    self.assertEqual({'beam:option:m_option:v': 'mock_val'},
-                     sdk_worker_main._parse_pipeline_options(
-                         '{"options": {"beam:option:m_option:v":"mock_val"}}').
-                     get_all_options(drop_default=True))
-    self.assertEqual({'eam:option:m_option:v1': 'mock_val'},
-                     sdk_worker_main._parse_pipeline_options(
-                         '{"options": {"eam:option:m_option:v1":"mock_val"}}').
-                     get_all_options(drop_default=True))
-    self.assertEqual({'eam:option:m_option:v': 'mock_val'},
-                     sdk_worker_main._parse_pipeline_options(
-                         '{"options": {"eam:option:m_option:v":"mock_val"}}').
-                     get_all_options(drop_default=True))
+            '"beam:option:m_m_option:v1":["beam_fn_api"]}').get_all_options(),
+        all_of(
+            has_entry('m_m_option', ['beam_fn_api']),
+            has_entry('m_option', '/tmp/requirements.txt')))
+
+    assert_that(
+        sdk_worker_main._parse_pipeline_options(
+            '{"options": {"beam:option:m_option:v":"mock_val"}}').
+        get_all_options(),
+        has_entry('beam:option:m_option:v', 'mock_val'))
+
+    assert_that(
+        sdk_worker_main._parse_pipeline_options(
+            '{"options": {"eam:option:m_option:v1":"mock_val"}}').
+        get_all_options(),
+        has_entry('eam:option:m_option:v1', 'mock_val'))
+
+    assert_that(
+        sdk_worker_main._parse_pipeline_options(
+            '{"options": {"eam:option:m_option:v":"mock_val"}}').
+        get_all_options(),
+        has_entry('eam:option:m_option:v', 'mock_val'))
 
 
 if __name__ == '__main__':

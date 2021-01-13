@@ -42,6 +42,7 @@ import org.apache.beam.sdk.testutils.NamedTestResult;
 import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
+import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -77,6 +78,9 @@ import org.junit.runners.JUnit4;
  * performance testing framework.
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class MongoDBIOIT {
 
   private static final String NAMESPACE = MongoDBIOIT.class.getName();
@@ -84,6 +88,7 @@ public class MongoDBIOIT {
   private static String bigQueryTable;
   private static String mongoUrl;
   private static MongoClient mongoClient;
+  private static InfluxDBSettings settings;
 
   private double initialCollectionSize;
   private double finalCollectionSize;
@@ -131,6 +136,12 @@ public class MongoDBIOIT {
     mongoUrl =
         String.format("mongodb://%s:%s", options.getMongoDBHostName(), options.getMongoDBPort());
     mongoClient = MongoClients.create(mongoUrl);
+    settings =
+        InfluxDBSettings.builder()
+            .withHost(options.getInfluxHost())
+            .withDatabase(options.getInfluxDatabase())
+            .withMeasurement(options.getInfluxMeasurement())
+            .get();
   }
 
   @After
@@ -208,7 +219,9 @@ public class MongoDBIOIT {
     IOITMetrics writeMetrics =
         new IOITMetrics(writeSuppliers, writeResult, NAMESPACE, uuid, timestamp);
     readMetrics.publish(bigQueryDataset, bigQueryTable);
+    readMetrics.publishToInflux(settings);
     writeMetrics.publish(bigQueryDataset, bigQueryTable);
+    writeMetrics.publishToInflux(settings);
   }
 
   private Set<Function<MetricsReader, NamedTestResult>> getWriteSuppliers(

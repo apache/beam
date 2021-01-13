@@ -27,7 +27,6 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.annotations.Internal;
@@ -47,7 +46,6 @@ import org.apache.beam.sdk.transforms.DoFn.WindowedContext;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
 import org.apache.beam.sdk.transforms.display.DisplayData.ItemSpec;
-import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.FieldAccessDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.MethodWithExtraParameters;
@@ -67,6 +65,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * {@link ParDo} is the core element-wise transform in Apache Beam, invoking a user-specified
@@ -387,6 +386,10 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  * @see <a href= "https://beam.apache.org/documentation/programming-guide/#pardo"> the web
  *     documentation for ParDo</a>
  */
+@SuppressWarnings({
+  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes"
+})
 public class ParDo {
 
   /**
@@ -405,13 +408,22 @@ public class ParDo {
   }
 
   private static void finishSpecifyingStateSpecs(
-      DoFn<?, ?> fn, CoderRegistry coderRegistry, Coder<?> inputCoder) {
+      DoFn<?, ?> fn,
+      CoderRegistry coderRegistry,
+      SchemaRegistry schemaRegistry,
+      Coder<?> inputCoder) {
     DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
     Map<String, DoFnSignature.StateDeclaration> stateDeclarations = signature.stateDeclarations();
     for (DoFnSignature.StateDeclaration stateDeclaration : stateDeclarations.values()) {
       try {
         StateSpec<?> stateSpec = (StateSpec<?>) stateDeclaration.field().get(fn);
-        stateSpec.offerCoders(codersForStateSpecTypes(stateDeclaration, coderRegistry, inputCoder));
+        Coder[] coders;
+        try {
+          coders = schemasForStateSpecTypes(stateDeclaration, schemaRegistry);
+        } catch (NoSuchSchemaException e) {
+          coders = codersForStateSpecTypes(stateDeclaration, coderRegistry, inputCoder);
+        }
+        stateSpec.offerCoders(coders);
         stateSpec.finishSpecifying();
       } catch (IllegalAccessException e) {
         throw new RuntimeException(e);
@@ -493,6 +505,32 @@ public class ParDo {
       }
     }
     return fieldAccessDescriptor.resolve(inputSchema);
+  }
+
+  private static SchemaCoder[] schemasForStateSpecTypes(
+      DoFnSignature.StateDeclaration stateDeclaration, SchemaRegistry schemaRegistry)
+      throws NoSuchSchemaException {
+    Type stateType = stateDeclaration.stateType().getType();
+
+    if (!(stateType instanceof ParameterizedType)) {
+      // No type arguments means no coders to infer.
+      return new SchemaCoder[0];
+    }
+
+    Type[] typeArguments = ((ParameterizedType) stateType).getActualTypeArguments();
+    SchemaCoder[] coders = new SchemaCoder[typeArguments.length];
+
+    for (int i = 0; i < typeArguments.length; i++) {
+      Type typeArgument = typeArguments[i];
+      TypeDescriptor typeDescriptor = TypeDescriptor.of(typeArgument);
+      coders[i] =
+          SchemaCoder.of(
+              schemaRegistry.getSchema(typeDescriptor),
+              typeDescriptor,
+              schemaRegistry.getToRowFunction(typeDescriptor),
+              schemaRegistry.getFromRowFunction(typeDescriptor));
+    }
+    return coders;
   }
 
   /**
@@ -742,8 +780,8 @@ public class ParDo {
     @Override
     public PCollection<OutputT> expand(PCollection<? extends InputT> input) {
       SchemaRegistry schemaRegistry = input.getPipeline().getSchemaRegistry();
-      CoderRegistry registry = input.getPipeline().getCoderRegistry();
-      finishSpecifyingStateSpecs(fn, registry, input.getCoder());
+      CoderRegistry coderRegistry = input.getPipeline().getCoderRegistry();
+      finishSpecifyingStateSpecs(fn, coderRegistry, schemaRegistry, input.getCoder());
       TupleTag<OutputT> mainOutput = new TupleTag<>(MAIN_OUTPUT_TAG);
       PCollection<OutputT> res =
           input.apply(withOutputTags(mainOutput, TupleTagList.empty())).get(mainOutput);
@@ -758,7 +796,7 @@ public class ParDo {
       } catch (NoSuchSchemaException e) {
         try {
           res.setCoder(
-              registry.getCoder(
+              coderRegistry.getCoder(
                   outputTypeDescriptor,
                   getFn().getInputTypeDescriptor(),
                   ((PCollection<InputT>) input).getCoder()));
@@ -785,7 +823,7 @@ public class ParDo {
     @Override
     public void populateDisplayData(Builder builder) {
       super.populateDisplayData(builder);
-      ParDo.populateDisplayData(builder, (HasDisplayData) fn, fnDisplayData);
+      ParDo.populateDisplayData(builder, fn, fnDisplayData);
     }
 
     public DoFn<InputT, OutputT> getFn() {
@@ -896,8 +934,9 @@ public class ParDo {
       validateWindowType(input, fn);
 
       // Use coder registry to determine coders for all StateSpec defined in the fn signature.
-      CoderRegistry registry = input.getPipeline().getCoderRegistry();
-      finishSpecifyingStateSpecs(fn, registry, input.getCoder());
+      CoderRegistry coderRegistry = input.getPipeline().getCoderRegistry();
+      SchemaRegistry schemaRegistry = input.getPipeline().getSchemaRegistry();
+      finishSpecifyingStateSpecs(fn, coderRegistry, schemaRegistry, input.getCoder());
 
       DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
       if (signature.usesState() || signature.usesTimers()) {
@@ -924,7 +963,7 @@ public class ParDo {
         try {
           out.setCoder(
               (Coder)
-                  registry.getCoder(
+                  coderRegistry.getCoder(
                       out.getTypeDescriptor(), getFn().getInputTypeDescriptor(), inputCoder));
         } catch (CannotProvideCoderException e) {
           // Ignore and let coder inference happen later.
@@ -982,11 +1021,58 @@ public class ParDo {
     }
   }
 
+  private static String stateDescription(StateSpec<?> spec) {
+    return spec.match(
+        new StateSpec.Cases<String>() {
+          @Override
+          public String dispatchValue(Coder<?> valueCoder) {
+            return "ValueState<" + valueCoder + ">";
+          }
+
+          @Override
+          public String dispatchBag(Coder<?> elementCoder) {
+            return "BagState<" + elementCoder + ">";
+          }
+
+          @Override
+          public String dispatchOrderedList(Coder<?> elementCoder) {
+            return "OrderedListState<" + elementCoder + ">";
+          }
+
+          @Override
+          public String dispatchCombining(
+              Combine.CombineFn<?, ?, ?> combineFn, Coder<?> accumCoder) {
+            return "CombiningState<" + accumCoder + ">";
+          }
+
+          @Override
+          public String dispatchMap(Coder<?> keyCoder, Coder<?> valueCoder) {
+            return "MapState<" + keyCoder + ", " + valueCoder + ">";
+          }
+
+          @Override
+          public String dispatchSet(Coder<?> elementCoder) {
+            return "SetState<" + elementCoder + ">";
+          }
+        });
+  }
+
   private static void populateDisplayData(
       DisplayData.Builder builder,
-      HasDisplayData fn,
+      DoFn<?, ?> fn,
       DisplayData.ItemSpec<? extends Class<?>> fnDisplayData) {
     builder.include("fn", fn).add(fnDisplayData);
+    for (DoFnSignature.StateDeclaration stateDeclaration :
+        DoFnSignatures.signatureForDoFn(fn).stateDeclarations().values()) {
+      try {
+        StateSpec<?> stateSpec = (StateSpec<?>) stateDeclaration.field().get(fn);
+        builder.add(
+            DisplayData.item("state_" + stateDeclaration.id(), stateDescription(stateSpec))
+                .withLabel("State \"" + stateDeclaration.id() + "\""));
+      } catch (IllegalAccessException e) {
+        throw new RuntimeException(e);
+      }
+    }
   }
 
   private static boolean isSplittable(DoFn<?, ?> fn) {

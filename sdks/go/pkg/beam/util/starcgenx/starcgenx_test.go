@@ -55,6 +55,10 @@ func TestExtractor(t *testing.T) {
 			expected: []string{"runtime.RegisterFunction(included)", "runtime.RegisterFunction(users)", "funcMakerMapOfString_IntᏘIntГArrayOf4ᏘInt", "runtime.RegisterType(reflect.TypeOf((*myInterface)(nil)).Elem())", "runtime.RegisterType(reflect.TypeOf((*myType)(nil)).Elem())"},
 			excluded: []string{"runtime.RegisterType(reflect.TypeOf((*typex.T)(nil)).Elem())", "runtime.RegisterType(reflect.TypeOf((*beam.T)(nil)).Elem())", "runtime.RegisterType(reflect.TypeOf((*typex.X)(nil)).Elem())", "runtime.RegisterType(reflect.TypeOf((*beam.X)(nil)).Elem())", "runtime.RegisterType(reflect.TypeOf((*error)(nil)).Elem())", "runtime.RegisterType(reflect.TypeOf((*context.Context)(nil)).Elem())"},
 		},
+		{name: "newtypes2", files: []string{newtypes2}, pkg: "newtypes2",
+			expected: []string{"runtime.RegisterFunction(included)", "runtime.RegisterFunction(users)", "funcMakerMapOfString_IntᏘIntГSliceOfᏘInt", "runtime.RegisterType(reflect.TypeOf((*myInterface)(nil)).Elem())", "runtime.RegisterType(reflect.TypeOf((*myType)(nil)).Elem())"},
+			excluded: []string{"runtime.RegisterType(reflect.TypeOf((*typex.T)(nil)).Elem())", "runtime.RegisterType(reflect.TypeOf((*beam.T)(nil)).Elem())", "runtime.RegisterType(reflect.TypeOf((*typex.X)(nil)).Elem())", "runtime.RegisterType(reflect.TypeOf((*beam.X)(nil)).Elem())", "runtime.RegisterType(reflect.TypeOf((*error)(nil)).Elem())", "runtime.RegisterType(reflect.TypeOf((*context.Context)(nil)).Elem())"},
+		},
 		{name: "imports1", files: []string{imports}, pkg: "imports", imports: []string{"math/rand", "time"},
 			expected: []string{"runtime.RegisterFunction(MyImportedTypesDoFn)", "runtime.RegisterType(reflect.TypeOf((*rand.Rand)(nil)).Elem())", "runtime.RegisterType(reflect.TypeOf((*time.Time)(nil)).Elem())", "funcMakerᏘRand۰RandГTime۰Time", "\"math/rand\"", "\"time\""},
 		},
@@ -65,9 +69,13 @@ func TestExtractor(t *testing.T) {
 		{name: "vars", files: []string{vars}, pkg: "vars", imports: []string{"strings"},
 			excluded: []string{"runtime.RegisterFunction(strings.MyTitle)", "runtime.RegisterFunction(anonFunction)"},
 		},
+		{name: "registerDoFn", files: []string{pardo, registerDoFn}, pkg: "pardo", imports: []string{"github.com/apache/beam/sdks/go/pkg/beam"},
+			expected: []string{"runtime.RegisterFunction(MyIdent)", "runtime.RegisterFunction(MyOtherDoFn)", "runtime.RegisterType(reflect.TypeOf((*foo)(nil)).Elem())", "funcMakerStringГString", "funcMakerFooГStringFoo"},
+			excluded: []string{"runtime.RegisterFunction(MyDropVal)", "funcMakerIntStringГInt"},
+		},
 	}
 
-	// Some environments (eg. Jenkins) doen't appear to be able to
+	// Some environments (eg. Jenkins) don't appear to be able to
 	// handle the imports in some tests. If a test would fail, for the
 	// environment, it shouldn't be run.
 	imp := importer.Default()
@@ -133,7 +141,26 @@ func MyDropVal(k int,v string) int {
 type foo struct{}
 
 func MyOtherDoFn(v foo) (string,foo) {
-	return "constant"
+	return "constant",  foo{}
+}
+`
+
+const registerDoFn = `
+package pardo
+
+// Hack around the test not properly being able to import
+// the beam package. While this will satisfy the code
+// generator's loose static analysis, it is strongly not
+// advised for use outside this test.
+type dummy struct{}
+
+func (dummy) RegisterDoFn(interface{}) {}
+
+// Should include MyIdent and MyOtherDoFn and not MyDropVal
+func init() {
+	var beam dummy
+	beam.RegisterDoFn(MyIdent)
+	beam.RegisterDoFn(MyOtherDoFn)
 }
 `
 
@@ -159,7 +186,7 @@ import (
 )
 
 func ShouldExist(v beam.T) (beam.X, error) {
-	return nil
+	return nil, nil
 }
 `
 
@@ -174,6 +201,20 @@ type myType struct{}
 type myInterface interface{}
 
 func users(k *myType, v [2]myInterface) {
+}
+`
+
+const newtypes2 = `
+package newtypes2
+
+func included(k map[string]int, v *int) []*int {
+	return []*int{}
+}
+
+type myType struct{}
+type myInterface interface{}
+
+func users(k *myType, v []myInterface) {
 }
 `
 
@@ -231,7 +272,9 @@ func (f *myDoFn) ProcessElement(k, v valType, emit func(int)) {}
 
 func (f *myDoFn) Setup(emit func(int)) {}
 func (f *myDoFn) StartBundle(emit func(int)) {}
-func (f *myDoFn) FinishBundle(emit func(int)) error {}
+func (f *myDoFn) FinishBundle(emit func(int)) error {
+	return nil
+}
 func (f *myDoFn) Teardown(emit func(int)) {}
 
 func (f *myDoFn) NonLifecycleMethod() {}

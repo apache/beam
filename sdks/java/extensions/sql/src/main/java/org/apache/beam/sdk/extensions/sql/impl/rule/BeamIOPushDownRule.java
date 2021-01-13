@@ -58,6 +58,9 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RelBuilde
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.Pair;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BeamIOPushDownRule extends RelOptRule {
   // ~ Static fields/initializers ---------------------------------------------
 
@@ -134,11 +137,6 @@ public class BeamIOPushDownRule extends RelOptRule {
     }
 
     FieldAccessDescriptor resolved = FieldAccessDescriptor.withFieldNames(usedFields);
-    if (beamSqlTable.supportsProjects().withFieldReordering()) {
-      // Only needs to be done when field reordering is supported, otherwise IO should project
-      // fields in the same order they are defined in the schema and let Calc do the reordering.
-      resolved = resolved.withOrderByFieldInsertionOrder();
-    }
     resolved = resolved.resolve(beamSqlTable.getSchema());
 
     if (canDropCalc(program, beamSqlTable.supportsProjects(), tableFilter)) {

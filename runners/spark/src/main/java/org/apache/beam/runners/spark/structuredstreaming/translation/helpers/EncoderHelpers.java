@@ -24,7 +24,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.spark.structuredstreaming.translation.SchemaHelpers;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.spark.sql.Encoder;
@@ -42,12 +41,16 @@ import org.apache.spark.sql.catalyst.expressions.codegen.CodegenContext;
 import org.apache.spark.sql.catalyst.expressions.codegen.ExprCode;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.ObjectType;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import scala.StringContext;
 import scala.collection.JavaConversions;
 import scala.reflect.ClassTag;
 import scala.reflect.ClassTag$;
 
 /** {@link Encoders} utility class. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class EncoderHelpers {
   /**
    * Wrap a Beam coder into a Spark Encoder using Catalyst Expression Encoders (which uses java code
@@ -100,7 +103,7 @@ public class EncoderHelpers {
       List<Object> args = new ArrayList<>();
       /*
         CODE GENERATED
-        final ${javaType} ${ev.value} = org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers.EncodeUsingBeamCoder.encode(${input.value}, ${coder});
+        final ${javaType} ${ev.value} = org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers.EncodeUsingBeamCoder.encode(${input.isNull()}, ${input.value}, ${coder});
       */
       parts.add("final ");
       args.add(javaType);
@@ -151,7 +154,7 @@ public class EncoderHelpers {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -263,7 +266,7 @@ public class EncoderHelpers {
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -283,7 +286,7 @@ public class EncoderHelpers {
      * Convert value from byte array (invoked by generated code in {@link #doGenCode(CodegenContext,
      * ExprCode)}).
      */
-    public static <T> T decode(boolean isNull, @Nullable byte[] serialized, Coder<T> coder) {
+    public static <T> T decode(boolean isNull, byte @Nullable [] serialized, Coder<T> coder) {
       return isNull ? null : CoderHelpers.fromByteArray(serialized, coder);
     }
   }

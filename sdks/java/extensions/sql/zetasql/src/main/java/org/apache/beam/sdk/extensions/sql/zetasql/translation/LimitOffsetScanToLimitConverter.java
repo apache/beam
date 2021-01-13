@@ -26,10 +26,16 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelCollatio
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelCollations;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.LogicalSort;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexDynamicParam;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexLiteral;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /** Converts LIMIT without ORDER BY. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class LimitOffsetScanToLimitConverter extends RelConverter<ResolvedLimitOffsetScan> {
 
   LimitOffsetScanToLimitConverter(ConversionContext context) {
@@ -57,7 +63,19 @@ class LimitOffsetScanToLimitConverter extends RelConverter<ResolvedLimitOffsetSc
     RexNode fetch =
         getExpressionConverter()
             .convertRexNodeFromResolvedExpr(
-                zetaNode.getLimit(), zetaNode.getColumnList(), input.getRowType().getFieldList());
+                zetaNode.getLimit(),
+                zetaNode.getColumnList(),
+                input.getRowType().getFieldList(),
+                ImmutableMap.of());
+
+    // offset or fetch being RexDynamicParam means it is NULL (the only param supported currently)
+    if (offset instanceof RexDynamicParam
+        || RexLiteral.isNullLiteral(offset)
+        || fetch instanceof RexDynamicParam
+        || RexLiteral.isNullLiteral(fetch)) {
+      throw new UnsupportedOperationException("Limit requires non-null count and offset");
+    }
+
     return LogicalSort.create(input, relCollation, offset, fetch);
   }
 }

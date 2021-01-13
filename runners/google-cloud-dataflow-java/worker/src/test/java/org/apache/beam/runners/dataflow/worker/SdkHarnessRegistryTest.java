@@ -38,6 +38,9 @@ import org.mockito.Mockito;
 
 /** Unit tests for {@link SdkHarnessRegistry}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SdkHarnessRegistryTest {
 
   @Test
@@ -66,7 +69,7 @@ public class SdkHarnessRegistryTest {
             i -> {
               String workerId = "worker_" + i;
               sdkHarnessRegistry.registerWorkerClient(
-                  FnApiControlClient.forRequestObserver(workerId, null));
+                  FnApiControlClient.forRequestObserver(workerId, null, null));
               workerIds.add(workerId);
             });
     assertEquals(
@@ -81,7 +84,7 @@ public class SdkHarnessRegistryTest {
             i -> {
               String workerId = "worker_" + i;
               sdkHarnessRegistry.registerWorkerClient(
-                  FnApiControlClient.forRequestObserver(workerId, null));
+                  FnApiControlClient.forRequestObserver(workerId, null, null));
               workerIds.add(workerId);
             });
 

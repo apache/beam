@@ -19,18 +19,29 @@ package org.apache.beam.sdk.schemas;
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
+import java.lang.annotation.Annotation;
+import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Field;
+import java.lang.reflect.Member;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
-import javax.annotation.Nullable;
+import java.util.stream.Stream;
+import org.apache.beam.sdk.schemas.annotations.SchemaCaseFormat;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldName;
 import org.apache.beam.sdk.schemas.logicaltypes.OneOfType;
 import org.apache.beam.sdk.schemas.utils.ReflectUtils;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.CaseFormat;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Represents type information for a Java type that will be used to infer a Schema type. */
 @AutoValue
+@SuppressWarnings({
+  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes"
+})
 public abstract class FieldValueTypeInformation implements Serializable {
   /** Returns the field name. */
   public abstract String getName();
@@ -44,25 +55,20 @@ public abstract class FieldValueTypeInformation implements Serializable {
   /** Returns the raw class type. */
   public abstract Class getRawType();
 
-  @Nullable
-  public abstract Field getField();
+  public abstract @Nullable Field getField();
 
-  @Nullable
-  public abstract Method getMethod();
+  public abstract @Nullable Method getMethod();
 
   public abstract Map<String, FieldValueTypeInformation> getOneOfTypes();
 
   /** If the field is a container type, returns the element type. */
-  @Nullable
-  public abstract FieldValueTypeInformation getElementType();
+  public abstract @Nullable FieldValueTypeInformation getElementType();
 
   /** If the field is a map type, returns the key type. */
-  @Nullable
-  public abstract FieldValueTypeInformation getMapKeyType();
+  public abstract @Nullable FieldValueTypeInformation getMapKeyType();
 
   /** If the field is a map type, returns the key type. */
-  @Nullable
-  public abstract FieldValueTypeInformation getMapValueType();
+  public abstract @Nullable FieldValueTypeInformation getMapValueType();
 
   abstract Builder toBuilder();
 
@@ -110,8 +116,8 @@ public abstract class FieldValueTypeInformation implements Serializable {
   public static FieldValueTypeInformation forField(Field field) {
     TypeDescriptor type = TypeDescriptor.of(field.getGenericType());
     return new AutoValue_FieldValueTypeInformation.Builder()
-        .setName(field.getName())
-        .setNullable(field.isAnnotationPresent(Nullable.class))
+        .setName(getNameOverride(field.getName(), field))
+        .setNullable(hasNullableAnnotation(field))
         .setType(type)
         .setRawType(type.getRawType())
         .setField(field)
@@ -120,6 +126,29 @@ public abstract class FieldValueTypeInformation implements Serializable {
         .setMapValueType(getMapValueType(field))
         .setOneOfTypes(Collections.emptyMap())
         .build();
+  }
+
+  public static <T extends AnnotatedElement & Member> String getNameOverride(
+      String original, T member) {
+    SchemaFieldName fieldName = member.getAnnotation(SchemaFieldName.class);
+    SchemaCaseFormat caseFormatAnnotation = member.getAnnotation(SchemaCaseFormat.class);
+    SchemaCaseFormat classCaseFormatAnnotation =
+        member.getDeclaringClass().getAnnotation(SchemaCaseFormat.class);
+    if (fieldName != null) {
+      if (caseFormatAnnotation != null) {
+        throw new RuntimeException(
+            String.format(
+                "Cannot define both @SchemaFieldName and @SchemaCaseFormat. From member '%s'.",
+                member.getName()));
+      }
+      return fieldName.value();
+    } else if (caseFormatAnnotation != null) {
+      return CaseFormat.LOWER_CAMEL.to(caseFormatAnnotation.value(), original);
+    } else if (classCaseFormatAnnotation != null) {
+      return CaseFormat.LOWER_CAMEL.to(classCaseFormatAnnotation.value(), original);
+    } else {
+      return original;
+    }
   }
 
   public static FieldValueTypeInformation forGetter(Method method) {
@@ -133,9 +162,9 @@ public abstract class FieldValueTypeInformation implements Serializable {
     }
 
     TypeDescriptor type = TypeDescriptor.of(method.getGenericReturnType());
-    boolean nullable = method.isAnnotationPresent(Nullable.class);
+    boolean nullable = hasNullableReturnType(method);
     return new AutoValue_FieldValueTypeInformation.Builder()
-        .setName(name)
+        .setName(getNameOverride(name, method))
         .setNullable(nullable)
         .setType(type)
         .setRawType(type.getRawType())
@@ -145,6 +174,47 @@ public abstract class FieldValueTypeInformation implements Serializable {
         .setMapValueType(getMapValueType(type))
         .setOneOfTypes(Collections.emptyMap())
         .build();
+  }
+
+  private static boolean hasNullableAnnotation(Field field) {
+    Stream<Annotation> annotations =
+        Stream.concat(
+            Stream.of(field.getAnnotations()),
+            Stream.of(field.getAnnotatedType().getAnnotations()));
+
+    return annotations.anyMatch(FieldValueTypeInformation::isNullableAnnotation);
+  }
+
+  /**
+   * If the method or its return type are annotated with any variant of Nullable, then the schema
+   * field is nullable.
+   */
+  private static boolean hasNullableReturnType(Method method) {
+    Stream<Annotation> annotations =
+        Stream.concat(
+            Stream.of(method.getAnnotations()),
+            Stream.of(method.getAnnotatedReturnType().getAnnotations()));
+
+    return annotations.anyMatch(FieldValueTypeInformation::isNullableAnnotation);
+  }
+
+  private static boolean hasSingleNullableParameter(Method method) {
+    if (method.getParameterCount() != 1) {
+      throw new RuntimeException(
+          "Setter methods should take a single argument " + method.getName());
+    }
+
+    Stream<Annotation> annotations =
+        Stream.concat(
+            Arrays.stream(method.getAnnotatedParameterTypes()[0].getAnnotations()),
+            Arrays.stream(method.getParameterAnnotations()[0]));
+
+    return annotations.anyMatch(FieldValueTypeInformation::isNullableAnnotation);
+  }
+
+  /** Try to accept any Nullable annotation. */
+  private static boolean isNullableAnnotation(Annotation annotation) {
+    return annotation.annotationType().getSimpleName().equals("Nullable");
   }
 
   public static FieldValueTypeInformation forSetter(Method method) {
@@ -158,12 +228,9 @@ public abstract class FieldValueTypeInformation implements Serializable {
     } else {
       throw new RuntimeException("Setter has wrong prefix " + method.getName());
     }
-    if (method.getParameterCount() != 1) {
-      throw new RuntimeException("Setter methods should take a single argument.");
-    }
+
     TypeDescriptor type = TypeDescriptor.of(method.getGenericParameterTypes()[0]);
-    boolean nullable =
-        Arrays.stream(method.getParameterAnnotations()[0]).anyMatch(Nullable.class::isInstance);
+    boolean nullable = hasSingleNullableParameter(method);
     return new AutoValue_FieldValueTypeInformation.Builder()
         .setName(name)
         .setNullable(nullable)
@@ -185,8 +252,7 @@ public abstract class FieldValueTypeInformation implements Serializable {
     return getIterableComponentType(TypeDescriptor.of(field.getGenericType()));
   }
 
-  @Nullable
-  static FieldValueTypeInformation getIterableComponentType(TypeDescriptor valueType) {
+  static @Nullable FieldValueTypeInformation getIterableComponentType(TypeDescriptor valueType) {
     // TODO: Figure out nullable elements.
     TypeDescriptor componentType = ReflectUtils.getIterableComponentType(valueType);
     if (componentType == null) {
@@ -206,32 +272,32 @@ public abstract class FieldValueTypeInformation implements Serializable {
   }
 
   // If the Field is a map type, returns the key type, otherwise returns a null reference.
-  @Nullable
-  private static FieldValueTypeInformation getMapKeyType(Field field) {
+
+  private static @Nullable FieldValueTypeInformation getMapKeyType(Field field) {
     return getMapKeyType(TypeDescriptor.of(field.getGenericType()));
   }
 
-  @Nullable
-  private static FieldValueTypeInformation getMapKeyType(TypeDescriptor<?> typeDescriptor) {
+  private static @Nullable FieldValueTypeInformation getMapKeyType(
+      TypeDescriptor<?> typeDescriptor) {
     return getMapType(typeDescriptor, 0);
   }
 
   // If the Field is a map type, returns the value type, otherwise returns a null reference.
-  @Nullable
-  private static FieldValueTypeInformation getMapValueType(Field field) {
+
+  private static @Nullable FieldValueTypeInformation getMapValueType(Field field) {
     return getMapType(TypeDescriptor.of(field.getGenericType()), 1);
   }
 
-  @Nullable
-  private static FieldValueTypeInformation getMapValueType(TypeDescriptor typeDescriptor) {
+  private static @Nullable FieldValueTypeInformation getMapValueType(
+      TypeDescriptor typeDescriptor) {
     return getMapType(typeDescriptor, 1);
   }
 
   // If the Field is a map type, returns the key or value type (0 is key type, 1 is value).
   // Otherwise returns a null reference.
   @SuppressWarnings("unchecked")
-  @Nullable
-  private static FieldValueTypeInformation getMapType(TypeDescriptor valueType, int index) {
+  private static @Nullable FieldValueTypeInformation getMapType(
+      TypeDescriptor valueType, int index) {
     TypeDescriptor mapType = ReflectUtils.getMapType(valueType, index);
     if (mapType == null) {
       return null;

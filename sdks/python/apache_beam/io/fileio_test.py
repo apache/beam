@@ -29,6 +29,7 @@ import os
 import sys
 import unittest
 import uuid
+import warnings
 
 from hamcrest.library.text import stringmatches
 from nose.plugins.attrib import attr
@@ -49,6 +50,10 @@ from apache_beam.testing.util import matches_all
 from apache_beam.transforms import trigger
 from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import GlobalWindow
+from apache_beam.transforms.window import IntervalWindow
+
+warnings.filterwarnings(
+    'ignore', category=FutureWarning, module='apache_beam.io.fileio_test')
 
 
 def _get_file_reader(readable_file):
@@ -357,8 +362,8 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
 
   CSV_HEADERS = ['project', 'foundation']
 
-  SIMPLE_COLLECTION_VALIDATION_SET = set([(elm['project'], elm['foundation'])
-                                          for elm in SIMPLE_COLLECTION])
+  SIMPLE_COLLECTION_VALIDATION_SET = {(elm['project'], elm['foundation'])
+                                      for elm in SIMPLE_COLLECTION}
 
   class CsvSink(fileio.TextSink):
     def __init__(self, headers):
@@ -658,13 +663,13 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
           cncf_files,
           matches_all([
               stringmatches.matches_regexp(
-                  '.*cncf-1970-01-01T00_00_00-1970-01-01T00_00_10--.*'),
+                  '.*cncf-1970-01-01T00_00_00-1970-01-01T00_00_10.*'),
               stringmatches.matches_regexp(
-                  '.*cncf-1970-01-01T00_00_10-1970-01-01T00_00_20--.*'),
+                  '.*cncf-1970-01-01T00_00_10-1970-01-01T00_00_20.*'),
               stringmatches.matches_regexp(
-                  '.*cncf-1970-01-01T00_00_20-1970-01-01T00_00_30--.*'),
+                  '.*cncf-1970-01-01T00_00_20-1970-01-01T00_00_30.*'),
               stringmatches.matches_regexp(
-                  '.*cncf-1970-01-01T00_00_30-1970-01-01T00_00_40--.*')
+                  '.*cncf-1970-01-01T00_00_30-1970-01-01T00_00_40.*')
           ]),
           label='verifyCNCFFiles')
 
@@ -672,15 +677,31 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
           apache_files,
           matches_all([
               stringmatches.matches_regexp(
-                  '.*apache-1970-01-01T00_00_00-1970-01-01T00_00_10--.*'),
+                  '.*apache-1970-01-01T00_00_00-1970-01-01T00_00_10.*'),
               stringmatches.matches_regexp(
-                  '.*apache-1970-01-01T00_00_10-1970-01-01T00_00_20--.*'),
+                  '.*apache-1970-01-01T00_00_10-1970-01-01T00_00_20.*'),
               stringmatches.matches_regexp(
-                  '.*apache-1970-01-01T00_00_20-1970-01-01T00_00_30--.*'),
+                  '.*apache-1970-01-01T00_00_20-1970-01-01T00_00_30.*'),
               stringmatches.matches_regexp(
-                  '.*apache-1970-01-01T00_00_30-1970-01-01T00_00_40--.*')
+                  '.*apache-1970-01-01T00_00_30-1970-01-01T00_00_40.*')
           ]),
           label='verifyApacheFiles')
+
+  def test_shard_naming(self):
+    namer = fileio.default_file_naming(prefix='/path/to/file', suffix='.txt')
+    self.assertEqual(
+        namer(GlobalWindow(), None, None, None, None, None),
+        '/path/to/file.txt')
+    self.assertEqual(
+        namer(GlobalWindow(), None, 1, 5, None, None),
+        '/path/to/file-00001-of-00005.txt')
+    self.assertEqual(
+        namer(GlobalWindow(), None, 1, 5, 'gz', None),
+        '/path/to/file-00001-of-00005.txt.gz')
+    self.assertEqual(
+        namer(IntervalWindow(0, 100), None, 1, 5, None, None),
+        '/path/to/file'
+        '-1970-01-01T00:00:00-1970-01-01T00:01:40-00001-of-00005.txt')
 
 
 if __name__ == '__main__':

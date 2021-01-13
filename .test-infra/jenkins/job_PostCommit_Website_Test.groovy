@@ -20,17 +20,17 @@ import CommonJobProperties as commonJobProperties
 import PostcommitJobBuilder
 
 PostcommitJobBuilder.postCommitJob('beam_PostCommit_Website_Test', 'Run Full Website Test',
-  'Full Website Test', this) {
+    'Full Website Test', this) {
 
-  description('Test to validate the Beam website, including external links.')
+      description('Test to validate the Beam website, including external links.')
 
-  commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 30, true, 'git-websites')
+      commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 30, true, 'git-websites')
 
-  steps {
-    gradle {
-      rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':website:testWebsite -PdisableExternal=false')
-      commonJobProperties.setGradleSwitches(delegate)
+      steps {
+        gradle {
+          rootBuildScriptDir(commonJobProperties.checkoutDir)
+          tasks(':website:testWebsite -PdisableExternal=false')
+          commonJobProperties.setGradleSwitches(delegate)
+        }
+      }
     }
-  }
-}

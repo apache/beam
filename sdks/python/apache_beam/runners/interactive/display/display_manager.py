@@ -142,7 +142,7 @@ class DisplayManager(object):
         if force or not self._cache_manager.is_latest_version(
             version, 'sample', cache_label):
           pcoll_list, version = self._cache_manager.read('sample', cache_label)
-          stats['sample'] = pcoll_list
+          stats['sample'] = list(pcoll_list)
           stats['version'] = version
           stats_updated = True
 

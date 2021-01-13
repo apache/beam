@@ -29,11 +29,15 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.ModelCoderRegistrar;
 import org.apache.beam.runners.core.construction.ModelCoders;
+import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.FusedPipeline;
 import org.apache.beam.runners.core.construction.graph.GreedyPipelineFuser;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
+import org.apache.beam.runners.core.construction.graph.ProtoOverrides;
+import org.apache.beam.runners.core.construction.graph.SplittableParDoExpander;
+import org.apache.beam.runners.core.construction.graph.TimerReference;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -42,16 +46,26 @@ import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
+import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.state.Timer;
+import org.apache.beam.sdk.state.TimerSpec;
+import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.ProcessContext;
+import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.junit.Test;
 
 /** Tests for {@link ProcessBundleDescriptors}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ProcessBundleDescriptorsTest implements Serializable {
 
   /**
@@ -59,7 +73,7 @@ public class ProcessBundleDescriptorsTest implements Serializable {
    * LengthPrefixCoder.
    */
   @Test
-  public void testWrapKeyCoderOfStatefulExecutableStageInLengthPrefixCoder() throws Exception {
+  public void testLengthPrefixingOfKeyCoderInStatefulExecutableStage() throws Exception {
     // Add another stateful stage with a non-standard key coder
     Pipeline p = Pipeline.create();
     Coder<Void> keycoder = VoidCoder.of();
@@ -82,16 +96,18 @@ public class ProcessBundleDescriptorsTest implements Serializable {
                   private final StateSpec<BagState<String>> bufferState =
                       StateSpecs.bag(StringUtf8Coder.of());
 
+                  @TimerId("timerId")
+                  private final TimerSpec timerSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
                   @ProcessElement
                   public void processElement(
                       @Element KV<Void, String> element,
                       @StateId("stateId") BagState<String> state,
-                      OutputReceiver<KV<Void, String>> r) {
-                    for (String value : state.read()) {
-                      r.output(KV.of(element.getKey(), value));
-                    }
-                    state.add(element.getValue());
-                  }
+                      @TimerId("timerId") Timer timer,
+                      OutputReceiver<KV<Void, String>> r) {}
+
+                  @OnTimer("timerId")
+                  public void onTimer() {}
                 }))
         // Force the output to be materialized
         .apply("gbk", GroupByKey.create());
@@ -111,34 +127,141 @@ public class ProcessBundleDescriptorsTest implements Serializable {
 
     // Ensure original key coder is not a LengthPrefixCoder
     Map<String, RunnerApi.Coder> stageCoderMap = stage.getComponents().getCodersMap();
-    RunnerApi.Coder originalCoder =
+    RunnerApi.Coder originalMainInputCoder =
         stageCoderMap.get(inputPCollection.getPCollection().getCoderId());
-    String originalKeyCoderId = ModelCoders.getKvCoderComponents(originalCoder).keyCoderId();
-    assertThat(
-        stageCoderMap.get(originalKeyCoderId).getSpec().getUrn(),
-        is(CoderTranslation.JAVA_SERIALIZED_CODER_URN));
+    String originalKeyCoderId =
+        ModelCoders.getKvCoderComponents(originalMainInputCoder).keyCoderId();
+    RunnerApi.Coder originalKeyCoder = stageCoderMap.get(originalKeyCoderId);
+    assertThat(originalKeyCoder.getSpec().getUrn(), is(CoderTranslation.JAVA_SERIALIZED_CODER_URN));
 
     // Now create ProcessBundleDescriptor and check for the LengthPrefixCoder around the key coder
-    BeamFnApi.ProcessBundleDescriptor pbDescriptor =
+    BeamFnApi.ProcessBundleDescriptor pbd =
         ProcessBundleDescriptors.fromExecutableStage(
                 "test_stage", stage, Endpoints.ApiServiceDescriptor.getDefaultInstance())
             .getProcessBundleDescriptor();
+    Map<String, RunnerApi.Coder> pbsCoderMap = pbd.getCodersMap();
 
-    String inputPCollectionId = inputPCollection.getId();
-    String inputCoderId = pbDescriptor.getPcollectionsMap().get(inputPCollectionId).getCoderId();
+    RunnerApi.Coder pbsMainInputCoder =
+        pbsCoderMap.get(pbd.getPcollectionsOrThrow(inputPCollection.getId()).getCoderId());
+    String keyCoderId = ModelCoders.getKvCoderComponents(pbsMainInputCoder).keyCoderId();
+    RunnerApi.Coder keyCoder = pbsCoderMap.get(keyCoderId);
+    ensureLengthPrefixed(keyCoder, originalKeyCoder, pbsCoderMap);
 
-    Map<String, RunnerApi.Coder> pbCoderMap = pbDescriptor.getCodersMap();
-    RunnerApi.Coder coder = pbCoderMap.get(inputCoderId);
-    String keyCoderId = ModelCoders.getKvCoderComponents(coder).keyCoderId();
-
-    RunnerApi.Coder keyCoder = pbCoderMap.get(keyCoderId);
-    // Ensure length prefix
-    assertThat(keyCoder.getSpec().getUrn(), is(ModelCoders.LENGTH_PREFIX_CODER_URN));
-    String lengthPrefixWrappedCoderId = keyCoder.getComponentCoderIds(0);
-
-    // Check that the wrapped coder is unchanged
-    assertThat(lengthPrefixWrappedCoderId, is(originalKeyCoderId));
-    assertThat(
-        pbCoderMap.get(lengthPrefixWrappedCoderId), is(stageCoderMap.get(originalKeyCoderId)));
+    TimerReference timerRef = Iterables.getOnlyElement(stage.getTimers());
+    String timerTransformId = timerRef.transform().getId();
+    RunnerApi.ParDoPayload parDoPayload =
+        RunnerApi.ParDoPayload.parseFrom(
+            pbd.getTransformsOrThrow(timerTransformId).getSpec().getPayload());
+    RunnerApi.TimerFamilySpec timerSpec =
+        parDoPayload.getTimerFamilySpecsOrThrow(timerRef.localName());
+    RunnerApi.Coder timerCoder = pbsCoderMap.get(timerSpec.getTimerFamilyCoderId());
+    String timerKeyCoderId = timerCoder.getComponentCoderIds(0);
+    RunnerApi.Coder timerKeyCoder = pbsCoderMap.get(timerKeyCoderId);
+    ensureLengthPrefixed(timerKeyCoder, originalKeyCoder, pbsCoderMap);
   }
+
+  @Test
+  public void testLengthPrefixingOfInputCoderExecutableStage() throws Exception {
+    Pipeline p = Pipeline.create();
+    Coder<Void> voidCoder = VoidCoder.of();
+    assertThat(ModelCoderRegistrar.isKnownCoder(voidCoder), is(false));
+    p.apply("impulse", Impulse.create())
+        .apply(
+            ParDo.of(
+                new DoFn<byte[], Void>() {
+                  @ProcessElement
+                  public void process(ProcessContext ctxt) {}
+                }))
+        .setCoder(voidCoder)
+        .apply(
+            ParDo.of(
+                new DoFn<Void, Void>() {
+                  @ProcessElement
+                  public void processElement(
+                      ProcessContext context, RestrictionTracker<Void, Void> tracker) {}
+
+                  @GetInitialRestriction
+                  public Void getInitialRestriction() {
+                    return null;
+                  }
+
+                  @NewTracker
+                  public SomeTracker newTracker(@Restriction Void restriction) {
+                    return null;
+                  }
+                }))
+        .setCoder(voidCoder);
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);
+    RunnerApi.Pipeline pipelineWithSdfExpanded =
+        ProtoOverrides.updateTransform(
+            PTransformTranslation.PAR_DO_TRANSFORM_URN,
+            pipelineProto,
+            SplittableParDoExpander.createSizedReplacement());
+    FusedPipeline fused = GreedyPipelineFuser.fuse(pipelineWithSdfExpanded);
+    Optional<ExecutableStage> optionalStage =
+        Iterables.tryFind(
+            fused.getFusedStages(),
+            (ExecutableStage stage) ->
+                stage.getTransforms().stream()
+                    .anyMatch(
+                        transform ->
+                            transform
+                                .getTransform()
+                                .getSpec()
+                                .getUrn()
+                                .equals(
+                                    PTransformTranslation
+                                        .SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN)));
+    checkState(
+        optionalStage.isPresent(),
+        "Expected a stage with SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN.");
+
+    ExecutableStage stage = optionalStage.get();
+    PipelineNode.PCollectionNode inputPCollection = stage.getInputPCollection();
+    Map<String, RunnerApi.Coder> stageCoderMap = stage.getComponents().getCodersMap();
+    RunnerApi.Coder originalMainInputCoder =
+        stageCoderMap.get(inputPCollection.getPCollection().getCoderId());
+
+    BeamFnApi.ProcessBundleDescriptor pbd =
+        ProcessBundleDescriptors.fromExecutableStage(
+                "test_stage", stage, Endpoints.ApiServiceDescriptor.getDefaultInstance())
+            .getProcessBundleDescriptor();
+    Map<String, RunnerApi.Coder> pbsCoderMap = pbd.getCodersMap();
+
+    RunnerApi.Coder pbsMainInputCoder =
+        pbsCoderMap.get(pbd.getPcollectionsOrThrow(inputPCollection.getId()).getCoderId());
+
+    RunnerApi.Coder kvCoder =
+        pbsCoderMap.get(ModelCoders.getKvCoderComponents(pbsMainInputCoder).keyCoderId());
+    RunnerApi.Coder keyCoder =
+        pbsCoderMap.get(ModelCoders.getKvCoderComponents(kvCoder).keyCoderId());
+    RunnerApi.Coder valueKvCoder =
+        pbsCoderMap.get(ModelCoders.getKvCoderComponents(kvCoder).valueCoderId());
+    RunnerApi.Coder valueCoder =
+        pbsCoderMap.get(ModelCoders.getKvCoderComponents(valueKvCoder).keyCoderId());
+
+    RunnerApi.Coder originalKvCoder =
+        stageCoderMap.get(ModelCoders.getKvCoderComponents(originalMainInputCoder).keyCoderId());
+    RunnerApi.Coder originalKeyCoder =
+        stageCoderMap.get(ModelCoders.getKvCoderComponents(originalKvCoder).keyCoderId());
+    RunnerApi.Coder originalvalueKvCoder =
+        stageCoderMap.get(ModelCoders.getKvCoderComponents(originalKvCoder).valueCoderId());
+    RunnerApi.Coder originalvalueCoder =
+        stageCoderMap.get(ModelCoders.getKvCoderComponents(originalvalueKvCoder).keyCoderId());
+
+    ensureLengthPrefixed(keyCoder, originalKeyCoder, pbsCoderMap);
+    ensureLengthPrefixed(valueCoder, originalvalueCoder, pbsCoderMap);
+  }
+
+  private static void ensureLengthPrefixed(
+      RunnerApi.Coder coder,
+      RunnerApi.Coder originalCoder,
+      Map<String, RunnerApi.Coder> pbsCoderMap) {
+    assertThat(coder.getSpec().getUrn(), is(ModelCoders.LENGTH_PREFIX_CODER_URN));
+    // Check that the wrapped coder is unchanged
+    String lengthPrefixedWrappedCoderId = coder.getComponentCoderIds(0);
+    assertThat(pbsCoderMap.get(lengthPrefixedWrappedCoderId), is(originalCoder));
+  }
+
+  private abstract static class SomeTracker extends RestrictionTracker<Void, Void> {}
 }

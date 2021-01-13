@@ -381,6 +381,11 @@ func (m *distribution) get() (count, sum, min, max int64) {
 	return m.count, m.sum, m.min, m.max
 }
 
+// DistributionValue is the value of a Distribution metric.
+type DistributionValue struct {
+	Count, Sum, Min, Max int64
+}
+
 // Gauge is a time, value pair metric.
 type Gauge struct {
 	name name
@@ -447,4 +452,156 @@ func (m *gauge) get() (int64, time.Time) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return m.v, m.t
+}
+
+// GaugeValue is the value of a Gauge metric.
+type GaugeValue struct {
+	Value     int64
+	Timestamp time.Time
+}
+
+// Results represents all metrics gathered during the job's execution.
+// It allows for querying metrics using a provided filter.
+type Results struct {
+	counters      []CounterResult
+	distributions []DistributionResult
+	gauges        []GaugeResult
+}
+
+// NewResults creates a new Results.
+func NewResults(
+	counters []CounterResult,
+	distributions []DistributionResult,
+	gauges []GaugeResult) *Results {
+	return &Results{counters, distributions, gauges}
+}
+
+// AllMetrics returns all metrics from a Results instance.
+func (mr Results) AllMetrics() QueryResults {
+	return QueryResults{mr.counters, mr.distributions, mr.gauges}
+}
+
+// TODO(BEAM-11217): Implement Query(Filter) and metrics filtering
+
+// QueryResults is the result of a query. Allows accessing all of the
+// metrics that matched the filter.
+type QueryResults struct {
+	counters      []CounterResult
+	distributions []DistributionResult
+	gauges        []GaugeResult
+}
+
+// Counters returns a slice of counter metrics.
+func (qr QueryResults) Counters() []CounterResult {
+	out := make([]CounterResult, len(qr.counters))
+	copy(out, qr.counters)
+	return out
+}
+
+// Distributions returns a slice of distribution metrics.
+func (qr QueryResults) Distributions() []DistributionResult {
+	out := make([]DistributionResult, len(qr.distributions))
+	copy(out, qr.distributions)
+	return out
+}
+
+// Gauges returns a slice of gauge metrics.
+func (qr QueryResults) Gauges() []GaugeResult {
+	out := make([]GaugeResult, len(qr.gauges))
+	copy(out, qr.gauges)
+	return out
+}
+
+// CounterResult is an attempted and a commited value of a counter metric plus
+// key.
+type CounterResult struct {
+	Attempted, Committed int64
+	Key                  StepKey
+}
+
+// Result returns committed metrics. Falls back to attempted metrics if committed
+// are not populated (e.g. due to not being supported on a given runner).
+func (r CounterResult) Result() int64 {
+	if r.Committed != 0 {
+		return r.Committed
+	}
+	return r.Attempted
+}
+
+// MergeCounters combines counter metrics that share a common key.
+func MergeCounters(
+	attempted map[StepKey]int64,
+	committed map[StepKey]int64) []CounterResult {
+	res := make([]CounterResult, 0)
+
+	for k := range attempted {
+		v := committed[k]
+		res = append(res, CounterResult{Attempted: attempted[k], Committed: v, Key: k})
+	}
+	return res
+}
+
+// DistributionResult is an attempted and a commited value of a distribution
+// metric plus key.
+type DistributionResult struct {
+	Attempted, Committed DistributionValue
+	Key                  StepKey
+}
+
+// Result returns committed metrics. Falls back to attempted metrics if committed
+// are not populated (e.g. due to not being supported on a given runner).
+func (r DistributionResult) Result() DistributionValue {
+	empty := DistributionValue{}
+	if r.Committed != empty {
+		return r.Committed
+	}
+	return r.Attempted
+}
+
+// MergeDistributions combines distribution metrics that share a common key.
+func MergeDistributions(
+	attempted map[StepKey]DistributionValue,
+	committed map[StepKey]DistributionValue) []DistributionResult {
+	res := make([]DistributionResult, 0)
+
+	for k := range attempted {
+		v := committed[k]
+		res = append(res, DistributionResult{Attempted: attempted[k], Committed: v, Key: k})
+	}
+	return res
+}
+
+// GaugeResult is an attempted and a commited value of a gauge metric plus
+// key.
+type GaugeResult struct {
+	Attempted, Committed GaugeValue
+	Key                  StepKey
+}
+
+// Result returns committed metrics. Falls back to attempted metrics if committed
+// are not populated (e.g. due to not being supported on a given runner).
+func (r GaugeResult) Result() GaugeValue {
+	empty := GaugeValue{}
+	if r.Committed != empty {
+		return r.Committed
+	}
+	return r.Attempted
+}
+
+// StepKey uniquely identifies a metric within a pipeline graph.
+type StepKey struct {
+	Step, Name, Namespace string
+}
+
+// MergeGauges combines gauge metrics that share a common key.
+func MergeGauges(
+	attempted map[StepKey]GaugeValue,
+	committed map[StepKey]GaugeValue) []GaugeResult {
+	res := make([]GaugeResult, 0)
+
+	for k := range attempted {
+		v := committed[k]
+		res = append(res, GaugeResult{Attempted: attempted[k], Committed: v, Key: k})
+	}
+	return res
 }

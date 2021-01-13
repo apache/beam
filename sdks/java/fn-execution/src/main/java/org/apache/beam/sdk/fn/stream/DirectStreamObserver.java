@@ -37,7 +37,7 @@ import org.slf4j.LoggerFactory;
  */
 @ThreadSafe
 public final class DirectStreamObserver<T> implements StreamObserver<T> {
-  private static final Logger LOGGER = LoggerFactory.getLogger(DirectStreamObserver.class);
+  private static final Logger LOG = LoggerFactory.getLogger(DirectStreamObserver.class);
   private static final int DEFAULT_MAX_MESSAGES_BEFORE_CHECK = 100;
 
   private final Phaser phaser;
@@ -80,14 +80,14 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
         // If the phase didn't change, this means that the installed onReady callback had not
         // been invoked.
         if (phase == phaser.getPhase()) {
-          LOGGER.info(
+          LOG.info(
               "Output channel stalled for {}s, outbound thread {}. See: "
                   + "https://issues.apache.org/jira/browse/BEAM-4280 for the history for "
                   + "this issue.",
               totalTimeWaited,
               Thread.currentThread().getName());
         } else {
-          LOGGER.debug(
+          LOG.debug(
               "Output channel stalled for {}s, outbound thread {}.",
               totalTimeWaited,
               Thread.currentThread().getName());

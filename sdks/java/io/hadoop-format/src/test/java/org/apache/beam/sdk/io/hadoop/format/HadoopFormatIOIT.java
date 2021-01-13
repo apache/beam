@@ -34,12 +34,15 @@ import org.apache.beam.sdk.io.common.HashingFn;
 import org.apache.beam.sdk.io.common.PostgresIOTestPipelineOptions;
 import org.apache.beam.sdk.io.common.TestRow;
 import org.apache.beam.sdk.io.hadoop.SerializableConfiguration;
+import org.apache.beam.sdk.options.Default;
+import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testutils.NamedTestResult;
 import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
+import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -64,6 +67,8 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.postgresql.ds.PGSimpleDataSource;
+import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.utility.DockerImageName;
 
 /**
  * A test of {@link org.apache.beam.sdk.io.hadoop.format.HadoopFormatIO} on an independent postgres
@@ -89,6 +94,9 @@ import org.postgresql.ds.PGSimpleDataSource;
  * performance testing framework.
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class HadoopFormatIOIT {
 
   private static final String NAMESPACE = HadoopFormatIOIT.class.getName();
@@ -99,22 +107,45 @@ public class HadoopFormatIOIT {
   private static SerializableConfiguration hadoopConfiguration;
   private static String bigQueryDataset;
   private static String bigQueryTable;
+  private static InfluxDBSettings settings;
+  private static HadoopFormatIOITOptions options;
+
+  // For some reason PostgreSQLContainer is a generic class
+  @SuppressWarnings("rawtypes")
+  private static PostgreSQLContainer postgreSQLContainer;
 
   @Rule public TestPipeline writePipeline = TestPipeline.create();
   @Rule public TestPipeline readPipeline = TestPipeline.create();
   @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
 
+  public interface HadoopFormatIOITOptions extends PostgresIOTestPipelineOptions {
+    @Description("Whether to use testcontainers")
+    @Default.Boolean(false)
+    Boolean isWithTestcontainers();
+
+    void setWithTestcontainers(Boolean withTestcontainers);
+  }
+
   @BeforeClass
   public static void setUp() throws Exception {
-    PostgresIOTestPipelineOptions options =
-        readIOTestPipelineOptions(PostgresIOTestPipelineOptions.class);
+    options = readIOTestPipelineOptions(HadoopFormatIOITOptions.class);
+    if (options.isWithTestcontainers()) {
+      setPostgresContainer();
+    }
 
     dataSource = DatabaseTestHelper.getPostgresDataSource(options);
     numberOfRows = options.getNumberOfRecords();
     tableName = DatabaseTestHelper.getTestTableName("HadoopFormatIOIT");
     bigQueryDataset = options.getBigQueryDataset();
     bigQueryTable = options.getBigQueryTable();
-
+    if (!options.isWithTestcontainers()) {
+      settings =
+          InfluxDBSettings.builder()
+              .withHost(options.getInfluxHost())
+              .withDatabase(options.getInfluxDatabase())
+              .withMeasurement(options.getInfluxMeasurement())
+              .get();
+    }
     executeWithRetry(HadoopFormatIOIT::createTable);
     setupHadoopConfiguration(options);
   }
@@ -157,6 +188,9 @@ public class HadoopFormatIOIT {
   @AfterClass
   public static void tearDown() throws Exception {
     executeWithRetry(HadoopFormatIOIT::deleteTable);
+    if (postgreSQLContainer != null) {
+      postgreSQLContainer.stop();
+    }
   }
 
   private static void deleteTable() throws SQLException {
@@ -198,7 +232,9 @@ public class HadoopFormatIOIT {
     PipelineResult readResult = readPipeline.run();
     readResult.waitUntilFinish();
 
-    collectAndPublishMetrics(writeResult, readResult);
+    if (!options.isWithTestcontainers()) {
+      collectAndPublishMetrics(writeResult, readResult);
+    }
   }
 
   private void collectAndPublishMetrics(PipelineResult writeResult, PipelineResult readResult) {
@@ -214,7 +250,9 @@ public class HadoopFormatIOIT {
     IOITMetrics writeMetrics =
         new IOITMetrics(writeSuppliers, writeResult, NAMESPACE, uuid, timestamp);
     readMetrics.publish(bigQueryDataset, bigQueryTable);
+    readMetrics.publishToInflux(settings);
     writeMetrics.publish(bigQueryDataset, bigQueryTable);
+    writeMetrics.publishToInflux(settings);
   }
 
   private Set<Function<MetricsReader, NamedTestResult>> getWriteSuppliers(
@@ -246,6 +284,19 @@ public class HadoopFormatIOIT {
       long endTime = reader.getEndTimeMetric(metricName);
       return NamedTestResult.create(uuid, timestamp, metricName, (endTime - startTime) / 1e3);
     };
+  }
+
+  @SuppressWarnings("rawtypes")
+  private static void setPostgresContainer() {
+    postgreSQLContainer =
+        new PostgreSQLContainer(DockerImageName.parse("postgres").withTag("latest"))
+            .withDatabaseName(options.getPostgresDatabaseName())
+            .withUsername(options.getPostgresUsername())
+            .withPassword(options.getPostgresPassword());
+    postgreSQLContainer.start();
+    options.setPostgresServerName(postgreSQLContainer.getContainerIpAddress());
+    options.setPostgresPort(postgreSQLContainer.getMappedPort(PostgreSQLContainer.POSTGRESQL_PORT));
+    options.setPostgresSsl(false);
   }
 
   /**

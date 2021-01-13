@@ -18,19 +18,20 @@
 package org.apache.beam.sdk.extensions.protobuf;
 
 import static org.apache.beam.sdk.extensions.protobuf.ProtoByteBuddyUtils.getProtoGetter;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.Message;
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.extensions.protobuf.ProtoByteBuddyUtils.ProtoTypeConversionsFactory;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
 import org.apache.beam.sdk.schemas.GetterBasedSchemaProvider;
+import org.apache.beam.sdk.schemas.RowMessages;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.SchemaUserTypeCreator;
@@ -38,12 +39,19 @@ import org.apache.beam.sdk.schemas.logicaltypes.OneOfType;
 import org.apache.beam.sdk.schemas.utils.FieldValueTypeSupplier;
 import org.apache.beam.sdk.schemas.utils.JavaBeanUtils;
 import org.apache.beam.sdk.schemas.utils.ReflectUtils;
+import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 @Experimental(Kind.SCHEMAS)
+@SuppressWarnings({
+  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class ProtoMessageSchema extends GetterBasedSchemaProvider {
 
   private static final class ProtoClassFieldValueTypeSupplier implements FieldValueTypeSupplier {
@@ -83,9 +91,8 @@ public class ProtoMessageSchema extends GetterBasedSchemaProvider {
     }
   }
 
-  @Nullable
   @Override
-  public <T> Schema schemaFor(TypeDescriptor<T> typeDescriptor) {
+  public <T> @Nullable Schema schemaFor(TypeDescriptor<T> typeDescriptor) {
     checkForDynamicType(typeDescriptor);
     return ProtoSchemaTranslator.getSchema((Class<Message>) typeDescriptor.getRawType());
   }
@@ -116,10 +123,44 @@ public class ProtoMessageSchema extends GetterBasedSchemaProvider {
     return creator;
   }
 
+  // Other modules are not allowed to use non-vendored Message class
+  @SuppressWarnings({
+    "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+    "unchecked"
+  })
+  public static <T> SimpleFunction<byte[], Row> getProtoBytesToRowFn(Class<T> clazz) {
+    Class<Message> protoClass = ensureMessageType(clazz);
+    ProtoCoder<Message> protoCoder = ProtoCoder.of(protoClass);
+    return RowMessages.bytesToRowFn(
+        new ProtoMessageSchema(),
+        TypeDescriptor.of(protoClass),
+        bytes -> protoCoder.getParser().parseFrom(bytes));
+  }
+
+  // Other modules are not allowed to use non-vendored Message class
+  @SuppressWarnings({
+    "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+    "unchecked"
+  })
+  public static <T> SimpleFunction<Row, byte[]> getRowToProtoBytesFn(Class<T> clazz) {
+    Class<Message> protoClass = ensureMessageType(clazz);
+    return RowMessages.rowToBytesFn(
+        new ProtoMessageSchema(), TypeDescriptor.of(protoClass), Message::toByteArray);
+  }
+
   private <T> void checkForDynamicType(TypeDescriptor<T> typeDescriptor) {
     if (typeDescriptor.getRawType().equals(DynamicMessage.class)) {
       throw new RuntimeException(
           "DynamicMessage is not allowed for the standard ProtoSchemaProvider, use ProtoDynamicMessageSchema  instead.");
     }
+  }
+
+  private static Class<Message> ensureMessageType(Class<?> clazz) {
+    checkArgument(
+        Message.class.isAssignableFrom(clazz),
+        "%s is not a subtype of %s",
+        clazz.getName(),
+        Message.class.getSimpleName());
+    return (Class<Message>) clazz;
   }
 }

@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.worker.fn.logging;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.junit.Assert.assertThat;
 
 import java.net.InetAddress;
 import java.net.ServerSocket;
@@ -52,6 +52,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link BeamFnLoggingService}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BeamFnLoggingServiceTest {
   private Server server;
 

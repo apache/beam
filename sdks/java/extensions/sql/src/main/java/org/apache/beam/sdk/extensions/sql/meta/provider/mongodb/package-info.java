@@ -21,4 +21,4 @@
 package org.apache.beam.sdk.extensions.sql.meta.provider.mongodb;
 
 import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
-import edu.umd.cs.findbugs.annotations.NonNull;
+import org.checkerframework.checker.nullness.qual.NonNull;

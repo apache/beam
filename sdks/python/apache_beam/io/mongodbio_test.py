@@ -28,6 +28,7 @@ from unittest import TestCase
 
 import mock
 from bson import objectid
+from parameterized import parameterized_class
 from pymongo import ASCENDING
 from pymongo import ReplaceOne
 
@@ -51,26 +52,65 @@ class _MockMongoColl(object):
   def __init__(self, docs):
     self.docs = docs
 
+  def __getitem__(self, index):
+    return self.docs[index]
+
+  def __len__(self):
+    return len(self.docs)
+
+  @staticmethod
+  def _make_filter(conditions):
+    assert isinstance(conditions, dict)
+    checks = []
+    for field, value in conditions.items():
+      if isinstance(value, dict):
+        for op, val in value.items():
+          if op == '$gte':
+            op = '__ge__'
+          elif op == '$lt':
+            op = '__lt__'
+          else:
+            raise Exception('Operator "{0}" not supported.'.format(op))
+          checks.append((field, op, val))
+      else:
+        checks.append((field, '__eq__', value))
+
+    def func(doc):
+      for field, op, value in checks:
+        if not getattr(doc[field], op)(value):
+          return False
+      return True
+
+    return func
+
   def _filter(self, filter):
     match = []
     if not filter:
       return self
-    if '$and' not in filter or not filter['$and']:
-      return self
-    start = filter['$and'][1]['_id'].get('$gte')
-    end = filter['$and'][1]['_id'].get('$lt')
-    assert start is not None
-    assert end is not None
+    all_filters = []
+    if '$and' in filter:
+      for item in filter['$and']:
+        all_filters.append(self._make_filter(item))
+    else:
+      all_filters.append(self._make_filter(filter))
+
     for doc in self.docs:
-      if start and doc['_id'] < start:
-        continue
-      if end and doc['_id'] >= end:
+      if not all(check(doc) for check in all_filters):
         continue
       match.append(doc)
+
     return match
 
-  def find(self, filter=None, **kwargs):
-    return _MockMongoColl(self._filter(filter))
+  @staticmethod
+  def _projection(docs, projection=None):
+    if projection:
+      return [{k: v
+               for k, v in doc.items() if k in projection or k == '_id'}
+              for doc in docs]
+    return docs
+
+  def find(self, filter=None, projection=None, **kwargs):
+    return _MockMongoColl(self._projection(self._filter(filter), projection))
 
   def sort(self, sort_items):
     key, order = sort_items[0]
@@ -84,8 +124,48 @@ class _MockMongoColl(object):
   def count_documents(self, filter):
     return len(self._filter(filter))
 
-  def __getitem__(self, index):
-    return self.docs[index]
+  def aggregate(self, pipeline):
+    # Simulate $bucketAuto aggregate pipeline.
+    # Example splits doc count for the total of 5 docs:
+    #   - 1 bucket:  [5]
+    #   - 2 buckets: [3, 2]
+    #   - 3 buckets: [2, 2, 1]
+    #   - 4 buckets: [2, 1, 1, 1]
+    #   - 5 buckets: [1, 1, 1, 1, 1]
+    match_step = next((step for step in pipeline if '$match' in step), None)
+    bucket_auto_step = next(step for step in pipeline if '$bucketAuto' in step)
+    if match_step is None:
+      docs = self.docs
+    else:
+      docs = self.find(filter=match_step['$match'])
+    doc_count = len(docs)
+    bucket_count = min(bucket_auto_step['$bucketAuto']['buckets'], doc_count)
+    # bucket_count ≠ 0
+    bucket_len, remainder = divmod(doc_count, bucket_count)
+    bucket_sizes = (
+        remainder * [bucket_len + 1] +
+        (bucket_count - remainder) * [bucket_len])
+    buckets = []
+    start = 0
+    for bucket_size in bucket_sizes:
+      stop = start + bucket_size
+      if stop >= doc_count:
+        # MongoDB: the last bucket's 'max' is inclusive
+        stop = doc_count - 1
+        count = stop - start + 1
+      else:
+        # non-last bucket's 'max' is exclusive and == next bucket's 'min'
+        count = stop - start
+      buckets.append({
+          '_id': {
+              'min': docs[start]['_id'],
+              'max': docs[stop]['_id'],
+          },
+          'count': count
+      })
+      start = stop
+
+    return buckets
 
 
 class _MockMongoDb(object):
@@ -98,7 +178,7 @@ class _MockMongoDb(object):
 
   def command(self, command, *args, **kwargs):
     if command == 'collstats':
-      return {'size': 5, 'avgSize': 1}
+      return {'size': 5 * 1024 * 1024, 'avgObjSize': 1 * 1024 * 1024}
     elif command == 'splitVector':
       return self.get_split_keys(command, *args, **kwargs)
 
@@ -143,6 +223,7 @@ class _MockMongoClient(object):
     pass
 
 
+@parameterized_class(('bucket_auto', ), [(None, ), (True, )])
 class MongoSourceTest(unittest.TestCase):
   @mock.patch('apache_beam.io.mongodbio.MongoClient')
   def setUp(self, mock_client):
@@ -154,24 +235,135 @@ class MongoSourceTest(unittest.TestCase):
     self._docs = [{'_id': self._ids[i], 'x': i} for i in range(len(self._ids))]
     mock_client.return_value = _MockMongoClient(self._docs)
 
-    self.mongo_source = _BoundedMongoSource(
-        'mongodb://test', 'testdb', 'testcoll')
+    self.mongo_source = self._create_source(bucket_auto=self.bucket_auto)
+
+  @staticmethod
+  def _create_source(filter=None, bucket_auto=None):
+    kwargs = {}
+    if filter is not None:
+      kwargs['filter'] = filter
+    if bucket_auto is not None:
+      kwargs['bucket_auto'] = bucket_auto
+    return _BoundedMongoSource('mongodb://test', 'testdb', 'testcoll', **kwargs)
 
   @mock.patch('apache_beam.io.mongodbio.MongoClient')
   def test_estimate_size(self, mock_client):
     mock_client.return_value = _MockMongoClient(self._docs)
-    self.assertEqual(self.mongo_source.estimate_size(), 5)
+    self.assertEqual(self.mongo_source.estimate_size(), 5 * 1024 * 1024)
+
+  @mock.patch('apache_beam.io.mongodbio.MongoClient')
+  def test_estimate_average_document_size(self, mock_client):
+    mock_client.return_value = _MockMongoClient(self._docs)
+    self.assertEqual(
+        self.mongo_source._estimate_average_document_size(), 1 * 1024 * 1024)
 
   @mock.patch('apache_beam.io.mongodbio.MongoClient')
   def test_split(self, mock_client):
     mock_client.return_value = _MockMongoClient(self._docs)
-    for size in [i * 1024 * 1024 for i in (1, 2, 10)]:
+    for size_mb, expected_split_count in [(0.5, 5), (1, 5), (2, 3), (10, 1)]:
+      size = size_mb * 1024 * 1024
       splits = list(
           self.mongo_source.split(
               start_position=None, stop_position=None,
               desired_bundle_size=size))
 
+      self.assertEqual(len(splits), expected_split_count)
       reference_info = (self.mongo_source, None, None)
+      sources_info = ([
+          (split.source, split.start_position, split.stop_position)
+          for split in splits
+      ])
+      source_test_utils.assert_sources_equal_reference_source(
+          reference_info, sources_info)
+
+  @mock.patch('apache_beam.io.mongodbio.MongoClient')
+  def test_split_single_document(self, mock_client):
+    mock_client.return_value = _MockMongoClient(self._docs[0:1])
+    for size_mb in [1, 5]:
+      size = size_mb * 1024 * 1024
+      splits = list(
+          self.mongo_source.split(
+              start_position=None, stop_position=None,
+              desired_bundle_size=size))
+      self.assertEqual(len(splits), 1)
+      self.assertEqual(splits[0].start_position, self._docs[0]['_id'])
+      self.assertEqual(
+          splits[0].stop_position,
+          _ObjectIdHelper.increment_id(self._docs[0]['_id'], 1))
+
+  @mock.patch('apache_beam.io.mongodbio.MongoClient')
+  def test_split_no_documents(self, mock_client):
+    mock_client.return_value = _MockMongoClient([])
+    with self.assertRaises(ValueError) as cm:
+      list(
+          self.mongo_source.split(
+              start_position=None,
+              stop_position=None,
+              desired_bundle_size=1024 * 1024))
+    self.assertEqual(str(cm.exception), 'Empty Mongodb collection')
+
+  @mock.patch('apache_beam.io.mongodbio.MongoClient')
+  def test_split_filtered(self, mock_client):
+    # filtering 2 documents: 2 <= 'x' < 4
+    filtered_mongo_source = self._create_source(
+        filter={'x': {
+            '$gte': 2, '$lt': 4
+        }}, bucket_auto=self.bucket_auto)
+
+    mock_client.return_value = _MockMongoClient(self._docs)
+    for size_mb, (bucket_auto_count, split_vector_count) in [(1, (2, 5)),
+                                                             (2, (1, 3)),
+                                                             (10, (1, 1))]:
+      size = size_mb * 1024 * 1024
+      splits = list(
+          filtered_mongo_source.split(
+              start_position=None, stop_position=None,
+              desired_bundle_size=size))
+
+      if self.bucket_auto:
+        self.assertEqual(len(splits), bucket_auto_count)
+      else:
+        # Note: splitVector mode does not respect filter
+        self.assertEqual(len(splits), split_vector_count)
+      reference_info = (
+          filtered_mongo_source, self._docs[2]['_id'], self._docs[4]['_id'])
+      sources_info = ([
+          (split.source, split.start_position, split.stop_position)
+          for split in splits
+      ])
+      source_test_utils.assert_sources_equal_reference_source(
+          reference_info, sources_info)
+
+  @mock.patch('apache_beam.io.mongodbio.MongoClient')
+  def test_split_filtered_empty(self, mock_client):
+    # filtering doesn't match any documents
+    filtered_mongo_source = self._create_source(
+        filter={'x': {
+            '$lt': 0
+        }}, bucket_auto=self.bucket_auto)
+
+    mock_client.return_value = _MockMongoClient(self._docs)
+    for size_mb, (bucket_auto_count, split_vector_count) in [(1, (1, 5)),
+                                                             (2, (1, 3)),
+                                                             (10, (1, 1))]:
+      size = size_mb * 1024 * 1024
+      splits = list(
+          filtered_mongo_source.split(
+              start_position=None, stop_position=None,
+              desired_bundle_size=size))
+
+      if self.bucket_auto:
+        # Note: if filter matches no docs - one split covers entire range
+        self.assertEqual(len(splits), bucket_auto_count)
+      else:
+        # Note: splitVector mode does not respect filter
+        self.assertEqual(len(splits), split_vector_count)
+      reference_info = (
+          filtered_mongo_source,
+          # range to match no documents:
+          _ObjectIdHelper.increment_id(self._docs[-1]['_id'], 1),
+          _ObjectIdHelper.increment_id(self._docs[-1]['_id'], 2),
+      )
       sources_info = ([
           (split.source, split.start_position, split.stop_position)
           for split in splits
@@ -242,17 +434,52 @@ class MongoSourceTest(unittest.TestCase):
     self.assertTrue('database' in data)
     self.assertTrue('collection' in data)
 
+  def test_display_data_mask_password(self):
+    # Uri without password
+    data = self.mongo_source.display_data()
+    self.assertTrue('uri' in data)
+    self.assertTrue(data['uri'] == 'mongodb://test')
+    # Password is masked in the uri if present
+    mongo_source = _BoundedMongoSource(
+        'mongodb+srv://user:password@test.mongodb.net/testdb',
+        'testdb',
+        'testcoll',
+        extra_client_params={
+            'user': 'user', 'password': 'password'
+        })
+    data = mongo_source.display_data()
+    self.assertTrue('uri' in data)
+    self.assertTrue(
+        data['uri'] == 'mongodb+srv://user:******@test.mongodb.net/testdb')
+    # Password is masked in the client spec if present
+    self.assertTrue('mongo_client_spec' in data)
+    self.assertTrue(
+        data['mongo_client_spec'] == '{"user": "user", "password": "******"}')
 
+
+@parameterized_class(('bucket_auto', ), [(False, ), (True, )])
 class ReadFromMongoDBTest(unittest.TestCase):
   @mock.patch('apache_beam.io.mongodbio.MongoClient')
   def test_read_from_mongodb(self, mock_client):
-    documents = [{'_id': objectid.ObjectId(), 'x': i} for i in range(3)]
+    documents = [{
+        '_id': objectid.ObjectId(), 'x': i, 'selected': 1, 'unselected': 2
+    } for i in range(3)]
     mock_client.return_value = _MockMongoClient(documents)
+
+    projection = ['x', 'selected']
+    projected_documents = [{
+        k: v
+        for k, v in e.items() if k in projection or k == '_id'
+    } for e in documents]
 
     with TestPipeline() as p:
       docs = p | 'ReadFromMongoDB' >> ReadFromMongoDB(
-          uri='mongodb://test', db='db', coll='collection')
-      assert_that(docs, equal_to(documents))
+          uri='mongodb://test',
+          db='db',
+          coll='collection',
+          projection=projection,
+          bucket_auto=self.bucket_auto)
+      assert_that(docs, equal_to(projected_documents))
 
 
 class GenerateObjectIdFnTest(unittest.TestCase):
@@ -285,6 +512,25 @@ class WriteMongoFnTest(unittest.TestCase):
   def test_display_data(self):
     data = _WriteMongoFn(batch_size=10).display_data()
     self.assertEqual(10, data['batch_size'])
+
+  def test_display_data_mask_password(self):
+    # Uri without password
+    data = _WriteMongoFn(uri='mongodb://test').display_data()
+    self.assertTrue('uri' in data)
+    self.assertTrue(data['uri'] == 'mongodb://test')
+    # Password is masked in the uri if present
+    data = _WriteMongoFn(
+        uri='mongodb+srv://user:password@test.mongodb.net/testdb',
+        extra_params={
+            'user': 'user', 'password': 'password'
+        }).display_data()
+    self.assertTrue('uri' in data)
+    self.assertTrue(
+        data['uri'] == 'mongodb+srv://user:******@test.mongodb.net/testdb')
+    # Password is masked in the client spec if present
+    self.assertTrue('mongo_client_params' in data)
+    self.assertTrue(
+        data['mongo_client_params'] == '{"user": "user", "password": "******"}')
 
 
 class MongoSinkTest(unittest.TestCase):

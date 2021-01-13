@@ -19,7 +19,6 @@ package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
 import static org.apache.beam.runners.core.TimerInternals.TimerData;
 
-import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -45,9 +44,11 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.streaming.api.operators.InternalTimer;
 
 /** Flink operator for executing window {@link DoFn DoFns}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class WindowDoFnOperator<K, InputT, OutputT>
     extends DoFnOperator<KeyedWorkItem<K, InputT>, KV<K, OutputT>> {
 
@@ -125,12 +126,11 @@ public class WindowDoFnOperator<K, InputT, OutputT>
   }
 
   @Override
-  protected void fireTimer(InternalTimer<ByteBuffer, TimerData> timer) {
-    timerInternals.cleanupPendingTimer(timer.getNamespace(), true);
+  protected void fireTimer(TimerData timer) {
+    timerInternals.onFiredOrDeletedTimer(timer);
     doFnRunner.processElement(
         WindowedValue.valueInGlobalWindow(
             KeyedWorkItems.timersWorkItem(
-                (K) keyedStateInternals.getKey(),
-                Collections.singletonList(timer.getNamespace()))));
+                (K) keyedStateInternals.getKey(), Collections.singletonList(timer))));
   }
 }

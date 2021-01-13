@@ -18,6 +18,7 @@
 package org.apache.beam.runners.jet;
 
 import com.hazelcast.config.EventJournalConfig;
+import com.hazelcast.config.MapConfig;
 import com.hazelcast.jet.JetInstance;
 import com.hazelcast.jet.JetTestInstanceFactory;
 import com.hazelcast.jet.config.JetConfig;
@@ -41,10 +42,13 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 
 /** Slightly altered version of the Jet based runner, used in unit-tests. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class TestJetRunner extends PipelineRunner<PipelineResult> {
 
   /** A map from a Transform URN to the translator. */
@@ -85,8 +89,13 @@ public class TestJetRunner extends PipelineRunner<PipelineResult> {
 
   private static Collection<JetInstance> initMemberInstances(
       JetTestInstanceFactory internalFactory) {
-    JetConfig config = new JetConfig();
-    config.getHazelcastConfig().addEventJournalConfig(new EventJournalConfig().setMapName("map"));
+    JetConfig config =
+        new JetConfig()
+            .configureHazelcast(
+                c ->
+                    c.addMapConfig(
+                        new MapConfig("map")
+                            .setEventJournalConfig(new EventJournalConfig().setEnabled(true))));
 
     return Arrays.asList(internalFactory.newMember(config), internalFactory.newMember(config));
   }
@@ -120,7 +129,7 @@ public class TestJetRunner extends PipelineRunner<PipelineResult> {
 
       // events in the transform are not serializable, we have to translate them. We'll also flatten
       // the collection.
-      Map.Entry<TupleTag<?>, PValue> output = Utils.getOutput(appliedTransform);
+      Map.Entry<TupleTag<?>, PCollection<?>> output = Utils.getOutput(appliedTransform);
       Coder outputCoder = Utils.getCoder((PCollection) output.getValue());
       TestStream.TestStreamCoder<T> payloadCoder =
           TestStream.TestStreamCoder.of(testStream.getValueCoder());

@@ -27,7 +27,6 @@ import unittest
 from nose.plugins.attrib import attr
 
 import apache_beam as beam
-from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
@@ -341,64 +340,66 @@ class SideInputsTest(unittest.TestCase):
     assert_that(results, equal_to(['a', 'b']))
     pipeline.run()
 
-  @attr('ValidatesRunner')
+  # TODO(BEAM-9499): Disable this test in streaming temporarily.
+  @attr('ValidatesRunner', 'sickbay-batch', 'sickbay-streaming')
   def test_multi_triggered_gbk_side_input(self):
     """Test a GBK sideinput, with multiple triggering."""
-    options = StandardOptions(streaming=True)
-    p = TestPipeline(options=options)
+    # TODO(BEAM-9322): Remove use of this experiment.
+    # This flag is only necessary when using the multi-output TestStream b/c
+    # it relies on using the PCollection output tags as the PCollection output
+    # ids.
+    with TestPipeline() as p:
 
-    test_stream = (
-        p
-        | 'Mixed TestStream' >> TestStream().advance_watermark_to(
-            3,
-            tag='main').add_elements(['a1'], tag='main').advance_watermark_to(
-                8, tag='main').add_elements(['a2'], tag='main').add_elements(
-                    [window.TimestampedValue(('k', 100), 2)], tag='side').
-        add_elements([window.TimestampedValue(
-            ('k', 400), 7)], tag='side').advance_watermark_to_infinity(
-                tag='main').advance_watermark_to_infinity(tag='side'))
+      test_stream = (
+          p
+          | 'Mixed TestStream' >> TestStream().advance_watermark_to(
+              3,
+              tag='main').add_elements(['a1'], tag='main').advance_watermark_to(
+                  8, tag='main').add_elements(['a2'], tag='main').add_elements(
+                      [window.TimestampedValue(('k', 100), 2)], tag='side').
+          add_elements([window.TimestampedValue(
+              ('k', 400), 7)], tag='side').advance_watermark_to_infinity(
+                  tag='main').advance_watermark_to_infinity(tag='side'))
 
-    main_data = (
-        test_stream['main']
-        | 'Main windowInto' >> beam.WindowInto(
-            window.FixedWindows(5),
-            accumulation_mode=trigger.AccumulationMode.DISCARDING))
+      main_data = (
+          test_stream['main']
+          | 'Main windowInto' >> beam.WindowInto(
+              window.FixedWindows(5),
+              accumulation_mode=trigger.AccumulationMode.DISCARDING))
 
-    side_data = (
-        test_stream['side']
-        | 'Side windowInto' >> beam.WindowInto(
-            window.FixedWindows(5),
-            trigger=trigger.AfterWatermark(early=trigger.AfterCount(1)),
-            accumulation_mode=trigger.AccumulationMode.DISCARDING)
-        | beam.CombinePerKey(sum)
-        | 'Values' >> Map(lambda k_vs: k_vs[1]))
+      side_data = (
+          test_stream['side']
+          | 'Side windowInto' >> beam.WindowInto(
+              window.FixedWindows(5),
+              trigger=trigger.AfterWatermark(early=trigger.AfterCount(1)),
+              accumulation_mode=trigger.AccumulationMode.DISCARDING)
+          | beam.CombinePerKey(sum)
+          | 'Values' >> Map(lambda k_vs: k_vs[1]))
 
-    class RecordFn(beam.DoFn):
-      def process(
-          self,
-          elm=beam.DoFn.ElementParam,
-          ts=beam.DoFn.TimestampParam,
-          side=beam.DoFn.SideInputParam):
-        yield (elm, ts, side)
+      class RecordFn(beam.DoFn):
+        def process(
+            self,
+            elm=beam.DoFn.ElementParam,
+            ts=beam.DoFn.TimestampParam,
+            side=beam.DoFn.SideInputParam):
+          yield (elm, ts, side)
 
-    records = (
-        main_data
-        | beam.ParDo(RecordFn(), beam.pvalue.AsList(side_data)))
+      records = (
+          main_data
+          | beam.ParDo(RecordFn(), beam.pvalue.AsList(side_data)))
 
-    expected_window_to_elements = {
-        window.IntervalWindow(0, 5): [
-            ('a1', Timestamp(3), [100, 0]),
-        ],
-        window.IntervalWindow(5, 10): [('a2', Timestamp(8), [400, 0])],
-    }
+      expected_window_to_elements = {
+          window.IntervalWindow(0, 5): [
+              ('a1', Timestamp(3), [100, 0]),
+          ],
+          window.IntervalWindow(5, 10): [('a2', Timestamp(8), [400, 0])],
+      }
 
-    assert_that(
-        records,
-        equal_to_per_window(expected_window_to_elements),
-        use_global_window=False,
-        label='assert per window')
-
-    p.run()
+      assert_that(
+          records,
+          equal_to_per_window(expected_window_to_elements),
+          use_global_window=False,
+          label='assert per window')
 
 
 if __name__ == '__main__':

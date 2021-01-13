@@ -56,8 +56,9 @@ class StateSampler(object):
         self, counter_name, name_context, output_counter, metrics_container)
 
   def update_metric(self, typed_metric_name, value):
-    self.current_state().metrics_container.get_metric_cell(
-        typed_metric_name).update(value)
+    metrics_container = self.current_state().metrics_container
+    if metrics_container is not None:
+      metrics_container.get_metric_cell(typed_metric_name).update(value)
 
   def _enter_state(self, state):
     # type: (ScopedState) -> None

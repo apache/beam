@@ -27,7 +27,7 @@ import static groovy.test.GroovyAssert.shouldFail
  */
 class ProberTests {
   // TODO: Make this configurable
-  def grafanaEndpoint = 'http://104.154.241.245';
+  def grafanaEndpoint = 'http://104.154.241.245'
 
   @Test
   void PingGrafanaHttpApi() {

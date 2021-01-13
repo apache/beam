@@ -22,11 +22,15 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Converts an iterator to an iterable lazily loading values from the underlying iterator and
  * caching them to support reiteration.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class LazyCachingIteratorToIterable<T> implements Iterable<T> {
   private final List<T> cachedElements;
   private final Iterator<T> iterator;
@@ -76,7 +80,7 @@ class LazyCachingIteratorToIterable<T> implements Iterable<T> {
   }
 
   @Override
-  public boolean equals(Object obj) {
+  public boolean equals(@Nullable Object obj) {
     return obj instanceof Iterable && Iterables.elementsEqual(this, (Iterable) obj);
   }
 

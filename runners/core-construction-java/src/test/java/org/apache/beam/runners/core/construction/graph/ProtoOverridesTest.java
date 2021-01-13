@@ -17,15 +17,15 @@
  */
 package org.apache.beam.runners.core.construction.graph;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.not;
-import static org.junit.Assert.assertThat;
 
 import java.nio.charset.StandardCharsets;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.model.pipeline.v1.RunnerApi.AccumulationMode.Enum;
+import org.apache.beam.model.pipeline.v1.RunnerApi.AccumulationMode;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ComponentsOrBuilder;
@@ -80,7 +80,9 @@ public class ProtoOverridesTest {
                         ByteString.copyFrom("foo-bar-baz".getBytes(StandardCharsets.UTF_8))))
             .build();
     WindowingStrategy introducedWS =
-        WindowingStrategy.newBuilder().setAccumulationMode(Enum.ACCUMULATING).build();
+        WindowingStrategy.newBuilder()
+            .setAccumulationMode(AccumulationMode.Enum.ACCUMULATING)
+            .build();
     RunnerApi.Components extraComponents =
         Components.newBuilder()
             .putPcollections(

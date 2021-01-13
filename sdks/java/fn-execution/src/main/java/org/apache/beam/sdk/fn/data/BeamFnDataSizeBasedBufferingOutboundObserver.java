@@ -34,6 +34,9 @@ import org.slf4j.LoggerFactory;
  * <p>TODO: Handle outputting elements that are zero bytes by outputting a single byte as a marker,
  * detect on the input side that no bytes were read and force reading a single byte.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BeamFnDataSizeBasedBufferingOutboundObserver<T>
     implements BeamFnDataBufferingOutboundObserver<T> {
   private static final Logger LOG =
@@ -64,15 +67,25 @@ public class BeamFnDataSizeBasedBufferingOutboundObserver<T>
   @Override
   public void close() throws Exception {
     if (closed) {
-      throw new IllegalStateException("Already closed.");
+      return;
     }
     closed = true;
     BeamFnApi.Elements.Builder elements = convertBufferForTransmission();
     // This will add an empty data block representing the end of stream.
-    elements
-        .addDataBuilder()
-        .setInstructionId(outputLocation.getInstructionId())
-        .setTransformId(outputLocation.getTransformId());
+    if (outputLocation.isTimer()) {
+      elements
+          .addTimersBuilder()
+          .setInstructionId(outputLocation.getInstructionId())
+          .setTransformId(outputLocation.getTransformId())
+          .setTimerFamilyId(outputLocation.getTimerFamilyId())
+          .setIsLast(true);
+    } else {
+      elements
+          .addDataBuilder()
+          .setInstructionId(outputLocation.getInstructionId())
+          .setTransformId(outputLocation.getTransformId())
+          .setIsLast(true);
+    }
 
     LOG.debug(
         "Closing stream for instruction {} and "
@@ -109,11 +122,20 @@ public class BeamFnDataSizeBasedBufferingOutboundObserver<T>
       return elements;
     }
 
-    elements
-        .addDataBuilder()
-        .setInstructionId(outputLocation.getInstructionId())
-        .setTransformId(outputLocation.getTransformId())
-        .setData(bufferedElements.toByteString());
+    if (outputLocation.isTimer()) {
+      elements
+          .addTimersBuilder()
+          .setInstructionId(outputLocation.getInstructionId())
+          .setTransformId(outputLocation.getTransformId())
+          .setTimerFamilyId(outputLocation.getTimerFamilyId())
+          .setTimers(bufferedElements.toByteString());
+    } else {
+      elements
+          .addDataBuilder()
+          .setInstructionId(outputLocation.getInstructionId())
+          .setTransformId(outputLocation.getTransformId())
+          .setData(bufferedElements.toByteString());
+    }
 
     byteCounter += bufferedElements.size();
     bufferedElements.reset();

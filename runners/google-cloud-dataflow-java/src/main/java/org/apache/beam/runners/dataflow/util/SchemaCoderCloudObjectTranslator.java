@@ -32,6 +32,9 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 
 /** Translator for Schema coders. */
 @Experimental(Kind.SCHEMAS)
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class SchemaCoderCloudObjectTranslator implements CloudObjectTranslator<SchemaCoder> {
   private static final String SCHEMA = "schema";
   private static final String TYPE_DESCRIPTOR = "typeDescriptor";
@@ -91,7 +94,7 @@ public class SchemaCoderCloudObjectTranslator implements CloudObjectTranslator<S
       SchemaApi.Schema protoSchema =
           SchemaApi.Schema.parseFrom(
               StringUtils.jsonStringToByteArray(Structs.getString(cloudObject, SCHEMA)));
-      Schema schema = SchemaTranslation.fromProto(protoSchema);
+      Schema schema = SchemaTranslation.schemaFromProto(protoSchema);
       return SchemaCoder.of(schema, typeDescriptor, toRowFunction, fromRowFunction);
     } catch (IOException e) {
       throw new RuntimeException(e);

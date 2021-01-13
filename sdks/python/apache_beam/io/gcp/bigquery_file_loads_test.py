@@ -21,7 +21,6 @@
 
 from __future__ import absolute_import
 
-import json
 import logging
 import os
 import random
@@ -34,9 +33,10 @@ from hamcrest.core import assert_that as hamcrest_assert
 from hamcrest.core.core.allof import all_of
 from hamcrest.core.core.is_ import is_
 from nose.plugins.attrib import attr
+from parameterized import param
+from parameterized import parameterized
 
 import apache_beam as beam
-from apache_beam import coders
 from apache_beam.io.filebasedsink_test import _TestCaseWithTempDirCleanUp
 from apache_beam.io.gcp import bigquery_file_loads as bqfl
 from apache_beam.io.gcp import bigquery
@@ -57,59 +57,67 @@ from apache_beam.typehints.typehints import Tuple
 try:
   from apitools.base.py.exceptions import HttpError
 except ImportError:
-  HttpError = None
+  raise unittest.SkipTest('GCP dependencies are not installed')
 
 _LOGGER = logging.getLogger(__name__)
 
 _DESTINATION_ELEMENT_PAIRS = [
     # DESTINATION 1
-    ('project1:dataset1.table1', '{"name":"beam", "language":"py"}'),
-    ('project1:dataset1.table1', '{"name":"beam", "language":"java"}'),
-    ('project1:dataset1.table1', '{"name":"beam", "language":"go"}'),
-    ('project1:dataset1.table1', '{"name":"flink", "language":"java"}'),
-    ('project1:dataset1.table1', '{"name":"flink", "language":"scala"}'),
+    ('project1:dataset1.table1', {
+        'name': 'beam', 'language': 'py'
+    }),
+    ('project1:dataset1.table1', {
+        'name': 'beam', 'language': 'java'
+    }),
+    ('project1:dataset1.table1', {
+        'name': 'beam', 'language': 'go'
+    }),
+    ('project1:dataset1.table1', {
+        'name': 'flink', 'language': 'java'
+    }),
+    ('project1:dataset1.table1', {
+        'name': 'flink', 'language': 'scala'
+    }),
 
     # DESTINATION 3
-    ('project1:dataset1.table3', '{"name":"spark", "language":"scala"}'),
+    ('project1:dataset1.table3', {
+        'name': 'spark', 'language': 'scala'
+    }),
 
     # DESTINATION 1
-    ('project1:dataset1.table1', '{"name":"spark", "language":"py"}'),
-    ('project1:dataset1.table1', '{"name":"spark", "language":"scala"}'),
+    ('project1:dataset1.table1', {
+        'name': 'spark', 'language': 'py'
+    }),
+    ('project1:dataset1.table1', {
+        'name': 'spark', 'language': 'scala'
+    }),
 
     # DESTINATION 2
-    ('project1:dataset1.table2', '{"name":"beam", "foundation":"apache"}'),
-    ('project1:dataset1.table2', '{"name":"flink", "foundation":"apache"}'),
-    ('project1:dataset1.table2', '{"name":"spark", "foundation":"apache"}'),
+    ('project1:dataset1.table2', {
+        'name': 'beam', 'foundation': 'apache'
+    }),
+    ('project1:dataset1.table2', {
+        'name': 'flink', 'foundation': 'apache'
+    }),
+    ('project1:dataset1.table2', {
+        'name': 'spark', 'foundation': 'apache'
+    }),
 ]
 
-_NAME_LANGUAGE_ELEMENTS = [
-    json.loads(elm[1]) for elm in _DESTINATION_ELEMENT_PAIRS
-    if "language" in elm[1]
-]
+_DISTINCT_DESTINATIONS = list({elm[0] for elm in _DESTINATION_ELEMENT_PAIRS})
 
-_DISTINCT_DESTINATIONS = list(
-    set([elm[0] for elm in _DESTINATION_ELEMENT_PAIRS]))
+_ELEMENTS = [elm[1] for elm in _DESTINATION_ELEMENT_PAIRS]
 
-_ELEMENTS = list([json.loads(elm[1]) for elm in _DESTINATION_ELEMENT_PAIRS])
-
-
-class CustomRowCoder(coders.Coder):
-  """
-  Custom row coder that also expects strings as input data when encoding
-  """
-  def __init__(self):
-    self.coder = bigquery_tools.RowAsDictJsonCoder()
-
-  def encode(self, table_row):
-    if type(table_row) == str:
-      table_row = json.loads(table_row)
-    return self.coder.encode(table_row)
-
-  def decode(self, encoded_table_row):
-    return self.coder.decode(encoded_table_row)
+_ELEMENTS_SCHEMA = bigquery.WriteToBigQuery.get_dict_table_schema(
+    bigquery_api.TableSchema(
+        fields=[
+            bigquery_api.TableFieldSchema(
+                name="name", type="STRING", mode="REQUIRED"),
+            bigquery_api.TableFieldSchema(name="language", type="STRING"),
+            bigquery_api.TableFieldSchema(name="foundation", type="STRING"),
+        ]))
 
 
-@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestWriteRecordsToFile(_TestCaseWithTempDirCleanUp):
   maxDiff = None
 
@@ -127,10 +135,16 @@ class TestWriteRecordsToFile(_TestCaseWithTempDirCleanUp):
       checks(output_pcs)
       return output_pcs
 
-  def test_files_created(self):
+  @parameterized.expand([
+      param(file_format=bigquery_tools.FileFormat.AVRO),
+      param(file_format=bigquery_tools.FileFormat.JSON),
+      param(file_format=None),
+  ])
+  def test_files_created(self, file_format):
     """Test that the files are created and written."""
 
-    fn = bqfl.WriteRecordsToFile(coder=CustomRowCoder())
+    fn = bqfl.WriteRecordsToFile(
+        schema=_ELEMENTS_SCHEMA, file_format=file_format)
     self.tmpdir = self._new_tempdir()
 
     def check_files_created(output_pcs):
@@ -161,7 +175,7 @@ class TestWriteRecordsToFile(_TestCaseWithTempDirCleanUp):
     file length is very small, so only a couple records fit in each file.
     """
 
-    fn = bqfl.WriteRecordsToFile(max_file_size=50, coder=CustomRowCoder())
+    fn = bqfl.WriteRecordsToFile(schema=_ELEMENTS_SCHEMA, max_file_size=50)
     self.tmpdir = self._new_tempdir()
 
     def check_many_files(output_pcs):
@@ -188,7 +202,11 @@ class TestWriteRecordsToFile(_TestCaseWithTempDirCleanUp):
 
     self._consume_input(fn, check_many_files)
 
-  def test_records_are_spilled(self):
+  @parameterized.expand([
+      param(file_format=bigquery_tools.FileFormat.AVRO),
+      param(file_format=bigquery_tools.FileFormat.JSON),
+  ])
+  def test_records_are_spilled(self, file_format):
     """Forces records to be written to many files.
 
     For each destination multiple files are necessary, and at most two files
@@ -196,7 +214,10 @@ class TestWriteRecordsToFile(_TestCaseWithTempDirCleanUp):
     processing.
     """
 
-    fn = bqfl.WriteRecordsToFile(max_files_per_bundle=2, coder=CustomRowCoder())
+    fn = bqfl.WriteRecordsToFile(
+        schema=_ELEMENTS_SCHEMA,
+        max_files_per_bundle=2,
+        file_format=file_format)
     self.tmpdir = self._new_tempdir()
 
     def check_many_files(output_pcs):
@@ -231,7 +252,6 @@ class TestWriteRecordsToFile(_TestCaseWithTempDirCleanUp):
     self._consume_input(fn, check_many_files)
 
 
-@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestWriteGroupedRecordsToFile(_TestCaseWithTempDirCleanUp):
   def _consume_input(self, fn, input, checks):
     if checks is None:
@@ -247,10 +267,16 @@ class TestWriteGroupedRecordsToFile(_TestCaseWithTempDirCleanUp):
       checks(res)
       return res
 
-  def test_files_are_created(self):
+  @parameterized.expand([
+      param(file_format=bigquery_tools.FileFormat.AVRO),
+      param(file_format=bigquery_tools.FileFormat.JSON),
+      param(file_format=None),
+  ])
+  def test_files_are_created(self, file_format):
     """Test that the files are created and written."""
 
-    fn = bqfl.WriteGroupedRecordsToFile(coder=CustomRowCoder())
+    fn = bqfl.WriteGroupedRecordsToFile(
+        schema=_ELEMENTS_SCHEMA, file_format=file_format)
     self.tmpdir = self._new_tempdir()
 
     def check_files_created(output_pc):
@@ -279,7 +305,7 @@ class TestWriteGroupedRecordsToFile(_TestCaseWithTempDirCleanUp):
     file length is very small, so only a couple records fit in each file.
     """
     fn = bqfl.WriteGroupedRecordsToFile(
-        max_file_size=50, coder=CustomRowCoder())
+        schema=_ELEMENTS_SCHEMA, max_file_size=50)
     self.tmpdir = self._new_tempdir()
 
     def check_multiple_files(output_pc):
@@ -302,7 +328,6 @@ class TestWriteGroupedRecordsToFile(_TestCaseWithTempDirCleanUp):
     self._consume_input(fn, _DESTINATION_ELEMENT_PAIRS, check_multiple_files)
 
 
-@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestPartitionFiles(unittest.TestCase):
 
   _ELEMENTS = [(
@@ -375,7 +400,6 @@ class TestPartitionFiles(unittest.TestCase):
         label='CheckSinglePartition')
 
 
-@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
   def test_records_traverse_transform_with_mocks(self):
     destination = 'project1:dataset1.table1'
@@ -401,7 +425,7 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
         custom_gcs_temp_location=self._new_tempdir(),
         test_client=bq_client,
         validate=False,
-        coder=CustomRowCoder())
+        temp_file_format=bigquery_tools.FileFormat.JSON)
 
     # Need to test this with the DirectRunner to avoid serializing mocks
     with TestPipeline('DirectRunner') as p:
@@ -534,7 +558,7 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
               custom_gcs_temp_location=self._new_tempdir(),
               test_client=bq_client,
               validate=False,
-              coder=CustomRowCoder(),
+              temp_file_format=bigquery_tools.FileFormat.JSON,
               max_file_size=45,
               max_partition_size=80,
               max_files_per_partition=2))
@@ -580,7 +604,6 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
           label='CheckCopyJobCount')
 
 
-@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class BigQueryFileLoadsIT(unittest.TestCase):
 
   BIG_QUERY_DATASET_ID = 'python_bq_file_loads_'
@@ -650,8 +673,7 @@ class BigQueryFileLoadsIT(unittest.TestCase):
     ]
 
     args = self.test_pipeline.get_full_options_as_args(
-        on_success_matcher=all_of(*pipeline_verifiers),
-        experiments='use_beam_bq_sink')
+        on_success_matcher=all_of(*pipeline_verifiers))
 
     with beam.Pipeline(argv=args) as p:
       input = p | beam.Create(_ELEMENTS, reshuffle=False)
@@ -710,9 +732,7 @@ class BigQueryFileLoadsIT(unittest.TestCase):
         data=[(i, ) for i in range(100)])
 
     args = self.test_pipeline.get_full_options_as_args(
-        on_success_matcher=all_of(state_matcher, bq_matcher),
-        experiments='use_beam_bq_sink',
-        streaming=True)
+        on_success_matcher=all_of(state_matcher, bq_matcher), streaming=True)
     with beam.Pipeline(argv=args) as p:
       stream_source = (
           TestStream().advance_watermark_to(0).advance_processing_time(
@@ -767,10 +787,11 @@ class BigQueryFileLoadsIT(unittest.TestCase):
             data=[])
     ]
 
-    args = self.test_pipeline.get_full_options_as_args(
-        experiments='use_beam_bq_sink')
+    args = self.test_pipeline.get_full_options_as_args()
 
     with self.assertRaises(Exception):
+      # The pipeline below fails because neither a schema nor SCHEMA_AUTODETECT
+      # are specified.
       with beam.Pipeline(argv=args) as p:
         input = p | beam.Create(_ELEMENTS)
         input2 = p | "Broken record" >> beam.Create(['language_broken_record'])
@@ -783,7 +804,8 @@ class BigQueryFileLoadsIT(unittest.TestCase):
                 (output_table_1 if 'language' in x else output_table_2),
                 create_disposition=(
                     beam.io.BigQueryDisposition.CREATE_IF_NEEDED),
-                write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND))
+                write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
+                temp_file_format=bigquery_tools.FileFormat.JSON))
 
     hamcrest_assert(p, all_of(*pipeline_verifiers))
 

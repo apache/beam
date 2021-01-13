@@ -43,9 +43,10 @@ public interface PushbackSideInputDoFnRunner<InputT, OutputT> {
   Iterable<WindowedValue<InputT>> processElementInReadyWindows(WindowedValue<InputT> elem);
 
   /** Calls the underlying {@link DoFn.OnTimer} method. */
-  void onTimer(
+  <KeyT> void onTimer(
       String timerId,
       String timerFamilyId,
+      KeyT key,
       BoundedWindow window,
       Instant timestamp,
       Instant outputTimestamp,

@@ -18,6 +18,7 @@
 package org.apache.beam.runners.samza.adapter;
 
 import static org.apache.beam.runners.samza.adapter.TestSourceHelpers.createElementMessage;
+import static org.apache.beam.runners.samza.adapter.TestSourceHelpers.createEndOfStreamMessage;
 import static org.apache.beam.runners.samza.adapter.TestSourceHelpers.createWatermarkMessage;
 import static org.apache.beam.runners.samza.adapter.TestSourceHelpers.expectWrappedException;
 import static org.junit.Assert.assertEquals;
@@ -48,9 +49,13 @@ import org.apache.samza.system.MessageType;
 import org.apache.samza.system.SystemConsumer;
 import org.apache.samza.system.SystemStreamPartition;
 import org.joda.time.Instant;
+import org.junit.Ignore;
 import org.junit.Test;
 
 /** Tests for {@link UnboundedSourceSystem}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class UnboundedSourceSystemTest {
 
   // A reasonable time to wait to get all messages from the source assuming no blocking.
@@ -94,6 +99,33 @@ public class UnboundedSourceSystemTest {
             createElementMessage(
                 DEFAULT_SSP, offset(0), "test", BoundedWindow.TIMESTAMP_MIN_VALUE)),
         consumeUntilTimeoutOrWatermark(consumer, DEFAULT_SSP, DEFAULT_TIMEOUT_MILLIS));
+    consumer.stop();
+  }
+
+  @Test
+  public void testMaxWatermarkTriggersEndOfStreamMessage()
+      throws IOException, InterruptedException {
+    final TestUnboundedSource<String> source =
+        TestUnboundedSource.<String>createBuilder()
+            .addElements("test")
+            .advanceWatermarkTo(BoundedWindow.TIMESTAMP_MAX_VALUE)
+            .build();
+
+    final UnboundedSourceSystem.Consumer<String, TestCheckpointMark> consumer =
+        createConsumer(source);
+
+    consumer.register(DEFAULT_SSP, NULL_STRING);
+    consumer.start();
+    List<IncomingMessageEnvelope> actualList =
+        consumeUntilTimeoutOrWatermark(consumer, DEFAULT_SSP, DEFAULT_TIMEOUT_MILLIS);
+    actualList.addAll(
+        consumeUntilTimeoutOrWatermark(consumer, DEFAULT_SSP, DEFAULT_TIMEOUT_MILLIS));
+    assertEquals(
+        Arrays.asList(
+            createElementMessage(DEFAULT_SSP, offset(0), "test", BoundedWindow.TIMESTAMP_MIN_VALUE),
+            createWatermarkMessage(DEFAULT_SSP, BoundedWindow.TIMESTAMP_MAX_VALUE),
+            createEndOfStreamMessage(DEFAULT_SSP)),
+        actualList);
     consumer.stop();
   }
 
@@ -174,6 +206,7 @@ public class UnboundedSourceSystemTest {
   }
 
   @Test
+  @Ignore("https://issues.apache.org/jira/browse/BEAM-10521")
   public void testMultipleAdvanceWatermark() throws IOException, InterruptedException {
     final Instant now = Instant.now();
     final Instant nowPlusOne = now.plus(1L);

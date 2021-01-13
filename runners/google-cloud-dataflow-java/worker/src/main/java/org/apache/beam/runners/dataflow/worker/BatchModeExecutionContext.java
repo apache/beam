@@ -21,11 +21,11 @@ import com.google.api.services.dataflow.model.CounterUpdate;
 import com.google.api.services.dataflow.model.SideInputInfo;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.InMemoryStateInternals;
 import org.apache.beam.runners.core.InMemoryTimerInternals;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.StateInternals;
+import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.core.metrics.CounterCell;
@@ -41,6 +41,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WeightedValue;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -49,9 +50,13 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIterable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /** {@link DataflowExecutionContext} for use in batch mode. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BatchModeExecutionContext
     extends DataflowExecutionContext<BatchModeExecutionContext.StepContext> {
 
@@ -68,6 +73,9 @@ public class BatchModeExecutionContext
       "org.apache.beam.sdk.io.gcp.datastore.DatastoreV1$DatastoreWriterFn";
   protected static final String HTTP_CLIENT_API_THROTTLE_TIME_NAMESPACE =
       "org.apache.beam.sdk.extensions.gcp.util.RetryHttpRequestInitializer$LoggingHttpBackOffHandler";
+  protected static final String BIGQUERY_STREAMING_INSERT_THROTTLE_TIME_NAMESPACE =
+      "org.apache.beam.sdk.io.gcp.bigquery.BigQueryServicesImpl$DatasetServiceImpl";
+  protected static final String THROTTLE_TIME_COUNTER_NAME = "throttling-msecs";
 
   private BatchModeExecutionContext(
       CounterFactory counterFactory,
@@ -181,9 +189,8 @@ public class BatchModeExecutionContext
      * <p>Final updates are extracted by the execution thread, and will be reported after all
      * processing has completed and the writer thread has been shutdown.
      */
-    @Nullable
     @Override
-    public CounterUpdate extractUpdate(boolean isFinalUpdate) {
+    public @Nullable CounterUpdate extractUpdate(boolean isFinalUpdate) {
       long millisToReport = totalMillisInState;
       if (millisToReport == lastReportedMillis && !isFinalUpdate) {
         return null;
@@ -268,8 +275,7 @@ public class BatchModeExecutionContext
    *
    * <p>If there is not a currently defined key, returns null.
    */
-  @Nullable
-  public Object getKey() {
+  public @Nullable Object getKey() {
     return key;
   }
 
@@ -311,7 +317,10 @@ public class BatchModeExecutionContext
   }
 
   public <K, V> Cache<K, V> getLogicalReferenceCache() {
-    @SuppressWarnings({"rawtypes", "unchecked"})
+    @SuppressWarnings({
+      "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+      "unchecked"
+    })
     Cache<K, V> rval = (Cache) logicalReferenceCache;
     return rval;
   }
@@ -320,13 +329,16 @@ public class BatchModeExecutionContext
   public class StepContext extends DataflowExecutionContext.DataflowStepContext {
 
     // State internals only for use by the system, lazily instantiated
-    @Nullable private InMemoryStateInternals<Object> systemStateInternals;
+    private @Nullable InMemoryStateInternals<Object> systemStateInternals;
 
     // State internals scoped to the user, lazily instantiated
-    @Nullable private InMemoryStateInternals<Object> userStateInternals;
+    private @Nullable InMemoryStateInternals<Object> userStateInternals;
 
     // Timer internals scoped to the user, lazily instantiated
-    @Nullable private InMemoryTimerInternals userTimerInternals;
+    private @Nullable InMemoryTimerInternals userTimerInternals;
+
+    // Timer internals added for OnWindowExpiration functionality
+    private @Nullable InMemoryTimerInternals systemTimerInternals;
 
     private InMemoryStateInternals<Object> getUserStateInternals() {
       if (userStateInternals == null) {
@@ -347,6 +359,7 @@ public class BatchModeExecutionContext
       systemStateInternals = null;
       userStateInternals = null;
       userTimerInternals = null;
+      systemTimerInternals = null;
     }
 
     public void setKey(Object newKey) {
@@ -361,6 +374,7 @@ public class BatchModeExecutionContext
 
       userStateInternals = null;
       userTimerInternals = null;
+      systemTimerInternals = null;
     }
 
     @Override
@@ -372,25 +386,39 @@ public class BatchModeExecutionContext
     }
 
     @Override
-    public TimerInternals timerInternals() {
-      throw new UnsupportedOperationException(
-          "System timerInternals() are not supported in Batch mode."
-              + " Perhaps you meant stepContext.namespacedToUser().timerInternals()");
+    public InMemoryTimerInternals timerInternals() {
+      if (systemTimerInternals == null) {
+        systemTimerInternals = new InMemoryTimerInternals();
+      }
+      return systemTimerInternals;
     }
 
     @Override
-    @Nullable
-    public <W extends BoundedWindow> TimerData getNextFiredTimer(Coder<W> windowCoder) {
-      // There are no actual timer firings, since in batch all state is cleaned up trivially
-      // and all user processing time timers are "expired" by the time they fire.
-      // Event time timers are handled in the UserStepContext
-      return null;
+    public @Nullable <W extends BoundedWindow> TimerData getNextFiredTimer(Coder<W> windowCoder) {
+      try {
+        timerInternals().advanceInputWatermark(BoundedWindow.TIMESTAMP_MAX_VALUE);
+      } catch (Exception e) {
+        throw new IllegalStateException("Exception thrown advancing watermark", e);
+      }
+
+      return timerInternals().removeNextEventTimer();
     }
 
     @Override
     public <W extends BoundedWindow> void setStateCleanupTimer(
-        String timerId, W window, Coder<W> windowCoder, Instant cleanupTime) {
-      // noop, as the state will be discarded when the step is complete
+        String timerId,
+        W window,
+        Coder<W> windowCoder,
+        Instant cleanupTime,
+        Instant cleanupOutputTimestamp) {
+      timerInternals()
+          .setTimer(
+              StateNamespaces.window(windowCoder, window),
+              timerId,
+              "",
+              cleanupTime,
+              cleanupOutputTimestamp,
+              TimeDomain.EVENT_TIME);
     }
 
     @Override
@@ -422,9 +450,8 @@ public class BatchModeExecutionContext
       return wrapped.getUserTimerInternals();
     }
 
-    @Nullable
     @Override
-    public <W extends BoundedWindow> TimerData getNextFiredTimer(Coder<W> windowCoder) {
+    public <W extends BoundedWindow> @Nullable TimerData getNextFiredTimer(Coder<W> windowCoder) {
       // Only event time timers fire, as processing time timers are reserved until after the
       // bundle is complete, so they are all delivered droppably late
       //
@@ -441,7 +468,11 @@ public class BatchModeExecutionContext
 
     @Override
     public <W extends BoundedWindow> void setStateCleanupTimer(
-        String timerId, W window, Coder<W> windowCoder, Instant cleanupTime) {
+        String timerId,
+        W window,
+        Coder<W> windowCoder,
+        Instant cleanupTime,
+        Instant cleanupOutputTimestamp) {
       throw new UnsupportedOperationException(
           String.format(
               "setStateCleanupTimer should not be called on %s, only on a system %s",
@@ -498,33 +529,38 @@ public class BatchModeExecutionContext
   }
 
   public Long extractThrottleTime() {
-    Long totalThrottleTime = 0L;
+    long totalThrottleMsecs = 0L;
     for (MetricsContainerImpl container : containerRegistry.getContainers()) {
       // TODO(BEAM-7863): Update throttling counters to use generic throttling-msecs metric.
       CounterCell dataStoreThrottlingTime =
           container.tryGetCounter(
-              MetricName.named(
-                  BatchModeExecutionContext.DATASTORE_THROTTLE_TIME_NAMESPACE,
-                  "cumulativeThrottlingSeconds"));
+              MetricName.named(DATASTORE_THROTTLE_TIME_NAMESPACE, THROTTLE_TIME_COUNTER_NAME));
       if (dataStoreThrottlingTime != null) {
-        totalThrottleTime += dataStoreThrottlingTime.getCumulative();
+        totalThrottleMsecs += dataStoreThrottlingTime.getCumulative();
       }
 
       CounterCell httpClientApiThrottlingTime =
           container.tryGetCounter(
               MetricName.named(
-                  BatchModeExecutionContext.HTTP_CLIENT_API_THROTTLE_TIME_NAMESPACE,
-                  "cumulativeThrottlingSeconds"));
+                  HTTP_CLIENT_API_THROTTLE_TIME_NAMESPACE, THROTTLE_TIME_COUNTER_NAME));
       if (httpClientApiThrottlingTime != null) {
-        totalThrottleTime += httpClientApiThrottlingTime.getCumulative();
+        totalThrottleMsecs += httpClientApiThrottlingTime.getCumulative();
+      }
+
+      CounterCell bigqueryStreamingInsertThrottleTime =
+          container.tryGetCounter(
+              MetricName.named(
+                  BIGQUERY_STREAMING_INSERT_THROTTLE_TIME_NAMESPACE, THROTTLE_TIME_COUNTER_NAME));
+      if (bigqueryStreamingInsertThrottleTime != null) {
+        totalThrottleMsecs += bigqueryStreamingInsertThrottleTime.getCumulative();
       }
 
       CounterCell throttlingMsecs =
           container.tryGetCounter(DataflowSystemMetrics.THROTTLING_MSECS_METRIC_NAME);
       if (throttlingMsecs != null) {
-        totalThrottleTime += TimeUnit.MILLISECONDS.toSeconds(throttlingMsecs.getCumulative());
+        totalThrottleMsecs += throttlingMsecs.getCumulative();
       }
     }
-    return totalThrottleTime;
+    return TimeUnit.MILLISECONDS.toSeconds(totalThrottleMsecs);
   }
 }

@@ -20,7 +20,7 @@
 # Beam Katas
 Beam Katas are interactive Beam coding exercises (i.e. [code katas](http://codekata.com/))
 that can help you to learn Apache Beam concepts and programming model hands-on.
-Built based on [JetBrains Educational Products](https://www.jetbrains.com/education/), Beam Katas 
-objective is to provide a series of structured hands-on learning experiences for learners 
-to understand about Apache Beam and its SDKs by solving exercises with gradually increasing 
-complexity. Beam Katas are available for both Java and Python SDKs.
+Built based on [JetBrains Educational Products](https://www.jetbrains.com/education/), Beam Katas
+objective is to provide a series of structured hands-on learning experiences for learners
+to understand about Apache Beam and its SDKs by solving exercises with gradually increasing
+complexity. Beam Katas are available for Java, Python, and Go SDKs.

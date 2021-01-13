@@ -37,6 +37,9 @@ import org.slf4j.LoggerFactory;
  * A DoFn to write to Kafka, used in KafkaIO WriteRecords transform. See {@link KafkaIO} for user
  * visible documentation and example usage.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class KafkaWriter<K, V> extends DoFn<ProducerRecord<K, V>, Void> {
 
   @Setup
@@ -66,7 +69,8 @@ class KafkaWriter<K, V> extends DoFn<ProducerRecord<K, V>, Void> {
     String topicName = record.topic() != null ? record.topic() : spec.getTopic();
 
     producer.send(
-        new ProducerRecord<>(topicName, null, timestampMillis, record.key(), record.value()),
+        new ProducerRecord<>(
+            topicName, null, timestampMillis, record.key(), record.value(), record.headers()),
         new SendCallback());
 
     elementsWritten.inc();

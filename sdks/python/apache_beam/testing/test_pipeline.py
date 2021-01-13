@@ -176,7 +176,7 @@ class TestPipeline(Pipeline):
         options.append('--%s=%s' % (k, v))
     return options
 
-  def get_option(self, opt_name):
+  def get_option(self, opt_name, bool_option=False):
     """Get a pipeline option value by name
 
     Args:
@@ -189,6 +189,9 @@ class TestPipeline(Pipeline):
     parser = argparse.ArgumentParser()
     opt_name = opt_name[:2] if opt_name[:2] == '--' else opt_name
     # Option name should start with '--' when it's used for parsing.
-    parser.add_argument('--' + opt_name, type=str, action='store')
+    if bool_option:
+      parser.add_argument('--' + opt_name, action='store_true')
+    else:
+      parser.add_argument('--' + opt_name, type=str, action='store')
     known, _ = parser.parse_known_args(self.options_list)
     return getattr(known, opt_name) if hasattr(known, opt_name) else None

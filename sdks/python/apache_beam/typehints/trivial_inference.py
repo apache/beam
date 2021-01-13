@@ -35,7 +35,9 @@ from builtins import object
 from builtins import zip
 from functools import reduce
 
+from apache_beam import pvalue
 from apache_beam.typehints import Any
+from apache_beam.typehints import row_type
 from apache_beam.typehints import typehints
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
@@ -57,6 +59,10 @@ def instance_to_type(o):
   t = type(o)
   if o is None:
     return type(None)
+  elif t == pvalue.Row:
+    return row_type.RowTypeConstraint([
+        (name, instance_to_type(value)) for name, value in o.as_dict().items()
+    ])
   elif t not in typehints.DISALLOWED_PRIMITIVE_TYPES:
     # pylint: disable=deprecated-types-field
     if sys.version_info[0] == 2 and t == types.InstanceType:
@@ -80,6 +86,13 @@ def instance_to_type(o):
       ]]]
     else:
       return typehints.Set[typehints.Any]
+  elif t == frozenset:
+    if len(o) > 0:
+      return typehints.FrozenSet[typehints.Union[[
+          instance_to_type(item) for item in o
+      ]]]
+    else:
+      return typehints.FrozenSet[typehints.Any]
   elif t == dict:
     if len(o) > 0:
       return typehints.Dict[
@@ -307,10 +320,15 @@ def infer_return_type(c, input_types, debug=False, depth=5):
         return {
             list: typehints.List[Any],
             set: typehints.Set[Any],
+            frozenset: typehints.FrozenSet[Any],
             tuple: typehints.Tuple[Any, ...],
             dict: typehints.Dict[Any, Any]
         }[c]
       return c
+    elif (c == getattr and len(input_types) == 2 and
+          isinstance(input_types[1], Const)):
+      from apache_beam.typehints import opcodes
+      return opcodes._getattr(input_types[0], input_types[1].value)
     else:
       return Any
   except TypeInferenceError:
@@ -441,8 +459,20 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
         if depth <= 0:
           return_type = Any
         elif arg >> 8:
-          # TODO(robertwb): Handle this case.
-          return_type = Any
+          if not var_args and not kw_args and not arg & 0xFF:
+            # Keywords only, maybe it's a call to Row.
+            if isinstance(state.stack[-pop_count], Const):
+              from apache_beam.pvalue import Row
+              if state.stack[-pop_count].value == Row:
+                fields = state.stack[-pop_count + 1::2]
+                types = state.stack[-pop_count + 2::2]
+                return_type = row_type.RowTypeConstraint(
+                    zip([fld.value for fld in fields], Const.unwrap_all(types)))
+              else:
+                return_type = Any
+          else:
+            # TODO(robertwb): Handle this case.
+            return_type = Any
         elif isinstance(state.stack[-pop_count], Const):
           # TODO(robertwb): Handle this better.
           if var_args or kw_args:
@@ -461,17 +491,28 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
           pop_count = arg + 1
           if depth <= 0:
             return_type = Any
-          else:
+          elif isinstance(state.stack[-pop_count], Const):
             return_type = infer_return_type(
                 state.stack[-pop_count].value,
                 state.stack[1 - pop_count:],
                 debug=debug,
                 depth=depth - 1)
+          else:
+            return_type = Any
         elif opname == 'CALL_FUNCTION_KW':
           # TODO(udim): Handle keyword arguments. Requires passing them by name
           #   to infer_return_type.
           pop_count = arg + 2
-          return_type = Any
+          if isinstance(state.stack[-pop_count], Const):
+            from apache_beam.pvalue import Row
+            if state.stack[-pop_count].value == Row:
+              fields = state.stack[-1].value
+              return_type = row_type.RowTypeConstraint(
+                  zip(fields, Const.unwrap_all(state.stack[-pop_count + 1:-1])))
+            else:
+              return_type = Any
+          else:
+            return_type = Any
         elif opname == 'CALL_FUNCTION_EX':
           # stack[-has_kwargs]: Map of keyword args.
           # stack[-1 - has_kwargs]: Iterable of positional args.
