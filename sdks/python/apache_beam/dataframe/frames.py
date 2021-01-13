@@ -601,9 +601,11 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   def str(self):
     return _DeferredStringMethods(self._expr)
 
-
-for name in ['apply', 'map']:
-  setattr(DeferredSeries, name, frame_base._elementwise_method(name))
+  apply = frame_base._elementwise_method('apply')
+  map = frame_base._elementwise_method('map')
+  # TODO(BEAM-11636): Implement transform using type inference to determine the
+  # proxy
+  #transform = frame_base._elementwise_method('transform')
 
 
 @populate_not_implemented(pd.DataFrame)
