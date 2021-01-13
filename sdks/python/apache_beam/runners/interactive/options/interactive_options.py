@@ -36,6 +36,7 @@ class InteractiveOptions(object):
     self._capture_control = capture_control.CaptureControl()
     self._display_timestamp_format = '%Y-%m-%d %H:%M:%S.%f%z'
     self._display_timezone = tz.tzlocal()
+    self._remove_default_windowing_from_cache = False
 
   def __repr__(self):
     options_str = '\n'.join(

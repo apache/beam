@@ -218,6 +218,28 @@ class Options(interactive_options.InteractiveOptions):
     """
     self._display_timezone = value
 
+  @property
+  def remove_default_windowing_from_cache(self):
+    """Indicates whether to remove the default windowing from cache.
+
+    If this is True and PCollection has default windowing, then the cache won't
+    have any windowing information stored.
+
+    Defaults to False.
+    """
+    return self._remove_default_windowing_from_cache
+
+  @remove_default_windowing_from_cache.setter
+  def remove_default_windowing_from_cache(self, value):
+    """Sets whether to strip the default windowing from cache.
+
+    Setting this to True may greatly increase caching efficiency (and hence
+    Interactive Beam performance) both space- and time-wise for the cases when
+    windowing isn't needed. This happens because windowing information takes
+    hundreds of bytes per record.
+    """
+    self._remove_default_windowing_from_cache = value
+
 
 class Recordings():
   """An introspection interface for recordings for pipelines.

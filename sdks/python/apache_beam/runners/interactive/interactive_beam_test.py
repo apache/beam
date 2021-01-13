@@ -282,6 +282,35 @@ class InteractiveBeamTest(unittest.TestCase):
     self.assertTrue(ib.recordings.record(p))
     ib.recordings.stop(p)
 
+  @unittest.skipIf(
+      sys.version_info < (3, 6),
+      'The tests require at least Python 3.6 to work.')
+  def test_remove_default_windowing_from_cache(self):
+    pipeline_no_windowing = beam.Pipeline(ir.InteractiveRunner())
+    pcoll_no_windowing = pipeline_no_windowing | beam.Create(range(10))
+    ib.watch(locals())
+    ie.current_env().track_user_pipelines()
+    ie.current_env().options.remove_default_windowing_from_cache = True
+
+    ib.collect(pcoll_no_windowing)
+    size_no_windowing = ib.recordings.describe(pipeline_no_windowing)['size']
+    # Make sure the data was cached.
+    self.assertGreater(size_no_windowing, 0)
+
+    pipeline_with_windowing = beam.Pipeline(ir.InteractiveRunner())
+    pcoll_with_windowing = pipeline_with_windowing | beam.Create(range(10))
+    ib.watch(locals())
+    ie.current_env().track_user_pipelines()
+    ie.current_env().options.remove_default_windowing_from_cache = False
+
+    ib.collect(pcoll_with_windowing)
+    size_with_windowing = ib.recordings.describe(
+        pipeline_with_windowing)['size']
+
+    # Cache should have greater size as we also include the windowing
+    # information.
+    self.assertGreater(size_with_windowing, size_no_windowing)
+
 
 if __name__ == '__main__':
   unittest.main()

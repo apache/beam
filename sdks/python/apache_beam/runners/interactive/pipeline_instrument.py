@@ -595,6 +595,16 @@ class PipelineInstrument(object):
       self._cache_manager = ie.current_env().get_cache_manager(
           self._user_pipeline, create_if_absent=True)
 
+  def _cache_windowing(self, pcoll):
+    """Checks whether to cache windowing information for a given PCollection.
+
+    Currently windowing may be removed when PCollection has default windowing
+    and the respective option is enabled.
+    """
+    return not (
+        ie.current_env().options.remove_default_windowing_from_cache and
+        pcoll.windowing.is_default())
+
   def _write_cache(
       self,
       pipeline,
@@ -643,7 +653,7 @@ class PipelineInstrument(object):
 
       # Read the windowing information and cache it along with the element. This
       # caches the arguments to a WindowedValue object because Python has logic
-      # that detects if a DoFn returns a WindowedValue. When it detecs one, it
+      # that detects if a DoFn returns a WindowedValue. When it detects one, it
       # puts the element into the correct window then emits the value to
       # downstream transforms.
       class Reify(beam.DoFn):
@@ -655,9 +665,13 @@ class PipelineInstrument(object):
             t=beam.DoFn.TimestampParam):
           yield test_stream.WindowedValueHolder(WindowedValue(e, t, [w], p))
 
+      extended_target = pcoll
+      if self._cache_windowing(pcoll):
+        extended_target = (
+            extended_target
+            | label + 'reify' >> beam.ParDo(Reify()))
       extended_target = (
-          pcoll
-          | label + 'reify' >> beam.ParDo(Reify())
+          extended_target
           | label >> cache.WriteCache(
               self._cache_manager, key, is_capture=is_capture))
       if output_as_extended_target:
@@ -699,8 +713,11 @@ class PipelineInstrument(object):
         pcoll_from_cache = (
             pipeline
             | '{}{}'.format(READ_CACHE, key) >> cache.ReadCache(
-                self._cache_manager, key)
-            | '{}{}unreify'.format(READ_CACHE, key) >> beam.ParDo(Unreify()))
+                self._cache_manager, key))
+        if self._cache_windowing(pcoll):
+          pcoll_from_cache = (
+              pcoll_from_cache
+              | '{}{}unreify'.format(READ_CACHE, key) >> beam.ParDo(Unreify()))
         self._cached_pcoll_read[key] = pcoll_from_cache
     # else: NOOP when cache doesn't exist, just compute the original graph.
 
