@@ -1194,6 +1194,8 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
         left_index=left_index,
         right_index=right_index,
         **kwargs)
+    if kwargs.get('how', None) == 'cross':
+      raise NotImplementedError("cross join is not yet implemented (BEAM-9547)")
     if not any([on, left_on, right_on, left_index, right_index]):
       on = [col for col in self_proxy.columns if col in right_proxy.columns]
     if not left_on:
