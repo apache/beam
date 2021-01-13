@@ -107,7 +107,7 @@ func NewFn(fn interface{}) (*Fn, error) {
 	case reflect.Struct:
 		methods := make(map[string]*funcx.Fn)
 		annotations := make(map[string][]byte)
-		af := val.Indirect().FieldByName("Annotations")
+		af := reflect.Indirect(val).FieldByName("Annotations")
 		if af.IsValid() {
 			a, ok := af.Interface().(map[string][]byte)
 			if ok {
@@ -148,7 +148,7 @@ func NewFn(fn interface{}) (*Fn, error) {
 			}
 			methods[m.Name] = f
 		}
-		return &Fn{Recv: fn, methods: methods}, nil
+		return &Fn{Recv: fn, methods: methods, annotations: annotations}, nil
 
 	default:
 		return nil, errors.Errorf("value %v must be function or (ptr to) struct", fn)
@@ -242,7 +242,7 @@ func (f *DoFn) ProcessElementFn() *funcx.Fn {
 
 // FinishBundleFn returns the "FinishBundle" function, if present.
 func (f *DoFn) FinishBundleFn() *funcx.Fn {
-	return f.methods[finishBundleName]
+	return f.methods[finishBundleName]f
 }
 
 // TeardownFn returns the "Teardown" function, if present.
