@@ -250,6 +250,11 @@ func (f *DoFn) TeardownFn() *funcx.Fn {
 	return f.methods[teardownName]
 }
 
+// Annotations returns the optional annotations of the DoFn, if present.
+func (f *DoFn) Annotations() map[string][]byte {
+	return f.annotations
+}
+
 // Name returns the name of the function or struct.
 func (f *DoFn) Name() string {
 	return (*Fn)(f).Name()
