@@ -164,7 +164,8 @@ public class KafkaToPubsub {
    */
   public static PipelineResult run(Pipeline pipeline, KafkaToPubsubOptions options) {
     // Configure Kafka consumer properties
-    Map<String, Object> kafkaConfig = parseKafkaConsumerConfig(options.getKafkaConsumerConfig());
+    Map<String, Object> kafkaConfig = new HashMap<>();
+    kafkaConfig.putAll(parseKafkaConsumerConfig(options.getKafkaConsumerConfig()));
     Map<String, String> sslConfig = new HashMap<>();
     if (options.getSecretStoreUrl() != null && options.getVaultToken() != null) {
       Map<String, Map<String, String>> credentials =

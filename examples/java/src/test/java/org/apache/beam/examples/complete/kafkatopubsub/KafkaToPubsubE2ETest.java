@@ -67,7 +67,7 @@ public class KafkaToPubsubE2ETest {
   @Rule public final transient TestPubsub testPubsub = TestPubsub.fromOptions(OPTIONS);
 
   @BeforeClass
-  public static void beforeClass() {
+  public static void beforeClass() throws Exception {
     Credentials credentials = NoopCredentialFactory.fromOptions(OPTIONS).getCredential();
     OPTIONS.as(DirectOptions.class).setBlockOnRun(false);
     OPTIONS.as(GcpOptions.class).setGcpCredential(credentials);
@@ -85,13 +85,13 @@ public class KafkaToPubsubE2ETest {
   }
 
   @Test
-  public void testKafkaToPubsubE2E() throws IOException, InterruptedException {
+  public void testKafkaToPubsubE2E() throws Exception {
     PipelineResult job = KafkaToPubsub.run(pipeline, OPTIONS.as(KafkaToPubsubOptions.class));
 
     sendKafkaMessage();
     testPubsub.assertThatTopicEventuallyReceives(
         hasProperty("payload", equalTo(PUBSUB_MESSAGE.getBytes(StandardCharsets.UTF_8)))
-    ).waitForUpTo(Duration.standardSeconds(25));
+    ).waitForUpTo(Duration.standardMinutes(1));
     try {
       job.cancel();
     } catch (UnsupportedOperationException e) {
