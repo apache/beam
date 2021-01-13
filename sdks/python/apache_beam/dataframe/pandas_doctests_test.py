@@ -78,6 +78,7 @@ class DoctestTest(unittest.TestCase):
             ],
         },
         not_implemented_ok={
+            'pandas.core.frame.DataFrame.transform': ['*'],
             'pandas.core.frame.DataFrame.isin': ['*'],
             'pandas.core.frame.DataFrame.melt': ['*'],
             'pandas.core.frame.DataFrame.count': ['*'],
@@ -112,6 +113,8 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.frame.DataFrame.append': ['*'],
         },
         skip={
+            # Throws NotImplementedError when modifying df
+            'pandas.core.frame.DataFrame.transform': ['df'],
             'pandas.core.frame.DataFrame.axes': [
                 # Returns deferred index.
                 'df.axes',
@@ -230,6 +233,7 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.view': ['*'],
         },
         not_implemented_ok={
+            'pandas.core.series.Series.transform': ['*'],
             'pandas.core.series.Series.groupby': [
                 'ser.groupby(["a", "b", "a", "b"]).mean()',
                 'ser.groupby(["a", "b", "a", np.nan]).mean()',
@@ -240,6 +244,8 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.reindex': ['*'],
         },
         skip={
+            # Throws NotImplementedError when modifying df
+            'pandas.core.series.Series.transform': ['df'],
             'pandas.core.series.Series.append': ['*'],
             'pandas.core.series.Series.argmax': ['*'],
             'pandas.core.series.Series.argmin': ['*'],
