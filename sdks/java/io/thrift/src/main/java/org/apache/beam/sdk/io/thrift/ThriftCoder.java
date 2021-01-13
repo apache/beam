@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.thrift;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -72,15 +71,13 @@ public class ThriftCoder<T> extends CustomCoder<T> {
    */
   @Override
   public void encode(T value, OutputStream outStream) throws CoderException, IOException {
-    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    TProtocol protocol = protocolFactory.getProtocol(new TIOStreamTransport(baos));
+    TProtocol protocol = protocolFactory.getProtocol(new TIOStreamTransport(outStream));
     try {
       TBase<?, ?> tBase = (TBase<?, ?>) value;
       tBase.write(protocol);
     } catch (Exception te) {
       throw new CoderException("Could not write value. Error: " + te.getMessage());
     }
-    outStream.write(baos.toByteArray());
   }
 
   /**

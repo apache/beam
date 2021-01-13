@@ -29,17 +29,12 @@ import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.UUID;
-import java.util.stream.Collectors;
 import org.apache.beam.examples.complete.datatokenization.utils.FailsafeElement;
 import org.apache.beam.examples.complete.datatokenization.utils.FailsafeElementCoder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.Schema.Field;
-import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
@@ -75,16 +70,12 @@ import org.apache.http.impl.client.HttpClients;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * TODO: Add javadoc.
- */
+/** TODO: Add javadoc. */
 @SuppressWarnings("ALL")
-public class ProtegrityDataProtectors {
+public class DataProtectors {
 
-  /**
-   * Logger for class.
-   */
-  private static final Logger LOG = LoggerFactory.getLogger(ProtegrityDataProtectors.class);
+  /** Logger for class. */
+  private static final Logger LOG = LoggerFactory.getLogger(DataProtectors.class);
 
   /**
    * The {@link RowToTokenizedRow} transform converts {@link Row} to {@link TableRow} objects. The
@@ -107,9 +98,7 @@ public class ProtegrityDataProtectors {
 
     public abstract int batchSize();
 
-    public abstract Map<String, String> dataElements();
-
-    public abstract String dsgURI();
+    public abstract String rpcURI();
 
     @Override
     public PCollectionTuple expand(PCollection<KV<Integer, Row>> inputRows) {
@@ -117,23 +106,17 @@ public class ProtegrityDataProtectors {
           FailsafeElementCoder.of(RowCoder.of(schema()), RowCoder.of(schema()));
       PCollectionTuple pCollectionTuple =
           inputRows.apply(
-              "TokenizeUsingDsg",
+              "Tokenize",
               ParDo.of(
-                  new DSGTokenizationFn(
-                      schema(),
-                      batchSize(),
-                      dataElements(),
-                      dsgURI(),
-                      failureTag()))
+                      new TokenizationFn(
+                          schema(), batchSize(), rpcURI(), failureTag()))
                   .withOutputTags(successTag(), TupleTagList.of(failureTag())));
       return PCollectionTuple.of(
-          successTag(), pCollectionTuple.get(successTag()).setRowSchema(schema()))
+              successTag(), pCollectionTuple.get(successTag()).setRowSchema(schema()))
           .and(failureTag(), pCollectionTuple.get(failureTag()).setCoder(coder));
     }
 
-    /**
-     * Builder for {@link RowToTokenizedRow}.
-     */
+    /** Builder for {@link RowToTokenizedRow}. */
     @AutoValue.Builder
     public abstract static class Builder<T> {
 
@@ -145,30 +128,25 @@ public class ProtegrityDataProtectors {
 
       public abstract Builder<T> setBatchSize(int batchSize);
 
-      public abstract Builder<T> setDataElements(Map<String, String> fieldsDataElements);
-
-      public abstract Builder<T> setDsgURI(String dsgURI);
+      public abstract Builder<T> setRpcURI(String rpcURI);
 
       public abstract RowToTokenizedRow<T> build();
     }
   }
 
-  /**
-   * Class for data tokenization using DSG.
-   */
-  public static class DSGTokenizationFn extends DoFn<KV<Integer, Row>, Row> {
+  /** Class for data tokenization. */
+  public static class TokenizationFn extends DoFn<KV<Integer, Row>, Row> {
 
     public static final String ID_TOKEN_NAME = "ID";
 
-    private static Schema schemaToDsg;
+    private static Schema schemaToTokenize;
     private static CloseableHttpClient httpclient;
-    private static ObjectMapper objectMapperSerializerForDSG;
-    private static ObjectMapper objectMapperDeserializerForDSG;
+    private static ObjectMapper objectMapperSerializerForTokenize;
+    private static ObjectMapper objectMapperDeserializerForTokenize;
 
     private final Schema schema;
     private final int batchSize;
-    private final Map<String, String> dataElements;
-    private final String dsgURI;
+    private final String rpcURI;
     private final TupleTag<FailsafeElement<Row, Row>> failureTag;
 
     @StateId("buffer")
@@ -184,16 +162,14 @@ public class ProtegrityDataProtectors {
     private String idFieldName;
     private Map<String, Row> inputRowsWithIds;
 
-    public DSGTokenizationFn(
+    public TokenizationFn(
         Schema schema,
         int batchSize,
-        Map<String, String> dataElements,
-        String dsgURI,
+        String rpcURI,
         TupleTag<FailsafeElement<Row, Row>> failureTag) {
       this.schema = schema;
       this.batchSize = batchSize;
-      this.dataElements = dataElements;
-      this.dsgURI = dsgURI;
+      this.rpcURI = rpcURI;
       bufferedEvents = StateSpecs.bag(RowCoder.of(schema));
       this.failureTag = failureTag;
     }
@@ -201,38 +177,12 @@ public class ProtegrityDataProtectors {
     @Setup
     public void setup() {
 
-      List<String> idFieldList =
-          dataElements.entrySet().stream()
-              .filter(map -> ID_TOKEN_NAME.equals(map.getValue()))
-              .map(Entry::getKey)
-              .collect(Collectors.toList());
+      schemaToTokenize = new Schema(schema.getFields());
+      objectMapperSerializerForTokenize =
+          RowJsonUtils.newObjectMapperWith(RowJson.RowJsonSerializer.forSchema(schemaToTokenize));
 
-      // If we have more than 1 ID fields, we will choose the first.
-      if (idFieldList.size() > 0) {
-        idFieldName = idFieldList.get(0);
-      }
-
-      if (idFieldName == null || !schema.hasField(idFieldName)) {
-        this.hasIdInInputs = false;
-      }
-
-      ArrayList<Schema.Field> fields = new ArrayList<>();
-      for (String field : dataElements.keySet()) {
-        if (schema.hasField(field)) {
-          fields.add(schema.getField(field));
-        }
-      }
-      if (!hasIdInInputs) {
-        idFieldName = ID_TOKEN_NAME;
-        fields.add(Field.of(ID_TOKEN_NAME, FieldType.STRING));
-        dataElements.put(ID_TOKEN_NAME, ID_TOKEN_NAME);
-      }
-      schemaToDsg = new Schema(fields);
-      objectMapperSerializerForDSG =
-          RowJsonUtils.newObjectMapperWith(RowJson.RowJsonSerializer.forSchema(schemaToDsg));
-
-      objectMapperDeserializerForDSG =
-          RowJsonUtils.newObjectMapperWith(RowJson.RowJsonDeserializer.forSchema(schemaToDsg));
+      objectMapperDeserializerForTokenize =
+          RowJsonUtils.newObjectMapperWith(RowJson.RowJsonDeserializer.forSchema(schemaToTokenize));
 
       httpclient = HttpClients.createDefault();
     }
@@ -299,8 +249,8 @@ public class ProtegrityDataProtectors {
       Map<String, Row> inputRowsWithIds = new HashMap<>();
       for (Row inputRow : inputRows) {
 
-        Row.Builder builder = Row.withSchema(schemaToDsg);
-        for (Schema.Field field : schemaToDsg.getFields()) {
+        Row.Builder builder = Row.withSchema(schemaToTokenize);
+        for (Schema.Field field : schemaToTokenize.getFields()) {
           if (inputRow.getSchema().hasField(field.getName())) {
             builder = builder.addValue(inputRow.getValue(field.getName()));
           }
@@ -316,23 +266,19 @@ public class ProtegrityDataProtectors {
 
         Row row = builder.build();
 
-        jsons.add(rowToJson(objectMapperSerializerForDSG, row));
+        jsons.add(rowToJson(objectMapperSerializerForTokenize, row));
       }
       this.inputRowsWithIds = inputRowsWithIds;
       return jsons;
     }
 
-    private String formatJsonsToDsgBatch(Iterable<String> jsons) {
+    private String formatJsonsToRpcBatch(Iterable<String> jsons) {
       StringBuilder stringBuilder = new StringBuilder(String.join(",", jsons));
       Gson gson = new Gson();
-      Type gsonType = new TypeToken<HashMap<String, String>>() {
-      }.getType();
-      String dataElementsJson = gson.toJson(dataElements, gsonType);
+      Type gsonType = new TypeToken<HashMap<String, String>>() {}.getType();
       stringBuilder
           .append("]")
           .insert(0, "{\"data\": [")
-          .append(",\"data_elements\":")
-          .append(dataElementsJson)
           .append("}");
       return stringBuilder.toString();
     }
@@ -341,7 +287,7 @@ public class ProtegrityDataProtectors {
       ArrayList<Row> outputRows = new ArrayList<>();
 
       CloseableHttpResponse response =
-          sendToDsg(formatJsonsToDsgBatch(rowsToJsons(inputRows)).getBytes());
+          sendRpc(formatJsonsToRpcBatch(rowsToJsons(inputRows)).getBytes());
 
       String tokenizedData =
           IOUtils.toString(response.getEntity().getContent(), StandardCharsets.UTF_8);
@@ -353,10 +299,10 @@ public class ProtegrityDataProtectors {
       for (int i = 0; i < jsonTokenizedRows.size(); i++) {
         Row tokenizedRow =
             RowJsonUtils.jsonToRow(
-                objectMapperDeserializerForDSG, jsonTokenizedRows.get(i).toString());
+                objectMapperDeserializerForTokenize, jsonTokenizedRows.get(i).toString());
         Row.FieldValueBuilder rowBuilder =
             Row.fromRow(this.inputRowsWithIds.get(tokenizedRow.getString(idFieldName)));
-        for (Schema.Field field : schemaToDsg.getFields()) {
+        for (Schema.Field field : schemaToTokenize.getFields()) {
           if (!hasIdInInputs && field.getName().equals(idFieldName)) {
             continue;
           }
@@ -369,8 +315,8 @@ public class ProtegrityDataProtectors {
       return outputRows;
     }
 
-    private CloseableHttpResponse sendToDsg(byte[] data) throws IOException {
-      HttpPost httpPost = new HttpPost(dsgURI);
+    private CloseableHttpResponse sendRpc(byte[] data) throws IOException {
+      HttpPost httpPost = new HttpPost(rpcURI);
       HttpEntity stringEntity = new ByteArrayEntity(data, ContentType.APPLICATION_JSON);
       httpPost.setEntity(stringEntity);
       return httpclient.execute(httpPost);

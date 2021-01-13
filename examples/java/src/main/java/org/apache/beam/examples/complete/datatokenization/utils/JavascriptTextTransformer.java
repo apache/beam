@@ -1,9 +1,11 @@
 /*
- * Copyright (C) 2019 Google Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
@@ -76,9 +78,11 @@ public abstract class JavascriptTextTransformer {
       return new AutoValue_JavascriptTextTransformer_FailsafeJavascriptUdf.Builder<>();
     }
 
-    private Counter successCounter = Metrics.counter(FailsafeJavascriptUdf.class, "udf-transform-success-count");
+    private Counter successCounter =
+        Metrics.counter(FailsafeJavascriptUdf.class, "udf-transform-success-count");
 
-    private Counter failedCounter = Metrics.counter(FailsafeJavascriptUdf.class, "udf-transform-failed-count");
+    private Counter failedCounter =
+        Metrics.counter(FailsafeJavascriptUdf.class, "udf-transform-failed-count");
 
     /** Builder for {@link FailsafeJavascriptUdf}. */
     @AutoValue.Builder
@@ -99,42 +103,41 @@ public abstract class JavascriptTextTransformer {
       return elements.apply(
           "ProcessUdf",
           ParDo.of(
-              new DoFn<FailsafeElement<T, String>, FailsafeElement<T, String>>() {
-                private JavascriptRuntime javascriptRuntime;
+                  new DoFn<FailsafeElement<T, String>, FailsafeElement<T, String>>() {
+                    private JavascriptRuntime javascriptRuntime;
 
-                @Setup
-                public void setup() {
-                  if (fileSystemPath() != null && functionName() != null) {
-                    javascriptRuntime =
-                        getJavascriptRuntime(fileSystemPath(), functionName());
-                  }
-                }
-
-                @ProcessElement
-                public void processElement(ProcessContext context) {
-                  FailsafeElement<T, String> element = context.element();
-                  String payloadStr = element.getPayload();
-
-                  try {
-                    if (javascriptRuntime != null) {
-                      payloadStr = javascriptRuntime.invoke(payloadStr);
+                    @Setup
+                    public void setup() {
+                      if (fileSystemPath() != null && functionName() != null) {
+                        javascriptRuntime = getJavascriptRuntime(fileSystemPath(), functionName());
+                      }
                     }
 
-                    if (!Strings.isNullOrEmpty(payloadStr)) {
-                      context.output(
-                          FailsafeElement.of(element.getOriginalPayload(), payloadStr));
-                      successCounter.inc();
+                    @ProcessElement
+                    public void processElement(ProcessContext context) {
+                      FailsafeElement<T, String> element = context.element();
+                      String payloadStr = element.getPayload();
+
+                      try {
+                        if (javascriptRuntime != null) {
+                          payloadStr = javascriptRuntime.invoke(payloadStr);
+                        }
+
+                        if (!Strings.isNullOrEmpty(payloadStr)) {
+                          context.output(
+                              FailsafeElement.of(element.getOriginalPayload(), payloadStr));
+                          successCounter.inc();
+                        }
+                      } catch (Exception e) {
+                        context.output(
+                            failureTag(),
+                            FailsafeElement.of(element)
+                                .setErrorMessage(e.getMessage())
+                                .setStacktrace(Throwables.getStackTraceAsString(e)));
+                        failedCounter.inc();
+                      }
                     }
-                  } catch (Exception e) {
-                    context.output(
-                        failureTag(),
-                        FailsafeElement.of(element)
-                            .setErrorMessage(e.getMessage())
-                            .setStacktrace(Throwables.getStackTraceAsString(e)));
-                    failedCounter.inc();
-                  }
-                }
-              })
+                  })
               .withOutputTags(successTag(), TupleTagList.of(failureTag())));
     }
   }
@@ -249,9 +252,7 @@ public abstract class JavascriptTextTransformer {
           "Failed to match any files with the pattern: " + path);
 
       List<String> scripts =
-          result
-              .metadata()
-              .stream()
+          result.metadata().stream()
               .filter(metadata -> metadata.resourceId().getFilename().endsWith(".js"))
               .map(Metadata::resourceId)
               .map(

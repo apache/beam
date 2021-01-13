@@ -32,14 +32,10 @@ import org.apache.beam.sdk.values.Row;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * The {@link BigQueryIO} class for writing data from template to BigTable.
- */
+/** The {@link BigQueryIO} class for writing data from template to BigTable. */
 public class BigQueryIO {
 
-  /**
-   * Logger for class.
-   */
+  /** Logger for class. */
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryIO.class);
 
   public static WriteResult write(

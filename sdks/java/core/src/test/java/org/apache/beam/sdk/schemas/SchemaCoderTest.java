@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.schemas;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 import com.google.auto.value.AutoValue;

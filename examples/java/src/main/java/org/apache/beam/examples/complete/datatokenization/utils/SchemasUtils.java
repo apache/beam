@@ -144,8 +144,7 @@ public class SchemasUtils {
   }
 
   /**
-   * Reads a file from GCS and returns it as a
-   * string.
+   * Reads a file from GCS and returns it as a string.
    *
    * @param filePath path to file in GCS
    * @return contents of the file as a string

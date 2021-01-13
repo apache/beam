@@ -26,6 +26,7 @@ import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.NESTED_ARRAYS_BEAM
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.NESTED_ARRAY_BEAN_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.NESTED_BEAN_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.NESTED_MAP_BEAN_SCHEMA;
+import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.PARAMETER_NULLABLE_BEAN_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.PRIMITIVE_ARRAY_BEAN_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.RENAMED_FIELDS_AND_SETTERS_BEAM_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.SIMPLE_BEAN_SCHEMA;
@@ -38,9 +39,10 @@ import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
+import java.lang.reflect.Executable;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -56,6 +58,7 @@ import org.apache.beam.sdk.schemas.utils.TestJavaBeans.NestedArrayBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.NestedArraysBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.NestedBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.NestedMapBean;
+import org.apache.beam.sdk.schemas.utils.TestJavaBeans.ParameterNullableBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.PrimitiveArrayBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.SimpleBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.SimpleBeanWithAnnotations;
@@ -77,7 +80,7 @@ import org.junit.rules.ExpectedException;
 })
 public class JavaBeanSchemaTest {
   static final DateTime DATE = DateTime.parse("1979-03-14");
-  static final byte[] BYTE_ARRAY = "bytearray".getBytes(Charset.defaultCharset());
+  static final byte[] BYTE_ARRAY = "bytearray".getBytes(StandardCharsets.UTF_8);
 
   private SimpleBean createSimple(String name) {
     return new SimpleBean(
@@ -214,6 +217,37 @@ public class JavaBeanSchemaTest {
     assertNull(bean.getByteBuffer());
     assertNull(bean.getBigDecimal());
     assertNull(bean.getStringBuilder());
+  }
+
+  /**
+   * [BEAM-11530] Java distinguishes between parameter annotations and type annotations. Therefore
+   * annotations declared without {@link java.lang.annotation.ElementType#TYPE_USE} can't be
+   * accessed through {@link Executable#getAnnotatedParameterTypes()}. Some {@code @Nullable}
+   * annotations like {@link org.apache.avro.reflect.Nullable} do not declare {@link
+   * java.lang.annotation.ElementType#TYPE_USE} which makes them parameter annotations once placed
+   * in front of a parameter.
+   *
+   * @see <a
+   *     href="https://stackoverflow.com/a/37587590/5896429">https://stackoverflow.com/a/37587590/5896429</a>
+   */
+  @Test
+  public void testParameterNullableToRow() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    ParameterNullableBean bean = new ParameterNullableBean();
+    Row row = registry.getToRowFunction(ParameterNullableBean.class).apply(bean);
+
+    assertEquals(1, row.getFieldCount());
+    assertNull(row.getInt64("value"));
+  }
+
+  @Test
+  public void testParameterNullableFromRow() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Row row = Row.nullRow(PARAMETER_NULLABLE_BEAN_SCHEMA);
+
+    ParameterNullableBean bean =
+        registry.getFromRowFunction(ParameterNullableBean.class).apply(row);
+    assertNull(bean.getValue());
   }
 
   @Test

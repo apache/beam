@@ -42,14 +42,10 @@ import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * The {@link BigTableIO} class for writing data from template to BigTable.
- */
+/** The {@link BigTableIO} class for writing data from template to BigTable. */
 public class BigTableIO {
 
-  /**
-   * Logger for class.
-   */
+  /** Logger for class. */
   private static final Logger LOG = LoggerFactory.getLogger(BigTableIO.class);
 
   private final ProtegrityDataTokenizationOptions options;
