@@ -28,6 +28,7 @@ import pandas as pd
 
 from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
 from apache_beam.testing.test_stream import WindowedValueHolder
+from apache_beam.utils.windowed_value import WindowedValue
 
 
 def to_element_list(
@@ -90,9 +91,14 @@ def elements_to_df(elements, include_window_info=False):
   rows = []
   windowed_info = []
   for e in elements:
-    rows.append(e.value)
-    if include_window_info:
-      windowed_info.append([e.timestamp.micros, e.windows, e.pane_info])
+    if isinstance(e, WindowedValue):
+      rows.append(e.value)
+      if include_window_info:
+        windowed_info.append([e.timestamp.micros, e.windows, e.pane_info])
+    else:
+      rows.append(e)
+      # Make sure we don't try to attach window info to non-windowed data.
+      include_window_info = False
 
   rows_df = pd.DataFrame(rows)
   if include_window_info:

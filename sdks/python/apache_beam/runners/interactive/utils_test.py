@@ -97,6 +97,27 @@ class ParseToDataframeTest(unittest.TestCase):
     # check_like so that ordering of indices doesn't matter.
     pd.testing.assert_frame_equal(actual_df, expected_df, check_like=True)
 
+  def test_parse_arbitrary_value(self):
+    """Tests that arbitrary (non-windowed) values are supported.
+    """
+    els = [('a', 2), ('b', 3)]
+
+    actual_df = utils.elements_to_df(els, include_window_info=False)
+    expected_df = pd.DataFrame([['a', 2], ['b', 3]], columns=[0, 1])
+    # check_like so that ordering of indices doesn't matter.
+    pd.testing.assert_frame_equal(actual_df, expected_df, check_like=True)
+
+  def test_parse_arbitrary_value_with_windowing_info(self):
+    """Tests that arbitrary (non-windowed) values are supported and
+    include_window_info is ignored for them.
+    """
+    els = [('a', 2), ('b', 3)]
+
+    actual_df = utils.elements_to_df(els, include_window_info=True)
+    expected_df = pd.DataFrame([['a', 2], ['b', 3]], columns=[0, 1])
+    # check_like so that ordering of indices doesn't matter.
+    pd.testing.assert_frame_equal(actual_df, expected_df, check_like=True)
+
 
 class ToElementListTest(unittest.TestCase):
   def test_test_stream_payload_events(self):
