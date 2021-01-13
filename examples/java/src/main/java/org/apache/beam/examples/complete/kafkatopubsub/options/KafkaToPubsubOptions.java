@@ -88,7 +88,8 @@ public interface KafkaToPubsubOptions extends PipelineOptions {
 
   void setKeyPassword(String keyPassword);
 
-  @Description("Additional kafka consumer configs to be applied to Kafka Consumer (e.g. key1=value1;key2=value2).")
+  @Description(
+      "Additional kafka consumer configs to be applied to Kafka Consumer (e.g. key1=value1;key2=value2).")
   String getKafkaConsumerConfig();
 
   void setKafkaConsumerConfig(String kafkaConfig);

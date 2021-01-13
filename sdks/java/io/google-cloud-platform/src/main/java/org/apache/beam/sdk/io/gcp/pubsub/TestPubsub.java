@@ -93,7 +93,8 @@ public class TestPubsub implements TestRule {
   private @Nullable TransportChannelProvider channelProvider = null;
 
   /**
-   * Creates an instance of this rule using options provided by {@link TestPipeline#testingPipelineOptions()}.
+   * Creates an instance of this rule using options provided by {@link
+   * TestPipeline#testingPipelineOptions()}.
    *
    * <p>Loads GCP configuration from {@link TestPipelineOptions}.
    */

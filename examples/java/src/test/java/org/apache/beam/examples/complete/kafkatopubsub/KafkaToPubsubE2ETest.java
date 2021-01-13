@@ -21,7 +21,6 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasProperty;
 
 import com.google.auth.Credentials;
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
@@ -61,8 +60,14 @@ public class KafkaToPubsubE2ETest {
   private static final String PROJECT_ID = "try-kafka-pubsub";
   private static final PipelineOptions OPTIONS = TestPipeline.testingPipelineOptions();
 
-  @ClassRule public static final PubSubEmulatorContainer pubSubEmulatorContainer = new PubSubEmulatorContainer(DockerImageName.parse(PUBSUB_EMULATOR_IMAGE));
-  @ClassRule public static final KafkaContainer kafkaContainer = new KafkaContainer(DockerImageName.parse(KAFKA_IMAGE_NAME));
+  @ClassRule
+  public static final PubSubEmulatorContainer pubSubEmulatorContainer =
+      new PubSubEmulatorContainer(DockerImageName.parse(PUBSUB_EMULATOR_IMAGE));
+
+  @ClassRule
+  public static final KafkaContainer kafkaContainer =
+      new KafkaContainer(DockerImageName.parse(KAFKA_IMAGE_NAME));
+
   @Rule public final transient TestPipeline pipeline = TestPipeline.fromOptions(OPTIONS);
   @Rule public final transient TestPubsub testPubsub = TestPubsub.fromOptions(OPTIONS);
 
@@ -72,11 +77,17 @@ public class KafkaToPubsubE2ETest {
     OPTIONS.as(DirectOptions.class).setBlockOnRun(false);
     OPTIONS.as(GcpOptions.class).setGcpCredential(credentials);
     OPTIONS.as(GcpOptions.class).setProject(PROJECT_ID);
-    OPTIONS.as(PubsubOptions.class).setPubsubRootUrl("http://" + pubSubEmulatorContainer.getEmulatorEndpoint());
+    OPTIONS
+        .as(PubsubOptions.class)
+        .setPubsubRootUrl("http://" + pubSubEmulatorContainer.getEmulatorEndpoint());
     OPTIONS.as(KafkaToPubsubOptions.class).setOutputFormat(FORMAT.PUBSUB);
-    OPTIONS.as(KafkaToPubsubOptions.class).setBootstrapServers(kafkaContainer.getBootstrapServers());
+    OPTIONS
+        .as(KafkaToPubsubOptions.class)
+        .setBootstrapServers(kafkaContainer.getBootstrapServers());
     OPTIONS.as(KafkaToPubsubOptions.class).setInputTopics(KAFKA_TOPIC_NAME);
-    OPTIONS.as(KafkaToPubsubOptions.class).setKafkaConsumerConfig(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG + "=earliest");
+    OPTIONS
+        .as(KafkaToPubsubOptions.class)
+        .setKafkaConsumerConfig(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG + "=earliest");
   }
 
   @Before
@@ -89,9 +100,10 @@ public class KafkaToPubsubE2ETest {
     PipelineResult job = KafkaToPubsub.run(pipeline, OPTIONS.as(KafkaToPubsubOptions.class));
 
     sendKafkaMessage();
-    testPubsub.assertThatTopicEventuallyReceives(
-        hasProperty("payload", equalTo(PUBSUB_MESSAGE.getBytes(StandardCharsets.UTF_8)))
-    ).waitForUpTo(Duration.standardMinutes(1));
+    testPubsub
+        .assertThatTopicEventuallyReceives(
+            hasProperty("payload", equalTo(PUBSUB_MESSAGE.getBytes(StandardCharsets.UTF_8))))
+        .waitForUpTo(Duration.standardMinutes(1));
     try {
       job.cancel();
     } catch (UnsupportedOperationException e) {
@@ -101,16 +113,14 @@ public class KafkaToPubsubE2ETest {
 
   private void sendKafkaMessage() {
     try (KafkaProducer<String, String> producer =
-            new KafkaProducer<>(
-                ImmutableMap.of(
-                    ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,
-                    kafkaContainer.getBootstrapServers(),
-                    ProducerConfig.CLIENT_ID_CONFIG,
-                    UUID.randomUUID().toString()),
-                new StringSerializer(),
-                new StringSerializer()
-            )
-    ) {
+        new KafkaProducer<>(
+            ImmutableMap.of(
+                ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,
+                kafkaContainer.getBootstrapServers(),
+                ProducerConfig.CLIENT_ID_CONFIG,
+                UUID.randomUUID().toString()),
+            new StringSerializer(),
+            new StringSerializer())) {
       producer.send(new ProducerRecord<>(KAFKA_TOPIC_NAME, "testcontainers", PUBSUB_MESSAGE)).get();
     } catch (ExecutionException | InterruptedException e) {
       throw new RuntimeException("Something went wrong in kafka producer", e);
