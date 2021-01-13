@@ -17,7 +17,7 @@ limitations under the License.
 
 # Try Apache Beam
 
-You can try Apache Beam using our interactive notebooks, which are hosted in [Colab](https://colab.research.google.com). The notebooks allow you to interactively play with the code and see how your changes affect the pipeline. You don't need to install anything or modify your computer in any way to use these notebooks.
+You can try an Apache Beam pipeline using our interactive notebooks.
 
 {{< language-switcher java py go >}}
 
