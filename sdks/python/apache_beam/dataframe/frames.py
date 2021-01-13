@@ -438,9 +438,6 @@ class DeferredSeries(DeferredDataFrameOrSeries):
 
   to_numpy = to_string = frame_base.wont_implement_method('non-deferred value')
 
-  transform = frame_base._elementwise_method(
-      'transform', restrictions={'axis': 0})
-
   def aggregate(self, func, axis=0, *args, **kwargs):
     if isinstance(func, list) and len(func) > 1:
       # Aggregate each column separately, then stick them all together.
@@ -604,9 +601,11 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   def str(self):
     return _DeferredStringMethods(self._expr)
 
-
-for name in ['apply', 'map', 'transform']:
-  setattr(DeferredSeries, name, frame_base._elementwise_method(name))
+  apply = frame_base._elementwise_method('apply')
+  map = frame_base._elementwise_method('map')
+  # TODO(BEAM-11636): Implement transform using type inference to determine the
+  # proxy
+  #transform = frame_base._elementwise_method('transform')
 
 
 @populate_not_implemented(pd.DataFrame)
@@ -1466,9 +1465,6 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
       frame_base.wont_implement_method('non-deferred value'))
 
   to_sparse = to_string # frame_base._elementwise_method('to_sparse')
-
-  transform = frame_base._elementwise_method(
-      'transform', restrictions={'axis': 0})
 
   transpose = frame_base.wont_implement_method('non-deferred column values')
 
