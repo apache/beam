@@ -19,50 +19,31 @@ package org.apache.beam.sdk.metrics;
 
 import java.io.Serializable;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.util.HistogramData;
 
-/** Implementation of {@link Counter} that delegates to the instance for the current context. */
+/** Implementation of {@link Histogram} that delegates to the instance for the current context. */
 @Internal
-public class DelegatingCounter implements Metric, Counter, Serializable {
+public class DelegatingHistogram implements Metric, Histogram, Serializable {
   private final MetricName name;
+  private final HistogramData.BucketType bucketType;
   private final boolean processWideContainer;
 
-  public DelegatingCounter(MetricName name) {
-    this(name, false);
-  }
-
-  public DelegatingCounter(MetricName name, boolean processWideContainer) {
+  public DelegatingHistogram(
+      MetricName name, HistogramData.BucketType bucketType, boolean processWideContainer) {
     this.name = name;
+    this.bucketType = bucketType;
     this.processWideContainer = processWideContainer;
   }
 
-  /** Increment the counter. */
   @Override
-  public void inc() {
-    inc(1);
-  }
-
-  /** Increment the counter by the given amount. */
-  @Override
-  public void inc(long n) {
+  public void update(double value) {
     MetricsContainer container =
-        this.processWideContainer
+        processWideContainer
             ? MetricsEnvironment.getProcessWideContainer()
             : MetricsEnvironment.getCurrentContainer();
     if (container != null) {
-      container.getCounter(name).inc(n);
+      container.getHistogram(name, bucketType).update(value);
     }
-  }
-
-  /* Decrement the counter. */
-  @Override
-  public void dec() {
-    inc(-1);
-  }
-
-  /* Decrement the counter by the given amount. */
-  @Override
-  public void dec(long n) {
-    inc(-1 * n);
   }
 
   @Override
