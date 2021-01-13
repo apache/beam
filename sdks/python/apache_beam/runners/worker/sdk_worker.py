@@ -173,6 +173,7 @@ class SdkHarness(object):
       data_buffer_time_limit_ms=0,  # type: int
       profiler_factory=None,  # type: Optional[Callable[..., Profile]]
       status_address=None,  # type: Optional[str]
+      token=None,
       # Heap dump through status api is disabled by default
       enable_heap_dump=False,  # type: bool
   ):
@@ -849,7 +850,7 @@ class GrpcStateHandlerFactory(StateHandlerFactory):
 
   Caches the created channels by ``state descriptor url``.
   """
-  def __init__(self, state_cache, credentials=None):
+  def __init__(self, state_cache, credentials=None, token=None):
     # type: (StateCache, Optional[grpc.ChannelCredentials]) -> None
     self._state_handler_cache = {}  # type: Dict[str, CachingStateHandler]
     self._lock = threading.Lock()

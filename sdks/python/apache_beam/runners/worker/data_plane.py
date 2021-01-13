@@ -668,7 +668,8 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
   def __init__(self,
                credentials=None,  # type: Any
                worker_id=None,  # type: Optional[str]
-               data_buffer_time_limit_ms=0  # type: int
+               data_buffer_time_limit_ms=0,  # type: int
+               token=None
                ):
     # type: (...) -> None
     self._data_channel_cache = {}  # type: Dict[str, GrpcClientDataChannel]

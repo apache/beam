@@ -193,6 +193,8 @@ public class GreedyPipelineFuser {
         "Transform %s is not at the root of the graph (consumes %s)",
         rootNode.getId(),
         rootNode.getTransform().getInputsMap());
+    // li_trunk only: skip the check until we can handle environment_id of ReadRawKafka correctly
+    /*
     checkArgument(
         !pipeline.getEnvironment(rootNode).isPresent(),
         "%s requires all root nodes to be runner-implemented %s or %s primitives, "
@@ -202,6 +204,7 @@ public class GreedyPipelineFuser {
         PTransformTranslation.READ_TRANSFORM_URN,
         rootNode.getId(),
         pipeline.getEnvironment(rootNode));
+     */
     Set<PTransformNode> unfused = new HashSet<>();
     unfused.add(rootNode);
     NavigableSet<CollectionConsumer> environmentNodes = new TreeSet<>();
