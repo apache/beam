@@ -46,6 +46,7 @@ from tenacity import retry
 from tenacity import stop_after_attempt
 
 import apache_beam as beam
+from apache_beam.coders import coders
 from apache_beam.coders.coders import StrUtf8Coder
 from apache_beam.io import restriction_trackers
 from apache_beam.io.watermark_estimators import ManualWatermarkEstimator
@@ -802,6 +803,18 @@ class FnApiRunnerTest(unittest.TestCase):
 
       gbk_res = (big | beam.GroupByKey() | beam.Map(lambda x: x[0]))
       assert_that(gbk_res, equal_to(['a', 'b']), label='gbk')
+
+  def test_custom_merging_window(self):
+    with self.create_pipeline() as p:
+      res = (
+          p
+          | beam.Create([1, 2, 100, 101, 102])
+          | beam.Map(lambda t: window.TimestampedValue(('k', t), t))
+          | beam.WindowInto(CustomMergingWindowFn())
+          | beam.GroupByKey()
+          | beam.Map(lambda k_vs1: (k_vs1[0], sorted(k_vs1[1]))))
+      assert_that(
+        res, equal_to([('k', [1]), ('k', [101]), ('k', [2, 100, 102])]))
 
   def test_error_message_includes_stage(self):
     with self.assertRaises(BaseException) as e_cm:
@@ -1949,6 +1962,23 @@ class FnApiBasedStateBackedCoderTest(unittest.TestCase):
 
       assert_that(r, equal_to([VALUES_PER_ELEMENT * NUM_OF_ELEMENTS]))
 
+class CustomMergingWindowFn(window.WindowFn):
+  def assign(self, assign_context):
+    return [
+        window.IntervalWindow(
+            assign_context.timestamp, assign_context.timestamp + 1)
+    ]
+
+  def merge(self, merge_context):
+    evens = [w for w in merge_context.windows if w.start % 2 == 0]
+    if evens:
+      merge_context.merge(
+          evens,
+          window.IntervalWindow(
+              min(w.start for w in evens), max(w.end for w in evens)))
+
+  def get_window_coder(self):
+    return coders.IntervalWindowCoder()
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
