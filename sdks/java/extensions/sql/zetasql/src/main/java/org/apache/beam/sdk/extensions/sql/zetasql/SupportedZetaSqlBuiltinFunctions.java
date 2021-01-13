@@ -525,7 +525,7 @@ class SupportedZetaSqlBuiltinFunctions {
           FunctionSignatureId.FN_TO_JSON_STRING, // to_json_string(any[, bool]) -> string
           FunctionSignatureId.FN_JSON_QUERY, // json_query(string, string) -> string
           // FunctionSignatureId.FN_JSON_QUERY_JSON, // json_query(json, string) -> json
-          FunctionSignatureId.FN_JSON_VALUE // json_value(string, string) -> string
+          FunctionSignatureId.FN_JSON_VALUE, // json_value(string, string) -> string
           // FunctionSignatureId.FN_JSON_VALUE_JSON, // json_value(json, string) -> json
 
           // Net functions. These are all found in the "net.*" namespace.
@@ -554,7 +554,7 @@ class SupportedZetaSqlBuiltinFunctions {
           FunctionSignatureId.FN_SHA256_BYTES, // sha256(bytes)
           FunctionSignatureId.FN_SHA256_STRING, // sha256(string)
           FunctionSignatureId.FN_SHA512_BYTES, // sha512(bytes)
-          FunctionSignatureId.FN_SHA512_STRING, // sha512(string)
+          FunctionSignatureId.FN_SHA512_STRING // sha512(string)
 
           // Fingerprinting functions
           // FunctionSignatureId.FN_FARM_FINGERPRINT_BYTES, // farm_fingerprint(bytes) -> int64
