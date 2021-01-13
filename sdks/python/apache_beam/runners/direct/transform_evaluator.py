@@ -311,7 +311,10 @@ class _TransformEvaluator(object):
     """
     state = self._step_context.get_keyed_state(timer_firing.encoded_key)
     state.clear_timer(
-        timer_firing.window, timer_firing.name, timer_firing.time_domain)
+        timer_firing.window,
+        timer_firing.name,
+        timer_firing.time_domain,
+        dynamic_timer_tag=timer_firing.dynamic_timer_tag)
     self.process_timer(timer_firing)
 
   def process_timer(self, timer_firing):
@@ -875,7 +878,8 @@ class _ParDoEvaluator(_TransformEvaluator):
         timer_firing.window,
         timer_firing.timestamp,
         # TODO Add paneinfo to timer_firing in DirectRunner
-        None)
+        None,
+        timer_firing.dynamic_timer_tag)
 
   def process_element(self, element):
     self.runner.process(element)

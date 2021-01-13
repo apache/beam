@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
 
 import java.nio.charset.StandardCharsets;
 import org.apache.beam.sdk.coders.Coder;

@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.metrics;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
 
 import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;

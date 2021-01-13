@@ -229,9 +229,12 @@ class ConcatRangeTracker(iobase.RangeTracker):
 
   def fraction_consumed(self):
     with self._lock:
-      return self.local_to_global(
-          self._claimed_source_ix,
-          self.sub_range_tracker(self._claimed_source_ix).fraction_consumed())
+      if self._claimed_source_ix == len(self._source_bundles):
+        return 1.0
+      else:
+        return self.local_to_global(
+            self._claimed_source_ix,
+            self.sub_range_tracker(self._claimed_source_ix).fraction_consumed())
 
   def local_to_global(self, source_ix, source_frac):
     cw = self._cumulative_weights

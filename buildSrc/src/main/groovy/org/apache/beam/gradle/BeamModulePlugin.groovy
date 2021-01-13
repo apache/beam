@@ -357,7 +357,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.27.0'
+    project.version = '2.28.0'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
@@ -406,6 +406,9 @@ class BeamModulePlugin implements Plugin<Project> {
     project.apply plugin: "com.dorongold.task-tree"
     project.taskTree { noRepeat = true }
 
+    project.ext.allFlinkVersions = project.flink_versions.split(',')
+    project.ext.latestFlinkVersion = project.ext.allFlinkVersions.last()
+
     /** ***********************************************************************************************/
     // Define and export a map dependencies shared across multiple sub-projects.
     //
@@ -427,7 +430,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def google_clients_version = "1.30.10"
     def google_cloud_bigdataoss_version = "2.1.6"
     def google_cloud_pubsub_version = "1.108.6"
-    def google_cloud_pubsublite_version = "0.4.1"
+    def google_cloud_pubsublite_version = "0.7.0"
     def google_code_gson_version = "2.8.6"
     def google_oauth_clients_version = "1.31.0"
     // Try to keep grpc_version consistent with gRPC version in google_cloud_platform_libraries_bom
@@ -448,7 +451,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def slf4j_version = "1.7.30"
     def spark_version = "2.4.7"
     def spotbugs_version = "4.0.6"
-    def testcontainers_version = "1.15.0-rc2"
+    def testcontainers_version = "1.15.1"
 
     // A map of maps containing common libraries used per language. To use:
     // dependencies {
@@ -577,7 +580,7 @@ class BeamModulePlugin implements Plugin<Project> {
         joda_time                                   : "joda-time:joda-time:2.10.5",
         jsonassert                                  : "org.skyscreamer:jsonassert:1.5.0",
         jsr305                                      : "com.google.code.findbugs:jsr305:3.0.2",
-        junit                                       : "junit:junit:4.13-beta-3",
+        junit                                       : "junit:junit:4.13.1",
         kafka                                       : "org.apache.kafka:kafka_2.11:$kafka_version",
         kafka_clients                               : "org.apache.kafka:kafka-clients:$kafka_version",
         mockito_core                                : "org.mockito:mockito-core:3.0.0",
@@ -1570,7 +1573,7 @@ class BeamModulePlugin implements Plugin<Project> {
         }
 
         if (runner?.equalsIgnoreCase('flink')) {
-          testRuntime it.project(path: ":runners:flink:1.10", configuration: 'testRuntime')
+          testRuntime it.project(path: ":runners:flink:${project.ext.latestFlinkVersion}", configuration: 'testRuntime')
         }
 
         if (runner?.equalsIgnoreCase('spark')) {
@@ -1702,6 +1705,19 @@ class BeamModulePlugin implements Plugin<Project> {
         }
       }
       return "${configuration.root}/${configuration.name}:${configuration.tag}"
+    }
+
+    project.ext.containerImageTags = {
+      String[] tags
+      if (project.rootProject.hasProperty(["docker-tag-list"])) {
+        tags = project.rootProject["docker-tag-list"].split(',')
+      } else {
+        tags = [
+          project.rootProject.hasProperty(["docker-tag"]) ?
+          project.rootProject["docker-tag"] : project.sdk_version
+        ]
+      }
+      return tags
     }
 
     /** ***********************************************************************************************/
@@ -2238,10 +2254,11 @@ class BeamModulePlugin implements Plugin<Project> {
 
       def addPortableWordCountTask = { boolean isStreaming, String runner ->
         def taskName = 'portableWordCount' + runner + (isStreaming ? 'Streaming' : 'Batch')
+        def flinkJobServerProject = ":runners:flink:${project.ext.latestFlinkVersion}:job-server"
         project.task(taskName) {
           dependsOn = ['installGcpTest']
           mustRunAfter = [
-            ':runners:flink:1.10:job-server:shadowJar',
+            ":runners:flink:${project.ext.latestFlinkVersion}:job-server:shadowJar",
             ':runners:spark:job-server:shadowJar',
             ':sdks:python:container:py36:docker',
             ':sdks:python:container:py37:docker',
@@ -2256,7 +2273,7 @@ class BeamModulePlugin implements Plugin<Project> {
               "--runner=${runner}",
               "--parallelism=2",
               "--sdk_worker_parallelism=1",
-              "--flink_job_server_jar=${project.project(':runners:flink:1.10:job-server').shadowJar.archivePath}",
+              "--flink_job_server_jar=${project.project(flinkJobServerProject).shadowJar.archivePath}",
               "--spark_job_server_jar=${project.project(':runners:spark:job-server').shadowJar.archivePath}",
             ]
             if (isStreaming)
