@@ -242,7 +242,7 @@ func (f *DoFn) ProcessElementFn() *funcx.Fn {
 
 // FinishBundleFn returns the "FinishBundle" function, if present.
 func (f *DoFn) FinishBundleFn() *funcx.Fn {
-	return f.methods[finishBundleName]f
+	return f.methods[finishBundleName]
 }
 
 // TeardownFn returns the "Teardown" function, if present.
