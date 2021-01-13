@@ -151,7 +151,11 @@ message PTransform {
 
   // (Optional) A list of the ids of transforms that it contains.
   //
-  // Primitive transforms are not allowed to specify this.
+  // Primitive transforms (see StandardPTransforms.Primitives) are not allowed
+  // to specify subtransforms.
+  //
+  // Note that a composite transform may have zero subtransforms as long as it
+  // only outputs PCollections that are in its inputs.
   repeated string subtransforms = 2;
 
   // (Required) A map from local names of inputs (unique only with this map, and
