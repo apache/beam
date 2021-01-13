@@ -34,6 +34,12 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects
  */
 public interface SparkPipelineOptions extends SparkCommonPipelineOptions {
 
+  @Description("The directory to save Spark History Server logs")
+  @Default.String("/tmp/spark-events/")
+  String getSparkHistoryDir();
+
+  void setSparkHistoryDir(String sparkHistoryDir);
+
   @Description("Batch interval for Spark streaming in milliseconds.")
   @Default.Long(500)
   Long getBatchIntervalMillis();

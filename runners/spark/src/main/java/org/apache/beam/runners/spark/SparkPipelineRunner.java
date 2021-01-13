@@ -21,6 +21,10 @@ import static org.apache.beam.runners.core.construction.resources.PipelineResour
 import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.hasUnboundedPCollections;
 import static org.apache.beam.runners.spark.SparkPipelineOptions.prepareFilesToStage;
 
+import java.io.File;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.HashMap;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -56,14 +60,20 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.scheduler.EventLoggingListener;
+import org.apache.spark.scheduler.SparkListenerApplicationEnd;
+import org.apache.spark.scheduler.SparkListenerApplicationStart;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
 import org.apache.spark.streaming.api.java.JavaStreamingListener;
 import org.apache.spark.streaming.api.java.JavaStreamingListenerWrapper;
+import org.joda.time.Instant;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.collection.JavaConverters;
+import scala.collection.Map;
 
 /** Runs a portable pipeline on Apache Spark. */
 @SuppressWarnings({
@@ -126,6 +136,136 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
 
     PortablePipelineResult result;
     final JavaSparkContext jsc = SparkContextFactory.getSparkContext(pipelineOptions);
+
+    EventLoggingListener eventLoggingListener;
+    String jobId = jobInfo.jobId();
+    String jobName = jobInfo.jobName();
+    Long startTime = jsc.startTime();
+    String sparkUser = jsc.sparkUser();
+    try {
+      URI eventLogDirectory = new URI(pipelineOptions.getSparkHistoryDir());
+      File eventLogDirectoryFile = new File(eventLogDirectory.getPath());
+      if (eventLogDirectoryFile.exists() && eventLogDirectoryFile.isDirectory()) {
+        eventLoggingListener = new EventLoggingListener(
+                jobId,
+                new scala.Option<String>() {
+                  @Override
+                  public boolean isEmpty() {
+                    return false;
+                  }
+
+                  @Override
+                  public String get() {
+                    return jobName;
+                  }
+
+                  @Override
+                  public Object productElement(int i) {
+                    return null;
+                  }
+
+                  @Override
+                  public int productArity() {
+                    return 0;
+                  }
+
+                  @Override
+                  public boolean canEqual(Object o) {
+                    return false;
+                  }
+                },
+                eventLogDirectory,
+                jsc.getConf(),
+                jsc.hadoopConfiguration()
+        );
+      } else {
+        eventLoggingListener = null;
+      }
+    } catch (URISyntaxException e) {
+      e.printStackTrace();
+      eventLoggingListener = null;
+    }
+    if (eventLoggingListener != null) {
+      eventLoggingListener.initializeLogIfNecessary(false, false);
+      eventLoggingListener.start();
+      eventLoggingListener.onApplicationStart(new SparkListenerApplicationStart(jobId, new scala.Option<String>() {
+        @Override
+        public boolean isEmpty() {
+          return false;
+        }
+
+        @Override
+        public String get() {
+          return jobName;
+        }
+
+        @Override
+        public Object productElement(int i) {
+          return null;
+        }
+
+        @Override
+        public int productArity() {
+          return 0;
+        }
+
+        @Override
+        public boolean canEqual(Object o) {
+          return false;
+        }
+      }, startTime, sparkUser, new scala.Option<String>() {
+        @Override
+        public boolean isEmpty() {
+          return false;
+        }
+
+        @Override
+        public String get() {
+          return jobName;
+        }
+
+        @Override
+        public Object productElement(int i) {
+          return null;
+        }
+
+        @Override
+        public int productArity() {
+          return 0;
+        }
+
+        @Override
+        public boolean canEqual(Object o) {
+          return false;
+        }
+      }, new scala.Option<Map<String, String>>() {
+        @Override
+        public boolean isEmpty() {
+          return true;
+        }
+
+        @Override
+        public Map<String, String> get() {
+          HashMap<String, String> driverLogs = new HashMap<String, String>();
+          return JavaConverters.mapAsScalaMapConverter(driverLogs).asScala();
+        }
+
+        @Override
+        public Object productElement(int i) {
+          return null;
+        }
+
+        @Override
+        public int productArity() {
+          return 0;
+        }
+
+        @Override
+        public boolean canEqual(Object o) {
+          return false;
+        }
+      }));
+    }
 
     LOG.info(String.format("Running job %s on Spark master %s", jobInfo.jobId(), jsc.master()));
 
@@ -213,6 +353,11 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
             result);
     metricsPusher.start();
 
+    if (eventLoggingListener != null) {
+      eventLoggingListener.onApplicationEnd(new SparkListenerApplicationEnd(Instant.now().getMillis()));
+      eventLoggingListener.stop();
+    }
+
     return result;
   }
 
@@ -274,6 +419,15 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
             "The job to run. This must correspond to a subdirectory of the jar's BEAM-PIPELINE "
                 + "directory. *Only needs to be specified if the jar contains multiple pipelines.*")
     private String baseJobName = null;
+
+    @Option(
+            name = "--spark-history-dir",
+            usage = "Spark history dir to store logs (e.g. /tmp/spark-events/)")
+    private String sparkHistoryDir = "/tmp/spark-events/";
+
+    String getSparkHistoryDir() {
+      return this.sparkHistoryDir;
+    }
   }
 
   private static SparkPipelineRunnerConfiguration parseArgs(String[] args) {
