@@ -51,10 +51,17 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.CharStreams;
 
-/** A Text UDF Transform Function. Note that this class's implementation is not threadsafe */
-@SuppressWarnings({"initialization.fields.uninitialized", "method.invocation.invalid",
-    "dereference.of.nullable", "argument.type.incompatible", "assignment.type.incompatible",
-    "return.type.incompatible"})
+/**
+ * A Text UDF Transform Function. Note that this class's implementation is not threadsafe
+ */
+@SuppressWarnings({
+    "initialization.fields.uninitialized",
+    "method.invocation.invalid",
+    "dereference.of.nullable",
+    "argument.type.incompatible",
+    "assignment.type.incompatible",
+    "return.type.incompatible"
+})
 @AutoValue
 public abstract class JavascriptTextTransformer {
 
@@ -280,6 +287,7 @@ public abstract class JavascriptTextTransformer {
    * @param functionName The function name which will be invoked within the JavaScript script.
    * @return The {@link JavascriptRuntime} instance.
    */
+  @Nullable
   private static JavascriptRuntime getJavascriptRuntime(
       String fileSystemPath, String functionName) {
     JavascriptRuntime javascriptRuntime = null;

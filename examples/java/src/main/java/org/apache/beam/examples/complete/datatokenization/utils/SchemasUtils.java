@@ -52,8 +52,13 @@ import org.slf4j.LoggerFactory;
  * The {@link SchemasUtils} Class to read JSON based schema. Is there available to read from file or
  * from string. Currently supported local File System and GCS.
  */
-@SuppressWarnings({"initialization.fields.uninitialized", "method.invocation.invalid",
-    "dereference.of.nullable", "argument.type.incompatible", "return.type.incompatible"})
+@SuppressWarnings({
+  "initialization.fields.uninitialized",
+  "method.invocation.invalid",
+  "dereference.of.nullable",
+  "argument.type.incompatible",
+  "return.type.incompatible"
+})
 public class SchemasUtils {
 
   /* Logger for class.*/

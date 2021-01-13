@@ -26,6 +26,7 @@ import com.google.auto.value.AutoValue;
 import com.google.gson.reflect.TypeToken;
 import java.io.IOException;
 import java.lang.reflect.Type;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -71,7 +72,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** TODO: Add javadoc. */
-@SuppressWarnings("ALL")
 public class DataProtectors {
 
   /** Logger for class. */
@@ -87,7 +87,7 @@ public class DataProtectors {
       extends PTransform<PCollection<KV<Integer, Row>>, PCollectionTuple> {
 
     public static <T> Builder<T> newBuilder() {
-      return new AutoValue_ProtegrityDataProtectors_RowToTokenizedRow.Builder<>();
+      return new AutoValue_DataProtectors_RowToTokenizedRow.Builder<>();
     }
 
     public abstract TupleTag<Row> successTag();
@@ -107,9 +107,7 @@ public class DataProtectors {
       PCollectionTuple pCollectionTuple =
           inputRows.apply(
               "Tokenize",
-              ParDo.of(
-                      new TokenizationFn(
-                          schema(), batchSize(), rpcURI(), failureTag()))
+              ParDo.of(new TokenizationFn(schema(), batchSize(), rpcURI(), failureTag()))
                   .withOutputTags(successTag(), TupleTagList.of(failureTag())));
       return PCollectionTuple.of(
               successTag(), pCollectionTuple.get(successTag()).setRowSchema(schema()))
@@ -135,9 +133,8 @@ public class DataProtectors {
   }
 
   /** Class for data tokenization. */
+  @SuppressWarnings("initialization.static.fields.uninitialized")
   public static class TokenizationFn extends DoFn<KV<Integer, Row>, Row> {
-
-    public static final String ID_TOKEN_NAME = "ID";
 
     private static Schema schemaToTokenize;
     private static CloseableHttpClient httpclient;
@@ -159,7 +156,7 @@ public class DataProtectors {
     private final TimerSpec expirySpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
     private boolean hasIdInInputs = true;
-    private String idFieldName;
+    private String idFieldName = "";
     private Map<String, Row> inputRowsWithIds;
 
     public TokenizationFn(
@@ -172,6 +169,7 @@ public class DataProtectors {
       this.rpcURI = rpcURI;
       bufferedEvents = StateSpecs.bag(RowCoder.of(schema));
       this.failureTag = failureTag;
+      this.inputRowsWithIds = new HashMap<>();
     }
 
     @Setup
@@ -192,7 +190,10 @@ public class DataProtectors {
       try {
         httpclient.close();
       } catch (IOException exception) {
-        LOG.warn("Can't close connection: {}", exception.getMessage());
+        String exceptionMessage = exception.getMessage();
+        if (exceptionMessage != null) {
+          LOG.warn("Can't close connection: {}", exceptionMessage);
+        }
       }
     }
 
@@ -227,6 +228,7 @@ public class DataProtectors {
       }
     }
 
+    @SuppressWarnings("argument.type.incompatible")
     private void processBufferedRows(Iterable<Row> rows, WindowedContext context) {
 
       try {
@@ -262,7 +264,9 @@ public class DataProtectors {
         } else {
           id = inputRow.getValue(idFieldName);
         }
-        inputRowsWithIds.put(id, inputRow);
+        if (id != null) {
+          inputRowsWithIds.put(id, inputRow);
+        }
 
         Row row = builder.build();
 
@@ -275,19 +279,18 @@ public class DataProtectors {
     private String formatJsonsToRpcBatch(Iterable<String> jsons) {
       StringBuilder stringBuilder = new StringBuilder(String.join(",", jsons));
       Gson gson = new Gson();
-      Type gsonType = new TypeToken<HashMap<String, String>>() {}.getType();
-      stringBuilder
-          .append("]")
-          .insert(0, "{\"data\": [")
-          .append("}");
+      Type gsonType = new TypeToken<HashMap<String, String>>() {
+      }.getType();
+      stringBuilder.append("]").insert(0, "{\"data\": [").append("}");
       return stringBuilder.toString();
     }
 
+    @SuppressWarnings("argument.type.incompatible")
     private ArrayList<Row> getTokenizedRow(Iterable<Row> inputRows) throws IOException {
       ArrayList<Row> outputRows = new ArrayList<>();
 
       CloseableHttpResponse response =
-          sendRpc(formatJsonsToRpcBatch(rowsToJsons(inputRows)).getBytes());
+          sendRpc(formatJsonsToRpcBatch(rowsToJsons(inputRows)).getBytes(Charset.defaultCharset()));
 
       String tokenizedData =
           IOUtils.toString(response.getEntity().getContent(), StandardCharsets.UTF_8);

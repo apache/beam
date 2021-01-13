@@ -30,13 +30,14 @@ import org.apache.beam.sdk.coders.DefaultCoder;
  * can be output to a dead-letter in the event of a failure during one of the pipelines transforms.
  */
 @DefaultCoder(FailsafeElementCoder.class)
-@SuppressWarnings("ALL")
 public class FailsafeElement<OriginalT, CurrentT> {
 
   private final OriginalT originalPayload;
   private final CurrentT payload;
-  @Nullable private String errorMessage;
-  @Nullable private String stacktrace;
+  @Nullable
+  private String errorMessage = "";
+  @Nullable
+  private String stacktrace = "";
 
   private FailsafeElement(OriginalT originalPayload, CurrentT payload) {
     this.originalPayload = originalPayload;
@@ -79,23 +80,6 @@ public class FailsafeElement<OriginalT, CurrentT> {
   public FailsafeElement<OriginalT, CurrentT> setStacktrace(String stacktrace) {
     this.stacktrace = stacktrace;
     return this;
-  }
-
-  @Override
-  @SuppressWarnings("unchecked")
-  public boolean equals(Object obj) {
-    if (this == obj) {
-      return true;
-    }
-    if (obj == null || getClass() != obj.getClass()) {
-      return false;
-    }
-
-    final FailsafeElement other = FailsafeElement.class.cast(obj);
-    return Objects.deepEquals(this.originalPayload, other.getOriginalPayload())
-        && Objects.deepEquals(this.payload, other.getPayload())
-        && Objects.deepEquals(this.errorMessage, other.getErrorMessage())
-        && Objects.deepEquals(this.stacktrace, other.getStacktrace());
   }
 
   @Override

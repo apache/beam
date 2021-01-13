@@ -60,7 +60,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Common transforms for Csv files. */
-@SuppressWarnings({"argument.type.incompatible", "return.type.incompatible"})
+@SuppressWarnings({"argument.type.incompatible"})
 public class CsvConverters {
 
   /* Logger for class. */
@@ -293,11 +293,12 @@ public class CsvConverters {
       }
 
       // If no udf then use json schema
-      if (jsonSchemaPath() != null || jsonSchema() != null) {
+      String schemaPath = jsonSchemaPath();
+      if (schemaPath != null || jsonSchema() != null) {
 
         String schema;
-        if (jsonSchemaPath() != null) {
-          schema = getGcsFileAsString(jsonSchemaPath());
+        if (schemaPath != null) {
+          schema = getGcsFileAsString(schemaPath);
         } else {
           schema = jsonSchema();
         }
@@ -305,8 +306,8 @@ public class CsvConverters {
         return lineFailsafeElements.apply(
             "LineToDocumentUsingSchema",
             ParDo.of(
-                    new FailsafeElementToJsonFn(
-                        headersView, schema, delimiter(), udfDeadletterTag()))
+                new FailsafeElementToJsonFn(
+                    headersView, schema, delimiter(), udfDeadletterTag()))
                 .withOutputTags(udfOutputTag(), TupleTagList.of(udfDeadletterTag())));
       }
 

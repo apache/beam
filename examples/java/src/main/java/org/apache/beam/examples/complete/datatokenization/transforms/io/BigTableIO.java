@@ -19,6 +19,7 @@ package org.apache.beam.examples.complete.datatokenization.transforms.io;
 
 import com.google.bigtable.v2.Mutation;
 import com.google.protobuf.ByteString;
+import java.nio.charset.Charset;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -36,9 +37,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
 import org.apache.commons.lang3.tuple.Pair;
-import org.checkerframework.checker.initialization.qual.Initialized;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -94,8 +92,10 @@ public class BigTableIO {
                           .setSetCell(
                               Mutation.SetCell.newBuilder()
                                   .setFamilyName(options.getBigTableColumnFamilyName())
-                                  .setColumnQualifier(ByteString.copyFrom(pair.getKey().getBytes()))
-                                  .setValue(ByteString.copyFrom(pair.getValue().getBytes()))
+                                  .setColumnQualifier(
+                                      ByteString.copyFrom(pair.getKey(), Charset.defaultCharset()))
+                                  .setValue(ByteString
+                                      .copyFrom(pair.getValue(), Charset.defaultCharset()))
                                   .setTimestampMicros(System.currentTimeMillis() * 1000)
                                   .build())
                           .build())
@@ -103,7 +103,7 @@ public class BigTableIO {
       // Converting key value to BigTable format
       String columnName = in.getString(options.getBigTableKeyColumnName());
       if (columnName != null) {
-        ByteString key = ByteString.copyFrom(columnName.getBytes());
+        ByteString key = ByteString.copyFrom(columnName, Charset.defaultCharset());
         out.output(KV.of(key, mutations));
       }
     }
