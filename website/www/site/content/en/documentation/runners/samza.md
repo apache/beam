@@ -162,6 +162,11 @@ When executing your pipeline with the Samza Runner, you can use the following pi
   <td><code>5000</code></td>
 </tr>
 <tr>
+  <td><code>eventTimerBufferSize</code></td>
+  <td>The maximum number of event-time timers to buffer in memory for a PTransform</td>
+  <td><code>5000</code></td>
+</tr>
+<tr>
   <td><code>maxSourceParallelism</code></td>
   <td>The maximum parallelism allowed for any data source.</td>
   <td><code>1</code></td>

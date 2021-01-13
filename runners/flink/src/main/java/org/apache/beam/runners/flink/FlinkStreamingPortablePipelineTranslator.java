@@ -38,6 +38,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.construction.NativeTransforms;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
@@ -57,7 +58,6 @@ import org.apache.beam.runners.flink.translation.wrappers.streaming.DoFnOperator
 import org.apache.beam.runners.flink.translation.wrappers.streaming.ExecutableStageDoFnOperator;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.KvToByteBufferKeySelector;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.SdfByteBufferKeySelector;
-import org.apache.beam.runners.flink.translation.wrappers.streaming.SingletonKeyedWorkItem;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.SingletonKeyedWorkItemCoder;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.WindowDoFnOperator;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.WorkItemKeySelector;
@@ -112,7 +112,6 @@ import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
@@ -404,13 +403,13 @@ public class FlinkStreamingPortablePipelineTranslator
             inputElementCoder.getValueCoder(),
             windowingStrategy.getWindowFn().windowCoder());
 
-    WindowedValue.FullWindowedValueCoder<SingletonKeyedWorkItem<K, V>> windowedWorkItemCoder =
+    WindowedValue.FullWindowedValueCoder<KeyedWorkItem<K, V>> windowedWorkItemCoder =
         WindowedValue.getFullCoder(workItemCoder, windowingStrategy.getWindowFn().windowCoder());
 
-    CoderTypeInformation<WindowedValue<SingletonKeyedWorkItem<K, V>>> workItemTypeInfo =
+    CoderTypeInformation<WindowedValue<KeyedWorkItem<K, V>>> workItemTypeInfo =
         new CoderTypeInformation<>(windowedWorkItemCoder, context.getPipelineOptions());
 
-    DataStream<WindowedValue<SingletonKeyedWorkItem<K, V>>> workItemStream =
+    DataStream<WindowedValue<KeyedWorkItem<K, V>>> workItemStream =
         inputDataStream
             .flatMap(
                 new FlinkStreamingTransformTranslators.ToKeyedWorkItem<>(
@@ -419,9 +418,11 @@ public class FlinkStreamingPortablePipelineTranslator
             .name("ToKeyedWorkItem");
 
     WorkItemKeySelector<K, V> keySelector =
-        new WorkItemKeySelector<>(inputElementCoder.getKeyCoder());
+        new WorkItemKeySelector<>(
+            inputElementCoder.getKeyCoder(),
+            new SerializablePipelineOptions(context.getPipelineOptions()));
 
-    KeyedStream<WindowedValue<SingletonKeyedWorkItem<K, V>>, ByteBuffer> keyedWorkItemStream =
+    KeyedStream<WindowedValue<KeyedWorkItem<K, V>>, ByteBuffer> keyedWorkItemStream =
         workItemStream.keyBy(keySelector);
 
     SystemReduceFn<K, V, Iterable<V>, Iterable<V>, BoundedWindow> reduceFn =
@@ -443,10 +444,10 @@ public class FlinkStreamingPortablePipelineTranslator
         new WindowDoFnOperator<>(
             reduceFn,
             operatorName,
-            (Coder) windowedWorkItemCoder,
+            windowedWorkItemCoder,
             mainTag,
             Collections.emptyList(),
-            new DoFnOperator.MultiOutputOutputManagerFactory(
+            new DoFnOperator.MultiOutputOutputManagerFactory<>(
                 mainTag,
                 outputCoder,
                 new SerializablePipelineOptions(context.getPipelineOptions())),
@@ -455,13 +456,9 @@ public class FlinkStreamingPortablePipelineTranslator
             Collections.emptyList(), /* side inputs */
             context.getPipelineOptions(),
             inputElementCoder.getKeyCoder(),
-            (KeySelector) keySelector /* key selector */);
+            keySelector /* key selector */);
 
-    SingleOutputStreamOperator<WindowedValue<KV<K, Iterable<V>>>> outputDataStream =
-        keyedWorkItemStream.transform(
-            operatorName, outputTypeInfo, (OneInputStreamOperator) doFnOperator);
-
-    return outputDataStream;
+    return keyedWorkItemStream.transform(operatorName, outputTypeInfo, doFnOperator);
   }
 
   @SuppressWarnings("unchecked")

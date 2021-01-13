@@ -43,6 +43,9 @@ from apache_beam import WindowInto
 from apache_beam.coders import coders
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
+from apache_beam.portability import common_urns
+from apache_beam.portability.api import beam_runner_api_pb2
+from apache_beam.runners import pipeline_context
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import TestWindowedValue
@@ -62,6 +65,9 @@ from apache_beam.transforms.window import IntervalWindow
 from apache_beam.transforms.window import Sessions
 from apache_beam.transforms.window import SlidingWindows
 from apache_beam.transforms.window import TimestampedValue
+from apache_beam.typehints import typehints
+from apache_beam.typehints.sharded_key_type import ShardedKeyType
+from apache_beam.utils import proto_utils
 from apache_beam.utils import timestamp
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
@@ -772,6 +778,65 @@ class GroupIntoBatchesTest(unittest.TestCase):
       # We will flush twice when the max buffering duration is reached and when
       # the global window ends.
       assert_that(num_elements_per_batch, equal_to([9, 1]))
+
+  def test_output_typehints(self):
+    transform = util.GroupIntoBatches.WithShardedKey(
+        GroupIntoBatchesTest.BATCH_SIZE)
+    unused_input_type = typehints.Tuple[str, str]
+    output_type = transform.infer_output_type(unused_input_type)
+    self.assertTrue(isinstance(output_type, typehints.TupleConstraint))
+    k, v = output_type.tuple_types
+    self.assertTrue(isinstance(k, ShardedKeyType))
+    self.assertTrue(isinstance(v, typehints.IterableTypeConstraint))
+
+    with TestPipeline() as pipeline:
+      collection = (
+          pipeline
+          | beam.Create([((1, 2), 'a'), ((2, 3), 'b')])
+          | util.GroupIntoBatches.WithShardedKey(
+              GroupIntoBatchesTest.BATCH_SIZE))
+      self.assertTrue(
+          collection.element_type,
+          typehints.Tuple[
+              ShardedKeyType[typehints.Tuple[int, int]],  # type: ignore[misc]
+              typehints.Iterable[str]])
+
+  def _test_runner_api_round_trip(self, transform, urn):
+    context = pipeline_context.PipelineContext()
+    proto = transform.to_runner_api(context)
+    self.assertEqual(urn, proto.urn)
+    payload = (
+        proto_utils.parse_Bytes(
+            proto.payload, beam_runner_api_pb2.GroupIntoBatchesPayload))
+    self.assertEqual(transform.params.batch_size, payload.batch_size)
+    self.assertEqual(
+        transform.params.max_buffering_duration_secs * 1000,
+        payload.max_buffering_duration_millis)
+
+    transform_from_proto = (
+        transform.__class__.from_runner_api_parameter(None, payload, None))
+    self.assertIsInstance(transform_from_proto, transform.__class__)
+    self.assertEqual(transform.params, transform_from_proto.params)
+
+  def test_runner_api(self):
+    batch_size = 10
+    max_buffering_duration_secs = [None, 0, 5]
+
+    for duration in max_buffering_duration_secs:
+      self._test_runner_api_round_trip(
+          util.GroupIntoBatches(batch_size, duration),
+          common_urns.group_into_batches_components.GROUP_INTO_BATCHES.urn)
+    self._test_runner_api_round_trip(
+        util.GroupIntoBatches(batch_size),
+        common_urns.group_into_batches_components.GROUP_INTO_BATCHES.urn)
+
+    for duration in max_buffering_duration_secs:
+      self._test_runner_api_round_trip(
+          util.GroupIntoBatches.WithShardedKey(batch_size, duration),
+          common_urns.composites.GROUP_INTO_BATCHES_WITH_SHARDED_KEY.urn)
+    self._test_runner_api_round_trip(
+        util.GroupIntoBatches.WithShardedKey(batch_size),
+        common_urns.composites.GROUP_INTO_BATCHES_WITH_SHARDED_KEY.urn)
 
 
 class ToStringTest(unittest.TestCase):

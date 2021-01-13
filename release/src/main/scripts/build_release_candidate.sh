@@ -48,7 +48,7 @@ LOCAL_WEBSITE_REPO=beam_website_repo
 USER_REMOTE_URL=
 USER_GITHUB_ID=
 GIT_REPO_BASE_URL=apache/beam
-GIT_REPO_URL=git@github.com:${GIT_REPO_BASE_URL}.git
+GIT_REPO_URL=https://github.com/${GIT_REPO_BASE_URL}
 ROOT_SVN_URL=https://dist.apache.org/repos/dist/dev/beam
 GIT_BEAM_ARCHIVE=https://github.com/apache/beam/archive
 GIT_BEAM_WEBSITE=https://github.com/apache/beam-site.git
@@ -60,7 +60,7 @@ WEBSITE_ROOT_DIR=beam-site
 DOCKER_IMAGE_DEFAULT_REPO_ROOT=apache
 DOCKER_IMAGE_DEFAULT_REPO_PREFIX=beam_
 
-JAVA_VER=("java8", "java11")
+JAVA_VER=("java8" "java11")
 PYTHON_VER=("python3.6" "python3.7" "python3.8")
 FLINK_VER=("1.8" "1.9" "1.10")
 
@@ -73,7 +73,7 @@ read RC_NUM
 echo "Please enter your github username(ID): "
 read USER_GITHUB_ID
 
-USER_REMOTE_URL=git@github.com:${USER_GITHUB_ID}/beam-site
+USER_REMOTE_URL=https://github.com/${USER_GITHUB_ID}/beam-site
 
 echo "=================Pre-requirements===================="
 echo "Please make sure you have configured and started your gpg by running ./preparation_before_release.sh."

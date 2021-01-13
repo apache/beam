@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.gcp.bigtable;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.apache.beam.sdk.io.gcp.testing.BigtableTestUtils.checkMessage;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.BOOLEAN;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.BYTE;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.BYTES;
@@ -30,11 +29,15 @@ import static org.apache.beam.sdk.schemas.Schema.TypeName.INT32;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.INT64;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.MAP;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.STRING;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.fail;
 
 import com.google.bigtable.v2.Cell;
 import com.google.protobuf.ByteString;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.junit.Test;
@@ -273,5 +276,13 @@ public class CellValueParserTest {
 
   private Cell cell(byte[] value) {
     return Cell.newBuilder().setValue(ByteString.copyFrom(value)).build();
+  }
+
+  private void checkMessage(@Nullable String message, String substring) {
+    if (message != null) {
+      assertThat(message, containsString(substring));
+    } else {
+      fail();
+    }
   }
 }
