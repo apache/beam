@@ -50,9 +50,13 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.CharStreams;
 
 /** A Text UDF Transform Function. Note that this class's implementation is not threadsafe */
+@SuppressWarnings({"initialization.fields.uninitialized", "method.invocation.invalid",
+    "dereference.of.nullable", "argument.type.incompatible", "assignment.type.incompatible",
+    "return.type.incompatible"})
 @AutoValue
 public abstract class JavascriptTextTransformer {
-    /**
+
+  /**
    * The {@link FailsafeJavascriptUdf} class processes user-defined functions is a fail-safe manner
    * by maintaining the original payload post-transformation and outputting to a dead-letter on
    * failure.

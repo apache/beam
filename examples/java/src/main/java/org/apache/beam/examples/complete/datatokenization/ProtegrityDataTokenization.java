@@ -59,6 +59,8 @@ import org.slf4j.LoggerFactory;
 /**
  * The {@link ProtegrityDataTokenization} pipeline.
  */
+@SuppressWarnings({"initialization.fields.uninitialized", "method.invocation.invalid",
+    "dereference.of.nullable", "argument.type.incompatible"})
 public class ProtegrityDataTokenization {
 
   /**

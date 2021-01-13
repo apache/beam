@@ -15,10 +15,10 @@
  */
 package org.apache.beam.examples.complete.datatokenization.utils;
 
+import com.google.common.base.MoreObjects;
 import java.util.Objects;
 import org.apache.avro.reflect.Nullable;
 import org.apache.beam.sdk.coders.DefaultCoder;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 
 /**
  * The {@link FailsafeElement} class holds the current value and original value of a record within a
@@ -28,14 +28,13 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects
  * can be output to a dead-letter in the event of a failure during one of the pipelines transforms.
  */
 @DefaultCoder(FailsafeElementCoder.class)
+@SuppressWarnings("ALL")
 public class FailsafeElement<OriginalT, CurrentT> {
 
   private final OriginalT originalPayload;
   private final CurrentT payload;
-  @Nullable
-  private String errorMessage;
-  @Nullable
-  private String stacktrace;
+  @Nullable private String errorMessage;
+  @Nullable private String stacktrace;
 
   private FailsafeElement(OriginalT originalPayload, CurrentT payload) {
     this.originalPayload = originalPayload;
@@ -81,6 +80,7 @@ public class FailsafeElement<OriginalT, CurrentT> {
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public boolean equals(Object obj) {
     if (this == obj) {
       return true;
@@ -89,7 +89,7 @@ public class FailsafeElement<OriginalT, CurrentT> {
       return false;
     }
 
-    final FailsafeElement other = (FailsafeElement) obj;
+    final FailsafeElement other = FailsafeElement.class.cast(obj);
     return Objects.deepEquals(this.originalPayload, other.getOriginalPayload())
         && Objects.deepEquals(this.payload, other.getPayload())
         && Objects.deepEquals(this.errorMessage, other.getErrorMessage())

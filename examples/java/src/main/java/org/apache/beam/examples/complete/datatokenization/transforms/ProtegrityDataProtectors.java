@@ -78,6 +78,7 @@ import org.slf4j.LoggerFactory;
 /**
  * TODO: Add javadoc.
  */
+@SuppressWarnings("ALL")
 public class ProtegrityDataProtectors {
 
   /**

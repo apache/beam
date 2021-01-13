@@ -36,6 +36,9 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
 import org.apache.commons.lang3.tuple.Pair;
+import org.checkerframework.checker.initialization.qual.Initialized;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -102,11 +105,11 @@ public class BigTableIO {
                           .build())
               .collect(Collectors.toSet());
       // Converting key value to BigTable format
-      // TODO ramazan@akvelon.com check that please (NPE)
-      ByteString key =
-          ByteString.copyFrom(
-              Objects.requireNonNull(in.getString(options.getBigTableKeyColumnName())).getBytes());
-      out.output(KV.of(key, mutations));
+      String columnName = in.getString(options.getBigTableKeyColumnName());
+      if (columnName != null) {
+        ByteString key = ByteString.copyFrom(columnName.getBytes());
+        out.output(KV.of(key, mutations));
+      }
     }
   }
 

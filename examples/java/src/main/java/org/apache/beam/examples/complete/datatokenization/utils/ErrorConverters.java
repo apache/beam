@@ -123,6 +123,8 @@ public class ErrorConverters {
     }
   }
 
+  /** Same as {@link WritePubsubMessageErrors} but for string encoded messages. */
+  @AutoValue
   public abstract static class WriteStringMessageErrors
       extends PTransform<PCollection<FailsafeElement<String, String>>, WriteResult> {
 
