@@ -146,7 +146,8 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
       URI eventLogDirectory = new URI(pipelineOptions.getSparkHistoryDir());
       File eventLogDirectoryFile = new File(eventLogDirectory.getPath());
       if (eventLogDirectoryFile.exists() && eventLogDirectoryFile.isDirectory()) {
-        eventLoggingListener = new EventLoggingListener(
+        eventLoggingListener =
+            new EventLoggingListener(
                 jobId,
                 new scala.Option<String>() {
                   @Override
@@ -176,8 +177,7 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
                 },
                 eventLogDirectory,
                 jsc.getConf(),
-                jsc.hadoopConfiguration()
-        );
+                jsc.hadoopConfiguration());
       } else {
         eventLoggingListener = null;
       }
@@ -188,83 +188,90 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
     if (eventLoggingListener != null) {
       eventLoggingListener.initializeLogIfNecessary(false, false);
       eventLoggingListener.start();
-      eventLoggingListener.onApplicationStart(new SparkListenerApplicationStart(jobId, new scala.Option<String>() {
-        @Override
-        public boolean isEmpty() {
-          return false;
-        }
+      eventLoggingListener.onApplicationStart(
+          new SparkListenerApplicationStart(
+              jobId,
+              new scala.Option<String>() {
+                @Override
+                public boolean isEmpty() {
+                  return false;
+                }
 
-        @Override
-        public String get() {
-          return jobName;
-        }
+                @Override
+                public String get() {
+                  return jobName;
+                }
 
-        @Override
-        public Object productElement(int i) {
-          return null;
-        }
+                @Override
+                public Object productElement(int i) {
+                  return null;
+                }
 
-        @Override
-        public int productArity() {
-          return 0;
-        }
+                @Override
+                public int productArity() {
+                  return 0;
+                }
 
-        @Override
-        public boolean canEqual(Object o) {
-          return false;
-        }
-      }, startTime, sparkUser, new scala.Option<String>() {
-        @Override
-        public boolean isEmpty() {
-          return false;
-        }
+                @Override
+                public boolean canEqual(Object o) {
+                  return false;
+                }
+              },
+              startTime,
+              sparkUser,
+              new scala.Option<String>() {
+                @Override
+                public boolean isEmpty() {
+                  return false;
+                }
 
-        @Override
-        public String get() {
-          return jobName;
-        }
+                @Override
+                public String get() {
+                  return jobName;
+                }
 
-        @Override
-        public Object productElement(int i) {
-          return null;
-        }
+                @Override
+                public Object productElement(int i) {
+                  return null;
+                }
 
-        @Override
-        public int productArity() {
-          return 0;
-        }
+                @Override
+                public int productArity() {
+                  return 0;
+                }
 
-        @Override
-        public boolean canEqual(Object o) {
-          return false;
-        }
-      }, new scala.Option<Map<String, String>>() {
-        @Override
-        public boolean isEmpty() {
-          return true;
-        }
+                @Override
+                public boolean canEqual(Object o) {
+                  return false;
+                }
+              },
+              new scala.Option<Map<String, String>>() {
+                @Override
+                public boolean isEmpty() {
+                  return true;
+                }
 
-        @Override
-        public Map<String, String> get() {
-          HashMap<String, String> driverLogs = new HashMap<String, String>();
-          return JavaConverters.mapAsScalaMapConverter(driverLogs).asScala();
-        }
+                @Override
+                public Map<String, String> get() {
+                  HashMap<String, String> driverLogs = new HashMap<String, String>();
+                  return JavaConverters.mapAsScalaMapConverter(driverLogs).asScala();
+                }
 
-        @Override
-        public Object productElement(int i) {
-          return null;
-        }
+                @Override
+                public Object productElement(int i) {
+                  return null;
+                }
 
-        @Override
-        public int productArity() {
-          return 0;
-        }
+                @Override
+                public int productArity() {
+                  return 0;
+                }
 
-        @Override
-        public boolean canEqual(Object o) {
-          return false;
-        }
-      }));
+                @Override
+                public boolean canEqual(Object o) {
+                  return false;
+                }
+              }));
     }
 
     LOG.info(String.format("Running job %s on Spark master %s", jobInfo.jobId(), jsc.master()));
@@ -354,7 +361,8 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
     metricsPusher.start();
 
     if (eventLoggingListener != null) {
-      eventLoggingListener.onApplicationEnd(new SparkListenerApplicationEnd(Instant.now().getMillis()));
+      eventLoggingListener.onApplicationEnd(
+          new SparkListenerApplicationEnd(Instant.now().getMillis()));
       eventLoggingListener.stop();
     }
 
@@ -421,8 +429,8 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
     private String baseJobName = null;
 
     @Option(
-            name = "--spark-history-dir",
-            usage = "Spark history dir to store logs (e.g. /tmp/spark-events/)")
+        name = "--spark-history-dir",
+        usage = "Spark history dir to store logs (e.g. /tmp/spark-events/)")
     private String sparkHistoryDir = "/tmp/spark-events/";
 
     String getSparkHistoryDir() {
