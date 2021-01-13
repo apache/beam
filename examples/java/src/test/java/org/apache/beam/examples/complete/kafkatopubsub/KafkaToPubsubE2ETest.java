@@ -61,11 +61,11 @@ public class KafkaToPubsubE2ETest {
   private static final PipelineOptions OPTIONS = TestPipeline.testingPipelineOptions();
 
   @ClassRule
-  public static final PubSubEmulatorContainer pubSubEmulatorContainer =
+  public static final PubSubEmulatorContainer PUB_SUB_EMULATOR_CONTAINER =
       new PubSubEmulatorContainer(DockerImageName.parse(PUBSUB_EMULATOR_IMAGE));
 
   @ClassRule
-  public static final KafkaContainer kafkaContainer =
+  public static final KafkaContainer KAFKA_CONTAINER =
       new KafkaContainer(DockerImageName.parse(KAFKA_IMAGE_NAME));
 
   @Rule public final transient TestPipeline pipeline = TestPipeline.fromOptions(OPTIONS);
@@ -79,11 +79,11 @@ public class KafkaToPubsubE2ETest {
     OPTIONS.as(GcpOptions.class).setProject(PROJECT_ID);
     OPTIONS
         .as(PubsubOptions.class)
-        .setPubsubRootUrl("http://" + pubSubEmulatorContainer.getEmulatorEndpoint());
+        .setPubsubRootUrl("http://" + PUB_SUB_EMULATOR_CONTAINER.getEmulatorEndpoint());
     OPTIONS.as(KafkaToPubsubOptions.class).setOutputFormat(FORMAT.PUBSUB);
     OPTIONS
         .as(KafkaToPubsubOptions.class)
-        .setBootstrapServers(kafkaContainer.getBootstrapServers());
+        .setBootstrapServers(KAFKA_CONTAINER.getBootstrapServers());
     OPTIONS.as(KafkaToPubsubOptions.class).setInputTopics(KAFKA_TOPIC_NAME);
     OPTIONS
         .as(KafkaToPubsubOptions.class)
@@ -116,7 +116,7 @@ public class KafkaToPubsubE2ETest {
         new KafkaProducer<>(
             ImmutableMap.of(
                 ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,
-                kafkaContainer.getBootstrapServers(),
+                KAFKA_CONTAINER.getBootstrapServers(),
                 ProducerConfig.CLIENT_ID_CONFIG,
                 UUID.randomUUID().toString()),
             new StringSerializer(),
