@@ -22,11 +22,14 @@ import static org.apache.beam.examples.complete.kafkatopubsub.KafkaPubsubConstan
 import static org.apache.beam.examples.complete.kafkatopubsub.KafkaPubsubConstants.USERNAME;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 import org.apache.beam.examples.complete.kafkatopubsub.options.KafkaToPubsubOptions;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.gson.JsonObject;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.gson.JsonParser;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
@@ -161,5 +164,12 @@ public class Utils {
         || options.getTruststorePassword() != null
         || options.getKeystorePath() != null
         || options.getKeyPassword() != null;
+  }
+
+  public static Map<String, Object> parseKafkaConsumerConfig(String kafkaConsumerConfig) {
+    return Arrays.stream(kafkaConsumerConfig.split(";"))
+        .map(s -> s.split("="))
+        .map(kv -> Pair.of(kv[0], kv[1]))
+        .collect(Collectors.toMap(Pair::getKey, Pair::getValue));
   }
 }
