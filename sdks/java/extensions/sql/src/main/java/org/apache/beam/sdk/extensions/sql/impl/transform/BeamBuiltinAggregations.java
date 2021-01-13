@@ -401,7 +401,10 @@ public class BeamBuiltinAggregations {
     static class Accum {
       /** True if no inputs have been seen yet. */
       boolean isEmpty = true;
-      /** True if any null inputs have been seen. */
+      /**
+       * True if any null inputs have been seen. If we see a single null value, the end result is
+       * null, so if isNull is true, isEmpty and bitAnd are ignored.
+       */
       boolean isNull = false;
       /** The bitwise-and of the inputs seen so far. */
       long bitAnd = -1L;
@@ -414,6 +417,9 @@ public class BeamBuiltinAggregations {
 
     @Override
     public Accum addInput(Accum accum, T input) {
+      if (accum.isNull) {
+        return accum;
+      }
       if (input == null) {
         accum.isNull = true;
         return accum;
