@@ -39,12 +39,12 @@ publishing {
                 if (project.hasProperty("summary")) {
                     description = project.summary
                 }
-                url = "http://beam.apache.org"
+                url = "https://beam.apache.org"
                 inceptionYear = "2016"
                 licenses {
                     license {
                         name = "Apache License, Version 2.0"
-                        url = "http://www.apache.org/licenses/LICENSE-2.0.txt"
+                        url = "https://www.apache.org/licenses/LICENSE-2.0.txt"
                         distribution = "repo"
                     }
                 }
@@ -63,30 +63,30 @@ publishing {
                         subscribe = "dev-subscribe@beam.apache.org"
                         unsubscribe = "dev-unsubscribe@beam.apache.org"
                         post = "dev@beam.apache.org"
-                        archive = "http://www.mail-archive.com/dev%beam.apache.org"
+                        archive = "https://www.mail-archive.com/dev@beam.apache.org"
                     }
                     mailingList {
                         name = "Beam User"
                         subscribe = "user-subscribe@beam.apache.org"
                         unsubscribe = "user-unsubscribe@beam.apache.org"
                         post = "user@beam.apache.org"
-                        archive = "http://www.mail-archive.com/user%beam.apache.org"
+                        archive = "https://www.mail-archive.com/user@beam.apache.org"
                     }
                     mailingList {
                         name = "Beam Commits"
                         subscribe = "commits-subscribe@beam.apache.org"
                         unsubscribe = "commits-unsubscribe@beam.apache.org"
                         post = "commits@beam.apache.org"
-                        archive = "http://www.mail-archive.com/commits%beam.apache.org"
+                        archive = "https://www.mail-archive.com/commits@beam.apache.org"
                     }
                 }
                 developers {
                     developer {
                         name = "The Apache Beam Team"
                         email = "dev@beam.apache.org"
-                        url = "http://beam.apache.org"
+                        url = "https://beam.apache.org"
                         organization = "Apache Software Foundation"
-                        organizationUrl = "http://www.apache.org"
+                        organizationUrl = "https://www.apache.org"
                     }
                 }
             }

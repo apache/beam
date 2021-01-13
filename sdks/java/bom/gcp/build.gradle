@@ -25,3 +25,11 @@ dependencies {
     api project.library.java.guava
   }
 }
+
+publishing {
+  publications {
+    mavenJava(MavenPublication) {
+      artifactId = 'beam-sdks-java-google-cloud-platform-bom'
+    }
+  }
+}
