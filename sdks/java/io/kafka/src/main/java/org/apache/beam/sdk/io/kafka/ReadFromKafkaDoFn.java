@@ -172,7 +172,6 @@ class ReadFromKafkaDoFn<K, V>
   private final TimestampPolicyFactory<K, V> timestampPolicyFactory;
 
   // Valid between bundle start and bundle finish.
-  private transient ConsumerSpEL consumerSpEL = null;
   private transient Deserializer<K> keyDeserializerInstance = null;
   private transient Deserializer<V> valueDeserializerInstance = null;
 
@@ -193,19 +192,17 @@ class ReadFromKafkaDoFn<K, V>
 
     private final Consumer<byte[], byte[]> offsetConsumer;
     private final TopicPartition topicPartition;
-    private final ConsumerSpEL consumerSpEL;
     private final Supplier<Long> memoizedBacklog;
 
     KafkaLatestOffsetEstimator(
         Consumer<byte[], byte[]> offsetConsumer, TopicPartition topicPartition) {
       this.offsetConsumer = offsetConsumer;
       this.topicPartition = topicPartition;
-      this.consumerSpEL = new ConsumerSpEL();
-      this.consumerSpEL.evaluateAssign(this.offsetConsumer, ImmutableList.of(this.topicPartition));
+      ConsumerSpEL.evaluateAssign(this.offsetConsumer, ImmutableList.of(this.topicPartition));
       memoizedBacklog =
           Suppliers.memoizeWithExpiration(
               () -> {
-                consumerSpEL.evaluateSeek2End(offsetConsumer, topicPartition);
+                ConsumerSpEL.evaluateSeek2End(offsetConsumer, topicPartition);
                 return offsetConsumer.position(topicPartition);
               },
               5,
@@ -235,14 +232,14 @@ class ReadFromKafkaDoFn<K, V>
         consumerFactoryFn.apply(
             KafkaIOUtils.getOffsetConsumerConfig(
                 "initialOffset", offsetConsumerConfig, updatedConsumerConfig))) {
-      consumerSpEL.evaluateAssign(
+      ConsumerSpEL.evaluateAssign(
           offsetConsumer, ImmutableList.of(kafkaSourceDescriptor.getTopicPartition()));
       long startOffset;
       if (kafkaSourceDescriptor.getStartReadOffset() != null) {
         startOffset = kafkaSourceDescriptor.getStartReadOffset();
       } else if (kafkaSourceDescriptor.getStartReadTime() != null) {
         startOffset =
-            consumerSpEL.offsetForTime(
+            ConsumerSpEL.offsetForTime(
                 offsetConsumer,
                 kafkaSourceDescriptor.getTopicPartition(),
                 kafkaSourceDescriptor.getStartReadTime());
@@ -329,7 +326,7 @@ class ReadFromKafkaDoFn<K, V>
         return ProcessContinuation.stop();
       }
 
-      consumerSpEL.evaluateAssign(
+      ConsumerSpEL.evaluateAssign(
           consumer, ImmutableList.of(kafkaSourceDescriptor.getTopicPartition()));
       long startOffset = tracker.currentRestriction().getFrom();
       long expectedOffset = startOffset;
@@ -352,11 +349,11 @@ class ReadFromKafkaDoFn<K, V>
                   rawRecord.topic(),
                   rawRecord.partition(),
                   rawRecord.offset(),
-                  consumerSpEL.getRecordTimestamp(rawRecord),
-                  consumerSpEL.getRecordTimestampType(rawRecord),
+                  ConsumerSpEL.getRecordTimestamp(rawRecord),
+                  ConsumerSpEL.getRecordTimestampType(rawRecord),
                   ConsumerSpEL.hasHeaders() ? rawRecord.headers() : null,
-                  (K) consumerSpEL.deserializeKey(keyDeserializerInstance, rawRecord),
-                  (V) consumerSpEL.deserializeValue(valueDeserializerInstance, rawRecord));
+                  ConsumerSpEL.deserializeKey(keyDeserializerInstance, rawRecord),
+                  ConsumerSpEL.deserializeValue(valueDeserializerInstance, rawRecord));
           int recordSize =
               (rawRecord.key() == null ? 0 : rawRecord.key().length)
                   + (rawRecord.value() == null ? 0 : rawRecord.value().length);
@@ -402,7 +399,6 @@ class ReadFromKafkaDoFn<K, V>
                     return new AverageRecordSize();
                   }
                 });
-    consumerSpEL = new ConsumerSpEL();
     keyDeserializerInstance = keyDeserializerProvider.getDeserializer(consumerConfig, true);
     valueDeserializerInstance = valueDeserializerProvider.getDeserializer(consumerConfig, false);
   }
