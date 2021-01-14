@@ -190,8 +190,9 @@ public class FhirIOSearchIT {
                         StringUtf8Coder.of(),
                         MapCoder.of(StringUtf8Coder.of(), ListCoder.of(VarIntCoder.of())))));
     FhirIO.Search.Result result =
-            searchConfigs.apply(
-                    (FhirIO.Search<List<Integer>>) FhirIO.searchResourcesWithGenericParameters(
+        searchConfigs.apply(
+            (FhirIO.Search<List<Integer>>)
+                FhirIO.searchResourcesWithGenericParameters(
                     healthcareDataset + "/fhirStores/" + fhirStoreId));
 
     // Verify that there are no failures.

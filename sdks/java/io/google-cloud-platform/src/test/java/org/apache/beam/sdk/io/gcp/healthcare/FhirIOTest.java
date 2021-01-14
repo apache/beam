@@ -81,11 +81,14 @@ public class FhirIOTest {
 
   @Test
   public void test_FhirIO_failedSearchesWithGenericParameters() {
-    List<KV<String, Map<String, List<String>>>> input = Arrays.asList(KV.of("resource-type-1", null));
+    List<KV<String, Map<String, List<String>>>> input =
+        Arrays.asList(KV.of("resource-type-1", null));
     FhirIO.Search.Result searchResult =
         pipeline
             .apply(Create.of(input))
-            .apply((FhirIO.Search<List<String>>) FhirIO.searchResourcesWithGenericParameters("bad-store"));
+            .apply(
+                (FhirIO.Search<List<String>>)
+                    FhirIO.searchResourcesWithGenericParameters("bad-store"));
 
     PCollection<HealthcareIOError<String>> failed = searchResult.getFailedSearches();
 
