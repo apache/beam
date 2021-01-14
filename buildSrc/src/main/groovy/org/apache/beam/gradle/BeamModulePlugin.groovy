@@ -1985,6 +1985,22 @@ class BeamModulePlugin implements Plugin<Project> {
       }
 
       project.dependencies GrpcVendoring_1_36_0.dependenciesClosure() << { shadow project.ext.library.java.vendored_grpc_1_36_0 }
+
+      project.ext.protoSources = project.sourceSets.inject([]) { files, sourceSet -> files + sourceSet.proto.files }
+
+      project.ext.createProtoFormatTask = { taskName, clangOptions ->
+        project.task(taskName, type: Exec) {
+          executable 'sh'
+          args '-c', "clang-format ${clangOptions.join(' ')} ${project.protoSources.join(' ')}"
+        }
+      }
+
+      project.createProtoFormatTask("protoFormatCheck", [
+        '--dry-run',
+        '--Werror',
+        '--verbose'
+      ])
+      project.createProtoFormatTask("protoFormatApply", ['-i', '--verbose'])
     }
 
     /** ***********************************************************************************************/

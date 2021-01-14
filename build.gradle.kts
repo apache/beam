@@ -349,6 +349,14 @@ task("typescriptPreCommit") {
   dependsOn(":sdks:python:test-suites:tox:py38:jest")
 }
 
+task("protoPreCommit") {
+  dependsOn(":model:fn-execution:protoFormatCheck")
+  dependsOn(":model:interactive:protoFormatCheck")
+  dependsOn(":model:job-management:protoFormatCheck")
+  dependsOn(":model:pipeline:protoFormatCheck")
+  dependsOn(":runners:google-cloud-dataflow-java:worker:windmill:protoFormatCheck")
+}
+
 task("pushAllDockerImages") {
   dependsOn(":runners:spark:2:job-server:container:dockerPush")
   dependsOn(":runners:spark:3:job-server:container:dockerPush")
