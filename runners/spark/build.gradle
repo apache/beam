@@ -85,11 +85,10 @@ dependencies {
   compile library.java.joda_time
   compile library.java.args4j
   compile project(path: ":model:fn-execution", configuration: "shadow")
-  compile project(path: ":model:job-management:", configuration: "shadow")
+  compile project(path: ":model:job-management", configuration: "shadow")
   compile project(":sdks:java:fn-execution")
   compile library.java.vendored_grpc_1_26_0
   compile library.java.vendored_guava_26_0_jre
-  compile "org.checkerframework:checker-qual:2.0.0"
   provided library.java.spark_core
   provided library.java.spark_sql
   provided library.java.spark_streaming
