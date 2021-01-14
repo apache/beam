@@ -249,7 +249,7 @@ jobs:
     if: github.repository_owner == 'apache' && github.event_name == 'schedule'
     steps:
       - name: Checkout code on master branch
-        uses: actions/checkout@master
+        uses: actions/checkout@v2
         with:
           persist-credentials: false
           submodules: recursive
