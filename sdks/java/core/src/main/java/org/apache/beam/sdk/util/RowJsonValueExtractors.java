@@ -179,7 +179,7 @@ class RowJsonValueExtractors {
   }
 
   /**
-   * Extracts DateTime from the JsonNode if it is valid.
+   * Extracts DateTime from the JsonNode (ISO 8601 format string) if it is valid.
    *
    * <p>Throws {@link UnsupportedRowJsonException} if value is out of bounds.
    */

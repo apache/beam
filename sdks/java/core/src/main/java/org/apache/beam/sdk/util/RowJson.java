@@ -80,6 +80,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *   <li>{@link Schema.TypeName#DOUBLE}
  *   <li>{@link Schema.TypeName#BOOLEAN}
  *   <li>{@link Schema.TypeName#STRING}
+ *   <li>{@link Schema.TypeName#DECIMAL}
+ *   <li>{@link Schema.TypeName#DATETIME}
  * </ul>
  */
 @Experimental(Kind.SCHEMAS)
