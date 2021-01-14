@@ -23,9 +23,7 @@ import static org.apache.beam.vendor.grpc.v1p26p0.com.google.common.base.MoreObj
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.auto.value.AutoValue;
-import com.google.gson.reflect.TypeToken;
 import java.io.IOException;
-import java.lang.reflect.Type;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -36,26 +34,14 @@ import org.apache.beam.examples.complete.datatokenization.utils.FailsafeElement;
 import org.apache.beam.examples.complete.datatokenization.utils.FailsafeElementCoder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.state.BagState;
-import org.apache.beam.sdk.state.StateSpec;
-import org.apache.beam.sdk.state.StateSpecs;
-import org.apache.beam.sdk.state.TimeDomain;
-import org.apache.beam.sdk.state.Timer;
-import org.apache.beam.sdk.state.TimerSpec;
-import org.apache.beam.sdk.state.TimerSpecs;
-import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.state.*;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.RowJson;
 import org.apache.beam.sdk.util.RowJsonUtils;
-import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
-import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.*;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.gson.Gson;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.gson.JsonArray;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.gson.JsonObject;
@@ -136,10 +122,9 @@ public class DataProtectors {
   @SuppressWarnings("initialization.static.fields.uninitialized")
   public static class TokenizationFn extends DoFn<KV<Integer, Row>, Row> {
 
-    private static Schema schemaToTokenize;
     private static CloseableHttpClient httpclient;
-    private static ObjectMapper objectMapperSerializerForTokenize;
-    private static ObjectMapper objectMapperDeserializerForTokenize;
+    private static ObjectMapper objectMapperSerializerForSchema;
+    private static ObjectMapper objectMapperDeserializerForSchema;
 
     private final Schema schema;
     private final int batchSize;
@@ -175,12 +160,11 @@ public class DataProtectors {
     @Setup
     public void setup() {
 
-      schemaToTokenize = new Schema(schema.getFields());
-      objectMapperSerializerForTokenize =
-          RowJsonUtils.newObjectMapperWith(RowJson.RowJsonSerializer.forSchema(schemaToTokenize));
+      objectMapperSerializerForSchema =
+          RowJsonUtils.newObjectMapperWith(RowJson.RowJsonSerializer.forSchema(schema));
 
-      objectMapperDeserializerForTokenize =
-          RowJsonUtils.newObjectMapperWith(RowJson.RowJsonDeserializer.forSchema(schemaToTokenize));
+      objectMapperDeserializerForSchema =
+          RowJsonUtils.newObjectMapperWith(RowJson.RowJsonDeserializer.forSchema(schema));
 
       httpclient = HttpClients.createDefault();
     }
@@ -251,8 +235,8 @@ public class DataProtectors {
       Map<String, Row> inputRowsWithIds = new HashMap<>();
       for (Row inputRow : inputRows) {
 
-        Row.Builder builder = Row.withSchema(schemaToTokenize);
-        for (Schema.Field field : schemaToTokenize.getFields()) {
+        Row.Builder builder = Row.withSchema(schema);
+        for (Schema.Field field : schema.getFields()) {
           if (inputRow.getSchema().hasField(field.getName())) {
             builder = builder.addValue(inputRow.getValue(field.getName()));
           }
@@ -270,7 +254,7 @@ public class DataProtectors {
 
         Row row = builder.build();
 
-        jsons.add(rowToJson(objectMapperSerializerForTokenize, row));
+        jsons.add(rowToJson(objectMapperSerializerForSchema, row));
       }
       this.inputRowsWithIds = inputRowsWithIds;
       return jsons;
@@ -278,9 +262,6 @@ public class DataProtectors {
 
     private String formatJsonsToRpcBatch(Iterable<String> jsons) {
       StringBuilder stringBuilder = new StringBuilder(String.join(",", jsons));
-      Gson gson = new Gson();
-      Type gsonType = new TypeToken<HashMap<String, String>>() {
-      }.getType();
       stringBuilder.append("]").insert(0, "{\"data\": [").append("}");
       return stringBuilder.toString();
     }
@@ -302,10 +283,10 @@ public class DataProtectors {
       for (int i = 0; i < jsonTokenizedRows.size(); i++) {
         Row tokenizedRow =
             RowJsonUtils.jsonToRow(
-                objectMapperDeserializerForTokenize, jsonTokenizedRows.get(i).toString());
+                    objectMapperDeserializerForSchema, jsonTokenizedRows.get(i).toString());
         Row.FieldValueBuilder rowBuilder =
             Row.fromRow(this.inputRowsWithIds.get(tokenizedRow.getString(idFieldName)));
-        for (Schema.Field field : schemaToTokenize.getFields()) {
+        for (Schema.Field field : schema.getFields()) {
           if (!hasIdInInputs && field.getName().equals(idFieldName)) {
             continue;
           }
