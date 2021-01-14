@@ -435,7 +435,12 @@ class BeamModulePlugin implements Plugin<Project> {
     def google_oauth_clients_version = "1.31.0"
     // Try to keep grpc_version consistent with gRPC version in google_cloud_platform_libraries_bom
     def grpc_version = "1.32.2"
-    def guava_version = "30.1-jre"
+    // Hadoop and Cassandra have dependency to old Guava version (BEAM-11626)
+    def guava_hadoop_version = "25.1-jre"
+    def guava_version = [
+      ":sdks:java:io:hadoop-format",
+      ":sdks:java:io:hadoop-file-system"
+    ].contains(project.path) ? guava_hadoop_version : "30.1-jre"
     def hadoop_version = "2.10.1"
     def hamcrest_version = "2.1"
     def influxdb_version = "2.19"
