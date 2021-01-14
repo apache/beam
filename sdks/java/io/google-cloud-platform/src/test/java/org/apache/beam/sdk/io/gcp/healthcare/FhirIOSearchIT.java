@@ -74,7 +74,7 @@ public class FhirIOSearchIT {
   private String fhirStoreId;
   private static final int MAX_NUM_OF_SEARCHES = 50;
   private List<KV<String, Map<String, String>>> input = new ArrayList<>();
-  private List<KV<String, Map<String, Object>>> genericParametersInput = new ArrayList<>();
+  private List<KV<String, Map<String, List<Integer>>>> genericParametersInput = new ArrayList<>();
 
   public String version;
 
@@ -103,7 +103,7 @@ public class FhirIOSearchIT {
         JsonParser.parseString(bundles.get(0)).getAsJsonObject().getAsJsonArray("entry");
     HashMap<String, String> searchParameters = new HashMap<>();
     searchParameters.put("_count", Integer.toString(50));
-    HashMap<String, Object> genericSearchParameters = new HashMap<>();
+    HashMap<String, List<Integer>> genericSearchParameters = new HashMap<>();
     genericSearchParameters.put("_count", Arrays.asList(50));
     int searches = 0;
     for (JsonElement resource : fhirResources) {
@@ -182,17 +182,17 @@ public class FhirIOSearchIT {
     pipeline.getOptions().as(DirectOptions.class).setBlockOnRun(false);
 
     // Search using the resource type of each written resource and empty search parameters.
-    PCollection<KV<String, Map<String, Object>>> searchConfigs =
+    PCollection<KV<String, Map<String, List<Integer>>>> searchConfigs =
         pipeline.apply(
             Create.of(genericParametersInput)
                 .withCoder(
                     KvCoder.of(
                         StringUtf8Coder.of(),
-                        MapCoder.of(StringUtf8Coder.of(), IntegerListObjectCoder.of()))));
+                        MapCoder.of(StringUtf8Coder.of(), ListCoder.of(VarIntCoder.of())))));
     FhirIO.Search.Result result =
-        searchConfigs.apply(
-            FhirIO.searchResourcesWithGenericParameters(
-                healthcareDataset + "/fhirStores/" + fhirStoreId));
+            searchConfigs.apply(
+                    (FhirIO.Search<List<Integer>>) FhirIO.searchResourcesWithGenericParameters(
+                    healthcareDataset + "/fhirStores/" + fhirStoreId));
 
     // Verify that there are no failures.
     PAssert.that(result.getFailedSearches()).empty();

@@ -247,8 +247,8 @@ public class FhirIO {
    * @return the search
    * @see Search
    */
-  public static Search<Object> searchResourcesWithGenericParameters(String fhirStore) {
-    return new Search<Object>(fhirStore);
+  public static Search<? extends Object> searchResourcesWithGenericParameters(String fhirStore) {
+    return new Search<>(fhirStore);
   }
 
   /**
