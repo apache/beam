@@ -328,6 +328,7 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 		}
 		outputs[fmt.Sprintf("i%v", i)] = nodeID(out.To)
 	}
+	var annotations map[string][]byte
 
 	// allPIds tracks additional PTransformIDs generated for the pipeline
 	var allPIds []string
@@ -424,6 +425,7 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 			m.requirements[URNRequiresSplittableDoFn] = true
 		}
 		spec = &pipepb.FunctionSpec{Urn: URNParDo, Payload: protox.MustEncode(payload)}
+		annotations = edge.Edge.DoFn.Annotations()
 
 	case graph.Combine:
 		mustEncodeMultiEdge, err := mustEncodeMultiEdgeBase64(edge.Edge)
@@ -473,6 +475,7 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 		Inputs:        inputs,
 		Outputs:       outputs,
 		EnvironmentId: transformEnvID,
+		Annotations:   annotations,
 	}
 	m.transforms[id] = transform
 	allPIds = append(allPIds, id)
