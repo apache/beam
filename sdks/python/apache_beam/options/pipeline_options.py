@@ -1036,7 +1036,6 @@ class SetupOptions(PipelineOptions):
             'the command line.'))
     parser.add_argument(
         '--prebuild_sdk_container_engine',
-        choices=['local_docker', 'cloud_build'],
         help=(
             'Prebuild sdk worker container image before job submission. If '
             'enabled, SDK invokes the boot sequence in SDK worker '
