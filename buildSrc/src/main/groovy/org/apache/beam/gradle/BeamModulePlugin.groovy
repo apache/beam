@@ -438,8 +438,9 @@ class BeamModulePlugin implements Plugin<Project> {
     // Hadoop and Cassandra have dependency to old Guava version (BEAM-11626)
     def guava_hadoop_version = "25.1-jre"
     def guava_version = [
+      ":sdks:java:io:cassandra",
       ":sdks:java:io:hadoop-format",
-      ":sdks:java:io:hadoop-file-system"
+      ":sdks:java:io:hadoop-file-system",
     ].contains(project.path) ? guava_hadoop_version : "30.1-jre"
     def hadoop_version = "2.10.1"
     def hamcrest_version = "2.1"
