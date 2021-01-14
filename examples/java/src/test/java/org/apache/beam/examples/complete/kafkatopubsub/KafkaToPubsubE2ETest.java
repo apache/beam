@@ -102,7 +102,7 @@ public class KafkaToPubsubE2ETest {
     sendKafkaMessage();
     testPubsub
         .assertThatTopicEventuallyReceives(
-            hasProperty("payload", equalTo("test".getBytes(StandardCharsets.UTF_8))))
+            hasProperty("payload", equalTo(PUBSUB_MESSAGE.getBytes(StandardCharsets.UTF_8))))
         .waitForUpTo(Duration.standardMinutes(1));
     try {
       job.cancel();
