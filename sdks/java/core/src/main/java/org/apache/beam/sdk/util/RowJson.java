@@ -19,6 +19,7 @@ package org.apache.beam.sdk.util;
 
 import static org.apache.beam.sdk.schemas.Schema.TypeName.BOOLEAN;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.BYTE;
+import static org.apache.beam.sdk.schemas.Schema.TypeName.DATETIME;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.DECIMAL;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.DOUBLE;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.FLOAT;
@@ -28,6 +29,7 @@ import static org.apache.beam.sdk.schemas.Schema.TypeName.INT64;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.STRING;
 import static org.apache.beam.sdk.util.RowJsonValueExtractors.booleanValueExtractor;
 import static org.apache.beam.sdk.util.RowJsonValueExtractors.byteValueExtractor;
+import static org.apache.beam.sdk.util.RowJsonValueExtractors.datetimeValueExtractor;
 import static org.apache.beam.sdk.util.RowJsonValueExtractors.decimalValueExtractor;
 import static org.apache.beam.sdk.util.RowJsonValueExtractors.doubleValueExtractor;
 import static org.apache.beam.sdk.util.RowJsonValueExtractors.floatValueExtractor;
@@ -78,6 +80,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *   <li>{@link Schema.TypeName#DOUBLE}
  *   <li>{@link Schema.TypeName#BOOLEAN}
  *   <li>{@link Schema.TypeName#STRING}
+ *   <li>{@link Schema.TypeName#DECIMAL}
+ *   <li>{@link Schema.TypeName#DATETIME}
  * </ul>
  */
 @Experimental(Kind.SCHEMAS)
@@ -86,7 +90,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 })
 public class RowJson {
   private static final ImmutableSet<TypeName> SUPPORTED_TYPES =
-      ImmutableSet.of(BYTE, INT16, INT32, INT64, FLOAT, DOUBLE, BOOLEAN, STRING, DECIMAL);
+      ImmutableSet.of(BYTE, INT16, INT32, INT64, FLOAT, DOUBLE, BOOLEAN, STRING, DECIMAL, DATETIME);
 
   /**
    * Throws {@link UnsupportedRowJsonException} if {@code schema} contains an unsupported field
@@ -206,6 +210,7 @@ public class RowJson {
             .put(BOOLEAN, booleanValueExtractor())
             .put(STRING, stringValueExtractor())
             .put(DECIMAL, decimalValueExtractor())
+            .put(DATETIME, datetimeValueExtractor())
             .build();
 
     private final Schema schema;
@@ -494,6 +499,9 @@ public class RowJson {
           break;
         case DECIMAL:
           gen.writeNumber((BigDecimal) value);
+          break;
+        case DATETIME:
+          gen.writeString(value.toString()); // ISO 8601 format
           break;
         case ARRAY:
         case ITERABLE:
