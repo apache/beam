@@ -54,8 +54,7 @@ import org.apache.beam.runners.spark.translation.SparkStreamingTranslationContex
 import org.apache.beam.runners.spark.translation.SparkTranslationContext;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
 import org.apache.beam.sdk.io.FileSystems;
-import org.apache.beam.sdk.metrics.MetricsEnvironment;
-import org.apache.beam.sdk.metrics.MetricsOptions;
+import org.apache.beam.sdk.metrics.*;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
@@ -63,6 +62,8 @@ import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.scheduler.EventLoggingListener;
 import org.apache.spark.scheduler.SparkListenerApplicationEnd;
 import org.apache.spark.scheduler.SparkListenerApplicationStart;
+import org.apache.spark.scheduler.SparkListenerExecutorAdded;
+import org.apache.spark.scheduler.cluster.ExecutorInfo;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
 import org.apache.spark.streaming.api.java.JavaStreamingListener;
 import org.apache.spark.streaming.api.java.JavaStreamingListenerWrapper;
@@ -72,6 +73,7 @@ import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.Tuple2;
 import scala.collection.JavaConverters;
 import scala.collection.Map;
 
@@ -141,6 +143,16 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
     String jobName = jobInfo.jobName();
     Long startTime = jsc.startTime();
     String sparkUser = jsc.sparkUser();
+    String sparkMaster = "";
+    String sparkExecutorID = "";
+    Tuple2<String, String>[] sparkConfList = jsc.getConf().getAll();
+    for (Tuple2<String, String> sparkConf : sparkConfList) {
+      if (sparkConf._1().equals("spark.master")) {
+        sparkMaster = sparkConf._2();
+      } else if (sparkConf._1().equals("spark.executor.id")) {
+        sparkExecutorID = sparkConf._2();
+      }
+    }
     try {
       URI eventLogDirectory = new URI(pipelineOptions.getSparkHistoryDir());
       File eventLogDirectoryFile = new File(eventLogDirectory.getPath());
@@ -187,90 +199,13 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
     if (eventLoggingListener != null) {
       eventLoggingListener.initializeLogIfNecessary(false, false);
       eventLoggingListener.start();
-      eventLoggingListener.onApplicationStart(
-          new SparkListenerApplicationStart(
-              jobId,
-              new scala.Option<String>() {
-                @Override
-                public boolean isEmpty() {
-                  return false;
-                }
-
-                @Override
-                public String get() {
-                  return jobName;
-                }
-
-                @Override
-                public Object productElement(int i) {
-                  return null;
-                }
-
-                @Override
-                public int productArity() {
-                  return 0;
-                }
-
-                @Override
-                public boolean canEqual(Object o) {
-                  return false;
-                }
-              },
-              startTime,
-              sparkUser,
-              new scala.Option<String>() {
-                @Override
-                public boolean isEmpty() {
-                  return false;
-                }
-
-                @Override
-                public String get() {
-                  return jobName;
-                }
-
-                @Override
-                public Object productElement(int i) {
-                  return null;
-                }
-
-                @Override
-                public int productArity() {
-                  return 0;
-                }
-
-                @Override
-                public boolean canEqual(Object o) {
-                  return false;
-                }
-              },
-              new scala.Option<Map<String, String>>() {
-                @Override
-                public boolean isEmpty() {
-                  return true;
-                }
-
-                @Override
-                public Map<String, String> get() {
-                  HashMap<String, String> driverLogs = new HashMap<String, String>();
-                  return JavaConverters.mapAsScalaMapConverter(driverLogs).asScala();
-                }
-
-                @Override
-                public Object productElement(int i) {
-                  return null;
-                }
-
-                @Override
-                public int productArity() {
-                  return 0;
-                }
-
-                @Override
-                public boolean canEqual(Object o) {
-                  return false;
-                }
-              }));
+      scala.collection.immutable.Map<String, String> logUrlMap =
+          new scala.collection.immutable.HashMap<String, String>();
+      eventLoggingListener.onExecutorAdded(
+          new SparkListenerExecutorAdded(
+              Instant.now().getMillis(),
+              sparkExecutorID,
+              new ExecutorInfo(sparkMaster, 0, logUrlMap)));
     }
 
     LOG.info(String.format("Running job %s on Spark master %s", jobInfo.jobId(), jsc.master()));
@@ -360,6 +295,112 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
     metricsPusher.start();
 
     if (eventLoggingListener != null) {
+      HashMap<String, String> driverLogs = new HashMap<String, String>();
+      MetricResults metricResults = result.metrics();
+      for (MetricResult<DistributionResult> distributionResultMetricResult :
+          metricResults.allMetrics().getDistributions()) {
+        MetricName metricName = distributionResultMetricResult.getName();
+        DistributionResult distributionResult = distributionResultMetricResult.getAttempted();
+        if (distributionResult != null) {
+          long min = distributionResult.getMin();
+          long max = distributionResult.getMax();
+          long count = distributionResult.getCount();
+          double mean = distributionResult.getMean();
+          String value =
+              "min: "
+                  + Long.toString(min)
+                  + ", max: "
+                  + Long.toString(max)
+                  + ", count: "
+                  + Long.toString(count)
+                  + ", mean: "
+                  + Double.toString(mean);
+          driverLogs.put(metricName.toString(), value);
+        }
+      }
+      eventLoggingListener.onApplicationStart(
+          new SparkListenerApplicationStart(
+              jobId,
+              new scala.Option<String>() {
+                @Override
+                public boolean isEmpty() {
+                  return false;
+                }
+
+                @Override
+                public String get() {
+                  return jobName;
+                }
+
+                @Override
+                public Object productElement(int i) {
+                  return null;
+                }
+
+                @Override
+                public int productArity() {
+                  return 0;
+                }
+
+                @Override
+                public boolean canEqual(Object o) {
+                  return false;
+                }
+              },
+              startTime,
+              sparkUser,
+              new scala.Option<String>() {
+                @Override
+                public boolean isEmpty() {
+                  return false;
+                }
+
+                @Override
+                public String get() {
+                  return jobName;
+                }
+
+                @Override
+                public Object productElement(int i) {
+                  return null;
+                }
+
+                @Override
+                public int productArity() {
+                  return 0;
+                }
+
+                @Override
+                public boolean canEqual(Object o) {
+                  return false;
+                }
+              },
+              new scala.Option<Map<String, String>>() {
+                @Override
+                public boolean isEmpty() {
+                  return false;
+                }
+
+                @Override
+                public Map<String, String> get() {
+                  return JavaConverters.mapAsScalaMapConverter(driverLogs).asScala();
+                }
+
+                @Override
+                public Object productElement(int i) {
+                  return null;
+                }
+
+                @Override
+                public int productArity() {
+                  return 0;
+                }
+
+                @Override
+                public boolean canEqual(Object o) {
+                  return false;
+                }
+              }));
       eventLoggingListener.onApplicationEnd(
           new SparkListenerApplicationEnd(Instant.now().getMillis()));
       eventLoggingListener.stop();

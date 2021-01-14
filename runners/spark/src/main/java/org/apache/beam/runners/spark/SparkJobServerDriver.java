@@ -39,10 +39,13 @@ public class SparkJobServerDriver extends JobServerDriver {
 
     @Option(
         name = "--spark-history-dir",
-        usage = "Spark history dir path to store Spark History Server logs (e. g. /tmp/spark-events/)")
+        usage =
+            "Spark history dir path to store Spark History Server logs (e. g. /tmp/spark-events/)")
     private String sparkHistoryDir = SparkPipelineOptions.DEFAULT_SPARK_HISTORY_DIR;
 
-    String getSparkHistoryDir() { return this.sparkHistoryDir; }
+    String getSparkHistoryDir() {
+      return this.sparkHistoryDir;
+    }
 
     @Option(
         name = "--spark-master-url",
