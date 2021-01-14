@@ -87,7 +87,7 @@ class SubscriptionPartitionLoader extends PTransform<PBegin, PCollection<Subscri
                             IntStream.range(0, partitionCount)
                                 .mapToObj(Partition::of)
                                 .collect(Collectors.toList());
-                        return PollResult.incomplete(Instant.EPOCH, partitions);
+                        return PollResult.incomplete(Instant.now(), partitions);
                       }
                     })
                 .withPollInterval(pollDuration)

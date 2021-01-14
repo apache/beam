@@ -55,7 +55,9 @@ public abstract class SubscriberOptions implements Serializable {
   /** Per-partition flow control parameters for this subscription. */
   public abstract FlowControlSettings flowControlSettings();
 
-  /** A set of partitions. If empty, retrieve the set of partitions using an admin client. */
+  /**
+   * A set of partitions. If empty, continuously poll the set of partitions using an admin client.
+   */
   public abstract Set<Partition> partitions();
 
   /**
