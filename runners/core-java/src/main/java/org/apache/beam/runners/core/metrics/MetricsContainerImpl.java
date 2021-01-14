@@ -410,7 +410,12 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer, Met
     return Objects.hash(stepName, counters, distributions, gauges);
   }
 
-  private boolean equalsMetricName(MetricName metricName, String namespace, String name) {
+  /**
+   * Match a MetricName with a given namespace and a name. If the namespace or the name is null, it
+   * will be ignored for the match.
+   */
+  private boolean matchMetricName(
+      MetricName metricName, @Nullable String namespace, @Nullable String name) {
     return (namespace == null || namespace.equals(metricName.getNamespace()))
         && (name == null || name.equals(metricName.getName()));
   }
@@ -419,7 +424,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer, Met
   public String getCumulativeString(String namespace, String name) {
     StringBuilder message = new StringBuilder();
     for (Map.Entry<MetricName, CounterCell> cell : counters.entries()) {
-      if (!equalsMetricName(cell.getKey(), namespace, name)) {
+      if (!matchMetricName(cell.getKey(), namespace, name)) {
         continue;
       }
       message.append(cell.getKey().toString());
@@ -428,7 +433,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer, Met
       message.append("\n");
     }
     for (Map.Entry<MetricName, DistributionCell> cell : distributions.entries()) {
-      if (!equalsMetricName(cell.getKey(), namespace, name)) {
+      if (!matchMetricName(cell.getKey(), namespace, name)) {
         continue;
       }
       message.append(cell.getKey().toString());
@@ -441,7 +446,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer, Met
       message.append("\n");
     }
     for (Map.Entry<MetricName, GaugeCell> cell : gauges.entries()) {
-      if (!equalsMetricName(cell.getKey(), namespace, name)) {
+      if (!matchMetricName(cell.getKey(), namespace, name)) {
         continue;
       }
       message.append(cell.getKey().toString());
@@ -452,7 +457,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer, Met
     }
     for (Map.Entry<KV<MetricName, HistogramData.BucketType>, HistogramCell> cell :
         histograms.entries()) {
-      if (!equalsMetricName(cell.getKey().getKey(), namespace, name)) {
+      if (!matchMetricName(cell.getKey().getKey(), namespace, name)) {
         continue;
       }
       message.append(cell.getKey().getKey().toString());
