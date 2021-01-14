@@ -18,7 +18,7 @@
 package org.apache.beam.examples.complete.datatokenization.transforms;
 
 import static org.apache.beam.sdk.util.RowJsonUtils.rowToJson;
-import static org.apache.beam.vendor.grpc.v1p26p0.com.google.common.base.MoreObjects.firstNonNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects.firstNonNull;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.api.services.bigquery.model.TableRow;
@@ -279,8 +279,7 @@ public class DataProtectors {
     private String formatJsonsToRpcBatch(Iterable<String> jsons) {
       StringBuilder stringBuilder = new StringBuilder(String.join(",", jsons));
       Gson gson = new Gson();
-      Type gsonType = new TypeToken<HashMap<String, String>>() {
-      }.getType();
+      Type gsonType = new TypeToken<HashMap<String, String>>() {}.getType();
       stringBuilder.append("]").insert(0, "{\"data\": [").append("}");
       return stringBuilder.toString();
     }

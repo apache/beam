@@ -19,7 +19,7 @@ package org.apache.beam.examples.complete.datatokenization.transforms.io;
 
 import com.google.bigtable.v2.Mutation;
 import com.google.protobuf.ByteString;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -93,9 +93,9 @@ public class BigTableIO {
                               Mutation.SetCell.newBuilder()
                                   .setFamilyName(options.getBigTableColumnFamilyName())
                                   .setColumnQualifier(
-                                      ByteString.copyFrom(pair.getKey(), Charset.defaultCharset()))
-                                  .setValue(ByteString
-                                      .copyFrom(pair.getValue(), Charset.defaultCharset()))
+                                      ByteString.copyFrom(pair.getKey(), StandardCharsets.UTF_8))
+                                  .setValue(
+                                      ByteString.copyFrom(pair.getValue(), StandardCharsets.UTF_8))
                                   .setTimestampMicros(System.currentTimeMillis() * 1000)
                                   .build())
                           .build())
@@ -103,7 +103,7 @@ public class BigTableIO {
       // Converting key value to BigTable format
       String columnName = in.getString(options.getBigTableKeyColumnName());
       if (columnName != null) {
-        ByteString key = ByteString.copyFrom(columnName, Charset.defaultCharset());
+        ByteString key = ByteString.copyFrom(columnName, StandardCharsets.UTF_8);
         out.output(KV.of(key, mutations));
       }
     }

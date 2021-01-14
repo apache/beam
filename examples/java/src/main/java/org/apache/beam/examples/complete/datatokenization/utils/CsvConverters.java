@@ -41,8 +41,17 @@ import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.*;
-import org.apache.beam.sdk.values.*;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Sample;
+import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.values.PBegin;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
@@ -277,8 +286,8 @@ public class CsvConverters {
         return lineFailsafeElements.apply(
             "LineToDocumentUsingSchema",
             ParDo.of(
-                new FailsafeElementToJsonFn(
-                    headersView, schema, delimiter(), udfDeadletterTag()))
+                    new FailsafeElementToJsonFn(
+                        headersView, schema, delimiter(), udfDeadletterTag()))
                 .withOutputTags(udfOutputTag(), TupleTagList.of(udfDeadletterTag())));
       }
 
