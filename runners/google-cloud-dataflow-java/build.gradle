@@ -530,18 +530,18 @@ task googleCloudPlatformRunnerV2IntegrationTest(type: Test) {
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson(runnerV2PipelineOptions)
 
   include '**/*IT.class'
-  exclude '**/BigQueryIOReadIT.class'
-  exclude '**/BigQueryIOStorageQueryIT.class'
-  exclude '**/BigQueryIOStorageReadIT.class'
-  exclude '**/BigQueryIOStorageReadTableRowIT.class'
-  exclude '**/PubsubReadIT.class'
-  exclude '**/SpannerReadIT.class'
-  exclude '**/BigtableReadIT.class'
-  exclude '**/V1ReadIT.class'
-  exclude '**/SpannerWriteIT.class'
-  exclude '**/BigQueryNestedRecordsIT.class'
-  exclude '**/SplitQueryFnIT.class'
-  exclude '**/*KmsKeyIT.class'
+//  exclude '**/BigQueryIOReadIT.class'
+//  exclude '**/BigQueryIOStorageQueryIT.class'
+//  exclude '**/BigQueryIOStorageReadIT.class'
+//  exclude '**/BigQueryIOStorageReadTableRowIT.class'
+//  exclude '**/PubsubReadIT.class'
+//  exclude '**/SpannerReadIT.class'
+//  exclude '**/BigtableReadIT.class'
+//  exclude '**/V1ReadIT.class'
+//  exclude '**/SpannerWriteIT.class'
+//  exclude '**/BigQueryNestedRecordsIT.class'
+//  exclude '**/SplitQueryFnIT.class'
+//  exclude '**/*KmsKeyIT.class'
 
   maxParallelForks 4
   classpath = configurations.googleCloudPlatformIntegrationTest
@@ -645,8 +645,8 @@ task postCommitRunnerV2 {
   group = "Verification"
   description = "Various integration tests using the Dataflow runner V2."
   dependsOn googleCloudPlatformRunnerV2IntegrationTest
-  dependsOn examplesJavaRunnerV2IntegrationTest
-  dependsOn coreSDKJavaRunnerV2IntegrationTest
+//  dependsOn examplesJavaRunnerV2IntegrationTest
+//  dependsOn coreSDKJavaRunnerV2IntegrationTest
 }
 
 def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
