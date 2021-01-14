@@ -48,8 +48,6 @@ const (
 	NoArtifactsStaged = "__no_artifacts_staged__"
 )
 
-var idCounter uint64
-
 // Materialize is a convenience helper for ensuring that all artifacts are
 // present and uncorrupted. It interprets each artifact name as a relative
 // path under the dest directory. It does not retrieve valid artifacts already
@@ -134,6 +132,9 @@ func newMaterializeWithClient(ctx context.Context, client jobpb.ArtifactRetrieva
 
 	return artifacts, MultiRetrieve(ctx, 10, list, dest)
 }
+
+// Used for generating unique IDs. We assign uniquely generated names to staged files without staging names.
+var idCounter uint64
 
 func generateId() string {
 	id := atomic.AddUint64(&idCounter, 1)
