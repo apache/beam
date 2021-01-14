@@ -70,6 +70,9 @@ public class SparkJobInvoker extends JobInvoker {
     if (sparkOptions.getSparkMaster().equals(SparkPipelineOptions.DEFAULT_MASTER_URL)) {
       sparkOptions.setSparkMaster(configuration.getSparkMasterUrl());
     }
+    if (sparkOptions.getSparkHistoryDir().equals(SparkPipelineOptions.DEFAULT_SPARK_HISTORY_DIR)) {
+      sparkOptions.setSparkHistoryDir(configuration.getSparkHistoryDir());
+    }
 
     // Options can't be translated to proto if runner class is unresolvable, so set it to null.
     sparkOptions.setRunner(null);

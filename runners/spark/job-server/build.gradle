@@ -73,6 +73,8 @@ runShadow {
     args += ["--clean-artifacts-per-job=${project.property('cleanArtifactsPerJob')}"]
   if (project.hasProperty('sparkMasterUrl'))
     args += ["--spark-master-url=${project.property('sparkMasterUrl')}"]
+  if (project.hasProperty('sparkHistoryDir'))
+    args += ["--spark-history-dir=${project.property('sparkHistoryDir')}"]
 
   systemProperties System.properties
 
