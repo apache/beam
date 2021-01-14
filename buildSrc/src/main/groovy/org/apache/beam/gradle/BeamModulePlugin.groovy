@@ -83,6 +83,14 @@ class BeamModulePlugin implements Plugin<Project> {
 """
   static AtomicInteger startingExpansionPortNumber = new AtomicInteger(18091)
 
+  /** List of paths to the projects that require Guava 25. Hadoop and Cassandra have dependency to
+   * methods available in the old Guava version (BEAM-11626) */
+  static List<String> guava25Projects = [
+    ":sdks:java:io:cassandra",
+    ":sdks:java:io:hadoop-format",
+    ":sdks:java:io:hadoop-file-system",
+  ]
+
   /** A class defining the set of configurable properties accepted by applyJavaNature. */
   class JavaNatureConfiguration {
     /** Controls whether the spotbugs plugin is enabled and configured. */
@@ -435,13 +443,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def google_oauth_clients_version = "1.31.0"
     // Try to keep grpc_version consistent with gRPC version in google_cloud_platform_libraries_bom
     def grpc_version = "1.32.2"
-    // Hadoop and Cassandra have dependency to old Guava version (BEAM-11626)
-    def guava_hadoop_version = "25.1-jre"
-    def guava_version = [
-      ":sdks:java:io:cassandra",
-      ":sdks:java:io:hadoop-format",
-      ":sdks:java:io:hadoop-file-system",
-    ].contains(project.path) ? guava_hadoop_version : "30.1-jre"
+    def guava_version = guava25Projects.contains(project.path) ? "25.1-jre" : "30.1-jre"
     def hadoop_version = "2.10.1"
     def hamcrest_version = "2.1"
     def influxdb_version = "2.19"
