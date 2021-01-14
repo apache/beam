@@ -17,10 +17,10 @@
  */
 package org.apache.beam.examples.complete.datatokenization.utils;
 
-import com.google.common.base.MoreObjects;
 import java.util.Objects;
 import org.apache.avro.reflect.Nullable;
 import org.apache.beam.sdk.coders.DefaultCoder;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 
 /**
  * The {@link FailsafeElement} class holds the current value and original value of a record within a
@@ -34,10 +34,8 @@ public class FailsafeElement<OriginalT, CurrentT> {
 
   private final OriginalT originalPayload;
   private final CurrentT payload;
-  @Nullable
-  private String errorMessage = "";
-  @Nullable
-  private String stacktrace = "";
+  @Nullable private String errorMessage = "";
+  @Nullable private String stacktrace = "";
 
   private FailsafeElement(OriginalT originalPayload, CurrentT payload) {
     this.originalPayload = originalPayload;

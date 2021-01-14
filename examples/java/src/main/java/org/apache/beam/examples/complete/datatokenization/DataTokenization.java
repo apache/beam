@@ -55,40 +55,26 @@ import org.apache.beam.sdk.values.TypeDescriptors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * The {@link DataTokenization} pipeline.
- */
+/** The {@link DataTokenization} pipeline. */
 public class DataTokenization {
 
-  /**
-   * Logger for class.
-   */
+  /** Logger for class. */
   private static final Logger LOG = LoggerFactory.getLogger(DataTokenization.class);
 
-  /**
-   * String/String Coder for FailsafeElement.
-   */
+  /** String/String Coder for FailsafeElement. */
   private static final FailsafeElementCoder<String, String> FAILSAFE_ELEMENT_CODER =
       FailsafeElementCoder.of(
           NullableCoder.of(StringUtf8Coder.of()), NullableCoder.of(StringUtf8Coder.of()));
 
-  /**
-   * The default suffix for error tables if dead letter table is not specified.
-   */
+  /** The default suffix for error tables if dead letter table is not specified. */
   private static final String DEFAULT_DEADLETTER_TABLE_SUFFIX = "_error_records";
 
-  /**
-   * The tag for the main output for the UDF.
-   */
-  private static final TupleTag<Row> TOKENIZATION_OUT = new TupleTag<Row>() {
-  };
+  /** The tag for the main output for the UDF. */
+  private static final TupleTag<Row> TOKENIZATION_OUT = new TupleTag<Row>() {};
 
-  /**
-   * The tag for the dead-letter output of the udf.
-   */
+  /** The tag for the dead-letter output of the udf. */
   static final TupleTag<FailsafeElement<Row, Row>> TOKENIZATION_DEADLETTER_OUT =
-      new TupleTag<FailsafeElement<Row, Row>>() {
-      };
+      new TupleTag<FailsafeElement<Row, Row>>() {};
 
   /**
    * Main entry point for pipeline execution.

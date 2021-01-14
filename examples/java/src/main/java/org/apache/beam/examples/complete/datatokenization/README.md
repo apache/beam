@@ -149,7 +149,7 @@ in the following format:
 --dataSchemaGcsPath="path-to-data-schema-in-json-format"
 --inputGcsFilePattern="path-patternt-to-input-data"
 --outputGcsDirectory="path-to-output-directory"
-#example to usage csv
+# example to usage csv
 --inputGcsFileFormat="CSV"
 --outputGcsFileFormat="CSV"
 --csvContainsHeaders="true"
@@ -166,10 +166,6 @@ By default, this will run the pipeline locally with the DirectRunner. To change 
 
 See the [documentation](http://beam.apache.org/get-started/quickstart/) and
 the [Examples README](../../../../../../../../../README.md) for more information about how to run this example.
-
-
-## Running as a Dataflow Template
-
 
 ## Running as a Dataflow Template
 

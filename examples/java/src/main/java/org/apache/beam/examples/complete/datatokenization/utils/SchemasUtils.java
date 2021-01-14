@@ -41,9 +41,9 @@ import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.common.io.ByteStreams;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.gson.Gson;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.gson.reflect.TypeToken;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.CharStreams;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -125,7 +125,7 @@ public class SchemasUtils {
     Map<String, String> dataElements;
     try {
       String rawJsonWithDataElements =
-          new String(readGcsFile(payloadConfigGcsPath), Charset.defaultCharset());
+          new String(readGcsFile(payloadConfigGcsPath), StandardCharsets.UTF_8);
       Gson gson = new Gson();
       Type type = new TypeToken<HashMap<String, String>>() {}.getType();
       dataElements = gson.fromJson(rawJsonWithDataElements, type);
