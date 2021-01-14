@@ -422,6 +422,7 @@ class BeamModulePlugin implements Plugin<Project> {
     // a dependency version which should match across multiple
     // Maven artifacts.
     def activemq_version = "5.14.5"
+    def autovalue_version = "1.7.2"
     def aws_java_sdk_version = "1.11.718"
     def aws_java_sdk2_version = "2.13.54"
     def cassandra_driver_version = "3.10.2"
@@ -441,6 +442,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def influxdb_version = "2.19"
     def jackson_version = "2.10.2"
     def jaxb_api_version = "2.3.3"
+    def jsr305_version = "3.0.2"
     def kafka_version = "2.4.1"
     def nemo_version = "0.1"
     def netty_version = "4.1.51.Final"
@@ -452,8 +454,6 @@ class BeamModulePlugin implements Plugin<Project> {
     def spark_version = "2.4.7"
     def spotbugs_version = "4.0.6"
     def testcontainers_version = "1.15.1"
-    def jsr305_version = "3.0.2"
-    def autovalue_version = "1.7.2"
 
     // A map of maps containing common libraries used per language. To use:
     // dependencies {
@@ -860,10 +860,10 @@ class BeamModulePlugin implements Plugin<Project> {
       // configurations because they are never required to be shaded or become a
       // dependency of the output.
       def compileOnlyAnnotationDeps = [
-        "com.google.auto.value:auto-value-annotations:$autovalue_version",
         "com.google.auto.service:auto-service-annotations:1.0-rc6",
-        "com.google.j2objc:j2objc-annotations:1.3",
+        "com.google.auto.value:auto-value-annotations:$autovalue_version",
         "com.google.code.findbugs:jsr305:$jsr305_version",
+        "com.google.j2objc:j2objc-annotations:1.3",
         // These dependencies are needed to avoid error-prone warnings on package-info.java files,
         // also to include the annotations to suppress warnings.
         //
