@@ -34,14 +34,26 @@ import org.apache.beam.examples.complete.datatokenization.utils.FailsafeElement;
 import org.apache.beam.examples.complete.datatokenization.utils.FailsafeElementCoder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.state.*;
+import org.apache.beam.sdk.state.BagState;
+import org.apache.beam.sdk.state.StateSpec;
+import org.apache.beam.sdk.state.StateSpecs;
+import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.state.Timer;
+import org.apache.beam.sdk.state.TimerSpec;
+import org.apache.beam.sdk.state.TimerSpecs;
+import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.RowJson;
 import org.apache.beam.sdk.util.RowJsonUtils;
-import org.apache.beam.sdk.values.*;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.gson.Gson;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.gson.JsonArray;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.gson.JsonObject;
@@ -283,7 +295,7 @@ public class DataProtectors {
       for (int i = 0; i < jsonTokenizedRows.size(); i++) {
         Row tokenizedRow =
             RowJsonUtils.jsonToRow(
-                    objectMapperDeserializerForSchema, jsonTokenizedRows.get(i).toString());
+                objectMapperDeserializerForSchema, jsonTokenizedRows.get(i).toString());
         Row.FieldValueBuilder rowBuilder =
             Row.fromRow(this.inputRowsWithIds.get(tokenizedRow.getString(idFieldName)));
         for (Schema.Field field : schema.getFields()) {
