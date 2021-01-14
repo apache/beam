@@ -32,7 +32,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
-import org.apache.beam.examples.complete.datatokenization.utils.JavascriptTextTransformer.FailsafeJavascriptUdf;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.FileIO.ReadableFile;
 import org.apache.beam.sdk.io.TextIO;
@@ -42,17 +41,8 @@ import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.Sample;
-import org.apache.beam.sdk.transforms.View;
-import org.apache.beam.sdk.values.PBegin;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
-import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.transforms.*;
+import org.apache.beam.sdk.values.*;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
@@ -249,12 +239,6 @@ public class CsvConverters {
     public abstract String delimiter();
 
     @Nullable
-    public abstract String udfFileSystemPath();
-
-    @Nullable
-    public abstract String udfFunctionName();
-
-    @Nullable
     public abstract String jsonSchemaPath();
 
     @Nullable
@@ -278,19 +262,6 @@ public class CsvConverters {
           lines
               .get(lineTag())
               .apply("LineToFailsafeElement", ParDo.of(new LineToFailsafeElementFn()));
-
-      // If UDF is specified then use that to parse csv lines.
-      if (udfFileSystemPath() != null) {
-
-        return lineFailsafeElements.apply(
-            "LineToDocumentUsingUdf",
-            FailsafeJavascriptUdf.<String>newBuilder()
-                .setFileSystemPath(udfFileSystemPath())
-                .setFunctionName(udfFunctionName())
-                .setSuccessTag(udfOutputTag())
-                .setFailureTag(udfDeadletterTag())
-                .build());
-      }
 
       // If no udf then use json schema
       String schemaPath = jsonSchemaPath();
@@ -346,10 +317,6 @@ public class CsvConverters {
     @AutoValue.Builder
     public abstract static class Builder {
       public abstract Builder setDelimiter(String delimiter);
-
-      public abstract Builder setUdfFileSystemPath(String udfFileSystemPath);
-
-      public abstract Builder setUdfFunctionName(String udfFunctionName);
 
       public abstract Builder setJsonSchemaPath(String jsonSchemaPath);
 
