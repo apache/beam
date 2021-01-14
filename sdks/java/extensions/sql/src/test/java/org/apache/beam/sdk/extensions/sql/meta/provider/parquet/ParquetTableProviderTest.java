@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.meta.provider.avro;
+package org.apache.beam.sdk.extensions.sql.meta.provider.parquet;
 
 import static org.junit.Assert.assertEquals;
 
@@ -35,9 +35,12 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Test for AvroTable. */
+/** Test for ParquetTable. */
 @RunWith(JUnit4.class)
-public class AvroTableProviderTest {
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
+public class ParquetTableProviderTest {
   @Rule public TestPipeline writePipeline = TestPipeline.create();
   @Rule public TestPipeline readPipeline = TestPipeline.create();
   @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
@@ -49,12 +52,12 @@ public class AvroTableProviderTest {
 
   @Test
   public void testWriteAndReadTable() {
-    File destinationFile = new File(tempFolder.getRoot(), "person-info.avro");
+    File destinationFile = new File(tempFolder.getRoot(), "person-info/");
 
-    BeamSqlEnv env = BeamSqlEnv.inMemory(new AvroTableProvider());
+    BeamSqlEnv env = BeamSqlEnv.inMemory(new ParquetTableProvider());
     env.executeDdl(
         String.format(
-            "CREATE EXTERNAL TABLE PersonInfo %s TYPE avro LOCATION '%s'",
+            "CREATE EXTERNAL TABLE PersonInfo %s TYPE parquet LOCATION '%s'",
             FIELD_NAMES, destinationFile.getAbsolutePath()));
 
     BeamSqlRelUtils.toPCollection(
