@@ -23,6 +23,7 @@ import java.math.BigDecimal;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import org.apache.beam.sdk.util.RowJson.UnsupportedRowJsonException;
+import org.joda.time.DateTime;
 
 /**
  * Contains utilities for extracting primitive values from JSON nodes.
@@ -174,6 +175,18 @@ class RowJsonValueExtractors {
     return ValidatingValueExtractor.<BigDecimal>builder()
         .setExtractor(JsonNode::decimalValue)
         .setValidator(jsonNode -> jsonNode.isNumber())
+        .build();
+  }
+
+  /**
+   * Extracts DateTime from the JsonNode (ISO 8601 format string) if it is valid.
+   *
+   * <p>Throws {@link UnsupportedRowJsonException} if value is out of bounds.
+   */
+  static ValueExtractor<DateTime> datetimeValueExtractor() {
+    return ValidatingValueExtractor.<DateTime>builder()
+        .setExtractor(jsonNode -> DateTime.parse(jsonNode.textValue()))
+        .setValidator(JsonNode::isTextual)
         .build();
   }
 
