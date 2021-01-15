@@ -636,7 +636,7 @@ class PipelineTest(unittest.TestCase):
     pcoll2 = pcoll1 | 'do1' >> FlatMap(lambda x: [x + 1])
     pcoll3 = pcoll2 | 'do2' >> FlatMap(lambda x: [x + 1])
     self.assertIs(pcoll1.is_bounded, False)
-    self.assertIs(pcoll1.is_bounded, False)
+    self.assertIs(pcoll2.is_bounded, False)
     self.assertIs(pcoll3.is_bounded, False)
 
   def test_track_pcoll_bounded(self):
