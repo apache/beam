@@ -53,7 +53,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** A {@link org.apache.beam.sdk.io.Source} representing a single stream in a read session. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
 
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryStorageStreamSource.class);
@@ -161,6 +163,7 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
     private long currentOffset;
 
     // Values used for progress reporting.
+    private boolean splitPossible = true;
     private double fractionConsumed;
     private double progressAtResponseStart;
     private double progressAtResponseEnd;
@@ -286,6 +289,10 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
         return null;
       }
 
+      if (!splitPossible) {
+        return null;
+      }
+
       SplitReadStreamRequest splitRequest =
           SplitReadStreamRequest.newBuilder()
               .setName(source.readStream.getName())
@@ -303,6 +310,7 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
             "BigQuery Storage API stream {} cannot be split at {}.",
             source.readStream.getName(),
             fraction);
+        splitPossible = false;
         return null;
       }
 

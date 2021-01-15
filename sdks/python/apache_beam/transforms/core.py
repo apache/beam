@@ -38,7 +38,6 @@ from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam import typehints
 from apache_beam.coders import typecoders
-from apache_beam.coders.coders import ExternalCoder
 from apache_beam.internal import pickler
 from apache_beam.internal import util
 from apache_beam.options.pipeline_options import TypeOptions
@@ -69,7 +68,6 @@ from apache_beam.typehints.decorators import with_input_types
 from apache_beam.typehints.decorators import with_output_types
 from apache_beam.typehints.trivial_inference import element_type
 from apache_beam.typehints.typehints import is_consistent_with
-from apache_beam.utils import proto_utils
 from apache_beam.utils import urns
 from apache_beam.utils.timestamp import Duration
 
@@ -220,19 +218,23 @@ class RestrictionProvider(object):
 
   To denote a ``DoFn`` class to be Splittable ``DoFn``, ``DoFn.process()``
   method of that class should have exactly one parameter whose default value is
-  an instance of ``RestrictionProvider``.
+  an instance of ``RestrictionParam``. This ``RestrictionParam`` can either be
+  constructed with an explicit ``RestrictionProvider``, or, if no
+  ``RestrictionProvider`` is provided, the ``DoFn`` itself must be a
+  ``RestrictionProvider``.
 
   The provided ``RestrictionProvider`` instance must provide suitable overrides
   for the following methods:
   * create_tracker()
   * initial_restriction()
+  * restriction_size()
 
   Optionally, ``RestrictionProvider`` may override default implementations of
   following methods:
   * restriction_coder()
-  * restriction_size()
   * split()
   * split_and_size()
+  * truncate()
 
   ** Pausing and resuming processing of an element **
 
@@ -240,12 +242,10 @@ class RestrictionProvider(object):
   ``DoFn.process()`` method, a Splittable ``DoFn`` may return an object of type
   ``ProcessContinuation``.
 
-  If provided, ``ProcessContinuation`` object specifies that runner should
-  later re-invoke ``DoFn.process()`` method to resume processing the current
-  element and the manner in which the re-invocation should be performed. A
-  ``ProcessContinuation`` object must only be specified as the last element of
-  the iterator. If a ``ProcessContinuation`` object is not provided the runner
-  will assume that the current input element has been fully processed.
+  If restriction_tracker.defer_remander is called in the ```DoFn.process()``, it
+  means that runner should later re-invoke ``DoFn.process()`` method to resume
+  processing the current element and the manner in which the re-invocation
+  should be performed.
 
   ** Updating output watermark **
 
@@ -282,7 +282,13 @@ class RestrictionProvider(object):
     raise NotImplementedError
 
   def split(self, element, restriction):
-    """Splits the given element and restriction.
+    """Splits the given element and restriction initially.
+
+    This method enables runners to perform bulk splitting initially allowing for
+    a rapid increase in parallelism. Note that initial split is a different
+    concept from the split during element processing time. Please refer to
+    ``iobase.RestrictionTracker.try_split`` for details about splitting when the
+    current element and restriction are actively being processed.
 
     Returns an iterator of restrictions. The total set of elements produced by
     reading input element for each of the returned restrictions should be the
@@ -290,6 +296,9 @@ class RestrictionProvider(object):
     the input restriction.
 
     This API is optional if ``split_and_size`` has been implemented.
+
+    If this method is not override, there is no initial splitting happening on
+    each restriction.
 
     """
     yield restriction
@@ -337,6 +346,10 @@ class RestrictionProvider(object):
     Return a truncated finite restriction if further processing is required
     otherwise return None to represent that no further processing of this
     restriction is required.
+
+    The default behavior when a pipeline is being drained is that bounded
+    restrictions process entirely while unbounded restrictions process till a
+    checkpoint is possible.
     """
     restriction_tracker = self.create_tracker(restriction)
     if restriction_tracker.is_bounded():
@@ -395,95 +408,6 @@ def get_function_args_defaults(f):
   return args, defaults
 
 
-class RunnerAPIPTransformHolder(PTransform):
-  """A `PTransform` that holds a runner API `PTransform` proto.
-
-  This is used for transforms, for which corresponding objects
-  cannot be initialized in Python SDK. For example, for `ParDo` transforms for
-  remote SDKs that may be available in Python SDK transform graph when expanding
-  a cross-language transform since a Python `ParDo` object cannot be generated
-  without a serialized Python `DoFn` object.
-  """
-  def __init__(self, proto, context):
-    self._proto = proto
-    self._context = context
-
-    # For ParDos with side-inputs, this will be populated after this object is
-    # created.
-    self.side_inputs = []
-    self.is_pardo_with_stateful_dofn = bool(self._get_pardo_state_specs())
-
-  def proto(self):
-    """Runner API payload for a `PTransform`"""
-    return self._proto
-
-  def to_runner_api(self, context, **extra_kwargs):
-    # TODO(BEAM-7850): no need to copy around Environment if it is a direct
-    #  attribute of PTransform.
-    id_to_proto_map = self._context.environments.get_id_to_proto_map()
-    for env_id in id_to_proto_map:
-      if env_id not in context.environments:
-        context.environments.put_proto(env_id, id_to_proto_map[env_id])
-      else:
-        env1 = id_to_proto_map[env_id]
-        env2 = context.environments[env_id]
-        assert env1.urn == env2.to_runner_api(context).urn, (
-            'Expected environments with the same ID to be equal but received '
-            'environments with different URNs '
-            '%r and %r',
-            env1.urn, env2.to_runner_api(context).urn)
-        assert env1.payload == env2.to_runner_api(context).payload, (
-            'Expected environments with the same ID to be equal but received '
-            'environments with different payloads '
-            '%r and %r',
-            env1.payload, env2.to_runner_api(context).payload)
-
-    def recursively_add_coder_protos(coder_id, old_context, new_context):
-      coder_proto = old_context.coders.get_proto_from_id(coder_id)
-      new_context.coders.put_proto(coder_id, coder_proto, True)
-      for component_coder_id in coder_proto.component_coder_ids:
-        recursively_add_coder_protos(
-            component_coder_id, old_context, new_context)
-
-    if common_urns.primitives.PAR_DO.urn == self._proto.urn:
-      # If a restriction coder has been set by an external SDK, we have to
-      # explicitly add it (and all component coders recursively) to the context
-      # to make sure that it does not get dropped by Python SDK.
-      par_do_payload = proto_utils.parse_Bytes(
-          self._proto.payload, beam_runner_api_pb2.ParDoPayload)
-      if par_do_payload.restriction_coder_id:
-        recursively_add_coder_protos(
-            par_do_payload.restriction_coder_id, self._context, context)
-    elif (common_urns.composites.COMBINE_PER_KEY.urn == self._proto.urn or
-          common_urns.composites.COMBINE_GLOBALLY.urn == self._proto.urn):
-      # We have to include coders embedded in `CombinePayload`.
-      combine_payload = proto_utils.parse_Bytes(
-          self._proto.payload, beam_runner_api_pb2.CombinePayload)
-      if combine_payload.accumulator_coder_id:
-        recursively_add_coder_protos(
-            combine_payload.accumulator_coder_id, self._context, context)
-
-    return self._proto
-
-  def get_restriction_coder(self):
-    # For some runners, restriction coder ID has to be provided to correctly
-    # encode ParDo transforms that are SDF.
-    if common_urns.primitives.PAR_DO.urn == self._proto.urn:
-      par_do_payload = proto_utils.parse_Bytes(
-          self._proto.payload, beam_runner_api_pb2.ParDoPayload)
-      if par_do_payload.restriction_coder_id:
-        restriction_coder_proto = self._context.coders.get_proto_from_id(
-            par_do_payload.restriction_coder_id)
-
-        return ExternalCoder(restriction_coder_proto)
-
-  def _get_pardo_state_specs(self):
-    if common_urns.primitives.PAR_DO.urn == self._proto.urn:
-      par_do_payload = proto_utils.parse_Bytes(
-          self._proto.payload, beam_runner_api_pb2.ParDoPayload)
-      return par_do_payload.state_specs
-
-
 class WatermarkEstimatorProvider(object):
   """Provides methods for generating WatermarkEstimator.
 
@@ -491,8 +415,11 @@ class WatermarkEstimatorProvider(object):
   information within an SDF.
 
   In order to make an SDF.process() access to the typical WatermarkEstimator,
-  the SDF author should pass a DoFn.WatermarkEstimatorParam with a default value
-  of one WatermarkEstimatorProvider instance.
+  the SDF author should have an argument whose default value is a
+  DoFn.WatermarkEstimatorParam instance.  This DoFn.WatermarkEstimatorParam
+  can either be constructed with an explicit WatermarkEstimatorProvider,
+  or, if no WatermarkEstimatorProvider is provided, the DoFn itself must
+  be a WatermarkEstimatorProvider.
   """
   def initial_estimator_state(self, element, restriction):
     """Returns the initial state of the WatermarkEstimator with given element
@@ -534,9 +461,10 @@ class _DoFnParam(object):
 
 class _RestrictionDoFnParam(_DoFnParam):
   """Restriction Provider DoFn parameter."""
-  def __init__(self, restriction_provider):
-    # type: (RestrictionProvider) -> None
-    if not isinstance(restriction_provider, RestrictionProvider):
+  def __init__(self, restriction_provider=None):
+    # type: (typing.Optional[RestrictionProvider]) -> None
+    if (restriction_provider is not None and
+        not isinstance(restriction_provider, RestrictionProvider)):
       raise ValueError(
           'DoFn.RestrictionParam expected RestrictionProvider object.')
     self.restriction_provider = restriction_provider
@@ -592,12 +520,15 @@ class _BundleFinalizerParam(_DoFnParam):
 
 
 class _WatermarkEstimatorParam(_DoFnParam):
-  """WatermarkEstomator DoFn parameter."""
-  def __init__(self, watermark_estimator_provider):
-    # type: (WatermarkEstimatorProvider) -> None
-    if not isinstance(watermark_estimator_provider, WatermarkEstimatorProvider):
+  """WatermarkEstimator DoFn parameter."""
+  def __init__(
+      self,
+      watermark_estimator_provider: typing.
+      Optional[WatermarkEstimatorProvider] = None):
+    if (watermark_estimator_provider is not None and not isinstance(
+        watermark_estimator_provider, WatermarkEstimatorProvider)):
       raise ValueError(
-          'DoFn._WatermarkEstimatorParam expected'
+          'DoFn.WatermarkEstimatorParam expected'
           'WatermarkEstimatorProvider object.')
     self.watermark_estimator_provider = watermark_estimator_provider
     self.param_id = 'WatermarkEstimatorProvider'
@@ -631,6 +562,7 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   # DoFn.KeyParam
   StateParam = _StateDoFnParam
   TimerParam = _TimerDoFnParam
+  DynamicTimerTagParam = _DoFnParam('DynamicTimerTagParam')
 
   DoFnProcessParams = [
       ElementParam,
@@ -642,7 +574,7 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
       BundleFinalizerParam,
       KeyParam,
       StateParam,
-      TimerParam
+      TimerParam,
   ]
 
   RestrictionParam = _RestrictionDoFnParam
@@ -670,23 +602,30 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     This is invoked by ``DoFnRunner`` for each element of a input
     ``PCollection``.
 
-    If specified, following default arguments are used by the ``DoFnRunner`` to
-    be able to pass the parameters correctly.
+    The following parameters can be used as default values on ``process``
+    arguments to indicate that a DoFn accepts the corresponding parameters. For
+    example, a DoFn might accept the element and its timestamp with the
+    following signature::
 
-    ``DoFn.ElementParam``: element to be processed, should not be mutated.
-    ``DoFn.SideInputParam``: a side input that may be used when processing.
-    ``DoFn.TimestampParam``: timestamp of the input element.
-    ``DoFn.WindowParam``: ``Window`` the input element belongs to.
-    ``DoFn.TimerParam``: a ``userstate.RuntimeTimer`` object defined by the spec
-    of the parameter.
-    ``DoFn.StateParam``: a ``userstate.RuntimeState`` object defined by the spec
-    of the parameter.
-    ``DoFn.KeyParam``: key associated with the element.
-    ``DoFn.RestrictionParam``: an ``iobase.RestrictionTracker`` will be
-    provided here to allow treatment as a Splittable ``DoFn``. The restriction
-    tracker will be derived from the restriction provider in the parameter.
-    ``DoFn.WatermarkEstimatorParam``: a function that can be used to track
-    output watermark of Splittable ``DoFn`` implementations.
+      def process(element=DoFn.ElementParam, timestamp=DoFn.TimestampParam):
+        ...
+
+    The full set of parameters is:
+
+    - ``DoFn.ElementParam``: element to be processed, should not be mutated.
+    - ``DoFn.SideInputParam``: a side input that may be used when processing.
+    - ``DoFn.TimestampParam``: timestamp of the input element.
+    - ``DoFn.WindowParam``: ``Window`` the input element belongs to.
+    - ``DoFn.TimerParam``: a ``userstate.RuntimeTimer`` object defined by the
+      spec of the parameter.
+    - ``DoFn.StateParam``: a ``userstate.RuntimeState`` object defined by the
+      spec of the parameter.
+    - ``DoFn.KeyParam``: key associated with the element.
+    - ``DoFn.RestrictionParam``: an ``iobase.RestrictionTracker`` will be
+      provided here to allow treatment as a Splittable ``DoFn``. The restriction
+      tracker will be derived from the restriction provider in the parameter.
+    - ``DoFn.WatermarkEstimatorParam``: a function that can be used to track
+      output watermark of Splittable ``DoFn`` implementations.
 
     Args:
       element: The element to be processed
@@ -877,17 +816,19 @@ class CombineFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   combining process proceeds as follows:
 
   1. Input values are partitioned into one or more batches.
-  2. For each batch, the create_accumulator method is invoked to create a fresh
+  2. For each batch, the setup method is invoked.
+  3. For each batch, the create_accumulator method is invoked to create a fresh
      initial "accumulator" value representing the combination of zero values.
-  3. For each input value in the batch, the add_input method is invoked to
+  4. For each input value in the batch, the add_input method is invoked to
      combine more values with the accumulator for that batch.
-  4. The merge_accumulators method is invoked to combine accumulators from
+  5. The merge_accumulators method is invoked to combine accumulators from
      separate batches into a single combined output accumulator value, once all
      of the accumulators have had all the input value in their batches added to
      them. This operation is invoked repeatedly, until there is only one
      accumulator value left.
-  5. The extract_output operation is invoked on the final accumulator to get
+  6. The extract_output operation is invoked on the final accumulator to get
      the output value.
+  7. The teardown method is invoked.
 
   Note: If this **CombineFn** is used with a transform that has defaults,
   **apply** will be called with an empty list at expansion time to get the
@@ -895,6 +836,22 @@ class CombineFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   """
   def default_label(self):
     return self.__class__.__name__
+
+  def setup(self, *args, **kwargs):
+    """Called to prepare an instance for combining.
+
+    This method can be useful if there is some state that needs to be loaded
+    before executing any of the other methods. The resources can then be
+    disposed of in ``CombineFn.teardown``.
+
+    If you are using Dataflow, you need to enable Dataflow Runner V2
+    before using this feature.
+
+    Args:
+      *args: Additional arguments and side inputs.
+      **kwargs: Additional arguments and side inputs.
+    """
+    pass
 
   def create_accumulator(self, *args, **kwargs):
     """Return a fresh, empty accumulator for the combine operation.
@@ -981,6 +938,18 @@ class CombineFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
       **kwargs: Additional arguments and side inputs.
     """
     raise NotImplementedError(str(self))
+
+  def teardown(self, *args, **kwargs):
+    """Called to clean up an instance before it is discarded.
+
+    If you are using Dataflow, you need to enable Dataflow Runner V2
+    before using this feature.
+
+    Args:
+      *args: Additional arguments and side inputs.
+      **kwargs: Additional arguments and side inputs.
+    """
+    pass
 
   def apply(self, elements, *args, **kwargs):
     """Returns result of applying this CombineFn to the input values.
@@ -1959,7 +1928,9 @@ class CombineGlobally(PTransform):
         return transform.with_input_types(type_hints.input_types[0][0])
       return transform
 
-    combine_per_key = CombinePerKey(self.fn, *self.args, **self.kwargs)
+    combine_fn = CombineFn.maybe_from_callable(
+        self.fn, has_side_inputs=self.args or self.kwargs)
+    combine_per_key = CombinePerKey(combine_fn, *self.args, **self.kwargs)
     if self.fanout:
       combine_per_key = combine_per_key.with_hot_key_fanout(self.fanout)
 
@@ -1974,16 +1945,19 @@ class CombineGlobally(PTransform):
     if not self.has_defaults and not self.as_view:
       return combined
 
-    if self.has_defaults:
-      combine_fn = (
-          self.fn if isinstance(self.fn, CombineFn) else
-          CombineFn.from_callable(self.fn))
-      default_value = combine_fn.apply([], *self.args, **self.kwargs)
-    else:
-      default_value = pvalue.AsSingleton._NO_DEFAULT  # pylint: disable=protected-access
-    view = pvalue.AsSingleton(combined, default_value=default_value)
-    if self.as_view:
-      return view
+    elif self.as_view:
+      if self.has_defaults:
+        try:
+          combine_fn.setup(*self.args, **self.kwargs)
+          # This is called in the main program, but cannot be avoided
+          # in the as_view case as it must be available to all windows.
+          default_value = combine_fn.apply([], *self.args, **self.kwargs)
+        finally:
+          combine_fn.teardown(*self.args, **self.kwargs)
+      else:
+        default_value = pvalue.AsSingleton._NO_DEFAULT
+      return pvalue.AsSingleton(combined, default_value=default_value)
+
     else:
       if pcoll.windowing.windowfn != GlobalWindows():
         raise ValueError(
@@ -2000,10 +1974,26 @@ class CombineGlobally(PTransform):
           return transform.with_output_types(combined.element_type)
         return transform
 
+      # Capture in closure (avoiding capturing self).
+      args, kwargs = self.args, self.kwargs
+
+      def inject_default(_, combined):
+        if combined:
+          assert len(combined) == 1
+          return combined[0]
+        else:
+          try:
+            combine_fn.setup(*args, **kwargs)
+            default = combine_fn.apply([], *args, **kwargs)
+          finally:
+            combine_fn.teardown(*args, **kwargs)
+          return default
+
       return (
           pcoll.pipeline
           | 'DoOnce' >> Create([None])
-          | 'InjectDefault' >> typed(Map(lambda _, s: s, view)))
+          | 'InjectDefault' >> typed(
+              Map(inject_default, pvalue.AsList(combined))))
 
   @staticmethod
   @PTransform.register_urn(
@@ -2184,6 +2174,9 @@ class CombineValuesDoFn(DoFn):
     self.combinefn = combinefn
     self.runtime_type_check = runtime_type_check
 
+  def setup(self):
+    self.combinefn.setup()
+
   def process(self, element, *args, **kwargs):
     # Expected elements input to this DoFn are 2-tuples of the form
     # (key, iter), with iter an iterable of all the values associated with key
@@ -2213,6 +2206,9 @@ class CombineValuesDoFn(DoFn):
     return [(
         element[0], self.combinefn.extract_output(accumulator, *args,
                                                   **kwargs))]
+
+  def teardown(self):
+    self.combinefn.teardown()
 
   def default_type_hints(self):
     hints = self.combinefn.get_type_hints()
@@ -2276,10 +2272,12 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
         # Boolean indicates this is an accumulator.
         return (True, accumulator)
 
+      setup = combine_fn.setup
       create_accumulator = combine_fn.create_accumulator
       add_input = combine_fn.add_input
       merge_accumulators = combine_fn.merge_accumulators
       compact = combine_fn.compact
+      teardown = combine_fn.teardown
 
     class PostCombineFn(CombineFn):
       @staticmethod
@@ -2290,10 +2288,12 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
         else:
           return combine_fn.add_input(accumulator, value)
 
+      setup = combine_fn.setup
       create_accumulator = combine_fn.create_accumulator
       merge_accumulators = combine_fn.merge_accumulators
       compact = combine_fn.compact
       extract_output = combine_fn.extract_output
+      teardown = combine_fn.teardown
 
     def StripNonce(nonce_key_value):
       (_, key), value = nonce_key_value
@@ -2602,9 +2602,10 @@ class Partition(PTransformWithSideInputs):
 
   def expand(self, pcoll):
     n = int(self.args[0])
-    return pcoll | ParDo(
-        self.ApplyPartitionFnFn(), self.fn, *self.args, **
-        self.kwargs).with_outputs(*[str(t) for t in range(n)])
+    args, kwargs = util.insert_values_in_args(
+        self.args, self.kwargs, self.side_inputs)
+    return pcoll | ParDo(self.ApplyPartitionFnFn(), self.fn, *args, **
+                         kwargs).with_outputs(*[str(t) for t in range(n)])
 
 
 class Windowing(object):

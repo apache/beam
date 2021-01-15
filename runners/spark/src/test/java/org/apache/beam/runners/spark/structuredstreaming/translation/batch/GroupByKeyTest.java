@@ -18,7 +18,7 @@
 package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
 import static org.apache.beam.sdk.testing.SerializableMatchers.containsInAnyOrder;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -47,7 +47,9 @@ import org.junit.runners.JUnit4;
 
 /** Test class for beam to spark {@link ParDo} translation. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class GroupByKeyTest implements Serializable {
   private static Pipeline pipeline;
 

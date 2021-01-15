@@ -28,7 +28,9 @@ import org.apache.beam.sdk.options.PipelineOptionsValidator;
  * to a Twister2 Plan and then executing them either locally or on a Twister2 cluster, depending on
  * the configuration. This is used for testing the Twister2 runner
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class Twister2TestRunner extends PipelineRunner<PipelineResult> {
 
   private Twister2Runner delegate;

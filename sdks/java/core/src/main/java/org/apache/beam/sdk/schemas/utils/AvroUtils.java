@@ -28,7 +28,7 @@ import java.io.ObjectOutputStream;
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -97,7 +97,10 @@ import org.joda.time.ReadableInstant;
 
 /** Utils to convert AVRO records to Beam rows. */
 @Experimental(Kind.SCHEMAS)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes"
+})
 public class AvroUtils {
   static {
     // This works around a bug in the Avro library (AVRO-1891) around SpecificRecord's handling
@@ -450,7 +453,7 @@ public class AvroUtils {
       } catch (Exception e) {
         throw new AvroRuntimeException(
             "Could not decode avro record from given bytes "
-                + new String(bytes, Charset.defaultCharset()),
+                + new String(bytes, StandardCharsets.UTF_8),
             e);
       }
     }

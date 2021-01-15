@@ -92,7 +92,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * <p>Testing of all the layers of translation are performed via local service runner tests.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>, Node> {
   /** Must match declared fields within {@code ProcessBundleHandler}. */
   private static final String DATA_INPUT_URN = "beam:runner:source:v1";

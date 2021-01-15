@@ -67,6 +67,7 @@ tableElement: columnName fieldType [ NOT NULL ]
     [Identifier](/documentation/dsls/sql/calcite/lexical/#identifiers)
     with one of the following values:
     *   `bigquery`
+    *   `bigtable`
     *   `pubsub`
     *   `kafka`
     *   `text`
@@ -204,20 +205,158 @@ TYPE bigquery
 LOCATION 'testing-integration:apache.users'
 ```
 
+## Cloud Bigtable
+
+### Syntax
+
+```
+CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName (
+    key VARCHAR NOT NULL,
+    family ROW<qualifier cells [, qualifier cells ]* >
+    [, family ROW< qualifier cells [, qualifier cells ]* > ]*
+)
+TYPE bigtable
+LOCATION 'googleapis.com/bigtable/projects/[PROJECT_ID]/instances/[INSTANCE_ID]/tables/[TABLE]'
+```
+
+*   `key`: key of the Bigtable row
+*   `family`: name of the column family
+*   `qualifier`: the column qualifier
+*   `cells`: Either of each value:
+    *   `TYPE`
+    *   `ARRAY<SIMPLE_TYPE>`
+*   `LOCATION`:
+    *   `PROJECT_ID`: ID of the Google Cloud Project.
+    *   `INSTANCE_ID`: Bigtable instance ID.
+    *   `TABLE`: Bigtable Table ID.
+*   `TYPE`: `SIMPLE_TYPE` or `CELL_ROW`
+*   `CELL_ROW`: `ROW<val SIMPLE_TYPE [, timestampMicros BIGINT [NOT NULL]] [, labels ARRAY<VARCHAR> [NOT NULL]]`
+*   `SIMPLE_TYPE`: on of the following:
+    *   `BINARY`
+    *   `VARCHAR`
+    *   `BIGINT`
+    *   `INTEGER`
+    *   `SMALLINT`
+    *   `TINYINT`
+    *   `DOUBLE`
+    *   `FLOAT`
+    *   `BOOLEAN`
+    *   `TIMESTAMP`
+
+An alternative syntax with a flat schema:
+```
+CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName (
+    key VARCHAR NOT NULL,
+    qualifier SIMPLE_TYPE
+    [, qualifier SIMPLE_TYPE ]*
+)
+TYPE bigtable
+LOCATION 'googleapis.com/bigtable/projects/[PROJECT_ID]/instances/[INSTANCE_ID]/tables/[TABLE]'
+TBLPROPERTIES '{
+  "columnsMapping": "family:qualifier[,family:qualifier]*"
+}'
+```
+
+*   `key`: key of the Bigtable row
+*   `family`: name of the column family
+*   `qualifier`: the column qualifier
+*   `LOCATION`:
+    *   `PROJECT_ID`: ID of the Google Cloud Project.
+    *   `INSTANCE_ID`: Bigtable instance ID.
+    *   `TABLE`: Bigtable Table ID.
+*   `TBLPROPERTIES`: JSON object containing columnsMapping key with comma-separated
+    key-value pairs separated by a colon
+*   `SIMPLE_TYPE`: the same as in the previous syntax
+
+### Read Mode
+
+Beam SQL supports reading rows with mandatory `key` field, at least one `family`
+with at least one `qualifier`. Cells are represented as simple types (`SIMPLE_TYPE`) or
+ROW type with a mandatory `val` field, optional `timestampMicros` and optional `labels`. Both
+read the latest cell in the column. Cells specified as Arrays of simple types
+(`ARRAY<simpleType>`) allow to read all the column's values.
+
+For flat schema only `SIMPLE_TYPE` values are allowed. Every field except for `key` must correspond
+to the key-values pairs specified in `columnsMapping`.
+
+Not all existing column families and qualifiers have to be provided to the schema.
+
+Filters are only allowed by `key` field with single `LIKE` statement with
+[RE2 Syntax](https://github.com/google/re2/wiki/Syntax) regex, e.g.
+`SELECT * FROM table WHERE key LIKE '^key[012]{1}'`
+
+### Write Mode
+
+Supported for flat schema only.
+
+### Example
+
+```
+CREATE EXTERNAL TABLE beamTable(
+  key VARCHAR NOT NULL,
+  beamFamily ROW<
+     boolLatest BOOLEAN NOT NULL,
+     longLatestWithTs ROW<
+        val BIGINT NOT NULL,
+        timestampMicros BIGINT NOT NULL
+      > NOT NULL,
+      allStrings ARRAY<VARCHAR> NOT NULL,
+      doubleLatestWithTsAndLabels ROW<
+        val DOUBLE NOT NULL,
+        timestampMicros BIGINT NOT NULL,
+        labels ARRAY<VARCHAR> NOT NULL
+      > NOT NULL,
+      binaryLatestWithLabels ROW<
+         val BINARY NOT NULL,
+         labels ARRAY<VARCHAR> NOT NULL
+      > NOT NULL
+    > NOT NULL
+  )
+TYPE bigtable
+LOCATION 'googleapis.com/bigtable/projects/beam/instances/beamInstance/tables/beamTable'
+```
+
+Flat schema example:
+
+```
+CREATE EXTERNAL TABLE flatTable(
+  key VARCHAR NOT NULL,
+  boolColumn BOOLEAN NOT NULL,
+  longColumn BIGINT NOT NULL,
+  stringColumn VARCHAR NOT NULL,
+  doubleColumn DOUBLE NOT NULL,
+  binaryColumn BINARY NOT NULL
+)
+TYPE bigtable
+LOCATION 'googleapis.com/bigtable/projects/beam/instances/beamInstance/tables/flatTable'
+TBLPROPERTIES '{
+  "columnsMapping": "f:boolColumn,f:longColumn,f:stringColumn,f2:doubleColumn,f2:binaryColumn"
+}'
+```
+
+Write example:
+```
+INSERT INTO writeTable(key, boolColumn, longColumn, stringColumn, doubleColumn)
+  VALUES ('key', TRUE, 10, 'stringValue', 5.5)
+```
+
 ## Pub/Sub
 
 ### Syntax
 
 ```
-CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName
-  (
-   event_timestamp TIMESTAMP,
-   attributes MAP<VARCHAR, VARCHAR>,
-   payload ROW<tableElement [, tableElement ]*>
-  )
+CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName(
+    event_timestamp TIMESTAMP,
+    attributes MAP<VARCHAR, VARCHAR>,
+    payload ROW<tableElement [, tableElement ]*>
+)
 TYPE pubsub
 LOCATION 'projects/[PROJECT]/topics/[TOPIC]'
-TBLPROPERTIES '{"timestampAttributeKey": "key", "deadLetterQueue": "projects/[PROJECT]/topics/[TOPIC]"}'
+TBLPROPERTIES '{
+    "timestampAttributeKey": "key",
+    "deadLetterQueue": "projects/[PROJECT]/topics/[TOPIC]",
+    "format": "format"
+}'
 ```
 
 *   `event_timestamp`: The event timestamp associated with the Pub/Sub message
@@ -232,9 +371,8 @@ TBLPROPERTIES '{"timestampAttributeKey": "key", "deadLetterQueue": "projects/[PR
         which is either millis since Unix epoch or [RFC 339
         ](https://www.ietf.org/rfc/rfc3339.txt)date string.
 *   `attributes`: The user-provided attributes map from the Pub/Sub message;
-*   `payload`: The schema of the JSON payload of the Pub/Sub message. No other
-    payload formats are currently supported by Beam SQL. If a record can't be
-    unmarshalled, the record is written to the topic specified in the
+*   `payload`: The schema of the payload of the Pub/Sub message. If a record
+    can't be unmarshalled, the record is written to the topic specified in the
     `deadLeaderQueue` field of the `tblProperties` blob. If no dead-letter queue
     is specified in this case, an exception is thrown and the pipeline will
     crash.
@@ -251,6 +389,8 @@ TBLPROPERTIES '{"timestampAttributeKey": "key", "deadLetterQueue": "projects/[PR
     *   `deadLetterQueue`: The topic into which messages are written if the
         payload was not parsed. If not specified, an exception is thrown for
         parsing failures.
+    *   `format`: Optional. Allows you to specify the Pubsub payload format.
+        Possible values are {`json`, `avro`}. Defaults to `json`.
 
 ### Read Mode
 
@@ -271,10 +411,13 @@ declare a special set of columns, as shown below.
 
 ### Supported Payload
 
-*   JSON Objects
+*   JSON Objects (Default)
     *   Beam only supports querying messages with payload containing JSON
         objects. Beam attempts to parse JSON to match the schema of the
         `payload` field.
+*   Avro
+    *   An Avro schema is automatically generated from the specified schema of
+        the `payload` field. It is used to parse incoming messages.
 
 ### Example
 
@@ -294,7 +437,12 @@ KafkaIO is experimental in Beam SQL.
 CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName (tableElement [, tableElement ]*)
 TYPE kafka
 LOCATION 'kafka://localhost:2181/brokers'
-TBLPROPERTIES '{"bootstrap.servers":"localhost:9092", "topics": ["topic1", "topic2"], "format": "avro"}'
+TBLPROPERTIES '{
+    "bootstrap.servers":"localhost:9092",
+    "topics": ["topic1", "topic2"],
+    "format": "avro"
+    [, "protoClass": "com.example.ExampleMessage" ]
+}'
 ```
 
 *   `LOCATION`: The Kafka topic URL.
@@ -303,7 +451,14 @@ TBLPROPERTIES '{"bootstrap.servers":"localhost:9092", "topics": ["topic1", "topi
         server.
     *   `topics`: Optional. Allows you to specify specific topics.
     *   `format`: Optional. Allows you to specify the Kafka values format. Possible values are
-    {`csv`, `avro`}. Defaults to `csv`.
+        {`csv`, `avro`, `json`, `proto`, `thrift`}. Defaults to `csv`.
+    *   `protoClass`: Optional. Use only when `format` is equal to `proto`. Allows you to
+        specify full protocol buffer java class name.
+    *   `thriftClass`: Optional. Use only when `format` is equal to `thrift`. Allows you to
+        specify full thrift java class name.
+    *   `thriftProtocolFactoryClass`: Optional. Use only when `format` is equal to `thrift`.
+        Allows you to specify full class name of the `TProtocolFactory` to use for thrift
+        serialization.
 
 ### Read Mode
 
@@ -313,7 +468,7 @@ Read Mode supports reading from a topic.
 
 Write Mode supports writing to a topic.
 
-### Supported Payload Formats
+### Supported Formats
 
 *   CSV (default)
     *   Beam parses the messages, attempting to parse fields according to the
@@ -322,10 +477,18 @@ Write Mode supports writing to a topic.
     *   An Avro schema is automatically generated from the specified field
         types. It is used to parse incoming messages and to format outgoing
         messages.
+*   JSON Objects
+    *   Beam attempts to parse JSON to match the schema.
+*   Protocol buffers
+    *   Fields in the schema have to match the fields of the given `protoClass`.
+*   Thrift
+    *   Fields in the schema have to match the fields of the given `thriftClass`.
+    *   The `TProtocolFactory` used for thrift serialization must match the
+        provided `thriftProtocolFactoryClass`.
 
 ### Schema
 
-Only simple types are supported.
+For CSV only simple types are supported.
 
 ## MongoDB
 

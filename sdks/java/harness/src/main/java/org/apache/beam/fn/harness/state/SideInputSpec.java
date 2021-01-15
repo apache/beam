@@ -30,6 +30,9 @@ import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
  * @param <W>
  */
 @AutoValue
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public abstract class SideInputSpec<W extends BoundedWindow> {
   public static <W extends BoundedWindow> SideInputSpec create(
       String accessPattern,

@@ -56,7 +56,9 @@ import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.InvalidProtocolBu
 import org.joda.time.Instant;
 
 /** GroupBy window function. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class GroupByWindowFunction<K, V, W extends BoundedWindow>
     implements FlatMapFunc<WindowedValue<KV<K, Iterable<V>>>, KV<K, Iterable<WindowedValue<V>>>> {
   private static final Logger LOG = Logger.getLogger(GroupByWindowFunction.class.getName());

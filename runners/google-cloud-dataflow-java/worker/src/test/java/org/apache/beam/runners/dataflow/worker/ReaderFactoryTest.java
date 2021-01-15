@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+
 import com.google.api.services.dataflow.model.Source;
 import java.io.IOException;
 import java.util.NoSuchElementException;
@@ -39,7 +41,10 @@ import org.junit.runners.JUnit4;
 
 /** Tests for ReaderFactory. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ReaderFactoryTest {
 
   static class TestReaderFactory implements ReaderFactory {
@@ -135,7 +140,7 @@ public class ReaderFactoryTest {
             PipelineOptionsFactory.create(),
             BatchModeExecutionContext.forTesting(options, "testStage"),
             null);
-    Assert.assertThat(reader, new IsInstanceOf(TestReader.class));
+    assertThat(reader, new IsInstanceOf(TestReader.class));
   }
 
   @Test
@@ -154,7 +159,7 @@ public class ReaderFactoryTest {
               null);
       Assert.fail("should have thrown an exception");
     } catch (Exception exn) {
-      Assert.assertThat(exn.toString(), CoreMatchers.containsString("Unable to create a Reader"));
+      assertThat(exn.toString(), CoreMatchers.containsString("Unable to create a Reader"));
     }
   }
 }

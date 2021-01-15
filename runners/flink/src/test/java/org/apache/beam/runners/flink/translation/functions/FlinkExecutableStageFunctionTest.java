@@ -34,6 +34,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
+import org.apache.beam.runners.fnexecution.control.BundleCheckpointHandler;
 import org.apache.beam.runners.fnexecution.control.BundleFinalizationHandler;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
 import org.apache.beam.runners.fnexecution.control.ExecutableStageContext;
@@ -69,7 +70,10 @@ import org.powermock.reflect.Whitebox;
 
 /** Tests for {@link FlinkExecutableStageFunction}. */
 @RunWith(Parameterized.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class FlinkExecutableStageFunctionTest {
 
   @Parameterized.Parameters
@@ -120,7 +124,8 @@ public class FlinkExecutableStageFunctionTest {
             any(),
             any(StateRequestHandler.class),
             any(BundleProgressHandler.class),
-            any(BundleFinalizationHandler.class)))
+            any(BundleFinalizationHandler.class),
+            any(BundleCheckpointHandler.class)))
         .thenReturn(remoteBundle);
     when(stageBundleFactory.getBundle(
             any(),
@@ -145,7 +150,8 @@ public class FlinkExecutableStageFunctionTest {
             any(),
             any(StateRequestHandler.class),
             any(BundleProgressHandler.class),
-            any(BundleFinalizationHandler.class)))
+            any(BundleFinalizationHandler.class),
+            any(BundleCheckpointHandler.class)))
         .thenReturn(bundle);
 
     @SuppressWarnings("unchecked")
@@ -169,7 +175,8 @@ public class FlinkExecutableStageFunctionTest {
             any(),
             any(StateRequestHandler.class),
             any(BundleProgressHandler.class),
-            any(BundleFinalizationHandler.class)))
+            any(BundleFinalizationHandler.class),
+            any(BundleCheckpointHandler.class)))
         .thenReturn(bundle);
 
     @SuppressWarnings("unchecked")
@@ -210,7 +217,8 @@ public class FlinkExecutableStageFunctionTest {
               TimerReceiverFactory timerReceiverFactory,
               StateRequestHandler stateRequestHandler,
               BundleProgressHandler progressHandler,
-              BundleFinalizationHandler finalizationHandler) {
+              BundleFinalizationHandler finalizationHandler,
+              BundleCheckpointHandler checkpointHandler) {
             return new RemoteBundle() {
               @Override
               public String getId() {
@@ -330,6 +338,7 @@ public class FlinkExecutableStageFunctionTest {
             jobInfo,
             outputMap,
             contextFactory,
+            null,
             null);
     function.setRuntimeContext(runtimeContext);
     Whitebox.setInternalState(function, "stateRequestHandler", stateRequestHandler);

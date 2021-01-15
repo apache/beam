@@ -18,8 +18,11 @@
 package org.apache.beam.sdk.io.aws2.sqs;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.net.URI;
+import java.util.Objects;
+import org.apache.beam.sdk.io.aws2.options.AwsSerializableUtils;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
@@ -28,7 +31,7 @@ import software.amazon.awssdk.services.sqs.SqsClientBuilder;
 
 /** Basic implementation of {@link SqsClientProvider} used by default in {@link SqsIO}. */
 class BasicSqsClientProvider implements SqsClientProvider {
-  private final AwsCredentialsProvider awsCredentialsProvider;
+  private final String awsCredentialsProviderSerialized;
   private final String region;
   private final @Nullable URI serviceEndpoint;
 
@@ -36,7 +39,9 @@ class BasicSqsClientProvider implements SqsClientProvider {
       AwsCredentialsProvider awsCredentialsProvider, String region, @Nullable URI serviceEndpoint) {
     checkArgument(awsCredentialsProvider != null, "awsCredentialsProvider can not be null");
     checkArgument(region != null, "region can not be null");
-    this.awsCredentialsProvider = awsCredentialsProvider;
+    this.awsCredentialsProviderSerialized =
+        AwsSerializableUtils.serializeAwsCredentialsProvider(awsCredentialsProvider);
+    checkNotNull(awsCredentialsProviderSerialized, "awsCredentialsProviderString can not be null");
     this.region = region;
     this.serviceEndpoint = serviceEndpoint;
   }
@@ -44,12 +49,35 @@ class BasicSqsClientProvider implements SqsClientProvider {
   @Override
   public SqsClient getSqsClient() {
     SqsClientBuilder builder =
-        SqsClient.builder().credentialsProvider(awsCredentialsProvider).region(Region.of(region));
+        SqsClient.builder()
+            .credentialsProvider(
+                AwsSerializableUtils.deserializeAwsCredentialsProvider(
+                    awsCredentialsProviderSerialized))
+            .region(Region.of(region));
 
     if (serviceEndpoint != null) {
       builder.endpointOverride(serviceEndpoint);
     }
 
     return builder.build();
+  }
+
+  @Override
+  public boolean equals(@Nullable Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    BasicSqsClientProvider that = (BasicSqsClientProvider) o;
+    return Objects.equals(awsCredentialsProviderSerialized, that.awsCredentialsProviderSerialized)
+        && Objects.equals(region, that.region)
+        && Objects.equals(serviceEndpoint, that.serviceEndpoint);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(awsCredentialsProviderSerialized, region, serviceEndpoint);
   }
 }

@@ -17,10 +17,10 @@
  */
 package org.apache.beam.runners.core.construction;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
-import static org.junit.Assert.assertThat;
 
 import java.io.Serializable;
 import java.util.Collections;
@@ -83,7 +83,10 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link PTransformMatcher}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class PTransformMatchersTest implements Serializable {
   @Rule
   public transient TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);

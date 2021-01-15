@@ -17,7 +17,7 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(publish: false, exportJavadoc: false, enableChecker:false)
+applyJavaNature(publish: false, exportJavadoc: false)
 
 import org.apache.beam.gradle.BeamModulePlugin
 
@@ -45,7 +45,18 @@ def cleanupTask = project.tasks.create(name: "fnApiJobServerCleanup", type: Exec
 createCrossLanguageValidatesRunnerTask(
   startJobServer: setupTask,
   cleanupJobServer: cleanupTask,
-  jobEndpoint: "localhost:${jobPort}",
   numParallelTests: 1,
-  classpath: crossLanguageTestClasspath
+  classpath: crossLanguageTestClasspath,
+  pythonPipelineOptions: [
+    "--runner=PortableRunner",
+    "--job_endpoint=localhost:${jobPort}",
+    "--environment_cache_millis=10000",
+    "--experiments=beam_fn_api",
+  ],
+  javaPipelineOptions: [
+    "--runner=PortableRunner",
+    "--jobEndpoint=localhost:${jobPort}",
+    "--environmentCacheMillis=10000",
+    "--experiments=beam_fn_api",
+  ]
 )

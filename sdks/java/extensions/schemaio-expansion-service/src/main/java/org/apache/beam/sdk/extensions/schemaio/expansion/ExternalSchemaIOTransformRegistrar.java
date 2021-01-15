@@ -43,6 +43,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 
 @Experimental(Experimental.Kind.PORTABILITY)
 @AutoService(ExternalTransformRegistrar.class)
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class ExternalSchemaIOTransformRegistrar implements ExternalTransformRegistrar {
 
   @Override

@@ -27,7 +27,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_VR_Dataflow_V2',
 
       description('Runs Java ValidatesRunner suite on the Dataflow runner V2.')
 
-      commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 270)
+      commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 330)
 
       // Publish all test results to Jenkins
       publishers {
@@ -38,7 +38,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_VR_Dataflow_V2',
       steps {
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
-          tasks(':runners:google-cloud-dataflow-java:validatesRunnerV2Test')
+          tasks(':runners:google-cloud-dataflow-java:validatesRunnerV2')
           // Increase parallel worker threads above processor limit since most time is
           // spent waiting on Dataflow jobs. ValidatesRunner tests on Dataflow are slow
           // because each one launches a Dataflow job with about 3 mins of overhead.

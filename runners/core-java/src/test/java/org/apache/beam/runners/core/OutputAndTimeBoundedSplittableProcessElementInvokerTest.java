@@ -19,12 +19,12 @@ package org.apache.beam.runners.core;
 
 import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.resume;
 import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.stop;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.util.Collection;
@@ -50,7 +50,10 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 /** Tests for {@link OutputAndTimeBoundedSplittableProcessElementInvoker}. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class OutputAndTimeBoundedSplittableProcessElementInvokerTest {
   @Rule public transient ExpectedException e = ExpectedException.none();
 

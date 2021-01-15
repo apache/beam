@@ -17,11 +17,11 @@
  */
 package org.apache.beam.runners.dataflow.worker.util.common.worker;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -29,7 +29,9 @@ import org.junit.runners.JUnit4;
 
 /** Unit tests for {@link ShuffleEntry}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ShuffleEntryTest {
   private static final byte[] KEY = {0xA};
   private static final byte[] SKEY = {0xB};

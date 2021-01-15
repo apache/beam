@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.core.construction;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
 
 import com.google.auto.value.AutoValue;
 import org.apache.beam.sdk.transforms.windowing.AfterAll;
@@ -43,7 +43,9 @@ import org.junit.runners.Parameterized.Parameters;
 
 /** Tests for utilities in {@link TriggerTranslation}. */
 @RunWith(Parameterized.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class TriggerTranslationTest {
 
   @AutoValue

@@ -17,10 +17,10 @@
  */
 package org.apache.beam.sdk.io;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
@@ -56,7 +56,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests of {@link CountingSource}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class CountingSourceTest {
 
   public static void addCountingAsserts(PCollection<Long> input, long numElements) {

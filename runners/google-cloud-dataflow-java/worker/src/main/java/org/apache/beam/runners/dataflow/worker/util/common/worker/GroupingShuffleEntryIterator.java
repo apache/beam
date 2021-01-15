@@ -36,7 +36,9 @@ import org.slf4j.LoggerFactory;
  * <p>Much like a {@link NativeReader.NativeReaderIterator}, but without {@code start()}, and not
  * used via the interface of that class, hence doesn't inherit it.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public abstract class GroupingShuffleEntryIterator {
   private static final Logger LOG = LoggerFactory.getLogger(GroupingShuffleEntryIterator.class);
 

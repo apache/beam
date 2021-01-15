@@ -19,7 +19,7 @@ package org.apache.beam.sdk.transforms;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFor;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -60,7 +60,9 @@ import org.junit.runners.JUnit4;
 
 /** Unit tests for {@link CombineFns}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class CombineFnsTest {
   @Rule public final TestPipeline p = TestPipeline.create();
   @Rule public ExpectedException expectedException = ExpectedException.none();

@@ -697,12 +697,12 @@ def examples_wordcount_streaming(argv):
         | 'Group' >> beam.GroupByKey()
         |
         'Sum' >> beam.Map(lambda word_ones: (word_ones[0], sum(word_ones[1])))
-        |
-        'Format' >> beam.Map(lambda word_and_count: '%s: %d' % word_and_count))
+        | 'Format' >>
+        beam.MapTuple(lambda word, count: f'{word}: {count}'.encode('utf-8')))
 
     # [START example_wordcount_streaming_write]
     # Write to Pub/Sub
-    output | beam.io.WriteStringsToPubSub(known_args.output_topic)
+    output | beam.io.WriteToPubSub(known_args.output_topic)
     # [END example_wordcount_streaming_write]
 
 
@@ -1117,7 +1117,7 @@ def model_bigqueryio(p, write_project='', write_dataset='', write_table=''):
   # [START model_bigqueryio_read_table]
   max_temperatures = (
       p
-      | 'ReadTable' >> beam.io.Read(beam.io.BigQuerySource(table_spec))
+      | 'ReadTable' >> beam.io.ReadFromBigQuery(table=table_spec)
       # Each row is a dictionary where the keys are the BigQuery columns
       | beam.Map(lambda elem: elem['max_temperature']))
   # [END model_bigqueryio_read_table]
@@ -1125,9 +1125,9 @@ def model_bigqueryio(p, write_project='', write_dataset='', write_table=''):
   # [START model_bigqueryio_read_query]
   max_temperatures = (
       p
-      | 'QueryTable' >> beam.io.Read(beam.io.BigQuerySource(
+      | 'QueryTable' >> beam.io.ReadFromBigQuery(
           query='SELECT max_temperature FROM '\
-                '[clouddataflow-readonly:samples.weather_stations]'))
+                '[clouddataflow-readonly:samples.weather_stations]')
       # Each row is a dictionary where the keys are the BigQuery columns
       | beam.Map(lambda elem: elem['max_temperature']))
   # [END model_bigqueryio_read_query]
@@ -1135,10 +1135,10 @@ def model_bigqueryio(p, write_project='', write_dataset='', write_table=''):
   # [START model_bigqueryio_read_query_std_sql]
   max_temperatures = (
       p
-      | 'QueryTableStdSQL' >> beam.io.Read(beam.io.BigQuerySource(
+      | 'QueryTableStdSQL' >> beam.io.ReadFromBigQuery(
           query='SELECT max_temperature FROM '\
                 '`clouddataflow-readonly.samples.weather_stations`',
-          use_standard_sql=True))
+          use_standard_sql=True)
       # Each row is a dictionary where the keys are the BigQuery columns
       | beam.Map(lambda elem: elem['max_temperature']))
   # [END model_bigqueryio_read_query_std_sql]
@@ -1658,6 +1658,10 @@ def sdf_basic_example():
     def process(
         self,
         file_name,
+        # Alternatively, we can let FileToWordsFn itself inherit from
+        # RestrictionProvider, implement the required methods and let
+        # tracker=beam.DoFn.RestrictionParam() which will use self as
+        # the provider.
         tracker=beam.DoFn.RestrictionParam(FileToWordsRestrictionProvider())):
       with open(file_name) as file_handle:
         file_handle.seek(tracker.current_restriction.start())

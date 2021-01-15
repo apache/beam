@@ -17,12 +17,12 @@
  */
 package org.apache.beam.sdk.runners;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
-import static org.junit.Assert.assertThat;
 
 import java.io.Serializable;
 import java.util.Collections;
@@ -71,7 +71,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link TransformHierarchy}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class TransformHierarchyTest implements Serializable {
   @Rule
   public final transient TestPipeline pipeline =

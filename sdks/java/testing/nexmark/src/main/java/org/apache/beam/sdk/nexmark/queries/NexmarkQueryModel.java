@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.nexmark.queries;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.HashSet;
@@ -36,7 +38,9 @@ import org.junit.Assert;
  * Base class for models of the eight NEXMark queries. Provides an assertion function which can be
  * applied against the actual query results to check their consistency with the model.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public abstract class NexmarkQueryModel<T extends KnownSize> implements Serializable {
   public final NexmarkConfiguration configuration;
 
@@ -97,7 +101,7 @@ public abstract class NexmarkQueryModel<T extends KnownSize> implements Serializ
       @Override
       public @Nullable Void apply(Iterable<TimestampedValue<T>> actual) {
         Collection<String> actualStrings = toCollection(relevantResults(actual).iterator());
-        Assert.assertThat("wrong pipeline output", actualStrings, IsEqual.equalTo(expectedStrings));
+        assertThat("wrong pipeline output", actualStrings, IsEqual.equalTo(expectedStrings));
         return null;
       }
     };

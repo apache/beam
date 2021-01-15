@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.core.construction;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -42,7 +42,9 @@ import org.junit.runners.Parameterized.Parameters;
 
 /** Tests for {@link SchemaTranslation}. */
 @RunWith(Enclosed.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SchemaTranslationTest {
 
   /** Tests round-trip proto encodings for {@link Schema}. */

@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.testing;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 import java.io.IOException;
@@ -40,7 +40,9 @@ import org.junit.runners.JUnit4;
 
 /** Unit tests for {@link CoderProperties}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class CoderPropertiesTest {
   @Rule public ExpectedException expectedException = ExpectedException.none();
 

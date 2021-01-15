@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.coders;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -28,14 +30,15 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.CoreMatchers;
-import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** Test case for {@link StructuredCoder}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class StructuredCoderTest {
 
   /** A coder for nullable {@code Boolean} values that is consistent with equals. */
@@ -168,7 +171,7 @@ public class StructuredCoderTest {
   /** Test for verifying {@link StructuredCoder#toString()}. */
   @Test
   public void testToString() {
-    Assert.assertThat(
+    assertThat(
         new ObjectIdentityBooleanCoder().toString(),
         CoreMatchers.equalTo("StructuredCoderTest$ObjectIdentityBooleanCoder"));
 
@@ -182,21 +185,21 @@ public class StructuredCoderTest {
           }
         };
 
-    Assert.assertThat(
+    assertThat(
         coderWithArgs.toString(),
         CoreMatchers.equalTo("StructuredCoderTest$1(BigDecimalCoder,BigIntegerCoder)"));
   }
 
   @Test
   public void testGenericStandardCoderFallsBackToT() throws Exception {
-    Assert.assertThat(
+    assertThat(
         new Foo<String>().getEncodedTypeDescriptor().getType(),
         CoreMatchers.not(TypeDescriptor.of(String.class).getType()));
   }
 
   @Test
   public void testGenericStandardCoder() throws Exception {
-    Assert.assertThat(
+    assertThat(
         new FooTwo().getEncodedTypeDescriptor(),
         CoreMatchers.equalTo(TypeDescriptor.of(String.class)));
   }

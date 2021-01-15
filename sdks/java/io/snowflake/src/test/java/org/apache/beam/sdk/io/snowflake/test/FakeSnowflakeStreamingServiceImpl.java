@@ -21,7 +21,7 @@ import java.io.BufferedReader;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.zip.GZIPInputStream;
@@ -29,7 +29,9 @@ import org.apache.beam.sdk.io.snowflake.services.SnowflakeService;
 import org.apache.beam.sdk.io.snowflake.services.SnowflakeStreamingServiceConfig;
 
 /** Fake implementation of {@link SnowflakeService} used in tests. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class FakeSnowflakeStreamingServiceImpl
     implements SnowflakeService<SnowflakeStreamingServiceConfig> {
   private FakeSnowflakeIngestManager snowflakeIngestManager;
@@ -59,7 +61,7 @@ public class FakeSnowflakeStreamingServiceImpl
     List<String> lines = new ArrayList<>();
     try {
       GZIPInputStream gzip = new GZIPInputStream(new FileInputStream(file));
-      BufferedReader br = new BufferedReader(new InputStreamReader(gzip, Charset.defaultCharset()));
+      BufferedReader br = new BufferedReader(new InputStreamReader(gzip, StandardCharsets.UTF_8));
 
       String line;
       while ((line = br.readLine()) != null) {

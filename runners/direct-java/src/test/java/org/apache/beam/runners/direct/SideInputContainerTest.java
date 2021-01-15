@@ -18,11 +18,11 @@
 package org.apache.beam.runners.direct;
 
 import static org.apache.beam.sdk.testing.PCollectionViewTesting.materializeValuesFor;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.doAnswer;
 
@@ -64,7 +64,9 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link SideInputContainer}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SideInputContainerTest {
   private static final BoundedWindow FIRST_WINDOW =
       new BoundedWindow() {

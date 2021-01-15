@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.coders;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
 
 import java.util.Arrays;
 import java.util.BitSet;
@@ -34,7 +34,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link BitSetCoder}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BitSetCoderTest {
   private static final Coder<BitSet> TEST_CODER = BitSetCoder.of();
 

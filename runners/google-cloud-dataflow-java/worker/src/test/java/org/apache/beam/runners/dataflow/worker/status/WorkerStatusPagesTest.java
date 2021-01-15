@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.worker.status;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
-import static org.junit.Assert.assertThat;
 
 import java.util.function.BooleanSupplier;
 import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
@@ -34,7 +34,9 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link WorkerStatusPages}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class WorkerStatusPagesTest {
 
   private final Server server = new Server();

@@ -31,6 +31,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
  * The {@link DirectRunner} {@link TransformEvaluatorFactory} for the {@link DirectRunner-specific}
  * {@link WriteView} step.
  */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 class ViewEvaluatorFactory implements TransformEvaluatorFactory {
   private final EvaluationContext context;
 

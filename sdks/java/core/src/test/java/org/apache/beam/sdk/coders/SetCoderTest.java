@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.coders;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -37,7 +37,9 @@ import org.junit.runners.JUnit4;
 
 /** Test case for {@link SetCoder}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SetCoderTest {
 
   private static final Coder<Set<Integer>> TEST_CODER = SetCoder.of(VarIntCoder.of());

@@ -26,7 +26,7 @@ import com.datastax.driver.mapping.annotations.Table;
 import java.io.File;
 import java.io.Serializable;
 import java.net.URI;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import org.apache.beam.sdk.io.common.HashingFn;
@@ -51,7 +51,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests to validate HadoopFormatIO for embedded Cassandra instance. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class HadoopFormatIOCassandraTest implements Serializable {
   private static final long serialVersionUID = 1L;
   private static final String CASSANDRA_KEYSPACE = "beamdb";
@@ -207,10 +209,10 @@ public class HadoopFormatIOCassandraTest implements Serializable {
   private static void replacePortsInConfFile() throws Exception {
     URI uri = HadoopFormatIOCassandraTest.class.getResource("/cassandra.yaml").toURI();
     Path cassandraYamlPath = new File(uri).toPath();
-    String content = new String(Files.readAllBytes(cassandraYamlPath), Charset.defaultCharset());
+    String content = new String(Files.readAllBytes(cassandraYamlPath), StandardCharsets.UTF_8);
     content = content.replaceAll("9042", String.valueOf(cassandraNativePort));
     content = content.replaceAll("9061", String.valueOf(cassandraPort));
-    Files.write(cassandraYamlPath, content.getBytes(Charset.defaultCharset()));
+    Files.write(cassandraYamlPath, content.getBytes(StandardCharsets.UTF_8));
   }
 
   @AfterClass

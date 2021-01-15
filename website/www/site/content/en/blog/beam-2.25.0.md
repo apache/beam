@@ -4,7 +4,7 @@ date:   2020-10-23 14:00:00 -0800
 categories:
   - blog
 authors:
-  - Robin Qiu
+  - robinyq
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 We are happy to present the new 2.25.0 release of Apache Beam. This release includes both improvements and new functionality.
-See the [download page](/get-started/downloads/#2250-2020-10-23) for this release.
+See the [download page](/get-started/downloads/#2250-2020-10-23) for this release.<!--more-->
 For more information on changes in 2.25.0, check out the
 [detailed release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12347147).
 
@@ -63,6 +63,7 @@ For more information on changes in 2.25.0, check out the
 ## Known Issues
 
 * Dataflow streaming timers once against not strictly time ordered when set earlier mid-bundle, as the fix for  [BEAM-8543](https://issues.apache.org/jira/browse/BEAM-8543) introduced more severe bugs and has been rolled back.
+* Default compressor change breaks dataflow python streaming job update compatibility. Please use python SDK version <= 2.23.0 or > 2.25.0 if job update is critical.([BEAM-11113](https://issues.apache.org/jira/browse/BEAM-11113))
 
 
 ## List of Contributors

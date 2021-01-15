@@ -17,11 +17,11 @@
  */
 package org.apache.beam.runners.core.triggers;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.verify;
@@ -45,7 +45,9 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests the {@link AfterWatermarkStateMachine} triggers. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class AfterWatermarkStateMachineTest {
 
   @Mock private TriggerStateMachine mockEarly;
@@ -340,9 +342,11 @@ public class AfterWatermarkStateMachineTest {
     tester.injectElements(1);
     tester.injectElements(5);
 
-    // Merging should re-activate the early trigger in the merged window
     tester.mergeWindows();
+    // Merging should re-activate the early trigger in the merged window
     verify(mockEarly).onMerge(Mockito.any(OnMergeContext.class));
+    // Merging should merge the late trigger in the merged window so it can be cleared.
+    verify(mockLate).onMerge(Mockito.any(OnMergeContext.class));
   }
 
   /**

@@ -17,10 +17,10 @@
  */
 package org.apache.beam.runners.dataflow.worker.graph;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.matchers.JUnitMatchers.hasItems;
 
@@ -43,7 +43,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link CloneAmbiguousFlattensFunction}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public final class CloneAmbiguousFlattensFunctionTest {
 
   /** A node that stores nothing. Used for testing with nodes that have no ExecutionLocation. */

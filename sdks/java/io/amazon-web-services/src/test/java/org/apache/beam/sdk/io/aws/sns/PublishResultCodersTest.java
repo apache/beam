@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io.aws.sns;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
 
 import com.amazonaws.ResponseMetadata;
 import com.amazonaws.http.HttpResponse;
@@ -31,7 +31,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.junit.Test;
 
 /** Tests for PublishResult coders. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class PublishResultCodersTest {
 
   @Test

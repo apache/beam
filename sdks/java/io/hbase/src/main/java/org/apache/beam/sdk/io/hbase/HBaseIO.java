@@ -157,7 +157,9 @@ import org.slf4j.LoggerFactory;
  * .
  */
 @Experimental(Kind.SOURCE_SINK)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class HBaseIO {
   private static final Logger LOG = LoggerFactory.getLogger(HBaseIO.class);
 
@@ -345,7 +347,6 @@ public class HBaseIO {
    * A {@link PTransform} that works like {@link #read}, but executes read operations coming from a
    * {@link PCollection} of {@link Read}.
    */
-  @Experimental(Kind.SPLITTABLE_DO_FN)
   public static ReadAll readAll() {
     return new ReadAll();
   }

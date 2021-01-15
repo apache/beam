@@ -20,6 +20,7 @@ package org.apache.beam.runners.dataflow.worker;
 import static org.apache.beam.runners.dataflow.util.Structs.addObject;
 import static org.apache.beam.runners.dataflow.util.Structs.addString;
 import static org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor.splitIntToLong;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.both;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
@@ -27,7 +28,6 @@ import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.eq;
@@ -63,11 +63,13 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.apache.beam.runners.core.construction.Environments;
@@ -86,6 +88,7 @@ import org.apache.beam.runners.dataflow.worker.testing.TestCountingSource;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.util.WorkerPropertyNames;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitStatus;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationGetDataResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetDataRequest;
@@ -167,7 +170,9 @@ import org.slf4j.LoggerFactory;
 
 /** Unit tests for {@link StreamingDataflowWorker}. */
 @RunWith(Parameterized.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class StreamingDataflowWorkerTest {
 
   private final boolean streamingEngine;
@@ -2226,6 +2231,136 @@ public class StreamingDataflowWorkerTest {
     assertThat(finalizeTracker, contains(0));
   }
 
+  // Regression test to ensure that a reader is not used from the cache
+  // on work item retry.
+  @Test
+  public void testUnboundedSourceWorkRetry() throws Exception {
+    List<Integer> finalizeTracker = Lists.newArrayList();
+    TestCountingSource.setFinalizeTracker(finalizeTracker);
+
+    FakeWindmillServer server = new FakeWindmillServer(errorCollector);
+    StreamingDataflowWorkerOptions options = createTestingPipelineOptions(server);
+    options.setWorkerCacheMb(0); // Disable state cache so it doesn't detect retry.
+    StreamingDataflowWorker worker =
+        makeWorker(makeUnboundedSourcePipeline(), options, false /* publishCounters */);
+    worker.start();
+
+    // Test new key.
+    Windmill.GetWorkResponse work =
+        buildInput(
+            "work {"
+                + "  computation_id: \"computation\""
+                + "  input_data_watermark: 0"
+                + "  work {"
+                + "    key: \"0000000000000001\""
+                + "    sharding_key: 1"
+                + "    work_token: 1"
+                + "    cache_token: 1"
+                + "  }"
+                + "}",
+            null);
+    server.addWorkToOffer(work);
+
+    Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
+    Iterable<CounterUpdate> counters = worker.buildCounters();
+    Windmill.WorkItemCommitRequest commit = result.get(1L);
+    UnsignedLong finalizeId =
+        UnsignedLong.fromLongBits(commit.getSourceStateUpdates().getFinalizeIds(0));
+
+    Windmill.WorkItemCommitRequest expectedCommit =
+        setMessagesMetadata(
+                PaneInfo.NO_FIRING,
+                CoderUtils.encodeToByteArray(
+                    CollectionCoder.of(GlobalWindow.Coder.INSTANCE),
+                    Arrays.asList(GlobalWindow.INSTANCE)),
+                parseCommitRequest(
+                    "key: \"0000000000000001\" "
+                        + "sharding_key: 1 "
+                        + "work_token: 1 "
+                        + "cache_token: 1 "
+                        + "source_backlog_bytes: 7 "
+                        + "output_messages {"
+                        + "  destination_stream_id: \"out\""
+                        + "  bundles {"
+                        + "    key: \"0000000000000001\""
+                        + "    messages {"
+                        + "      timestamp: 0"
+                        + "      data: \"0:0\""
+                        + "    }"
+                        + "    messages_ids: \"\""
+                        + "  }"
+                        + "} "
+                        + "source_state_updates {"
+                        + "  state: \"\000\""
+                        + "  finalize_ids: "
+                        + finalizeId
+                        + "} "
+                        + "source_watermark: 1000"))
+            .build();
+
+    assertThat(commit, equalTo(expectedCommit));
+    assertEquals(
+        18L, splitIntToLong(getCounter(counters, "dataflow_input_size-computation").getInteger()));
+
+    // Test retry of work item, it should return the same result and not start the reader from the
+    // position it was left at.
+    server.clearCommitsReceived();
+    server.addWorkToOffer(work);
+    result = server.waitForAndGetCommits(1);
+    commit = result.get(1L);
+    finalizeId = UnsignedLong.fromLongBits(commit.getSourceStateUpdates().getFinalizeIds(0));
+    Windmill.WorkItemCommitRequest.Builder commitBuilder = expectedCommit.toBuilder();
+    commitBuilder
+        .getSourceStateUpdatesBuilder()
+        .setFinalizeIds(0, commit.getSourceStateUpdates().getFinalizeIds(0));
+    expectedCommit = commitBuilder.build();
+    assertThat(commit, equalTo(expectedCommit));
+
+    // Continue with processing.
+    server.addWorkToOffer(
+        buildInput(
+            "work {"
+                + "  computation_id: \"computation\""
+                + "  input_data_watermark: 0"
+                + "  work {"
+                + "    key: \"0000000000000001\""
+                + "    sharding_key: 1"
+                + "    work_token: 2"
+                + "    cache_token: 1"
+                + "    source_state {"
+                + "      state: \"\001\""
+                + "      finalize_ids: "
+                + finalizeId
+                + "    } "
+                + "  }"
+                + "}",
+            null));
+
+    result = server.waitForAndGetCommits(1);
+
+    commit = result.get(2L);
+    finalizeId = UnsignedLong.fromLongBits(commit.getSourceStateUpdates().getFinalizeIds(0));
+
+    assertThat(
+        commit,
+        equalTo(
+            parseCommitRequest(
+                    "key: \"0000000000000001\" "
+                        + "sharding_key: 1 "
+                        + "work_token: 2 "
+                        + "cache_token: 1 "
+                        + "source_backlog_bytes: 7 "
+                        + "source_state_updates {"
+                        + "  state: \"\000\""
+                        + "  finalize_ids: "
+                        + finalizeId
+                        + "} "
+                        + "source_watermark: 1000")
+                .build()));
+
+    assertThat(finalizeTracker, contains(0));
+  }
+
   private static class MockWork extends StreamingDataflowWorker.Work {
 
     public MockWork(long workToken) {
@@ -2828,12 +2963,15 @@ public class StreamingDataflowWorkerTest {
     // Add some work for key 1.
     server.addWorkToOffer(makeInput(10, TimeUnit.MILLISECONDS.toMicros(2), DEFAULT_KEY_STRING, 1));
     server.addWorkToOffer(makeInput(15, TimeUnit.MILLISECONDS.toMicros(3), DEFAULT_KEY_STRING, 5));
-    server.waitForDroppedCommits(2);
+    ConcurrentHashMap<Long, Consumer<CommitStatus>> droppedCommits =
+        server.waitForDroppedCommits(2);
     server.setDropStreamingCommits(false);
     // Enqueue another work item for key 1.
     server.addWorkToOffer(makeInput(1, TimeUnit.MILLISECONDS.toMicros(1), DEFAULT_KEY_STRING, 1));
     // Ensure that the this work item processes.
     Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
+    // Now ensure that nothing happens if a dropped commit actually completes.
+    droppedCommits.values().iterator().next().accept(CommitStatus.OK);
     worker.stop();
 
     assertTrue(result.containsKey(1L));

@@ -27,8 +27,12 @@ import com.alibaba.fastjson.JSONObject;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
+import org.apache.beam.sdk.extensions.sql.meta.provider.kafka.thrift.SimpleThriftMessage;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableList;
+import org.apache.thrift.TBase;
+import org.apache.thrift.protocol.TCompactProtocol;
+import org.apache.thrift.protocol.TProtocolFactory;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Test;
 
@@ -38,7 +42,7 @@ public class KafkaTableProviderTest {
 
   @Test
   public void testBuildBeamSqlCSVTable() {
-    Table table = mockTable("hello", null);
+    Table table = mockTable("hello");
     BeamSqlTable sqlTable = provider.buildBeamSqlTable(table);
 
     assertNotNull(sqlTable);
@@ -63,11 +67,62 @@ public class KafkaTableProviderTest {
   }
 
   @Test
+  public void testBuildBeamSqlProtoTable() {
+    Table table = mockProtoTable("hello", KafkaMessages.SimpleMessage.class);
+    BeamSqlTable sqlTable = provider.buildBeamSqlTable(table);
+
+    assertNotNull(sqlTable);
+    assertTrue(sqlTable instanceof BeamKafkaProtoTable);
+
+    BeamKafkaProtoTable protoTable = (BeamKafkaProtoTable) sqlTable;
+    assertEquals("localhost:9092", protoTable.getBootstrapServers());
+    assertEquals(ImmutableList.of("topic1", "topic2"), protoTable.getTopics());
+  }
+
+  @Test
+  public void testBuildBeamSqlThriftTable() {
+    Table table =
+        mockThriftTable("hello", SimpleThriftMessage.class, TCompactProtocol.Factory.class);
+    BeamSqlTable sqlTable = provider.buildBeamSqlTable(table);
+
+    assertNotNull(sqlTable);
+    assertTrue(sqlTable instanceof BeamKafkaThriftTable);
+
+    BeamKafkaThriftTable thriftTable = (BeamKafkaThriftTable) sqlTable;
+    assertEquals("localhost:9092", thriftTable.getBootstrapServers());
+    assertEquals(ImmutableList.of("topic1", "topic2"), thriftTable.getTopics());
+  }
+
+  @Test
   public void testGetTableType() {
     assertEquals("kafka", provider.getTableType());
   }
 
-  private static Table mockTable(String name, @Nullable String payloadFormat) {
+  private static Table mockTable(String name) {
+    return mockTable(name, null, null, null, null);
+  }
+
+  private static Table mockTable(String name, String payloadFormat) {
+    return mockTable(name, payloadFormat, null, null, null);
+  }
+
+  private static Table mockProtoTable(String name, Class<?> protoClass) {
+    return mockTable(name, "proto", protoClass, null, null);
+  }
+
+  private static Table mockThriftTable(
+      String name,
+      Class<? extends TBase<?, ?>> thriftClass,
+      Class<? extends TProtocolFactory> thriftProtocolFactoryClass) {
+    return mockTable(name, "thrift", null, thriftClass, thriftProtocolFactoryClass);
+  }
+
+  private static Table mockTable(
+      String name,
+      @Nullable String payloadFormat,
+      @Nullable Class<?> protoClass,
+      @Nullable Class<? extends TBase<?, ?>> thriftClass,
+      @Nullable Class<? extends TProtocolFactory> thriftProtocolFactoryClass) {
     JSONObject properties = new JSONObject();
     properties.put("bootstrap.servers", "localhost:9092");
     JSONArray topics = new JSONArray();
@@ -77,6 +132,15 @@ public class KafkaTableProviderTest {
     if (payloadFormat != null) {
       properties.put("format", payloadFormat);
     }
+    if (protoClass != null) {
+      properties.put("protoClass", protoClass.getName());
+    }
+    if (thriftClass != null) {
+      properties.put("thriftClass", thriftClass.getName());
+    }
+    if (thriftProtocolFactoryClass != null) {
+      properties.put("thriftProtocolFactoryClass", thriftProtocolFactoryClass.getName());
+    }
 
     return Table.builder()
         .name(name)
@@ -84,8 +148,8 @@ public class KafkaTableProviderTest {
         .location("kafka://localhost:2181/brokers?topic=test")
         .schema(
             Stream.of(
-                    Schema.Field.nullable("id", Schema.FieldType.INT32),
-                    Schema.Field.nullable("name", Schema.FieldType.STRING))
+                    Schema.Field.of("id", Schema.FieldType.INT32),
+                    Schema.Field.of("name", Schema.FieldType.STRING))
                 .collect(toSchema()))
         .type("kafka")
         .properties(properties)

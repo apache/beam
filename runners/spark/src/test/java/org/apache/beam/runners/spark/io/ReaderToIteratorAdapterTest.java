@@ -18,8 +18,8 @@
 package org.apache.beam.runners.spark.io;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.Is.is;
-import static org.junit.Assert.assertThat;
 
 import java.io.IOException;
 import java.util.NoSuchElementException;
@@ -31,7 +31,9 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 /** Test for {@link SourceRDD.Bounded.ReaderToIteratorAdapter}. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ReaderToIteratorAdapterTest {
 
   @Rule public ExpectedException exception = ExpectedException.none();

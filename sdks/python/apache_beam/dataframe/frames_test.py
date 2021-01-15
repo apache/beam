@@ -30,7 +30,7 @@ from apache_beam.dataframe import frames  # pylint: disable=unused-import
 
 
 class DeferredFrameTest(unittest.TestCase):
-  def _run_test(self, func, *args, distributed=False):
+  def _run_test(self, func, *args, distributed=True):
     deferred_args = [
         frame_base.DeferredFrame.wrap(
             expressions.ConstantExpression(arg, arg[0:0])) for arg in args
@@ -77,13 +77,53 @@ class DeferredFrameTest(unittest.TestCase):
     })
     self._run_test(new_column, df)
 
+  def test_set_column_from_index(self):
+    def new_column(df):
+      df['NewCol'] = df.index
+      return df
+
+    df = pd.DataFrame({
+        'Animal': ['Falcon', 'Falcon', 'Parrot', 'Parrot'],
+        'Speed': [380., 370., 24., 26.]
+    })
+    self._run_test(new_column, df)
+
   def test_groupby(self):
-    df = pd.DataFrame({'group': ['a', 'a', 'a', 'b'], 'value': [1, 2, 3, 5]})
+    df = pd.DataFrame({
+        'group': ['a' if i % 5 == 0 or i % 3 == 0 else 'b' for i in range(100)],
+        'value': [None if i % 11 == 0 else i for i in range(100)]
+    })
     self._run_test(lambda df: df.groupby('group').agg(sum), df)
     self._run_test(lambda df: df.groupby('group').sum(), df)
     self._run_test(lambda df: df.groupby('group').median(), df)
+    self._run_test(lambda df: df.groupby('group').size(), df)
+    self._run_test(lambda df: df.groupby('group').count(), df)
+    self._run_test(lambda df: df.groupby('group').max(), df)
+    self._run_test(lambda df: df.groupby('group').min(), df)
+    self._run_test(lambda df: df.groupby('group').mean(), df)
 
-  @unittest.skipIf(sys.version_info <= (3, ), 'differing signature')
+    self._run_test(lambda df: df[df.value > 30].groupby('group').sum(), df)
+    self._run_test(lambda df: df[df.value > 30].groupby('group').mean(), df)
+    self._run_test(lambda df: df[df.value > 30].groupby('group').size(), df)
+
+    # Grouping by a series is not currently supported
+    #self._run_test(lambda df: df[df.value > 40].groupby(df.group).sum(), df)
+    #self._run_test(lambda df: df[df.value > 40].groupby(df.group).mean(), df)
+    #self._run_test(lambda df: df[df.value > 40].groupby(df.group).size(), df)
+
+    # Example from https://pandas.pydata.org/docs/user_guide/groupby.html
+    arrays = [['bar', 'bar', 'baz', 'baz', 'foo', 'foo', 'qux', 'qux'],
+              ['one', 'two', 'one', 'two', 'one', 'two', 'one', 'two']]
+
+    index = pd.MultiIndex.from_arrays(arrays, names=['first', 'second'])
+
+    df = pd.DataFrame({
+        'A': [1, 1, 1, 1, 2, 2, 3, 3], 'B': np.arange(8)
+    },
+                      index=index)
+
+    self._run_test(lambda df: df.groupby(['second', 'A']).sum(), df)
+
   def test_merge(self):
     # This is from the pandas doctests, but fails due to re-indexing being
     # order-sensitive.
@@ -111,26 +151,103 @@ class DeferredFrameTest(unittest.TestCase):
           df1,
           df2)
 
+  def test_merge_on_index(self):
+    # This is from the pandas doctests, but fails due to re-indexing being
+    # order-sensitive.
+    df1 = pd.DataFrame({
+        'lkey': ['foo', 'bar', 'baz', 'foo'], 'value': [1, 2, 3, 5]
+    }).set_index('lkey')
+    df2 = pd.DataFrame({
+        'rkey': ['foo', 'bar', 'baz', 'foo'], 'value': [5, 6, 7, 8]
+    }).set_index('rkey')
+    with beam.dataframe.allow_non_parallel_operations():
+      self._run_test(
+          lambda df1,
+          df2: df1.merge(df2, left_index=True, right_index=True).sort_values(
+              ['value_x', 'value_y']),
+          df1,
+          df2)
+
+  def test_merge_same_key(self):
+    df1 = pd.DataFrame({
+        'key': ['foo', 'bar', 'baz', 'foo'], 'value': [1, 2, 3, 5]
+    })
+    df2 = pd.DataFrame({
+        'key': ['foo', 'bar', 'baz', 'foo'], 'value': [5, 6, 7, 8]
+    })
+    with beam.dataframe.allow_non_parallel_operations():
+      self._run_test(
+          lambda df1,
+          df2: df1.merge(df2, on='key').rename(index=lambda x: '*').sort_values(
+              ['value_x', 'value_y']),
+          df1,
+          df2)
+      self._run_test(
+          lambda df1,
+          df2: df1.merge(df2, on='key', suffixes=('_left', '_right')).rename(
+              index=lambda x: '*').sort_values(['value_left', 'value_right']),
+          df1,
+          df2)
+
+  def test_merge_same_key_doctest(self):
+    df1 = pd.DataFrame({'a': ['foo', 'bar'], 'b': [1, 2]})
+    df2 = pd.DataFrame({'a': ['foo', 'baz'], 'c': [3, 4]})
+
+    with beam.dataframe.allow_non_parallel_operations():
+      self._run_test(
+          lambda df1,
+          df2: df1.merge(df2, how='left', on='a').rename(index=lambda x: '*').
+          sort_values(['b', 'c']),
+          df1,
+          df2)
+      # Test without specifying 'on'
+      self._run_test(
+          lambda df1,
+          df2: df1.merge(df2, how='left').rename(index=lambda x: '*').
+          sort_values(['b', 'c']),
+          df1,
+          df2)
+
+  def test_merge_same_key_suffix_collision(self):
+    df1 = pd.DataFrame({'a': ['foo', 'bar'], 'b': [1, 2], 'a_lsuffix': [5, 6]})
+    df2 = pd.DataFrame({'a': ['foo', 'baz'], 'c': [3, 4], 'a_rsuffix': [7, 8]})
+
+    with beam.dataframe.allow_non_parallel_operations():
+      self._run_test(
+          lambda df1,
+          df2: df1.merge(
+              df2, how='left', on='a', suffixes=('_lsuffix', '_rsuffix')).
+          rename(index=lambda x: '*').sort_values(['b', 'c']),
+          df1,
+          df2)
+      # Test without specifying 'on'
+      self._run_test(
+          lambda df1,
+          df2: df1.merge(df2, how='left', suffixes=('_lsuffix', '_rsuffix')).
+          rename(index=lambda x: '*').sort_values(['b', 'c']),
+          df1,
+          df2)
+
   def test_series_getitem(self):
     s = pd.Series([x**2 for x in range(10)])
-    self._run_test(lambda s: s[...], s, distributed=True)
-    self._run_test(lambda s: s[:], s, distributed=True)
-    self._run_test(lambda s: s[s < 10], s, distributed=True)
-    self._run_test(lambda s: s[lambda s: s < 10], s, distributed=True)
+    self._run_test(lambda s: s[...], s)
+    self._run_test(lambda s: s[:], s)
+    self._run_test(lambda s: s[s < 10], s)
+    self._run_test(lambda s: s[lambda s: s < 10], s)
 
     s.index = s.index.map(float)
-    self._run_test(lambda s: s[1.5:6], s, distributed=True)
+    self._run_test(lambda s: s[1.5:6], s)
 
   def test_dataframe_getitem(self):
     df = pd.DataFrame({'A': [x**2 for x in range(6)], 'B': list('abcdef')})
-    self._run_test(lambda df: df['A'], df, distributed=True)
-    self._run_test(lambda df: df[['A', 'B']], df, distributed=True)
+    self._run_test(lambda df: df['A'], df)
+    self._run_test(lambda df: df[['A', 'B']], df)
 
-    self._run_test(lambda df: df[:], df, distributed=True)
-    self._run_test(lambda df: df[df.A < 10], df, distributed=True)
+    self._run_test(lambda df: df[:], df)
+    self._run_test(lambda df: df[df.A < 10], df)
 
     df.index = df.index.map(float)
-    self._run_test(lambda df: df[1.5:4], df, distributed=True)
+    self._run_test(lambda df: df[1.5:4], df)
 
   def test_loc(self):
     dates = pd.date_range('1/1/2000', periods=8)
@@ -175,22 +292,52 @@ class DeferredFrameTest(unittest.TestCase):
     for s in [pd.Series([1, 2, 3]),
               pd.Series(range(100)),
               pd.Series([x**3 for x in range(-50, 50)])]:
-      self._run_test(lambda s: s.std(), s, distributed=True)
-      self._run_test(lambda s: s.corr(s), s, distributed=True)
-      self._run_test(lambda s: s.corr(s + 1), s, distributed=True)
-      self._run_test(lambda s: s.corr(s * s), s, distributed=True)
-      self._run_test(lambda s: s.cov(s * s), s, distributed=True)
+      self._run_test(lambda s: s.std(), s)
+      self._run_test(lambda s: s.corr(s), s)
+      self._run_test(lambda s: s.corr(s + 1), s)
+      self._run_test(lambda s: s.corr(s * s), s)
+      self._run_test(lambda s: s.cov(s * s), s)
 
   def test_dataframe_cov_corr(self):
     df = pd.DataFrame(np.random.randn(20, 3), columns=['a', 'b', 'c'])
     df.loc[df.index[:5], 'a'] = np.nan
     df.loc[df.index[5:10], 'b'] = np.nan
-    self._run_test(lambda df: df.corr().round(8), df, distributed=True)
-    self._run_test(lambda df: df.cov().round(8), df, distributed=True)
+    self._run_test(lambda df: df.corr().round(8), df)
+    self._run_test(lambda df: df.cov().round(8), df)
+    self._run_test(lambda df: df.corr(min_periods=12).round(8), df)
+    self._run_test(lambda df: df.cov(min_periods=12).round(8), df)
+    self._run_test(lambda df: df.corrwith(df.a).round(8), df)
     self._run_test(
-        lambda df: df.corr(min_periods=12).round(8), df, distributed=True)
-    self._run_test(
-        lambda df: df.cov(min_periods=12).round(8), df, distributed=True)
+        lambda df: df[['a', 'b']].corrwith(df[['b', 'c']]).round(8), df)
+
+  def test_categorical_groupby(self):
+    df = pd.DataFrame({'A': np.arange(6), 'B': list('aabbca')})
+    df['B'] = df['B'].astype(pd.CategoricalDtype(list('cab')))
+    df = df.set_index('B')
+    # TODO(BEAM-11190): These aggregations can be done in index partitions, but
+    # it will require a little more complex logic
+    with beam.dataframe.allow_non_parallel_operations():
+      self._run_test(lambda df: df.groupby(level=0).sum(), df)
+      self._run_test(lambda df: df.groupby(level=0).mean(), df)
+
+  def test_dataframe_eval_query(self):
+    df = pd.DataFrame(np.random.randn(20, 3), columns=['a', 'b', 'c'])
+    self._run_test(lambda df: df.eval('foo = a + b - c'), df)
+    self._run_test(lambda df: df.query('a > b + c'), df)
+
+    def eval_inplace(df):
+      df.eval('foo = a + b - c', inplace=True)
+      return df.foo
+
+    self._run_test(eval_inplace, df)
+
+    # Verify that attempting to access locals raises a useful error
+    deferred_df = frame_base.DeferredFrame.wrap(
+        expressions.ConstantExpression(df, df[0:0]))
+    self.assertRaises(
+        NotImplementedError, lambda: deferred_df.eval('foo = a + @b - c'))
+    self.assertRaises(
+        NotImplementedError, lambda: deferred_df.query('a > @b + c'))
 
 
 class AllowNonParallelTest(unittest.TestCase):

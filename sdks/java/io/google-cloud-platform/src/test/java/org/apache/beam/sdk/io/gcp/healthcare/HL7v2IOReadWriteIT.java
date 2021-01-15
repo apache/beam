@@ -47,7 +47,9 @@ import org.junit.runners.JUnit4;
  * with schematized data which should be output only.
  */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class HL7v2IOReadWriteIT {
 
   private transient HealthcareApiClient client;

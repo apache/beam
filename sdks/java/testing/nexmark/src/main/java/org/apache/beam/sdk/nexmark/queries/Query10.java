@@ -59,7 +59,9 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Every windowSizeSec, save all events from the last period into 2*maxWorkers log files.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class Query10 extends NexmarkQueryTransform<Done> {
   private static final Logger LOG = LoggerFactory.getLogger(Query10.class);
   private static final int NUM_SHARDS_PER_WORKER = 5;
@@ -186,7 +188,7 @@ public class Query10 extends NexmarkQueryTransform<Done> {
                   public void processElement(ProcessContext c) {
                     if (c.element().hasAnnotation("LATE")) {
                       lateCounter.inc();
-                      LOG.info("Observed late: {}", c.element());
+                      LOG.debug("Observed late: {}", c.element());
                     } else {
                       onTimeCounter.inc();
                     }
@@ -238,7 +240,7 @@ public class Query10 extends NexmarkQueryTransform<Done> {
                       }
                     }
                     String shard = c.element().getKey();
-                    LOG.info(
+                    LOG.debug(
                         String.format(
                             "%s with timestamp %s has %d actually late and %d on-time "
                                 + "elements in pane %s for window %s",
@@ -287,7 +289,7 @@ public class Query10 extends NexmarkQueryTransform<Done> {
                     String shard = c.element().getKey();
                     GcsOptions options = c.getPipelineOptions().as(GcsOptions.class);
                     OutputFile outputFile = outputFileFor(window, shard, c.pane());
-                    LOG.info(
+                    LOG.debug(
                         String.format(
                             "Writing %s with record timestamp %s, window timestamp %s, pane %s",
                             shard, c.timestamp(), window.maxTimestamp(), c.pane()));
@@ -348,7 +350,7 @@ public class Query10 extends NexmarkQueryTransform<Done> {
                       LOG.error("ERROR! Unexpected ON_TIME pane index: {}", c.pane());
                     } else {
                       GcsOptions options = c.getPipelineOptions().as(GcsOptions.class);
-                      LOG.info(
+                      LOG.debug(
                           "Index with record timestamp {}, window timestamp {}, pane {}",
                           c.timestamp(),
                           window.maxTimestamp(),

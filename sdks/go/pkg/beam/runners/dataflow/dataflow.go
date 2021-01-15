@@ -52,6 +52,7 @@ var (
 	serviceAccountEmail  = flag.String("service_account_email", "", "Service account email (optional).")
 	numWorkers           = flag.Int64("num_workers", 0, "Number of workers (optional).")
 	maxNumWorkers        = flag.Int64("max_num_workers", 0, "Maximum number of workers during scaling (optional).")
+	diskSizeGb           = flag.Int64("disk_size_gb", 0, "Size of root disk for VMs, in GB (optional).")
 	autoscalingAlgorithm = flag.String("autoscaling_algorithm", "", "Autoscaling mode to use (optional).")
 	zone                 = flag.String("zone", "", "GCP zone (optional)")
 	network              = flag.String("network", "", "GCP network (optional)")
@@ -76,6 +77,7 @@ var (
 func init() {
 	// Note that we also _ import harness/init to setup the remote execution hook.
 	beam.RegisterRunner("dataflow", Execute)
+	beam.RegisterRunner("DataflowRunner", Execute)
 
 	perf.RegisterProfCaptureHook("gcs_profile_writer", gcsRecorderHook)
 }
@@ -84,24 +86,24 @@ var unique int32
 
 // Execute runs the given pipeline on Google Cloud Dataflow. It uses the
 // default application credentials to submit the job.
-func Execute(ctx context.Context, p *beam.Pipeline) error {
+func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error) {
 	// (1) Gather job options
 
 	project := *gcpopts.Project
 	if project == "" {
-		return errors.New("no Google Cloud project specified. Use --project=<project>")
+		return nil, errors.New("no Google Cloud project specified. Use --project=<project>")
 	}
 	region := gcpopts.GetRegion(ctx)
 	if region == "" {
-		return errors.New("No Google Cloud region specified. Use --region=<region>. See https://cloud.google.com/dataflow/docs/concepts/regional-endpoints")
+		return nil, errors.New("No Google Cloud region specified. Use --region=<region>. See https://cloud.google.com/dataflow/docs/concepts/regional-endpoints")
 	}
 	if *stagingLocation == "" {
-		return errors.New("no GCS staging location specified. Use --staging_location=gs://<bucket>/<path>")
+		return nil, errors.New("no GCS staging location specified. Use --staging_location=gs://<bucket>/<path>")
 	}
 	var jobLabels map[string]string
 	if *labels != "" {
 		if err := json.Unmarshal([]byte(*labels), &jobLabels); err != nil {
-			return errors.Wrapf(err, "error reading --label flag as JSON")
+			return nil, errors.Wrapf(err, "error reading --label flag as JSON")
 		}
 	}
 
@@ -120,7 +122,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	}
 	if *autoscalingAlgorithm != "" {
 		if *autoscalingAlgorithm != "NONE" && *autoscalingAlgorithm != "THROUGHPUT_BASED" {
-			return errors.New("invalid autoscaling algorithm. Use --autoscaling_algorithm=(NONE|THROUGHPUT_BASED)")
+			return nil, errors.New("invalid autoscaling algorithm. Use --autoscaling_algorithm=(NONE|THROUGHPUT_BASED)")
 		}
 	}
 
@@ -154,6 +156,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		NoUsePublicIPs:      *noUsePublicIPs,
 		NumWorkers:          *numWorkers,
 		MaxNumWorkers:       *maxNumWorkers,
+		DiskSizeGb:          *diskSizeGb,
 		Algorithm:           *autoscalingAlgorithm,
 		MachineType:         *machineType,
 		Labels:              jobLabels,
@@ -173,15 +176,15 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 
 	edges, _, err := p.Build()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	enviroment, err := graphx.CreateEnvironment(ctx, jobopts.GetEnvironmentUrn(ctx), getContainerImage)
 	if err != nil {
-		return errors.WithContext(err, "generating model pipeline")
+		return nil, errors.WithContext(err, "generating model pipeline")
 	}
 	model, err := graphx.Marshal(edges, &graphx.Options{Environment: enviroment})
 	if err != nil {
-		return errors.WithContext(err, "generating model pipeline")
+		return nil, errors.WithContext(err, "generating model pipeline")
 	}
 
 	// NOTE(herohde) 10/8/2018: the last segment of the names must be "worker" and "dataflow-worker.jar".
@@ -197,14 +200,13 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		log.Info(ctx, proto.MarshalTextString(model))
 		job, err := dataflowlib.Translate(ctx, model, opts, workerURL, jarURL, modelURL)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		dataflowlib.PrintJob(ctx, job)
-		return nil
+		return nil, nil
 	}
 
-	_, err = dataflowlib.Execute(ctx, model, opts, workerURL, jarURL, modelURL, *endpoint, *executeAsync)
-	return err
+	return dataflowlib.Execute(ctx, model, opts, workerURL, jarURL, modelURL, *endpoint, *executeAsync)
 }
 func gcsRecorderHook(opts []string) perf.CaptureHook {
 	bucket, prefix, err := gcsx.ParseObject(opts[0])

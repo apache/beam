@@ -87,7 +87,7 @@ import org.slf4j.LoggerFactory;
  */
 @Internal
 @SuppressWarnings({
-  "rawtypes",
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class ApiSurface {
@@ -250,7 +250,10 @@ public class ApiSurface {
         return messages.isEmpty();
       }
 
-      @SuppressWarnings({"rawtypes", "unchecked"})
+      @SuppressWarnings({
+        "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+        "unchecked"
+      })
       private boolean classIsAllowed(
           final Class<?> clazz, final Set<Matcher<Class<?>>> allowedClasses) {
         // Safe cast inexpressible in Java without rawtypes

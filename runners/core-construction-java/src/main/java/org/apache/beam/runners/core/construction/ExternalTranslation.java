@@ -32,6 +32,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Translating External transforms to proto. */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class ExternalTranslation {
   public static final String EXTERNAL_TRANSFORM_URN = "beam:transform:external:v1";
 

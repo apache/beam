@@ -17,12 +17,12 @@
  */
 package org.apache.beam.sdk.util;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.isA;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 
 import java.io.IOException;
 import org.hamcrest.Description;
@@ -37,7 +37,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link UserCodeException} functionality. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class UserCodeExceptionTest {
 
   @Rule public ExpectedException thrown = ExpectedException.none();

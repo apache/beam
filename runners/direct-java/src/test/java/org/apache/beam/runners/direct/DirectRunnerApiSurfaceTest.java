@@ -18,7 +18,7 @@
 package org.apache.beam.runners.direct;
 
 import static org.apache.beam.sdk.util.ApiSurface.containsOnlyPackages;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.util.Set;
 import org.apache.beam.sdk.Pipeline;
@@ -35,7 +35,9 @@ import org.junit.runners.JUnit4;
 
 /** API surface verification for {@link org.apache.beam.runners.direct}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DirectRunnerApiSurfaceTest {
   @Test
   public void testDirectRunnerApiSurface() throws Exception {
@@ -63,6 +65,7 @@ public class DirectRunnerApiSurfaceTest {
                 WatermarkManager.class /* TODO: BEAM-4237 Consider moving to local-java */)
             .pruningPattern("org[.]apache[.]beam[.].*Test.*")
             .pruningPattern("org[.]apache[.]beam[.].*IT")
+            .pruningPattern("org[.]checkerframework[.].*[.]qual[.].*")
             .pruningPattern("java[.]io.*")
             .pruningPattern("java[.]lang.*")
             .pruningPattern("java[.]util.*");

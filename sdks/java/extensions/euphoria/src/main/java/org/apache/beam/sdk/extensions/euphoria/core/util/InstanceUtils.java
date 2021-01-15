@@ -25,7 +25,9 @@ import org.apache.beam.sdk.extensions.euphoria.core.annotation.audience.Audience
  * purposes only. Should not be used in client code.
  */
 @Audience(Audience.Type.EXECUTOR)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class InstanceUtils {
 
   public static <T> T create(Class<T> cls) {

@@ -73,6 +73,7 @@ if TYPE_CHECKING:
   from apache_beam.runners.sdf_utils import SplitResultResidual
   from apache_beam.runners.worker.bundle_processor import ExecutionContext
   from apache_beam.runners.worker.statesampler import StateSampler
+  from apache_beam.transforms.userstate import TimerSpec
 
 # Allow some "pure mode" declarations.
 try:
@@ -685,7 +686,7 @@ class DoOperation(Operation):
         self.timer_specs = {
             spec.name: spec
             for spec in userstate.get_dofn_specs(fn)[1]
-        }
+        }  # type: Dict[str, TimerSpec]
 
       if self.side_input_maps is None:
         if tags_and_types:
@@ -741,7 +742,8 @@ class DoOperation(Operation):
         timer_data.user_key,
         timer_data.windows[0],
         timer_data.fire_timestamp,
-        timer_data.paneinfo)
+        timer_data.paneinfo,
+        timer_data.dynamic_timer_tag)
 
   def finish(self):
     # type: () -> None
@@ -754,6 +756,8 @@ class DoOperation(Operation):
     # type: () -> None
     with self.scoped_finish_state:
       self.dofn_runner.teardown()
+    if self.user_state_context:
+      self.user_state_context.reset()
 
   def reset(self):
     # type: () -> None
@@ -911,6 +915,13 @@ class CombineOperation(Operation):
     self.phased_combine_fn = (
         PhasedCombineFnExecutor(self.spec.phase, fn, args, kwargs))
 
+  def setup(self):
+    # type: () -> None
+    with self.scoped_start_state:
+      _LOGGER.debug('Setup called for %s', self)
+      super(CombineOperation, self).setup()
+      self.phased_combine_fn.combine_fn.setup()
+
   def process(self, o):
     # type: (WindowedValue) -> None
     with self.scoped_process_state:
@@ -922,6 +933,13 @@ class CombineOperation(Operation):
   def finish(self):
     # type: () -> None
     _LOGGER.debug('Finishing %s', self)
+
+  def teardown(self):
+    # type: () -> None
+    with self.scoped_finish_state:
+      _LOGGER.debug('Teardown called for %s', self)
+      super(CombineOperation, self).teardown()
+      self.phased_combine_fn.combine_fn.teardown()
 
 
 def create_pgbk_op(step_name, spec, counter_factory, state_sampler):
@@ -1017,6 +1035,13 @@ class PGBKCVOperation(Operation):
     self.key_count = 0
     self.table = {}
 
+  def setup(self):
+    # type: () -> None
+    with self.scoped_start_state:
+      _LOGGER.debug('Setup called for %s', self)
+      super(PGBKCVOperation, self).setup()
+      self.combine_fn.setup()
+
   def process(self, wkv):
     # type: (WindowedValue) -> None
     with self.scoped_process_state:
@@ -1058,6 +1083,13 @@ class PGBKCVOperation(Operation):
       self.output_key(wkey, value[0], value[1])
     self.table = {}
     self.key_count = 0
+
+  def teardown(self):
+    # type: () -> None
+    with self.scoped_finish_state:
+      _LOGGER.debug('Teardown called for %s', self)
+      super(PGBKCVOperation, self).teardown()
+      self.combine_fn.teardown()
 
   def output_key(self, wkey, accumulator, timestamp):
     if self.combine_fn_compact is None:

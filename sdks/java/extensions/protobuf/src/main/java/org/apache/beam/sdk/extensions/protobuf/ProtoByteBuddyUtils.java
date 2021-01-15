@@ -111,7 +111,10 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class ProtoByteBuddyUtils {
   private static final ByteBuddy BYTE_BUDDY = new ByteBuddy();
   private static final TypeDescriptor<ByteString> BYTE_STRING_TYPE_DESCRIPTOR =

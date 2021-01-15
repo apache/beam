@@ -24,7 +24,7 @@ import com.carrotsearch.ant.tasks.junit4.dependencies.com.google.common.collect.
 import com.carrotsearch.randomizedtesting.RandomizedRunner;
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
 import java.io.IOException;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Set;
 import org.apache.beam.sdk.Pipeline;
@@ -66,7 +66,10 @@ import org.slf4j.LoggerFactory;
 @ThreadLeakScope(value = ThreadLeakScope.Scope.NONE)
 @SolrTestCaseJ4.SuppressSSL
 @RunWith(RandomizedRunner.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SolrIOTest extends SolrCloudTestCase {
   private static final Logger LOG = LoggerFactory.getLogger(SolrIOTest.class);
 
@@ -109,7 +112,7 @@ public class SolrIOTest extends SolrCloudTestCase {
     ZkStateReader zkStateReader = cluster.getSolrClient().getZkStateReader();
     zkStateReader
         .getZkClient()
-        .setData("/security.json", securityJson.getBytes(Charset.defaultCharset()), true);
+        .setData("/security.json", securityJson.getBytes(StandardCharsets.UTF_8), true);
     String zkAddress = cluster.getZkServer().getZkAddress();
     connectionConfiguration =
         SolrIO.ConnectionConfiguration.create(zkAddress).withBasicCredentials("solr", password);

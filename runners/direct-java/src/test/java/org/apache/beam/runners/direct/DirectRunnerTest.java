@@ -18,12 +18,12 @@
 package org.apache.beam.runners.direct;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -106,7 +106,10 @@ import org.junit.runners.JUnit4;
 
 /** Tests for basic {@link DirectRunner} functionality. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DirectRunnerTest implements Serializable {
   @Rule public transient ExpectedException thrown = ExpectedException.none();
 

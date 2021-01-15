@@ -30,14 +30,15 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 
 /** Wrapper for 'NEXmark' query transforms that adds monitoring and snooping. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public final class NexmarkQuery<T extends KnownSize>
     extends PTransform<PCollection<Event>, PCollection<? extends TimestampedValue<T>>> {
 
   final NexmarkConfiguration configuration;
   public final Monitor<Event> eventMonitor;
   public final Monitor<T> resultMonitor;
-  private final Monitor<Event> endOfStreamMonitor;
   private final Counter fatalCounter;
   private final NexmarkQueryTransform<T> transform;
   private transient PCollection<KV<Long, String>> sideInput = null;
@@ -49,12 +50,10 @@ public final class NexmarkQuery<T extends KnownSize>
     if (configuration.debug) {
       eventMonitor = new Monitor<>(name + ".Events", "event");
       resultMonitor = new Monitor<>(name + ".Results", "result");
-      endOfStreamMonitor = new Monitor<>(name + ".EndOfStream", "end");
       fatalCounter = Metrics.counter(name, "fatal");
     } else {
       eventMonitor = null;
       resultMonitor = null;
-      endOfStreamMonitor = null;
       fatalCounter = null;
     }
   }

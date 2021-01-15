@@ -22,9 +22,9 @@ import static org.apache.beam.sdk.TestUtils.LINES2;
 import static org.apache.beam.sdk.TestUtils.LINES_ARRAY;
 import static org.apache.beam.sdk.TestUtils.NO_LINES;
 import static org.apache.beam.sdk.TestUtils.NO_LINES_ARRAY;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
-import static org.junit.Assert.assertThat;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -77,7 +77,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for Flatten. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class FlattenTest implements Serializable {
 
   @Rule public final transient TestPipeline p = TestPipeline.create();

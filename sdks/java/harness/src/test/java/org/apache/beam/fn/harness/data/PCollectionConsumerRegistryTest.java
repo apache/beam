@@ -18,9 +18,9 @@
 package org.apache.beam.fn.harness.data;
 
 import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doThrow;
@@ -52,7 +52,10 @@ import org.powermock.modules.junit4.PowerMockRunner;
 /** Tests for {@link PCollectionConsumerRegistryTest}. */
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(MetricsEnvironment.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class PCollectionConsumerRegistryTest {
 
   @Rule public ExpectedException expectedException = ExpectedException.none();

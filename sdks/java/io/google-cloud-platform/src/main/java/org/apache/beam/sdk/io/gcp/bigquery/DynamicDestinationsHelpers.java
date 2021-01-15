@@ -49,7 +49,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Contains some useful helper instances of {@link DynamicDestinations}. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class DynamicDestinationsHelpers {
   private static final Logger LOG = LoggerFactory.getLogger(DynamicDestinationsHelpers.class);
 
@@ -353,6 +355,9 @@ class DynamicDestinationsHelpers {
         do {
           try {
             BigQueryOptions bqOptions = getPipelineOptions().as(BigQueryOptions.class);
+            if (tableReference.getProjectId() == null) {
+              tableReference.setProjectId(bqOptions.getProject());
+            }
             return bqServices.getDatasetService(bqOptions).getTable(tableReference);
           } catch (InterruptedException | IOException e) {
             LOG.info("Failed to get BigQuery table " + tableReference);

@@ -39,6 +39,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
 import org.joda.time.Instant;
 
 /** The Java SDK Harness implementation of the {@link Window.Assign} primitive. */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 class AssignWindowsRunner<T, W extends BoundedWindow> {
 
   /** A registrar which provides a factory to handle Java {@link WindowFn WindowFns}. */

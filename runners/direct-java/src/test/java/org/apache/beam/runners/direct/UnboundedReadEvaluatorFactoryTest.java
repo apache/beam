@@ -22,6 +22,7 @@ import static java.util.Collections.emptySet;
 import static java.util.Collections.singletonMap;
 import static org.apache.beam.runners.direct.DirectGraphs.getProducer;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
@@ -29,7 +30,6 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -95,7 +95,11 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link UnboundedReadEvaluatorFactory}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({"keyfor", "nullness"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "keyfor",
+  "nullness"
+}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class UnboundedReadEvaluatorFactoryTest {
   private PCollection<Long> longs;
   private UnboundedReadEvaluatorFactory factory;

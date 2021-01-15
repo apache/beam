@@ -40,6 +40,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
+import org.apache.beam.runners.fnexecution.control.BundleCheckpointHandler;
 import org.apache.beam.runners.fnexecution.control.BundleFinalizationHandler;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
 import org.apache.beam.runners.fnexecution.control.ExecutableStageContext;
@@ -63,7 +64,10 @@ import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
 /** Unit tests for {@link SparkExecutableStageFunction}. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SparkExecutableStageFunctionTest {
   @Mock private SparkExecutableStageContextFactory contextFactory;
   @Mock private ExecutableStageContext stageContext;
@@ -159,7 +163,8 @@ public class SparkExecutableStageFunctionTest {
               TimerReceiverFactory timerReceiverFactory,
               StateRequestHandler stateRequestHandler,
               BundleProgressHandler progressHandler,
-              BundleFinalizationHandler finalizationHandler) {
+              BundleFinalizationHandler finalizationHandler,
+              BundleCheckpointHandler checkpointHandler) {
             return new RemoteBundle() {
               @Override
               public String getId() {

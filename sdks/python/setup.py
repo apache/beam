@@ -147,7 +147,7 @@ REQUIRED_PACKAGES = [
     'pymongo>=3.8.0,<4.0.0',
     'oauth2client>=2.0.1,<5',
     'protobuf>=3.12.2,<4',
-    'pyarrow>=0.15.1,<0.18.0',
+    'pyarrow>=0.15.1,<3.0.0',
     'pydot>=1.2.0,<2',
     'python-dateutil>=2.8.0,<3',
     'pytz>=2018.3',
@@ -165,7 +165,9 @@ REQUIRED_TEST_PACKAGES = [
     'freezegun>=0.3.12',
     'nose>=1.3.7',
     'nose_xunitmp>=0.4.1',
-    'pandas>=0.25.2,<2',
+    # TODO(BEAM-11531): Address test breakages in pandas 1.2
+    # 'pandas>=1.0,<2',
+    'pandas>=1.0,<1.2.0',
     'parameterized>=0.7.1,<0.8.0',
     'pyhamcrest>=1.9,!=1.10.0,<2.0.0',
     'pyyaml>=3.12,<6.0.0',
@@ -204,6 +206,7 @@ INTERACTIVE_BEAM = [
     'facets-overview>=1.0.0,<2',
     'ipython>=5.8.0,<8',
     'ipykernel>=5.2.0,<6',
+    'jupyter-client>=6.1.11,<7',
     'timeloop>=1.0.2,<2',
 ]
 
@@ -211,11 +214,10 @@ INTERACTIVE_BEAM_TEST = [
     # notebok utils
     'nbformat>=5.0.5,<6',
     'nbconvert>=5.6.1,<6',
-    'jupyter-client>=6.1.2,<7',
     # headless chrome based integration tests
     'selenium>=3.141.0,<4',
     'needle>=0.5.0,<1',
-    'chromedriver-binary>=86,<87',
+    'chromedriver-binary>=87,<88',
     # use a fixed major version of PIL for different python versions
     'pillow>=7.1.1,<8',
 ]

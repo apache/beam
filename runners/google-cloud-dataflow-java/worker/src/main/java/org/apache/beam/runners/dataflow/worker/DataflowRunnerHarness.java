@@ -53,7 +53,9 @@ import org.slf4j.LoggerFactory;
  * instructions (such as map tasks) from the Dataflow Service/DFE into Fn API instructions, and vice
  * versa.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DataflowRunnerHarness {
   private static final Logger LOG = LoggerFactory.getLogger(DataflowRunnerHarness.class);
 

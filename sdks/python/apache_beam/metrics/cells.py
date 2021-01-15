@@ -29,6 +29,7 @@ from __future__ import division
 import threading
 import time
 from builtins import object
+from datetime import datetime
 from typing import Any
 from typing import Optional
 from typing import SupportsInt
@@ -63,6 +64,7 @@ class MetricCell(object):
   """
   def __init__(self):
     self._lock = threading.Lock()
+    self._start_time = None
 
   def update(self, value):
     raise NotImplementedError
@@ -71,6 +73,13 @@ class MetricCell(object):
     raise NotImplementedError
 
   def to_runner_api_monitoring_info(self, name, transform_id):
+    if not self._start_time:
+      self._start_time = datetime.utcnow()
+    mi = self.to_runner_api_monitoring_info_impl(name, transform_id)
+    mi.start_time.FromDatetime(self._start_time)
+    return mi
+
+  def to_runner_api_monitoring_info_impl(self, name, transform_id):
     raise NotImplementedError
 
   def reset(self):
@@ -121,7 +130,11 @@ class CounterCell(MetricCell):
   def update(self, value):
     if cython.compiled:
       ivalue = value
-      # We hold the GIL, no need for another lock.
+      # Since We hold the GIL, no need for another lock.
+      # And because the C threads won't preempt and interleave
+      # each other.
+      # Assuming there is no code trying to access the counters
+      # directly by circumventing the GIL.
       self.value += ivalue
     else:
       with self._lock:
@@ -132,13 +145,19 @@ class CounterCell(MetricCell):
     with self._lock:
       return self.value
 
-  def to_runner_api_monitoring_info(self, name, transform_id):
+  def to_runner_api_monitoring_info_impl(self, name, transform_id):
     from apache_beam.metrics import monitoring_infos
-    return monitoring_infos.int64_user_counter(
-        name.namespace,
-        name.name,
-        self.get_cumulative(),
-        ptransform=transform_id)
+    if not name.urn:
+      # User counter case.
+      return monitoring_infos.int64_user_counter(
+          name.namespace,
+          name.name,
+          self.get_cumulative(),
+          ptransform=transform_id)
+    else:
+      # Arbitrary URN case.
+      return monitoring_infos.int64_counter(
+          name.urn, self.get_cumulative(), labels=name.labels)
 
 
 class DistributionCell(MetricCell):
@@ -191,7 +210,7 @@ class DistributionCell(MetricCell):
     with self._lock:
       return self.data.get_cumulative()
 
-  def to_runner_api_monitoring_info(self, name, transform_id):
+  def to_runner_api_monitoring_info_impl(self, name, transform_id):
     from apache_beam.metrics import monitoring_infos
     return monitoring_infos.int64_user_distribution(
         name.namespace,
@@ -241,7 +260,7 @@ class GaugeCell(MetricCell):
     with self._lock:
       return self.data.get_cumulative()
 
-  def to_runner_api_monitoring_info(self, name, transform_id):
+  def to_runner_api_monitoring_info_impl(self, name, transform_id):
     from apache_beam.metrics import monitoring_infos
     return monitoring_infos.int64_user_gauge(
         name.namespace,

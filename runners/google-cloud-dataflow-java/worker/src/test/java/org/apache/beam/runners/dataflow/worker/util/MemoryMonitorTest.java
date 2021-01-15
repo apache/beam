@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.dataflow.worker.util;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
@@ -39,7 +39,9 @@ import org.junit.runners.JUnit4;
  * Test the memory monitor will block threads when the server is in a (faked) GC thrashing state.
  */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class MemoryMonitorTest {
 
   @Rule public TemporaryFolder tempFolder = new TemporaryFolder();

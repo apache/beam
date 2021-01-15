@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.thrift;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -34,8 +33,10 @@ import org.apache.thrift.transport.TIOStreamTransport;
  *
  * @param <T> type of element handled by coder.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-class ThriftCoder<T> extends CustomCoder<T> {
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
+public class ThriftCoder<T> extends CustomCoder<T> {
 
   private final Class<T> type;
   private final TProtocolFactory protocolFactory;
@@ -55,7 +56,7 @@ class ThriftCoder<T> extends CustomCoder<T> {
    * @return ThriftCoder initialize with class to be encoded/decoded and {@link TProtocolFactory}
    *     used to encode/decode.
    */
-  static <T> ThriftCoder<T> of(Class<T> clazz, TProtocolFactory protocolFactory) {
+  public static <T> ThriftCoder<T> of(Class<T> clazz, TProtocolFactory protocolFactory) {
     return new ThriftCoder<>(clazz, protocolFactory);
   }
 
@@ -70,15 +71,13 @@ class ThriftCoder<T> extends CustomCoder<T> {
    */
   @Override
   public void encode(T value, OutputStream outStream) throws CoderException, IOException {
-    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    TProtocol protocol = protocolFactory.getProtocol(new TIOStreamTransport(baos));
+    TProtocol protocol = protocolFactory.getProtocol(new TIOStreamTransport(outStream));
     try {
       TBase<?, ?> tBase = (TBase<?, ?>) value;
       tBase.write(protocol);
     } catch (Exception te) {
       throw new CoderException("Could not write value. Error: " + te.getMessage());
     }
-    outStream.write(baos.toByteArray());
   }
 
   /**

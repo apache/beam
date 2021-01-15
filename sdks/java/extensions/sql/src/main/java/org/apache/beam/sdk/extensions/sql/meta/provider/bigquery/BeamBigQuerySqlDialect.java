@@ -48,7 +48,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 
 // TODO(CALCITE-3381): some methods below can be deleted after updating vendor Calcite version.
 // Calcite v1_20_0 does not have type translation implemented, but later (unreleased) versions do.
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BeamBigQuerySqlDialect extends BigQuerySqlDialect {
 
   public static final SqlDialect.Context DEFAULT_CONTEXT =
@@ -99,6 +101,7 @@ public class BeamBigQuerySqlDialect extends BigQuerySqlDialect {
           .put(DOUBLE_NAN_WRAPPER, "CAST('NaN' AS FLOAT64)")
           .build();
   public static final String NUMERIC_LITERAL_WRAPPER = "numeric_literal";
+  public static final String IN_ARRAY_OPERATOR = "$in_array";
 
   public BeamBigQuerySqlDialect(Context context) {
     super(context);
@@ -182,6 +185,9 @@ public class BeamBigQuerySqlDialect extends BigQuerySqlDialect {
           break;
         } else if (EXTRACT_FUNCTIONS.containsKey(funName)) {
           unparseExtractFunctions(writer, call, leftPrec, rightPrec);
+          break;
+        } else if (IN_ARRAY_OPERATOR.equals(funName)) {
+          unparseInArrayOperator(writer, call, leftPrec, rightPrec);
           break;
         } // fall through
       default:
@@ -334,6 +340,13 @@ public class BeamBigQuerySqlDialect extends BigQuerySqlDialect {
       tz.unparse(writer, leftPrec, rightPrec);
     }
     writer.endFunCall(frame);
+  }
+
+  private void unparseInArrayOperator(SqlWriter writer, SqlCall call, int leftPrec, int rightPrec) {
+    call.operand(0).unparse(writer, leftPrec, rightPrec);
+    writer.literal("IN UNNEST(");
+    call.operand(1).unparse(writer, leftPrec, rightPrec);
+    writer.literal(")");
   }
 
   private TimeUnit validate(TimeUnit timeUnit) {

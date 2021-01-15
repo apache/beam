@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.extensions.gcp.storage;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Matchers.isNull;
@@ -53,7 +53,9 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link GcsFileSystem}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class GcsFileSystemTest {
 
   @Rule public transient ExpectedException thrown = ExpectedException.none();

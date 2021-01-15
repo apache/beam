@@ -18,11 +18,11 @@
 package org.apache.beam.fn.harness.control;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables.getStackTraceAsString;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 import java.util.EnumMap;
@@ -54,7 +54,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link BeamFnControlClient}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BeamFnControlClientTest {
   private static final BeamFnApi.InstructionRequest SUCCESSFUL_REQUEST =
       BeamFnApi.InstructionRequest.newBuilder()

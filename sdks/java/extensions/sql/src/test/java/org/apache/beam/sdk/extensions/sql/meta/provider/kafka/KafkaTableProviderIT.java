@@ -17,7 +17,13 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils.beamRow2CsvLine;
+
 import com.alibaba.fastjson.JSON;
+import java.io.Serializable;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -30,15 +36,21 @@ import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.extensions.protobuf.ProtoMessageSchema;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
+import org.apache.beam.sdk.extensions.sql.meta.provider.kafka.thrift.ItThriftMessage;
+import org.apache.beam.sdk.io.thrift.ThriftCoder;
+import org.apache.beam.sdk.io.thrift.ThriftSchema;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.Validation;
+import org.apache.beam.sdk.schemas.RowMessages;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
@@ -51,49 +63,74 @@ import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.apache.commons.csv.CSVFormat;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.thrift.protocol.TBinaryProtocol;
+import org.apache.thrift.protocol.TProtocolFactory;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameter;
+import org.junit.runners.Parameterized.Parameters;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.utility.DockerImageName;
 
 /** Integration Test utility for KafkaTableProvider implementations. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-public abstract class KafkaTableProviderIT {
+@RunWith(Parameterized.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
+public class KafkaTableProviderIT {
   private static final String KAFKA_CONTAINER_VERSION = "5.5.2";
 
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
 
-  @Rule
-  public transient KafkaContainer kafka =
+  @ClassRule
+  public static final KafkaContainer KAFKA_CONTAINER =
       new KafkaContainer(
           DockerImageName.parse("confluentinc/cp-kafka").withTag(KAFKA_CONTAINER_VERSION));
 
-  protected KafkaOptions kafkaOptions;
+  private static KafkaOptions kafkaOptions;
 
-  protected static final Schema TEST_TABLE_SCHEMA =
+  private static final Schema TEST_TABLE_SCHEMA =
       Schema.builder()
-          .addNullableField("f_long", Schema.FieldType.INT64)
-          .addNullableField("f_int", Schema.FieldType.INT32)
-          .addNullableField("f_string", Schema.FieldType.STRING)
+          .addInt64Field("f_long")
+          .addInt32Field("f_int")
+          .addStringField("f_string")
           .build();
 
-  protected abstract ProducerRecord<String, byte[]> generateProducerRecord(int i);
+  @Parameters
+  public static Collection<Object[]> data() {
+    return Arrays.asList(
+        new Object[][] {
+          {new KafkaJsonObjectProvider(), "json_topic"},
+          {new KafkaAvroObjectProvider(), "avro_topic"},
+          {new KafkaProtoObjectProvider(), "proto_topic"},
+          {new KafkaCsvObjectProvider(), "csv_topic"},
+          {new KafkaThriftObjectProvider(), "thrift_topic"}
+        });
+  }
 
-  protected abstract String getPayloadFormat();
+  @Parameter public KafkaObjectProvider objectsProvider;
+
+  @Parameter(1)
+  public String topic;
 
   @Before
   public void setUp() {
     kafkaOptions = pipeline.getOptions().as(KafkaOptions.class);
-    kafkaOptions.setKafkaTopic("topic");
-    kafkaOptions.setKafkaBootstrapServerAddress(kafka.getBootstrapServers());
+    kafkaOptions.setKafkaTopic(topic);
+    kafkaOptions.setKafkaBootstrapServerAddress(KAFKA_CONTAINER.getBootstrapServers());
   }
 
   @Test
@@ -102,11 +139,11 @@ public abstract class KafkaTableProviderIT {
     Table table =
         Table.builder()
             .name("kafka_table")
-            .comment("kafka" + " table")
+            .comment("kafka table")
             .location("")
             .schema(TEST_TABLE_SCHEMA)
             .type("kafka")
-            .properties(JSON.parseObject(getKafkaPropertiesString()))
+            .properties(JSON.parseObject(objectsProvider.getKafkaPropertiesString()))
             .build();
     BeamKafkaTable kafkaTable = (BeamKafkaTable) new KafkaTableProvider().buildBeamSqlTable(table);
     produceSomeRecordsWithDelay(100, 20);
@@ -116,33 +153,22 @@ public abstract class KafkaTableProviderIT {
     Assert.assertTrue(rate2 > rate1);
   }
 
-  private String getKafkaPropertiesString() {
-    return "{ "
-        + (getPayloadFormat() == null ? "" : "\"format\" : \"" + getPayloadFormat() + "\",")
-        + "\"bootstrap.servers\" : \""
-        + kafkaOptions.getKafkaBootstrapServerAddress()
-        + "\",\"topics\":[\""
-        + kafkaOptions.getKafkaTopic()
-        + "\"] }";
-  }
-
   static final transient Map<Long, Boolean> FLAG = new ConcurrentHashMap<>();
 
   @Test
   public void testFake() throws InterruptedException {
     pipeline.getOptions().as(DirectOptions.class).setBlockOnRun(false);
     String createTableString =
-        "CREATE EXTERNAL TABLE kafka_table(\n"
-            + "f_long BIGINT, \n"
-            + "f_int INTEGER, \n"
-            + "f_string VARCHAR \n"
-            + ") \n"
-            + "TYPE 'kafka' \n"
-            + "LOCATION '"
-            + "'\n"
-            + "TBLPROPERTIES '"
-            + getKafkaPropertiesString()
-            + "'";
+        String.format(
+            "CREATE EXTERNAL TABLE kafka_table(\n"
+                + "f_long BIGINT NOT NULL, \n"
+                + "f_int INTEGER NOT NULL, \n"
+                + "f_string VARCHAR NOT NULL \n"
+                + ") \n"
+                + "TYPE 'kafka' \n"
+                + "LOCATION ''\n"
+                + "TBLPROPERTIES '%s'",
+            objectsProvider.getKafkaPropertiesString());
     TableProvider tb = new KafkaTableProvider();
     BeamSqlEnv env = BeamSqlEnv.inMemory(tb);
 
@@ -161,14 +187,14 @@ public abstract class KafkaTableProviderIT {
                     ImmutableSet.of(generateRow(0), generateRow(1), generateRow(2)))));
     queryOutput.apply(logRecords(""));
     pipeline.run();
-    TimeUnit.MILLISECONDS.sleep(3000);
+    TimeUnit.SECONDS.sleep(4);
     produceSomeRecords(3);
 
     for (int i = 0; i < 200; i++) {
       if (FLAG.getOrDefault(pipeline.getOptions().getOptionsId(), false)) {
         return;
       }
-      TimeUnit.MILLISECONDS.sleep(60);
+      TimeUnit.MILLISECONDS.sleep(90);
     }
     Assert.fail();
   }
@@ -230,7 +256,7 @@ public abstract class KafkaTableProviderIT {
     }
   }
 
-  protected Row generateRow(int i) {
+  private static Row generateRow(int i) {
     return Row.withSchema(TEST_TABLE_SCHEMA).addValues((long) i, i % 3 + 1, "value" + i).build();
   }
 
@@ -241,7 +267,7 @@ public abstract class KafkaTableProviderIT {
         .limit(num)
         .forEach(
             i -> {
-              ProducerRecord<String, byte[]> record = generateProducerRecord(i);
+              ProducerRecord<String, byte[]> record = objectsProvider.generateProducerRecord(i);
               producer.send(record);
             });
     producer.flush();
@@ -255,7 +281,7 @@ public abstract class KafkaTableProviderIT {
         .limit(num)
         .forEach(
             i -> {
-              ProducerRecord<String, byte[]> record = generateProducerRecord(i);
+              ProducerRecord<String, byte[]> record = objectsProvider.generateProducerRecord(i);
               producer.send(record);
               try {
                 TimeUnit.MILLISECONDS.sleep(delayMilis);
@@ -278,6 +304,141 @@ public abstract class KafkaTableProviderIT {
     props.put("retries", 0);
     props.put("linger.ms", 1);
     return props;
+  }
+
+  private abstract static class KafkaObjectProvider implements Serializable {
+
+    protected abstract ProducerRecord<String, byte[]> generateProducerRecord(int i);
+
+    protected abstract String getPayloadFormat();
+
+    protected String getKafkaPropertiesString() {
+      return "{ "
+          + (getPayloadFormat() == null ? "" : "\"format\" : \"" + getPayloadFormat() + "\",")
+          + "\"bootstrap.servers\" : \""
+          + kafkaOptions.getKafkaBootstrapServerAddress()
+          + "\",\"topics\":[\""
+          + kafkaOptions.getKafkaTopic()
+          + "\"] }";
+    }
+  }
+
+  private static class KafkaJsonObjectProvider extends KafkaObjectProvider {
+    @Override
+    protected ProducerRecord<String, byte[]> generateProducerRecord(int i) {
+      return new ProducerRecord<>(
+          kafkaOptions.getKafkaTopic(), "k" + i, createJson(i).getBytes(UTF_8));
+    }
+
+    @Override
+    protected String getPayloadFormat() {
+      return "json";
+    }
+
+    private String createJson(int i) {
+      return String.format(
+          "{\"f_long\": %s, \"f_int\": %s, \"f_string\": \"%s\"}", i, i % 3 + 1, "value" + i);
+    }
+  }
+
+  private static class KafkaProtoObjectProvider extends KafkaObjectProvider {
+    private final SimpleFunction<Row, byte[]> toBytesFn =
+        ProtoMessageSchema.getRowToProtoBytesFn(KafkaMessages.ItMessage.class);
+
+    @Override
+    protected ProducerRecord<String, byte[]> generateProducerRecord(int i) {
+      return new ProducerRecord<>(
+          kafkaOptions.getKafkaTopic(), "k" + i, toBytesFn.apply(generateRow(i)));
+    }
+
+    @Override
+    protected String getPayloadFormat() {
+      return "proto";
+    }
+
+    @Override
+    protected String getKafkaPropertiesString() {
+      return "{ "
+          + "\"format\" : \"proto\","
+          + "\"bootstrap.servers\" : \""
+          + kafkaOptions.getKafkaBootstrapServerAddress()
+          + "\",\"topics\":[\""
+          + kafkaOptions.getKafkaTopic()
+          + "\"],"
+          + "\"protoClass\": \""
+          + KafkaMessages.ItMessage.class.getName()
+          + "\"}";
+    }
+  }
+
+  private static class KafkaCsvObjectProvider extends KafkaObjectProvider {
+
+    @Override
+    protected ProducerRecord<String, byte[]> generateProducerRecord(int i) {
+      return new ProducerRecord<>(
+          kafkaOptions.getKafkaTopic(),
+          "k" + i,
+          beamRow2CsvLine(generateRow(i), CSVFormat.DEFAULT).getBytes(UTF_8));
+    }
+
+    @Override
+    protected String getPayloadFormat() {
+      return null;
+    }
+  }
+
+  private static class KafkaAvroObjectProvider extends KafkaObjectProvider {
+
+    private final SimpleFunction<Row, byte[]> toBytesFn =
+        AvroUtils.getRowToAvroBytesFunction(TEST_TABLE_SCHEMA);
+
+    @Override
+    protected ProducerRecord<String, byte[]> generateProducerRecord(int i) {
+      return new ProducerRecord<>(
+          kafkaOptions.getKafkaTopic(), "k" + i, toBytesFn.apply(generateRow(i)));
+    }
+
+    @Override
+    protected String getPayloadFormat() {
+      return "avro";
+    }
+  }
+
+  private static class KafkaThriftObjectProvider extends KafkaObjectProvider {
+    private final Class<ItThriftMessage> thriftClass = ItThriftMessage.class;
+    private final TProtocolFactory protocolFactory = new TBinaryProtocol.Factory();
+    private final SimpleFunction<Row, byte[]> toBytesFn =
+        RowMessages.rowToBytesFn(
+            ThriftSchema.provider(),
+            TypeDescriptor.of(thriftClass),
+            ThriftCoder.of(thriftClass, protocolFactory));
+
+    @Override
+    protected ProducerRecord<String, byte[]> generateProducerRecord(int i) {
+      return new ProducerRecord<>(
+          kafkaOptions.getKafkaTopic(), "k" + i, toBytesFn.apply(generateRow(i)));
+    }
+
+    @Override
+    protected String getKafkaPropertiesString() {
+      return "{ "
+          + "\"format\" : \"thrift\","
+          + "\"bootstrap.servers\" : \""
+          + kafkaOptions.getKafkaBootstrapServerAddress()
+          + "\",\"topics\":[\""
+          + kafkaOptions.getKafkaTopic()
+          + "\"],"
+          + "\"thriftClass\": \""
+          + thriftClass.getName()
+          + "\", \"thriftProtocolFactoryClass\": \""
+          + protocolFactory.getClass().getName()
+          + "\"}";
+    }
+
+    @Override
+    protected String getPayloadFormat() {
+      return "thrift";
+    }
   }
 
   /** Pipeline options specific for this test. */

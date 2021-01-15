@@ -179,7 +179,9 @@ import org.joda.time.Duration;
  * <p>For backwards compatibility, {@link TextIO} also supports the legacy {@link
  * DynamicDestinations} interface for advanced features via {@link Write#to(DynamicDestinations)}.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class TextIO {
   private static final long DEFAULT_BUNDLE_SIZE_BYTES = 64 * 1024 * 1024L;
 
@@ -350,9 +352,9 @@ public class TextIO {
     /**
      * See {@link MatchConfiguration#continuously}.
      *
-     * <p>This works only in runners supporting {@link Kind#SPLITTABLE_DO_FN}.
+     * <p>This works only in runners supporting splittable {@link
+     * org.apache.beam.sdk.transforms.DoFn}.
      */
-    @Experimental(Kind.SPLITTABLE_DO_FN)
     public Read watchForNewFiles(
         Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {
       return withMatchConfiguration(
@@ -495,7 +497,6 @@ public class TextIO {
     }
 
     /** Same as {@link Read#watchForNewFiles(Duration, TerminationCondition)}. */
-    @Experimental(Kind.SPLITTABLE_DO_FN)
     public ReadAll watchForNewFiles(
         Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {
       return withMatchConfiguration(

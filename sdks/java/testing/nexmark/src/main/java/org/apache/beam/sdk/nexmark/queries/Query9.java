@@ -27,7 +27,9 @@ import org.apache.beam.sdk.values.PCollection;
  * Query "9", 'Winning bids'. Select just the winning bids. Not in original NEXMark suite, but handy
  * for testing. See {@link WinningBids} for the details.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class Query9 extends NexmarkQueryTransform<AuctionBid> {
   private final NexmarkConfiguration configuration;
 

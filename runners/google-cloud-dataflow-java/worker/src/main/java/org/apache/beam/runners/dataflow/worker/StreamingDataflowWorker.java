@@ -54,6 +54,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadFactory;
@@ -138,6 +139,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Cache;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.EvictingQueue;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
@@ -153,7 +156,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Implements a Streaming Dataflow worker. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class StreamingDataflowWorker {
 
   private static final Logger LOG = LoggerFactory.getLogger(StreamingDataflowWorker.class);
@@ -394,8 +400,11 @@ public class StreamingDataflowWorker {
       new WeightedBoundedQueue<>(
           MAX_COMMIT_QUEUE_BYTES, commit -> Math.min(MAX_COMMIT_QUEUE_BYTES, commit.getSize()));
 
-  // Map of tokens to commit callbacks.
-  private final ConcurrentMap<Long, Runnable> commitCallbacks = new ConcurrentHashMap<>();
+  // Cache of tokens to commit callbacks.
+  // Using Cache with time eviction policy helps us to prevent memory leak when callback ids are
+  // discarded by Dataflow service and calling commitCallback is best-effort.
+  private final Cache<Long, Runnable> commitCallbacks =
+      CacheBuilder.newBuilder().expireAfterWrite(5L, TimeUnit.MINUTES).build();
 
   // Map of user state names to system state names.
   // TODO(drieber): obsolete stateNameMap. Use transformUserNameToStateFamily in
@@ -464,7 +473,7 @@ public class StreamingDataflowWorker {
   private final EvictingQueue<String> pendingFailuresToReport =
       EvictingQueue.<String>create(MAX_FAILURES_TO_REPORT_IN_UPDATE);
 
-  private final ReaderCache readerCache = new ReaderCache();
+  private final ReaderCache readerCache;
 
   private final WorkUnitClient workUnitClient;
   private final CompletableFuture<Void> isDoneFuture;
@@ -594,6 +603,10 @@ public class StreamingDataflowWorker {
       HotKeyLogger hotKeyLogger)
       throws IOException {
     this.stateCache = new WindmillStateCache(options.getWorkerCacheMb());
+    this.readerCache =
+        new ReaderCache(
+            Duration.standardSeconds(options.getReaderCacheTimeoutSec()),
+            Executors.newCachedThreadPool());
     this.mapTaskExecutorFactory = mapTaskExecutorFactory;
     this.workUnitClient = workUnitClient;
     this.options = options;
@@ -1123,7 +1136,8 @@ public class StreamingDataflowWorker {
 
     @Override
     public String toString() {
-      return String.format("%s-%d", TextFormat.escapeBytes(key()), shardingKey());
+      return String.format(
+          "%016x-%s", shardingKey(), TextFormat.escapeBytes(key().substring(0, 100)));
     }
   }
 
@@ -1197,12 +1211,13 @@ public class StreamingDataflowWorker {
 
   private void callFinalizeCallbacks(Windmill.WorkItem work) {
     for (Long callbackId : work.getSourceState().getFinalizeIdsList()) {
-      final Runnable callback = commitCallbacks.remove(callbackId);
+      final Runnable callback = commitCallbacks.getIfPresent(callbackId);
       // NOTE: It is possible the same callback id may be removed twice if
       // windmill restarts.
       // TODO: It is also possible for an earlier finalized id to be lost.
       // We should automatically discard all older callbacks for the same computation and key.
       if (callback != null) {
+        commitCallbacks.invalidate(callbackId);
         workUnitExecutor.forceExecute(
             () -> {
               try {
@@ -1235,8 +1250,14 @@ public class StreamingDataflowWorker {
     final String computationId = computationState.getComputationId();
     final ByteString key = workItem.getKey();
     work.setState(State.PROCESSING);
-    DataflowWorkerLoggingMDC.setWorkId(
-        TextFormat.escapeBytes(key) + "-" + Long.toString(workItem.getWorkToken()));
+    {
+      StringBuilder workIdBuilder = new StringBuilder(33);
+      workIdBuilder.append(Long.toHexString(workItem.getShardingKey()));
+      workIdBuilder.append('-');
+      workIdBuilder.append(Long.toHexString(workItem.getWorkToken()));
+      DataflowWorkerLoggingMDC.setWorkId(workIdBuilder.toString());
+    }
+
     DataflowWorkerLoggingMDC.setStageName(computationId);
     LOG.debug("Starting processing for {}:\n{}", computationId, work);
 
@@ -1606,6 +1627,9 @@ public class StreamingDataflowWorker {
         request,
         (Windmill.CommitStatus status) -> {
           if (status != Windmill.CommitStatus.OK) {
+            readerCache.invalidateReader(
+                WindmillComputationKey.create(
+                    state.computationId, request.getKey(), request.getShardingKey()));
             stateCache
                 .forComputation(state.computationId)
                 .invalidate(request.getKey(), request.getShardingKey());
@@ -2251,20 +2275,28 @@ public class StreamingDataflowWorker {
       Work nextWork;
       synchronized (activeWork) {
         Queue<Work> queue = activeWork.get(shardedKey);
-        Preconditions.checkNotNull(queue);
+        if (queue == null) {
+          // Work may have been completed due to clearing of stuck commits.
+          LOG.warn(
+              "Unable to complete inactive work for key {} and token {}.", shardedKey, workToken);
+          return;
+        }
         Work completedWork = queue.peek();
-        // avoid Preconditions.checkNotNull and checkState here to prevent eagerly evaluating the
+        // avoid Preconditions.checkState here to prevent eagerly evaluating the
         // format string parameters for the error message.
         if (completedWork == null) {
-          throw new NullPointerException(
-              String.format(
-                  "No active state for key %s, expected token %s", shardedKey, workToken));
-        }
-        if (completedWork.getWorkItem().getWorkToken() != workToken) {
           throw new IllegalStateException(
               String.format(
-                  "Token mismatch for key %s: %s and %s",
-                  shardedKey, completedWork.getWorkItem().getWorkToken(), workToken));
+                  "Active key %s without work, expected token %d", shardedKey, workToken));
+        }
+        if (completedWork.getWorkItem().getWorkToken() != workToken) {
+          // Work may have been completed due to clearing of stuck commits.
+          LOG.warn(
+              "Unable to complete due to token mismatch for key {} and token {}, actual token was {}.",
+              shardedKey,
+              workToken,
+              completedWork.getWorkItem().getWorkToken());
+          return;
         }
         queue.remove(); // We consumed the matching work item.
         nextWork = queue.peek();
@@ -2288,8 +2320,9 @@ public class StreamingDataflowWorker {
           if (work.getState() == State.COMMITTING
               && work.getStateStartTime().isBefore(stuckCommitDeadline)) {
             LOG.error(
-                "Detected key with sharding key {} stuck in COMMITTING state, completing it with error.",
-                work.workItem.getShardingKey());
+                "Detected key with sharding key 0x{} stuck in COMMITTING state since {}, completing it with error.",
+                shardedKey,
+                work.getStateStartTime());
             stuckCommits.put(shardedKey, work.getWorkItem().getWorkToken());
           }
         }

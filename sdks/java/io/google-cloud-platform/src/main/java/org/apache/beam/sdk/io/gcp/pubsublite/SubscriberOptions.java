@@ -17,50 +17,48 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsublite;
 
+import com.google.api.gax.rpc.ApiException;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.pubsublite.Partition;
 import com.google.cloud.pubsublite.PartitionLookupUtils;
 import com.google.cloud.pubsublite.SubscriptionPath;
 import com.google.cloud.pubsublite.cloudpubsub.FlowControlSettings;
+import com.google.cloud.pubsublite.internal.CursorClient;
+import com.google.cloud.pubsublite.internal.CursorClientSettings;
 import com.google.cloud.pubsublite.internal.wire.Committer;
 import com.google.cloud.pubsublite.internal.wire.CommitterBuilder;
 import com.google.cloud.pubsublite.internal.wire.PubsubContext;
 import com.google.cloud.pubsublite.internal.wire.PubsubContext.Framework;
 import com.google.cloud.pubsublite.internal.wire.SubscriberBuilder;
 import com.google.cloud.pubsublite.internal.wire.SubscriberFactory;
-import com.google.cloud.pubsublite.proto.CursorServiceGrpc.CursorServiceStub;
-import com.google.cloud.pubsublite.proto.SubscriberServiceGrpc.SubscriberServiceStub;
-import io.grpc.StatusException;
 import java.io.Serializable;
-import java.util.Map;
 import java.util.Set;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/** Options needed for a Pub/Sub Lite Subscriber. */
 @AutoValue
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public abstract class SubscriberOptions implements Serializable {
   private static final long serialVersionUID = 269598118L;
 
   private static final Framework FRAMEWORK = Framework.of("BEAM");
 
-  // Required parameters.
-  abstract SubscriptionPath subscriptionPath();
+  private static final long MEBIBYTE = 1L << 20;
 
-  abstract FlowControlSettings flowControlSettings();
+  public static final FlowControlSettings DEFAULT_FLOW_CONTROL =
+      FlowControlSettings.builder()
+          .setMessagesOutstanding(Long.MAX_VALUE)
+          .setBytesOutstanding(100 * MEBIBYTE)
+          .build();
+
+  // Required parameters.
+  public abstract SubscriptionPath subscriptionPath();
 
   // Optional parameters.
+  /** Per-partition flow control parameters for this subscription. */
+  public abstract FlowControlSettings flowControlSettings();
+
   /** A set of partitions. If empty, retrieve the set of partitions using an admin client. */
-  abstract Set<Partition> partitions();
-
-  /** A supplier for the subscriber stub to be used. */
-  abstract @Nullable SerializableSupplier<SubscriberServiceStub> subscriberStubSupplier();
-
-  /** A supplier for the cursor service stub to be used. */
-  abstract @Nullable SerializableSupplier<CursorServiceStub> committerStubSupplier();
+  public abstract Set<Partition> partitions();
 
   /**
    * A factory to override subscriber creation entirely and delegate to another method. Primarily
@@ -74,53 +72,74 @@ public abstract class SubscriberOptions implements Serializable {
    */
   abstract @Nullable SerializableSupplier<Committer> committerSupplier();
 
+  /**
+   * A supplier to override topic backlog reader creation entirely and delegate to another method.
+   * Primarily useful for testing.
+   */
+  abstract @Nullable SerializableSupplier<TopicBacklogReader> backlogReaderSupplier();
+
+  /**
+   * A supplier to override offset reader creation entirely and delegate to another method.
+   * Primarily useful for testing.
+   */
+  abstract @Nullable SerializableSupplier<InitialOffsetReader> offsetReaderSupplier();
+
   public static Builder newBuilder() {
     Builder builder = new AutoValue_SubscriberOptions.Builder();
-    return builder.setPartitions(ImmutableSet.of());
+    return builder.setPartitions(ImmutableSet.of()).setFlowControlSettings(DEFAULT_FLOW_CONTROL);
   }
 
   public abstract Builder toBuilder();
 
-  @SuppressWarnings("CheckReturnValue")
-  Map<Partition, SubscriberFactory> getSubscriberFactories() {
-    ImmutableMap.Builder<Partition, SubscriberFactory> factories = ImmutableMap.builder();
-    for (Partition partition : partitions()) {
-      factories.put(
-          partition,
-          Optional.fromNullable(subscriberFactory())
-              .or(
-                  consumer -> {
-                    SubscriberBuilder.Builder builder = SubscriberBuilder.newBuilder();
-                    builder.setMessageConsumer(consumer);
-                    builder.setSubscriptionPath(subscriptionPath());
-                    builder.setPartition(partition);
-                    builder.setContext(PubsubContext.of(FRAMEWORK));
-                    if (subscriberStubSupplier() != null) {
-                      builder.setSubscriberServiceStub(subscriberStubSupplier().get());
-                    }
-                    return builder.build();
-                  }));
+  SubscriberFactory getSubscriberFactory(Partition partition) {
+    SubscriberFactory factory = subscriberFactory();
+    if (factory != null) {
+      return factory;
     }
-    return factories.build();
+    return consumer ->
+        SubscriberBuilder.newBuilder()
+            .setMessageConsumer(consumer)
+            .setSubscriptionPath(subscriptionPath())
+            .setPartition(partition)
+            .setContext(PubsubContext.of(FRAMEWORK))
+            .build();
   }
 
-  @SuppressWarnings("CheckReturnValue")
-  Map<Partition, Committer> getCommitters() throws StatusException {
-    ImmutableMap.Builder<Partition, Committer> committers = ImmutableMap.builder();
-    for (Partition partition : partitions()) {
-      if (committerSupplier() != null) {
-        committers.put(partition, committerSupplier().get());
-      } else {
-        CommitterBuilder.Builder builder = CommitterBuilder.newBuilder();
-        builder.setSubscriptionPath(subscriptionPath());
-        builder.setPartition(partition);
-        if (committerStubSupplier() != null) {
-          builder.setCursorStub(committerStubSupplier().get());
-        }
-        committers.put(partition, builder.build());
-      }
+  Committer getCommitter(Partition partition) {
+    SerializableSupplier<Committer> supplier = committerSupplier();
+    if (supplier != null) {
+      return supplier.get();
     }
-    return committers.build();
+    return CommitterBuilder.newBuilder()
+        .setSubscriptionPath(subscriptionPath())
+        .setPartition(partition)
+        .build();
+  }
+
+  TopicBacklogReader getBacklogReader(Partition partition) {
+    SerializableSupplier<TopicBacklogReader> supplier = backlogReaderSupplier();
+    if (supplier != null) {
+      return supplier.get();
+    }
+    return TopicBacklogReaderSettings.newBuilder()
+        .setTopicPathFromSubscriptionPath(subscriptionPath())
+        .setPartition(partition)
+        .build()
+        .instantiate();
+  }
+
+  InitialOffsetReader getInitialOffsetReader(Partition partition) {
+    SerializableSupplier<InitialOffsetReader> supplier = offsetReaderSupplier();
+    if (supplier != null) {
+      return supplier.get();
+    }
+    return new InitialOffsetReaderImpl(
+        CursorClient.create(
+            CursorClientSettings.newBuilder()
+                .setRegion(subscriptionPath().location().region())
+                .build()),
+        subscriptionPath(),
+        partition);
   }
 
   @AutoValue.Builder
@@ -128,35 +147,44 @@ public abstract class SubscriberOptions implements Serializable {
     // Required parameters.
     public abstract Builder setSubscriptionPath(SubscriptionPath path);
 
+    // Optional parameters
     public abstract Builder setPartitions(Set<Partition> partitions);
 
     public abstract Builder setFlowControlSettings(FlowControlSettings flowControlSettings);
 
-    // Optional parameters.
-    public abstract Builder setSubscriberStubSupplier(
-        SerializableSupplier<SubscriberServiceStub> stubSupplier);
-
-    public abstract Builder setCommitterStubSupplier(
-        SerializableSupplier<CursorServiceStub> stubSupplier);
-
+    // Used in unit tests
     abstract Builder setSubscriberFactory(SubscriberFactory subscriberFactory);
 
     abstract Builder setCommitterSupplier(SerializableSupplier<Committer> committerSupplier);
 
+    abstract Builder setBacklogReaderSupplier(
+        SerializableSupplier<TopicBacklogReader> backlogReaderSupplier);
+
+    abstract Builder setOffsetReaderSupplier(
+        SerializableSupplier<InitialOffsetReader> offsetReaderSupplier);
+
+    // Used for implementing build();
+    abstract SubscriptionPath subscriptionPath();
+
+    abstract Set<Partition> partitions();
+
     abstract SubscriberOptions autoBuild();
 
-    public SubscriberOptions build() throws StatusException {
-      SubscriberOptions built = autoBuild();
-      if (!built.partitions().isEmpty()) {
-        return built;
+    @SuppressWarnings("CheckReturnValue")
+    public SubscriberOptions build() throws ApiException {
+      if (!partitions().isEmpty()) {
+        return autoBuild();
       }
-      int partitionCount = PartitionLookupUtils.numPartitions(built.subscriptionPath());
-      SubscriberOptions.Builder builder = built.toBuilder();
-      ImmutableSet.Builder<Partition> partitions = ImmutableSet.builder();
-      for (int i = 0; i < partitionCount; i++) {
-        partitions.add(Partition.of(i));
+
+      if (partitions().isEmpty()) {
+        int partitionCount = PartitionLookupUtils.numPartitions(subscriptionPath());
+        ImmutableSet.Builder<Partition> partitions = ImmutableSet.builder();
+        for (int i = 0; i < partitionCount; i++) {
+          partitions.add(Partition.of(i));
+        }
+        setPartitions(partitions.build());
       }
-      return builder.setPartitions(partitions.build()).autoBuild();
+      return autoBuild();
     }
   }
 }

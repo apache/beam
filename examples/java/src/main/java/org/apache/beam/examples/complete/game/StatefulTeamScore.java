@@ -76,7 +76,9 @@ import org.joda.time.Instant;
  * <p>The BigQuery dataset you specify must already exist. The PubSub topic you specify should be
  * the same topic to which the Injector is publishing.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class StatefulTeamScore extends LeaderBoard {
 
   /** Options supported by {@link StatefulTeamScore}. */

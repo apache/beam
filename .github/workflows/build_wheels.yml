@@ -105,7 +105,7 @@ jobs:
     if: needs.check_gcp_variables.outputs.gcp-variables-set == 'true' && github.event_name != 'pull_request'
     steps:
       - name: Authenticate on GCP
-        uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
+        uses: google-github-actions/setup-gcloud@master
         with:
           service_account_email: ${{ secrets.GCP_SA_EMAIL }}
           service_account_key: ${{ secrets.GCP_SA_KEY }}
@@ -126,7 +126,7 @@ jobs:
           name: source_zip
           path: source/
       - name: Authenticate on GCP
-        uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
+        uses: google-github-actions/setup-gcloud@master
         with:
           service_account_email: ${{ secrets.GCP_SA_EMAIL }}
           service_account_key: ${{ secrets.GCP_SA_KEY }}
@@ -196,7 +196,7 @@ jobs:
         name: wheelhouse-${{ matrix.os }}
         path: wheelhouse/
     - name: Authenticate on GCP
-      uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
+      uses: google-github-actions/setup-gcloud@master
       with:
         service_account_email: ${{ secrets.GCP_SA_EMAIL }}
         service_account_key: ${{ secrets.GCP_SA_KEY }}
@@ -232,7 +232,7 @@ jobs:
     if: needs.check_gcp_variables.outputs.gcp-variables-set == 'true' && github.event_name != 'pull_request'
     steps:
     - name: Authenticate on GCP
-      uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
+      uses: google-github-actions/setup-gcloud@master
       with:
         service_account_email: ${{ secrets.GCP_SA_EMAIL }}
         service_account_key: ${{ secrets.GCP_SA_KEY }}
@@ -256,7 +256,7 @@ jobs:
           echo "Tagging ${BRANCH_NAME}"
           git tag -f nightly-${BRANCH_NAME} HEAD
       - name: Push tags
-        uses: ad-m/github-push-action@master
+        uses: apache/airflow-github-push-action@b007e7b818e33b04afd056e4c4b57ba917145d7a
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           tags: true

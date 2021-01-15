@@ -455,7 +455,9 @@ import org.slf4j.LoggerFactory;
  * <p>Please see <a href="https://cloud.google.com/bigquery/access-control">BigQuery Access Control
  * </a> for security and permission related information specific to BigQuery.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BigQueryIO {
 
   /**
@@ -1934,6 +1936,8 @@ public class BigQueryIO {
     /**
      * An enumeration type for the BigQuery schema update options strings.
      *
+     * <p>Not supported for {@link Method#STREAMING_INSERTS}.
+     *
      * <p>Note from the BigQuery API doc -- Schema update options are supported in two cases: when
      * writeDisposition is WRITE_APPEND; when writeDisposition is WRITE_TRUNCATE and the destination
      * table is a partition of a table, specified by partition decorators.
@@ -2178,7 +2182,12 @@ public class BigQueryIO {
       return toBuilder().setWriteDisposition(writeDisposition).build();
     }
 
-    /** Allows the schema of the destination table to be updated as a side effect of the write. */
+    /**
+     * Allows the schema of the destination table to be updated as a side effect of the write.
+     *
+     * <p>This configuration applies only when writing to BigQuery with {@link Method#FILE_LOADS} as
+     * method.
+     */
     public Write<T> withSchemaUpdateOptions(Set<SchemaUpdateOption> schemaUpdateOptions) {
       checkArgument(schemaUpdateOptions != null, "schemaUpdateOptions can not be null");
       return toBuilder().setSchemaUpdateOptions(schemaUpdateOptions).build();
@@ -2652,6 +2661,9 @@ public class BigQueryIO {
         checkArgument(
             rowWriterFactory.getOutputType() == RowWriterFactory.OutputType.JsonTableRow,
             "Avro output is not supported when method == STREAMING_INSERTS");
+        checkArgument(
+            getSchemaUpdateOptions() == null || getSchemaUpdateOptions().isEmpty(),
+            "SchemaUpdateOptions are not supported when method == STREAMING_INSERTS");
 
         RowWriterFactory.TableRowWriterFactory<ElementT, DestinationT> tableRowWriterFactory =
             (RowWriterFactory.TableRowWriterFactory<ElementT, DestinationT>) rowWriterFactory;

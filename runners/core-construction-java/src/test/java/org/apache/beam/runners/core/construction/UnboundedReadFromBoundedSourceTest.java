@@ -72,7 +72,9 @@ import org.junit.runners.JUnit4;
 
 /** Unit tests for {@link UnboundedReadFromBoundedSource}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class UnboundedReadFromBoundedSourceTest {
 
   @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();

@@ -46,7 +46,9 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.flink.api.java.functions.KeySelector;
 
 /** Flink operator for executing window {@link DoFn DoFns}. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class WindowDoFnOperator<K, InputT, OutputT>
     extends DoFnOperator<KeyedWorkItem<K, InputT>, KV<K, OutputT>> {
 

@@ -20,9 +20,9 @@ package org.apache.beam.runners.core.metrics;
 import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAttemptedOnlyMetricResults;
 import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asMetricResults;
 import static org.apache.beam.sdk.metrics.MetricResultsMatchers.metricsResult;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasItem;
-import static org.junit.Assert.assertThat;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -50,7 +50,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Tests for {@link MetricsContainerStepMap}. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class MetricsContainerStepMapTest {
   private static final Logger LOG = LoggerFactory.getLogger(MetricsContainerStepMapTest.class);
 

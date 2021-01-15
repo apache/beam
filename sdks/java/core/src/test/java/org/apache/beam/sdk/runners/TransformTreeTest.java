@@ -17,11 +17,11 @@
  */
 package org.apache.beam.sdk.runners;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
@@ -54,7 +54,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link TransformHierarchy.Node} and {@link TransformHierarchy}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class TransformTreeTest {
 
   @Rule public final TestPipeline p = TestPipeline.create();

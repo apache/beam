@@ -17,10 +17,10 @@
  */
 package org.apache.beam.sdk.io.range;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.closeTo;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
-import static org.junit.Assert.assertThat;
 
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.Test;
@@ -34,7 +34,9 @@ import org.junit.runners.Parameterized.Parameters;
  * ByteKeyRange#estimateFractionForKey} by converting the interpolated keys back to fractions.
  */
 @RunWith(Parameterized.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ByteKeyRangeInterpolateKeyTest {
   private static final ByteKey[] TEST_KEYS = ByteKeyRangeTest.RANGE_TEST_KEYS;
 

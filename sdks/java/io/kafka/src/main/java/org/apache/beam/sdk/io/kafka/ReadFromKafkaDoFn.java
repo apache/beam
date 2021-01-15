@@ -38,6 +38,8 @@ import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgress;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators.MonotonicallyIncreasing;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Suppliers;
@@ -58,8 +60,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A SplittableDoFn which reads from {@link KafkaSourceDescriptor} and outputs {@link KafkaRecord}.
- * By default, a {@link MonotonicallyIncreasing} watermark estimator is used to track watermark.
+ * A SplittableDoFn which reads from {@link KafkaSourceDescriptor} and outputs pair of {@link
+ * KafkaSourceDescriptor} and {@link KafkaRecord}. By default, a {@link MonotonicallyIncreasing}
+ * watermark estimator is used to track watermark.
  *
  * <p>{@link ReadFromKafkaDoFn} implements the logic of reading from Kafka. The element is a {@link
  * KafkaSourceDescriptor}, and the restriction is an {@link OffsetRange} which represents record
@@ -115,8 +118,12 @@ import org.slf4j.LoggerFactory;
  * WatermarkEstimator}.
  */
 @UnboundedPerElement
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-class ReadFromKafkaDoFn<K, V> extends DoFn<KafkaSourceDescriptor, KafkaRecord<K, V>> {
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
+class ReadFromKafkaDoFn<K, V>
+    extends DoFn<KafkaSourceDescriptor, KV<KafkaSourceDescriptor, KafkaRecord<K, V>>> {
 
   ReadFromKafkaDoFn(ReadSourceDescriptors transform) {
     this.consumerConfig = transform.getConsumerConfig();
@@ -230,7 +237,7 @@ class ReadFromKafkaDoFn<K, V> extends DoFn<KafkaSourceDescriptor, KafkaRecord<K,
   @NewWatermarkEstimator
   public WatermarkEstimator<Instant> newWatermarkEstimator(
       @WatermarkEstimatorState Instant watermarkEstimatorState) {
-    return createWatermarkEstimatorFn.apply(watermarkEstimatorState);
+    return createWatermarkEstimatorFn.apply(ensureTimestampWithinBounds(watermarkEstimatorState));
   }
 
   @GetSize
@@ -267,7 +274,7 @@ class ReadFromKafkaDoFn<K, V> extends DoFn<KafkaSourceDescriptor, KafkaRecord<K,
       @Element KafkaSourceDescriptor kafkaSourceDescriptor,
       RestrictionTracker<OffsetRange, Long> tracker,
       WatermarkEstimator watermarkEstimator,
-      OutputReceiver<KafkaRecord<K, V>> receiver) {
+      OutputReceiver<KV<KafkaSourceDescriptor, KafkaRecord<K, V>>> receiver) {
     // If there is no future work, resume with max timeout and move to the next element.
     Map<String, Object> updatedConsumerConfig =
         overrideBootstrapServersConfig(consumerConfig, kafkaSourceDescriptor);
@@ -326,11 +333,11 @@ class ReadFromKafkaDoFn<K, V> extends DoFn<KafkaSourceDescriptor, KafkaRecord<K,
                     (long) ((HasProgress) tracker).getProgress().getWorkRemaining(), Instant.now());
             outputTimestamp = timestampPolicy.getTimestampForRecord(context, kafkaRecord);
             ((ManualWatermarkEstimator) watermarkEstimator)
-                .setWatermark(timestampPolicy.getWatermark(context));
+                .setWatermark(ensureTimestampWithinBounds(timestampPolicy.getWatermark(context)));
           } else {
             outputTimestamp = extractOutputTimestampFn.apply(kafkaRecord);
           }
-          receiver.outputWithTimestamp(kafkaRecord, outputTimestamp);
+          receiver.outputWithTimestamp(KV.of(kafkaSourceDescriptor, kafkaRecord), outputTimestamp);
         }
       }
     }
@@ -400,5 +407,14 @@ class ReadFromKafkaDoFn<K, V> extends DoFn<KafkaSourceDescriptor, KafkaRecord<K,
     public double getTotalSize(double numRecords) {
       return avgRecordSize.get() * numRecords / (1 + avgRecordGap.get());
     }
+  }
+
+  private static Instant ensureTimestampWithinBounds(Instant timestamp) {
+    if (timestamp.isBefore(BoundedWindow.TIMESTAMP_MIN_VALUE)) {
+      timestamp = BoundedWindow.TIMESTAMP_MIN_VALUE;
+    } else if (timestamp.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
+      timestamp = BoundedWindow.TIMESTAMP_MAX_VALUE;
+    }
+    return timestamp;
   }
 }

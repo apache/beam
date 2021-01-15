@@ -34,7 +34,9 @@ import org.slf4j.LoggerFactory;
  * <p>TODO: Handle outputting elements that are zero bytes by outputting a single byte as a marker,
  * detect on the input side that no bytes were read and force reading a single byte.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BeamFnDataSizeBasedBufferingOutboundObserver<T>
     implements BeamFnDataBufferingOutboundObserver<T> {
   private static final Logger LOG =

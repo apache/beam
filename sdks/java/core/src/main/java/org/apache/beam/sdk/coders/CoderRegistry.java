@@ -89,7 +89,9 @@ import org.slf4j.LoggerFactory;
  * <p>Note that if multiple {@link CoderProvider coder providers} can provide a {@link Coder} for a
  * given type, the precedence order above defines which {@link CoderProvider} is chosen.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class CoderRegistry {
 
   private static final Logger LOG = LoggerFactory.getLogger(CoderRegistry.class);

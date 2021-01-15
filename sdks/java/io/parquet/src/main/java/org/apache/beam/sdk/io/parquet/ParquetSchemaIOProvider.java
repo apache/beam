@@ -19,11 +19,11 @@ package org.apache.beam.sdk.io.parquet;
 
 import com.google.auto.service.AutoService;
 import java.io.Serializable;
-import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.io.SchemaIO;
 import org.apache.beam.sdk.schemas.io.SchemaIOProvider;
+import org.apache.beam.sdk.schemas.transforms.Convert;
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PBegin;
@@ -37,7 +37,9 @@ import org.apache.beam.sdk.values.Row;
  */
 @Internal
 @AutoService(SchemaIOProvider.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ParquetSchemaIOProvider implements SchemaIOProvider {
   /** Returns an id that uniquely represents this IO. */
   @Override
@@ -93,14 +95,13 @@ public class ParquetSchemaIOProvider implements SchemaIOProvider {
       return new PTransform<PBegin, PCollection<Row>>() {
         @Override
         public PCollection<Row> expand(PBegin begin) {
-          PTransform<PCollection<GenericRecord>, PCollection<Row>> readConverter =
-              GenericRecordReadConverter.builder().beamSchema(dataSchema).build();
-
           return begin
               .apply(
                   "ParquetIORead",
-                  ParquetIO.read(AvroUtils.toAvroSchema(dataSchema)).from(location))
-              .apply("GenericRecordToRow", readConverter);
+                  ParquetIO.read(AvroUtils.toAvroSchema(dataSchema))
+                      .withBeamSchemas(true)
+                      .from(location))
+              .apply("GenericRecordToRow", Convert.toRows());
         }
       };
     }

@@ -237,6 +237,8 @@ Release candidates are built from a release branch. As a final step in preparati
 
 There are 2 ways to cut a release branch: either running automation script(recommended), or running all commands manually.
 
+After following one of these processes you should manually update `CHANGES.md` on `master` by adding a new section for the next release.
+
 #### Use cut_release_branch.sh to cut a release branch
 * Script: [cut_release_branch.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/cut_release_branch.sh)
 
@@ -653,9 +655,8 @@ This pull request is against the `apache/beam` repo, on the `master` branch ([ex
 ### Blog post
 
 Write a blog post similar to [beam-2.23.0.md](https://github.com/apache/beam/commit/b976e7be0744a32e99c841ad790c54920c8737f5#diff-8b1c3fd0d4a6765c16dfd18509182f9d).
-
-- Update `CHANGES.md` by adding a new section for the next release.
 - Copy the changes for the current release from `CHANGES.md` to the blog post and edit as necessary.
+- Be sure to add yourself to [authors.yml](https://github.com/apache/beam/blob/master/website/www/site/data/authors.yml) if necessary.
 
 __Tip__: Use git log to find contributors to the releases. (e.g: `git log --pretty='%aN' ^v2.10.0 v2.11.0 | sort | uniq`).
 Make sure to clean it up, as there may be duplicate or incorrect user names.
@@ -667,7 +668,7 @@ Template:
 
 ```
 We are happy to present the new {$RELEASE_VERSION} release of Beam. This release includes both improvements and new functionality.
-See the [download page](/get-started/downloads/{$DOWNLOAD_ANCHOR}) for this release.
+See the [download page](/get-started/downloads/{$DOWNLOAD_ANCHOR}) for this release.<!--more-->
 For more information on changes in {$RELEASE_VERSION}, check out the
 [detailed release notes]({$JIRA_RELEASE_NOTES}).
 
@@ -753,6 +754,9 @@ Start the review-and-vote thread on the dev@ mailing list. Here’s an email tem
     [ ] +1, Approve the release
     [ ] -1, Do not approve the release (please provide specific comments)
 
+
+    Reviewers are encouraged to test their own use cases with the release candidate, and vote +1 if
+    no issues are found.
 
     The complete staging area is available for your review, which includes:
     * JIRA release notes [1],
@@ -1113,7 +1117,11 @@ git tag -s "$VERSION_TAG" "$RC_TAG"
 git push https://github.com/apache/beam "$VERSION_TAG"
 ```
 
-After the tag is uploaded, publish the release notes to Github, as follows:
+After pushing the tag, the tag should be visible on Github's [Tags](https://github.com/apache/beam/tags) page.
+
+### Publish release to Github
+
+Once the tag is uploaded, publish the release notes to Github, as follows:
 
 ```
 cd beam/release/src/main/scripts && ./publish_github_release_notes.sh
@@ -1121,6 +1129,7 @@ cd beam/release/src/main/scripts && ./publish_github_release_notes.sh
 
 Note this script reads the release notes from the blog post, so you should make sure to run this from master _after_ merging the blog post PR.
 
+After running the script, the release notes should be visible on Github's [Releases](https://github.com/apache/beam/releases) page.
 
 ### PMC-Only Finalization
 There are a few release finalization tasks that only PMC members have permissions to do. Ping [dev@](mailto:dev@beam.apache.org) for assistance if you need it.
@@ -1145,7 +1154,8 @@ Use reporter.apache.org to seed the information about the release into future pr
 * Source distribution available in the release repository of [dist.apache.org](https://dist.apache.org/repos/dist/release/beam/)
 * Source distribution removed from the dev repository of [dist.apache.org](https://dist.apache.org/repos/dist/dev/beam/)
 * Website pull request to [list the release](/get-started/downloads/) and publish the [API reference manual](https://beam.apache.org/releases/javadoc/) merged
-* Release tagged in the source code repository
+* The release is tagged on Github's [Tags](https://github.com/apache/beam/tags) page.
+* The release notes are published on Github's [Releases](https://github.com/apache/beam/releases) page.
 * Release version finalized in JIRA. (Note: Not all committers have administrator access to JIRA. If you end up getting permissions errors ask on the mailing list for assistance.)
 * Release version is listed at reporter.apache.org
 

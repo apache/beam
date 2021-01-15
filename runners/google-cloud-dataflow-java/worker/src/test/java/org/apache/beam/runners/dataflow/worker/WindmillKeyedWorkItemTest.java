@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -52,7 +52,9 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link WindmillKeyedWorkItem}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class WindmillKeyedWorkItemTest {
 
   private static final String STATE_FAMILY = "state";

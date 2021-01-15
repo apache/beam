@@ -17,10 +17,10 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -43,7 +43,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link WithFailures}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class WithFailuresTest implements Serializable {
 
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();

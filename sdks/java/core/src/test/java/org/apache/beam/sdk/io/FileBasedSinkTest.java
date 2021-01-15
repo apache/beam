@@ -19,11 +19,11 @@ package org.apache.beam.sdk.io;
 
 import static org.apache.beam.sdk.io.WriteFiles.UNKNOWN_SHARDNUM;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets.UTF_8;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeFalse;
@@ -73,7 +73,10 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link FileBasedSink}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class FileBasedSinkTest {
   @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
 

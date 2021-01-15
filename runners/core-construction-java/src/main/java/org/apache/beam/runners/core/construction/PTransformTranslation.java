@@ -59,7 +59,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * Utilities for converting {@link PTransform PTransforms} to {@link RunnerApi Runner API protocol
  * buffers}.
  */
-@SuppressWarnings({"nullness", "keyfor"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness",
+  "keyfor"
+}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class PTransformTranslation {
   // We specifically copy the values here so that they can be used in switch case statements
   // and we validate that the value matches the actual URN in the static block below.
@@ -73,6 +77,7 @@ public class PTransformTranslation {
   public static final String TEST_STREAM_TRANSFORM_URN = "beam:transform:teststream:v1";
   public static final String MAP_WINDOWS_TRANSFORM_URN = "beam:transform:map_windows:v1";
   public static final String MERGE_WINDOWS_TRANSFORM_URN = "beam:transform:merge_windows:v1";
+  public static final String TO_STRING_TRANSFORM_URN = "beam:transform:to_string:v1";
 
   // Required runner implemented transforms. These transforms should never specify an environment.
   public static final ImmutableSet<String> RUNNER_IMPLEMENTED_TRANSFORMS =

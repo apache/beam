@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.gcp.util;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Matchers.anyInt;
@@ -51,7 +51,9 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for LatencyRecordingHttpRequestInitializer. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class LatencyRecordingHttpRequestInitializerTest {
 
   @Rule

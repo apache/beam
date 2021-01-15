@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.direct;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
@@ -44,7 +44,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link WatermarkCallbackExecutor}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class WatermarkCallbackExecutorTest {
   private WatermarkCallbackExecutor executor =
       WatermarkCallbackExecutor.create(Executors.newSingleThreadExecutor());

@@ -30,6 +30,7 @@ import java.util.Map;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.flink.FlinkStreamingTransformTranslators.UnboundedSourceWrapperNoValueWithRecordId;
+import org.apache.beam.runners.flink.streaming.StreamSources;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.UnboundedSourceWrapper;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
@@ -52,7 +53,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Test;
 
 /** Tests for Flink streaming transform translators. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class FlinkStreamingTransformTranslatorsTest {
 
   @Test
@@ -116,7 +120,8 @@ public class FlinkStreamingTransformTranslatorsTest {
 
     UnboundedSourceWrapper source =
         (UnboundedSourceWrapper)
-            SourceTransformationCompat.getOperator(sourceTransform.getInput()).getUserFunction();
+            SourceTransformationCompat.getOperator(StreamSources.getOnlyInput(sourceTransform))
+                .getUserFunction();
 
     assertEquals(maxParallelism, source.getSplitSources().size());
   }
@@ -137,7 +142,8 @@ public class FlinkStreamingTransformTranslatorsTest {
 
     UnboundedSourceWrapper source =
         (UnboundedSourceWrapper)
-            SourceTransformationCompat.getOperator(sourceTransform.getInput()).getUserFunction();
+            SourceTransformationCompat.getOperator(StreamSources.getOnlyInput(sourceTransform))
+                .getUserFunction();
 
     assertEquals(parallelism, source.getSplitSources().size());
   }

@@ -19,10 +19,10 @@ package org.apache.beam.fn.harness.data;
 
 import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
 import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.collection.IsEmptyCollection.empty;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 import java.util.Collection;
@@ -59,7 +59,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link BeamFnDataGrpcClient}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BeamFnDataGrpcClientTest {
   private static final Coder<WindowedValue<String>> CODER =
       LengthPrefixCoder.of(

@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.fnexecution.control;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doThrow;
@@ -59,7 +59,9 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link SingleEnvironmentInstanceJobBundleFactory}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SingleEnvironmentInstanceJobBundleFactoryTest {
   @Mock private EnvironmentFactory environmentFactory;
   @Mock private InstructionRequestHandler instructionRequestHandler;

@@ -41,7 +41,9 @@ import org.slf4j.LoggerFactory;
  * them to the provided {@link org.apache.beam.model.fnexecution.v1.BeamFnApi.LogEntry} {@link
  * Consumer}.
  */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BeamFnLoggingService extends BeamFnLoggingGrpc.BeamFnLoggingImplBase
     implements BeamFnService {
   private static final Logger LOG = LoggerFactory.getLogger(BeamFnLoggingService.class);

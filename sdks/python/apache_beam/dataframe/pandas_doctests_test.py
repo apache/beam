@@ -22,6 +22,7 @@ import unittest
 import pandas as pd
 
 from apache_beam.dataframe import doctests
+from apache_beam.dataframe.pandas_top_level_functions import _is_top_level_function
 
 
 @unittest.skipIf(sys.version_info <= (3, ), 'Requires contextlib.ExitStack.')
@@ -102,14 +103,9 @@ class DoctestTest(unittest.TestCase):
                 'df.dot(s2)',
             ],
 
-            # element-wise
-            'pandas.core.frame.DataFrame.eval': ['*'],
-            'pandas.core.frame.DataFrame.explode': ['*'],
-
             # Trivially elementwise for axis=columns. Relies on global indexing
             # for axis=rows.
-            'pandas.core.frame.DataFrame.drop': ['*'],
-            'pandas.core.frame.DataFrame.rename': ['*'],
+            # Difficult to determine proxy, need to inspect function
             'pandas.core.frame.DataFrame.apply': ['*'],
 
             # In theory this is possible for bounded inputs?
@@ -238,6 +234,8 @@ class DoctestTest(unittest.TestCase):
                 'ser.groupby(["a", "b", "a", "b"]).mean()',
                 'ser.groupby(["a", "b", "a", np.nan]).mean()',
                 'ser.groupby(["a", "b", "a", np.nan], dropna=False).mean()',
+                # Grouping by a series is not supported
+                'ser.groupby(ser > 100).mean()',
             ],
             'pandas.core.series.Series.reindex': ['*'],
         },
@@ -264,7 +262,6 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.nonzero': ['*'],
             'pandas.core.series.Series.quantile': ['*'],
             'pandas.core.series.Series.pop': ['ser'],  # testing side effect
-            'pandas.core.series.Series.rename': ['*'],
             'pandas.core.series.Series.repeat': ['*'],
             'pandas.core.series.Series.replace': ['*'],
             'pandas.core.series.Series.reset_index': ['*'],
@@ -370,6 +367,73 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.indexing._LocIndexer': ['*'],
             'pandas.core.indexing._iAtIndexer': ['*'],
             'pandas.core.indexing._iLocIndexer': ['*'],
+        })
+    self.assertEqual(result.failed, 0)
+
+  def test_top_level(self):
+    tests = {
+        name: func.__doc__
+        for (name, func) in pd.__dict__.items()
+        if _is_top_level_function(func) and getattr(func, '__doc__', None)
+    }
+
+    skip_reads = {name: ['*'] for name in dir(pd) if name.startswith('read_')}
+
+    result = doctests.teststrings(
+        tests,
+        use_beam=False,
+        report=True,
+        not_implemented_ok={
+            'concat': ['pd.concat([s1, s2], ignore_index=True)'],
+            'crosstab': ['*'],
+            'cut': ['*'],
+            'eval': ['*'],
+            'factorize': ['*'],
+            'get_dummies': ['*'],
+            'infer_freq': ['*'],
+            'lreshape': ['*'],
+            'melt': ['*'],
+            'merge_asof': ['*'],
+            'pivot': ['*'],
+            'pivot_table': ['*'],
+            'qcut': ['*'],
+            'reset_option': ['*'],
+            'set_eng_float_format': ['*'],
+            'set_option': ['*'],
+            'to_datetime': ['*'],
+            'to_numeric': ['*'],
+            'to_timedelta': ['*'],
+            'unique': ['*'],
+            'value_counts': ['*'],
+            'wide_to_long': ['*'],
+        },
+        wont_implement_ok={
+            'to_datetime': ['s.head()'],
+            'to_pickle': ['*'],
+        },
+        skip={
+            # error formatting
+            'concat': ['pd.concat([df5, df6], verify_integrity=True)'],
+            # doctest DeprecationWarning
+            'melt': ['df'],
+            # Order-sensitive re-indexing.
+            'merge': [
+                "df1.merge(df2, left_on='lkey', right_on='rkey')",
+                "df1.merge(df2, left_on='lkey', right_on='rkey',\n"
+                "          suffixes=('_left', '_right'))"
+            ],
+            # Not an actual test.
+            'option_context': ['*'],
+            'factorize': ['codes', 'uniques'],
+            # Bad top-level use of un-imported function.
+            'merge_ordered': [
+                'merge_ordered(df1, df2, fill_method="ffill", left_by="group")'
+            ],
+            # Expected error.
+            'pivot': ["df.pivot(index='foo', columns='bar', values='baz')"],
+            # Never written.
+            'to_pickle': ['os.remove("./dummy.pkl")'],
+            **skip_reads
         })
     self.assertEqual(result.failed, 0)
 

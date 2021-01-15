@@ -84,8 +84,10 @@ def excluded_dependencies = [
 applyJavaNature(
         archivesBaseName: 'beam-runners-google-cloud-dataflow-java-legacy-worker',
         publish: false,
-        enableChecker:false,
-        ignoreRawtypeErrors: true,
+        classesTriggerCheckerBugs: [
+          'BatchGroupAlsoByWindowAndCombineFn': 'TODO: file a bug report',
+          'AssignWindowsParDoFnFactory': 'TODO: file a bug report',
+        ],
         exportJavadoc: false,
         enableSpotbugs: false /* TODO(BEAM-5658): enable spotbugs */,
         shadowJarValidationExcludes: [

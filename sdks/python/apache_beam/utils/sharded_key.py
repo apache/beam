@@ -52,7 +52,7 @@ class ShardedKey(object):
         self._shard_id == other._shard_id)
 
   def __hash__(self):
-    return hash((self.key, self._shard_key))
+    return hash((self.key, self._shard_id))
 
   def __reduce__(self):
     return ShardedKey, (self.key, self._shard_id)

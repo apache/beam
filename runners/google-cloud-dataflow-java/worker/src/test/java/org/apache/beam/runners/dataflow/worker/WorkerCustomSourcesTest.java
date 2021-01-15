@@ -124,7 +124,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link WorkerCustomSources}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class WorkerCustomSourcesTest {
   @Rule public ExpectedException expectedException = ExpectedException.none();
   @Rule public ExpectedLogs logged = ExpectedLogs.none(WorkerCustomSources.class);
@@ -500,11 +502,12 @@ public class WorkerCustomSourcesTest {
     CounterSet counterSet = new CounterSet();
     StreamingModeExecutionStateRegistry executionStateRegistry =
         new StreamingModeExecutionStateRegistry(null);
+    ReaderCache readerCache = new ReaderCache(Duration.standardMinutes(1), Runnable::run);
     StreamingModeExecutionContext context =
         new StreamingModeExecutionContext(
             counterSet,
             "computationId",
-            new ReaderCache(),
+            readerCache,
             /*stateNameMap=*/ ImmutableMap.of(),
             /*stateCache=*/ null,
             StreamingStepMetricsContainer.createRegistry(),
@@ -528,7 +531,8 @@ public class WorkerCustomSourcesTest {
           "key",
           Windmill.WorkItem.newBuilder()
               .setKey(ByteString.copyFromUtf8("0000000000000001")) // key is zero-padded index.
-              .setWorkToken(0) // Required proto field, unused.
+              .setWorkToken(i) // Must be increasing across activations for cache to be used.
+              .setCacheToken(1)
               .setSourceState(
                   Windmill.SourceState.newBuilder().setState(state).build()) // Source state.
               .build(),
@@ -581,7 +585,11 @@ public class WorkerCustomSourcesTest {
       assertEquals(
           1, context.getOutputBuilder().getSourceStateUpdates().getFinalizeIdsList().size());
 
-      assertNotNull(context.getCachedReader());
+      assertNotNull(
+          readerCache.acquireReader(
+              context.getComputationKey(),
+              context.getWork().getCacheToken(),
+              context.getWorkToken() + 1));
       assertEquals(7L, context.getBacklogBytes());
     }
   }

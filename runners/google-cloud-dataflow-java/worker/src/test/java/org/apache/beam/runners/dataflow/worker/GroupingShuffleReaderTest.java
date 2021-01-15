@@ -90,7 +90,10 @@ import org.junit.runners.JUnit4;
 
 /** Tests for GroupingShuffleReader. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class GroupingShuffleReaderTest {
   private static final byte[] EMPTY_BYTE_ARRAY = new byte[0];
   private static final List<KV<Integer, List<KV<Integer, Integer>>>> NO_KVS =
@@ -232,7 +235,10 @@ public class GroupingShuffleReaderTest {
         iter.getCurrent();
 
         // safe co-variant cast from Reiterable to Iterable
-        @SuppressWarnings({"rawtypes", "unchecked"})
+        @SuppressWarnings({
+          "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+          "unchecked"
+        })
         WindowedValue<KV<Integer, Iterable<KV<Integer, Integer>>>> windowedValue =
             (WindowedValue) iter.getCurrent();
         // Verify that the byte size observer is lazy for every value the GroupingShuffleReader

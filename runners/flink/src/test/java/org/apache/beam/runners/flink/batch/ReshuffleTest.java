@@ -36,7 +36,9 @@ import org.apache.flink.api.java.DataSet;
 import org.junit.Assert;
 import org.junit.Test;
 
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ReshuffleTest {
 
   private static class WithBundleIdFn extends DoFn<String, String> {

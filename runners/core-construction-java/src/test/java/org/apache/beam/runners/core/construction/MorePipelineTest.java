@@ -18,9 +18,9 @@
 package org.apache.beam.runners.core.construction;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.not;
-import static org.junit.Assert.assertThat;
 
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
@@ -48,7 +48,10 @@ import org.junit.runners.JUnit4;
 
 /** Tests for Pipeline. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class MorePipelineTest {
 
   @Rule public final TestPipeline pipeline = TestPipeline.create();

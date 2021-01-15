@@ -33,7 +33,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.FieldValueSetter;
@@ -55,13 +55,16 @@ import org.joda.time.Instant;
 import org.junit.Test;
 
 /** Tests for the {@link POJOUtils} class. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class POJOUtilsTest {
   static final DateTime DATE = DateTime.parse("1979-03-14");
   static final Instant INSTANT = DateTime.parse("1979-03-15").toInstant();
-  static final byte[] BYTE_ARRAY = "byteArray".getBytes(Charset.defaultCharset());
+  static final byte[] BYTE_ARRAY = "byteArray".getBytes(StandardCharsets.UTF_8);
   static final ByteBuffer BYTE_BUFFER =
-      ByteBuffer.wrap("byteBuffer".getBytes(Charset.defaultCharset()));
+      ByteBuffer.wrap("byteBuffer".getBytes(StandardCharsets.UTF_8));
 
   @Test
   public void testNullables() {

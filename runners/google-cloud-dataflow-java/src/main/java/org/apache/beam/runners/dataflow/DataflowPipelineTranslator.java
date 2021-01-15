@@ -120,7 +120,7 @@ import org.slf4j.LoggerFactory;
  * Dataflow Service API {@link Job}s.
  */
 @SuppressWarnings({
-  "rawtypes",
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
   "unchecked",
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
@@ -654,10 +654,6 @@ public class DataflowPipelineTranslator {
       if (value instanceof PValue) {
         PValue pvalue = (PValue) value;
         addInput(name, translator.asOutputReference(pvalue, translator.getProducer(pvalue)));
-        if (value instanceof PCollection
-            && translator.runner.doesPCollectionRequireAutoSharding((PCollection<?>) value)) {
-          addInput(PropertyNames.ALLOWS_SHARDABLE_STATE, "true");
-        }
       } else {
         throw new IllegalStateException("Input must be a PValue");
       }
@@ -695,6 +691,16 @@ public class DataflowPipelineTranslator {
      */
     private void addOutput(String name, PValue value, Coder<?> valueCoder) {
       translator.registerOutputName(value, name);
+
+      // If the output requires runner determined sharding, also append necessary input properties.
+      if (value instanceof PCollection
+          && translator.runner.doesPCollectionRequireAutoSharding((PCollection<?>) value)) {
+        addInput(PropertyNames.ALLOWS_SHARDABLE_STATE, "true");
+        // Currently we only allow auto-sharding to be enabled through the GroupIntoBatches
+        // transform. So we also add the following property which GroupIntoBatchesDoFn has, to allow
+        // the backend to perform graph optimization.
+        addInput(PropertyNames.PRESERVES_KEYS, "true");
+      }
 
       Map<String, Object> properties = getProperties();
       @Nullable List<Map<String, Object>> outputInfoList = null;

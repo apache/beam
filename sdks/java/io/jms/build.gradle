@@ -18,9 +18,8 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-  enableChecker:false,
-  ignoreRawtypeErrors:true,
-  automaticModuleName: 'org.apache.beam.sdk.io.jms')
+  automaticModuleName: 'org.apache.beam.sdk.io.jms',
+)
 
 description = "Apache Beam :: SDKs :: Java :: IO :: JMS"
 ext.summary = """IO to read and write to JMS (Java Messaging Service)

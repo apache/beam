@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.transforms.join;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -56,7 +56,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for CoGroupByKeyTest. Implements Serializable for anonymous DoFns. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class CoGroupByKeyTest implements Serializable {
 
   /**

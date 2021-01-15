@@ -27,7 +27,9 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
 
 /** A Flink function that demultiplexes output from a {@link FlinkExecutableStageFunction}. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class FlinkExecutableStagePruningFunction
     extends RichFlatMapFunction<RawUnionValue, WindowedValue<?>> {
 

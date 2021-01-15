@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.nexmark;
 
 import static org.hamcrest.CoreMatchers.hasItems;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.util.HashMap;
 import java.util.List;
@@ -31,7 +31,9 @@ import org.junit.Before;
 import org.junit.Test;
 
 /** Test class for BigQuery sinks. */
-@SuppressWarnings("nullness") // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class PerfsToBigQueryTest {
 
   private static final NexmarkQueryName QUERY = NexmarkQueryName.CURRENCY_CONVERSION;

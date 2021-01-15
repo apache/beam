@@ -19,8 +19,12 @@
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
   automaticModuleName: 'org.apache.beam.sdk',
-  enableChecker: false,
-  ignoreRawtypeErrors: true,
+  classesTriggerCheckerBugs: [
+    'DoFnTester': 'https://github.com/typetools/checker-framework/issues/3776',
+    'MergingActiveWindowSetTest': 'https://github.com/typetools/checker-framework/issues/3776',
+    'WindowFnTestUtils': 'https://github.com/typetools/checker-framework/issues/3776',
+  ],
+  checkerTooSlowOnTests: true,
   shadowClosure: {
     dependencies {
       include(dependency("org.apache.commons:.*"))
@@ -29,7 +33,8 @@ applyJavaNature(
     relocate "com.google.thirdparty", getJavaRelocatedPath("com.google.thirdparty")
     relocate "org.apache.commons", getJavaRelocatedPath("org.apache.commons")
     relocate "org.antlr.v4", getJavaRelocatedPath("org.antlr.v4")
-  }
+  },
+  disableLintWarnings: ['rawtypes'], // Avro-generated test code has rawtype errorss
 )
 applyAvroNature()
 applyAntlrNature()
@@ -44,12 +49,15 @@ interface for processing virtually any size data. This
 artifact includes entire Apache Beam Java SDK."""
 
 processResources {
+  inputs.property('version', version)
+  inputs.property('sdk_version', sdk_version)
+  inputs.property('docker_image_default_repo_root', docker_image_default_repo_root)
+  inputs.property('docker_image_default_repo_prefix', docker_image_default_repo_prefix)
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
     'pom.version': version,
     'pom.sdk_version': sdk_version,
     'pom.docker_image_default_repo_root': docker_image_default_repo_root,
     'pom.docker_image_default_repo_prefix': docker_image_default_repo_prefix,
-    'timestamp': new Date().format("yyyy-MM-dd HH:mm")
   ]
 }
 

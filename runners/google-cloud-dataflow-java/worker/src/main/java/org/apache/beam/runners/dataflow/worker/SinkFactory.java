@@ -27,6 +27,9 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Constructs a {@link Sink} from a Dataflow service {@link CloudObject} specification. */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public interface SinkFactory {
 
   /** Creates a {@link Sink} from a Dataflow API Sink definition. */
