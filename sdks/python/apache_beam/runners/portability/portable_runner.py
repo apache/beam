@@ -327,12 +327,12 @@ class PortableRunner(runner.PipelineRunner):
     # part).
     pre_optimize = options.view_as(DebugOptions).lookup_experiment(
         'pre_optimize', 'default').lower()
+    print('[debug:yifanmai] pre-optimize %s' % pre_optimize)
     if (not options.view_as(StandardOptions).streaming and
         pre_optimize != 'none'):
       if pre_optimize == 'default':
         phases = [
             translations.eliminate_common_key_with_none,
-            translations.pack_combiners,
             # TODO: https://issues.apache.org/jira/browse/BEAM-4678
             #       https://issues.apache.org/jira/browse/BEAM-11478
             # Eventually remove the 'lift_combiners' phase from 'default'.
@@ -346,7 +346,7 @@ class PortableRunner(runner.PipelineRunner):
             translations.annotate_stateful_dofns_as_roots,
             translations.fix_side_input_pcoll_coders,
             translations.eliminate_common_key_with_none,
-            translations.pack_combiners,
+            # translations.pack_combiners,
             translations.lift_combiners,
             translations.expand_sdf,
             translations.fix_flatten_coders,
@@ -371,20 +371,21 @@ class PortableRunner(runner.PipelineRunner):
                 'Unknown or inapplicable phase for pre_optimize: %s' %
                 phase_name)
         phases.append(translations.sort_stages)
+        print('[debug:yifanmai] phases %s' % phases)
         partial = True
 
-        # All (known) portable runners (ie Flink and Spark) support these URNs.
-        known_urns = frozenset([
-            common_urns.composites.RESHUFFLE.urn,
-            common_urns.primitives.IMPULSE.urn,
-            common_urns.primitives.FLATTEN.urn,
-            common_urns.primitives.GROUP_BY_KEY.urn
-        ])
-        proto_pipeline = translations.optimize_pipeline(
-            proto_pipeline,
-            phases=phases,
-            known_runner_urns=known_urns,
-            partial=partial)
+      # All (known) portable runners (ie Flink and Spark) support these URNs.
+      known_urns = frozenset([
+          common_urns.composites.RESHUFFLE.urn,
+          common_urns.primitives.IMPULSE.urn,
+          common_urns.primitives.FLATTEN.urn,
+          common_urns.primitives.GROUP_BY_KEY.urn
+      ])
+      proto_pipeline = translations.optimize_pipeline(
+          proto_pipeline,
+          phases=phases,
+          known_runner_urns=known_urns,
+          partial=partial)
 
     return proto_pipeline
 

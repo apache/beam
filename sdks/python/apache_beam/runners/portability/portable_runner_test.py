@@ -209,6 +209,11 @@ class PortableRunnerTest(fn_runner_test.FnApiRunnerTest):
           | beam.ParDo(AddIndex()),
           equal_to(expected))
 
+  # Overrides test from fn_api_runner_test.FnApiRunnerTest
+  def test_pack_combiners_enabled_by_experiment(self):
+    # preoptimize=all is broken in portable runner
+    self._test_pack_combiners(('preoptimize=eliminate_common_key_with_none,pack_combiners,lift_combiners'), expect_packed=True)
+
   # Inherits all other tests from fn_api_runner_test.FnApiRunnerTest
 
   def test_sdf_default_truncate_when_bounded(self):
