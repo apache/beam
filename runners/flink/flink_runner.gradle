@@ -41,7 +41,6 @@ description = "Apache Beam :: Runners :: Flink $flink_version"
 evaluationDependsOn(":sdks:java:core")
 evaluationDependsOn(":runners:core-java")
 
-def checker_qual_version = "2.0.0"
 /*
  * Copy & merge source overrides into build directory.
  */
@@ -135,7 +134,6 @@ dependencies {
   compile project(":runners:java-job-service")
   compile project(":sdks:java:extensions:google-cloud-platform-core")
   compile library.java.vendored_grpc_1_26_0
-  compile library.java.jackson_annotations
   compile library.java.slf4j_api
   compile library.java.joda_time
   compile library.java.args4j
@@ -177,7 +175,6 @@ dependencies {
   compile "org.apache.flink:flink-annotations:$flink_version"
   compile "org.apache.flink:flink-optimizer_2.11:$flink_version"
   permitUnusedDeclared "org.apache.flink:flink-clients_2.11:$flink_version"
-  compile "org.checkerframework:checker-qual:$checker_qual_version"
 }
 
 class ValidatesRunnerConfig {
