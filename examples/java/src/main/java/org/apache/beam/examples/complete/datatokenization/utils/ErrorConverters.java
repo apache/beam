@@ -21,6 +21,7 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.auto.value.AutoValue;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
@@ -29,9 +30,13 @@ import org.apache.beam.sdk.io.gcp.bigquery.WriteResult;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PDone;
 import org.joda.time.DateTimeZone;
+import org.joda.time.Duration;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
@@ -51,12 +56,28 @@ public class ErrorConverters {
 
     public abstract String csvDelimiter();
 
+    @Nullable
+    public abstract Duration windowDuration();
+
+    @SuppressWarnings("argument.type.incompatible")
     @Override
     public PDone expand(PCollection<FailsafeElement<String, String>> pCollection) {
 
-      return pCollection
-          .apply("GetFormattedErrorRow", ParDo.of(new FailedStringToCsvRowFn(csvDelimiter())))
-          .apply(TextIO.write().to(errorWritePath()).withNumShards(1));
+      PCollection<String> formattedErrorRows =
+          pCollection.apply(
+              "GetFormattedErrorRow", ParDo.of(new FailedStringToCsvRowFn(csvDelimiter())));
+
+      if (pCollection.isBounded() == IsBounded.UNBOUNDED) {
+        if (windowDuration() != null) {
+          formattedErrorRows =
+              formattedErrorRows.apply(Window.into(FixedWindows.of(windowDuration())));
+        }
+        return formattedErrorRows.apply(
+            TextIO.write().to(errorWritePath()).withNumShards(1).withWindowedWrites());
+
+      } else {
+        return formattedErrorRows.apply(TextIO.write().to(errorWritePath()).withNumShards(1));
+      }
     }
 
     /** Builder for {@link WriteStringMessageErrorsAsCsv}. */
@@ -66,6 +87,8 @@ public class ErrorConverters {
       public abstract Builder setErrorWritePath(String errorWritePath);
 
       public abstract Builder setCsvDelimiter(String csvDelimiter);
+
+      public abstract Builder setWindowDuration(@Nullable Duration duration);
 
       public abstract WriteStringMessageErrorsAsCsv build();
     }

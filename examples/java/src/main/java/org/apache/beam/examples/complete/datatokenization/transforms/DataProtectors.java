@@ -28,12 +28,15 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.apache.beam.examples.complete.datatokenization.utils.FailsafeElement;
 import org.apache.beam.examples.complete.datatokenization.utils.FailsafeElementCoder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.Field;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
@@ -74,6 +77,8 @@ public class DataProtectors {
 
   /** Logger for class. */
   private static final Logger LOG = LoggerFactory.getLogger(DataProtectors.class);
+
+  public static final String ID_FIELD_NAME = "ID";
 
   /**
    * The {@link RowToTokenizedRow} transform converts {@link Row} to {@link TableRow} objects. The
@@ -134,6 +139,7 @@ public class DataProtectors {
   @SuppressWarnings("initialization.static.fields.uninitialized")
   public static class TokenizationFn extends DoFn<KV<Integer, Row>, Row> {
 
+    private static Schema schemaToDsg;
     private static CloseableHttpClient httpclient;
     private static ObjectMapper objectMapperSerializerForSchema;
     private static ObjectMapper objectMapperDeserializerForSchema;
@@ -152,8 +158,6 @@ public class DataProtectors {
     @TimerId("expiry")
     private final TimerSpec expirySpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
-    private boolean hasIdInInputs = true;
-    private String idFieldName = "";
     private Map<String, Row> inputRowsWithIds;
 
     public TokenizationFn(
@@ -172,11 +176,15 @@ public class DataProtectors {
     @Setup
     public void setup() {
 
+      List<Field> fields = schema.getFields();
+      fields.add(Field.of(ID_FIELD_NAME, FieldType.STRING));
+      schemaToDsg = new Schema(fields);
+
       objectMapperSerializerForSchema =
-          RowJsonUtils.newObjectMapperWith(RowJson.RowJsonSerializer.forSchema(schema));
+          RowJsonUtils.newObjectMapperWith(RowJson.RowJsonSerializer.forSchema(schemaToDsg));
 
       objectMapperDeserializerForSchema =
-          RowJsonUtils.newObjectMapperWith(RowJson.RowJsonDeserializer.forSchema(schema));
+          RowJsonUtils.newObjectMapperWith(RowJson.RowJsonDeserializer.forSchema(schemaToDsg));
 
       httpclient = HttpClients.createDefault();
     }
@@ -247,22 +255,15 @@ public class DataProtectors {
       Map<String, Row> inputRowsWithIds = new HashMap<>();
       for (Row inputRow : inputRows) {
 
-        Row.Builder builder = Row.withSchema(schema);
-        for (Schema.Field field : schema.getFields()) {
+        Row.Builder builder = Row.withSchema(schemaToDsg);
+        for (Schema.Field field : schemaToDsg.getFields()) {
           if (inputRow.getSchema().hasField(field.getName())) {
             builder = builder.addValue(inputRow.getValue(field.getName()));
           }
         }
-        String id;
-        if (!hasIdInInputs) {
-          id = UUID.randomUUID().toString();
-          builder = builder.addValue(id);
-        } else {
-          id = inputRow.getValue(idFieldName);
-        }
-        if (id != null) {
-          inputRowsWithIds.put(id, inputRow);
-        }
+        String id = UUID.randomUUID().toString();
+        builder = builder.addValue(id);
+        inputRowsWithIds.put(id, inputRow);
 
         Row row = builder.build();
 
@@ -297,9 +298,9 @@ public class DataProtectors {
             RowJsonUtils.jsonToRow(
                 objectMapperDeserializerForSchema, jsonTokenizedRows.get(i).toString());
         Row.FieldValueBuilder rowBuilder =
-            Row.fromRow(this.inputRowsWithIds.get(tokenizedRow.getString(idFieldName)));
-        for (Schema.Field field : schema.getFields()) {
-          if (!hasIdInInputs && field.getName().equals(idFieldName)) {
+            Row.fromRow(this.inputRowsWithIds.get(tokenizedRow.getString(ID_FIELD_NAME)));
+        for (Schema.Field field : schemaToDsg.getFields()) {
+          if (field.getName().equals(ID_FIELD_NAME)) {
             continue;
           }
           rowBuilder =

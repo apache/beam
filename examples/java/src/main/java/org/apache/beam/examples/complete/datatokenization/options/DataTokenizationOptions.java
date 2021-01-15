@@ -24,10 +24,10 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 
 /**
- * The {@link ProtegrityDataTokenizationOptions} interface provides the custom execution options
- * passed by the executor at the command-line.
+ * The {@link DataTokenizationOptions} interface provides the custom execution options passed by the
+ * executor at the command-line.
  */
-public interface ProtegrityDataTokenizationOptions
+public interface DataTokenizationOptions
     extends PipelineOptions, GcsIO.GcsPipelineOptions, BigTableIO.BigTableOptions {
 
   @Description("Path to data schema (JSON format) in GCS compatible with BigQuery.")
@@ -48,24 +48,17 @@ public interface ProtegrityDataTokenizationOptions
 
   void setBigQueryTableName(String bigQueryTableName);
 
-  // Protegrity specific parameters
-  @Description("URI for the API calls to DSG.")
-  String getDsgUri();
+  // Tokenization API specific parameters
+  @Description("URI for the API calls to RPC server.")
+  String getRpcUri();
 
-  void setDsgUri(String dsgUri);
+  void setRpcUri(String dsgUri);
 
-  @Description("Size of the batch to send to DSG per request.")
+  @Description("Size of the batch to send to RPC server per request.")
   @Default.Integer(10)
   Integer getBatchSize();
 
   void setBatchSize(Integer batchSize);
-
-  @Description(
-      "GCS path to the payload configuration file with an array of fields "
-          + "to extract for tokenization.")
-  String getPayloadConfigGcsPath();
-
-  void setPayloadConfigGcsPath(String payloadConfigGcsPath);
 
   @Description("Dead-Letter GCS path to store not-tokenized data")
   String getNonTokenizedDeadLetterGcsPath();

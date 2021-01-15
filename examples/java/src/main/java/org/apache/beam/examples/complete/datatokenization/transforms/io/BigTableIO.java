@@ -23,7 +23,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
-import org.apache.beam.examples.complete.datatokenization.options.ProtegrityDataTokenizationOptions;
+import org.apache.beam.examples.complete.datatokenization.options.DataTokenizationOptions;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableIO;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteResult;
 import org.apache.beam.sdk.options.Description;
@@ -46,9 +46,9 @@ public class BigTableIO {
   /** Logger for class. */
   private static final Logger LOG = LoggerFactory.getLogger(BigTableIO.class);
 
-  private final ProtegrityDataTokenizationOptions options;
+  private final DataTokenizationOptions options;
 
-  public BigTableIO(ProtegrityDataTokenizationOptions options) {
+  public BigTableIO(DataTokenizationOptions options) {
     this.options = options;
   }
 
@@ -76,8 +76,7 @@ public class BigTableIO {
     @ProcessElement
     public void processElement(
         @Element Row in, OutputReceiver<KV<ByteString, Iterable<Mutation>>> out, ProcessContext c) {
-      ProtegrityDataTokenizationOptions options =
-          c.getPipelineOptions().as(ProtegrityDataTokenizationOptions.class);
+      DataTokenizationOptions options = c.getPipelineOptions().as(DataTokenizationOptions.class);
       // Mapping every field in provided Row to Mutation.SetCell, which will create/update
       // cell content with provided data
       Set<Mutation> mutations =

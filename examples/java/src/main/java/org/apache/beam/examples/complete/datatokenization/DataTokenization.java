@@ -17,12 +17,13 @@
  */
 package org.apache.beam.examples.complete.datatokenization;
 
+import static org.apache.beam.examples.complete.datatokenization.utils.DurationUtils.parseDuration;
 import static org.apache.beam.examples.complete.datatokenization.utils.SchemasUtils.DEADLETTER_SCHEMA;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import org.apache.beam.examples.complete.datatokenization.options.ProtegrityDataTokenizationOptions;
+import org.apache.beam.examples.complete.datatokenization.options.DataTokenizationOptions;
 import org.apache.beam.examples.complete.datatokenization.transforms.DataProtectors.RowToTokenizedRow;
 import org.apache.beam.examples.complete.datatokenization.transforms.io.BigQueryIO;
 import org.apache.beam.examples.complete.datatokenization.transforms.io.BigTableIO;
@@ -46,6 +47,8 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.JsonToRow;
 import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -82,10 +85,8 @@ public class DataTokenization {
    * @param args Command line arguments to the pipeline.
    */
   public static void main(String[] args) {
-    ProtegrityDataTokenizationOptions options =
-        PipelineOptionsFactory.fromArgs(args)
-            .withValidation()
-            .as(ProtegrityDataTokenizationOptions.class);
+    DataTokenizationOptions options =
+        PipelineOptionsFactory.fromArgs(args).withValidation().as(DataTokenizationOptions.class);
     FileSystems.setDefaultPipelineOptions(options);
 
     run(options);
@@ -98,7 +99,7 @@ public class DataTokenization {
    * @return The pipeline result.
    */
   @SuppressWarnings({"dereference.of.nullable", "argument.type.incompatible"})
-  public static PipelineResult run(ProtegrityDataTokenizationOptions options) {
+  public static PipelineResult run(DataTokenizationOptions options) {
     SchemasUtils schema = null;
     try {
       schema = new SchemasUtils(options.getDataSchemaGcsPath(), StandardCharsets.UTF_8);
@@ -133,6 +134,10 @@ public class DataTokenization {
       jsons =
           pipeline.apply(
               "ReadMessagesFromPubsub", PubsubIO.readStrings().fromTopic(options.getPubsubTopic()));
+      if (options.getOutputGcsDirectory() != null) {
+        jsons =
+            jsons.apply(Window.into(FixedWindows.of(parseDuration(options.getWindowDuration()))));
+      }
     } else {
       throw new IllegalStateException("No source is provided, please configure GCS or Pub/Sub");
     }
@@ -176,7 +181,7 @@ public class DataTokenization {
                 "DsgTokenization",
                 RowToTokenizedRow.newBuilder()
                     .setBatchSize(options.getBatchSize())
-                    .setRpcURI(options.getDsgUri())
+                    .setRpcURI(options.getRpcUri())
                     .setSchema(schema.getBeamSchema())
                     .setSuccessTag(TOKENIZATION_OUT)
                     .setFailureTag(TOKENIZATION_DEADLETTER_OUT)
