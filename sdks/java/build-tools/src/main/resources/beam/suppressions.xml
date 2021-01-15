@@ -106,6 +106,7 @@
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*zetasql.*ZetaSqlBeamTranslationUtilsTest\.java" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*zetasql.*TableResolutionTest\.java" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*zetasql.*ZetaSQLPushDownTest\.java" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*examples.*datatokenization.*BigTableIO\.java" />
 
   <!-- Flink -->
   <!-- Checkstyle does not correctly detect package files across multiple source directories. -->
