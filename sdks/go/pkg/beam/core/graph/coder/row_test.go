@@ -362,7 +362,7 @@ func BenchmarkRowCoder_RoundTrip(b *testing.B) {
 		// We have 3 fields we use.
 		n, err := DecodeVarInt(r)
 		if err != nil {
-			return nil, fmt.Errorf("decoding header fieldcount: %v, %w", n, err)
+			return nil, fmt.Errorf("decoding header fieldcount: %v, %v", n, err)
 		}
 		if n != 3 {
 			return nil, fmt.Errorf("decoding header field count, got %v, want %v", n, 3)
@@ -370,22 +370,22 @@ func BenchmarkRowCoder_RoundTrip(b *testing.B) {
 		// Never nils, so we read the 0 byte header.
 		n, err = DecodeVarInt(r)
 		if err != nil {
-			return nil, fmt.Errorf("decoding header nils: %v, %w", n, err)
+			return nil, fmt.Errorf("decoding header nils: %v, %v", n, err)
 		}
 		if n != 0 {
 			return nil, fmt.Errorf("decoding header nils count, got %v, want %v", n, 0)
 		}
 		a, err := DecodeStringUTF8(r)
 		if err != nil {
-			return nil, fmt.Errorf("decoding string field A: %w", err)
+			return nil, fmt.Errorf("decoding string field A: %v", err)
 		}
 		b, err := DecodeVarInt(r)
 		if err != nil {
-			return nil, fmt.Errorf("decoding int field B: %w", err)
+			return nil, fmt.Errorf("decoding int field B: %v", err)
 		}
 		c, err := DecodeStringUTF8(r)
 		if err != nil {
-			return nil, fmt.Errorf("decoding string field C: %v, %w", c, err)
+			return nil, fmt.Errorf("decoding string field C: %v, %v", c, err)
 		}
 		return UserType1{
 			A: a,
