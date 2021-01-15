@@ -54,6 +54,9 @@ import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -69,6 +72,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.DateTime;
 
 /**
  * Jackson serializer and deserializer for {@link Row Rows}.
@@ -523,7 +527,7 @@ public class RowJson {
           gen.writeNumber((BigDecimal) value);
           break;
         case DATETIME:
-          gen.writeString(value.toString()); // ISO 8601 format
+          gen.writeString(((DateTime) value).toString()); // ISO 8601 format
           break;
         case ARRAY:
         case ITERABLE:
@@ -537,8 +541,13 @@ public class RowJson {
           writeRow((Row) value, type.getRowSchema(), gen);
           break;
         case LOGICAL_TYPE:
-          if (KNOWN_LOGICAL_TYPE_IDENTIFIERS.contains(type.getLogicalType().getIdentifier())) {
-            gen.writeString(value.toString()); // ISO 8601 format
+          String identifier = type.getLogicalType().getIdentifier();
+          if (SqlTypes.DATE.getIdentifier().equals(identifier)) {
+            gen.writeString(((LocalDate) value).toString()); // ISO 8601 format
+          } else if (SqlTypes.TIME.getIdentifier().equals(identifier)) {
+            gen.writeString(((LocalTime) value).toString()); // ISO 8601 format
+          } else if (SqlTypes.DATETIME.getIdentifier().equals(identifier)) {
+            gen.writeString(((LocalDateTime) value).toString()); // ISO 8601 format
           } else {
             writeValue(gen, type.getLogicalType().getBaseType(), value);
           }
