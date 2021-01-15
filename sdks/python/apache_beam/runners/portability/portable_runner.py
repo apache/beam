@@ -325,6 +325,8 @@ class PortableRunner(runner.PipelineRunner):
     # Eventually remove the 'pre_optimize' option alltogether and only perform
     # the equivalent of the 'default' case below (minus the 'lift_combiners'
     # part).
+    phases = []
+    partial = None
     pre_optimize = options.view_as(DebugOptions).lookup_experiment(
         'pre_optimize', 'default').lower()
     if (not options.view_as(StandardOptions).streaming and
@@ -332,7 +334,6 @@ class PortableRunner(runner.PipelineRunner):
       if pre_optimize == 'default':
         phases = [
             translations.eliminate_common_key_with_none,
-            translations.pack_combiners,
             # TODO: https://issues.apache.org/jira/browse/BEAM-4678
             #       https://issues.apache.org/jira/browse/BEAM-11478
             # Eventually remove the 'lift_combiners' phase from 'default'.
@@ -373,18 +374,18 @@ class PortableRunner(runner.PipelineRunner):
         phases.append(translations.sort_stages)
         partial = True
 
-        # All (known) portable runners (ie Flink and Spark) support these URNs.
-        known_urns = frozenset([
-            common_urns.composites.RESHUFFLE.urn,
-            common_urns.primitives.IMPULSE.urn,
-            common_urns.primitives.FLATTEN.urn,
-            common_urns.primitives.GROUP_BY_KEY.urn
-        ])
-        proto_pipeline = translations.optimize_pipeline(
-            proto_pipeline,
-            phases=phases,
-            known_runner_urns=known_urns,
-            partial=partial)
+      # All (known) portable runners (ie Flink and Spark) support these URNs.
+      known_urns = frozenset([
+          common_urns.composites.RESHUFFLE.urn,
+          common_urns.primitives.IMPULSE.urn,
+          common_urns.primitives.FLATTEN.urn,
+          common_urns.primitives.GROUP_BY_KEY.urn
+      ])
+      proto_pipeline = translations.optimize_pipeline(
+          proto_pipeline,
+          phases=phases,
+          known_runner_urns=known_urns,
+          partial=partial)
 
     return proto_pipeline
 
