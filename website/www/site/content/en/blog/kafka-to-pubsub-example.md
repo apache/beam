@@ -1,13 +1,14 @@
 ---
-layout: post title:  "Example to ingest data from Apache Kafka to Google Cloud Pub/Sub"
-date:   2021-01-15 00:00:01 -0800 categories:
-
-- blog
-- java authors:
-- Ilya Kozyrev
-- Artur Khanin
-- Alex Kosolapov
-
+layout: post
+title:  "Example to ingest data from Apache Kafka to Google Cloud Pub/Sub"
+date:   2021-01-15 00:00:01 -0800
+categories:
+  - blog
+  - java
+authors:
+  - Ilya Kozyrev
+  - Artur Khanin
+  - Alex Kosolapov
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
