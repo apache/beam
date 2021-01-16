@@ -17,6 +17,7 @@
  */
 
 import groovy.json.JsonOutput
+import org.apache.beam.gradle.GrpcVendoring_1_26_0
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(

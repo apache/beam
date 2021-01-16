@@ -411,6 +411,21 @@ public class BigQueryHelpers {
     return ref.setDatasetId(match.group("DATASET")).setTableId(match.group("TABLE"));
   }
 
+  public static TableReference parseTableUrn(String tableUrn) {
+    Matcher match = BigQueryIO.TABLE_URN_SPEC.matcher(tableUrn);
+    if (!match.matches()) {
+      throw new IllegalArgumentException(
+          "Table reference is not in projects/[project_id]/datasets/[dataset_id]/tables/[table_id] "
+              + "format: "
+              + tableUrn);
+    }
+
+    TableReference ref = new TableReference();
+    ref.setProjectId(match.group("PROJECT"));
+
+    return ref.setDatasetId(match.group("DATASET")).setTableId(match.group("TABLE"));
+  }
+
   /** Strip off any partition decorator information from a tablespec. */
   public static String stripPartitionDecorator(String tableSpec) {
     int index = tableSpec.lastIndexOf('$');
