@@ -302,8 +302,10 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 		}
 		return []string{reshuffleID}, nil
 	case edge.Edge.Op == graph.External:
-		if edge.Edge.External.Expanded != nil {
-			m.needsExpansion = true
+		if edge.Edge.External != nil {
+			if edge.Edge.External.Expanded != nil {
+				m.needsExpansion = true
+			}
 		}
 		if edge.Edge.Payload == nil {
 			edgeID, err := m.expandCrossLanguage(edge)
