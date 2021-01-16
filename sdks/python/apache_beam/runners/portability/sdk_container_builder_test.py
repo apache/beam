@@ -23,7 +23,9 @@ from __future__ import absolute_import
 
 import logging
 import unittest
+import unittest.mock
 
+from apache_beam.options import pipeline_options
 from apache_beam.runners.portability import sdk_container_builder
 
 
@@ -71,6 +73,20 @@ class SdkContainerBuilderTest(unittest.TestCase):
     local_builder = sdk_container_builder.SdkContainerImageBuilder.\
       _get_subclass_by_key(expected_key)
     self.assertEqual(local_builder, _PluginSdkBuilder)
+
+  @unittest.mock.patch(
+      'apache_beam.runners.portability.sdk_container_builder._SdkContainerImageLocalBuilder'  # pylint: disable=line-too-long
+  )
+  @unittest.mock.patch.object(
+      sdk_container_builder.SdkContainerImageBuilder, "_get_subclass_by_key")
+  def test_build_container_image_locates_subclass_invokes_build(
+      self, mock_get_subclass, mocked_local_builder):
+    mock_get_subclass.return_value = mocked_local_builder
+    options = pipeline_options.PipelineOptions()
+    sdk_container_builder.SdkContainerImageBuilder.build_container_image(
+        options)
+    mocked_local_builder.assert_called_once_with(options)
+    mocked_local_builder.return_value._build.assert_called_once_with()
 
 
 if __name__ == '__main__':
