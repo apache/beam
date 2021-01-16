@@ -135,7 +135,7 @@ class SdkContainerImageBuilder(plugin.BeamPlugin):
     container_build_engine = setup_options.prebuild_sdk_container_engine
     builder_cls = cls._get_subclass_by_key(container_build_engine)
     builder = builder_cls(pipeline_options)
-    return builder.build()
+    return builder._build()
 
   @classmethod
   def _get_subclass_by_key(cls, key: str) -> Type['SdkContainerImageBuilder']:
