@@ -21,6 +21,7 @@
 
 from __future__ import absolute_import
 
+import gc
 import logging
 import unittest
 import unittest.mock
@@ -30,6 +31,10 @@ from apache_beam.runners.portability import sdk_container_builder
 
 
 class SdkContainerBuilderTest(unittest.TestCase):
+  def tearDown(self):
+    # Ensures SdkContainerImageBuilder subclasses are cleared
+    gc.collect()
+
   def test_can_find_local_builder(self):
     local_builder = sdk_container_builder.SdkContainerImageBuilder\
       ._get_subclass_by_key('local_docker')
