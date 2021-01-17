@@ -104,9 +104,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
-import org.apache.kafka.common.serialization.LongDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
@@ -275,18 +275,18 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
 
     long numEvents = eventMetrics.getCounterMetric(eventMonitor.prefix + ".elements");
     long numEventBytes = eventMetrics.getCounterMetric(eventMonitor.prefix + ".bytes");
-    long eventStart = eventMetrics.getStartTimeMetric(eventMonitor.prefix + ".startTime");
-    long eventEnd = eventMetrics.getEndTimeMetric(eventMonitor.prefix + ".endTime");
+    long eventStart = eventMetrics.getStartTimeMetric(eventMonitor.prefix + ".processingTime");
+    long eventEnd = eventMetrics.getEndTimeMetric(eventMonitor.prefix + ".processingTime");
 
     MetricsReader resultMetrics = new MetricsReader(result, resultMonitor.name);
 
     long numResults = resultMetrics.getCounterMetric(resultMonitor.prefix + ".elements");
     long numResultBytes = resultMetrics.getCounterMetric(resultMonitor.prefix + ".bytes");
-    long resultStart = resultMetrics.getStartTimeMetric(resultMonitor.prefix + ".startTime");
-    long resultEnd = resultMetrics.getEndTimeMetric(resultMonitor.prefix + ".endTime");
+    long resultStart = resultMetrics.getStartTimeMetric(resultMonitor.prefix + ".processingTime");
+    long resultEnd = resultMetrics.getEndTimeMetric(resultMonitor.prefix + ".processingTime");
     long timestampStart =
-        resultMetrics.getStartTimeMetric(resultMonitor.prefix + ".startTimestamp");
-    long timestampEnd = resultMetrics.getEndTimeMetric(resultMonitor.prefix + ".endTimestamp");
+        resultMetrics.getStartTimeMetric(resultMonitor.prefix + ".eventTimestamp");
+    long timestampEnd = resultMetrics.getEndTimeMetric(resultMonitor.prefix + ".eventTimestamp");
 
     long effectiveEnd = -1;
     if (eventEnd >= 0 && resultEnd >= 0) {
@@ -717,11 +717,12 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
             .withBootstrapServers(options.getBootstrapServers())
             .withTopic(options.getKafkaTopic())
             .withValueSerializer(ByteArraySerializer.class)
+            .withInputTimestamp()
             .values());
   }
 
-  static final DoFn<KV<Long, byte[]>, Event> BYTEARRAY_TO_EVENT =
-      new DoFn<KV<Long, byte[]>, Event>() {
+  static final DoFn<KV<byte[], byte[]>, Event> BYTEARRAY_TO_EVENT =
+      new DoFn<KV<byte[], byte[]>, Event>() {
         @ProcessElement
         public void processElement(ProcessContext c) throws IOException {
           byte[] encodedEvent = c.element().getValue();
@@ -731,19 +732,34 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
       };
 
   /** Return source of events from Kafka. */
-  private PCollection<Event> sourceEventsFromKafka(Pipeline p, final Instant now) {
+  private PCollection<Event> sourceEventsFromKafka(Pipeline p, final Instant start) {
     checkArgument((options.getBootstrapServers() != null), "Missing --bootstrapServers");
     NexmarkUtils.console("Reading events from Kafka Topic %s", options.getKafkaTopic());
 
-    KafkaIO.Read<Long, byte[]> read =
-        KafkaIO.<Long, byte[]>read()
+    KafkaIO.Read<byte[], byte[]> read =
+        KafkaIO.<byte[], byte[]>read()
             .withBootstrapServers(options.getBootstrapServers())
-            .withTopic(options.getKafkaTopic())
-            .withKeyDeserializer(LongDeserializer.class)
+            .withKeyDeserializer(ByteArrayDeserializer.class)
             .withValueDeserializer(ByteArrayDeserializer.class)
-            .withStartReadTime(now)
+            .withStartReadTime(start)
             .withMaxNumRecords(
                 options.getNumEvents() != null ? options.getNumEvents() : Long.MAX_VALUE);
+
+    if (options.getKafkaTopicCreateTimeMaxDelaySec() >= 0) {
+      read =
+          read.withCreateTime(
+              Duration.standardSeconds(options.getKafkaTopicCreateTimeMaxDelaySec()));
+    }
+
+    if (options.getNumKafkaTopicPartitions() > 0) {
+      ArrayList<TopicPartition> partitionArrayList = new ArrayList<>();
+      for (int i = 0; i < options.getNumKafkaTopicPartitions(); ++i) {
+        partitionArrayList.add(new TopicPartition(options.getKafkaTopic(), i));
+      }
+      read = read.withTopicPartitions(partitionArrayList);
+    } else {
+      read = read.withTopic(options.getKafkaTopic());
+    }
 
     return p.apply(queryName + ".ReadKafkaEvents", read.withoutMetadata())
         .apply(queryName + ".KafkaToEvents", ParDo.of(BYTEARRAY_TO_EVENT));
@@ -802,6 +818,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
             .withBootstrapServers(options.getBootstrapServers())
             .withTopic(options.getKafkaResultsTopic())
             .withValueSerializer(StringSerializer.class)
+            .withInputTimestamp()
             .values());
   }
 
@@ -1012,7 +1029,8 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
                 // finished. In other case. when pubSubMode=SUBSCRIBE_ONLY, now should be null and
                 // it will be ignored.
                 source =
-                    sourceEventsFromKafka(p, configuration.pubSubMode == COMBINED ? now : null);
+                    sourceEventsFromKafka(
+                        p, configuration.pubSubMode == COMBINED ? now : Instant.EPOCH);
               } else {
                 source = sourceEventsFromPubsub(p);
               }

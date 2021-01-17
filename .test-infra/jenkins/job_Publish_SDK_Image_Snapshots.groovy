@@ -41,15 +41,15 @@ job('beam_Publish_Beam_SDK_Snapshots') {
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       commonJobProperties.setGradleSwitches(delegate)
-      tasks(':sdks:go:container:dockerPush')
+      tasks(':sdks:go:container:dockerTagPush')
       SUPPORTED_JAVA_CONTAINER_TASKS.each { taskVer ->
-        tasks(":sdks:java:container:${taskVer}:dockerPush")
+        tasks(":sdks:java:container:${taskVer}:dockerTagPush")
       }
       SUPPORTED_PYTHON_CONTAINER_TASKS.each { taskVer ->
-        tasks(":sdks:python:container:${taskVer}:dockerPush")
+        tasks(":sdks:python:container:${taskVer}:dockerTagPush")
       }
       switches("-Pdocker-repository-root=${imageRepo}")
-      switches("-Pdocker-tag=${imageTag}")
+      switches("-Pdocker-tag-list=${imageTag},latest")
     }
   }
 }

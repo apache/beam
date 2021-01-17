@@ -120,7 +120,7 @@ def loadTestJob = { scope, triggeringContext, mode ->
 PhraseTriggeringPostCommitBuilder.postCommitJob(
     'beam_LoadTests_Go_Combine_Flink_Batch',
     'Run Load Tests Go Combine Flink Batch',
-    'Load Tests Go Combine Batch suite',
+    'Load Tests Go Combine Flink Batch suite',
     this
     ) {
       additionalPipelineArgs = [:]

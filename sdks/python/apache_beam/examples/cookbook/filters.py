@@ -90,7 +90,7 @@ def run(argv=None):
 
   with beam.Pipeline(argv=pipeline_args) as p:
 
-    input_data = p | beam.io.Read(beam.io.BigQuerySource(known_args.input))
+    input_data = p | beam.io.ReadFromBigQuery(table=known_args.input)
 
     # pylint: disable=expression-not-assigned
     (

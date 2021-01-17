@@ -18,7 +18,6 @@
 package org.apache.beam.runners.samza.translation;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.service.AutoService;
 import java.util.HashMap;
@@ -58,9 +57,6 @@ public class SamzaPipelineTranslator {
   private SamzaPipelineTranslator() {}
 
   public static void translate(Pipeline pipeline, TranslationContext ctx) {
-    checkState(
-        ctx.getPipelineOptions().getMaxBundleSize() <= 1,
-        "bundling is not supported for non portable mode. Please disable bundling (by setting max bundle size to 1).");
     final TransformVisitorFn translateFn =
         new TransformVisitorFn() {
 
@@ -180,18 +176,19 @@ public class SamzaPipelineTranslator {
     @Override
     public Map<String, TransformTranslator<?>> getTransformTranslators() {
       return ImmutableMap.<String, TransformTranslator<?>>builder()
-          .put(PTransformTranslation.READ_TRANSFORM_URN, new ReadTranslator())
-          .put(PTransformTranslation.PAR_DO_TRANSFORM_URN, new ParDoBoundMultiTranslator())
-          .put(PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN, new GroupByKeyTranslator())
-          .put(PTransformTranslation.COMBINE_PER_KEY_TRANSFORM_URN, new GroupByKeyTranslator())
-          .put(PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN, new WindowAssignTranslator())
-          .put(PTransformTranslation.FLATTEN_TRANSFORM_URN, new FlattenPCollectionsTranslator())
-          .put(SamzaPublishView.SAMZA_PUBLISH_VIEW_URN, new SamzaPublishViewTranslator())
+          .put(PTransformTranslation.READ_TRANSFORM_URN, new ReadTranslator<>())
+          .put(PTransformTranslation.PAR_DO_TRANSFORM_URN, new ParDoBoundMultiTranslator<>())
+          .put(PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN, new GroupByKeyTranslator<>())
+          .put(PTransformTranslation.COMBINE_PER_KEY_TRANSFORM_URN, new GroupByKeyTranslator<>())
+          .put(PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN, new WindowAssignTranslator<>())
+          .put(PTransformTranslation.FLATTEN_TRANSFORM_URN, new FlattenPCollectionsTranslator<>())
+          .put(SamzaPublishView.SAMZA_PUBLISH_VIEW_URN, new SamzaPublishViewTranslator<>())
           .put(PTransformTranslation.IMPULSE_TRANSFORM_URN, new ImpulseTranslator())
+          .put(ExecutableStage.URN, new ParDoBoundMultiTranslator<>())
+          .put(PTransformTranslation.TEST_STREAM_TRANSFORM_URN, new SamzaTestStreamTranslator())
           .put(
               PTransformTranslation.SPLITTABLE_PROCESS_KEYED_URN,
               new SplittableParDoTranslators.ProcessKeyedElements<>())
-          .put(ExecutableStage.URN, new ParDoBoundMultiTranslator())
           .build();
     }
   }

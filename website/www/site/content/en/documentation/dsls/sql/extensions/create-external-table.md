@@ -281,6 +281,10 @@ to the key-values pairs specified in `columnsMapping`.
 
 Not all existing column families and qualifiers have to be provided to the schema.
 
+Filters are only allowed by `key` field with single `LIKE` statement with
+[RE2 Syntax](https://github.com/google/re2/wiki/Syntax) regex, e.g.
+`SELECT * FROM table WHERE key LIKE '^key[012]{1}'`
+
 ### Write Mode
 
 Supported for flat schema only.
@@ -447,9 +451,14 @@ TBLPROPERTIES '{
         server.
     *   `topics`: Optional. Allows you to specify specific topics.
     *   `format`: Optional. Allows you to specify the Kafka values format. Possible values are
-        {`csv`, `avro`, `json`, `proto`}. Defaults to `csv`.
+        {`csv`, `avro`, `json`, `proto`, `thrift`}. Defaults to `csv`.
     *   `protoClass`: Optional. Use only when `format` is equal to `proto`. Allows you to
         specify full protocol buffer java class name.
+    *   `thriftClass`: Optional. Use only when `format` is equal to `thrift`. Allows you to
+        specify full thrift java class name.
+    *   `thriftProtocolFactoryClass`: Optional. Use only when `format` is equal to `thrift`.
+        Allows you to specify full class name of the `TProtocolFactory` to use for thrift
+        serialization.
 
 ### Read Mode
 
@@ -472,6 +481,10 @@ Write Mode supports writing to a topic.
     *   Beam attempts to parse JSON to match the schema.
 *   Protocol buffers
     *   Fields in the schema have to match the fields of the given `protoClass`.
+*   Thrift
+    *   Fields in the schema have to match the fields of the given `thriftClass`.
+    *   The `TProtocolFactory` used for thrift serialization must match the
+        provided `thriftProtocolFactoryClass`.
 
 ### Schema
 

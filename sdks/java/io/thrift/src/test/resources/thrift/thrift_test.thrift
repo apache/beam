@@ -15,9 +15,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-// This thrift file is used to generate the TestThriftStruct class.
 
-namespace java test_thrift
+/*
+This thrift file is used to generate the TestThrift* classes:
+
+thrift --gen java:beans \
+  -out sdks/java/io/thrift/src/test/java/ \
+  sdks/java/io/thrift/src/test/resources/thrift/thrift_test.thrift
+
+./gradlew :sdks:java:io:thrift:spotlessApply
+*/
+
+namespace java org.apache.beam.sdk.io.thrift
+
+typedef string Name
+typedef i16 Age
+
+struct TestThriftInnerStruct {
+    1: Name testNameTypedef = "kid"
+    2: Age testAgeTypedef = 12
+}
+
+enum TestThriftEnum { C1, C2 }
+
+union TestThriftUnion {
+    1: TestThriftInnerStruct snake_case_nested_struct;
+    2: TestThriftEnum camelCaseEnum;
+}
+
+typedef set<string> StringSet
 
 struct TestThriftStruct {
     1: i8 testByte
@@ -28,4 +54,9 @@ struct TestThriftStruct {
     6: map<string, i16> stringIntMap
     7: binary testBinary
     8: bool testBool
+    9: list<i32> testList
+    10: StringSet testStringSetTypedef
+    11: TestThriftEnum testEnum
+    12: TestThriftInnerStruct testNested
+    13: TestThriftUnion testUnion
 }
