@@ -23,19 +23,26 @@ limitations under the License.
 
 # Contact us!
 
-There are many ways to reach the Beam user and developer communities - use
-whichever one seems best.
+The Apache Beam community is friendly and welcoming. We are glad to help with any
+question, suggestion or idea you have. Contact us in the following channels:
 
-## How to use mailing lists?/What is it?
-
-Here should be a short description on what mailing lists are and how to use them. Also information on how does subscribe, unsubscribe and archives do work (blank email etc).
-
-## Available points of contact
-
-Choose the mailing list that suits you best and send us an email!
+### Available contact channels
 
 {{< table_with_icons >}}
 
-If you have questions about how to use Apache Beam, we recommend you try out the [user@](https://lists.apache.org/list.html?user@beam.apache.org) mailing list, and [StackOverflow](https://stackoverflow.com/questions/tagged/apache-beam).
+### Mailing list, what are they and how they work
 
-If you wish to report a security vulnerability, please contact [security@apache.org](mailto:security@apache.org). Apache Beam follows the typical [Apache vulnerability handling process](https://apache.org/security/committers.html#vulnerability-handling).
+The official communication channels for Apache projects are their mailing lists, and Apache
+Beam has two main lists, user@beam.apache.org and dev@beam.apache.org. You can see
+what are the topics for each of the above.
+
+### Subsribe and Unsubscribe:
+
+To send emails to these lists you need to subscribe first. To subscribe send a blank email to [user@](user-subscribe@beam.apache.org) or [dev@](dev@beam.apache.org) depending on the list you want to write to.
+
+### Useful Tips for Sending Emails
+
+- Tip1: Use tags in your subject line
+  A tag is a word within a pair of brackets [] that indicate the type of message you’re sending. For example: [Bug] or [Proposal] or [Question] or [Idea]. Tags help folks navigate emails easier.
+- Tip 2: If you’re asking a troubleshooting question, provide as much information as possible to help others replicate your issue or find possible solutions.
+- Tip 3: Share complete links instead of hyperlinks. A common practice in Apache is adding a number tag like [1] to indicate a word is a link or an attachment, and use the tag as a footnote to add the complete link at the end of your message.

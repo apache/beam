@@ -10,20 +10,20 @@
     limitations under the License. See accompanying LICENSE file.
    */}}
 
-    {{ $data := index $.Site.Data .Site.Language.Lang }}
-    <div class="icon-list">
-        {{ range $item := $data.community_list }}
-            <div class="list-item">
-                <div class="list-item-icon">
-                    {{ with resources.Get .icon }}
-                        {{ .Content | safeHTML }}
-                    {{ end }}
-                </div>
-                <div class="list-item-description">
-                    <h3 class="list-item-header">{{ .title | markdownify }}</h3>
-                    <p class="list-item-text">{{ .body | markdownify }}</p>
-                </div>
-            </div>
+   {{ $data := index $.Site.Data .Site.Language.Lang (.Get 0) }}
+   <div class="icon-list list">
+       {{ range $item := $data }}
+           <div class="list-item">
+               <div class="list-item-icon">
+                   {{ with resources.Get .icon }}
+                       {{ .Content | safeHTML }}
+                   {{ end }}
+               </div>
+               <div class="list-item-description">
+                   <h3 class="list-item-header">{{ .title | markdownify }}</h3>
+                   <p class="list-item-text">{{ .body | markdownify }}</p>
+               </div>
+           </div>
 
-        {{ end }}
-    </div>
+       {{ end }}
+   </div>

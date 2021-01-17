@@ -25,4 +25,4 @@ limitations under the License.
 Beam is a tool created by community for community. We tirelessly work to make it better and you can do it too!
 If you are a data or software developer this is a place for you.
 
-{{< list_with_icons >}}
+{{< list_with_icons community_list >}}
