@@ -43,8 +43,8 @@ import org.apache.beam.sdk.values.TypeDescriptors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** The {@link GcsIO} class to read/write data from/into Google Cloud Storage. */
-public class GcsIO {
+/** The {@link FileSystemIO} class to read/write data from/into File Systems. */
+public class FileSystemIO {
 
   /** The tag for the headers of the CSV if required. */
   static final TupleTag<String> CSV_HEADERS = new TupleTag<String>() {};
@@ -61,7 +61,7 @@ public class GcsIO {
       new TupleTag<FailsafeElement<String, String>>() {};
 
   /* Logger for class. */
-  private static final Logger LOG = LoggerFactory.getLogger(GcsIO.class);
+  private static final Logger LOG = LoggerFactory.getLogger(FileSystemIO.class);
 
   public static final String DEAD_LETTER_PREFIX = "CSV_CONVERTOR";
 
@@ -77,35 +77,35 @@ public class GcsIO {
   }
 
   /**
-   * Necessary {@link PipelineOptions} options for Pipelines that operate with JSON/CSV data in GCS.
+   * Necessary {@link PipelineOptions} options for Pipelines that operate with JSON/CSV data in FS.
    */
-  public interface GcsPipelineOptions extends PipelineOptions {
+  public interface FileSystemPipelineOptions extends PipelineOptions {
 
-    @Description("GCS filepattern for files in bucket to read data from")
-    String getInputGcsFilePattern();
+    @Description("Filepattern for files to read data from")
+    String getInputFilePattern();
 
-    void setOutputGcsDirectory(String outputGcsDirectory);
+    void setInputFilePattern(String inputFilePattern);
 
     @Description("File format of input files. Supported formats: JSON, CSV")
     @Default.Enum("JSON")
-    GcsIO.FORMAT getInputGcsFileFormat();
+    FileSystemIO.FORMAT getInputFileFormat();
 
-    void setInputGcsFilePattern(String inputGcsFilePattern);
+    void setInputFileFormat(FORMAT inputFileFormat);
 
-    @Description("GCS directory in bucket to write data to")
-    String getOutputGcsDirectory();
+    @Description("Directory to write data to")
+    String getOutputDirectory();
 
-    void setInputGcsFileFormat(FORMAT inputGcsFileFormat);
+    void setOutputDirectory(String outputDirectory);
 
     @Description("File format of output files. Supported formats: JSON, CSV")
     @Default.Enum("JSON")
-    GcsIO.FORMAT getOutputGcsFileFormat();
+    FileSystemIO.FORMAT getOutputFileFormat();
 
-    void setOutputGcsFileFormat(FORMAT outputGcsFileFormat);
+    void setOutputFileFormat(FORMAT outputFileFormat);
 
     @Description(
         "The window duration in which data will be written. "
-            + "Should be specified only for 'Pub/Sub -> GCS' case. Defaults to 30s. "
+            + "Should be specified only for 'Pub/Sub -> FS' case. Defaults to 30s. "
             + "Allowed formats are: "
             + "Ns (for seconds, example: 5s), "
             + "Nm (for minutes, example: 12m), "
@@ -141,27 +141,26 @@ public class GcsIO {
 
   private final DataTokenizationOptions options;
 
-  public GcsIO(DataTokenizationOptions options) {
+  public FileSystemIO(DataTokenizationOptions options) {
     this.options = options;
   }
 
   public PCollection<String> read(Pipeline pipeline, String schema) {
-    if (options.getInputGcsFileFormat() == FORMAT.JSON) {
-      return pipeline.apply(
-          "ReadJsonFromGCSFiles", TextIO.read().from(options.getInputGcsFilePattern()));
-    } else if (options.getInputGcsFileFormat() == FORMAT.CSV) {
+    if (options.getInputFileFormat() == FORMAT.JSON) {
+      return pipeline.apply("ReadJsonFromFiles", TextIO.read().from(options.getInputFilePattern()));
+    } else if (options.getInputFileFormat() == FORMAT.CSV) {
       PCollectionTuple jsons =
           pipeline
               /*
-               * Step 1: Read CSV file(s) from Cloud Storage using {@link CsvConverters.ReadCsv}.
+               * Step 1: Read CSV file(s) from File System using {@link CsvConverters.ReadCsv}.
                */
               .apply(
-                  "ReadCsvFromGcsFiles",
+                  "ReadCsvFromFiles",
                   CsvConverters.ReadCsv.newBuilder()
                       .setCsvFormat(options.getCsvFormat())
                       .setDelimiter(options.getCsvDelimiter())
                       .setHasHeaders(options.getCsvContainsHeaders())
-                      .setInputFileSpec(options.getInputGcsFilePattern())
+                      .setInputFileSpec(options.getInputFilePattern())
                       .setHeaderTag(CSV_HEADERS)
                       .setLineTag(CSV_LINES)
                       .build())
@@ -179,17 +178,17 @@ public class GcsIO {
                       .setUdfDeadletterTag(PROCESSING_DEADLETTER_OUT)
                       .build());
 
-      if (options.getNonTokenizedDeadLetterGcsPath() != null) {
+      if (options.getNonTokenizedDeadLetterPath() != null) {
         /*
-         * Step 3: Write jsons to dead-letter gcs that were successfully processed.
+         * Step 3: Write jsons to dead-letter that weren't successfully processed.
          */
         jsons
             .get(PROCESSING_DEADLETTER_OUT)
             .apply(
-                "WriteCsvConversionErrorsToGcs",
+                "WriteCsvConversionErrorsToFS",
                 ErrorConverters.WriteStringMessageErrorsAsCsv.newBuilder()
                     .setCsvDelimiter(options.getCsvDelimiter())
-                    .setErrorWritePath(options.getNonTokenizedDeadLetterGcsPath())
+                    .setErrorWritePath(options.getNonTokenizedDeadLetterPath())
                     .build());
       }
 
@@ -208,20 +207,17 @@ public class GcsIO {
   }
 
   public PDone write(PCollection<Row> input, Schema schema) {
-    if (options.getOutputGcsFileFormat() == FORMAT.JSON) {
+    if (options.getOutputFileFormat() == FORMAT.JSON) {
       PCollection<String> jsons = input.apply("RowsToJSON", ToJson.of());
 
       if (jsons.isBounded() == IsBounded.BOUNDED) {
-        return jsons.apply("WriteToGCS", TextIO.write().to(options.getOutputGcsDirectory()));
+        return jsons.apply("WriteToFS", TextIO.write().to(options.getOutputDirectory()));
       } else {
         return jsons.apply(
-            "WriteToGCS",
-            TextIO.write()
-                .withWindowedWrites()
-                .withNumShards(1)
-                .to(options.getOutputGcsDirectory()));
+            "WriteToFS",
+            TextIO.write().withWindowedWrites().withNumShards(1).to(options.getOutputDirectory()));
       }
-    } else if (options.getOutputGcsFileFormat() == FORMAT.CSV) {
+    } else if (options.getOutputFileFormat() == FORMAT.CSV) {
       String header = String.join(options.getCsvDelimiter(), schema.getFieldNames());
       String csvDelimiter = options.getCsvDelimiter();
 
@@ -233,14 +229,14 @@ public class GcsIO {
 
       if (csvs.isBounded() == IsBounded.BOUNDED) {
         return csvs.apply(
-            "WriteToGCS", TextIO.write().to(options.getOutputGcsDirectory()).withHeader(header));
+            "WriteToFS", TextIO.write().to(options.getOutputDirectory()).withHeader(header));
       } else {
         return csvs.apply(
-            "WriteToGCS",
+            "WriteToFS",
             TextIO.write()
                 .withWindowedWrites()
                 .withNumShards(1)
-                .to(options.getOutputGcsDirectory())
+                .to(options.getOutputDirectory())
                 .withHeader(header));
       }
 

@@ -29,14 +29,12 @@ Supported data formats:
 
 Supported input sources:
 
-- Local file system
-- [Google Cloud Storage](https://cloud.google.com/storage)
+- File system
 - [Google Pub/Sub](https://cloud.google.com/pubsub)
 
 Supported destination sinks:
 
-- Local file system
-- Google Cloud Storage
+- File system
 - [Google Cloud BigQuery](https://cloud.google.com/bigquery)
 - [Cloud BigTable](https://cloud.google.com/bigtable)
 
@@ -92,14 +90,12 @@ gradle clean execute -DmainClass=org.apache.beam.examples.complete.datatokenizat
 
 To execute this pipeline, specify the parameters:
 
-**NOTE:** Any parameters called as GSC also supports local file system.
-
 - Data schema
-    - **dataSchemaGcsPath**: Path to data schema (JSON format) in GCS compatible with BigQuery.
+    - **dataSchemaPath**: Path to data schema (JSON format) compatible with BigQuery.
 - 1 specified input source out of these:
-    - Google Cloud Storage
-        - **inputGcsFilePattern**: GCS filepattern for files in bucket to read data from
-        - **inputGcsFileFormat**: File format of input files. Supported formats: JSON, CSV
+    - File System
+        - **inputFilePattern**: Filepattern for files to read data from
+        - **inputFileFormat**: File format of input files. Supported formats: JSON, CSV
         - In case if input data is in CSV format:
             - **csvContainsHeaders**: `true` if file(s) in bucket to read data from contain headers,
               and `false` otherwise
@@ -113,9 +109,9 @@ To execute this pipeline, specify the parameters:
         - **pubsubTopic**: The Cloud Pub/Sub topic to read from, in the format of '
           projects/yourproject/topics/yourtopic'
 - 1 specified output sink out of these:
-    - Google Cloud Storage
-        - **outputGcsDirectory**: GCS directory in bucket to write data to
-        - **outputGcsFileFormat**: File format of output files. Supported formats: JSON, CSV
+    - File System
+        - **outputDirectory**: Directory to write data to
+        - **outputFileFormat**: File format of output files. Supported formats: JSON, CSV
         - **windowDuration**: The window duration in which data will be written. Should be specified
           only for 'Pub/Sub -> GCS' case. Defaults to 30s.
 
@@ -133,14 +129,14 @@ To execute this pipeline, specify the parameters:
         - **bigTableKeyColumnName**: Column name to use as a key in Cloud BigTable
         - **bigTableColumnFamilyName**: Column family name to use in Cloud BigTable
 - DSG parameters
-    - **dsgUri**: URI for the API calls to DSG
+    - **rpcUri**: URI for the API calls to DSG
     - **batchSize**: Size of the batch to send to DSG per request
-    - **payloadConfigGcsPath**: GCS path to the payload configuration file with an array of fields
-      to extract for tokenization
+    - **payloadConfigPath**: Path to the payload configuration file with an array of fields to
+      extract for tokenization
 
 The template allows for the user to supply the following optional parameter:
 
-- **nonTokenizedDeadLetterGcsPath**: GCS folder where failed to tokenize data will be stored
+- **nonTokenizedDeadLetterPath**: Folder where failed to tokenize data will be stored
 
 
 in the following format:

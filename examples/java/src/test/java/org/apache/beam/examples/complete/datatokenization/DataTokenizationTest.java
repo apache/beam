@@ -28,8 +28,8 @@ import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import org.apache.beam.examples.complete.datatokenization.options.DataTokenizationOptions;
-import org.apache.beam.examples.complete.datatokenization.transforms.io.GcsIO;
-import org.apache.beam.examples.complete.datatokenization.transforms.io.GcsIO.FORMAT;
+import org.apache.beam.examples.complete.datatokenization.transforms.io.FileSystemIO;
+import org.apache.beam.examples.complete.datatokenization.transforms.io.FileSystemIO.FORMAT;
 import org.apache.beam.examples.complete.datatokenization.utils.FailsafeElementCoder;
 import org.apache.beam.examples.complete.datatokenization.utils.RowToCsv;
 import org.apache.beam.examples.complete.datatokenization.utils.SchemasUtils;
@@ -53,9 +53,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Test class for {@link DataTokenization}.
- */
+/** Test class for {@link DataTokenization}. */
 @RunWith(JUnit4.class)
 public class DataTokenizationTest {
 
@@ -63,8 +61,7 @@ public class DataTokenizationTest {
       "{\"fields\":[{\"mode\":\"REQUIRED\",\"name\":\"FieldName1\",\"type\":\"STRING\"},{\"mode\":\"REQUIRED\",\"name\":\"FieldName2\",\"type\":\"STRING\"}]}";
   String[] fields = {"TestValue1", "TestValue2"};
 
-  @Rule
-  public final transient TestPipeline testPipeline = TestPipeline.create();
+  @Rule public final transient TestPipeline testPipeline = TestPipeline.create();
 
   private static final String RESOURCES_DIR = "./";
 
@@ -119,22 +116,22 @@ public class DataTokenizationTest {
   }
 
   @Test
-  public void testGcsIOReadCSV() throws IOException {
-    PCollection<String> jsons = gcsIORead(CSV_FILE_PATH, FORMAT.CSV);
+  public void testFileSystemIOReadCSV() throws IOException {
+    PCollection<String> jsons = fileSystemIORead(CSV_FILE_PATH, FORMAT.CSV);
     assertField(jsons);
     testPipeline.run();
   }
 
   @Test
-  public void testGcsIOReadJSON() throws IOException {
-    PCollection<String> jsons = gcsIORead(JSON_FILE_PATH, FORMAT.JSON);
+  public void testFileSystemIOReadJSON() throws IOException {
+    PCollection<String> jsons = fileSystemIORead(JSON_FILE_PATH, FORMAT.JSON);
     assertField(jsons);
     testPipeline.run();
   }
 
   @Test
   public void testJsonToRow() throws IOException {
-    PCollection<String> jsons = gcsIORead(JSON_FILE_PATH, FORMAT.JSON);
+    PCollection<String> jsons = fileSystemIORead(JSON_FILE_PATH, FORMAT.JSON);
     SchemasUtils testSchemaUtils = new SchemasUtils(SCHEMA_FILE_PATH, StandardCharsets.UTF_8);
     JsonToRow.ParseResult rows =
         jsons.apply(
@@ -158,19 +155,19 @@ public class DataTokenizationTest {
     testPipeline.run();
   }
 
-  private PCollection<String> gcsIORead(String inputGcsFilePattern, FORMAT inputGcsFileFormat)
-      throws IOException {
+  private PCollection<String> fileSystemIORead(
+      String inputGcsFilePattern, FORMAT inputGcsFileFormat) throws IOException {
     DataTokenizationOptions options =
         PipelineOptionsFactory.create().as(DataTokenizationOptions.class);
-    options.setDataSchemaGcsPath(SCHEMA_FILE_PATH);
-    options.setInputGcsFilePattern(inputGcsFilePattern);
-    options.setInputGcsFileFormat(inputGcsFileFormat);
+    options.setDataSchemaPath(SCHEMA_FILE_PATH);
+    options.setInputFilePattern(inputGcsFilePattern);
+    options.setInputFileFormat(inputGcsFileFormat);
     if (inputGcsFileFormat == FORMAT.CSV) {
       options.setCsvContainsHeaders(Boolean.FALSE);
     }
 
     SchemasUtils testSchemaUtils =
-        new SchemasUtils(options.getDataSchemaGcsPath(), StandardCharsets.UTF_8);
+        new SchemasUtils(options.getDataSchemaPath(), StandardCharsets.UTF_8);
 
     CoderRegistry coderRegistry = testPipeline.getCoderRegistry();
     coderRegistry.registerCoderForType(
@@ -187,7 +184,7 @@ public class DataTokenizationTest {
             RowCoder.of(testSchemaUtils.getBeamSchema()));
     coderRegistry.registerCoderForType(coder.getEncodedTypeDescriptor(), coder);
 
-    return new GcsIO(options).read(testPipeline, testSchemaUtils.getJsonBeamSchema());
+    return new FileSystemIO(options).read(testPipeline, testSchemaUtils.getJsonBeamSchema());
   }
 
   private void assertField(PCollection<String> jsons) {

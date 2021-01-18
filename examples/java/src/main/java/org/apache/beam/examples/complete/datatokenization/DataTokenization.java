@@ -27,7 +27,7 @@ import org.apache.beam.examples.complete.datatokenization.options.DataTokenizati
 import org.apache.beam.examples.complete.datatokenization.transforms.DataProtectors.RowToTokenizedRow;
 import org.apache.beam.examples.complete.datatokenization.transforms.io.BigQueryIO;
 import org.apache.beam.examples.complete.datatokenization.transforms.io.BigTableIO;
-import org.apache.beam.examples.complete.datatokenization.transforms.io.GcsIO;
+import org.apache.beam.examples.complete.datatokenization.transforms.io.FileSystemIO;
 import org.apache.beam.examples.complete.datatokenization.utils.ErrorConverters;
 import org.apache.beam.examples.complete.datatokenization.utils.FailsafeElement;
 import org.apache.beam.examples.complete.datatokenization.utils.FailsafeElementCoder;
@@ -102,7 +102,7 @@ public class DataTokenization {
   public static PipelineResult run(DataTokenizationOptions options) {
     SchemasUtils schema = null;
     try {
-      schema = new SchemasUtils(options.getDataSchemaGcsPath(), StandardCharsets.UTF_8);
+      schema = new SchemasUtils(options.getDataSchemaPath(), StandardCharsets.UTF_8);
     } catch (IOException e) {
       LOG.error("Failed to retrieve schema for data.", e);
     }
@@ -128,18 +128,19 @@ public class DataTokenization {
     coderRegistry.registerCoderForType(coder.getEncodedTypeDescriptor(), coder);
 
     PCollection<String> jsons;
-    if (options.getInputGcsFilePattern() != null) {
-      jsons = new GcsIO(options).read(pipeline, schema.getJsonBeamSchema());
+    if (options.getInputFilePattern() != null) {
+      jsons = new FileSystemIO(options).read(pipeline, schema.getJsonBeamSchema());
     } else if (options.getPubsubTopic() != null) {
       jsons =
           pipeline.apply(
               "ReadMessagesFromPubsub", PubsubIO.readStrings().fromTopic(options.getPubsubTopic()));
-      if (options.getOutputGcsDirectory() != null) {
+      if (options.getOutputDirectory() != null) {
         jsons =
             jsons.apply(Window.into(FixedWindows.of(parseDuration(options.getWindowDuration()))));
       }
     } else {
-      throw new IllegalStateException("No source is provided, please configure GCS or Pub/Sub");
+      throw new IllegalStateException(
+          "No source is provided, please configure File System or Pub/Sub");
     }
 
     JsonToRow.ParseResult rows =
@@ -147,7 +148,7 @@ public class DataTokenization {
             "JsonToRow",
             JsonToRow.withExceptionReporting(schema.getBeamSchema()).withExtendedErrorInfo());
 
-    if (options.getNonTokenizedDeadLetterGcsPath() != null) {
+    if (options.getNonTokenizedDeadLetterPath() != null) {
       /*
        * Write Row conversion errors to filesystem specified path
        */
@@ -160,10 +161,10 @@ public class DataTokenization {
                           FailsafeElement.of(errRow.getString("line"), errRow.getString("line"))
                               .setErrorMessage(errRow.getString("err"))))
           .apply(
-              "WriteCsvConversionErrorsToGcs",
+              "WriteCsvConversionErrorsToFS",
               ErrorConverters.WriteStringMessageErrorsAsCsv.newBuilder()
                   .setCsvDelimiter(options.getCsvDelimiter())
-                  .setErrorWritePath(options.getNonTokenizedDeadLetterGcsPath())
+                  .setErrorWritePath(options.getNonTokenizedDeadLetterPath())
                   .build());
     }
     /*
@@ -188,7 +189,7 @@ public class DataTokenization {
                     .build());
 
     String csvDelimiter = options.getCsvDelimiter();
-    if (options.getNonTokenizedDeadLetterGcsPath() != null) {
+    if (options.getNonTokenizedDeadLetterPath() != null) {
       /*
       Write tokenization errors to dead-letter sink
        */
@@ -203,15 +204,15 @@ public class DataTokenization {
                               new RowToCsv(csvDelimiter).getCsvFromRow(fse.getOriginalPayload()),
                               new RowToCsv(csvDelimiter).getCsvFromRow(fse.getPayload()))))
           .apply(
-              "WriteTokenizationErrorsToGcs",
+              "WriteTokenizationErrorsToFS",
               ErrorConverters.WriteStringMessageErrorsAsCsv.newBuilder()
                   .setCsvDelimiter(options.getCsvDelimiter())
-                  .setErrorWritePath(options.getNonTokenizedDeadLetterGcsPath())
+                  .setErrorWritePath(options.getNonTokenizedDeadLetterPath())
                   .build());
     }
 
-    if (options.getOutputGcsDirectory() != null) {
-      new GcsIO(options).write(tokenizedRows.get(TOKENIZATION_OUT), schema.getBeamSchema());
+    if (options.getOutputDirectory() != null) {
+      new FileSystemIO(options).write(tokenizedRows.get(TOKENIZATION_OUT), schema.getBeamSchema());
     } else if (options.getBigQueryTableName() != null) {
       WriteResult writeResult =
           BigQueryIO.write(

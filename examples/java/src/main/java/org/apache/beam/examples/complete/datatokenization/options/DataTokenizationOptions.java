@@ -18,7 +18,7 @@
 package org.apache.beam.examples.complete.datatokenization.options;
 
 import org.apache.beam.examples.complete.datatokenization.transforms.io.BigTableIO;
-import org.apache.beam.examples.complete.datatokenization.transforms.io.GcsIO;
+import org.apache.beam.examples.complete.datatokenization.transforms.io.FileSystemIO.FileSystemPipelineOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -28,12 +28,12 @@ import org.apache.beam.sdk.options.PipelineOptions;
  * executor at the command-line.
  */
 public interface DataTokenizationOptions
-    extends PipelineOptions, GcsIO.GcsPipelineOptions, BigTableIO.BigTableOptions {
+    extends PipelineOptions, FileSystemPipelineOptions, BigTableIO.BigTableOptions {
 
-  @Description("Path to data schema (JSON format) in GCS compatible with BigQuery.")
-  String getDataSchemaGcsPath();
+  @Description("Path to data schema (JSON format) compatible with BigQuery.")
+  String getDataSchemaPath();
 
-  void setDataSchemaGcsPath(String dataSchemaGcsPath);
+  void setDataSchemaPath(String dataSchemaPath);
 
   @Description(
       "The Cloud Pub/Sub topic to read from."
@@ -60,8 +60,8 @@ public interface DataTokenizationOptions
 
   void setBatchSize(Integer batchSize);
 
-  @Description("Dead-Letter GCS path to store not-tokenized data")
-  String getNonTokenizedDeadLetterGcsPath();
+  @Description("Dead-Letter path to store not-tokenized data")
+  String getNonTokenizedDeadLetterPath();
 
-  void setNonTokenizedDeadLetterGcsPath(String nonTokenizedDeadLetterGcsPath);
+  void setNonTokenizedDeadLetterPath(String nonTokenizedDeadLetterPath);
 }

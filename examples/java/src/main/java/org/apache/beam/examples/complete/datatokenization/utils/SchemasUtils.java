@@ -24,25 +24,19 @@ import com.google.api.services.bigquery.model.TableSchema;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
-import java.lang.reflect.Type;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.Schema.Field;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.gson.Gson;
-import org.apache.beam.vendor.grpc.v1p26p0.com.google.gson.reflect.TypeToken;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.CharStreams;
 import org.slf4j.Logger;
@@ -119,25 +113,6 @@ public class SchemasUtils {
         return ByteStreams.toByteArray(stream);
       }
     }
-  }
-
-  public Map<String, String> getDataElementsToTokenize(String payloadConfigGcsPath) {
-    Map<String, String> dataElements;
-    try {
-      String rawJsonWithDataElements =
-          new String(readGcsFile(payloadConfigGcsPath), StandardCharsets.UTF_8);
-      Gson gson = new Gson();
-      Type type = new TypeToken<HashMap<String, String>>() {}.getType();
-      dataElements = gson.fromJson(rawJsonWithDataElements, type);
-    } catch (IOException | NullPointerException exception) {
-      LOG.error(
-          "Cant parse fields to tokenize, or input parameter payloadConfigGcsPath was not specified."
-              + " All fields will be sent to the protectors");
-      dataElements =
-          this.getBeamSchema().getFields().stream()
-              .collect(Collectors.toMap(Field::getName, e -> ""));
-    }
-    return dataElements;
   }
 
   public Schema getBeamSchema() {

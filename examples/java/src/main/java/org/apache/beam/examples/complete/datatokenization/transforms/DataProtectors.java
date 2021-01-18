@@ -139,7 +139,7 @@ public class DataProtectors {
   @SuppressWarnings("initialization.static.fields.uninitialized")
   public static class TokenizationFn extends DoFn<KV<Integer, Row>, Row> {
 
-    private static Schema schemaToDsg;
+    private static Schema schemaToRpc;
     private static CloseableHttpClient httpclient;
     private static ObjectMapper objectMapperSerializerForSchema;
     private static ObjectMapper objectMapperDeserializerForSchema;
@@ -178,13 +178,13 @@ public class DataProtectors {
 
       List<Field> fields = schema.getFields();
       fields.add(Field.of(ID_FIELD_NAME, FieldType.STRING));
-      schemaToDsg = new Schema(fields);
+      schemaToRpc = new Schema(fields);
 
       objectMapperSerializerForSchema =
-          RowJsonUtils.newObjectMapperWith(RowJson.RowJsonSerializer.forSchema(schemaToDsg));
+          RowJsonUtils.newObjectMapperWith(RowJson.RowJsonSerializer.forSchema(schemaToRpc));
 
       objectMapperDeserializerForSchema =
-          RowJsonUtils.newObjectMapperWith(RowJson.RowJsonDeserializer.forSchema(schemaToDsg));
+          RowJsonUtils.newObjectMapperWith(RowJson.RowJsonDeserializer.forSchema(schemaToRpc));
 
       httpclient = HttpClients.createDefault();
     }
@@ -255,8 +255,8 @@ public class DataProtectors {
       Map<String, Row> inputRowsWithIds = new HashMap<>();
       for (Row inputRow : inputRows) {
 
-        Row.Builder builder = Row.withSchema(schemaToDsg);
-        for (Schema.Field field : schemaToDsg.getFields()) {
+        Row.Builder builder = Row.withSchema(schemaToRpc);
+        for (Schema.Field field : schemaToRpc.getFields()) {
           if (inputRow.getSchema().hasField(field.getName())) {
             builder = builder.addValue(inputRow.getValue(field.getName()));
           }
@@ -299,7 +299,7 @@ public class DataProtectors {
                 objectMapperDeserializerForSchema, jsonTokenizedRows.get(i).toString());
         Row.FieldValueBuilder rowBuilder =
             Row.fromRow(this.inputRowsWithIds.get(tokenizedRow.getString(ID_FIELD_NAME)));
-        for (Schema.Field field : schemaToDsg.getFields()) {
+        for (Schema.Field field : schemaToRpc.getFields()) {
           if (field.getName().equals(ID_FIELD_NAME)) {
             continue;
           }
