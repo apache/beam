@@ -119,8 +119,10 @@ To execute this pipeline, specify the parameters:
             - Ns (for seconds, example: 5s),
             - Nm (for minutes, example: 12m),
             - Nh (for hours, example: 2h).
-        - Google Cloud BigQuery
-            - **bigQueryTableName**: Cloud BigQuery table name to write into
+    - Google Cloud BigQuery
+        - **bigQueryTableName**: Cloud BigQuery table name to write into
+        - **tempLocation**: Folder in a Google Cloud Storage bucket, which is needed for
+          BigQuery to handle data writing
     - Cloud BigTable
         - **bigTableProjectId**: Id of the project where the Cloud BigTable instance to write into
           is located
