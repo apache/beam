@@ -60,6 +60,15 @@ dependencies {
   runtimeOnly project(":sdks:java:extensions:google-cloud-platform-core")
   // TODO: Enable AWS and HDFS file system.
 
+  // External transform expansion
+  // Kafka
+  runtimeOnly project(":sdks:java:io:kafka")
+  runtimeOnly library.java.kafka_clients
+  // PubSub
+  runtimeOnly project(":sdks:java:io:google-cloud-platform")
+  // SqlTransform
+  runtimeOnly project(":sdks:java:extensions:sql:expansion-service")
+
   validatesPortableRunner project(path: sparkRunnerProject, configuration: "testRuntime")
   validatesPortableRunner project(path: sparkRunnerProject, configuration: "provided")
   validatesPortableRunner project(path: ":sdks:java:core", configuration: "shadowTest")
