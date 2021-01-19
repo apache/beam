@@ -29,6 +29,9 @@ description = "Apache Beam :: SDKs :: Java :: Nexmark"
 // When running via Gradle, this property can be used to pass commandline arguments
 // to the nexmark launch
 def nexmarkArgsProperty = "nexmark.args"
+// When running via Gradle, this property can be set to "true" to enable profiling for
+// the nexmark pipeline. Currently only works for the Dataflow runner.
+def nexmarkProfilingProperty = "nexmark.profile"
 
 // When running via Gradle, this property sets the runner dependency
 def nexmarkRunnerProperty = "nexmark.runner"
@@ -111,6 +114,8 @@ if (shouldProvideSpark) {
 //       Specify the command line for invoking org.apache.beam.sdk.nexmark.Main
 task run(type: JavaExec) {
   def nexmarkArgsStr =  project.findProperty(nexmarkArgsProperty) ?: ""
+  def nexmarkArgsList = new ArrayList<String>()
+  Collections.addAll(nexmarkArgsList, nexmarkArgsStr.split())
 
   if (isDataflowRunner) {
     dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
@@ -119,12 +124,16 @@ task run(type: JavaExec) {
     // Provide job with a customizable worker jar.
     // With legacy worker jar, containerImage is set to empty (i.e. to use the internal build).
     // More context and discussions can be found in PR#6694.
-    nexmarkArgsStr = nexmarkArgsStr +
-          " --dataflowWorkerJar=${dataflowWorkerJar} " +
-          " --workerHarnessContainerImage="
+    nexmarkArgsList.add("--dataflowWorkerJar=${dataflowWorkerJar}".toString())
+    nexmarkArgsList.add('--workerHarnessContainerImage=')
+
+    def nexmarkProfile =  project.findProperty(nexmarkProfilingProperty) ?: ""
+    if (nexmarkProfile.equals("true")) {
+      nexmarkArgsList.add('--profilingAgentConfiguration={ "APICurated": true }')
+    }
   }
 
   main = "org.apache.beam.sdk.nexmark.Main"
   classpath = configurations.gradleRun
-  args nexmarkArgsStr.split()
+  args nexmarkArgsList.toArray()
 }
