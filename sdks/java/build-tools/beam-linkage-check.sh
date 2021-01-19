@@ -17,11 +17,10 @@
 #
 
 # This script compares linkage errors (checkJavaLinkage task in the root gradle project) between
-# one branch and master branch.
-# This is a temporary solution before Linkage Checker implements exclusion rules (BEAM-9206).
+# one branch and another.
 
 # Usage:
-#  /bin/bash sdks/java/build-tools/beam-linkage-check.sh
+#  /bin/bash sdks/java/build-tools/beam-linkage-check.sh origin/master <your branch>
 #
 #  By default, this checks the Maven artifacts listed in ARTIFACTS variable below.
 #
