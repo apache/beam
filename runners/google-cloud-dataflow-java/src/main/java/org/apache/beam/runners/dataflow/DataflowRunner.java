@@ -2213,7 +2213,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     if (!workerHarnessContainerImage.contains("IMAGE")) {
       return workerHarnessContainerImage;
     } else if (hasExperiment(options, "beam_fn_api")) {
-      return workerHarnessContainerImage.replace("IMAGE", "java");
+      return workerHarnessContainerImage.replace(
+          "IMAGE", String.format("beam_%s_sdk", javaVersion.toString()));
     } else if (options.isStreaming()) {
       return workerHarnessContainerImage.replace(
           "IMAGE", String.format("beam-%s-streaming", javaVersionId));

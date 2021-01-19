@@ -1616,8 +1616,11 @@ public class DataflowRunnerTest implements Serializable {
     System.setProperty("java.specification.version", "11");
     assertThat(getContainerImageForJob(options), equalTo("gcr.io/beam-java11-streaming/foo"));
     // streaming, fnapi
+    System.setProperty("java.specification.version", "1.8");
     options.setExperiments(ImmutableList.of("experiment1", "beam_fn_api"));
-    assertThat(getContainerImageForJob(options), equalTo("gcr.io/java/foo"));
+    assertThat(getContainerImageForJob(options), equalTo("gcr.io/beam_java8_sdk/foo"));
+    System.setProperty("java.specification.version", "11");
+    assertThat(getContainerImageForJob(options), equalTo("gcr.io/beam_java11_sdk/foo"));
   }
 
   @Test
