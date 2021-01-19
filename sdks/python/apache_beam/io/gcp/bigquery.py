@@ -739,7 +739,7 @@ class _CustomBigQuerySource(BoundedSource):
           self._job_name,
           self._source_uuid,
           bigquery_tools.BigQueryJobTypes.QUERY,
-          int(time.time()))
+          '%s_%s' % (int(time.time()), random.randint(0, 1000)))
       job = bq._start_query_job(
           project,
           self.query.get(),
@@ -831,7 +831,7 @@ class _CustomBigQuerySource(BoundedSource):
         self._job_name,
         self._source_uuid,
         bigquery_tools.BigQueryJobTypes.QUERY,
-        int(time.time()))
+        '%s_%s' % (int(time.time()), random.randint(0, 1000)))
     job = bq._start_query_job(
         self._get_project(),
         self.query.get(),
@@ -857,7 +857,7 @@ class _CustomBigQuerySource(BoundedSource):
         self._job_name,
         self._source_uuid,
         bigquery_tools.BigQueryJobTypes.EXPORT,
-        int(time.time()))
+        '%s_%s' % (int(time.time()), random.randint(0, 1000)))
     temp_location = self.options.view_as(GoogleCloudOptions).temp_location
     gcs_location = bigquery_export_destination_uri(
         self.gcs_location, temp_location, self._source_uuid)
