@@ -65,6 +65,8 @@ public final class MonitoringInfoConstants {
     public static final String ENVIRONMENT = "ENVIRONMENT";
     public static final String NAMESPACE = "NAMESPACE";
     public static final String NAME = "NAME";
+    public static final String SERVICE = "SERVICE";
+    public static final String METHOD = "METHOD";
 
     static {
       checkArgument(PTRANSFORM.equals(extractLabel(MonitoringInfoLabels.TRANSFORM)));
@@ -75,6 +77,8 @@ public final class MonitoringInfoConstants {
       checkArgument(ENVIRONMENT.equals(extractLabel(MonitoringInfoLabels.ENVIRONMENT)));
       checkArgument(NAMESPACE.equals(extractLabel(MonitoringInfoLabels.NAMESPACE)));
       checkArgument(NAME.equals(extractLabel(MonitoringInfoLabels.NAME)));
+      checkArgument(SERVICE.equals(extractLabel(MonitoringInfoLabels.SERVICE)));
+      checkArgument(METHOD.equals(extractLabel(MonitoringInfoLabels.METHOD)));
     }
   }
 
