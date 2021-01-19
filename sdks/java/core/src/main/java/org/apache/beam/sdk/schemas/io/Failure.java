@@ -30,8 +30,9 @@ import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
 public abstract class Failure {
-  /** A JSON representation of the payload which has failed. */
-  public abstract String getPayload();
+  /** Bytes containing the payload which has failed. */
+  @SuppressWarnings("mutable")
+  public abstract byte[] getPayload();
   /** Information about the cause of the failure. */
   public abstract String getError();
 
@@ -41,7 +42,7 @@ public abstract class Failure {
 
   @AutoValue.Builder
   public abstract static class Builder {
-    public abstract Builder setPayload(String payload);
+    public abstract Builder setPayload(byte[] payload);
 
     public abstract Builder setError(String error);
 

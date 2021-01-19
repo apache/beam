@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-
 import com.google.auto.service.AutoService;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.io.Failure;
@@ -62,8 +60,7 @@ public class PubsubDlqProvider implements GenericDlqProvider {
 
     private static PubsubMessage getMessage(Failure failure) {
       return new PubsubMessage(
-          failure.getPayload().getBytes(UTF_8),
-          ImmutableMap.of("beam-dlq-error", failure.getError()));
+          failure.getPayload(), ImmutableMap.of("beam-dlq-error", failure.getError()));
     }
   }
 }

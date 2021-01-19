@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.schemas.io;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertThrows;
 
@@ -38,8 +39,8 @@ public class GenericDlqTest {
   @Category(NeedsRunner.class)
   public void testDlq() {
     StoringDlqProvider.reset();
-    Failure failure1 = Failure.newBuilder().setError("a").setPayload("b").build();
-    Failure failure2 = Failure.newBuilder().setError("c").setPayload("d").build();
+    Failure failure1 = Failure.newBuilder().setError("a").setPayload("b".getBytes(UTF_8)).build();
+    Failure failure2 = Failure.newBuilder().setError("c").setPayload("d".getBytes(UTF_8)).build();
     p.apply(Create.of(failure1, failure2))
         .apply(
             GenericDlq.getDlqTransform(

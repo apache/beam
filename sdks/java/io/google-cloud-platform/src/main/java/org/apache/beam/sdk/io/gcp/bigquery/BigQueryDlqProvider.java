@@ -20,12 +20,14 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.auto.service.AutoService;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.io.Failure;
 import org.apache.beam.sdk.schemas.io.GenericDlqProvider;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -71,10 +73,13 @@ public class BigQueryDlqProvider implements GenericDlqProvider {
     }
 
     private static TableRow getTableRow(Failure failure) {
-      TableRow tableRow = new TableRow();
-      tableRow.set("payload", failure.getPayload());
-      tableRow.set("error", failure.getError());
-      return tableRow;
+      Row row =
+          Row.withSchema(
+                  Schema.builder().addByteArrayField("payload").addStringField("error").build())
+              .withFieldValue("payload", failure.getPayload())
+              .withFieldValue("error", failure.getError())
+              .build();
+      return BigQueryUtils.toTableRow(row);
     }
   }
 }

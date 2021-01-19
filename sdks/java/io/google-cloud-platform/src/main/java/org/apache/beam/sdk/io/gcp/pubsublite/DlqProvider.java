@@ -70,7 +70,7 @@ public class DlqProvider implements GenericDlqProvider {
           AttributeValues.newBuilder()
               .addValues(ByteString.copyFromUtf8(failure.getError()))
               .build());
-      builder.setData(ByteString.copyFromUtf8(failure.getPayload()));
+      builder.setData(ByteString.copyFrom(failure.getPayload()));
       return builder.build();
     }
   }
