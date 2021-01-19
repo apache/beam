@@ -17,10 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsublite;
 
-import com.google.api.gax.rpc.ApiException;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.pubsublite.Partition;
-import com.google.cloud.pubsublite.PartitionLookupUtils;
 import com.google.cloud.pubsublite.SubscriptionPath;
 import com.google.cloud.pubsublite.cloudpubsub.FlowControlSettings;
 import com.google.cloud.pubsublite.internal.CursorClient;
@@ -57,7 +55,9 @@ public abstract class SubscriberOptions implements Serializable {
   /** Per-partition flow control parameters for this subscription. */
   public abstract FlowControlSettings flowControlSettings();
 
-  /** A set of partitions. If empty, retrieve the set of partitions using an admin client. */
+  /**
+   * A set of partitions. If empty, continuously poll the set of partitions using an admin client.
+   */
   public abstract Set<Partition> partitions();
 
   /**
@@ -163,28 +163,6 @@ public abstract class SubscriberOptions implements Serializable {
     abstract Builder setOffsetReaderSupplier(
         SerializableSupplier<InitialOffsetReader> offsetReaderSupplier);
 
-    // Used for implementing build();
-    abstract SubscriptionPath subscriptionPath();
-
-    abstract Set<Partition> partitions();
-
-    abstract SubscriberOptions autoBuild();
-
-    @SuppressWarnings("CheckReturnValue")
-    public SubscriberOptions build() throws ApiException {
-      if (!partitions().isEmpty()) {
-        return autoBuild();
-      }
-
-      if (partitions().isEmpty()) {
-        int partitionCount = PartitionLookupUtils.numPartitions(subscriptionPath());
-        ImmutableSet.Builder<Partition> partitions = ImmutableSet.builder();
-        for (int i = 0; i < partitionCount; i++) {
-          partitions.add(Partition.of(i));
-        }
-        setPartitions(partitions.build());
-      }
-      return autoBuild();
-    }
+    public abstract SubscriberOptions build();
   }
 }
