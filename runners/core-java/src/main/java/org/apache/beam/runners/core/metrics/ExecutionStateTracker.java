@@ -41,7 +41,7 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
    * don't use a ThreadLocal to allow testing the implementation of this class without having to run
    * from multiple threads.
    */
-  private static final Map<Thread, ExecutionStateTracker> CURRENT_TRACKERS =
+  private static final Map<Long, ExecutionStateTracker> CURRENT_TRACKERS =
       new ConcurrentHashMap<>();
 
   private static final long LULL_REPORT_MS = TimeUnit.MINUTES.toMillis(5);
@@ -180,7 +180,17 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
    * either is no current state or if the current thread is not currently tracking the state.
    */
   public static @Nullable ExecutionState getCurrentExecutionState() {
-    ExecutionStateTracker tracker = CURRENT_TRACKERS.get(Thread.currentThread());
+    ExecutionStateTracker tracker = CURRENT_TRACKERS.get(Thread.currentThread().getId());
+    return tracker == null ? null : tracker.currentState;
+  }
+
+  /**
+   * Return the current {@link ExecutionState} of the thread with thread id, or {@code null} if
+   * there either is no current state or if the corresponding thread is not currently tracking the
+   * state.
+   */
+  public static @Nullable ExecutionState getCurrentExecutionState(long threadId) {
+    ExecutionStateTracker tracker = CURRENT_TRACKERS.get(threadId);
     return tracker == null ? null : tracker.currentState;
   }
 
@@ -203,7 +213,7 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
     checkState(
         trackedThread == null, "Cannot activate an ExecutionStateTracker that is already in use.");
 
-    ExecutionStateTracker other = CURRENT_TRACKERS.put(thread, this);
+    ExecutionStateTracker other = CURRENT_TRACKERS.put(thread.getId(), this);
     checkState(
         other == null,
         "Execution state of thread {} was already being tracked by {}",
@@ -224,7 +234,9 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
   private synchronized void deactivate() {
     sampler.removeTracker(this);
     Thread thread = this.trackedThread;
-    CURRENT_TRACKERS.remove(thread);
+    if (thread != null) {
+      CURRENT_TRACKERS.remove(thread.getId());
+    }
     this.trackedThread = null;
   }
 

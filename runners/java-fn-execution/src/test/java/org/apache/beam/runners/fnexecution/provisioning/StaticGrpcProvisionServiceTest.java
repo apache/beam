@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.fnexecution.provisioning;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
 
 import org.apache.beam.model.fnexecution.v1.ProvisionApi.GetProvisionInfoRequest;
 import org.apache.beam.model.fnexecution.v1.ProvisionApi.GetProvisionInfoResponse;

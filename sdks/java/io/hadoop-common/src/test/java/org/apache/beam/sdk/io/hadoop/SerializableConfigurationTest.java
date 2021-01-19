@@ -21,6 +21,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.SerializationUtils;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.Job;
 import org.junit.Rule;
@@ -72,5 +73,13 @@ public class SerializableConfigurationTest {
     assertNotNull(jobFromNull);
     Job job = SerializableConfiguration.newJob(DEFAULT_SERIALIZABLE_CONF);
     assertNotNull(job);
+  }
+
+  @Test
+  public void testFromMap() {
+    SerializableConfiguration testConf =
+        SerializableConfiguration.fromMap(ImmutableMap.of("hadoop.silly.test", "test-value"));
+
+    assertEquals("test-value", testConf.get().get("hadoop.silly.test", "default-value"));
   }
 }

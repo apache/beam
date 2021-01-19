@@ -28,6 +28,7 @@ import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,19 +57,19 @@ public class QueueingBeamFnDataClient implements BeamFnDataClient {
   }
 
   @Override
-  public <T> InboundDataClient receive(
+  public InboundDataClient receive(
       ApiServiceDescriptor apiServiceDescriptor,
       LogicalEndpoint inputLocation,
-      Coder<T> coder,
-      FnDataReceiver<T> consumer) {
+      FnDataReceiver<ByteString> consumer) {
     LOG.debug(
         "Registering consumer for instruction {} and transform {}",
         inputLocation.getInstructionId(),
         inputLocation.getTransformId());
 
-    QueueingFnDataReceiver<T> queueingConsumer = new QueueingFnDataReceiver<T>(consumer);
+    QueueingFnDataReceiver<ByteString> queueingConsumer =
+        new QueueingFnDataReceiver<ByteString>(consumer);
     InboundDataClient inboundDataClient =
-        this.mainClient.receive(apiServiceDescriptor, inputLocation, coder, queueingConsumer);
+        this.mainClient.receive(apiServiceDescriptor, inputLocation, queueingConsumer);
     queueingConsumer.inboundDataClient = inboundDataClient;
     this.inboundDataClients.computeIfAbsent(
         inboundDataClient, (InboundDataClient idcToStore) -> idcToStore);

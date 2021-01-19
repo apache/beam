@@ -88,7 +88,7 @@ class OffsetRestrictionTracker(RestrictionTracker):
   """
   def __init__(self, offset_range):
     # type: (OffsetRange) -> None
-    assert isinstance(offset_range, OffsetRange)
+    assert isinstance(offset_range, OffsetRange), offset_range
     self._range = offset_range
     self._current_position = None
     self._last_claim_attempt = None

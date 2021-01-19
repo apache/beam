@@ -35,6 +35,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A {@link PTransform} to convert {@link Row} to {@link PubsubMessage} with JSON/AVRO payload.
@@ -48,6 +50,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 class RowToPubsubMessage extends PTransform<PCollection<Row>, PCollection<PubsubMessage>> {
+  private static final Logger LOG = LoggerFactory.getLogger(RowToPubsubMessage.class);
   private final boolean useTimestampAttribute;
   private final PayloadFormat payloadFormat;
   private final @Nullable Schema payloadSchema;
@@ -70,21 +73,36 @@ class RowToPubsubMessage extends PTransform<PCollection<Row>, PCollection<Pubsub
 
   @Override
   public PCollection<PubsubMessage> expand(PCollection<Row> input) {
+    // If a timestamp attribute is used, make sure the TIMESTAMP_FIELD is propagated to the
+    // element's event time. PubSubIO will populate the attribute from there.
     PCollection<Row> withTimestamp =
         useTimestampAttribute
             ? input.apply(WithTimestamps.of((row) -> row.getDateTime(TIMESTAMP_FIELD).toInstant()))
             : input;
 
-    withTimestamp = withTimestamp.apply(DropFields.fields(TIMESTAMP_FIELD));
+    PCollection<Row> rows;
+    if (withTimestamp.getSchema().hasField(TIMESTAMP_FIELD)) {
+      if (!useTimestampAttribute) {
+        // Warn the user if they're writing data to TIMESTAMP_FIELD, but event timestamp is mapped
+        // to publish time. The data will be dropped.
+        LOG.warn(
+            String.format(
+                "Dropping output field '%s' before writing to PubSub because this is a read-only "
+                    + "column. To preserve this information you must configure a timestamp attribute.",
+                TIMESTAMP_FIELD));
+      }
+      rows = withTimestamp.apply(DropFields.fields(TIMESTAMP_FIELD));
+    } else {
+      rows = withTimestamp;
+    }
+
     switch (payloadFormat) {
       case JSON:
-        return withTimestamp
-            .apply("MapRowToJsonString", ToJson.of())
+        return rows.apply("MapRowToJsonString", ToJson.of())
             .apply("MapToJsonBytes", MapElements.via(new StringToBytes()))
             .apply("MapToPubsubMessage", MapElements.via(new ToPubsubMessage()));
       case AVRO:
-        return withTimestamp
-            .apply(
+        return rows.apply(
                 "MapRowToAvroBytes",
                 MapElements.via(AvroUtils.getRowToAvroBytesFunction(payloadSchema)))
             .apply("MapToPubsubMessage", MapElements.via(new ToPubsubMessage()));

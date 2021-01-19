@@ -18,13 +18,13 @@
 package org.apache.beam.sdk.io.gcp.bigtable;
 
 import static java.util.stream.Collectors.toList;
-import static org.apache.beam.sdk.io.gcp.bigtable.TestUtils.rowMutation;
-import static org.apache.beam.sdk.io.gcp.testing.BigtableTestUtils.BOOL_COLUMN;
-import static org.apache.beam.sdk.io.gcp.testing.BigtableTestUtils.DOUBLE_COLUMN;
-import static org.apache.beam.sdk.io.gcp.testing.BigtableTestUtils.FAMILY_TEST;
-import static org.apache.beam.sdk.io.gcp.testing.BigtableTestUtils.LONG_COLUMN;
-import static org.apache.beam.sdk.io.gcp.testing.BigtableTestUtils.STRING_COLUMN;
-import static org.apache.beam.sdk.io.gcp.testing.BigtableTestUtils.TEST_FLAT_SCHEMA;
+import static org.apache.beam.sdk.io.gcp.bigtable.BigtableTestUtils.BOOL_COLUMN;
+import static org.apache.beam.sdk.io.gcp.bigtable.BigtableTestUtils.DOUBLE_COLUMN;
+import static org.apache.beam.sdk.io.gcp.bigtable.BigtableTestUtils.FAMILY_TEST;
+import static org.apache.beam.sdk.io.gcp.bigtable.BigtableTestUtils.LONG_COLUMN;
+import static org.apache.beam.sdk.io.gcp.bigtable.BigtableTestUtils.STRING_COLUMN;
+import static org.apache.beam.sdk.io.gcp.bigtable.BigtableTestUtils.TEST_FLAT_SCHEMA;
+import static org.apache.beam.sdk.io.gcp.bigtable.BigtableTestUtils.rowMutation;
 
 import com.google.bigtable.v2.Mutation;
 import com.google.protobuf.ByteString;

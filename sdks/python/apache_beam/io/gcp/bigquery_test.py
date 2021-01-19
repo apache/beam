@@ -371,6 +371,18 @@ class TestJsonToDictCoder(unittest.TestCase):
     actual = coder.decode(input_row)
     self.assertEqual(expected_row, actual)
 
+  def test_repeatable_field_is_properly_converted(self):
+    input_row = b'{"repeated": ["55.5", "65.5"], "integer": "10"}'
+    expected_row = {'repeated': [55.5, 65.5], 'integer': 10}
+    schema = self._make_schema([
+        ('repeated', 'FLOAT', 'REPEATED', []),
+        ('integer', 'INTEGER', 'NULLABLE', []),
+    ])
+    coder = _JsonToDictCoder(schema)
+
+    actual = coder.decode(input_row)
+    self.assertEqual(expected_row, actual)
+
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestReadFromBigQuery(unittest.TestCase):
@@ -1233,8 +1245,6 @@ class PubSubBigQueryIT(unittest.TestCase):
 
   @attr('IT')
   def test_file_loads(self):
-    if isinstance(self.test_pipeline.runner, TestDataflowRunner):
-      self.skipTest('https://issuetracker.google.com/issues/118375066')
     self._run_pubsub_bq_pipeline(
         WriteToBigQuery.Method.FILE_LOADS, triggering_frequency=20)
 

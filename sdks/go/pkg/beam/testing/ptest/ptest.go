@@ -25,7 +25,16 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam"
 
 	// ptest uses the direct runner to execute pipelines by default.
+	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/dataflow"
 	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/direct"
+	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/flink"
+	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/spark"
+)
+
+var (
+	// expansionAddr is the endpoint for an expansion service for cross-language
+	// transforms.
+	ExpansionAddr = flag.String("expansion_addr", "", "Address of Expansion Service")
 )
 
 // TODO(herohde) 7/10/2017: add hooks to verify counters, logs, etc.
@@ -67,6 +76,10 @@ var (
 	defaultRunner = "direct"
 )
 
+func DefaultRunner() string {
+	return defaultRunner
+}
+
 // Run runs a pipeline for testing. The semantics of the pipeline is expected
 // to be verified through passert.
 func Run(p *beam.Pipeline) error {
@@ -75,6 +88,14 @@ func Run(p *beam.Pipeline) error {
 	}
 	_, err := beam.Run(context.Background(), *Runner, p)
 	return err
+}
+
+// RunAndValidate runs a pipeline for testing and validates the result, failing
+// the test if the pipeline fails.
+func RunAndValidate(t *testing.T, p *beam.Pipeline) {
+	if err := Run(p); err != nil {
+		t.Fatalf("Failed to execute job: %v", err)
+	}
 }
 
 // Main is an implementation of testing's TestMain to permit testing

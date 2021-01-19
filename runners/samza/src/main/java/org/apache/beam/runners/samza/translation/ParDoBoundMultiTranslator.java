@@ -176,7 +176,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
     }
 
     final MessageStream<OpMessage<RawUnionValue>> taggedOutputStream =
-        mergedStreams.flatMap(OpAdapter.adapt(op));
+        mergedStreams.flatMapAsync(OpAdapter.adapt(op));
 
     for (int outputIndex : tagToIndexMap.values()) {
       @SuppressWarnings("unchecked")
@@ -186,7 +186,7 @@ class ParDoBoundMultiTranslator<InT, OutT>
                   message ->
                       message.getType() != OpMessage.Type.ELEMENT
                           || message.getElement().getValue().getUnionTag() == outputIndex)
-              .flatMap(OpAdapter.adapt(new RawUnionValueToValue()));
+              .flatMapAsync(OpAdapter.adapt(new RawUnionValueToValue()));
 
       ctx.registerMessageStream(indexToPCollectionMap.get(outputIndex), outputStream);
     }
@@ -218,12 +218,21 @@ class ParDoBoundMultiTranslator<InT, OutT>
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
+
     String inputId = stagePayload.getInput();
     final MessageStream<OpMessage<InT>> inputStream = ctx.getMessageStreamById(inputId);
+
     // TODO: support side input
+    if (!stagePayload.getSideInputsList().isEmpty()) {
+      throw new UnsupportedOperationException(
+          "Side inputs in portable pipelines are not supported in samza");
+    }
+
+    // set side inputs to empty until it's supported
     final List<MessageStream<OpMessage<InT>>> sideInputStreams = Collections.emptyList();
 
     final Map<TupleTag<?>, Integer> tagToIndexMap = new HashMap<>();
+    final Map<Integer, String> indexToIdMap = new HashMap<>();
     final Map<String, TupleTag<?>> idToTupleTagMap = new HashMap<>();
 
     // first output as the main output
@@ -238,19 +247,20 @@ class ParDoBoundMultiTranslator<InT, OutT>
             outputName -> {
               TupleTag<?> tupleTag = new TupleTag<>(outputName);
               tagToIndexMap.put(tupleTag, index.get());
-              index.incrementAndGet();
               String collectionId = outputs.get(outputName);
+              indexToIdMap.put(index.get(), collectionId);
               idToTupleTagMap.put(collectionId, tupleTag);
+              index.incrementAndGet();
             });
 
     WindowedValue.WindowedValueCoder<InT> windowedInputCoder =
         ctx.instantiateCoder(inputId, pipeline.getComponents());
 
-    final DoFnSchemaInformation doFnSchemaInformation;
-    doFnSchemaInformation = ParDoTranslation.getSchemaInformation(transform.getTransform());
-
-    Map<String, PCollectionView<?>> sideInputMapping =
-        ParDoTranslation.getSideInputMapping(transform.getTransform());
+    // TODO: support schema and side inputs for portable runner
+    // Note: transform.getTransform() is an ExecutableStage, not ParDo, so we need to extract
+    // these info from its components.
+    final DoFnSchemaInformation doFnSchemaInformation = null;
+    final Map<String, PCollectionView<?>> sideInputMapping = Collections.emptyMap();
 
     final RunnerApi.PCollection input = pipeline.getComponents().getPcollectionsOrThrow(inputId);
     final PCollection.IsBounded isBounded = SamzaPipelineTranslatorUtils.isBounded(input);
@@ -287,18 +297,19 @@ class ParDoBoundMultiTranslator<InT, OutT>
     }
 
     final MessageStream<OpMessage<RawUnionValue>> taggedOutputStream =
-        mergedStreams.flatMap(OpAdapter.adapt(op));
+        mergedStreams.flatMapAsync(OpAdapter.adapt(op));
 
     for (int outputIndex : tagToIndexMap.values()) {
+      @SuppressWarnings("unchecked")
       final MessageStream<OpMessage<OutT>> outputStream =
           taggedOutputStream
               .filter(
                   message ->
                       message.getType() != OpMessage.Type.ELEMENT
                           || message.getElement().getValue().getUnionTag() == outputIndex)
-              .flatMap(OpAdapter.adapt(new RawUnionValueToValue()));
+              .flatMapAsync(OpAdapter.adapt(new RawUnionValueToValue()));
 
-      ctx.registerMessageStream(ctx.getOutputId(transform), outputStream);
+      ctx.registerMessageStream(indexToIdMap.get(outputIndex), outputStream);
     }
   }
 
@@ -309,15 +320,29 @@ class ParDoBoundMultiTranslator<InT, OutT>
     final DoFnSignature signature = DoFnSignatures.getSignature(transform.getFn().getClass());
     final SamzaPipelineOptions options = ctx.getPipelineOptions();
 
+    // If a ParDo observes directly or indirectly with window, then this is a stateful ParDo
+    // in this case, we will use RocksDB as system store.
+    if (signature.processElement().observesWindow()) {
+      config.putAll(ConfigBuilder.createRocksDBStoreConfig(options));
+    }
+
     if (signature.usesState()) {
       // set up user state configs
       for (DoFnSignature.StateDeclaration state : signature.stateDeclarations().values()) {
         final String storeId = state.id();
+
+        // TODO: remove validation after we support same state id in different ParDo.
+        if (!ctx.addStateId(storeId)) {
+          throw new IllegalStateException(
+              "Duplicate StateId " + storeId + " found in multiple ParDo.");
+        }
+
         config.put(
             "stores." + storeId + ".factory",
             "org.apache.samza.storage.kv.RocksDbKeyValueStorageEngineFactory");
         config.put("stores." + storeId + ".key.serde", "byteArraySerde");
-        config.put("stores." + storeId + ".msg.serde", "byteSerde");
+        config.put("stores." + storeId + ".msg.serde", "stateValueSerde");
+        config.put("stores." + storeId + ".rocksdb.compression", "lz4");
 
         if (options.getStateDurable()) {
           config.put(
@@ -332,6 +357,13 @@ class ParDoBoundMultiTranslator<InT, OutT>
     }
 
     return config;
+  }
+
+  @Override
+  public Map<String, String> createPortableConfig(
+      PipelineNode.PTransformNode transform, SamzaPipelineOptions options) {
+    // TODO: Add beamStore configs when portable use case supports stateful ParDo.
+    return Collections.emptyMap();
   }
 
   static class SideInputWatermarkFn<InT>

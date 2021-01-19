@@ -404,7 +404,7 @@ data.apply(
 
 - `.toTable()`
   - Accepts the target Snowflake table name.
-  - Example: `.toTable("MY_TABLE)`
+  - Example: `.toTable("MY_TABLE")`
 
 - `.withStagingBucketName()`
   - Accepts a cloud bucket path ended with slash.
@@ -452,7 +452,9 @@ AS COPY INTO stream_table from @streamstage;
 
 **Note**:
 
-SnowflakeIO uses COPY statements behind the scenes to write (using [COPY to table](https://docs.snowflake.net/manuals/sql-reference/sql/copy-into-table.html)). StagingBucketName will be used to save CSV files which will end up in Snowflake. Those CSV files will be saved under the “stagingBucketName” path.
+As mentioned before SnowflakeIO uses [SnowPipe REST calls](https://docs.snowflake.com/en/user-guide/data-load-snowpipe.html)
+behind the scenes for writing from unbounded sources. StagingBucketName will be used to save CSV files which will end up in Snowflake.
+SnowflakeIO is not going to delete created CSV files from path under the “stagingBucketName” either during or after finishing streaming.
 
 **Optional** for streaming:
 - `.withFlushTimeLimit()`
