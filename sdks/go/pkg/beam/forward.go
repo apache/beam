@@ -44,7 +44,9 @@ import (
 // facing copy for this important concept.
 func RegisterType(t reflect.Type) {
 	runtime.RegisterType(t)
-	schema.RegisterType(t)
+	if EnableSchemas {
+		schema.RegisterType(t)
+	}
 }
 
 // RegisterFunction allows function registration. It is beneficial for performance
