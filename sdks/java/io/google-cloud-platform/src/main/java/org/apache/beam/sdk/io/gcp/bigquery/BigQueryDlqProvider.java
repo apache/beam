@@ -64,7 +64,7 @@ public class BigQueryDlqProvider implements GenericDlqProvider {
               MapElements.into(TypeDescriptor.of(Void.class))
                   .via(
                       x -> {
-                        LOG.error("Failed to insert error into BigQuery table. %s", x);
+                        LOG.error("Failed to insert error into BigQuery table. {}", x);
                         return null;
                       }));
       return PDone.in(input.getPipeline());
