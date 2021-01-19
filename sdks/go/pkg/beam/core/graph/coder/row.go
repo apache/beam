@@ -27,19 +27,20 @@ import (
 var (
 	defaultEnc RowEncoderBuilder
 	defaultDec RowDecoderBuilder
-
-	// RequireAllFieldsExported when set to true will have the default coder buildings using
-	// RowEncoderForStruct and RowDecoderForStruct fail if there are any unexported fields.
-	// When set false, unexported fields in default destination structs will be silently
-	// ignored when coding.
-	// This has no effect on types with registered coder providers.
-	RequireAllFieldsExported bool
 )
+
+// RequireAllFieldsExported when set to true will have the default coder buildings using
+// RowEncoderForStruct and RowDecoderForStruct fail if there are any unexported fields.
+// When set false, unexported fields in default destination structs will be silently
+// ignored when coding.
+// This has no effect on types with registered coder providers.
+func RequireAllFieldsExported(require bool) {
+	defaultEnc.RequireAllFieldsExported = require
+	defaultDec.RequireAllFieldsExported = require
+}
 
 // RegisterSchemaProviders Register Custom Schema providers.
 func RegisterSchemaProviders(rt reflect.Type, enc, dec interface{}) {
-	defaultEnc.RequireAllFieldsExported = RequireAllFieldsExported
-	defaultDec.RequireAllFieldsExported = RequireAllFieldsExported
 	defaultEnc.Register(rt, enc)
 	defaultDec.Register(rt, dec)
 }

@@ -118,6 +118,7 @@ func (r *Registry) registerType(ut reflect.Type, seen map[reflect.Type]struct{})
 		}
 		r.RegisterLogicalType(ToLogicalType(t.String(), t, st))
 		r.addToMaps(st, t)
+		return
 	}
 
 	switch t.Kind() {
