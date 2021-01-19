@@ -926,6 +926,5 @@ message WorkerStatusResponse {
 
 // API for SDKs to report debug-related statuses to runner during pipeline execution.
 service BeamFnWorkerStatus {
-  rpc WorkerStatus (stream WorkerStatusResponse)
-    returns (stream WorkerStatusRequest) {}
+  rpc WorkerStatus (stream WorkerStatusRequest) returns (stream WorkerStatusResponse) {}
 }
