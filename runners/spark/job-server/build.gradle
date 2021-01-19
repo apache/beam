@@ -50,16 +50,21 @@ configurations.all {
 }
 
 dependencies {
-  compile project(sparkRunnerProject)
-  permitUnusedDeclared project(sparkRunnerProject)
-  compile project(path: sparkRunnerProject, configuration: "provided")
+  runtimeOnly project(sparkRunnerProject)
+
+  // Logging
+  runtimeOnly group: "org.slf4j", name: "jcl-over-slf4j", version: dependencies.create(project.library.java.slf4j_api).getVersion()
+  runtimeOnly library.java.slf4j_simple
+
+  // GCS file system
+  runtimeOnly project(":sdks:java:extensions:google-cloud-platform-core")
+  // TODO: Enable AWS and HDFS file system.
+
   validatesPortableRunner project(path: sparkRunnerProject, configuration: "testRuntime")
   validatesPortableRunner project(path: sparkRunnerProject, configuration: "provided")
   validatesPortableRunner project(path: ":sdks:java:core", configuration: "shadowTest")
   validatesPortableRunner project(path: ":runners:core-java", configuration: "testRuntime")
   validatesPortableRunner project(path: ":runners:portability:java", configuration: "testRuntime")
-  runtime project(":sdks:java:extensions:google-cloud-platform-core")
-//  TODO: Enable AWS and HDFS file system.
 }
 
 // NOTE: runShadow must be used in order to run the job server. The standard run
