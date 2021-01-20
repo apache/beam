@@ -81,6 +81,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.sdk.extensions.gcp.auth.NullCredentialInitializer;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.extensions.gcp.util.BackOffAdapter;
@@ -93,12 +94,12 @@ import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.FluentBackoff;
-import org.apache.beam.sdk.util.Histogram;
 import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.values.FailsafeValueInSingleWindow;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
@@ -139,12 +140,7 @@ class BigQueryServicesImpl implements BigQueryServices {
 
   @Override
   public DatasetService getDatasetService(BigQueryOptions options) {
-    return new DatasetServiceImpl(options, null);
-  }
-
-  @Override
-  public DatasetService getDatasetService(BigQueryOptions options, Histogram requestLatencies) {
-    return new DatasetServiceImpl(options, requestLatencies);
+    return new DatasetServiceImpl(options);
   }
 
   @Override
@@ -171,7 +167,7 @@ class BigQueryServicesImpl implements BigQueryServices {
 
     private JobServiceImpl(BigQueryOptions options) {
       this.errorExtractor = new ApiErrorExtractor();
-      this.client = newBigQueryClient(options, null).build();
+      this.client = newBigQueryClient(options).build();
       this.bqIOMetadata = BigQueryIOMetadata.create();
     }
 
@@ -467,9 +463,9 @@ class BigQueryServicesImpl implements BigQueryServices {
       this.executor = null;
     }
 
-    private DatasetServiceImpl(BigQueryOptions bqOptions, @Nullable Histogram requestLatencies) {
+    private DatasetServiceImpl(BigQueryOptions bqOptions) {
       this.errorExtractor = new ApiErrorExtractor();
-      this.client = newBigQueryClient(bqOptions, requestLatencies).build();
+      this.client = newBigQueryClient(bqOptions).build();
       this.options = bqOptions;
       this.maxRowsPerBatch = bqOptions.getMaxStreamingRowsToBatch();
       this.maxRowBatchSize = bqOptions.getMaxStreamingBatchSize();
@@ -1059,8 +1055,9 @@ class BigQueryServicesImpl implements BigQueryServices {
   }
 
   /** Returns a BigQuery client builder using the specified {@link BigQueryOptions}. */
-  private static Bigquery.Builder newBigQueryClient(
-      BigQueryOptions options, @Nullable Histogram requestLatencies) {
+  private static Bigquery.Builder newBigQueryClient(BigQueryOptions options) {
+    // Do not log 404. It clutters the output and is possibly even required by the
+    // caller.
     RetryHttpRequestInitializer httpRequestInitializer =
         new RetryHttpRequestInitializer(ImmutableList.of(404));
     httpRequestInitializer.setCustomErrors(createBigQueryClientCustomErrors());
@@ -1071,12 +1068,14 @@ class BigQueryServicesImpl implements BigQueryServices {
         credential == null
             ? new NullCredentialInitializer()
             : new HttpCredentialsAdapter(credential));
-    // Do not log 404. It clutters the output and is possibly even required by the
-    // caller.
+
+    initBuilder.add(
+        new LatencyRecordingHttpRequestInitializer(
+            ImmutableMap.of(
+                MonitoringInfoConstants.Labels.SERVICE, "BigQuery",
+                MonitoringInfoConstants.Labels.METHOD, "BigQueryBatchWrite")));
+
     initBuilder.add(httpRequestInitializer);
-    if (requestLatencies != null) {
-      initBuilder.add(new LatencyRecordingHttpRequestInitializer(requestLatencies));
-    }
     HttpRequestInitializer chainInitializer =
         new ChainingHttpRequestInitializer(
             Iterables.toArray(initBuilder.build(), HttpRequestInitializer.class));

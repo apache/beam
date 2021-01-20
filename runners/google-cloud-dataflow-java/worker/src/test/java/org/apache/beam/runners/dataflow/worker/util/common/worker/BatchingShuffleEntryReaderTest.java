@@ -18,9 +18,9 @@
 package org.apache.beam.runners.dataflow.worker.util.common.worker;
 
 import static com.google.api.client.util.Lists.newArrayList;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;

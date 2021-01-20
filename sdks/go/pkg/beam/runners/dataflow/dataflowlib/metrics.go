@@ -13,9 +13,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package dataflowlib translates a Beam pipeline model to the
-// Dataflow API job model, for submission to Google Cloud Dataflow.
-
 package dataflowlib
 
 import (

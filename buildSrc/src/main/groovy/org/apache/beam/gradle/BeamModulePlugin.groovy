@@ -406,6 +406,9 @@ class BeamModulePlugin implements Plugin<Project> {
     project.apply plugin: "com.dorongold.task-tree"
     project.taskTree { noRepeat = true }
 
+    project.ext.allFlinkVersions = project.flink_versions.split(',')
+    project.ext.latestFlinkVersion = project.ext.allFlinkVersions.last()
+
     /** ***********************************************************************************************/
     // Define and export a map dependencies shared across multiple sub-projects.
     //
@@ -419,6 +422,7 @@ class BeamModulePlugin implements Plugin<Project> {
     // a dependency version which should match across multiple
     // Maven artifacts.
     def activemq_version = "5.14.5"
+    def autovalue_version = "1.7.2"
     def aws_java_sdk_version = "1.11.718"
     def aws_java_sdk2_version = "2.13.54"
     def cassandra_driver_version = "3.10.2"
@@ -438,6 +442,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def influxdb_version = "2.19"
     def jackson_version = "2.10.2"
     def jaxb_api_version = "2.3.3"
+    def jsr305_version = "3.0.2"
     def kafka_version = "2.4.1"
     def nemo_version = "0.1"
     def netty_version = "4.1.51.Final"
@@ -576,8 +581,8 @@ class BeamModulePlugin implements Plugin<Project> {
         jaxb_impl                                   : "com.sun.xml.bind:jaxb-impl:$jaxb_api_version",
         joda_time                                   : "joda-time:joda-time:2.10.5",
         jsonassert                                  : "org.skyscreamer:jsonassert:1.5.0",
-        jsr305                                      : "com.google.code.findbugs:jsr305:3.0.2",
-        junit                                       : "junit:junit:4.13-beta-3",
+        jsr305                                      : "com.google.code.findbugs:jsr305:$jsr305_version",
+        junit                                       : "junit:junit:4.13.1",
         kafka                                       : "org.apache.kafka:kafka_2.11:$kafka_version",
         kafka_clients                               : "org.apache.kafka:kafka-clients:$kafka_version",
         mockito_core                                : "org.mockito:mockito-core:3.0.0",
@@ -855,8 +860,9 @@ class BeamModulePlugin implements Plugin<Project> {
       // configurations because they are never required to be shaded or become a
       // dependency of the output.
       def compileOnlyAnnotationDeps = [
-        "com.google.auto.value:auto-value-annotations:1.7",
         "com.google.auto.service:auto-service-annotations:1.0-rc6",
+        "com.google.auto.value:auto-value-annotations:$autovalue_version",
+        "com.google.code.findbugs:jsr305:$jsr305_version",
         "com.google.j2objc:j2objc-annotations:1.3",
         // These dependencies are needed to avoid error-prone warnings on package-info.java files,
         // also to include the annotations to suppress warnings.
@@ -893,7 +899,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
         // Add common annotation processors to all Java projects
         def annotationProcessorDeps = [
-          "com.google.auto.value:auto-value:1.7",
+          "com.google.auto.value:auto-value:$autovalue_version",
           "com.google.auto.service:auto-service:1.0-rc6",
         ]
 
@@ -972,7 +978,7 @@ class BeamModulePlugin implements Plugin<Project> {
         project.apply plugin: 'com.github.spotbugs'
         project.dependencies {
           spotbugs "com.github.spotbugs:spotbugs:$spotbugs_version"
-          spotbugs "com.google.auto.value:auto-value:1.7"
+          spotbugs "com.google.auto.value:auto-value:$autovalue_version"
           compileOnlyAnnotationDeps.each { dep -> spotbugs dep }
         }
         project.spotbugs {
@@ -994,6 +1000,7 @@ class BeamModulePlugin implements Plugin<Project> {
           permitUnusedDeclared dep
           permitTestUnusedDeclared dep
         }
+        permitUnusedDeclared "org.checkerframework:checker-qual:$checkerframework_version"
       }
       if (configuration.enableStrictDependencies) {
         project.tasks.analyzeClassesDependencies.enabled = true
@@ -1570,7 +1577,7 @@ class BeamModulePlugin implements Plugin<Project> {
         }
 
         if (runner?.equalsIgnoreCase('flink')) {
-          testRuntime it.project(path: ":runners:flink:1.10", configuration: 'testRuntime')
+          testRuntime it.project(path: ":runners:flink:${project.ext.latestFlinkVersion}", configuration: 'testRuntime')
         }
 
         if (runner?.equalsIgnoreCase('spark')) {
@@ -2105,7 +2112,7 @@ class BeamModulePlugin implements Plugin<Project> {
           project.exec { commandLine virtualenvCmd }
           project.exec {
             executable 'sh'
-            args '-c', ". ${project.ext.envdir}/bin/activate && pip install --retries 10 --upgrade tox==3.11.1 -r ${project.rootDir}/sdks/python/build-requirements.txt"
+            args '-c', ". ${project.ext.envdir}/bin/activate && pip install --retries 10 --upgrade tox==3.20.1 -r ${project.rootDir}/sdks/python/build-requirements.txt"
           }
         }
         // Gradle will delete outputs whenever it thinks they are stale. Putting a
@@ -2251,10 +2258,11 @@ class BeamModulePlugin implements Plugin<Project> {
 
       def addPortableWordCountTask = { boolean isStreaming, String runner ->
         def taskName = 'portableWordCount' + runner + (isStreaming ? 'Streaming' : 'Batch')
+        def flinkJobServerProject = ":runners:flink:${project.ext.latestFlinkVersion}:job-server"
         project.task(taskName) {
           dependsOn = ['installGcpTest']
           mustRunAfter = [
-            ':runners:flink:1.10:job-server:shadowJar',
+            ":runners:flink:${project.ext.latestFlinkVersion}:job-server:shadowJar",
             ':runners:spark:job-server:shadowJar',
             ':sdks:python:container:py36:docker',
             ':sdks:python:container:py37:docker',
@@ -2269,7 +2277,7 @@ class BeamModulePlugin implements Plugin<Project> {
               "--runner=${runner}",
               "--parallelism=2",
               "--sdk_worker_parallelism=1",
-              "--flink_job_server_jar=${project.project(':runners:flink:1.10:job-server').shadowJar.archivePath}",
+              "--flink_job_server_jar=${project.project(flinkJobServerProject).shadowJar.archivePath}",
               "--spark_job_server_jar=${project.project(':runners:spark:job-server').shadowJar.archivePath}",
             ]
             if (isStreaming)

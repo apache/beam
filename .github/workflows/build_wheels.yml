@@ -249,14 +249,17 @@ jobs:
     if: github.repository_owner == 'apache' && github.event_name == 'schedule'
     steps:
       - name: Checkout code on master branch
-        uses: actions/checkout@master
+        uses: actions/checkout@v2
+        with:
+          persist-credentials: false
+          submodules: recursive
       - name: Tag commit
         run: |
           BRANCH_NAME=${GITHUB_REF##*/}
           echo "Tagging ${BRANCH_NAME}"
           git tag -f nightly-${BRANCH_NAME} HEAD
       - name: Push tags
-        uses: ad-m/github-push-action@master
+        uses: ./.github/actions/github-push-action
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           tags: true

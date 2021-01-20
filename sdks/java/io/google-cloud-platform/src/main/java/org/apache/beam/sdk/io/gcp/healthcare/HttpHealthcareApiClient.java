@@ -639,7 +639,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
   public HttpBody searchFhirResource(
       String fhirStore,
       String resourceType,
-      @Nullable Map<String, String> parameters,
+      @Nullable Map<String, Object> parameters,
       String pageToken)
       throws IOException {
     SearchResourcesRequest request = new SearchResourcesRequest().setResourceType(resourceType);
@@ -868,7 +868,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
 
     private final String fhirStore;
     private final String resourceType;
-    private final Map<String, String> parameters;
+    private final Map<String, Object> parameters;
     private transient HealthcareApiClient client;
 
     /**
@@ -883,7 +883,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
         HealthcareApiClient client,
         String fhirStore,
         String resourceType,
-        @Nullable Map<String, String> parameters) {
+        @Nullable Map<String, Object> parameters) {
       this.client = client;
       this.fhirStore = fhirStore;
       this.resourceType = resourceType;
@@ -905,7 +905,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
         HealthcareApiClient client,
         String fhirStore,
         String resourceType,
-        @Nullable Map<String, String> parameters,
+        @Nullable Map<String, Object> parameters,
         String pageToken)
         throws IOException {
       return client.searchFhirResource(fhirStore, resourceType, parameters, pageToken);
@@ -922,7 +922,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
 
       private final String fhirStore;
       private final String resourceType;
-      private final Map<String, String> parameters;
+      private final Map<String, Object> parameters;
       private HealthcareApiClient client;
       private String pageToken;
       private boolean isFirstRequest;
@@ -940,7 +940,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
           HealthcareApiClient client,
           String fhirStore,
           String resourceType,
-          @Nullable Map<String, String> parameters) {
+          @Nullable Map<String, Object> parameters) {
         this.client = client;
         this.fhirStore = fhirStore;
         this.resourceType = resourceType;

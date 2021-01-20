@@ -45,7 +45,7 @@ call *one* row of the main table and *all* rows of the side table. The runner
 may use some caching techniques to share the side inputs between calls in order
 to avoid excessive reading:::
 
-  main_table = pipeline | 'VeryBig' >> beam.io.ReadFroBigQuery(...)
+  main_table = pipeline | 'VeryBig' >> beam.io.ReadFromBigQuery(...)
   side_table = pipeline | 'NotBig' >> beam.io.ReadFromBigQuery(...)
   results = (
       main_table
@@ -803,7 +803,7 @@ class _CustomBigQuerySource(BoundedSource):
         bq.clean_up_temporary_dataset(self._get_project())
 
     for source in self.split_result:
-      yield SourceBundle(0, source, None, None)
+      yield SourceBundle(1.0, source, None, None)
 
   def get_range_tracker(self, start_position, stop_position):
     class CustomBigQuerySourceRangeTracker(RangeTracker):
