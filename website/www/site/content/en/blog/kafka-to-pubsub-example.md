@@ -41,17 +41,17 @@ We hope you will find this example useful for setting up data pipelines between 
 Supported data formats:
 
 - Serializable plain text formats, such as JSON
-- [PubSubMessage](https://cloud.google.com/pubsub/docs/reference/rest/v1/PubsubMessage).
+- [PubSubMessage](https://cloud.google.com/pubsub/docs/reference/rest/v1/PubsubMessage)
 
 Supported input source configurations:
 
 - Single or multiple Apache Kafka bootstrap servers
 - Apache Kafka SASL/SCRAM authentication over plaintext or SSL connection
-- Secrets vault service [HashiCorp Vault](https://www.vaultproject.io/).
+- Secrets vault service [HashiCorp Vault](https://www.vaultproject.io/)
 
 Supported destination configuration:
 
-- Single Google Pub/Sub topic.
+- Single Google Pub/Sub topic
 
 In a simple scenario, the example will create an Apache Beam pipeline that will read messages from a
 source Kafka server with a source topic, and stream the text messages into specified Pub/Sub
