@@ -19,6 +19,7 @@
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(exportJavadoc: false, automaticModuleName: 'org.apache.beam.maven.archetypes.gcp.bom.examples')
 
+// Based off of :sdks:java:maven-archetypes:examples project
 description = "Apache Beam :: SDKs :: Java :: Maven Archetypes :: Google Cloud Platform BOM Examples"
 ext.summary = """A Maven Archetype to create a project
 using the Beam Google Cloud Platform BOM"""
