@@ -36,7 +36,6 @@ resolveBuildDependencies.dependsOn ":sdks:go:goBuild"
 configurations {
   dockerDependency
   sdkHarnessLauncher
-  pulledLicenses
 }
 
 dependencies {
@@ -87,5 +86,4 @@ task pullLicenses(type: Exec) {
 
 artifacts {
   sdkHarnessLauncher file: file('./build/target'), builtBy: goBuild
-  pulledLicenses file: file('./build/target'), builtBy: pullLicenses
 }

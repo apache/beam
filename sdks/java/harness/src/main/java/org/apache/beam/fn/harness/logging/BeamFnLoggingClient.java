@@ -40,10 +40,13 @@ import java.util.logging.LogManager;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
-import org.apache.beam.fn.harness.TransformProcessingThreadTracker;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnLoggingGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
+import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
+import org.apache.beam.runners.core.metrics.SimpleExecutionState;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.SdkHarnessOptions;
@@ -54,6 +57,7 @@ import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.CallStreamObserver;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.ClientCallStreamObserver;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.ClientResponseObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -216,12 +220,15 @@ public class BeamFnLoggingClient implements AutoCloseable {
       if (loggerName != null) {
         builder.setLogLocation(loggerName);
       }
-
-      String transformId =
-          TransformProcessingThreadTracker.getThreadIdToTransformIdMappings()
-              .getIfPresent((long) record.getThreadID());
-      if (transformId != null) {
-        builder.setTransformId(transformId);
+      ExecutionState state = ExecutionStateTracker.getCurrentExecutionState(record.getThreadID());
+      if (state instanceof SimpleExecutionState) {
+        String transformId =
+            ((SimpleExecutionState) state)
+                .getLabels()
+                .getOrDefault(MonitoringInfoConstants.Labels.PTRANSFORM, "");
+        if (!Strings.isNullOrEmpty(transformId)) {
+          builder.setTransformId(transformId);
+        }
       }
 
       // The thread that sends log records should never perform a blocking publish and

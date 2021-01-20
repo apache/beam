@@ -2511,7 +2511,7 @@ public class TransactionPojo {
   public final double purchaseAmount;
   @SchemaCreate
   public TransactionPojo(String bank, double purchaseAmount) {
-    this.bank = bank.
+    this.bank = bank;
     this.purchaseAmount = purchaseAmount;
   }
 }
