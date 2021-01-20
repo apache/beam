@@ -22,7 +22,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
+import org.apache.beam.sdk.coders.ListCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
@@ -62,9 +63,12 @@ public class FhirIOTest {
 
   @Test
   public void test_FhirIO_failedSearches() {
-    List<KV<String, Map<String, String>>> input = Arrays.asList(KV.of("resource-type-1", null));
+    List<FhirSearchParameter<String>> input =
+        Arrays.asList(new FhirSearchParameter<>("resource-type-1", null));
     FhirIO.Search.Result searchResult =
-        pipeline.apply(Create.of(input)).apply(FhirIO.searchResources("bad-store"));
+        pipeline
+            .apply(Create.of(input).withCoder(FhirSearchParameterCoder.of(StringUtf8Coder.of())))
+            .apply(FhirIO.searchResources("bad-store"));
 
     PCollection<HealthcareIOError<String>> failed = searchResult.getFailedSearches();
 
@@ -81,11 +85,13 @@ public class FhirIOTest {
 
   @Test
   public void test_FhirIO_failedSearchesWithGenericParameters() {
-    List<KV<String, Map<String, List<String>>>> input =
-        Arrays.asList(KV.of("resource-type-1", null));
+    List<FhirSearchParameter<List<String>>> input =
+        Arrays.asList(new FhirSearchParameter<>("resource-type-1", null));
     FhirIO.Search.Result searchResult =
         pipeline
-            .apply(Create.of(input))
+            .apply(
+                Create.of(input)
+                    .withCoder(FhirSearchParameterCoder.of(ListCoder.of(StringUtf8Coder.of()))))
             .apply(
                 (FhirIO.Search<List<String>>)
                     FhirIO.searchResourcesWithGenericParameters("bad-store"));

@@ -32,18 +32,14 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.coders.CustomCoder;
-import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ListCoder;
-import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.After;
 import org.junit.Before;
@@ -73,8 +69,8 @@ public class FhirIOSearchIT {
       "FHIR_store_search_it_" + System.currentTimeMillis() + "_" + (new SecureRandom().nextInt(32));
   private String fhirStoreId;
   private static final int MAX_NUM_OF_SEARCHES = 50;
-  private List<KV<String, Map<String, String>>> input = new ArrayList<>();
-  private List<KV<String, Map<String, List<Integer>>>> genericParametersInput = new ArrayList<>();
+  private List<FhirSearchParameter<String>> input = new ArrayList<>();
+  private List<FhirSearchParameter<List<Integer>>> genericParametersInput = new ArrayList<>();
 
   public String version;
 
@@ -109,8 +105,8 @@ public class FhirIOSearchIT {
     for (JsonElement resource : fhirResources) {
       String resourceType =
           resource.getAsJsonObject().getAsJsonObject("resource").get("resourceType").getAsString();
-      input.add(KV.of(resourceType, searchParameters));
-      genericParametersInput.add(KV.of(resourceType, genericSearchParameters));
+      input.add(new FhirSearchParameter<>(resourceType, searchParameters));
+      genericParametersInput.add(new FhirSearchParameter<>(resourceType, genericSearchParameters));
       searches++;
       if (searches > MAX_NUM_OF_SEARCHES) {
         break;
@@ -131,13 +127,9 @@ public class FhirIOSearchIT {
     pipeline.getOptions().as(DirectOptions.class).setBlockOnRun(false);
 
     // Search using the resource type of each written resource and empty search parameters.
-    PCollection<KV<String, Map<String, String>>> searchConfigs =
+    PCollection<FhirSearchParameter<String>> searchConfigs =
         pipeline.apply(
-            Create.of(input)
-                .withCoder(
-                    KvCoder.of(
-                        StringUtf8Coder.of(),
-                        MapCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))));
+            Create.of(input).withCoder(FhirSearchParameterCoder.of(StringUtf8Coder.of())));
     FhirIO.Search.Result result =
         searchConfigs.apply(
             FhirIO.searchResources(healthcareDataset + "/fhirStores/" + fhirStoreId));
@@ -182,13 +174,10 @@ public class FhirIOSearchIT {
     pipeline.getOptions().as(DirectOptions.class).setBlockOnRun(false);
 
     // Search using the resource type of each written resource and empty search parameters.
-    PCollection<KV<String, Map<String, List<Integer>>>> searchConfigs =
+    PCollection<FhirSearchParameter<List<Integer>>> searchConfigs =
         pipeline.apply(
             Create.of(genericParametersInput)
-                .withCoder(
-                    KvCoder.of(
-                        StringUtf8Coder.of(),
-                        MapCoder.of(StringUtf8Coder.of(), ListCoder.of(VarIntCoder.of())))));
+                .withCoder(FhirSearchParameterCoder.of(ListCoder.of(VarIntCoder.of()))));
     FhirIO.Search.Result result =
         searchConfigs.apply(
             (FhirIO.Search<List<Integer>>)

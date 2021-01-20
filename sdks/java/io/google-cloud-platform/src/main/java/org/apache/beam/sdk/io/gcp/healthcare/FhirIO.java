@@ -1428,7 +1428,7 @@ public class FhirIO {
 
   /** The type Search. */
   public static class Search<T>
-      extends PTransform<PCollection<KV<String, Map<String, T>>>, FhirIO.Search.Result> {
+      extends PTransform<PCollection<FhirSearchParameter<T>>, FhirIO.Search.Result> {
     private static final Logger LOG = LoggerFactory.getLogger(Search.class);
 
     private final ValueProvider<String> fhirStore;
@@ -1513,7 +1513,7 @@ public class FhirIO {
         new TupleTag<HealthcareIOError<String>>() {};
 
     @Override
-    public FhirIO.Search.Result expand(PCollection<KV<String, Map<String, T>>> input) {
+    public FhirIO.Search.Result expand(PCollection<FhirSearchParameter<T>> input) {
       return input.apply("Fetch Fhir messages", new SearchResourcesJsonString(this.fhirStore));
     }
 
@@ -1536,7 +1536,7 @@ public class FhirIO {
      * </ul>
      */
     class SearchResourcesJsonString
-        extends PTransform<PCollection<KV<String, Map<String, T>>>, FhirIO.Search.Result> {
+        extends PTransform<PCollection<FhirSearchParameter<T>>, FhirIO.Search.Result> {
 
       private final ValueProvider<String> fhirStore;
 
@@ -1545,7 +1545,7 @@ public class FhirIO {
       }
 
       @Override
-      public FhirIO.Search.Result expand(PCollection<KV<String, Map<String, T>>> resourceIds) {
+      public FhirIO.Search.Result expand(PCollection<FhirSearchParameter<T>> resourceIds) {
         return new FhirIO.Search.Result(
             resourceIds.apply(
                 ParDo.of(new SearchResourcesFn(this.fhirStore))
@@ -1554,7 +1554,7 @@ public class FhirIO {
       }
 
       /** DoFn for searching messages from the Fhir store with error handling. */
-      class SearchResourcesFn extends DoFn<KV<String, Map<String, T>>, JsonArray> {
+      class SearchResourcesFn extends DoFn<FhirSearchParameter<T>, JsonArray> {
 
         private Distribution searchLatencyMs =
             Metrics.distribution(SearchResourcesFn.class, "fhir-search-latency-ms");
@@ -1588,14 +1588,14 @@ public class FhirIO {
          */
         @ProcessElement
         public void processElement(ProcessContext context) {
-          KV<String, Map<String, T>> elementValues = context.element();
+          FhirSearchParameter<T> fhirSearchParameters = context.element();
           try {
             context.output(
                 searchResources(
                     this.client,
                     this.fhirStore.toString(),
-                    elementValues.getKey(),
-                    elementValues.getValue()));
+                    fhirSearchParameters.getResourceType(),
+                    fhirSearchParameters.getQueries()));
           } catch (IllegalArgumentException | NoSuchElementException e) {
             failedSearches.inc();
             log.warn(
