@@ -36,14 +36,16 @@ class SdkContainerBuilderTest(unittest.TestCase):
     gc.collect()
 
   def test_can_find_local_builder(self):
-    local_builder = sdk_container_builder.SdkContainerImageBuilder\
-      ._get_subclass_by_key('local_docker')
+    local_builder = (
+        sdk_container_builder.SdkContainerImageBuilder._get_subclass_by_key(
+            'local_docker'))
     self.assertEqual(
         local_builder, sdk_container_builder._SdkContainerImageLocalBuilder)
 
   def test_can_find_cloud_builder(self):
-    local_builder = sdk_container_builder.SdkContainerImageBuilder.\
-      _get_subclass_by_key('cloud_build')
+    local_builder = (
+        sdk_container_builder.SdkContainerImageBuilder._get_subclass_by_key(
+            'cloud_build'))
     self.assertEqual(
         local_builder, sdk_container_builder._SdkContainerImageCloudBuilder)
 
@@ -75,8 +77,9 @@ class SdkContainerBuilderTest(unittest.TestCase):
       pass
 
     expected_key = f'{_PluginSdkBuilder.__module__}._PluginSdkBuilder'
-    local_builder = sdk_container_builder.SdkContainerImageBuilder.\
-      _get_subclass_by_key(expected_key)
+    local_builder = (
+        sdk_container_builder.SdkContainerImageBuilder._get_subclass_by_key(
+            expected_key))
     self.assertEqual(local_builder, _PluginSdkBuilder)
 
   @unittest.mock.patch(
