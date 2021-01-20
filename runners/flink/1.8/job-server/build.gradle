@@ -31,5 +31,5 @@ project.ext {
 apply from: "$basePath/flink_job_server.gradle"
 
 dependencies {
-  permitUnusedDeclared project(":runners:flink:1.8")
+  runtimeOnly project(":runners:flink:1.8")
 }
