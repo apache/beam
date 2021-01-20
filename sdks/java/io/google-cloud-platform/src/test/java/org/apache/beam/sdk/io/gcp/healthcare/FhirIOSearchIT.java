@@ -24,6 +24,8 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -32,15 +34,18 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.direct.DirectOptions;
+import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.junit.AfterClass;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -67,8 +72,9 @@ public class FhirIOSearchIT {
   private static final String BASE_STORE_ID =
       "FHIR_store_search_it_" + System.currentTimeMillis() + "_" + (new SecureRandom().nextInt(32));
   private String fhirStoreId;
-  private static final int MAX_NUM_OF_SEARCHES = 100;
+  private static final int MAX_NUM_OF_SEARCHES = 50;
   private List<KV<String, Map<String, String>>> input = new ArrayList<>();
+  private List<KV<String, Map<String, List<Integer>>>> genericParametersInput = new ArrayList<>();
 
   public String version;
 
@@ -96,17 +102,15 @@ public class FhirIOSearchIT {
     JsonArray fhirResources =
         JsonParser.parseString(bundles.get(0)).getAsJsonObject().getAsJsonArray("entry");
     HashMap<String, String> searchParameters = new HashMap<>();
-    searchParameters.put("_count", Integer.toString(100));
+    searchParameters.put("_count", Integer.toString(50));
+    HashMap<String, List<Integer>> genericSearchParameters = new HashMap<>();
+    genericSearchParameters.put("_count", Arrays.asList(50));
     int searches = 0;
     for (JsonElement resource : fhirResources) {
-      input.add(
-          KV.of(
-              resource
-                  .getAsJsonObject()
-                  .getAsJsonObject("resource")
-                  .get("resourceType")
-                  .getAsString(),
-              searchParameters));
+      String resourceType =
+          resource.getAsJsonObject().getAsJsonObject("resource").get("resourceType").getAsString();
+      input.add(KV.of(resourceType, searchParameters));
+      genericParametersInput.add(KV.of(resourceType, genericSearchParameters));
       searches++;
       if (searches > MAX_NUM_OF_SEARCHES) {
         break;
@@ -114,8 +118,8 @@ public class FhirIOSearchIT {
     }
   }
 
-  @AfterClass
-  public static void teardown() throws IOException {
+  @After
+  public void teardown() throws IOException {
     HealthcareApiClient client = new HttpHealthcareApiClient();
     for (String version : versions()) {
       client.deleteFhirStore(healthcareDataset + "/fhirStores/" + BASE_STORE_ID + version);
@@ -137,6 +141,59 @@ public class FhirIOSearchIT {
     FhirIO.Search.Result result =
         searchConfigs.apply(
             FhirIO.searchResources(healthcareDataset + "/fhirStores/" + fhirStoreId));
+
+    // Verify that there are no failures.
+    PAssert.that(result.getFailedSearches()).empty();
+    // Verify that none of the result resource sets are empty sets.
+    PCollection<JsonArray> resources = result.getResources();
+    PAssert.that(resources)
+        .satisfies(
+            input -> {
+              for (JsonArray resource : input) {
+                assertNotEquals(resource.size(), 0);
+              }
+              return null;
+            });
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  public static class IntegerListObjectCoder extends CustomCoder<Object> {
+    private static final IntegerListObjectCoder CODER = new IntegerListObjectCoder();
+    private static final ListCoder<Integer> INTEGER_LIST_CODER = ListCoder.of(VarIntCoder.of());
+
+    public static IntegerListObjectCoder of() {
+      return CODER;
+    }
+
+    @Override
+    public void encode(Object value, OutputStream outStream) throws IOException {
+      INTEGER_LIST_CODER.encode((List<Integer>) value, outStream);
+    }
+
+    @Override
+    public Object decode(InputStream inStream) throws IOException {
+      return INTEGER_LIST_CODER.decode(inStream);
+    }
+  }
+
+  @Test
+  public void testFhirIOSearchWithGenericParameters() {
+    pipeline.getOptions().as(DirectOptions.class).setBlockOnRun(false);
+
+    // Search using the resource type of each written resource and empty search parameters.
+    PCollection<KV<String, Map<String, List<Integer>>>> searchConfigs =
+        pipeline.apply(
+            Create.of(genericParametersInput)
+                .withCoder(
+                    KvCoder.of(
+                        StringUtf8Coder.of(),
+                        MapCoder.of(StringUtf8Coder.of(), ListCoder.of(VarIntCoder.of())))));
+    FhirIO.Search.Result result =
+        searchConfigs.apply(
+            (FhirIO.Search<List<Integer>>)
+                FhirIO.searchResourcesWithGenericParameters(
+                    healthcareDataset + "/fhirStores/" + fhirStoreId));
 
     // Verify that there are no failures.
     PAssert.that(result.getFailedSearches()).empty();

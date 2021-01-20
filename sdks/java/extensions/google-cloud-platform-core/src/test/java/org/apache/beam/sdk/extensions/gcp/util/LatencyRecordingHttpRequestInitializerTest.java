@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.gcp.util;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Matchers.anyInt;
@@ -37,8 +37,8 @@ import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.services.storage.Storage;
 import java.io.IOException;
+import org.apache.beam.sdk.metrics.Histogram;
 import org.apache.beam.sdk.testing.ExpectedLogs;
-import org.apache.beam.sdk.util.Histogram;
 import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.Before;
@@ -101,7 +101,7 @@ public class LatencyRecordingHttpRequestInitializerTest {
     HttpResponse response = result.executeUnparsed();
     assertNotNull(response);
 
-    verify(mockHistogram, only()).record(anyDouble());
+    verify(mockHistogram, only()).update(anyDouble());
     verify(mockLowLevelRequest, atLeastOnce()).addHeader(anyString(), anyString());
     verify(mockLowLevelRequest).setTimeout(anyInt(), anyInt());
     verify(mockLowLevelRequest).setWriteTimeout(anyInt());
@@ -122,7 +122,7 @@ public class LatencyRecordingHttpRequestInitializerTest {
       assertThat(e.getMessage(), Matchers.containsString("403"));
     }
 
-    verify(mockHistogram, only()).record(anyDouble());
+    verify(mockHistogram, only()).update(anyDouble());
     verify(mockLowLevelRequest, atLeastOnce()).addHeader(anyString(), anyString());
     verify(mockLowLevelRequest).setTimeout(anyInt(), anyInt());
     verify(mockLowLevelRequest).setWriteTimeout(anyInt());

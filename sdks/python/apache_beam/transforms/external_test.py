@@ -32,6 +32,7 @@ import apache_beam as beam
 from apache_beam import Pipeline
 from apache_beam.coders import RowCoder
 from apache_beam.portability.api.external_transforms_pb2 import ExternalConfigurationPayload
+from apache_beam.runners import pipeline_context
 from apache_beam.runners.portability import expansion_service
 from apache_beam.runners.portability.expansion_service_test import FibTransform
 from apache_beam.testing.util import assert_that
@@ -217,6 +218,35 @@ class ExternalTransformTest(unittest.TestCase):
   def test_nested(self):
     with beam.Pipeline() as p:
       assert_that(p | FibTransform(6), equal_to([8]))
+
+  def test_external_empty_spec_translation(self):
+    pipeline = beam.Pipeline()
+    external_transform = beam.ExternalTransform(
+        'beam:transforms:xlang:test:prefix',
+        ImplicitSchemaPayloadBuilder({'data': u'0'}),
+        expansion_service.ExpansionServiceServicer())
+    _ = (pipeline | beam.Create(['a', 'b']) | external_transform)
+    pipeline.run().wait_until_finish()
+
+    external_transform_label = (
+        'ExternalTransform(beam:transforms:xlang:test:prefix)/TestLabel')
+    for transform in external_transform._expanded_components.transforms.values(
+    ):
+      # We clear the spec of one of the external transforms.
+      if transform.unique_name == external_transform_label:
+        transform.spec.Clear()
+
+    context = pipeline_context.PipelineContext()
+    proto_pipeline = pipeline.to_runner_api(context=context)
+
+    proto_transform = None
+    for transform in proto_pipeline.components.transforms.values():
+      if (transform.unique_name ==
+          'ExternalTransform(beam:transforms:xlang:test:prefix)/TestLabel'):
+        proto_transform = transform
+
+    self.assertIsNotNone(proto_transform)
+    self.assertTrue(str(proto_transform).strip().find('spec {') == -1)
 
   def test_unique_name(self):
     p = beam.Pipeline()
