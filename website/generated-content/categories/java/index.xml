@@ -1,0 +1,69 @@
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – java</title><link>/categories/java/</link><description>Recent content in java on Apache Beam</description><generator>Hugo -- gohugo.io</generator><lastBuildDate>Fri, 15 Jan 2021 00:00:01 -0800</lastBuildDate><atom:link href="/categories/java/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Example to ingest data from Apache Kafka to Google Cloud Pub/Sub</title><link>/blog/kafka-to-pubsub-example/</link><pubDate>Fri, 15 Jan 2021 00:00:01 -0800</pubDate><guid>/blog/kafka-to-pubsub-example/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>In this blog post we present an example that creates a pipeline to read data from a single topic or
+multiple topics from &lt;a href="https://kafka.apache.org/">Apache Kafka&lt;/a> and write data into a topic
+in &lt;a href="https://cloud.google.com/pubsub">Google Pub/Sub&lt;/a>. The example provides code samples to implement
+simple yet powerful pipelines and also provides an out-of-the-box solution that you can just &lt;em>&amp;rdquo;
+plug&amp;rsquo;n&amp;rsquo;play&amp;rdquo;&lt;/em>.&lt;/p>
+&lt;p>This end-to-end example is included
+in &lt;a href="https://beam.apache.org/blog/beam-2.27.0/">Apache Beam release 2.27&lt;/a>
+and can be downloaded &lt;a href="https://beam.apache.org/get-started/downloads/#2270-2020-12-22">here&lt;/a>.&lt;/p>
+&lt;p>We hope you will find this example useful for setting up data pipelines between Kafka and Pub/Sub.&lt;/p>
+&lt;h1 id="example-specs">Example specs&lt;/h1>
+&lt;p>Supported data formats:&lt;/p>
+&lt;ul>
+&lt;li>Serializable plain text formats, such as JSON&lt;/li>
+&lt;li>&lt;a href="https://cloud.google.com/pubsub/docs/reference/rest/v1/PubsubMessage">PubSubMessage&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;p>Supported input source configurations:&lt;/p>
+&lt;ul>
+&lt;li>Single or multiple Apache Kafka bootstrap servers&lt;/li>
+&lt;li>Apache Kafka SASL/SCRAM authentication over plaintext or SSL connection&lt;/li>
+&lt;li>Secrets vault service &lt;a href="https://www.vaultproject.io/">HashiCorp Vault&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;p>Supported destination configuration:&lt;/p>
+&lt;ul>
+&lt;li>Single Google Pub/Sub topic&lt;/li>
+&lt;/ul>
+&lt;p>In a simple scenario, the example will create an Apache Beam pipeline that will read messages from a
+source Kafka server with a source topic, and stream the text messages into specified Pub/Sub
+destination topic. Other scenarios may need Kafka SASL/SCRAM authentication, that can be performed
+over plaintext or SSL encrypted connection. The example supports using a single Kafka user account
+to authenticate in the provided source Kafka servers and topics. To support SASL authentication over
+SSL the example will need an SSL certificate location and access to a secrets vault service with
+Kafka username and password, currently supporting HashiCorp Vault.&lt;/p>
+&lt;h1 id="where-can-i-run-this-example">Where can I run this example?&lt;/h1>
+&lt;p>There are two ways to execute the pipeline.&lt;/p>
+&lt;ol>
+&lt;li>Locally. This way has many options - run directly from your IntelliJ, or create &lt;code>.jar&lt;/code> file and
+run it in the terminal, or use your favourite method of running Beam pipelines.&lt;/li>
+&lt;li>In &lt;a href="https://cloud.google.com/">Google Cloud&lt;/a> using Google
+Cloud &lt;a href="https://cloud.google.com/dataflow">Dataflow&lt;/a>:
+&lt;ul>
+&lt;li>With &lt;code>gcloud&lt;/code> command-line tool you can create
+a &lt;a href="https://cloud.google.com/dataflow/docs/concepts/dataflow-templates">Flex Template&lt;/a>
+out of this Beam example and execute it in Google Cloud Platform. &lt;em>This requires corresponding
+modifications of the example to turn it into a template.&lt;/em>&lt;/li>
+&lt;li>This example exists as
+a &lt;a href="https://github.com/GoogleCloudPlatform/DataflowTemplates/tree/master/v2/kafka-to-pubsub">Flex Template version&lt;/a>
+within &lt;a href="https://github.com/GoogleCloudPlatform/DataflowTemplates">Google Cloud Dataflow Template Pipelines&lt;/a>
+repository and can be run with no additional code modifications.&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ol>
+&lt;h1 id="next-steps">Next Steps&lt;/h1>
+&lt;p>Give this &lt;strong>Beam end-to-end example&lt;/strong> a try. If you are new to Beam, we hope this example will give
+you more understanding on how pipelines work and look like. If you are already using Beam, we hope
+some code samples in it will be useful for your use cases.&lt;/p>
+&lt;p>Please
+&lt;a href="https://beam.apache.org/community/contact-us/">let us know&lt;/a> if you encounter any issues.&lt;/p></description></item></channel></rss>

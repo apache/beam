@@ -1,4 +1,72 @@
-<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Apache Beam</title><description>Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.</description><link>/</link><generator>Hugo -- gohugo.io</generator><item><title>Apache Beam 2.27.0</title><description>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Apache Beam</title><description>Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.</description><link>/</link><generator>Hugo -- gohugo.io</generator><item><title>Example to ingest data from Apache Kafka to Google Cloud Pub/Sub</title><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>In this blog post we present an example that creates a pipeline to read data from a single topic or
+multiple topics from &lt;a href="https://kafka.apache.org/">Apache Kafka&lt;/a> and write data into a topic
+in &lt;a href="https://cloud.google.com/pubsub">Google Pub/Sub&lt;/a>. The example provides code samples to implement
+simple yet powerful pipelines and also provides an out-of-the-box solution that you can just &lt;em>&amp;rdquo;
+plug&amp;rsquo;n&amp;rsquo;play&amp;rdquo;&lt;/em>.&lt;/p>
+&lt;p>This end-to-end example is included
+in &lt;a href="https://beam.apache.org/blog/beam-2.27.0/">Apache Beam release 2.27&lt;/a>
+and can be downloaded &lt;a href="https://beam.apache.org/get-started/downloads/#2270-2020-12-22">here&lt;/a>.&lt;/p>
+&lt;p>We hope you will find this example useful for setting up data pipelines between Kafka and Pub/Sub.&lt;/p>
+&lt;h1 id="example-specs">Example specs&lt;/h1>
+&lt;p>Supported data formats:&lt;/p>
+&lt;ul>
+&lt;li>Serializable plain text formats, such as JSON&lt;/li>
+&lt;li>&lt;a href="https://cloud.google.com/pubsub/docs/reference/rest/v1/PubsubMessage">PubSubMessage&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;p>Supported input source configurations:&lt;/p>
+&lt;ul>
+&lt;li>Single or multiple Apache Kafka bootstrap servers&lt;/li>
+&lt;li>Apache Kafka SASL/SCRAM authentication over plaintext or SSL connection&lt;/li>
+&lt;li>Secrets vault service &lt;a href="https://www.vaultproject.io/">HashiCorp Vault&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;p>Supported destination configuration:&lt;/p>
+&lt;ul>
+&lt;li>Single Google Pub/Sub topic&lt;/li>
+&lt;/ul>
+&lt;p>In a simple scenario, the example will create an Apache Beam pipeline that will read messages from a
+source Kafka server with a source topic, and stream the text messages into specified Pub/Sub
+destination topic. Other scenarios may need Kafka SASL/SCRAM authentication, that can be performed
+over plaintext or SSL encrypted connection. The example supports using a single Kafka user account
+to authenticate in the provided source Kafka servers and topics. To support SASL authentication over
+SSL the example will need an SSL certificate location and access to a secrets vault service with
+Kafka username and password, currently supporting HashiCorp Vault.&lt;/p>
+&lt;h1 id="where-can-i-run-this-example">Where can I run this example?&lt;/h1>
+&lt;p>There are two ways to execute the pipeline.&lt;/p>
+&lt;ol>
+&lt;li>Locally. This way has many options - run directly from your IntelliJ, or create &lt;code>.jar&lt;/code> file and
+run it in the terminal, or use your favourite method of running Beam pipelines.&lt;/li>
+&lt;li>In &lt;a href="https://cloud.google.com/">Google Cloud&lt;/a> using Google
+Cloud &lt;a href="https://cloud.google.com/dataflow">Dataflow&lt;/a>:
+&lt;ul>
+&lt;li>With &lt;code>gcloud&lt;/code> command-line tool you can create
+a &lt;a href="https://cloud.google.com/dataflow/docs/concepts/dataflow-templates">Flex Template&lt;/a>
+out of this Beam example and execute it in Google Cloud Platform. &lt;em>This requires corresponding
+modifications of the example to turn it into a template.&lt;/em>&lt;/li>
+&lt;li>This example exists as
+a &lt;a href="https://github.com/GoogleCloudPlatform/DataflowTemplates/tree/master/v2/kafka-to-pubsub">Flex Template version&lt;/a>
+within &lt;a href="https://github.com/GoogleCloudPlatform/DataflowTemplates">Google Cloud Dataflow Template Pipelines&lt;/a>
+repository and can be run with no additional code modifications.&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ol>
+&lt;h1 id="next-steps">Next Steps&lt;/h1>
+&lt;p>Give this &lt;strong>Beam end-to-end example&lt;/strong> a try. If you are new to Beam, we hope this example will give
+you more understanding on how pipelines work and look like. If you are already using Beam, we hope
+some code samples in it will be useful for your use cases.&lt;/p>
+&lt;p>Please
+&lt;a href="https://beam.apache.org/community/contact-us/">let us know&lt;/a> if you encounter any issues.&lt;/p></description><link>/blog/kafka-to-pubsub-example/</link><pubDate>Fri, 15 Jan 2021 00:00:01 -0800</pubDate><guid>/blog/kafka-to-pubsub-example/</guid><category>blog</category><category>java</category></item><item><title>Apache Beam 2.27.0</title><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -32,6 +100,7 @@ For more information on changes in 2.27.0, check out the
 &lt;li>Added Cloud Bigtable Provider extension to Beam SQL (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11173">BEAM-11173&lt;/a>, &lt;a href="https://issues.apache.org/jira/browse/BEAM-11373">BEAM-11373&lt;/a>)&lt;/li>
 &lt;li>Added a schema provider for thrift data (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11338">BEAM-11338&lt;/a>)&lt;/li>
 &lt;li>Added combiner packing pipeline optimization to Dataflow runner. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10641">BEAM-10641&lt;/a>)&lt;/li>
+&lt;li>Added an example to ingest data from Apache Kafka to Google Pub/Sub. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11065">BEAM-11065&lt;/a>)&lt;/li>
 &lt;/ul>
 &lt;h2 id="breaking-changes">Breaking Changes&lt;/h2>
 &lt;ul>
@@ -901,60 +970,4 @@ while providing higher quality error messages.&lt;/p>
 &lt;p>Go play with the new &lt;code>performance_runtime_type_check&lt;/code> feature!&lt;/p>
 &lt;p>It&amp;rsquo;s in an experimental state so please
 &lt;a href="https://beam.apache.org/community/contact-us/">let us know&lt;/a>
-if you encounter any issues.&lt;/p></description><link>/blog/python-performance-runtime-type-checking/</link><pubDate>Fri, 21 Aug 2020 00:00:01 -0800</pubDate><guid>/blog/python-performance-runtime-type-checking/</guid><category>blog</category><category>python</category><category>typing</category></item><item><title>Apache Beam 2.23.0</title><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>We are happy to present the new 2.23.0 release of Apache Beam. This release includes both improvements and new functionality.
-See the &lt;a href="/get-started/downloads/#2230-2020-07-29">download page&lt;/a> for this release.&lt;/p>
-&lt;p>For more information on changes in 2.23.0, check out the
-&lt;a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12347145">detailed release notes&lt;/a>.&lt;/p>
-&lt;h2 id="highlights">Highlights&lt;/h2>
-&lt;ul>
-&lt;li>Twister2 Runner (&lt;a href="https://issues.apache.org/jira/browse/BEAM-7304">BEAM-7304&lt;/a>).&lt;/li>
-&lt;li>Python 3.8 support (&lt;a href="https://issues.apache.org/jira/browse/BEAM-8494">BEAM-8494&lt;/a>).&lt;/li>
-&lt;/ul>
-&lt;h2 id="ios">I/Os&lt;/h2>
-&lt;ul>
-&lt;li>Support for reading from Snowflake added (Java) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-9722">BEAM-9722&lt;/a>).&lt;/li>
-&lt;li>Support for writing to Splunk added (Java) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-8596">BEAM-8596&lt;/a>).&lt;/li>
-&lt;li>Support for assume role added (Java) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10335">BEAM-10335&lt;/a>).&lt;/li>
-&lt;li>A new transform to read from BigQuery has been added: &lt;code>apache_beam.io.gcp.bigquery.ReadFromBigQuery&lt;/code>. This transform
-is experimental. It reads data from BigQuery by exporting data to Avro files, and reading those files. It also supports
-reading data by exporting to JSON files. This has small differences in behavior for Time and Date-related fields. See
-Pydoc for more information.&lt;/li>
-&lt;li>Add dispositions for SnowflakeIO.write (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10343">BEAM-10343&lt;/a>)&lt;/li>
-&lt;/ul>
-&lt;h2 id="new-features--improvements">New Features / Improvements&lt;/h2>
-&lt;ul>
-&lt;li>Update Snowflake JDBC dependency and add application=beam to connection URL (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10383">BEAM-10383&lt;/a>).&lt;/li>
-&lt;/ul>
-&lt;h2 id="breaking-changes">Breaking Changes&lt;/h2>
-&lt;ul>
-&lt;li>&lt;code>RowJson.RowJsonDeserializer&lt;/code>, &lt;code>JsonToRow&lt;/code>, and &lt;code>PubsubJsonTableProvider&lt;/code> now accept &amp;ldquo;implicit
-nulls&amp;rdquo; by default when deserializing JSON (Java) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10220">BEAM-10220&lt;/a>).
-Previously nulls could only be represented with explicit null values, as in
-&lt;code>{&amp;quot;foo&amp;quot;: &amp;quot;bar&amp;quot;, &amp;quot;baz&amp;quot;: null}&lt;/code>, whereas an implicit null like &lt;code>{&amp;quot;foo&amp;quot;: &amp;quot;bar&amp;quot;}&lt;/code> would raise an
-exception. Now both JSON strings will yield the same result by default. This behavior can be
-overridden with &lt;code>RowJson.RowJsonDeserializer#withNullBehavior&lt;/code>.&lt;/li>
-&lt;li>Fixed a bug in &lt;code>GroupIntoBatches&lt;/code> experimental transform in Python to actually group batches by key.
-This changes the output type for this transform (&lt;a href="https://issues.apache.org/jira/browse/BEAM-6696">BEAM-6696&lt;/a>).&lt;/li>
-&lt;/ul>
-&lt;h2 id="deprecations">Deprecations&lt;/h2>
-&lt;ul>
-&lt;li>Remove Gearpump runner. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-9999">BEAM-9999&lt;/a>)&lt;/li>
-&lt;li>Remove Apex runner. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-9999">BEAM-9999&lt;/a>)&lt;/li>
-&lt;li>RedisIO.readAll() is deprecated and will be removed in 2 versions, users must use RedisIO.readKeyPatterns() as a replacement (&lt;a href="https://issues.apache.org/jira/browse/BEAM-9747">BEAM-9747&lt;/a>).&lt;/li>
-&lt;/ul>
-&lt;h2 id="known-issues">Known Issues&lt;/h2>
-&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
-&lt;p>According to git shortlog, the following people contributed to the 2.23.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Aaron, Abhishek Yadav, Ahmet Altay, aiyangar, Aizhamal Nurmamat kyzy, Ajo Thomas, Akshay-Iyangar, Alan Pryor, Alex Amato, Alexey Romanenko, Allen Pradeep Xavier, Andrew Crites, Andrew Pilloud, Ankur Goenka, Anna Qin, Ashwin Ramaswami, bntnam, Borzoo Esmailloo, Boyuan Zhang, Brian Hulette, Brian Michalski, brucearctor, Chamikara Jayalath, chi-chi weng, Chuck Yang, Chun Yang, Colm O hEigeartaigh, Corvin Deboeser, Craig Chambers, Damian Gadomski, Damon Douglas, Daniel Oliveira, Dariusz Aniszewski, darshanj, darshan jani, David Cavazos, David Moravek, David Yan, Esun Kim, Etienne Chauchot, Filipe Regadas, fuyuwei, Graeme Morgan, Hannah-Jiang, Harch Vardhan, Heejong Lee, Henry Suryawirawan, InigoSJ, Ismaël Mejía, Israel Herraiz, Jacob Ferriero, Jan Lukavský, Jie Fan, John Mora, Jozef Vilcek, Julien Phalip, Justine Koa, Kamil Gabryjelski, Kamil Wasilewski, Kasia Kucharczyk, Kenneth Jung, Kenneth Knowles, kevingg, Kevin Sijo Puthusseri, kshivvy, Kyle Weaver, Kyoungha Min, Kyungwon Jo, Luke Cwik, Mark Liu, Mark-Zeng, Matthias Baetens, Maximilian Michels, Michal Walenia, Mikhail Gryzykhin, Nam Bui, Nathan Fisher, Niel Markwick, Ning Kang, Omar Ismail, Pablo Estrada, paul fisher, Pawel Pasterz, perkss, Piotr Szuberski, pulasthi, purbanow, Rahul Patwari, Rajat Mittal, Rehman, Rehman Murad Ali, Reuben van Ammers, Reuven Lax, Reza Rokni, Rion Williams, Robert Bradshaw, Robert Burke, Rui Wang, Ruoyun Huang, sabhyankar, Sam Rohde, Sam Whittle, sclukas77, Sebastian Graca, Shoaib Zafar, Sruthi Sree Kumar, Stephen O&amp;rsquo;Kennedy, Steve Koonce, Steve Niemitz, Steven van Rossum, Ted Romer, Tesio, Thinh Ha, Thomas Weise, Tobias Kaymak, tobiaslieber-cognitedata, Tobiasz Kędzierski, Tomo Suzuki, Tudor Marian, tvs, Tyson Hamilton, Udi Meiri, Valentyn Tymofieiev, Vasu Nori, xuelianhan, Yichi Zhang, Yifan Zou, Yixing Zhang, yoshiki.obata, Yueyang Qiu, Yu Feng, Yuwei Fu, Zhuo Peng, ZijieSong946.&lt;/p></description><link>/blog/beam-2.23.0/</link><pubDate>Wed, 29 Jul 2020 00:00:01 -0800</pubDate><guid>/blog/beam-2.23.0/</guid><category>blog</category></item></channel></rss>
+if you encounter any issues.&lt;/p></description><link>/blog/python-performance-runtime-type-checking/</link><pubDate>Fri, 21 Aug 2020 00:00:01 -0800</pubDate><guid>/blog/python-performance-runtime-type-checking/</guid><category>blog</category><category>python</category><category>typing</category></item></channel></rss>
