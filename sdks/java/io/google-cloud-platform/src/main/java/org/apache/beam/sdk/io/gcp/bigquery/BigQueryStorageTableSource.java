@@ -88,6 +88,10 @@ public class BigQueryStorageTableSource<T> extends BigQueryStorageSourceBase<T> 
 
   @Override
   public long getEstimatedSizeBytes(PipelineOptions options) throws Exception {
+    Table table = getTargetTable(options.as(BigQueryOptions.class));
+    if (table == null) {
+      return 0;
+    }
     return getTargetTable(options.as(BigQueryOptions.class)).getNumBytes();
   }
 
