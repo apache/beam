@@ -81,6 +81,16 @@ public abstract class AbstractFlinkCombineRunner<
         PipelineOptions options,
         SideInputReader sideInputReader,
         Collection<? extends BoundedWindow> windows);
+
+    default void setup(
+            PipelineOptions options,
+            SideInputReader sideInputReader
+    ) {}
+
+    default void teardown(
+            PipelineOptions options,
+            SideInputReader sideInputReader
+    ) {}
   }
 
   /**
@@ -127,6 +137,16 @@ public abstract class AbstractFlinkCombineRunner<
         Collection<? extends BoundedWindow> windows) {
       return combineFnRunner.extractOutput(accumulator, options, sideInputReader, windows);
     }
+
+    @Override
+    public void setup(PipelineOptions options, SideInputReader sideInputReader) {
+      combineFnRunner.setup(options, sideInputReader);
+    }
+
+    @Override
+    public void teardown(PipelineOptions options, SideInputReader sideInputReader) {
+      combineFnRunner.teardown(options, sideInputReader);
+    }
   }
 
   /** A partial combiner that takes in {@code InputT} and produces {@code AccumT}. */
@@ -170,6 +190,16 @@ public abstract class AbstractFlinkCombineRunner<
         Collection<? extends BoundedWindow> windows) {
       return accumulator;
     }
+
+    @Override
+    public void setup(PipelineOptions options, SideInputReader sideInputReader) {
+      combineFnRunner.setup(options, sideInputReader);
+    }
+
+    @Override
+    public void teardown(PipelineOptions options, SideInputReader sideInputReader) {
+      combineFnRunner.teardown(options, sideInputReader);
+    }
   }
 
   /** A final combiner that takes in {@code AccumT} and produces {@code OutputT}. */
@@ -212,6 +242,16 @@ public abstract class AbstractFlinkCombineRunner<
         SideInputReader sideInputReader,
         Collection<? extends BoundedWindow> windows) {
       return combineFnRunner.extractOutput(accumulator, options, sideInputReader, windows);
+    }
+
+    @Override
+    public void setup(PipelineOptions options, SideInputReader sideInputReader) {
+      combineFnRunner.setup(options, sideInputReader);
+    }
+
+    @Override
+    public void teardown(PipelineOptions options, SideInputReader sideInputReader) {
+      combineFnRunner.teardown(options, sideInputReader);
     }
   }
 }

@@ -138,6 +138,16 @@ public class GlobalCombineFnRunners {
         Collection<? extends BoundedWindow> windows) {
       return combineFn.compact(accumulator);
     }
+
+    @Override
+    public void setup(PipelineOptions options, SideInputReader sideInputReader) {
+      combineFn.setup();
+    }
+
+    @Override
+    public void teardown(PipelineOptions options, SideInputReader sideInputReader) {
+      combineFn.teardown();
+    }
   }
 
   /**
@@ -213,6 +223,16 @@ public class GlobalCombineFnRunners {
       return combineFnWithContext.compact(
           accumulator,
           createFromComponents(options, sideInputReader, Iterables.getOnlyElement(windows)));
+    }
+
+    @Override
+    public void setup(PipelineOptions options, SideInputReader sideInputReader) {
+      combineFnWithContext.setup();
+    }
+
+    @Override
+    public void teardown(PipelineOptions options, SideInputReader sideInputReader) {
+      combineFnWithContext.teardown();
     }
   }
 }

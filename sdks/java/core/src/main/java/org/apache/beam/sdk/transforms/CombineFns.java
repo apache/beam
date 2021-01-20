@@ -437,6 +437,16 @@ public class CombineFns {
       super.populateDisplayData(builder);
       CombineFns.populateDisplayData(builder, combineFns);
     }
+
+    @Override
+    public void setup() {
+      combineFns.forEach(CombineFn::setup);
+    }
+
+    @Override
+    public void teardown() {
+      combineFns.forEach(CombineFn::teardown);
+    }
   }
 
   /**
@@ -609,6 +619,16 @@ public class CombineFns {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       CombineFns.populateDisplayData(builder, combineFnWithContexts);
+    }
+
+    @Override
+    public void setup() {
+      combineFnWithContexts.forEach(CombineFnWithContext::setup);
+    }
+
+    @Override
+    public void teardown() {
+      combineFnWithContexts.forEach(CombineFnWithContext::teardown);
     }
   }
 

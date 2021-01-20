@@ -109,6 +109,16 @@ public class CombineFnUtil {
           super.populateDisplayData(builder);
           combineFn.populateDisplayData(builder);
         }
+
+        @Override
+        public void setup() {
+          combineFn.setup();
+        }
+
+        @Override
+        public void teardown() {
+          combineFn.teardown();
+        }
       };
     }
   }
@@ -167,6 +177,16 @@ public class CombineFnUtil {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       combineFn.populateDisplayData(builder);
+    }
+
+    @Override
+    public void setup() {
+      combineFn.setup();
+    }
+
+    @Override
+    public void teardown() {
+      combineFn.teardown();
     }
 
     private void writeObject(@SuppressWarnings("unused") ObjectOutputStream out)

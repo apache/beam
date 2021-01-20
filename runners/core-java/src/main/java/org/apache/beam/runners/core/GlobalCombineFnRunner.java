@@ -89,4 +89,8 @@ public interface GlobalCombineFnRunner<InputT, AccumT, OutputT> extends Serializ
       PipelineOptions options,
       SideInputReader sideInputReader,
       Collection<? extends BoundedWindow> windows);
+
+  void setup(PipelineOptions options, SideInputReader sideInputReader);
+
+  void teardown(PipelineOptions options, SideInputReader sideInputReader);
 }

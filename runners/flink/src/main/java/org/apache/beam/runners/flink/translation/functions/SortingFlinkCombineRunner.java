@@ -94,6 +94,7 @@ public class SortingFlinkCombineRunner<K, InputT, AccumT, OutputT, W extends Bou
         timestampCombiner.assign(
             currentWindow, windowFn.getOutputTime(currentValue.getTimestamp(), currentWindow));
 
+    flinkCombiner.setup(options, sideInputReader);
     while (iterator.hasNext()) {
       WindowedValue<KV<K, InputT>> nextValue = iterator.next();
       W nextWindow = (W) Iterables.getOnlyElement(nextValue.getWindows());
@@ -147,6 +148,7 @@ public class SortingFlinkCombineRunner<K, InputT, AccumT, OutputT, W extends Bou
             windowTimestamp,
             currentWindow,
             PaneInfo.NO_FIRING));
+    flinkCombiner.teardown(options, sideInputReader);
   }
 
   /**

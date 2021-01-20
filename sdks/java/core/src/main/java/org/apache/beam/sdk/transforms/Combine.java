@@ -1212,7 +1212,6 @@ public class Combine {
     private PCollection<OutputT> insertDefaultValueIfEmpty(PCollection<OutputT> maybeEmpty) {
       final PCollectionView<Iterable<OutputT>> maybeEmptyView = maybeEmpty.apply(View.asIterable());
 
-      final OutputT defaultValue = fn.defaultValue();
       PCollection<OutputT> defaultIfEmpty =
           maybeEmpty
               .getPipeline()
@@ -1225,7 +1224,12 @@ public class Combine {
                             public void processElement(ProcessContext c) {
                               Iterator<OutputT> combined = c.sideInput(maybeEmptyView).iterator();
                               if (!combined.hasNext()) {
-                                c.output(defaultValue);
+                                try {
+                                  ((CombineFn) fn).setup();
+                                  c.output((OutputT) fn.defaultValue());
+                                } finally {
+                                  ((CombineFn) fn).teardown();
+                                }
                               }
                             }
                           })
@@ -1233,7 +1237,10 @@ public class Combine {
               .setCoder(maybeEmpty.getCoder())
               .setWindowingStrategyInternal(maybeEmpty.getWindowingStrategy());
 
-      return PCollectionList.of(maybeEmpty).and(defaultIfEmpty).apply(Flatten.pCollections());
+      return PCollectionList
+              .of(maybeEmpty)
+              .and(defaultIfEmpty)
+              .apply(Flatten.pCollections());
     }
   }
 
@@ -1735,6 +1742,16 @@ public class Combine {
               public void populateDisplayData(DisplayData.Builder builder) {
                 builder.delegate(PerKeyWithHotKeyFanout.this);
               }
+
+              @Override
+              public void setup() {
+                fn.setup();
+              }
+
+              @Override
+              public void teardown() {
+                fn.teardown();
+              }
             };
 
         postCombine =
@@ -1786,6 +1803,16 @@ public class Combine {
               public void populateDisplayData(DisplayData.Builder builder) {
                 builder.delegate(PerKeyWithHotKeyFanout.this);
               }
+
+              @Override
+              public void setup() {
+                fn.setup();
+              }
+
+              @Override
+              public void teardown() {
+                fn.teardown();
+              }
             };
       } else if (typedFn instanceof CombineFnWithContext) {
         final CombineFnWithContext<InputT, AccumT, OutputT> fnWithContext =
@@ -1828,6 +1855,16 @@ public class Combine {
               @Override
               public void populateDisplayData(DisplayData.Builder builder) {
                 builder.delegate(PerKeyWithHotKeyFanout.this);
+              }
+
+              @Override
+              public void setup() {
+                fnWithContext.setup();
+              }
+
+              @Override
+              public void teardown() {
+                fnWithContext.teardown();
               }
             };
         postCombine =
@@ -1880,6 +1917,16 @@ public class Combine {
               @Override
               public void populateDisplayData(DisplayData.Builder builder) {
                 builder.delegate(PerKeyWithHotKeyFanout.this);
+              }
+
+              @Override
+              public void setup() {
+                fnWithContext.setup();
+              }
+
+              @Override
+              public void teardown() {
+                fnWithContext.teardown();
               }
             };
       } else {
@@ -2172,6 +2219,17 @@ public class Combine {
           input.apply(
               ParDo.of(
                       new DoFn<KV<K, ? extends Iterable<InputT>>, KV<K, OutputT>>() {
+
+                        @Setup
+                        public void setup() {
+                          ((AbstractGlobalCombineFn) fn).setup();
+                        }
+
+                        @Teardown
+                        public void teardown() {
+                          ((AbstractGlobalCombineFn) fn).teardown();
+                        }
+
                         @ProcessElement
                         public void processElement(final ProcessContext c) {
                           K key = c.element().getKey();

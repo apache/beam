@@ -62,6 +62,7 @@ public class SingleWindowFlinkCombineRunner<K, InputT, AccumT, OutputT, W extend
     final K key = iterator.peek().getValue().getKey();
 
     Tuple2<AccumT, Instant> combinedState = null;
+    flinkCombiner.setup(options, sideInputReader);
     while (iterator.hasNext()) {
       final WindowedValue<KV<K, InputT>> currentValue = iterator.next();
       Preconditions.checkState(
@@ -116,5 +117,6 @@ public class SingleWindowFlinkCombineRunner<K, InputT, AccumT, OutputT, W extend
             windowTimestamp,
             currentWindow,
             PaneInfo.NO_FIRING));
+    flinkCombiner.teardown(options, sideInputReader);
   }
 }

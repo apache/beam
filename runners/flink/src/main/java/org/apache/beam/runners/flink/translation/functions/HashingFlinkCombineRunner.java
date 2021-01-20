@@ -73,6 +73,7 @@ public class HashingFlinkCombineRunner<K, InputT, AccumT, OutputT, W extends Bou
     Iterator<WindowedValue<KV<K, InputT>>> iterator = inputs.iterator();
     WindowedValue<KV<K, InputT>> currentValue = iterator.next();
     K key = currentValue.getValue().getKey();
+    flinkCombiner.setup(options, sideInputReader);
     do {
       for (BoundedWindow w : currentValue.getWindows()) {
         @SuppressWarnings("unchecked")
@@ -134,6 +135,7 @@ public class HashingFlinkCombineRunner<K, InputT, AccumT, OutputT, W extends Bou
               entry.getKey(),
               PaneInfo.NO_FIRING));
     }
+    flinkCombiner.teardown(options, sideInputReader);
   }
 
   private Map<W, W> mergeWindows(WindowingStrategy<Object, W> windowingStrategy, Set<W> windows)

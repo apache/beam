@@ -168,5 +168,9 @@ public class CombineFnBase {
      */
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {}
+
+    public void setup() {}
+
+    public void teardown() {}
   }
 }

@@ -276,6 +276,7 @@ class MultiStepCombine<
     public void startBundle() {
       accumulators = new LinkedHashMap<>();
       timestamps = new LinkedHashMap<>();
+      combineFn.setup();
     }
 
     @ProcessElement
@@ -324,6 +325,7 @@ class MultiStepCombine<
       }
       this.accumulators = null;
       this.timestamps = null;
+      this.combineFn.teardown();
     }
   }
 
@@ -472,6 +474,7 @@ class MultiStepCombine<
           ctxt.createBundle(
               (PCollection<KV<K, OutputT>>)
                   Iterables.getOnlyElement(application.getOutputs().values()));
+      combineFn.setup();
     }
 
     @Override
@@ -499,6 +502,7 @@ class MultiStepCombine<
 
     @Override
     public TransformResult<KV<K, Iterable<AccumT>>> finishBundle() throws Exception {
+      combineFn.teardown();
       return StepTransformResult.<KV<K, Iterable<AccumT>>>withoutHold(application)
           .addOutput(output)
           .build();
