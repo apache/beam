@@ -671,6 +671,15 @@ createJavaExamplesArchetypeValidationTask(type: 'MobileGaming',
   bqDataset: bqDataset,
   pubsubTopic: pubsubTopic)
 
+// Generates :runners:google-cloud-dataflow-java:runMobileGamingJavaDataflowBom
+createJavaExamplesArchetypeValidationTask(type: 'MobileGaming',
+        runner: 'DataflowBom',
+        gcpProject: gcpProject,
+        gcpRegion: gcpRegion,
+        gcsBucket: gcsBucket,
+        bqDataset: bqDataset,
+        pubsubTopic: pubsubTopic)
+
 // Standalone task for testing GCS upload, use with -PfilesToStage and -PdataflowTempRoot.
 task GCSUpload(type: JavaExec) {
   main = 'org.apache.beam.runners.dataflow.util.GCSUploadMain'
