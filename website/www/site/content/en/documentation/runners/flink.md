@@ -326,7 +326,45 @@ To find out which version of Flink is compatible with Beam please see the table 
   <th>Artifact Id</th>
 </tr>
 <tr>
-  <td rowspan="3">&ge; 2.21.0</td>
+  <td rowspan="5">&ge; 2.27.0</td>
+  <td>1.12.x <sup>*</sup></td>
+  <td>beam-runners-flink-1.12</td>
+</tr>
+<tr>
+  <td>1.11.x <sup>*</sup></td>
+  <td>beam-runners-flink-1.11</td>
+</tr>
+<tr>
+  <td>1.10.x</td>
+  <td>beam-runners-flink-1.10</td>
+</tr>
+<tr>
+  <td>1.9.x</td>
+  <td>beam-runners-flink-1.9</td>
+</tr>
+<tr>
+  <td>1.8.x</td>
+  <td>beam-runners-flink-1.8</td>
+</tr>
+<tr>
+  <td rowspan="4">2.25.0 - 2.26.0</td>
+  <td>1.11.x <sup>*</sup></td>
+  <td>beam-runners-flink-1.11</td>
+</tr>
+<tr>
+  <td>1.10.x</td>
+  <td>beam-runners-flink-1.10</td>
+</tr>
+<tr>
+  <td>1.9.x</td>
+  <td>beam-runners-flink-1.9</td>
+</tr>
+<tr>
+  <td>1.8.x</td>
+  <td>beam-runners-flink-1.8</td>
+</tr>
+<tr>
+  <td rowspan="3">2.21.0 - 2.24.0</td>
   <td>1.10.x</td>
   <td>beam-runners-flink-1.10</td>
 </tr>
@@ -420,6 +458,8 @@ To find out which version of Flink is compatible with Beam please see the table 
   <td>beam-runners-flink_2.10</td>
 </tr>
 </table>
+
+<sup>*</sup> This version does not have a published docker image for the Flink Job Service.
 
 For retrieving the right Flink version, see the [Flink downloads page](https://flink.apache.org/downloads.html).
 

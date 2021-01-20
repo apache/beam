@@ -36,7 +36,6 @@ import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 
 /**
  * A {@link PrintStream} factory that creates {@link PrintStream}s which output to the specified JUL
@@ -69,7 +68,8 @@ class JulHandlerPrintStreamAdapterFactory {
     private int carryOverBytes;
     private byte[] carryOverByteArray;
 
-    private JulHandlerPrintStream(Handler handler, String loggerName, Level logLevel)
+    private JulHandlerPrintStream(
+        Handler handler, String loggerName, Level logLevel, Charset charset)
         throws UnsupportedEncodingException {
       super(
           new OutputStream() {
@@ -79,14 +79,14 @@ class JulHandlerPrintStreamAdapterFactory {
             }
           },
           false,
-          Charsets.UTF_8.name());
+          charset.name());
       this.handler = handler;
       this.loggerName = loggerName;
       this.messageLevel = logLevel;
       this.logger = Logger.getLogger(loggerName);
       this.buffer = new StringBuilder();
       this.decoder =
-          Charset.defaultCharset()
+          charset
               .newDecoder()
               .onMalformedInput(CodingErrorAction.REPLACE)
               .onUnmappableCharacter(CodingErrorAction.REPLACE);
@@ -402,11 +402,12 @@ class JulHandlerPrintStreamAdapterFactory {
    * Creates a {@link PrintStream} which redirects all output to the JUL {@link Handler} with the
    * specified {@code loggerName} and {@code level}.
    */
-  static PrintStream create(Handler handler, String loggerName, Level messageLevel) {
+  static PrintStream create(
+      Handler handler, String loggerName, Level messageLevel, Charset charset) {
     try {
-      return new JulHandlerPrintStream(handler, loggerName, messageLevel);
+      return new JulHandlerPrintStream(handler, loggerName, messageLevel, charset);
     } catch (UnsupportedEncodingException exc) {
-      throw new RuntimeException("Encoding not supported: " + Charsets.UTF_8.name(), exc);
+      throw new RuntimeException("Encoding not supported: " + charset.name(), exc);
     }
   }
 

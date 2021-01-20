@@ -91,7 +91,7 @@ public class MonitoringInfoMetricName extends MetricName {
     return new MonitoringInfoMetricName(mi.getUrn(), mi.getLabelsMap());
   }
 
-  public static MonitoringInfoMetricName named(String urn, HashMap<String, String> labels) {
+  public static MonitoringInfoMetricName named(String urn, Map<String, String> labels) {
     return new MonitoringInfoMetricName(urn, labels);
   }
 

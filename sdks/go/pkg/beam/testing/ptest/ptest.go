@@ -25,6 +25,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam"
 
 	// ptest uses the direct runner to execute pipelines by default.
+	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/dataflow"
 	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/direct"
 	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/flink"
 	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/spark"

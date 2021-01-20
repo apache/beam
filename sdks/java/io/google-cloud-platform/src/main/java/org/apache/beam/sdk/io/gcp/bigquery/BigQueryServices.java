@@ -37,7 +37,6 @@ import com.google.cloud.bigquery.storage.v1.SplitReadStreamResponse;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
-import org.apache.beam.sdk.util.Histogram;
 import org.apache.beam.sdk.values.FailsafeValueInSingleWindow;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -50,9 +49,6 @@ public interface BigQueryServices extends Serializable {
 
   /** Returns a real, mock, or fake {@link DatasetService}. */
   DatasetService getDatasetService(BigQueryOptions bqOptions);
-
-  /** Returns a real, mock, or fake {@link DatasetService}. */
-  DatasetService getDatasetService(BigQueryOptions bqOptions, Histogram requestLatencies);
 
   /** Returns a real, mock, or fake {@link StorageClient}. */
   StorageClient getStorageClient(BigQueryOptions bqOptions) throws IOException;
