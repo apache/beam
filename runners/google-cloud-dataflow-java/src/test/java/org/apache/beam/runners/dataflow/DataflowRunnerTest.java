@@ -66,6 +66,7 @@ import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.DataflowPackage;
 import com.google.api.services.dataflow.model.Job;
 import com.google.api.services.dataflow.model.ListJobsResponse;
+import com.google.api.services.dataflow.model.SdkHarnessContainerImage;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.auto.service.AutoService;
 import java.io.File;
@@ -81,9 +82,12 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.dataflow.DataflowRunner.StreamingShardedWriteFactory;
@@ -148,6 +152,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValues;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
@@ -1340,6 +1345,57 @@ public class DataflowRunnerTest implements Serializable {
         DataflowRunner.fromOptions(options),
         Collections.emptyList());
     assertTrue(transform.translated);
+  }
+
+  @Test
+  public void testSdkHarnessConfiguration() throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    ExperimentalOptions.addExperiment(options, "use_runner_v2");
+    Pipeline p = Pipeline.create(options);
+
+    p.apply(Create.of(Arrays.asList(1, 2, 3)));
+
+    SdkComponents sdkComponents = SdkComponents.create(options);
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p, sdkComponents, true);
+
+    Job job =
+        DataflowPipelineTranslator.fromOptions(options)
+            .translate(
+                p,
+                pipelineProto,
+                sdkComponents,
+                DataflowRunner.fromOptions(options),
+                Collections.emptyList())
+            .getJob();
+
+    String defaultSdkContainerImage = DataflowRunner.getContainerImageForJob(options);
+    DataflowRunner.configureSdkHarnessContainerImages(
+        options, pipelineProto, job, defaultSdkContainerImage);
+    List<SdkHarnessContainerImage> sdks =
+        job.getEnvironment().getWorkerPools().get(0).getSdkHarnessContainerImages();
+
+    Set<String> expected =
+        pipelineProto.getComponents().getEnvironmentsMap().values().stream()
+            .filter(
+                x ->
+                    BeamUrns.getUrn(RunnerApi.StandardEnvironments.Environments.DOCKER)
+                        .equals(x.getUrn()))
+            .map(
+                x -> {
+                  RunnerApi.DockerPayload payload;
+                  try {
+                    payload = RunnerApi.DockerPayload.parseFrom(x.getPayload());
+                  } catch (InvalidProtocolBufferException e) {
+                    throw new RuntimeException(e);
+                  }
+                  return payload.getContainerImage();
+                })
+            .collect(Collectors.toSet());
+    expected.add(defaultSdkContainerImage);
+
+    assertEquals(
+        expected,
+        sdks.stream().map(SdkHarnessContainerImage::getContainerImage).collect(Collectors.toSet()));
   }
 
   private void verifyMapStateUnsupported(PipelineOptions options) throws Exception {

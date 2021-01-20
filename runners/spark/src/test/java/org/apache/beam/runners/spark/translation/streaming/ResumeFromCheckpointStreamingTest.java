@@ -18,10 +18,10 @@
 package org.apache.beam.runners.spark.translation.streaming;
 
 import static org.apache.beam.sdk.metrics.MetricResultsMatchers.attemptedMetricsResult;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
 
 import java.io.IOException;
 import java.io.Serializable;

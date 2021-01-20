@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.spark.translation.streaming;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.core.IsEqual.equalTo;
-import static org.junit.Assert.assertThat;
 
 import java.util.List;
 import org.apache.beam.runners.spark.ReuseSparkContextRule;

@@ -27,6 +27,7 @@ import static org.apache.beam.sdk.io.Compression.GZIP;
 import static org.apache.beam.sdk.io.Compression.UNCOMPRESSED;
 import static org.apache.beam.sdk.io.Compression.ZIP;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
@@ -35,7 +36,6 @@ import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeFalse;
 

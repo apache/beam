@@ -34,6 +34,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -231,13 +232,23 @@ public class FhirIO {
   }
 
   /**
-   * Search resources from a Fhir store.
+   * Search resources from a Fhir store with String parameter values.
    *
    * @return the search
    * @see Search
    */
-  public static Search searchResources(String fhirStore) {
-    return new Search(fhirStore);
+  public static Search<String> searchResources(String fhirStore) {
+    return new Search<String>(fhirStore);
+  }
+
+  /**
+   * Search resources from a Fhir store with any type of parameter values.
+   *
+   * @return the search
+   * @see Search
+   */
+  public static Search<? extends Object> searchResourcesWithGenericParameters(String fhirStore) {
+    return new Search<>(fhirStore);
   }
 
   /**
@@ -1416,8 +1427,8 @@ public class FhirIO {
   }
 
   /** The type Search. */
-  public static class Search
-      extends PTransform<PCollection<KV<String, Map<String, String>>>, FhirIO.Search.Result> {
+  public static class Search<T>
+      extends PTransform<PCollection<KV<String, Map<String, T>>>, FhirIO.Search.Result> {
     private static final Logger LOG = LoggerFactory.getLogger(Search.class);
 
     private final ValueProvider<String> fhirStore;
@@ -1502,7 +1513,7 @@ public class FhirIO {
         new TupleTag<HealthcareIOError<String>>() {};
 
     @Override
-    public FhirIO.Search.Result expand(PCollection<KV<String, Map<String, String>>> input) {
+    public FhirIO.Search.Result expand(PCollection<KV<String, Map<String, T>>> input) {
       return input.apply("Fetch Fhir messages", new SearchResourcesJsonString(this.fhirStore));
     }
 
@@ -1524,8 +1535,8 @@ public class FhirIO {
      *       stacktrace.
      * </ul>
      */
-    static class SearchResourcesJsonString
-        extends PTransform<PCollection<KV<String, Map<String, String>>>, FhirIO.Search.Result> {
+    class SearchResourcesJsonString
+        extends PTransform<PCollection<KV<String, Map<String, T>>>, FhirIO.Search.Result> {
 
       private final ValueProvider<String> fhirStore;
 
@@ -1534,7 +1545,7 @@ public class FhirIO {
       }
 
       @Override
-      public FhirIO.Search.Result expand(PCollection<KV<String, Map<String, String>>> resourceIds) {
+      public FhirIO.Search.Result expand(PCollection<KV<String, Map<String, T>>> resourceIds) {
         return new FhirIO.Search.Result(
             resourceIds.apply(
                 ParDo.of(new SearchResourcesFn(this.fhirStore))
@@ -1543,13 +1554,13 @@ public class FhirIO {
       }
 
       /** DoFn for searching messages from the Fhir store with error handling. */
-      static class SearchResourcesFn extends DoFn<KV<String, Map<String, String>>, JsonArray> {
+      class SearchResourcesFn extends DoFn<KV<String, Map<String, T>>, JsonArray> {
 
         private Distribution searchLatencyMs =
             Metrics.distribution(SearchResourcesFn.class, "fhir-search-latency-ms");
         private Counter failedSearches =
             Metrics.counter(SearchResourcesFn.class, "failed-fhir-searches");
-        private static final Logger LOG = LoggerFactory.getLogger(SearchResourcesFn.class);
+        private final Logger log = LoggerFactory.getLogger(SearchResourcesFn.class);
         private final Counter successfulSearches =
             Metrics.counter(SearchResourcesFn.class, "successful-fhir-searches");
         private HealthcareApiClient client;
@@ -1577,7 +1588,7 @@ public class FhirIO {
          */
         @ProcessElement
         public void processElement(ProcessContext context) {
-          KV<String, Map<String, String>> elementValues = context.element();
+          KV<String, Map<String, T>> elementValues = context.element();
           try {
             context.output(
                 searchResources(
@@ -1587,7 +1598,7 @@ public class FhirIO {
                     elementValues.getValue()));
           } catch (IllegalArgumentException | NoSuchElementException e) {
             failedSearches.inc();
-            LOG.warn(
+            log.warn(
                 String.format(
                     "Error search FHIR messages writing to Dead Letter "
                         + "Queue. Cause: %s Stack Trace: %s",
@@ -1601,13 +1612,17 @@ public class FhirIO {
             HealthcareApiClient client,
             String fhirStore,
             String resourceType,
-            @Nullable Map<String, String> parameters)
+            @Nullable Map<String, T> parameters)
             throws NoSuchElementException {
           long startTime = System.currentTimeMillis();
 
+          HashMap<String, Object> parameterObjects = new HashMap<>();
+          if (parameters != null) {
+            parameters.forEach(parameterObjects::put);
+          }
           HttpHealthcareApiClient.FhirResourcePages.FhirResourcePagesIterator iter =
               new HttpHealthcareApiClient.FhirResourcePages.FhirResourcePagesIterator(
-                  client, fhirStore, resourceType, parameters);
+                  client, fhirStore, resourceType, parameterObjects);
           JsonArray result = new JsonArray();
           result.addAll(iter.next());
           while (iter.hasNext()) {

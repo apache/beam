@@ -815,7 +815,7 @@ class GroupIntoBatchesTest(unittest.TestCase):
 
     transform_from_proto = (
         transform.__class__.from_runner_api_parameter(None, payload, None))
-    self.assertTrue(isinstance(transform_from_proto, transform.__class__))
+    self.assertIsInstance(transform_from_proto, transform.__class__)
     self.assertEqual(transform.params, transform_from_proto.params)
 
   def test_runner_api(self):

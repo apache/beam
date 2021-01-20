@@ -724,8 +724,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   }
 
   private void startBundle() {
-    TransformProcessingThreadTracker.recordProcessingThread(
-        Thread.currentThread().getId(), this.pTransformId);
     // Register as a consumer for each timer.
     timerHandlers = new HashMap<>();
     for (Map.Entry<String, KV<TimeDomain, Coder<Timer<Object>>>> timerFamilyInfo :
@@ -745,8 +743,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   }
 
   private void processElementForParDo(WindowedValue<InputT> elem) {
-    TransformProcessingThreadTracker.recordProcessingThread(
-        Thread.currentThread().getId(), this.pTransformId);
     currentElement = elem;
     try {
       doFnInvoker.invokeProcessElement(processContext);
@@ -756,8 +752,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   }
 
   private void processElementForWindowObservingParDo(WindowedValue<InputT> elem) {
-    TransformProcessingThreadTracker.recordProcessingThread(
-        Thread.currentThread().getId(), this.pTransformId);
     currentElement = elem;
     try {
       Iterator<BoundedWindow> windowIterator =
@@ -773,8 +767,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   }
 
   private void processElementForPairWithRestriction(WindowedValue<InputT> elem) {
-    TransformProcessingThreadTracker.recordProcessingThread(
-        Thread.currentThread().getId(), this.pTransformId);
     currentElement = elem;
     try {
       currentRestriction = doFnInvoker.invokeGetInitialRestriction(processContext);
@@ -797,8 +789,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   }
 
   private void processElementForWindowObservingPairWithRestriction(WindowedValue<InputT> elem) {
-    TransformProcessingThreadTracker.recordProcessingThread(
-        Thread.currentThread().getId(), this.pTransformId);
     currentElement = elem;
     try {
       Iterator<BoundedWindow> windowIterator =
@@ -831,8 +821,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
   private void processElementForSplitRestriction(
       WindowedValue<KV<InputT, KV<RestrictionT, WatermarkEstimatorStateT>>> elem) {
-    TransformProcessingThreadTracker.recordProcessingThread(
-        Thread.currentThread().getId(), this.pTransformId);
     currentElement = elem.withValue(elem.getValue().getKey());
     currentRestriction = elem.getValue().getValue().getKey();
     currentWatermarkEstimatorState = elem.getValue().getValue().getValue();
@@ -861,8 +849,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
   private void processElementForWindowObservingSplitRestriction(
       WindowedValue<KV<InputT, KV<RestrictionT, WatermarkEstimatorStateT>>> elem) {
-    TransformProcessingThreadTracker.recordProcessingThread(
-        Thread.currentThread().getId(), this.pTransformId);
     currentElement = elem.withValue(elem.getValue().getKey());
     currentRestriction = elem.getValue().getValue().getKey();
     currentWatermarkEstimatorState = elem.getValue().getValue().getValue();
@@ -897,8 +883,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
   private void processElementForTruncateRestriction(
       WindowedValue<KV<KV<InputT, KV<RestrictionT, WatermarkEstimatorStateT>>, Double>> elem) {
-    TransformProcessingThreadTracker.recordProcessingThread(
-        Thread.currentThread().getId(), this.pTransformId);
     currentElement = elem.withValue(elem.getValue().getKey().getKey());
     currentRestriction = elem.getValue().getKey().getValue().getKey();
     currentWatermarkEstimatorState = elem.getValue().getKey().getValue().getValue();
@@ -931,8 +915,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
   private void processElementForWindowObservingTruncateRestriction(
       WindowedValue<KV<KV<InputT, KV<RestrictionT, WatermarkEstimatorStateT>>, Double>> elem) {
-    TransformProcessingThreadTracker.recordProcessingThread(
-        Thread.currentThread().getId(), this.pTransformId);
     currentElement = elem.withValue(elem.getValue().getKey().getKey());
     try {
       windowCurrentIndex = -1;
@@ -1030,8 +1012,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
   private void processElementForWindowObservingSizedElementAndRestriction(
       WindowedValue<KV<KV<InputT, KV<RestrictionT, WatermarkEstimatorStateT>>, Double>> elem) {
-    TransformProcessingThreadTracker.recordProcessingThread(
-        Thread.currentThread().getId(), this.pTransformId);
     currentElement = elem.withValue(elem.getValue().getKey().getKey());
     try {
       windowCurrentIndex = -1;
@@ -1642,8 +1622,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
   private <K> void processTimer(
       String timerIdOrTimerFamilyId, TimeDomain timeDomain, Timer<K> timer) {
-    TransformProcessingThreadTracker.recordProcessingThread(
-        Thread.currentThread().getId(), this.pTransformId);
     currentTimer = timer;
     currentTimeDomain = timeDomain;
     // The timerIdOrTimerFamilyId contains either a timerId from timer declaration or timerFamilyId
@@ -1671,9 +1649,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   }
 
   private void finishBundle() throws Exception {
-    TransformProcessingThreadTracker.recordProcessingThread(
-        Thread.currentThread().getId(), this.pTransformId);
-
     for (TimerHandler timerHandler : timerHandlers.values()) {
       timerHandler.awaitCompletion();
     }
@@ -1688,8 +1663,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   }
 
   private void tearDown() {
-    TransformProcessingThreadTracker.recordProcessingThread(
-        Thread.currentThread().getId(), this.pTransformId);
     doFnInvoker.invokeTeardown();
   }
 

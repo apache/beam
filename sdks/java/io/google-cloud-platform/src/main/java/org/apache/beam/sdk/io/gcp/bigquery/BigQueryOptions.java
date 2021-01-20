@@ -72,10 +72,10 @@ public interface BigQueryOptions
   void setMaxStreamingBatchSize(Long value);
 
   @Description(
-      "The minimum duration in seconds between percentile latencies logging. The interval "
-          + "might be longer than the specified value due to each bundle processing time.")
+      "The minimum duration in seconds between streaming API statistics logging. "
+          + "The interval might be longer than the specified value due to each bundle processing time.")
   @Default.Integer(180)
-  Integer getLatencyLoggingFrequency();
+  Integer getBqStreamingApiLoggingFrequencySec();
 
-  void setLatencyLoggingFrequency(Integer value);
+  void setBqStreamingApiLoggingFrequencySec(Integer value);
 }
