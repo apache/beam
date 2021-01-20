@@ -325,8 +325,6 @@ class PortableRunner(runner.PipelineRunner):
     # Eventually remove the 'pre_optimize' option alltogether and only perform
     # the equivalent of the 'default' case below (minus the 'lift_combiners'
     # part).
-    phases = []
-    partial = None
     pre_optimize = options.view_as(DebugOptions).lookup_experiment(
         'pre_optimize', 'default').lower()
     if (not options.view_as(StandardOptions).streaming and
