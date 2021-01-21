@@ -73,7 +73,7 @@ public class FhirIOSearchIT {
   private static final int MAX_NUM_OF_SEARCHES = 50;
   private List<FhirSearchParameter<String>> input = new ArrayList<>();
   private List<FhirSearchParameter<List<Integer>>> genericParametersInput = new ArrayList<>();
-  private static final String sourceIdentifier = "sourceIdentifier";
+  private static final String KEY = "key";
 
   public String version;
 
@@ -108,7 +108,7 @@ public class FhirIOSearchIT {
     for (JsonElement resource : fhirResources) {
       String resourceType =
           resource.getAsJsonObject().getAsJsonObject("resource").get("resourceType").getAsString();
-      input.add(new FhirSearchParameter<>(resourceType, sourceIdentifier, searchParameters));
+      input.add(new FhirSearchParameter<>(resourceType, KEY, searchParameters));
       genericParametersInput.add(new FhirSearchParameter<>(resourceType, genericSearchParameters));
       searches++;
       if (searches > MAX_NUM_OF_SEARCHES) {
@@ -140,12 +140,12 @@ public class FhirIOSearchIT {
     // Verify that there are no failures.
     PAssert.that(result.getFailedSearches()).empty();
     // Verify that none of the result resource sets are empty sets, using both getResources methods.
-    PCollection<KV<String, JsonArray>> resourcesWithIdentifier = result.getKeyedResources();
-    PAssert.that(resourcesWithIdentifier)
+    PCollection<KV<String, JsonArray>> keyedResources = result.getKeyedResources();
+    PAssert.that(keyedResources)
         .satisfies(
             input -> {
               for (KV<String, JsonArray> resource : input) {
-                assertEquals(sourceIdentifier, resource.getKey());
+                assertEquals(KEY, resource.getKey());
                 assertNotEquals(0, resource.getValue().size());
               }
               return null;

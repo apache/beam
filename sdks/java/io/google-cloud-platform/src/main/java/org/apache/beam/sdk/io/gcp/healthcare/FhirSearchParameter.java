@@ -35,10 +35,9 @@ public class FhirSearchParameter<T> {
   private String key;
   private @Nullable Map<String, T> queries;
 
-  public FhirSearchParameter(
-      String resourceType, String identifier, @Nullable Map<String, T> queries) {
+  public FhirSearchParameter(String resourceType, String key, @Nullable Map<String, T> queries) {
     this.resourceType = resourceType;
-    this.key = identifier;
+    this.key = key;
     this.queries = queries;
   }
 
