@@ -1087,15 +1087,16 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
 
     @Override
     public Coder<PubsubMessage> getOutputCoder() {
-      if (outer.getNeedsMessageId()) {
-        return outer.getNeedsAttributes()
-            ? PubsubMessageWithAttributesAndMessageIdCoder.of()
-            : PubsubMessageWithMessageIdCoder.of();
-      } else {
-        return outer.getNeedsAttributes()
-            ? PubsubMessageWithAttributesCoder.of()
-            : PubsubMessagePayloadOnlyCoder.of();
-      }
+      return PubsubMessageProtoCoder.of();
+      // if (outer.getNeedsMessageId()) {
+      //   return outer.getNeedsAttributes()
+      //       ? PubsubMessageWithAttributesAndMessageIdCoder.of()
+      //       : PubsubMessageWithMessageIdCoder.of();
+      // } else {
+      //   return outer.getNeedsAttributes()
+      //       ? PubsubMessageWithAttributesCoder.of()
+      //       : PubsubMessagePayloadOnlyCoder.of();
+      // }
     }
 
     @Override

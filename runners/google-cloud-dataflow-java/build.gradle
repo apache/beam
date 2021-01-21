@@ -145,6 +145,7 @@ def runnerV2PipelineOptions = [
   "--tempRoot=${dataflowValidatesTempRoot}",
   "--workerHarnessContainerImage=${dockerImageContainer}:${dockerTag}",
   "--experiments=beam_fn_api,use_unified_worker,use_runner_v2",
+//  "--dataflowEndpoint=https://dataflow-staging.sandbox.googleapis.com",
 ]
 
 def commonLegacyExcludeCategories = [
@@ -529,7 +530,8 @@ task googleCloudPlatformRunnerV2IntegrationTest(type: Test) {
 
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson(runnerV2PipelineOptions)
 
-  include '**/*IT.class'
+//  include '**/*IT.class'
+    include '**/PubsubReadIT.class'
 //  exclude '**/BigQueryIOReadIT.class'
 //  exclude '**/BigQueryIOStorageQueryIT.class'
 //  exclude '**/BigQueryIOStorageReadIT.class'
@@ -539,6 +541,7 @@ task googleCloudPlatformRunnerV2IntegrationTest(type: Test) {
 //  exclude '**/BigtableReadIT.class'
 //  exclude '**/V1ReadIT.class'
 //  exclude '**/SpannerWriteIT.class'
+//    include '**/SpannerWriteIT.class'
 //  exclude '**/BigQueryNestedRecordsIT.class'
 //  exclude '**/SplitQueryFnIT.class'
 //  exclude '**/*KmsKeyIT.class'

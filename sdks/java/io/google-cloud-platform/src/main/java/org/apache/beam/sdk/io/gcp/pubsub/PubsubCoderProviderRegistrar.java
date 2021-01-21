@@ -32,6 +32,8 @@ public class PubsubCoderProviderRegistrar implements CoderProviderRegistrar {
   public List<CoderProvider> getCoderProviders() {
     return ImmutableList.of(
         CoderProviders.forCoder(
+            TypeDescriptor.of(PubsubMessage.class), PubsubMessageProtoCoder.of()),
+        CoderProviders.forCoder(
             TypeDescriptor.of(PubsubMessage.class), PubsubMessageWithAttributesCoder.of()),
         CoderProviders.forCoder(
             TypeDescriptor.of(PubsubMessage.class), PubsubMessageWithMessageIdCoder.of()),
