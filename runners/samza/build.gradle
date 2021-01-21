@@ -67,7 +67,6 @@ dependencies {
   runtimeOnly "org.apache.kafka:kafka-clients:0.11.0.2"
   //permitUnusedDeclared "org.apache.kafka:kafka-clients:2.4.1"
   compile library.java.vendored_grpc_1_26_0
-  compile "org.checkerframework:checker-qual:2.0.0"
   compile project(path: ":model:job-management:", configuration: "shadow")
   compile project(path: ":model:pipeline", configuration: "shadow")
   compile project(":sdks:java:fn-execution")
