@@ -74,7 +74,7 @@ dependencies {
   shadow library.java.vendored_grpc_1_26_0
   shadow library.java.joda_time
   shadow library.java.slf4j_api
-  compile library.java.jackson_databind
+  shadow library.java.jackson_databind
   provided library.java.hamcrest_core
   provided library.java.junit
   shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")
