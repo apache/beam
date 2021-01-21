@@ -51,7 +51,7 @@ else
 	done
 fi
 if [[ -z "$RELEASE" || -z "$NEXT_VERSION_IN_BASE_BRANCH" ]]; then
-	echo "This srcipt needs to be ran with params, please run with -h to get more instructions."
+	echo "This script needs to be ran with params, please run with -h to get more instructions."
 	exit
 fi
 
