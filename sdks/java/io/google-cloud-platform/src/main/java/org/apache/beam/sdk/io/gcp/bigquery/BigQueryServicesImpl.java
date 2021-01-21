@@ -135,7 +135,7 @@ class BigQueryServicesImpl implements BigQueryServices {
   // The error code for quota exceeded error (https://cloud.google.com/bigquery/docs/error-messages)
   private static final String QUOTA_EXCEEDED = "quotaExceeded";
 
-  private static final Map<String, String> API_METRIC_LABEL =
+  protected static final Map<String, String> API_METRIC_LABEL =
       ImmutableMap.of(
           MonitoringInfoConstants.Labels.SERVICE, "BigQuery",
           MonitoringInfoConstants.Labels.METHOD, "BigQueryBatchWrite");
@@ -447,6 +447,24 @@ class BigQueryServicesImpl implements BigQueryServices {
         Metrics.counter(DatasetServiceImpl.class, "throttling-msecs");
 
     private ExecutorService executor;
+
+    protected static final Map<Integer, String> CANONICAL_STATUS_MAP =
+        ImmutableMap.<Integer, String>builder()
+            .put(200, "ok")
+            .put(400, "out_of_range")
+            .put(401, "unauthenticated")
+            .put(403, "permission_denied")
+            .put(404, "not_found")
+            .put(409, "already_exists")
+            .put(429, "resource_exhausted")
+            .put(499, "cancelled")
+            .put(500, "internal")
+            .put(501, "not_implemented")
+            .put(503, "unavailable")
+            .put(504, "deadline_exceeded")
+            .build();
+
+    protected static final String CANONICAL_STATUS_UNKNOWN = "unknown";
 
     @VisibleForTesting
     DatasetServiceImpl(Bigquery client, PipelineOptions options) {
@@ -999,51 +1017,9 @@ class BigQueryServicesImpl implements BigQueryServices {
 
     protected void recordError(IOException e) {
       if (e instanceof GoogleJsonResponseException) {
-        GoogleJsonError.ErrorInfo errorInfo = getErrorInfo(e);
         int errorCode = ((GoogleJsonResponseException) e).getDetails().getCode();
-        String canonicalGcpStatus;
-        switch (errorCode) {
-          case 200:
-            canonicalGcpStatus = "ok";
-            break;
-          case 400:
-            canonicalGcpStatus = "out_of_range";
-            break;
-          case 401:
-            canonicalGcpStatus = "unauthenticated";
-            break;
-          case 403:
-            canonicalGcpStatus = "permission_denied";
-            break;
-          case 404:
-            canonicalGcpStatus = "not_found";
-            break;
-          case 409:
-            canonicalGcpStatus = "already_exists";
-            break;
-          case 429:
-            canonicalGcpStatus = "resource_exhausted";
-            break;
-          case 499:
-            canonicalGcpStatus = "cancelled";
-            break;
-          case 500:
-            canonicalGcpStatus = "internal";
-            break;
-          case 501:
-            canonicalGcpStatus = "not_implemented";
-            break;
-          case 503:
-            canonicalGcpStatus = "unavailable";
-            break;
-          case 504:
-            canonicalGcpStatus = "deadline_exceeded";
-            break;
-          default:
-            canonicalGcpStatus =
-                String.format(
-                    "%s(%s)", errorInfo != null ? errorInfo.getReason() : "unknown", errorCode);
-        }
+        String canonicalGcpStatus =
+            CANONICAL_STATUS_MAP.getOrDefault(errorCode, CANONICAL_STATUS_UNKNOWN);
         LabeledMetrics.counter(
                 MonitoringInfoMetricName.named(
                     MonitoringInfoConstants.Urns.API_REQUEST_COUNT,

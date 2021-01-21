@@ -415,17 +415,16 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer, Met
    * Match a MetricName with a given metric filter. If the metric filter is null, the method always
    * returns true.
    */
-  private boolean matchMetricName(
-      MetricName metricName, @Nullable Set<KV<String, String>> metricFilter) {
+  private boolean matchMetricName(MetricName metricName, @Nullable Set<MetricName> metricFilter) {
     if (metricFilter == null) {
       return true;
     } else {
-      return metricFilter.contains(KV.of(metricName.getNamespace(), metricName.getName()));
+      return metricFilter.contains(metricName);
     }
   }
   /** Return a string representing the cumulative values of all metrics in this container. */
   @Override
-  public String getCumulativeString(@Nullable Set<KV<String, String>> metricFilter) {
+  public String getCumulativeString(@Nullable Set<MetricName> metricFilter) {
     StringBuilder message = new StringBuilder();
     for (Map.Entry<MetricName, CounterCell> cell : counters.entries()) {
       if (!matchMetricName(cell.getKey(), metricFilter)) {

@@ -56,6 +56,8 @@ public final class MonitoringInfoConstants {
         extractUrn(MonitoringInfoSpecs.Enum.DATA_CHANNEL_READ_INDEX);
     public static final String API_REQUEST_COUNT =
         extractUrn(MonitoringInfoSpecs.Enum.API_REQUEST_COUNT);
+    public static final String API_REQUEST_LATENCIES =
+        extractUrn(MonitoringInfoSpecs.Enum.API_REQUEST_LATENCIES);
   }
 
   /** Standardised MonitoringInfo labels that can be utilized by runners. */

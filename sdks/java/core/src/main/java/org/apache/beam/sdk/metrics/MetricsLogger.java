@@ -25,7 +25,6 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.values.KV;
 import org.slf4j.Logger;
 
 @Experimental(Kind.METRICS)
@@ -35,7 +34,7 @@ public interface MetricsLogger extends Serializable {
 
   default void tryLoggingMetrics(
       String header,
-      Set<KV<String, String>> metricFilter,
+      Set<MetricName> metricFilter,
       long minimumLoggingFrequencyMillis,
       boolean resetMetrics) {
     if (REPORTING_LOCK.tryLock()) {
@@ -61,7 +60,7 @@ public interface MetricsLogger extends Serializable {
 
   Logger getMetricLogger();
 
-  String getCumulativeString(Set<KV<String, String>> metricFilter);
+  String getCumulativeString(Set<MetricName> metricFilter);
 
   void reset();
 }
