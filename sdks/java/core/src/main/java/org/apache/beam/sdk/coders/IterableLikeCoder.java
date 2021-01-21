@@ -104,58 +104,58 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
     if (iterable == null) {
       throw new CoderException("cannot encode a null " + iterableName);
     }
-    DataOutputStream dataOutStream = new DataOutputStream(outStream);
-    if (iterable instanceof Collection) {
-      // We can know the size of the Iterable.  Use an encoding with a
-      // leading size field, followed by that many elements.
-      Collection<T> collection = (Collection<T>) iterable;
-      dataOutStream.writeInt(collection.size());
-      for (T elem : collection) {
-        elementCoder.encode(elem, dataOutStream);
+    try (DataOutputStream dataOutStream = new DataOutputStream(outStream)) {
+      if (iterable instanceof Collection) {
+        // We can know the size of the Iterable.  Use an encoding with a
+        // leading size field, followed by that many elements.
+        Collection<T> collection = (Collection<T>) iterable;
+        dataOutStream.writeInt(collection.size());
+        for (T elem : collection) {
+          elementCoder.encode(elem, dataOutStream);
+        }
+      } else {
+        // We don't know the size without traversing it so use a fixed size buffer
+        // and encode as many elements as possible into it before outputting the size followed
+        // by the elements.
+        dataOutStream.writeInt(-1);
+        try (BufferedElementCountingOutputStream countingOutputStream =
+            new BufferedElementCountingOutputStream(dataOutStream)) {
+          for (T elem : iterable) {
+            countingOutputStream.markElementStart();
+            elementCoder.encode(elem, countingOutputStream);
+          }
+        }
       }
-    } else {
-      // We don't know the size without traversing it so use a fixed size buffer
-      // and encode as many elements as possible into it before outputting the size followed
-      // by the elements.
-      dataOutStream.writeInt(-1);
-      BufferedElementCountingOutputStream countingOutputStream =
-          new BufferedElementCountingOutputStream(dataOutStream);
-      for (T elem : iterable) {
-        countingOutputStream.markElementStart();
-        elementCoder.encode(elem, countingOutputStream);
-      }
-      countingOutputStream.finish();
     }
-    // Make sure all our output gets pushed to the underlying outStream.
-    dataOutStream.flush();
   }
 
   @Override
   public IterableT decode(InputStream inStream) throws IOException, CoderException {
-    DataInputStream dataInStream = new DataInputStream(inStream);
-    int size = dataInStream.readInt();
-    if (size >= 0) {
-      List<T> elements = new ArrayList<>(size);
-      for (int i = 0; i < size; i++) {
+    try (DataInputStream dataInStream = new DataInputStream(inStream)) {
+      int size = dataInStream.readInt();
+      if (size >= 0) {
+        List<T> elements = new ArrayList<>(size);
+        for (int i = 0; i < size; i++) {
+          elements.add(elementCoder.decode(dataInStream));
+        }
+        return decodeToIterable(elements);
+      }
+      List<T> elements = new ArrayList<>();
+      // We don't know the size a priori.  Check if we're done with
+      // each block of elements.
+      long count = VarInt.decodeLong(dataInStream);
+      while (count > 0L) {
         elements.add(elementCoder.decode(dataInStream));
+        --count;
+        if (count == 0L) {
+          count = VarInt.decodeLong(dataInStream);
+        }
       }
-      return decodeToIterable(elements);
-    }
-    List<T> elements = new ArrayList<>();
-    // We don't know the size a priori.  Check if we're done with
-    // each block of elements.
-    long count = VarInt.decodeLong(dataInStream);
-    while (count > 0L) {
-      elements.add(elementCoder.decode(dataInStream));
-      --count;
-      if (count == 0L) {
-        count = VarInt.decodeLong(dataInStream);
+      if (count == 0) {
+        return decodeToIterable(elements);
+      } else {
+        return decodeToIterable(elements, count, inStream);
       }
-    }
-    if (count == 0) {
-      return decodeToIterable(elements);
-    } else {
-      return decodeToIterable(elements, count, inStream);
     }
   }
 
