@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.healthcare;
 
 import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.HEALTHCARE_DATASET_TEMPLATE;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
 import com.google.gson.JsonArray;
@@ -40,6 +41,7 @@ import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.After;
 import org.junit.Before;
@@ -71,6 +73,7 @@ public class FhirIOSearchIT {
   private static final int MAX_NUM_OF_SEARCHES = 50;
   private List<FhirSearchParameter<String>> input = new ArrayList<>();
   private List<FhirSearchParameter<List<Integer>>> genericParametersInput = new ArrayList<>();
+  private static final String sourceIdentifier = "sourceIdentifier";
 
   public String version;
 
@@ -105,7 +108,7 @@ public class FhirIOSearchIT {
     for (JsonElement resource : fhirResources) {
       String resourceType =
           resource.getAsJsonObject().getAsJsonObject("resource").get("resourceType").getAsString();
-      input.add(new FhirSearchParameter<>(resourceType, searchParameters));
+      input.add(new FhirSearchParameter<>(resourceType, sourceIdentifier, searchParameters));
       genericParametersInput.add(new FhirSearchParameter<>(resourceType, genericSearchParameters));
       searches++;
       if (searches > MAX_NUM_OF_SEARCHES) {
@@ -136,13 +139,14 @@ public class FhirIOSearchIT {
 
     // Verify that there are no failures.
     PAssert.that(result.getFailedSearches()).empty();
-    // Verify that none of the result resource sets are empty sets.
-    PCollection<JsonArray> resources = result.getResources();
-    PAssert.that(resources)
+    // Verify that none of the result resource sets are empty sets, using both getResources methods.
+    PCollection<KV<String, JsonArray>> resourcesWithIdentifier = result.getKeyedResources();
+    PAssert.that(resourcesWithIdentifier)
         .satisfies(
             input -> {
-              for (JsonArray resource : input) {
-                assertNotEquals(resource.size(), 0);
+              for (KV<String, JsonArray> resource : input) {
+                assertEquals(sourceIdentifier, resource.getKey());
+                assertNotEquals(0, resource.getValue().size());
               }
               return null;
             });
@@ -186,13 +190,13 @@ public class FhirIOSearchIT {
 
     // Verify that there are no failures.
     PAssert.that(result.getFailedSearches()).empty();
-    // Verify that none of the result resource sets are empty sets.
+    // Verify that none of the result resource sets are empty sets, using both getResources methods.
     PCollection<JsonArray> resources = result.getResources();
     PAssert.that(resources)
         .satisfies(
             input -> {
               for (JsonArray resource : input) {
-                assertNotEquals(resource.size(), 0);
+                assertNotEquals(0, resource.size());
               }
               return null;
             });

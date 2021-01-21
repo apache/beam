@@ -30,18 +30,21 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public class FhirSearchParameter<T> {
 
   private String resourceType;
-  private @Nullable String sourceIdentifier;
+  // The key is used as optional to use as a key for the search query, if there is source
+  // information to propagate through the pipeline.
+  private String key;
   private @Nullable Map<String, T> queries;
 
   public FhirSearchParameter(
-      String resourceType, @Nullable String sourceIdentifier, @Nullable Map<String, T> queries) {
+      String resourceType, String identifier, @Nullable Map<String, T> queries) {
     this.resourceType = resourceType;
-    this.sourceIdentifier = sourceIdentifier;
+    this.key = identifier;
     this.queries = queries;
   }
 
   public FhirSearchParameter(String resourceType, @Nullable Map<String, T> queries) {
     this.resourceType = resourceType;
+    this.key = "";
     this.queries = queries;
   }
 
@@ -53,12 +56,12 @@ public class FhirSearchParameter<T> {
     return resourceType;
   }
 
-  public @Nullable Map<String, T> getQueries() {
-    return queries;
+  public String getKey() {
+    return key;
   }
 
-  public @Nullable String getSourceIdentifier() {
-    return sourceIdentifier;
+  public @Nullable Map<String, T> getQueries() {
+    return queries;
   }
 
   @Override
@@ -70,7 +73,9 @@ public class FhirSearchParameter<T> {
       return false;
     }
     FhirSearchParameter<?> that = (FhirSearchParameter<?>) o;
-    return Objects.equals(resourceType, that.resourceType) && Objects.equals(queries, that.queries);
+    return Objects.equals(resourceType, that.resourceType)
+        && Objects.equals(key, that.key)
+        && Objects.equals(queries, that.queries);
   }
 
   @Override

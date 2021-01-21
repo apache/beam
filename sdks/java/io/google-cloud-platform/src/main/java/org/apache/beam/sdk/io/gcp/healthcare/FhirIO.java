@@ -84,6 +84,7 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -1490,23 +1491,20 @@ public class FhirIO {
        */
       public PCollection<JsonArray> getResources() {
         return resources
+            .setCoder(KvCoder.of(StringUtf8Coder.of(), JsonArrayCoder.of()))
             .apply(
-                ParDo.of(
-                    new DoFn<KV<String, JsonArray>, JsonArray>() {
-                      @ProcessElement
-                      public void processElement(ProcessContext ctx) {
-                        ctx.output(ctx.element().getValue());
-                      }
-                    }))
+                "Extract Values",
+                MapElements.into(TypeDescriptor.of(JsonArray.class))
+                    .via((KV<String, JsonArray> in) -> in.getValue()))
             .setCoder(JsonArrayCoder.of());
       }
 
       /**
-       * Gets resources with input source identifiers.
+       * Gets resources with input SearchParameter key.
        *
-       * @return the resources with input source identifiers.
+       * @return the resources with input SearchParameter key.
        */
-      public PCollection<KV<String, JsonArray>> getResourcesWithSourceIdentifiers() {
+      public PCollection<KV<String, JsonArray>> getKeyedResources() {
         return resources;
       }
 
@@ -1612,7 +1610,7 @@ public class FhirIO {
           try {
             context.output(
                 KV.of(
-                    fhirSearchParameters.getSourceIdentifier(),
+                    fhirSearchParameters.getKey(),
                     searchResources(
                         this.client,
                         this.fhirStore.toString(),
