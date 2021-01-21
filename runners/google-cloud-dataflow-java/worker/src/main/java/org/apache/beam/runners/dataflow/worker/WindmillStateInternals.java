@@ -43,7 +43,6 @@ import org.apache.beam.runners.core.StateTable;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.StateTag.StateBinder;
 import org.apache.beam.runners.core.StateTags;
-import org.apache.beam.runners.dataflow.worker.WindmillStateCache.ForKey;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.SortedListEntry;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.SortedListRange;
@@ -120,7 +119,7 @@ class WindmillStateInternals<K> implements StateInternals {
     private final @Nullable K key;
     private final String stateFamily;
     private final WindmillStateReader reader;
-    private final WindmillStateCache.ForKey cache;
+    private final WindmillStateCache.ForKeyAndFamily cache;
     private final boolean isSystemTable;
     boolean isNewKey;
     private final Supplier<Closeable> scopedReadStateSupplier;
@@ -130,7 +129,7 @@ class WindmillStateInternals<K> implements StateInternals {
         @Nullable K key,
         String stateFamily,
         WindmillStateReader reader,
-        WindmillStateCache.ForKey cache,
+        WindmillStateCache.ForKeyAndFamily cache,
         boolean isSystemTable,
         boolean isNewKey,
         Supplier<Closeable> scopedReadStateSupplier,
@@ -254,7 +253,7 @@ class WindmillStateInternals<K> implements StateInternals {
     }
   }
 
-  private WindmillStateCache.ForKey cache;
+  private WindmillStateCache.ForKeyAndFamily cache;
   Supplier<Closeable> scopedReadStateSupplier;
   private StateTable workItemState;
   private StateTable workItemDerivedState;
@@ -264,7 +263,7 @@ class WindmillStateInternals<K> implements StateInternals {
       String stateFamily,
       WindmillStateReader reader,
       boolean isNewKey,
-      WindmillStateCache.ForKey cache,
+      WindmillStateCache.ForKeyAndFamily cache,
       Supplier<Closeable> scopedReadStateSupplier) {
     this.key = key;
     this.cache = cache;
@@ -329,6 +328,8 @@ class WindmillStateInternals<K> implements StateInternals {
       }
       throw new RuntimeException("Failed to retrieve Windmill state during persist()", exc);
     }
+
+    cache.persist();
   }
 
   /** Encodes the given namespace and address as {@code &lt;namespace&gt;+&lt;address&gt;}. */
@@ -368,7 +369,7 @@ class WindmillStateInternals<K> implements StateInternals {
      * Return an asynchronously computed {@link WorkItemCommitRequest}. The request should be of a
      * form that can be merged with others (only add to repeated fields).
      */
-    abstract Future<WorkItemCommitRequest> persist(WindmillStateCache.ForKey cache)
+    abstract Future<WorkItemCommitRequest> persist(WindmillStateCache.ForKeyAndFamily cache)
         throws IOException;
 
     /**
@@ -401,7 +402,7 @@ class WindmillStateInternals<K> implements StateInternals {
    */
   private abstract static class SimpleWindmillState extends WindmillState {
     @Override
-    public final Future<WorkItemCommitRequest> persist(WindmillStateCache.ForKey cache)
+    public final Future<WorkItemCommitRequest> persist(WindmillStateCache.ForKeyAndFamily cache)
         throws IOException {
       return Futures.immediateFuture(persistDirectly(cache));
     }
@@ -409,8 +410,8 @@ class WindmillStateInternals<K> implements StateInternals {
     /**
      * Returns a {@link WorkItemCommitRequest} that can be used to persist this state to Windmill.
      */
-    protected abstract WorkItemCommitRequest persistDirectly(WindmillStateCache.ForKey cache)
-        throws IOException;
+    protected abstract WorkItemCommitRequest persistDirectly(
+        WindmillStateCache.ForKeyAndFamily cache) throws IOException;
   }
 
   @Override
@@ -497,7 +498,7 @@ class WindmillStateInternals<K> implements StateInternals {
     }
 
     @Override
-    protected WorkItemCommitRequest persistDirectly(WindmillStateCache.ForKey cache)
+    protected WorkItemCommitRequest persistDirectly(WindmillStateCache.ForKeyAndFamily cache)
         throws IOException {
       if (!valueIsKnown) {
         // The value was never read, written or cleared.
@@ -764,8 +765,7 @@ class WindmillStateInternals<K> implements StateInternals {
       if (availableIdsForTsRange != null) {
         availableIdsForTsRange.removeAll(idsUsed);
       }
-      idsAvailableValue.write(idsAvailable);
-      subRangeDeletionsValue.write(subRangeDeletions);
+      writeValues(idsAvailable, subRangeDeletions);
     }
 
     // Remove a timestamp range. Returns ids freed up.
@@ -797,8 +797,22 @@ class WindmillStateInternals<K> implements StateInternals {
           subRangeDeletions.remove(current);
         }
       }
-      idsAvailableValue.write(idsAvailable);
-      subRangeDeletionsValue.write(subRangeDeletions);
+      writeValues(idsAvailable, subRangeDeletions);
+    }
+
+    private void writeValues(
+        Map<Range<Instant>, RangeSet<Long>> idsAvailable,
+        Map<Range<Instant>, RangeSet<Instant>> subRangeDeletions) {
+      if (idsAvailable.isEmpty()) {
+        idsAvailable.clear();
+      } else {
+        idsAvailableValue.write(idsAvailable);
+      }
+      if (subRangeDeletions.isEmpty()) {
+        subRangeDeletionsValue.clear();
+      } else {
+        subRangeDeletionsValue.write(subRangeDeletions);
+      }
     }
   }
 
@@ -997,10 +1011,14 @@ class WindmillStateInternals<K> implements StateInternals {
     }
 
     @Override
-    public WorkItemCommitRequest persistDirectly(ForKey cache) throws IOException {
+    public WorkItemCommitRequest persistDirectly(WindmillStateCache.ForKeyAndFamily cache)
+        throws IOException {
       WorkItemCommitRequest.Builder commitBuilder = WorkItemCommitRequest.newBuilder();
       TagSortedListUpdateRequest.Builder updatesBuilder =
-          commitBuilder.addSortedListUpdatesBuilder().setStateFamily(stateFamily).setTag(stateKey);
+          commitBuilder
+              .addSortedListUpdatesBuilder()
+              .setStateFamily(cache.getStateFamily())
+              .setTag(stateKey);
       try {
         if (cleared) {
           // Default range.
@@ -1186,7 +1204,7 @@ class WindmillStateInternals<K> implements StateInternals {
     }
 
     @Override
-    public WorkItemCommitRequest persistDirectly(WindmillStateCache.ForKey cache)
+    public WorkItemCommitRequest persistDirectly(WindmillStateCache.ForKeyAndFamily cache)
         throws IOException {
       WorkItemCommitRequest.Builder commitBuilder = WorkItemCommitRequest.newBuilder();
 
@@ -1369,7 +1387,7 @@ class WindmillStateInternals<K> implements StateInternals {
     }
 
     @Override
-    public Future<WorkItemCommitRequest> persist(final WindmillStateCache.ForKey cache) {
+    public Future<WorkItemCommitRequest> persist(final WindmillStateCache.ForKeyAndFamily cache) {
 
       Future<WorkItemCommitRequest> result;
 
@@ -1508,7 +1526,7 @@ class WindmillStateInternals<K> implements StateInternals {
         String stateFamily,
         Coder<AccumT> accumCoder,
         CombineFn<InputT, AccumT, OutputT> combineFn,
-        WindmillStateCache.ForKey cache,
+        WindmillStateCache.ForKeyAndFamily cache,
         boolean isNewKey) {
       StateTag<BagState<AccumT>> internalBagAddress = StateTags.convertToBagTagInternal(address);
       WindmillBag<AccumT> cachedBag =
@@ -1559,7 +1577,7 @@ class WindmillStateInternals<K> implements StateInternals {
     }
 
     @Override
-    public Future<WorkItemCommitRequest> persist(WindmillStateCache.ForKey cache)
+    public Future<WorkItemCommitRequest> persist(WindmillStateCache.ForKeyAndFamily cache)
         throws IOException {
       if (hasLocalAdditions) {
         if (COMPACT_NOW.get().get() || bag.valuesAreCached()) {

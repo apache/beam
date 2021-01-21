@@ -28,6 +28,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
 
+import com.google.common.base.Charsets;
 import com.google.common.collect.Iterables;
 import java.io.Closeable;
 import java.util.ArrayList;
@@ -135,7 +136,8 @@ public class WindmillStateInternalsTest {
             cache
                 .forComputation("comp")
                 .forKey(
-                    WindmillComputationKey.create("comp", ByteString.EMPTY, 123),
+                    WindmillComputationKey.create(
+                        "comp", ByteString.copyFrom("dummyKey", Charsets.UTF_8), 123),
                     STATE_FAMILY,
                     17L,
                     workToken),
@@ -149,7 +151,8 @@ public class WindmillStateInternalsTest {
             cache
                 .forComputation("comp")
                 .forKey(
-                    WindmillComputationKey.create("comp", ByteString.EMPTY, 123),
+                    WindmillComputationKey.create(
+                        "comp", ByteString.copyFrom("dummyNewKey", Charsets.UTF_8), 123),
                     STATE_FAMILY,
                     17L,
                     workToken),
@@ -1222,7 +1225,7 @@ public class WindmillStateInternalsTest {
     value.write("Hi");
     underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
 
-    assertEquals(126, cache.getWeight());
+    assertEquals(132, cache.getWeight());
 
     resetUnderTest();
     value = underTest.state(NAMESPACE, addr);
@@ -1230,7 +1233,7 @@ public class WindmillStateInternalsTest {
     value.clear();
     underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
 
-    assertEquals(124, cache.getWeight());
+    assertEquals(130, cache.getWeight());
 
     resetUnderTest();
     value = underTest.state(NAMESPACE, addr);
@@ -1262,7 +1265,7 @@ public class WindmillStateInternalsTest {
 
     underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
 
-    assertEquals(134, cache.getWeight());
+    assertEquals(140, cache.getWeight());
 
     resetUnderTest();
     bag = underTest.state(NAMESPACE, addr);
@@ -1282,7 +1285,7 @@ public class WindmillStateInternalsTest {
 
     underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
 
-    assertEquals(127, cache.getWeight());
+    assertEquals(133, cache.getWeight());
 
     resetUnderTest();
     bag = underTest.state(NAMESPACE, addr);
@@ -1293,7 +1296,7 @@ public class WindmillStateInternalsTest {
 
     underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
 
-    assertEquals(128, cache.getWeight());
+    assertEquals(134, cache.getWeight());
 
     resetUnderTest();
     bag = underTest.state(NAMESPACE, addr);
@@ -1324,7 +1327,7 @@ public class WindmillStateInternalsTest {
 
     underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
 
-    assertEquals(132, cache.getWeight());
+    assertEquals(138, cache.getWeight());
 
     resetUnderTest();
     hold = underTest.state(NAMESPACE, addr);
@@ -1333,7 +1336,7 @@ public class WindmillStateInternalsTest {
 
     underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
 
-    assertEquals(132, cache.getWeight());
+    assertEquals(138, cache.getWeight());
 
     resetUnderTest();
     hold = underTest.state(NAMESPACE, addr);
@@ -1364,7 +1367,7 @@ public class WindmillStateInternalsTest {
 
     underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
 
-    assertEquals(125, cache.getWeight());
+    assertEquals(131, cache.getWeight());
 
     resetUnderTest();
     value = underTest.state(NAMESPACE, COMBINING_ADDR);
@@ -1375,7 +1378,7 @@ public class WindmillStateInternalsTest {
 
     underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
 
-    assertEquals(124, cache.getWeight());
+    assertEquals(130, cache.getWeight());
 
     resetUnderTest();
     value = underTest.state(NAMESPACE, COMBINING_ADDR);
