@@ -30,7 +30,15 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public class FhirSearchParameter<T> {
 
   private String resourceType;
+  private @Nullable String sourceIdentifier;
   private @Nullable Map<String, T> queries;
+
+  public FhirSearchParameter(
+      String resourceType, @Nullable String sourceIdentifier, @Nullable Map<String, T> queries) {
+    this.resourceType = resourceType;
+    this.sourceIdentifier = sourceIdentifier;
+    this.queries = queries;
+  }
 
   public FhirSearchParameter(String resourceType, @Nullable Map<String, T> queries) {
     this.resourceType = resourceType;
@@ -47,6 +55,10 @@ public class FhirSearchParameter<T> {
 
   public @Nullable Map<String, T> getQueries() {
     return queries;
+  }
+
+  public @Nullable String getSourceIdentifier() {
+    return sourceIdentifier;
   }
 
   @Override

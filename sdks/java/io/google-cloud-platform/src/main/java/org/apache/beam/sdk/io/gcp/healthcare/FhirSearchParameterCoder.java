@@ -47,13 +47,15 @@ public class FhirSearchParameterCoder<T> extends CustomCoder<FhirSearchParameter
   @Override
   public void encode(FhirSearchParameter<T> value, OutputStream outStream) throws IOException {
     STRING_CODER.encode(value.getResourceType(), outStream);
+    STRING_CODER.encode(value.getSourceIdentifier(), outStream);
     originalCoder.encode(value.getQueries(), outStream);
   }
 
   @Override
   public FhirSearchParameter<T> decode(InputStream inStream) throws IOException {
     String resourceType = STRING_CODER.decode(inStream);
+    String sourceIdentifier = STRING_CODER.decode(inStream);
     Map<String, T> queries = originalCoder.decode(inStream);
-    return new FhirSearchParameter<>(resourceType, queries);
+    return new FhirSearchParameter<>(resourceType, sourceIdentifier, queries);
   }
 }
