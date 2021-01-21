@@ -321,7 +321,7 @@ message MonitoringInfoSpecs {
       annotations: [
         {
           key: "description",
-          value: "Request counts with status made to an IOs service APIs to batch read or write elements."
+          value: "Request counts with status made to IO service APIs to batch read or write elements."
         },
         {
           key: "process_metric",  // Should be reported as a process metric
@@ -343,7 +343,7 @@ message MonitoringInfoSpecs {
       annotations: [
         {
           key: "description",
-          value: "Histogram counts for request latencies made to an IO’s service APIs to batch read or write elements."
+          value: "Histogram counts for request latencies made to IO service APIs to batch read or write elements."
         },
         {
           key: "units",
