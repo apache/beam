@@ -1517,20 +1517,26 @@ class DeferredGroupBy(frame_base.DeferredFrame):
     self._kwargs = kwargs
 
   def __getattr__(self, name):
-    return DeferredGroupBy(expressions.ComputedExpression(
-        'groupby_project',
-        lambda gb: getattr(gb, name), [self._expr],
-        requires_partition_by=partitionings.Nothing(),
-        preserves_partition_by=partitionings.Singleton()),
-                           self._kwargs, self._ungrouped, name)
+    return DeferredGroupBy(
+        expressions.ComputedExpression(
+            'groupby_project',
+            lambda gb: getattr(gb, name), [self._expr],
+            requires_partition_by=partitionings.Nothing(),
+            preserves_partition_by=partitionings.Singleton()),
+        self._kwargs,
+        self._ungrouped,
+        name)
 
   def __getitem__(self, name):
-    return DeferredGroupBy(expressions.ComputedExpression(
-        'groupby_project',
-        lambda gb: gb[name], [self._expr],
-        requires_partition_by=partitionings.Nothing(),
-        preserves_partition_by=partitionings.Singleton()),
-                           self._kwargs, self._ungrouped, name)
+    return DeferredGroupBy(
+        expressions.ComputedExpression(
+            'groupby_project',
+            lambda gb: gb[name], [self._expr],
+            requires_partition_by=partitionings.Nothing(),
+            preserves_partition_by=partitionings.Singleton()),
+        self._kwargs,
+        self._ungrouped,
+        name)
 
   def agg(self, fn):
     if not callable(fn):
