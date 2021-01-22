@@ -431,7 +431,7 @@ receive a call back.
 To put the finishing touches on our example, we will set a processing time
 timer as soon as any data is buffered. Note that we set the timer only when
 the current buffer is empty, so that we don't continually reset the timer.
-When the first an element arrives, we set the timer for the current moment plus
+When the first element arrives, we set the timer for the current moment plus
 `MAX_BUFFER_DURATION`. After the allotted processing time has passed, a
 callback will fire and enrich and emit any buffered elements.
 
