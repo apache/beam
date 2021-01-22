@@ -25,8 +25,6 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -34,7 +32,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import org.apache.beam.runners.direct.DirectOptions;
-import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -152,25 +149,6 @@ public class FhirIOSearchIT {
             });
 
     pipeline.run().waitUntilFinish();
-  }
-
-  public static class IntegerListObjectCoder extends CustomCoder<Object> {
-    private static final IntegerListObjectCoder CODER = new IntegerListObjectCoder();
-    private static final ListCoder<Integer> INTEGER_LIST_CODER = ListCoder.of(VarIntCoder.of());
-
-    public static IntegerListObjectCoder of() {
-      return CODER;
-    }
-
-    @Override
-    public void encode(Object value, OutputStream outStream) throws IOException {
-      INTEGER_LIST_CODER.encode((List<Integer>) value, outStream);
-    }
-
-    @Override
-    public Object decode(InputStream inStream) throws IOException {
-      return INTEGER_LIST_CODER.decode(inStream);
-    }
   }
 
   @Test

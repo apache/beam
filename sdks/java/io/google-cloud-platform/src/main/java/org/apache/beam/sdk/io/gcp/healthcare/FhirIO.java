@@ -1491,7 +1491,6 @@ public class FhirIO {
        */
       public PCollection<JsonArray> getResources() {
         return resources
-            .setCoder(KvCoder.of(StringUtf8Coder.of(), JsonArrayCoder.of()))
             .apply(
                 "Extract Values",
                 MapElements.into(TypeDescriptor.of(JsonArray.class))
