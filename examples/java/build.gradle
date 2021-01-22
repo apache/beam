@@ -56,7 +56,6 @@ dependencies {
   compile library.java.vendored_guava_26_0_jre
   compile library.java.kafka_clients
   compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile project(path: ":runners:direct-java", configuration: "shadow")
   compile project(":sdks:java:extensions:google-cloud-platform-core")
   compile project(":sdks:java:io:google-cloud-platform")
   compile project(":sdks:java:io:kafka")
@@ -75,7 +74,7 @@ dependencies {
   compile library.java.proto_google_cloud_datastore_v1
   compile library.java.slf4j_api
   compile library.java.slf4j_jdk14
-  runtime project(path: ":runners:direct-java", configuration: "shadow")
+  testCompile project(path: ":runners:direct-java", configuration: "shadow")
   testCompile project(":sdks:java:io:google-cloud-platform")
   testCompile project(":sdks:java:extensions:ml")
   testCompile library.java.hamcrest_core

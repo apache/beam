@@ -29,7 +29,6 @@ import java.util.stream.Collectors;
 import org.apache.beam.examples.complete.kafkatopubsub.options.KafkaToPubsubOptions;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.gson.JsonObject;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.gson.JsonParser;
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
@@ -169,7 +168,6 @@ public class Utils {
   public static Map<String, Object> parseKafkaConsumerConfig(String kafkaConsumerConfig) {
     return Arrays.stream(kafkaConsumerConfig.split(";"))
         .map(s -> s.split("="))
-        .map(kv -> Pair.of(kv[0], kv[1]))
-        .collect(Collectors.toMap(Pair::getKey, Pair::getValue));
+        .collect(Collectors.toMap(kv -> kv[0], kv -> kv[1]));
   }
 }
