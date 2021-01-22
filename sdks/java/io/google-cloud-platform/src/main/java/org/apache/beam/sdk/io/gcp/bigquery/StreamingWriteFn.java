@@ -23,8 +23,11 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.sdk.extensions.gcp.util.LatencyRecordingHttpRequestInitializer;
+import java.util.Set;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
+import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
 import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.metrics.MetricsLogger;
@@ -40,6 +43,8 @@ import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.joda.time.Instant;
 
@@ -60,6 +65,7 @@ class StreamingWriteFn<ErrorT, ElementT>
   private final boolean ignoreInsertIds;
   private final SerializableFunction<ElementT, TableRow> toTableRow;
   private final SerializableFunction<ElementT, TableRow> toFailsafeTableRow;
+  private final Set<MetricName> metricFilter;
 
   /** JsonTableRows to accumulate BigQuery rows in order to batch writes. */
   private transient Map<String, List<FailsafeValueInSingleWindow<TableRow, TableRow>>> tableRows;
@@ -89,6 +95,30 @@ class StreamingWriteFn<ErrorT, ElementT>
     this.ignoreInsertIds = ignoreInsertIds;
     this.toTableRow = toTableRow;
     this.toFailsafeTableRow = toFailsafeTableRow;
+    ImmutableSet.Builder<MetricName> setBuilder = ImmutableSet.builder();
+    setBuilder.add(
+        MonitoringInfoMetricName.named(
+            MonitoringInfoConstants.Urns.API_REQUEST_LATENCIES,
+            BigQueryServicesImpl.API_METRIC_LABEL));
+    for (String status : BigQueryServicesImpl.DatasetServiceImpl.CANONICAL_STATUS_MAP.values()) {
+      setBuilder.add(
+          MonitoringInfoMetricName.named(
+              MonitoringInfoConstants.Urns.API_REQUEST_COUNT,
+              ImmutableMap.<String, String>builder()
+                  .putAll(BigQueryServicesImpl.API_METRIC_LABEL)
+                  .put(MonitoringInfoConstants.Labels.STATUS, status)
+                  .build()));
+    }
+    setBuilder.add(
+        MonitoringInfoMetricName.named(
+            MonitoringInfoConstants.Urns.API_REQUEST_COUNT,
+            ImmutableMap.<String, String>builder()
+                .putAll(BigQueryServicesImpl.API_METRIC_LABEL)
+                .put(
+                    MonitoringInfoConstants.Labels.STATUS,
+                    BigQueryServicesImpl.DatasetServiceImpl.CANONICAL_STATUS_UNKNOWN)
+                .build()));
+    this.metricFilter = setBuilder.build();
   }
 
   /** Prepares a target BigQuery table. */
@@ -146,9 +176,8 @@ class StreamingWriteFn<ErrorT, ElementT>
     if (processWideContainer instanceof MetricsLogger) {
       MetricsLogger processWideMetricsLogger = (MetricsLogger) processWideContainer;
       processWideMetricsLogger.tryLoggingMetrics(
-          "BigQuery HTTP API Metrics: ",
-          LatencyRecordingHttpRequestInitializer.HISTOGRAM_URN.split(":", 2)[0],
-          LatencyRecordingHttpRequestInitializer.HISTOGRAM_URN.split(":", 2)[1],
+          "BigQuery HTTP API Metrics: \n",
+          metricFilter,
           options.getBqStreamingApiLoggingFrequencySec() * 1000L,
           true);
     }
