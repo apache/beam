@@ -21,7 +21,6 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.StringContains.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -98,15 +97,11 @@ public class FinalizeBundleHandlerTest {
     FinalizeBundleHandler handler = new FinalizeBundleHandler(Executors.newCachedThreadPool());
     handler.registerCallbacks("test", callbacks);
 
-    try {
-      handler.finalizeBundle(requestFor("test"));
-      fail();
-    } catch (Exception e) {
-      assertThat(e.getMessage(), containsString("Failed to handle bundle finalization for bundle"));
-      assertEquals(2, e.getSuppressed().length);
-      assertTrue(wasCalled1.get());
-      assertTrue(wasCalled2.get());
-    }
+    InstructionResponse response = handler.finalizeBundle(requestFor("test")).build();
+    assertThat(
+        response.getError(), containsString("Failed to handle bundle finalization for bundle"));
+    assertTrue(wasCalled1.get());
+    assertTrue(wasCalled2.get());
   }
 
   private static InstructionRequest requestFor(String bundleId) {

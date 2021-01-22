@@ -267,7 +267,13 @@ public class Read {
     public double getSize(
         @Restriction BoundedSource<T> restriction, PipelineOptions pipelineOptions)
         throws Exception {
-      return restriction.getEstimatedSizeBytes(pipelineOptions);
+      double size = 0.0;
+      try {
+        size = restriction.getEstimatedSizeBytes(pipelineOptions);
+      } catch (Exception e) {
+        LOG.warn("Failed to get size: {}", e);
+      }
+      return size;
     }
 
     @SplitRestriction

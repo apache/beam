@@ -145,6 +145,7 @@ public class FinalizeBundleHandler {
       try {
         callback.getCallback().onBundleSuccess();
       } catch (Exception e) {
+        LOG.warn("Failed to invoke finalization callback with exception {}", e);
         failures.add(e);
       }
     }
@@ -155,7 +156,8 @@ public class FinalizeBundleHandler {
       for (Exception failure : failures) {
         e.addSuppressed(failure);
       }
-      throw e;
+      // Instead failing the bundle directly on the SDK side, we send errors back to runner.
+      return BeamFnApi.InstructionResponse.newBuilder().setError(e.getMessage());
     }
 
     return BeamFnApi.InstructionResponse.newBuilder()
