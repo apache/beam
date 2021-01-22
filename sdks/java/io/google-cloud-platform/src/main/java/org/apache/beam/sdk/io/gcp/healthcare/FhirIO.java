@@ -31,6 +31,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -218,6 +219,7 @@ import org.slf4j.LoggerFactory;
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class FhirIO {
+  private static final String BASE_METRIC_PREFIX = "fhirio/";
 
   /**
    * Read resources from a PCollection of resource IDs (e.g. when subscribing the pubsub
@@ -465,11 +467,16 @@ public class FhirIO {
       /** DoFn for fetching messages from the Fhir store with error handling. */
       static class ReadResourceFn extends DoFn<String, String> {
 
-        private Counter failedMessageGets =
-            Metrics.counter(ReadResourceFn.class, "failed-message-reads");
         private static final Logger LOG = LoggerFactory.getLogger(ReadResourceFn.class);
-        private final Counter successfulStringGets =
-            Metrics.counter(ReadResourceFn.class, "successful-hl7v2-message-gets");
+        private static final Counter READ_RESOURCE_ERRORS =
+            Metrics.counter(ReadResourceFn.class, BASE_METRIC_PREFIX + "read_resource_error_count");
+        private static final Counter READ_RESOURCE_SUCCESS =
+            Metrics.counter(
+                ReadResourceFn.class, BASE_METRIC_PREFIX + "read_resource_success_count");
+        private static final Distribution READ_RESOURCE_LATENCY_MS =
+            Metrics.distribution(
+                ReadResourceFn.class, BASE_METRIC_PREFIX + "read_resource_latency_ms");
+
         private HealthcareApiClient client;
         private ObjectMapper mapper;
 
@@ -498,7 +505,7 @@ public class FhirIO {
           try {
             context.output(fetchResource(this.client, resourceId));
           } catch (Exception e) {
-            failedMessageGets.inc();
+            READ_RESOURCE_ERRORS.inc();
             LOG.warn(
                 String.format(
                     "Error fetching Fhir message with ID %s writing to Dead Letter "
@@ -510,14 +517,15 @@ public class FhirIO {
 
         private String fetchResource(HealthcareApiClient client, String resourceId)
             throws IOException, IllegalArgumentException {
-          long startTime = System.currentTimeMillis();
+          long startTime = Instant.now().toEpochMilli();
 
           HttpBody resource = client.readFhirResource(resourceId);
+          READ_RESOURCE_LATENCY_MS.update(Instant.now().toEpochMilli() - startTime);
 
           if (resource == null) {
             throw new IOException(String.format("GET request for %s returned null", resourceId));
           }
-          this.successfulStringGets.inc();
+          READ_RESOURCE_SUCCESS.inc();
           return mapper.writeValueAsString(resource);
         }
       }
@@ -1257,7 +1265,16 @@ public class FhirIO {
     /** The type Write Fhir fn. */
     static class ExecuteBundlesFn extends DoFn<String, HealthcareIOError<String>> {
 
-      private Counter failedBundles = Metrics.counter(ExecuteBundlesFn.class, "failed-bundles");
+      private static final Counter EXECUTE_BUNDLE_ERRORS =
+          Metrics.counter(
+              ExecuteBundlesFn.class, BASE_METRIC_PREFIX + "execute_bundle_error_count");
+      private static final Counter EXECUTE_BUNDLE_SUCCESS =
+          Metrics.counter(
+              ExecuteBundlesFn.class, BASE_METRIC_PREFIX + "execute_bundle_success_count");
+      private static final Distribution EXECUTE_BUNDLE_LATENCY_MS =
+          Metrics.distribution(
+              ExecuteBundlesFn.class, BASE_METRIC_PREFIX + "execute_bundle_latency_ms");
+
       private transient HealthcareApiClient client;
       private final ObjectMapper mapper = new ObjectMapper();
       /** The Fhir store. */
@@ -1282,20 +1299,18 @@ public class FhirIO {
         this.client = new HttpHealthcareApiClient();
       }
 
-      /**
-       * Execute Bundles.
-       *
-       * @param context the context
-       */
       @ProcessElement
       public void executeBundles(ProcessContext context) {
         String body = context.element();
         try {
+          long startTime = Instant.now().toEpochMilli();
           // Validate that data was set to valid JSON.
           mapper.readTree(body);
           client.executeFhirBundle(fhirStore.get(), body);
+          EXECUTE_BUNDLE_LATENCY_MS.update(Instant.now().toEpochMilli() - startTime);
+          EXECUTE_BUNDLE_SUCCESS.inc();
         } catch (IOException | HealthcareHttpException e) {
-          failedBundles.inc();
+          EXECUTE_BUNDLE_ERRORS.inc();
           context.output(HealthcareIOError.of(body, e));
         }
       }
@@ -1545,11 +1560,25 @@ public class FhirIO {
       /** DoFn for searching messages from the Fhir store with error handling. */
       static class SearchResourcesFn extends DoFn<KV<String, Map<String, String>>, JsonArray> {
 
+<<<<<<< HEAD
         private Distribution searchLatencyMs =
             Metrics.distribution(SearchResourcesFn.class, "fhir-search-latency-ms");
         private Counter failedSearches =
             Metrics.counter(SearchResourcesFn.class, "failed-fhir-searches");
         private static final Logger LOG = LoggerFactory.getLogger(SearchResourcesFn.class);
+=======
+        private final Counter SEARCH_RESOURCE_ERRORS =
+            Metrics.counter(
+                SearchResourcesFn.class, BASE_METRIC_PREFIX + "search_resource_error_count");
+        private final Counter SEARCH_RESOURCE_SUCCESS =
+            Metrics.counter(
+                SearchResourcesFn.class, BASE_METRIC_PREFIX + "search_resource_success_count");
+        private final Distribution SEARCH_RESOURCE_LATENCY_MS =
+            Metrics.distribution(
+                SearchResourcesFn.class, BASE_METRIC_PREFIX + "search_resource_latency_ms");
+
+        private final Logger log = LoggerFactory.getLogger(SearchResourcesFn.class);
+>>>>>>> fdc9837879 (Metric updates for FhirIO: Fix metrics + namings to be consistent.)
         private final Counter successfulSearches =
             Metrics.counter(SearchResourcesFn.class, "successful-fhir-searches");
         private HealthcareApiClient client;
@@ -1603,7 +1632,7 @@ public class FhirIO {
             String resourceType,
             @Nullable Map<String, String> parameters)
             throws NoSuchElementException {
-          long startTime = System.currentTimeMillis();
+          long start = Instant.now().toEpochMilli();
 
           HttpHealthcareApiClient.FhirResourcePages.FhirResourcePagesIterator iter =
               new HttpHealthcareApiClient.FhirResourcePages.FhirResourcePagesIterator(
@@ -1613,8 +1642,8 @@ public class FhirIO {
           while (iter.hasNext()) {
             result.addAll(iter.next());
           }
-          searchLatencyMs.update(System.currentTimeMillis() - startTime);
-          this.successfulSearches.inc();
+          SEARCH_RESOURCE_LATENCY_MS.update(java.time.Instant.now().toEpochMilli() - start);
+          SEARCH_RESOURCE_SUCCESS.inc();
           return result;
         }
       }
