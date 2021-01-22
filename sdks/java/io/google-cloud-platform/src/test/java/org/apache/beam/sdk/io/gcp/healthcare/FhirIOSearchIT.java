@@ -18,14 +18,13 @@
 package org.apache.beam.sdk.io.gcp.healthcare;
 
 import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.HEALTHCARE_DATASET_TEMPLATE;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -33,13 +32,13 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import org.apache.beam.runners.direct.DirectOptions;
-import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.After;
 import org.junit.Before;
@@ -71,6 +70,7 @@ public class FhirIOSearchIT {
   private static final int MAX_NUM_OF_SEARCHES = 50;
   private List<FhirSearchParameter<String>> input = new ArrayList<>();
   private List<FhirSearchParameter<List<Integer>>> genericParametersInput = new ArrayList<>();
+  private static final String KEY = "key";
 
   public String version;
 
@@ -105,7 +105,7 @@ public class FhirIOSearchIT {
     for (JsonElement resource : fhirResources) {
       String resourceType =
           resource.getAsJsonObject().getAsJsonObject("resource").get("resourceType").getAsString();
-      input.add(new FhirSearchParameter<>(resourceType, searchParameters));
+      input.add(new FhirSearchParameter<>(resourceType, KEY, searchParameters));
       genericParametersInput.add(new FhirSearchParameter<>(resourceType, genericSearchParameters));
       searches++;
       if (searches > MAX_NUM_OF_SEARCHES) {
@@ -136,37 +136,19 @@ public class FhirIOSearchIT {
 
     // Verify that there are no failures.
     PAssert.that(result.getFailedSearches()).empty();
-    // Verify that none of the result resource sets are empty sets.
-    PCollection<JsonArray> resources = result.getResources();
-    PAssert.that(resources)
+    // Verify that none of the result resource sets are empty sets, using both getResources methods.
+    PCollection<KV<String, JsonArray>> keyedResources = result.getKeyedResources();
+    PAssert.that(keyedResources)
         .satisfies(
             input -> {
-              for (JsonArray resource : input) {
-                assertNotEquals(resource.size(), 0);
+              for (KV<String, JsonArray> resource : input) {
+                assertEquals(KEY, resource.getKey());
+                assertNotEquals(0, resource.getValue().size());
               }
               return null;
             });
 
     pipeline.run().waitUntilFinish();
-  }
-
-  public static class IntegerListObjectCoder extends CustomCoder<Object> {
-    private static final IntegerListObjectCoder CODER = new IntegerListObjectCoder();
-    private static final ListCoder<Integer> INTEGER_LIST_CODER = ListCoder.of(VarIntCoder.of());
-
-    public static IntegerListObjectCoder of() {
-      return CODER;
-    }
-
-    @Override
-    public void encode(Object value, OutputStream outStream) throws IOException {
-      INTEGER_LIST_CODER.encode((List<Integer>) value, outStream);
-    }
-
-    @Override
-    public Object decode(InputStream inStream) throws IOException {
-      return INTEGER_LIST_CODER.decode(inStream);
-    }
   }
 
   @Test
@@ -186,13 +168,13 @@ public class FhirIOSearchIT {
 
     // Verify that there are no failures.
     PAssert.that(result.getFailedSearches()).empty();
-    // Verify that none of the result resource sets are empty sets.
+    // Verify that none of the result resource sets are empty sets, using both getResources methods.
     PCollection<JsonArray> resources = result.getResources();
     PAssert.that(resources)
         .satisfies(
             input -> {
               for (JsonArray resource : input) {
-                assertNotEquals(resource.size(), 0);
+                assertNotEquals(0, resource.size());
               }
               return null;
             });

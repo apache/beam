@@ -84,6 +84,7 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -1442,7 +1443,7 @@ public class FhirIO {
     }
 
     public static class Result implements POutput, PInput {
-      private PCollection<JsonArray> resources;
+      private PCollection<KV<String, JsonArray>> resources;
 
       private PCollection<HealthcareIOError<String>> failedSearches;
       PCollectionTuple pct;
@@ -1468,7 +1469,8 @@ public class FhirIO {
 
       private Result(PCollectionTuple pct) {
         this.pct = pct;
-        this.resources = pct.get(OUT).setCoder(JsonArrayCoder.of());
+        this.resources =
+            pct.get(OUT).setCoder(KvCoder.of(StringUtf8Coder.of(), JsonArrayCoder.of()));
         this.failedSearches =
             pct.get(DEAD_LETTER).setCoder(HealthcareIOErrorCoder.of(StringUtf8Coder.of()));
       }
@@ -1488,6 +1490,20 @@ public class FhirIO {
        * @return the resources
        */
       public PCollection<JsonArray> getResources() {
+        return resources
+            .apply(
+                "Extract Values",
+                MapElements.into(TypeDescriptor.of(JsonArray.class))
+                    .via((KV<String, JsonArray> in) -> in.getValue()))
+            .setCoder(JsonArrayCoder.of());
+      }
+
+      /**
+       * Gets resources with input SearchParameter key.
+       *
+       * @return the resources with input SearchParameter key.
+       */
+      public PCollection<KV<String, JsonArray>> getKeyedResources() {
         return resources;
       }
 
@@ -1507,7 +1523,8 @@ public class FhirIO {
     }
 
     /** The tag for the main output of Fhir Messages. */
-    public static final TupleTag<JsonArray> OUT = new TupleTag<JsonArray>() {};
+    public static final TupleTag<KV<String, JsonArray>> OUT =
+        new TupleTag<KV<String, JsonArray>>() {};
     /** The tag for the deadletter output of Fhir Messages. */
     public static final TupleTag<HealthcareIOError<String>> DEAD_LETTER =
         new TupleTag<HealthcareIOError<String>>() {};
@@ -1554,7 +1571,7 @@ public class FhirIO {
       }
 
       /** DoFn for searching messages from the Fhir store with error handling. */
-      class SearchResourcesFn extends DoFn<FhirSearchParameter<T>, JsonArray> {
+      class SearchResourcesFn extends DoFn<FhirSearchParameter<T>, KV<String, JsonArray>> {
 
         private Distribution searchLatencyMs =
             Metrics.distribution(SearchResourcesFn.class, "fhir-search-latency-ms");
@@ -1591,11 +1608,13 @@ public class FhirIO {
           FhirSearchParameter<T> fhirSearchParameters = context.element();
           try {
             context.output(
-                searchResources(
-                    this.client,
-                    this.fhirStore.toString(),
-                    fhirSearchParameters.getResourceType(),
-                    fhirSearchParameters.getQueries()));
+                KV.of(
+                    fhirSearchParameters.getKey(),
+                    searchResources(
+                        this.client,
+                        this.fhirStore.toString(),
+                        fhirSearchParameters.getResourceType(),
+                        fhirSearchParameters.getQueries())));
           } catch (IllegalArgumentException | NoSuchElementException e) {
             failedSearches.inc();
             log.warn(

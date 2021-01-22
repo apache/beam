@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
-import com.google.gson.JsonArray;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -72,14 +71,13 @@ public class FhirIOTest {
 
     PCollection<HealthcareIOError<String>> failed = searchResult.getFailedSearches();
 
-    PCollection<JsonArray> resources = searchResult.getResources();
-
     PCollection<String> failedMsgIds =
         failed.apply(
             MapElements.into(TypeDescriptors.strings()).via(HealthcareIOError::getDataResource));
 
     PAssert.that(failedMsgIds).containsInAnyOrder(Arrays.asList("bad-store"));
-    PAssert.that(resources).empty();
+    PAssert.that(searchResult.getResources()).empty();
+    PAssert.that(searchResult.getKeyedResources()).empty();
     pipeline.run();
   }
 
@@ -98,14 +96,13 @@ public class FhirIOTest {
 
     PCollection<HealthcareIOError<String>> failed = searchResult.getFailedSearches();
 
-    PCollection<JsonArray> resources = searchResult.getResources();
-
     PCollection<String> failedMsgIds =
         failed.apply(
             MapElements.into(TypeDescriptors.strings()).via(HealthcareIOError::getDataResource));
 
     PAssert.that(failedMsgIds).containsInAnyOrder(Arrays.asList("bad-store"));
-    PAssert.that(resources).empty();
+    PAssert.that(searchResult.getResources()).empty();
+    PAssert.that(searchResult.getKeyedResources()).empty();
     pipeline.run();
   }
 
