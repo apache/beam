@@ -137,9 +137,9 @@ import org.slf4j.LoggerFactory;
  * to a destination FHIR store. It is important that the destination store must already exist.
  *
  * <p>Search This is to search FHIR resources within a given FHIR store. The inputs are individual
- * FHIR Search queries, represented by KV<resource type, search parameters>. The outputs are results
- * of each Search, represented as a Json array of FHIR resources in string form, with pagination
- * handled.
+ * FHIR Search queries, represented by the FhirSearchParameter class. The outputs are results of
+ * each Search, represented as a Json array of FHIR resources in string form, with pagination
+ * handled, and an optional input key.
  *
  * @see <a
  *     href=>https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.fhirStores.fhir/executeBundle></a>
@@ -208,12 +208,32 @@ import org.slf4j.LoggerFactory;
  * DeidentifyConfig deidConfig = new DeidentifyConfig(); // use default DeidentifyConfig
  * pipeline.apply(FhirIO.deidentify(fhirStoreName, destinationFhirStoreName, deidConfig));
  *
- * // Search FHIR resources.
- * PCollection<KV<String, Map<String, Object>>> searchQueries = ...;
+ * // Search FHIR resources using a simple query.
+ * Map<String, String> queries = new HashMap<>();
+ * queries.put("name", "Alice");
+ * FhirSearchParameter<String> searchParameter = FhirSearchParameter.of("Patient", queries);
+ * PCollection<FhirSearchParameter<String>> searchQueries =
+ * pipeline.apply(
+ *      Create.of(searchParameter)
+ *            .withCoder(FhirSearchParameterCoder.of(StringUtf8Coder.of())));
  * FhirIO.Search.Result searchResult =
  *      searchQueries.apply(FhirIO.searchResources(options.getFhirStore()));
+ * PCollection<JsonArray> resources = searchResult.getResources(); // JsonArray of results
  *
- * }***
+ * // Search FHIR resources using an "OR" query.
+ * Map<String, List<String>> listQueries = new HashMap<>();
+ * listQueries.put("name", Arrays.asList("Alice", "Bob"));
+ * FhirSearchParameter<List<String>> listSearchParameter =
+ *      FhirSearchParameter.of("Patient", "Alice-Bob-Search", listQueries);
+ * PCollection<FhirSearchParameter<List<String>>> listSearchQueries =
+ * pipeline.apply(
+ *      Create.of(listSearchParameter)
+ *            .withCoder(FhirSearchParameterCoder.of(ListCoder.of(StringUtf8Coder.of()))));
+ * FhirIO.Search.Result listSearchResult =
+ *      searchQueries.apply(FhirIO.searchResources(options.getFhirStore()));
+ * PCollection<KV<String, JsonArray>> listResource =
+ *      listSearchResult.getKeyedResources(); // KV<"Alice-Bob-Search", JsonArray of results>
+ *
  * </pre>
  */
 @SuppressWarnings({

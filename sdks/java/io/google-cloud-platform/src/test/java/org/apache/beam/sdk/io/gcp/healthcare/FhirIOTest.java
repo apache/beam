@@ -63,7 +63,7 @@ public class FhirIOTest {
   @Test
   public void test_FhirIO_failedSearches() {
     List<FhirSearchParameter<String>> input =
-        Arrays.asList(new FhirSearchParameter<>("resource-type-1", null));
+        Arrays.asList(FhirSearchParameter.of("resource-type-1", null));
     FhirIO.Search.Result searchResult =
         pipeline
             .apply(Create.of(input).withCoder(FhirSearchParameterCoder.of(StringUtf8Coder.of())))
@@ -84,7 +84,7 @@ public class FhirIOTest {
   @Test
   public void test_FhirIO_failedSearchesWithGenericParameters() {
     List<FhirSearchParameter<List<String>>> input =
-        Arrays.asList(new FhirSearchParameter<>("resource-type-1", null));
+        Arrays.asList(FhirSearchParameter.of("resource-type-1", null));
     FhirIO.Search.Result searchResult =
         pipeline
             .apply(

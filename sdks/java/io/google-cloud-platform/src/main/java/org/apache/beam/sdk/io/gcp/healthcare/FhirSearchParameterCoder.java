@@ -56,6 +56,6 @@ public class FhirSearchParameterCoder<T> extends CustomCoder<FhirSearchParameter
     String resourceType = STRING_CODER.decode(inStream);
     String key = STRING_CODER.decode(inStream);
     Map<String, T> queries = originalCoder.decode(inStream);
-    return new FhirSearchParameter<>(resourceType, key, queries);
+    return FhirSearchParameter.of(resourceType, key, queries);
   }
 }

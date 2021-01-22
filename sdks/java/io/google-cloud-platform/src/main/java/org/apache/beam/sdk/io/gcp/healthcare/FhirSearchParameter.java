@@ -29,26 +29,31 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @DefaultCoder(FhirSearchParameterCoder.class)
 public class FhirSearchParameter<T> {
 
-  private String resourceType;
-  // The key is used as optional to use as a key for the search query, if there is source
-  // information to propagate through the pipeline.
-  private String key;
-  private @Nullable Map<String, T> queries;
+  private final String resourceType;
+  // The key is used as a key for the search query, if there is source information to propagate
+  // through the pipeline.
+  private final String key;
+  private final @Nullable Map<String, T> queries;
 
-  public FhirSearchParameter(String resourceType, String key, @Nullable Map<String, T> queries) {
+  private FhirSearchParameter(
+      String resourceType, @Nullable String key, @Nullable Map<String, T> queries) {
     this.resourceType = resourceType;
-    this.key = key;
+    if (key != null) {
+      this.key = key;
+    } else {
+      this.key = "";
+    }
     this.queries = queries;
   }
 
-  public FhirSearchParameter(String resourceType, @Nullable Map<String, T> queries) {
-    this.resourceType = resourceType;
-    this.key = "";
-    this.queries = queries;
+  public static <T> FhirSearchParameter<T> of(
+      String resourceType, @Nullable String key, @Nullable Map<String, T> queries) {
+    return new FhirSearchParameter<>(resourceType, key, queries);
   }
 
-  public static <T> FhirSearchParameter<T> of(String resourceType, Map<String, T> queries) {
-    return new FhirSearchParameter<>(resourceType, queries);
+  public static <T> FhirSearchParameter<T> of(
+      String resourceType, @Nullable Map<String, T> queries) {
+    return new FhirSearchParameter<>(resourceType, null, queries);
   }
 
   public String getResourceType() {

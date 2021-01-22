@@ -105,8 +105,8 @@ public class FhirIOSearchIT {
     for (JsonElement resource : fhirResources) {
       String resourceType =
           resource.getAsJsonObject().getAsJsonObject("resource").get("resourceType").getAsString();
-      input.add(new FhirSearchParameter<>(resourceType, KEY, searchParameters));
-      genericParametersInput.add(new FhirSearchParameter<>(resourceType, genericSearchParameters));
+      input.add(FhirSearchParameter.of(resourceType, KEY, searchParameters));
+      genericParametersInput.add(FhirSearchParameter.of(resourceType, genericSearchParameters));
       searches++;
       if (searches > MAX_NUM_OF_SEARCHES) {
         break;
