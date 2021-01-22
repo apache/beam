@@ -42,8 +42,8 @@ class CommonTestProperties {
       JAVA: [
         DATAFLOW: ":runners:google-cloud-dataflow-java",
         TEST_DATAFLOW: ":runners:google-cloud-dataflow-java",
-        SPARK: ":runners:spark",
-        SPARK_STRUCTURED_STREAMING: ":runners:spark",
+        SPARK: ":runners:spark:2",
+        SPARK_STRUCTURED_STREAMING: ":runners:spark:2",
         FLINK: ":runners:flink:${CommonTestProperties.getFlinkVersion()}",
         DIRECT: ":runners:direct-java"
       ],

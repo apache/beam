@@ -1631,7 +1631,7 @@ class BeamModulePlugin implements Plugin<Project> {
         }
 
         if (runner?.equalsIgnoreCase('spark')) {
-          testRuntime it.project(path: ":runners:spark", configuration: 'testRuntime')
+          testRuntime it.project(path: ":runners:spark:2", configuration: 'testRuntime')
           testRuntime project.library.java.spark_core
           testRuntime project.library.java.spark_streaming
 
@@ -2337,7 +2337,7 @@ class BeamModulePlugin implements Plugin<Project> {
           dependsOn = ['installGcpTest']
           mustRunAfter = [
             ":runners:flink:${project.ext.latestFlinkVersion}:job-server:shadowJar",
-            ':runners:spark:job-server:shadowJar',
+            ':runners:spark:2:job-server:shadowJar',
             ':sdks:python:container:py36:docker',
             ':sdks:python:container:py37:docker',
             ':sdks:python:container:py38:docker',
@@ -2352,7 +2352,7 @@ class BeamModulePlugin implements Plugin<Project> {
               "--parallelism=2",
               "--sdk_worker_parallelism=1",
               "--flink_job_server_jar=${project.project(flinkJobServerProject).shadowJar.archivePath}",
-              "--spark_job_server_jar=${project.project(':runners:spark:job-server').shadowJar.archivePath}",
+              "--spark_job_server_jar=${project.project(':runners:spark:2:job-server').shadowJar.archivePath}",
             ]
             if (isStreaming)
               options += [
