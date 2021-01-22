@@ -49,7 +49,6 @@ dependencies {
   compile "commons-lang:commons-lang:2.6"
   compile "org.apache.commons:commons-lang3:3.9"
   compile "org.apache.httpcomponents:httpcore:4.4.11"
-  compile "org.checkerframework:checker-qual:2.0.0"
   compile "software.amazon.awssdk:http-client-spi:2.13.54"
   compile "software.amazon.awssdk:regions:2.13.54"
   compile "software.amazon.awssdk:utils:2.13.54"

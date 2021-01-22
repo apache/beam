@@ -35,7 +35,6 @@ dependencies {
     compile library.java.vendored_guava_26_0_jre
     compile "org.apache.httpcomponents:httpclient:4.5.10"
     compile "org.apache.httpcomponents:httpcore:4.4.12"
-    compile "org.checkerframework:checker-qual:2.0.0"
     testCompile library.java.junit
     testCompile group: 'org.mock-server', name: 'mockserver-junit-rule', version: '5.10.0'
     testCompile group: 'org.mock-server', name: 'mockserver-client-java', version: '5.10.0'

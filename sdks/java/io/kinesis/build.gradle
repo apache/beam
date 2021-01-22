@@ -42,7 +42,6 @@ dependencies {
   compile "commons-lang:commons-lang:2.6"
   compile library.java.vendored_guava_26_0_jre
   compile "org.apache.commons:commons-lang3:3.9"
-  compile "org.checkerframework:checker-qual:2.0.0"
   testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
   testCompile library.java.junit
   testCompile library.java.mockito_core
