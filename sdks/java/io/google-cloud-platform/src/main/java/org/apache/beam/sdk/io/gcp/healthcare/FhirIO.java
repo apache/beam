@@ -1443,7 +1443,8 @@ public class FhirIO {
     }
 
     public static class Result implements POutput, PInput {
-      private PCollection<KV<String, JsonArray>> resources;
+      private PCollection<KV<String, JsonArray>> keyedResources;
+      private PCollection<JsonArray> resources;
 
       private PCollection<HealthcareIOError<String>> failedSearches;
       PCollectionTuple pct;
@@ -1469,8 +1470,15 @@ public class FhirIO {
 
       private Result(PCollectionTuple pct) {
         this.pct = pct;
-        this.resources =
+        this.keyedResources =
             pct.get(OUT).setCoder(KvCoder.of(StringUtf8Coder.of(), JsonArrayCoder.of()));
+        this.resources =
+            this.keyedResources
+                .apply(
+                    "Extract Values",
+                    MapElements.into(TypeDescriptor.of(JsonArray.class))
+                        .via((KV<String, JsonArray> in) -> in.getValue()))
+                .setCoder(JsonArrayCoder.of());
         this.failedSearches =
             pct.get(DEAD_LETTER).setCoder(HealthcareIOErrorCoder.of(StringUtf8Coder.of()));
       }
@@ -1490,12 +1498,7 @@ public class FhirIO {
        * @return the resources
        */
       public PCollection<JsonArray> getResources() {
-        return resources
-            .apply(
-                "Extract Values",
-                MapElements.into(TypeDescriptor.of(JsonArray.class))
-                    .via((KV<String, JsonArray> in) -> in.getValue()))
-            .setCoder(JsonArrayCoder.of());
+        return resources;
       }
 
       /**
@@ -1504,7 +1507,7 @@ public class FhirIO {
        * @return the resources with input SearchParameter key.
        */
       public PCollection<KV<String, JsonArray>> getKeyedResources() {
-        return resources;
+        return keyedResources;
       }
 
       @Override
@@ -1514,7 +1517,7 @@ public class FhirIO {
 
       @Override
       public Map<TupleTag<?>, PValue> expand() {
-        return ImmutableMap.of(OUT, resources);
+        return ImmutableMap.of(OUT, keyedResources);
       }
 
       @Override
