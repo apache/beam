@@ -909,7 +909,7 @@ _Note_: -Prepourl and -Pver can be found in the RC vote email sent by Release Ma
   ```
   **Spark Local Runner**
   ```
-  ./gradlew :runners:spark:runQuickstartJavaSpark \
+  ./gradlew :runners:spark:2:runQuickstartJavaSpark \
   -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \
   -Pver=${RELEASE_VERSION}
   ```
