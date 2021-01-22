@@ -18,6 +18,7 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
+  enableStrictDependencies: true,
   automaticModuleName: 'org.apache.beam.sdk.fn',
 )
 
@@ -35,8 +36,6 @@ dependencies {
   compile library.java.joda_time
   provided library.java.junit
   testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
   testCompile library.java.mockito_core
   testRuntimeOnly library.java.slf4j_jdk14
 }
