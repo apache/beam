@@ -17,7 +17,7 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.io.amqp')
+applyJavaNature(enableStrictDependencies:true,automaticModuleName: 'org.apache.beam.sdk.io.amqp')
 
 description = "Apache Beam :: SDKs :: Java :: IO :: AMQP"
 ext.summary = "IO to read and write using AMQP 1.0 protocol (http://www.amqp.org)."
@@ -29,8 +29,6 @@ dependencies {
   compile "org.apache.qpid:proton-j:0.16.0"
   testCompile library.java.slf4j_api
   testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
   testCompile library.java.activemq_broker
   testCompile library.java.activemq_amqp
   testCompile library.java.activemq_junit
