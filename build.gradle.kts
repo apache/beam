@@ -181,7 +181,7 @@ task("javaHadoopVersionsTest") {
   dependsOn(":sdks:java:io:hcatalog:hadoopVersionsTest")
   dependsOn(":sdks:java:io:parquet:hadoopVersionsTest")
   dependsOn(":sdks:java:extensions:sorter:hadoopVersionsTest")
-  dependsOn(":runners:spark:hadoopVersionsTest")
+  dependsOn(":runners:spark:2:hadoopVersionsTest")
 }
 
 task("sqlPostCommit") {

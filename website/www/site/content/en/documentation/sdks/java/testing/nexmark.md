@@ -494,7 +494,7 @@ configure logging.
 Batch Mode:
 
     ./gradlew :sdks:java:testing:nexmark:run \
-        -Pnexmark.runner=":runners:spark" \
+        -Pnexmark.runner=":runners:spark:2" \
         -Pnexmark.args="
             --runner=SparkRunner
             --suite=SMOKE
@@ -506,7 +506,7 @@ Batch Mode:
 Streaming Mode:
 
     ./gradlew :sdks:java:testing:nexmark:run \
-        -Pnexmark.runner=":runners:spark" \
+        -Pnexmark.runner=":runners:spark:2" \
         -Pnexmark.args="
             --runner=SparkRunner
             --suite=SMOKE

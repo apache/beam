@@ -38,7 +38,7 @@ task("runJavaExamplesValidationTask") {
   description = "Run the Beam quickstart across all Java runners"
   dependsOn(":runners:direct-java:runQuickstartJavaDirect")
   dependsOn(":runners:google-cloud-dataflow-java:runQuickstartJavaDataflow")
-  dependsOn(":runners:spark:runQuickstartJavaSpark")
+  dependsOn(":runners:spark:2:runQuickstartJavaSpark")
   dependsOn(":runners:flink:1.10:runQuickstartJavaFlinkLocal")
   dependsOn(":runners:direct-java:runMobileGamingJavaDirect")
   dependsOn(":runners:google-cloud-dataflow-java:runMobileGamingJavaDataflow")

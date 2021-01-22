@@ -105,7 +105,7 @@ dependencies {
   // TODO: Make the netty version used configurable, we add netty-all 4.1.17.Final so it appears on the classpath
   // before 4.1.8.Final defined by Apache Beam
   sparkRunnerPreCommit "io.netty:netty-all:4.1.17.Final"
-  sparkRunnerPreCommit project(":runners:spark")
+  sparkRunnerPreCommit project(":runners:spark:2")
   sparkRunnerPreCommit project(":sdks:java:io:hadoop-file-system")
   sparkRunnerPreCommit library.java.spark_streaming
   sparkRunnerPreCommit library.java.spark_core
