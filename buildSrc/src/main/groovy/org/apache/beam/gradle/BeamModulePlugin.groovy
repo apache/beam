@@ -440,6 +440,8 @@ class BeamModulePlugin implements Plugin<Project> {
     def hadoop_version = "2.10.1"
     def hamcrest_version = "2.1"
     def influxdb_version = "2.19"
+    def httpclient_version = "4.5.10"
+    def httpcore_version = "4.4.12"
     def jackson_version = "2.10.2"
     def jaxb_api_version = "2.3.3"
     def jsr305_version = "3.0.2"
@@ -566,6 +568,8 @@ class BeamModulePlugin implements Plugin<Project> {
         hadoop_hdfs_tests                           : "org.apache.hadoop:hadoop-hdfs:$hadoop_version:tests",
         hamcrest_core                               : "org.hamcrest:hamcrest-core:$hamcrest_version",
         hamcrest_library                            : "org.hamcrest:hamcrest-library:$hamcrest_version",
+        http_client                                 : "org.apache.httpcomponents:httpclient:$httpclient_version",
+        http_core                                   : "org.apache.httpcomponents:httpcore:$httpcore_version",
         influxdb_library                            : "org.influxdb:influxdb-java:$influxdb_version",
         jackson_annotations                         : "com.fasterxml.jackson.core:jackson-annotations:$jackson_version",
         jackson_jaxb_annotations                    : "com.fasterxml.jackson.module:jackson-module-jaxb-annotations:$jackson_version",
