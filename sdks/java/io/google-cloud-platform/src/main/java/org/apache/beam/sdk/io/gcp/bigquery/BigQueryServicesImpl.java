@@ -81,7 +81,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
+import org.apache.beam.runners.core.metrics.LabeledMetrics;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
+import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
 import org.apache.beam.sdk.extensions.gcp.auth.NullCredentialInitializer;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.extensions.gcp.util.BackOffAdapter;
@@ -132,6 +134,11 @@ class BigQueryServicesImpl implements BigQueryServices {
 
   // The error code for quota exceeded error (https://cloud.google.com/bigquery/docs/error-messages)
   private static final String QUOTA_EXCEEDED = "quotaExceeded";
+
+  protected static final Map<String, String> API_METRIC_LABEL =
+      ImmutableMap.of(
+          MonitoringInfoConstants.Labels.SERVICE, "BigQuery",
+          MonitoringInfoConstants.Labels.METHOD, "BigQueryBatchWrite");
 
   @Override
   public JobService getJobService(BigQueryOptions options) {
@@ -440,6 +447,24 @@ class BigQueryServicesImpl implements BigQueryServices {
         Metrics.counter(DatasetServiceImpl.class, "throttling-msecs");
 
     private ExecutorService executor;
+
+    protected static final Map<Integer, String> CANONICAL_STATUS_MAP =
+        ImmutableMap.<Integer, String>builder()
+            .put(200, "ok")
+            .put(400, "out_of_range")
+            .put(401, "unauthenticated")
+            .put(403, "permission_denied")
+            .put(404, "not_found")
+            .put(409, "already_exists")
+            .put(429, "resource_exhausted")
+            .put(499, "cancelled")
+            .put(500, "internal")
+            .put(501, "not_implemented")
+            .put(503, "unavailable")
+            .put(504, "deadline_exceeded")
+            .build();
+
+    protected static final String CANONICAL_STATUS_UNKNOWN = "unknown";
 
     @VisibleForTesting
     DatasetServiceImpl(Bigquery client, PipelineOptions options) {
@@ -852,6 +877,7 @@ class BigQueryServicesImpl implements BigQueryServices {
                         try {
                           return insert.execute().getInsertErrors();
                         } catch (IOException e) {
+                          recordError(e);
                           GoogleJsonError.ErrorInfo errorInfo = getErrorInfo(e);
                           if (errorInfo == null) {
                             throw e;
@@ -989,6 +1015,23 @@ class BigQueryServicesImpl implements BigQueryServices {
       return errorInfo;
     }
 
+    protected void recordError(IOException e) {
+      if (e instanceof GoogleJsonResponseException) {
+        int errorCode = ((GoogleJsonResponseException) e).getDetails().getCode();
+        String canonicalGcpStatus =
+            CANONICAL_STATUS_MAP.getOrDefault(errorCode, CANONICAL_STATUS_UNKNOWN);
+        LabeledMetrics.counter(
+                MonitoringInfoMetricName.named(
+                    MonitoringInfoConstants.Urns.API_REQUEST_COUNT,
+                    ImmutableMap.<String, String>builder()
+                        .putAll(API_METRIC_LABEL)
+                        .put(MonitoringInfoConstants.Labels.STATUS, canonicalGcpStatus)
+                        .build()),
+                true)
+            .inc();
+      }
+    }
+
     @Override
     public Table patchTableDescription(
         TableReference tableReference, @Nullable String tableDescription)
@@ -1069,11 +1112,7 @@ class BigQueryServicesImpl implements BigQueryServices {
             ? new NullCredentialInitializer()
             : new HttpCredentialsAdapter(credential));
 
-    initBuilder.add(
-        new LatencyRecordingHttpRequestInitializer(
-            ImmutableMap.of(
-                MonitoringInfoConstants.Labels.SERVICE, "BigQuery",
-                MonitoringInfoConstants.Labels.METHOD, "BigQueryBatchWrite")));
+    initBuilder.add(new LatencyRecordingHttpRequestInitializer(API_METRIC_LABEL));
 
     initBuilder.add(httpRequestInitializer);
     HttpRequestInitializer chainInitializer =
