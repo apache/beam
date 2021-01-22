@@ -79,6 +79,7 @@ public class FlinkExecutionEnvironments {
     // depending on the master, create the right environment.
     if ("[local]".equals(flinkMasterHostPort)) {
       setManagedMemoryByFraction(flinkConfiguration);
+      disableClassLoaderLeakCheck(flinkConfiguration);
       flinkBatchEnv = ExecutionEnvironment.createLocalEnvironment(flinkConfiguration);
     } else if ("[collection]".equals(flinkMasterHostPort)) {
       flinkBatchEnv = new CollectionEnvironment();
