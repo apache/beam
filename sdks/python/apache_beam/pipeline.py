@@ -132,6 +132,19 @@ class Pipeline(object):
         common_urns.primitives.IMPULSE.urn,
     ])
 
+  @classmethod
+  def sdk_transforms_with_environment(cls):
+    # li_trunk only: adding this method back for the usage in to_runner_api. We can remove this after environment_id
+    # is supported by samza python.
+    from apache_beam.runners.portability.fn_api_runner import translations
+    sets = [
+      translations.PAR_DO_URNS,
+      translations.COMBINE_URNS,
+      frozenset([common_urns.primitives.ASSIGN_WINDOWS.urn])
+    ]
+    result = frozenset()  # type: FrozenSet[str]
+    return result.union(*sets)
+
   def __init__(self, runner=None, options=None, argv=None):
     # type: (Optional[Union[str, PipelineRunner]], Optional[PipelineOptions], Optional[List[str]]) -> None
 
@@ -1185,8 +1198,13 @@ class AppliedPTransform(object):
     transform_spec = transform_to_runner_api(self.transform, context)
     environment_id = self.environment_id
     transform_urn = transform_spec.urn if transform_spec else None
+
+    # li_trunk only: samza python can't handle environment_id correctly. Reverting this change until we support it with
+    # portable runner.
+    # if (not environment_id and
+    #     (transform_urn not in Pipeline.runner_implemented_transforms())):
     if (not environment_id and
-        (transform_urn not in Pipeline.runner_implemented_transforms())):
+            (transform_urn in Pipeline.sdk_transforms_with_environment())):
       environment_id = context.default_environment_id()
 
     return beam_runner_api_pb2.PTransform(
