@@ -596,8 +596,23 @@ public class KafkaIO {
           setMaxReadTime(Duration.standardSeconds(config.maxReadTime));
         }
         setMaxNumRecords(config.maxNumRecords == null ? Long.MAX_VALUE : config.maxNumRecords);
-        setCommitOffsetsInFinalizeEnabled(false);
-        setTimestampPolicyFactory(TimestampPolicyFactory.withProcessingTime());
+
+        // Set committing offset configuration.
+        setCommitOffsetsInFinalizeEnabled(config.commitOffsetInFinalize);
+
+        // Set timestamp policy with built-in types.
+        String timestampPolicy = config.timestampPolicy;
+        if (timestampPolicy.equals("ProcessingTime")) {
+          setTimestampPolicyFactory(TimestampPolicyFactory.withProcessingTime());
+        } else if (timestampPolicy.equals("CreateTime")) {
+          setTimestampPolicyFactory(TimestampPolicyFactory.withCreateTime(Duration.ZERO));
+        } else if (timestampPolicy.equals("LogAppendTime")) {
+          setTimestampPolicyFactory(TimestampPolicyFactory.withLogAppendTime());
+        } else {
+          throw new IllegalArgumentException(
+              "timestampPolicy should be one of (ProcessingTime, CreateTime, LogAppendTime)");
+        }
+
         if (config.startReadTime != null) {
           setStartReadTime(Instant.ofEpochMilli(config.startReadTime));
         }
@@ -655,6 +670,8 @@ public class KafkaIO {
         private Long startReadTime;
         private Long maxNumRecords;
         private Long maxReadTime;
+        private Boolean commitOffsetInFinalize;
+        private String timestampPolicy;
 
         public void setConsumerConfig(Map<String, String> consumerConfig) {
           this.consumerConfig = consumerConfig;
@@ -682,6 +699,14 @@ public class KafkaIO {
 
         public void setMaxReadTime(Long maxReadTime) {
           this.maxReadTime = maxReadTime;
+        }
+
+        public void setCommitOffsetInFinalize(Boolean commitOffsetInFinalize) {
+          this.commitOffsetInFinalize = commitOffsetInFinalize;
+        }
+
+        public void setTimestampPolicy(String timestampPolicy) {
+          this.timestampPolicy = timestampPolicy;
         }
       }
     }
