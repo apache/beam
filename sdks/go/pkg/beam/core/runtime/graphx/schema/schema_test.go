@@ -43,8 +43,29 @@ type justAType struct {
 
 func init() {
 	runtime.RegisterType(reflect.TypeOf((*registeredType)(nil)))
-	RegisterType(reflect.TypeOf((*sRegisteredType)(nil)))
 }
+
+type testInterface interface {
+	hidden()
+}
+
+type unexportedFields struct {
+	d uint64
+}
+
+func (unexportedFields) hidden() {}
+
+type exportedFunc struct {
+	e int16
+	F func()
+}
+
+func (*exportedFunc) hidden() {}
+
+var (
+	unexType   = reflect.TypeOf((*unexportedFields)(nil)).Elem()
+	exFuncType = reflect.TypeOf((*exportedFunc)(nil))
+)
 
 func TestSchemaConversion(t *testing.T) {
 	tests := []struct {
@@ -360,14 +381,108 @@ func TestSchemaConversion(t *testing.T) {
 			rt: reflect.TypeOf(&struct {
 				SuperNES int16
 			}{}),
+		}, {
+			st: &pipepb.Schema{
+				Fields: []*pipepb.Field{
+					{
+						Name: "D",
+						Type: &pipepb.FieldType{
+							TypeInfo: &pipepb.FieldType_LogicalType{
+								LogicalType: &pipepb.LogicalType{
+									Urn: "uint64",
+									Representation: &pipepb.FieldType{
+										TypeInfo: &pipepb.FieldType_AtomicType{
+											AtomicType: pipepb.AtomicType_INT64,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			rt: unexType,
+		}, {
+			st: &pipepb.Schema{
+				Fields: []*pipepb.Field{
+					{
+						Name: "G",
+						Type: &pipepb.FieldType{
+							TypeInfo: &pipepb.FieldType_LogicalType{
+								LogicalType: &pipepb.LogicalType{
+									Urn: "schema.unexportedFields",
+									Representation: &pipepb.FieldType{
+										TypeInfo: &pipepb.FieldType_RowType{
+											RowType: &pipepb.RowType{
+												Schema: &pipepb.Schema{
+													Fields: []*pipepb.Field{
+														{
+															Name: "D",
+															Type: &pipepb.FieldType{
+																TypeInfo: &pipepb.FieldType_LogicalType{
+																	LogicalType: &pipepb.LogicalType{
+																		Urn: "uint64",
+																		Representation: &pipepb.FieldType{
+																			TypeInfo: &pipepb.FieldType_AtomicType{
+																				AtomicType: pipepb.AtomicType_INT64,
+																			},
+																		},
+																	},
+																},
+															},
+														},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			rt: reflect.TypeOf(struct{ G unexportedFields }{}),
+		}, {
+			st: &pipepb.Schema{
+				Fields: []*pipepb.Field{
+					{
+						Name: "E",
+						Type: &pipepb.FieldType{
+							TypeInfo: &pipepb.FieldType_AtomicType{
+								AtomicType: pipepb.AtomicType_INT16,
+							},
+						},
+					},
+				},
+				Options: []*pipepb.Option{{
+					Name: optGoNillable,
+				}},
+			},
+			rt: exFuncType,
 		},
 	}
 
 	for _, test := range tests {
 		test := test
 		t.Run(fmt.Sprintf("%v", test.rt), func(t *testing.T) {
+			reg := NewRegistry()
+			preRegLogicalTypes(reg)
+			reg.RegisterType(reflect.TypeOf((*sRegisteredType)(nil)))
+			reg.RegisterLogicalTypeProvider(reflect.TypeOf((*testInterface)(nil)).Elem(), func(t reflect.Type) (reflect.Type, error) {
+				switch t {
+				case unexType:
+					return reflect.TypeOf(struct{ D uint64 }{}), nil
+				case exFuncType:
+					return reflect.TypeOf(struct{ E int16 }{}), nil
+				}
+				return nil, nil
+			})
+			reg.RegisterType(unexType)
+			reg.RegisterType(exFuncType)
+
 			{
-				got, err := ToType(test.st)
+				got, err := reg.ToType(test.st)
 				if err != nil {
 					t.Fatalf("error ToType(%v) = %v", test.st, err)
 				}
@@ -379,7 +494,7 @@ func TestSchemaConversion(t *testing.T) {
 				}
 			}
 			{
-				got, err := FromType(test.rt)
+				got, err := reg.FromType(test.rt)
 				if err != nil {
 					t.Fatalf("error FromType(%v) = %v", test.rt, err)
 				}

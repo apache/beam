@@ -24,13 +24,34 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
+var (
+	defaultEnc RowEncoderBuilder
+	defaultDec RowDecoderBuilder
+)
+
+// RequireAllFieldsExported when set to true will have the default coder buildings using
+// RowEncoderForStruct and RowDecoderForStruct fail if there are any unexported fields.
+// When set false, unexported fields in default destination structs will be silently
+// ignored when coding.
+// This has no effect on types with registered coder providers.
+func RequireAllFieldsExported(require bool) {
+	defaultEnc.RequireAllFieldsExported = require
+	defaultDec.RequireAllFieldsExported = require
+}
+
+// RegisterSchemaProviders Register Custom Schema providers.
+func RegisterSchemaProviders(rt reflect.Type, enc, dec interface{}) {
+	defaultEnc.Register(rt, enc)
+	defaultDec.Register(rt, dec)
+}
+
 // RowEncoderForStruct returns an encoding function that encodes a struct type
 // or a pointer to a struct type using the beam row encoding.
 //
 // Returns an error if the given type is invalid or not encodable to a beam
 // schema row.
 func RowEncoderForStruct(rt reflect.Type) (func(interface{}, io.Writer) error, error) {
-	return (&RowEncoderBuilder{}).Build(rt)
+	return defaultEnc.Build(rt)
 }
 
 // RowDecoderForStruct returns a decoding function that decodes the beam row encoding
@@ -39,7 +60,7 @@ func RowEncoderForStruct(rt reflect.Type) (func(interface{}, io.Writer) error, e
 // Returns an error if the given type is invalid or not decodable from a beam
 // schema row.
 func RowDecoderForStruct(rt reflect.Type) (func(io.Reader) (interface{}, error), error) {
-	return (&RowDecoderBuilder{}).Build(rt)
+	return defaultDec.Build(rt)
 }
 
 func rowTypeValidation(rt reflect.Type, strictExportedFields bool) error {
@@ -93,6 +114,42 @@ func writeRowHeader(rv reflect.Value, w io.Writer) error {
 	return nil
 }
 
+// WriteRowHeader handles the field header for row encodings.
+func WriteRowHeader(n int, isNil func(int) bool, w io.Writer) error {
+	// Row/Structs are prefixed with the number of fields that are encoded in total.
+	if err := EncodeVarInt(int64(n), w); err != nil {
+		return err
+	}
+	// Followed by a packed bit array of the nil fields.
+	var curByte byte
+	var nils bool
+	var bytes = make([]byte, 0, n/8+1)
+	for i := 0; i < n; i++ {
+		shift := i % 8
+		if i != 0 && shift == 0 {
+			bytes = append(bytes, curByte)
+			curByte = 0
+		}
+		if isNil(i) {
+			curByte |= (1 << uint8(shift))
+			nils = true
+		}
+	}
+	if nils {
+		bytes = append(bytes, curByte)
+	} else {
+		// If there are no nils, we write a 0 length byte array instead.
+		bytes = bytes[:0]
+	}
+	if err := EncodeVarInt(int64(len(bytes)), w); err != nil {
+		return err
+	}
+	if _, err := ioutilx.WriteUnsafe(w, bytes); err != nil {
+		return err
+	}
+	return nil
+}
+
 // ReadRowHeader handles the field header for row decodings.
 //
 // This returns the number of encoded fileds, the raw bitpacked bytes and
@@ -113,6 +170,9 @@ func ReadRowHeader(r io.Reader) (int, []byte, error) {
 	if l == 0 {
 		// A zero length byte array means no nils.
 		return int(nf), nil, nil
+	}
+	if nf < l {
+		return int(nf), nil, fmt.Errorf("number of fields is less than byte array %v < %v", nf, l)
 	}
 	var buf [32]byte // should get stack allocated?
 	nils := buf[:l]

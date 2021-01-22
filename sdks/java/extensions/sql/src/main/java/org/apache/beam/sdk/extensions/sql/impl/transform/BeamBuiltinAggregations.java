@@ -397,40 +397,60 @@ public class BeamBuiltinAggregations {
    * <p>Note: null values are ignored when mixed with non-null values.
    * (https://issues.apache.org/jira/browse/BEAM-10379)
    */
-  static class BitAnd<T extends Number> extends CombineFn<T, Long, Long> {
-    // Indicate if input only contains null value.
-    private boolean isEmpty = true;
-
-    @Override
-    public Long createAccumulator() {
-      return -1L;
+  static class BitAnd<T extends Number> extends CombineFn<T, BitAnd.Accum, Long> {
+    static class Accum {
+      /** True if no inputs have been seen yet. */
+      boolean isEmpty = true;
+      /**
+       * True if any null inputs have been seen. If we see a single null value, the end result is
+       * null, so if isNull is true, isEmpty and bitAnd are ignored.
+       */
+      boolean isNull = false;
+      /** The bitwise-and of the inputs seen so far. */
+      long bitAnd = -1L;
     }
 
     @Override
-    public Long addInput(Long accum, T input) {
-      if (input != null) {
-        this.isEmpty = false;
-        return accum & input.longValue();
-      } else {
-        return null;
+    public Accum createAccumulator() {
+      return new Accum();
+    }
+
+    @Override
+    public Accum addInput(Accum accum, T input) {
+      if (accum.isNull) {
+        return accum;
       }
+      if (input == null) {
+        accum.isNull = true;
+        return accum;
+      }
+      accum.isEmpty = false;
+      accum.bitAnd &= input.longValue();
+      return accum;
     }
 
     @Override
-    public Long mergeAccumulators(Iterable<Long> accums) {
-      Long merged = createAccumulator();
-      for (Long accum : accums) {
-        merged = merged & accum;
+    public Accum mergeAccumulators(Iterable<Accum> accums) {
+      Accum merged = createAccumulator();
+      for (Accum accum : accums) {
+        if (accum.isNull) {
+          return accum;
+        }
+        if (accum.isEmpty) {
+          continue;
+        }
+        merged.isEmpty = false;
+        merged.bitAnd &= accum.bitAnd;
       }
       return merged;
     }
 
     @Override
-    public Long extractOutput(Long accum) {
-      if (this.isEmpty) {
+    public Long extractOutput(Accum accum) {
+      if (accum.isEmpty || accum.isNull) {
         return null;
       }
-      return accum;
+      return accum.bitAnd;
     }
   }
 }

@@ -430,6 +430,7 @@ class BeamModulePlugin implements Plugin<Project> {
     // a dependency version which should match across multiple
     // Maven artifacts.
     def activemq_version = "5.14.5"
+    def autovalue_version = "1.7.2"
     def aws_java_sdk_version = "1.11.718"
     def aws_java_sdk2_version = "2.13.54"
     def cassandra_driver_version = "3.10.2"
@@ -447,8 +448,11 @@ class BeamModulePlugin implements Plugin<Project> {
     def hadoop_version = "2.10.1"
     def hamcrest_version = "2.1"
     def influxdb_version = "2.19"
+    def httpclient_version = "4.5.10"
+    def httpcore_version = "4.4.12"
     def jackson_version = "2.10.2"
     def jaxb_api_version = "2.3.3"
+    def jsr305_version = "3.0.2"
     def kafka_version = "2.4.1"
     def nemo_version = "0.1"
     def netty_version = "4.1.51.Final"
@@ -572,6 +576,8 @@ class BeamModulePlugin implements Plugin<Project> {
         hadoop_hdfs_tests                           : "org.apache.hadoop:hadoop-hdfs:$hadoop_version:tests",
         hamcrest_core                               : "org.hamcrest:hamcrest-core:$hamcrest_version",
         hamcrest_library                            : "org.hamcrest:hamcrest-library:$hamcrest_version",
+        http_client                                 : "org.apache.httpcomponents:httpclient:$httpclient_version",
+        http_core                                   : "org.apache.httpcomponents:httpcore:$httpcore_version",
         influxdb_library                            : "org.influxdb:influxdb-java:$influxdb_version",
         jackson_annotations                         : "com.fasterxml.jackson.core:jackson-annotations:$jackson_version",
         jackson_jaxb_annotations                    : "com.fasterxml.jackson.module:jackson-module-jaxb-annotations:$jackson_version",
@@ -587,7 +593,7 @@ class BeamModulePlugin implements Plugin<Project> {
         jaxb_impl                                   : "com.sun.xml.bind:jaxb-impl:$jaxb_api_version",
         joda_time                                   : "joda-time:joda-time:2.10.5",
         jsonassert                                  : "org.skyscreamer:jsonassert:1.5.0",
-        jsr305                                      : "com.google.code.findbugs:jsr305:3.0.2",
+        jsr305                                      : "com.google.code.findbugs:jsr305:$jsr305_version",
         junit                                       : "junit:junit:4.13.1",
         kafka                                       : "org.apache.kafka:kafka_2.11:$kafka_version",
         kafka_clients                               : "org.apache.kafka:kafka-clients:$kafka_version",
@@ -866,8 +872,9 @@ class BeamModulePlugin implements Plugin<Project> {
       // configurations because they are never required to be shaded or become a
       // dependency of the output.
       def compileOnlyAnnotationDeps = [
-        "com.google.auto.value:auto-value-annotations:1.7",
         "com.google.auto.service:auto-service-annotations:1.0-rc6",
+        "com.google.auto.value:auto-value-annotations:$autovalue_version",
+        "com.google.code.findbugs:jsr305:$jsr305_version",
         "com.google.j2objc:j2objc-annotations:1.3",
         // These dependencies are needed to avoid error-prone warnings on package-info.java files,
         // also to include the annotations to suppress warnings.
@@ -904,7 +911,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
         // Add common annotation processors to all Java projects
         def annotationProcessorDeps = [
-          "com.google.auto.value:auto-value:1.7",
+          "com.google.auto.value:auto-value:$autovalue_version",
           "com.google.auto.service:auto-service:1.0-rc6",
         ]
 
@@ -983,7 +990,7 @@ class BeamModulePlugin implements Plugin<Project> {
         project.apply plugin: 'com.github.spotbugs'
         project.dependencies {
           spotbugs "com.github.spotbugs:spotbugs:$spotbugs_version"
-          spotbugs "com.google.auto.value:auto-value:1.7"
+          spotbugs "com.google.auto.value:auto-value:$autovalue_version"
           compileOnlyAnnotationDeps.each { dep -> spotbugs dep }
         }
         project.spotbugs {
@@ -1005,6 +1012,7 @@ class BeamModulePlugin implements Plugin<Project> {
           permitUnusedDeclared dep
           permitTestUnusedDeclared dep
         }
+        permitUnusedDeclared "org.checkerframework:checker-qual:$checkerframework_version"
       }
       if (configuration.enableStrictDependencies) {
         project.tasks.analyzeClassesDependencies.enabled = true
@@ -2116,7 +2124,7 @@ class BeamModulePlugin implements Plugin<Project> {
           project.exec { commandLine virtualenvCmd }
           project.exec {
             executable 'sh'
-            args '-c', ". ${project.ext.envdir}/bin/activate && pip install --retries 10 --upgrade tox==3.11.1 -r ${project.rootDir}/sdks/python/build-requirements.txt"
+            args '-c', ". ${project.ext.envdir}/bin/activate && pip install --retries 10 --upgrade tox==3.20.1 -r ${project.rootDir}/sdks/python/build-requirements.txt"
           }
         }
         // Gradle will delete outputs whenever it thinks they are stale. Putting a
