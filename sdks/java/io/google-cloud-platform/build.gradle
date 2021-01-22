@@ -20,7 +20,7 @@ import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-
+  //enableStrictDependencies:true,
   automaticModuleName: 'org.apache.beam.sdk.io.gcp',
   enableSpotbugs: false,
 )
