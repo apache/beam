@@ -653,8 +653,7 @@ public class InMemoryStateInternals<K> implements StateInternals {
       return new ReadableState<V>() {
         @Override
         public @org.checkerframework.checker.nullness.qual.Nullable V read() {
-          V value = contents.get(key);
-          return value != null ? value : defaultValue;
+          return contents.getOrDefault(key, defaultValue);
         }
 
         @Override

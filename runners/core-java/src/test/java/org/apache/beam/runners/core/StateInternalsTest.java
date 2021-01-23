@@ -632,7 +632,7 @@ public abstract class StateInternalsTest {
     // test get
     ReadableState<Integer> get = value.get("B");
     value.put("B", 2);
-    assertNull(get.read());
+    assertThat(get.read(), equalTo(2));
 
     // test addIfAbsent
     value.putIfAbsent("C", 3);
