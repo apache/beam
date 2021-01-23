@@ -1113,7 +1113,7 @@ class BigQueryServicesImpl implements BigQueryServices {
             : new HttpCredentialsAdapter(credential));
 
     initBuilder.add(new LatencyRecordingHttpRequestInitializer(API_METRIC_LABEL));
-    
+
     initBuilder.add(httpRequestInitializer);
     HttpRequestInitializer chainInitializer =
         new ChainingHttpRequestInitializer(
