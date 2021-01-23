@@ -1170,6 +1170,17 @@ class WindmillStateInternals<K> implements StateInternals {
     public void clear() {
       windmillMap.clear();
     }
+
+    @Override
+    void initializeForWorkItem(
+        WindmillStateReader reader, Supplier<Closeable> scopedReadStateSupplier) {
+      windmillMap.initializeForWorkItem(reader, scopedReadStateSupplier);
+    }
+
+    @Override
+    void cleanupAfterWorkItem() {
+      windmillMap.cleanupAfterWorkItem();
+    }
   }
 
   static class WindmillMap<K, V> extends SimpleWindmillState implements MapState<K, V> {
