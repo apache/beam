@@ -290,16 +290,6 @@ if [[ $confirmation = "y" ]]; then
   ./gradlew ":runners:spark:job-server:container:dockerPush" -Pdocker-tag="${RELEASE}_rc${RC_NUM}"
 
   rm -rf ~/${PYTHON_ARTIFACTS_DIR}
-
-  echo '-------------------Clean up images at local-----------------'
-  for ver in "${PYTHON_VER[@]}"; do
-     docker rmi -f ${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}${ver}_sdk:${RELEASE}_rc${RC_NUM}
-  done
-  docker rmi -f ${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}java_sdk:${RELEASE}_rc${RC_NUM}
-  for ver in "${FLINK_VER[@]}"; do
-    docker rmi -f "${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}flink${ver}_job_server:${RELEASE}_rc${RC_NUM}"
-  done
-  docker rmi -f "${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}spark_job_server:${RELEASE}_rc${RC_NUM}"
 fi
 
 echo "[Current Step]: Update beam-site"
