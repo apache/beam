@@ -72,7 +72,10 @@ import org.apache.flink.api.common.typeutils.base.VoidSerializer;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
+import org.checkerframework.checker.initialization.qual.Initialized;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 import org.joda.time.Instant;
 
 /**
@@ -1033,15 +1036,32 @@ public class FlinkStateInternals<K> implements StateInternals {
 
     @Override
     public ReadableState<ValueT> get(final KeyT input) {
-      try {
-        return ReadableStates.immediate(
-            flinkStateBackend
-                .getPartitionedState(
-                    namespace.stringKey(), StringSerializer.INSTANCE, flinkStateDescriptor)
-                .get(input));
-      } catch (Exception e) {
-        throw new RuntimeException("Error get from state.", e);
-      }
+      return getOrDefault(input, null);
+    }
+
+    @Override
+    public @UnknownKeyFor @NonNull @Initialized ReadableState<ValueT> getOrDefault(
+        KeyT key, @Nullable ValueT defaultValue) {
+      return new ReadableState<ValueT>() {
+        @Override
+        public @Nullable ValueT read() {
+          try {
+            ValueT value =
+                flinkStateBackend
+                    .getPartitionedState(
+                        namespace.stringKey(), StringSerializer.INSTANCE, flinkStateDescriptor)
+                    .get(key);
+            return (value != null) ? value : defaultValue;
+          } catch (Exception e) {
+            throw new RuntimeException("Error get from state.", e);
+          }
+        }
+
+        @Override
+        public @UnknownKeyFor @NonNull @Initialized ReadableState<ValueT> readLater() {
+          return this;
+        }
+      };
     }
 
     @Override
@@ -1156,6 +1176,25 @@ public class FlinkStateInternals<K> implements StateInternals {
 
         @Override
         public ReadableState<Iterable<Map.Entry<KeyT, ValueT>>> readLater() {
+          return this;
+        }
+      };
+    }
+
+    @Override
+    public @UnknownKeyFor @NonNull @Initialized ReadableState<
+            @UnknownKeyFor @NonNull @Initialized Boolean>
+        isEmpty() {
+      ReadableState<Iterable<KeyT>> keys = this.keys();
+      return new ReadableState<Boolean>() {
+        @Override
+        public @Nullable Boolean read() {
+          return Iterables.isEmpty(keys.read());
+        }
+
+        @Override
+        public @UnknownKeyFor @NonNull @Initialized ReadableState<Boolean> readLater() {
+          keys.readLater();
           return this;
         }
       };
