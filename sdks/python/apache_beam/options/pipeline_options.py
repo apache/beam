@@ -1036,7 +1036,6 @@ class SetupOptions(PipelineOptions):
             'the command line.'))
     parser.add_argument(
         '--prebuild_sdk_container_engine',
-        choices=['local_docker', 'cloud_build'],
         help=(
             'Prebuild sdk worker container image before job submission. If '
             'enabled, SDK invokes the boot sequence in SDK worker '
@@ -1045,7 +1044,9 @@ class SetupOptions(PipelineOptions):
             'environment. This may speed up pipeline execution. To enable, '
             'select the Docker build engine: local_docker using '
             'locally-installed Docker or cloud_build for using Google Cloud '
-            'Build (requires a GCP project with Cloud Build API enabled).'))
+            'Build (requires a GCP project with Cloud Build API enabled). You '
+            'can also subclass SdkContainerImageBuilder and use that to build '
+            'in other environments.'))
     parser.add_argument(
         '--prebuild_sdk_container_base_image',
         default=None,
