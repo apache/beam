@@ -35,7 +35,8 @@ public class SparkBeamMetricTest {
                 "myStep.one.two(three)", MetricName.named("myNameSpace//", "myName()")),
             123,
             456);
-    String renderedName = new SparkBeamMetric().renderName(metricResult);
+    new SparkBeamMetric();
+    String renderedName = SparkBeamMetric.renderName(metricResult);
     assertThat(
         "Metric name was not rendered correctly",
         renderedName,
