@@ -1099,10 +1099,8 @@ class WindmillStateInternals<K> implements StateInternals {
         String stateFamily,
         Coder<K> keyCoder,
         boolean isNewKey) {
-      StateTag<MapState<K, Boolean>> mapTag =
-          StateTags.makeSystemTagInternal(StateTags.map(spec.getId(), keyCoder, BooleanCoder.of()));
       this.windmillMap =
-          new WindmillMap<>(namespace, mapTag, stateFamily, keyCoder, BooleanCoder.of(), isNewKey);
+          new WindmillMap<>(namespace, spec, stateFamily, keyCoder, BooleanCoder.of(), isNewKey);
     }
 
     @Override
@@ -1184,8 +1182,6 @@ class WindmillStateInternals<K> implements StateInternals {
   }
 
   static class WindmillMap<K, V> extends SimpleWindmillState implements MapState<K, V> {
-    private final StateNamespace namespace;
-    private final StateTag<MapState<K, V>> spec;
     private final ByteString stateKeyPrefix;
     private final String stateFamily;
     private final Coder<K> keyCoder;
@@ -1204,13 +1200,11 @@ class WindmillStateInternals<K> implements StateInternals {
 
     WindmillMap(
         StateNamespace namespace,
-        StateTag<MapState<K, V>> spec,
+        StateTag<?> spec,
         String stateFamily,
         Coder<K> keyCoder,
         Coder<V> valueCoder,
         boolean isNewKey) {
-      this.namespace = namespace;
-      this.spec = spec;
       this.stateKeyPrefix = encodeKey(namespace, spec);
       this.stateFamily = stateFamily;
       this.keyCoder = keyCoder;
