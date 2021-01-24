@@ -38,8 +38,27 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 /**
  * An adapter between the {@link MetricsContainerStepMap} and Codahale's {@link Metric} interface.
  */
-class SparkBeamMetric implements Metric {
+public class SparkBeamMetric implements Metric {
   private static final String ILLEGAL_CHARACTERS = "[^A-Za-z0-9-]";
+
+  public static Map<String, String> renderAll(MetricResults metricResults) {
+    HashMap<String, String> driverLogs = new HashMap<String, String>();
+    for (MetricResult<Long> metricResult : metricResults.allMetrics().getCounters()) {
+      driverLogs.put(renderName(metricResult), String.valueOf(metricResult.getAttempted()));
+    }
+    for (MetricResult<DistributionResult> metricResult : metricResults.allMetrics().getDistributions()) {
+      DistributionResult distributionResult = metricResult.getAttempted();
+      driverLogs.put(renderName(metricResult) + ".count", String.valueOf(distributionResult.getCount()));
+      driverLogs.put(renderName(metricResult) + ".sum", String.valueOf(distributionResult.getSum()));
+      driverLogs.put(renderName(metricResult) + ".min", String.valueOf(distributionResult.getMin()));
+      driverLogs.put(renderName(metricResult) + ".max", String.valueOf(distributionResult.getMax()));
+      driverLogs.put(renderName(metricResult) + ".mean", String.valueOf(distributionResult.getMean()));
+    }
+    for (MetricResult<GaugeResult> metricResult : metricResults.allMetrics().getGauges()) {
+      driverLogs.put(renderName(metricResult), String.valueOf(metricResult.getAttempted().getValue()));
+    }
+    return driverLogs;
+  }
 
   Map<String, ?> renderAll() {
     Map<String, Object> metrics = new HashMap<>();
@@ -64,7 +83,7 @@ class SparkBeamMetric implements Metric {
   }
 
   @VisibleForTesting
-  String renderName(MetricResult<?> metricResult) {
+  static String renderName(MetricResult<?> metricResult) {
     MetricKey key = metricResult.getKey();
     MetricName name = key.metricName();
     String step = key.stepName();

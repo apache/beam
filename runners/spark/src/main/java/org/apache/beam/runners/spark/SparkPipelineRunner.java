@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.spark;
 
+import static java.util.stream.Collectors.toList;
 import static org.apache.beam.runners.core.construction.resources.PipelineResources.detectClassPathResourcesToStage;
 import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.hasUnboundedPCollections;
 import static org.apache.beam.runners.spark.SparkPipelineOptions.prepareFilesToStage;
@@ -24,6 +25,7 @@ import static org.apache.beam.runners.spark.SparkPipelineOptions.prepareFilesToS
 import java.io.File;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
@@ -46,6 +48,7 @@ import org.apache.beam.runners.jobsubmission.PortablePipelineResult;
 import org.apache.beam.runners.jobsubmission.PortablePipelineRunner;
 import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
+import org.apache.beam.runners.spark.metrics.SparkBeamMetric;
 import org.apache.beam.runners.spark.translation.SparkBatchPortablePipelineTranslator;
 import org.apache.beam.runners.spark.translation.SparkContextFactory;
 import org.apache.beam.runners.spark.translation.SparkPortablePipelineTranslator;
@@ -54,15 +57,11 @@ import org.apache.beam.runners.spark.translation.SparkStreamingTranslationContex
 import org.apache.beam.runners.spark.translation.SparkTranslationContext;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
 import org.apache.beam.sdk.io.FileSystems;
-import org.apache.beam.sdk.metrics.DistributionResult;
-import org.apache.beam.sdk.metrics.MetricName;
-import org.apache.beam.sdk.metrics.MetricResult;
-import org.apache.beam.sdk.metrics.MetricResults;
-import org.apache.beam.sdk.metrics.MetricsEnvironment;
-import org.apache.beam.sdk.metrics.MetricsOptions;
+import org.apache.beam.sdk.metrics.*;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.scheduler.EventLoggingListener;
 import org.apache.spark.scheduler.SparkListenerApplicationEnd;
@@ -88,6 +87,7 @@ import scala.collection.Map;
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class SparkPipelineRunner implements PortablePipelineRunner {
+  private static final String ILLEGAL_CHARACTERS = "[^A-Za-z0-9-]";
 
   private static final Logger LOG = LoggerFactory.getLogger(SparkPipelineRunner.class);
 
@@ -146,7 +146,7 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
     EventLoggingListener eventLoggingListener;
     String jobId = jobInfo.jobId();
     String jobName = jobInfo.jobName();
-    Long startTime = jsc.startTime();
+    long startTime = Instant.now().getMillis();
     String sparkUser = jsc.sparkUser();
     String sparkMaster = "";
     String sparkExecutorID = "";
@@ -160,7 +160,7 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
     }
     try {
       URI eventLogDirectory = new URI(pipelineOptions.getSparkHistoryDir());
-      File eventLogDirectoryFile = new File(eventLogDirectory.getPath());
+      File eventLogDirectoryFile = new File(eventLogDirectory);
       if (eventLogDirectoryFile.exists() && eventLogDirectoryFile.isDirectory()) {
         eventLoggingListener =
             new EventLoggingListener(
@@ -300,29 +300,6 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
     metricsPusher.start();
 
     if (eventLoggingListener != null) {
-      HashMap<String, String> driverLogs = new HashMap<String, String>();
-      MetricResults metricResults = result.metrics();
-      for (MetricResult<DistributionResult> distributionResultMetricResult :
-          metricResults.allMetrics().getDistributions()) {
-        MetricName metricName = distributionResultMetricResult.getName();
-        DistributionResult distributionResult = distributionResultMetricResult.getAttempted();
-        if (distributionResult != null) {
-          long min = distributionResult.getMin();
-          long max = distributionResult.getMax();
-          long count = distributionResult.getCount();
-          double mean = distributionResult.getMean();
-          String value =
-              "min: "
-                  + Long.toString(min)
-                  + ", max: "
-                  + Long.toString(max)
-                  + ", count: "
-                  + Long.toString(count)
-                  + ", mean: "
-                  + Double.toString(mean);
-          driverLogs.put(metricName.toString(), value);
-        }
-      }
       eventLoggingListener.onApplicationStart(
           new SparkListenerApplicationStart(
               jobId,
@@ -388,7 +365,7 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
 
                 @Override
                 public Map<String, String> get() {
-                  return JavaConverters.mapAsScalaMapConverter(driverLogs).asScala();
+                  return JavaConverters.mapAsScalaMapConverter(SparkBeamMetric.renderAll(result.metrics())).asScala();
                 }
 
                 @Override
@@ -466,6 +443,10 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
   }
 
   private static class SparkPipelineRunnerConfiguration {
+    @Option(name = "--is-event-log-enabled",
+            usage = "Set it to true if event logs should be saved to Spark History Server directory")
+    private Boolean isEventLogEnabled = false;
+
     @Option(
         name = "--base-job-name",
         usage =
