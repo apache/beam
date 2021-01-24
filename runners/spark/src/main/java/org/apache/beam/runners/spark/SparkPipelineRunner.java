@@ -77,6 +77,7 @@ import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.Some;
 import scala.Tuple2;
 import scala.collection.JavaConverters;
 import scala.collection.Map;
@@ -196,6 +197,9 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
                 jsc.hadoopConfiguration());
       } else {
         eventLoggingListener = null;
+        if (pipelineOptions.getIsEventLogEnabled()) {
+          throw new RuntimeException("Failed to initialize Spark History Log Directory");
+        }
       }
     } catch (URISyntaxException e) {
       e.printStackTrace();
