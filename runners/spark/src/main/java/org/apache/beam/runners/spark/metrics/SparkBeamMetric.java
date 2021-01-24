@@ -46,16 +46,23 @@ public class SparkBeamMetric implements Metric {
     for (MetricResult<Long> metricResult : metricResults.allMetrics().getCounters()) {
       driverLogs.put(renderName(metricResult), String.valueOf(metricResult.getAttempted()));
     }
-    for (MetricResult<DistributionResult> metricResult : metricResults.allMetrics().getDistributions()) {
+    for (MetricResult<DistributionResult> metricResult :
+        metricResults.allMetrics().getDistributions()) {
       DistributionResult distributionResult = metricResult.getAttempted();
-      driverLogs.put(renderName(metricResult) + ".count", String.valueOf(distributionResult.getCount()));
-      driverLogs.put(renderName(metricResult) + ".sum", String.valueOf(distributionResult.getSum()));
-      driverLogs.put(renderName(metricResult) + ".min", String.valueOf(distributionResult.getMin()));
-      driverLogs.put(renderName(metricResult) + ".max", String.valueOf(distributionResult.getMax()));
-      driverLogs.put(renderName(metricResult) + ".mean", String.valueOf(distributionResult.getMean()));
+      driverLogs.put(
+          renderName(metricResult) + ".count", String.valueOf(distributionResult.getCount()));
+      driverLogs.put(
+          renderName(metricResult) + ".sum", String.valueOf(distributionResult.getSum()));
+      driverLogs.put(
+          renderName(metricResult) + ".min", String.valueOf(distributionResult.getMin()));
+      driverLogs.put(
+          renderName(metricResult) + ".max", String.valueOf(distributionResult.getMax()));
+      driverLogs.put(
+          renderName(metricResult) + ".mean", String.valueOf(distributionResult.getMean()));
     }
     for (MetricResult<GaugeResult> metricResult : metricResults.allMetrics().getGauges()) {
-      driverLogs.put(renderName(metricResult), String.valueOf(metricResult.getAttempted().getValue()));
+      driverLogs.put(
+          renderName(metricResult), String.valueOf(metricResult.getAttempted().getValue()));
     }
     return driverLogs;
   }
