@@ -38,9 +38,8 @@ public class SparkJobServerDriver extends JobServerDriver {
   public static class SparkServerConfiguration extends ServerConfiguration {
 
     @Option(
-            name = "--event-log-enabled",
-            usage="Set it to true if event logs should be saved to Spark History Server directory"
-    )
+        name = "--event-log-enabled",
+        usage = "Set it to true if event logs should be saved to Spark History Server directory")
     private String eventLogEnabled = SparkPipelineOptions.DEFAULT_EVENT_LOG_ENABLED;
 
     String getEventLogEnabled() {

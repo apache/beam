@@ -157,11 +157,9 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
     try {
       URI eventLogDirectory = new URI(pipelineOptions.getSparkHistoryDir());
       File eventLogDirectoryFile = new File(eventLogDirectory.getPath());
-      System.out.println(pipelineOptions.getEventLogEnabled());
-      System.out.println(pipelineOptions.getEventLogEnabled().equals("true"));
-      if (eventLogDirectoryFile.exists() && eventLogDirectoryFile.isDirectory() &&
-              pipelineOptions.getEventLogEnabled().equals("true")) {
-        System.out.println("ENABLED!!!");
+      if (eventLogDirectoryFile.exists()
+          && eventLogDirectoryFile.isDirectory()
+          && pipelineOptions.getEventLogEnabled().equals("true")) {
         eventLoggingListener =
             new EventLoggingListener(
                 jobId,
@@ -368,7 +366,9 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
 
                 @Override
                 public Map<String, String> get() {
-                  return JavaConverters.mapAsScalaMapConverter(SparkBeamMetric.renderAll(result.metrics())).asScala();
+                  return JavaConverters.mapAsScalaMapConverter(
+                          SparkBeamMetric.renderAll(result.metrics()))
+                      .asScala();
                 }
 
                 @Override
@@ -446,8 +446,9 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
   }
 
   private static class SparkPipelineRunnerConfiguration {
-    @Option(name = "--event-log-enabled",
-            usage = "Set it to true if event logs should be saved to Spark History Server directory")
+    @Option(
+        name = "--event-log-enabled",
+        usage = "Set it to true if event logs should be saved to Spark History Server directory")
     private String eventLogEnabled = "false";
 
     String getEventLogEnabled() {
