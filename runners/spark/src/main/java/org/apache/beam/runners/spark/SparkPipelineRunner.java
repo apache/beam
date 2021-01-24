@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.spark;
 
-import static java.util.stream.Collectors.toList;
 import static org.apache.beam.runners.core.construction.resources.PipelineResources.detectClassPathResourcesToStage;
 import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.hasUnboundedPCollections;
 import static org.apache.beam.runners.spark.SparkPipelineOptions.prepareFilesToStage;
@@ -25,8 +24,6 @@ import static org.apache.beam.runners.spark.SparkPipelineOptions.prepareFilesToS
 import java.io.File;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -61,7 +58,6 @@ import org.apache.beam.sdk.metrics.*;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.scheduler.EventLoggingListener;
 import org.apache.spark.scheduler.SparkListenerApplicationEnd;
@@ -77,7 +73,6 @@ import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.Some;
 import scala.Tuple2;
 import scala.collection.JavaConverters;
 import scala.collection.Map;
@@ -161,8 +156,12 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
     }
     try {
       URI eventLogDirectory = new URI(pipelineOptions.getSparkHistoryDir());
-      File eventLogDirectoryFile = new File(eventLogDirectory);
-      if (eventLogDirectoryFile.exists() && eventLogDirectoryFile.isDirectory()) {
+      File eventLogDirectoryFile = new File(eventLogDirectory.getPath());
+      System.out.println(pipelineOptions.getEventLogEnabled());
+      System.out.println(pipelineOptions.getEventLogEnabled().equals("true"));
+      if (eventLogDirectoryFile.exists() && eventLogDirectoryFile.isDirectory() &&
+              pipelineOptions.getEventLogEnabled().equals("true")) {
+        System.out.println("ENABLED!!!");
         eventLoggingListener =
             new EventLoggingListener(
                 jobId,
@@ -197,7 +196,7 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
                 jsc.hadoopConfiguration());
       } else {
         eventLoggingListener = null;
-        if (pipelineOptions.getIsEventLogEnabled()) {
+        if (pipelineOptions.getEventLogEnabled().equals("true")) {
           throw new RuntimeException("Failed to initialize Spark History Log Directory");
         }
       }
@@ -447,9 +446,13 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
   }
 
   private static class SparkPipelineRunnerConfiguration {
-    @Option(name = "--is-event-log-enabled",
+    @Option(name = "--event-log-enabled",
             usage = "Set it to true if event logs should be saved to Spark History Server directory")
-    private Boolean isEventLogEnabled = false;
+    private String eventLogEnabled = "false";
+
+    String getEventLogEnabled() {
+      return this.eventLogEnabled;
+    }
 
     @Option(
         name = "--base-job-name",

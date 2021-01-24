@@ -74,6 +74,10 @@ public class SparkJobInvoker extends JobInvoker {
       sparkOptions.setSparkHistoryDir(configuration.getSparkHistoryDir());
     }
 
+    if (sparkOptions.getEventLogEnabled().equals(SparkPipelineOptions.DEFAULT_EVENT_LOG_ENABLED)) {
+      sparkOptions.setEventLogEnabled(configuration.getEventLogEnabled());
+    }
+
     // Options can't be translated to proto if runner class is unresolvable, so set it to null.
     sparkOptions.setRunner(null);
 
