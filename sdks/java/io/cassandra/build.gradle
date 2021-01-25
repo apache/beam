@@ -51,3 +51,9 @@ dependencies {
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }
+
+configurations.testRuntime {
+  resolutionStrategy {
+    force 'com.google.guava:guava:25.1-jre'
+  }
+}

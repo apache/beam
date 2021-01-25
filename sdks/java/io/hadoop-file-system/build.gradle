@@ -74,6 +74,12 @@ hadoopVersions.each {kv ->
   }
 }
 
+configurations.testRuntime {
+  resolutionStrategy {
+    force 'com.google.guava:guava:25.1-jre'
+  }
+}
+
 task hadoopVersionsTest(group: "Verification") {
   description = "Runs Hadoop file system tests with different Hadoop versions"
   def taskNames = hadoopVersions.keySet().stream()
