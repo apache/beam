@@ -4547,7 +4547,7 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
 {{< /highlight >}}
 
 
-{{< highlight python >}}
+{{< highlight py >}}
 class ReadModifyWriteStateDoFn(DoFn):
   STATE_SPEC = ReadModifyWriteStateSpec('num_elements', VarIntCoder())
 
@@ -4577,7 +4577,7 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
 }));
 {{< /highlight >}}
 
-{{< highlight python >}}
+{{< highlight py >}}
 class CombiningStateDoFn(DoFn):
   SUM_TOTAL = CombiningValueStateSpec('total', sum)
 
@@ -4615,7 +4615,7 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
 }));
 {{< /highlight >}}
 
-{{< highlight python >}}
+{{< highlight py >}}
 class BagStateDoFn(DoFn):
   ALL_ELEMENTS = BagStateSpec('buffer', coders.VarIntCoder())
 
@@ -4656,7 +4656,7 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
 {{< /highlight >}}
 
 
-{{< highlight python >}}
+{{< highlight py >}}
 This is not supported yet, see BEAM-11506.
 {{< /highlight >}}
 
@@ -4724,7 +4724,7 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
 }));
 {{< /highlight >}}
 
-{{< highlight python >}}
+{{< highlight py >}}
 class EventTimerDoFn(DoFn):
   ALL_ELEMENTS = BagStateSpec('buffer', coders.VarIntCoder())
   TIMER = TimerSpec('timer', TimeDomain.WATERMARK)
@@ -4772,7 +4772,7 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
 }));
 {{< /highlight >}}
 
-{{< highlight python >}}
+{{< highlight py >}}
 class ProcessingTimerDoFn(DoFn):
   ALL_ELEMENTS = BagStateSpec('buffer', coders.VarIntCoder())
   TIMER = TimerSpec('timer', TimeDomain.REAL_TIME)
@@ -4824,7 +4824,7 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
 }));
 {{< /highlight >}}
 
-{{< highlight python >}}
+{{< highlight py >}}
 class TimerDoFn(DoFn):
   ALL_ELEMENTS = BagStateSpec('buffer', coders.VarIntCoder())
   TIMER = TimerSpec('timer', TimeDomain.REAL_TIME)
@@ -4954,7 +4954,7 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
 }));
 {{< /highlight >}}
 
-{{< highlight python >}}
+{{< highlight py >}}
 Timer output timestamps is not yet supported in Python SDK. See BEAM-11507.
 {{< /highlight >}}
 
@@ -4986,7 +4986,7 @@ perUser.apply(Window.into(CalendarWindows.days(1)
          }));
 {{< /highlight >}}
 
-{{< highlight python >}}
+{{< highlight py >}}
 class StateDoFn(DoFn):
   ALL_ELEMENTS = BagStateSpec('buffer', coders.VarIntCoder())
 
@@ -5047,7 +5047,7 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
  }
 {{< /highlight >}}
 
-{{< highlight python >}}
+{{< highlight py >}}
 class UserDoFn(DoFn):
   ALL_ELEMENTS = BagStateSpec('state', coders.VarIntCoder())
   MAX_TIMESTAMP = CombiningValueStateSpec('max_timestamp_seen', max)
@@ -5166,7 +5166,7 @@ eventsPerLinkId.apply(ParDo.of(new DoFn<KV<String, Event>, JoinedEvent>() {
  }));
 {{< /highlight >}}
 
-{{< highlight python >}}
+{{< highlight py >}}
 class JoinDoFn(DoFn):
   # stores the view event.
   VIEW_STATE_SPEC = ReadModifyWriteStateSpec('view', EventCoder())
@@ -5258,7 +5258,7 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
 }));
 {{< /highlight >}}
 
-{{< highlight python >}}
+{{< highlight py >}}
 class BufferDoFn(DoFn):
   BUFFER = BagStateSpec('buffer', EventCoder())
   IS_TIMER_SET = ReadModifyWriteStateSpec('is_timer_set', BooleanCoder())
