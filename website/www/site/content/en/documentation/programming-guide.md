@@ -4519,7 +4519,7 @@ registered, then Beam will automatically infer the coder for the state value. Ot
 specified when creating the ValueState. For example, the following ParDo creates a  single state variable that
 accumulates the number of elements seen.
 
-Note: ValueState is called ReadModifyWriteState in Python SDK.
+Note: `ValueState` is called `ReadModifyWriteState` in the Python SDK.
 
 {{< highlight java >}}
 PCollection<KV<String, ValueT>> perUser = readPerUser();
@@ -4545,6 +4545,7 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
                  ...
 }));
 {{< /highlight >}}
+
 
 {{< highlight python >}}
 class ReadModifyWriteStateDoFn(DoFn):
@@ -4795,13 +4796,13 @@ _ = (p | 'Read per user' >> ReadPerUser()
 
 #### 11.3.3. Dynamic timer tags {#dynamic-timer-tags}
 
-Beam also supports dynamically setting a timer tag using `TimerMap` in Java SDK. This allows for setting multiple different timers
+Beam also supports dynamically setting a timer tag using `TimerMap` in the Java SDK. This allows for setting multiple different timers
 in a `DoFn` and allowing for the timer tags to be dynamically chosen - e.g. based on data in the input elements. A
 timer with a specific tag can only be set to a single timestamp, so setting the timer again has the effect of
 overwriting the previous expiration time for the timer with that tag. Each `TimerMap` is identified with a timer family
 id, and timers in different timer families are independent.
 
-In Python SDK, a dynamic timer tag can be specified while calling timer.set() or timer.clear(), by default the timer
+In the Python SDK, a dynamic timer tag can be specified while calling `set()` or `clear()`. By default, the timer
 tag is an empty string if not specified.
 
 {{< highlight java >}}
