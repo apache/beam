@@ -38,7 +38,7 @@ ext {
 }
 
 for (p in rootProject.subprojects) {
-  if (!p.path.equals(project.path)) {
+  if (!p.path.startsWith(project.path)) {
     evaluationDependsOn(p.path)
   }
 }

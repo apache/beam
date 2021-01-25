@@ -16,26 +16,20 @@
  * limitations under the License.
  */
 
-plugins { id 'groovy' }
-
-repositories {
-  mavenCentral()
-}
+apply from: '../common.gradle'
 
 dependencies {
-  compile library.groovy.groovy_all
-  compile 'commons-cli:commons-cli:1.2'
+  api platform(project(":sdks:java:bom"))
+  api platform(project.library.java.google_cloud_platform_libraries_bom)
+  constraints {
+    api project.library.java.guava
+  }
 }
 
-task runJavaExamplesValidationTask {
-  group = "Verification"
-  description = "Run the Beam quickstart across all Java runners"
-  dependsOn ":runners:direct-java:runQuickstartJavaDirect"
-  dependsOn ":runners:google-cloud-dataflow-java:runQuickstartJavaDataflow"
-  dependsOn ":runners:spark:runQuickstartJavaSpark"
-  dependsOn ":runners:flink:1.10:runQuickstartJavaFlinkLocal"
-  dependsOn ":runners:direct-java:runMobileGamingJavaDirect"
-  dependsOn ":runners:google-cloud-dataflow-java:runMobileGamingJavaDataflow"
-  dependsOn ":runners:twister2:runQuickstartJavaTwister2"
-  dependsOn ":runners:google-cloud-dataflow-java:runMobileGamingJavaDataflowBom"
+publishing {
+  publications {
+    mavenJava(MavenPublication) {
+      artifactId = 'beam-sdks-java-google-cloud-platform-bom'
+    }
+  }
 }
