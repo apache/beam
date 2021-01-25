@@ -1456,7 +1456,10 @@ class WindmillStateInternals<K> implements StateInternals {
 
     @Override
     public void put(K key, V value) {
-      cachedValues.put(key, value);
+      V oldValue = cachedValues.put(key, value);
+      if (valueCoder.consistentWithEquals() && value.equals(oldValue)) {
+        return;
+      }
       localAdditions.add(key);
       localRemovals.remove(key);
       negativeCache.remove(key);
