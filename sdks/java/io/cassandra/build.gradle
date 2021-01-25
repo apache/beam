@@ -52,7 +52,8 @@ dependencies {
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }
 
-configurations.testRuntime {
+// Cassandra dependencies require old version of Guava (BEAM-11626)
+configurations.all {
   resolutionStrategy {
     force 'com.google.guava:guava:25.1-jre'
   }
