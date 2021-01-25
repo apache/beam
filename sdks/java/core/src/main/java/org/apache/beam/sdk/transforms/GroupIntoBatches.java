@@ -19,6 +19,8 @@ package org.apache.beam.sdk.transforms;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
+import com.google.auto.value.AutoValue;
+import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.UUID;
 import javax.annotation.Nullable;
@@ -94,32 +96,47 @@ import org.slf4j.LoggerFactory;
 public class GroupIntoBatches<K, InputT>
     extends PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, Iterable<InputT>>>> {
 
-  private final long batchSize;
-  @Nullable private final Duration maxBufferingDuration;
+  /**
+   * Wrapper class for batching parameters supplied by users. Shared by both {@link
+   * GroupIntoBatches} and {@link GroupIntoBatches.WithShardedKey}.
+   */
+  @AutoValue
+  public abstract static class BatchingParams implements Serializable {
+    public static BatchingParams create(long batchSize, Duration maxBufferingDuration) {
+      return new AutoValue_GroupIntoBatches_BatchingParams(batchSize, maxBufferingDuration);
+    }
+
+    public abstract long getBatchSize();
+
+    public abstract Duration getMaxBufferingDuration();
+  }
+
+  private final BatchingParams params;
   private static final UUID workerUuid = UUID.randomUUID();
 
-  private GroupIntoBatches(long batchSize, @Nullable Duration maxBufferingDuration) {
-    this.batchSize = batchSize;
-    this.maxBufferingDuration = maxBufferingDuration;
+  private GroupIntoBatches(BatchingParams params) {
+    this.params = params;
   }
 
   public static <K, InputT> GroupIntoBatches<K, InputT> ofSize(long batchSize) {
-    return new GroupIntoBatches<>(batchSize, null);
+    return new GroupIntoBatches<>(BatchingParams.create(batchSize, Duration.ZERO));
   }
 
-  /** Returns the size of the batch. */
-  public long getBatchSize() {
-    return batchSize;
+  /** Returns user supplied parameters for batching. */
+  public BatchingParams getBatchingParams() {
+    return params;
   }
 
   /**
    * Sets a time limit (in processing time) on how long an incomplete batch of elements is allowed
-   * to be buffered. Once a batch is flushed to output, the timer is reset.
+   * to be buffered. Once a batch is flushed to output, the timer is reset. The provided limit must
+   * be a positive duration or zero; a zero buffering duration effectively means no limit.
    */
   public GroupIntoBatches<K, InputT> withMaxBufferingDuration(Duration duration) {
     checkArgument(
-        duration.isLongerThan(Duration.ZERO), "max buffering duration should be a positive value");
-    return new GroupIntoBatches<>(batchSize, duration);
+        duration != null && !duration.isShorterThan(Duration.ZERO),
+        "max buffering duration should be a non-negative value");
+    return new GroupIntoBatches<>(BatchingParams.create(params.getBatchSize(), duration));
   }
 
   /**
@@ -138,9 +155,9 @@ public class GroupIntoBatches<K, InputT>
           PCollection<KV<K, InputT>>, PCollection<KV<ShardedKey<K>, Iterable<InputT>>>> {
     private WithShardedKey() {}
 
-    /** Returns the size of the batch. */
-    public long getBatchSize() {
-      return batchSize;
+    /** Returns user supplied parameters for batching. */
+    public BatchingParams getBatchingParams() {
+      return params;
     }
 
     @Override
@@ -170,14 +187,7 @@ public class GroupIntoBatches<K, InputT>
                     }
                   }))
           .setCoder(KvCoder.of(ShardedKey.Coder.of(keyCoder), valueCoder))
-          .apply(
-              ParDo.of(
-                  new GroupIntoBatchesDoFn<>(
-                      batchSize,
-                      allowedLateness,
-                      maxBufferingDuration,
-                      ShardedKey.Coder.of(keyCoder),
-                      valueCoder)));
+          .apply(new GroupIntoBatches<>(getBatchingParams()));
     }
   }
 
@@ -195,7 +205,11 @@ public class GroupIntoBatches<K, InputT>
     return input.apply(
         ParDo.of(
             new GroupIntoBatchesDoFn<>(
-                batchSize, allowedLateness, maxBufferingDuration, keyCoder, valueCoder)));
+                params.getBatchSize(),
+                allowedLateness,
+                params.getMaxBufferingDuration(),
+                keyCoder,
+                valueCoder)));
   }
 
   @VisibleForTesting
@@ -279,7 +293,7 @@ public class GroupIntoBatches<K, InputT>
       numElementsInBatch.add(1L);
 
       long num = numElementsInBatch.read();
-      if (num == 1 && maxBufferingDuration != null) {
+      if (num == 1 && maxBufferingDuration.isLongerThan(Duration.ZERO)) {
         // This is the first element in batch. Start counting buffering time if a limit was set.
         bufferingTimer.offset(maxBufferingDuration).setRelative();
       }
