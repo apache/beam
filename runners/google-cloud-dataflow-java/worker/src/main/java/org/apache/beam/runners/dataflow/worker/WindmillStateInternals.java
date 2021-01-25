@@ -1500,9 +1500,10 @@ class WindmillStateInternals<K> implements StateInternals {
 
     @Override
     public void remove(K key) {
-      cachedValues.remove(key);
-      localAdditions.remove(key);
-      localRemovals.add(key);
+      if (localRemovals.add(key)) {
+        cachedValues.remove(key);
+        localAdditions.remove(key);
+      }
     }
 
     @Override
