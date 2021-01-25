@@ -1365,21 +1365,19 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   }
 
   void maybeRecordPCollectionWithAutoSharding(PCollection<?> pcol) {
-    if (hasExperiment(options, "beam_fn_api")) {
-      LOG.warn(
-          "Runner determined sharding not available in Dataflow for GroupIntoBatches for portable "
-              + "jobs. Default sharding will be applied.");
-      return;
-    }
     if (!options.isEnableStreamingEngine()) {
       LOG.warn(
-          "Runner determined sharding not available in Dataflow for GroupIntoBatches for Streaming "
-              + "Appliance jobs. Default sharding will be applied.");
+          "Runner determined sharding not available in Dataflow for GroupIntoBatches for "
+              + "non-Streaming Engine jobs. Default sharding will be applied.");
       return;
     }
-    if (hasExperiment(options, "enable_streaming_auto_sharding")) {
-      pcollectionsRequiringAutoSharding.add(pcol);
+    if (!hasExperiment(options, "enable_streaming_auto_sharding")) {
+      LOG.warn(
+          "Runner determined sharding not enabled in Dataflow for GroupIntoBatches for Streaming "
+              + "Engine jobs. Default sharding will be applied.");
+      return;
     }
+    pcollectionsRequiringAutoSharding.add(pcol);
   }
 
   boolean doesPCollectionRequireAutoSharding(PCollection<?> pcol) {

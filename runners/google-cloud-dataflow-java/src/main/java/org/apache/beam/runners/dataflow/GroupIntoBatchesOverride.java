@@ -57,7 +57,7 @@ public class GroupIntoBatchesOverride {
                 transform) {
       return PTransformReplacement.of(
           PTransformReplacements.getSingletonMainInput(transform),
-          new BatchGroupIntoBatches<>(transform.getTransform().getBatchSize()));
+          new BatchGroupIntoBatches<>(transform.getTransform().getBatchingParams().getBatchSize()));
     }
 
     @Override
@@ -117,7 +117,8 @@ public class GroupIntoBatchesOverride {
                 transform) {
       return PTransformReplacement.of(
           PTransformReplacements.getSingletonMainInput(transform),
-          new BatchGroupIntoBatchesWithShardedKey<>(transform.getTransform().getBatchSize()));
+          new BatchGroupIntoBatchesWithShardedKey<>(
+              transform.getTransform().getBatchingParams().getBatchSize()));
     }
 
     @Override
