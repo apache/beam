@@ -491,7 +491,7 @@ public class TriggerStateMachineContextFactory<W extends BoundedWindow> {
 
     @Override
     public void deleteTimer(Instant timestamp, TimeDomain domain) {
-      timers.setTimer(timestamp, domain);
+      timers.deleteTimer(timestamp, domain);
     }
 
     @Override
