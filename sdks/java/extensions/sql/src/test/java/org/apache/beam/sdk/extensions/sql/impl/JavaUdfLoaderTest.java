@@ -26,7 +26,6 @@ import java.util.Collections;
 import java.util.Iterator;
 import org.apache.beam.sdk.extensions.sql.udf.UdfProvider;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -42,20 +41,18 @@ public class JavaUdfLoaderTest {
   private final String jarPathProperty = "beam.sql.udf.test.jar_path";
   private final String emptyJarPathProperty = "beam.sql.udf.test.empty_jar_path";
 
-  private final @Nullable String jarPath = System.getProperty(jarPathProperty);
-  private final @Nullable String emptyJarPath = System.getProperty(emptyJarPathProperty);
-
-  private final ClassLoader originalClassLoader = ReflectHelpers.findClassLoader();
+  private final String jarPath = System.getProperty(jarPathProperty, "");
+  private final String emptyJarPath = System.getProperty(emptyJarPathProperty, "");
 
   @Before
   public void setUp() {
-    if (jarPath == null) {
+    if (jarPath.isEmpty()) {
       fail(
           String.format(
               "System property %s must be set to run %s.",
               jarPathProperty, JavaUdfLoaderTest.class.getSimpleName()));
     }
-    if (emptyJarPath == null) {
+    if (emptyJarPath.isEmpty()) {
       fail(
           String.format(
               "System property %s must be set to run %s.",
@@ -70,21 +67,18 @@ public class JavaUdfLoaderTest {
   @Test
   public void testClassLoaderHasNoUdfProviders() throws IOException {
     JavaUdfLoader udfLoader = new JavaUdfLoader();
-    Iterator<UdfProvider> udfProviders = udfLoader.getUdfProviders(originalClassLoader);
+    Iterator<UdfProvider> udfProviders =
+        udfLoader.getUdfProviders(ReflectHelpers.findClassLoader());
     assertFalse(udfProviders.hasNext());
   }
 
   @Test
-  @SuppressWarnings(
-      "nullness") // We check if jarPath is null in setUp, but the checker framework doesn't know.
   public void testLoadScalarFunction() {
     JavaUdfLoader udfLoader = new JavaUdfLoader();
     udfLoader.loadScalarFunction(Collections.singletonList("helloWorld"), jarPath);
   }
 
   @Test
-  @SuppressWarnings(
-      "nullness") // We check if jarPath is null in setUp, but the checker framework doesn't know.
   public void testLoadUnregisteredScalarFunctionThrowsRuntimeException() {
     JavaUdfLoader udfLoader = new JavaUdfLoader();
     thrown.expect(RuntimeException.class);
@@ -94,9 +88,6 @@ public class JavaUdfLoaderTest {
   }
 
   @Test
-  @SuppressWarnings(
-      "nullness") // We check if jarPath and emptyJarPath are null in setUp, but the checker
-  // framework doesn't know.
   public void testJarMissingUdfProviderThrowsProviderNotFoundException() {
     JavaUdfLoader udfLoader = new JavaUdfLoader();
     thrown.expect(ProviderNotFoundException.class);
