@@ -130,11 +130,9 @@ To execute this pipeline, specify the parameters:
         - **bigTableTableId**: Id of the Cloud BigTable table to write into
         - **bigTableKeyColumnName**: Column name to use as a key in Cloud BigTable
         - **bigTableColumnFamilyName**: Column family name to use in Cloud BigTable
-- DSG parameters
-    - **rpcUri**: URI for the API calls to DSG
-    - **batchSize**: Size of the batch to send to DSG per request
-    - **payloadConfigPath**: Path to the payload configuration file with an array of fields to
-      extract for tokenization
+- RPC server parameters
+    - **rpcUri**: URI for the API calls to RPC server
+    - **batchSize**: Size of the batch to send to RPC server per request
 
 The template allows for the user to supply the following optional parameter:
 
@@ -147,7 +145,7 @@ in the following format:
 --dataSchemaPath="path-to-data-schema-in-json-format"
 --inputFilePattern="path-pattern-to-input-data"
 --outputDirectory="path-to-output-directory"
-# example to usage csv
+# example for CSV case
 --inputFileFormat="CSV"
 --outputFileFormat="CSV"
 --csvContainsHeaders="true"

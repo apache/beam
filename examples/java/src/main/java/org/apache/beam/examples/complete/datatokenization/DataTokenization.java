@@ -58,7 +58,121 @@ import org.apache.beam.sdk.values.TypeDescriptors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** The {@link DataTokenization} pipeline. */
+/**
+ * The {@link DataTokenization} pipeline reads data from one of the supported sources,
+ * tokenizes data with external API calls to some tokenization server, and writes data
+ * into one of the supported sinks.
+ * <br>
+ * <p><b>Pipeline Requirements</b>
+ * <ul>
+ *   <li>Java 8</li>
+ *   <li>Data schema (JSON with an array of fields described in BigQuery format)</li>
+ *   <li>1 of supported sources to read data from</li>
+ *   <ul>
+ *     <li>File system (Only JSON or CSV)</li>
+ *     <li><a href=https://cloud.google.com/pubsub>Google Pub/Sub</a></li>
+ *   </ul>
+ *   <li>1 of supported destination sinks to write data into</li>
+ *   <ul>
+ *     <li>File system (Only JSON or CSV)</li>
+ *     <li><a href=https://cloud.google.com/bigquery>Google Cloud BigQuery</a></li>
+ *     <li><a href=https://cloud.google.com/bigtable>Cloud BigTable</a></li>
+ *   </ul>
+ *   <li>A configured tokenization server</li>
+ * </ul>
+ *
+ * <p><b>Example Usage</b>
+ * <pre>
+ * <b>Gradle Preparation</b>
+ * To run this example your  build.gradle file should contain the following task
+ * to execute the pipeline:
+ *   {@code
+ *   task execute (type:JavaExec) {
+ *      main = System.getProperty("mainClass")
+ *      classpath = sourceSets.main.runtimeClasspath
+ *      systemProperties System.getProperties()
+ *      args System.getProperty("exec.args", "").split()
+ *   }
+ *   }
+ * This task allows to run the pipeline via the following command:
+ *   {@code
+ *   gradle clean execute -DmainClass=org.apache.beam.examples.complete.datatokenization.DataTokenization \
+ *        -Dexec.args="--<argument>=<value> --<argument>=<value>"
+ *   }
+ * <b>Running the pipeline</b>
+ * To execute this pipeline, specify the parameters:
+ *
+ * - Data schema
+ *     - <b><i>dataSchemaPath</i></b>: Path to data schema (JSON format) compatible with BigQuery.
+ * - 1 specified input source out of these:
+ *     - File System
+ *         - <b><i>inputFilePattern</i></b>: Filepattern for files to read data from
+ *         - <b><i>inputFileFormat</i></b>: File format of input files. Supported formats: JSON, CSV
+ *         - In case if input data is in CSV format:
+ *             - <b><i>csvContainsHeaders</i></b>: `true` if file(s) in bucket to read data from contain headers,
+ *               and `false` otherwise
+ *             - <b><i>csvDelimiter</i></b>: Delimiting character in CSV. Default: use delimiter provided in
+ *               csvFormat
+ *             - <b><i>csvFormat</i></b>: Csv format according to Apache Commons CSV format. Default is:
+ *               [Apache Commons CSV default](https://static.javadoc.io/org.apache.commons/commons-csv/1.7/org/apache/commons/csv/CSVFormat.html#DEFAULT)
+ *               . Must match format names exactly found
+ *               at: https://static.javadoc.io/org.apache.commons/commons-csv/1.7/org/apache/commons/csv/CSVFormat.Predefined.html
+ *     - Google Pub/Sub
+ *         - <b><i>pubsubTopic</i></b>: The Cloud Pub/Sub topic to read from, in the format of '
+ *           projects/yourproject/topics/yourtopic'
+ * - 1 specified output sink out of these:
+ *     - File System
+ *         - <b><i>outputDirectory</i></b>: Directory to write data to
+ *         - <b><i>outputFileFormat</i></b>: File format of output files. Supported formats: JSON, CSV
+ *         - <b><i>windowDuration</i></b>: The window duration in which data will be written. Should be specified
+ *           only for 'Pub/Sub -> FileSystem' case. Defaults to 30s.
+ *
+ *           Allowed formats are:
+ *             - Ns (for seconds, example: 5s),
+ *             - Nm (for minutes, example: 12m),
+ *             - Nh (for hours, example: 2h).
+ *     - Google Cloud BigQuery
+ *         - <b><i>bigQueryTableName</i></b>: Cloud BigQuery table name to write into
+ *         - <b><i>tempLocation</i></b>: Folder in a Google Cloud Storage bucket, which is needed for
+ *           BigQuery to handle data writing
+ *     - Cloud BigTable
+ *         - <b><i>bigTableProjectId</i></b>: Id of the project where the Cloud BigTable instance to write into
+ *           is located
+ *         - <b><i>bigTableInstanceId</i></b>: Id of the Cloud BigTable instance to write into
+ *         - <b><i>bigTableTableId</i></b>: Id of the Cloud BigTable table to write into
+ *         - <b><i>bigTableKeyColumnName</i></b>: Column name to use as a key in Cloud BigTable
+ *         - <b><i>bigTableColumnFamilyName</i></b>: Column family name to use in Cloud BigTable
+ * - RPC server parameters
+ *     - <b><i>rpcUri</i></b>: URI for the API calls to RPC server
+ *     - <b><i>batchSize</i></b>: Size of the batch to send to RPC server per request
+ *
+ * The template allows for the user to supply the following optional parameter:
+ *
+ * - <b><i>nonTokenizedDeadLetterPath</i></b>: Folder where failed to tokenize data will be stored
+ *
+ *
+ * Specify the parameters in the following format:
+ *
+ * {@code
+ * --dataSchemaPath="path-to-data-schema-in-json-format"
+ * --inputFilePattern="path-pattern-to-input-data"
+ * --outputDirectory="path-to-output-directory"
+ * # example for CSV case
+ * --inputFileFormat="CSV"
+ * --outputFileFormat="CSV"
+ * --csvContainsHeaders="true"
+ * --nonTokenizedDeadLetterPath="path-to-errors-rows-writing"
+ * --batchSize=batch-size-number
+ * --rpcUri=http://host:port/tokenize
+ * }
+ *
+ * By default, this will run the pipeline locally with the DirectRunner. To change the runner, specify:
+ *
+ * {@code
+ * --runner=YOUR_SELECTED_RUNNER
+ * }
+ * </pre>
+ */
 public class DataTokenization {
 
   /** Logger for class. */
