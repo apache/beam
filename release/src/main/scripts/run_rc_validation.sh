@@ -285,6 +285,17 @@ if [[ ("$java_mobile_game_direct" = true || "$java_mobile_game_dataflow" = true)
     -PbqDataset=${MOBILE_GAME_DATASET} \
     -PpubsubTopic=${MOBILE_GAME_PUBSUB_TOPIC} \
     -PgcsBucket=${USER_GCS_BUCKET:5}  # skip 'gs://' prefix
+
+    echo "**************************************************************************"
+    echo "* Java mobile game on DataflowRunner using Beam GCP BOM: UserScore, HourlyTeamScore, Leaderboard"
+    echo "**************************************************************************"
+    ./gradlew :runners:google-cloud-dataflow-java:runMobileGamingJavaDataflowBom \
+    -Prepourl=${REPO_URL} \
+    -Pver=${RELEASE_VER} \
+    -PgcpProject=${USER_GCP_PROJECT} \
+    -PbqDataset=${MOBILE_GAME_DATASET} \
+    -PpubsubTopic=${MOBILE_GAME_PUBSUB_TOPIC} \
+    -PgcsBucket=${USER_GCS_BUCKET:5}  # skip 'gs://' prefix
   else
     echo "* Skip Java Mobile Game on DataflowRunner."
   fi
