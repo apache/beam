@@ -36,7 +36,6 @@ import org.apache.beam.sdk.extensions.sql.udf.ScalarFn;
 import org.apache.beam.sdk.extensions.sql.udf.UdfProvider;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResourceId;
-import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.commons.codec.digest.DigestUtils;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
@@ -60,14 +59,7 @@ public class JavaUdfLoader {
    */
   private static final Map<String, FunctionDefinitions> cache = new HashMap<>();
 
-  private static final ClassLoader originalClassLoader = ReflectHelpers.findClassLoader();
-
-  /**
-   * Load a user-defined scalar function from the specified jar.
-   *
-   * <p><strong>WARNING</strong>: The first time a jar is loaded, it is added to the thread's
-   * context {@link ClassLoader} so that the jar can be staged by the runner.
-   */
+  /** Load a user-defined scalar function from the specified jar. */
   public ScalarFn loadScalarFunction(List<String> functionPath, String jarPath) {
     String functionFullName = String.join(".", functionPath);
     try {
@@ -119,16 +111,9 @@ public class JavaUdfLoader {
     }
   }
 
-  private ClassLoader createAndSetClassLoader(String inputJarPath) throws IOException {
+  private ClassLoader createClassLoader(String inputJarPath) throws IOException {
     File tmpJar = downloadFile(inputJarPath, "application/java-archive");
-    // Set the thread's context class loader so that the jar can be staged by the runner.
-    Thread.currentThread()
-        .setContextClassLoader(
-            new URLClassLoader(
-                new URL[] {tmpJar.toURI().toURL()}, ReflectHelpers.findClassLoader()));
-    // Return a class loader that isolates the target jar from other UDF jars that might have been
-    // loaded previously.
-    return new URLClassLoader(new URL[] {tmpJar.toURI().toURL()}, originalClassLoader);
+    return new URLClassLoader(new URL[] {tmpJar.toURI().toURL()});
   }
 
   @VisibleForTesting
@@ -142,8 +127,8 @@ public class JavaUdfLoader {
       return cache.get(jarPath);
     }
 
+    ClassLoader classLoader = createClassLoader(jarPath);
     Map<List<String>, ScalarFn> scalarFunctions = new HashMap<>();
-    ClassLoader classLoader = createAndSetClassLoader(jarPath);
     Iterator<UdfProvider> providers = getUdfProviders(classLoader);
     int providersCount = 0;
     while (providers.hasNext()) {
@@ -182,7 +167,9 @@ public class JavaUdfLoader {
         FunctionDefinitions.newBuilder()
             .setScalarFunctions(ImmutableMap.copyOf(scalarFunctions))
             .build();
+
     cache.put(jarPath, userFunctionDefinitions);
+
     return userFunctionDefinitions;
   }
 
