@@ -65,6 +65,9 @@ public class AzureModule extends SimpleModule {
   private static final String AZURE_PFX_CERTIFICATE_PATH = "azurePfxCertificatePath";
   private static final String AZURE_PFX_CERTIFICATE_PASSWORD = "azurePfxCertificatePassword";
 
+  @SuppressWarnings({
+    "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  })
   public AzureModule() {
     super("AzureModule");
     setMixInAnnotation(TokenCredential.class, TokenCredentialMixin.class);
@@ -90,6 +93,9 @@ public class AzureModule extends SimpleModule {
         throws IOException {
       Map<String, String> asMap =
           jsonParser.readValueAs(new TypeReference<Map<String, String>>() {});
+      if (asMap == null) {
+        throw new IOException("Azure credentials provider could not be read.");
+      }
 
       String typeNameKey = typeDeserializer.getPropertyName();
       String typeName = asMap.get(typeNameKey);
@@ -102,34 +108,37 @@ public class AzureModule extends SimpleModule {
         return new DefaultAzureCredentialBuilder().build();
       } else if (typeName.equals(ClientSecretCredential.class.getSimpleName())) {
         return new ClientSecretCredentialBuilder()
-            .clientId(asMap.get(AZURE_CLIENT_ID))
-            .clientSecret(asMap.get(AZURE_CLIENT_SECRET))
-            .tenantId(asMap.get(AZURE_TENANT_ID))
+            .clientId(asMap.getOrDefault(AZURE_CLIENT_ID, ""))
+            .clientSecret(asMap.getOrDefault(AZURE_CLIENT_SECRET, ""))
+            .tenantId(asMap.getOrDefault(AZURE_TENANT_ID, ""))
             .build();
       } else if (typeName.equals(ManagedIdentityCredential.class.getSimpleName())) {
-        return new ManagedIdentityCredentialBuilder().clientId(asMap.get(AZURE_CLIENT_ID)).build();
+        return new ManagedIdentityCredentialBuilder()
+            .clientId(asMap.getOrDefault(AZURE_CLIENT_ID, ""))
+            .build();
       } else if (typeName.equals(EnvironmentCredential.class.getSimpleName())) {
         return new EnvironmentCredentialBuilder().build();
       } else if (typeName.equals(ClientCertificateCredential.class.getSimpleName())) {
         if (asMap.containsKey(AZURE_CLIENT_CERTIFICATE_PATH)) {
           return new ClientCertificateCredentialBuilder()
-              .clientId(asMap.get(AZURE_CLIENT_ID))
-              .pemCertificate(asMap.get(AZURE_CLIENT_CERTIFICATE_PATH))
-              .tenantId(asMap.get(AZURE_TENANT_ID))
+              .clientId(asMap.getOrDefault(AZURE_CLIENT_ID, ""))
+              .pemCertificate(asMap.getOrDefault(AZURE_CLIENT_CERTIFICATE_PATH, ""))
+              .tenantId(asMap.getOrDefault(AZURE_TENANT_ID, ""))
               .build();
         } else {
           return new ClientCertificateCredentialBuilder()
-              .clientId(asMap.get(AZURE_CLIENT_ID))
+              .clientId(asMap.getOrDefault(AZURE_CLIENT_ID, ""))
               .pfxCertificate(
-                  asMap.get(AZURE_PFX_CERTIFICATE_PATH), asMap.get(AZURE_PFX_CERTIFICATE_PASSWORD))
-              .tenantId(asMap.get(AZURE_TENANT_ID))
+                  asMap.getOrDefault(AZURE_PFX_CERTIFICATE_PATH, ""),
+                  asMap.getOrDefault(AZURE_PFX_CERTIFICATE_PASSWORD, ""))
+              .tenantId(asMap.getOrDefault(AZURE_TENANT_ID, ""))
               .build();
         }
       } else if (typeName.equals(UsernamePasswordCredential.class.getSimpleName())) {
         return new UsernamePasswordCredentialBuilder()
-            .clientId(asMap.get(AZURE_CLIENT_ID))
-            .username(asMap.get(AZURE_USERNAME))
-            .password(asMap.get(AZURE_PASSWORD))
+            .clientId(asMap.getOrDefault(AZURE_CLIENT_ID, ""))
+            .username(asMap.getOrDefault(AZURE_USERNAME, ""))
+            .password(asMap.getOrDefault(AZURE_PASSWORD, ""))
             .build();
       } else {
         throw new IOException(
