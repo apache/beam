@@ -4519,6 +4519,8 @@ registered, then Beam will automatically infer the coder for the state value. Ot
 specified when creating the ValueState. For example, the following ParDo creates a  single state variable that
 accumulates the number of elements seen.
 
+Note: `ValueState` is called `ReadModifyWriteState` in the Python SDK.
+
 {{< highlight java >}}
 PCollection<KV<String, ValueT>> perUser = readPerUser();
 perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
@@ -4544,6 +4546,20 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
 }));
 {{< /highlight >}}
 
+
+{{< highlight py >}}
+class ReadModifyWriteStateDoFn(DoFn):
+  STATE_SPEC = ReadModifyWriteStateSpec('num_elements', VarIntCoder())
+
+  def process(self, element, state=DoFn.StateParam(STATE_SPEC)):
+    # Read the number element seen so far for this user key.
+    current_value = state.read() or 0
+    state.write(current_value+1)
+
+_ = (p | 'Read per user' >> ReadPerUser()
+       | 'state pardo' >> beam.ParDo(ReadModifyWriteStateDoFn()))
+{{< /highlight >}}
+
 #### CombiningState
 
 `CombiningState` allows you to create a state object that is updated using a Beam combiner. For example, the previous
@@ -4561,11 +4577,11 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
 }));
 {{< /highlight >}}
 
-{{< highlight python >}}
+{{< highlight py >}}
 class CombiningStateDoFn(DoFn):
   SUM_TOTAL = CombiningValueStateSpec('total', sum)
 
-  def process(self, element, state=SoFn.StateParam(SUM_TOTAL)):
+  def process(self, element, state=DoFn.StateParam(SUM_TOTAL)):
     state.add(1)
 
 _ = (p | 'Read per user' >> ReadPerUser()
@@ -4599,7 +4615,7 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
 }));
 {{< /highlight >}}
 
-{{< highlight python >}}
+{{< highlight py >}}
 class BagStateDoFn(DoFn):
   ALL_ELEMENTS = BagStateSpec('buffer', coders.VarIntCoder())
 
@@ -4637,6 +4653,11 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
     state3.read();
   }
 }));
+{{< /highlight >}}
+
+
+{{< highlight py >}}
+This is not supported yet, see BEAM-11506.
 {{< /highlight >}}
 
 If however there are code paths in which the states are not fetched, then annotating with @AlwaysFetched will add
@@ -4703,7 +4724,7 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
 }));
 {{< /highlight >}}
 
-{{< highlight python >}}
+{{< highlight py >}}
 class EventTimerDoFn(DoFn):
   ALL_ELEMENTS = BagStateSpec('buffer', coders.VarIntCoder())
   TIMER = TimerSpec('timer', TimeDomain.WATERMARK)
@@ -4751,7 +4772,7 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
 }));
 {{< /highlight >}}
 
-{{< highlight python >}}
+{{< highlight py >}}
 class ProcessingTimerDoFn(DoFn):
   ALL_ELEMENTS = BagStateSpec('buffer', coders.VarIntCoder())
   TIMER = TimerSpec('timer', TimeDomain.REAL_TIME)
@@ -4775,11 +4796,14 @@ _ = (p | 'Read per user' >> ReadPerUser()
 
 #### 11.3.3. Dynamic timer tags {#dynamic-timer-tags}
 
-Beam also supports dynamically setting a timer tag using `TimerMap`. This allows for setting multiple different timers
+Beam also supports dynamically setting a timer tag using `TimerMap` in the Java SDK. This allows for setting multiple different timers
 in a `DoFn` and allowing for the timer tags to be dynamically chosen - e.g. based on data in the input elements. A
 timer with a specific tag can only be set to a single timestamp, so setting the timer again has the effect of
 overwriting the previous expiration time for the timer with that tag. Each `TimerMap` is identified with a timer family
 id, and timers in different timer families are independent.
+
+In the Python SDK, a dynamic timer tag can be specified while calling `set()` or `clear()`. By default, the timer
+tag is an empty string if not specified.
 
 {{< highlight java >}}
 PCollection<KV<String, ValueT>> perUser = readPerUser();
@@ -4800,9 +4824,33 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
 }));
 {{< /highlight >}}
 
-{{< highlight python >}}
-To be supported, See BEAM-9602
+{{< highlight py >}}
+class TimerDoFn(DoFn):
+  ALL_ELEMENTS = BagStateSpec('buffer', coders.VarIntCoder())
+  TIMER = TimerSpec('timer', TimeDomain.REAL_TIME)
+
+  def process(self,
+              element_pair,
+              buffer = DoFn.StateParam(ALL_ELEMENTS),
+              timer = DoFn.TimerParam(TIMER)):
+    buffer.add(element_pair[1])
+    # Set a timer to go off 30 seconds in the future with dynamic timer tag 'first_timer'.
+    # And set a timer to go off 60 seconds in the future with dynamic timer tag 'second_timer'.
+    timer.set(Timestamp.now() + Duration(seconds=30), dynamic_timer_tag='first_timer')
+    timer.set(Timestamp.now() + Duration(seconds=60), dynamic_timer_tag='second_timer')
+    # Note that a timer can also be explicitly cleared if previously set with a dynamic timer tag:
+    # timer.clear(dynamic_timer_tag=...)
+
+  @on_timer(TIMER)
+  def expiry_callback(self, buffer = DoFn.StateParam(ALL_ELEMENTS), timer_tag=DoFn.DynamicTimerTagParam):
+    # Process timer, the dynamic timer tag associated with expiring timer can be read back with DoFn.DynamicTimerTagParam.
+    buffer.clear()
+    yield (timer_tag, 'fired')
+
+_ = (p | 'Read per user' >> ReadPerUser()
+       | 'ProcessingTime timer pardo' >> beam.ParDo(TimerDoFn()))
 {{< /highlight >}}
+
 #### 11.3.4. Timer output timestamps {#timer-output-timestamps}
 
 By default, event-time timers will hold the output watermark of the `ParDo` to the timestamp of the timer. This means
@@ -4906,6 +4954,10 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
 }));
 {{< /highlight >}}
 
+{{< highlight py >}}
+Timer output timestamps is not yet supported in Python SDK. See BEAM-11507.
+{{< /highlight >}}
+
 ### 11.4. Garbage collecting state {#garbage-collecting-state}
 Per-key state needs to be garbage collected, or eventually the increasing size of state may negatively impact
 performance. There are two common strategies for garbage collecting state.
@@ -4934,7 +4986,7 @@ perUser.apply(Window.into(CalendarWindows.days(1)
          }));
 {{< /highlight >}}
 
-{{< highlight python >}}
+{{< highlight py >}}
 class StateDoFn(DoFn):
   ALL_ELEMENTS = BagStateSpec('buffer', coders.VarIntCoder())
 
@@ -4995,7 +5047,7 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
  }
 {{< /highlight >}}
 
-{{< highlight python >}}
+{{< highlight py >}}
 class UserDoFn(DoFn):
   ALL_ELEMENTS = BagStateSpec('state', coders.VarIntCoder())
   MAX_TIMESTAMP = CombiningValueStateSpec('max_timestamp_seen', max)
@@ -5052,7 +5104,7 @@ PCollection<KV<String, Event>> eventsPerLinkId =
     readEvents()
     .apply(WithKeys.of(Event::getLinkId).withKeyType(TypeDescriptors.strings()));
 
-perUser.apply(ParDo.of(new DoFn<KV<String, Event>, JoinedEvent>() {
+eventsPerLinkId.apply(ParDo.of(new DoFn<KV<String, Event>, JoinedEvent>() {
   // Store the view event.
   @StateId("view") private final StateSpec<ValueState<Event>> viewState = StateSpecs.value();
   // Store the click event.
@@ -5114,6 +5166,57 @@ perUser.apply(ParDo.of(new DoFn<KV<String, Event>, JoinedEvent>() {
  }));
 {{< /highlight >}}
 
+{{< highlight py >}}
+class JoinDoFn(DoFn):
+  # stores the view event.
+  VIEW_STATE_SPEC = ReadModifyWriteStateSpec('view', EventCoder())
+  # stores the click event.
+  CLICK_STATE_SPEC = ReadModifyWriteStateSpec('click', EventCoder())
+  # The maximum element timestamp value seen so far.
+  MAX_TIMESTAMP = CombiningValueStateSpec('max_timestamp_seen', max)
+  # Timer that fires when an hour goes by with an incomplete join.
+  GC_TIMER = TimerSpec('gc', TimeDomain.WATERMARK)
+
+  def process(self,
+              element,
+              view=DoFn.StateParam(VIEW_STATE_SPEC),
+              click=DoFn.StateParam(CLICK_STATE_SPEC),
+              max_timestamp_seen=DoFn.StateParam(MAX_TIMESTAMP),
+              ts=DoFn.TimestampParam,
+              gc=DoFn.TimerParam(GC_TIMER)):
+    event = element
+    if event.type == 'view':
+      view.write(event)
+    else:
+      click.write(event)
+
+    previous_view = view.read()
+    previous_click = click.read()
+
+    # We've seen both a view and a click. Output a joined event and clear state.
+    if previous_view and previous_click:
+      yield (previous_view, previous_click)
+      view.clear()
+      click.clear()
+      max_timestamp_seen.clear()
+    else:
+      max_timestamp_seen.add(ts)
+      gc.set(max_timestamp_seen.read() + Duration(seconds=3600))
+
+  @on_timer(GC_TIMER)
+  def gc_callback(self,
+                  view=DoFn.StateParam(VIEW_STATE_SPEC),
+                  click=DoFn.StateParam(CLICK_STATE_SPEC),
+                  max_timestamp_seen=DoFn.StateParam(MAX_TIMESTAMP)):
+    view.clear()
+    click.clear()
+    max_timestamp_seen.clear()
+
+
+_ = (p | 'EventsPerLinkId' >> ReadPerLinkEvents()
+       | 'Join DoFn' >> beam.ParDo(JoinDoFn()))
+{{< /highlight >}}
+
 #### 11.5.2. Batching RPCs {#batching-rpcs}
 
 In this example, input elements are being forwarded to an external RPC service. The RPC accepts batch requests -
@@ -5153,6 +5256,31 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
     isTimerSetState.clear();
   }
 }));
+{{< /highlight >}}
+
+{{< highlight py >}}
+class BufferDoFn(DoFn):
+  BUFFER = BagStateSpec('buffer', EventCoder())
+  IS_TIMER_SET = ReadModifyWriteStateSpec('is_timer_set', BooleanCoder())
+  OUTPUT = TimerSpec('output', TimeDomain.REAL_TIME)
+
+  def process(self,
+              buffer=DoFn.StateParam(BUFFER),
+              is_timer_set=DoFn.StateParam(IS_TIMER_SET),
+              timer=DoFn.TimerParam(OUTPUT)):
+    buffer.add(element)
+    if not is_timer_set.read():
+      timer.set(Timestamp.now() + Duration(seconds=10))
+      is_timer_set.write(True)
+
+  @on_timer(OUTPUT)
+  def output_callback(self,
+                      buffer=DoFn.StateParam(BUFFER),
+                      is_timer_set=DoFn.StateParam(IS_TIMER_SET)):
+    send_rpc(list(buffer.read()))
+    buffer.clear()
+    is_timer_set.clear()
+
 {{< /highlight >}}
 
 ## 12. Splittable `DoFns` {#splittable-dofns}
