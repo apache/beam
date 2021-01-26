@@ -1560,25 +1560,19 @@ public class FhirIO {
       /** DoFn for searching messages from the Fhir store with error handling. */
       static class SearchResourcesFn extends DoFn<KV<String, Map<String, String>>, JsonArray> {
 
-<<<<<<< HEAD
-        private Distribution searchLatencyMs =
-            Metrics.distribution(SearchResourcesFn.class, "fhir-search-latency-ms");
-        private Counter failedSearches =
-            Metrics.counter(SearchResourcesFn.class, "failed-fhir-searches");
-        private static final Logger LOG = LoggerFactory.getLogger(SearchResourcesFn.class);
-=======
-        private final Counter SEARCH_RESOURCE_ERRORS =
+      class SearchResourcesFn extends DoFn<FhirSearchParameter<T>, KV<String, JsonArray>> {
+
+        private final Counter searchResourceErrors =
             Metrics.counter(
                 SearchResourcesFn.class, BASE_METRIC_PREFIX + "search_resource_error_count");
-        private final Counter SEARCH_RESOURCE_SUCCESS =
+        private final Counter searchResourceSuccess =
             Metrics.counter(
                 SearchResourcesFn.class, BASE_METRIC_PREFIX + "search_resource_success_count");
-        private final Distribution SEARCH_RESOURCE_LATENCY_MS =
+        private final Distribution searchResourceLatencyMs =
             Metrics.distribution(
                 SearchResourcesFn.class, BASE_METRIC_PREFIX + "search_resource_latency_ms");
 
         private final Logger log = LoggerFactory.getLogger(SearchResourcesFn.class);
->>>>>>> fdc9837879 (Metric updates for FhirIO: Fix metrics + namings to be consistent.)
         private final Counter successfulSearches =
             Metrics.counter(SearchResourcesFn.class, "successful-fhir-searches");
         private HealthcareApiClient client;
@@ -1615,8 +1609,8 @@ public class FhirIO {
                     elementValues.getKey(),
                     elementValues.getValue()));
           } catch (IllegalArgumentException | NoSuchElementException e) {
-            failedSearches.inc();
-            LOG.warn(
+            searchResourceErrors.inc();
+            log.warn(
                 String.format(
                     "Error search FHIR messages writing to Dead Letter "
                         + "Queue. Cause: %s Stack Trace: %s",
@@ -1642,8 +1636,8 @@ public class FhirIO {
           while (iter.hasNext()) {
             result.addAll(iter.next());
           }
-          SEARCH_RESOURCE_LATENCY_MS.update(java.time.Instant.now().toEpochMilli() - start);
-          SEARCH_RESOURCE_SUCCESS.inc();
+          searchResourceLatencyMs.update(java.time.Instant.now().toEpochMilli() - start);
+          searchResourceSuccess.inc();
           return result;
         }
       }
