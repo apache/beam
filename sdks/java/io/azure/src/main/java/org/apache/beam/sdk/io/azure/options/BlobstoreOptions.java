@@ -23,7 +23,6 @@ import com.azure.core.http.HttpPipeline;
 import com.azure.core.http.policy.HttpPipelinePolicy;
 import com.azure.identity.DefaultAzureCredentialBuilder;
 import com.azure.storage.blob.models.CustomerProvidedKey;
-import com.azure.storage.common.StorageSharedKeyCredential;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.azure.blobstore.DefaultBlobstoreClientBuilderFactory;
@@ -58,16 +57,6 @@ public interface BlobstoreOptions extends PipelineOptions {
   String getAzureConnectionString();
 
   void setAzureConnectionString(String connectionString);
-
-  @Description("Sets a StorageSharedKeyCredential used to authorize requests sent to the service.")
-  StorageSharedKeyCredential getSharedKeyCredential();
-
-  void setSharedKeyCredential(StorageSharedKeyCredential sharedKeyCredential);
-
-  @Description("Sets a TokenCredential used to authorize requests sent to the service.")
-  TokenCredential getTokenCredential();
-
-  void setTokenCredential(TokenCredential tokenCredential);
 
   @Description("Sets the SAS token used to authorize requests sent to the service.")
   String getSasToken();
@@ -110,14 +99,25 @@ public interface BlobstoreOptions extends PipelineOptions {
 
   void setHttpPipeline(HttpPipeline httpPipeline);
 
+  /* Refer to {@link DefaultAWSCredentialsProviderChain} Javadoc for usage help. */
+
   /**
    * The credential instance that should be used to authenticate against Azure services. The option
    * value must contain a "@type" field and an Azure credentials provider class as the field value.
+   *
+   * <p>For example, to specify the Azure client id, tenant id, and client secret, specify the
+   * following: <code>
+   *     {"@type" : "ClientSecretCredential", "azureClientId": "client_id_value",
+   *     "azureTenantId": "tenant_id_value", "azureClientSecret": "client_secret_value"}
+   * </code>
    */
   @Description(
       "The credential instance that should be used to authenticate "
           + "against Azure services. The option value must contain \"@type\" field "
-          + "and an Azure credentials provider class name as the field value.")
+          + "and an Azure credentials provider class name as the field value. "
+          + " For example, to specify the Azure client id, tenant id, and client secret, specify the following: "
+          + "{\"@type\" : \"ClientSecretCredential\", \"azureClientId\": \"client_id_value\", "
+          + "\"azureTenantId\": \"tenant_id_value\", \"azureClientSecret\": \"client_secret_value\"}")
   @Default.InstanceFactory(AzureUserCredentialsFactory.class)
   TokenCredential getAzureCredentialsProvider();
 
