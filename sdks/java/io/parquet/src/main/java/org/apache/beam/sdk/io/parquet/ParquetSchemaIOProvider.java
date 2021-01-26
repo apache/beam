@@ -21,13 +21,16 @@ import com.google.auto.service.AutoService;
 import java.io.Serializable;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.io.SchemaIO;
 import org.apache.beam.sdk.schemas.io.SchemaIOProvider;
+import org.apache.beam.sdk.schemas.transforms.Convert;
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 
@@ -95,21 +98,30 @@ public class ParquetSchemaIOProvider implements SchemaIOProvider {
       return new PTransform<PBegin, PCollection<Row>>() {
         @Override
         public PCollection<Row> expand(PBegin begin) {
-          PTransform<PCollection<GenericRecord>, PCollection<Row>> readConverter =
-              GenericRecordReadConverter.builder().beamSchema(dataSchema).build();
-
+          org.apache.avro.Schema schema = AvroUtils.toAvroSchema(dataSchema);
           return begin
               .apply(
                   "ParquetIORead",
-                  ParquetIO.read(AvroUtils.toAvroSchema(dataSchema)).from(location))
-              .apply("GenericRecordToRow", readConverter);
+                  ParquetIO.read(schema).withBeamSchemas(true).from(location + "/*"))
+              .apply("ToRows", Convert.toRows());
         }
       };
     }
 
     @Override
     public PTransform<PCollection<Row>, POutput> buildWriter() {
-      throw new UnsupportedOperationException("Writing to a Parquet file is not supported");
+      return new PTransform<PCollection<Row>, POutput>() {
+        @Override
+        public PDone expand(PCollection<Row> input) {
+          final org.apache.avro.Schema schema = AvroUtils.toAvroSchema(input.getSchema());
+          input
+              .apply("ToGenericRecords", Convert.to(GenericRecord.class))
+              .apply(
+                  "ParquetIOWrite",
+                  FileIO.<GenericRecord>write().via(ParquetIO.sink(schema)).to(location));
+          return PDone.in(input.getPipeline());
+        }
+      };
     }
   }
 }

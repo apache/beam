@@ -135,7 +135,7 @@ script which is part of the Beam repo:
    ([template](https://s.apache.org/beam-design-doc-template),
    [examples](https://s.apache.org/beam-design-docs)) and email it to the [dev@ mailing list](/community/contact-us).
 
-### Development Setup
+### Development Setup {#development-setup}
 
 1. If you need help with git forking, cloning, branching, committing, pull requests, and squashing commits, see
    [Git workflow tips](https://cwiki.apache.org/confluence/display/BEAM/Git+Tips)

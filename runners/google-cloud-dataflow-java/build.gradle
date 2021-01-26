@@ -250,7 +250,6 @@ def createRunnerV2ValidatesRunnerTest = { Map args ->
 task buildAndPushDockerContainer() {
   def javaVer = project.hasProperty('compileAndRunTestsWithJava11') ? "java11" : "java8"
   dependsOn ":sdks:java:container:${javaVer}:docker"
-  finalizedBy 'cleanUpDockerImages'
   def defaultDockerImageName = containerImageName(
           name: "${project.docker_image_default_repo_prefix}${javaVer}_sdk",
           root: "apache",
@@ -670,6 +669,15 @@ createJavaExamplesArchetypeValidationTask(type: 'MobileGaming',
   gcsBucket: gcsBucket,
   bqDataset: bqDataset,
   pubsubTopic: pubsubTopic)
+
+// Generates :runners:google-cloud-dataflow-java:runMobileGamingJavaDataflowBom
+createJavaExamplesArchetypeValidationTask(type: 'MobileGaming',
+        runner: 'DataflowBom',
+        gcpProject: gcpProject,
+        gcpRegion: gcpRegion,
+        gcsBucket: gcsBucket,
+        bqDataset: bqDataset,
+        pubsubTopic: pubsubTopic)
 
 // Standalone task for testing GCS upload, use with -PfilesToStage and -PdataflowTempRoot.
 task GCSUpload(type: JavaExec) {

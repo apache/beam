@@ -81,6 +81,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
+import org.apache.beam.runners.core.metrics.LabeledMetrics;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
+import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
 import org.apache.beam.sdk.extensions.gcp.auth.NullCredentialInitializer;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.extensions.gcp.util.BackOffAdapter;
@@ -93,12 +96,12 @@ import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.FluentBackoff;
-import org.apache.beam.sdk.util.Histogram;
 import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.values.FailsafeValueInSingleWindow;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
@@ -132,6 +135,11 @@ class BigQueryServicesImpl implements BigQueryServices {
   // The error code for quota exceeded error (https://cloud.google.com/bigquery/docs/error-messages)
   private static final String QUOTA_EXCEEDED = "quotaExceeded";
 
+  protected static final Map<String, String> API_METRIC_LABEL =
+      ImmutableMap.of(
+          MonitoringInfoConstants.Labels.SERVICE, "BigQuery",
+          MonitoringInfoConstants.Labels.METHOD, "BigQueryBatchWrite");
+
   @Override
   public JobService getJobService(BigQueryOptions options) {
     return new JobServiceImpl(options);
@@ -139,12 +147,7 @@ class BigQueryServicesImpl implements BigQueryServices {
 
   @Override
   public DatasetService getDatasetService(BigQueryOptions options) {
-    return new DatasetServiceImpl(options, null);
-  }
-
-  @Override
-  public DatasetService getDatasetService(BigQueryOptions options, Histogram requestLatencies) {
-    return new DatasetServiceImpl(options, requestLatencies);
+    return new DatasetServiceImpl(options);
   }
 
   @Override
@@ -171,7 +174,7 @@ class BigQueryServicesImpl implements BigQueryServices {
 
     private JobServiceImpl(BigQueryOptions options) {
       this.errorExtractor = new ApiErrorExtractor();
-      this.client = newBigQueryClient(options, null).build();
+      this.client = newBigQueryClient(options).build();
       this.bqIOMetadata = BigQueryIOMetadata.create();
     }
 
@@ -445,6 +448,24 @@ class BigQueryServicesImpl implements BigQueryServices {
 
     private ExecutorService executor;
 
+    protected static final Map<Integer, String> CANONICAL_STATUS_MAP =
+        ImmutableMap.<Integer, String>builder()
+            .put(200, "ok")
+            .put(400, "out_of_range")
+            .put(401, "unauthenticated")
+            .put(403, "permission_denied")
+            .put(404, "not_found")
+            .put(409, "already_exists")
+            .put(429, "resource_exhausted")
+            .put(499, "cancelled")
+            .put(500, "internal")
+            .put(501, "not_implemented")
+            .put(503, "unavailable")
+            .put(504, "deadline_exceeded")
+            .build();
+
+    protected static final String CANONICAL_STATUS_UNKNOWN = "unknown";
+
     @VisibleForTesting
     DatasetServiceImpl(Bigquery client, PipelineOptions options) {
       BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
@@ -467,9 +488,9 @@ class BigQueryServicesImpl implements BigQueryServices {
       this.executor = null;
     }
 
-    private DatasetServiceImpl(BigQueryOptions bqOptions, @Nullable Histogram requestLatencies) {
+    private DatasetServiceImpl(BigQueryOptions bqOptions) {
       this.errorExtractor = new ApiErrorExtractor();
-      this.client = newBigQueryClient(bqOptions, requestLatencies).build();
+      this.client = newBigQueryClient(bqOptions).build();
       this.options = bqOptions;
       this.maxRowsPerBatch = bqOptions.getMaxStreamingRowsToBatch();
       this.maxRowBatchSize = bqOptions.getMaxStreamingBatchSize();
@@ -856,6 +877,7 @@ class BigQueryServicesImpl implements BigQueryServices {
                         try {
                           return insert.execute().getInsertErrors();
                         } catch (IOException e) {
+                          recordError(e);
                           GoogleJsonError.ErrorInfo errorInfo = getErrorInfo(e);
                           if (errorInfo == null) {
                             throw e;
@@ -993,6 +1015,23 @@ class BigQueryServicesImpl implements BigQueryServices {
       return errorInfo;
     }
 
+    protected void recordError(IOException e) {
+      if (e instanceof GoogleJsonResponseException) {
+        int errorCode = ((GoogleJsonResponseException) e).getDetails().getCode();
+        String canonicalGcpStatus =
+            CANONICAL_STATUS_MAP.getOrDefault(errorCode, CANONICAL_STATUS_UNKNOWN);
+        LabeledMetrics.counter(
+                MonitoringInfoMetricName.named(
+                    MonitoringInfoConstants.Urns.API_REQUEST_COUNT,
+                    ImmutableMap.<String, String>builder()
+                        .putAll(API_METRIC_LABEL)
+                        .put(MonitoringInfoConstants.Labels.STATUS, canonicalGcpStatus)
+                        .build()),
+                true)
+            .inc();
+      }
+    }
+
     @Override
     public Table patchTableDescription(
         TableReference tableReference, @Nullable String tableDescription)
@@ -1059,8 +1098,9 @@ class BigQueryServicesImpl implements BigQueryServices {
   }
 
   /** Returns a BigQuery client builder using the specified {@link BigQueryOptions}. */
-  private static Bigquery.Builder newBigQueryClient(
-      BigQueryOptions options, @Nullable Histogram requestLatencies) {
+  private static Bigquery.Builder newBigQueryClient(BigQueryOptions options) {
+    // Do not log 404. It clutters the output and is possibly even required by the
+    // caller.
     RetryHttpRequestInitializer httpRequestInitializer =
         new RetryHttpRequestInitializer(ImmutableList.of(404));
     httpRequestInitializer.setCustomErrors(createBigQueryClientCustomErrors());
@@ -1071,12 +1111,10 @@ class BigQueryServicesImpl implements BigQueryServices {
         credential == null
             ? new NullCredentialInitializer()
             : new HttpCredentialsAdapter(credential));
-    // Do not log 404. It clutters the output and is possibly even required by the
-    // caller.
+
+    initBuilder.add(new LatencyRecordingHttpRequestInitializer(API_METRIC_LABEL));
+
     initBuilder.add(httpRequestInitializer);
-    if (requestLatencies != null) {
-      initBuilder.add(new LatencyRecordingHttpRequestInitializer(requestLatencies));
-    }
     HttpRequestInitializer chainInitializer =
         new ChainingHttpRequestInitializer(
             Iterables.toArray(initBuilder.build(), HttpRequestInitializer.class));
