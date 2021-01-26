@@ -6455,6 +6455,7 @@ read and modified inside the DoFn&amp;rsquo;s &lt;code>@ProcessElement&lt;/code>
 registered, then Beam will automatically infer the coder for the state value. Otherwise, a coder can be explicitly
 specified when creating the ValueState. For example, the following ParDo creates a single state variable that
 accumulates the number of elements seen.&lt;/p>
+&lt;p>Note: &lt;code>ValueState&lt;/code> is called &lt;code>ReadModifyWriteState&lt;/code> in the Python SDK.&lt;/p>
 &lt;div class=language-java>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">KV&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">ValueT&lt;/span>&lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">perUser&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">readPerUser&lt;/span>&lt;span class="o">();&lt;/span>
 &lt;span class="n">perUser&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">ParDo&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="k">new&lt;/span> &lt;span class="n">DoFn&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">KV&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">ValueT&lt;/span>&lt;span class="o">&amp;gt;,&lt;/span> &lt;span class="n">OutputT&lt;/span>&lt;span class="o">&amp;gt;()&lt;/span> &lt;span class="o">{&lt;/span>
@@ -6476,6 +6477,16 @@ accumulates the number of elements seen.&lt;/p>
 &lt;span class="o">...&lt;/span>
 &lt;span class="o">}));&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
+&lt;div class=language-py>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="k">class&lt;/span> &lt;span class="nc">ReadModifyWriteStateDoFn&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;span class="n">STATE_SPEC&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">ReadModifyWriteStateSpec&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;num_elements&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">VarIntCoder&lt;/span>&lt;span class="p">())&lt;/span>
+&lt;span class="k">def&lt;/span> &lt;span class="nf">process&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">element&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">state&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">StateParam&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">STATE_SPEC&lt;/span>&lt;span class="p">)):&lt;/span>
+&lt;span class="c1"># Read the number element seen so far for this user key.&lt;/span>
+&lt;span class="n">current_value&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">state&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">read&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="ow">or&lt;/span> &lt;span class="mi">0&lt;/span>
+&lt;span class="n">state&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">write&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">current_value&lt;/span>&lt;span class="o">+&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="n">_&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">p&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Read per user&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">ReadPerUser&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;state pardo&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ParDo&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">ReadModifyWriteStateDoFn&lt;/span>&lt;span class="p">()))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
 &lt;h4 id="combiningstate">CombiningState&lt;/h4>
 &lt;p>&lt;code>CombiningState&lt;/code> allows you to create a state object that is updated using a Beam combiner. For example, the previous
 &lt;code>ValueState&lt;/code> example could be rewritten to use &lt;code>CombiningState&lt;/code>&lt;/p>
@@ -6489,10 +6500,10 @@ accumulates the number of elements seen.&lt;/p>
 &lt;span class="o">}&lt;/span>
 &lt;span class="o">}));&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
-&lt;div class=language-python>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="k">class&lt;/span> &lt;span class="nc">CombiningStateDoFn&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;div class=language-py>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="k">class&lt;/span> &lt;span class="nc">CombiningStateDoFn&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="p">):&lt;/span>
 &lt;span class="n">SUM_TOTAL&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">CombiningValueStateSpec&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;total&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nb">sum&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;span class="k">def&lt;/span> &lt;span class="nf">process&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">element&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">state&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">SoFn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">StateParam&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">SUM_TOTAL&lt;/span>&lt;span class="p">)):&lt;/span>
+&lt;span class="k">def&lt;/span> &lt;span class="nf">process&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">element&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">state&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">StateParam&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">SUM_TOTAL&lt;/span>&lt;span class="p">)):&lt;/span>
 &lt;span class="n">state&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">add&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">)&lt;/span>
 &lt;span class="n">_&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">p&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Read per user&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">ReadPerUser&lt;/span>&lt;span class="p">()&lt;/span>
 &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Combine state pardo&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ParDo&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">CombiningStateDofn&lt;/span>&lt;span class="p">()))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
@@ -6520,8 +6531,8 @@ bags larger than available memory.&lt;/p>
 &lt;span class="o">}&lt;/span>
 &lt;span class="o">}));&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
-&lt;div class=language-python>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="k">class&lt;/span> &lt;span class="nc">BagStateDoFn&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;div class=language-py>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="k">class&lt;/span> &lt;span class="nc">BagStateDoFn&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="p">):&lt;/span>
 &lt;span class="n">ALL_ELEMENTS&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">BagStateSpec&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;buffer&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">coders&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">VarIntCoder&lt;/span>&lt;span class="p">())&lt;/span>
 &lt;span class="k">def&lt;/span> &lt;span class="nf">process&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">element_pair&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">state&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">StateParam&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">ALL_ELEMENTS&lt;/span>&lt;span class="p">)):&lt;/span>
 &lt;span class="n">state&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">add&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">element_pair&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">])&lt;/span>
@@ -6552,6 +6563,9 @@ runner can prefetch all of the states necessary. For example:&lt;/p>
 &lt;span class="n">state3&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">read&lt;/span>&lt;span class="o">();&lt;/span>
 &lt;span class="o">}&lt;/span>
 &lt;span class="o">}));&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;div class=language-py>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="n">This&lt;/span> &lt;span class="ow">is&lt;/span> &lt;span class="ow">not&lt;/span> &lt;span class="n">supported&lt;/span> &lt;span class="n">yet&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">see&lt;/span> &lt;span class="n">BEAM&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="mf">11506.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;p>If however there are code paths in which the states are not fetched, then annotating with @AlwaysFetched will add
 unnecessary fetching for those paths. In this case, the readLater method allows the runner to know that the state will
@@ -6606,8 +6620,8 @@ allows for event-time aggregations.&lt;/p>
 &lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="o">}&lt;/span>
 &lt;span class="o">}));&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
-&lt;div class=language-python>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="k">class&lt;/span> &lt;span class="nc">EventTimerDoFn&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;div class=language-py>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="k">class&lt;/span> &lt;span class="nc">EventTimerDoFn&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="p">):&lt;/span>
 &lt;span class="n">ALL_ELEMENTS&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">BagStateSpec&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;buffer&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">coders&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">VarIntCoder&lt;/span>&lt;span class="p">())&lt;/span>
 &lt;span class="n">TIMER&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">TimerSpec&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;timer&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">TimeDomain&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">WATERMARK&lt;/span>&lt;span class="p">)&lt;/span>
 &lt;span class="k">def&lt;/span> &lt;span class="nf">process&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span>
@@ -6644,8 +6658,8 @@ to the current time. In Java, the &lt;code>Timer.offset&lt;/code> and &lt;code>T
 &lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="o">}&lt;/span>
 &lt;span class="o">}));&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
-&lt;div class=language-python>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="k">class&lt;/span> &lt;span class="nc">ProcessingTimerDoFn&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;div class=language-py>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="k">class&lt;/span> &lt;span class="nc">ProcessingTimerDoFn&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="p">):&lt;/span>
 &lt;span class="n">ALL_ELEMENTS&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">BagStateSpec&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;buffer&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">coders&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">VarIntCoder&lt;/span>&lt;span class="p">())&lt;/span>
 &lt;span class="n">TIMER&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">TimerSpec&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;timer&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">TimeDomain&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">REAL_TIME&lt;/span>&lt;span class="p">)&lt;/span>
 &lt;span class="k">def&lt;/span> &lt;span class="nf">process&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span>
@@ -6663,11 +6677,13 @@ to the current time. In Java, the &lt;code>Timer.offset&lt;/code> and &lt;code>T
 &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;ProcessingTime timer pardo&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ParDo&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">ProcessingTimerDoFn&lt;/span>&lt;span class="p">()))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;h4 id="dynamic-timer-tags">11.3.3. Dynamic timer tags&lt;/h4>
-&lt;p>Beam also supports dynamically setting a timer tag using &lt;code>TimerMap&lt;/code>. This allows for setting multiple different timers
+&lt;p>Beam also supports dynamically setting a timer tag using &lt;code>TimerMap&lt;/code> in the Java SDK. This allows for setting multiple different timers
 in a &lt;code>DoFn&lt;/code> and allowing for the timer tags to be dynamically chosen - e.g. based on data in the input elements. A
 timer with a specific tag can only be set to a single timestamp, so setting the timer again has the effect of
 overwriting the previous expiration time for the timer with that tag. Each &lt;code>TimerMap&lt;/code> is identified with a timer family
 id, and timers in different timer families are independent.&lt;/p>
+&lt;p>In the Python SDK, a dynamic timer tag can be specified while calling &lt;code>set()&lt;/code> or &lt;code>clear()&lt;/code>. By default, the timer
+tag is an empty string if not specified.&lt;/p>
 &lt;div class=language-java>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">KV&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">ValueT&lt;/span>&lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">perUser&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">readPerUser&lt;/span>&lt;span class="o">();&lt;/span>
 &lt;span class="n">perUser&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">ParDo&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="k">new&lt;/span> &lt;span class="n">DoFn&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">KV&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">ValueT&lt;/span>&lt;span class="o">&amp;gt;,&lt;/span> &lt;span class="n">OutputT&lt;/span>&lt;span class="o">&amp;gt;()&lt;/span> &lt;span class="o">{&lt;/span>
@@ -6684,8 +6700,28 @@ id, and timers in different timer families are independent.&lt;/p>
 &lt;span class="o">}&lt;/span>
 &lt;span class="o">}));&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
-&lt;div class=language-python>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="n">To&lt;/span> &lt;span class="n">be&lt;/span> &lt;span class="n">supported&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">See&lt;/span> &lt;span class="n">BEAM&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="mi">9602&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class=language-py>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="k">class&lt;/span> &lt;span class="nc">TimerDoFn&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;span class="n">ALL_ELEMENTS&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">BagStateSpec&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;buffer&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">coders&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">VarIntCoder&lt;/span>&lt;span class="p">())&lt;/span>
+&lt;span class="n">TIMER&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">TimerSpec&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;timer&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">TimeDomain&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">REAL_TIME&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="k">def&lt;/span> &lt;span class="nf">process&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">element_pair&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="nb">buffer&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">DoFn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">StateParam&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">ALL_ELEMENTS&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="n">timer&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">DoFn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">TimerParam&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">TIMER&lt;/span>&lt;span class="p">)):&lt;/span>
+&lt;span class="nb">buffer&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">add&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">element_pair&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">])&lt;/span>
+&lt;span class="c1"># Set a timer to go off 30 seconds in the future with dynamic timer tag &amp;#39;first_timer&amp;#39;.&lt;/span>
+&lt;span class="c1"># And set a timer to go off 60 seconds in the future with dynamic timer tag &amp;#39;second_timer&amp;#39;.&lt;/span>
+&lt;span class="n">timer&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">set&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">Timestamp&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">now&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">Duration&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">seconds&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">30&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="n">dynamic_timer_tag&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;first_timer&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="n">timer&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">set&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">Timestamp&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">now&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">Duration&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">seconds&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">60&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="n">dynamic_timer_tag&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;second_timer&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="c1"># Note that a timer can also be explicitly cleared if previously set with a dynamic timer tag:&lt;/span>
+&lt;span class="c1"># timer.clear(dynamic_timer_tag=...)&lt;/span>
+&lt;span class="nd">@on_timer&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">TIMER&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="k">def&lt;/span> &lt;span class="nf">expiry_callback&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nb">buffer&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">DoFn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">StateParam&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">ALL_ELEMENTS&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="n">timer_tag&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">DynamicTimerTagParam&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;span class="c1"># Process timer, the dynamic timer tag associated with expiring timer can be read back with DoFn.DynamicTimerTagParam.&lt;/span>
+&lt;span class="nb">buffer&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">clear&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;span class="k">yield&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">timer_tag&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s1">&amp;#39;fired&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="n">_&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">p&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Read per user&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">ReadPerUser&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;ProcessingTime timer pardo&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ParDo&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">TimerDoFn&lt;/span>&lt;span class="p">()))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;h4 id="timer-output-timestamps">11.3.4. Timer output timestamps&lt;/h4>
 &lt;p>By default, event-time timers will hold the output watermark of the &lt;code>ParDo&lt;/code> to the timestamp of the timer. This means
@@ -6778,6 +6814,9 @@ past the timestamp of the minimum element. The following code demonstrates this.
 &lt;span class="o">}&lt;/span>
 &lt;span class="o">}));&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
+&lt;div class=language-py>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="n">Timer&lt;/span> &lt;span class="n">output&lt;/span> &lt;span class="n">timestamps&lt;/span> &lt;span class="ow">is&lt;/span> &lt;span class="ow">not&lt;/span> &lt;span class="n">yet&lt;/span> &lt;span class="n">supported&lt;/span> &lt;span class="ow">in&lt;/span> &lt;span class="n">Python&lt;/span> &lt;span class="n">SDK&lt;/span>&lt;span class="o">.&lt;/span> &lt;span class="n">See&lt;/span> &lt;span class="n">BEAM&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="mf">11507.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
 &lt;h3 id="garbage-collecting-state">11.4. Garbage collecting state&lt;/h3>
 &lt;p>Per-key state needs to be garbage collected, or eventually the increasing size of state may negatively impact
 performance. There are two common strategies for garbage collecting state.&lt;/p>
@@ -6802,8 +6841,8 @@ garbage-collection strategy.&lt;/p>
 &lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="o">}&lt;/span>
 &lt;span class="o">}));&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
-&lt;div class=language-python>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="k">class&lt;/span> &lt;span class="nc">StateDoFn&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;div class=language-py>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="k">class&lt;/span> &lt;span class="nc">StateDoFn&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="p">):&lt;/span>
 &lt;span class="n">ALL_ELEMENTS&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">BagStateSpec&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;buffer&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">coders&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">VarIntCoder&lt;/span>&lt;span class="p">())&lt;/span>
 &lt;span class="k">def&lt;/span> &lt;span class="nf">process&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span>
 &lt;span class="n">element_pair&lt;/span>&lt;span class="p">,&lt;/span>
@@ -6851,8 +6890,8 @@ This can be done by updating a timer that garbage collects state. For example&lt
 &lt;span class="o">}&lt;/span>
 &lt;span class="o">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
-&lt;div class=language-python>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="k">class&lt;/span> &lt;span class="nc">UserDoFn&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;div class=language-py>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="k">class&lt;/span> &lt;span class="nc">UserDoFn&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="p">):&lt;/span>
 &lt;span class="n">ALL_ELEMENTS&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">BagStateSpec&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;state&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">coders&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">VarIntCoder&lt;/span>&lt;span class="p">())&lt;/span>
 &lt;span class="n">MAX_TIMESTAMP&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">CombiningValueStateSpec&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;max_timestamp_seen&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nb">max&lt;/span>&lt;span class="p">)&lt;/span>
 &lt;span class="n">TIMER&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">TimerSpec&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;gc-timer&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">TimeDomain&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">WATERMARK&lt;/span>&lt;span class="p">)&lt;/span>
@@ -6896,7 +6935,7 @@ event before the view event. The one hour join timeout should be based on event 
 &lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">KV&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">Event&lt;/span>&lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">eventsPerLinkId&lt;/span> &lt;span class="o">=&lt;/span>
 &lt;span class="n">readEvents&lt;/span>&lt;span class="o">()&lt;/span>
 &lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">WithKeys&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Event&lt;/span>&lt;span class="o">::&lt;/span>&lt;span class="n">getLinkId&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">withKeyType&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">TypeDescriptors&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">strings&lt;/span>&lt;span class="o">()));&lt;/span>
-&lt;span class="n">perUser&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">ParDo&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="k">new&lt;/span> &lt;span class="n">DoFn&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">KV&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">Event&lt;/span>&lt;span class="o">&amp;gt;,&lt;/span> &lt;span class="n">JoinedEvent&lt;/span>&lt;span class="o">&amp;gt;()&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="n">eventsPerLinkId&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">ParDo&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="k">new&lt;/span> &lt;span class="n">DoFn&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">KV&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">Event&lt;/span>&lt;span class="o">&amp;gt;,&lt;/span> &lt;span class="n">JoinedEvent&lt;/span>&lt;span class="o">&amp;gt;()&lt;/span> &lt;span class="o">{&lt;/span>
 &lt;span class="c1">// Store the view event.
 &lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="nd">@StateId&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;view&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="kd">private&lt;/span> &lt;span class="kd">final&lt;/span> &lt;span class="n">StateSpec&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">ValueState&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Event&lt;/span>&lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">viewState&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">StateSpecs&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">value&lt;/span>&lt;span class="o">();&lt;/span>
 &lt;span class="c1">// Store the click event.
@@ -6951,6 +6990,50 @@ event before the view event. The one hour join timeout should be based on event 
 &lt;span class="o">}&lt;/span>
 &lt;span class="o">}));&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
+&lt;div class=language-py>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="k">class&lt;/span> &lt;span class="nc">JoinDoFn&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;span class="c1"># stores the view event.&lt;/span>
+&lt;span class="n">VIEW_STATE_SPEC&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">ReadModifyWriteStateSpec&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;view&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">EventCoder&lt;/span>&lt;span class="p">())&lt;/span>
+&lt;span class="c1"># stores the click event.&lt;/span>
+&lt;span class="n">CLICK_STATE_SPEC&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">ReadModifyWriteStateSpec&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;click&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">EventCoder&lt;/span>&lt;span class="p">())&lt;/span>
+&lt;span class="c1"># The maximum element timestamp value seen so far.&lt;/span>
+&lt;span class="n">MAX_TIMESTAMP&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">CombiningValueStateSpec&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;max_timestamp_seen&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nb">max&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="c1"># Timer that fires when an hour goes by with an incomplete join.&lt;/span>
+&lt;span class="n">GC_TIMER&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">TimerSpec&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;gc&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">TimeDomain&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">WATERMARK&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="k">def&lt;/span> &lt;span class="nf">process&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">element&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">view&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">StateParam&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">VIEW_STATE_SPEC&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="n">click&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">StateParam&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">CLICK_STATE_SPEC&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="n">max_timestamp_seen&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">StateParam&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">MAX_TIMESTAMP&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="n">ts&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">TimestampParam&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">gc&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">TimerParam&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">GC_TIMER&lt;/span>&lt;span class="p">)):&lt;/span>
+&lt;span class="n">event&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">element&lt;/span>
+&lt;span class="k">if&lt;/span> &lt;span class="n">event&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">type&lt;/span> &lt;span class="o">==&lt;/span> &lt;span class="s1">&amp;#39;view&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;span class="n">view&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">write&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">event&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="k">else&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;span class="n">click&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">write&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">event&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="n">previous_view&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">view&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">read&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;span class="n">previous_click&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">click&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">read&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;span class="c1"># We&amp;#39;ve seen both a view and a click. Output a joined event and clear state.&lt;/span>
+&lt;span class="k">if&lt;/span> &lt;span class="n">previous_view&lt;/span> &lt;span class="ow">and&lt;/span> &lt;span class="n">previous_click&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;span class="k">yield&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">previous_view&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">previous_click&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="n">view&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">clear&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;span class="n">click&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">clear&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;span class="n">max_timestamp_seen&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">clear&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;span class="k">else&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;span class="n">max_timestamp_seen&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">add&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">ts&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="n">gc&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">set&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">max_timestamp_seen&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">read&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">Duration&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">seconds&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">3600&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;span class="nd">@on_timer&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">GC_TIMER&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="k">def&lt;/span> &lt;span class="nf">gc_callback&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">view&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">StateParam&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">VIEW_STATE_SPEC&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="n">click&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">StateParam&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">CLICK_STATE_SPEC&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="n">max_timestamp_seen&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">StateParam&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">MAX_TIMESTAMP&lt;/span>&lt;span class="p">)):&lt;/span>
+&lt;span class="n">view&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">clear&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;span class="n">click&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">clear&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;span class="n">max_timestamp_seen&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">clear&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;span class="n">_&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">p&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;EventsPerLinkId&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">ReadPerLinkEvents&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Join DoFn&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ParDo&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">JoinDoFn&lt;/span>&lt;span class="p">()))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
 &lt;h4 id="batching-rpcs">11.5.2. Batching RPCs&lt;/h4>
 &lt;p>In this example, input elements are being forwarded to an external RPC service. The RPC accepts batch requests -
 multiple events for the same user can be batched in a single RPC call. Since this RPC service also imposes rate limits,
@@ -6986,6 +7069,27 @@ we want to batch ten seconds worth of events together in order to reduce the num
 &lt;span class="n">isTimerSetState&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">clear&lt;/span>&lt;span class="o">();&lt;/span>
 &lt;span class="o">}&lt;/span>
 &lt;span class="o">}));&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;div class=language-py>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="k">class&lt;/span> &lt;span class="nc">BufferDoFn&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;span class="n">BUFFER&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">BagStateSpec&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;buffer&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">EventCoder&lt;/span>&lt;span class="p">())&lt;/span>
+&lt;span class="n">IS_TIMER_SET&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">ReadModifyWriteStateSpec&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;is_timer_set&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">BooleanCoder&lt;/span>&lt;span class="p">())&lt;/span>
+&lt;span class="n">OUTPUT&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">TimerSpec&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;output&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">TimeDomain&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">REAL_TIME&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="k">def&lt;/span> &lt;span class="nf">process&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="nb">buffer&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">StateParam&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">BUFFER&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="n">is_timer_set&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">StateParam&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">IS_TIMER_SET&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="n">timer&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">TimerParam&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">OUTPUT&lt;/span>&lt;span class="p">)):&lt;/span>
+&lt;span class="nb">buffer&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">add&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">element&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="k">if&lt;/span> &lt;span class="ow">not&lt;/span> &lt;span class="n">is_timer_set&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">read&lt;/span>&lt;span class="p">():&lt;/span>
+&lt;span class="n">timer&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">set&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">Timestamp&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">now&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">Duration&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">seconds&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">10&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;span class="n">is_timer_set&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">write&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">True&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="nd">@on_timer&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">OUTPUT&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="k">def&lt;/span> &lt;span class="nf">output_callback&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="nb">buffer&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">StateParam&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">BUFFER&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="n">is_timer_set&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">StateParam&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">IS_TIMER_SET&lt;/span>&lt;span class="p">)):&lt;/span>
+&lt;span class="n">send_rpc&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nb">list&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nb">buffer&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">read&lt;/span>&lt;span class="p">()))&lt;/span>
+&lt;span class="nb">buffer&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">clear&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;span class="n">is_timer_set&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">clear&lt;/span>&lt;span class="p">()&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;h2 id="splittable-dofns">12. Splittable &lt;code>DoFns&lt;/code>&lt;/h2>
 &lt;p>A Splittable &lt;code>DoFn&lt;/code> (SDF) enables users to create modular components containing I/Os (and some advanced
