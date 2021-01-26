@@ -45,7 +45,6 @@ class WatermarkManager(object):
       return 'PCollectionNode<producers=[%s]' % ([i for i in self.producers])
 
     def set_watermark(self, wm):
-      # print('setting watermark for %s to %s' % (self, wm))
       self._watermark = min(self.upstream_watermark(), wm)
 
     def upstream_watermark(self):

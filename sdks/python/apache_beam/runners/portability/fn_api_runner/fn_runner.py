@@ -413,10 +413,16 @@ class FnApiRunner(runner.PipelineRunner):
         runner_execution_context.state_servicer.restore()
 
   @staticmethod
-  def _collect_written_timers_and_add_to_fired_timers(
+  def _collect_written_timers(
       bundle_context_manager,  # type: execution.BundleContextManager
-      fired_timers  # type: Dict[Tuple[str, str], ListBuffer]
+      newly_set_timers  # type: Dict[Tuple[str, str], ListBuffer]
   ):
+    """Review output buffers, and collect written timers.
+
+    This function reviews a stage that has just been run. The stage will have
+    written timers to its output buffers. The function then takes the timers,
+    and adds them to the `newly_set_timers` dictionary.
+    """
     # type: (...) -> Dict[(str, str), timestamp.Timestamp]
     timer_watermark_data = {}
     for (transform_id, timer_family_id) in bundle_context_manager.stage.timers:
@@ -444,7 +450,7 @@ class FnApiRunner(runner.PipelineRunner):
                 decoded_timer.fire_timestamp)
         fired_timers[(transform_id, timer_family_id)] = ListBuffer(
             coder_impl=timer_coder_impl)
-        fired_timers[(transform_id, timer_family_id)].append(out.get())
+        newly_set_timers[(transform_id, timer_family_id)].append(out.get())
         written_timers.clear()
 
     return timer_watermark_data
@@ -457,7 +463,11 @@ class FnApiRunner(runner.PipelineRunner):
   ):
     # type: (...) -> Set[str]
 
-    """Returns a set of PCollections with delayed applications."""
+    """Returns a set of PCollection IDs of PColls having delayed applications.
+
+    This transform inspects the bundle_context_manager, and bundle_result
+    objects, and adds all deferred inputs to the deferred_inputs object.
+    """
     pcolls_with_delayed_apps = set()
     for delayed_application in bundle_result.process_bundle.residual_roots:
       name = bundle_context_manager.input_for(
@@ -467,10 +477,11 @@ class FnApiRunner(runner.PipelineRunner):
         deferred_inputs[name] = ListBuffer(
             coder_impl=bundle_context_manager.get_input_coder_impl(name))
       deferred_inputs[name].append(delayed_application.application.element)
+
+      transform = bundle_context_manager.process_bundle_descriptor.transforms[
+        delayed_application.application.transform_id]
       pcolls_with_delayed_apps.add(
-          bundle_context_manager.process_bundle_descriptor.transforms[
-              delayed_application.application.transform_id].inputs[
-                  delayed_application.application.input_id])
+          transform.inputs[delayed_application.application.input_id])
     return pcolls_with_delayed_apps
 
   def _add_residuals_and_channel_splits_to_deferred_inputs(
@@ -664,7 +675,7 @@ class FnApiRunner(runner.PipelineRunner):
     }  # type: Dict[Union[str, translations.TimerFamilyId], timestamp.Timestamp]
 
     def get_pcoll_id(transform_id):
-      buffer_id = runner_execution_context.transform_id_to_buffer_id[
+      buffer_id = runner_execution_context.input_transform_to_buffer_id[
           transform_id]
       # For IMPULSE-reading transforms, we use the transform name as buffer id.
       if buffer_id == translations.IMPULSE_BUFFER:
@@ -724,11 +735,10 @@ class FnApiRunner(runner.PipelineRunner):
     # - SDK-initiated deferred applications of root elements
     # - Runner-initiated deferred applications of root elements
     deferred_inputs = {}  # type: Dict[str, execution.PartitionableBuffer]
-    fired_timers = {}  # type: Dict[Tuple[str, str], ListBuffer]
+    newly_set_timers = {}  # type: Dict[Tuple[str, str], ListBuffer]
 
-    watermarks_by_transform_and_timer_family = (
-        self._collect_written_timers_and_add_to_fired_timers(
-            bundle_context_manager, fired_timers))
+    watermarks_by_transform_and_timer_family = self._collect_written_timers(
+        bundle_context_manager, newly_set_timers)
 
     sdk_pcolls_with_da = self._add_sdk_delayed_applications_to_deferred_inputs(
         bundle_context_manager, result, deferred_inputs)
@@ -747,7 +757,7 @@ class FnApiRunner(runner.PipelineRunner):
 
     # After collecting deferred inputs, we 'pad' the structure with empty
     # buffers for other expected inputs.
-    if deferred_inputs or fired_timers:
+    if deferred_inputs or newly_set_timers:
       # The worker will be waiting on these inputs as well.
       for other_input in data_input:
         if other_input not in deferred_inputs:
@@ -755,7 +765,7 @@ class FnApiRunner(runner.PipelineRunner):
               coder_impl=bundle_context_manager.get_input_coder_impl(
                   other_input))
 
-    return result, deferred_inputs, fired_timers, watermark_updates
+    return result, deferred_inputs, newly_set_timers, watermark_updates
 
   @staticmethod
   def get_cache_token_generator(static=True):

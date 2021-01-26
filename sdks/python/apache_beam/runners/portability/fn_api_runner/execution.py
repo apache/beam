@@ -372,7 +372,7 @@ class FnApiRunnerExecutionContext(object):
     self.safe_coders = safe_coders
     self.data_channel_coders = data_channel_coders
 
-    self.transform_id_to_buffer_id = {
+    self.input_transform_to_buffer_id = {
         t.unique_name: t.spec.payload
         for s in stages for t in s.transforms
         if t.spec.urn == bundle_processor.DATA_INPUT_URN
