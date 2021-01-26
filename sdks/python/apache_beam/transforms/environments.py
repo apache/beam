@@ -693,8 +693,7 @@ class SubprocessSDKEnvironment(Environment):
   def from_command_string(cls, command_string):
     return cls(
         command_string,
-        capabilities=python_sdk_capabilities(),
-        artifacts=python_sdk_dependencies(options))
+        capabilities=python_sdk_capabilities())
 
 
 class RunnerAPIEnvironmentHolder(Environment):
