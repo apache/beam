@@ -116,7 +116,8 @@ class FnApiRunner(runner.PipelineRunner):
     """
     super(FnApiRunner, self).__init__()
     self._default_environment = (
-        default_environment or environments.EmbeddedPythonEnvironment())
+        default_environment or
+        environments.EmbeddedPythonEnvironment.create_default())
     self._bundle_repeat = bundle_repeat
     self._num_workers = 1
     self._progress_frequency = progress_request_frequency
@@ -169,12 +170,13 @@ class FnApiRunner(runner.PipelineRunner):
     running_mode = \
       options.view_as(pipeline_options.DirectOptions).direct_running_mode
     if running_mode == 'multi_threading':
-      self._default_environment = environments.EmbeddedPythonGrpcEnvironment()
+      self._default_environment = environments.EmbeddedPythonGrpcEnvironment.create_default(
+      )
     elif running_mode == 'multi_processing':
       command_string = '%s -m apache_beam.runners.worker.sdk_worker_main' \
                     % sys.executable
-      self._default_environment = environments.SubprocessSDKEnvironment(
-          command_string=command_string)
+      self._default_environment = environments.SubprocessSDKEnvironment.from_command_string(
+          command_string)
 
     self._profiler_factory = Profile.factory_from_options(
         options.view_as(pipeline_options.ProfilingOptions))
@@ -306,8 +308,9 @@ class FnApiRunner(runner.PipelineRunner):
       options  # type: pipeline_options.PipelineOptions
   ):
     # type: (...) -> Tuple[translations.TransformContext, List[translations.Stage]]
-    pre_optimize = options.view_as(pipeline_options.DebugOptions).lookup_experiment(
-        'pre_optimize', 'default').lower()
+    pre_optimize = options.view_as(
+        pipeline_options.DebugOptions).lookup_experiment(
+            'pre_optimize', 'default').lower()
     if (not options.view_as(pipeline_options.StandardOptions).streaming and
         pre_optimize != 'none'):
       if pre_optimize == 'default':
@@ -343,7 +346,6 @@ class FnApiRunner(runner.PipelineRunner):
             translations.setup_timer_mapping,
             translations.populate_data_channel_coders,
         ]
-    print('[debug:yifanmai] pre_optimize: %s' % pre_optimize)
     return translations.create_and_optimize_stages(
         copy.deepcopy(pipeline_proto),
         phases=phases,

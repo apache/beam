@@ -535,6 +535,11 @@ class EmbeddedPythonEnvironment(Environment):
         capabilities=python_sdk_capabilities(),
         artifacts=python_sdk_dependencies(options))
 
+  @classmethod
+  def create_default(cls):
+    # type: () -> EmbeddedPythonEnvironment
+    return cls(capabilities=python_sdk_capabilities())
+
 
 @Environment.register_urn(python_urns.EMBEDDED_PYTHON_GRPC, bytes)
 class EmbeddedPythonGrpcEnvironment(Environment):
@@ -629,6 +634,11 @@ class EmbeddedPythonGrpcEnvironment(Environment):
     else:
       return {'state_cache_size': int(s)}
 
+  @classmethod
+  def create_default(cls):
+    # type: () -> EmbeddedPythonGrpcEnvironment
+    return cls(capabilities=python_sdk_capabilities())
+
 
 @Environment.register_urn(python_urns.SUBPROCESS_SDK, bytes)
 class SubprocessSDKEnvironment(Environment):
@@ -676,6 +686,13 @@ class SubprocessSDKEnvironment(Environment):
     # type: (PortableOptions) -> SubprocessSDKEnvironment
     return cls(
         options.environment_config,
+        capabilities=python_sdk_capabilities(),
+        artifacts=python_sdk_dependencies(options))
+
+  @classmethod
+  def from_command_string(cls, command_string):
+    return cls(
+        command_string,
         capabilities=python_sdk_capabilities(),
         artifacts=python_sdk_dependencies(options))
 

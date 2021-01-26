@@ -1003,12 +1003,11 @@ class FnApiRunnerTest(unittest.TestCase):
     res = p.run()
     res.wait_until_finish()
 
-
     unpacked_min_step_name = 'PackableMin/CombinePerKey/Precombine'
     unpacked_max_step_name = 'PackableMax/CombinePerKey/Precombine'
-    
+
     all_monitoring_metrics = res.monitoring_metrics().query()
-    
+
     step_names_from_counters = set(
         m.key.step for m in all_monitoring_metrics['counters'])
     if expect_packed:
@@ -1017,7 +1016,7 @@ class FnApiRunnerTest(unittest.TestCase):
     else:
       self.assertIn(unpacked_min_step_name, step_names_from_counters)
       self.assertIn(unpacked_max_step_name, step_names_from_counters)
-    
+
   def test_pack_combiners_disabled_by_default(self):
     pipeline_options = PipelineOptions()
     self._test_pack_combiners(pipeline_options, expect_packed=False)
