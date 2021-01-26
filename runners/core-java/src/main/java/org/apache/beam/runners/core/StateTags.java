@@ -239,6 +239,12 @@ public class StateTags {
         StateSpecs.convertToBagSpecInternal(combiningTag.getSpec()));
   }
 
+  public static <KeyT> StateTag<MapState<KeyT, Boolean>> convertToMapTagInternal(
+      StateTag<SetState<KeyT>> setTag) {
+    return new SimpleStateTag<>(
+        new StructuredId(setTag.getId()), StateSpecs.convertToMapSpecInternal(setTag.getSpec()));
+  }
+
   private static class StructuredId implements Serializable {
     private final StateKind kind;
     private final String rawId;

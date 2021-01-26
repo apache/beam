@@ -173,10 +173,8 @@ class WindmillStateInternals<K> implements StateInternals {
 
         @Override
         public <T> SetState<T> bindSet(StateTag<SetState<T>> spec, Coder<T> elemCoder) {
-          WindmillSet<T> result = (WindmillSet<T>) cache.get(namespace, spec);
-          if (result == null) {
-            result = new WindmillSet<T>(namespace, spec, stateFamily, elemCoder, isNewKey);
-          }
+          WindmillSet<T> result =
+              new WindmillSet<T>(namespace, spec, stateFamily, elemCoder, cache, isNewKey);
           result.initializeForWorkItem(reader, scopedReadStateSupplier);
           return result;
         }
@@ -1095,12 +1093,25 @@ class WindmillStateInternals<K> implements StateInternals {
 
     WindmillSet(
         StateNamespace namespace,
-        StateTag<SetState<K>> spec,
+        StateTag<SetState<K>> address,
         String stateFamily,
         Coder<K> keyCoder,
+        WindmillStateCache.ForKey cache,
         boolean isNewKey) {
+      StateTag<MapState<K, Boolean>> internalMapAddress =
+          StateTags.convertToMapTagInternal(address);
+      WindmillMap<K, Boolean> cachedMap =
+          (WindmillMap<K, Boolean>) cache.get(namespace, internalMapAddress);
       this.windmillMap =
-          new WindmillMap<>(namespace, spec, stateFamily, keyCoder, BooleanCoder.of(), isNewKey);
+          (cachedMap != null)
+              ? cachedMap
+              : new WindmillMap<>(
+                  namespace,
+                  internalMapAddress,
+                  stateFamily,
+                  keyCoder,
+                  BooleanCoder.of(),
+                  isNewKey);
     }
 
     @Override
@@ -1183,7 +1194,7 @@ class WindmillStateInternals<K> implements StateInternals {
 
   static class WindmillMap<K, V> extends SimpleWindmillState implements MapState<K, V> {
     private final StateNamespace namespace;
-    private final StateTag<?> address;
+    private final StateTag<MapState<K, V>> address;
     private final ByteString stateKeyPrefix;
     private final String stateFamily;
     private final Coder<K> keyCoder;
@@ -1202,7 +1213,7 @@ class WindmillStateInternals<K> implements StateInternals {
 
     WindmillMap(
         StateNamespace namespace,
-        StateTag<?> address,
+        StateTag<MapState<K, V>> address,
         String stateFamily,
         Coder<K> keyCoder,
         Coder<V> valueCoder,
@@ -1308,6 +1319,14 @@ class WindmillStateInternals<K> implements StateInternals {
         public @Nullable V read() {
           Future<V> persistedData = getFutureForKey(key);
           try (Closeable scope = scopedReadState()) {
+            if (localRemovals.contains(key) || negativeCache.contains(key)) {
+              return null;
+            }
+            @Nullable V cachedValue = cachedValues.get(key);
+            if (cachedValue != null || complete) {
+              return cachedValue;
+            }
+
             V persistedValue = persistedData.get();
             if (persistedValue == null) {
               negativeCache.add(key);
@@ -1442,8 +1461,7 @@ class WindmillStateInternals<K> implements StateInternals {
     public ReadableState<Boolean> isEmpty() {
       return new ReadableState<Boolean>() {
         // TODO(reuvenlax): Can we find a more efficient way of implementing isEmpty than reading
-        // the
-        // entire map?
+        // the entire map?
         ReadableState<Iterable<K>> keys = WindmillMap.this.keys();
 
         @Override
@@ -1477,6 +1495,14 @@ class WindmillStateInternals<K> implements StateInternals {
         public @Nullable V read() {
           Future<V> persistedData = getFutureForKey(key);
           try (Closeable scope = scopedReadState()) {
+            if (localRemovals.contains(key) || negativeCache.contains(key)) {
+              return null;
+            }
+            @Nullable V cachedValue = cachedValues.get(key);
+            if (cachedValue != null || complete) {
+              return cachedValue;
+            }
+
             V persistedValue = persistedData.get();
             if (persistedValue == null) {
               // This is a new value. Add it to the map and return null.
@@ -1522,13 +1548,6 @@ class WindmillStateInternals<K> implements StateInternals {
     }
 
     private Future<V> getFutureForKey(K key) {
-      if (localRemovals.contains(key) || negativeCache.contains(key)) {
-        return Futures.immediateFuture(null);
-      }
-      @Nullable V cachedValue = cachedValues.get(key);
-      if (cachedValue != null || complete) {
-        return Futures.immediateFuture(cachedValue);
-      }
       try {
         ByteString.Output keyStream = ByteString.newOutput();
         stateKeyPrefix.writeTo(keyStream);

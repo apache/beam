@@ -169,7 +169,7 @@ public class WindmillStateCache implements StatusDataProvider {
     // will fail. This is ok as we only put entries when we are building the commit and will no
     // longer be performing gets for the same work token.
     public <T extends State> void put(
-        StateNamespace namespace, StateTag<?> address, T value, long weight) {
+        StateNamespace namespace, StateTag<T> address, T value, long weight) {
       WindmillStateCache.this.put(
           computationKey, stateFamily, cacheToken, workToken, namespace, address, value, weight);
     }
@@ -209,7 +209,7 @@ public class WindmillStateCache implements StatusDataProvider {
       long cacheToken,
       long workToken,
       StateNamespace namespace,
-      StateTag<?> address,
+      StateTag<T> address,
       T value,
       long weight) {
     StateId id = new StateId(computationKey, stateFamily, namespace);
@@ -300,7 +300,7 @@ public class WindmillStateCache implements StatusDataProvider {
     }
 
     public <T extends State> long put(
-        StateNamespace namespace, StateTag<?> tag, T value, long weight) {
+        StateNamespace namespace, StateTag<T> tag, T value, long weight) {
       @SuppressWarnings("unchecked")
       WeightedValue<T> weightedValue =
           (WeightedValue<T>) values.get(new NamespacedTag<>(namespace, tag));
