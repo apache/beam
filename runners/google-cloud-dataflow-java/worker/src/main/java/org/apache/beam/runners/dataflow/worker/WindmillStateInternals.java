@@ -1182,6 +1182,8 @@ class WindmillStateInternals<K> implements StateInternals {
   }
 
   static class WindmillMap<K, V> extends SimpleWindmillState implements MapState<K, V> {
+    private final StateNamespace namespace;
+    private final StateTag<?> address;
     private final ByteString stateKeyPrefix;
     private final String stateFamily;
     private final Coder<K> keyCoder;
@@ -1200,12 +1202,14 @@ class WindmillStateInternals<K> implements StateInternals {
 
     WindmillMap(
         StateNamespace namespace,
-        StateTag<?> spec,
+        StateTag<?> address,
         String stateFamily,
         Coder<K> keyCoder,
         Coder<V> valueCoder,
         boolean isNewKey) {
-      this.stateKeyPrefix = encodeKey(namespace, spec);
+      this.namespace = namespace;
+      this.address = address;
+      this.stateKeyPrefix = encodeKey(namespace, address);
       this.stateFamily = stateFamily;
       this.keyCoder = keyCoder;
       this.valueCoder = valueCoder;
@@ -1287,6 +1291,7 @@ class WindmillStateInternals<K> implements StateInternals {
       // of the map, and to do so efficiently (i.e. without iterating over the entire map on every
       // persist)
       // we need to track the sizes of each map entry.
+      cache.put(namespace, address, this, 1);
       return commitBuilder.buildPartial();
     }
 
