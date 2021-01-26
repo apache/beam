@@ -874,6 +874,9 @@ def pack_combiners(stages, context):
   # Partition stages by whether they are eligible for CombinePerKey packing
   # and group eligible CombinePerKey stages by parent and environment.
   def get_stage_key(stage):
+    if stage.environment is not None:
+      print('[debug:yifanmai] stage %s' % context.components.environments[
+            stage.environment].capabilities)
     if (len(stage.transforms) == 1 and stage.environment is not None and
         python_urns.PACKED_COMBINE_FN in context.components.environments[
             stage.environment].capabilities):

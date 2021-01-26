@@ -285,12 +285,10 @@ class DockerEnvironment(Environment):
           options)
       return cls.from_container_image(
           container_image=prebuilt_container_image,
-          capabilities=python_sdk_capabilities(),
           artifacts=python_sdk_dependencies(options))
     return cls.from_container_image(
         container_image=options.lookup_environment_option(
             'docker_container_image') or options.environment_config,
-        capabilities=python_sdk_capabilities(),
         artifacts=python_sdk_dependencies(options))
 
   @classmethod
