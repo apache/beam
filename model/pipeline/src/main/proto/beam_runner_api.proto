@@ -310,10 +310,10 @@ message StandardPTransforms {
 
     // A transform that translates a given element to its human-readable
     // representation.
-    // 
+    //
     // Input: KV<nonce, element>
     // Output: KV<nonce, string>
-    // 
+    //
     // For each given element, the implementation returns the best-effort
     // human-readable representation. When possible, the implementation could
     // call a user-overridable method on the type. For example, Java could
@@ -961,13 +961,13 @@ message StandardCoders {
     //     values.
     //   - For present values the null indicator is followed by the value
     //     encoded with it's corresponding coder.
-    // 
+    //
     // Well known logical types:
     //   beam:logical_type:micros_instant:v1
     //   - Representation type: ROW<seconds: INT64, micros: INT64>
     //   - A timestamp without a timezone where seconds + micros represents the
     //     amount of time since the epoch.
-    // 
+    //
     // The payload for RowCoder is an instance of Schema.
     // Components: None
     // Experimental.
@@ -1495,6 +1495,13 @@ message StandardProtocols {
     // simply indicates this SDK can actually parallelize the work across multiple
     // cores.
     MULTI_CORE_BUNDLE_PROCESSING = 3 [(beam_urn) = "beam:protocol:multi_core_bundle_processing:v1"];
+
+    // Indicates that this SDK handles the InstructionRequest of type
+    // HarnessMonitoringInfosRequest.
+    // A request to provide full MonitoringInfo data associated with
+    // the entire SDK harness process, not specific to a bundle.
+    HARNESS_MONITORING_INFOS = 4
+        [(beam_urn) = "beam:protocol:harness_monitoring_infos:v1"];
   }
 }
 
