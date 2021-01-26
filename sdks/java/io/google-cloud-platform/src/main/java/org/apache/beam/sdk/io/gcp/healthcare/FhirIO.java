@@ -1558,9 +1558,7 @@ public class FhirIO {
       }
 
       /** DoFn for searching messages from the Fhir store with error handling. */
-      static class SearchResourcesFn extends DoFn<KV<String, Map<String, String>>, JsonArray> {
-
-      class SearchResourcesFn extends DoFn<FhirSearchParameter<T>, KV<String, JsonArray>> {
+      class SearchResourcesFn extends DoFn<KV<String, Map<String, String>>, KV<String, JsonArray>> {
 
         private final Counter searchResourceErrors =
             Metrics.counter(
