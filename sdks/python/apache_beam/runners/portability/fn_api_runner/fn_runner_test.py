@@ -988,31 +988,39 @@ class FnApiRunnerTest(unittest.TestCase):
       assert_that(p | beam.Create(['a', 'b']), equal_to(['a', 'b']))
 
   def _test_pack_combiners(self, optimize):
+    counter = beam.metrics.Metrics.counter('ns', 'num_values')
+    
+    def min_with_counter(values):
+      counter.inc()
+      return min(values)
+
+    def max_with_counter(values):
+      counter.inc()
+      return max(values)
+
     with self.create_pipeline() as p:
       if optimize:
         p._options.view_as(DebugOptions).add_experiment('pre_optimize=all')
       pcoll = p | beam.Create([10, 20, 30])
       assert_that(
-          pcoll | 'PackableMin' >> beam.CombineGlobally(min),
+          pcoll | 'PackableMin' >> beam.CombineGlobally(min_with_counter),
           equal_to([10]),
           label='AssertMin')
       assert_that(
-          pcoll | 'PackableMax' >> beam.CombineGlobally(max),
+          pcoll | 'PackableMax' >> beam.CombineGlobally(max_with_counter),
           equal_to([30]),
           label='AssertMax')
 
     res = p.run()
     res.wait_until_finish()
 
-    unpacked_min_step_name = 'PackableMin/CombinePerKey/Precombine'
-    unpacked_max_step_name = 'PackableMax/CombinePerKey/Precombine'
+    unpacked_min_step_name = 'PackableMin/CombinePerKey/ExtractOutputs'
+    unpacked_max_step_name = 'PackableMax/CombinePerKey/ExtractOutputs'
     packed_step_name = (
-      'Packed[PackableMin/CombinePerKey, PackableMax/CombinePerKey]/Pack/Precombine')
+      'Packed[PackableMin/CombinePerKey, PackableMax/CombinePerKey]/Pack/ExtractOutputs')
 
-    all_monitoring_metrics = res.monitoring_metrics().query()
-
-    step_names_from_counters = set(
-        m.key.step for m in all_monitoring_metrics['counters'])
+    counters = res.metrics().query(beam.metrics.MetricsFilter())['counters']
+    step_names_from_counters = set(m.key.step for m in counters)
     if optimize:
       self.assertNotIn(unpacked_min_step_name, step_names_from_counters)
       self.assertNotIn(unpacked_max_step_name, step_names_from_counters)
