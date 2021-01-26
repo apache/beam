@@ -530,17 +530,8 @@ task googleCloudPlatformRunnerV2IntegrationTest(type: Test) {
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson(runnerV2PipelineOptions)
 
   include '**/*IT.class'
-  exclude '**/BigQueryIOReadIT.class'
-  exclude '**/BigQueryIOStorageQueryIT.class'
-  exclude '**/BigQueryIOStorageReadIT.class'
   exclude '**/BigQueryIOStorageReadTableRowIT.class'
-  exclude '**/PubsubReadIT.class'
-  exclude '**/SpannerReadIT.class'
-  exclude '**/BigtableReadIT.class'
-  exclude '**/V1ReadIT.class'
   exclude '**/SpannerWriteIT.class'
-  exclude '**/BigQueryNestedRecordsIT.class'
-  exclude '**/SplitQueryFnIT.class'
   exclude '**/*KmsKeyIT.class'
 
   maxParallelForks 4
