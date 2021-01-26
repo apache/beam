@@ -25,6 +25,8 @@ import math
 import sys
 import unittest
 from builtins import range
+from typing import Any
+from typing import List
 
 import pytest
 
@@ -62,6 +64,34 @@ class CodersTest(unittest.TestCase):
 
   # These class methods ensure that we test each defined coder in both
   # nested and unnested context.
+
+  # Common test values representing Python's built-in types.
+  test_values_deterministic: List[Any] = [
+      None,
+      1,
+      -1,
+      1.5,
+      b'str\0str',
+      u'unicode\0\u0101',
+      (),
+      (1, 2, 3),
+      [],
+      [1, 2, 3],
+      True,
+      False,
+  ]
+  test_values = test_values_deterministic + [
+      dict(),
+      {
+          'a': 'b'
+      },
+      {
+          0: dict(), 1: len
+      },
+      set(),
+      {'a', 'b'},
+      len,
+  ]
 
   @classmethod
   def setUpClass(cls):
@@ -129,12 +159,20 @@ class CodersTest(unittest.TestCase):
         (-10, b'b'), (5, b'c'))
 
   def test_pickle_coder(self):
-    self.check_coder(coders.PickleCoder(), 'a', 1, 1.5, (1, 2, 3))
+    coder = coders.PickleCoder()
+    self.check_coder(coder, *self.test_values)
 
   def test_deterministic_coder(self):
     coder = coders.FastPrimitivesCoder()
     deterministic_coder = coders.DeterministicFastPrimitivesCoder(coder, 'step')
-    self.check_coder(deterministic_coder, 'a', 1, 1.5, (1, 2, 3))
+    self.check_coder(deterministic_coder, *self.test_values_deterministic)
+    for v in self.test_values_deterministic:
+      self.check_coder(coders.TupleCoder((deterministic_coder, )), (v, ))
+    self.check_coder(
+        coders.TupleCoder(
+            (deterministic_coder, ) * len(self.test_values_deterministic)),
+        tuple(self.test_values_deterministic))
+
     with self.assertRaises(TypeError):
       self.check_coder(deterministic_coder, dict())
     with self.assertRaises(TypeError):
@@ -153,14 +191,9 @@ class CodersTest(unittest.TestCase):
 
   def test_fast_primitives_coder(self):
     coder = coders.FastPrimitivesCoder(coders.SingletonCoder(len))
-    self.check_coder(coder, None, 1, -1, 1.5, b'str\0str', u'unicode\0\u0101')
-    self.check_coder(coder, (), (1, 2, 3))
-    self.check_coder(coder, [], [1, 2, 3])
-    self.check_coder(coder, dict(), {'a': 'b'}, {0: dict(), 1: len})
-    self.check_coder(coder, set(), {'a', 'b'})
-    self.check_coder(coder, True, False)
-    self.check_coder(coder, len)
-    self.check_coder(coders.TupleCoder((coder, )), ('a', ), (1, ))
+    self.check_coder(coder, *self.test_values)
+    for v in self.test_values:
+      self.check_coder(coders.TupleCoder((coder, )), (v, ))
 
   def test_fast_primitives_coder_large_int(self):
     coder = coders.FastPrimitivesCoder()
