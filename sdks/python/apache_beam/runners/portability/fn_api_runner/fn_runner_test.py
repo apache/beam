@@ -987,44 +987,46 @@ class FnApiRunnerTest(unittest.TestCase):
     with self.create_pipeline() as p:
       assert_that(p | beam.Create(['a', 'b']), equal_to(['a', 'b']))
 
-  def _test_pack_combiners(self, pipeline_options, expect_packed):
-    p = beam.Pipeline(
-        runner=fn_api_runner.FnApiRunner(), options=pipeline_options)
+  def _test_pack_combiners(self, optimize):
+    with self.create_pipeline() as p:
+      if optimize:
+        p._options.view_as(DebugOptions).add_experiment('pre_optimize=all')
+      pcoll = p | beam.Create([10, 20, 30])
+      assert_that(
+          pcoll | 'PackableMin' >> beam.CombineGlobally(min),
+          equal_to([10]),
+          label='AssertMin')
+      assert_that(
+          pcoll | 'PackableMax' >> beam.CombineGlobally(max),
+          equal_to([30]),
+          label='AssertMax')
 
-    pcoll = p | beam.Create([10, 20, 30])
-    assert_that(
-        pcoll | 'PackableMin' >> beam.CombineGlobally(min),
-        equal_to([10]),
-        label='AssertMin')
-    assert_that(
-        pcoll | 'PackableMax' >> beam.CombineGlobally(max),
-        equal_to([30]),
-        label='AssertMax')
     res = p.run()
     res.wait_until_finish()
 
     unpacked_min_step_name = 'PackableMin/CombinePerKey/Precombine'
     unpacked_max_step_name = 'PackableMax/CombinePerKey/Precombine'
+    packed_step_name = (
+      'Packed[PackableMin/CombinePerKey, PackableMax/CombinePerKey]/Pack/Precombine')
 
     all_monitoring_metrics = res.monitoring_metrics().query()
 
     step_names_from_counters = set(
         m.key.step for m in all_monitoring_metrics['counters'])
-    if expect_packed:
+    if optimize:
       self.assertNotIn(unpacked_min_step_name, step_names_from_counters)
       self.assertNotIn(unpacked_max_step_name, step_names_from_counters)
+      self.assertIn(packed_step_name, step_names_from_counters)
     else:
       self.assertIn(unpacked_min_step_name, step_names_from_counters)
       self.assertIn(unpacked_max_step_name, step_names_from_counters)
+      self.assertNotIn(packed_step_name, step_names_from_counters)
 
   def test_pack_combiners_disabled_by_default(self):
-    pipeline_options = PipelineOptions()
-    self._test_pack_combiners(pipeline_options, expect_packed=False)
+    self._test_pack_combiners(optimize=False)
 
   def test_pack_combiners_enabled_by_experiment(self):
-    pipeline_options = PipelineOptions()
-    pipeline_options.view_as(DebugOptions).add_experiment('pre_optimize=all')
-    self._test_pack_combiners(pipeline_options, expect_packed=True)
+    self._test_pack_combiners(optimize=True)
 
 
 # These tests are kept in a separate group so that they are

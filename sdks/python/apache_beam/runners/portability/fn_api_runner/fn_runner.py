@@ -188,7 +188,7 @@ class FnApiRunner(runner.PipelineRunner):
 
   def run_via_runner_api(self,
                          pipeline_proto,  # type: beam_runner_api_pb2.Pipeline
-                         options  # type: pipeline_options.PipelineOptions
+                         options=None  # type: Optional[pipeline_options.PipelineOptions]
                         ):
     # type: (...) -> RunnerResult
     self._validate_requirements(pipeline_proto)
@@ -305,16 +305,10 @@ class FnApiRunner(runner.PipelineRunner):
   def create_stages(
       self,
       pipeline_proto,  # type: beam_runner_api_pb2.Pipeline
-      options  # type: pipeline_options.PipelineOptions
+      options=None  # type: Optional[pipeline_options.PipelineOptions]
   ):
     # type: (...) -> Tuple[translations.TransformContext, List[translations.Stage]]
-    pre_optimize = options.view_as(
-        pipeline_options.DebugOptions).lookup_experiment(
-            'pre_optimize', 'default').lower()
-    if (not options.view_as(pipeline_options.StandardOptions).streaming and
-        pre_optimize != 'none'):
-      if pre_optimize == 'default':
-        phases = [
+    phases = [
             translations.annotate_downstream_side_inputs,
             translations.fix_side_input_pcoll_coders,
             translations.eliminate_common_key_with_none,
@@ -328,8 +322,13 @@ class FnApiRunner(runner.PipelineRunner):
             translations.sort_stages,
             translations.setup_timer_mapping,
             translations.populate_data_channel_coders,
-        ]
-      elif pre_optimize == 'all':
+    ]
+    if options is not None:
+      pre_optimize = options.view_as(
+          pipeline_options.DebugOptions).lookup_experiment(
+              'pre_optimize', 'default').lower()
+      if (not options.view_as(pipeline_options.StandardOptions).streaming and
+          pre_optimize == 'all'):
         phases = [
             translations.annotate_downstream_side_inputs,
             translations.fix_side_input_pcoll_coders,
