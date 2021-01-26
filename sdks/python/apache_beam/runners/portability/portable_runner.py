@@ -345,7 +345,7 @@ class PortableRunner(runner.PipelineRunner):
             translations.annotate_stateful_dofns_as_roots,
             translations.fix_side_input_pcoll_coders,
             translations.eliminate_common_key_with_none,
-            translations.pack_combiners,
+            # translations.pack_combiners,
             translations.lift_combiners,
             translations.expand_sdf,
             translations.fix_flatten_coders,
