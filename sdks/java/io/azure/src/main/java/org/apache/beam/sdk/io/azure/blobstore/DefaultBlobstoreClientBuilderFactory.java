@@ -37,8 +37,12 @@ public class DefaultBlobstoreClientBuilderFactory implements BlobstoreClientBuil
       builder = builder.connectionString(blobstoreOptions.getAzureConnectionString());
     }
 
-    if (blobstoreOptions.getAzureCredentialsProvider() != null) {
-      builder = builder.credential(blobstoreOptions.getAzureCredentialsProvider());
+    if (blobstoreOptions.getSharedKeyCredential() != null) {
+      builder = builder.credential(blobstoreOptions.getSharedKeyCredential());
+    }
+
+    if (blobstoreOptions.getTokenCredential() != null) {
+      builder = builder.credential(blobstoreOptions.getTokenCredential());
     }
 
     if (!Strings.isNullOrEmpty(blobstoreOptions.getSasToken())) {
