@@ -307,6 +307,15 @@ task typescriptPreCommit() {
   dependsOn ":sdks:python:test-suites:tox:py38:jest"
 }
 
+task pushAllDockerImages() {
+  dependsOn ":runners:spark:job-server:container:dockerPush"
+  dependsOn ":sdks:java:container:pushAll"
+  dependsOn ":sdks:python:container:pushAll"
+  for (version in project.ext.allFlinkVersions) {
+    dependsOn ":runners:flink:${version}:job-server-container:dockerPush"
+  }
+}
+
 // Configure the release plugin to do only local work; the release manager determines what, if
 // anything, to push. On failure, the release manager can reset the branch without pushing.
 release {
