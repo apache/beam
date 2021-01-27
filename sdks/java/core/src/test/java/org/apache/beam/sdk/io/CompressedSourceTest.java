@@ -256,10 +256,12 @@ public class CompressedSourceTest {
   public void testSnappySplittable() throws Exception {
     CompressedSource<Byte> source;
 
-    source = CompressedSource.from(new ByteSource("input.snappy", 1))
+    source =
+        CompressedSource.from(new ByteSource("input.snappy", 1))
             .withDecompression(CompressionMode.SNAPPY);
     assertFalse(source.isSplittable());
-    source = CompressedSource.from(new ByteSource("input.snappy", 1))
+    source =
+        CompressedSource.from(new ByteSource("input.snappy", 1))
             .withCompression(Compression.SNAPPY);
     assertFalse(source.isSplittable());
   }
@@ -431,8 +433,8 @@ public class CompressedSourceTest {
   }
 
   /**
-   * Test that a concatenation of snappy files is not correctly decompressed. The current behaviour of the
-   * decompressor returns the contents of the first file only.
+   * Test that a concatenation of snappy files is not correctly decompressed. The current behaviour
+   * of the decompressor returns the contents of the first file only.
    */
   @Test
   public void testFalseReadConcatenatedSnappy() throws IOException {
@@ -447,8 +449,8 @@ public class CompressedSourceTest {
     }
 
     CompressedSource<Byte> source =
-            CompressedSource.from(new ByteSource(tmpFile.getAbsolutePath(), 1))
-                    .withDecompression(CompressionMode.SNAPPY);
+        CompressedSource.from(new ByteSource(tmpFile.getAbsolutePath(), 1))
+            .withDecompression(CompressionMode.SNAPPY);
     List<Byte> actual = SourceTestUtils.readFromSource(source, PipelineOptionsFactory.create());
 
     assertNotEquals(Bytes.asList(headerAndBody), actual);
@@ -561,12 +563,14 @@ public class CompressedSourceTest {
     byte[] input2 = generateInput(5, 387374);
 
     ByteArrayOutputStream stream1 = new ByteArrayOutputStream();
-    try (OutputStream os = getOutputStreamForModeWithDecompressedSizeInfo(mode, stream1, input1.length)) {
+    try (OutputStream os =
+        getOutputStreamForModeWithDecompressedSizeInfo(mode, stream1, input1.length)) {
       os.write(input1);
     }
 
     ByteArrayOutputStream stream2 = new ByteArrayOutputStream();
-    try (OutputStream os = getOutputStreamForModeWithDecompressedSizeInfo(mode, stream2, input2.length)) {
+    try (OutputStream os =
+        getOutputStreamForModeWithDecompressedSizeInfo(mode, stream2, input2.length)) {
       os.write(input2);
     }
 
@@ -791,7 +795,7 @@ public class CompressedSourceTest {
     writeFile(compressedFile, generateInput(10), CompressionMode.SNAPPY);
 
     CompressedSource<Byte> source =
-            CompressedSource.from(new ByteSource(compressedFile.getPath(), 1));
+        CompressedSource.from(new ByteSource(compressedFile.getPath(), 1));
     assertFalse(source.isSplittable());
   }
 
@@ -965,8 +969,8 @@ public class CompressedSourceTest {
     }
 
     CompressedSource<Byte> source =
-            CompressedSource.from(new ByteSource(filePattern, 1))
-                    .withDecompression(CompressionMode.SNAPPY);
+        CompressedSource.from(new ByteSource(filePattern, 1))
+            .withDecompression(CompressionMode.SNAPPY);
     List<Byte> actual = SourceTestUtils.readFromSource(source, PipelineOptionsFactory.create());
     assertEquals(HashMultiset.create(expected), HashMultiset.create(actual));
   }
@@ -1031,8 +1035,8 @@ public class CompressedSourceTest {
     }
   }
 
-  private OutputStream getOutputStreamForModeWithDecompressedSizeInfo(CompressionMode mode, OutputStream stream,
-                                                                      int decompressedSize) throws IOException{
+  private OutputStream getOutputStreamForModeWithDecompressedSizeInfo(
+      CompressionMode mode, OutputStream stream, int decompressedSize) throws IOException {
     if (mode == CompressionMode.SNAPPY) {
       return new SnappyCompressorOutputStream(stream, decompressedSize);
     }
@@ -1072,8 +1076,9 @@ public class CompressedSourceTest {
   /** Writes a single output file. */
   private void writeFile(File file, byte[] input, CompressionMode mode) throws IOException {
     if (mode == CompressionMode.SNAPPY) {
-      try (OutputStream os = getOutputStreamForModeWithDecompressedSizeInfo(mode, new FileOutputStream(file),
-              input.length)) {
+      try (OutputStream os =
+          getOutputStreamForModeWithDecompressedSizeInfo(
+              mode, new FileOutputStream(file), input.length)) {
         os.write(input);
       }
     } else {
@@ -1397,7 +1402,8 @@ public class CompressedSourceTest {
 
     PipelineOptions options = PipelineOptionsFactory.create();
     CompressedSource<Byte> source =
-            CompressedSource.from(new ByteSource(filename, 1)).withDecompression(CompressionMode.SNAPPY);
+        CompressedSource.from(new ByteSource(filename, 1))
+            .withDecompression(CompressionMode.SNAPPY);
     try (BoundedReader<Byte> readerOrig = source.createReader(options)) {
       assertThat(readerOrig, instanceOf(CompressedReader.class));
       CompressedReader<Byte> reader = (CompressedReader<Byte>) readerOrig;
@@ -1425,7 +1431,8 @@ public class CompressedSourceTest {
 
     PipelineOptions options = PipelineOptionsFactory.create();
     CompressedSource<Byte> source =
-            CompressedSource.from(new ByteSource(filename, 1)).withDecompression(CompressionMode.SNAPPY);
+        CompressedSource.from(new ByteSource(filename, 1))
+            .withDecompression(CompressionMode.SNAPPY);
     try (BoundedReader<Byte> readerOrig = source.createReader(options)) {
       assertThat(readerOrig, instanceOf(CompressedReader.class));
       CompressedReader<Byte> reader = (CompressedReader<Byte>) readerOrig;

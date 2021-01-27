@@ -229,7 +229,8 @@ public enum Compression {
 
     @Override
     public ReadableByteChannel readDecompressed(ReadableByteChannel channel) throws IOException {
-      SnappyCompressorInputStream is = new SnappyCompressorInputStream(Channels.newInputStream(channel));
+      SnappyCompressorInputStream is =
+          new SnappyCompressorInputStream(Channels.newInputStream(channel));
       uncompressedSize = is.getSize();
       return Channels.newChannel(is);
     }
@@ -237,7 +238,7 @@ public enum Compression {
     @Override
     public WritableByteChannel writeCompressed(WritableByteChannel channel) throws IOException {
       return Channels.newChannel(
-              new SnappyCompressorOutputStream(Channels.newOutputStream(channel), uncompressedSize));
+          new SnappyCompressorOutputStream(Channels.newOutputStream(channel), uncompressedSize));
     }
   };
 
