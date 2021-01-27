@@ -200,6 +200,14 @@ public class BeamBuiltinAggregations {
         String.format("[%s] is not supported in BIT_AND", fieldType));
   }
 
+  public static CombineFn createBitXOr(Schema.FieldType fieldType) {
+    if (fieldType.getTypeName() == TypeName.INT64) {
+      return new BitXOr();
+    }
+    throw new UnsupportedOperationException(
+        String.format("[%s] is not supported in BIT_XOR", fieldType));
+  }
+
   static class CustMax<T extends Comparable<T>> extends Combine.BinaryCombineFn<T> {
     @Override
     public T apply(T left, T right) {
@@ -435,15 +443,7 @@ public class BeamBuiltinAggregations {
     }
   }
 
-  public static CombineFn createBitXOr(Schema.FieldType fieldType) {
-    if (fieldType.getTypeName() == TypeName.INT64) {
-      return new BitXOr();
-    }
-    throw new UnsupportedOperationException(
-        String.format("[%s] is not supported in BIT_XOR", fieldType));
-  }
-
-  public static class BitXOr extends CombineFn<Long, Long, Long> {
+  public static class BitXOr<T extends Number> extends CombineFn<T, Long, Long> {
 
     @Override
     public Long createAccumulator() {
@@ -451,9 +451,9 @@ public class BeamBuiltinAggregations {
     }
 
     @Override
-    public Long addInput(Long mutableAccumulator, Long input) {
+    public Long addInput(Long mutableAccumulator, T input) {
       if (input != null) {
-        return mutableAccumulator ^ input;
+        return mutableAccumulator ^ input.longValue();
       } else {
         return 0L;
       }

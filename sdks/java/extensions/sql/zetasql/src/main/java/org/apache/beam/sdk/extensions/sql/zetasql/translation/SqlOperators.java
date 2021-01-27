@@ -140,7 +140,7 @@ public class SqlOperators {
       createUdafOperator(
           "BIT_XOR",
           x -> createTypeFactory().createSqlType(SqlTypeName.BIGINT),
-          new UdafImpl<>(new BeamBuiltinAggregations.BitXOr()));
+          new UdafImpl<>(new BeamBuiltinAggregations.BitXOr<Number>()));
 
   public static final SqlUserDefinedFunction CAST_OP =
       new SqlUserDefinedFunction(
