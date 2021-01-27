@@ -312,7 +312,7 @@ limitations under the License.
 &lt;ul>
 &lt;li>&lt;a href="#deploy-artifacts-to-maven-central-repository">Deploy artifacts to Maven Central Repository&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#deploy-python-artifacts-to-pypi">Deploy Python artifacts to PyPI&lt;/a>&lt;/li>
-&lt;li>&lt;a href="#deploy-sdk-docker-images-to-dockerhub">Deploy SDK docker images to DockerHub&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#deploy-docker-images-to-dockerhub">Deploy docker images to DockerHub&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#merge-website-pull-requests">Merge Website pull requests&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#git-tag">Git tag&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#publish-release-to-github">Publish release to Github&lt;/a>&lt;/li>
@@ -1315,7 +1315,7 @@ please follow &lt;a href="https://help.github.com/articles/creating-a-personal-a
 All wheels should be published, in addition to the zip of the release source.
 (Signatures and hashes do &lt;em>not&lt;/em> need to be uploaded.)&lt;/li>
 &lt;/ul>
-&lt;h3 id="deploy-sdk-docker-images-to-dockerhub">Deploy SDK docker images to DockerHub&lt;/h3>
+&lt;h3 id="deploy-docker-images-to-dockerhub">Deploy docker images to DockerHub&lt;/h3>
 &lt;ul>
 &lt;li>Script: &lt;a href="https://github.com/apache/beam/blob/master/release/src/main/scripts/publish_docker_images.sh">publish_docker_images.sh&lt;/a>&lt;/li>
 &lt;li>Usage&lt;/li>
@@ -1330,6 +1330,7 @@ All wheels should be published, in addition to the zip of the release source.
 &lt;/ol>
 &lt;/li>
 &lt;/ul>
+&lt;p>(Optional) Clean up any unneeded local images afterward to save disk space.&lt;/p>
 &lt;h3 id="merge-website-pull-requests">Merge Website pull requests&lt;/h3>
 &lt;p>Merge all of the website pull requests&lt;/p>
 &lt;ul>
