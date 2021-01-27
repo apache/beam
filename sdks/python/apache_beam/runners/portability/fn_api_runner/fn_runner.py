@@ -169,7 +169,7 @@ class FnApiRunner(runner.PipelineRunner):
     running_mode = \
       options.view_as(pipeline_options.DirectOptions).direct_running_mode
     if running_mode == 'multi_threading':
-      self._default_environment = environments.EmbeddedPythonGrpcEnvironment() 
+      self._default_environment = environments.EmbeddedPythonGrpcEnvironment()
     elif running_mode == 'multi_processing':
       command_string = '%s -m apache_beam.runners.worker.sdk_worker_main' \
                     % sys.executable
@@ -180,18 +180,14 @@ class FnApiRunner(runner.PipelineRunner):
         options.view_as(pipeline_options.ProfilingOptions))
 
     self._latest_run_result = self.run_via_runner_api(
-        pipeline.to_runner_api(default_environment=self._default_environment),
-        options)
+        pipeline.to_runner_api(default_environment=self._default_environment))
     return self._latest_run_result
 
-  def run_via_runner_api(self,
-                         pipeline_proto,  # type: beam_runner_api_pb2.Pipeline
-                         options=None  # type: Optional[pipeline_options.PipelineOptions]
-                        ):
-    # type: (...) -> RunnerResult
+  def run_via_runner_api(self, pipeline_proto):
+    # type: (beam_runner_api_pb2.Pipeline) -> RunnerResult
     self._validate_requirements(pipeline_proto)
     self._check_requirements(pipeline_proto)
-    stage_context, stages = self.create_stages(pipeline_proto, options)
+    stage_context, stages = self.create_stages(pipeline_proto)
     # TODO(pabloem, BEAM-7514): Create a watermark manager (that has access to
     #   the teststream (if any), and all the stages).
     return self.run_stages(stage_context, stages)
@@ -302,50 +298,26 @@ class FnApiRunner(runner.PipelineRunner):
 
   def create_stages(
       self,
-      pipeline_proto,  # type: beam_runner_api_pb2.Pipeline
-      options=None  # type: Optional[pipeline_options.PipelineOptions]
+      pipeline_proto  # type: beam_runner_api_pb2.Pipeline
   ):
     # type: (...) -> Tuple[translations.TransformContext, List[translations.Stage]]
-    phases = [
-            translations.annotate_downstream_side_inputs,
-            translations.fix_side_input_pcoll_coders,
-            translations.eliminate_common_key_with_none,
-            translations.lift_combiners,
-            translations.expand_sdf,
-            translations.expand_gbk,
-            translations.sink_flattens,
-            translations.greedily_fuse,
-            translations.read_to_impulse,
-            translations.impulse_to_input,
-            translations.sort_stages,
-            translations.setup_timer_mapping,
-            translations.populate_data_channel_coders,
-    ]
-    if options is not None:
-      pre_optimize = options.view_as(
-          pipeline_options.DebugOptions).lookup_experiment(
-              'pre_optimize', 'default').lower()
-      if (not options.view_as(pipeline_options.StandardOptions).streaming and
-          pre_optimize == 'all'):
-        phases = [
-            translations.annotate_downstream_side_inputs,
-            translations.fix_side_input_pcoll_coders,
-            translations.eliminate_common_key_with_none,
-            translations.pack_combiners,
-            translations.lift_combiners,
-            translations.expand_sdf,
-            translations.expand_gbk,
-            translations.sink_flattens,
-            translations.greedily_fuse,
-            translations.read_to_impulse,
-            translations.impulse_to_input,
-            translations.sort_stages,
-            translations.setup_timer_mapping,
-            translations.populate_data_channel_coders,
-        ]
     return translations.create_and_optimize_stages(
         copy.deepcopy(pipeline_proto),
-        phases=phases,
+        phases=[
+            translations.annotate_downstream_side_inputs,
+            translations.fix_side_input_pcoll_coders,
+            translations.eliminate_common_key_with_none,
+            translations.lift_combiners,
+            translations.expand_sdf,
+            translations.expand_gbk,
+            translations.sink_flattens,
+            translations.greedily_fuse,
+            translations.read_to_impulse,
+            translations.impulse_to_input,
+            translations.sort_stages,
+            translations.setup_timer_mapping,
+            translations.populate_data_channel_coders,
+        ],
         known_runner_urns=frozenset([
             common_urns.primitives.FLATTEN.urn,
             common_urns.primitives.GROUP_BY_KEY.urn,
