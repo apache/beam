@@ -32,7 +32,6 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
@@ -249,7 +248,7 @@ public class MqttIO {
 
   /** A {@link PTransform} to read from a MQTT broker. */
   @AutoValue
-  public abstract static class Read extends PTransform<PBegin, PCollection<byte[]>> {
+  public abstract static class Read extends PTransform<PBegin, PCollection<MqttMessage>> {
 
     abstract @Nullable ConnectionConfiguration connectionConfiguration();
 
@@ -294,11 +293,11 @@ public class MqttIO {
     }
 
     @Override
-    public PCollection<byte[]> expand(PBegin input) {
-      org.apache.beam.sdk.io.Read.Unbounded<byte[]> unbounded =
+    public PCollection<MqttMessage> expand(PBegin input) {
+      org.apache.beam.sdk.io.Read.Unbounded<MqttMessage> unbounded =
           org.apache.beam.sdk.io.Read.from(new UnboundedMqttSource(this));
 
-      PTransform<PBegin, PCollection<byte[]>> transform = unbounded;
+      PTransform<PBegin, PCollection<MqttMessage>> transform = unbounded;
 
       if (maxNumRecords() < Long.MAX_VALUE || maxReadTime() != null) {
         transform = unbounded.withMaxReadTime(maxReadTime()).withMaxNumRecords(maxNumRecords());
@@ -382,7 +381,7 @@ public class MqttIO {
   }
 
   @VisibleForTesting
-  static class UnboundedMqttSource extends UnboundedSource<byte[], MqttCheckpointMark> {
+  static class UnboundedMqttSource extends UnboundedSource<MqttMessage, MqttCheckpointMark> {
 
     private final Read spec;
 
@@ -391,7 +390,7 @@ public class MqttIO {
     }
 
     @Override
-    public UnboundedReader<byte[]> createReader(
+    public UnboundedReader<MqttMessage> createReader(
         PipelineOptions options, MqttCheckpointMark checkpointMark) {
       return new UnboundedMqttReader(this, checkpointMark);
     }
@@ -416,19 +415,19 @@ public class MqttIO {
     }
 
     @Override
-    public Coder<byte[]> getOutputCoder() {
-      return ByteArrayCoder.of();
+    public Coder<MqttMessage> getOutputCoder() {
+      return MqttMessageCoder.of();
     }
   }
 
   @VisibleForTesting
-  static class UnboundedMqttReader extends UnboundedSource.UnboundedReader<byte[]> {
+  static class UnboundedMqttReader extends UnboundedSource.UnboundedReader<MqttMessage> {
 
     private final UnboundedMqttSource source;
 
     private MQTT client;
     private BlockingConnection connection;
-    private byte[] current;
+    private MqttMessage current;
     private Instant currentTimestamp;
     private MqttCheckpointMark checkpointMark;
 
@@ -468,9 +467,15 @@ public class MqttIO {
         if (message == null) {
           return false;
         }
-        current = message.getPayload();
+
         currentTimestamp = Instant.now();
         checkpointMark.add(message, currentTimestamp);
+
+        MqttMessage mqttMessage =
+            new MqttMessage(message.getTopic(), message.getPayload(), currentTimestamp);
+
+        current = mqttMessage;
+
       } catch (Exception e) {
         throw new IOException(e);
       }
@@ -500,7 +505,7 @@ public class MqttIO {
     }
 
     @Override
-    public byte[] getCurrent() {
+    public MqttMessage getCurrent() {
       if (current == null) {
         throw new NoSuchElementException();
       }

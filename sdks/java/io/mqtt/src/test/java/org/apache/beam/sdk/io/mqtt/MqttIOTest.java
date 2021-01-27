@@ -36,6 +36,10 @@ import org.apache.beam.sdk.io.mqtt.MqttIO.Read;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.ProcessContext;
+import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.fusesource.hawtbuf.Buffer;
 import org.fusesource.mqtt.client.BlockingConnection;
@@ -67,6 +71,15 @@ public class MqttIOTest {
 
   private int port;
 
+  private final ParDo.SingleOutput<MqttMessage, byte[]> mqttMessageSingleOutput =
+      ParDo.of(
+          new DoFn<MqttMessage, byte[]>() {
+            @ProcessElement
+            public void processElement(ProcessContext context) {
+              context.output(context.element().getPayload());
+            }
+          });
+
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
   @Before
@@ -91,7 +104,8 @@ public class MqttIOTest {
             .withConnectionConfiguration(
                 MqttIO.ConnectionConfiguration.create("tcp://localhost:" + port, topicName))
             .withMaxNumRecords(10);
-    PCollection<byte[]> output = pipeline.apply(mqttReader);
+
+    PCollection<byte[]> output = pipeline.apply(mqttReader).apply(mqttMessageSingleOutput);
     PAssert.that(output)
         .containsInAnyOrder(
             "This is test 0".getBytes(StandardCharsets.UTF_8),
@@ -149,12 +163,15 @@ public class MqttIOTest {
   @Ignore("https://issues.apache.org/jira/browse/BEAM-5150 Flake Non-deterministic output.")
   public void testRead() throws Exception {
     PCollection<byte[]> output =
-        pipeline.apply(
-            MqttIO.read()
-                .withConnectionConfiguration(
-                    MqttIO.ConnectionConfiguration.create("tcp://localhost:" + port, "READ_TOPIC")
-                        .withClientId("READ_PIPELINE"))
-                .withMaxReadTime(Duration.standardSeconds(3)));
+        pipeline
+            .apply(
+                MqttIO.read()
+                    .withConnectionConfiguration(
+                        MqttIO.ConnectionConfiguration.create(
+                                "tcp://localhost:" + port, "READ_TOPIC")
+                            .withClientId("READ_PIPELINE"))
+                    .withMaxReadTime(Duration.standardSeconds(3)))
+            .apply(mqttMessageSingleOutput);
     PAssert.that(output)
         .containsInAnyOrder(
             "This is test 0".getBytes(StandardCharsets.UTF_8),
