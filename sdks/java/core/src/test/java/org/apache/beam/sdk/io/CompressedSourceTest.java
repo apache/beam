@@ -20,8 +20,7 @@ package org.apache.beam.sdk.io;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFor;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.instanceOf;
-import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
@@ -68,6 +67,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Bytes
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream;
 import org.apache.commons.compress.compressors.deflate.DeflateCompressorOutputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorOutputStream;
+import org.apache.commons.compress.compressors.snappy.SnappyCompressorOutputStream;
 import org.apache.commons.compress.compressors.zstandard.ZstdCompressorOutputStream;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
@@ -110,6 +110,13 @@ public class CompressedSourceTest {
   public void testReadLzop() throws Exception {
     byte[] input = generateInput(5000);
     runReadTest(input, CompressionMode.LZOP);
+  }
+
+  /** Test reading nonempty input with snappy. */
+  @Test
+  public void testReadSnappy() throws Exception {
+    byte[] input = generateInput(5000);
+    runReadTest(input, CompressionMode.SNAPPY);
   }
 
   /** Test splittability of files in AUTO mode. */
@@ -158,6 +165,12 @@ public class CompressedSourceTest {
     source = CompressedSource.from(new ByteSource("input.deflate", 1));
     assertFalse(source.isSplittable());
     source = CompressedSource.from(new ByteSource("input.DEFLATE", 1));
+    assertFalse(source.isSplittable());
+
+    // SNAPPY files are not splittable
+    source = CompressedSource.from(new ByteSource("input.snappy", 1));
+    assertFalse(source.isSplittable());
+    source = CompressedSource.from(new ByteSource("input.SNAPPY", 1));
     assertFalse(source.isSplittable());
 
     // Other extensions are assumed to be splittable.
@@ -238,6 +251,19 @@ public class CompressedSourceTest {
     assertFalse(source.isSplittable());
   }
 
+  /** Test splittability of files in SNAPPY mode -- none should be splitabble. */
+  @Test
+  public void testSnappySplittable() throws Exception {
+    CompressedSource<Byte> source;
+
+    source = CompressedSource.from(new ByteSource("input.snappy", 1))
+            .withDecompression(CompressionMode.SNAPPY);
+    assertFalse(source.isSplittable());
+    source = CompressedSource.from(new ByteSource("input.snappy", 1))
+            .withCompression(Compression.SNAPPY);
+    assertFalse(source.isSplittable());
+  }
+
   /** Test reading nonempty input with bzip2. */
   @Test
   public void testReadBzip2() throws Exception {
@@ -287,6 +313,13 @@ public class CompressedSourceTest {
     runReadTest(input, CompressionMode.LZOP);
   }
 
+  /** Test reading empty input with snappy. */
+  @Test
+  public void testEmptyReadSnappy() throws Exception {
+    byte[] input = generateInput(0);
+    runReadTest(input, CompressionMode.SNAPPY);
+  }
+
   private static byte[] compressGzip(byte[] input) throws IOException {
     ByteArrayOutputStream res = new ByteArrayOutputStream();
     try (GZIPOutputStream gzipStream = new GZIPOutputStream(res)) {
@@ -307,6 +340,14 @@ public class CompressedSourceTest {
     ByteArrayOutputStream res = new ByteArrayOutputStream();
     try (OutputStream lzopStream = LzoCompression.createLzopOutputStream(res)) {
       lzopStream.write(input);
+    }
+    return res.toByteArray();
+  }
+
+  private static byte[] compressSnappy(byte[] input) throws IOException {
+    ByteArrayOutputStream res = new ByteArrayOutputStream();
+    try (OutputStream snappyStream = new SnappyCompressorOutputStream(res, input.length)) {
+      snappyStream.write(input);
     }
     return res.toByteArray();
   }
@@ -387,6 +428,31 @@ public class CompressedSourceTest {
             .withDecompression(CompressionMode.LZOP);
     List<Byte> actual = SourceTestUtils.readFromSource(source, PipelineOptionsFactory.create());
     assertNotEquals(Bytes.asList(expected), actual);
+  }
+
+  /**
+   * Test that a concatenation of snappy files is not correctly decompressed. The current behaviour of the
+   * decompressor returns the contents of the first file only.
+   */
+  @Test
+  public void testFalseReadConcatenatedSnappy() throws IOException {
+    byte[] header = "a,b,c\n".getBytes(StandardCharsets.UTF_8);
+    byte[] body = "1,2,3\n4,5,6\n7,8,9\n".getBytes(StandardCharsets.UTF_8);
+    byte[] headerAndBody = concat(header, body);
+    byte[] totalSnappy = concat(compressSnappy(header), compressSnappy(body));
+
+    File tmpFile = tmpFolder.newFile();
+    try (FileOutputStream os = new FileOutputStream(tmpFile)) {
+      os.write(totalSnappy);
+    }
+
+    CompressedSource<Byte> source =
+            CompressedSource.from(new ByteSource(tmpFile.getAbsolutePath(), 1))
+                    .withDecompression(CompressionMode.SNAPPY);
+    List<Byte> actual = SourceTestUtils.readFromSource(source, PipelineOptionsFactory.create());
+
+    assertNotEquals(Bytes.asList(headerAndBody), actual);
+    assertEquals(Bytes.asList(header), actual);
   }
 
   /**
@@ -484,6 +550,37 @@ public class CompressedSourceTest {
     verifyReadContents(output, tmpFile, mode);
   }
 
+  /**
+   * Test a snappy file containing multiple streams is not correctly decompressed. The current
+   * behavior is it only reads the contents of the first file.
+   */
+  @Test
+  public void testFalseReadMultiStreamSnappy() throws IOException {
+    CompressionMode mode = CompressionMode.SNAPPY;
+    byte[] input1 = generateInput(5, 587973);
+    byte[] input2 = generateInput(5, 387374);
+
+    ByteArrayOutputStream stream1 = new ByteArrayOutputStream();
+    try (OutputStream os = getOutputStreamForModeWithDecompressedSizeInfo(mode, stream1, input1.length)) {
+      os.write(input1);
+    }
+
+    ByteArrayOutputStream stream2 = new ByteArrayOutputStream();
+    try (OutputStream os = getOutputStreamForModeWithDecompressedSizeInfo(mode, stream2, input2.length)) {
+      os.write(input2);
+    }
+
+    File tmpFile = tmpFolder.newFile();
+    try (OutputStream os = new FileOutputStream(tmpFile)) {
+      os.write(stream1.toByteArray());
+      os.write(stream2.toByteArray());
+    }
+
+    byte[] output = Bytes.concat(input1, input2);
+    thrown.expectMessage("expected");
+    verifyReadContents(output, tmpFile, mode);
+  }
+
   /** Test reading empty input with bzip2. */
   @Test
   public void testCompressedReadBzip2() throws Exception {
@@ -543,6 +640,15 @@ public class CompressedSourceTest {
     verifyReadContents(input, tmpFile, null /* default auto decompression factory */);
   }
 
+  /** Test reading according to filepattern when the file is snappy compressed. */
+  @Test
+  public void testCompressedAccordingToFilepatternSnappy() throws Exception {
+    byte[] input = generateInput(100);
+    File tmpFile = tmpFolder.newFile("test.snappy");
+    writeFile(tmpFile, input, CompressionMode.SNAPPY);
+    verifyReadContents(input, tmpFile, null /* default auto decompression factory */);
+  }
+
   /** Test reading multiple files with different compression. */
   @Test
   public void testHeterogeneousCompression() throws Exception {
@@ -576,6 +682,11 @@ public class CompressedSourceTest {
     File lzoFile = tmpFolder.newFile(baseName + ".lzo_deflate");
     generated = generateInput(1000, 4);
     writeFile(lzoFile, generated, CompressionMode.LZO);
+    expected.addAll(Bytes.asList(generated));
+
+    File snappyFile = tmpFolder.newFile(baseName + ".snappy");
+    generated = generateInput(1000, 4);
+    writeFile(snappyFile, generated, CompressionMode.SNAPPY);
     expected.addAll(Bytes.asList(generated));
 
     String filePattern = new File(tmpFolder.getRoot().toString(), baseName + ".*").toString();
@@ -672,6 +783,18 @@ public class CompressedSourceTest {
     assertFalse(source.isSplittable());
   }
 
+  @Test
+  public void testSnappyFileIsNotSplittable() throws Exception {
+    String baseName = "test-input";
+
+    File compressedFile = tmpFolder.newFile(baseName + ".snappy");
+    writeFile(compressedFile, generateInput(10), CompressionMode.SNAPPY);
+
+    CompressedSource<Byte> source =
+            CompressedSource.from(new ByteSource(compressedFile.getPath(), 1));
+    assertFalse(source.isSplittable());
+  }
+
   /**
    * Test reading an uncompressed file with {@link CompressionMode#GZIP}, since we must support this
    * due to properties of services that we read from.
@@ -724,6 +847,16 @@ public class CompressedSourceTest {
     Files.write(input, tmpFile);
     thrown.expectMessage("Not an LZOP file");
     verifyReadContents(input, tmpFile, CompressionMode.LZOP);
+  }
+
+  /** Test reading an uncompressed file with {@link Compression#SNAPPY}, and show that we fail. */
+  @Test
+  public void testFalseSnappyStream() throws Exception {
+    byte[] input = generateInput(1000);
+    File tmpFile = tmpFolder.newFile("test.snappy");
+    Files.write(input, tmpFile);
+    thrown.expectMessage("Illegal block with bad offset found");
+    verifyReadContents(input, tmpFile, CompressionMode.SNAPPY);
   }
 
   /**
@@ -816,6 +949,28 @@ public class CompressedSourceTest {
     assertEquals(HashMultiset.create(expected), HashMultiset.create(actual));
   }
 
+  /** Test reading multiple files that are snappy compressed */
+  @Test
+  public void testCompressedReadMultipleSnappyFiles() throws Exception {
+    int numFiles = 3;
+    String baseName = "test_input-";
+    String filePattern = new File(tmpFolder.getRoot().toString(), baseName + "*").toString();
+    List<Byte> expected = new ArrayList<>();
+
+    for (int i = 0; i < numFiles; i++) {
+      byte[] generated = generateInput(100);
+      File tmpFile = tmpFolder.newFile(baseName + i);
+      writeFile(tmpFile, generated, CompressionMode.SNAPPY);
+      expected.addAll(Bytes.asList(generated));
+    }
+
+    CompressedSource<Byte> source =
+            CompressedSource.from(new ByteSource(filePattern, 1))
+                    .withDecompression(CompressionMode.SNAPPY);
+    List<Byte> actual = SourceTestUtils.readFromSource(source, PipelineOptionsFactory.create());
+    assertEquals(HashMultiset.create(expected), HashMultiset.create(actual));
+  }
+
   @Test
   public void testDisplayData() {
     ByteSource inputSource =
@@ -876,6 +1031,14 @@ public class CompressedSourceTest {
     }
   }
 
+  private OutputStream getOutputStreamForModeWithDecompressedSizeInfo(CompressionMode mode, OutputStream stream,
+                                                                      int decompressedSize) throws IOException{
+    if (mode == CompressionMode.SNAPPY) {
+      return new SnappyCompressorOutputStream(stream, decompressedSize);
+    }
+    throw new RuntimeException("Unexpected compression mode that needs the decompressed size info");
+  }
+
   /** Extend of {@link ZipOutputStream} that splits up bytes into multiple entries. */
   private static class TestZipOutputStream extends OutputStream {
 
@@ -908,8 +1071,15 @@ public class CompressedSourceTest {
 
   /** Writes a single output file. */
   private void writeFile(File file, byte[] input, CompressionMode mode) throws IOException {
-    try (OutputStream os = getOutputStreamForMode(mode, new FileOutputStream(file))) {
-      os.write(input);
+    if (mode == CompressionMode.SNAPPY) {
+      try (OutputStream os = getOutputStreamForModeWithDecompressedSizeInfo(mode, new FileOutputStream(file),
+              input.length)) {
+        os.write(input);
+      }
+    } else {
+      try (OutputStream os = getOutputStreamForMode(mode, new FileOutputStream(file))) {
+        os.write(input);
+      }
     }
   }
 
@@ -1192,6 +1362,70 @@ public class CompressedSourceTest {
     PipelineOptions options = PipelineOptionsFactory.create();
     CompressedSource<Byte> source =
         CompressedSource.from(new ByteSource(filename, 1)).withDecompression(CompressionMode.LZOP);
+    try (BoundedReader<Byte> readerOrig = source.createReader(options)) {
+      assertThat(readerOrig, instanceOf(CompressedReader.class));
+      CompressedReader<Byte> reader = (CompressedReader<Byte>) readerOrig;
+      // before starting
+      assertEquals(0.0, reader.getFractionConsumed(), delta);
+      assertEquals(0, reader.getSplitPointsConsumed());
+      assertEquals(1, reader.getSplitPointsRemaining());
+
+      // confirm has three records
+      for (int i = 0; i < numRecords; ++i) {
+        if (i == 0) {
+          assertTrue(reader.start());
+        } else {
+          assertTrue(reader.advance());
+        }
+        assertEquals(0, reader.getSplitPointsConsumed());
+        assertEquals(1, reader.getSplitPointsRemaining());
+      }
+      assertFalse(reader.advance());
+
+      // after reading source
+      assertEquals(1.0, reader.getFractionConsumed(), delta);
+      assertEquals(1, reader.getSplitPointsConsumed());
+      assertEquals(0, reader.getSplitPointsRemaining());
+    }
+  }
+
+  @Test
+  public void testEmptySnappyProgress() throws IOException {
+    File tmpFile = tmpFolder.newFile("empty.snappy");
+    String filename = tmpFile.toPath().toString();
+    writeFile(tmpFile, new byte[0], CompressionMode.SNAPPY);
+
+    PipelineOptions options = PipelineOptionsFactory.create();
+    CompressedSource<Byte> source =
+            CompressedSource.from(new ByteSource(filename, 1)).withDecompression(CompressionMode.SNAPPY);
+    try (BoundedReader<Byte> readerOrig = source.createReader(options)) {
+      assertThat(readerOrig, instanceOf(CompressedReader.class));
+      CompressedReader<Byte> reader = (CompressedReader<Byte>) readerOrig;
+      // before starting
+      assertEquals(0.0, reader.getFractionConsumed(), delta);
+      assertEquals(0, reader.getSplitPointsConsumed());
+      assertEquals(1, reader.getSplitPointsRemaining());
+
+      // confirm empty
+      assertFalse(reader.start());
+
+      // after reading empty source
+      assertEquals(1.0, reader.getFractionConsumed(), delta);
+      assertEquals(0, reader.getSplitPointsConsumed());
+      assertEquals(0, reader.getSplitPointsRemaining());
+    }
+  }
+
+  @Test
+  public void testSnappyProgress() throws IOException {
+    int numRecords = 3;
+    File tmpFile = tmpFolder.newFile("nonempty.snappy");
+    String filename = tmpFile.toPath().toString();
+    writeFile(tmpFile, new byte[numRecords], CompressionMode.SNAPPY);
+
+    PipelineOptions options = PipelineOptionsFactory.create();
+    CompressedSource<Byte> source =
+            CompressedSource.from(new ByteSource(filename, 1)).withDecompression(CompressionMode.SNAPPY);
     try (BoundedReader<Byte> readerOrig = source.createReader(options)) {
       assertThat(readerOrig, instanceOf(CompressedReader.class));
       CompressedReader<Byte> reader = (CompressedReader<Byte>) readerOrig;
