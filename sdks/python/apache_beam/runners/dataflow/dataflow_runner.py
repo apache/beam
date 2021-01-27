@@ -112,7 +112,6 @@ class DataflowRunner(PipelineRunner):
 
   # Imported here to avoid circular dependencies.
   # TODO: Remove the apache_beam.pipeline dependency in CreatePTransformOverride
-  from apache_beam.runners.dataflow.ptransform_overrides import CombinePerKeyPTransformOverride
   from apache_beam.runners.dataflow.ptransform_overrides import CombineValuesPTransformOverride
   from apache_beam.runners.dataflow.ptransform_overrides import CreatePTransformOverride
   from apache_beam.runners.dataflow.ptransform_overrides import JrhReadPTransformOverride
@@ -122,7 +121,6 @@ class DataflowRunner(PipelineRunner):
   # These overrides should be applied before the proto representation of the
   # graph is created.
   _PTRANSFORM_OVERRIDES = [
-      CombinePerKeyPTransformOverride(),
       CombineValuesPTransformOverride(),
       NativeReadPTransformOverride(),
   ]  # type: List[PTransformOverride]
@@ -513,6 +511,12 @@ class DataflowRunner(PipelineRunner):
           partial=True)
       pipeline = beam.Pipeline.from_runner_api(
           optimized_proto_pipeline, self, options)
+      # The translations.pack_combiners optimizer phase produces a CombinePerKey
+      # PTransform, but DataflowRunner treats CombinePerKey as a composite, so
+      # this override expands CombinePerKey into primitive PTransforms.
+      if translations.pack_combiners in phases:
+        from apache_beam.runners.dataflow.ptransform_overrides import CombinePerKeyPTransformOverride
+        pipeline.replace_all([CombinePerKeyPTransformOverride()])
 
     use_fnapi = apiclient._use_fnapi(options)
 

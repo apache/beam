@@ -857,12 +857,8 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
       _ = data | 'PackableMin' >> beam.CombineGlobally(min)
       _ = data | 'PackableMax' >> beam.CombineGlobally(max)
 
-    unpacked_minimum_step_name = (
-        'PackableMin/CombinePerKey/' +
-        'CombinePerKey(NoSideInputsCallableWrapperCombineFn)/Combine')
-    unpacked_maximum_step_name = (
-        'PackableMin/CombinePerKey/' +
-        'CombinePerKey(NoSideInputsCallableWrapperCombineFn)/Combine')
+    unpacked_minimum_step_name = 'PackableMin/CombinePerKey/Combine'
+    unpacked_maximum_step_name = 'PackableMax/CombinePerKey/Combine'
     packed_step_name = (
         'Packed[PackableMin/CombinePerKey, PackableMax/CombinePerKey]/Pack/'
         'CombinePerKey(SingleInputTupleCombineFn)/Combine')
