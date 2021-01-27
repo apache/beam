@@ -1031,10 +1031,10 @@ class FnApiRunnerTest(unittest.TestCase):
       self.assertNotIn(packed_step_name, step_names_from_counters)
 
   def test_pack_combiners_disabled_by_default(self):
-    self._test_pack_combiners((), expect_packed=False)
+    self._test_pack_combiners(experiments=(), expect_packed=False)
 
   def test_pack_combiners_enabled_by_experiment(self):
-    self._test_pack_combiners(('preoptimize=all'), expect_packed=True)
+    self._test_pack_combiners(experiments=('pre_optimize=all',), expect_packed=True)
 
 
 # These tests are kept in a separate group so that they are

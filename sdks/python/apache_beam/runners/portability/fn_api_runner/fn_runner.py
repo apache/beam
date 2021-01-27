@@ -323,10 +323,12 @@ class FnApiRunner(runner.PipelineRunner):
             translations.setup_timer_mapping,
             translations.populate_data_channel_coders,
     ]
+    
     if options is not None:
       pre_optimize = options.view_as(
           pipeline_options.DebugOptions).lookup_experiment(
               'pre_optimize', 'default').lower()
+      print('[debug:yifanmai] pre-optimize %s' % pre_optimize)
       if (not options.view_as(pipeline_options.StandardOptions).streaming and
           pre_optimize == 'all'):
         phases = [
