@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.state;
 
 import java.util.Map;
+import java.util.function.Function;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -62,7 +63,30 @@ public interface MapState<K, V> extends State {
    * multiple calls to {@link #putIfAbsent} for the same key, precedence will be given to the first
    * one on which read is called.
    */
-  ReadableState<V> putIfAbsent(K key, V value);
+  default ReadableState<V> putIfAbsent(K key, V value) {
+    return computeIfAbsent(key, k -> value);
+  }
+
+  /**
+   * A deferred read-followed-by-write.
+   *
+   * <p>When {@code read()} is called on the result or state is committed, it forces a read of the
+   * map and reconciliation with any pending modifications.
+   *
+   * <p>If the specified key is not already associated with a value (or is mapped to {@code null})
+   * associates it with the computed and returns {@code null}, else returns the current value.
+   *
+   * <p>Changes will not be reflected in the results returned by previous calls to {@link
+   * ReadableState#read} on the results any of the reading methods ({@link #get}, {@link #keys},
+   * {@link #values}, and {@link #entries}).
+   *
+   * <p>Since the condition is not evaluated until {@link ReadableState#read} is called, a call to
+   * {@link #putIfAbsent} followed by a call to {@link #remove} followed by a read on the
+   * putIfAbsent return will result in the item being written to the map. Similarly, if there are
+   * multiple calls to {@link #putIfAbsent} for the same key, precedence will be given to the first
+   * one on which read is called.
+   */
+  ReadableState<V> computeIfAbsent(K key, Function<? super K, ? extends V> mappingFunction);
 
   /**
    * Remove the mapping for a key from this map if it is present.

@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.NavigableMap;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.StateTag.StateBinder;
@@ -649,7 +650,7 @@ public class InMemoryStateInternals<K> implements StateInternals {
 
     @Override
     public @UnknownKeyFor @NonNull @Initialized ReadableState<V> getOrDefault(
-        K key, @Nullable @org.checkerframework.checker.nullness.qual.Nullable V defaultValue) {
+        K key, @Nullable V defaultValue) {
       return new ReadableState<V>() {
         @Override
         public @org.checkerframework.checker.nullness.qual.Nullable V read() {
@@ -669,10 +670,11 @@ public class InMemoryStateInternals<K> implements StateInternals {
     }
 
     @Override
-    public ReadableState<V> putIfAbsent(K key, V value) {
+    public ReadableState<V> computeIfAbsent(
+        K key, Function<? super K, ? extends V> mappingFunction) {
       V v = contents.get(key);
       if (v == null) {
-        v = contents.put(key, value);
+        v = contents.put(key, mappingFunction.apply(key));
       }
 
       return ReadableStates.immediate(v);

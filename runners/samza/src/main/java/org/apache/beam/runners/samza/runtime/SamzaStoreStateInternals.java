@@ -32,6 +32,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
 import javax.annotation.Nonnull;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateInternalsFactory;
@@ -623,11 +624,12 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
     }
 
     @Override
-    public @Nullable ReadableState<ValueT> putIfAbsent(KeyT key, ValueT value) {
+    public @Nullable ReadableState<ValueT> putIfAbsent(
+        KeyT key, Function<? super KeyT, ? extends ValueT> mappingFunction) {
       final ByteArray encodedKey = encodeKey(key);
       final ValueT current = decodeValue(store.get(encodedKey));
       if (current == null) {
-        put(key, value);
+        put(key, mappingFunction.apply(key));
       }
 
       return current == null ? null : ReadableStates.immediate(current);

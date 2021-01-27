@@ -24,6 +24,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Stream;
 import javax.annotation.Nonnull;
 import org.apache.beam.runners.core.StateInternals;
@@ -1077,7 +1078,8 @@ public class FlinkStateInternals<K> implements StateInternals {
     }
 
     @Override
-    public ReadableState<ValueT> putIfAbsent(final KeyT key, final ValueT value) {
+    public ReadableState<ValueT> computeIfAbsent(
+        final KeyT key, Function<? super KeyT, ? extends ValueT> mappingFunction) {
       try {
         ValueT current =
             flinkStateBackend
@@ -1089,7 +1091,7 @@ public class FlinkStateInternals<K> implements StateInternals {
           flinkStateBackend
               .getPartitionedState(
                   namespace.stringKey(), StringSerializer.INSTANCE, flinkStateDescriptor)
-              .put(key, value);
+              .put(key, mappingFunction.apply(key));
         }
         return ReadableStates.immediate(current);
       } catch (Exception e) {

@@ -39,6 +39,7 @@ import java.util.SortedSet;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.function.BiConsumer;
+import java.util.function.Function;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespace;
@@ -1420,6 +1421,7 @@ class WindmillStateInternals<K> implements StateInternals {
               // This is a known amount of data. Cache it all.
               transformedData.forEach(
                   e -> {
+                    // The cached data overrides what is read from state, so call putIfAbsent.
                     cachedValues.putIfAbsent(e.getKey(), e.getValue());
                   });
               complete = true;
@@ -1489,7 +1491,8 @@ class WindmillStateInternals<K> implements StateInternals {
     }
 
     @Override
-    public @UnknownKeyFor @NonNull @Initialized ReadableState<V> putIfAbsent(K key, V value) {
+    public @UnknownKeyFor @NonNull @Initialized ReadableState<V> computeIfAbsent(
+        K key, Function<? super K, ? extends V> mappingFunction) {
       return new ReadableState<V>() {
         @Override
         public @Nullable V read() {
@@ -1506,7 +1509,7 @@ class WindmillStateInternals<K> implements StateInternals {
             V persistedValue = persistedData.get();
             if (persistedValue == null) {
               // This is a new value. Add it to the map and return null.
-              put(key, value);
+              put(key, mappingFunction.apply(key));
               return null;
             }
             // TODO: Don't do this if it was already in cache.
