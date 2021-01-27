@@ -70,7 +70,4 @@ public class BeamBuiltinMethods {
 
   public static final Method DATE_METHOD =
       Types.lookupMethod(DateFunctions.class, "date", Integer.class, Integer.class, Integer.class);
-
-  public static final Method BIT_XOR =
-      Types.lookupMethod(BitwiseFunctions.class, "bitXOr", Long.class, Long.class);
 }
