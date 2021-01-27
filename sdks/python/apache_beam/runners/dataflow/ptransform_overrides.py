@@ -125,6 +125,33 @@ class JrhReadPTransformOverride(PTransformOverride):
             'Read'))
 
 
+class CombinePerKeyPTransformOverride(PTransformOverride):
+  """A ``PTransformOverride`` for ``CombinePerKey``.
+
+  The translations.pack_combiners optimizer phase produces a CombinePerKey
+  PTransform, but DataflowRunner treats CombinePerKey as a composite, so
+  this override expands CombinePerKey into primitive PTransforms.
+  """
+  def matches(self, applied_ptransform):
+    # Imported here to avoid circular dependencies.
+    # pylint: disable=wrong-import-order, wrong-import-position
+    from apache_beam import CombinePerKey
+
+    if isinstance(applied_ptransform.transform, CombinePerKey):
+      self.transform = applied_ptransform.transform
+      return True
+    return False
+
+  def get_replacement_transform(self, ptransform):
+    from apache_beam.transforms import ptransform_fn
+
+    @ptransform_fn
+    def ExpandCombinePerKey(pcoll):
+      return pcoll | ptransform
+
+    return ExpandCombinePerKey()
+
+
 class CombineValuesPTransformOverride(PTransformOverride):
   """A ``PTransformOverride`` for ``CombineValues``.
 
