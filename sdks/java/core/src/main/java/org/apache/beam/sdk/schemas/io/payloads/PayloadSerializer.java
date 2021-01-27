@@ -15,20 +15,37 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.schemas.io;
+package org.apache.beam.sdk.schemas.io.payloads;
 
+import java.io.Serializable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.sdk.schemas.io.Providers.Identifyable;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.values.Row;
 
-/** A Provider for generic DLQ transforms that handle deserialization failures. */
 @Internal
 @Experimental(Kind.SCHEMAS)
-public interface GenericDlqProvider extends Identifyable {
-  /** Generate a DLQ output from the provided config value. */
-  PTransform<PCollection<Failure>, PDone> newDlqTransform(String config);
+public interface PayloadSerializer extends Serializable {
+  long serialVersionUID = 5645783967169L;
+
+  byte[] serialize(Row row);
+
+  Row deserialize(byte[] bytes);
+
+  static PayloadSerializer of(
+      SerializableFunction<Row, byte[]> serializeFn,
+      SerializableFunction<byte[], Row> deserializeFn) {
+    return new PayloadSerializer() {
+      @Override
+      public byte[] serialize(Row row) {
+        return serializeFn.apply(row);
+      }
+
+      @Override
+      public Row deserialize(byte[] bytes) {
+        return deserializeFn.apply(bytes);
+      }
+    };
+  }
 }

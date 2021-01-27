@@ -15,39 +15,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.schemas.io;
+package org.apache.beam.sdk.schemas.io.payloads;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
-import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.io.Providers;
 
-/** Helper to generate a DLQ transform to write PCollection<Failure> to an external system. */
 @Internal
 @Experimental(Kind.SCHEMAS)
-public final class GenericDlq {
-  private GenericDlq() {}
+public final class PayloadSerializers {
+  private PayloadSerializers() {}
 
-  private static final Map<String, GenericDlqProvider> PROVIDERS =
-      Providers.loadProviders(GenericDlqProvider.class);
+  private static final Map<String, PayloadSerializerProvider> PROVIDERS =
+      Providers.loadProviders(PayloadSerializerProvider.class);
 
   @SuppressWarnings("dereference.of.nullable")
-  public static PTransform<PCollection<Failure>, PDone> getDlqTransform(String fullConfig) {
-    List<String> strings = Splitter.on(":").limit(2).splitToList(fullConfig);
+  public static PayloadSerializer getSerializer(
+      String id, Schema schema, Map<String, Object> tableParams) {
+    PayloadSerializerProvider provider = PROVIDERS.get(id);
     checkArgument(
-        strings.size() == 2, "Invalid config, must start with `identifier:`. %s", fullConfig);
-    String key = strings.get(0);
-    String config = strings.get(1).trim();
-    GenericDlqProvider provider = PROVIDERS.get(key);
-    checkArgument(
-        provider != null, "Invalid config, no DLQ provider exists with identifier `%s`.", key);
-    return provider.newDlqTransform(config);
+        provider != null,
+        "Invalid config, no serializer provider exists with identifier `%s`.",
+        id);
+    return provider.getSerializer(schema, tableParams);
   }
 }
