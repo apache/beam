@@ -82,7 +82,7 @@ class BatchedStreamingWrite<ErrorT, ElementT>
 
   private transient Long lastReportedSystemClockMillis = System.currentTimeMillis();
 
-  private final Logger LOG = LoggerFactory.getLogger(BatchedStreamingWrite.class);
+  private static final Logger LOG = LoggerFactory.getLogger(BatchedStreamingWrite.class);
 
   /** Tracks bytes written, exposed as "ByteCount" Counter. */
   private Counter byteCounter = SinkMetrics.bytesWritten();
@@ -274,10 +274,11 @@ class BatchedStreamingWrite<ErrorT, ElementT>
     }
   }
 
+  // The max duration input records are allowed to be buffered in the state, if using ViaStateful.
+  private static final Duration BATCH_MAX_BUFFERING_DURATION = Duration.millis(200);
+
   private class ViaStateful
       extends PTransform<PCollection<KV<String, TableRowInfo<ElementT>>>, PCollection<ErrorT>> {
-    private final Duration BATCH_MAX_BUFFERING_DURATION = Duration.millis(200);
-
     @Override
     public PCollection<ErrorT> expand(PCollection<KV<String, TableRowInfo<ElementT>>> input) {
       BigQueryOptions options = input.getPipeline().getOptions().as(BigQueryOptions.class);
