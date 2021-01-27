@@ -350,6 +350,28 @@ class PortableRunner(runner.PipelineRunner):
             translations.expand_sdf,
             translations.fix_flatten_coders,
             # translations.sink_flattens,
+            # TODO(BEAM-7248): Enable translations.greedily_fuse,
+            # and then delete pre_optimize == 'all_with_fusion' branch.
+            # translations.greedily_fuse,
+            translations.read_to_impulse,
+            translations.extract_impulse_stages,
+            translations.remove_data_plane_ops,
+            translations.sort_stages
+        ]
+        partial = True
+      elif pre_optimize == 'all_with_fusion':
+        # TODO(BEAM-7248): Enable translations.greedily_fuse for
+        # pre_optimize == 'all', then delete this branch.
+        phases = [
+            translations.annotate_downstream_side_inputs,
+            translations.annotate_stateful_dofns_as_roots,
+            translations.fix_side_input_pcoll_coders,
+            translations.eliminate_common_key_with_none,
+            translations.pack_combiners,
+            translations.lift_combiners,
+            translations.expand_sdf,
+            translations.fix_flatten_coders,
+            # translations.sink_flattens,
             translations.greedily_fuse,
             translations.read_to_impulse,
             translations.extract_impulse_stages,
@@ -372,18 +394,18 @@ class PortableRunner(runner.PipelineRunner):
         phases.append(translations.sort_stages)
         partial = True
 
-        # All (known) portable runners (ie Flink and Spark) support these URNs.
-        known_urns = frozenset([
-            common_urns.composites.RESHUFFLE.urn,
-            common_urns.primitives.IMPULSE.urn,
-            common_urns.primitives.FLATTEN.urn,
-            common_urns.primitives.GROUP_BY_KEY.urn
-        ])
-        proto_pipeline = translations.optimize_pipeline(
-            proto_pipeline,
-            phases=phases,
-            known_runner_urns=known_urns,
-            partial=partial)
+      # All (known) portable runners (ie Flink and Spark) support these URNs.
+      known_urns = frozenset([
+          common_urns.composites.RESHUFFLE.urn,
+          common_urns.primitives.IMPULSE.urn,
+          common_urns.primitives.FLATTEN.urn,
+          common_urns.primitives.GROUP_BY_KEY.urn
+      ])
+      proto_pipeline = translations.optimize_pipeline(
+          proto_pipeline,
+          phases=phases,
+          known_runner_urns=known_urns,
+          partial=partial)
 
     return proto_pipeline
 

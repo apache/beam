@@ -224,11 +224,27 @@ class PortableRunnerTest(fn_runner_test.FnApiRunnerTest):
     raise unittest.SkipTest("Portable runners don't support drain yet.")
 
 
-@unittest.skip("BEAM-7248")
 class PortableRunnerOptimized(PortableRunnerTest):
   def create_options(self):
     options = super(PortableRunnerOptimized, self).create_options()
     options.view_as(DebugOptions).add_experiment('pre_optimize=all')
+    options.view_as(DebugOptions).add_experiment('state_cache_size=100')
+    options.view_as(DebugOptions).add_experiment(
+        'data_buffer_time_limit_ms=1000')
+    return options
+
+  @unittest.skip('pre_optimize=all enables translations.pack_combiners')
+  def test_pack_combiners_disabled_by_default(self):
+    pass
+
+
+@unittest.skip("BEAM-7248")
+class PortableRunnerOptimizedWithFusion(PortableRunnerTest):
+  # TODO(BEAM-7248): Enable translations.greedily_fuse for
+  # pre_optimize == 'all', then delete this PortableRunnerOptimizedWithFusion.
+  def create_options(self):
+    options = super(PortableRunnerOptimized, self).create_options()
+    options.view_as(DebugOptions).add_experiment('pre_optimize=all_with_fusion')
     options.view_as(DebugOptions).add_experiment('state_cache_size=100')
     options.view_as(DebugOptions).add_experiment(
         'data_buffer_time_limit_ms=1000')
