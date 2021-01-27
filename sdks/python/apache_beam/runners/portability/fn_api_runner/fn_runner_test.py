@@ -1014,22 +1014,22 @@ class FnApiRunnerTest(unittest.TestCase):
     res = p.run()
     res.wait_until_finish()
 
-    unpacked_min_step_name = 'PackableMin/CombinePerKey/ExtractOutputs'
-    unpacked_max_step_name = 'PackableMax/CombinePerKey/ExtractOutputs'
+    unpacked_min_step_name = 'PackableMin/CombinePerKey'
+    unpacked_max_step_name = 'PackableMax/CombinePerKey'
     packed_step_name = (
         'Packed[PackableMin/CombinePerKey, PackableMax/CombinePerKey]/' +
-        'Pack/ExtractOutputs')
+        'Pack')
 
     counters = res.metrics().query(beam.metrics.MetricsFilter())['counters']
-    step_names_from_counters = set(m.key.step for m in counters)
+    step_names = set(m.key.step for m in counters)
     if expect_packed:
-      self.assertNotIn(unpacked_min_step_name, step_names_from_counters)
-      self.assertNotIn(unpacked_max_step_name, step_names_from_counters)
-      self.assertIn(packed_step_name, step_names_from_counters)
+      self.assertFalse(any([unpacked_min_step_name in s for s in step_names]))
+      self.assertFalse(any([unpacked_max_step_name in s for s in step_names]))
+      self.assertTrue(any([packed_step_name in s for s in step_names]))
     else:
-      self.assertIn(unpacked_min_step_name, step_names_from_counters)
-      self.assertIn(unpacked_max_step_name, step_names_from_counters)
-      self.assertNotIn(packed_step_name, step_names_from_counters)
+      self.assertTrue(any([unpacked_min_step_name in s for s in step_names]))
+      self.assertTrue(any([unpacked_max_step_name in s for s in step_names]))
+      self.assertFalse(any([packed_step_name in s for s in step_names]))
 
   def test_pack_combiners_disabled_by_default(self):
     self._test_pack_combiners(experiments=(), expect_packed=False)
