@@ -31,6 +31,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -84,6 +85,7 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -136,9 +138,9 @@ import org.slf4j.LoggerFactory;
  * to a destination FHIR store. It is important that the destination store must already exist.
  *
  * <p>Search This is to search FHIR resources within a given FHIR store. The inputs are individual
- * FHIR Search queries, represented by KV<resource type, search parameters>. The outputs are results
- * of each Search, represented as a Json array of FHIR resources in string form, with pagination
- * handled.
+ * FHIR Search queries, represented by the FhirSearchParameter class. The outputs are results of
+ * each Search, represented as a Json array of FHIR resources in string form, with pagination
+ * handled, and an optional input key.
  *
  * @see <a
  *     href=>https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.fhirStores.fhir/executeBundle></a>
@@ -207,18 +209,39 @@ import org.slf4j.LoggerFactory;
  * DeidentifyConfig deidConfig = new DeidentifyConfig(); // use default DeidentifyConfig
  * pipeline.apply(FhirIO.deidentify(fhirStoreName, destinationFhirStoreName, deidConfig));
  *
- * // Search FHIR resources.
- * PCollection<KV<String, Map<String, Object>>> searchQueries = ...;
+ * // Search FHIR resources using a simple query.
+ * Map<String, String> queries = new HashMap<>();
+ * queries.put("name", "Alice");
+ * FhirSearchParameter<String> searchParameter = FhirSearchParameter.of("Patient", queries);
+ * PCollection<FhirSearchParameter<String>> searchQueries =
+ * pipeline.apply(
+ *      Create.of(searchParameter)
+ *            .withCoder(FhirSearchParameterCoder.of(StringUtf8Coder.of())));
  * FhirIO.Search.Result searchResult =
  *      searchQueries.apply(FhirIO.searchResources(options.getFhirStore()));
+ * PCollection<JsonArray> resources = searchResult.getResources(); // JsonArray of results
  *
- * }***
+ * // Search FHIR resources using an "OR" query.
+ * Map<String, List<String>> listQueries = new HashMap<>();
+ * listQueries.put("name", Arrays.asList("Alice", "Bob"));
+ * FhirSearchParameter<List<String>> listSearchParameter =
+ *      FhirSearchParameter.of("Patient", "Alice-Bob-Search", listQueries);
+ * PCollection<FhirSearchParameter<List<String>>> listSearchQueries =
+ * pipeline.apply(
+ *      Create.of(listSearchParameter)
+ *            .withCoder(FhirSearchParameterCoder.of(ListCoder.of(StringUtf8Coder.of()))));
+ * FhirIO.Search.Result listSearchResult =
+ *      searchQueries.apply(FhirIO.searchResources(options.getFhirStore()));
+ * PCollection<KV<String, JsonArray>> listResource =
+ *      listSearchResult.getKeyedResources(); // KV<"Alice-Bob-Search", JsonArray of results>
+ *
  * </pre>
  */
 @SuppressWarnings({
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class FhirIO {
+  private static final String BASE_METRIC_PREFIX = "fhirio/";
 
   /**
    * Read resources from a PCollection of resource IDs (e.g. when subscribing the pubsub
@@ -476,11 +499,16 @@ public class FhirIO {
       /** DoFn for fetching messages from the Fhir store with error handling. */
       static class ReadResourceFn extends DoFn<String, String> {
 
-        private Counter failedMessageGets =
-            Metrics.counter(ReadResourceFn.class, "failed-message-reads");
         private static final Logger LOG = LoggerFactory.getLogger(ReadResourceFn.class);
-        private final Counter successfulStringGets =
-            Metrics.counter(ReadResourceFn.class, "successful-hl7v2-message-gets");
+        private static final Counter READ_RESOURCE_ERRORS =
+            Metrics.counter(ReadResourceFn.class, BASE_METRIC_PREFIX + "read_resource_error_count");
+        private static final Counter READ_RESOURCE_SUCCESS =
+            Metrics.counter(
+                ReadResourceFn.class, BASE_METRIC_PREFIX + "read_resource_success_count");
+        private static final Distribution READ_RESOURCE_LATENCY_MS =
+            Metrics.distribution(
+                ReadResourceFn.class, BASE_METRIC_PREFIX + "read_resource_latency_ms");
+
         private HealthcareApiClient client;
         private ObjectMapper mapper;
 
@@ -509,7 +537,7 @@ public class FhirIO {
           try {
             context.output(fetchResource(this.client, resourceId));
           } catch (Exception e) {
-            failedMessageGets.inc();
+            READ_RESOURCE_ERRORS.inc();
             LOG.warn(
                 String.format(
                     "Error fetching Fhir message with ID %s writing to Dead Letter "
@@ -521,14 +549,15 @@ public class FhirIO {
 
         private String fetchResource(HealthcareApiClient client, String resourceId)
             throws IOException, IllegalArgumentException {
-          long startTime = System.currentTimeMillis();
+          long startTime = Instant.now().toEpochMilli();
 
           HttpBody resource = client.readFhirResource(resourceId);
+          READ_RESOURCE_LATENCY_MS.update(Instant.now().toEpochMilli() - startTime);
 
           if (resource == null) {
             throw new IOException(String.format("GET request for %s returned null", resourceId));
           }
-          this.successfulStringGets.inc();
+          READ_RESOURCE_SUCCESS.inc();
           return mapper.writeValueAsString(resource);
         }
       }
@@ -1268,7 +1297,16 @@ public class FhirIO {
     /** The type Write Fhir fn. */
     static class ExecuteBundlesFn extends DoFn<String, HealthcareIOError<String>> {
 
-      private Counter failedBundles = Metrics.counter(ExecuteBundlesFn.class, "failed-bundles");
+      private static final Counter EXECUTE_BUNDLE_ERRORS =
+          Metrics.counter(
+              ExecuteBundlesFn.class, BASE_METRIC_PREFIX + "execute_bundle_error_count");
+      private static final Counter EXECUTE_BUNDLE_SUCCESS =
+          Metrics.counter(
+              ExecuteBundlesFn.class, BASE_METRIC_PREFIX + "execute_bundle_success_count");
+      private static final Distribution EXECUTE_BUNDLE_LATENCY_MS =
+          Metrics.distribution(
+              ExecuteBundlesFn.class, BASE_METRIC_PREFIX + "execute_bundle_latency_ms");
+
       private transient HealthcareApiClient client;
       private final ObjectMapper mapper = new ObjectMapper();
       /** The Fhir store. */
@@ -1293,20 +1331,18 @@ public class FhirIO {
         this.client = new HttpHealthcareApiClient();
       }
 
-      /**
-       * Execute Bundles.
-       *
-       * @param context the context
-       */
       @ProcessElement
       public void executeBundles(ProcessContext context) {
         String body = context.element();
         try {
+          long startTime = Instant.now().toEpochMilli();
           // Validate that data was set to valid JSON.
           mapper.readTree(body);
           client.executeFhirBundle(fhirStore.get(), body);
+          EXECUTE_BUNDLE_LATENCY_MS.update(Instant.now().toEpochMilli() - startTime);
+          EXECUTE_BUNDLE_SUCCESS.inc();
         } catch (IOException | HealthcareHttpException e) {
-          failedBundles.inc();
+          EXECUTE_BUNDLE_ERRORS.inc();
           context.output(HealthcareIOError.of(body, e));
         }
       }
@@ -1428,7 +1464,7 @@ public class FhirIO {
 
   /** The type Search. */
   public static class Search<T>
-      extends PTransform<PCollection<KV<String, Map<String, T>>>, FhirIO.Search.Result> {
+      extends PTransform<PCollection<FhirSearchParameter<T>>, FhirIO.Search.Result> {
     private static final Logger LOG = LoggerFactory.getLogger(Search.class);
 
     private final ValueProvider<String> fhirStore;
@@ -1442,6 +1478,7 @@ public class FhirIO {
     }
 
     public static class Result implements POutput, PInput {
+      private PCollection<KV<String, JsonArray>> keyedResources;
       private PCollection<JsonArray> resources;
 
       private PCollection<HealthcareIOError<String>> failedSearches;
@@ -1468,7 +1505,15 @@ public class FhirIO {
 
       private Result(PCollectionTuple pct) {
         this.pct = pct;
-        this.resources = pct.get(OUT).setCoder(JsonArrayCoder.of());
+        this.keyedResources =
+            pct.get(OUT).setCoder(KvCoder.of(StringUtf8Coder.of(), JsonArrayCoder.of()));
+        this.resources =
+            this.keyedResources
+                .apply(
+                    "Extract Values",
+                    MapElements.into(TypeDescriptor.of(JsonArray.class))
+                        .via((KV<String, JsonArray> in) -> in.getValue()))
+                .setCoder(JsonArrayCoder.of());
         this.failedSearches =
             pct.get(DEAD_LETTER).setCoder(HealthcareIOErrorCoder.of(StringUtf8Coder.of()));
       }
@@ -1491,6 +1536,15 @@ public class FhirIO {
         return resources;
       }
 
+      /**
+       * Gets resources with input SearchParameter key.
+       *
+       * @return the resources with input SearchParameter key.
+       */
+      public PCollection<KV<String, JsonArray>> getKeyedResources() {
+        return keyedResources;
+      }
+
       @Override
       public Pipeline getPipeline() {
         return this.pct.getPipeline();
@@ -1498,7 +1552,7 @@ public class FhirIO {
 
       @Override
       public Map<TupleTag<?>, PValue> expand() {
-        return ImmutableMap.of(OUT, resources);
+        return ImmutableMap.of(OUT, keyedResources);
       }
 
       @Override
@@ -1507,13 +1561,14 @@ public class FhirIO {
     }
 
     /** The tag for the main output of Fhir Messages. */
-    public static final TupleTag<JsonArray> OUT = new TupleTag<JsonArray>() {};
+    public static final TupleTag<KV<String, JsonArray>> OUT =
+        new TupleTag<KV<String, JsonArray>>() {};
     /** The tag for the deadletter output of Fhir Messages. */
     public static final TupleTag<HealthcareIOError<String>> DEAD_LETTER =
         new TupleTag<HealthcareIOError<String>>() {};
 
     @Override
-    public FhirIO.Search.Result expand(PCollection<KV<String, Map<String, T>>> input) {
+    public FhirIO.Search.Result expand(PCollection<FhirSearchParameter<T>> input) {
       return input.apply("Fetch Fhir messages", new SearchResourcesJsonString(this.fhirStore));
     }
 
@@ -1536,7 +1591,7 @@ public class FhirIO {
      * </ul>
      */
     class SearchResourcesJsonString
-        extends PTransform<PCollection<KV<String, Map<String, T>>>, FhirIO.Search.Result> {
+        extends PTransform<PCollection<FhirSearchParameter<T>>, FhirIO.Search.Result> {
 
       private final ValueProvider<String> fhirStore;
 
@@ -1545,7 +1600,7 @@ public class FhirIO {
       }
 
       @Override
-      public FhirIO.Search.Result expand(PCollection<KV<String, Map<String, T>>> resourceIds) {
+      public FhirIO.Search.Result expand(PCollection<FhirSearchParameter<T>> resourceIds) {
         return new FhirIO.Search.Result(
             resourceIds.apply(
                 ParDo.of(new SearchResourcesFn(this.fhirStore))
@@ -1554,15 +1609,19 @@ public class FhirIO {
       }
 
       /** DoFn for searching messages from the Fhir store with error handling. */
-      class SearchResourcesFn extends DoFn<KV<String, Map<String, T>>, JsonArray> {
+      class SearchResourcesFn extends DoFn<FhirSearchParameter<T>, KV<String, JsonArray>> {
 
-        private Distribution searchLatencyMs =
-            Metrics.distribution(SearchResourcesFn.class, "fhir-search-latency-ms");
-        private Counter failedSearches =
-            Metrics.counter(SearchResourcesFn.class, "failed-fhir-searches");
+        private final Counter searchResourceErrors =
+            Metrics.counter(
+                SearchResourcesFn.class, BASE_METRIC_PREFIX + "search_resource_error_count");
+        private final Counter searchResourceSuccess =
+            Metrics.counter(
+                SearchResourcesFn.class, BASE_METRIC_PREFIX + "search_resource_success_count");
+        private final Distribution searchResourceLatencyMs =
+            Metrics.distribution(
+                SearchResourcesFn.class, BASE_METRIC_PREFIX + "search_resource_latency_ms");
+
         private final Logger log = LoggerFactory.getLogger(SearchResourcesFn.class);
-        private final Counter successfulSearches =
-            Metrics.counter(SearchResourcesFn.class, "successful-fhir-searches");
         private HealthcareApiClient client;
         private final ValueProvider<String> fhirStore;
 
@@ -1588,16 +1647,18 @@ public class FhirIO {
          */
         @ProcessElement
         public void processElement(ProcessContext context) {
-          KV<String, Map<String, T>> elementValues = context.element();
+          FhirSearchParameter<T> fhirSearchParameters = context.element();
           try {
             context.output(
-                searchResources(
-                    this.client,
-                    this.fhirStore.toString(),
-                    elementValues.getKey(),
-                    elementValues.getValue()));
+                KV.of(
+                    fhirSearchParameters.getKey(),
+                    searchResources(
+                        this.client,
+                        this.fhirStore.toString(),
+                        fhirSearchParameters.getResourceType(),
+                        fhirSearchParameters.getQueries())));
           } catch (IllegalArgumentException | NoSuchElementException e) {
-            failedSearches.inc();
+            searchResourceErrors.inc();
             log.warn(
                 String.format(
                     "Error search FHIR messages writing to Dead Letter "
@@ -1614,7 +1675,7 @@ public class FhirIO {
             String resourceType,
             @Nullable Map<String, T> parameters)
             throws NoSuchElementException {
-          long startTime = System.currentTimeMillis();
+          long start = Instant.now().toEpochMilli();
 
           HashMap<String, Object> parameterObjects = new HashMap<>();
           if (parameters != null) {
@@ -1628,8 +1689,8 @@ public class FhirIO {
           while (iter.hasNext()) {
             result.addAll(iter.next());
           }
-          searchLatencyMs.update(System.currentTimeMillis() - startTime);
-          this.successfulSearches.inc();
+          searchResourceLatencyMs.update(java.time.Instant.now().toEpochMilli() - start);
+          searchResourceSuccess.inc();
           return result;
         }
       }
