@@ -39,7 +39,6 @@ def hadoopVersions = [
 
 hadoopVersions.each {kv -> configurations.create("hadoopVersion$kv.key")}
 
-def log4j_version = "2.6.2"
 def elastic_search_version = "7.9.2"
 
 configurations.create("sparkRunner")
