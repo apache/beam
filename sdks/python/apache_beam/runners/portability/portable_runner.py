@@ -332,7 +332,6 @@ class PortableRunner(runner.PipelineRunner):
       if pre_optimize == 'default':
         phases = [
             translations.eliminate_common_key_with_none,
-            translations.pack_combiners,
             # TODO: https://issues.apache.org/jira/browse/BEAM-4678
             #       https://issues.apache.org/jira/browse/BEAM-11478
             # Eventually remove the 'lift_combiners' phase from 'default'.
