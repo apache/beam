@@ -19,7 +19,6 @@ package org.apache.beam.examples.snippets.transforms.io.gcp.bigquery;
 
 // [START bigquery_read_from_query_with_bigquery_storage_api]
 
-import java.util.Arrays;
 import org.apache.beam.examples.snippets.transforms.io.gcp.bigquery.BigQueryMyData.MyData;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
@@ -30,7 +29,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 
 class BigQueryReadFromQueryWithBigQueryStorageAPI {
   public static PCollection<MyData> readFromQueryWithBigQueryStorageAPI(
-          String project, String dataset, String table, String query, Pipeline pipeline) {
+      String project, String dataset, String table, String query, Pipeline pipeline) {
 
     // String project = "my-project-id";
     // String dataset = "my_bigquery_dataset_id";
