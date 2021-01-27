@@ -20,16 +20,22 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import java.io.IOException;
-import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
+import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.MetricName;
+import org.apache.beam.sdk.metrics.MetricsContainer;
+import org.apache.beam.sdk.metrics.MetricsEnvironment;
+import org.apache.beam.sdk.metrics.MetricsLogger;
 import org.apache.beam.sdk.metrics.SinkMetrics;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
@@ -41,7 +47,6 @@ import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.util.Histogram;
 import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.values.FailsafeValueInSingleWindow;
 import org.apache.beam.sdk.values.KV;
@@ -51,12 +56,11 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.math.DoubleMath;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** PTransform to perform batched streaming BigQuery write. */
 @SuppressWarnings({
@@ -76,13 +80,7 @@ class BatchedStreamingWrite<ErrorT, ElementT>
   private final boolean ignoreInsertIds;
   private final SerializableFunction<ElementT, TableRow> toTableRow;
   private final SerializableFunction<ElementT, TableRow> toFailsafeTableRow;
-
-  /** Tracks histogram of bytes written. Reset at the start of every bundle. */
-  private transient Histogram histogram = Histogram.linear(0, 20, 3000);
-
-  private transient Long lastReportedSystemClockMillis = System.currentTimeMillis();
-
-  private static final Logger LOG = LoggerFactory.getLogger(BatchedStreamingWrite.class);
+  private final Set<MetricName> metricFilter;
 
   /** Tracks bytes written, exposed as "ByteCount" Counter. */
   private Counter byteCounter = SinkMetrics.bytesWritten();
@@ -111,6 +109,7 @@ class BatchedStreamingWrite<ErrorT, ElementT>
     this.ignoreInsertIds = ignoreInsertIds;
     this.toTableRow = toTableRow;
     this.toFailsafeTableRow = toFailsafeTableRow;
+    this.metricFilter = getMetricFilter();
     this.batchViaStateful = false;
   }
 
@@ -136,7 +135,35 @@ class BatchedStreamingWrite<ErrorT, ElementT>
     this.ignoreInsertIds = ignoreInsertIds;
     this.toTableRow = toTableRow;
     this.toFailsafeTableRow = toFailsafeTableRow;
+    this.metricFilter = getMetricFilter();
     this.batchViaStateful = batchViaStateful;
+  }
+
+  private static Set<MetricName> getMetricFilter() {
+    ImmutableSet.Builder<MetricName> setBuilder = ImmutableSet.builder();
+    setBuilder.add(
+        MonitoringInfoMetricName.named(
+            MonitoringInfoConstants.Urns.API_REQUEST_LATENCIES,
+            BigQueryServicesImpl.API_METRIC_LABEL));
+    for (String status : BigQueryServicesImpl.DatasetServiceImpl.CANONICAL_STATUS_MAP.values()) {
+      setBuilder.add(
+          MonitoringInfoMetricName.named(
+              MonitoringInfoConstants.Urns.API_REQUEST_COUNT,
+              ImmutableMap.<String, String>builder()
+                  .putAll(BigQueryServicesImpl.API_METRIC_LABEL)
+                  .put(MonitoringInfoConstants.Labels.STATUS, status)
+                  .build()));
+    }
+    setBuilder.add(
+        MonitoringInfoMetricName.named(
+            MonitoringInfoConstants.Urns.API_REQUEST_COUNT,
+            ImmutableMap.<String, String>builder()
+                .putAll(BigQueryServicesImpl.API_METRIC_LABEL)
+                .put(
+                    MonitoringInfoConstants.Labels.STATUS,
+                    BigQueryServicesImpl.DatasetServiceImpl.CANONICAL_STATUS_UNKNOWN)
+                .build()));
+    return setBuilder.build();
   }
 
   /**
@@ -208,21 +235,6 @@ class BatchedStreamingWrite<ErrorT, ElementT>
     /** The list of unique ids for each BigQuery table row. */
     private transient Map<String, List<String>> uniqueIdsForTableRows;
 
-    @Setup
-    public void setup() {
-      // record latency upto 60 seconds in the resolution of 20ms
-      histogram = Histogram.linear(0, 20, 3000);
-      lastReportedSystemClockMillis = System.currentTimeMillis();
-    }
-
-    @Teardown
-    public void teardown() {
-      if (histogram.getTotalCount() > 0) {
-        logPercentiles();
-        histogram.clear();
-      }
-    }
-
     /** Prepares a target BigQuery table. */
     @StartBundle
     public void startBundle() {
@@ -269,8 +281,7 @@ class BatchedStreamingWrite<ErrorT, ElementT>
       for (ValueInSingleWindow<ErrorT> row : failedInserts) {
         context.output(failedOutputTag, row.getValue(), row.getTimestamp(), row.getWindow());
       }
-
-      updateAndLogHistogram(options);
+      reportStreamingApiLogging(options);
     }
   }
 
@@ -315,21 +326,6 @@ class BatchedStreamingWrite<ErrorT, ElementT>
 
   private class InsertBatchedElements
       extends DoFn<KV<ShardedKey<String>, Iterable<TableRowInfo<ElementT>>>, Void> {
-    @Setup
-    public void setup() {
-      // record latency up to 60 seconds in the resolution of 20ms
-      histogram = Histogram.linear(0, 20, 3000);
-      lastReportedSystemClockMillis = System.currentTimeMillis();
-    }
-
-    @Teardown
-    public void teardown() {
-      if (histogram.getTotalCount() > 0) {
-        logPercentiles();
-        histogram.clear();
-      }
-    }
-
     @ProcessElement
     public void processElement(
         @Element KV<ShardedKey<String>, Iterable<TableRowInfo<ElementT>>> input,
@@ -355,29 +351,8 @@ class BatchedStreamingWrite<ErrorT, ElementT>
       for (ValueInSingleWindow<ErrorT> row : failedInserts) {
         out.get(failedOutputTag).output(row.getValue());
       }
-
-      updateAndLogHistogram(options);
+      reportStreamingApiLogging(options);
     }
-  }
-
-  private void updateAndLogHistogram(BigQueryOptions options) {
-    long currentTimeMillis = System.currentTimeMillis();
-    if (histogram.getTotalCount() > 0
-        && (currentTimeMillis - lastReportedSystemClockMillis)
-            > options.getLatencyLoggingFrequency() * 1000L) {
-      logPercentiles();
-      histogram.clear();
-      lastReportedSystemClockMillis = currentTimeMillis;
-    }
-  }
-
-  private void logPercentiles() {
-    LOG.info(
-        "Total number of streaming insert requests: {}, P99: {}ms, P90: {}ms, P50: {}ms",
-        histogram.getTotalCount(),
-        DoubleMath.roundToInt(histogram.p99(), RoundingMode.HALF_UP),
-        DoubleMath.roundToInt(histogram.p90(), RoundingMode.HALF_UP),
-        DoubleMath.roundToInt(histogram.p50(), RoundingMode.HALF_UP));
   }
 
   /** Writes the accumulated rows into BigQuery with streaming API. */
@@ -392,7 +367,7 @@ class BatchedStreamingWrite<ErrorT, ElementT>
       try {
         long totalBytes =
             bqServices
-                .getDatasetService(options, histogram)
+                .getDatasetService(options)
                 .insertAll(
                     tableReference,
                     tableRows,
@@ -407,6 +382,18 @@ class BatchedStreamingWrite<ErrorT, ElementT>
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
+    }
+  }
+
+  private void reportStreamingApiLogging(BigQueryOptions options) {
+    MetricsContainer processWideContainer = MetricsEnvironment.getProcessWideContainer();
+    if (processWideContainer instanceof MetricsLogger) {
+      MetricsLogger processWideMetricsLogger = (MetricsLogger) processWideContainer;
+      processWideMetricsLogger.tryLoggingMetrics(
+          "BigQuery HTTP API Metrics: \n",
+          metricFilter,
+          options.getBqStreamingApiLoggingFrequencySec() * 1000L,
+          true);
     }
   }
 }
