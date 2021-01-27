@@ -95,17 +95,6 @@ public class DataTokenizationTest {
     Assert.assertEquals(testSchema, schemasUtils.getBigQuerySchema().toString());
   }
 
-  //  @Test
-  //  public void testNullRowToCSV() {
-  //    Schema beamSchema = Schema.builder().addNullableField("FieldString",
-  // FieldType.STRING).build();
-  //    Row.Builder rowBuilder = Row.withSchema(beamSchema);
-  //    Row row = rowBuilder.addValue(null).build();
-  //    System.out.println(row);
-  //    String csv = new RowToCsv(",").getCsvFromRow(row);
-  //    Assert.assertEquals("null", csv);
-  //  }
-
   @Test
   public void testRowToCSV() {
     Schema beamSchema = new SchemasUtils(testSchema).getBeamSchema();
