@@ -1033,6 +1033,7 @@ class FnApiRunnerTest(unittest.TestCase):
   def test_pack_combiners_disabled_by_default(self):
     self._test_pack_combiners(experiments=(), expect_packed=False)
 
+  @unittest.skip("BEAM-7248")
   def test_pack_combiners_enabled_by_experiment(self):
     self._test_pack_combiners(experiments=('pre_optimize=all',), expect_packed=True)
 

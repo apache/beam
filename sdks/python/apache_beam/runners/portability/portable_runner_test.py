@@ -224,6 +224,7 @@ class PortableRunnerTest(fn_runner_test.FnApiRunnerTest):
     raise unittest.SkipTest("Portable runners don't support drain yet.")
 
 
+@unittest.skip("BEAM-7248")
 class PortableRunnerOptimized(PortableRunnerTest):
   def create_options(self):
     options = super(PortableRunnerOptimized, self).create_options()
