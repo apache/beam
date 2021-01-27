@@ -21,7 +21,6 @@ import static org.apache.beam.runners.core.construction.resources.PipelineResour
 import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.hasUnboundedPCollections;
 import static org.apache.beam.runners.spark.SparkPipelineOptions.prepareFilesToStage;
 
-import java.io.File;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.UUID;
@@ -93,7 +92,8 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
   }
 
   @Override
-  public PortablePipelineResult run(RunnerApi.Pipeline pipeline, JobInfo jobInfo) throws URISyntaxException {
+  public PortablePipelineResult run(RunnerApi.Pipeline pipeline, JobInfo jobInfo)
+      throws URISyntaxException {
     SparkPortablePipelineTranslator translator;
     boolean isStreaming = pipelineOptions.isStreaming() || hasUnboundedPCollections(pipeline);
     if (isStreaming) {
@@ -140,55 +140,59 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
 
     EventLoggingListener eventLoggingListener = null;
     if (pipelineOptions.getEventLogEnabled()) {
-        eventLoggingListener = new EventLoggingListener(
-                jobInfo.jobId(),
-                new scala.Option<String>() {
-                    @Override
-                    public boolean isEmpty() {
-                        return false;
-                    }
-
-                    @Override
-                    public String get() {
-                        return jobInfo.jobName();
-                    }
-
-                    @Override
-                    public Object productElement(int i) {
-                        return null;
-                    }
-
-                    @Override
-                    public int productArity() {
-                        return 0;
-                    }
-
-                    @Override
-                    public boolean canEqual(Object o) {
-                        return false;
-                    }
-                },
-                new URI(pipelineOptions.getSparkHistoryDir()),
-                jsc.getConf(),
-                jsc.hadoopConfiguration());
-        eventLoggingListener.initializeLogIfNecessary(false, false);
-        eventLoggingListener.start();
-        scala.collection.immutable.Map<String, String> logUrlMap = new scala.collection.immutable.HashMap<String, String>();
-        Tuple2<String, String>[] sparkConfList = jsc.getConf().getAll();
-        String sparkMaster = "";
-        String sparkExecutorID = "";
-        for (Tuple2<String, String> sparkConf : sparkConfList) {
-            if (sparkConf._1().equals("spark.master")) {
-                sparkMaster = sparkConf._2();
-            } else if (sparkConf._1().equals("spark.executor.id")) {
-                if (!sparkExecutorID.equals(sparkConf._2())) {
-                    sparkExecutorID = sparkConf._2();
-                    eventLoggingListener.onExecutorAdded(new SparkListenerExecutorAdded(
-                            Instant.now().getMillis(), sparkExecutorID,
-                            new ExecutorInfo(sparkMaster, 0, logUrlMap)));
+      eventLoggingListener =
+          new EventLoggingListener(
+              jobInfo.jobId(),
+              new scala.Option<String>() {
+                @Override
+                public boolean isEmpty() {
+                  return false;
                 }
-            }
+
+                @Override
+                public String get() {
+                  return jobInfo.jobName();
+                }
+
+                @Override
+                public Object productElement(int i) {
+                  return null;
+                }
+
+                @Override
+                public int productArity() {
+                  return 0;
+                }
+
+                @Override
+                public boolean canEqual(Object o) {
+                  return false;
+                }
+              },
+              new URI(pipelineOptions.getSparkHistoryDir()),
+              jsc.getConf(),
+              jsc.hadoopConfiguration());
+      eventLoggingListener.initializeLogIfNecessary(false, false);
+      eventLoggingListener.start();
+      scala.collection.immutable.Map<String, String> logUrlMap =
+          new scala.collection.immutable.HashMap<String, String>();
+      Tuple2<String, String>[] sparkConfList = jsc.getConf().getAll();
+      String sparkMaster = "";
+      String sparkExecutorID = "";
+      for (Tuple2<String, String> sparkConf : sparkConfList) {
+        if (sparkConf._1().equals("spark.master")) {
+          sparkMaster = sparkConf._2();
+        } else if (sparkConf._1().equals("spark.executor.id")) {
+          if (!sparkExecutorID.equals(sparkConf._2())) {
+            sparkExecutorID = sparkConf._2();
+            eventLoggingListener.onExecutorAdded(
+                new SparkListenerExecutorAdded(
+                    Instant.now().getMillis(),
+                    sparkExecutorID,
+                    new ExecutorInfo(sparkMaster, 0, logUrlMap)));
+          }
         }
+      }
     }
 
     LOG.info(String.format("Running job %s on Spark master %s", jobInfo.jobId(), jsc.master()));
@@ -199,7 +203,7 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
     MetricsAccumulator.init(pipelineOptions, jsc);
 
     final SparkTranslationContext context =
-            translator.createTranslationContext(jsc, pipelineOptions, jobInfo);
+        translator.createTranslationContext(jsc, pipelineOptions, jobInfo);
     final ExecutorService executorService = Executors.newSingleThreadExecutor();
 
     LOG.info(String.format("Running job %s on Spark master %s", jobInfo.jobId(), jsc.master()));
@@ -278,93 +282,94 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
     metricsPusher.start();
 
     if (pipelineOptions.getEventLogEnabled()) {
-        eventLoggingListener.onApplicationStart(
-                new SparkListenerApplicationStart(
-                        jobInfo.jobId(),
-                        new scala.Option<String>() {
-                            @Override
-                            public boolean isEmpty() {
-                                return false;
-                            }
+      eventLoggingListener.onApplicationStart(
+          new SparkListenerApplicationStart(
+              jobInfo.jobId(),
+              new scala.Option<String>() {
+                @Override
+                public boolean isEmpty() {
+                  return false;
+                }
 
-                            @Override
-                            public String get() {
-                                return jobInfo.jobName();
-                            }
+                @Override
+                public String get() {
+                  return jobInfo.jobName();
+                }
 
-                            @Override
-                            public Object productElement(int i) {
-                                return null;
-                            }
+                @Override
+                public Object productElement(int i) {
+                  return null;
+                }
 
-                            @Override
-                            public int productArity() {
-                                return 0;
-                            }
+                @Override
+                public int productArity() {
+                  return 0;
+                }
 
-                            @Override
-                            public boolean canEqual(Object o) {
-                                return false;
-                            }
-                        },
-                        Instant.now().getMillis(),
-                        jsc.sparkUser(),
-                        new scala.Option<String>() {
-                            @Override
-                            public boolean isEmpty() {
-                                return false;
-                            }
+                @Override
+                public boolean canEqual(Object o) {
+                  return false;
+                }
+              },
+              Instant.now().getMillis(),
+              jsc.sparkUser(),
+              new scala.Option<String>() {
+                @Override
+                public boolean isEmpty() {
+                  return false;
+                }
 
-                            @Override
-                            public String get() {
-                                return jobInfo.jobName();
-                            }
+                @Override
+                public String get() {
+                  return jobInfo.jobName();
+                }
 
-                            @Override
-                            public Object productElement(int i) {
-                                return null;
-                            }
+                @Override
+                public Object productElement(int i) {
+                  return null;
+                }
 
-                            @Override
-                            public int productArity() {
-                                return 0;
-                            }
+                @Override
+                public int productArity() {
+                  return 0;
+                }
 
-                            @Override
-                            public boolean canEqual(Object o) {
-                                return false;
-                            }
-                        },
-                        new scala.Option<Map<String, String>>() {
-                            @Override
-                            public boolean isEmpty() {
-                                return false;
-                            }
+                @Override
+                public boolean canEqual(Object o) {
+                  return false;
+                }
+              },
+              new scala.Option<Map<String, String>>() {
+                @Override
+                public boolean isEmpty() {
+                  return false;
+                }
 
-                            @Override
-                            public Map<String, String> get() {
-                                return JavaConverters.mapAsScalaMapConverter(
-                                        SparkBeamMetric.renderAllToString(result.metrics()))
-                                        .asScala();
-                            }
+                @Override
+                public Map<String, String> get() {
+                  return JavaConverters.mapAsScalaMapConverter(
+                          SparkBeamMetric.renderAllToString(result.metrics()))
+                      .asScala();
+                }
 
-                            @Override
-                            public Object productElement(int i) {
-                                return null;
-                            }
+                @Override
+                public Object productElement(int i) {
+                  return null;
+                }
 
-                            @Override
-                            public int productArity() {
-                                return 0;
-                            }
+                @Override
+                public int productArity() {
+                  return 0;
+                }
 
-                            @Override
-                            public boolean canEqual(Object o) {
-                                return false;
-                            }
-                        }));
-        eventLoggingListener.onApplicationEnd(new SparkListenerApplicationEnd(Instant.now().getMillis()));
-        eventLoggingListener.stop();
+                @Override
+                public boolean canEqual(Object o) {
+                  return false;
+                }
+              }));
+      eventLoggingListener.onApplicationEnd(
+          new SparkListenerApplicationEnd(Instant.now().getMillis()));
+      eventLoggingListener.stop();
     }
 
     return result;
