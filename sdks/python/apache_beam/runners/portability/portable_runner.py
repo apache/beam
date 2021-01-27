@@ -358,6 +358,24 @@ class PortableRunner(runner.PipelineRunner):
             translations.sort_stages
         ]
         partial = True
+      elif pre_optimize == 'all_with_fusion':
+        phases = [
+            translations.annotate_downstream_side_inputs,
+            translations.annotate_stateful_dofns_as_roots,
+            translations.fix_side_input_pcoll_coders,
+            translations.eliminate_common_key_with_none,
+            translations.pack_combiners,
+            translations.lift_combiners,
+            translations.expand_sdf,
+            translations.fix_flatten_coders,
+            # translations.sink_flattens,
+            translations.greedily_fuse,
+            translations.read_to_impulse,
+            translations.extract_impulse_stages,
+            translations.remove_data_plane_ops,
+            translations.sort_stages
+        ]
+        partial = False
       else:
         phases = []
         for phase_name in pre_optimize.split(','):
