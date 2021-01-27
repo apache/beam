@@ -1018,8 +1018,7 @@ class FnApiRunnerTest(unittest.TestCase):
     unpacked_max_step_name = 'PackableMax/CombinePerKey/ExtractOutputs'
     packed_step_name = (
         'Packed[PackableMin/CombinePerKey, PackableMax/CombinePerKey]/' +
-        'Pack/ExtractOutputs'
-    )
+        'Pack/ExtractOutputs')
 
     counters = res.metrics().query(beam.metrics.MetricsFilter())['counters']
     step_names_from_counters = set(m.key.step for m in counters)
