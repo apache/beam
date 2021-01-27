@@ -400,6 +400,7 @@ class DoctestTest(unittest.TestCase):
             'reset_option': ['*'],
             'set_eng_float_format': ['*'],
             'set_option': ['*'],
+            'to_numeric': ['*'],
             'to_timedelta': ['*'],
             'unique': ['*'],
             'value_counts': ['*'],

@@ -155,7 +155,6 @@ class DeferredPandasModule(object):
   test = frame_base.wont_implement_method('test')
   timedelta_range = _defer_to_pandas('timedelta_range')
   to_pickle = frame_base.wont_implement_method('order-sensitive')
-  to_numeric = _defer_to_pandas_maybe_elementwise('to_numeric')
   to_datetime = _defer_to_pandas_maybe_elementwise('to_datetime')
   notna = _call_on_first_arg('notna')
 
