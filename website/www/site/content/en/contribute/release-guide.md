@@ -101,7 +101,7 @@ Please have these credentials ready at hand, you will likely need to enter them 
 #### GPG Key
 
 You need to have a GPG key to sign the release artifacts.
-Please be aware of the ASF-wide [release signing guidelines](https://www.apache.org/dev/release-signing.html). 
+Please be aware of the ASF-wide [release signing guidelines](https://www.apache.org/dev/release-signing.html).
 If you don’t have a GPG key associated with your Apache account, please create one according to the guidelines.
 
 There are 2 ways to configure your GPG key for release, either using release automation script(which is recommended), or running all commands manually.
@@ -174,7 +174,7 @@ If MIT doesn't work for you (it probably won't, it's slow, returns 502 a lot, Ne
 
 #### Website development setup
 
-Updating the Beam website requires submitting PRs to both the main `apache/beam` repo and the `apache/beam-site` repo. 
+Updating the Beam website requires submitting PRs to both the main `apache/beam` repo and the `apache/beam-site` repo.
 The first contains reference manuals generated from SDK code, while the second updates the current release version number.
 
 You should already have setup a local clone of `apache/beam`.
@@ -192,8 +192,8 @@ Background information about how the website is updated can be found in [Beam-Si
 #### Register to PyPI
 
 Release manager needs to have an account with PyPI.
-If you need one, [register at PyPI](https://pypi.python.org/account/register/). 
-You also need to be a maintainer (or an owner) of the [apache-beam](https://pypi.python.org/pypi/apache-beam) package in order to push a new release. 
+If you need one, [register at PyPI](https://pypi.python.org/account/register/).
+You also need to be a maintainer (or an owner) of the [apache-beam](https://pypi.python.org/pypi/apache-beam) package in order to push a new release.
 Ask on the mailing list for assistance.
 
 #### Login to DockerHub
@@ -345,7 +345,7 @@ After following one of these processes you should manually update `CHANGES.md` o
 ### Start a snapshot build
 
 Start a build of [the nightly snapshot](https://ci-beam.apache.org/job/beam_Release_NightlySnapshot/) against master branch.
-Some processes, including our archetype tests, rely on having a live SNAPSHOT of the current version from the `master` branch. 
+Some processes, including our archetype tests, rely on having a live SNAPSHOT of the current version from the `master` branch.
 Once the release branch is cut, these SNAPSHOT versions are no longer found, so builds will be broken until a new snapshot is available.
 
 There are 2 ways to trigger a nightly build, either using automation script(recommended), or perform all operations manually.
@@ -497,12 +497,12 @@ Afterwards, this list can be refined and updated by the release manager and the 
 
 ## 6. Triage release-blocking issues in JIRA
 
-There could be outstanding release-blocking issues, which should be triaged before proceeding to build a release candidate. 
+There could be outstanding release-blocking issues, which should be triaged before proceeding to build a release candidate.
 We track them by assigning the blocked release to the issue's `Fix version` field before the issue is resolved.
 
 
 The release manager should triage what does and does not block a release.
-The list of release-blocking issues is available at the [version status page](https://issues.apache.org/jira/browse/BEAM/?selectedTab=com.atlassian.jira.jira-projects-plugin:versions-panel). 
+The list of release-blocking issues is available at the [version status page](https://issues.apache.org/jira/browse/BEAM/?selectedTab=com.atlassian.jira.jira-projects-plugin:versions-panel).
 Triage each unresolved issue with one of the following resolutions:
 
 * An issue should not block the release if the problem exists in the current released version or is a bug in new functionality that does not exist in the current released version.
@@ -526,7 +526,7 @@ For all other JIRA issues:
 
 * If the issue has not been resolved and it is acceptable to defer this until the next release, update the `Fix Version` field to the new version you just created.
   Please consider discussing this with stakeholders and the dev@ mailing list, as appropriate.
-* If the issue has not been resolved and it is not acceptable to release until it is fixed, the release cannot proceed. 
+* If the issue has not been resolved and it is not acceptable to release until it is fixed, the release cannot proceed.
   Instead, work with the Beam community to resolve the issue.
 
 If there is a bug found in the RC creation process/tools, those issues should be considered high priority and fixed in 7 days.
@@ -708,7 +708,7 @@ all major features and bug fixes, and all known issues.
     We are happy to present the new {$RELEASE_VERSION} release of Beam.
     This release includes both improvements and new functionality.
     See the [download page](/get-started/downloads/{$DOWNLOAD_ANCHOR}) for this release.
-    
+
     <{$REMOVE_FOR_VALID_SUMMARY_BREAK}!--more-->
 
     For more information on changes in {$RELEASE_VERSION}, check out the [detailed release notes]({$JIRA_RELEASE_NOTES}).
@@ -1218,8 +1218,8 @@ Use reporter.apache.org to seed the information about the release into future pr
 * Website pull request to [list the release](/get-started/downloads/) and publish the [API reference manual](https://beam.apache.org/releases/javadoc/) merged.
 * The release is tagged on Github's [Tags](https://github.com/apache/beam/tags) page.
 * The release notes are published on Github's [Releases](https://github.com/apache/beam/releases) page.
-* Release version finalized in JIRA. 
-  (Note: Not all committers have administrator access to JIRA. 
+* Release version finalized in JIRA.
+  (Note: Not all committers have administrator access to JIRA.
   If you end up getting permissions errors ask on the mailing list for assistance.)
 * Release version is listed at reporter.apache.org
 
