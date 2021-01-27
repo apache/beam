@@ -20,7 +20,7 @@ import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-  //enableStrictDependencies:true,
+  enableStrictDependencies:true,
   automaticModuleName: 'org.apache.beam.sdk.io.gcp',
   enableSpotbugs: false,
 )
@@ -91,6 +91,7 @@ dependencies {
   compile "org.threeten:threetenbp:1.4.4"
   compile "org.apache.beam:beam-vendor-grpc-1_26_0:0.3"
   compile project(path: ":model:pipeline", configuration: "shadow")
+  compile project(":runners:core-java")
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntime")
   testCompile project(path: ":runners:direct-java", configuration: "shadow")
