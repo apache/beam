@@ -233,7 +233,7 @@ class PortableRunnerOptimized(PortableRunnerTest):
         'data_buffer_time_limit_ms=1000')
     return options
 
-  @unittest.skip('pre_optimize=all enables translations.pack_combiners')
+  @unittest.skip('pre_optimize=all enables pack_combiners')
   def test_pack_combiners_disabled_by_default(self):
     pass
 
@@ -249,6 +249,10 @@ class PortableRunnerOptimizedWithFusion(PortableRunnerTest):
     options.view_as(DebugOptions).add_experiment(
         'data_buffer_time_limit_ms=1000')
     return options
+
+  @unittest.skip('pre_optimize=all_with_fusion enables pack_combiners')
+  def test_pack_combiners_disabled_by_default(self):
+    pass
 
 
 class PortableRunnerTestWithExternalEnv(PortableRunnerTest):
