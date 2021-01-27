@@ -854,8 +854,8 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
 
     with beam.Pipeline(runner=runner, options=pipeline_options) as p:
       data = p | beam.Create([10, 20, 30])
-      minimum = data | 'PackableMin' >> beam.CombineGlobally(min)
-      maximum = data | 'PackableMax' >> beam.CombineGlobally(max)
+      _ = data | 'PackableMin' >> beam.CombineGlobally(min)
+      _ = data | 'PackableMax' >> beam.CombineGlobally(max)
 
     unpacked_minimum_step_name = (
         'PackableMin/CombinePerKey/' +
