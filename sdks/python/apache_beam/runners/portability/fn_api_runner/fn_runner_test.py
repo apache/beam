@@ -989,7 +989,7 @@ class FnApiRunnerTest(unittest.TestCase):
 
   def _test_pack_combiners(self, experiments, expect_packed):
     counter = beam.metrics.Metrics.counter('ns', 'num_values')
-    
+
     def min_with_counter(values):
       counter.inc()
       return min(values)
@@ -1017,7 +1017,8 @@ class FnApiRunnerTest(unittest.TestCase):
     unpacked_min_step_name = 'PackableMin/CombinePerKey/ExtractOutputs'
     unpacked_max_step_name = 'PackableMax/CombinePerKey/ExtractOutputs'
     packed_step_name = (
-      'Packed[PackableMin/CombinePerKey, PackableMax/CombinePerKey]/Pack/ExtractOutputs')
+        'Packed[PackableMin/CombinePerKey, PackableMax/CombinePerKey]/Pack/ExtractOutputs'
+    )
 
     counters = res.metrics().query(beam.metrics.MetricsFilter())['counters']
     step_names_from_counters = set(m.key.step for m in counters)
@@ -1035,7 +1036,8 @@ class FnApiRunnerTest(unittest.TestCase):
 
   @unittest.skip("BEAM-11694")
   def test_pack_combiners_enabled_by_experiment(self):
-    self._test_pack_combiners(experiments=('pre_optimize=all',), expect_packed=True)
+    self._test_pack_combiners(
+        experiments=('pre_optimize=all', ), expect_packed=True)
 
 
 # These tests are kept in a separate group so that they are
