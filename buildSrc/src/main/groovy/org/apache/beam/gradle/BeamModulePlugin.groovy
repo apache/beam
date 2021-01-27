@@ -611,7 +611,7 @@ class BeamModulePlugin implements Plugin<Project> {
         slf4j_simple                                : "org.slf4j:slf4j-simple:$slf4j_version",
         slf4j_jdk14                                 : "org.slf4j:slf4j-jdk14:$slf4j_version",
         slf4j_log4j12                               : "org.slf4j:slf4j-log4j12:$slf4j_version",
-        snappy_java                                 : "org.xerial.snappy:snappy-java:1.1.4",
+        snappy_java                                 : "org.xerial.snappy:snappy-java:1.1.8.4",
         spark_core                                  : "org.apache.spark:spark-core_2.11:$spark_version",
         spark_network_common                        : "org.apache.spark:spark-network-common_2.11:$spark_version",
         spark_sql                                   : "org.apache.spark:spark-sql_2.11:$spark_version",
