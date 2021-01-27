@@ -41,36 +41,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 public class SparkBeamMetric implements Metric {
   private static final String ILLEGAL_CHARACTERS = "[^A-Za-z0-9-]";
 
-  public static Map<String, String> renderAll(MetricResults metricResults) {
-    HashMap<String, String> driverLogs = new HashMap<String, String>();
-    for (MetricResult<Long> metricResult : metricResults.allMetrics().getCounters()) {
-      driverLogs.put(renderName(metricResult), String.valueOf(metricResult.getAttempted()));
-    }
-    for (MetricResult<DistributionResult> metricResult :
-        metricResults.allMetrics().getDistributions()) {
-      DistributionResult distributionResult = metricResult.getAttempted();
-      driverLogs.put(
-          renderName(metricResult) + ".count", String.valueOf(distributionResult.getCount()));
-      driverLogs.put(
-          renderName(metricResult) + ".sum", String.valueOf(distributionResult.getSum()));
-      driverLogs.put(
-          renderName(metricResult) + ".min", String.valueOf(distributionResult.getMin()));
-      driverLogs.put(
-          renderName(metricResult) + ".max", String.valueOf(distributionResult.getMax()));
-      driverLogs.put(
-          renderName(metricResult) + ".mean", String.valueOf(distributionResult.getMean()));
-    }
-    for (MetricResult<GaugeResult> metricResult : metricResults.allMetrics().getGauges()) {
-      driverLogs.put(
-          renderName(metricResult), String.valueOf(metricResult.getAttempted().getValue()));
-    }
-    return driverLogs;
-  }
-
-  Map<String, ?> renderAll() {
+  public static Map<String, ?> renderAll(MetricResults metricResults) {
     Map<String, Object> metrics = new HashMap<>();
-    MetricResults metricResults =
-        asAttemptedOnlyMetricResults(MetricsAccumulator.getInstance().value());
     MetricQueryResults metricQueryResults = metricResults.allMetrics();
     for (MetricResult<Long> metricResult : metricQueryResults.getCounters()) {
       metrics.put(renderName(metricResult), metricResult.getAttempted());
@@ -87,6 +59,22 @@ public class SparkBeamMetric implements Metric {
       metrics.put(renderName(metricResult), metricResult.getAttempted().getValue());
     }
     return metrics;
+  }
+
+  public static Map<String, String> renderAllToString(MetricResults metricResults) {
+    Map<String, String> metricsString = new HashMap<>();
+    for (Map.Entry<String, ?> entry : renderAll(metricResults).entrySet()) {
+      String key = entry.getKey();
+      String value = String.valueOf(entry.getValue());
+      metricsString.put(key, value);
+    }
+    return metricsString;
+  }
+
+  Map<String, ?> renderAll() {
+    MetricResults metricResults =
+        asAttemptedOnlyMetricResults(MetricsAccumulator.getInstance().value());
+    return renderAll(metricResults);
   }
 
   @VisibleForTesting

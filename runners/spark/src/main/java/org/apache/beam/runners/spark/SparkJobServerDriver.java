@@ -26,6 +26,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
+import org.kohsuke.args4j.spi.ExplicitBooleanOptionHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,10 +40,11 @@ public class SparkJobServerDriver extends JobServerDriver {
 
     @Option(
         name = "--event-log-enabled",
-        usage = "Set it to true if event logs should be saved to Spark History Server directory")
-    private String eventLogEnabled = SparkPipelineOptions.DEFAULT_EVENT_LOG_ENABLED;
+        usage = "Set it to true if event logs should be saved to Spark History Server directory",
+            handler = ExplicitBooleanOptionHandler.class)
+    private boolean eventLogEnabled = SparkPipelineOptions.DEFAULT_EVENT_LOG_ENABLED;
 
-    String getEventLogEnabled() {
+    boolean getEventLogEnabled() {
       return this.eventLogEnabled;
     }
 

@@ -35,10 +35,10 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects
 public interface SparkPipelineOptions extends SparkCommonPipelineOptions {
 
   @Description("Set it to true if event logs should be saved to Spark History Server directory")
-  @Default.String("false")
-  String getEventLogEnabled();
+  @Default.Boolean(false)
+  boolean getEventLogEnabled();
 
-  void setEventLogEnabled(String eventLogEnabled);
+  void setEventLogEnabled(boolean eventLogEnabled);
 
   @Description("The directory to save Spark History Server logs")
   @Default.String("/tmp/spark-events/")
