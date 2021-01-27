@@ -45,7 +45,7 @@ dependencies {
   compile library.java.jackson_databind
   compile library.java.slf4j_api
   compile library.java.joda_time
-  compile "org.apache.httpcomponents:httpcore:4.4.11"
+  compile library.java.http_core
   runtime library.java.commons_codec
   runtime "org.apache.httpcomponents:httpclient:4.5.12"
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
