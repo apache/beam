@@ -27,6 +27,7 @@ import static org.apache.beam.sdk.schemas.Schema.TypeName.ROW;
 
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
+import com.google.common.collect.ImmutableMap;
 import java.io.Serializable;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Internal;
