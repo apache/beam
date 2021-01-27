@@ -73,8 +73,7 @@ public class SparkJobInvoker extends JobInvoker {
     if (sparkOptions.getSparkHistoryDir().equals(SparkPipelineOptions.DEFAULT_SPARK_HISTORY_DIR)) {
       sparkOptions.setSparkHistoryDir(configuration.getSparkHistoryDir());
     }
-
-    if (sparkOptions.getEventLogEnabled().equals(SparkPipelineOptions.DEFAULT_EVENT_LOG_ENABLED)) {
+    if (sparkOptions.getEventLogEnabled() == SparkPipelineOptions.DEFAULT_EVENT_LOG_ENABLED) {
       sparkOptions.setEventLogEnabled(configuration.getEventLogEnabled());
     }
 
