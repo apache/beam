@@ -29,14 +29,14 @@ dependencies {
   compile(library.java.google_cloud_datacatalog_v1beta1) {
     exclude group: 'io.grpc', module: 'grpc-core' // Use Beam's version
   }
-  compile "com.google.api.grpc:proto-google-cloud-datacatalog-v1beta1:0.32.1"
-  compile "com.google.api:gax:1.57.1"
-  compile "com.google.auth:google-auth-library-credentials:0.19.0"
-  compile library.java.vendored_guava_26_0_jre
-  compile library.java.slf4j_api
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile "org.threeten:threetenbp:1.4.5"
+  compile library.java.gax
+  compile library.java.google_auth_library_credentials
   compile library.java.protobuf_java
+  compile library.java.slf4j_api
+  compile library.java.vendored_guava_26_0_jre
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile "com.google.api.grpc:proto-google-cloud-datacatalog-v1beta1:0.32.1"
+  compile "org.threeten:threetenbp:1.4.5"
   provided project(":sdks:java:extensions:sql")
 
   // Dependencies for the example
