@@ -37,4 +37,5 @@ task runJavaExamplesValidationTask {
   dependsOn ":runners:direct-java:runMobileGamingJavaDirect"
   dependsOn ":runners:google-cloud-dataflow-java:runMobileGamingJavaDataflow"
   dependsOn ":runners:twister2:runQuickstartJavaTwister2"
+  dependsOn ":runners:google-cloud-dataflow-java:runMobileGamingJavaDataflowBom"
 }

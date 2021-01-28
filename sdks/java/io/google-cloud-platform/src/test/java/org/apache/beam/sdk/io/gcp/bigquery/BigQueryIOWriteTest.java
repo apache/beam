@@ -224,25 +224,31 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testWriteDynamicDestinationsBatch() throws Exception {
-    writeDynamicDestinations(false, false);
+    writeDynamicDestinations(false, false, false);
   }
 
   @Test
   public void testWriteDynamicDestinationsBatchWithSchemas() throws Exception {
-    writeDynamicDestinations(false, true);
+    writeDynamicDestinations(false, true, false);
   }
 
   @Test
   public void testWriteDynamicDestinationsStreaming() throws Exception {
-    writeDynamicDestinations(true, false);
+    writeDynamicDestinations(true, false, false);
   }
 
   @Test
   public void testWriteDynamicDestinationsStreamingWithSchemas() throws Exception {
-    writeDynamicDestinations(true, true);
+    writeDynamicDestinations(true, true, false);
   }
 
-  public void writeDynamicDestinations(boolean streaming, boolean schemas) throws Exception {
+  @Test
+  public void testWriteDynamicDestinationsStreamingWithAutoSharding() throws Exception {
+    writeDynamicDestinations(true, true, true);
+  }
+
+  public void writeDynamicDestinations(boolean streaming, boolean schemas, boolean autoSharding)
+      throws Exception {
     final Schema schema =
         Schema.builder().addField("name", FieldType.STRING).addField("id", FieldType.INT32).build();
 
@@ -357,6 +363,9 @@ public class BigQueryIOWriteTest implements Serializable {
                 checkState(matcher.matches());
                 return new TableRow().set("name", matcher.group(1)).set("id", matcher.group(2));
               });
+    }
+    if (autoSharding) {
+      write = write.withAutoSharding();
     }
     users.apply("WriteBigQuery", write);
     p.run();
@@ -860,6 +869,30 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testStreamingWrite() throws Exception {
+    streamingWrite(false);
+  }
+
+  @Test
+  public void testStreamingWriteWithAutoSharding() throws Exception {
+    streamingWrite(true);
+  }
+
+  private void streamingWrite(boolean autoSharding) throws Exception {
+    BigQueryIO.Write<TableRow> write =
+        BigQueryIO.writeTableRows()
+            .to("project-id:dataset-id.table-id")
+            .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+            .withSchema(
+                new TableSchema()
+                    .setFields(
+                        ImmutableList.of(
+                            new TableFieldSchema().setName("name").setType("STRING"),
+                            new TableFieldSchema().setName("number").setType("INTEGER"))))
+            .withTestServices(fakeBqServices)
+            .withoutValidation();
+    if (autoSharding) {
+      write = write.withAutoSharding();
+    }
     p.apply(
             Create.of(
                     new TableRow().set("name", "a").set("number", 1),
@@ -868,18 +901,7 @@ public class BigQueryIOWriteTest implements Serializable {
                     new TableRow().set("name", "d").set("number", 4))
                 .withCoder(TableRowJsonCoder.of()))
         .setIsBoundedInternal(PCollection.IsBounded.UNBOUNDED)
-        .apply(
-            BigQueryIO.writeTableRows()
-                .to("project-id:dataset-id.table-id")
-                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
-                .withSchema(
-                    new TableSchema()
-                        .setFields(
-                            ImmutableList.of(
-                                new TableFieldSchema().setName("name").setType("STRING"),
-                                new TableFieldSchema().setName("number").setType("INTEGER"))))
-                .withTestServices(fakeBqServices)
-                .withoutValidation());
+        .apply(write);
     p.run();
 
     assertThat(
@@ -1248,6 +1270,7 @@ public class BigQueryIOWriteTest implements Serializable {
     assertEquals(BigQueryIO.Write.WriteDisposition.WRITE_EMPTY, write.getWriteDisposition());
     assertEquals(null, write.getTableDescription());
     assertTrue(write.getValidate());
+    assertFalse(write.getAutoSharding());
 
     assertFalse(write.withoutValidation().getValidate());
     TableSchema schema = new TableSchema();
@@ -1467,6 +1490,22 @@ public class BigQueryIOWriteTest implements Serializable {
                 .withSchema(new TableSchema())
                 .withAvroFormatFunction(r -> new GenericData.Record(r.getSchema()))
                 .withMethod(Method.STREAMING_INSERTS)
+                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED));
+  }
+
+  @Test
+  public void testWriteValidateFailsWithBatchAutoSharding() {
+    p.enableAbandonedNodeEnforcement(false);
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Auto-sharding is only applicable to unbounded input.");
+    p.apply(Create.empty(INPUT_RECORD_CODER))
+        .apply(
+            BigQueryIO.<InputRecord>write()
+                .to("dataset.table")
+                .withSchema(new TableSchema())
+                .withMethod(Method.STREAMING_INSERTS)
+                .withAutoSharding()
                 .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED));
   }
 
