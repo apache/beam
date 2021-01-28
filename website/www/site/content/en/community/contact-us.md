@@ -38,7 +38,7 @@ what are the topics for each of the above.
 
 ### Subsribe and Unsubscribe:
 
-To send emails to these lists you need to be subscribed. To subscribe send a blank email to [user-subscribe@beam.apache.org](user-subscribe@beam.apache.org) or [dev-subscribe@beam.apache.org](dev-subscribe@beam.apache.org) depending on the list you want to write to.
+To send emails to these lists you need to subscribe first. To subscribe send a blank email to [user@](user-subscribe@beam.apache.org) or [dev@](dev@beam.apache.org) depending on the list you want to write to.
 
 ### Useful Tips for Sending Emails
 
