@@ -27,6 +27,7 @@ import java.net.URLClassLoader;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.ProviderNotFoundException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -57,7 +58,10 @@ public class JavaUdfLoader {
    * Maps the external jar location to the functions the jar defines. Static so it can persist
    * across multiple SQL transforms.
    */
-  private static final Map<String, FunctionDefinitions> cache = new HashMap<>();
+  private static final Map<String, FunctionDefinitions> functionCache = new HashMap<>();
+
+  /** Maps potentially remote jar paths to their local file copies. */
+  private static final Map<String, File> jarCache = new HashMap<>();
 
   /** Load a user-defined scalar function from the specified jar. */
   public ScalarFn loadScalarFunction(List<String> functionPath, String jarPath) {
@@ -111,9 +115,28 @@ public class JavaUdfLoader {
     }
   }
 
+  private File getLocalJar(String inputJarPath) throws IOException {
+    if (!jarCache.containsKey(inputJarPath)) {
+      jarCache.put(inputJarPath, downloadFile(inputJarPath, "application/java-archive"));
+    }
+    return jarCache.get(inputJarPath);
+  }
+
   private ClassLoader createClassLoader(String inputJarPath) throws IOException {
-    File tmpJar = downloadFile(inputJarPath, "application/java-archive");
+    File tmpJar = getLocalJar(inputJarPath);
     return new URLClassLoader(new URL[] {tmpJar.toURI().toURL()});
+  }
+
+  public ClassLoader createClassLoader(List<String> inputJarPaths) throws IOException {
+    List<File> localJars = new ArrayList<>();
+    for (String inputJar : inputJarPaths) {
+      localJars.add(getLocalJar(inputJar));
+    }
+    List<URL> urls = new ArrayList<>();
+    for (File file : localJars) {
+      urls.add(file.toURI().toURL());
+    }
+    return new URLClassLoader(urls.toArray(new URL[0]));
   }
 
   @VisibleForTesting
@@ -122,9 +145,9 @@ public class JavaUdfLoader {
   }
 
   private FunctionDefinitions loadJar(String jarPath) throws IOException {
-    if (cache.containsKey(jarPath)) {
+    if (functionCache.containsKey(jarPath)) {
       LOG.debug("Using cached function definitions from {}", jarPath);
-      return cache.get(jarPath);
+      return functionCache.get(jarPath);
     }
 
     ClassLoader classLoader = createClassLoader(jarPath);
@@ -168,7 +191,7 @@ public class JavaUdfLoader {
             .setScalarFunctions(ImmutableMap.copyOf(scalarFunctions))
             .build();
 
-    cache.put(jarPath, userFunctionDefinitions);
+    functionCache.put(jarPath, userFunctionDefinitions);
 
     return userFunctionDefinitions;
   }
