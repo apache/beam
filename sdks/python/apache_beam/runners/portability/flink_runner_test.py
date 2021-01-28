@@ -398,9 +398,6 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
   def test_register_finalizations(self):
     raise unittest.SkipTest("BEAM-11021")
 
-  def test_pardo_dynamic_timer(self):
-    raise unittest.SkipTest("BEAM-10120")
-
   # Inherits all other tests.
 
 
