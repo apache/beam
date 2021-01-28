@@ -34,7 +34,9 @@ ext.summary = """Contains code to run a SQL Expansion Service."""
 dependencies {
   compile project(path: ":sdks:java:extensions:sql")
   compile project(path: ":sdks:java:extensions:sql:zetasql")
-  compile project(path: ":sdks:java:expansion-service")
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile "org.apache.beam:beam-vendor-guava-26_0-jre:0.1"
+  compile "org.checkerframework:checker-qual:2.0.0"
 }
 
 task runExpansionService (type: JavaExec) {
