@@ -19,7 +19,7 @@
 
 .component-title {
   font-size: 36px;
-  font-weight: normal;
+  font-weight: 500;
   font-style: normal;
   line-height: 1.1;
   letter-spacing: normal;
@@ -129,6 +129,7 @@
 @media (max-width: $tablet) {
   .component-title {
     font-size: 28px;
+    line-height: 1.29;
   }
   .component-large-header {
     font-size: 24px;
@@ -136,12 +137,6 @@
 }
 
 h1 {
-  @media (max-width: $tablet) {
-    font-size: 32px;
-    line-height: 1.19;
-    font-weight: 500;
-    letter-spacing: normal;
-  }
   font-size: 36px;
   font-weight: 500;
   line-height: 1.1;
@@ -150,12 +145,6 @@ h1 {
   margin-top: 64px;
 }
 h2 {
-  @media (max-width: $tablet) {
-    font-size: 28px;
-    line-height: 1.29;
-    font-weight: 500;
-    letter-spacing: normal;
-  }
   font-size: 30px;
   font-weight: 500;
   line-height: 1.2;
@@ -204,4 +193,9 @@ p {
 }
 .hero-heading {
   font-size: 32px;
+}
+li {
+  font-size: 16px;
+  letter-spacing: 0.43px;
+  line-height: 1.63;
 }

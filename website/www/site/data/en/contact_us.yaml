@@ -10,32 +10,114 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-- purpose: User support and questions
-  contact: { email: user@, link: "https://lists.apache.org/list.html?user@beam.apache.org", add: mailing list }
-  icon: icons/community/contact-us/question-mark.svg
-  actions: [{action: Subscribe,link: "mailto:user-subscribe@beam.apache.org"},{action: Unsubscribe, link: "mailto:user-unsubscribe@beam.apache.org"}, {action: Archives, link: "https://lists.apache.org/list.html?user@beam.apache.org"}]
-- purpose: Development discussions
-  contact: { email: dev@, link: "https://lists.apache.org/list.html?dev@beam.apache.org", add: mailing list}
-  icon: icons/community/contact-us/discussion.svg
-  actions: [{action: Subscribe,link: "mailto:dev-subscribe@beam.apache.org"},{action: Unsubscribe, link: "mailto:dev-unsubscribe@beam.apache.org"}, {action: Archives, link: "https://lists.apache.org/list.html?dev@beam.apache.org"}]
-- purpose: Firehose of commits, bugs, pull requests, etc.
-  contact: { email: commits@, link: "https://lists.apache.org/list.html?commits@beam.apache.org", add: mailing list }
-  icon: icons/community/contact-us/gitArrows.svg
-  actions: [{action: Subscribe,link: "mailto:commits-subscribe@beam.apache.org"},{action: Unsubscribe, link: "mailto:commits-unsubscribe@beam.apache.org"}, {action: Archives, link: "https://lists.apache.org/list.html?commits@beam.apache.org"}]
-- purpose: Firehose of build notifications from Jenkins
-  contact: { email: builds@, link: "https://lists.apache.org/list.html?builds@beam.apache.org", add: mailing list }
-  icon: icons/community/contact-us/notification.svg
-  actions: [{action: Subscribe,link: "mailto:builds-subscribe@beam.apache.org"},{action: Unsubscribe, link: "mailto:builds-unsubscribe@beam.apache.org"}, {action: Archives, link: "https://lists.apache.org/list.html?builds@beam.apache.org"}]
-- purpose: Report bugs / discover known issues
-  contact: { email: JIRA bug tracker, link: "https://issues.apache.org/jira/browse/BEAM" }
-  icon: icons/community/contact-us/bug.svg
-  
-  actions: [{action: '&#8208;'}]
-- purpose: Ask and answer user support questions
-  contact: { email: StackOverflow, link: "https://stackoverflow.com/questions/tagged/apache-beam" }
-  icon: icons/community/contact-us/messages.svg
-  actions: [{action: '&#8208;'}]
-- purpose: 'Chat with users and developers in the ASF Slack. Note: Please <a href="https://s.apache.org/beam-slack-channel">join the #beam channel</a> after you <a href="https://s.apache.org/slack-invite">created an account</a>. Please do not ask Beam questions in #general.'
-  contact: { email: Slack, link: "https://s.apache.org/beam-slack-channel" }
-  icon: icons/community/contact-us/knot.svg
-  actions: [{action: '&#8208;'}]
+- columns:
+    - purpose
+    - contact
+    - action
+  data:
+    - purpose: User support and questions
+      contact:
+        {
+          email: user@,
+          link: "https://lists.apache.org/list.html?user@beam.apache.org",
+          add: mailing list,
+        }
+      icon: icons/community/contact-us/question-mark.svg
+      actions:
+        [
+          { action: Subscribe, link: "mailto:user-subscribe@beam.apache.org" },
+          {
+            action: Unsubscribe,
+            link: "mailto:user-unsubscribe@beam.apache.org",
+          },
+          {
+            action: Archives,
+            link: "https://lists.apache.org/list.html?user@beam.apache.org",
+          },
+        ]
+    - purpose: Development discussions
+      contact:
+        {
+          email: dev@,
+          link: "https://lists.apache.org/list.html?dev@beam.apache.org",
+          add: mailing list,
+        }
+      icon: icons/community/contact-us/discussion.svg
+      actions:
+        [
+          { action: Subscribe, link: "mailto:dev-subscribe@beam.apache.org" },
+          {
+            action: Unsubscribe,
+            link: "mailto:dev-unsubscribe@beam.apache.org",
+          },
+          {
+            action: Archives,
+            link: "https://lists.apache.org/list.html?dev@beam.apache.org",
+          },
+        ]
+    - purpose: Firehose of commits, bugs, pull requests, etc.
+      contact:
+        {
+          email: commits@,
+          link: "https://lists.apache.org/list.html?commits@beam.apache.org",
+          add: mailing list,
+        }
+      icon: icons/community/contact-us/gitArrows.svg
+      actions:
+        [
+          {
+            action: Subscribe,
+            link: "mailto:commits-subscribe@beam.apache.org",
+          },
+          {
+            action: Unsubscribe,
+            link: "mailto:commits-unsubscribe@beam.apache.org",
+          },
+          {
+            action: Archives,
+            link: "https://lists.apache.org/list.html?commits@beam.apache.org",
+          },
+        ]
+    - purpose: Firehose of build notifications from Jenkins
+      contact:
+        {
+          email: builds@,
+          link: "https://lists.apache.org/list.html?builds@beam.apache.org",
+          add: mailing list,
+        }
+      icon: icons/community/contact-us/notification.svg
+      actions:
+        [
+          {
+            action: Subscribe,
+            link: "mailto:builds-subscribe@beam.apache.org",
+          },
+          {
+            action: Unsubscribe,
+            link: "mailto:builds-unsubscribe@beam.apache.org",
+          },
+          {
+            action: Archives,
+            link: "https://lists.apache.org/list.html?builds@beam.apache.org",
+          },
+        ]
+    - purpose: Report bugs / discover known issues
+      contact:
+        {
+          email: JIRA bug tracker,
+          link: "https://issues.apache.org/jira/browse/BEAM",
+        }
+      icon: icons/community/contact-us/bug.svg
+      actions: [{ action: "&#8208;" }]
+    - purpose: Ask and answer user support questions
+      contact:
+        {
+          email: StackOverflow,
+          link: "https://stackoverflow.com/questions/tagged/apache-beam",
+        }
+      icon: icons/community/contact-us/messages.svg
+      actions: [{ action: "&#8208;" }]
+    - purpose: 'Chat with users and developers in the ASF Slack. Note: Please <a href="https://s.apache.org/beam-slack-channel">join the #beam channel</a> after you <a href="https://s.apache.org/slack-invite">created an account</a>. Please do not ask Beam questions in #general.'
+      contact: { email: Slack, link: "https://s.apache.org/beam-slack-channel" }
+      icon: icons/community/contact-us/knot.svg
+      actions: [{ action: "&#8208;" }]

@@ -10,11 +10,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-- title: Join Beam Community
+- title: <a href="community/join-beam">Join Beam Community</a>
   body: Here you will find real life cases.
-  icon: icons/community/bee-icon.svg 
-- title: Contact us!
-  body: You want to know what is going on? Raise a bug? Propose a feature request? Here you will find all of the info on who to contact.
+  icon: icons/community/bee-icon.svg
+- title: <a href="/community/contact-us">Contact us!</a>
+  body: You want to know what is going on? Raise a bug? Propose a feature request? Here you will find all of them info all of the info on who to contact.
   icon: icons/community/envelope-icon.svg
 - title: Keep up with Beam
   body: Check out our social media and be first to know about any updates.

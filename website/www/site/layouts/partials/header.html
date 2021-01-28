@@ -1,24 +1,25 @@
 {{/*
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
-*/}}
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License. See accompanying LICENSE file.
+ */}}
 
-<nav class="navigation-bar-mobile header navbar navbar-fixed-top">
+ <nav class="navigation-bar-mobile header navbar navbar-fixed-top">
   <div class="navbar-header">
     <a href={{ "/" | relLangURL }} class="navbar-brand" >
       <img alt="Brand" style="height: 46px; width: 43px;" src="/images/beam_logo_navbar_mobile.png">
     </a>
-      <a class="navbar-link" href={{ "/get-started/beam-overview/" | relLangURL }}>{{ T "nav-get-started" }}</a>
-      <a class="navbar-link" href={{ "/documentation/" | relLangURL }}>{{ T "nav-documentation" }}</a>
-    
-    <button type="button" class="navbar-toggle" aria-expanded="false" aria-controls="navbar">
+
+     <a class="navbar-link" href={{ "/get-started/beam-overview/" | relLangURL }}>{{ T "nav-get-started" }}</a>
+     <a class="navbar-link" href={{ "/documentation/" | relLangURL }}>{{ T "nav-documentation" }}</a>
+
+    <button type="button" class="navbar-toggle menu-open" aria-expanded="false" aria-controls="navbar" onclick="openMenu()">
       <span class="sr-only">{{ T "nav-toggle-navigation" }}</span>
       <span class="icon-bar"></span>
       <span class="icon-bar"></span>
@@ -29,43 +30,77 @@
     <div class="navbar-mask closed"></div>
 
     <div id="navbar" class="navbar-container closed">
+       <button type="button" class="navbar-toggle" aria-expanded="false" aria-controls="navbar" id="closeMenu">
+         <span class="sr-only">{{ T "nav-toggle-navigation" }}</span>
+         <span class="icon-bar"></span>
+         <span class="icon-bar"></span>
+         <span class="icon-bar"></span>
+       </button>
       <ul class="nav navbar-nav">
+         <li>
+           <div class="searchBar-mobile">
+             <script>
+               (function() {
+                 var cx = '012923275103528129024:4emlchv9wzi';
+                 var gcse = document.createElement('script');
+                 gcse.type = 'text/javascript';
+                 gcse.async = true;
+                 gcse.src = 'https://cse.google.com/cse.js?cx=' + cx;
+                 var s = document.getElementsByTagName('script')[0];
+                 s.parentNode.insertBefore(gcse, s);
+               })();
+             </script>
+             <gcse:search></gcse:search>
+           </div>
+         </li>
         <li>
-          <a href={{ "/documentation/sdks/java/" | relLangURL }}>{{ T "nav-languages" }}</a>
+         <a class="navbar-link" href={{ "/get-started/beam-overview/" | relLangURL }}>{{ T "nav-get-started" }}</a>
         </li>
         <li>
-          <a href={{ "/documentation/runners/capability-matrix/" | relLangURL }}>{{ T "nav-runners" }}</a>
+          <span class="navbar-link">Documentation</span>
+         <ul>
+           <li><a href={{ "/documentation/" | relLangURL }}>{{ T "nav-documentation-general" }}</a></li>
+           <li><a href={{ "/documentation/sdks/java/" | relLangURL }}>{{ T "nav-languages" }}</a></li>
+           <li><a href={{ "/documentation/runners/capability-matrix/" | relLangURL }}>{{ T "nav-runners" }}</a></li>
+         </ul>
         </li>
         <li>
-          <a href={{ "/roadmap/" | relLangURL }}>{{ T "nav-roadmap" }}</a>
+          <a class="navbar-link" href={{ "/roadmap/" | relLangURL }}>{{ T "nav-roadmap" }}</a>
         </li>
         <li>
-          <a href={{ "/contribute/" | relLangURL }}>{{ T "nav-contribute" }}</a>
-        </li>
-        <li>
-          <a href={{ "/community/" | relLangURL }}>{{ T "nav-community" }}</a>
-        </li>
-        <li><a href={{ "/blog/" | relLangURL }}>{{ T "nav-blog" }}</a></li>
+         <a class="navbar-link" href={{ "/community/" | relLangURL }}>{{ T "nav-community" }}</a>
+       </li>
+       <li>
+         <a class="navbar-link" href={{ "/contribute/" | relLangURL }}>{{ T "nav-contribute" }}</a>
+       </li>
+       <li><a class="navbar-link" href={{ "/blog/" | relLangURL }}>{{ T "nav-blog" }}</a></li>
+       <li>
+         <a class="navbar-link" href={{ "/powered-by/" | relLangURL }}>{{ T "nav-powered-by" }}</a>
+       </li>
       </ul>
       <ul class="nav navbar-nav navbar-right">
+
         <li>
-          <div style="width: 250px;">
-            <script>
-              (function() {
-                var cx = '012923275103528129024:4emlchv9wzi';
-                var gcse = document.createElement('script');
-                gcse.type = 'text/javascript';
-                gcse.async = true;
-                gcse.src = 'https://cse.google.com/cse.js?cx=' + cx;
-                var s = document.getElementsByTagName('script')[0];
-                s.parentNode.insertBefore(gcse, s);
-              })();
-            </script>
-            <gcse:search></gcse:search>
-          </div>
-        </li>
+         <!--
+           data-proofer-ignore disables link checking from website test automation.
+           GitHub links will not resolve until the markdown source is available on the master branch.
+           New pages would fail validation during development / PR test automation.
+         -->
+         <a href="https://github.com/apache/beam/edit/master/website/www/site/content/{{ .Site.Language.Lang }}/{{ .Path }}" data-proofer-ignore>
+          {{ with resources.Get "icons/edit-icon.svg" }}
+             {{ .Content | safeHTML }}
+         {{ end }}
+       </a>
+       </li>
         <li class="dropdown">
-          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false"><img src="https://www.apache.org/foundation/press/kit/feather_small.png" alt="Apache Logo" style="height:20px;"><span class="caret"></span></a>
+          <a href="#" class="dropdown-toggle" id="apache-dropdown" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false"><img src="https://www.apache.org/foundation/press/kit/feather_small.png" alt="Apache Logo" style="height:20px;">
+             &nbsp;Apache
+             <span class="arrow-icon">
+               {{ with resources.Get "icons/navbar-arrow-icon.svg" }}
+                 {{ .Content | safeHTML }}
+               {{ end }}
+             </span>
+          </a>
           <ul class="dropdown-menu dropdown-menu-right">
             <li><a href="http://www.apache.org/">{{ T "nav-asf-homepage" }}</a></li>
             <li><a href="http://www.apache.org/licenses/">{{ T "nav-license" }}</a></li>
@@ -75,16 +110,6 @@
             <li><a href="https://www.apache.org/foundation/policies/conduct">{{ T "nav-code-of-conduct" }}</a></li>
           </ul>
         </li>
-        <li>
-          <!--
-            data-proofer-ignore disables link checking from website test automation.
-            GitHub links will not resolve until the markdown source is available on the master branch.
-            New pages would fail validation during development / PR test automation.
-          -->
-          <a href="https://github.com/apache/beam/edit/master/website/www/site/content/{{ .Site.Language.Lang }}/{{ .Path }}" data-proofer-ignore>
-            <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
-          </a>
-        </li>
       </ul>
     </div>
 </nav>
@@ -93,28 +118,44 @@
   <a href={{ "/" | relLangURL }} class="navbar-logo" >
     <img src="/images/beam_logo_navbar.png" alt="Beam Logo">
   </a>
-  <div class="navbar-links">
-    <a class="navbar-link" href={{ "/get-started/beam-overview/" | relLangURL }}>{{ T "nav-get-started" }}</a>
-    <li class="dropdown navbar-dropdown navbar-dropdown-documentation">
-      <a class="navbar-link" href="#" class="dropdown-toggle" role="button" aria-haspopup="true" aria-expanded="false">
-        Documentation
-        <span>
-          {{ with resources.Get "icons/navbar-documentation-icon.svg" }}
-            {{ .Content | safeHTML }}
-          {{ end }}
-        </span>
-      </a>
-      <ul class="dropdown-menu">
-        <li><a class="navbar-dropdown-menu-link" href={{ "/documentation/" | relLangURL }}>{{ T "nav-documentation-general" }}</a></li>
-        <li><a class="navbar-dropdown-menu-link" href={{ "/documentation/sdks/java/" | relLangURL }}>{{ T "nav-languages" }}</a></li>
-        <li><a class="navbar-dropdown-menu-link" href={{ "/documentation/runners/capability-matrix/" | relLangURL }}>{{ T "nav-runners" }}</a></li>
-      </ul>
-    </li>
-    <a class="navbar-link" href={{ "/roadmap/" | relLangURL }}>{{ T "nav-roadmap" }}</a>
-    <a class="navbar-link" href={{ "/community/" | relLangURL }}>{{ T "nav-community" }}</a>
-    <a class="navbar-link" href={{ "/contribute/" | relLangURL }}>{{ T "nav-contribute" }}</a>
-    <a class="navbar-link" href={{ "/blog/" | relLangURL }}>{{ T "nav-blog" }}</a>
-  </div>
+  <div class="navbar-bar-left">
+   <div class="navbar-links">
+     <a class="navbar-link" href={{ "/get-started/beam-overview/" | relLangURL }}>{{ T "nav-get-started" }}</a>
+     <li class="dropdown navbar-dropdown navbar-dropdown-documentation">
+       <a class="navbar-link" href="#" class="dropdown-toggle" role="button" aria-haspopup="true" aria-expanded="false">
+         Documentation
+         <span>
+           {{ with resources.Get "icons/navbar-documentation-icon.svg" }}
+             {{ .Content | safeHTML }}
+           {{ end }}
+         </span>
+       </a>
+       <ul class="dropdown-menu">
+         <li><a class="navbar-dropdown-menu-link" href={{ "/documentation/" | relLangURL }}>{{ T "nav-documentation-general" }}</a></li>
+         <li><a class="navbar-dropdown-menu-link" href={{ "/documentation/sdks/java/" | relLangURL }}>{{ T "nav-languages" }}</a></li>
+         <li><a class="navbar-dropdown-menu-link" href={{ "/documentation/runners/capability-matrix/" | relLangURL }}>{{ T "nav-runners" }}</a></li>
+       </ul>
+     </li>
+     <a class="navbar-link" href={{ "/roadmap/" | relLangURL }}>{{ T "nav-roadmap" }}</a>
+     <a class="navbar-link" href={{ "/community/" | relLangURL }}>{{ T "nav-community" }}</a>
+     <a class="navbar-link" href={{ "/contribute/" | relLangURL }}>{{ T "nav-contribute" }}</a>
+     <a class="navbar-link" href={{ "/blog/" | relLangURL }}>{{ T "nav-blog" }}</a>
+     <a class="navbar-link" href={{ "/powered-by/" | relLangURL }}>{{ T "nav-powered-by" }}</a>
+   </div>
+  <div id="iconsBar">
+    <a type="button" onclick="showSearch()">
+      {{ with resources.Get "icons/search-icon.svg" }}
+         {{ .Content | safeHTML }}
+     {{ end }}
+    </a>
+
+
+   <a href="https://github.com/apache/beam/edit/master/website/www/site/content/{{ .Site.Language.Lang }}/{{ .Path }}" data-proofer-ignore>
+     {{ with resources.Get "icons/edit-icon.svg" }}
+        {{ .Content | safeHTML }}
+    {{ end }}
+  </a>
+
   <li class="dropdown navbar-dropdown navbar-dropdown-apache">
     <a href="#" class="dropdown-toggle" role="button" aria-haspopup="true" aria-expanded="false"><img src="https://www.apache.org/foundation/press/kit/feather_small.png" alt="Apache Logo" style="height:20px;">
       &nbsp;Apache
@@ -133,4 +174,50 @@
       <li><a class="navbar-dropdown-menu-link" href="https://www.apache.org/foundation/policies/conduct">{{ T "nav-code-of-conduct" }}</a></li>
     </ul>
   </li>
+ </div>
+ <div class="searchBar disappear">
+   <script>
+     (function() {
+       var cx = '012923275103528129024:4emlchv9wzi';
+       var gcse = document.createElement('script');
+       gcse.type = 'text/javascript';
+       gcse.async = true;
+       gcse.src = 'https://cse.google.com/cse.js?cx=' + cx;
+       var s = document.getElementsByTagName('script')[0];
+       s.parentNode.insertBefore(gcse, s);
+     })();
+   </script>
+   <gcse:search></gcse:search>
+   <a type="button" onclick="endSearch()">
+     {{ with resources.Get "icons/close-icon.svg" }}
+        {{ .Content | safeHTML }}
+    {{ end }}
+   </a>
+</div>
+</div>
 </nav>
+<script>
+ function showSearch() {
+   addPlaceholder();
+   var search = document.querySelector(".searchBar");
+   search.classList.remove("disappear");
+   var icons = document.querySelector("#iconsBar");
+   icons.classList.add("disappear");
+ }
+ function addPlaceholder(){
+   $('input:text').attr('placeholder',"What are you looking for?");
+ }
+ function endSearch() {
+   var search = document.querySelector(".searchBar");
+   search.classList.add("disappear");
+   var icons = document.querySelector("#iconsBar");
+   icons.classList.remove("disappear");
+ }
+ function blockScroll(){
+   $("body").toggleClass("fixedPosition");
+ }
+ function openMenu(){
+   addPlaceholder();
+   blockScroll();
+ }
+</script>

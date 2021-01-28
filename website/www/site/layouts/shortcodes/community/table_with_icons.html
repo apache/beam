@@ -10,26 +10,26 @@
     limitations under the License. See accompanying LICENSE file.
 */}}
 {{ $data := index $.Site.Data .Site.Language.Lang }}
-
+{{ range $list := $data.contact_us }}
 <div class="table-wrapper">
     <table>
         <tr>
-            <th>PURPOSE</th>
-            <th>CONTACT</th>
-            <th>ACTION</th>
+            {{ range $item := $list.columns }}
+                <th>{{ . }}</th>
+           {{ end }}
         </tr>
-        {{ range $item := $data.contact_us }}
+        {{ range $item := $list.data }}
             <tr>
                 <td>
                     <div>
                         {{ with resources.Get .icon }}
                             {{ .Content | safeHTML }}
                         {{ end }}
-                        <p>{{ .purpose | safeHTML }}</p>
+                        <p>{{.purpose | safeHTML}}</p>
                     </div>
                 </td>
                 <td>
-                    <a href={{.contact.link}}>{{.contact.email }}</a>
+                    <a href={{.contact.link}}>{{.contact.email}}</a>
                     {{ if .contact.add }}
                         <span>{{ .contact.add }}</span>
                     {{end}}
@@ -38,7 +38,7 @@
                     <div>
                         {{ range .actions }}
                             {{ if .link }}
-                                <a href={{.link}}>{{ .action |safeHTML }}</a>
+                                <a href={{.link}}>{{.action |safeHTML }}</a>
                             {{ else }}
                                 {{ .action | safeHTML }}
                             {{end}}
@@ -49,3 +49,4 @@
         {{ end }}
     </table>
 </div>
+{{ end }}
