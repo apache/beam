@@ -23,19 +23,19 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ShardedKeyCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.sdk.values.TupleTagList;
 
 /**
  * This transform takes in key-value pairs of {@link TableRow} entries and the {@link
@@ -57,6 +57,7 @@ public class StreamingWriteTables<ElementT>
   private final boolean skipInvalidRows;
   private final boolean ignoreUnknownValues;
   private final boolean ignoreInsertIds;
+  private final boolean autoSharding;
   private final Coder<ElementT> elementCoder;
   private final SerializableFunction<ElementT, TableRow> toTableRow;
   private final SerializableFunction<ElementT, TableRow> toFailsafeTableRow;
@@ -69,6 +70,7 @@ public class StreamingWriteTables<ElementT>
         false, // skipInvalidRows
         false, // ignoreUnknownValues
         false, // ignoreInsertIds
+        false, // autoSharding
         null, // elementCoder
         null, // toTableRow
         null); // toFailsafeTableRow
@@ -81,6 +83,7 @@ public class StreamingWriteTables<ElementT>
       boolean skipInvalidRows,
       boolean ignoreUnknownValues,
       boolean ignoreInsertIds,
+      boolean autoSharding,
       Coder<ElementT> elementCoder,
       SerializableFunction<ElementT, TableRow> toTableRow,
       SerializableFunction<ElementT, TableRow> toFailsafeTableRow) {
@@ -90,6 +93,7 @@ public class StreamingWriteTables<ElementT>
     this.skipInvalidRows = skipInvalidRows;
     this.ignoreUnknownValues = ignoreUnknownValues;
     this.ignoreInsertIds = ignoreInsertIds;
+    this.autoSharding = autoSharding;
     this.elementCoder = elementCoder;
     this.toTableRow = toTableRow;
     this.toFailsafeTableRow = toFailsafeTableRow;
@@ -103,6 +107,7 @@ public class StreamingWriteTables<ElementT>
         skipInvalidRows,
         ignoreUnknownValues,
         ignoreInsertIds,
+        autoSharding,
         elementCoder,
         toTableRow,
         toFailsafeTableRow);
@@ -116,6 +121,7 @@ public class StreamingWriteTables<ElementT>
         skipInvalidRows,
         ignoreUnknownValues,
         ignoreInsertIds,
+        autoSharding,
         elementCoder,
         toTableRow,
         toFailsafeTableRow);
@@ -129,6 +135,7 @@ public class StreamingWriteTables<ElementT>
         skipInvalidRows,
         ignoreUnknownValues,
         ignoreInsertIds,
+        autoSharding,
         elementCoder,
         toTableRow,
         toFailsafeTableRow);
@@ -142,6 +149,7 @@ public class StreamingWriteTables<ElementT>
         skipInvalidRows,
         ignoreUnknownValues,
         ignoreInsertIds,
+        autoSharding,
         elementCoder,
         toTableRow,
         toFailsafeTableRow);
@@ -155,6 +163,7 @@ public class StreamingWriteTables<ElementT>
         skipInvalidRows,
         ignoreUnknownValues,
         ignoreInsertIds,
+        autoSharding,
         elementCoder,
         toTableRow,
         toFailsafeTableRow);
@@ -168,6 +177,21 @@ public class StreamingWriteTables<ElementT>
         skipInvalidRows,
         ignoreUnknownValues,
         ignoreInsertIds,
+        autoSharding,
+        elementCoder,
+        toTableRow,
+        toFailsafeTableRow);
+  }
+
+  StreamingWriteTables<ElementT> withAutoSharding(boolean autoSharding) {
+    return new StreamingWriteTables<>(
+        bigQueryServices,
+        retryPolicy,
+        extendedErrorInfo,
+        skipInvalidRows,
+        ignoreUnknownValues,
+        ignoreInsertIds,
+        autoSharding,
         elementCoder,
         toTableRow,
         toFailsafeTableRow);
@@ -181,6 +205,7 @@ public class StreamingWriteTables<ElementT>
         skipInvalidRows,
         ignoreUnknownValues,
         ignoreInsertIds,
+        autoSharding,
         elementCoder,
         toTableRow,
         toFailsafeTableRow);
@@ -195,6 +220,7 @@ public class StreamingWriteTables<ElementT>
         skipInvalidRows,
         ignoreUnknownValues,
         ignoreInsertIds,
+        autoSharding,
         elementCoder,
         toTableRow,
         toFailsafeTableRow);
@@ -209,6 +235,7 @@ public class StreamingWriteTables<ElementT>
         skipInvalidRows,
         ignoreUnknownValues,
         ignoreInsertIds,
+        autoSharding,
         elementCoder,
         toTableRow,
         toFailsafeTableRow);
@@ -243,7 +270,6 @@ public class StreamingWriteTables<ElementT>
       AtomicCoder<T> coder,
       ErrorContainer<T> errorContainer) {
     BigQueryOptions options = input.getPipeline().getOptions().as(BigQueryOptions.class);
-    int numShards = options.getNumStreamingKeys();
 
     // A naive implementation would be to simply stream data directly to BigQuery.
     // However, this could occasionally lead to duplicated data, e.g., when
@@ -251,53 +277,101 @@ public class StreamingWriteTables<ElementT>
 
     // The above risk is mitigated in this implementation by relying on
     // BigQuery built-in best effort de-dup mechanism.
-
     // To use this mechanism, each input TableRow is tagged with a generated
-    // unique id, which is then passed to BigQuery and used to ignore duplicates
-    // We create 50 keys per BigQuery table to generate output on. This is few enough that we
-    // get good batching into BigQuery's insert calls, and enough that we can max out the
-    // streaming insert quota.
-    PCollection<KV<ShardedKey<String>, TableRowInfo<ElementT>>> tagged =
-        input
-            .apply("ShardTableWrites", ParDo.of(new GenerateShardedTable<>(numShards)))
-            .setCoder(KvCoder.of(ShardedKeyCoder.of(StringUtf8Coder.of()), elementCoder))
-            .apply("TagWithUniqueIds", ParDo.of(new TagWithUniqueIds<>()))
-            .setCoder(
-                KvCoder.of(
-                    ShardedKeyCoder.of(StringUtf8Coder.of()), TableRowInfoCoder.of(elementCoder)));
-
-    TupleTag<Void> mainOutputTag = new TupleTag<>("mainOutput");
+    // unique id, which is then passed to BigQuery and used to ignore duplicates.
 
     // To prevent having the same TableRow processed more than once with regenerated
     // different unique ids, this implementation relies on "checkpointing", which is
-    // achieved as a side effect of having StreamingWriteFn immediately follow a GBK,
-    // performed by Reshuffle.
-    PCollectionTuple tuple =
-        tagged
-            .apply(Reshuffle.of())
-            // Put in the global window to ensure that DynamicDestinations side inputs are accessed
-            // correctly.
-            .apply(
-                "GlobalWindow",
-                Window.<KV<ShardedKey<String>, TableRowInfo<ElementT>>>into(new GlobalWindows())
-                    .triggering(DefaultTrigger.of())
-                    .discardingFiredPanes())
-            .apply(
-                "StreamingWrite",
-                ParDo.of(
-                        new StreamingWriteFn<>(
-                            bigQueryServices,
-                            retryPolicy,
-                            failedInsertsTag,
-                            errorContainer,
-                            skipInvalidRows,
-                            ignoreUnknownValues,
-                            ignoreInsertIds,
-                            toTableRow,
-                            toFailsafeTableRow))
-                    .withOutputTags(mainOutputTag, TupleTagList.of(failedInsertsTag)));
-    PCollection<T> failedInserts = tuple.get(failedInsertsTag);
-    failedInserts.setCoder(coder);
-    return failedInserts;
+    // achieved as a side effect of having BigQuery insertion immediately follow a GBK.
+
+    if (autoSharding) {
+      // If runner determined dynamic sharding is enabled, group TableRows on table destinations
+      // that may be sharded during the runtime. Otherwise, we choose a fixed number of shards per
+      // table destination following the logic below in the other branch.
+      PCollection<KV<String, TableRowInfo<ElementT>>> unshardedTagged =
+          input
+              .apply(
+                  "MapToTableSpec",
+                  MapElements.via(
+                      new SimpleFunction<KV<TableDestination, ElementT>, KV<String, ElementT>>() {
+                        @Override
+                        public KV<String, ElementT> apply(KV<TableDestination, ElementT> input) {
+                          return KV.of(input.getKey().getTableSpec(), input.getValue());
+                        }
+                      }))
+              .setCoder(KvCoder.of(StringUtf8Coder.of(), elementCoder))
+              .apply("TagWithUniqueIds", ParDo.of(new TagWithUniqueIds<>()))
+              .setCoder(KvCoder.of(StringUtf8Coder.of(), TableRowInfoCoder.of(elementCoder)));
+
+      // Auto-sharding is achieved via GroupIntoBatches.WithShardedKey transform which groups and at
+      // the same time batches the TableRows to be inserted to BigQuery.
+      return unshardedTagged.apply(
+          "StreamingWrite",
+          new BatchedStreamingWrite<>(
+                  bigQueryServices,
+                  retryPolicy,
+                  failedInsertsTag,
+                  coder,
+                  errorContainer,
+                  skipInvalidRows,
+                  ignoreUnknownValues,
+                  ignoreInsertIds,
+                  toTableRow,
+                  toFailsafeTableRow)
+              .viaStateful());
+    } else {
+      // We create 50 keys per BigQuery table to generate output on. This is few enough that we
+      // get good batching into BigQuery's insert calls, and enough that we can max out the
+      // streaming insert quota.
+      int numShards = options.getNumStreamingKeys();
+      PCollection<KV<ShardedKey<String>, TableRowInfo<ElementT>>> shardedTagged =
+          input
+              .apply("ShardTableWrites", ParDo.of(new GenerateShardedTable<>(numShards)))
+              .setCoder(KvCoder.of(ShardedKeyCoder.of(StringUtf8Coder.of()), elementCoder))
+              .apply("TagWithUniqueIds", ParDo.of(new TagWithUniqueIds<>()))
+              .setCoder(
+                  KvCoder.of(
+                      ShardedKeyCoder.of(StringUtf8Coder.of()),
+                      TableRowInfoCoder.of(elementCoder)));
+
+      return shardedTagged
+          .apply(Reshuffle.of())
+          // Put in the global window to ensure that DynamicDestinations side inputs are accessed
+          // correctly.
+          .apply(
+              "GlobalWindow",
+              Window.<KV<ShardedKey<String>, TableRowInfo<ElementT>>>into(new GlobalWindows())
+                  .triggering(DefaultTrigger.of())
+                  .discardingFiredPanes())
+          .apply(
+              "StripShardId",
+              MapElements.via(
+                  new SimpleFunction<
+                      KV<ShardedKey<String>, TableRowInfo<ElementT>>,
+                      KV<String, TableRowInfo<ElementT>>>() {
+                    @Override
+                    public KV<String, TableRowInfo<ElementT>> apply(
+                        KV<ShardedKey<String>, TableRowInfo<ElementT>> input) {
+                      return KV.of(input.getKey().getKey(), input.getValue());
+                    }
+                  }))
+          .setCoder(KvCoder.of(StringUtf8Coder.of(), TableRowInfoCoder.of(elementCoder)))
+          // Also batch the TableRows in a best effort manner via bundle finalization before
+          // inserting to BigQuery.
+          .apply(
+              "StreamingWrite",
+              new BatchedStreamingWrite<>(
+                      bigQueryServices,
+                      retryPolicy,
+                      failedInsertsTag,
+                      coder,
+                      errorContainer,
+                      skipInvalidRows,
+                      ignoreUnknownValues,
+                      ignoreInsertIds,
+                      toTableRow,
+                      toFailsafeTableRow)
+                  .viaDoFnFinalization());
+    }
   }
 }
