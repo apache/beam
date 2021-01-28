@@ -305,7 +305,58 @@ GitHub</a>.</p><div class=language-java><div class=highlight><pre class=chroma><
 
     <span class=k>return</span> <span class=n>rows</span><span class=o>;</span>
   <span class=o>}</span>
-<span class=o>}</span></code></pre></div></div><div class=language-py><div class=highlight><pre class=chroma><code class=language-py data-lang=py><span class=c1># The SDK for Python does not support the BigQuery Storage API.</span></code></pre></div></div><p>The following code snippet reads with a query string.</p><div class=language-java><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=o>//</span> <span class=n>Snippet</span> <span class=n>not</span> <span class=n>yet</span> <span class=nf>available</span> <span class=o>(</span><span class=n>BEAM</span><span class=o>-</span><span class=n>7034</span><span class=o>).</span></code></pre></div></div><div class=language-py><div class=highlight><pre class=chroma><code class=language-py data-lang=py><span class=c1># The SDK for Python does not support the BigQuery Storage API.</span></code></pre></div></div><h2 id=writing-to-bigquery>Writing to BigQuery</h2><p>BigQueryIO allows you to write to BigQuery tables. If you are using the Beam SDK
+<span class=o>}</span></code></pre></div></div><div class=language-py><div class=highlight><pre class=chroma><code class=language-py data-lang=py><span class=c1># The SDK for Python does not support the BigQuery Storage API.</span></code></pre></div></div><p>The following code snippet reads with a query string.</p><div class=language-java><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=kn>import</span> <span class=nn>org.apache.beam.examples.snippets.transforms.io.gcp.bigquery.BigQueryMyData.MyData</span><span class=o>;</span>
+<span class=kn>import</span> <span class=nn>org.apache.beam.sdk.Pipeline</span><span class=o>;</span>
+<span class=kn>import</span> <span class=nn>org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO</span><span class=o>;</span>
+<span class=kn>import</span> <span class=nn>org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method</span><span class=o>;</span>
+<span class=kn>import</span> <span class=nn>org.apache.beam.sdk.transforms.MapElements</span><span class=o>;</span>
+<span class=kn>import</span> <span class=nn>org.apache.beam.sdk.values.PCollection</span><span class=o>;</span>
+<span class=kn>import</span> <span class=nn>org.apache.beam.sdk.values.TypeDescriptor</span><span class=o>;</span>
+
+<span class=kd>class</span> <span class=nc>BigQueryReadFromQueryWithBigQueryStorageAPI</span> <span class=o>{</span>
+  <span class=kd>public</span> <span class=kd>static</span> <span class=n>PCollection</span><span class=o>&lt;</span><span class=n>MyData</span><span class=o>&gt;</span> <span class=nf>readFromQueryWithBigQueryStorageAPI</span><span class=o>(</span>
+      <span class=n>String</span> <span class=n>project</span><span class=o>,</span> <span class=n>String</span> <span class=n>dataset</span><span class=o>,</span> <span class=n>String</span> <span class=n>table</span><span class=o>,</span> <span class=n>String</span> <span class=n>query</span><span class=o>,</span> <span class=n>Pipeline</span> <span class=n>pipeline</span><span class=o>)</span> <span class=o>{</span>
+
+    <span class=c1>// String project = &#34;my-project-id&#34;;
+</span><span class=c1></span>    <span class=c1>// String dataset = &#34;my_bigquery_dataset_id&#34;;
+</span><span class=c1></span>    <span class=c1>// String table = &#34;my_bigquery_table_id&#34;;
+</span><span class=c1></span>
+    <span class=c1>// Pipeline pipeline = Pipeline.create();
+</span><span class=c1></span>
+    <span class=cm>/*
+</span><span class=cm>    String query = String.format(&#34;SELECT\n&#34; +
+</span><span class=cm>        &#34;  string_field,\n&#34; +
+</span><span class=cm>        &#34;  int64_field,\n&#34; +
+</span><span class=cm>        &#34;  float64_field,\n&#34; +
+</span><span class=cm>        &#34;  numeric_field,\n&#34; +
+</span><span class=cm>        &#34;  bool_field,\n&#34; +
+</span><span class=cm>        &#34;  bytes_field,\n&#34; +
+</span><span class=cm>        &#34;  date_field,\n&#34; +
+</span><span class=cm>        &#34;  datetime_field,\n&#34; +
+</span><span class=cm>        &#34;  time_field,\n&#34; +
+</span><span class=cm>        &#34;  timestamp_field,\n&#34; +
+</span><span class=cm>        &#34;  geography_field,\n&#34; +
+</span><span class=cm>        &#34;  array_field,\n&#34; +
+</span><span class=cm>        &#34;  struct_field\n&#34; +
+</span><span class=cm>        &#34;FROM\n&#34; +
+</span><span class=cm>        &#34;  `%s:%s.%s`&#34;, project, dataset, table)
+</span><span class=cm>    */</span>
+
+    <span class=n>PCollection</span><span class=o>&lt;</span><span class=n>MyData</span><span class=o>&gt;</span> <span class=n>rows</span> <span class=o>=</span>
+        <span class=n>pipeline</span>
+            <span class=o>.</span><span class=na>apply</span><span class=o>(</span>
+                <span class=s>&#34;Read from BigQuery table&#34;</span><span class=o>,</span>
+                <span class=n>BigQueryIO</span><span class=o>.</span><span class=na>readTableRows</span><span class=o>()</span>
+                    <span class=o>.</span><span class=na>fromQuery</span><span class=o>(</span><span class=n>query</span><span class=o>)</span>
+                    <span class=o>.</span><span class=na>usingStandardSql</span><span class=o>()</span>
+                    <span class=o>.</span><span class=na>withMethod</span><span class=o>(</span><span class=n>Method</span><span class=o>.</span><span class=na>DIRECT_READ</span><span class=o>))</span>
+            <span class=o>.</span><span class=na>apply</span><span class=o>(</span>
+                <span class=s>&#34;TableRows to MyData&#34;</span><span class=o>,</span>
+                <span class=n>MapElements</span><span class=o>.</span><span class=na>into</span><span class=o>(</span><span class=n>TypeDescriptor</span><span class=o>.</span><span class=na>of</span><span class=o>(</span><span class=n>MyData</span><span class=o>.</span><span class=na>class</span><span class=o>)).</span><span class=na>via</span><span class=o>(</span><span class=n>MyData</span><span class=o>::</span><span class=n>fromTableRow</span><span class=o>));</span>
+
+    <span class=k>return</span> <span class=n>rows</span><span class=o>;</span>
+  <span class=o>}</span>
+<span class=o>}</span></code></pre></div></div><div class=language-py><div class=highlight><pre class=chroma><code class=language-py data-lang=py><span class=c1># The SDK for Python does not support the BigQuery Storage API.</span></code></pre></div></div><h2 id=writing-to-bigquery>Writing to BigQuery</h2><p>BigQueryIO allows you to write to BigQuery tables. If you are using the Beam SDK
 for Java, you can also write different rows to different tables.</p><blockquote><p>BigQueryIO write transforms use APIs that are subject to BigQuery&rsquo;s
 <a href=https://cloud.google.com/bigquery/quota-policy>Quota</a> and
 <a href=https://cloud.google.com/bigquery/pricing>Pricing</a> policies.</p></blockquote><p>When you apply a write transform, you must provide the following information

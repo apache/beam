@@ -12734,7 +12734,54 @@ GitHub&lt;/a>.&lt;/p>
 &lt;/div>
 &lt;p>The following code snippet reads with a query string.&lt;/p>
 &lt;div class=language-java>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="o">//&lt;/span> &lt;span class="n">Snippet&lt;/span> &lt;span class="n">not&lt;/span> &lt;span class="n">yet&lt;/span> &lt;span class="nf">available&lt;/span> &lt;span class="o">(&lt;/span>&lt;span class="n">BEAM&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="n">7034&lt;/span>&lt;span class="o">).&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="kn">import&lt;/span> &lt;span class="nn">org.apache.beam.examples.snippets.transforms.io.gcp.bigquery.BigQueryMyData.MyData&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="kn">import&lt;/span> &lt;span class="nn">org.apache.beam.sdk.Pipeline&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="kn">import&lt;/span> &lt;span class="nn">org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="kn">import&lt;/span> &lt;span class="nn">org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="kn">import&lt;/span> &lt;span class="nn">org.apache.beam.sdk.transforms.MapElements&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="kn">import&lt;/span> &lt;span class="nn">org.apache.beam.sdk.values.PCollection&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="kn">import&lt;/span> &lt;span class="nn">org.apache.beam.sdk.values.TypeDescriptor&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="kd">class&lt;/span> &lt;span class="nc">BigQueryReadFromQueryWithBigQueryStorageAPI&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">MyData&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="nf">readFromQueryWithBigQueryStorageAPI&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="n">String&lt;/span> &lt;span class="n">project&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">String&lt;/span> &lt;span class="n">dataset&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">String&lt;/span> &lt;span class="n">table&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">String&lt;/span> &lt;span class="n">query&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">Pipeline&lt;/span> &lt;span class="n">pipeline&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;span class="c1">// String project = &amp;#34;my-project-id&amp;#34;;
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// String dataset = &amp;#34;my_bigquery_dataset_id&amp;#34;;
+&lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// String table = &amp;#34;my_bigquery_table_id&amp;#34;;
+&lt;/span>&lt;span class="c1">&lt;/span>
+&lt;span class="c1">// Pipeline pipeline = Pipeline.create();
+&lt;/span>&lt;span class="c1">&lt;/span>
+&lt;span class="cm">/*
+&lt;/span>&lt;span class="cm"> String query = String.format(&amp;#34;SELECT\n&amp;#34; +
+&lt;/span>&lt;span class="cm"> &amp;#34; string_field,\n&amp;#34; +
+&lt;/span>&lt;span class="cm"> &amp;#34; int64_field,\n&amp;#34; +
+&lt;/span>&lt;span class="cm"> &amp;#34; float64_field,\n&amp;#34; +
+&lt;/span>&lt;span class="cm"> &amp;#34; numeric_field,\n&amp;#34; +
+&lt;/span>&lt;span class="cm"> &amp;#34; bool_field,\n&amp;#34; +
+&lt;/span>&lt;span class="cm"> &amp;#34; bytes_field,\n&amp;#34; +
+&lt;/span>&lt;span class="cm"> &amp;#34; date_field,\n&amp;#34; +
+&lt;/span>&lt;span class="cm"> &amp;#34; datetime_field,\n&amp;#34; +
+&lt;/span>&lt;span class="cm"> &amp;#34; time_field,\n&amp;#34; +
+&lt;/span>&lt;span class="cm"> &amp;#34; timestamp_field,\n&amp;#34; +
+&lt;/span>&lt;span class="cm"> &amp;#34; geography_field,\n&amp;#34; +
+&lt;/span>&lt;span class="cm"> &amp;#34; array_field,\n&amp;#34; +
+&lt;/span>&lt;span class="cm"> &amp;#34; struct_field\n&amp;#34; +
+&lt;/span>&lt;span class="cm"> &amp;#34;FROM\n&amp;#34; +
+&lt;/span>&lt;span class="cm"> &amp;#34; `%s:%s.%s`&amp;#34;, project, dataset, table)
+&lt;/span>&lt;span class="cm"> */&lt;/span>
+&lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">MyData&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">rows&lt;/span> &lt;span class="o">=&lt;/span>
+&lt;span class="n">pipeline&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="s">&amp;#34;Read from BigQuery table&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span>
+&lt;span class="n">BigQueryIO&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">readTableRows&lt;/span>&lt;span class="o">()&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">fromQuery&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">query&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">usingStandardSql&lt;/span>&lt;span class="o">()&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">withMethod&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Method&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">DIRECT_READ&lt;/span>&lt;span class="o">))&lt;/span>
+&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;span class="s">&amp;#34;TableRows to MyData&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span>
+&lt;span class="n">MapElements&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">into&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">TypeDescriptor&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">MyData&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">)).&lt;/span>&lt;span class="na">via&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">MyData&lt;/span>&lt;span class="o">::&lt;/span>&lt;span class="n">fromTableRow&lt;/span>&lt;span class="o">));&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="n">rows&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;span class="o">}&lt;/span>
+&lt;span class="o">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;div class=language-py>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="c1"># The SDK for Python does not support the BigQuery Storage API.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
