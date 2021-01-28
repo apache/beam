@@ -43,7 +43,6 @@ dependencies {
   integrationTest sourceSets.main.output
   integrationTest library.java.junit
   compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile "org.checkerframework:checker-qual:2.0.0"
 }
 
 processResources {
