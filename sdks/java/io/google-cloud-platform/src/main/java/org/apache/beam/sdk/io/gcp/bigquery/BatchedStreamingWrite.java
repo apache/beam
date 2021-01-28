@@ -324,6 +324,10 @@ class BatchedStreamingWrite<ErrorT, ElementT>
     }
   }
 
+  // TODO(BEAM-11408): This transform requires stable inputs. Currently it relies on the fact that
+  // the upstream transform GroupIntoBatches produces stable outputs as opposed to using the
+  // annotation @RequiresStableInputs, to avoid potential performance penalty due to extra data
+  // shuffling.
   private class InsertBatchedElements
       extends DoFn<KV<ShardedKey<String>, Iterable<TableRowInfo<ElementT>>>, Void> {
     @ProcessElement
