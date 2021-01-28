@@ -599,7 +599,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                         BatchViewOverrides.BatchViewAsIterable.class, this)));
       }
     }
-    /* TODO[Beam-4684]: Support @RequiresStableInput on Dataflow in a more intelligent way
+    /* TODO(Beam-4684): Support @RequiresStableInput on Dataflow in a more intelligent way
+    Use Reshuffle might cause an extra and unnecessary shuffle to be inserted. To enable this, we
+    should make sure that we do not add extra shuffles for transforms whose input is already stable.
     // Uses Reshuffle, so has to be before the Reshuffle override
     overridesBuilder.add(
         PTransformOverride.of(
