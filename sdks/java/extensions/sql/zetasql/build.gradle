@@ -53,3 +53,16 @@ dependencies {
   testRuntimeClasspath library.java.slf4j_jdk14
 }
 
+// TODO(ibzib) use sql:emptyJar instead?
+task emptyJar(type: Jar) {
+  archiveBaseName = "${project.archivesBaseName}-empty-jar"
+  from fileTree(dir: getTemporaryDir().createNewFile().toString())
+}
+
+test {
+  dependsOn emptyJar
+  // Pass jars used by Java UDF tests via system properties.
+  evaluationDependsOn(":sdks:java:extensions:sql:udf-test-provider") // Needed to resolve jarPath.
+  systemProperty "beam.sql.udf.test.jar_path", project(":sdks:java:extensions:sql:udf-test-provider").jarPath
+  systemProperty "beam.sql.udf.test.empty_jar_path", emptyJar.archivePath
+}

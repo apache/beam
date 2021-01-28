@@ -37,6 +37,8 @@ public abstract class UserFunctionDefinitions {
    */
   public abstract ImmutableMap<List<String>, ResolvedNode> sqlTableValuedFunctions();
 
+  public abstract ImmutableMap<List<String>, ScalarFn> javaScalarFunctions();
+
   @AutoValue.Builder
   public abstract static class Builder {
     public abstract Builder setSqlScalarFunctions(
@@ -45,12 +47,16 @@ public abstract class UserFunctionDefinitions {
     public abstract Builder setSqlTableValuedFunctions(
         ImmutableMap<List<String>, ResolvedNode> sqlTableValuedFunctions);
 
+    public abstract Builder setJavaScalarFunctions(
+        ImmutableMap<List<String>, ScalarFn> javaScalarFunctions);
+
     public abstract UserFunctionDefinitions build();
   }
 
   public static Builder newBuilder() {
     return new AutoValue_UserFunctionDefinitions.Builder()
         .setSqlScalarFunctions(ImmutableMap.of())
-        .setSqlTableValuedFunctions(ImmutableMap.of());
+        .setSqlTableValuedFunctions(ImmutableMap.of())
+        .setJavaScalarFunctions(ImmutableMap.of());
   }
 }

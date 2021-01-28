@@ -66,12 +66,12 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
+import org.apache.beam.sdk.extensions.sql.impl.ScalarFnReflector;
 import org.apache.beam.sdk.extensions.sql.impl.SqlConversionException;
 import org.apache.beam.sdk.extensions.sql.impl.ZetaSqlUserDefinedSQLNativeTableValuedFunction;
 import org.apache.beam.sdk.extensions.sql.impl.utils.TVFStreamingUtils;
 import org.apache.beam.sdk.extensions.sql.udf.ScalarFn;
 import org.apache.beam.sdk.extensions.sql.zetasql.ZetaSqlCalciteTranslationUtils;
-import org.apache.beam.sdk.extensions.sql.impl.ScalarFnReflector;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptCluster;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
@@ -671,7 +671,9 @@ public class ExpressionConverter {
       }
     } else if (USER_DEFINED_JAVA_SCALAR_FUNCTIONS.equals(funGroup)) {
       ScalarFn scalarFn =
-          userFunctionDefinitions.javaScalarFunctions.get(functionCall.getFunction().getNamePath());
+          userFunctionDefinitions
+              .javaScalarFunctions()
+              .get(functionCall.getFunction().getNamePath());
       Method method = ScalarFnReflector.getApplyMethod(scalarFn);
       ArrayList<RexNode> innerFunctionArguments = new ArrayList<>();
       for (int i = 0; i < functionCall.getArgumentList().size(); i++) {

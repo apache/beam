@@ -19,7 +19,6 @@ package org.apache.beam.sdk.extensions.sql.zetasql;
 
 import static org.junit.Assert.fail;
 
-import java.nio.file.ProviderNotFoundException;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.schemas.Schema;

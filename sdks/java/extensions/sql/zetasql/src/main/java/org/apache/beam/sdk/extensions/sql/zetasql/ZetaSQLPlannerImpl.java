@@ -31,11 +31,11 @@ import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedCreateTableFunctionS
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedQueryStmt;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedStatement;
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.impl.JavaUdfLoader;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
 import org.apache.beam.sdk.extensions.sql.udf.ScalarFn;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.ConversionContext;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.ExpressionConverter;
-import org.apache.beam.sdk.extensions.sql.zetasql.translation.JavaUdfLoader;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.QueryStatementConverter;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.UserFunctionDefinitions;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableList;
@@ -149,6 +149,7 @@ class ZetaSQLPlannerImpl {
         UserFunctionDefinitions.newBuilder()
             .setSqlScalarFunctions(udfBuilder.build())
             .setSqlTableValuedFunctions(udtvfBuilder.build())
+            .setJavaScalarFunctions(javaScalarFunctionBuilder.build())
             .build();
 
     ExpressionConverter expressionConverter =
