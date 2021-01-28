@@ -24,6 +24,7 @@ plugins {
   id 'ca.coglinc.javacc'
 }
 applyJavaNature(
+  enableStrictDependencies: true,
   generatedClassPatterns: [
     /^org\.apache\.beam\.sdk\.extensions\.sql\.impl\.parser\.impl.*/,
     /^org\.apache\.beam\.sdk\.extensions\.sql\.meta\.provider\.kafka\.KafkaMessages/,
