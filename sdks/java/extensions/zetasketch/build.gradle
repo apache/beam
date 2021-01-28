@@ -33,6 +33,7 @@ dependencies {
     compile library.java.slf4j_api
     compile library.java.vendored_guava_26_0_jre
     compile project(path: ":sdks:java:core", configuration: "shadow")
+    compile "com.google.auto.value:auto-value-annotations:1.6.3"
     compile "com.google.zetasketch:zetasketch:$zetasketch_version"
     testCompile library.java.junit
     testCompile project(":sdks:java:io:google-cloud-platform")
