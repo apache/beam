@@ -176,22 +176,14 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
       eventLoggingListener.start();
       scala.collection.immutable.Map<String, String> logUrlMap =
           new scala.collection.immutable.HashMap<String, String>();
-      Tuple2<String, String>[] sparkConfList = jsc.getConf().getAll();
-      String sparkMaster = "";
-      String sparkExecutorID = "";
-      for (Tuple2<String, String> sparkConf : sparkConfList) {
-        if (sparkConf._1().equals("spark.master")) {
-          sparkMaster = sparkConf._2();
-        } else if (sparkConf._1().equals("spark.executor.id")) {
-          if (!sparkExecutorID.equals(sparkConf._2())) {
-            sparkExecutorID = sparkConf._2();
-            eventLoggingListener.onExecutorAdded(
-                new SparkListenerExecutorAdded(
-                    Instant.now().getMillis(),
-                    sparkExecutorID,
-                    new ExecutorInfo(sparkMaster, 0, logUrlMap)));
-          }
-        }
+      Tuple2<String, String>[] sparkMasters = jsc.getConf().getAllWithPrefix("spark.master");
+      Tuple2<String, String>[] sparkExecutors = jsc.getConf().getAllWithPrefix("spark.executor.id");
+      for (int i = 0; i < sparkMasters.length; i++) {
+        eventLoggingListener.onExecutorAdded(
+            new SparkListenerExecutorAdded(
+                Instant.now().getMillis(),
+                sparkExecutors[i]._2(),
+                new ExecutorInfo(sparkMasters[i]._2(), 0, logUrlMap)));
       }
     }
 
@@ -280,7 +272,6 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
             pipelineOptions.as(MetricsOptions.class),
             result);
     metricsPusher.start();
-
     if (pipelineOptions.getEventLogEnabled()) {
       eventLoggingListener.onApplicationStart(
           new SparkListenerApplicationStart(
