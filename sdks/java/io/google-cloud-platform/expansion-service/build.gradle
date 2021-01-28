@@ -32,5 +32,7 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Google Cloud Platform :: Exp
 ext.summary = "Expansion service serving GCP Java IOs"
 
 dependencies {
+    runtimeOnly project(":sdks:java:expansion-service")
+    runtimeOnly project(":sdks:java:io:google-cloud-platform")	
     runtime library.java.slf4j_jdk14
 }
