@@ -41,7 +41,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 public class SparkBeamMetric implements Metric {
   private static final String ILLEGAL_CHARACTERS = "[^A-Za-z0-9-]";
 
-  public static Map<String, ?> renderAll(MetricResults metricResults) {
+  static Map<String, ?> renderAll(MetricResults metricResults) {
     Map<String, Object> metrics = new HashMap<>();
     MetricQueryResults metricQueryResults = metricResults.allMetrics();
     for (MetricResult<Long> metricResult : metricQueryResults.getCounters()) {
