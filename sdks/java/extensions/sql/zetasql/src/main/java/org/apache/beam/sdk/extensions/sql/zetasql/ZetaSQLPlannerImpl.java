@@ -38,6 +38,7 @@ import org.apache.beam.sdk.extensions.sql.zetasql.translation.ConversionContext;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.ExpressionConverter;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.QueryStatementConverter;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.UserFunctionDefinitions;
+import org.apache.beam.sdk.extensions.sql.zetasql.translation.UserFunctionDefinitions.JavaScalarFunction;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.adapter.java.JavaTypeFactory;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptCluster;
@@ -106,7 +107,8 @@ class ZetaSQLPlannerImpl {
     ImmutableMap.Builder<List<String>, ResolvedCreateFunctionStmt> udfBuilder =
         ImmutableMap.builder();
     ImmutableMap.Builder<List<String>, ResolvedNode> udtvfBuilder = ImmutableMap.builder();
-    ImmutableMap.Builder<List<String>, ScalarFn> javaScalarFunctionBuilder = ImmutableMap.builder();
+    ImmutableMap.Builder<List<String>, JavaScalarFunction> javaScalarFunctionBuilder =
+        ImmutableMap.builder();
     JavaUdfLoader javaUdfLoader = new JavaUdfLoader();
 
     ResolvedStatement statement;
@@ -119,10 +121,12 @@ class ZetaSQLPlannerImpl {
         if (SqlAnalyzer.USER_DEFINED_FUNCTIONS.equals(functionGroup)) {
           udfBuilder.put(createFunctionStmt.getNamePath(), createFunctionStmt);
         } else if (SqlAnalyzer.USER_DEFINED_JAVA_SCALAR_FUNCTIONS.equals(functionGroup)) {
+          String jarPath = getJarPath(createFunctionStmt);
           ScalarFn scalarFn =
-              javaUdfLoader.loadScalarFunction(
-                  createFunctionStmt.getNamePath(), getJarPath(createFunctionStmt));
-          javaScalarFunctionBuilder.put(createFunctionStmt.getNamePath(), scalarFn);
+              javaUdfLoader.loadScalarFunction(createFunctionStmt.getNamePath(), jarPath);
+          javaScalarFunctionBuilder.put(
+              createFunctionStmt.getNamePath(),
+              UserFunctionDefinitions.JavaScalarFunction.create(scalarFn, jarPath));
         } else {
           throw new IllegalArgumentException(
               String.format("Encountered unrecognized function group %s.", functionGroup));

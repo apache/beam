@@ -37,7 +37,18 @@ public abstract class UserFunctionDefinitions {
    */
   public abstract ImmutableMap<List<String>, ResolvedNode> sqlTableValuedFunctions();
 
-  public abstract ImmutableMap<List<String>, ScalarFn> javaScalarFunctions();
+  public abstract ImmutableMap<List<String>, JavaScalarFunction> javaScalarFunctions();
+
+  @AutoValue
+  public abstract static class JavaScalarFunction {
+    public static JavaScalarFunction create(ScalarFn scalarFn, String jarPath) {
+      return new AutoValue_UserFunctionDefinitions_JavaScalarFunction(scalarFn, jarPath);
+    }
+
+    public abstract ScalarFn scalarFn();
+
+    public abstract String jarPath();
+  }
 
   @AutoValue.Builder
   public abstract static class Builder {
@@ -48,7 +59,7 @@ public abstract class UserFunctionDefinitions {
         ImmutableMap<List<String>, ResolvedNode> sqlTableValuedFunctions);
 
     public abstract Builder setJavaScalarFunctions(
-        ImmutableMap<List<String>, ScalarFn> javaScalarFunctions);
+        ImmutableMap<List<String>, JavaScalarFunction> javaScalarFunctions);
 
     public abstract UserFunctionDefinitions build();
   }

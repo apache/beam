@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.schemas.Schema.FieldType;
 import static org.apache.beam.sdk.schemas.Schema.TypeName;
 import static org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Preconditions.checkArgument;
 
+import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -31,6 +32,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.AbstractList;
 import java.util.AbstractMap;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
@@ -38,6 +40,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TimeZone;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlPipelineOptions;
+import org.apache.beam.sdk.extensions.sql.impl.JavaUdfLoader;
+import org.apache.beam.sdk.extensions.sql.impl.ScalarFunctionImpl;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamJavaTypeFactory;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.CharType;
@@ -73,12 +77,17 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Calc;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexBuilder;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexCall;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexProgram;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexSimplify;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexUtil;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Function;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.SchemaPlus;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlOperator;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.validate.SqlConformance;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.validate.SqlConformanceEnum;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.validate.SqlUserDefinedFunction;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.BuiltInMethod;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -217,10 +226,14 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
                       Types.lookupMethod(DoFn.ProcessContext.class, "output", Object.class),
                       output))));
 
-      CalcFn calcFn = new CalcFn(builder.toBlock().toString(), outputSchema);
+      CalcFn calcFn = new CalcFn(builder.toBlock().toString(), outputSchema, getJarPaths(program));
 
       // validate generated code
-      calcFn.compile();
+      try {
+        calcFn.compile();
+      } catch (IOException e) {
+        throw new RuntimeException("Failed to compile CalcFn.", e);
+      }
 
       PCollection<Row> projectStream = upstream.apply(ParDo.of(calcFn)).setRowSchema(outputSchema);
 
@@ -232,15 +245,20 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
   private static class CalcFn extends DoFn<Row, Row> {
     private final String processElementBlock;
     private final Schema outputSchema;
+    private final List<String> jarPaths;
     private transient @Nullable ScriptEvaluator se = null;
 
-    public CalcFn(String processElementBlock, Schema outputSchema) {
+    public CalcFn(String processElementBlock, Schema outputSchema, List<String> jarPaths) {
       this.processElementBlock = processElementBlock;
       this.outputSchema = outputSchema;
+      this.jarPaths = jarPaths;
     }
 
-    ScriptEvaluator compile() {
+    ScriptEvaluator compile() throws IOException {
+      JavaUdfLoader udfLoader = new JavaUdfLoader();
+      ClassLoader classLoader = udfLoader.createClassLoader(jarPaths);
       ScriptEvaluator se = new ScriptEvaluator();
+      se.setParentClassLoader(classLoader);
       se.setParameters(
           new String[] {outputSchemaParam.name, processContextParam.name, DataContext.ROOT.name},
           new Class[] {
@@ -259,7 +277,11 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
 
     @Setup
     public void setup() {
-      this.se = compile();
+      try {
+        this.se = compile();
+      } catch (IOException e) {
+        throw new RuntimeException("Failed to compile CalcFn.", e);
+      }
     }
 
     @ProcessElement
@@ -272,6 +294,25 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
             "CalcFn failed to evaluate: " + processElementBlock, e.getCause());
       }
     }
+  }
+
+  private static List<String> getJarPaths(RexProgram program) {
+    List<String> jarPaths = new ArrayList<>();
+    for (RexNode node : program.getExprList()) {
+      if (node instanceof RexCall) {
+        SqlOperator op = ((RexCall) node).op;
+        if (op instanceof SqlUserDefinedFunction) {
+          Function function = ((SqlUserDefinedFunction) op).function;
+          if (function instanceof ScalarFunctionImpl) {
+            String jarPath = ((ScalarFunctionImpl) function).getJarPath();
+            if (!jarPath.isEmpty()) {
+              jarPaths.add(jarPath);
+            }
+          }
+        }
+      }
+    }
+    return jarPaths;
   }
 
   private static final Map<TypeName, Type> rawTypeMap =

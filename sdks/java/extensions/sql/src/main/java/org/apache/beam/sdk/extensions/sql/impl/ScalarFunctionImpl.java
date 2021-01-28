@@ -60,10 +60,20 @@ public class ScalarFunctionImpl extends UdfImplReflectiveFunctionBase
     implements ScalarFunction, ImplementableFunction {
 
   private final CallImplementor implementor;
+  private final String jarPath;
 
-  protected ScalarFunctionImpl(Method method, CallImplementor implementor) {
+  protected ScalarFunctionImpl(Method method, CallImplementor implementor, String jarPath) {
     super(method);
     this.implementor = implementor;
+    this.jarPath = jarPath;
+  }
+
+  protected ScalarFunctionImpl(Method method, CallImplementor implementor) {
+    this(method, implementor, "");
+  }
+
+  public String getJarPath() {
+    return jarPath;
   }
 
   /**

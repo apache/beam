@@ -27,6 +27,7 @@ import java.net.URLClassLoader;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.ProviderNotFoundException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -111,9 +112,26 @@ public class JavaUdfLoader {
     }
   }
 
+  private File getLocalJar(String inputJarPath) throws IOException {
+    // TODO(ibzib) cache
+    return downloadFile(inputJarPath, "application/java-archive");
+  }
+
   private ClassLoader createClassLoader(String inputJarPath) throws IOException {
-    File tmpJar = downloadFile(inputJarPath, "application/java-archive");
+    File tmpJar = getLocalJar(inputJarPath);
     return new URLClassLoader(new URL[] {tmpJar.toURI().toURL()});
+  }
+
+  public ClassLoader createClassLoader(List<String> inputJarPaths) throws IOException {
+    List<File> localJars = new ArrayList<>();
+    for (String inputJar : inputJarPaths) {
+      localJars.add(getLocalJar(inputJar));
+    }
+    List<URL> urls = new ArrayList<>();
+    for (File file : localJars) {
+      urls.add(file.toURI().toURL());
+    }
+    return new URLClassLoader(urls.toArray(new URL[0]));
   }
 
   @VisibleForTesting

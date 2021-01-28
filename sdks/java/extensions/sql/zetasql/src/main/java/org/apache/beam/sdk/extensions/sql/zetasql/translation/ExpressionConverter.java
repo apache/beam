@@ -70,8 +70,8 @@ import org.apache.beam.sdk.extensions.sql.impl.ScalarFnReflector;
 import org.apache.beam.sdk.extensions.sql.impl.SqlConversionException;
 import org.apache.beam.sdk.extensions.sql.impl.ZetaSqlUserDefinedSQLNativeTableValuedFunction;
 import org.apache.beam.sdk.extensions.sql.impl.utils.TVFStreamingUtils;
-import org.apache.beam.sdk.extensions.sql.udf.ScalarFn;
 import org.apache.beam.sdk.extensions.sql.zetasql.ZetaSqlCalciteTranslationUtils;
+import org.apache.beam.sdk.extensions.sql.zetasql.translation.UserFunctionDefinitions.JavaScalarFunction;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptCluster;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
@@ -90,6 +90,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlKind;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlOperator;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.fun.SqlRowOperator;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.validate.SqlUserDefinedFunction;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -670,11 +671,11 @@ public class ExpressionConverter {
             convertRexNodeFromResolvedExpr(expr, columnList, fieldList, outerFunctionArguments));
       }
     } else if (USER_DEFINED_JAVA_SCALAR_FUNCTIONS.equals(funGroup)) {
-      ScalarFn scalarFn =
+      JavaScalarFunction javaScalarFunction =
           userFunctionDefinitions
               .javaScalarFunctions()
               .get(functionCall.getFunction().getNamePath());
-      Method method = ScalarFnReflector.getApplyMethod(scalarFn);
+      Method method = ScalarFnReflector.getApplyMethod(javaScalarFunction.scalarFn());
       ArrayList<RexNode> innerFunctionArguments = new ArrayList<>();
       for (int i = 0; i < functionCall.getArgumentList().size(); i++) {
         ResolvedExpr argExpr = functionCall.getArgumentList().get(i);
@@ -682,11 +683,13 @@ public class ExpressionConverter {
             convertRexNodeFromResolvedExpr(argExpr, columnList, fieldList, outerFunctionArguments);
         innerFunctionArguments.add(argNode);
       }
-      return rexBuilder()
-          .makeCall(
-              SqlOperators.createUdfOperator(
-                  functionCall.getFunction().getName(), method, USER_DEFINED_JAVA_SCALAR_FUNCTIONS),
-              innerFunctionArguments);
+      SqlUserDefinedFunction operator =
+          SqlOperators.createUdfOperator(
+              functionCall.getFunction().getName(),
+              method,
+              USER_DEFINED_JAVA_SCALAR_FUNCTIONS,
+              javaScalarFunction.jarPath());
+      return rexBuilder().makeCall(operator, innerFunctionArguments);
     } else if (USER_DEFINED_FUNCTIONS.equals(funGroup)) {
       ResolvedCreateFunctionStmt createFunctionStmt =
           userFunctionDefinitions

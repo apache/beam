@@ -133,7 +133,8 @@ public class SqlOperators {
           "LIKE",
           BeamBuiltinMethods.LIKE_METHOD,
           SqlSyntax.BINARY,
-          SqlAnalyzer.ZETASQL_FUNCTION_GROUP_NAME);
+          SqlAnalyzer.ZETASQL_FUNCTION_GROUP_NAME,
+          "");
 
   public static final SqlOperator VALIDATE_TIMESTAMP =
       createUdfOperator(
@@ -215,16 +216,21 @@ public class SqlOperators {
         null,
         null,
         paramTypes,
-        ZetaSqlScalarFunctionImpl.create(methodClass, methodName, funGroup));
+        ZetaSqlScalarFunctionImpl.create(methodClass, methodName, funGroup, ""));
+  }
+
+  static SqlUserDefinedFunction createUdfOperator(
+      String name, Method method, String funGroup, String jarPath) {
+    return createUdfOperator(name, method, SqlSyntax.FUNCTION, funGroup, jarPath);
   }
 
   static SqlUserDefinedFunction createUdfOperator(String name, Method method, String funGroup) {
-    return createUdfOperator(name, method, SqlSyntax.FUNCTION, funGroup);
+    return createUdfOperator(name, method, SqlSyntax.FUNCTION, funGroup, "");
   }
 
   private static SqlUserDefinedFunction createUdfOperator(
-      String name, Method method, final SqlSyntax syntax, String funGroup) {
-    Function function = ZetaSqlScalarFunctionImpl.create(method, funGroup);
+      String name, Method method, final SqlSyntax syntax, String funGroup, String jarPath) {
+    Function function = ZetaSqlScalarFunctionImpl.create(method, funGroup, jarPath);
     final RelDataTypeFactory typeFactory = createTypeFactory();
 
     List<RelDataType> argTypes = new ArrayList<>();
