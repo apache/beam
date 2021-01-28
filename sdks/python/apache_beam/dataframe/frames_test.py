@@ -63,23 +63,31 @@ class DeferredFrameTest(unittest.TestCase):
             "Expected an error:\n{expected}\nbut successfully "
             f"returned:\n{actual}")
 
-    if not expect_error:
-      if hasattr(expected, 'equals'):
-        if distributed:
-          cmp = lambda df: expected.sort_index().equals(df.sort_index())
-        else:
-          cmp = expected.equals
-      elif isinstance(expected, float):
-        cmp = lambda x: (math.isnan(x) and math.isnan(expected)
-                         ) or x == expected == 0 or abs(expected - x) / (
-                             abs(expected) + abs(x)) < 1e-8
-      else:
-        cmp = expected.__eq__
-      self.assertTrue(
-          cmp(actual), 'Expected:\n\n%r\n\nActual:\n\n%r' % (expected, actual))
-    else:
+    if expect_error:
+      self.assertIsInstance(expected, Exception)
       self.assertIsInstance(actual, type(expected))
       self.assertEqual(str(actual), str(expected))
+    else:
+      if isinstance(expected, pd.core.generic.NDFrame):
+        if distributed:
+          expected = expected.sort_index()
+          actual = actual.sort_index()
+
+        if isinstance(expected, pd.Series):
+          pd.testing.assert_series_equal(expected, actual)
+        elif isinstance(expected, pd.DataFrame):
+            pd.testing.assert_frame_equal(expected, actual)
+        else:
+          raise ValueError("Expected value is an NDFrame, but not a Series or DataFrame.")
+
+      else:
+        # Expectation is not a pandas object
+        if isinstance(expected, float):
+          cmp = lambda x: np.isclose(expected, x)
+        else:
+          cmp = expected.__eq__
+        self.assertTrue(
+            cmp(actual), 'Expected:\n\n%r\n\nActual:\n\n%r' % (expected, actual))
 
   def test_series_arithmetic(self):
     a = pd.Series([1, 2, 3])
@@ -332,6 +340,8 @@ class DeferredFrameTest(unittest.TestCase):
 
   def test_loc(self):
     dates = pd.date_range('1/1/2000', periods=8)
+    # We do not preserve the freq attribute on a DateTime index. Is this a bug?
+    dates.freq = None
     df = pd.DataFrame(
         np.arange(32).reshape((8, 4)),
         index=dates,
