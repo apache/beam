@@ -14,16 +14,77 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
+@import "media";
 
-.graphic
-  padding: $pad-l $pad
+.graphic {
+  text-align: center;
+  h2 {
+    @extend .component-title;
+  }
+  .images {
+    max-width: 868px;
+    margin: 0 auto;
+    height: 60px;
+  }
+  .margin {
+    margin-top: 84px;
+    margin-bottom: 84px;
+    @media (max-width: $mobile) {
+      margin-top: 0;
+      margin-bottom: 64px;
+    }
+  }
+  .row {
+    display: flex;
+    justify-content: space-between;
+    @media (max-width: $mobile) {
+      flex-direction: column;
+      align-items: center;
+    }
+    .logos-row {
+      display: flex;
+      align-items: center;
+      margin-top: 20px;
+      max-height: 73px;
+      @media (max-width: $mobile) {
+        margin-top: 64px;
+      }
+      img {
+        height: auto;
+      }
+    }
+    .first_logo {
+      margin-right: 18px;
+    }
+    .column {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      max-width: 306px;
 
-  .graphic__image
-    text-align: center
-    line-height: 0
-
-    img
-      max-width: 100%
-      margin: 0 auto
-      max-height: 500px
-      border: 1px solid #efefef
+      h4 {
+        margin-top: 32px;
+      }
+      .more {
+        margin-top: 32px;
+        font-size: 14px;
+        font-weight: bold;
+        line-height: 16px;
+        letter-spacing: 0.6px;
+        color: #f26628;
+      }
+    }
+    .icon {
+      width: 34px;
+      height: 44px;
+      margin-top: 16px;
+      @media (max-width: $mobile) {
+        margin-top: 64px;
+      }
+    }
+    img {
+      max-width: 306px;
+      height: 42px;
+    }
+  }
+}

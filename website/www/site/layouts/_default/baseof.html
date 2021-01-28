@@ -17,7 +17,7 @@
 </head>
 <body class="body body--index">
   {{ partial "header.html" . }}
-  <div class="body__contained">
+  <div class="body__contained no__padding">
     {{ block "hero-section" . }}{{ end }}
     {{ block "ctas-section" . }}{{ end }}
     {{ block "pillars-section" . }}{{ end }}
@@ -27,7 +27,9 @@
     {{ block "quotes-mobile-section" . }}{{ end }}
     {{ block "logos-section" . }}{{ end }}
   </div>
-  {{ partial "footer.html" . }}
+  <div class="main-padding">
+    {{ partial "footer.html" . }}
+  </div>
   {{ partial "hooks/body-end.html"}}
 </body>
 </html>

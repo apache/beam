@@ -10,8 +10,8 @@
     limitations under the License. See accompanying LICENSE file.
    */}}
 
-<div class="row">
-    <div>
+   <div class="row">
+    <div class="column">
     {{ if .logo }}
         <div class="item-icon">
             {{ with resources.Get .logo }}
@@ -20,7 +20,7 @@
         </div>
     {{ end }}
     <div class="item-description">
-        <a href={{ .header.link }} class="font-weight-bold">{{ .header.text | markdownify }}</a>
+        <a  href={{ .header.link }} class="font-weight-bold">{{ .header.text | markdownify }}</a>
         <p>{{ .text | safeHTML }}</p>
     </div>
     </div>

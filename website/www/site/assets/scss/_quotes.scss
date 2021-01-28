@@ -63,7 +63,7 @@
       margin-right: 0;
     }
   }
-  
+
   // Sliding feature is only displayed on mobile version
   .keen-slider {
     display: none;
@@ -135,13 +135,16 @@
     .quotes-title {
       margin-bottom: 64px;
     }
-
+    h2 {
+      margin-bottom: 0 !important;
+    }
     .quotes-desktop {
       display: none;
     }
 
     .keen-slider {
       display: flex;
+      width: 100%;
     }
 
     .dots {

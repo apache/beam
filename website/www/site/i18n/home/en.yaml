@@ -9,7 +9,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
- 
+
 - id: home-learn-more
   translation: "Learn more"
 - id: home-try-beam
@@ -34,3 +34,17 @@
   translation: "section"
 - id: home-ctas-title
   translation: "Get started"
+- id: home-model-title1
+  translation: "How it works?"
+- id: home-model-title2
+  translation: "Write it in your language of choice - run it anywhere"
+- id: home-graphic-more
+  translation: "& MORE"
+- id: home-graphic-runner-title
+  translation: "Choose your runner"
+- id: home-graphic-runner-body
+  translation: "A Beam pipeline can execute in the most popular distributed data processing systems such as Spark, Flink or Samza."
+- id: home-graphic-language-title
+  translation: "Choose your language"
+- id: home-graphic-language-body
+  translation: "You can write Apache Beam pipelines in your programming language of choice: Java, Python and Go. Learn More."

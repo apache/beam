@@ -15,21 +15,24 @@
  *  limitations under the License.
  */
 @import "media";
-
+.tf-filter-item {
+  display: none;
+}
 .blog-content {
+  //padding: 0 24px 0 24px;
+  margin-top: 64px;
+
   h2 {
     text-align: center;
     margin-bottom: 70px !important;
-  }
-  .tf-filter-item {
-    display: none;
+    padding-top: 57px;
   }
 
   .category-buttons {
     display: flex;
     align-items: center;
     justify-content: center;
-    max-width: 60%;
+
     flex-wrap: wrap-reverse;
     margin: 0 auto;
     margin-bottom: 80px;
@@ -40,7 +43,7 @@
     }
 
     .category-button {
-      margin: 0 11.8px 11.7px 11.8px;
+      margin: 0 6px 12px 6px;
       padding: 10px 20px;
       border-radius: 100px;
       background-color: #f6f6f6;
@@ -49,33 +52,61 @@
       font-weight: bold;
       line-height: 1.14;
       letter-spacing: 0.6px;
+      &:focus {
+        outline: 0;
+      }
+      &:hover {
+        background-color: #f2804d;
+        color: #fff;
+      }
     }
+
     .active {
       background-color: #f26628;
       color: #fff;
+      &:hover {
+        background-color: #f2804d;
+      }
     }
-    .load-button {
-      padding: 15px 51px 15px 52px;
-      border-radius: 100px;
-      background-color: #f26628;
-      font-weight: bold;
-      font-stretch: normal;
-      font-style: normal;
-      line-height: normal;
-      letter-spacing: 0.39px;
-      color: #ffffff;
-      border: 0;
-      margin-top: 125px;
+  }
+  .category-buttons_poweredBy {
+    justify-content: flex-start;
+    margin-top: 84px;
+  }
+  .restricted {
+    max-width: 60%;
+    @media (max-width: $mobile) {
+      max-width: 100%;
     }
   }
 }
+.load-button {
+  padding: 15px 51px 15px 52px;
+  border-radius: 100px;
+  background-color: #f26628;
+  text-transform: uppercase;
+  font-weight: bold;
+  line-height: normal;
+  letter-spacing: 0.39px;
+  color: #ffffff;
+  border: 0;
+  margin-top: 104px;
+  width: 184px;
+  height: 46px;
+  &:hover {
+    background-color: #f2804d;
+  }
+}
+
 .posts-list {
   display: flex;
   flex-wrap: wrap;
-  justify-content: space-evenly;
-
+  justify-content: space-between;
   .show-item {
     display: inline-block;
+  }
+  @media (max-width: $tablet) {
+    justify-content: space-evenly;
   }
   .post-card {
     width: 381px;
@@ -91,20 +122,27 @@
 
     &:hover {
       text-decoration: none;
+      box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.24),
+        0 4px 6px 0 rgba(0, 0, 0, 0.24);
     }
     @media (max-width: $tablet) {
       width: 327px;
       height: 216px;
       padding: 24px 20px;
+      margin-bottom: 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
     }
 
     .post-title {
       font-size: 24px;
-      font-weight: normal;
+      font-weight: 500;
       line-height: 1.25;
       letter-spacing: normal;
       margin-bottom: 24px;
-
+      overflow: hidden;
+      -webkit-box-orient: vertical;
       @media (max-width: $tablet) {
         font-size: 18px;
         font-weight: normal;
@@ -115,6 +153,8 @@
 
     .post-summary {
       overflow: hidden;
+      line-height: 1.57;
+      letter-spacing: 0.43px;
       display: -webkit-box;
       -webkit-line-clamp: 9;
       -webkit-box-orient: vertical;
@@ -128,14 +168,22 @@
   display: flex;
   justify-content: space-between;
   font-size: 16px;
-  font-weight: normal;
+  font-weight: 500;
   line-height: 1.63;
   letter-spacing: 0.43px;
   color: #8c8b8e;
-  margin-bottom: 24px;
+  margin-bottom: 38px;
+  @media (max-width: $tablet) {
+    margin-bottom: 0;
+  }
   p {
     text-transform: uppercase;
   }
+}
+.post-category {
+  font-size: 14px;
+  font-weight: normal;
+  margin-top: 8px;
 }
 .post {
   .post-content {
@@ -149,10 +197,7 @@
       margin-top: 85px;
     }
   }
-  h2 {
-    margin-bottom: 32px;
-    margin-top: 42px;
-  }
+
   .post-header {
     border-bottom: 2px solid rgba(255, 109, 5, 0.24);
     margin-bottom: 24px;
@@ -182,9 +227,10 @@
   }
   .post-title {
     margin-bottom: 12px !important;
-    font-size: 18px;
-    font-weight: normal;
-    line-height: 1.6;
-    letter-spacing: 0.43px;
+    font-size: 18px !important;
+    line-height: 1.6 !important;
+    letter-spacing: 0.43px !important;
+    text-overflow: ellipsis;
+    max-height: 4.8em;
   }
 }

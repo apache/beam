@@ -18,13 +18,13 @@
             {{ else }}
                 {{ partial "documentation/icon-row" (dict "header" .name "text" .description) }}
            {{ end }}
-       {{ end }}
+       {{ end }} </div>
        {{ if gt (len $data.documentation_runners) 6 }}
     <div class="collapsable-list">
       <div class="collapse" id="collapseExample">
         <ul>
             {{ range last 2 ($item := $data.documentation_runners) }}
-                <li><a href={{.name.link}}>{{ .name.text}}</a> {{ .description | safeHTML }}</li>
+                <li><a href={{.name.link}} >{{ .name.text}}</a> {{ .description | safeHTML }}</li>
             {{ end }}
         </ul>
       </div>
@@ -32,8 +32,8 @@
         + SHOW MORE
       </a>
        {{ end }}
-        </div>
-   </div>
+    </div>
+
 <script>
     function changeText(){
        var button = document.getElementById("collapse-button");
