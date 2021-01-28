@@ -20,7 +20,7 @@ import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-
+  enableStrictDependencies: true,
   automaticModuleName: 'org.apache.beam.sdk.extensions.gcp')
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: Google Cloud Platform Core"
@@ -36,26 +36,25 @@ test {
 }
 
 dependencies {
-  compile "org.apache.httpcomponents:httpclient:4.5.10"
-  compile "org.apache.httpcomponents:httpcore:4.4.12"
-  compile "org.checkerframework:checker-qual:2.0.0"
   compile enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
   compile library.java.vendored_guava_26_0_jre
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile project(path: ":runners:core-java")
+  compile library.java.bigdataoss_gcsio
+  compile library.java.bigdataoss_util
   compile library.java.google_http_client_jackson2
   compile library.java.google_auth_library_oauth2_http
   compile library.java.google_api_client
-  compile library.java.bigdataoss_gcsio
-  compile library.java.bigdataoss_util
   compile library.java.google_api_services_cloudresourcemanager
   compile library.java.google_api_services_storage
   compile library.java.google_auth_library_credentials
   compile library.java.google_http_client
-  compile library.java.slf4j_api
-  compile library.java.joda_time
+  compile library.java.http_core
+  compile library.java.http_client
   compile library.java.jackson_annotations
-  testImplementation 'com.fasterxml.jackson.core:jackson-databind:2.10.2'
+  compile library.java.joda_time
+  compile library.java.slf4j_api
+  testImplementation library.java.jackson_databind
   provided library.java.hamcrest_core
   provided library.java.junit
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")

@@ -21,7 +21,10 @@ import groovy.json.JsonOutput
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.extensions.ml')
+applyJavaNature(
+    enableStrictDependencies: true,
+    automaticModuleName: 'org.apache.beam.sdk.extensions.ml'
+)
 
 description = 'Apache Beam :: SDKs :: Java :: Extensions :: ML'
 
@@ -36,7 +39,6 @@ dependencies {
     compile 'com.google.api.grpc:proto-google-cloud-vision-v1:1.81.3'
     compile 'com.google.api:gax:1.57.1'
     compile 'com.google.protobuf:protobuf-java:3.11.1'
-    compile 'org.checkerframework:checker-qual:2.0.0'
     compile library.java.slf4j_api
     provided library.java.junit
     testCompile project(path: ':sdks:java:core', configuration: 'shadowTest')
