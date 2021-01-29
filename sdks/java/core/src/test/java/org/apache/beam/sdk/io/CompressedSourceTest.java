@@ -548,14 +548,12 @@ public class CompressedSourceTest {
     byte[] input2 = generateInput(5, 387374);
 
     ByteArrayOutputStream stream1 = new ByteArrayOutputStream();
-    try (OutputStream os =
-        getOutputStreamForMode(compression, stream1, input1)) {
+    try (OutputStream os = getOutputStreamForMode(compression, stream1, input1)) {
       os.write(input1);
     }
 
     ByteArrayOutputStream stream2 = new ByteArrayOutputStream();
-    try (OutputStream os =
-        getOutputStreamForMode(compression, stream2, input2)) {
+    try (OutputStream os = getOutputStreamForMode(compression, stream2, input2)) {
       os.write(input2);
     }
 
@@ -991,8 +989,8 @@ public class CompressedSourceTest {
   }
 
   /** Get a compressing stream for a given compression mode. */
-  private OutputStream getOutputStreamForMode(Compression compression, OutputStream stream, byte[] input)
-      throws IOException {
+  private OutputStream getOutputStreamForMode(
+      Compression compression, OutputStream stream, byte[] input) throws IOException {
     switch (compression) {
       case GZIP:
         return new GzipCompressorOutputStream(stream);
