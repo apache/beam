@@ -74,7 +74,7 @@ REGION=us-central1
 # Set up trap to close any running background processes when script ends.
 exit_background_processes () {
   if [[ ! -z "$JOBSERVER_PID" ]]; then
-    kill -9 $JOBSERVER_PID
+    kill -9 $JOBSERVER_PID || true
   fi
   if [[ ! -z "$EXPANSION_PID" ]]; then
     kill -9 $EXPANSION_PID
@@ -146,6 +146,10 @@ case $key in
         shift # past argument
         shift # past value
         ;;
+    --jenkins)
+        JENKINS=true
+        shift # past argument
+        ;;
     *)    # unknown option
         echo "Unknown option: $1"
         exit 1
@@ -172,12 +176,11 @@ s.close()
 # Set up environment based on runner.
 if [[ "$RUNNER" == "dataflow" ]]; then
   if [[ -z "$DATAFLOW_WORKER_JAR" ]]; then
-    DATAFLOW_WORKER_JAR=$(find ./runners/google-cloud-dataflow-java/worker/build/libs/beam-runners-google-cloud-dataflow-java-fn-api-worker-*.jar)
+    DATAFLOW_WORKER_JAR=$(find $(pwd)/runners/google-cloud-dataflow-java/worker/build/libs/beam-runners-google-cloud-dataflow-java-fn-api-worker-*.jar)
   fi
   echo "Using Dataflow worker jar: $DATAFLOW_WORKER_JAR"
-  ARGS="-timeout 20m"
 
-  if [[ -z "$EXPANSION_ADDR" ]]; then
+  if [[ -z "$EXPANSION_ADDR" && -n "$EXPANSION_SERVICE_JAR" ]]; then
     EXPANSION_PORT=$(python -c "$SOCKET_SCRIPT")
     EXPANSION_ADDR="localhost:$EXPANSION_PORT"
     echo "No expansion address specified; starting a new expansion server on $EXPANSION_ADDR"
@@ -215,7 +218,7 @@ elif [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "portable" 
     JOBSERVER_PID=$!
   fi
 
-  if [[ -z "$EXPANSION_ADDR" ]]; then
+  if [[ -z "$EXPANSION_ADDR" && -n "$EXPANSION_SERVICE_JAR" ]]; then
     EXPANSION_PORT=$(python -c "$SOCKET_SCRIPT")
     EXPANSION_ADDR="localhost:$EXPANSION_PORT"
     echo "No expansion address specified; starting a new expansion server on $EXPANSION_ADDR"
@@ -263,20 +266,38 @@ else
   CONTAINER=apache/beam_go_sdk
 fi
 
-echo ">>> RUNNING $RUNNER VALIDATESRUNNER TESTS"
-go test -v ./sdks/go/test/integration/... $ARGS \
-    --timeout=$TIMEOUT \
-    --runner=$RUNNER \
-    --project=$DATAFLOW_PROJECT \
-    --region=$REGION \
-    --environment_type=DOCKER \
-    --environment_config=$CONTAINER:$TAG \
-    --staging_location=$GCS_LOCATION/staging-validatesrunner-test \
-    --temp_location=$GCS_LOCATION/temp-validatesrunner-test \
-    --dataflow_worker_jar=$DATAFLOW_WORKER_JAR \
-    --endpoint=$ENDPOINT \
-    --expansion_addr=$EXPANSION_ADDR \
-    || TEST_EXIT_CODE=$? # don't fail fast here; clean up environment before exiting
+ARGS="$ARGS --timeout=$TIMEOUT"
+ARGS="$ARGS --runner=$RUNNER"
+ARGS="$ARGS --project=$DATAFLOW_PROJECT"
+ARGS="$ARGS --region=$REGION"
+ARGS="$ARGS --environment_type=DOCKER"
+ARGS="$ARGS --environment_config=$CONTAINER:$TAG"
+ARGS="$ARGS --staging_location=$GCS_LOCATION/staging-validatesrunner-test"
+ARGS="$ARGS --temp_location=$GCS_LOCATION/temp-validatesrunner-test"
+ARGS="$ARGS --dataflow_worker_jar=$DATAFLOW_WORKER_JAR"
+ARGS="$ARGS --endpoint=$ENDPOINT"
+if [[-n "$EXPANSION_ADDR"]]; then
+  ARGS="$ARGS --expansion_addr=$EXPANSION_ADDR"
+fi
+
+# Running "go test" requires some additional setup on Jenkins.
+if [[ "$JENKINS" == true ]]; then
+  # Copy the go repo as it is on Jenkins, to ensure we compile with the code
+  # being tested.
+  cd ..
+  mkdir -p temp_gopath/src/github.com/apache/beam/sdks
+  cp -a ./src/sdks/go ./temp_gopath/src/github.com/apache/beam/sdks
+  TEMP_GOPATH=$(pwd)/temp_gopath
+  cd ./src
+
+  echo ">>> RUNNING $RUNNER VALIDATESRUNNER TESTS"
+  GOPATH=$TEMP_GOPATH go test -v github.com/apache/beam/sdks/go/test/integration/... $ARGS \
+      || TEST_EXIT_CODE=$? # don't fail fast here; clean up environment before exiting
+else
+  echo ">>> RUNNING $RUNNER VALIDATESRUNNER TESTS"
+  go test -v ./sdks/go/test/integration/... $ARGS \
+      || TEST_EXIT_CODE=$? # don't fail fast here; clean up environment before exiting
+fi
 
 if [[ "$RUNNER" == "dataflow" ]]; then
   # Delete the container locally and remotely
@@ -287,5 +308,4 @@ if [[ "$RUNNER" == "dataflow" ]]; then
   rm -rf $TMPDIR
 fi
 
-exit_background_processes
 exit $TEST_EXIT_CODE
