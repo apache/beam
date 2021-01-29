@@ -300,7 +300,7 @@ class DeterministicFastPrimitivesCoderImpl(CoderImpl):
         self._check_safe(x)
     else:
       raise TypeError(
-          "Unable to deterministically code '%s' of type '%s', "
+          "Unable to deterministically encode '%s' of type '%s', "
           "please provide a type hint for the input of '%s'" %
           (value, type(value), self._step_label))
 
@@ -908,7 +908,7 @@ class AvroCoderImpl(SimpleCoderImpl):
 class TupleCoderImpl(AbstractComponentCoderImpl):
   """A coder for tuple objects."""
   def _extract_components(self, value):
-    return value
+    return tuple(value)
 
   def _construct_from_components(self, components):
     return tuple(components)

@@ -165,7 +165,9 @@ class Coder(object):
     if self.is_deterministic():
       return self
     else:
-      raise ValueError(error_message or "'%s' cannot be made deterministic.")
+      raise ValueError(
+          error_message or
+          "%s cannot be made deterministic for '%s'." % (self, step_label))
 
   def estimate_size(self, value):
     """Estimates the encoded size of the given value, in bytes.

@@ -25,6 +25,8 @@ from __future__ import print_function
 
 import collections
 import operator
+import pickle
+import random
 import re
 import sys
 import typing
@@ -499,6 +501,57 @@ class PTransformTest(unittest.TestCase):
           pcoll | 'Group' >> beam.GroupByKey()
           | 'Reiteration-Sum' >> beam.ParDo(MyDoFn()))
       assert_that(result, equal_to([(1, 170)]))
+
+  def test_group_by_key_determanistic_coder(self):
+    # pylint: disable=global-variable-not-assigned
+    global MyObject  # for pickling of the class instance
+
+    class MyObject:
+      def __init__(self, value):
+        self.value = value
+
+      def __eq__(self, other):
+        return self.value == other.value
+
+      def __hash__(self):
+        return hash(self.value)
+
+    class MyObjectCoder(beam.coders.Coder):
+      def encode(self, o):
+        return pickle.dumps((o.value, random.random()))
+
+      def decode(self, encoded):
+        return MyObject(pickle.loads(encoded)[0])
+
+      def as_deterministic_coder(self, *args):
+        return MyDetermanisticObjectCoder()
+
+      def to_type_hint(self):
+        return MyObject
+
+    class MyDetermanisticObjectCoder(beam.coders.Coder):
+      def encode(self, o):
+        return pickle.dumps(o.value)
+
+      def decode(self, encoded):
+        return MyObject(pickle.loads(encoded))
+
+      def is_deterministic(self):
+        return True
+
+    beam.coders.registry.register_coder(MyObject, MyObjectCoder)
+
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | beam.Create([(MyObject(k % 2), k) for k in range(10)])
+      grouped = pcoll | beam.GroupByKey() | beam.MapTuple(
+          lambda k, vs: (k.value, sorted(vs)))
+      combined = pcoll | beam.CombinePerKey(sum) | beam.MapTuple(
+          lambda k, v: (k.value, v))
+      assert_that(
+          grouped,
+          equal_to([(0, [0, 2, 4, 6, 8]), (1, [1, 3, 5, 7, 9])]),
+          'CheckGrouped')
+      assert_that(combined, equal_to([(0, 20), (1, 25)]), 'CheckCombined')
 
   def test_partition_with_partition_fn(self):
     class SomePartitionFn(beam.PartitionFn):
@@ -1368,7 +1421,6 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
   def test_filter_type_checks_using_type_hints_decorator(self):
     @with_input_types(b=int)
     def half(b):
-      import random
       return bool(random.choice([0, 1]))
 
     # Filter should deduce that it returns the same type that it takes.

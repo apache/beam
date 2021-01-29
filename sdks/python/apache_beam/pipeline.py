@@ -841,6 +841,7 @@ class Pipeline(object):
     # general shapes, potential conflicts will have to be resolved.
     # We also only handle single-input, and (for fixing the output) single
     # output, which is sufficient.
+    # Also marks such values as requiring deterministic key coders.
     class ForceKvInputTypes(PipelineVisitor):
       def enter_composite_transform(self, transform_node):
         # type: (AppliedPTransform) -> None
@@ -854,18 +855,26 @@ class Pipeline(object):
           pcoll = transform_node.inputs[0]
           pcoll.element_type = typehints.coerce_to_kv_type(
               pcoll.element_type, transform_node.full_label)
+          pcoll.requires_deterministic_key_coder = transform_node.full_label
           if len(transform_node.outputs) == 1:
             # The runner often has expectations about the output types as well.
             output, = transform_node.outputs.values()
             if not output.element_type:
               output.element_type = transform_node.transform.infer_output_type(
                   pcoll.element_type)
+            if (isinstance(output.element_type,
+                           typehints.TupleHint.TupleConstraint) and
+                len(output.element_type.tuple_types) == 2):
+              output.requires_deterministic_key_coder = (
+                  transform_node.full_label)
         for side_input in transform_node.transform.side_inputs:
           if side_input.requires_keyed_input():
             side_input.pvalue.element_type = typehints.coerce_to_kv_type(
                 side_input.pvalue.element_type,
                 transform_node.full_label,
                 side_input_producer=side_input.pvalue.producer.full_label)
+            side_input.pvalue.requires_deterministic_key_coder = (
+                transform_node.full_label)
 
     self.visit(ForceKvInputTypes())
 

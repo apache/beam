@@ -72,6 +72,7 @@
   This new Guava version may introduce dependency conflicts if your project or dependencies rely
   on removed APIs. If affected, ensure to use an appropriate Guava version via `dependencyManagement` in Maven and
   `force` in Gradle.
+* Deterministic coding enforced for GroupByKey and Stateful DoFns.  Previously non-deterministic coding was allowed, resulting in keys not properly being grouped in some cases. ([BEAM-11719](https://issues.apache.org/jira/browse/BEAM-11719))
 * X behavior was changed ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 
 ## Deprecations
