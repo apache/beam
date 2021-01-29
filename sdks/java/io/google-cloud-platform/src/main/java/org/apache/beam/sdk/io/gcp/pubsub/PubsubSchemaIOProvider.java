@@ -338,10 +338,10 @@ public class PubsubSchemaIOProvider implements SchemaIOProvider {
         params.put("protoClass", getProtoClass());
       }
       if (getProtoMessageName() != null) {
-        params.put("protoMessageName", getProtoClass());
+        params.put("protoMessageName", getProtoMessageName());
       }
       if (getProtoDescriptorSetFile() != null) {
-        params.put("protoDescriptorSetFile", getProtoClass());
+        params.put("protoDescriptorSetFile", getProtoDescriptorSetFile());
       }
       return PayloadSerializers.getSerializer(format, schema, params.build());
     }
