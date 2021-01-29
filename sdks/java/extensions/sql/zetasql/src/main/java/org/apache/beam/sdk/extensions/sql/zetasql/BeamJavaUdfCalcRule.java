@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
+import org.apache.beam.sdk.extensions.sql.impl.rel.BeamCalcRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.Convention;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRule;
@@ -26,18 +27,18 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.convert.Con
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Calc;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.LogicalCalc;
 
-/** A {@code ConverterRule} to replace {@link Calc} with {@link BeamZetaSqlCalcRel}. */
-public class BeamZetaSqlCalcRule extends ConverterRule {
-  public static final BeamZetaSqlCalcRule INSTANCE = new BeamZetaSqlCalcRule();
+/** {@link ConverterRule} to replace {@link Calc} with {@link BeamCalcRel}. */
+public class BeamJavaUdfCalcRule extends ConverterRule {
+  public static final BeamJavaUdfCalcRule INSTANCE = new BeamJavaUdfCalcRule();
 
-  private BeamZetaSqlCalcRule() {
+  private BeamJavaUdfCalcRule() {
     super(
-        LogicalCalc.class, Convention.NONE, BeamLogicalConvention.INSTANCE, "BeamZetaSqlCalcRule");
+        LogicalCalc.class, Convention.NONE, BeamLogicalConvention.INSTANCE, "BeamJavaUdfCalcRule");
   }
 
   @Override
   public boolean matches(RelOptRuleCall x) {
-    return !ZetaSQLQueryPlanner.hasUdfInProjects(x);
+    return ZetaSQLQueryPlanner.hasUdfInProjects(x);
   }
 
   @Override
@@ -45,7 +46,7 @@ public class BeamZetaSqlCalcRule extends ConverterRule {
     final Calc calc = (Calc) rel;
     final RelNode input = calc.getInput();
 
-    return new BeamZetaSqlCalcRel(
+    return new BeamCalcRel(
         calc.getCluster(),
         calc.getTraitSet().replace(BeamLogicalConvention.INSTANCE),
         RelOptRule.convert(input, input.getTraitSet().replace(BeamLogicalConvention.INSTANCE)),
