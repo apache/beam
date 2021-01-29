@@ -292,11 +292,14 @@ class DataflowRunner(PipelineRunner):
           pcoll = transform_node.inputs[0]
           pcoll.element_type = typehints.coerce_to_kv_type(
               pcoll.element_type, transform_node.full_label)
+          pcoll.requires_deterministic_key_coder = transform_node.full_label
           key_type, value_type = pcoll.element_type.tuple_types
           if transform_node.outputs:
             key = DataflowRunner._only_element(transform_node.outputs.keys())
             transform_node.outputs[key].element_type = typehints.KV[
                 key_type, typehints.Iterable[value_type]]
+            transform_node.outputs[key].requires_deterministic_key_coder = (
+                transform_node.full_label)
 
     return GroupByKeyInputVisitor()
 
@@ -352,6 +355,8 @@ class DataflowRunner(PipelineRunner):
               # access pattern to appease Dataflow.
               side_input.pvalue.element_type = typehints.coerce_to_kv_type(
                   side_input.pvalue.element_type, transform_node.full_label)
+              side_input.pvalue.requires_deterministic_key_coder = (
+                  transform_node.full_label)
               new_side_input = _DataflowMultimapSideInput(side_input)
             else:
               raise ValueError(
