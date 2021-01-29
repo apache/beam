@@ -18,6 +18,7 @@ from __future__ import absolute_import
 
 import math
 import sys
+import random
 import unittest
 
 import numpy as np
@@ -64,9 +65,11 @@ class DeferredFrameTest(unittest.TestCase):
             f"returned:\n{actual}")
 
     if expect_error:
-      self.assertIsInstance(expected, Exception)
-      self.assertIsInstance(actual, type(expected))
-      self.assertEqual(str(actual), str(expected))
+      if not isinstance(actual,
+                        type(expected)) or not str(actual) == str(expected):
+        raise AssertionError(
+            f'Expected {expected!r} to be raised, but got {actual!r}'
+        ) from actual
     else:
       if isinstance(expected, pd.core.generic.NDFrame):
         if distributed:
@@ -76,9 +79,10 @@ class DeferredFrameTest(unittest.TestCase):
         if isinstance(expected, pd.Series):
           pd.testing.assert_series_equal(expected, actual)
         elif isinstance(expected, pd.DataFrame):
-            pd.testing.assert_frame_equal(expected, actual)
+          pd.testing.assert_frame_equal(expected, actual)
         else:
-          raise ValueError("Expected value is an NDFrame, but not a Series or DataFrame.")
+          raise ValueError(
+              "Expected value is an NDFrame, but not a Series or DataFrame.")
 
       else:
         # Expectation is not a pandas object
@@ -87,7 +91,8 @@ class DeferredFrameTest(unittest.TestCase):
         else:
           cmp = expected.__eq__
         self.assertTrue(
-            cmp(actual), 'Expected:\n\n%r\n\nActual:\n\n%r' % (expected, actual))
+            cmp(actual),
+            'Expected:\n\n%r\n\nActual:\n\n%r' % (expected, actual))
 
   def test_series_arithmetic(self):
     a = pd.Series([1, 2, 3])
@@ -190,14 +195,53 @@ class DeferredFrameTest(unittest.TestCase):
     self._run_test(lambda df: df.groupby('group')['foo'].median(), df)
     self._run_test(lambda df: df.groupby('group')['baz'].median(), df)
     self._run_test(lambda df: df.groupby('group')[['bar', 'baz']].median(), df)
+
+  def test_groupby_errors(self):
+    df = pd.DataFrame({
+        'group': ['a' if i % 5 == 0 or i % 3 == 0 else 'b' for i in range(100)],
+        'foo': [None if i % 11 == 0 else i for i in range(100)],
+        'bar': [None if i % 7 == 0 else 99 - i for i in range(100)],
+        'baz': [None if i % 13 == 0 else i * 2 for i in range(100)],
+    })
+
+    # non-existent projection column
     self._run_test(
         lambda df: df.groupby('group')[['bar', 'baz']].bar.median(),
         df,
         expect_error=True)
     self._run_test(
-        lambda df: df.groupby('group')[['bat']].median(), df, expect_error=True)
+        lambda df: df.groupby('group')[['bad']].median(), df, expect_error=True)
+
     self._run_test(
-        lambda df: df.groupby('group').bat.median(), df, expect_error=True)
+        lambda df: df.groupby('group').bad.median(), df, expect_error=True)
+
+    # non-existent grouping label
+    self._run_test(
+        lambda df: df.groupby(['really_bad', 'foo', 'bad']).foo.sum(),
+        df,
+        expect_error=True)
+    self._run_test(
+        lambda df: df.groupby('bad').foo.sum(), df, expect_error=True)
+
+  def test_set_index(self):
+    df = pd.DataFrame({
+        # Generate some unique columns to use for indexes
+        'rand1': random.sample(range(10000), 100),
+        'rand2': random.sample(range(10000), 100),
+        'group': ['a' if i % 5 == 0 or i % 3 == 0 else 'b' for i in range(100)],
+        'foo': [None if i % 11 == 0 else i for i in range(100)],
+        'bar': [None if i % 7 == 0 else 99 - i for i in range(100)],
+        'baz': [None if i % 13 == 0 else i * 2 for i in range(100)],
+    })
+
+    self._run_test(lambda df: df.set_index(['rand1', 'rand2']), df)
+    self._run_test(lambda df: df.set_index(['rand1', 'rand2'], drop=True), df)
+
+    self._run_test(lambda df: df.set_index('bad'), df, expect_error=True)
+    self._run_test(
+        lambda df: df.set_index(['rand2', 'bad', 'really_bad']),
+        df,
+        expect_error=True)
 
   def test_merge(self):
     # This is from the pandas doctests, but fails due to re-indexing being
