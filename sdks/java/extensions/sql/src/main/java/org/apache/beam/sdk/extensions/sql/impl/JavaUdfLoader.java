@@ -27,6 +27,8 @@ import java.net.URLClassLoader;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.ProviderNotFoundException;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -122,9 +124,26 @@ public class JavaUdfLoader {
     return jarCache.get(inputJarPath);
   }
 
+  /**
+   * This code creates a classloader, which needs permission if a security manager is installed. If
+   * this code might be invoked by code that does not have security permissions, then the
+   * classloader creation needs to occur inside a doPrivileged block.
+   */
+  private URLClassLoader createUrlClassLoader(URL[] urls) {
+    return (URLClassLoader)
+        AccessController.doPrivileged(
+            new PrivilegedAction<URLClassLoader>() {
+              @Override
+              public URLClassLoader run() {
+                return new URLClassLoader(urls);
+              }
+            });
+  }
+
   private ClassLoader createClassLoader(String inputJarPath) throws IOException {
     File tmpJar = getLocalJar(inputJarPath);
-    return new URLClassLoader(new URL[] {tmpJar.toURI().toURL()});
+    URL url = tmpJar.toURI().toURL();
+    return createUrlClassLoader(new URL[] {url});
   }
 
   public ClassLoader createClassLoader(List<String> inputJarPaths) throws IOException {
@@ -132,7 +151,7 @@ public class JavaUdfLoader {
     for (String inputJar : inputJarPaths) {
       urls.add(getLocalJar(inputJar).toURI().toURL());
     }
-    return new URLClassLoader(urls.toArray(new URL[0]));
+    return createUrlClassLoader(urls.toArray(new URL[0]));
   }
 
   @VisibleForTesting
