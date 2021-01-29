@@ -236,6 +236,8 @@ class TranslationsTest(unittest.TestCase):
   def test_run_packable_combine_per_key(self):
     class MultipleCombines(beam.PTransform):
       def expand(self, pcoll):
+        # These CombinePerKey stages will be packed if and only if
+        # translations.pack_combiners is enabled in the TestPipeline runner.
         assert_that(
             pcoll | 'mean-perkey' >> combiners.Mean.PerKey(),
             equal_to([('a', 3.4)]),
@@ -257,10 +259,12 @@ class TranslationsTest(unittest.TestCase):
           | Create([('a', x) for x in vals])
           | 'multiple-combines' >> MultipleCombines())
 
-
   def test_run_packable_combine_globally(self):
     class MultipleCombines(beam.PTransform):
       def expand(self, pcoll):
+        # These CombineGlobally stages will be packed if and only if
+        # translations.eliminate_common_key_with_void and
+        # translations.pack_combiners are enabled in the TestPipeline runner.
         assert_that(
             pcoll | 'mean-globally' >> combiners.Mean.Globally(),
             equal_to([3.4]),
