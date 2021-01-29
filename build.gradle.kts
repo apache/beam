@@ -329,7 +329,8 @@ task("typescriptPreCommit") {
 }
 
 task("pushAllDockerImages") {
-  dependsOn(":runners:spark:job-server:container:dockerPush")
+  dependsOn(":runners:spark:2:job-server:container:dockerPush")
+  dependsOn(":runners:spark:3:job-server:container:dockerPush")
   dependsOn(":sdks:java:container:pushAll")
   dependsOn(":sdks:python:container:pushAll")
   for (version in project.ext.get("allFlinkVersions") as Array<*>) {
