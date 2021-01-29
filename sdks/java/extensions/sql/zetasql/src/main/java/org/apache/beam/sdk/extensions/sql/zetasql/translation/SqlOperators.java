@@ -24,6 +24,7 @@ import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.impl.ScalarFunctionImpl;
 import org.apache.beam.sdk.extensions.sql.impl.UdafImpl;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelDataTypeSystem;
+import org.apache.beam.sdk.extensions.sql.impl.transform.BeamBuiltinAggregations;
 import org.apache.beam.sdk.extensions.sql.impl.udaf.StringAgg;
 import org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils;
 import org.apache.beam.sdk.extensions.sql.zetasql.SqlAnalyzer;
@@ -162,6 +163,12 @@ public class SqlOperators {
   public static final SqlOperator DATE_OP =
       createUdfOperator(
           "DATE", BeamBuiltinMethods.DATE_METHOD, SqlAnalyzer.ZETASQL_FUNCTION_GROUP_NAME);
+
+  public static final SqlOperator BIT_XOR =
+      createUdafOperator(
+          "BIT_XOR",
+          x -> createTypeFactory().createSqlType(SqlTypeName.BIGINT),
+          new UdafImpl<>(new BeamBuiltinAggregations.BitXOr<Number>()));
 
   public static final SqlUserDefinedFunction CAST_OP =
       new SqlUserDefinedFunction(
