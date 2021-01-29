@@ -47,6 +47,7 @@ public abstract class UserFunctionDefinitions {
 
     public abstract ScalarFn scalarFn();
 
+    /** The Beam filesystem path to the jar where scalarFn was defined. */
     public abstract String jarPath();
   }
 
