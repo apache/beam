@@ -1664,6 +1664,7 @@ public class BigQueryIO {
         .setMaxBytesPerPartition(BatchLoads.DEFAULT_MAX_BYTES_PER_PARTITION)
         .setOptimizeWrites(false)
         .setUseBeamSchema(false)
+        .setAutoSharding(false)
         .build();
   }
 
@@ -1789,6 +1790,9 @@ public class BigQueryIO {
     @Experimental(Kind.SCHEMAS)
     abstract Boolean getUseBeamSchema();
 
+    @Experimental
+    abstract Boolean getAutoSharding();
+
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
@@ -1867,6 +1871,9 @@ public class BigQueryIO {
 
       @Experimental(Kind.SCHEMAS)
       abstract Builder<T> setUseBeamSchema(Boolean useBeamSchema);
+
+      @Experimental
+      abstract Builder<T> setAutoSharding(Boolean autoSharding);
 
       abstract Write<T> build();
     }
@@ -2342,6 +2349,17 @@ public class BigQueryIO {
       return toBuilder().setUseBeamSchema(true).build();
     }
 
+    /**
+     * If true, enables dynamically determined number of shards to write to BigQuery. Only
+     * applicable to unbounded data with STREAMING_INSERTS.
+     *
+     * <p>TODO(BEAM-11408): Also integrate this option to FILE_LOADS.
+     */
+    @Experimental
+    public Write<T> withAutoSharding() {
+      return toBuilder().setAutoSharding(true).build();
+    }
+
     @VisibleForTesting
     /** This method is for test usage only */
     public Write<T> withTestServices(BigQueryServices testServices) {
@@ -2485,6 +2503,10 @@ public class BigQueryIO {
             "Writing avro formatted data is only supported for FILE_LOADS, however "
                 + "the method was %s",
             method);
+      }
+
+      if (input.isBounded() == IsBounded.BOUNDED) {
+        checkArgument(!getAutoSharding(), "Auto-sharding is only applicable to unbounded input.");
       }
 
       if (getJsonTimePartitioning() != null) {
@@ -2681,6 +2703,7 @@ public class BigQueryIO {
                 .withSkipInvalidRows(getSkipInvalidRows())
                 .withIgnoreUnknownValues(getIgnoreUnknownValues())
                 .withIgnoreInsertIds(getIgnoreInsertIds())
+                .withAutoSharding(getAutoSharding())
                 .withKmsKey(getKmsKey());
         return input.apply(streamingInserts);
       } else {
