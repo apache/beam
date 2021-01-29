@@ -238,19 +238,20 @@ class PortableRunnerOptimized(PortableRunnerTest):
     pass
 
 
+# TODO(BEAM-7248): Delete this test after PortableRunner supports
+# beam:runner:executable_stage:v1.
 @unittest.skip("BEAM-7248")
-class PortableRunnerOptimizedWithFusion(PortableRunnerTest):
-  # TODO(BEAM-7248): Enable translations.greedily_fuse for
-  # pre_optimize == 'all', then delete this PortableRunnerOptimizedWithFusion.
+class PortableRunnerOptimizedWithoutFusion(PortableRunnerTest):
   def create_options(self):
     options = super(PortableRunnerOptimized, self).create_options()
-    options.view_as(DebugOptions).add_experiment('pre_optimize=all_with_fusion')
+    options.view_as(DebugOptions).add_experiment(
+        'pre_optimize=all_except_fusion')
     options.view_as(DebugOptions).add_experiment('state_cache_size=100')
     options.view_as(DebugOptions).add_experiment(
         'data_buffer_time_limit_ms=1000')
     return options
 
-  @unittest.skip('pre_optimize=all_with_fusion enables pack_combiners')
+  @unittest.skip('pre_optimize=all_except_fusion enables pack_combiners')
   def test_pack_combiners_disabled_by_default(self):
     pass
 

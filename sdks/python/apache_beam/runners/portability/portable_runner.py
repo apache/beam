@@ -350,18 +350,16 @@ class PortableRunner(runner.PipelineRunner):
             translations.expand_sdf,
             translations.fix_flatten_coders,
             # translations.sink_flattens,
-            # TODO(BEAM-7248): Enable translations.greedily_fuse,
-            # and then delete pre_optimize == 'all_with_fusion' branch.
-            # translations.greedily_fuse,
+            translations.greedily_fuse,
             translations.read_to_impulse,
             translations.extract_impulse_stages,
             translations.remove_data_plane_ops,
             translations.sort_stages
         ]
-        partial = True
-      elif pre_optimize == 'all_with_fusion':
-        # TODO(BEAM-7248): Enable translations.greedily_fuse for
-        # pre_optimize == 'all', then delete this branch.
+        partial = False
+      elif pre_optimize == 'all_except_fusion':
+        # TODO(BEAM-7248): Delete this branch after PortableRunner supports
+        # beam:runner:executable_stage:v1.
         phases = [
             translations.annotate_downstream_side_inputs,
             translations.annotate_stateful_dofns_as_roots,
@@ -372,13 +370,13 @@ class PortableRunner(runner.PipelineRunner):
             translations.expand_sdf,
             translations.fix_flatten_coders,
             # translations.sink_flattens,
-            translations.greedily_fuse,
+            # translations.greedily_fuse,
             translations.read_to_impulse,
             translations.extract_impulse_stages,
             translations.remove_data_plane_ops,
             translations.sort_stages
         ]
-        partial = False
+        partial = True
       else:
         phases = []
         for phase_name in pre_optimize.split(','):
