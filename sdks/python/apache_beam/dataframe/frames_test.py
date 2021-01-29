@@ -87,7 +87,6 @@ class DeferredFrameTest(unittest.TestCase):
           raise ValueError(
               f"Expected value is a {type(expected)},"
               "not a Series or DataFrame.")
-
       else:
         # Expectation is not a pandas object
         if isinstance(expected, float):
@@ -314,6 +313,40 @@ class DeferredFrameTest(unittest.TestCase):
         lambda df: df.drop(index='falcon', level=0, errors='ignore'), df)
     self._run_test(
         lambda df: df.drop(index='cow', columns='small', errors='ignore'), df)
+
+  def test_groupby_apply(self):
+    df = GROUPBY_DF
+
+    def median_sum_fn(x):
+      return (x.foo + x.bar).median()
+
+    describe = lambda df: df.describe()
+
+    self._run_test(lambda df: df.groupby('group').foo.apply(describe), df)
+    self._run_test(
+        lambda df: df.groupby('group')[['foo', 'bar']].apply(describe), df)
+    self._run_test(lambda df: df.groupby('group').apply(median_sum_fn), df)
+    self._run_test(
+        lambda df: df.set_index('group').foo.groupby(level=0).apply(describe),
+        df)
+    self._run_test(lambda df: df.groupby(level=0).apply(median_sum_fn), df)
+    self._run_test(lambda df: df.groupby(lambda x: x % 3).apply(describe), df)
+
+  @unittest.skip('BEAM-11710')
+  def test_groupby_aggregate_grouped_column(self):
+    df = pd.DataFrame({
+        'group': ['a' if i % 5 == 0 or i % 3 == 0 else 'b' for i in range(100)],
+        'foo': [None if i % 11 == 0 else i for i in range(100)],
+        'bar': [None if i % 7 == 0 else 99 - i for i in range(100)],
+        'baz': [None if i % 13 == 0 else i * 2 for i in range(100)],
+    })
+
+    self._run_test(lambda df: df.groupby('group').group.count(), df)
+    self._run_test(lambda df: df.groupby('group')[['group', 'bar']].count(), df)
+    self._run_test(
+        lambda df: df.groupby('group')[['group', 'bar']].apply(
+            lambda x: x.describe()),
+        df)
 
   def test_merge(self):
     # This is from the pandas doctests, but fails due to re-indexing being
