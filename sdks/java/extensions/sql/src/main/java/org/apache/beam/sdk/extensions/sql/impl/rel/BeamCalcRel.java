@@ -32,7 +32,6 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.AbstractList;
 import java.util.AbstractMap;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
@@ -229,11 +228,7 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
       CalcFn calcFn = new CalcFn(builder.toBlock().toString(), outputSchema, getJarPaths(program));
 
       // validate generated code
-      try {
-        calcFn.compile();
-      } catch (IOException e) {
-        throw new RuntimeException("Failed to compile CalcFn.", e);
-      }
+      calcFn.compile();
 
       PCollection<Row> projectStream = upstream.apply(ParDo.of(calcFn)).setRowSchema(outputSchema);
 
@@ -254,12 +249,16 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
       this.jarPaths = jarPaths;
     }
 
-    ScriptEvaluator compile() throws IOException {
+    ScriptEvaluator compile() {
       ScriptEvaluator se = new ScriptEvaluator();
       if (!jarPaths.isEmpty()) {
-        JavaUdfLoader udfLoader = new JavaUdfLoader();
-        ClassLoader classLoader = udfLoader.createClassLoader(jarPaths);
-        se.setParentClassLoader(classLoader);
+        try {
+          JavaUdfLoader udfLoader = new JavaUdfLoader();
+          ClassLoader classLoader = udfLoader.createClassLoader(jarPaths);
+          se.setParentClassLoader(classLoader);
+        } catch (IOException e) {
+          throw new RuntimeException("Failed to load user-provided jar(s).", e);
+        }
       }
       se.setParameters(
           new String[] {outputSchemaParam.name, processContextParam.name, DataContext.ROOT.name},
@@ -279,11 +278,7 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
 
     @Setup
     public void setup() {
-      try {
-        this.se = compile();
-      } catch (IOException e) {
-        throw new RuntimeException("Failed to compile CalcFn.", e);
-      }
+      this.se = compile();
     }
 
     @ProcessElement
@@ -299,7 +294,7 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
   }
 
   private static List<String> getJarPaths(RexProgram program) {
-    List<String> jarPaths = new ArrayList<>();
+    ImmutableList.Builder<String> jarPaths = new ImmutableList.Builder<>();
     for (RexNode node : program.getExprList()) {
       if (node instanceof RexCall) {
         SqlOperator op = ((RexCall) node).op;
@@ -314,7 +309,7 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
         }
       }
     }
-    return jarPaths;
+    return jarPaths.build();
   }
 
   private static final Map<TypeName, Type> rawTypeMap =

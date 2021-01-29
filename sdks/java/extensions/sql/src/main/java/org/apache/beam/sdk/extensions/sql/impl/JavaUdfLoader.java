@@ -128,13 +128,9 @@ public class JavaUdfLoader {
   }
 
   public ClassLoader createClassLoader(List<String> inputJarPaths) throws IOException {
-    List<File> localJars = new ArrayList<>();
-    for (String inputJar : inputJarPaths) {
-      localJars.add(getLocalJar(inputJar));
-    }
     List<URL> urls = new ArrayList<>();
-    for (File file : localJars) {
-      urls.add(file.toURI().toURL());
+    for (String inputJar : inputJarPaths) {
+      urls.add(getLocalJar(inputJar).toURI().toURL());
     }
     return new URLClassLoader(urls.toArray(new URL[0]));
   }
