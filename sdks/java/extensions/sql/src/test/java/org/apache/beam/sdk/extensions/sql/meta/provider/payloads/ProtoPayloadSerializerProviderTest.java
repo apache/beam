@@ -17,9 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.payloads;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 
+import java.net.URL;
 import org.apache.beam.sdk.extensions.sql.meta.provider.kafka.KafkaMessages;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -59,6 +61,11 @@ public class ProtoPayloadSerializerProviderTest {
 
   private final ProtoPayloadSerializerProvider provider = new ProtoPayloadSerializerProvider();
 
+  private static final URL DESCRIPTOR_SET_URL =
+      checkArgumentNotNull(
+          checkArgumentNotNull(ProtoPayloadSerializerProviderTest.class.getClassLoader())
+              .getResource("kafka_messages.proto.dsc"));
+
   @Test
   public void invalidArgs() {
     assertThrows(
@@ -76,6 +83,59 @@ public class ProtoPayloadSerializerProviderTest {
         IllegalArgumentException.class,
         () ->
             provider.getSerializer(
+                SHUFFLED_SCHEMA,
+                ImmutableMap.of(
+                    "protoClass",
+                    KafkaMessages.TestMessage.class.getName(),
+                    "protoMessageName",
+                    "")));
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            provider.getSerializer(
+                SHUFFLED_SCHEMA,
+                ImmutableMap.of(
+                    "protoClass",
+                    KafkaMessages.TestMessage.class.getName(),
+                    "protoDescriptorSetFile",
+                    "")));
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            provider.getSerializer(
+                SHUFFLED_SCHEMA,
+                ImmutableMap.of("protoDescriptorSetFile", DESCRIPTOR_SET_URL.toString())));
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            provider.getSerializer(
+                SHUFFLED_SCHEMA,
+                ImmutableMap.of(
+                    "protoMessageName", KafkaMessages.TestMessage.getDescriptor().getName())));
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            provider.getSerializer(
+                SHUFFLED_SCHEMA,
+                ImmutableMap.of(
+                    "protoMessageName",
+                    "bad_name",
+                    "protoDescriptorSetFile",
+                    DESCRIPTOR_SET_URL.toString())));
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            provider.getSerializer(
+                SHUFFLED_SCHEMA,
+                ImmutableMap.of(
+                    "protoMessageName",
+                    KafkaMessages.TestMessage.getDescriptor().getName(),
+                    "protoDescriptorSetFile",
+                    "bad_url")));
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            provider.getSerializer(
                 Schema.builder()
                     .addStringField("f_NOTACTUALLYINMESSAGE")
                     .addInt32Field("f_int")
@@ -84,10 +144,27 @@ public class ProtoPayloadSerializerProviderTest {
                     .addInt64Field("f_long")
                     .build(),
                 ImmutableMap.of("protoClass", KafkaMessages.TestMessage.class.getName())));
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            provider.getSerializer(
+                Schema.builder()
+                    .addStringField("f_NOTACTUALLYINMESSAGE")
+                    .addInt32Field("f_int")
+                    .addArrayField("f_float_array", FieldType.FLOAT)
+                    .addDoubleField("f_double")
+                    .addInt64Field("f_long")
+                    .build(),
+                ImmutableMap.of(
+                    "protoMessageName",
+                    KafkaMessages.TestMessage.getDescriptor().getName(),
+                    "protoDescriptorSetFile",
+                    DESCRIPTOR_SET_URL.toString())));
   }
 
   @Test
-  public void serialize() throws Exception {
+  public void serializeClass() throws Exception {
     byte[] bytes =
         provider
             .getSerializer(
@@ -99,12 +176,43 @@ public class ProtoPayloadSerializerProviderTest {
   }
 
   @Test
-  public void deserialize() {
+  public void deserializeClass() {
     Row row =
         provider
             .getSerializer(
                 SHUFFLED_SCHEMA,
                 ImmutableMap.of("protoClass", KafkaMessages.TestMessage.class.getName()))
+            .deserialize(MESSAGE.toByteArray());
+    assertEquals(ROW, row);
+  }
+
+  @Test
+  public void serializeDescriptor() throws Exception {
+    byte[] bytes =
+        provider
+            .getSerializer(
+                SHUFFLED_SCHEMA,
+                ImmutableMap.of(
+                    "protoMessageName",
+                    KafkaMessages.TestMessage.getDescriptor().getName(),
+                    "protoDescriptorSetFile",
+                    DESCRIPTOR_SET_URL.toString()))
+            .serialize(ROW);
+    KafkaMessages.TestMessage result = KafkaMessages.TestMessage.parseFrom(bytes);
+    assertEquals(MESSAGE, result);
+  }
+
+  @Test
+  public void deserializeDescriptor() {
+    Row row =
+        provider
+            .getSerializer(
+                SHUFFLED_SCHEMA,
+                ImmutableMap.of(
+                    "protoMessageName",
+                    KafkaMessages.TestMessage.getDescriptor().getName(),
+                    "protoDescriptorSetFile",
+                    DESCRIPTOR_SET_URL.toString()))
             .deserialize(MESSAGE.toByteArray());
     assertEquals(ROW, row);
   }

@@ -92,10 +92,7 @@ public class ThriftPayloadSerializerProvider implements PayloadSerializerProvide
         RowMessages.bytesToRowFn(ThriftSchema.provider(), descriptor, coder);
     return PayloadSerializer.of(
         RowMessages.rowToBytesFn(ThriftSchema.provider(), descriptor, coder),
-        bytes -> {
-          Row rawRow = toRowFn.apply(bytes);
-          return castRow(rawRow, rawRow.getSchema(), schema);
-        });
+        bytes -> castRow(toRowFn.apply(bytes), schema));
   }
 
   @Override

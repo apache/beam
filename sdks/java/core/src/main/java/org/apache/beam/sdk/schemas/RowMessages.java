@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.schemas;
 
+import static org.apache.beam.sdk.schemas.transforms.Cast.castRow;
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
 import java.io.ByteArrayInputStream;
@@ -36,12 +37,17 @@ public final class RowMessages {
   private RowMessages() {}
 
   public static <T> SimpleFunction<byte[], Row> bytesToRowFn(
+      ProcessFunction<byte[], ? extends T> fromBytesFn, SerializableFunction<T, Row> toRowFn) {
+    return new BytesToRowFn<>(fromBytesFn, toRowFn);
+  }
+
+  public static <T> SimpleFunction<byte[], Row> bytesToRowFn(
       SchemaProvider schemaProvider,
       TypeDescriptor<T> typeDescriptor,
       ProcessFunction<byte[], ? extends T> fromBytesFn) {
     final SerializableFunction<T, Row> toRowFn =
         checkArgumentNotNull(schemaProvider.toRowFunction(typeDescriptor));
-    return new BytesToRowFn<>(fromBytesFn, toRowFn);
+    return bytesToRowFn(fromBytesFn, toRowFn);
   }
 
   public static <T> SimpleFunction<byte[], Row> bytesToRowFn(
@@ -74,14 +80,20 @@ public final class RowMessages {
   }
 
   public static <T> SimpleFunction<Row, byte[]> rowToBytesFn(
+      Schema schema,
+      SerializableFunction<Row, T> fromRowFn,
+      ProcessFunction<? super T, byte[]> toBytesFn) {
+    return new RowToBytesFn<>(schema, fromRowFn, toBytesFn);
+  }
+
+  public static <T> SimpleFunction<Row, byte[]> rowToBytesFn(
       SchemaProvider schemaProvider,
       TypeDescriptor<T> typeDescriptor,
       ProcessFunction<? super T, byte[]> toBytesFn) {
     final Schema schema = checkArgumentNotNull(schemaProvider.schemaFor(typeDescriptor));
     final SerializableFunction<Row, T> fromRowFn =
         checkArgumentNotNull(schemaProvider.fromRowFunction(typeDescriptor));
-    toBytesFn = checkArgumentNotNull(toBytesFn);
-    return new RowToBytesFn<>(schema, fromRowFn, toBytesFn);
+    return rowToBytesFn(schema, fromRowFn, checkArgumentNotNull(toBytesFn));
   }
 
   public static <T> SimpleFunction<Row, byte[]> rowToBytesFn(
@@ -112,21 +124,12 @@ public final class RowMessages {
 
     @Override
     public byte[] apply(Row row) {
-      if (!schema.equivalent(row.getSchema())) {
-        row = switchFieldsOrder(row);
-      }
-      final T message = fromRowFn.apply(row);
+      final T message = fromRowFn.apply(castRow(row, schema));
       try {
         return toBytesFn.apply(message);
       } catch (Exception e) {
         throw new IllegalStateException("Could not encode message as bytes", e);
       }
-    }
-
-    private Row switchFieldsOrder(Row row) {
-      Row.Builder convertedRow = Row.withSchema(schema);
-      schema.getFields().forEach(field -> convertedRow.addValue(row.getValue(field.getName())));
-      return convertedRow.build();
     }
   }
 }

@@ -130,6 +130,8 @@ public class PubsubSchemaIOProvider implements SchemaIOProvider {
         .addNullableField("thriftProtocolFactoryClass", FieldType.STRING)
         // For ProtoPayloadSerializerProvider
         .addNullableField("protoClass", FieldType.STRING)
+        .addNullableField("protoMessageName", FieldType.STRING)
+        .addNullableField("protoDescriptorSetFile", FieldType.STRING)
         .build();
   }
 
@@ -308,11 +310,12 @@ public class PubsubSchemaIOProvider implements SchemaIOProvider {
 
     // For ThriftPayloadSerializerProvider
     abstract @Nullable String getThriftClass();
-
     abstract @Nullable String getThriftProtocolFactoryClass();
 
     // For ProtoPayloadSerializerProvider
     abstract @Nullable String getProtoClass();
+    abstract @Nullable String getProtoMessageName();
+    abstract @Nullable String getProtoDescriptorSetFile();
 
     boolean useDeadLetterQueue() {
       return getDeadLetterQueue() != null;
@@ -333,6 +336,12 @@ public class PubsubSchemaIOProvider implements SchemaIOProvider {
       }
       if (getProtoClass() != null) {
         params.put("protoClass", getProtoClass());
+      }
+      if (getProtoMessageName() != null) {
+        params.put("protoMessageName", getProtoClass());
+      }
+      if (getProtoDescriptorSetFile() != null) {
+        params.put("protoDescriptorSetFile", getProtoClass());
       }
       return PayloadSerializers.getSerializer(format, schema, params.build());
     }

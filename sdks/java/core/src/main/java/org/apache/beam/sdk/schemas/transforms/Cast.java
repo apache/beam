@@ -313,9 +313,16 @@ public abstract class Cast<T> extends PTransform<PCollection<T>, PCollection<Row
         .setRowSchema(outputSchema());
   }
 
+  public static Row castRow(Row input, Schema outputSchema) {
+    return castRow(input, input.getSchema(), outputSchema);
+  }
+
   public static Row castRow(Row input, Schema inputSchema, Schema outputSchema) {
     if (input == null) {
       return null;
+    }
+    if (inputSchema.equals(outputSchema)) {
+      return input;
     }
 
     Row.Builder output = Row.withSchema(outputSchema);

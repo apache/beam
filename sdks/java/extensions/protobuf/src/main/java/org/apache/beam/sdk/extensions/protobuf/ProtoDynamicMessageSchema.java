@@ -36,6 +36,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.schemas.RowMessages;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.NanosDuration;
@@ -49,7 +50,7 @@ import org.apache.beam.sdk.values.Row;
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
-public class ProtoDynamicMessageSchema<T> implements Serializable {
+public class ProtoDynamicMessageSchema implements Serializable {
   public static final long serialVersionUID = 1L;
 
   /**
@@ -59,10 +60,10 @@ public class ProtoDynamicMessageSchema<T> implements Serializable {
   private final Context context;
 
   /** The toRow function to convert the Message to a Row. */
-  private transient SerializableFunction<T, Row> toRowFunction;
+  private transient SerializableFunction<Message, Row> toRowFunction;
 
   /** The fromRow function to convert the Row to a Message. */
-  private transient SerializableFunction<Row, T> fromRowFunction;
+  private transient SerializableFunction<Row, DynamicMessage> fromRowFunction;
 
   /** List of field converters for each field in the row. */
   private transient List<Convert> converters;
@@ -89,17 +90,17 @@ public class ProtoDynamicMessageSchema<T> implements Serializable {
    * Create a new ProtoDynamicMessageSchema from a {@link ProtoDomain} and for a descriptor. The
    * descriptor is only used for it's name, that name will be used for a search in the domain.
    */
-  public static ProtoDynamicMessageSchema<DynamicMessage> forDescriptor(
+  public static ProtoDynamicMessageSchema forDescriptor(
       ProtoDomain domain, Descriptors.Descriptor descriptor) {
-    return new ProtoDynamicMessageSchema<>(descriptor.getFullName(), domain);
+    return new ProtoDynamicMessageSchema(descriptor.getFullName(), domain);
   }
 
-  static ProtoDynamicMessageSchema<?> forContext(Context context, Schema.Field field) {
-    return new ProtoDynamicMessageSchema<>(context.getSubContext(field));
+  static ProtoDynamicMessageSchema forContext(Context context, Schema.Field field) {
+    return new ProtoDynamicMessageSchema(context.getSubContext(field));
   }
 
-  static ProtoDynamicMessageSchema<Message> forSchema(Schema schema) {
-    return new ProtoDynamicMessageSchema<>(new Context(schema, Message.class));
+  static ProtoDynamicMessageSchema createPartiallyWorkingForConverterOnly(Schema schema) {
+    return new ProtoDynamicMessageSchema(new Context(schema));
   }
 
   /** Initialize the transient fields after deserialization or construction. */
@@ -199,12 +200,22 @@ public class ProtoDynamicMessageSchema<T> implements Serializable {
     return context.getSchema();
   }
 
-  public SerializableFunction<T, Row> getToRowFunction() {
-    return toRowFunction;
+  public <T extends Message> SerializableFunction<T, Row> getToRowFunction() {
+    return toRowFunction::apply;
   }
 
-  public SerializableFunction<Row, T> getFromRowFunction() {
+  public SerializableFunction<Row, DynamicMessage> getFromRowFunction() {
     return fromRowFunction;
+  }
+
+  public SerializableFunction<byte[], Row> getBytesToRowFunction() {
+    return RowMessages.bytesToRowFn(
+        bytes -> context.invokeNewBuilder().build().getParserForType().parseFrom(bytes),
+        getToRowFunction());
+  }
+
+  public SerializableFunction<Row, byte[]> getRowToBytesFunction() {
+    return RowMessages.rowToBytesFn(getSchema(), getFromRowFunction(), Message::toByteArray);
   }
 
   /**
@@ -214,23 +225,12 @@ public class ProtoDynamicMessageSchema<T> implements Serializable {
   static class Context<T> implements Serializable {
     private final Schema schema;
 
-    /**
-     * Base class for the protobuf message. Normally this is DynamicMessage, but as this schema
-     * class is also used to decode protobuf options this can be normal Message instances.
-     */
-    private Class<T> baseClass;
-
-    Context(Schema schema, Class<T> baseClass) {
+    Context(Schema schema) {
       this.schema = schema;
-      this.baseClass = baseClass;
     }
 
     public Schema getSchema() {
       return schema;
-    }
-
-    public Class<T> getBaseClass() {
-      return baseClass;
     }
 
     public DynamicMessage.Builder invokeNewBuilder() {
@@ -238,7 +238,7 @@ public class ProtoDynamicMessageSchema<T> implements Serializable {
     }
 
     public Context getSubContext(Schema.Field field) {
-      return new Context(field.getType().getRowSchema(), Message.class);
+      return new Context(field.getType().getRowSchema());
     }
   }
 
@@ -252,8 +252,7 @@ public class ProtoDynamicMessageSchema<T> implements Serializable {
     private transient Descriptors.Descriptor descriptor;
 
     DescriptorContext(String messageName, ProtoDomain domain) {
-      super(
-          ProtoSchemaTranslator.getSchema(domain.getDescriptor(messageName)), DynamicMessage.class);
+      super(ProtoSchemaTranslator.getSchema(domain.getDescriptor(messageName)));
       this.messageName = messageName;
       this.domain = domain;
     }
@@ -807,27 +806,27 @@ public class ProtoDynamicMessageSchema<T> implements Serializable {
     }
   }
 
-  private class MessageToRowFunction implements SerializableFunction<T, Row> {
+  private class MessageToRowFunction implements SerializableFunction<Message, Row> {
 
     private MessageToRowFunction() {}
 
     @Override
-    public Row apply(T input) {
+    public Row apply(Message input) {
       Schema schema = context.getSchema();
       Row.Builder builder = Row.withSchema(schema);
       for (Convert convert : converters) {
-        builder.addValue(convert.getFromProtoMessage((Message) input));
+        builder.addValue(convert.getFromProtoMessage(input));
       }
       return builder.build();
     }
   }
 
-  private class RowToMessageFunction implements SerializableFunction<Row, T> {
+  private class RowToMessageFunction implements SerializableFunction<Row, DynamicMessage> {
 
     private RowToMessageFunction() {}
 
     @Override
-    public T apply(Row input) {
+    public DynamicMessage apply(Row input) {
       DynamicMessage.Builder builder = context.invokeNewBuilder();
       Iterator values = input.getValues().iterator();
       Iterator<Convert> convertIterator = converters.iterator();
@@ -837,7 +836,7 @@ public class ProtoDynamicMessageSchema<T> implements Serializable {
         Object value = values.next();
         convert.setOnProtoMessage(builder, value);
       }
-      return (T) builder.build();
+      return builder.build();
     }
   }
 }

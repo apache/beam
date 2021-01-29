@@ -346,7 +346,8 @@ class ProtoSchemaTranslator {
         case ARRAY:
         case ITERABLE:
           Field field = Field.of("OPTION", fieldType);
-          ProtoDynamicMessageSchema schema = ProtoDynamicMessageSchema.forSchema(Schema.of(field));
+          ProtoDynamicMessageSchema schema =
+              ProtoDynamicMessageSchema.createPartiallyWorkingForConverterOnly(Schema.of(field));
           optionsBuilder.setOption(
               prefix + fieldDescriptor.getFullName(),
               fieldType,
