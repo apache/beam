@@ -76,6 +76,14 @@ PAR_DO_URNS = frozenset([
     common_urns.sdf_components.TRUNCATE_SIZED_RESTRICTION.urn,
 ])
 
+BEAM_PRIMITIVES = frozenset([
+    common_urns.primitives.ASSIGN_WINDOWS.urn,
+    common_urns.primitives.FLATTEN.urn,
+    common_urns.primitives.GROUP_BY_KEY.urn,
+    common_urns.primitives.IMPULSE.urn,
+    common_urns.primitives.TEST_STREAM.urn,
+]).union(PAR_DO_URNS)
+
 IMPULSE_BUFFER = b'impulse'
 
 # SideInputId is identified by a consumer ParDo + tag.
@@ -598,7 +606,31 @@ def pipeline_from_stages(
   del new_proto.root_transform_ids[:]
   new_proto.root_transform_ids.extend(roots)
 
+  known_primitives = set.union(set(BEAM_PRIMITIVES), known_runner_urns)
+  for transform in pipeline_proto.components.transforms.values():
+    if transform.spec.urn not in known_primitives and not is_composite(
+        transform):
+      known_primitives.add(transform.spec.urn)
+  if not partial:
+    known_primitives.add('beam:runner:executable_stage:v1')
+  validate_pipeline(new_proto, known_primitives)
+
   return new_proto
+
+
+def is_composite(transform):
+  return bool(
+      transform.subtransforms or not set.difference(
+          set(transform.outputs.values()), transform.inputs.values()))
+
+
+def validate_pipeline(pipeline_proto, known_primitives):
+  for transform in pipeline_proto.components.transforms.values():
+    if not is_composite(
+        transform) and transform.spec.urn not in known_primitives:
+      raise ValueError(
+          'Unknown composite %s for %r' %
+          (transform.spec.urn, transform.unique_name))
 
 
 def create_and_optimize_stages(
