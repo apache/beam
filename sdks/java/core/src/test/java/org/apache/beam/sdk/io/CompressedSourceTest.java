@@ -455,12 +455,12 @@ public class CompressedSourceTest {
     byte[] input2 = generateInput(5, 387374);
 
     ByteArrayOutputStream stream1 = new ByteArrayOutputStream();
-    try (OutputStream os = getOutputStreamForMode(compression, stream1)) {
+    try (OutputStream os = getOutputStreamForMode(compression, stream1, input1)) {
       os.write(input1);
     }
 
     ByteArrayOutputStream stream2 = new ByteArrayOutputStream();
-    try (OutputStream os = getOutputStreamForMode(compression, stream2)) {
+    try (OutputStream os = getOutputStreamForMode(compression, stream2, input2)) {
       os.write(input2);
     }
 
@@ -487,12 +487,12 @@ public class CompressedSourceTest {
     byte[] input2 = generateInput(5, 387374);
 
     ByteArrayOutputStream stream1 = new ByteArrayOutputStream();
-    try (OutputStream os = getOutputStreamForMode(compression, stream1)) {
+    try (OutputStream os = getOutputStreamForMode(compression, stream1, input1)) {
       os.write(input1);
     }
 
     ByteArrayOutputStream stream2 = new ByteArrayOutputStream();
-    try (OutputStream os = getOutputStreamForMode(compression, stream2)) {
+    try (OutputStream os = getOutputStreamForMode(compression, stream2, input2)) {
       os.write(input2);
     }
 
@@ -517,12 +517,12 @@ public class CompressedSourceTest {
     byte[] input2 = generateInput(5, 387374);
 
     ByteArrayOutputStream stream1 = new ByteArrayOutputStream();
-    try (OutputStream os = getOutputStreamForMode(compression, stream1)) {
+    try (OutputStream os = getOutputStreamForMode(compression, stream1, input1)) {
       os.write(input1);
     }
 
     ByteArrayOutputStream stream2 = new ByteArrayOutputStream();
-    try (OutputStream os = getOutputStreamForMode(compression, stream2)) {
+    try (OutputStream os = getOutputStreamForMode(compression, stream2, input2)) {
       os.write(input2);
     }
 
@@ -549,13 +549,13 @@ public class CompressedSourceTest {
 
     ByteArrayOutputStream stream1 = new ByteArrayOutputStream();
     try (OutputStream os =
-        getOutputStreamForModeWithDecompressedSizeInfo(compression, stream1, input1.length)) {
+        getOutputStreamForMode(compression, stream1, input1)) {
       os.write(input1);
     }
 
     ByteArrayOutputStream stream2 = new ByteArrayOutputStream();
     try (OutputStream os =
-        getOutputStreamForModeWithDecompressedSizeInfo(compression, stream2, input2.length)) {
+        getOutputStreamForMode(compression, stream2, input2)) {
       os.write(input2);
     }
 
@@ -991,7 +991,7 @@ public class CompressedSourceTest {
   }
 
   /** Get a compressing stream for a given compression mode. */
-  private OutputStream getOutputStreamForMode(Compression compression, OutputStream stream)
+  private OutputStream getOutputStreamForMode(Compression compression, OutputStream stream, byte[] input)
       throws IOException {
     switch (compression) {
       case GZIP:
@@ -1008,17 +1008,11 @@ public class CompressedSourceTest {
         return LzoCompression.createLzoOutputStream(stream);
       case LZOP:
         return LzoCompression.createLzopOutputStream(stream);
+      case SNAPPY:
+        return new SnappyCompressorOutputStream(stream, input.length);
       default:
         throw new RuntimeException("Unexpected compression mode");
     }
-  }
-
-  private OutputStream getOutputStreamForModeWithDecompressedSizeInfo(
-      Compression compression, OutputStream stream, int decompressedSize) throws IOException {
-    if (compression == Compression.SNAPPY) {
-      return new SnappyCompressorOutputStream(stream, decompressedSize);
-    }
-    throw new RuntimeException("Unexpected compression mode that needs the decompressed size info");
   }
 
   /** Extend of {@link ZipOutputStream} that splits up bytes into multiple entries. */
@@ -1053,16 +1047,8 @@ public class CompressedSourceTest {
 
   /** Writes a single output file. */
   private void writeFile(File file, byte[] input, Compression compression) throws IOException {
-    if (compression == Compression.SNAPPY) {
-      try (OutputStream os =
-          getOutputStreamForModeWithDecompressedSizeInfo(
-              compression, new FileOutputStream(file), input.length)) {
-        os.write(input);
-      }
-    } else {
-      try (OutputStream os = getOutputStreamForMode(compression, new FileOutputStream(file))) {
-        os.write(input);
-      }
+    try (OutputStream os = getOutputStreamForMode(compression, new FileOutputStream(file), input)) {
+      os.write(input);
     }
   }
 
