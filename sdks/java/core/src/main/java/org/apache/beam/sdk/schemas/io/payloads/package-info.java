@@ -15,23 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+/** Provides abstractions for schema-aware IOs. */
+@DefaultAnnotation(NonNull.class)
 package org.apache.beam.sdk.schemas.io.payloads;
 
-import java.util.Map;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.io.Providers.Identifyable;
-
-@Internal
-@Experimental(Kind.SCHEMAS)
-public interface PayloadSerializerProvider extends Identifyable {
-  /**
-   * Get a PayloadSerializer.
-   *
-   * @param schema the schema of the payload
-   * @param tableParams parameters passed at table declaration time for configuring the serializer
-   */
-  PayloadSerializer getSerializer(Schema schema, Map<String, Object> tableParams);
-}
+import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
+import org.checkerframework.checker.nullness.qual.NonNull;

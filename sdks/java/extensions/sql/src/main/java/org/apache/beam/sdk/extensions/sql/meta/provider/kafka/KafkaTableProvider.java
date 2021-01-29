@@ -60,6 +60,12 @@ public class KafkaTableProvider extends InMemoryMetaTableProvider {
 
     String payloadFormat =
         properties.containsKey("format") ? properties.getString("format") : "csv";
+    /*
+     * CSV is handled separately because multiple rows can be produced from a single message, which
+     * adds complexity to payload extraction. It remains here and as the default because it is the
+     * historical default, but it will not be extended to support attaching extended attributes to
+     * rows.
+     */
     if (payloadFormat.equals("csv")) {
       return new BeamKafkaCSVTable(schema, bootstrapServers, topics);
     }
