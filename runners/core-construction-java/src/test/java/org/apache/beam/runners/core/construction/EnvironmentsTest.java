@@ -26,6 +26,7 @@ import static org.junit.Assert.assertEquals;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Optional;
+import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.DockerPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
@@ -47,15 +48,20 @@ import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** Tests for {@link Environments}. */
 @RunWith(JUnit4.class)
 public class EnvironmentsTest implements Serializable {
+  @Rule public transient ExpectedException thrown = ExpectedException.none();
+
   @Test
-  public void createEnvironments() throws IOException {
+  public void createEnvironmentDockerFromEnvironmentConfig() throws IOException {
     PortablePipelineOptions options = PipelineOptionsFactory.as(PortablePipelineOptions.class);
     options.setDefaultEnvironmentType(Environments.ENVIRONMENT_DOCKER);
     options.setDefaultEnvironmentConfig("java");
@@ -68,6 +74,27 @@ public class EnvironmentsTest implements Serializable {
                     DockerPayload.newBuilder().setContainerImage("java").build().toByteString())
                 .addAllCapabilities(Environments.getJavaCapabilities())
                 .build()));
+  }
+
+  @Test
+  public void createEnvironmentDockerFromEnvironmentOptions() {
+    PortablePipelineOptions options = PipelineOptionsFactory.as(PortablePipelineOptions.class);
+    options.setDefaultEnvironmentType(Environments.ENVIRONMENT_DOCKER);
+    options.setEnvironmentOptions(ImmutableList.of("docker_container_image=java"));
+    assertThat(
+        Environments.createOrGetDefaultEnvironment(options),
+        is(
+            Environment.newBuilder()
+                .setUrn(BeamUrns.getUrn(StandardEnvironments.Environments.DOCKER))
+                .setPayload(
+                    DockerPayload.newBuilder().setContainerImage("java").build().toByteString())
+                .addAllCapabilities(Environments.getJavaCapabilities())
+                .build()));
+  }
+
+  @Test
+  public void createEnvironmentProcessFromEnvironmentConfig() throws IOException {
+    PortablePipelineOptions options = PipelineOptionsFactory.as(PortablePipelineOptions.class);
     options.setDefaultEnvironmentType(Environments.ENVIRONMENT_PROCESS);
     options.setDefaultEnvironmentConfig(
         "{\"os\": \"linux\", \"arch\": \"amd64\", \"command\": \"run.sh\", \"env\":{\"k1\": \"v1\", \"k2\": \"v2\"} }");
@@ -97,6 +124,61 @@ public class EnvironmentsTest implements Serializable {
                 .setPayload(ProcessPayload.newBuilder().setCommand("run.sh").build().toByteString())
                 .addAllCapabilities(Environments.getJavaCapabilities())
                 .build()));
+  }
+
+  @Test
+  public void createEnvironmentProcessFromEnvironmentOptions() {
+    PortablePipelineOptions options = PipelineOptionsFactory.as(PortablePipelineOptions.class);
+    options.setDefaultEnvironmentType(Environments.ENVIRONMENT_PROCESS);
+    options.setEnvironmentOptions(
+        ImmutableList.of("process_command=run.sh", "process_variables=k1=v1,k2=v2"));
+    assertThat(
+        Environments.createOrGetDefaultEnvironment(options),
+        is(
+            Environment.newBuilder()
+                .setUrn(BeamUrns.getUrn(StandardEnvironments.Environments.PROCESS))
+                .setPayload(
+                    ProcessPayload.newBuilder()
+                        .setCommand("run.sh")
+                        .putEnv("k1", "v1")
+                        .putEnv("k2", "v2")
+                        .build()
+                        .toByteString())
+                .addAllCapabilities(Environments.getJavaCapabilities())
+                .build()));
+  }
+
+  @Test
+  public void createEnvironmentExternalFromEnvironmentOptions() {
+    PortablePipelineOptions options = PipelineOptionsFactory.as(PortablePipelineOptions.class);
+    options.setDefaultEnvironmentType(Environments.ENVIRONMENT_EXTERNAL);
+    options.setEnvironmentOptions(ImmutableList.of("external_service_address=foo"));
+    assertThat(
+        Environments.createOrGetDefaultEnvironment(options),
+        is(
+            Environment.newBuilder()
+                .setUrn(BeamUrns.getUrn(StandardEnvironments.Environments.EXTERNAL))
+                .setPayload(
+                    RunnerApi.ExternalPayload.newBuilder()
+                        .setEndpoint(
+                            Endpoints.ApiServiceDescriptor.newBuilder().setUrl("foo").build())
+                        .build()
+                        .toByteString())
+                .addAllCapabilities(Environments.getJavaCapabilities())
+                .build()));
+  }
+
+  @Test
+  public void environmentConfigAndEnvironmentOptionsAreMutuallyExclusive() {
+    PortablePipelineOptions options = PipelineOptionsFactory.as(PortablePipelineOptions.class);
+    options.setDefaultEnvironmentType(Environments.ENVIRONMENT_DOCKER);
+    options.setDefaultEnvironmentConfig("foo");
+    options.setEnvironmentOptions(ImmutableList.of("bar"));
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(
+        "Pipeline options defaultEnvironmentConfig and environmentOptions are mutually exclusive.");
+    Environments.createOrGetDefaultEnvironment(options);
   }
 
   @Test

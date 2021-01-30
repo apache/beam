@@ -20,7 +20,9 @@ package org.apache.beam.sdk.options;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.Is.is;
 import static org.hamcrest.core.IsNull.nullValue;
+import static org.junit.Assert.assertEquals;
 
+import com.google.common.collect.ImmutableList;
 import org.junit.Test;
 
 public class PortablePipelineOptionsTest {
@@ -37,5 +39,33 @@ public class PortablePipelineOptionsTest {
     assertThat(options.getEnvironmentCacheMillis(), is(0));
     assertThat(options.getEnvironmentExpirationMillis(), is(0));
     assertThat(options.getOutputExecutablePath(), is(nullValue()));
+    assertThat(options.getEnvironmentOptions(), is(nullValue()));
+  }
+
+  @Test
+  public void getEnvironmentOption() {
+    PortablePipelineOptions options = PipelineOptionsFactory.as(PortablePipelineOptions.class);
+    options.setEnvironmentOptions(ImmutableList.of("foo=bar"));
+    assertEquals("bar", PortablePipelineOptions.getEnvironmentOption(options, "foo"));
+  }
+
+  @Test
+  public void getEnvironmentOptionContainingEquals() {
+    PortablePipelineOptions options = PipelineOptionsFactory.as(PortablePipelineOptions.class);
+    options.setEnvironmentOptions(ImmutableList.of("foo=bar=baz"));
+    assertEquals("bar=baz", PortablePipelineOptions.getEnvironmentOption(options, "foo"));
+  }
+
+  @Test
+  public void getEnvironmentOptionFromEmptyListReturnsEmptyString() {
+    PortablePipelineOptions options = PipelineOptionsFactory.as(PortablePipelineOptions.class);
+    assertEquals("", PortablePipelineOptions.getEnvironmentOption(options, "foo"));
+  }
+
+  @Test
+  public void getEnvironmentOptionMissingOptionReturnsEmptyString() {
+    PortablePipelineOptions options = PipelineOptionsFactory.as(PortablePipelineOptions.class);
+    options.setEnvironmentOptions(ImmutableList.of("foo=bar"));
+    assertEquals("", PortablePipelineOptions.getEnvironmentOption(options, "baz"));
   }
 }
