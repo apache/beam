@@ -103,4 +103,32 @@ public interface PortablePipelineOptions extends PipelineOptions {
   String getOutputExecutablePath();
 
   void setOutputExecutablePath(String outputExecutablePath);
+
+  @Description(
+      "Options for configuring the environment of portable workers. Recognized options depend on the value of defaultEnvironmentType:\n"
+          + "DOCKER: docker_container_image (optional)\n"
+          + "EXTERNAL: external_service_address (required)\n"
+          + "PROCESS: process_command (required), process_variables (optional)\n\n"
+          + "environmentOptions and defaultEnvironmentConfig are mutually exclusive. Prefer environmentOptions.")
+  List<String> getEnvironmentOptions();
+
+  void setEnvironmentOptions(List<String> value);
+
+  /** Return the value for the specified environment option or empty string if not present. */
+  public static String getEnvironmentOption(
+      PortablePipelineOptions options, String environmentOptionName) {
+    List<String> environmentOptions = options.getEnvironmentOptions();
+    if (environmentOptions == null) {
+      return "";
+    }
+
+    for (String environmentEntry : environmentOptions) {
+      String[] tokens = environmentEntry.split(environmentOptionName + "=", -1);
+      if (tokens.length > 1) {
+        return tokens[1];
+      }
+    }
+
+    return "";
+  }
 }
