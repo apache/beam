@@ -9,33 +9,33 @@
     See the License for the specific language governing permissions and
     limitations under the License. See accompanying LICENSE file.
    */}}
-    {{ $array_count := index .Params 0 }}
-    {{ $data := index $.Site.Data .Site.Language.Lang }}
-    <div class="icon-list list">
-        {{ range $i, $array := $data.join_beam }}
-        {{ if eq $i $array_count }}
-            <div>
-                {{ $count := len $array.list }}
-                {{ range $index, $item := $array.list }}
-                <div class="list-item">
-                    <div class="list-item-icon">
-                    <div class="cirkle">
-                            <i class="fas fa-check"></i>
-                    </div>
-                    {{ if ne $index (sub $count 1) }}
-                            {{ if modBool $index 2 }}
-                                <img src="/images/elipse.svg" alt="elipse icon">
-                            {{ else }}
-                                <img src="/images/elipse.svg" class="reverse" alt="elipse icon">
-                            {{ end }}
-                        {{ end }}
-                    </div>
-                    <div class="list-item-description">
-                        <p>{{ . | markdownify }}</p>
-                    </div>
-                </div>
-                {{ end }}
-            </div>
-        {{ end }}
-        {{ end }}
-    </div>
+   {{ $array_count := index .Params 0 }}
+   {{ $data := index $.Site.Data .Site.Language.Lang }}
+   <div class="icon-list list">
+       {{ range $i, $array := $data.join_beam }}
+           {{ if eq $i $array_count }}
+               <div>
+                   {{ $count := len $array.list }}
+                   {{ range $index, $item := $array.list }}
+                   <div class="list-item">
+                       <div class="list-item-icon">
+                       <div class="cirkle">
+                               <i class="fas fa-check"></i>
+                       </div>
+                       {{ if ne $index (sub $count 1) }}
+                               {{ if modBool $index 2 }}
+                                   <img src="/images/elipse.svg" alt="elipse icon">
+                               {{ else }}
+                                   <img src="/images/elipse.svg" class="reverse" alt="elipse icon">
+                               {{ end }}
+                           {{ end }}
+                       </div>
+                       <div class="list-item-description">
+                           <p>{{ . | markdownify }}</p>
+                       </div>
+                   </div>
+                   {{ end }}
+               </div>
+           {{ end }}
+       {{ end }}
+   </div>

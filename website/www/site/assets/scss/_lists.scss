@@ -18,67 +18,85 @@
 
 .arrow-list {
   margin-top: 26px;
+  h3 {
+    max-width: 555px;
+  }
   ul {
     font-size: 16px;
     font-weight: normal;
     line-height: 1.63;
     letter-spacing: 0.43px;
     position: relative;
-    li:before {
+    padding-left: 26px;
+    li::marker {
       content: "\2192";
-      position: absolute;
       color: #ff6d05;
       font-size: 24px;
-      line-height: 20px;
-      left: 0;
     }
     li {
       list-style-type: none;
       list-style-position: outside;
-      margin-bottom: 6px;
-      p {
-        margin: 0;
-      }
+      padding-left: 8px;
+      margin-bottom: -2px;
+    }
+    li:last-of-type {
+      margin-bottom: 25px;
     }
   }
-}
-.arrow-lists-desktop {
-  margin-top: 36px;
-}
-.arrow-lists-mobile {
-  display: none;
-  .arrow-list-header {
+  figure {
+    width: 112px;
+    height: 112px;
+    margin-top: 64px;
+  }
+  a {
     color: #333333;
+  }
+}
+
+.arrow-list-header {
+  color: #333333;
+  text-decoration: none;
+  display: flex;
+  max-height: 40px;
+  margin-bottom: 74px;
+  &:hover {
+    cursor: default;
     text-decoration: none;
-    display: flex;
-    p {
+  }
+  @media (max-width: $mobile) {
+    margin-bottom: 50px;
+    &:hover {
+      cursor: pointer;
+      text-decoration: underline;
+    }
+    h2 {
       font-size: 24px;
       line-height: 1.25;
       font-weight: 500;
       letter-spacing: normal;
-      margin: 20px 0;
+      margin-top: 46px;
+    }
+  }
+  figure {
+    margin-top: 40px;
+    margin-right: 5px;
+    width: auto;
+    height: auto;
+    @media (min-width: $mobile) {
+      display: none;
     }
     img {
-      margin-top: 17px;
       width: 18px;
       height: 18px;
       padding-right: 16px;
       transform: rotate(-90deg);
     }
   }
-  .rotate {
-    img {
-      transform: rotate(0deg);
-      margin-top: 26px;
-    }
-  }
 }
-@media (max-width: $mobile) {
-  .arrow-lists-desktop {
-    display: none;
-  }
-  .arrow-lists-mobile {
-    display: block;
+.rotate {
+  img {
+    transform: rotate(0deg) !important;
+    margin-top: 10px;
   }
 }
 .list {
@@ -88,7 +106,7 @@
 .icon-list {
   .list-item {
     display: flex;
-    margin-bottom: 31px;
+    margin-bottom: 38px;
     position: relative;
 
     img {
@@ -125,8 +143,17 @@
       letter-spacing: normal;
       line-height: 1.36;
       margin-top: 10px;
+      a {
+        color: #333333;
+      }
       @media (max-width: $mobile) {
         font-weight: 500;
+      }
+    }
+    .list-item-description {
+      @media (max-width: $mobile) {
+        position: absolute;
+        left: 55px;
       }
     }
   }
@@ -148,6 +175,7 @@
         line-height: 1.2;
         letter-spacing: 0.43px;
         margin-bottom: 6px;
+        margin-top: 10px;
       }
 
       .pillars-item-text {
@@ -165,6 +193,7 @@
   flex-direction: row;
   justify-content: space-between;
   flex-wrap: wrap;
+  max-width: 895px;
   .row {
     display: flex;
     flex-direction: column;
@@ -190,7 +219,7 @@
       color: #333333;
     }
     .item-description {
-      width: 260px;
+      max-width: 260px;
       margin-right: 32px;
       margin-top: 20px;
       @media (max-width: $mobile) {
@@ -199,24 +228,39 @@
       }
     }
   }
-  .collapsable-list {
-    margin: 52px 0;
-    a {
-      font-size: 14px;
-      font-weight: bold;
-      font-stretch: normal;
-      font-style: normal;
-      line-height: 1.14;
-      letter-spacing: 0.6px;
-      color: #f26628;
+}
+.sdks {
+  max-width: 635px;
+  .column {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+  }
+  .row {
+    margin-top: 48px;
+    .item-description {
+      margin-right: 0;
     }
-    li {
-      a {
-        font-size: 16px;
-        line-height: 1.63;
-        letter-spacing: 0.43px;
-        color: #333333;
-      }
+  }
+}
+.collapsable-list {
+  margin: 52px 0;
+  a {
+    font-size: 14px;
+    font-weight: bold;
+    font-stretch: normal;
+    font-style: normal;
+    line-height: 1.14;
+    letter-spacing: 0.6px;
+    color: #f26628;
+  }
+  li {
+    a {
+      font-size: 16px;
+      line-height: 1.63;
+      letter-spacing: 0.43px;
+      color: #333333;
     }
   }
 }
@@ -225,5 +269,17 @@
     flex-direction: column;
     align-items: center;
     text-align: center;
+  }
+}
+.margin-50 {
+  margin-top: 50px;
+}
+@media (min-width: 768px) {
+  .arrow-list {
+    .collapse.dont-collapse-sm {
+      display: block;
+      height: auto !important;
+      visibility: visible;
+    }
   }
 }

@@ -27,11 +27,20 @@ $(document).ready(function() {
                 items[i].classList.remove('chosen');
               };
               if(items[i].classList.contains('active') || items[i].classList[0] == 'active'){
-                if($('> a',items[i]).length>0){console.log($('> a',items[i]).length)
+                if($('> a',items[i]).length>0){
                   if(!items[i].querySelector('a').getAttribute('aria-expanded') || items[i].querySelector('a').getAttribute('aria-expanded') == 'false'){
-                      items[i].classList.add('chosen');}
+                      items[i].classList.add('chosen');
+                    }
                   }
                 }
+              }
+              if($('#TableOfContents .active').length === 0 || $('#TableOfContents .chosen').length===0){
+                if($('#TableOfContents li').first().children('a').length === 0){
+                  $('#TableOfContents li').first().children('ul').children('li')[0].classList.add('chosen');
+                  $('#TableOfContents li')[0].classList.add('active');
+                }
+                else
+                  $('#TableOfContents li')[0].classList.add('chosen');
               }
             }
     };
@@ -53,6 +62,14 @@ $(document).ready(function() {
           $("." + idPageNav).css({
             left: 0
           });
+        }
+        if($('#TableOfContents .active').length === 0){
+          if($('#TableOfContents li').first().children('a').length === 0){
+            $('#TableOfContents li').first().children('ul').children('li')[0].classList.add('chosen');
+            $('#TableOfContents li')[0].classList.add('active');
+          }
+          else
+            $('#TableOfContents li')[0].classList.add('chosen');
         }
       },
 
@@ -89,8 +106,9 @@ $(document).ready(function() {
               items[i].querySelector('ul').classList.add('collapse');
               items[i].querySelector('ul').id = "collapse"+i;
               items[i].querySelector('a').insertAdjacentElement('afterbegin',img);
-              items[i].querySelector('a').addEventListener('click', function(){
+              items[i].querySelector('a').addEventListener('click', function(e){
                 this.querySelector('img').classList.toggle('rotate');
+                e.preventDefault();
           })
           }}
         }
