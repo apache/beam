@@ -10,9 +10,9 @@
     limitations under the License. See accompanying LICENSE file.
    */}}
 
-    {{ $data := index $.Site.Data .Site.Language.Lang }}
-    <div class="row_of_traits">
-        {{ range $item := $data.committer_traits }}
-            {{ partial "traits/traits-item" (dict "logo" .icon "text" .body "bolded" .bolded) }}
-        {{ end }}
-    </div>
+   {{ $data := index $.Site.Data .Site.Language.Lang (.Get 0) }}
+   <div class="row_of_traits">
+       {{ range $item := $data }}
+           {{ partial "traits/traits-item" (dict "logo" .icon "text" .body "bolded" .bolded) }}
+       {{ end }}
+   </div>

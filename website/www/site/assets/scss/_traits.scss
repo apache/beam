@@ -12,37 +12,35 @@
  limitations under the License.
 */
 @import "media";
-
 .row_of_traits {
-  display: flex;
-  justify-content: space-between;
-  flex-direction: row;
-
-  .traits-item {
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
-    align-items: center;
-    margin-top: 64px;
-    .traits-item-icon {
-      width: 112px;
-      height: 112px;
-      margin-bottom: 48px;
-    }
-    .traits-item-description {
-      max-width: 228px;
-      text-align: center;
-      font-size: 14px;
-      line-height: 1.57;
-      letter-spacing: 0.43px;
-      .font-weight-bold {
-        font-weight: bold;
-      }
-    }
-  }
+	display: flex;
+	justify-content: space-between;
+	flex-direction: row;
+	.traits-item {
+		display: flex;
+		flex-direction: column;
+		justify-content: flex-start;
+		align-items: center;
+		margin-top: 64px;
+		.traits-item-icon {
+			width: 112px;
+			height: 112px;
+			margin-bottom: 48px;
+		}
+		.traits-item-description {
+			max-width: 228px;
+			text-align: center;
+			font-size: 14px;
+			line-height: 1.57;
+			letter-spacing: .43px;
+			.font-weight-bold {
+				font-weight: 700;
+			}
+		}
+	}
 }
 @media (max-width: $mobile) {
-  .row_of_traits {
-    flex-direction: column;
-  }
+	.row_of_traits {
+		flex-direction: column;
+	}
 }

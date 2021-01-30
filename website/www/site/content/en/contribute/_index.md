@@ -1,7 +1,7 @@
 ---
 title: "Beam Contribution Guide"
 type: "contribute"
-layout: "arrow_list_template"
+layout: "arrow_template"
 aliases:
   - /contribution-guide/
   - /contribute/contribution-guide/
@@ -26,87 +26,14 @@ limitations under the License.
 
 # Contribution guide
 
-<div class="arrow-lists-desktop">
+<a class="arrow-list-header" data-toggle="collapse" href="#collapseOverview" role="button" aria-expanded="false"        aria-controls="collapseOverview">
+   {{< figure src="/images/arrow-icon_list.svg">}}
 
 ## Overview
 
-There are lots of opportunities to contribute. You can for example:
+</a>
 
-- ask or answer questions on [user@beam.apache.org](/community/contact-us/) or
-  [stackoverflow](https://stackoverflow.com/questions/tagged/apache-beam)
-- review proposed design ideas on [dev@beam.apache.org](/community/contact-us/)
-- file [bug reports](https://issues.apache.org/jira/projects/BEAM/issues)
-- review [changes](https://github.com/apache/beam/pulls)
-- work on the core programming model (what is a Beam pipeline and how does it
-  run?)
-- improve the developer experience (for example, Windows guides)
-- organize local meetups of users or contributors to Apache Beam
-
-...and many more. Most importantly, if you have an idea of how to contribute, then do it!
-
-## Contributing code
-
-Below is a tutorial for contributing code to Beam, covering our tools and typical process in
-detail.
-
-### Prerequisites
-
-- a GitHub account
-- a Linux, macOS, or Microsoft Windows development environment with Java JDK 8 installed
-- [Docker](https://www.docker.com/) installed for some tasks including building worker containers and testing this website
-  changes locally
-- [Go](https://golang.org) 1.12 or later installed for Go SDK development
-- Python 3.6, 3.7, and 3.8. Yes, you need all four versions installed.
-
-  pip, setuptools, virtualenv, and tox installed for Python development
-
-- for large contributions, a signed [Individual Contributor License
-  Agreement](https://www.apache.org/licenses/icla.pdf) (ICLA) to the Apache
-  Software Foundation (ASF).
-
-</br>
-
-```
-sudo apt-get install \
-   openjdk-8-jdk \
-   python-setuptools \
-   python-pip \
-   virtualenv \
-   tox \
-   docker-ce
-```
-
-</br>
-
-You also need to [install Go](https://golang.org/doc/install).
-
-</br>
-
-Once Go is installed, install goavro:
-
-</br>
-
-```
-$ export GOPATH=`pwd`/sdks/go/examples/.gogradle/project_gopath
-$ go get github.com/linkedin/goavro
-```
-
-</br>
-
-Linux users should configure their machines for sudoless Docker.
-
-</div>
-
-<div class="arrow-lists-mobile">
-
- <a class="arrow-list-header" data-toggle="collapse" href="#collapseOverview" role="button" aria-expanded="false" aria-controls="collapseOverview">
-  {{< figure src="/images/arrow-icon_list.svg">}}
-
-Overview
-
-  </a>
-
-<div class="collapse" id="collapseOverview">
+<div class="collapse dont-collapse-sm" id="collapseOverview">
 
 There are lots of opportunities to contribute. You can for example:
 
@@ -127,14 +54,16 @@ There are lots of opportunities to contribute. You can for example:
 <a class="arrow-list-header" data-toggle="collapse" href="#collapseContributing" role="button" aria-expanded="false" aria-controls="collapseContributing">
    {{< figure src="/images/arrow-icon_list.svg">}}
 
-Contributing code
+## Contributing code
 
   </a>
 
-<div class="collapse" id="collapseContributing">
+<div class="collapse dont-collapse-sm" id="collapseContributing">
 
 Below is a tutorial for contributing code to Beam, covering our tools and typical process in
 detail.
+
+### Prerequisites
 
 - a GitHub account
 - a Linux, macOS, or Microsoft Windows development environment with Java JDK 8 installed
@@ -153,17 +82,16 @@ detail.
 
 </br>
 
-```
+{{< highlight1  >}}
 sudo apt-get install \
-   openjdk-8-jdk \
-   python-setuptools \
-   python-pip \
-   virtualenv \
-   tox \
-   docker-ce
-```
+ openjdk-8-jdk \
+ python-setuptools \
+ python-pip \
+ virtualenv \
+ tox \
+ docker-ce
 
-</br>
+{{< /highlight1  >}}
 
 You also need to [install Go](https://golang.org/doc/install).
 
@@ -173,16 +101,12 @@ Once Go is installed, install goavro:
 
 </br>
 
-```
+{{< highlight1  >}}
 $ export GOPATH=`pwd`/sdks/go/examples/.gogradle/project_gopath
 $ go get github.com/linkedin/goavro
-```
-
-</br>
+{{< /highlight1  >}}
 
 Linux users should configure their machines for sudoless Docker.
-
-</div>
 
 ### Connect With the Beam community
 

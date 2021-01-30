@@ -28,8 +28,8 @@ The [PMC](https://www.apache.org/foundation/how-it-works.html#pmc-members) makes
 
 ### Different ways you can contribute to the Apache Beam
 
-{{< contributor/list_with_icons >}}
+{{< contributor/list_with_icons ways_of_contribution >}}
 
 ### What are the traits of an Apache Beam Commiter?
 
-{{< contributor/row_of_traits >}}
+{{< contributor/row_of_traits committer_traits >}}

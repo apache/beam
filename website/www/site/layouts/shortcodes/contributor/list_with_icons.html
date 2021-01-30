@@ -10,9 +10,9 @@
     limitations under the License. See accompanying LICENSE file.
    */}}
 
-    {{ $data := index $.Site.Data .Site.Language.Lang }}
-    <div class="icon-list">
-        {{ range $item := $data.ways_of_contribution }}
-            {{ partial "pillars/pillars-item" (dict "logo" .icon  "header" .title "text" .body) }}
-        {{ end }}
-    </div>
+   {{ $data := index $.Site.Data .Site.Language.Lang (.Get 0) }}
+   <div class="icon-list">
+       {{ range $item := $data }}
+           {{ partial "pillars/pillars-item" (dict "logo" .icon  "header" .title "text" .body) }}
+       {{ end }}
+   </div>

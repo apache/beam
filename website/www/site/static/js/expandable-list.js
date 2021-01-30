@@ -11,10 +11,29 @@
 // the License.
 
 $(document).ready(function() {
+    function expandable(){
+        function stop(){
+            var w = $(window).width();
+            $('.arrow-list-header').click(function(e){
+                if (w <= 768) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+            })
+        }
+        $(window).resize(function(){
+            stop();
+        });
+    }
     function rotate() {
         $(".arrow-list-header").click(function(){
-            $(this).toggleClass('rotate');
-        })
+            $(this).find('figure').toggleClass('rotate');
+        });
+        $('#apache-dropdown').click(function(){
+            $(this).find('span').toggleClass('rotate');
+            console.log( $(this).find('span'))
+        });
     }
    rotate();
+   expandable();
 });
