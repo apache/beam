@@ -101,8 +101,6 @@ $(document).ready(function () {
                 var sectionNavHeight = $(sectionNavEl).height();
                 var mainContent = $(".container-main-content");
 
-                //mainContent.css({"min-height": sectionNavHeight});
-                //sectionNavEl.css({"max-height": mainContent.css("height")});
                 $(window).load(function () {
                     var url = window.location.href;
                     var links = $("." + idSectionNav+' a');
