@@ -39,8 +39,6 @@ Learn about the Beam Programming Model and the concepts common to all Beam SDKs 
 - [Create Your Pipeline](/documentation/pipelines/create-your-pipeline/) using the classes in the Beam SDKs.
 - [Test Your Pipeline](/documentation/pipelines/test-your-pipeline/) to minimize debugging a pipeline’s remote execution.
 
-</br>
-
 ## SDKs
 
 Find status and reference information on all of the available Beam SDKs.
@@ -50,7 +48,6 @@ Find status and reference information on all of the available Beam SDKs.
 ## Runners
 
 A Beam Runner runs a Beam pipeline on a specific (often distributed) data processing system.
-</br>
 
 ### Available Runners
 

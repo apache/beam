@@ -15,7 +15,7 @@
     {{ if .logo }}
         <div class="item-icon">
             {{ with resources.Get .logo }}
-            {{ .Content | safeHTML }}
+                {{ .Content | safeHTML }}
             {{ end }}
         </div>
     {{ end }}
