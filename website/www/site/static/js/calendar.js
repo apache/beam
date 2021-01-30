@@ -12,10 +12,17 @@
 
 $(document).ready(function() {
     function setSize() {
+<<<<<<< HEAD
         var height = $('.calendar-card-big-right').height();
         var width = $('.calendar-card-big-right').width();
         $('#calendar').height = height-100;
         $('#calendar').width = width-100;
+=======
+       var height = $('.calendar-card-big-right').height();
+       var width = $('.calendar-card-big-right').width();
+       $('#calendar').height = height-100;
+       $('#calendar').width = width-100;
+>>>>>>> 39dcd8859211b7220d7717efd7afb0cb81f462a0
     }
    setSize();
 });
