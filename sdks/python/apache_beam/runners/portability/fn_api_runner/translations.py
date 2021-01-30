@@ -762,6 +762,37 @@ def _remap_input_pcolls(transform, pcoll_id_remap):
       transform.inputs[input_key] = pcoll_id_remap[transform.inputs[input_key]]
 
 
+def _make_pack_name(names):
+  """Return the packed Transform or Stage name.
+
+  The output name will contain the input names' common prefix, the infix
+  '/Packed', and the input names' suffixes in square brackets.
+  For example, if the input names are 'a/b/c1/d1' and 'a/b/c2/d2, then
+  the output name is 'a/b/Packed[c1_d1, c2_d2]'.
+  """
+  assert names
+  tokens_in_names = [name.split('/') for name in names]
+  common_prefix_tokens = []
+
+  # Find the longest common prefix of tokens.
+  while True:
+    first_token_in_names = set()
+    for tokens in tokens_in_names:
+      if not tokens:
+        break
+      first_token_in_names.add(tokens[0])
+    if len(first_token_in_names) != 1:
+      break
+    common_prefix_tokens.append(next(iter(first_token_in_names)))
+    for tokens in tokens_in_names:
+      tokens.pop(0)
+
+  common_prefix_tokens.append('Packed')
+  common_prefix = '/'.join(common_prefix_tokens)
+  suffixes = ['_'.join(tokens) for tokens in tokens_in_names]
+  return '%s[%s]' % (common_prefix, ', '.join(suffixes))
+
+
 def eliminate_common_key_with_none(stages, context):
   # type: (Iterable[Stage], TransformContext) -> Iterable[Stage]
 
@@ -795,15 +826,23 @@ def eliminate_common_key_with_none(stages, context):
   pcoll_id_remap = {}
   remaining_stages = []
   for sibling_stages in grouped_eligible_stages.values():
-    output_pcoll_ids = [
-        only_element(stage.transforms[0].outputs.values())
-        for stage in sibling_stages
-    ]
-    parent = _parent_for_fused_stages(sibling_stages, context)
-    for to_delete_pcoll_id in output_pcoll_ids[1:]:
-      pcoll_id_remap[to_delete_pcoll_id] = output_pcoll_ids[0]
-      del context.components.pcollections[to_delete_pcoll_id]
-    sibling_stages[0].parent = parent
+    if len(sibling_stages) > 1:
+      output_pcoll_ids = [
+          only_element(stage.transforms[0].outputs.values())
+          for stage in sibling_stages
+      ]
+      parent = _parent_for_fused_stages(sibling_stages, context)
+      for to_delete_pcoll_id in output_pcoll_ids[1:]:
+        pcoll_id_remap[to_delete_pcoll_id] = output_pcoll_ids[0]
+        del context.components.pcollections[to_delete_pcoll_id]
+      sibling_stages[0].parent = parent
+      sibling_stages[0].name = _make_pack_name(
+          stage.name for stage in sibling_stages)
+      only_transform(
+          sibling_stages[0].transforms).unique_name = _make_pack_name(
+              only_transform(stage.transforms).unique_name
+              for stage in sibling_stages)
+
     remaining_stages.append(sibling_stages[0])
 
   # Remap all transforms in components.
@@ -948,38 +987,8 @@ def pack_combiners(stages, context):
         component_coder_ids=[key_coder_id, pack_output_value_coder_id])
     pack_output_kv_coder_id = context.add_or_get_coder_id(pack_output_kv_coder)
 
-    def make_pack_name(names):
-      """Return the packed Transform or Stage name.
-
-      The output name will contain the input names' common prefix, the infix
-      '/Packed', and the input names' suffixes in square brackets.
-      For example, if the input names are 'a/b/c1/d1' and 'a/b/c2/d2, then
-      the output name is 'a/b/Packed[c1/d1, c2/d2]'.
-      """
-      assert names
-      tokens_in_names = [name.split('/') for name in names]
-      common_prefix_tokens = []
-
-      # Find the longest common prefix of tokens.
-      while True:
-        first_token_in_names = set()
-        for tokens in tokens_in_names:
-          if not tokens:
-            break
-          first_token_in_names.add(tokens[0])
-        if len(first_token_in_names) != 1:
-          break
-        common_prefix_tokens.append(next(iter(first_token_in_names)))
-        for tokens in tokens_in_names:
-          tokens.pop(0)
-
-      common_prefix_tokens.append('Packed')
-      common_prefix = '/'.join(common_prefix_tokens)
-      suffixes = ['/'.join(tokens) for tokens in tokens_in_names]
-      return '%s[%s]' % (common_prefix, ', '.join(suffixes))
-
-    pack_stage_name = make_pack_name([stage.name for stage in packable_stages])
-    pack_transform_name = make_pack_name([
+    pack_stage_name = _make_pack_name([stage.name for stage in packable_stages])
+    pack_transform_name = _make_pack_name([
         only_transform(stage.transforms).unique_name
         for stage in packable_stages
     ])
