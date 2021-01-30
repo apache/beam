@@ -75,7 +75,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Tuple2;
 import scala.collection.JavaConverters;
-import scala.collection.Map;
 
 /** Runs a portable pipeline on Apache Spark. */
 @SuppressWarnings({
@@ -143,32 +142,7 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
       eventLoggingListener =
           new EventLoggingListener(
               jobInfo.jobId(),
-              new scala.Option<String>() {
-                @Override
-                public boolean isEmpty() {
-                  return false;
-                }
-
-                @Override
-                public String get() {
-                  return jobInfo.jobName();
-                }
-
-                @Override
-                public Object productElement(int i) {
-                  return null;
-                }
-
-                @Override
-                public int productArity() {
-                  return 0;
-                }
-
-                @Override
-                public boolean canEqual(Object o) {
-                  return false;
-                }
-              },
+              scala.Option.apply(jobInfo.jobName()),
               new URI(pipelineOptions.getSparkHistoryDir()),
               jsc.getConf(),
               jsc.hadoopConfiguration());
@@ -276,88 +250,14 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
       eventLoggingListener.onApplicationStart(
           new SparkListenerApplicationStart(
               jobInfo.jobId(),
-              new scala.Option<String>() {
-                @Override
-                public boolean isEmpty() {
-                  return false;
-                }
-
-                @Override
-                public String get() {
-                  return jobInfo.jobName();
-                }
-
-                @Override
-                public Object productElement(int i) {
-                  return null;
-                }
-
-                @Override
-                public int productArity() {
-                  return 0;
-                }
-
-                @Override
-                public boolean canEqual(Object o) {
-                  return false;
-                }
-              },
+              scala.Option.apply(jobInfo.jobName()),
               Instant.now().getMillis(),
               jsc.sparkUser(),
-              new scala.Option<String>() {
-                @Override
-                public boolean isEmpty() {
-                  return false;
-                }
-
-                @Override
-                public String get() {
-                  return jobInfo.jobName();
-                }
-
-                @Override
-                public Object productElement(int i) {
-                  return null;
-                }
-
-                @Override
-                public int productArity() {
-                  return 0;
-                }
-
-                @Override
-                public boolean canEqual(Object o) {
-                  return false;
-                }
-              },
-              new scala.Option<Map<String, String>>() {
-                @Override
-                public boolean isEmpty() {
-                  return false;
-                }
-
-                @Override
-                public Map<String, String> get() {
-                  return JavaConverters.mapAsScalaMapConverter(
+              scala.Option.apply(jobInfo.jobName()),
+              scala.Option.apply(
+                  JavaConverters.mapAsScalaMapConverter(
                           SparkBeamMetric.renderAllToString(result.metrics()))
-                      .asScala();
-                }
-
-                @Override
-                public Object productElement(int i) {
-                  return null;
-                }
-
-                @Override
-                public int productArity() {
-                  return 0;
-                }
-
-                @Override
-                public boolean canEqual(Object o) {
-                  return false;
-                }
-              }));
+                      .asScala())));
       eventLoggingListener.onApplicationEnd(
           new SparkListenerApplicationEnd(Instant.now().getMillis()));
       eventLoggingListener.stop();
