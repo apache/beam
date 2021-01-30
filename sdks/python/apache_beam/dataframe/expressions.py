@@ -85,7 +85,6 @@ class PartitioningSession(Session):
       elif isinstance(partitioning, partitionings.Nothing):
         return float('inf')
 
-
     if expr not in self._bindings:
       if is_scalar(expr) or not expr.args():
         result = super(PartitioningSession, self).evaluate(expr)
