@@ -28,7 +28,7 @@ question, suggestion or idea you have. Contact us in the following channels:
 
 ### Available contact channels
 
-{{< community/table_with_icons >}}
+{{< community/table_with_icons contact_us >}}
 
 ### Mailing list, what are they and how they work
 

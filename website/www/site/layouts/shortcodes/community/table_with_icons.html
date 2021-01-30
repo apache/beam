@@ -9,8 +9,8 @@
     See the License for the specific language governing permissions and
     limitations under the License. See accompanying LICENSE file.
 */}}
-{{ $data := index $.Site.Data .Site.Language.Lang }}
-{{ range $list := $data.contact_us }}
+{{ $data := index $.Site.Data .Site.Language.Lang (.Get 0) }}
+{{ range $list := $data }}
 <div class="table-wrapper">
     <table>
         <tr>

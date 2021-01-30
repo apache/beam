@@ -102,12 +102,12 @@
              </span>
           </a>
           <ul class="dropdown-menu dropdown-menu-right">
-            <li><a href="http://www.apache.org/">{{ T "nav-asf-homepage" }}</a></li>
-            <li><a href="http://www.apache.org/licenses/">{{ T "nav-license" }}</a></li>
-            <li><a href="http://www.apache.org/security/">{{ T "nav-security" }}</a></li>
-            <li><a href="http://www.apache.org/foundation/thanks.html">{{ T "nav-thanks" }}</a></li>
-            <li><a href="http://www.apache.org/foundation/sponsorship.html">{{ T "nav-sponsorship" }}</a></li>
-            <li><a href="https://www.apache.org/foundation/policies/conduct">{{ T "nav-code-of-conduct" }}</a></li>
+            <li><a target="_blank" href="http://www.apache.org/">{{ T "nav-asf-homepage" }}</a></li>
+            <li><a target="_blank" href="http://www.apache.org/licenses/">{{ T "nav-license" }}</a></li>
+            <li><a target="_blank" href="http://www.apache.org/security/">{{ T "nav-security" }}</a></li>
+            <li><a target="_blank" href="http://www.apache.org/foundation/thanks.html">{{ T "nav-thanks" }}</a></li>
+            <li><a target="_blank" href="http://www.apache.org/foundation/sponsorship.html">{{ T "nav-sponsorship" }}</a></li>
+            <li><a target="_blank" href="https://www.apache.org/foundation/policies/conduct">{{ T "nav-code-of-conduct" }}</a></li>
           </ul>
         </li>
       </ul>
@@ -150,7 +150,7 @@
     </a>
 
 
-   <a href="https://github.com/apache/beam/edit/master/website/www/site/content/{{ .Site.Language.Lang }}/{{ .Path }}" data-proofer-ignore>
+   <a target="_blank" href="https://github.com/apache/beam/edit/master/website/www/site/content/{{ .Site.Language.Lang }}/{{ .Path }}" data-proofer-ignore>
      {{ with resources.Get "icons/edit-icon.svg" }}
         {{ .Content | safeHTML }}
     {{ end }}
@@ -166,12 +166,12 @@
       </span>
     </a>
     <ul class="dropdown-menu">
-      <li><a class="navbar-dropdown-menu-link" href="http://www.apache.org/">{{ T "nav-asf-homepage" }}</a></li>
-      <li><a class="navbar-dropdown-menu-link" href="http://www.apache.org/licenses/">{{ T "nav-license" }}</a></li>
-      <li><a class="navbar-dropdown-menu-link" href="http://www.apache.org/security/">{{ T "nav-security" }}</a></li>
-      <li><a class="navbar-dropdown-menu-link" href="http://www.apache.org/foundation/thanks.html">{{ T "nav-thanks" }}</a></li>
-      <li><a class="navbar-dropdown-menu-link" href="http://www.apache.org/foundation/sponsorship.html">{{ T "nav-sponsorship" }}</a></li>
-      <li><a class="navbar-dropdown-menu-link" href="https://www.apache.org/foundation/policies/conduct">{{ T "nav-code-of-conduct" }}</a></li>
+      <li><a class="navbar-dropdown-menu-link" target="_blank" href="http://www.apache.org/">{{ T "nav-asf-homepage" }}</a></li>
+      <li><a class="navbar-dropdown-menu-link" target="_blank" href="http://www.apache.org/licenses/">{{ T "nav-license" }}</a></li>
+      <li><a class="navbar-dropdown-menu-link" target="_blank" href="http://www.apache.org/security/">{{ T "nav-security" }}</a></li>
+      <li><a class="navbar-dropdown-menu-link" target="_blank" href="http://www.apache.org/foundation/thanks.html">{{ T "nav-thanks" }}</a></li>
+      <li><a class="navbar-dropdown-menu-link" target="_blank" href="http://www.apache.org/foundation/sponsorship.html">{{ T "nav-sponsorship" }}</a></li>
+      <li><a class="navbar-dropdown-menu-link" target="_blank" href="https://www.apache.org/foundation/policies/conduct">{{ T "nav-code-of-conduct" }}</a></li>
     </ul>
   </li>
  </div>
