@@ -2267,7 +2267,8 @@ public class BigQueryIO {
 
     /**
      * Control how many file shards are written when using BigQuery load jobs. Applicable only when
-     * also setting {@link #withTriggeringFrequency}.
+     * also setting {@link #withTriggeringFrequency}. To let runner determine the sharding at
+     * runtime, set {@link #withAutoSharding()} instead.
      */
     public Write<T> withNumFileShards(int numFileShards) {
       checkArgument(numFileShards > 0, "numFileShards must be > 0, but was: %s", numFileShards);
@@ -2350,10 +2351,10 @@ public class BigQueryIO {
     }
 
     /**
-     * If true, enables dynamically determined number of shards to write to BigQuery. Only
-     * applicable to unbounded data with STREAMING_INSERTS.
-     *
-     * <p>TODO(BEAM-11408): Also integrate this option to FILE_LOADS.
+     * If true, enables using a dynamically determined number of shards to write to BigQuery. This
+     * can be used for both {@link Method#FILE_LOADS} and {@link Method#STREAMING_INSERTS}. Only
+     * applicable to unbounded data. If using {@link Method#FILE_LOADS}, numFileShards set via
+     * {@link #withNumFileShards} will be ignored.
      */
     @Experimental
     public Write<T> withAutoSharding() {
@@ -2751,7 +2752,11 @@ public class BigQueryIO {
           batchLoads.setMaxRetryJobs(1000);
         }
         batchLoads.setTriggeringFrequency(getTriggeringFrequency());
-        batchLoads.setNumFileShards(getNumFileShards());
+        if (getAutoSharding()) {
+          batchLoads.setNumFileShards(0);
+        } else {
+          batchLoads.setNumFileShards(getNumFileShards());
+        }
         return input.apply(batchLoads);
       }
     }
