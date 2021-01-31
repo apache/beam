@@ -26,7 +26,6 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
-import org.kohsuke.args4j.spi.ExplicitBooleanOptionHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,26 +36,6 @@ public class SparkJobServerDriver extends JobServerDriver {
 
   /** Spark runner-specific Configuration for the jobServer. */
   public static class SparkServerConfiguration extends ServerConfiguration {
-
-    @Option(
-        name = "--event-log-enabled",
-        usage = "Set it to true if event logs should be saved to Spark History Server directory",
-        handler = ExplicitBooleanOptionHandler.class)
-    private boolean eventLogEnabled = SparkPipelineOptions.DEFAULT_EVENT_LOG_ENABLED;
-
-    boolean getEventLogEnabled() {
-      return this.eventLogEnabled;
-    }
-
-    @Option(
-        name = "--spark-history-dir",
-        usage =
-            "Spark history dir path to store Spark History Server logs (e. g. /tmp/spark-events/)")
-    private String sparkHistoryDir = SparkPipelineOptions.DEFAULT_SPARK_HISTORY_DIR;
-
-    String getSparkHistoryDir() {
-      return this.sparkHistoryDir;
-    }
 
     @Option(
         name = "--spark-master-url",

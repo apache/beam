@@ -152,12 +152,12 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
           new scala.collection.immutable.HashMap<String, String>();
       Tuple2<String, String>[] sparkMasters = jsc.getConf().getAllWithPrefix("spark.master");
       Tuple2<String, String>[] sparkExecutors = jsc.getConf().getAllWithPrefix("spark.executor.id");
-      for (int i = 0; i < sparkMasters.length; i++) {
+      for (Tuple2<String, String> sparkExecutor : sparkExecutors) {
         eventLoggingListener.onExecutorAdded(
             new SparkListenerExecutorAdded(
                 Instant.now().getMillis(),
-                sparkExecutors[i]._2(),
-                new ExecutorInfo(sparkMasters[i]._2(), 0, logUrlMap)));
+                sparkExecutor._2(),
+                new ExecutorInfo(sparkMasters[0]._2(), 0, logUrlMap)));
       }
     }
 
