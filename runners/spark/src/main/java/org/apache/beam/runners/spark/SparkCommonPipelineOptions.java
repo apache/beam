@@ -32,8 +32,6 @@ import org.apache.beam.sdk.options.StreamingOptions;
 public interface SparkCommonPipelineOptions
     extends PipelineOptions, StreamingOptions, ApplicationNameOptions {
   String DEFAULT_MASTER_URL = "local[4]";
-  String DEFAULT_SPARK_HISTORY_DIR = "/tmp/spark-events/";
-  boolean DEFAULT_EVENT_LOG_ENABLED = false;
 
   @Description("The url of the spark master to connect to, (e.g. spark://host:port, local[4]).")
   @Default.String(DEFAULT_MASTER_URL)

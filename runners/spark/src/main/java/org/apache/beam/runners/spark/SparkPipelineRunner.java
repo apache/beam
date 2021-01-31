@@ -137,6 +137,7 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
     PortablePipelineResult result;
     final JavaSparkContext jsc = SparkContextFactory.getSparkContext(pipelineOptions);
 
+    long startTime = Instant.now().getMillis();
     EventLoggingListener eventLoggingListener = null;
     if (pipelineOptions.getEventLogEnabled()) {
       eventLoggingListener =
@@ -155,7 +156,7 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
       for (Tuple2<String, String> sparkExecutor : sparkExecutors) {
         eventLoggingListener.onExecutorAdded(
             new SparkListenerExecutorAdded(
-                Instant.now().getMillis(),
+                startTime,
                 sparkExecutor._2(),
                 new ExecutorInfo(sparkMasters[0]._2(), 0, logUrlMap)));
       }
@@ -251,7 +252,7 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
           new SparkListenerApplicationStart(
               jobInfo.jobId(),
               scala.Option.apply(jobInfo.jobName()),
-              Instant.now().getMillis(),
+              startTime,
               jsc.sparkUser(),
               scala.Option.apply(jobInfo.jobName()),
               scala.Option.apply(
