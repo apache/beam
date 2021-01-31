@@ -53,9 +53,6 @@ from __future__ import absolute_import
 
 import logging
 
-from google.api_core.exceptions import AlreadyExists
-from google.cloud import spanner
-
 from apache_beam import FlatMap
 from apache_beam import Map
 from apache_beam import ParDo
@@ -71,6 +68,15 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms.combiners import Count
+
+# pylint: disable=wrong-import-order, wrong-import-position
+try:
+  from google.api_core.exceptions import AlreadyExists
+  from google.cloud import spanner
+except ImportError:
+  spanner = None
+  AlreadyExists = None
+# pylint: enable=wrong-import-order, wrong-import-position
 
 
 class SpannerReadPerfTest(LoadTest):

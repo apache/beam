@@ -54,8 +54,6 @@ import logging
 import random
 import uuid
 
-from google.cloud import spanner
-
 from apache_beam import FlatMap
 from apache_beam import Map
 from apache_beam import ParDo
@@ -66,6 +64,13 @@ from apache_beam.testing.load_tests.load_test import LoadTest
 from apache_beam.testing.load_tests.load_test_metrics_utils import CountMessages
 from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
 from apache_beam.testing.synthetic_pipeline import SyntheticSource
+
+# pylint: disable=wrong-import-order, wrong-import-position
+try:
+  from google.cloud import spanner
+except ImportError:
+  spanner = None
+# pylint: enable=wrong-import-order, wrong-import-position
 
 
 class SpannerWritePerfTest(LoadTest):
