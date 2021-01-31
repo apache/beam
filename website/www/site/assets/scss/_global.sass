@@ -26,16 +26,22 @@ body
 .body
   background: #fff
   margin: 0 auto
-  padding-top: 130px
-
+  .no__padding
+    padding: 0
   &:not(.body--index)
     .body__contained
+      @media (max-width: $ak-breakpoint-lg)
+        padding: 0
       padding: 0 30px
       max-width: 1280px
 
       figure
         img
           width: 100%
+    .center
+      margin: 0 auto
+  .content-up
+    margin-top: -20px !important
 
 .section
   &:not(.section--wide)
@@ -50,6 +56,20 @@ body
 
   a
     color: $color-brand
+
+.body__section-no-nav
+  margin-left: 256px
+  //width: calc(100% - 380px)
+
+  > [id]:before
+    content: ''
+    display: block
+    height: 82px // fixed header height
+    margin: -82px 0 0 // negative fixed header height
+
+  @media (max-width: $ak-breakpoint-lg)
+    margin-left: 0
+    width: 100%
 
 .body__section-nav
   margin-left: 256px
@@ -66,5 +86,72 @@ body
     width: 100%
 
 .container-main-content
-  padding: 0 20px
+  @media (max-width: $ak-breakpoint-lg)
+    padding: 0 24px
+  min-height: 100vh
+  padding: 0 22px
   position: relative
+  background-color: #fff
+  margin-top: 64px
+
+  @media (min-width: $tablet)
+    margin-top: 0
+.desktop
+  @media (max-width: $ak-breakpoint-lg)
+    display: none !important
+.mobile
+  display: none
+  @media (max-width: $ak-breakpoint-lg)
+    display: block
+
+.code-snippet, pre
+  background:rgba(255, 109, 0, 0.03) !important
+  border-radius: 8px
+  border-top-left-radius: 0;
+  border: solid 0.6px #ff6d05
+  font-family: Menlo
+  font-size: 16px
+  font-weight: normal
+  line-height: 1.63
+  letter-spacing: 0.43px
+  padding: 24px
+  max-width: 848px
+  position: relative
+
+  pre
+    border: none
+    padding: 0
+    margin-top: 36px
+  a
+    float: right
+    margin-left: 12px
+    img
+      &:hover
+        opacity: 0.7
+        filter: alpha(opacity=70)
+        cursor: pointer
+
+.snippet
+  max-width: 848px
+  margin-bottom: 40px
+  .git-link
+    float: right
+    font-size: 16px
+    font-weight: normal
+    line-height: 1.63
+    letter-spacing: 0.43px
+    color: #8c8b8e
+  .without_switcher
+    border-top-left-radius: 8px
+    pre
+      background: initial !important
+
+table
+  margin-top: 24px
+  margin-bottom: 24px
+  th
+    min-width: 80px
+    padding-right: 12px
+
+.underline
+  text-decoration: underline

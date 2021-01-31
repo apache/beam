@@ -1,4 +1,4 @@
-{{/* 
+{{/*
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -9,16 +9,16 @@
  See the License for the specific language governing permissions and
  limitations under the License. See accompanying LICENSE file.
 */}}
- 
+
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <title>{{ if .Title }}{{ .Title }}{{ else }}{{ .Site.Title }}{{ end }}</title>
 <meta name="description" content="{{ .Description | default $.Site.Params.description }}">
- 
+
 <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400,500,700" rel="stylesheet">
- 
+
 {{ $scssMain := "scss/main.scss"}}
 {{ if .Site.IsServer }}
     {{ $css := resources.Get $scssMain | toCSS (dict "enableSourceMap" true) | postCSS }}
@@ -40,12 +40,13 @@
 <script src="/js/fix-menu.js"></script>
 <script src="/js/section-nav.js"></script>
 <script src="/js/page-nav.js"></script>
+<script src="/js/copy-to-clipboard.js"></script>
 
 <link rel="alternate" type="application/rss+xml" title="{{ .Site.Title }}" href="/feed.xml">
 <link rel="canonical" href="{{ .Site.Params.hostName }}{{ .Permalink | absURL }}" data-proofer-ignore>
 <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
 <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
- 
+
 <script>
   (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
   (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
