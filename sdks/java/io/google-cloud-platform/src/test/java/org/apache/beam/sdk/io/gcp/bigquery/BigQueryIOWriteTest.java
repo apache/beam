@@ -57,6 +57,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -602,6 +603,74 @@ public class BigQueryIOWriteTest implements Serializable {
   @Test
   public void testTriggeredFileLoadsWithTempTablesDefaultProject() throws Exception {
     testTriggeredFileLoadsWithTempTables("dataset-id.table-id");
+  }
+
+  @Test
+  public void testTriggeredFileLoadsWithAutoSharding() throws Exception {
+    List<TableRow> elements = Lists.newArrayList();
+    for (int i = 0; i < 30; ++i) {
+      elements.add(new TableRow().set("number", i));
+    }
+
+    Instant startInstant = new Instant(0L);
+    TestStream<TableRow> testStream =
+        TestStream.create(TableRowJsonCoder.of())
+            // Initialize watermark for timer to be triggered correctly.
+            .advanceWatermarkTo(startInstant)
+            .addElements(
+                elements.get(0), Iterables.toArray(elements.subList(1, 10), TableRow.class))
+            .advanceProcessingTime(Duration.standardMinutes(1))
+            .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(10)))
+            .addElements(
+                elements.get(10), Iterables.toArray(elements.subList(11, 20), TableRow.class))
+            .advanceProcessingTime(Duration.standardMinutes(1))
+            .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(30)))
+            .addElements(
+                elements.get(20), Iterables.toArray(elements.subList(21, 30), TableRow.class))
+            .advanceProcessingTime(Duration.standardMinutes(2))
+            .advanceWatermarkToInfinity();
+
+    int numTables = 3;
+    p.apply(testStream)
+        .apply(
+            BigQueryIO.writeTableRows()
+                .to(
+                    (ValueInSingleWindow<TableRow> vsw) -> {
+                      String tableSpec =
+                          "project-id:dataset-id.table-"
+                              + ((int) vsw.getValue().get("number") % numTables);
+                      return new TableDestination(tableSpec, null);
+                    })
+                .withSchema(
+                    new TableSchema()
+                        .setFields(
+                            ImmutableList.of(
+                                new TableFieldSchema().setName("number").setType("INTEGER"))))
+                .withTestServices(fakeBqServices)
+                // Set a triggering frequency without needing to also specify numFileShards when
+                // using autoSharding.
+                .withTriggeringFrequency(Duration.standardSeconds(100))
+                .withAutoSharding()
+                .withMaxBytesPerPartition(1000)
+                .withMaxFilesPerPartition(10)
+                .withMethod(BigQueryIO.Write.Method.FILE_LOADS)
+                .withoutValidation());
+    p.run();
+
+    Map<Integer, List<TableRow>> elementsByTableIdx = new HashMap<>();
+    for (int i = 0; i < elements.size(); i++) {
+      elementsByTableIdx
+          .computeIfAbsent(i % numTables, k -> new ArrayList<>())
+          .add(elements.get(i));
+    }
+    for (Map.Entry<Integer, List<TableRow>> entry : elementsByTableIdx.entrySet()) {
+      assertThat(
+          fakeDatasetService.getAllRows("project-id", "dataset-id", "table-" + entry.getKey()),
+          containsInAnyOrder(Iterables.toArray(entry.getValue(), TableRow.class)));
+    }
+    // For each table destination, it's expected to create two load jobs based on the triggering
+    // frequency and processing time intervals.
+    assertEquals(2 * numTables, fakeDatasetService.getInsertCount());
   }
 
   @Test
