@@ -36,46 +36,60 @@ set -o pipefail
 set -e
 
 # These default artifacts are common causes of linkage errors.
-ARTIFACTS="beam-sdks-java-core
-  beam-sdks-java-io-google-cloud-platform
-  beam-runners-google-cloud-dataflow-java
-  beam-sdks-java-io-hadoop-format"
+DEFAULT_ARTIFACT_LISTS=" \
+  beam-sdks-java-core \
+  beam-sdks-java-io-google-cloud-platform \
+  beam-runners-google-cloud-dataflow-java \
+  beam-sdks-java-io-hadoop-format \
+"
 
-if [ ! -z "$1" ]; then
-  ARTIFACTS=$1
+BASELINE_REF=$1
+PROPOSED_REF=$2
+ARTIFACT_LISTS=$3
+
+if [ -z "$ARTIFACT_LISTS" ]; then
+  ARTIFACT_LISTS=$DEFAULT_ARTIFACT_LISTS
 fi
 
-BRANCH_NAME=$(git symbolic-ref --short HEAD)
+if [ -z "$BASELINE_REF" ] || [ -z "$PROPOSED_REF" ] || [ -z "$ARTIFACT_LISTS" ] ; then
+  echo "Usage: $0 <baseline ref> <proposed ref> [artifact lists]"
+  exit 1
+fi
 
 if [ ! -d buildSrc ]; then
-  echo "Please run this script in the Beam project root:"
-  echo "  /bin/bash sdks/java/build-tools/beam-linkage-check.sh"
-  exit 1
+  echo "Directory 'buildSrc' not found. Please run this script from the root directory of a clone of the Beam git repo."
 fi
 
-if [ "$BRANCH_NAME" = "master" ]; then
-  echo "Please run this script on a branch other than master"
+if [ "$BASELINE_REF" = "$PROPOSED_REF" ]; then
+  echo "Baseline and proposed refs are identical; cannot compare their linkage errors!"
   exit 1
 fi
-
-OUTPUT_DIR=build/linkagecheck
-mkdir -p $OUTPUT_DIR
 
 if [ ! -z "$(git diff)" ]; then
   echo "Uncommited change detected. Please commit changes and ensure 'git diff' is empty."
   exit 1
 fi
 
+STARTING_REF=$(git rev-parse --abbrev-ref HEAD)
+function cleanup() {
+  git checkout $STARTING_REF
+}
+trap cleanup EXIT
+
+echo "Comparing linkage of artifact lists $ARTIFACT_LISTS using baseline $BASELINE_REF and proposal $PROPOSED_REF"
+
+OUTPUT_DIR=build/linkagecheck
+mkdir -p $OUTPUT_DIR
+
 ACCUMULATED_RESULT=0
 
 function runLinkageCheck () {
-  COMMIT=$1
-  BRANCH=$2
-  MODE=$3 # "baseline" or "validate"
-  for ARTIFACT in $ARTIFACTS; do
-    echo "`date`:" "Running linkage check (${MODE}) for ${ARTIFACT} in ${BRANCH}"
+  MODE=$1 # "baseline" or "validate"
 
-    BASELINE_FILE=${OUTPUT_DIR}/baseline-${ARTIFACT}.xml
+  for ARTIFACT_LIST in $ARTIFACT_LISTS; do
+    echo "`date`:" "Running linkage check (${MODE}) for ${ARTIFACT_LISTS}"
+
+    BASELINE_FILE=${OUTPUT_DIR}/baseline-${ARTIFACT_LIST}.xml
     if [ "$MODE" = "baseline" ]; then
       BASELINE_OPTION="-PjavaLinkageWriteBaseline=${BASELINE_FILE}"
       echo "`date`:" "to create a baseline (existing errors before change) $BASELINE_FILE"
@@ -88,9 +102,11 @@ function runLinkageCheck () {
     fi
 
     set +e
-    ./gradlew -Ppublishing -PjavaLinkageArtifactIds=$ARTIFACT ${BASELINE_OPTION} :checkJavaLinkage
+    set -x
+    ./gradlew -Ppublishing -PskipCheckerFramework -PjavaLinkageArtifactIds=$ARTIFACT_LIST ${BASELINE_OPTION} :checkJavaLinkage
     RESULT=$?
     set -e
+    set +x
     if [ "$MODE" = "validate" ]; then
       echo "`date`:" "Done: ${RESULT}"
       ACCUMULATED_RESULT=$((ACCUMULATED_RESULT | RESULT))
@@ -98,19 +114,13 @@ function runLinkageCheck () {
   done
 }
 
+echo "Establishing baseline linkage for $(git rev-parse --abbrev-ref $BASELINE_REF)"
+git -c advice.detachedHead=false checkout $BASELINE_REF
+runLinkageCheck baseline
 
-BRANCH_NAME=`git rev-parse --abbrev-ref HEAD`
-BRANCH_COMMIT=`git rev-parse --short=8 HEAD`
-
-git fetch
-MASTER_COMMIT=`git rev-parse --short=8 origin/master`
-git -c advice.detachedHead=false checkout $MASTER_COMMIT
-runLinkageCheck $MASTER_COMMIT master baseline
-
-
-# Restore original branch
-git checkout $BRANCH_NAME
-runLinkageCheck $BRANCH_COMMIT $BRANCH_NAME validate
+echo "Checking linkage for $(git rev-parse --abbrev-ref $PROPOSED_REF)"
+git -c advice.detachedHEad=false checkout $PROPOSED_REF
+runLinkageCheck validate
 
 if [ "${ACCUMULATED_RESULT}" = "0" ]; then
   echo "No new linkage errors"

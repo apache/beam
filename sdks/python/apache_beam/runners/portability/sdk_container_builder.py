@@ -196,7 +196,7 @@ class _SdkContainerImageCloudBuilder(SdkContainerImageBuilder):
         response_encoding='utf8')
     if not self._docker_registry_push_url:
       self._docker_registry_push_url = (
-          'gcr.io/%s' % self._google_cloud_options.project)
+          'gcr.io/%s/prebuilt_beam_sdk' % self._google_cloud_options.project)
 
   def invoke_docker_build_and_push(self, container_image_name):
     project_id = self._google_cloud_options.project
@@ -219,12 +219,11 @@ class _SdkContainerImageCloudBuilder(SdkContainerImageBuilder):
     build = cloudbuild_v1.Build()
     build.steps = []
     step = cloudbuild_v1.BuildStep()
-    step.name = 'gcr.io/cloud-builders/docker'
-    step.args = ['build', '-t', container_image_name, '.']
+    step.name = 'gcr.io/kaniko-project/executor:latest'
+    step.args = ['--destination=' + container_image_name, '--cache=true']
     step.dir = SOURCE_FOLDER
 
     build.steps.append(step)
-    build.images = [container_image_name]
 
     source = cloudbuild_v1.Source()
     source.storage_source = cloudbuild_v1.StorageSource()
@@ -236,13 +235,19 @@ class _SdkContainerImageCloudBuilder(SdkContainerImageBuilder):
     build.timeout = Duration().FromSeconds(seconds=1800)
 
     now = time.time()
-    _LOGGER.info('Building sdk container, this may take a few minutes...')
     operation = client.create_build(project_id=project_id, build=build)
-    # if build fails exception will be raised and stops the job submission.
-    result = operation.result()
     _LOGGER.info(
-        "Python SDK container pre-build finished in %.2f seconds, "
-        "check build log at %s" % (time.time() - now, result.log_url))
+        'Building sdk container with Google Cloud Build, this may '
+        'take a few minutes, you may check build log at %s' %
+        operation.metadata.build.log_url)
+
+    # block until build finish, if build fails exception will be raised and
+    # stops the job submission.
+    operation.result()
+
+    _LOGGER.info(
+        "Python SDK container pre-build finished in %.2f seconds" %
+        (time.time() - now))
     _LOGGER.info(
         "Python SDK container built and pushed as %s." % container_image_name)
 

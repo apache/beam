@@ -204,7 +204,7 @@ public class WindowDoFnOperatorTest {
     Coder<IntervalWindow> windowCoder = windowingStrategy.getWindowFn().windowCoder();
     SingletonKeyedWorkItemCoder<Long, Long> workItemCoder =
         SingletonKeyedWorkItemCoder.of(VarLongCoder.of(), VarLongCoder.of(), windowCoder);
-    FullWindowedValueCoder<SingletonKeyedWorkItem<Long, Long>> inputCoder =
+    FullWindowedValueCoder<KeyedWorkItem<Long, Long>> inputCoder =
         WindowedValue.getFullCoder(workItemCoder, windowCoder);
     FullWindowedValueCoder<KV<Long, Long>> outputCoder =
         WindowedValue.getFullCoder(KvCoder.of(VarLongCoder.of(), VarLongCoder.of()), windowCoder);
@@ -224,7 +224,8 @@ public class WindowDoFnOperatorTest {
         emptyList(),
         FlinkPipelineOptions.defaults(),
         VarLongCoder.of(),
-        new WorkItemKeySelector(VarLongCoder.of()));
+        new WorkItemKeySelector(
+            VarLongCoder.of(), new SerializablePipelineOptions(FlinkPipelineOptions.defaults())));
   }
 
   private KeyedOneInputStreamOperatorTestHarness<

@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.pubsub;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.beam.sdk.testing.JsonMatcher.jsonBytesLike;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.equalTo;
@@ -25,11 +27,14 @@ import static org.hamcrest.Matchers.hasProperty;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
@@ -38,6 +43,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.generic.GenericRecordBuilder;
+import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcConnection;
@@ -52,6 +60,7 @@ import org.apache.beam.sdk.io.gcp.pubsub.TestPubsubSignal;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.PCollection;
@@ -66,16 +75,18 @@ import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameter;
+import org.junit.runners.Parameterized.Parameters;
 
-@RunWith(JUnit4.class)
+@RunWith(Parameterized.class)
 @SuppressWarnings({
   "keyfor",
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
-public abstract class PubsubTableProviderIT implements Serializable {
+public class PubsubTableProviderIT implements Serializable {
 
-  protected static final Schema PAYLOAD_SCHEMA =
+  private static final Schema PAYLOAD_SCHEMA =
       Schema.builder()
           .addNullableField("id", Schema.FieldType.INT32)
           .addNullableField("name", Schema.FieldType.STRING)
@@ -88,14 +99,20 @@ public abstract class PubsubTableProviderIT implements Serializable {
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
   @Rule public transient TestPipeline filterPipeline = TestPipeline.create();
   private final SchemaIOTableProviderWrapper tableProvider = new PubsubTableProvider();
-  private final String payloadFormatParam =
-      getPayloadFormat() == null ? "" : String.format("\"format\" : \"%s\", ", getPayloadFormat());
+
+  @Parameters
+  public static Collection<Object[]> data() {
+    return Arrays.asList(
+        new Object[][] {{new PubsubJsonObjectProvider()}, {new PubsubAvroObjectProvider()}});
+  }
+
+  @Parameter public PubsubObjectProvider objectsProvider;
 
   /**
    * HACK: we need an objectmapper to turn pipelineoptions back into a map. We need to use
    * ReflectHelpers to get the extra PipelineOptions.
    */
-  protected static final ObjectMapper MAPPER =
+  private static final ObjectMapper MAPPER =
       new ObjectMapper()
           .registerModules(ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
 
@@ -116,16 +133,16 @@ public abstract class PubsubTableProviderIT implements Serializable {
                 + "TBLPROPERTIES '{ "
                 + "%s"
                 + "\"timestampAttributeKey\" : \"ts\" }'",
-            tableProvider.getTableType(), eventsTopic.topicPath(), payloadFormatParam);
+            tableProvider.getTableType(), eventsTopic.topicPath(), payloadFormatParam());
 
     String queryString = "SELECT message.payload.id, message.payload.name from message";
 
     // Prepare messages to send later
     List<PubsubMessage> messages =
         ImmutableList.of(
-            messageIdName(ts(1), 3, "foo"),
-            messageIdName(ts(2), 5, "bar"),
-            messageIdName(ts(3), 7, "baz"));
+            objectsProvider.messageIdName(ts(1), 3, "foo"),
+            objectsProvider.messageIdName(ts(2), 5, "bar"),
+            objectsProvider.messageIdName(ts(3), 7, "baz"));
 
     // Initialize SQL environment and create the pubsub table
     BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(new PubsubTableProvider());
@@ -161,6 +178,7 @@ public abstract class PubsubTableProviderIT implements Serializable {
   }
 
   @Test
+  @SuppressWarnings("unchecked")
   public void testUsesDlq() throws Exception {
     String createTableString =
         String.format(
@@ -182,7 +200,7 @@ public abstract class PubsubTableProviderIT implements Serializable {
                 + "     }'",
             tableProvider.getTableType(),
             eventsTopic.topicPath(),
-            payloadFormatParam,
+            payloadFormatParam(),
             dlqTopic.topicPath());
 
     String queryString = "SELECT message.payload.id, message.payload.name from message";
@@ -190,9 +208,9 @@ public abstract class PubsubTableProviderIT implements Serializable {
     // Prepare messages to send later
     List<PubsubMessage> messages =
         ImmutableList.of(
-            messageIdName(ts(1), 3, "foo"),
-            messageIdName(ts(2), 5, "bar"),
-            messageIdName(ts(3), 7, "baz"),
+            objectsProvider.messageIdName(ts(1), 3, "foo"),
+            objectsProvider.messageIdName(ts(2), 5, "bar"),
+            objectsProvider.messageIdName(ts(3), 7, "baz"),
             messagePayload(ts(4), "{ - }"), // invalid message, will go to DLQ
             messagePayload(ts(5), "{ + }")); // invalid message, will go to DLQ
 
@@ -230,10 +248,11 @@ public abstract class PubsubTableProviderIT implements Serializable {
     dlqTopic
         .assertThatTopicEventuallyReceives(
             matcherPayload(ts(4), "{ - }"), matcherPayload(ts(5), "{ + }"))
-        .waitForUpTo(Duration.standardSeconds(20));
+        .waitForUpTo(Duration.standardSeconds(40));
   }
 
   @Test
+  @SuppressWarnings({"unchecked", "rawtypes"})
   public void testSQLLimit() throws Exception {
     String createTableString =
         String.format(
@@ -255,18 +274,18 @@ public abstract class PubsubTableProviderIT implements Serializable {
                 + "     }'",
             tableProvider.getTableType(),
             eventsTopic.topicPath(),
-            payloadFormatParam,
+            payloadFormatParam(),
             dlqTopic.topicPath());
 
     List<PubsubMessage> messages =
         ImmutableList.of(
-            messageIdName(ts(1), 3, "foo"),
-            messageIdName(ts(2), 5, "bar"),
-            messageIdName(ts(3), 7, "baz"),
-            messageIdName(ts(4), 9, "ba2"),
-            messageIdName(ts(5), 10, "ba3"),
-            messageIdName(ts(6), 13, "ba4"),
-            messageIdName(ts(7), 15, "ba5"));
+            objectsProvider.messageIdName(ts(1), 3, "foo"),
+            objectsProvider.messageIdName(ts(2), 5, "bar"),
+            objectsProvider.messageIdName(ts(3), 7, "baz"),
+            objectsProvider.messageIdName(ts(4), 9, "ba2"),
+            objectsProvider.messageIdName(ts(5), 10, "ba3"),
+            objectsProvider.messageIdName(ts(6), 13, "ba4"),
+            objectsProvider.messageIdName(ts(7), 15, "ba5"));
 
     // We need the default options on the schema to include the project passed in for the
     // integration test
@@ -316,16 +335,16 @@ public abstract class PubsubTableProviderIT implements Serializable {
                 + "       %s"
                 + "       \"timestampAttributeKey\" : \"ts\" "
                 + "     }'",
-            tableProvider.getTableType(), eventsTopic.topicPath(), payloadFormatParam);
+            tableProvider.getTableType(), eventsTopic.topicPath(), payloadFormatParam());
 
     String queryString = "SELECT message.id, message.name from message";
 
     // Prepare messages to send later
     List<PubsubMessage> messages =
         ImmutableList.of(
-            messageIdName(ts(1), 3, "foo"),
-            messageIdName(ts(2), 5, "bar"),
-            messageIdName(ts(3), 7, "baz"));
+            objectsProvider.messageIdName(ts(1), 3, "foo"),
+            objectsProvider.messageIdName(ts(2), 5, "bar"),
+            objectsProvider.messageIdName(ts(3), 7, "baz"));
 
     // Initialize SQL environment and create the pubsub table
     BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(new PubsubTableProvider());
@@ -361,6 +380,7 @@ public abstract class PubsubTableProviderIT implements Serializable {
   }
 
   @Test
+  @SuppressWarnings("unchecked")
   public void testSQLInsertRowsToPubsubFlat() throws Exception {
     String createTableString =
         String.format(
@@ -379,7 +399,7 @@ public abstract class PubsubTableProviderIT implements Serializable {
                 + "     }'",
             tableProvider.getTableType(),
             eventsTopic.topicPath(),
-            payloadFormatParam,
+            payloadFormatParam(),
             dlqTopic.topicPath());
 
     // Initialize SQL environment and create the pubsub table
@@ -395,18 +415,19 @@ public abstract class PubsubTableProviderIT implements Serializable {
             + "('person2', 70, FALSE)";
 
     // Apply the PTransform to insert the rows
-    PCollection<Row> queryOutput = query(sqlEnv, pipeline, queryString);
+    query(sqlEnv, pipeline, queryString);
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(5));
 
     eventsTopic
         .assertThatTopicEventuallyReceives(
-            matcherNameHeightKnowsJS("person1", 80, true),
-            matcherNameHeightKnowsJS("person2", 70, false))
-        .waitForUpTo(Duration.standardSeconds(20));
+            objectsProvider.matcherNameHeightKnowsJS("person1", 80, true),
+            objectsProvider.matcherNameHeightKnowsJS("person2", 70, false))
+        .waitForUpTo(Duration.standardSeconds(40));
   }
 
   @Test
+  @SuppressWarnings("unchecked")
   public void testSQLInsertRowsToPubsubWithTimestampAttributeFlat() throws Exception {
     String createTableString =
         String.format(
@@ -426,7 +447,7 @@ public abstract class PubsubTableProviderIT implements Serializable {
                 + "   }'",
             tableProvider.getTableType(),
             eventsTopic.topicPath(),
-            payloadFormatParam,
+            payloadFormatParam(),
             dlqTopic.topicPath());
 
     // Initialize SQL environment and create the pubsub table
@@ -438,7 +459,7 @@ public abstract class PubsubTableProviderIT implements Serializable {
             + "VALUES "
             + "(TIMESTAMP '1970-01-01 00:00:00.001', 'person1', 80, TRUE), "
             + "(TIMESTAMP '1970-01-01 00:00:00.002', 'person2', 70, FALSE)";
-    PCollection<Row> queryOutput = query(sqlEnv, pipeline, queryString);
+    query(sqlEnv, pipeline, queryString);
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(5));
 
@@ -446,10 +467,11 @@ public abstract class PubsubTableProviderIT implements Serializable {
         .assertThatTopicEventuallyReceives(
             matcherTsNameHeightKnowsJS(ts(1), "person1", 80, true),
             matcherTsNameHeightKnowsJS(ts(2), "person2", 70, false))
-        .waitForUpTo(Duration.standardSeconds(20));
+        .waitForUpTo(Duration.standardSeconds(40));
   }
 
   @Test
+  @SuppressWarnings("unchecked")
   public void testSQLReadAndWriteWithSameFlatTableDefinition() throws Exception {
     // This test verifies that the same pubsub table definition can be used for both reading and
     // writing
@@ -458,9 +480,10 @@ public abstract class PubsubTableProviderIT implements Serializable {
     // `javascript_people`
 
     String tblProperties =
-        getPayloadFormat() == null
+        objectsProvider.getPayloadFormat() == null
             ? ""
-            : String.format("TBLPROPERTIES '{\"format\": \"%s\"}'", getPayloadFormat());
+            : String.format(
+                "TBLPROPERTIES '{\"format\": \"%s\"}'", objectsProvider.getPayloadFormat());
     String createTableString =
         String.format(
             "CREATE EXTERNAL TABLE people (\n"
@@ -529,14 +552,14 @@ public abstract class PubsubTableProviderIT implements Serializable {
 
     filteredEventsTopic
         .assertThatTopicEventuallyReceives(
-            matcherNameHeight("person1", 80),
-            matcherNameHeight("person3", 60),
-            matcherNameHeight("person5", 40))
+            objectsProvider.matcherNameHeight("person1", 80),
+            objectsProvider.matcherNameHeight("person3", 60),
+            objectsProvider.matcherNameHeight("person5", 40))
         .waitForUpTo(Duration.standardMinutes(5));
   }
 
-  private CalciteConnection connect(PipelineOptions options, TableProvider... tableProviders)
-      throws SQLException {
+  @SuppressWarnings("unchecked")
+  private CalciteConnection connect(PipelineOptions options, TableProvider... tableProviders) {
     // HACK: PipelineOptions should expose a prominent method to do this reliably
     // The actual options are in the "options" field of the converted map
     Map<String, String> argsMap =
@@ -569,50 +592,180 @@ public abstract class PubsubTableProviderIT implements Serializable {
     }
   }
 
+  private String payloadFormatParam() {
+    return objectsProvider.getPayloadFormat() == null
+        ? ""
+        : String.format("\"format\" : \"%s\", ", objectsProvider.getPayloadFormat());
+  }
+
   private PCollection<Row> query(BeamSqlEnv sqlEnv, TestPipeline pipeline, String queryString) {
 
     return BeamSqlRelUtils.toPCollection(pipeline, sqlEnv.parseQuery(queryString));
   }
 
-  protected Row row(Schema schema, Object... values) {
+  private Row row(Schema schema, Object... values) {
     return Row.withSchema(schema).addValues(values).build();
   }
 
-  protected PubsubMessage message(Instant timestamp, byte[] payload) {
+  private static PubsubMessage message(Instant timestamp, byte[] payload) {
     return new PubsubMessage(payload, ImmutableMap.of("ts", String.valueOf(timestamp.getMillis())));
   }
 
-  protected Matcher<PubsubMessage> matcherTsNameHeightKnowsJS(
+  private Matcher<PubsubMessage> matcherTsNameHeightKnowsJS(
       Instant ts, String name, int height, boolean knowsJS) throws Exception {
     return allOf(
-        matcherNameHeightKnowsJS(name, height, knowsJS),
+        objectsProvider.matcherNameHeightKnowsJS(name, height, knowsJS),
         hasProperty("attributeMap", hasEntry("ts", String.valueOf(ts.getMillis()))));
   }
 
-  protected Matcher<PubsubMessage> matcherPayload(Instant timestamp, String payload) {
+  private Matcher<PubsubMessage> matcherPayload(Instant timestamp, String payload) {
     return allOf(
         hasProperty("payload", equalTo(payload.getBytes(StandardCharsets.US_ASCII))),
         hasProperty("attributeMap", hasEntry("ts", String.valueOf(timestamp.getMillis()))));
   }
 
-  protected Instant ts(long millis) {
+  private Instant ts(long millis) {
     return Instant.ofEpochMilli(millis);
   }
 
-  protected abstract String getPayloadFormat();
-
-  protected abstract PubsubMessage messageIdName(Instant timestamp, int id, String name)
-      throws Exception;
-
-  protected abstract Matcher<PubsubMessage> matcherNames(String name) throws Exception;
-
-  protected abstract Matcher<PubsubMessage> matcherNameHeightKnowsJS(
-      String name, int height, boolean knowsJS) throws Exception;
-
-  protected abstract Matcher<PubsubMessage> matcherNameHeight(String name, int height)
-      throws Exception;
-
   private PubsubMessage messagePayload(Instant timestamp, String payload) {
     return message(timestamp, payload.getBytes(StandardCharsets.US_ASCII));
+  }
+
+  private abstract static class PubsubObjectProvider implements Serializable {
+    protected abstract String getPayloadFormat();
+
+    protected abstract PubsubMessage messageIdName(Instant timestamp, int id, String name)
+        throws Exception;
+
+    protected abstract Matcher<PubsubMessage> matcherNames(String name) throws Exception;
+
+    protected abstract Matcher<PubsubMessage> matcherNameHeightKnowsJS(
+        String name, int height, boolean knowsJS) throws Exception;
+
+    protected abstract Matcher<PubsubMessage> matcherNameHeight(String name, int height)
+        throws Exception;
+  }
+
+  private static class PubsubJsonObjectProvider extends PubsubObjectProvider {
+
+    // Pubsub table provider should default to json
+    @Override
+    protected String getPayloadFormat() {
+      return null;
+    }
+
+    @Override
+    protected PubsubMessage messageIdName(Instant timestamp, int id, String name) {
+      String jsonString = "{ \"id\" : " + id + ", \"name\" : \"" + name + "\" }";
+      return message(timestamp, jsonString);
+    }
+
+    @Override
+    protected Matcher<PubsubMessage> matcherNames(String name) throws IOException {
+      return hasProperty("payload", toJsonByteLike(String.format("{\"name\":\"%s\"}", name)));
+    }
+
+    @Override
+    protected Matcher<PubsubMessage> matcherNameHeightKnowsJS(
+        String name, int height, boolean knowsJS) throws IOException {
+      String jsonString =
+          String.format(
+              "{\"name\":\"%s\", \"height\": %s, \"knowsJavascript\": %s}", name, height, knowsJS);
+
+      return hasProperty("payload", toJsonByteLike(jsonString));
+    }
+
+    @Override
+    protected Matcher<PubsubMessage> matcherNameHeight(String name, int height) throws IOException {
+      String jsonString = String.format("{\"name\":\"%s\", \"height\": %s}", name, height);
+      return hasProperty("payload", toJsonByteLike(jsonString));
+    }
+
+    private PubsubMessage message(Instant timestamp, String jsonPayload) {
+      return PubsubTableProviderIT.message(timestamp, jsonPayload.getBytes(UTF_8));
+    }
+
+    private Matcher<byte[]> toJsonByteLike(String jsonString) throws IOException {
+      return jsonBytesLike(jsonString);
+    }
+  }
+
+  private static class PubsubAvroObjectProvider extends PubsubObjectProvider {
+    private static final Schema NAME_HEIGHT_KNOWS_JS_SCHEMA =
+        Schema.builder()
+            .addNullableField("name", Schema.FieldType.STRING)
+            .addNullableField("height", Schema.FieldType.INT32)
+            .addNullableField("knowsJavascript", Schema.FieldType.BOOLEAN)
+            .build();
+
+    private static final Schema NAME_HEIGHT_SCHEMA =
+        Schema.builder()
+            .addNullableField("name", Schema.FieldType.STRING)
+            .addNullableField("height", Schema.FieldType.INT32)
+            .build();
+
+    @Override
+    protected String getPayloadFormat() {
+      return "avro";
+    }
+
+    @Override
+    protected PubsubMessage messageIdName(Instant timestamp, int id, String name)
+        throws IOException {
+      byte[] encodedRecord =
+          createEncodedGenericRecord(
+              PAYLOAD_SCHEMA,
+              org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList.of(
+                  id, name));
+      return message(timestamp, encodedRecord);
+    }
+
+    @Override
+    protected Matcher<PubsubMessage> matcherNames(String name) throws IOException {
+      Schema schema = Schema.builder().addStringField("name").build();
+      byte[] encodedRecord =
+          createEncodedGenericRecord(
+              schema,
+              org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList.of(
+                  name));
+      return hasProperty("payload", equalTo(encodedRecord));
+    }
+
+    @Override
+    protected Matcher<PubsubMessage> matcherNameHeight(String name, int height) throws IOException {
+      byte[] encodedRecord =
+          createEncodedGenericRecord(
+              NAME_HEIGHT_SCHEMA,
+              org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList.of(
+                  name, height));
+      return hasProperty("payload", equalTo(encodedRecord));
+    }
+
+    @Override
+    protected Matcher<PubsubMessage> matcherNameHeightKnowsJS(
+        String name, int height, boolean knowsJS) throws IOException {
+      byte[] encodedRecord =
+          createEncodedGenericRecord(
+              NAME_HEIGHT_KNOWS_JS_SCHEMA,
+              org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList.of(
+                  name, height, knowsJS));
+      return hasProperty("payload", equalTo(encodedRecord));
+    }
+
+    private byte[] createEncodedGenericRecord(Schema beamSchema, List<Object> values)
+        throws IOException {
+      org.apache.avro.Schema avroSchema = AvroUtils.toAvroSchema(beamSchema);
+      GenericRecordBuilder builder = new GenericRecordBuilder(avroSchema);
+      List<org.apache.avro.Schema.Field> fields = avroSchema.getFields();
+      for (int i = 0; i < fields.size(); ++i) {
+        builder.set(fields.get(i), values.get(i));
+      }
+      AvroCoder<GenericRecord> coder = AvroCoder.of(avroSchema);
+      ByteArrayOutputStream out = new ByteArrayOutputStream();
+
+      coder.encode(builder.build(), out);
+      return out.toByteArray();
+    }
   }
 }

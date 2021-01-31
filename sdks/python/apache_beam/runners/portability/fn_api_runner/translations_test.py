@@ -38,6 +38,7 @@ class TranslationsTest(unittest.TestCase):
       def expand(self, pcoll):
         _ = pcoll | 'key-with-none-a' >> beam.ParDo(core._KeyWithNone())
         _ = pcoll | 'key-with-none-b' >> beam.ParDo(core._KeyWithNone())
+        _ = pcoll | 'key-with-none-c' >> beam.ParDo(core._KeyWithNone())
 
     pipeline = beam.Pipeline()
     _ = pipeline | beam.Create(
@@ -57,6 +58,7 @@ class TranslationsTest(unittest.TestCase):
       def expand(self, pcoll):
         _ = pcoll | 'mean-perkey' >> combiners.Mean.PerKey()
         _ = pcoll | 'count-perkey' >> combiners.Count.PerKey()
+        _ = pcoll | 'largest-perkey' >> core.CombinePerKey(combiners.Largest(1))
 
     pipeline = beam.Pipeline()
     vals = [6, 3, 1, 1, 9, 1, 5, 2, 0, 6]
@@ -74,7 +76,8 @@ class TranslationsTest(unittest.TestCase):
         if transform.spec.urn == common_urns.composites.COMBINE_PER_KEY.urn:
           combine_per_key_stages.append(stage)
     self.assertEqual(len(combine_per_key_stages), 1)
-    self.assertIn('/Pack', combine_per_key_stages[0].name)
+    self.assertIn('Packed', combine_per_key_stages[0].name)
+    self.assertIn('Packed', combine_per_key_stages[0].transforms[0].unique_name)
     self.assertIn('multiple-combines', combine_per_key_stages[0].parent)
     self.assertNotIn('-perkey', combine_per_key_stages[0].parent)
 
@@ -83,6 +86,7 @@ class TranslationsTest(unittest.TestCase):
       def expand(self, pcoll):
         _ = pcoll | 'mean-perkey' >> combiners.Mean.PerKey()
         _ = pcoll | 'count-perkey' >> combiners.Count.PerKey()
+        _ = pcoll | 'largest-perkey' >> core.CombinePerKey(combiners.Largest(1))
 
     pipeline = beam.Pipeline()
     vals = [6, 3, 1, 1, 9, 1, 5, 2, 0, 6]
@@ -99,15 +103,19 @@ class TranslationsTest(unittest.TestCase):
           combine_per_key_stages.append(stage)
     # Combiner packing should be skipped because the environment is missing
     # the beam:combinefn:packed_python:v1 capability.
-    self.assertEqual(len(combine_per_key_stages), 2)
+    self.assertEqual(len(combine_per_key_stages), 3)
     for combine_per_key_stage in combine_per_key_stages:
-      self.assertNotIn('/Pack', combine_per_key_stage.name)
+      self.assertNotIn('Packed', combine_per_key_stage.name)
+      self.assertNotIn(
+          'Packed', combine_per_key_stage.transforms[0].unique_name)
 
   def test_pack_global_combiners(self):
     class MultipleCombines(beam.PTransform):
       def expand(self, pcoll):
         _ = pcoll | 'mean-globally' >> combiners.Mean.Globally()
         _ = pcoll | 'count-globally' >> combiners.Count.Globally()
+        _ = pcoll | 'largest-globally' >> core.CombineGlobally(
+            combiners.Largest(1))
 
     pipeline = beam.Pipeline()
     vals = [6, 3, 1, 1, 9, 1, 5, 2, 0, 6]
@@ -134,7 +142,8 @@ class TranslationsTest(unittest.TestCase):
         if transform.spec.urn == common_urns.composites.COMBINE_PER_KEY.urn:
           combine_per_key_stages.append(stage)
     self.assertEqual(len(combine_per_key_stages), 1)
-    self.assertIn('/Pack', combine_per_key_stages[0].name)
+    self.assertIn('Packed', combine_per_key_stages[0].name)
+    self.assertIn('Packed', combine_per_key_stages[0].transforms[0].unique_name)
     self.assertIn('multiple-combines', combine_per_key_stages[0].parent)
     self.assertNotIn('-globally', combine_per_key_stages[0].parent)
 
@@ -172,6 +181,7 @@ class TranslationsTest(unittest.TestCase):
     pcoll = pipeline | Create(vals)
     _ = pcoll | 'mean-globally' >> combiners.Mean.Globally()
     _ = pcoll | 'count-globally' >> combiners.Count.Globally()
+    _ = pcoll | 'largest-globally' >> core.CombineGlobally(combiners.Largest(1))
     pipeline_proto = pipeline.to_runner_api()
     optimized_pipeline_proto = translations.optimize_pipeline(
         pipeline_proto,
@@ -185,6 +195,37 @@ class TranslationsTest(unittest.TestCase):
     runner = runners.DirectRunner()
     beam.Pipeline.from_runner_api(
         optimized_pipeline_proto, runner, pipeline_options.PipelineOptions())
+
+  def test_pipeline_from_sorted_stages_is_toplogically_ordered(self):
+    pipeline = beam.Pipeline()
+    side = pipeline | 'side' >> Create([3, 4])
+
+    class CreateAndMultiplyBySide(beam.PTransform):
+      def expand(self, pcoll):
+        return (
+            pcoll | 'main' >> Create([1, 2]) | 'compute' >> beam.FlatMap(
+                lambda x, s: [x * y for y in s], beam.pvalue.AsIter(side)))
+
+    _ = pipeline | 'create-and-multiply-by-side' >> CreateAndMultiplyBySide()
+    pipeline_proto = pipeline.to_runner_api()
+    optimized_pipeline_proto = translations.optimize_pipeline(
+        pipeline_proto, [
+            (lambda stages, _: reversed(list(stages))),
+            translations.sort_stages,
+        ],
+        known_runner_urns=frozenset(),
+        partial=True)
+
+    def assert_is_topologically_sorted(transform_id, visited_pcolls):
+      transform = optimized_pipeline_proto.components.transforms[transform_id]
+      self.assertTrue(set(transform.inputs.values()).issubset(visited_pcolls))
+      visited_pcolls.update(transform.outputs.values())
+      for subtransform in transform.subtransforms:
+        assert_is_topologically_sorted(subtransform, visited_pcolls)
+
+    self.assertEqual(len(optimized_pipeline_proto.root_transform_ids), 1)
+    assert_is_topologically_sorted(
+        optimized_pipeline_proto.root_transform_ids[0], set())
 
 
 if __name__ == '__main__':

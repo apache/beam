@@ -46,9 +46,9 @@ from apache_beam.io.filebasedsink_test import _TestCaseWithTempDirCleanUp
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.bigquery import TableRowJsonCoder
 from apache_beam.io.gcp.bigquery import WriteToBigQuery
-from apache_beam.io.gcp.bigquery import _JsonToDictCoder
 from apache_beam.io.gcp.bigquery import _StreamToBigQuery
 from apache_beam.io.gcp.bigquery_file_loads_test import _ELEMENTS
+from apache_beam.io.gcp.bigquery_read_internal import _JsonToDictCoder
 from apache_beam.io.gcp.bigquery_read_internal import bigquery_export_destination_uri
 from apache_beam.io.gcp.bigquery_tools import JSON_COMPLIANCE_ERROR
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
@@ -364,6 +364,18 @@ class TestJsonToDictCoder(unittest.TestCase):
             'REPEATED', [
                 ('float', 'FLOAT', 'NULLABLE', []),
             ]),
+        ('integer', 'INTEGER', 'NULLABLE', []),
+    ])
+    coder = _JsonToDictCoder(schema)
+
+    actual = coder.decode(input_row)
+    self.assertEqual(expected_row, actual)
+
+  def test_repeatable_field_is_properly_converted(self):
+    input_row = b'{"repeated": ["55.5", "65.5"], "integer": "10"}'
+    expected_row = {'repeated': [55.5, 65.5], 'integer': 10}
+    schema = self._make_schema([
+        ('repeated', 'FLOAT', 'REPEATED', []),
         ('integer', 'INTEGER', 'NULLABLE', []),
     ])
     coder = _JsonToDictCoder(schema)
@@ -1233,8 +1245,6 @@ class PubSubBigQueryIT(unittest.TestCase):
 
   @attr('IT')
   def test_file_loads(self):
-    if isinstance(self.test_pipeline.runner, TestDataflowRunner):
-      self.skipTest('https://issuetracker.google.com/issues/118375066')
     self._run_pubsub_bq_pipeline(
         WriteToBigQuery.Method.FILE_LOADS, triggering_frequency=20)
 

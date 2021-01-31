@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.google.auto.service.AutoService;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
@@ -27,6 +28,8 @@ import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.InMemoryMetaTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.thrift.TBase;
+import org.apache.thrift.protocol.TProtocolFactory;
 
 /**
  * Kafka table provider.
@@ -50,7 +53,8 @@ public class KafkaTableProvider extends InMemoryMetaTableProvider {
     CSV,
     AVRO,
     JSON,
-    PROTO
+    PROTO,
+    THRIFT
   }
 
   @Override
@@ -78,15 +82,51 @@ public class KafkaTableProvider extends InMemoryMetaTableProvider {
       case JSON:
         return new BeamKafkaJsonTable(schema, bootstrapServers, topics);
       case PROTO:
-        String protoClassName = properties.getString("protoClass");
-        try {
-          Class<?> protoClass = Class.forName(protoClassName);
-          return new BeamKafkaProtoTable(schema, bootstrapServers, topics, protoClass);
-        } catch (ClassNotFoundException e) {
-          throw new IllegalArgumentException("Incorrect proto class provided: " + protoClassName);
-        }
+        return protoTable(schema, bootstrapServers, topics, properties);
+      case THRIFT:
+        return thriftTable(schema, bootstrapServers, topics, properties);
       default:
         throw new IllegalArgumentException("Unsupported payload format: " + payloadFormat);
+    }
+  }
+
+  private BeamKafkaProtoTable protoTable(
+      Schema schema, String bootstrapServers, List<String> topics, JSONObject properties) {
+    String protoClassName = properties.getString("protoClass");
+    try {
+      Class<?> protoClass = Class.forName(protoClassName);
+      return new BeamKafkaProtoTable(schema, bootstrapServers, topics, protoClass);
+    } catch (ClassNotFoundException e) {
+      throw new IllegalArgumentException("Incorrect proto class provided: " + protoClassName);
+    }
+  }
+
+  private BeamKafkaThriftTable thriftTable(
+      Schema schema, String bootstrapServers, List<String> topics, JSONObject properties) {
+    final String thriftClassName = properties.getString("thriftClass");
+    final String thriftProtocolFactoryClassName =
+        properties.getString("thriftProtocolFactoryClass");
+    try {
+      final Class<TBase> thriftClass = (Class<TBase>) Class.forName(thriftClassName);
+      final TProtocolFactory thriftProtocolFactory;
+      try {
+        final Class<TProtocolFactory> thriftProtocolFactoryClass =
+            (Class<TProtocolFactory>) Class.forName(thriftProtocolFactoryClassName);
+        thriftProtocolFactory = thriftProtocolFactoryClass.getDeclaredConstructor().newInstance();
+      } catch (ClassNotFoundException e) {
+        throw new IllegalArgumentException(
+            "Incorrect thrift protocol factory class provided: " + thriftProtocolFactoryClassName);
+      } catch (InstantiationException
+          | IllegalAccessException
+          | InvocationTargetException
+          | NoSuchMethodException e) {
+        throw new IllegalStateException(
+            "Could not instantiate the thrift protocol factory class", e);
+      }
+      return new BeamKafkaThriftTable<>(
+          schema, bootstrapServers, topics, thriftClass, thriftProtocolFactory);
+    } catch (ClassNotFoundException e) {
+      throw new IllegalArgumentException("Incorrect thrift class provided: " + thriftClassName);
     }
   }
 

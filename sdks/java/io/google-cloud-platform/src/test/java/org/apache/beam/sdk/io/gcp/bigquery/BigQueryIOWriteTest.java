@@ -22,6 +22,7 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisp
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
@@ -30,7 +31,6 @@ import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -2030,5 +2030,14 @@ public class BigQueryIOWriteTest implements Serializable {
   public void testWriteFileSchemaUpdateOptionAll() throws Exception {
     Set<SchemaUpdateOption> options = EnumSet.allOf(SchemaUpdateOption.class);
     schemaUpdateOptionsTest(BigQueryIO.Write.Method.FILE_LOADS, options);
+  }
+
+  @Test
+  public void testSchemaUpdateOptionsFailsStreamingInserts() throws Exception {
+    Set<SchemaUpdateOption> options = EnumSet.of(SchemaUpdateOption.ALLOW_FIELD_ADDITION);
+    p.enableAbandonedNodeEnforcement(false);
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("SchemaUpdateOptions are not supported when method == STREAMING_INSERTS");
+    schemaUpdateOptionsTest(BigQueryIO.Write.Method.STREAMING_INSERTS, options);
   }
 }

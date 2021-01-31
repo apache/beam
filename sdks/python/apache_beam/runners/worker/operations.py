@@ -73,6 +73,7 @@ if TYPE_CHECKING:
   from apache_beam.runners.sdf_utils import SplitResultResidual
   from apache_beam.runners.worker.bundle_processor import ExecutionContext
   from apache_beam.runners.worker.statesampler import StateSampler
+  from apache_beam.transforms.userstate import TimerSpec
 
 # Allow some "pure mode" declarations.
 try:
@@ -685,7 +686,7 @@ class DoOperation(Operation):
         self.timer_specs = {
             spec.name: spec
             for spec in userstate.get_dofn_specs(fn)[1]
-        }
+        }  # type: Dict[str, TimerSpec]
 
       if self.side_input_maps is None:
         if tags_and_types:
@@ -741,7 +742,8 @@ class DoOperation(Operation):
         timer_data.user_key,
         timer_data.windows[0],
         timer_data.fire_timestamp,
-        timer_data.paneinfo)
+        timer_data.paneinfo,
+        timer_data.dynamic_timer_tag)
 
   def finish(self):
     # type: () -> None

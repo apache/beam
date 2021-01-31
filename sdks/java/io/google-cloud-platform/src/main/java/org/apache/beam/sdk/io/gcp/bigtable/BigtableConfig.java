@@ -66,6 +66,9 @@ abstract class BigtableConfig implements Serializable {
   /** {@link BigtableService} used only for testing. */
   abstract @Nullable BigtableService getBigtableService();
 
+  /** Bigtable emulator. Used only for testing. */
+  abstract @Nullable String getEmulatorHost();
+
   abstract Builder toBuilder();
 
   static BigtableConfig.Builder builder() {
@@ -91,6 +94,8 @@ abstract class BigtableConfig implements Serializable {
         SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder> optionsConfigurator);
 
     abstract Builder setBigtableService(BigtableService bigtableService);
+
+    abstract Builder setEmulatorHost(String emulatorHost);
 
     abstract BigtableConfig build();
   }
@@ -131,6 +136,12 @@ abstract class BigtableConfig implements Serializable {
   BigtableConfig withBigtableService(BigtableService bigtableService) {
     checkArgument(bigtableService != null, "bigtableService can not be null");
     return toBuilder().setBigtableService(bigtableService).build();
+  }
+
+  @VisibleForTesting
+  BigtableConfig withEmulator(String emulatorHost) {
+    checkArgument(emulatorHost != null, "emulatorHost can not be null");
+    return toBuilder().setEmulatorHost(emulatorHost).build();
   }
 
   void validate() {
@@ -223,6 +234,10 @@ abstract class BigtableConfig implements Serializable {
 
     if (getProjectId() != null) {
       effectiveOptions.setProjectId(getProjectId().get());
+    }
+
+    if (getEmulatorHost() != null) {
+      effectiveOptions.enableEmulator(getEmulatorHost());
     }
 
     return effectiveOptions;

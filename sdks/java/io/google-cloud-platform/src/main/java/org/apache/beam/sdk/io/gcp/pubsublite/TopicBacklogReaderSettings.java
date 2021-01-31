@@ -17,22 +17,25 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsublite;
 
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+
+import com.google.api.gax.rpc.ApiException;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.pubsublite.AdminClient;
 import com.google.cloud.pubsublite.AdminClientSettings;
+import com.google.cloud.pubsublite.Partition;
 import com.google.cloud.pubsublite.SubscriptionPath;
 import com.google.cloud.pubsublite.TopicPath;
 import com.google.cloud.pubsublite.internal.ExtractStatus;
 import com.google.cloud.pubsublite.internal.TopicStatsClient;
 import com.google.cloud.pubsublite.internal.TopicStatsClientSettings;
-import com.google.cloud.pubsublite.proto.TopicStatsServiceGrpc.TopicStatsServiceBlockingStub;
-import io.grpc.StatusException;
 import java.io.Serializable;
 import java.util.concurrent.ExecutionException;
-import org.checkerframework.checker.nullness.qual.Nullable;
+import javax.annotation.Nonnull;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Ticker;
 
 @AutoValue
-public abstract class TopicBacklogReaderSettings implements Serializable {
+abstract class TopicBacklogReaderSettings implements Serializable {
   private static final long serialVersionUID = -4001752066450248673L;
 
   /**
@@ -41,22 +44,21 @@ public abstract class TopicBacklogReaderSettings implements Serializable {
    */
   abstract TopicPath topicPath();
 
-  // Optional parameters
-  abstract @Nullable SerializableSupplier<TopicStatsServiceBlockingStub> stub();
+  abstract Partition partition();
 
-  public static Builder newBuilder() {
+  static Builder newBuilder() {
     return new AutoValue_TopicBacklogReaderSettings.Builder();
   }
 
   @AutoValue.Builder
-  public abstract static class Builder {
+  abstract static class Builder {
 
     // Required parameters.
-    public abstract Builder setTopicPath(TopicPath topicPath);
+    abstract Builder setTopicPath(TopicPath topicPath);
 
-    @SuppressWarnings("argument.type.incompatible")
-    public Builder setTopicPathFromSubscriptionPath(SubscriptionPath subscriptionPath)
-        throws StatusException {
+    @SuppressWarnings("assignment.type.incompatible")
+    Builder setTopicPathFromSubscriptionPath(SubscriptionPath subscriptionPath)
+        throws ApiException {
       try (AdminClient adminClient =
           AdminClient.create(
               AdminClientSettings.newBuilder()
@@ -65,25 +67,23 @@ public abstract class TopicBacklogReaderSettings implements Serializable {
         return setTopicPath(
             TopicPath.parse(adminClient.getSubscription(subscriptionPath).get().getTopic()));
       } catch (ExecutionException e) {
-        throw ExtractStatus.toCanonical(e.getCause());
+        @Nonnull Throwable cause = checkNotNull(e.getCause());
+        throw ExtractStatus.toCanonical(cause).underlying;
       } catch (Throwable t) {
-        throw ExtractStatus.toCanonical(t);
+        throw ExtractStatus.toCanonical(t).underlying;
       }
     }
 
-    public abstract Builder setStub(SerializableSupplier<TopicStatsServiceBlockingStub> stub);
+    abstract Builder setPartition(Partition partition);
 
-    public abstract TopicBacklogReaderSettings build();
+    abstract TopicBacklogReaderSettings build();
   }
 
-  @SuppressWarnings("CheckReturnValue")
-  TopicBacklogReader instantiate() throws StatusException {
-    TopicStatsClientSettings.Builder builder = TopicStatsClientSettings.newBuilder();
-    SerializableSupplier<TopicStatsServiceBlockingStub> stub = stub();
-    if (stub != null) {
-      builder.setStub(stub.get());
-    }
-    builder.setRegion(topicPath().location().region());
-    return new TopicBacklogReaderImpl(TopicStatsClient.create(builder.build()), topicPath());
+  TopicBacklogReader instantiate() throws ApiException {
+    TopicStatsClientSettings settings =
+        TopicStatsClientSettings.newBuilder().setRegion(topicPath().location().region()).build();
+    TopicBacklogReader impl =
+        new TopicBacklogReaderImpl(TopicStatsClient.create(settings), topicPath(), partition());
+    return new LimitingTopicBacklogReader(impl, Ticker.systemTicker());
   }
 }

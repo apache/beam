@@ -22,7 +22,9 @@ import (
 	"encoding/json"
 	"os"
 
+	"github.com/apache/beam/sdks/go/pkg/beam/core/metrics"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/protox"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/runners/universal/runnerlib"
@@ -31,8 +33,9 @@ import (
 )
 
 // Execute submits a pipeline as a Dataflow job.
-func Execute(ctx context.Context, raw *pipepb.Pipeline, opts *JobOptions, workerURL, jarURL, modelURL, endpoint string, async bool) (string, error) {
+func Execute(ctx context.Context, raw *pipepb.Pipeline, opts *JobOptions, workerURL, jarURL, modelURL, endpoint string, async bool) (*dataflowPipelineResult, error) {
 	// (1) Upload Go binary to GCS.
+	presult := &dataflowPipelineResult{}
 
 	bin := opts.Worker
 	if bin == "" {
@@ -44,7 +47,7 @@ func Execute(ctx context.Context, raw *pipepb.Pipeline, opts *JobOptions, worker
 
 			worker, err := runnerlib.BuildTempWorkerBinary(ctx)
 			if err != nil {
-				return "", err
+				return presult, err
 			}
 			defer os.Remove(worker)
 
@@ -57,7 +60,7 @@ func Execute(ctx context.Context, raw *pipepb.Pipeline, opts *JobOptions, worker
 	log.Infof(ctx, "Staging worker binary: %v", bin)
 
 	if err := StageFile(ctx, opts.Project, workerURL, bin); err != nil {
-		return "", err
+		return presult, err
 	}
 	log.Infof(ctx, "Staged worker binary: %v", workerURL)
 
@@ -65,7 +68,7 @@ func Execute(ctx context.Context, raw *pipepb.Pipeline, opts *JobOptions, worker
 		log.Infof(ctx, "Staging Dataflow worker jar: %v", opts.WorkerJar)
 
 		if err := StageFile(ctx, opts.Project, jarURL, opts.WorkerJar); err != nil {
-			return "", err
+			return presult, err
 		}
 		log.Infof(ctx, "Staged worker jar: %v", jarURL)
 	}
@@ -74,12 +77,12 @@ func Execute(ctx context.Context, raw *pipepb.Pipeline, opts *JobOptions, worker
 
 	p, err := Fixup(raw)
 	if err != nil {
-		return "", err
+		return presult, err
 	}
 	log.Info(ctx, proto.MarshalTextString(p))
 
 	if err := StageModel(ctx, opts.Project, modelURL, protox.MustEncode(p)); err != nil {
-		return "", err
+		return presult, err
 	}
 	log.Infof(ctx, "Staged model pipeline: %v", modelURL)
 
@@ -87,17 +90,17 @@ func Execute(ctx context.Context, raw *pipepb.Pipeline, opts *JobOptions, worker
 
 	job, err := Translate(ctx, p, opts, workerURL, jarURL, modelURL)
 	if err != nil {
-		return "", err
+		return presult, err
 	}
 	PrintJob(ctx, job)
 
 	client, err := NewClient(ctx, endpoint)
 	if err != nil {
-		return "", err
+		return presult, err
 	}
 	upd, err := Submit(ctx, client, opts.Project, opts.Region, job)
 	if err != nil {
-		return "", err
+		return presult, err
 	}
 	log.Infof(ctx, "Submitted job: %v", upd.Id)
 	if endpoint == "" {
@@ -105,13 +108,23 @@ func Execute(ctx context.Context, raw *pipepb.Pipeline, opts *JobOptions, worker
 	}
 	log.Infof(ctx, "Logs: https://console.cloud.google.com/logs/viewer?project=%v&resource=dataflow_step%%2Fjob_id%%2F%v", opts.Project, upd.Id)
 
+	presult.jobID = upd.Id
+
 	if async {
-		return upd.Id, nil
+		return presult, nil
 	}
 
 	// (4) Wait for completion.
+	err = WaitForCompletion(ctx, client, opts.Project, opts.Region, upd.Id)
 
-	return upd.Id, WaitForCompletion(ctx, client, opts.Project, opts.Region, upd.Id)
+	res, presultErr := newDataflowPipelineResult(ctx, client, job, opts.Project, opts.Region, upd.Id)
+	if presultErr != nil {
+		if err != nil {
+			return presult, errors.Wrap(err, presultErr.Error())
+		}
+		return presult, presultErr
+	}
+	return res, err
 }
 
 // PrintJob logs the Dataflow job.
@@ -121,4 +134,26 @@ func PrintJob(ctx context.Context, job *df.Job) {
 		log.Infof(ctx, "Failed to print job %v: %v", job.Id, err)
 	}
 	log.Info(ctx, string(str))
+}
+
+type dataflowPipelineResult struct {
+	jobID   string
+	metrics *metrics.Results
+}
+
+func newDataflowPipelineResult(ctx context.Context, client *df.Service, job *df.Job, project, region, jobID string) (*dataflowPipelineResult, error) {
+	res, err := GetMetrics(ctx, client, project, region, jobID)
+	if err != nil {
+		return &dataflowPipelineResult{jobID, nil}, errors.Wrap(err, "failed to get metrics")
+	}
+
+	return &dataflowPipelineResult{jobID, FromMetricUpdates(res.Metrics, job)}, nil
+}
+
+func (pr dataflowPipelineResult) Metrics() metrics.Results {
+	return *pr.metrics
+}
+
+func (pr dataflowPipelineResult) JobID() string {
+	return pr.jobID
 }

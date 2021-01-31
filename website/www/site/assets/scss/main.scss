@@ -35,7 +35,8 @@
 @import "_footer.sass";
 @import "_graphic.sass";
 @import "_header.sass";
-@import "_hero.sass";
+@import "_hero.scss";
+@import "_hero-mobile.scss";
 @import "_logos.scss";
 @import "_pillars.scss";
 @import "_section-nav.sass";
@@ -45,3 +46,6 @@
 @import "_lists.scss";
 @import "_search.scss";
 @import "_powered_by.scss";
+@import "_table-wrapper.sass";
+@import "_calendar.scss";
+@import "_quotes.scss";
