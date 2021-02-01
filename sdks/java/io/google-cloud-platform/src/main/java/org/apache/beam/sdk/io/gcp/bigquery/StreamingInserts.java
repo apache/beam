@@ -42,6 +42,7 @@ public class StreamingInserts<DestinationT, ElementT>
   private final boolean skipInvalidRows;
   private final boolean ignoreUnknownValues;
   private final boolean ignoreInsertIds;
+  private final boolean autoSharding;
   private final String kmsKey;
   private final Coder<ElementT> elementCoder;
   private final SerializableFunction<ElementT, TableRow> toTableRow;
@@ -63,6 +64,7 @@ public class StreamingInserts<DestinationT, ElementT>
         false,
         false,
         false,
+        false,
         elementCoder,
         toTableRow,
         toFailsafeTableRow,
@@ -79,6 +81,7 @@ public class StreamingInserts<DestinationT, ElementT>
       boolean skipInvalidRows,
       boolean ignoreUnknownValues,
       boolean ignoreInsertIds,
+      boolean autoSharding,
       Coder<ElementT> elementCoder,
       SerializableFunction<ElementT, TableRow> toTableRow,
       SerializableFunction<ElementT, TableRow> toFailsafeTableRow,
@@ -91,6 +94,7 @@ public class StreamingInserts<DestinationT, ElementT>
     this.skipInvalidRows = skipInvalidRows;
     this.ignoreUnknownValues = ignoreUnknownValues;
     this.ignoreInsertIds = ignoreInsertIds;
+    this.autoSharding = autoSharding;
     this.elementCoder = elementCoder;
     this.toTableRow = toTableRow;
     this.toFailsafeTableRow = toFailsafeTableRow;
@@ -109,6 +113,7 @@ public class StreamingInserts<DestinationT, ElementT>
         skipInvalidRows,
         ignoreUnknownValues,
         ignoreInsertIds,
+        autoSharding,
         elementCoder,
         toTableRow,
         toFailsafeTableRow,
@@ -126,6 +131,7 @@ public class StreamingInserts<DestinationT, ElementT>
         skipInvalidRows,
         ignoreUnknownValues,
         ignoreInsertIds,
+        autoSharding,
         elementCoder,
         toTableRow,
         toFailsafeTableRow,
@@ -142,6 +148,7 @@ public class StreamingInserts<DestinationT, ElementT>
         skipInvalidRows,
         ignoreUnknownValues,
         ignoreInsertIds,
+        autoSharding,
         elementCoder,
         toTableRow,
         toFailsafeTableRow,
@@ -158,6 +165,7 @@ public class StreamingInserts<DestinationT, ElementT>
         skipInvalidRows,
         ignoreUnknownValues,
         ignoreInsertIds,
+        autoSharding,
         elementCoder,
         toTableRow,
         toFailsafeTableRow,
@@ -174,6 +182,24 @@ public class StreamingInserts<DestinationT, ElementT>
         skipInvalidRows,
         ignoreUnknownValues,
         ignoreInsertIds,
+        autoSharding,
+        elementCoder,
+        toTableRow,
+        toFailsafeTableRow,
+        kmsKey);
+  }
+
+  StreamingInserts<DestinationT, ElementT> withAutoSharding(boolean autoSharding) {
+    return new StreamingInserts<>(
+        createDisposition,
+        dynamicDestinations,
+        bigQueryServices,
+        retryPolicy,
+        extendedErrorInfo,
+        skipInvalidRows,
+        ignoreUnknownValues,
+        ignoreInsertIds,
+        autoSharding,
         elementCoder,
         toTableRow,
         toFailsafeTableRow,
@@ -190,6 +216,7 @@ public class StreamingInserts<DestinationT, ElementT>
         skipInvalidRows,
         ignoreUnknownValues,
         ignoreInsertIds,
+        autoSharding,
         elementCoder,
         toTableRow,
         toFailsafeTableRow,
@@ -206,6 +233,7 @@ public class StreamingInserts<DestinationT, ElementT>
         skipInvalidRows,
         ignoreUnknownValues,
         ignoreInsertIds,
+        autoSharding,
         elementCoder,
         toTableRow,
         toFailsafeTableRow,
@@ -229,6 +257,7 @@ public class StreamingInserts<DestinationT, ElementT>
             .withSkipInvalidRows(skipInvalidRows)
             .withIgnoreUnknownValues(ignoreUnknownValues)
             .withIgnoreInsertIds(ignoreInsertIds)
+            .withAutoSharding(autoSharding)
             .withElementCoder(elementCoder)
             .withToTableRow(toTableRow)
             .withToFailsafeTableRow(toFailsafeTableRow));

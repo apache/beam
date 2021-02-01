@@ -19,6 +19,9 @@ package org.apache.beam.runners.core.metrics;
 
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.DelegatingCounter;
+import org.apache.beam.sdk.metrics.DelegatingHistogram;
+import org.apache.beam.sdk.metrics.Histogram;
+import org.apache.beam.sdk.util.HistogramData;
 
 /**
  * Define a metric on the current MetricContainer with a specific URN and a set of labels. This is a
@@ -31,5 +34,16 @@ public class LabeledMetrics {
    */
   public static Counter counter(MonitoringInfoMetricName metricName) {
     return new DelegatingCounter(metricName);
+  }
+
+  public static Counter counter(MonitoringInfoMetricName metricName, boolean processWideContainer) {
+    return new DelegatingCounter(metricName, processWideContainer);
+  }
+
+  public static Histogram histogram(
+      MonitoringInfoMetricName metricName,
+      HistogramData.BucketType bucketType,
+      boolean processWideContainer) {
+    return new DelegatingHistogram(metricName, bucketType, processWideContainer);
   }
 }

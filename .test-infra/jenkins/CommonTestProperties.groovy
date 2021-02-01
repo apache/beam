@@ -25,6 +25,10 @@ class CommonTestProperties {
     GO,
   }
 
+  static String getFlinkVersion() {
+    return "1.12"
+  }
+
   enum Runner {
     DATAFLOW("DataflowRunner"),
     TEST_DATAFLOW("TestDataflowRunner"),
@@ -40,7 +44,7 @@ class CommonTestProperties {
         TEST_DATAFLOW: ":runners:google-cloud-dataflow-java",
         SPARK: ":runners:spark",
         SPARK_STRUCTURED_STREAMING: ":runners:spark",
-        FLINK: ":runners:flink:1.10",
+        FLINK: ":runners:flink:${CommonTestProperties.getFlinkVersion()}",
         DIRECT: ":runners:direct-java"
       ],
       PYTHON: [
