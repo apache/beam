@@ -181,10 +181,10 @@ class CategoriesFilter {
   checkButton(){
     var button = document.getElementById("load-button");
     if( this.numberOfItems>this.numberToView*this.longList ){
-        this.delClassIfPresent(button, 'tf-filter-item');
+        this.delClassIfPresent(button, this.filterItemClass);
     }
     else{
-        this.addClassIfMissing(button, 'tf-filter-item');
+        this.addClassIfMissing(button, this.filterItemClass);
     }
   }
   showMore(){
