@@ -72,12 +72,12 @@
     justify-content: flex-start;
     margin-top: 84px;
   }
-  .category-buttons_center{
+  .category-buttons_center {
     max-width: 872px;
     margin: 0 0 80px;
     .remove {
-		  display: none;
-	}
+      display: none;
+    }
   }
   .restricted {
     max-width: 60%;
@@ -102,6 +102,10 @@
   height: 46px;
   &:hover {
     background-color: #f2804d;
+  }
+  a {
+    color: #fff;
+    text-decoration: none;
   }
 }
 
