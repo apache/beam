@@ -23,8 +23,6 @@ limitations under the License.
 
 This section provides in-depth conceptual information and reference material for the Beam Model, SDKs, and Runners:
 
-</br>
-
 ## Concepts
 
 Learn about the Beam Programming Model and the concepts common to all Beam SDKs and Runners.
