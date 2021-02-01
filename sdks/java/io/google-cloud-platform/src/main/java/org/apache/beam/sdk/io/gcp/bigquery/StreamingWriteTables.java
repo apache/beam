@@ -301,7 +301,9 @@ public class StreamingWriteTables<ElementT>
           input.getPipeline(),
           failedInsertsTag,
           failedInserts,
-          result.get(BatchedStreamingWrite.SUCCESSFUL_ROWS_TAG));
+          result.get(BatchedStreamingWrite.SUCCESSFUL_ROWS_TAG),
+          null,
+          null);
     }
   }
 
