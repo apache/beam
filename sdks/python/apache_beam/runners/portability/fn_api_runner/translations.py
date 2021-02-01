@@ -87,6 +87,12 @@ SideInputAccessPattern = beam_runner_api_pb2.FunctionSpec
 
 DataOutput = Dict[str, bytes]
 
+# A map from a PCollection coder ID to a Safe Coder ID
+# A safe coder is a coder that can be used on the runner-side of the FnApi.
+# A safe coder receives a byte string, and returns a type that can be
+# understood by the runner when deserializing.
+SafeCoderMapping = Dict[str, str]
+
 # DataSideInput maps SideInputIds to a tuple of the encoded bytes of the side
 # input content, and a payload specification regarding the type of side input
 # (MultiMap / Iterable).
@@ -378,7 +384,12 @@ class TransformContext(object):
     coder_proto = coders.BytesCoder().to_runner_api(
         None)  # type: ignore[arg-type]
     self.bytes_coder_id = self.add_or_get_coder_id(coder_proto, 'bytes_coder')
-    self.safe_coders = {self.bytes_coder_id: self.bytes_coder_id}
+
+    self.safe_coders: SafeCoderMapping = {
+        self.bytes_coder_id: self.bytes_coder_id
+    }
+
+    # A map of PCollection ID to Coder ID.
     self.data_channel_coders = {}  # type: Dict[str, str]
 
   def add_or_get_coder_id(
