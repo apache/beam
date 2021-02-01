@@ -107,7 +107,7 @@ public class SpannerAccessor implements AutoCloseable {
     this.spannerConfig = spannerConfig;
   }
 
-  static SpannerAccessor getOrCreate(SpannerConfig spannerConfig) {
+  public static SpannerAccessor getOrCreate(SpannerConfig spannerConfig) {
 
     SpannerAccessor self = spannerAccessors.get(spannerConfig);
     if (self == null) {
