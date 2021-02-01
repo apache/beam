@@ -10,13 +10,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# TODO:
-# Placeholder texts should be updated later
 - text: A framework that delivers the flexibility and advanced functionality our customers need.
   icon: icons/quote-icon.svg
   logoUrl: images/quote-paypal-logo.png
 - text: A framework that delivers the flexibility and advanced functionality our customers need.
-  icon: icons/quote-icon.svg 
+  icon: icons/quote-icon.svg
   logoUrl: images/quote-paypal-logo.png
 - text: A framework that delivers the flexibility and advanced functionality our customers need.
   icon: icons/quote-icon.svg
