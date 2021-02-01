@@ -35,6 +35,8 @@ dependencies {
   compile project(":sdks:java:extensions:sql")
   compile "sqlline:sqlline:1.4.0"
   compile library.java.vendored_guava_26_0_jre
+  runtimeOnly library.java.slf4j_jdk14
+  runtimeOnly "jline:jline:2.14.6"
   testCompile project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntime")
   testCompile library.java.junit
   // Depending on outputs so integrationTest can run with only test dependencies.

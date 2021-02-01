@@ -42,7 +42,6 @@ dependencies {
   compile "com.google.zetasql:zetasql-types:$zetasql_version"
   compile library.java.joda_time
   compile library.java.vendored_guava_26_0_jre
-  permitUnusedDeclared library.java.protobuf_java_util
   compile "com.google.zetasql:zetasql-jni-channel:$zetasql_version"
   permitUnusedDeclared "com.google.zetasql:zetasql-jni-channel:$zetasql_version"
   testCompile library.java.vendored_calcite_1_20_0
