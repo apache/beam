@@ -49,7 +49,7 @@ public class SparkJobInvoker extends JobInvoker {
   }
 
   private SparkJobInvoker(SparkJobServerDriver.SparkServerConfiguration configuration) {
-    super("spark-runner-job-invoker");
+    super("spark-runner-job-invoker-%d");
     this.configuration = configuration;
   }
 

@@ -17,6 +17,7 @@
  */
 
 import CommonJobProperties as commonJobProperties
+import CommonTestProperties
 import PostcommitJobBuilder
 
 // This job runs the suite of ValidatesRunner tests against the Flink runner.
@@ -37,7 +38,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Flink',
       steps {
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
-          tasks(':runners:flink:1.10:validatesRunner')
+          tasks(":runners:flink:${CommonTestProperties.getFlinkVersion()}:validatesRunner")
           commonJobProperties.setGradleSwitches(delegate)
         }
       }

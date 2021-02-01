@@ -739,7 +739,7 @@ class _CustomBigQuerySource(BoundedSource):
           self._job_name,
           self._source_uuid,
           bigquery_tools.BigQueryJobTypes.QUERY,
-          random.randint(0, 1000))
+          '%s_%s' % (int(time.time()), random.randint(0, 1000)))
       job = bq._start_query_job(
           project,
           self.query.get(),
@@ -803,7 +803,7 @@ class _CustomBigQuerySource(BoundedSource):
         bq.clean_up_temporary_dataset(self._get_project())
 
     for source in self.split_result:
-      yield SourceBundle(0, source, None, None)
+      yield SourceBundle(1.0, source, None, None)
 
   def get_range_tracker(self, start_position, stop_position):
     class CustomBigQuerySourceRangeTracker(RangeTracker):
@@ -831,7 +831,7 @@ class _CustomBigQuerySource(BoundedSource):
         self._job_name,
         self._source_uuid,
         bigquery_tools.BigQueryJobTypes.QUERY,
-        random.randint(0, 1000))
+        '%s_%s' % (int(time.time()), random.randint(0, 1000)))
     job = bq._start_query_job(
         self._get_project(),
         self.query.get(),
@@ -857,7 +857,7 @@ class _CustomBigQuerySource(BoundedSource):
         self._job_name,
         self._source_uuid,
         bigquery_tools.BigQueryJobTypes.EXPORT,
-        random.randint(0, 1000))
+        '%s_%s' % (int(time.time()), random.randint(0, 1000)))
     temp_location = self.options.view_as(GoogleCloudOptions).temp_location
     gcs_location = bigquery_export_destination_uri(
         self.gcs_location, temp_location, self._source_uuid)
