@@ -17,6 +17,7 @@
  */
 
 import CommonJobProperties as commonJobProperties
+import CommonTestProperties
 import static PythonTestProperties.SUPPORTED_CONTAINER_TASKS
 
 job('beam_Publish_Docker_Snapshots') {
@@ -44,7 +45,7 @@ job('beam_Publish_Docker_Snapshots') {
         tasks(":sdks:python:container:${taskVer}:dockerPush")
       }
       tasks(':sdks:go:container:dockerPush')
-      tasks(':runners:flink:1.10:job-server-container:dockerPush')
+      tasks(":runners:flink:${CommonTestProperties.getFlinkVersion()}:job-server-container:dockerPush")
       switches("-Pdocker-repository-root=gcr.io/apache-beam-testing/beam_portability")
       switches("-Pdocker-tag=latest")
     }

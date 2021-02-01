@@ -92,6 +92,7 @@ dependencies {
   testCompile library.java.testcontainers_kafka
   testCompile library.java.google_cloud_bigtable_emulator
   testCompile project(path: ":sdks:java:io:mongodb", configuration: "testRuntime")
+  testCompileOnly project(":sdks:java:extensions:sql:udf-test-provider")
   testRuntimeClasspath library.java.slf4j_jdk14
   hadoopVersions.each {kv ->
     "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-client:$kv.value"
@@ -225,4 +226,17 @@ hadoopVersions.each { kv ->
     classpath = configurations."hadoopVersion$kv.key" + sourceSets.test.runtimeClasspath
     include '**/*Test.class'
   }
+}
+
+task emptyJar(type: Jar) {
+  archiveBaseName = "${project.archivesBaseName}-empty-jar"
+  from fileTree(dir: getTemporaryDir().createNewFile().toString())
+}
+
+test {
+  dependsOn emptyJar
+  // Pass jars used by Java UDF tests via system properties.
+  evaluationDependsOn(":sdks:java:extensions:sql:udf-test-provider") // Needed to resolve jarPath.
+  systemProperty "beam.sql.udf.test.jar_path", project(":sdks:java:extensions:sql:udf-test-provider").jarPath
+  systemProperty "beam.sql.udf.test.empty_jar_path", emptyJar.archivePath
 }
