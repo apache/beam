@@ -30,6 +30,7 @@ import java.util.ArrayList;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
+import java.util.Set;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
 import org.apache.beam.sdk.metrics.Distribution;
@@ -37,6 +38,9 @@ import org.apache.beam.sdk.metrics.Metric;
 import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsContainer;
+import org.apache.beam.sdk.metrics.MetricsLogger;
+import org.apache.beam.sdk.util.HistogramData;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
@@ -58,7 +62,7 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings({
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
-public class MetricsContainerImpl implements Serializable, MetricsContainer {
+public class MetricsContainerImpl implements Serializable, MetricsContainer, MetricsLogger {
   private static final Logger LOG = LoggerFactory.getLogger(MetricsContainerImpl.class);
 
   private final @Nullable String stepName;
@@ -70,19 +74,24 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
 
   private MetricsMap<MetricName, GaugeCell> gauges = new MetricsMap<>(GaugeCell::new);
 
+  private MetricsMap<KV<MetricName, HistogramData.BucketType>, HistogramCell> histograms =
+      new MetricsMap<>(HistogramCell::new);
+
   /** Create a new {@link MetricsContainerImpl} associated with the given {@code stepName}. */
   public MetricsContainerImpl(@Nullable String stepName) {
     this.stepName = stepName;
   }
 
   /** Reset the metrics. */
+  @Override
   public void reset() {
     reset(counters);
     reset(distributions);
     reset(gauges);
+    reset(histograms);
   }
 
-  private void reset(MetricsMap<MetricName, ? extends MetricCell<?>> cells) {
+  private void reset(MetricsMap<?, ? extends MetricCell<?>> cells) {
     for (MetricCell<?> cell : cells.values()) {
       cell.reset();
     }
@@ -120,6 +129,24 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
    */
   public @Nullable DistributionCell tryGetDistribution(MetricName metricName) {
     return distributions.tryGet(metricName);
+  }
+
+  /**
+   * Return a {@code HistogramCell} named {@code metricName}. If it doesn't exist, create a {@code
+   * Metric} with the specified name.
+   */
+  @Override
+  public HistogramCell getHistogram(MetricName metricName, HistogramData.BucketType bucketType) {
+    return histograms.get(KV.of(metricName, bucketType));
+  }
+
+  /**
+   * Return a {@code HistogramCell} named {@code metricName}. If it doesn't exist, return {@code
+   * null}.
+   */
+  public @Nullable HistogramCell tryGetHistogram(
+      MetricName metricName, HistogramData.BucketType bucketType) {
+    return histograms.tryGet(KV.of(metricName, bucketType));
   }
 
   /**
@@ -382,5 +409,78 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
   @Override
   public int hashCode() {
     return Objects.hash(stepName, counters, distributions, gauges);
+  }
+
+  /**
+   * Match a MetricName with a given metric filter. If the metric filter is null, the method always
+   * returns true.
+   */
+  private boolean matchMetricName(MetricName metricName, @Nullable Set<MetricName> metricFilter) {
+    if (metricFilter == null) {
+      return true;
+    } else {
+      return metricFilter.contains(metricName);
+    }
+  }
+  /** Return a string representing the cumulative values of all metrics in this container. */
+  @Override
+  public String getCumulativeString(@Nullable Set<MetricName> metricFilter) {
+    StringBuilder message = new StringBuilder();
+    for (Map.Entry<MetricName, CounterCell> cell : counters.entries()) {
+      if (!matchMetricName(cell.getKey(), metricFilter)) {
+        continue;
+      }
+      message.append(cell.getKey().toString());
+      message.append(" = ");
+      message.append(cell.getValue().getCumulative());
+      message.append("\n");
+    }
+    for (Map.Entry<MetricName, DistributionCell> cell : distributions.entries()) {
+      if (!matchMetricName(cell.getKey(), metricFilter)) {
+        continue;
+      }
+      message.append(cell.getKey().toString());
+      message.append(" = ");
+      DistributionData data = cell.getValue().getCumulative();
+      message.append(
+          String.format(
+              "{sum: %d, count: %d, min: %d, max: %d}",
+              data.sum(), data.count(), data.min(), data.max()));
+      message.append("\n");
+    }
+    for (Map.Entry<MetricName, GaugeCell> cell : gauges.entries()) {
+      if (!matchMetricName(cell.getKey(), metricFilter)) {
+        continue;
+      }
+      message.append(cell.getKey().toString());
+      message.append(" = ");
+      GaugeData data = cell.getValue().getCumulative();
+      message.append(String.format("{timestamp: %s, value: %d}", data.timestamp(), data.value()));
+      message.append("\n");
+    }
+    for (Map.Entry<KV<MetricName, HistogramData.BucketType>, HistogramCell> cell :
+        histograms.entries()) {
+      if (!matchMetricName(cell.getKey().getKey(), metricFilter)) {
+        continue;
+      }
+      message.append(cell.getKey().getKey().toString());
+      message.append(" = ");
+      HistogramData data = cell.getValue().getCumulative();
+      if (data.getTotalCount() > 0) {
+        message.append(
+            String.format(
+                "{count: %d, p50: %f, p90: %f, p99: %f}",
+                data.getTotalCount(), data.p50(), data.p90(), data.p99()));
+      } else {
+        message.append("{count: 0}");
+      }
+      message.append("\n");
+    }
+    return message.toString();
+  }
+
+  @Override
+  public Logger getMetricLogger() {
+    return LOG;
   }
 }

@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.util;
 
 import com.google.auto.value.AutoValue;
+import java.io.Serializable;
 import java.math.RoundingMode;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.math.DoubleMath;
@@ -34,8 +35,8 @@ import org.slf4j.LoggerFactory;
  * in future versions of the Apache Beam SDK.
  */
 @Experimental
-public class Histogram {
-  private static final Logger LOG = LoggerFactory.getLogger(Histogram.class);
+public class HistogramData implements Serializable {
+  private static final Logger LOG = LoggerFactory.getLogger(HistogramData.class);
 
   private final BucketType bucketType;
 
@@ -44,7 +45,12 @@ public class Histogram {
   private long numTopRecords;
   private long numBottomRecords;
 
-  private Histogram(BucketType bucketType) {
+  /**
+   * Create a histogram.
+   *
+   * @param bucketType a bucket type for a new histogram instance.
+   */
+  public HistogramData(BucketType bucketType) {
     this.bucketType = bucketType;
     this.buckets = new long[bucketType.getNumBuckets()];
     this.numOfRecords = 0;
@@ -61,8 +67,8 @@ public class Histogram {
    *     width * numBuckets.
    * @return a new Histogram instance.
    */
-  public static Histogram linear(double start, double width, int numBuckets) {
-    return new Histogram(LinearBuckets.of(start, width, numBuckets));
+  public static HistogramData linear(double start, double width, int numBuckets) {
+    return new HistogramData(LinearBuckets.of(start, width, numBuckets));
   }
 
   public void record(double... values) {
@@ -95,6 +101,19 @@ public class Histogram {
 
   public synchronized long getTotalCount() {
     return numOfRecords + numTopRecords + numBottomRecords;
+  }
+
+  public synchronized String getPercentileString(String elemType, String unit) {
+    return String.format(
+        "Total number of %s: %s, P99: %s%s, P90: %s%s, P50: %s%s",
+        elemType,
+        getTotalCount(),
+        DoubleMath.roundToInt(p99(), RoundingMode.HALF_UP),
+        unit,
+        DoubleMath.roundToInt(p90(), RoundingMode.HALF_UP),
+        unit,
+        DoubleMath.roundToInt(p50(), RoundingMode.HALF_UP),
+        unit);
   }
 
   /**
@@ -153,7 +172,7 @@ public class Histogram {
     return bucketType.getRangeFrom() + bucketType.getAccumulatedBucketSize(index) + fracBucketSize;
   }
 
-  public interface BucketType {
+  public interface BucketType extends Serializable {
     // Lower bound of a starting bucket.
     double getRangeFrom();
     // Upper bound of an ending bucket.
@@ -186,7 +205,7 @@ public class Histogram {
         throw new RuntimeException(
             String.format("numBuckets should be greater than zero: %d", numBuckets));
       }
-      return new AutoValue_Histogram_LinearBuckets(start, width, numBuckets);
+      return new AutoValue_HistogramData_LinearBuckets(start, width, numBuckets);
     }
 
     @Override

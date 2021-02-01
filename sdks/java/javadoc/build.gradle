@@ -28,7 +28,7 @@ applyJavaNature(publish: false)
 description = "Apache Beam :: SDKs :: Java :: Aggregated Javadoc"
 
 for (p in rootProject.subprojects) {
-  if (!p.path.equals(project.path) && !p.path.equals(':sdks:java:bom')) {
+  if (!p.path.equals(project.path) && !p.path.startsWith(':sdks:java:bom')) {
     evaluationDependsOn(p.path)
   }
 }
@@ -36,7 +36,7 @@ for (p in rootProject.subprojects) {
 ext.getExportedJavadocProjects = {
   def exportedJavadocProjects = new ArrayList<>();
   for (p in rootProject.subprojects) {
-    if (!p.path.equals(project.path) && !p.path.equals(':sdks:java:bom')) {
+    if (!p.path.equals(project.path) && !p.path.startsWith(':sdks:java:bom')) {
       def subproject = p // project(':' + p.name)
       if (subproject.ext.properties.containsKey('exportJavadoc') &&
           subproject.ext.properties.exportJavadoc) {

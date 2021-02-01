@@ -849,6 +849,39 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     self.assertNotIn(PropertyNames.ALLOWS_SHARDABLE_STATE, properties)
     self.assertNotIn(PropertyNames.PRESERVES_KEYS, properties)
 
+  def _test_pack_combiners(self, pipeline_options, expect_packed):
+    runner = DataflowRunner()
+
+    with beam.Pipeline(runner=runner, options=pipeline_options) as p:
+      data = p | beam.Create([10, 20, 30])
+      _ = data | 'PackableMin' >> beam.CombineGlobally(min)
+      _ = data | 'PackableMax' >> beam.CombineGlobally(max)
+
+    unpacked_minimum_step_name = 'PackableMin/CombinePerKey/Combine'
+    unpacked_maximum_step_name = 'PackableMax/CombinePerKey/Combine'
+    packed_step_name = (
+        'Packed[PackableMin/CombinePerKey, PackableMax/CombinePerKey]/Pack/'
+        'CombinePerKey(SingleInputTupleCombineFn)/Combine')
+    job_dict = json.loads(str(runner.job))
+    step_names = set(s[u'properties'][u'user_name'] for s in job_dict[u'steps'])
+    if expect_packed:
+      self.assertNotIn(unpacked_minimum_step_name, step_names)
+      self.assertNotIn(unpacked_maximum_step_name, step_names)
+      self.assertIn(packed_step_name, step_names)
+    else:
+      self.assertIn(unpacked_minimum_step_name, step_names)
+      self.assertIn(unpacked_maximum_step_name, step_names)
+      self.assertNotIn(packed_step_name, step_names)
+
+  def test_pack_combiners_disabled_by_default(self):
+    self._test_pack_combiners(
+        PipelineOptions(self.default_properties), expect_packed=False)
+
+  def test_pack_combiners_enabled_by_experiment(self):
+    self.default_properties.append('--experiment=pre_optimize=all')
+    self._test_pack_combiners(
+        PipelineOptions(self.default_properties), expect_packed=True)
+
 
 class CustomMergingWindowFn(window.WindowFn):
   def assign(self, assign_context):
