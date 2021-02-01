@@ -168,7 +168,7 @@ class ReadFromSpanner(ExternalTransform):
               database_id='your_database_id',
               project_id='your_project_id',
               row_type=ExampleRow,
-              query='SELECT * FROM some_table',
+              sql='SELECT * FROM some_table',
               timestamp_bound_mode=TimestampBoundMode.MAX_STALENESS,
               staleness=3,
               time_unit=TimeUnit.HOURS,
