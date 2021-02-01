@@ -252,13 +252,18 @@ them into JSON `TableRow` objects.
 <!-- Python specific -->
 
 {{< paragraph class="language-py" >}}
-To read from a BigQuery table using the Beam SDK for Python, apply a `Read`
-transform on a `BigQuerySource`. Read returns a `PCollection` of dictionaries,
+To read from a BigQuery table using the Beam SDK for Python, apply a `ReadFromBigQuery`
+transfrom. `ReadFromBigQuery` returns a `PCollection` of dictionaries,
 where each element in the `PCollection` represents a single row in the table.
 Integer values in the `TableRow` objects are encoded as strings to match
 BigQuery's exported JSON format.
 {{< /paragraph >}}
 
+{{< paragraph class="language-py" >}}
+***Note:*** `BigQuerySource()` is deprecated as of Beam SDK 2.25.0. Before 2.25.0, to read from
+a BigQuery table using the Beam SDK, you will apply a `Read` transform on a `BigQuerySource`. For example,
+`beam.io.Read(beam.io.BigQuerySource(table_spec))`.
+{{< /paragraph >}}
 
 ### Reading from a table
 
@@ -293,7 +298,7 @@ the `fromQuery` method.
 
 {{< paragraph class="language-py" >}}
 If you don't want to read an entire table, you can supply a query string to
-`BigQuerySource` by specifying the `query` parameter.
+`ReadFromBigQuery` by specifying the `query` parameter.
 {{< /paragraph >}}
 
 {{< paragraph class="language-py" >}}
@@ -327,10 +332,10 @@ such as column selection and predicate filter push-down which can allow more
 efficient pipeline execution.
 
 The Beam SDK for Java supports using the BigQuery Storage API when reading from
-BigQuery. SDK versions before 2.24.0 support the BigQuery Storage API as an
+BigQuery. SDK versions before 2.25.0 support the BigQuery Storage API as an
 [experimental feature](https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/annotations/Experimental.html)
 and use the pre-GA BigQuery Storage API surface. Callers should migrate
-pipelines which use the BigQuery Storage API to use SDK version 2.24.0 or later.
+pipelines which use the BigQuery Storage API to use SDK version 2.25.0 or later.
 
 The Beam SDK for Python does not support the BigQuery Storage API. See
 [BEAM-10917](https://issues.apache.org/jira/browse/BEAM-10917)).
@@ -360,7 +365,7 @@ GitHub](https://github.com/apache/beam/blob/master/examples/java/src/main/java/o
 The following code snippet reads with a query string.
 
 {{< highlight java >}}
-// Snippet not yet available (BEAM-7034).
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/transforms/io/gcp/bigquery/BigQueryReadFromQueryWithBigQueryStorageAPI.java" bigquery_read_from_query_with_bigquery_storage_api >}}
 {{< /highlight >}}
 
 {{< highlight py >}}
