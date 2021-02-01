@@ -206,8 +206,7 @@ class DirectUserStateContext(userstate.UserStateContext):
     self.dofn = dofn
     self.key_coder = key_coder
 
-    self.all_state_specs, self.all_timer_specs = (
-        userstate.get_dofn_specs(dofn))
+    self.all_state_specs, self.all_timer_specs = userstate.get_dofn_specs(dofn)
     self.state_tags = {}
     for state_spec in self.all_state_specs:
       state_key = 'user/%s' % state_spec.name
@@ -226,12 +225,14 @@ class DirectUserStateContext(userstate.UserStateContext):
     self.cached_states = {}
     self.cached_timers = {}
 
-  def get_timer(self, timer_spec, key, window, timestamp, pane):
+  def get_timer(
+      self, timer_spec: userstate.TimerSpec, key, window, timestamp,
+      pane) -> userstate.RuntimeTimer:
     assert timer_spec in self.all_timer_specs
     encoded_key = self.key_coder.encode(key)
     cache_key = (encoded_key, window, timer_spec)
     if cache_key not in self.cached_timers:
-      self.cached_timers[cache_key] = userstate.RuntimeTimer(timer_spec)
+      self.cached_timers[cache_key] = userstate.RuntimeTimer()
     return self.cached_timers[cache_key]
 
   def get_state(self, state_spec, key, window):
@@ -291,16 +292,22 @@ class DirectUserStateContext(userstate.UserStateContext):
       encoded_key, window, timer_spec = cache_key
       state = self.step_context.get_keyed_state(encoded_key)
       timer_name = 'user/%s' % timer_spec.name
-      if runtime_timer._cleared:
-        state.clear_timer(window, timer_name, timer_spec.time_domain)
-      if runtime_timer._new_timestamp is not None:
-        # TODO(ccy): add corresponding watermark holds after the DirectRunner
-        # allows for keyed watermark holds.
-        state.set_timer(
-            window,
-            timer_name,
-            timer_spec.time_domain,
-            runtime_timer._new_timestamp)
+      for dynamic_timer_tag, timer in runtime_timer._timer_recordings.items():
+        if timer.cleared:
+          state.clear_timer(
+              window,
+              timer_name,
+              timer_spec.time_domain,
+              dynamic_timer_tag=dynamic_timer_tag)
+        if timer.timestamp:
+          # TODO(ccy): add corresponding watermark holds after the DirectRunner
+          # allows for keyed watermark holds.
+          state.set_timer(
+              window,
+              timer_name,
+              timer_spec.time_domain,
+              timer.timestamp,
+              dynamic_timer_tag=dynamic_timer_tag)
 
   def reset(self):
     for state in self.cached_states.values():

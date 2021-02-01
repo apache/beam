@@ -252,16 +252,12 @@ class _WriteStringsToPubSub(PTransform):
       topic: Cloud Pub/Sub topic in the form "/topics/<project>/<topic>".
     """
     super(_WriteStringsToPubSub, self).__init__()
-    self.with_attributes = False
-    self.id_label = None
-    self.timestamp_attribute = None
-    self.project, self.topic_name = parse_topic(topic)
-    self._sink = _PubSubSink(topic, id_label=None, timestamp_attribute=None)
+    self.topic = topic
 
   def expand(self, pcoll):
     pcoll = pcoll | 'EncodeString' >> Map(lambda s: s.encode('utf-8'))
     pcoll.element_type = bytes
-    return pcoll | Write(self._sink)
+    return pcoll | WriteToPubSub(self.topic)
 
 
 class WriteToPubSub(PTransform):

@@ -72,16 +72,16 @@ public class ThriftIOTest implements Serializable {
     byte[] bytes = new byte[10];
     ByteBuffer buffer = ByteBuffer.wrap(bytes);
 
-    TEST_THRIFT_STRUCT.testByte = 100;
-    TEST_THRIFT_STRUCT.testShort = 200;
-    TEST_THRIFT_STRUCT.testInt = 2500;
-    TEST_THRIFT_STRUCT.testLong = 79303L;
-    TEST_THRIFT_STRUCT.testDouble = 25.007;
-    TEST_THRIFT_STRUCT.testBool = true;
-    TEST_THRIFT_STRUCT.stringIntMap = new HashMap<>();
-    TEST_THRIFT_STRUCT.stringIntMap.put("first", (short) 1);
-    TEST_THRIFT_STRUCT.stringIntMap.put("second", (short) 2);
-    TEST_THRIFT_STRUCT.testBinary = buffer;
+    TEST_THRIFT_STRUCT.setTestByte((byte) 100);
+    TEST_THRIFT_STRUCT.setTestShort((short) 200);
+    TEST_THRIFT_STRUCT.setTestInt(2500);
+    TEST_THRIFT_STRUCT.setTestLong(79303L);
+    TEST_THRIFT_STRUCT.setTestDouble(25.007);
+    TEST_THRIFT_STRUCT.setTestBool(true);
+    TEST_THRIFT_STRUCT.setStringIntMap(new HashMap<>());
+    TEST_THRIFT_STRUCT.getStringIntMap().put("first", (short) 1);
+    TEST_THRIFT_STRUCT.getStringIntMap().put("second", (short) 2);
+    TEST_THRIFT_STRUCT.setTestBinary(buffer);
 
     testThriftStructs = ImmutableList.copyOf(generateTestObjects(1000L));
   }
@@ -240,15 +240,15 @@ public class ThriftIOTest implements Serializable {
       // Generate random string
       String randomString = RandomStringUtils.random(10, true, false);
       short s = (short) RandomUtils.nextInt(0, Short.MAX_VALUE + 1);
-      temp.stringIntMap = new HashMap<>();
-      temp.stringIntMap.put(randomString, s);
-      temp.testShort = s;
-      temp.testBinary = buffer;
-      temp.testBool = RandomUtils.nextBoolean();
-      temp.testByte = (byte) RandomUtils.nextInt(0, Byte.MAX_VALUE + 1);
-      temp.testDouble = RandomUtils.nextDouble();
-      temp.testInt = RandomUtils.nextInt();
-      temp.testLong = RandomUtils.nextLong();
+      temp.setStringIntMap(new HashMap<>());
+      temp.getStringIntMap().put(randomString, s);
+      temp.setTestShort(s);
+      temp.setTestBinary(buffer);
+      temp.setTestBool(RandomUtils.nextBoolean());
+      temp.setTestByte((byte) RandomUtils.nextInt(0, Byte.MAX_VALUE + 1));
+      temp.setTestDouble(RandomUtils.nextDouble());
+      temp.setTestInt(RandomUtils.nextInt());
+      temp.setTestLong(RandomUtils.nextLong());
 
       testThriftStructList.add(temp);
     }

@@ -61,7 +61,7 @@ import org.testcontainers.utility.DockerImageName;
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class KinesisIOIT implements Serializable {
-  private static final String LOCALSTACK_VERSION = "0.11.3";
+  private static final String LOCALSTACK_VERSION = "0.11.4";
 
   @Rule public TestPipeline pipelineWrite = TestPipeline.create();
   @Rule public TestPipeline pipelineRead = TestPipeline.create();

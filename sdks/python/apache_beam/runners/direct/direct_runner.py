@@ -472,9 +472,7 @@ def _get_pubsub_transform_overrides(pipeline_options):
 
   class WriteToPubSubOverride(PTransformOverride):
     def matches(self, applied_ptransform):
-      return isinstance(
-          applied_ptransform.transform,
-          (beam_pubsub.WriteToPubSub, beam_pubsub._WriteStringsToPubSub))
+      return isinstance(applied_ptransform.transform, beam_pubsub.WriteToPubSub)
 
     def get_replacement_transform_for_applied_ptransform(
         self, applied_ptransform):

@@ -40,6 +40,7 @@ func init() {
 	// Note that we also _ import harness/init to setup the remote execution hook.
 	beam.RegisterRunner("universal", Execute)
 	beam.RegisterRunner("PortableRunner", Execute)
+	beam.RegisterRunner("portable", Execute)
 }
 
 // Execute executes the pipeline on a universal beam runner.

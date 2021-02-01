@@ -384,12 +384,3 @@ if (project.hasProperty('compileAndRunTestsWithJava11')) {
     }
   }
 }
-
-// Ignore sdk.properties so it doesn't spoil the build cache unnecessarily (see https://docs.gradle.org/6.6/userguide/more_about_tasks.html#sec:configure_input_normalization)
-allprojects {
-  normalization {
-    runtimeClasspath {
-      ignore('**/sdk.properties')
-    }
-  }
-}

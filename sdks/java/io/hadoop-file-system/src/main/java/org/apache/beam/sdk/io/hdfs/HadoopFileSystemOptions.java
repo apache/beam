@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.hdfs;
 
 import java.io.File;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -112,9 +113,13 @@ public interface HadoopFileSystemOptions extends PipelineOptions {
         }
       }
 
-      // Load the configuration from paths found (if exists)
+      // Set used to dedup same config paths
+      Set<java.nio.file.Path> confPaths = Sets.newHashSet();
+      // Load the configuration from paths found (if exists and not loaded yet)
       for (String confDir : explodedConfDirs) {
-        if (new File(confDir).exists()) {
+        java.nio.file.Path path = Paths.get(confDir).normalize();
+        if (new File(confDir).exists() && !confPaths.contains(path)) {
+          confPaths.add(path);
           Configuration conf = new Configuration(false);
           boolean confLoaded = false;
           for (String confName : Lists.newArrayList("core-site.xml", "hdfs-site.xml")) {

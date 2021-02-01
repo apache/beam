@@ -30,6 +30,7 @@ import java.util.Map;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.flink.FlinkStreamingTransformTranslators.UnboundedSourceWrapperNoValueWithRecordId;
+import org.apache.beam.runners.flink.streaming.StreamSources;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.UnboundedSourceWrapper;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
@@ -119,7 +120,8 @@ public class FlinkStreamingTransformTranslatorsTest {
 
     UnboundedSourceWrapper source =
         (UnboundedSourceWrapper)
-            SourceTransformationCompat.getOperator(sourceTransform.getInput()).getUserFunction();
+            SourceTransformationCompat.getOperator(StreamSources.getOnlyInput(sourceTransform))
+                .getUserFunction();
 
     assertEquals(maxParallelism, source.getSplitSources().size());
   }
@@ -140,7 +142,8 @@ public class FlinkStreamingTransformTranslatorsTest {
 
     UnboundedSourceWrapper source =
         (UnboundedSourceWrapper)
-            SourceTransformationCompat.getOperator(sourceTransform.getInput()).getUserFunction();
+            SourceTransformationCompat.getOperator(StreamSources.getOnlyInput(sourceTransform))
+                .getUserFunction();
 
     assertEquals(parallelism, source.getSplitSources().size());
   }

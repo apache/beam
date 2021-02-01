@@ -20,6 +20,7 @@ limitations under the License. See accompanying LICENSE file.
         {{ with $authors }} •
             {{ $count := len . }}
             {{ range $index, $authorId := . }}
+                {{ if not (isset $.Site.Data.authors $authorId) }} {{ errorf "Author '%s' is not defined. Please add them to 'website/www/site/data/authors.yml'" $authorId }} {{end}}
                 {{ if and (ne $index 0) (gt $count 2) }},{{ end }}
                 {{ if and (eq $index (sub $count 1)) (gt $count 1) }} &amp;{{ end }}
                 {{ $author := index $.Site.Data.authors $authorId }} {{ $author.name }} {{ with $author.twitter }}[<a href="https://twitter.com/{{ $author.twitter }}">@{{ $author.twitter }}</a>]{{ end }}
