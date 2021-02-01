@@ -9,7 +9,7 @@
     See the License for the specific language governing permissions and
     limitations under the License. See accompanying LICENSE file.
    */
-.powered_by {
+   .powered_by {
 	display: flex;
 	flex-wrap: wrap;
 	margin-top: 74px;
@@ -88,7 +88,7 @@
 			align-items: center;
 			height: 100%;
 			margin-right: 48px;
-			svg {
+			svg, img {
 				width: 153px;
 				height: 153px;
 			}

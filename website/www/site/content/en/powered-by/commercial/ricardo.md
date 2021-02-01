@@ -3,7 +3,7 @@ title: "Four Apache Technologies Combined for Fun and Profit"
 type: commercial
 categories:
   - Online & Traditional Retail
-icon: icons/powered-by/ricardo.png
+icon: /images/logos/powered-by/ricardo.png
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

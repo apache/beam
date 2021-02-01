@@ -55,9 +55,7 @@
             <div class="use-card remove" data-categories='{{ with .Params.categories }}{{ if eq ( printf "%T" . ) "string" }}{{ . | replaceRE "[.]" "_" | urlize }}{{ else if eq ( printf "%T" . ) "[]string" }}{{ range . }}{{ . | replaceRE "[.]" "_" | urlize }} {{end}}{{end}}{{else}}no-author{{end}}'
             >
               <div class="use-icon">
-                {{ with resources.Get .Params.icon }}
-                    {{ .Content | safeHTML }}
-                {{ end }}
+                <img src="{{.Params.icon}}"></i>
               </div>
               <div class="use-body">
                 <div>
