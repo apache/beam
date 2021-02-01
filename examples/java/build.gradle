@@ -18,8 +18,14 @@
 
 import groovy.json.JsonOutput
 
-plugins { id 'org.apache.beam.module' }
+plugins {
+  id 'java'
+  id 'org.apache.beam.module'
+  id 'com.github.johnrengelman.shadow'
+}
+
 applyJavaNature(
+  enableStrictDependencies: true,
   exportJavadoc: false,
   automaticModuleName: 'org.apache.beam.examples',
 )
@@ -49,9 +55,11 @@ configurations.sparkRunnerPreCommit {
 dependencies {
   compile enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
   compile library.java.vendored_guava_26_0_jre
+  compile library.java.kafka_clients
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile project(":sdks:java:extensions:google-cloud-platform-core")
   compile project(":sdks:java:io:google-cloud-platform")
+  compile project(":sdks:java:io:kafka")
   compile project(":sdks:java:extensions:ml")
   compile library.java.avro
   compile library.java.bigdataoss_util
@@ -63,17 +71,29 @@ dependencies {
   compile library.java.google_cloud_datastore_v1_proto_client
   compile library.java.google_code_gson
   compile library.java.google_http_client
+  compile library.java.google_oauth_client
   compile library.java.joda_time
   compile library.java.proto_google_cloud_datastore_v1
   compile library.java.slf4j_api
-  compile library.java.slf4j_jdk14
-  runtime project(path: ":runners:direct-java", configuration: "shadow")
+  compile library.java.vendored_grpc_1_26_0
+  compile library.java.vendored_guava_26_0_jre
+  compile "com.google.api.grpc:proto-google-cloud-language-v1:1.81.4"
+  compile ("io.confluent:kafka-avro-serializer:5.3.2") {
+    // It depends on "spotbugs-annotations:3.1.9" which clashes with current
+    // "spotbugs-annotations:3.1.12" used in Beam. Not required.
+    exclude group: "org.apache.zookeeper", module: "zookeeper"
+  }
+  compile "org.apache.httpcomponents:httpclient:4.5.13"
+  compile "org.apache.httpcomponents:httpcore:4.4.13"
+  testCompile project(path: ":runners:direct-java", configuration: "shadow")
   testCompile project(":sdks:java:io:google-cloud-platform")
   testCompile project(":sdks:java:extensions:ml")
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
   testCompile library.java.junit
   testCompile library.java.mockito_core
+  testCompile library.java.testcontainers_kafka
+  testCompile library.java.testcontainers_gcloud
 
   // Add dependencies for the PreCommit configurations
   // For each runner a project level dependency on the examples project.
@@ -82,7 +102,7 @@ dependencies {
     delegate.add(runner + "PreCommit", project(path: ":examples:java", configuration: "testRuntime"))
   }
   directRunnerPreCommit project(path: ":runners:direct-java", configuration: "shadow")
-  flinkRunnerPreCommit project(":runners:flink:1.10")
+  flinkRunnerPreCommit project(":runners:flink:${project.ext.latestFlinkVersion}")
   // TODO: Make the netty version used configurable, we add netty-all 4.1.17.Final so it appears on the classpath
   // before 4.1.8.Final defined by Apache Beam
   sparkRunnerPreCommit "io.netty:netty-all:4.1.17.Final"
