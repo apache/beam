@@ -25,6 +25,7 @@ import decimal
 import json
 import logging
 import random
+import time
 import uuid
 from typing import TYPE_CHECKING
 from typing import Any
@@ -238,7 +239,7 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
         self._job_name,
         self._source_uuid,
         bigquery_tools.BigQueryJobTypes.QUERY,
-        random.randint(0, 1000))
+        '%s_%s' % (int(time.time()), random.randint(0, 1000)))
     job = bq._start_query_job(
         self._get_project(),
         element.query,

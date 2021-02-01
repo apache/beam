@@ -1010,7 +1010,8 @@ def pack_combiners(stages, context):
                 accumulator_coder_id=tuple_accumulator_coder_id).
             SerializeToString()),
         inputs={'in': input_pcoll_id},
-        outputs={'out': pack_pcoll_id},
+        # 'None' single output key follows convention for CombinePerKey.
+        outputs={'None': pack_pcoll_id},
         environment_id=fused_stage.environment)
     pack_stage = Stage(
         pack_stage_name + '/Pack', [pack_transform],
