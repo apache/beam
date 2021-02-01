@@ -32,6 +32,7 @@ from __future__ import absolute_import
 
 import hashlib
 import logging
+import pickle
 import random
 import uuid
 
@@ -858,9 +859,13 @@ class BigQueryBatchFileLoads(beam.PTransform):
             lambda x,
             deleting_tables: deleting_tables,
             pvalue.AsIter(temp_tables_pc))
-        | "RemoveTempTables/AddUselessValue" >> beam.Map(lambda x: (x, None))
+        # TableReference has no deterministic coder, but as this de-duplication
+        # is best-effort, pickling should be good enough.
+        | "RemoveTempTables/AddUselessValue" >>
+        beam.Map(lambda x: (pickle.dumps(x), None))
         | "RemoveTempTables/DeduplicateTables" >> beam.GroupByKey()
-        | "RemoveTempTables/GetTableNames" >> beam.Map(lambda elm: elm[0])
+        | "RemoveTempTables/GetTableNames" >>
+        beam.MapTuple(lambda k, nones: pickle.loads(k))
         | "RemoveTempTables/Delete" >> beam.ParDo(
             DeleteTablesFn(self.test_client)))
 
