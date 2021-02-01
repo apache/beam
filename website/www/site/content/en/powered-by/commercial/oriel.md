@@ -3,7 +3,7 @@ title: "From Apache Beam to Leukemia early detection"
 type: commercial
 categories:
   - Machine Learning
-icon: icons/github-icon.svg
+icon: icons/powered-by/oriel.png
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

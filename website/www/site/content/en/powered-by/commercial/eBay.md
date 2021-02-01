@@ -3,7 +3,7 @@ title: "Feature Powered by Apache Beam - Beyond Lambda"
 type: commercial
 categories:
   - Online & Traditional Retail
-icon: icons/github-icon.svg
+icon: icons/powered-by/eBay.png
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

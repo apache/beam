@@ -3,7 +3,7 @@ title:  "Scio"
 type: open-source
 categories:
   - Open Source Projects Powered by Apache Beam
-icon: /icons/github-icon.svg
+icon: /icons/scio.png
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

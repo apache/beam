@@ -1089,7 +1089,7 @@ please follow [the guide](https://help.github.com/articles/creating-a-personal-a
 All wheels should be published, in addition to the zip of the release source.
 (Signatures and hashes do _not_ need to be uploaded.)
 
-### Deploy SDK docker images to DockerHub
+### Deploy docker images to DockerHub
 * Script: [publish_docker_images.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/publish_docker_images.sh)
 * Usage
 ```
@@ -1099,6 +1099,8 @@ Verify that:
 * Images are published at [DockerHub](https://hub.docker.com/search?q=apache%2Fbeam&type=image) with tags {RELEASE} and *latest*.
 * Images with *latest* tag are pointing to current release by confirming
   1. Digest of the image with *latest* tag is the same as the one with {RELEASE} tag.
+
+(Optional) Clean up any unneeded local images afterward to save disk space.
 
 ### Merge Website pull requests
 

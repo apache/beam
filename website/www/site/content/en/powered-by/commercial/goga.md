@@ -3,7 +3,7 @@ title: "Beam and Geocoding"
 type: commercial
 categories:
   - Machine Learning
-icon: icons/github-icon.svg
+icon: icons/powered-by/goga.png
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

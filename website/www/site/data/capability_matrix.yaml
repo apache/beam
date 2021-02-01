@@ -103,11 +103,11 @@ capability-matrix:
               l3: ""
             - class: python direct
               l1: ""
-              l2: ""
+              l2:
               l3: ""
             - class: go direct
               l1: ""
-              l2: ""
+              l2:
               l3: ""
         - name: GroupByKey
           values:

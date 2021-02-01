@@ -3,7 +3,7 @@ title: "The Nitty-Gritty of Moving Data with Beam"
 type: commercial
 categories:
   - Enterprise
-icon: icons/github-icon.svg
+icon: icons/powered-by/mozilla.png
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

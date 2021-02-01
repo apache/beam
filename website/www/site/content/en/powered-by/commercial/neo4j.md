@@ -3,7 +3,7 @@ title: "Beam visual pipeline development with Hop"
 type: commercial
 categories:
   - BI & Analytics
-icon: icons/github-icon.svg
+icon: icons/powered-by/neo4j.png
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
