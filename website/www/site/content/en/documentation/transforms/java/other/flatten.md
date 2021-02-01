@@ -1,6 +1,7 @@
 ---
 title: "Flatten"
 ---
+
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,7 +15,9 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
+
 # Flatten
+
 <table align="left">
     <a target="_blank" class="button"
         href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/transforms/Flatten.html">
@@ -24,7 +27,6 @@ limitations under the License.
     </a>
 </table>
 <br><br>
-
 
 Merges multiple `PCollection` objects into a single logical `PCollection`.
 
@@ -46,9 +48,10 @@ when your pipeline is constructed
 See more information in the [Beam Programming Guide](/documentation/programming-guide/#flatten).
 
 ## Examples
+
 **Example**: Apply a `Flatten` transform to merge multiple `PCollection` objects
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 // Flatten takes a PCollectionList of PCollection objects of a given type.
 // Returns a single PCollection that contains all of the elements in the PCollection objects in that list.
 PCollection<String> pc1 = Create.of("Hello");
@@ -62,5 +65,6 @@ The resulting collection now has all the elements: "Hello", "World",
 "Beam", "Is", and "Fun".
 
 ## Related transforms
-* [ParDo](/documentation/transforms/java/elementwise/pardo)
-* [Partition](/documentation/transforms/java/elementwise/partition)
+
+- [ParDo](/documentation/transforms/java/elementwise/pardo)
+- [Partition](/documentation/transforms/java/elementwise/partition)

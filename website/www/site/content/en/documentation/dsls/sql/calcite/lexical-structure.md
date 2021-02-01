@@ -45,19 +45,19 @@ Syntax (defined here as a regular expression):
 
 Examples:
 
-```
+{{< highlight >}}
 Customers5
 _dataField1
 ADGROUP
-```
+{{< /highlight >}}
 
 Invalid examples:
 
-```
+{{< highlight >}}
 5Customers
 _dataField!
 GROUP
-```
+{{< /highlight >}}
 
 `5Customers` begins with a number, not a letter or underscore.
 `_dataField!` contains the special character "!" which is not a letter,
@@ -109,10 +109,10 @@ negative values, respectively.
 
 Examples:
 
-```
+{{< highlight >}}
 123
 -123
-```
+{{< /highlight >}}
 
 An integer literal is interpreted as an `BIGINT`.
 
@@ -120,23 +120,23 @@ An integer literal is interpreted as an `BIGINT`.
 
 Syntax options:
 
-```
+{{< highlight >}}
 [+-]DIGITS.[DIGITS][e[+-]DIGITS]
 [DIGITS].DIGITS[e[+-]DIGITS]
 DIGITSe[+-]DIGITS
-```
+{{< /highlight >}}
 
 `DIGITS` represents one or more decimal numbers (0 through 9) and `e`
 represents the exponent marker (e or E).
 
 Examples:
 
-```
+{{< highlight >}}
 123.456e-67
 .1E4
 58.
 4e2
-```
+{{< /highlight >}}
 
 Numeric literals that contain either a decimal point or an exponent
 marker are presumed to be type double.
@@ -153,18 +153,18 @@ square brackets prefixed with the `ARRAY` keyword.
 
 Examples:
 
-```
+{{< highlight >}}
 ARRAY[1, 2, 3]
 ARRAY['x', 'y', 'xy']
-```
+{{< /highlight >}}
 
 ### Struct Literals
 
 Syntax:
 
-```
+{{< highlight >}}
 (elem[, elem...])
-```
+{{< /highlight >}}
 
 where `elem` is an element in the struct. `elem` must be a literal data
 type, not an expression or column name.
@@ -196,9 +196,9 @@ expressions.
 
 Syntax:
 
-```
+{{< highlight >}}
 DATE 'YYYY-M[M]-D[D]'
-```
+{{< /highlight >}}
 
 Date literals contain the `DATE` keyword followed by a string literal
 that conforms to the canonical date format, enclosed in single quotation
@@ -207,17 +207,17 @@ inclusive. Dates outside of this range are invalid.
 
 For example, the following date literal represents September 27, 2014:
 
-```
+{{< highlight >}}
 DATE '2014-09-27'
-```
+{{< /highlight >}}
 
 String literals in canonical date format also implicitly coerce to DATE
 type when used where a DATE-type expression is expected. For example, in
 the query
 
-```
+{{< highlight >}}
 SELECT * FROM foo WHERE date_col = "2014-09-27"
-```
+{{< /highlight >}}
 
 the string literal `"2014-09-27"` will be coerced to a date literal.
 
@@ -225,9 +225,9 @@ the string literal `"2014-09-27"` will be coerced to a date literal.
 
 Syntax:
 
-```
+{{< highlight >}}
 TIME '[H]H:[M]M:[S]S[.DDDDDD]]'
-```
+{{< /highlight >}}
 
 TIME literals contain the `TIME` keyword and a string literal that
 conforms to the canonical time format, enclosed in single quotation
@@ -235,17 +235,17 @@ marks.
 
 For example, the following time represents 12:30 p.m.:
 
-```
+{{< highlight >}}
 TIME '12:30:00.45'
-```
+{{< /highlight >}}
 
 ### Timestamp literals
 
 Syntax:
 
-```
+{{< highlight >}}
 TIMESTAMP 'YYYY-[M]M-[D]D [[H]H:[M]M:[S]S[.DDDDDD]]'
-```
+{{< /highlight >}}
 
 Timestamp literals contain the `TIMESTAMP` keyword and a string literal
 that conforms to the canonical timestamp format, enclosed in single
@@ -257,9 +257,9 @@ inclusive. Timestamps outside of this range are invalid.
 For example, the following timestamp represents 12:30 p.m. on September
 27, 2014:
 
-```
+{{< highlight >}}
 TIMESTAMP '2014-09-27 12:30:00.45'
-```
+{{< /highlight >}}
 
 Case Sensitivity
 ----------------
@@ -1024,19 +1024,19 @@ Multiline comments are supported by enclosing the comment using
 
 **Example:**
 
-```
+{{< highlight >}}
 SELECT x FROM T /* x is a field and T is a table */
 WHERE x = 3;
-```
+{{< /highlight >}}
 
 **Invalid example:**
 
-```
+{{< highlight >}}
 SELECT x FROM T /* comment starts here
                 /* comment ends on this line */
                 this line is not considered a comment */
 WHERE x = 3;
-```
+{{< /highlight >}}
 
 Comment includes all characters, including newlines, enclosed by the
 first occurrence of '`/*`' and the first subsequent occurrence of

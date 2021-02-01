@@ -28,9 +28,9 @@ Dependencies for your Beam SDK version are listed in `setup.py` in the Beam repo
 
 1. Open `setup.py`.
 
-    ```
+    {{< highlight >}}
     https://raw.githubusercontent.com/apache/beam/v<VERSION_NUMBER>/sdks/python/setup.py
-    ```
+    {{< /highlight >}}
 
     Replace `<VERSION_NUMBER>` with the major.minor.patch version of the SDK. For example, <a href="ttps://raw.githubusercontent.com/apache/beam/v{{< param release_latest >}}/sdks/python/setup.py" target="_blank">https://raw.githubusercontent.com/apache/beam/v{{< param release_latest >}}/sdks/python/setup.py</a> will provide the dependencies for the {{< param release_latest >}} release.
 
@@ -43,14 +43,14 @@ You can also retrieve the dependency list from the command line using the follow
 
 1.  Create a clean virtual environment on your local machine using a supported python version.
 
-    ```
+    {{< highlight >}}
     $ python -m venv env && source env/bin/activate
-    ```
+    {{< /highlight >}}
 
 2. [Install the Beam Python SDK](/get-started/quickstart-py/#download-and-install).
 
 3. Retrieve the list of dependencies.
 
-    ```
+    {{< highlight >}}
     $ pip install pipdeptree && pipdeptree -p apache-beam
-    ```
+    {{< /highlight >}}

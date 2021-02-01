@@ -1,6 +1,6 @@
 ---
-title:  "Timely (and Stateful) Processing with Apache Beam"
-date:   2017-08-28 00:00:01 -0800
+title: "Timely (and Stateful) Processing with Apache Beam"
+date: 2017-08-28 00:00:01 -0800
 categories:
   - blog
 aliases:
@@ -8,6 +8,7 @@ aliases:
 authors:
   - klk
 ---
+
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -31,15 +32,15 @@ complements stateful processing in Beam by letting you set timers to request a
 
 What can you do with timers in Beam? Here are some examples:
 
- - You can output data buffered in state after some amount of processing time.
- - You can take special action when the watermark estimates that you have
-   received all data up to a specified point in event time.
- - You can author workflows with timeouts that alter state and emit output in
-   response to the absence of additional input for some period of time.
+- You can output data buffered in state after some amount of processing time.
+- You can take special action when the watermark estimates that you have
+  received all data up to a specified point in event time.
+- You can author workflows with timeouts that alter state and emit output in
+  response to the absence of additional input for some period of time.
 
 These are just a few possibilities. State and timers together form a powerful
 programming paradigm for fine-grained control to express a huge variety of
-workflows.  Stateful and timely processing in Beam is portable across data
+workflows. Stateful and timely processing in Beam is portable across data
 processing engines and integrated with Beam's unified model of event time
 windowing in both streaming and batch processing.
 
@@ -93,14 +94,14 @@ The other embarassingly parallel design pattern at the heart of Beam is per-key
 (and window) aggregation. Elements sharing a key are colocated and then
 combined using some associative and commutative operator. In Beam this is
 expressed as a `GroupByKey` or `Combine.perKey`, and corresponds to the shuffle
-and "Reduce" from MapReduce.  It is sometimes helpful to think of per-key
+and "Reduce" from MapReduce. It is sometimes helpful to think of per-key
 `Combine` as the fundamental operation, and raw `GroupByKey` as a combiner that
 just concatenates input elements. The communication pattern for the input
 elements is the same, modulo some optimizations possible for `Combine`.
 
 In the illustration here, recall that the color of each element represents the
 key. So all of the red squares are routed to the same location where they are
-aggregated and the red triangle is the output.  Likewise for the yellow and
+aggregated and the red triangle is the output. Likewise for the yellow and
 green squares, etc. In a real application, you may have millions of keys, so
 the parallelism is still massive.
 
@@ -120,7 +121,7 @@ per key aggregation by a stream processing engine fundamentally involves state
 and timers.
 
 However, _your_ code is just a declarative expression of the aggregation
-operator.  The runner can choose a variety of ways to execute your operator.
+operator. The runner can choose a variety of ways to execute your operator.
 I went over this in detail in [my prior post focused on state alone](/blog/2017/02/13/stateful-processing.html). Since you do not
 observe elements in any defined order, nor manipulate mutable state or timers
 directly, I call this neither stateful nor timely processing.
@@ -134,23 +135,23 @@ important.
 
 Let us consider these characteristics of `ParDo`:
 
- - You write single-threaded code to process one element.
- - Elements are processed in arbitrary order with no dependencies
-   or interaction between processing of elements.
+- You write single-threaded code to process one element.
+- Elements are processed in arbitrary order with no dependencies
+  or interaction between processing of elements.
 
 And these characteristics for `Combine.perKey`:
 
- - Elements for a common key and window are gathered together.
- - A user-defined operator is applied to those elements.
+- Elements for a common key and window are gathered together.
+- A user-defined operator is applied to those elements.
 
 Combining some of the characteristics of unrestricted parallel mapping and
 per-key-and-window combination, we can discern a megaprimitive from which we
 build stateful and timely processing:
 
- - Elements for a common key and window are gathered together.
- - Elements are processed in arbitrary order.
- - You write single-threaded code to process one element or timer, possibly
-   accessing state or setting timers.
+- Elements for a common key and window are gathered together.
+- Elements are processed in arbitrary order.
+- You write single-threaded code to process one element or timer, possibly
+  accessing state or setting timers.
 
 In the illustration below, the red squares are gathered and fed one by one to
 the stateful, timely, `DoFn`. As each element is processed, the `DoFn` has
@@ -171,9 +172,9 @@ accesses state, sets timers, and receives callbacks.
 To demonstrate stateful and timely processing, let's work through a concrete
 example, with code.
 
-Suppose you are writing a system to analyze events.  You have a ton of data
+Suppose you are writing a system to analyze events. You have a ton of data
 coming in and you need to enrich each event by RPC to an external system. You
-can't just issue an RPC per event.  Not only would this be terrible for
+can't just issue an RPC per event. Not only would this be terrible for
 performance, but it would also likely blow your quota with the external system.
 So you'd like to gather a number of events, make one RPC for them all, and then
 output all the enriched events.
@@ -184,55 +185,55 @@ Let's set up the state we need to track batches of elements. As each element
 comes in, we will write the element to a buffer while tracking the number of
 elements we have buffered. Here are the state cells in code:
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 new DoFn<Event, EnrichedEvent>() {
 
-  @StateId("buffer")
-  private final StateSpec<BagState<Event>> bufferedEvents = StateSpecs.bag();
+@StateId("buffer")
+private final StateSpec<BagState<Event>> bufferedEvents = StateSpecs.bag();
 
-  @StateId("count")
-  private final StateSpec<ValueState<Integer>> countState = StateSpecs.value();
+@StateId("count")
+private final StateSpec<ValueState<Integer>> countState = StateSpecs.value();
 
-  … TBD …
+… TBD …
 }
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 class StatefulBufferingFn(beam.DoFn):
 
-  BUFFER_STATE = BagStateSpec('buffer', EventCoder())
+BUFFER_STATE = BagStateSpec('buffer', EventCoder())
 
-  COUNT_STATE = CombiningValueStateSpec('count',
-                                        VarIntCoder(),
-                                        combiners.SumCombineFn())
+COUNT_STATE = CombiningValueStateSpec('count',
+VarIntCoder(),
+combiners.SumCombineFn())
 {{< /highlight >}}
 
 Walking through the code, we have:
 
- - The state cell `"buffer"` is an unordered bag of buffered events.
- - The state cell `"count"` tracks how many events have been buffered.
+- The state cell `"buffer"` is an unordered bag of buffered events.
+- The state cell `"count"` tracks how many events have been buffered.
 
 Next, as a recap of reading and writing state, let's write our `@ProcessElement`
 method. We will choose a limit on the size of the buffer, `MAX_BUFFER_SIZE`. If
 our buffer reaches this size, we will perform a single RPC to enrich all the
 events, and output.
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 new DoFn<Event, EnrichedEvent>() {
 
-  private static final int MAX_BUFFER_SIZE = 500;
+private static final int MAX_BUFFER_SIZE = 500;
 
-  @StateId("buffer")
-  private final StateSpec<BagState<Event>> bufferedEvents = StateSpecs.bag();
+@StateId("buffer")
+private final StateSpec<BagState<Event>> bufferedEvents = StateSpecs.bag();
 
-  @StateId("count")
-  private final StateSpec<ValueState<Integer>> countState = StateSpecs.value();
+@StateId("count")
+private final StateSpec<ValueState<Integer>> countState = StateSpecs.value();
 
-  @ProcessElement
-  public void process(
-      ProcessContext context,
-      @StateId("buffer") BagState<Event> bufferState,
-      @StateId("count") ValueState<Integer> countState) {
+@ProcessElement
+public void process(
+ProcessContext context,
+@StateId("buffer") BagState<Event> bufferState,
+@StateId("count") ValueState<Integer> countState) {
 
     int count = firstNonNull(countState.read(), 0);
     count = count + 1;
@@ -246,26 +247,27 @@ new DoFn<Event, EnrichedEvent>() {
       bufferState.clear();
       countState.clear();
     }
-  }
 
-  … TBD …
+}
+
+… TBD …
 }
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 class StatefulBufferingFn(beam.DoFn):
 
-  MAX_BUFFER_SIZE = 500;
+MAX_BUFFER_SIZE = 500;
 
-  BUFFER_STATE = BagStateSpec('buffer', EventCoder())
+BUFFER_STATE = BagStateSpec('buffer', EventCoder())
 
-  COUNT_STATE = CombiningValueStateSpec('count',
-                                        VarIntCoder(),
-                                        combiners.SumCombineFn())
+COUNT_STATE = CombiningValueStateSpec('count',
+VarIntCoder(),
+combiners.SumCombineFn())
 
-  def process(self, element,
-              buffer_state=beam.DoFn.StateParam(BUFFER_STATE),
-              count_state=beam.DoFn.StateParam(COUNT_STATE)):
+def process(self, element,
+buffer_state=beam.DoFn.StateParam(BUFFER_STATE),
+count_state=beam.DoFn.StateParam(COUNT_STATE)):
 
     buffer_state.add(element)
 
@@ -277,6 +279,7 @@ class StatefulBufferingFn(beam.DoFn):
         yield event
       count_state.clear()
       buffer_state.clear()
+
 {{< /highlight >}}
 
 Here is an illustration to accompany the code:
@@ -286,19 +289,19 @@ Here is an illustration to accompany the code:
     alt="Batching elements in state, then performing RPCs"
     width="600">
 
- - The blue box is the `DoFn`.
- - The yellow box within it is the `@ProcessElement` method.
- - Each input event is a red square - this diagram just shows the activity for
-   a single key, represented by the color red. Your `DoFn` will run the same
-   workflow in parallel for all keys which are perhaps user IDs.
- - Each input event is written to the buffer as a red triangle, representing
-   the fact that you might actually buffer more than just the raw input, even
-   though this code doesn't.
- - The external service is drawn as a cloud. When there are enough buffered
-   events, the `@ProcessElement` method reads the events from state and issues
-   a single RPC.
- - Each output enriched event is drawn as a red circle. To consumers of this
-   output, it looks just like an element-wise operation.
+- The blue box is the `DoFn`.
+- The yellow box within it is the `@ProcessElement` method.
+- Each input event is a red square - this diagram just shows the activity for
+  a single key, represented by the color red. Your `DoFn` will run the same
+  workflow in parallel for all keys which are perhaps user IDs.
+- Each input event is written to the buffer as a red triangle, representing
+  the fact that you might actually buffer more than just the raw input, even
+  though this code doesn't.
+- The external service is drawn as a cloud. When there are enough buffered
+  events, the `@ProcessElement` method reads the events from state and issues
+  a single RPC.
+- Each output enriched event is drawn as a red circle. To consumers of this
+  output, it looks just like an element-wise operation.
 
 So far, we have only used state, but not timers. You may have noticed that
 there is a problem - there will usually be data left in the buffer. If no more
@@ -319,87 +322,88 @@ completeness for a `PCollection` - such as when a window expires.
 For our example, let us add an event time timer so that when the window expires,
 any events remaining in the buffer are processed.
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 new DoFn<Event, EnrichedEvent>() {
-  …
+…
 
-  @TimerId("expiry")
-  private final TimerSpec expirySpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+@TimerId("expiry")
+private final TimerSpec expirySpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
-  @ProcessElement
-  public void process(
-      ProcessContext context,
-      BoundedWindow window,
-      @StateId("buffer") BagState<Event> bufferState,
-      @StateId("count") ValueState<Integer> countState,
-      @TimerId("expiry") Timer expiryTimer) {
+@ProcessElement
+public void process(
+ProcessContext context,
+BoundedWindow window,
+@StateId("buffer") BagState<Event> bufferState,
+@StateId("count") ValueState<Integer> countState,
+@TimerId("expiry") Timer expiryTimer) {
 
     expiryTimer.set(window.maxTimestamp().plus(allowedLateness));
 
     … same logic as above …
-  }
 
-  @OnTimer("expiry")
-  public void onExpiry(
-      OnTimerContext context,
-      @StateId("buffer") BagState<Event> bufferState) {
-    if (!bufferState.isEmpty().read()) {
-      for (EnrichedEvent enrichedEvent : enrichEvents(bufferState.read())) {
-        context.output(enrichedEvent);
-      }
-      bufferState.clear();
-    }
-  }
+}
+
+@OnTimer("expiry")
+public void onExpiry(
+OnTimerContext context,
+@StateId("buffer") BagState<Event> bufferState) {
+if (!bufferState.isEmpty().read()) {
+for (EnrichedEvent enrichedEvent : enrichEvents(bufferState.read())) {
+context.output(enrichedEvent);
+}
+bufferState.clear();
+}
+}
 }
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 class StatefulBufferingFn(beam.DoFn):
-  …
+…
 
-  EXPIRY_TIMER = TimerSpec('expiry', TimeDomain.WATERMARK)
+EXPIRY_TIMER = TimerSpec('expiry', TimeDomain.WATERMARK)
 
-  def process(self, element,
-              w=beam.DoFn.WindowParam,
-              buffer_state=beam.DoFn.StateParam(BUFFER_STATE),
-              count_state=beam.DoFn.StateParam(COUNT_STATE),
-              expiry_timer=beam.DoFn.TimerParam(EXPIRY_TIMER)):
+def process(self, element,
+w=beam.DoFn.WindowParam,
+buffer_state=beam.DoFn.StateParam(BUFFER_STATE),
+count_state=beam.DoFn.StateParam(COUNT_STATE),
+expiry_timer=beam.DoFn.TimerParam(EXPIRY_TIMER)):
 
     expiry_timer.set(w.end + ALLOWED_LATENESS)
 
     … same logic as above …
 
-  @on_timer(EXPIRY_TIMER)
-  def expiry(self,
-             buffer_state=beam.DoFn.StateParam(BUFFER_STATE),
-             count_state=beam.DoFn.StateParam(COUNT_STATE)):
-    events = buffer_state.read()
+@on_timer(EXPIRY_TIMER)
+def expiry(self,
+buffer_state=beam.DoFn.StateParam(BUFFER_STATE),
+count_state=beam.DoFn.StateParam(COUNT_STATE)):
+events = buffer_state.read()
 
     for event in events:
       yield event
 
     buffer_state.clear()
     count_state.clear()
+
 {{< /highlight >}}
 
 Let's unpack the pieces of this snippet:
 
- - We declare an event time timer with `@TimerId("expiry")`. We will use the
-   identifier `"expiry"` to identify the timer for setting the callback time as
-   well as receiving the callback.
+- We declare an event time timer with `@TimerId("expiry")`. We will use the
+  identifier `"expiry"` to identify the timer for setting the callback time as
+  well as receiving the callback.
 
- - The variable `expiryTimer`, annotated with `@TimerId`, is set to the value
-   `TimerSpecs.timer(TimeDomain.EVENT_TIME)`, indicating that we want a
-   callback according to the event time watermark of the input elements.
+- The variable `expiryTimer`, annotated with `@TimerId`, is set to the value
+  `TimerSpecs.timer(TimeDomain.EVENT_TIME)`, indicating that we want a
+  callback according to the event time watermark of the input elements.
 
- - In the `@ProcessElement` element we annotate a parameter `@TimerId("expiry")
-   Timer`. The Beam runner automatically provides this `Timer` parameter by which
-   we can set (and reset) the timer. It is inexpensive to reset a timer
-   repeatedly, so we simply set it on every element.
+- In the `@ProcessElement` element we annotate a parameter `@TimerId("expiry") Timer`. The Beam runner automatically provides this `Timer` parameter by which
+  we can set (and reset) the timer. It is inexpensive to reset a timer
+  repeatedly, so we simply set it on every element.
 
- - We define the `onExpiry` method, annotated with `@OnTimer("expiry")`, that
-   performs a final event enrichment RPC and outputs the result. The Beam runner
-   delivers the callback to this method by matching its identifier.
+- We define the `onExpiry` method, annotated with `@OnTimer("expiry")`, that
+  performs a final event enrichment RPC and outputs the result. The Beam runner
+  delivers the callback to this method by matching its identifier.
 
 Illustrating this logic, we have the diagram below:
 
@@ -435,23 +439,23 @@ timer has not been set, then we set it for the current moment plus
 `MAX_BUFFER_DURATION`. After the allotted processing time has passed, a
 callback will fire and enrich and emit any buffered elements.
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 new DoFn<Event, EnrichedEvent>() {
-  …
+…
 
-  private static final Duration MAX_BUFFER_DURATION = Duration.standardSeconds(1);
+private static final Duration MAX_BUFFER_DURATION = Duration.standardSeconds(1);
 
-  @TimerId("stale")
-  private final TimerSpec staleSpec = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
+@TimerId("stale")
+private final TimerSpec staleSpec = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 
-  @ProcessElement
-  public void process(
-      ProcessContext context,
-      BoundedWindow window,
-      @StateId("count") ValueState<Integer> countState,
-      @StateId("buffer") BagState<Event> bufferState,
-      @TimerId("stale") Timer staleTimer,
-      @TimerId("expiry") Timer expiryTimer) {
+@ProcessElement
+public void process(
+ProcessContext context,
+BoundedWindow window,
+@StateId("count") ValueState<Integer> countState,
+@StateId("buffer") BagState<Event> bufferState,
+@TimerId("stale") Timer staleTimer,
+@TimerId("expiry") Timer expiryTimer) {
 
     boolean staleTimerSet = firstNonNull(staleSetState.read(), false);
     if (firstNonNull(countState.read(), 0) == 0) {
@@ -459,40 +463,41 @@ new DoFn<Event, EnrichedEvent>() {
     }
 
     … same processing logic as above …
-  }
 
-  @OnTimer("stale")
-  public void onStale(
-      OnTimerContext context,
-      @StateId("buffer") BagState<Event> bufferState,
-      @StateId("count") ValueState<Integer> countState) {
-    if (!bufferState.isEmpty().read()) {
-      for (EnrichedEvent enrichedEvent : enrichEvents(bufferState.read())) {
-        context.output(enrichedEvent);
-      }
-      bufferState.clear();
-      countState.clear();
-    }
-  }
+}
 
-  … same expiry as above …
+@OnTimer("stale")
+public void onStale(
+OnTimerContext context,
+@StateId("buffer") BagState<Event> bufferState,
+@StateId("count") ValueState<Integer> countState) {
+if (!bufferState.isEmpty().read()) {
+for (EnrichedEvent enrichedEvent : enrichEvents(bufferState.read())) {
+context.output(enrichedEvent);
+}
+bufferState.clear();
+countState.clear();
+}
+}
+
+… same expiry as above …
 }
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 class StatefulBufferingFn(beam.DoFn):
-  …
+…
 
-  STALE_TIMER = TimerSpec('stale', TimeDomain.REAL_TIME)
+STALE_TIMER = TimerSpec('stale', TimeDomain.REAL_TIME)
 
-  MAX_BUFFER_DURATION = 1
+MAX_BUFFER_DURATION = 1
 
-  def process(self, element,
-              w=beam.DoFn.WindowParam,
-              buffer_state=beam.DoFn.StateParam(BUFFER_STATE),
-              count_state=beam.DoFn.StateParam(COUNT_STATE),
-              expiry_timer=beam.DoFn.TimerParam(EXPIRY_TIMER),
-              stale_timer=beam.DoFn.TimerParam(STALE_TIMER)):
+def process(self, element,
+w=beam.DoFn.WindowParam,
+buffer_state=beam.DoFn.StateParam(BUFFER_STATE),
+count_state=beam.DoFn.StateParam(COUNT_STATE),
+expiry_timer=beam.DoFn.TimerParam(EXPIRY_TIMER),
+stale_timer=beam.DoFn.TimerParam(STALE_TIMER)):
 
     if count_state.read() == 0:
       # We set an absolute timestamp here (not an offset like in the Java SDK)
@@ -500,11 +505,11 @@ class StatefulBufferingFn(beam.DoFn):
 
     … same logic as above …
 
-  @on_timer(STALE_TIMER)
-  def stale(self,
-            buffer_state=beam.DoFn.StateParam(BUFFER_STATE),
-            count_state=beam.DoFn.StateParam(COUNT_STATE)):
-    events = buffer_state.read()
+@on_timer(STALE_TIMER)
+def stale(self,
+buffer_state=beam.DoFn.StateParam(BUFFER_STATE),
+count_state=beam.DoFn.StateParam(COUNT_STATE)):
+events = buffer_state.read()
 
     for event in events:
       yield event
@@ -523,12 +528,12 @@ Here is an illustration of the final code:
 
 Recapping the entirety of the logic:
 
- - As events arrive at `@ProcessElement` they are buffered in state.
- - If the size of the buffer exceeds a maximum, the events are enriched and output.
- - If the buffer fills too slowly and the events get stale before the maximum is reached,
-   a timer causes a callback which enriches the buffered events and outputs.
- - Finally, as any window is expiring, any events buffered in that window are
-   processed and output prior to the state for that window being discarded.
+- As events arrive at `@ProcessElement` they are buffered in state.
+- If the size of the buffer exceeds a maximum, the events are enriched and output.
+- If the buffer fills too slowly and the events get stale before the maximum is reached,
+  a timer causes a callback which enriches the buffered events and outputs.
+- Finally, as any window is expiring, any events buffered in that window are
+  processed and output prior to the state for that window being discarded.
 
 In the end, we have a full example that uses state and timers to explicitly
 manage the low-level details of a performance-sensitive transform in Beam. As
@@ -567,7 +572,7 @@ transparently work correctly.
 
 This works in Beam automatically, because state and timers are partitioned per
 key and window. Within each key and window, the stateful, timely processing is
-essentially independent.  As an added benefit, the passing of event time (aka
+essentially independent. As an added benefit, the passing of event time (aka
 advancement of the watermark) allows automatic release of unreachable state
 when a window expires, so you often don't have to worry about evicting old
 state.

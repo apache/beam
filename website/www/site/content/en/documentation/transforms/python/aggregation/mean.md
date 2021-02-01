@@ -1,6 +1,7 @@
 ---
 title: "Mean"
 ---
+
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -32,9 +33,9 @@ Then, we get the element with the average value in different ways.
 
 ### Example 1: Mean of element in a PCollection
 
-We use `Mean.Globally()` to get the average of the elements from the *entire* `PCollection`.
+We use `Mean.Globally()` to get the average of the elements from the _entire_ `PCollection`.
 
-{{< highlight py >}}
+{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/mean.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/mean.py" mean_globally >}}
 {{< /highlight >}}
 
@@ -42,18 +43,15 @@ We use `Mean.Globally()` to get the average of the elements from the *entire* `P
 Output:
 {{< /paragraph >}}
 
-{{< highlight class="notebook-skip" >}}
+{{< highlight >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/mean_test.py" mean_element >}}
 {{< /highlight >}}
-
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/mean.py" >}}
 
 ### Example 2: Mean of elements for each key
 
 We use `Mean.PerKey()` to get the average of the elements for each unique key in a `PCollection` of key-values.
 
-{{< highlight py >}}
+{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/mean.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/mean.py" mean_per_key >}}
 {{< /highlight >}}
 
@@ -61,19 +59,16 @@ We use `Mean.PerKey()` to get the average of the elements for each unique key in
 Output:
 {{< /paragraph >}}
 
-{{< highlight class="notebook-skip" >}}
+{{< highlight >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/mean_test.py" elements_with_mean_value_per_key >}}
 {{< /highlight >}}
 
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/mean.py" >}}
-
 ## Related transforms
 
-* [CombineGlobally](/documentation/transforms/python/aggregation/combineglobally)
-* [CombinePerKey](/documentation/transforms/python/aggregation/combineperkey)
-* [Max](/documentation/transforms/python/aggregation/max)
-* [Min](/documentation/transforms/python/aggregation/min)
-* [Sum](/documentation/transforms/python/aggregation/sum)
+- [CombineGlobally](/documentation/transforms/python/aggregation/combineglobally)
+- [CombinePerKey](/documentation/transforms/python/aggregation/combineperkey)
+- [Max](/documentation/transforms/python/aggregation/max)
+- [Min](/documentation/transforms/python/aggregation/min)
+- [Sum](/documentation/transforms/python/aggregation/sum)
 
 {{< button-pydoc path="apache_beam.transforms.combiners" class="Mean" >}}

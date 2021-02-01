@@ -41,9 +41,9 @@ canonical equivalence.
 
 ## CHAR_LENGTH
 
-```
+{{< highlight >}}
 CHAR_LENGTH(value)
-```
+{{< /highlight >}}
 
 **Description**
 
@@ -56,7 +56,7 @@ INT64
 
 **Examples**
 
-```
+{{< highlight >}}
 
 Table example:
 
@@ -77,11 +77,11 @@ FROM example;
 | абвгд      |                   5 |
 +------------+---------------------+
 
-```
+{{< /highlight >}}
 ## CHARACTER_LENGTH
-```
+{{< highlight >}}
 CHARACTER_LENGTH(value)
-```
+{{< /highlight >}}
 
 **Description**
 
@@ -94,7 +94,7 @@ INT64
 
 **Examples**
 
-```
+{{< highlight >}}
 
 Table example:
 
@@ -115,13 +115,13 @@ FROM example;
 | абвгд      |                   5 |
 +------------+---------------------+
 
-```
+{{< /highlight >}}
 
 
 ## CONCAT
-```
+{{< highlight >}}
 CONCAT(value1[, ...])
-```
+{{< /highlight >}}
 
 **Description**
 
@@ -134,7 +134,7 @@ STRING
 
 **Examples**
 
-```
+{{< highlight >}}
 
 Table Employees:
 
@@ -158,12 +158,12 @@ FROM Employees;
 | Jane Smith          |
 | Joe Jackson         |
 +---------------------+
-```
+{{< /highlight >}}
 
 ## ENDS_WITH
-```
+{{< highlight >}}
 ENDS_WITH(value1, value2)
-```
+{{< /highlight >}}
 
 **Description**
 
@@ -177,7 +177,7 @@ BOOL
 
 **Examples**
 
-```
+{{< highlight >}}
 
 Table items:
 
@@ -201,12 +201,12 @@ FROM items;
 |    True |
 +---------+
 
-```
+{{< /highlight >}}
 
 ## LTRIM
-```
+{{< highlight >}}
 LTRIM(value1[, value2])
-```
+{{< /highlight >}}
 
 **Description**
 
@@ -218,7 +218,7 @@ STRING
 
 **Examples**
 
-```
+{{< highlight >}}
 
 Table items:
 
@@ -289,12 +289,12 @@ FROM items;
 | orangezzz |
 | pearxyz   |
 +-----------+
-```
+{{< highlight >}}
 
 ## REPLACE
-```
+{{< highlight >}}
 REPLACE(original_value, from_value, to_value)
-```
+{{< /highlight >}}
 
 **Description**
 
@@ -307,7 +307,8 @@ STRING
 
 **Examples**
 
-```sql
+{{< highlight >}}
+sql
 
 +--------------------+
 | dessert            |
@@ -328,13 +329,13 @@ FROM desserts;
 | blackberry cobbler |
 | cherry cobbler     |
 +--------------------+
-```
+{{< /highlight >}}
 
 ## REVERSE
 
-```
+{{< highlight >}}
 REVERSE(value)
-```
+{{< /highlight >}}
 
 **Description**
 
@@ -346,7 +347,7 @@ STRING
 
 **Examples**
 
-```
+{{< highlight >}}
 WITH example AS (
   SELECT "foo" AS sample_string UNION ALL
   SELECT "абвгд" AS sample_string
@@ -362,12 +363,12 @@ FROM example;
 | foo           | oof            |
 | абвгд         | дгвба          |
 +---------------+----------------+
-```
+{{< /highlight >}}
 
 ## RTRIM
-```
+{{< highlight >}}
 RTRIM(value1[, value2])
-```
+{{< /highlight >}}
 
 **Description**
 
@@ -379,7 +380,7 @@ STRING
 
 **Examples**
 
-```
+{{< highlight >}}
 
 Table items:
 
@@ -427,12 +428,12 @@ FROM items;
 | orange  |
 | pear    |
 +---------+
-```
+{{< /highlight >}}
 
 ## STARTS_WITH
-```
+{{< highlight >}}
 STARTS_WITH(value1, value2)
-```
+{{< /highlight >}}
 
 **Description**
 
@@ -445,7 +446,7 @@ BOOL
 
 **Examples**
 
-```
+{{< highlight >}}
 
 SELECT
   STARTS_WITH(item, "b") as example
@@ -462,11 +463,11 @@ FROM (
 |    True |
 |    True |
 +---------+
-```
+{{< /highlight >}}
 ## SUBSTR
-```
+{{< highlight >}}
 SUBSTR(value, position[, length])
-```
+{{< /highlight >}}
 
 **Description**
 
@@ -492,7 +493,7 @@ STRING
 
 **Examples**
 
-```
+{{< highlight >}}
 
 Table items:
 
@@ -561,11 +562,11 @@ FROM items;
 | na      |
 | ge      |
 +---------+
-```
+{{< /highlight >}}
 ## TRIM
-```
+{{< highlight >}}
 TRIM(value1[, value2])
-```
+{{< /highlight >}}
 
 **Description**
 
@@ -582,7 +583,7 @@ STRING
 
 **Examples**
 
-```
+{{< highlight >}}
 
 Table items:
 
@@ -653,4 +654,4 @@ FROM items;
 | orange  |
 | pear    |
 +---------+
-```
+{{< /highlight >}}

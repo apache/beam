@@ -1,6 +1,7 @@
 ---
 title: "JStorm Runner"
 ---
+
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,12 +15,13 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
+
 # Using the JStorm Runner
 
 The JStorm Runner can be used to execute Beam pipelines using [JStorm](http://jstorm.io/), while providing:
 
-* High throughput and low latency.
-* At-least-once and exactly-once fault tolerance.
+- High throughput and low latency.
+- At-least-once and exactly-once fault tolerance.
 
 Like a native JStorm topology, users can execute Beam topology with local mode, standalone cluster or jstorm-on-yarn cluster.
 
@@ -31,26 +33,28 @@ The JStorm runner currently supports JStorm version 2.5.0-SNAPSHOT.
 
 You can add a dependency on the latest version of the JStorm runner by adding the following to your pom.xml:
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 <dependency>
-  <groupId>org.apache.beam</groupId>
-  <artifactId>beam-runners-jstorm</artifactId>
-  <version>{{< param release_latest >}}</version>
+<groupId>org.apache.beam</groupId>
+<artifactId>beam-runners-jstorm</artifactId>
+<version>{{< param release_latest >}}</version>
 </dependency>
 {{< /highlight >}}
 
 ### Deploying JStorm with your application
 
 To run against a Standalone cluster, you can package your program with all Beam dependencies into a fat jar, and then submit the topology with the following command.
-```
+
+{{< highlight >}}
 jstorm jar WordCount.jar org.apache.beam.examples.WordCount --runner=org.apache.beam.runners.jstorm.JStormRunner
-```
+{{< /highlight >}}
 
 If you don't want to package a fat jar, you can upload the Beam dependencies onto all cluster nodes(`$JSTORM_HOME/lib/ext/beam`) first.
 When you submit a topology with argument `"--external-libs beam"`, JStorm will load the Beam dependencies automatically.
-```
+
+{{< highlight >}}
 jstorm jar WordCount.jar org.apache.beam.examples.WordCount --external-libs beam  --runner=org.apache.beam.runners.jstorm.JStormRunner
-```
+{{< /highlight >}}
 
 To learn about deploying a JStorm cluster, please refer to [JStorm cluster deploy](http://jstorm.io/QuickStart/Deploy/index.html)
 
@@ -109,5 +113,6 @@ When executing your pipeline with the JStorm Runner, you should consider the fol
 ## Additional notes
 
 ### Monitoring your job
+
 You can monitor your job with the JStorm UI, which displays all JStorm system metrics and Beam metrics.
 For testing on local mode, you can retreive the Beam metrics with the metrics method of PipelineResult.

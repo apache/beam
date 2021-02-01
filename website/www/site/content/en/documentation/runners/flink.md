@@ -3,6 +3,7 @@ type: runners
 title: "Apache Flink Runner"
 aliases: /learn/runners/flink/
 ---
+
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -26,19 +27,19 @@ which is useful for testing pipelines.
 
 The Flink Runner and Flink are suitable for large scale, continuous jobs, and provide:
 
-* A streaming-first runtime that supports both batch processing and data streaming programs
-* A runtime that supports very high throughput and low event latency at the same time
-* Fault-tolerance with *exactly-once* processing guarantees
-* Natural back-pressure in streaming programs
-* Custom memory management for efficient and robust switching between in-memory and out-of-core data processing algorithms
-* Integration with YARN and other components of the Apache Hadoop ecosystem
+- A streaming-first runtime that supports both batch processing and data streaming programs
+- A runtime that supports very high throughput and low event latency at the same time
+- Fault-tolerance with _exactly-once_ processing guarantees
+- Natural back-pressure in streaming programs
+- Custom memory management for efficient and robust switching between in-memory and out-of-core data processing algorithms
+- Integration with YARN and other components of the Apache Hadoop ecosystem
 
 # Using the Apache Flink Runner
 
 It is important to understand that the Flink Runner comes in two flavors:
 
-1. The original *classic Runner* which supports only Java (and other JVM-based languages)
-2. The newer *portable Runner* which supports Java/Python/Go
+1. The original _classic Runner_ which supports only Java (and other JVM-based languages)
+2. The newer _portable Runner_ which supports Java/Python/Go
 
 You may ask why there are two Runners?
 
@@ -72,7 +73,6 @@ Please use the switcher below to select the appropriate mode for the Runner:
   </ul>
 </nav>
 
-
 ## Prerequisites and Setup
 
 If you want to use the local execution mode with the Flink Runner you don't have
@@ -90,11 +90,11 @@ in your `pom.xml` or `build.gradle`. Use the Beam version and the artifact id
 from the above table. For example:
 {{< /paragraph >}}
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 <dependency>
-  <groupId>org.apache.beam</groupId>
-  <artifactId>beam-runners-flink-1.6</artifactId>
-  <version>{{< param release_latest >}}</version>
+<groupId>org.apache.beam</groupId>
+<artifactId>beam-runners-flink-1.6</artifactId>
+<version>{{< param release_latest >}}</version>
 </dependency>
 {{< /highlight >}}
 
@@ -116,7 +116,7 @@ along with all dependencies in a so-called fat jar. How you do this depends on
 your build system but if you follow along the [Beam Quickstart](/get-started/quickstart/) this is the command that you have to run:
 {{< /paragraph >}}
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 $ mvn package -Pflink-runner
 {{< /highlight >}}
 
@@ -146,15 +146,16 @@ Alternatively you can also use Maven's exec command. For example, to execute the
 WordCount example:
 {{< /paragraph >}}
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 mvn exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
-    -Pflink-runner \
-    -Dexec.args="--runner=FlinkRunner \
-      --inputFile=/path/to/pom.xml \
-      --output=/path/to/counts \
-      --flinkMaster=<flink master url> \
-      --filesToStage=target/word-count-beam-bundled-0.1.jar"
+ -Pflink-runner \
+ -Dexec.args="--runner=FlinkRunner \
+ --inputFile=/path/to/pom.xml \
+ --output=/path/to/counts \
+ --flinkMaster=<flink master url> \
+ --filesToStage=target/word-count-beam-bundled-0.1.jar"
 {{< /highlight >}}
+
 <!-- Span implictly ended -->
 
 {{< paragraph class="language-java" >}}
@@ -170,17 +171,17 @@ after starting up a [local flink cluster](https://ci.apache.org/projects/flink/f
 one could run:
 {{< /paragraph >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 
 options = PipelineOptions([
-    "--runner=FlinkRunner",
-    "--flink_master=localhost:8081",
-    "--environment_type=LOOPBACK"
+"--runner=FlinkRunner",
+"--flink_master=localhost:8081",
+"--environment_type=LOOPBACK"
 ])
 with beam.Pipeline(options) as p:
-    ...
+...
 {{< /highlight >}}
 
 {{< paragraph class="language-py" >}}
@@ -192,8 +193,6 @@ and an embedded Flink cluster will be automatically started and shut down for th
 The optional `flink_version` option may be required as well for older versions of Python.
 {{< /paragraph >}}
 
-
-
 {{< paragraph class="language-portable" >}}
 Starting with Beam 2.18.0, pre-built Flink Job Service Docker images are available at Docker Hub:
 [Flink 1.8](https://hub.docker.com/r/apache/beam_flink1.8_job_server),
@@ -202,6 +201,7 @@ Starting with Beam 2.18.0, pre-built Flink Job Service Docker images are availab
 {{< /paragraph >}}
 
 <!-- TODO(BEAM-10214): Use actual lists here and below. -->
+
 {{< paragraph class="language-portable" >}}
 To run a pipeline on an embedded Flink cluster:
 {{< /paragraph >}}
@@ -220,18 +220,19 @@ The JobService will create a Flink job for the pipeline and execute the job.
 Optionally set `environment_type` set to `LOOPBACK`. For example:
 {{< /paragraph >}}
 
-{{< highlight portable >}}
+{{< highlight language="portable" >}}
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 
 options = PipelineOptions([
-    "--runner=PortableRunner",
-    "--job_endpoint=localhost:8099",
-    "--environment_type=LOOPBACK"
+"--runner=PortableRunner",
+"--job_endpoint=localhost:8099",
+"--environment_type=LOOPBACK"
 ])
 with beam.Pipeline(options) as p:
-    ...
+...
 {{< /highlight >}}
+
 <!-- Span implictly ended -->
 
 {{< paragraph class="language-portable" >}}
@@ -250,17 +251,17 @@ To run on a separate [Flink cluster](https://ci.apache.org/projects/flink/flink-
 (3) Submit the pipeline as above.
 {{< /paragraph >}}
 
-{{< highlight portable >}}
+{{< highlight language="portable" >}}
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 
 options = PipelineOptions([
-    "--runner=PortableRunner",
-    "--job_endpoint=localhost:8099",
-    "--environment_type=LOOPBACK"
+"--runner=PortableRunner",
+"--job_endpoint=localhost:8099",
+"--environment_type=LOOPBACK"
 ])
 with beam.Pipeline(options=options) as p:
-    ...
+...
 {{< /highlight >}}
 
 {{< paragraph class="language-py language-portable" >}}
@@ -459,7 +460,7 @@ To find out which version of Flink is compatible with Beam please see the table 
 </tr>
 </table>
 
-<sup>*</sup> This version does not have a published docker image for the Flink Job Service.
+<sup>\*</sup> This version does not have a published docker image for the Flink Job Service.
 
 For retrieving the right Flink version, see the [Flink downloads page](https://flink.apache.org/downloads.html).
 
@@ -473,4 +474,3 @@ capabilities of the classic Flink Runner.
 The [Portable Capability
 Matrix](https://s.apache.org/apache-beam-portability-support-table) documents
 the capabilities of the portable Flink Runner.
-

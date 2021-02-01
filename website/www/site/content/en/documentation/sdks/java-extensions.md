@@ -33,13 +33,13 @@ cannot be serialized.
 
 Example usage:
 
-```
+{{< highlight >}}
 PCollection<KV<String, String>> leftPcollection = ...
 PCollection<KV<String, Long>> rightPcollection = ...
 
 PCollection<KV<String, KV<String, Long>>> joinedPcollection =
   Join.innerJoin(leftPcollection, rightPcollection);
-```
+{{< /highlight >}}
 
 
 ## Sorter
@@ -57,7 +57,7 @@ This module provides the `SortValues` transform, which takes a `PCollection<KV<K
 
 ### Example usage of `SortValues`
 
-```
+{{< highlight >}}
 PCollection<KV<String, KV<String, Integer>>> input = ...
 
 // Group by primary key, bringing <SecondaryKey, Value> pairs for the same key together.
@@ -68,4 +68,4 @@ PCollection<KV<String, Iterable<KV<String, Integer>>>> grouped =
 PCollection<KV<String, Iterable<KV<String, Integer>>>> groupedAndSorted =
     grouped.apply(
         SortValues.<String, String, Integer>create(BufferedExternalSorter.options()));
-```
+{{< /highlight >}}

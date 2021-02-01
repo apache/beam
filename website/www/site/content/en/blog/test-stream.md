@@ -1,6 +1,6 @@
 ---
-title:  "Testing Unbounded Pipelines in Apache Beam"
-date:   2016-10-20 10:00:00 -0800
+title: "Testing Unbounded Pipelines in Apache Beam"
+date: 2016-10-20 10:00:00 -0800
 categories:
   - blog
 aliases:
@@ -8,6 +8,7 @@ aliases:
 authors:
   - tgroh
 ---
+
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -26,6 +27,7 @@ The Beam Programming Model unifies writing pipelines for Batch and Streaming
 pipelines. We’ve recently introduced a new PTransform to write tests for
 pipelines that will be run over unbounded datasets and must handle out-of-order
 and delayed data.
+
 <!--more-->
 
 Watermarks, Windows and Triggers form a core part of the Beam programming model
@@ -125,29 +127,29 @@ For example, if we create a TestStream where all the data arrives before the
 watermark and provide the result PCollection as input to the CalculateTeamScores
 PTransform:
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 TestStream<GameActionInfo> infos = TestStream.create(AvroCoder.of(GameActionInfo.class))
-    .addElements(new GameActionInfo("sky", "blue", 12, new Instant(0L)),
-                 new GameActionInfo("navy", "blue", 3, new Instant(0L)),
-                 new GameActionInfo("navy", "blue", 3, new Instant(0L).plus(Duration.standardMinutes(3))))
-    // Move the watermark past the end the end of the window
-    .advanceWatermarkTo(new Instant(0L).plus(TEAM_WINDOW_DURATION)
-                                       .plus(Duration.standardMinutes(1)))
-    .advanceWatermarkToInfinity();
+.addElements(new GameActionInfo("sky", "blue", 12, new Instant(0L)),
+                new GameActionInfo("navy", "blue", 3, new Instant(0L)),
+                new GameActionInfo("navy", "blue", 3, new Instant(0L).plus(Duration.standardMinutes(3))))
+   // Move the watermark past the end the end of the window
+.advanceWatermarkTo(new Instant(0L).plus(TEAM_WINDOW_DURATION)
+                                .plus(Duration.standardMinutes(1)))
+.advanceWatermarkToInfinity();
 
 PCollection<KV<String, Integer>> teamScores = p.apply(createEvents)
-    .apply(new CalculateTeamScores(TEAM_WINDOW_DURATION, ALLOWED_LATENESS));
+.apply(new CalculateTeamScores(TEAM_WINDOW_DURATION, ALLOWED_LATENESS));
 {{< /highlight >}}
 
 we can then assert that the result PCollection contains elements that arrived:
 
 <img class="center-block" src="/images/blog/test-stream/elements-all-on-time.png" alt="Elements all arrive before the watermark, and are produced in the on-time pane" width="442">
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 // Only one value is emitted for the blue team
 PAssert.that(teamScores)
-       .inWindow(window)
-       .containsInAnyOrder(KV.of("blue", 18));
+.inWindow(window)
+.containsInAnyOrder(KV.of("blue", 18));
 p.run();
 {{< /highlight >}}
 
@@ -159,27 +161,27 @@ of the window (shown below to the left of the red watermark), which demonstrates
 the system to be on time, as it arrives before the watermark passes the end of
 the window
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 TestStream<GameActionInfo> infos = TestStream.create(AvroCoder.of(GameActionInfo.class))
-    .addElements(new GameActionInfo("sky", "blue", 3, new Instant(0L)),
-                 new GameActionInfo("navy", "blue", 3, new Instant(0L).plus(Duration.standardMinutes(3))))
-    // Move the watermark up to "near" the end of the window
-    .advanceWatermarkTo(new Instant(0L).plus(TEAM_WINDOW_DURATION)
-                                       .minus(Duration.standardMinutes(1)))
-    .addElements(new GameActionInfo("sky", "blue", 12, Duration.ZERO))
-    .advanceWatermarkToInfinity();
+.addElements(new GameActionInfo("sky", "blue", 3, new Instant(0L)),
+        new GameActionInfo("navy", "blue", 3, new Instant(0L).plus(Duration.standardMinutes(3))))
+   // Move the watermark up to "near" the end of the window
+.advanceWatermarkTo(new Instant(0L).plus(TEAM_WINDOW_DURATION)
+                                .minus(Duration.standardMinutes(1)))
+.addElements(new GameActionInfo("sky", "blue", 12, Duration.ZERO))
+.advanceWatermarkToInfinity();
 
 PCollection<KV<String, Integer>> teamScores = p.apply(createEvents)
-    .apply(new CalculateTeamScores(TEAM_WINDOW_DURATION, ALLOWED_LATENESS));
+.apply(new CalculateTeamScores(TEAM_WINDOW_DURATION, ALLOWED_LATENESS));
 {{< /highlight >}}
 
 <img class="center-block" src="/images/blog/test-stream/elements-unobservably-late.png" alt="An element arrives late, but before the watermark passes the end of the window, and is produced in the on-time pane" width="442">
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 // Only one value is emitted for the blue team
 PAssert.that(teamScores)
-       .inWindow(window)
-       .containsInAnyOrder(KV.of("blue", 18));
+.inWindow(window)
+.containsInAnyOrder(KV.of("blue", 18));
 p.run();
 {{< /highlight >}}
 
@@ -189,31 +191,31 @@ By advancing the watermark farther in time before adding the late data, we can
 demonstrate the triggering behavior that causes the system to emit an on-time
 pane, and then after the late data arrives, a pane that refines the result.
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 TestStream<GameActionInfo> infos = TestStream.create(AvroCoder.of(GameActionInfo.class))
-    .addElements(new GameActionInfo("sky", "blue", 3, new Instant(0L)),
-                 new GameActionInfo("navy", "blue", 3, new Instant(0L).plus(Duration.standardMinutes(3))))
+.addElements(new GameActionInfo("sky", "blue", 3, new Instant(0L)),
+          new GameActionInfo("navy", "blue", 3, new Instant(0L).plus(Duration.standardMinutes(3))))
     // Move the watermark up to "near" the end of the window
-    .advanceWatermarkTo(new Instant(0L).plus(TEAM_WINDOW_DURATION)
-                                       .minus(Duration.standardMinutes(1)))
-    .addElements(new GameActionInfo("sky", "blue", 12, Duration.ZERO))
-    .advanceWatermarkToInfinity();
+.advanceWatermarkTo(new Instant(0L).plus(TEAM_WINDOW_DURATION)
+                                 .minus(Duration.standardMinutes(1)))
+.addElements(new GameActionInfo("sky", "blue", 12, Duration.ZERO))
+.advanceWatermarkToInfinity();
 
 PCollection<KV<String, Integer>> teamScores = p.apply(createEvents)
-    .apply(new CalculateTeamScores(TEAM_WINDOW_DURATION, ALLOWED_LATENESS));
+.apply(new CalculateTeamScores(TEAM_WINDOW_DURATION, ALLOWED_LATENESS));
 {{< /highlight >}}
 
 <img class="center-block" src="/images/blog/test-stream/elements-observably-late.png" alt="Elements all arrive before the watermark, and are produced in the on-time pane" width="442">
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 // An on-time pane is emitted with the events that arrived before the window closed
 PAssert.that(teamScores)
-       .inOnTimePane(window)
-       .containsInAnyOrder(KV.of("blue", 6));
+.inOnTimePane(window)
+.containsInAnyOrder(KV.of("blue", 6));
 // The final pane contains the late refinement
 PAssert.that(teamScores)
-       .inFinalPane(window)
-       .containsInAnyOrder(KV.of("blue", 18));
+.inFinalPane(window)
+.containsInAnyOrder(KV.of("blue", 18));
 p.run();
 {{< /highlight >}}
 
@@ -223,64 +225,65 @@ If we push the watermark even further into the future, beyond the maximum
 configured allowed lateness, we can demonstrate that the late element is dropped
 by the system.
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 TestStream<GameActionInfo> infos = TestStream.create(AvroCoder.of(GameActionInfo.class))
-    .addElements(new GameActionInfo("sky", "blue", 3, Duration.ZERO),
-                 new GameActionInfo("navy", "blue", 3, Duration.standardMinutes(3)))
+.addElements(new GameActionInfo("sky", "blue", 3, Duration.ZERO),
+         new GameActionInfo("navy", "blue", 3, Duration.standardMinutes(3)))
     // Move the watermark up to "near" the end of the window
-    .advanceWatermarkTo(new Instant(0).plus(TEAM_WINDOW_DURATION)
-                                         .plus(ALLOWED_LATENESS)
-                                         .plus(Duration.standardMinutes(1)))
-    .addElements(new GameActionInfo(
+.advanceWatermarkTo(new Instant(0).plus(TEAM_WINDOW_DURATION)
+                                        .plus(ALLOWED_LATENESS)
+                                        .plus(Duration.standardMinutes(1)))
+.addElements(new GameActionInfo(
                      "sky",
                      "blue",
                      12,
                      new Instant(0).plus(TEAM_WINDOW_DURATION).minus(Duration.standardMinutes(1))))
-    .advanceWatermarkToInfinity();
+.advanceWatermarkToInfinity();
 
 PCollection<KV<String, Integer>> teamScores = p.apply(createEvents)
-    .apply(new CalculateTeamScores(TEAM_WINDOW_DURATION, ALLOWED_LATENESS));
+.apply(new CalculateTeamScores(TEAM_WINDOW_DURATION, ALLOWED_LATENESS));
 {{< /highlight >}}
 
 <img class="center-block" src="/images/blog/test-stream/elements-droppably-late.png" alt="Elements all arrive before the watermark, and are produced in the on-time pane" width="442">
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 // An on-time pane is emitted with the events that arrived before the window closed
 PAssert.that(teamScores)
-       .inWindow(window)
-       .containsInAnyOrder(KV.of("blue", 6));
+.inWindow(window)
+.containsInAnyOrder(KV.of("blue", 6));
 
 p.run();
 {{< /highlight >}}
 
 ### Elements arrive before the end of the window, and some processing time passes
+
 Using additional methods, we can demonstrate the behavior of speculative
 triggers by advancing the processing time of the TestStream. If we add elements
 to an input PCollection, occasionally advancing the processing time clock, and
 apply `CalculateUserScores`
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 TestStream.create(AvroCoder.of(GameActionInfo.class))
-    .addElements(new GameActionInfo("scarlet", "red", 3, new Instant(0L)),
-                 new GameActionInfo("scarlet", "red", 2, new Instant(0L).plus(Duration.standardMinutes(1))))
-    .advanceProcessingTime(Duration.standardMinutes(12))
-    .addElements(new GameActionInfo("oxblood", "red", 2, new Instant(0L)).plus(Duration.standardSeconds(22)),
-                 new GameActionInfo("scarlet", "red", 4, new Instant(0L).plus(Duration.standardMinutes(2))))
-    .advanceProcessingTime(Duration.standardMinutes(15))
-    .advanceWatermarkToInfinity();
+   .addElements(new GameActionInfo("scarlet", "red", 3, new Instant(0L)),
+               new GameActionInfo("scarlet", "red", 2, new Instant(0L).plus(Duration.standardMinutes(1))))
+.advanceProcessingTime(Duration.standardMinutes(12))
+   .addElements(new GameActionInfo("oxblood", "red", 2, new Instant(0L)).plus(Duration.standardSeconds(22)),
+               new GameActionInfo("scarlet", "red", 4, new Instant(0L).plus(Duration.standardMinutes(2))))
+.advanceProcessingTime(Duration.standardMinutes(15))
+.advanceWatermarkToInfinity();
 
 PCollection<KV<String, Integer>> userScores =
-    p.apply(infos).apply(new CalculateUserScores(ALLOWED_LATENESS));
+   p.apply(infos).apply(new CalculateUserScores(ALLOWED_LATENESS));
 {{< /highlight >}}
 
 <img class="center-block" src="/images/blog/test-stream/elements-processing-speculative.png" alt="Elements all arrive before the watermark, and are produced in the on-time pane" width="442">
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 PAssert.that(userScores)
-       .inEarlyGlobalWindowPanes()
-       .containsInAnyOrder(KV.of("scarlet", 5),
-                           KV.of("scarlet", 9),
-                           KV.of("oxblood", 2));
+.inEarlyGlobalWindowPanes()
+.containsInAnyOrder(KV.of("scarlet", 5),
+                        KV.of("scarlet", 9),
+KV.of("oxblood", 2));
 
 p.run();
 {{< /highlight >}}
@@ -292,8 +295,8 @@ utilize the existing runner infrastructure while providing guarantees about when
 a root transform will called by the runner. This consists of properties about
 pending elements and triggers, namely:
 
-* No trigger is permitted to fire but has not fired
-* All elements are either buffered in state or cannot progress until a side input becomes available
+- No trigger is permitted to fire but has not fired
+- All elements are either buffered in state or cannot progress until a side input becomes available
 
 Simplified, this means that, in the absence of an advancement in input
 watermarks or processing time, or additional elements being added to the

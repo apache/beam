@@ -1,6 +1,7 @@
 ---
 title: "Side input patterns"
 ---
+
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -29,11 +30,11 @@ To slowly update global window side inputs in pipelines with non-global windows:
 
 1. Write a `DoFn` that periodically pulls data from a bounded source into a global window.
 
-    a. Use the `GenerateSequence` source transform to periodically emit a value.
+   a. Use the `GenerateSequence` source transform to periodically emit a value.
 
-    b. Instantiate a data-driven trigger that activates on each element and pulls data from a bounded source.
+   b. Instantiate a data-driven trigger that activates on each element and pulls data from a bounded source.
 
-    c. Fire the trigger to pass the data into the global window.
+   c. Fire the trigger to pass the data into the global window.
 
 1. Create the side input for downstream transforms. The side input should fit into memory.
 
@@ -41,14 +42,13 @@ The global window side input triggers on processing time, so the main pipeline n
 
 For instance, the following code sample uses a `Map` to create a `DoFn`. The `Map` becomes a `View.asSingleton` side input that’s rebuilt on each counter tick. The side input updates every 5 seconds in order to demonstrate the workflow. In a real-world scenario, the side input would typically update every few hours or once per day.
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" SideInputPatternSlowUpdateGlobalWindowSnip1 >}}
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 No sample present.
 {{< /highlight >}}
-
 
 ## Slowly updating side input using windowing
 
@@ -62,17 +62,17 @@ version of side input data.
 To read side input data periodically into distinct PColleciton windows:
 
 1. Use the PeriodicImpulse or PeriodicSequence PTransform to:
-    * Generate an infinite sequence of elements at required processing time
-    intervals
-    * Assign them to separate windows.
+   - Generate an infinite sequence of elements at required processing time
+     intervals
+   - Assign them to separate windows.
 1. Fetch data using SDF Read or ReadAll PTransform triggered by arrival of
-PCollection element.
+   PCollection element.
 1. Apply the side input.
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" PeriodicallyUpdatingSideInputs >}}
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" SideInputSlowUpdateSnip1 >}}
 {{< /highlight >}}

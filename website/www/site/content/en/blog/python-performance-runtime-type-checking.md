@@ -1,7 +1,7 @@
 ---
 layout: post
-title:  "Performance-Driven Runtime Type Checking for the Python SDK"
-date:   2020-08-21 00:00:01 -0800
+title: "Performance-Driven Runtime Type Checking for the Python SDK"
+date: 2020-08-21 00:00:01 -0800
 categories:
   - blog
   - python
@@ -9,6 +9,7 @@ categories:
 authors:
   - saavannanavati
 ---
+
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -30,14 +31,14 @@ in both development and production environments.
 But let's take a step back - why do we even care about runtime type checking
 in the first place? Let's look at an example.
 
-```
+{{< highlight >}}
 class MultiplyNumberByTwo(beam.DoFn):
-    def process(self, element: int):
-        return element * 2
+def process(self, element: int):
+return element \* 2
 
 p = Pipeline()
 p | beam.Create(['1', '2'] | beam.ParDo(MultiplyNumberByTwo())
-```
+{{< /highlight >}}
 
 In this code, we passed a list of strings to a DoFn that's clearly intended for use with
 integers. Luckily, this code will throw an error during pipeline construction because
@@ -58,26 +59,26 @@ any typing or serialization error in Beam?
 The answer is to use runtime type checking.
 
 # Runtime Type Checking (RTC)
+
 This feature works by checking that actual input and output values satisfy the declared
 type constraints during pipeline execution. If you ran the code from before with
 `runtime_type_check` on, you would receive the following error message:
 
-```
+{{< highlight >}}
 Type hint violation for 'ParDo(MultiplyByTwo)': requires <class 'int'> but got <class 'str'> for element
-```
+{{< /highlight >}}
 
 This is an actionable error message - it tells you that either your code has a bug
 or that your declared type hints are incorrect. Sounds simple enough, so what's the catch?
 
 _It is soooo slowwwwww._ See for yourself.
 
-
-| Element Size | Normal Pipeline | Runtime Type Checking Pipeline
-| ------------ | --------------- | ------------------------------
-| 1            | 5.3 sec         | 5.6 sec
-| 2,001        | 9.4 sec         | 57.2 sec
-| 10,001       | 24.5 sec        | 259.8 sec
-| 18,001       | 38.7 sec        | 450.5 sec
+| Element Size | Normal Pipeline | Runtime Type Checking Pipeline |
+| ------------ | --------------- | ------------------------------ |
+| 1            | 5.3 sec         | 5.6 sec                        |
+| 2,001        | 9.4 sec         | 57.2 sec                       |
+| 10,001       | 24.5 sec        | 259.8 sec                      |
+| 18,001       | 38.7 sec        | 450.5 sec                      |
 
 In this micro-benchmark, the pipeline with runtime type checking was over 10x slower,
 with the gap only increasing as our input PCollection increased in size.
@@ -85,20 +86,22 @@ with the gap only increasing as our input PCollection increased in size.
 So, is there any production-friendly alternative?
 
 # Performance Runtime Type Check
+
 There is! We developed a new flag called `performance_runtime_type_check` that
 minimizes its footprint on the pipeline's time complexity using a combination of
+
 - efficient Cython code,
 - smart sampling techniques, and
 - optimized mega type-hints.
 
 So what do the new numbers look like?
 
-| Element Size | Normal    | RTC        | Performance RTC
-| -----------  | --------- | ---------- | ---------------
-| 1            | 5.3 sec   | 5.6 sec    | 5.4 sec
-| 2,001        | 9.4 sec   | 57.2 sec   | 11.2 sec
-| 10,001       | 24.5 sec  | 259.8 sec  | 25.5 sec
-| 18,001       | 38.7 sec  | 450.5 sec  | 39.4 sec
+| Element Size | Normal   | RTC       | Performance RTC |
+| ------------ | -------- | --------- | --------------- |
+| 1            | 5.3 sec  | 5.6 sec   | 5.4 sec         |
+| 2,001        | 9.4 sec  | 57.2 sec  | 11.2 sec        |
+| 10,001       | 24.5 sec | 259.8 sec | 25.5 sec        |
+| 18,001       | 38.7 sec | 450.5 sec | 39.4 sec        |
 
 On average, the new Performance RTC is 4.4% slower than a normal pipeline whereas the old RTC
 is over 900% slower! Additionally, as the size of the input PCollection increases, the fixed cost
@@ -106,26 +109,27 @@ of setting up the Performance RTC system is spread across each element, decreasi
 impact on the overall pipeline. With 18,001 elements, the difference is less than 1 second.
 
 ## How does it work?
+
 There are three key factors responsible for this upgrade in performance.
 
 1. Instead of type checking all values, we only type check a subset of values, known as
-a sample in statistics. Initially, we sample a substantial number of elements, but as our
-confidence that the element type won't change over time increases, we reduce our
-sampling rate (up to a fixed minimum).
+   a sample in statistics. Initially, we sample a substantial number of elements, but as our
+   confidence that the element type won't change over time increases, we reduce our
+   sampling rate (up to a fixed minimum).
 
 2. Whereas the old RTC system used heavy wrappers to perform the type check, the new RTC system
-moves the type check to a Cython-optimized, non-decorated portion of the codebase. For reference,
-Cython is a programming language that gives C-like performance to Python code.
+   moves the type check to a Cython-optimized, non-decorated portion of the codebase. For reference,
+   Cython is a programming language that gives C-like performance to Python code.
 
 3. Finally, we use a single mega type hint to type-check only the output values of transforms
-instead of type-checking both the input and output values separately. This mega typehint is composed of
-the original transform's output type constraints along with all consumer transforms' input type
-constraints. Using this mega type hint allows us to reduce overhead while simultaneously allowing
-us to throw _more actionable errors_. For instance, consider the following error (which was
-generated from the old RTC system):
-```
-Runtime type violation detected within ParDo(DownstreamDoFn): Type-hint for argument: 'element' violated. Expected an instance of <class ‘str’>, instead found 9, an instance of <class ‘int’>.
-```
+   instead of type-checking both the input and output values separately. This mega typehint is composed of
+   the original transform's output type constraints along with all consumer transforms' input type
+   constraints. Using this mega type hint allows us to reduce overhead while simultaneously allowing
+   us to throw _more actionable errors_. For instance, consider the following error (which was
+   generated from the old RTC system):
+   {{< highlight >}}
+   Runtime type violation detected within ParDo(DownstreamDoFn): Type-hint for argument: 'element' violated. Expected an instance of <class ‘str’>, instead found 9, an instance of <class ‘int’>.
+   {{< /highlight >}}
 
 This error tells us that the `DownstreamDoFn` received an `int` when it was expecting a `str`, but doesn't tell us
 who created that `int` in the first place. Who is the offending upstream transform that's responsible for
@@ -140,13 +144,14 @@ at the point of declaration rather than the point of exception, saving you valua
 while providing higher quality error messages.
 
 So what would the same error look like using Performance RTC? It's the exact same string but with one additional line:
-```
+{{< highlight >}}
 [while running 'ParDo(UpstreamDoFn)']
-```
+{{< /highlight >}}
 
 And that's much more actionable for an investigation :)
 
 # Next Steps
+
 Go play with the new `performance_runtime_type_check` feature!
 
 It's in an experimental state so please

@@ -1,6 +1,7 @@
 ---
 title: "Map"
 ---
+
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -35,7 +36,8 @@ Then, we apply `Map` in multiple ways to transform every element in the `PCollec
 We use the function `str.strip` which takes a single `str` element and outputs a `str`.
 It strips the input element's whitespaces, including newlines and tabs.
 
-{{< highlight py >}}
+{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/map" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py" map_simple >}}
 {{< /highlight >}}
 
@@ -43,19 +45,16 @@ It strips the input element's whitespaces, including newlines and tabs.
 Output:
 {{< /paragraph >}}
 
-{{< highlight class="notebook-skip" >}}
+{{< highlight >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/map_test.py" plants >}}
 {{< /highlight >}}
-
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/map" >}}
 
 ### Example 2: Map with a function
 
 We define a function `strip_header_and_newline` which strips any `'#'`, `' '`, and `'\n'` characters from each element.
 
-{{< highlight py >}}
+{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/map" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py" map_function >}}
 {{< /highlight >}}
 
@@ -63,19 +62,16 @@ We define a function `strip_header_and_newline` which strips any `'#'`, `' '`, a
 Output:
 {{< /paragraph >}}
 
-{{< highlight class="notebook-skip" >}}
+{{< highlight >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/map_test.py" plants >}}
 {{< /highlight >}}
-
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/map" >}}
 
 ### Example 3: Map with a lambda function
 
 We can also use lambda functions to simplify **Example 2**.
 
-{{< highlight py >}}
+{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/map" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py" map_lambda >}}
 {{< /highlight >}}
 
@@ -83,13 +79,9 @@ We can also use lambda functions to simplify **Example 2**.
 Output:
 {{< /paragraph >}}
 
-{{< highlight class="notebook-skip" >}}
+{{< highlight >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/map_test.py" plants >}}
 {{< /highlight >}}
-
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/map" >}}
 
 ### Example 4: Map with multiple arguments
 
@@ -98,7 +90,8 @@ They are passed as additional positional arguments or keyword arguments to the f
 
 In this example, `strip` takes `text` and `chars` as arguments.
 
-{{< highlight py >}}
+{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/map" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py" map_multiple_arguments >}}
 {{< /highlight >}}
 
@@ -106,20 +99,17 @@ In this example, `strip` takes `text` and `chars` as arguments.
 Output:
 {{< /paragraph >}}
 
-{{< highlight class="notebook-skip" >}}
+{{< highlight >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/map_test.py" plants >}}
 {{< /highlight >}}
-
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/map" >}}
 
 ### Example 5: MapTuple for key-value pairs
 
 If your `PCollection` consists of `(key, value)` pairs,
 you can use `MapTuple` to unpack them into different function arguments.
 
-{{< highlight py >}}
+{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/map" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py" map_tuple >}}
 {{< /highlight >}}
 
@@ -127,23 +117,20 @@ you can use `MapTuple` to unpack them into different function arguments.
 Output:
 {{< /paragraph >}}
 
-{{< highlight class="notebook-skip" >}}
+{{< highlight >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/map_test.py" plants >}}
 {{< /highlight >}}
-
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/map" >}}
 
 ### Example 6: Map with side inputs as singletons
 
 If the `PCollection` has a single value, such as the average from another computation,
-passing the `PCollection` as a *singleton* accesses that value.
+passing the `PCollection` as a _singleton_ accesses that value.
 
 In this example, we pass a `PCollection` the value `'# \n'` as a singleton.
 We then use that value as the characters for the `str.strip` method.
 
-{{< highlight py >}}
+{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/map" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py" map_side_inputs_singleton >}}
 {{< /highlight >}}
 
@@ -151,21 +138,18 @@ We then use that value as the characters for the `str.strip` method.
 Output:
 {{< /paragraph >}}
 
-{{< highlight class="notebook-skip" >}}
+{{< highlight >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/map_test.py" plants >}}
 {{< /highlight >}}
 
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/map" >}}
-
 ### Example 7: Map with side inputs as iterators
 
-If the `PCollection` has multiple values, pass the `PCollection` as an *iterator*.
+If the `PCollection` has multiple values, pass the `PCollection` as an _iterator_.
 This accesses elements lazily as they are needed,
 so it is possible to iterate over large `PCollection`s that won't fit into memory.
 
-{{< highlight py >}}
+{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/map" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py" map_side_inputs_iter >}}
 {{< /highlight >}}
 
@@ -173,25 +157,22 @@ so it is possible to iterate over large `PCollection`s that won't fit into memor
 Output:
 {{< /paragraph >}}
 
-{{< highlight class="notebook-skip" >}}
+{{< highlight >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/map_test.py" plants >}}
 {{< /highlight >}}
 
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/map" >}}
-
-> **Note**: You can pass the `PCollection` as a *list* with `beam.pvalue.AsList(pcollection)`,
+> **Note**: You can pass the `PCollection` as a _list_ with `beam.pvalue.AsList(pcollection)`,
 > but this requires that all the elements fit into memory.
 
 ### Example 8: Map with side inputs as dictionaries
 
-If a `PCollection` is small enough to fit into memory, then that `PCollection` can be passed as a *dictionary*.
+If a `PCollection` is small enough to fit into memory, then that `PCollection` can be passed as a _dictionary_.
 Each element must be a `(key, value)` pair.
 Note that all the elements of the `PCollection` must fit into memory for this.
 If the `PCollection` won't fit into memory, use `beam.pvalue.AsIter(pcollection)` instead.
 
-{{< highlight py >}}
+{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/map" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py" map_side_inputs_dict >}}
 {{< /highlight >}}
 
@@ -199,21 +180,17 @@ If the `PCollection` won't fit into memory, use `beam.pvalue.AsIter(pcollection)
 Output:
 {{< /paragraph >}}
 
-{{< highlight class="notebook-skip" >}}
+{{< highlight >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/map_test.py" plant_details >}}
 {{< /highlight >}}
 
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/map" >}}
-
 ## Related transforms
 
-* [FlatMap](/documentation/transforms/python/elementwise/flatmap) behaves the same as `Map`, but for
+- [FlatMap](/documentation/transforms/python/elementwise/flatmap) behaves the same as `Map`, but for
   each input it may produce zero or more outputs.
-* [Filter](/documentation/transforms/python/elementwise/filter) is useful if the function is just
+- [Filter](/documentation/transforms/python/elementwise/filter) is useful if the function is just
   deciding whether to output an element or not.
-* [ParDo](/documentation/transforms/python/elementwise/pardo) is the most general elementwise mapping
+- [ParDo](/documentation/transforms/python/elementwise/pardo) is the most general elementwise mapping
   operation, and includes other abilities such as multiple output collections and side-inputs.
 
 {{< button-pydoc path="apache_beam.transforms.core" class="Map" >}}

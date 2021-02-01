@@ -1,6 +1,7 @@
 ---
 title: "FlatMap"
 ---
+
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -37,7 +38,8 @@ where each of the output `iterable`'s elements is an element of the resulting `P
 We use the function `str.split` which takes a single `str` element and outputs a `list` of `str`s.
 This pipeline splits the input element using whitespaces, creating a list of zero or more elements.
 
-{{< highlight py >}}
+{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/flatmap" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py" flatmap_simple >}}
 {{< /highlight >}}
 
@@ -45,19 +47,16 @@ This pipeline splits the input element using whitespaces, creating a list of zer
 Output:
 {{< /paragraph >}}
 
-{{< highlight class="notebook-skip" >}}
+{{< highlight >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap_test.py" plants >}}
 {{< /highlight >}}
-
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/flatmap" >}}
 
 ### Example 2: FlatMap with a function
 
 We define a function `split_words` which splits an input `str` element using the delimiter `','` and outputs a `list` of `str`s.
 
-{{< highlight py >}}
+{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/flatmap" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py" flatmap_function >}}
 {{< /highlight >}}
 
@@ -65,13 +64,9 @@ We define a function `split_words` which splits an input `str` element using the
 Output:
 {{< /paragraph >}}
 
-{{< highlight class="notebook-skip" >}}
+{{< highlight >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap_test.py" plants >}}
 {{< /highlight >}}
-
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/flatmap" >}}
 
 ### Example 3: FlatMap with a lambda function
 
@@ -79,7 +74,8 @@ For this example, we want to flatten a `PCollection` of lists of `str`s into a `
 Each input element is already an `iterable`, where each element is what we want in the resulting `PCollection`.
 We use a lambda function that returns the same input element it received.
 
-{{< highlight py >}}
+{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/flatmap" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py" flatmap_lambda >}}
 {{< /highlight >}}
 
@@ -87,13 +83,9 @@ We use a lambda function that returns the same input element it received.
 Output:
 {{< /paragraph >}}
 
-{{< highlight class="notebook-skip" >}}
+{{< highlight >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap_test.py" plants >}}
 {{< /highlight >}}
-
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/flatmap" >}}
 
 ### Example 4: FlatMap with a generator
 
@@ -101,7 +93,8 @@ For this example, we want to flatten a `PCollection` of lists of `str`s into a `
 We use a generator to iterate over the input list and yield each of the elements.
 Each yielded result in the generator is an element in the resulting `PCollection`.
 
-{{< highlight py >}}
+{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/flatmap" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py" flatmap_generator >}}
 {{< /highlight >}}
 
@@ -109,20 +102,17 @@ Each yielded result in the generator is an element in the resulting `PCollection
 Output:
 {{< /paragraph >}}
 
-{{< highlight class="notebook-skip" >}}
+{{< highlight >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap_test.py" plants >}}
 {{< /highlight >}}
-
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/flatmap" >}}
 
 ### Example 5: FlatMapTuple for key-value pairs
 
 If your `PCollection` consists of `(key, value)` pairs,
 you can use `FlatMapTuple` to unpack them into different function arguments.
 
-{{< highlight py >}}
+{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/flatmap" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py" flatmap_tuple >}}
 {{< /highlight >}}
 
@@ -130,13 +120,9 @@ you can use `FlatMapTuple` to unpack them into different function arguments.
 Output:
 {{< /paragraph >}}
 
-{{< highlight class="notebook-skip" >}}
+{{< highlight >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap_test.py" plants >}}
 {{< /highlight >}}
-
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/flatmap" >}}
 
 ### Example 6: FlatMap with multiple arguments
 
@@ -145,7 +131,8 @@ They are passed as additional positional arguments or keyword arguments to the f
 
 In this example, `split_words` takes `text` and `delimiter` as arguments.
 
-{{< highlight py >}}
+{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/flatmap" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py" flatmap_multiple_arguments >}}
 {{< /highlight >}}
 
@@ -153,23 +140,20 @@ In this example, `split_words` takes `text` and `delimiter` as arguments.
 Output:
 {{< /paragraph >}}
 
-{{< highlight class="notebook-skip" >}}
+{{< highlight >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap_test.py" plants >}}
 {{< /highlight >}}
-
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/flatmap" >}}
 
 ### Example 7: FlatMap with side inputs as singletons
 
 If the `PCollection` has a single value, such as the average from another computation,
-passing the `PCollection` as a *singleton* accesses that value.
+passing the `PCollection` as a _singleton_ accesses that value.
 
 In this example, we pass a `PCollection` the value `','` as a singleton.
 We then use that value as the delimiter for the `str.split` method.
 
-{{< highlight py >}}
+{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/flatmap" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py" flatmap_side_inputs_singleton >}}
 {{< /highlight >}}
 
@@ -177,21 +161,18 @@ We then use that value as the delimiter for the `str.split` method.
 Output:
 {{< /paragraph >}}
 
-{{< highlight class="notebook-skip" >}}
+{{< highlight >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap_test.py" plants >}}
 {{< /highlight >}}
 
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/flatmap" >}}
-
 ### Example 8: FlatMap with side inputs as iterators
 
-If the `PCollection` has multiple values, pass the `PCollection` as an *iterator*.
+If the `PCollection` has multiple values, pass the `PCollection` as an _iterator_.
 This accesses elements lazily as they are needed,
 so it is possible to iterate over large `PCollection`s that won't fit into memory.
 
-{{< highlight py >}}
+{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/flatmap" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py" flatmap_side_inputs_iter >}}
 {{< /highlight >}}
 
@@ -199,25 +180,22 @@ so it is possible to iterate over large `PCollection`s that won't fit into memor
 Output:
 {{< /paragraph >}}
 
-{{< highlight class="notebook-skip" >}}
+{{< highlight >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap_test.py" valid_plants >}}
 {{< /highlight >}}
 
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/flatmap" >}}
-
-> **Note**: You can pass the `PCollection` as a *list* with `beam.pvalue.AsList(pcollection)`,
+> **Note**: You can pass the `PCollection` as a _list_ with `beam.pvalue.AsList(pcollection)`,
 > but this requires that all the elements fit into memory.
 
 ### Example 9: FlatMap with side inputs as dictionaries
 
-If a `PCollection` is small enough to fit into memory, then that `PCollection` can be passed as a *dictionary*.
+If a `PCollection` is small enough to fit into memory, then that `PCollection` can be passed as a _dictionary_.
 Each element must be a `(key, value)` pair.
 Note that all the elements of the `PCollection` must fit into memory for this.
 If the `PCollection` won't fit into memory, use `beam.pvalue.AsIter(pcollection)` instead.
 
-{{< highlight py >}}
+{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/flatmap" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py" flatmap_side_inputs_dict >}}
 {{< /highlight >}}
 
@@ -225,20 +203,16 @@ If the `PCollection` won't fit into memory, use `beam.pvalue.AsIter(pcollection)
 Output:
 {{< /paragraph >}}
 
-{{< highlight class="notebook-skip" >}}
+{{< highlight >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap_test.py" valid_plants >}}
 {{< /highlight >}}
 
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/flatmap" >}}
-
 ## Related transforms
 
-* [Filter](/documentation/transforms/python/elementwise/filter) is useful if the function is just
+- [Filter](/documentation/transforms/python/elementwise/filter) is useful if the function is just
   deciding whether to output an element or not.
-* [ParDo](/documentation/transforms/python/elementwise/pardo) is the most general elementwise mapping
+- [ParDo](/documentation/transforms/python/elementwise/pardo) is the most general elementwise mapping
   operation, and includes other abilities such as multiple output collections and side-inputs.
-* [Map](/documentation/transforms/python/elementwise/map) behaves the same, but produces exactly one output for each input.
+- [Map](/documentation/transforms/python/elementwise/map) behaves the same, but produces exactly one output for each input.
 
 {{< button-pydoc path="apache_beam.transforms.core" class="FlatMap" >}}

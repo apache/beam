@@ -1,6 +1,7 @@
 ---
 title: "Top"
 ---
+
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -32,9 +33,9 @@ Then, we get the largest or smallest elements in different ways.
 
 ### Example 1: Largest elements from a PCollection
 
-We use `Top.Largest()` to get the largest elements from the *entire* `PCollection`.
+We use `Top.Largest()` to get the largest elements from the _entire_ `PCollection`.
 
-{{< highlight py >}}
+{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py" top_largest >}}
 {{< /highlight >}}
 
@@ -42,18 +43,15 @@ We use `Top.Largest()` to get the largest elements from the *entire* `PCollectio
 Output:
 {{< /paragraph >}}
 
-{{< highlight class="notebook-skip" >}}
+{{< highlight >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/top_test.py" largest_elements >}}
 {{< /highlight >}}
-
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py" >}}
 
 ### Example 2: Largest elements for each key
 
 We use `Top.LargestPerKey()` to get the largest elements for each unique key in a `PCollection` of key-values.
 
-{{< highlight py >}}
+{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py"  >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py" top_largest_per_key >}}
 {{< /highlight >}}
 
@@ -61,18 +59,15 @@ We use `Top.LargestPerKey()` to get the largest elements for each unique key in 
 Output:
 {{< /paragraph >}}
 
-{{< highlight class="notebook-skip" >}}
+{{< highlight >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/top_test.py" largest_elements_per_key >}}
 {{< /highlight >}}
 
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py" >}}
-
 ### Example 3: Smallest elements from a PCollection
 
-We use `Top.Smallest()` to get the smallest elements from the *entire* `PCollection`.
+We use `Top.Smallest()` to get the smallest elements from the _entire_ `PCollection`.
 
-{{< highlight py >}}
+{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py" top_smallest >}}
 {{< /highlight >}}
 
@@ -80,18 +75,15 @@ We use `Top.Smallest()` to get the smallest elements from the *entire* `PCollect
 Output:
 {{< /paragraph >}}
 
-{{< highlight class="notebook-skip" >}}
+{{< highlight >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/top_test.py" smallest_elements >}}
 {{< /highlight >}}
-
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py" >}}
 
 ### Example 4: Smallest elements for each key
 
 We use `Top.SmallestPerKey()` to get the smallest elements for each unique key in a `PCollection` of key-values.
 
-{{< highlight py >}}
+{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py" top_smallest_per_key >}}
 {{< /highlight >}}
 
@@ -99,21 +91,18 @@ We use `Top.SmallestPerKey()` to get the smallest elements for each unique key i
 Output:
 {{< /paragraph >}}
 
-{{< highlight class="notebook-skip" >}}
+{{< highlight >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/top_test.py" smallest_elements_per_key >}}
 {{< /highlight >}}
 
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py" >}}
-
 ### Example 5: Custom elements from a PCollection
 
-We use `Top.Of()` to get elements with customized rules from the *entire* `PCollection`.
+We use `Top.Of()` to get elements with customized rules from the _entire_ `PCollection`.
 
 You can change how the elements are compared with `key`.
 By default you get the largest elements, but you can get the smallest by setting `reverse=True`.
 
-{{< highlight py >}}
+{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py" top_of >}}
 {{< /highlight >}}
 
@@ -121,12 +110,9 @@ By default you get the largest elements, but you can get the smallest by setting
 Output:
 {{< /paragraph >}}
 
-{{< highlight class="notebook-skip" >}}
+{{< highlight >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/top_test.py" shortest_elements >}}
 {{< /highlight >}}
-
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py" >}}
 
 ### Example 6: Custom elements for each key
 
@@ -135,7 +121,7 @@ We use `Top.PerKey()` to get elements with customized rules for each unique key 
 You can change how the elements are compared with `key`.
 By default you get the largest elements, but you can get the smallest by setting `reverse=True`.
 
-{{< highlight py >}}
+{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py" top_per_key >}}
 {{< /highlight >}}
 
@@ -143,15 +129,12 @@ By default you get the largest elements, but you can get the smallest by setting
 Output:
 {{< /paragraph >}}
 
-{{< highlight class="notebook-skip" >}}
+{{< highlight >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/top_test.py" shortest_elements_per_key >}}
 {{< /highlight >}}
 
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py" >}}
-
 ## Related transforms
 
-* [Sample](/documentation/transforms/python/aggregation/sample) to combine elements. Takes samples of the elements in a collection.
+- [Sample](/documentation/transforms/python/aggregation/sample) to combine elements. Takes samples of the elements in a collection.
 
 {{< button-pydoc path="apache_beam.transforms.combiners" class="Top" >}}

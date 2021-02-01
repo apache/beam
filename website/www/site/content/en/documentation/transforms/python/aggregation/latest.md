@@ -1,6 +1,7 @@
 ---
 title: "Latest"
 ---
+
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -33,7 +34,7 @@ We use `Latest` to get the element with the latest timestamp from the `PCollecti
 
 We use `Latest.Globally()` to get the element with the latest timestamp in the entire `PCollection`.
 
-{{< highlight py >}}
+{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/latest.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/latest.py" latest_globally >}}
 {{< /highlight >}}
 
@@ -41,18 +42,15 @@ We use `Latest.Globally()` to get the element with the latest timestamp in the e
 Output:
 {{< /paragraph >}}
 
-{{< highlight class="notebook-skip" >}}
+{{< highlight >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/latest_test.py" latest_element >}}
 {{< /highlight >}}
-
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/latest.py" >}}
 
 ### Example 2: Latest elements for each key
 
 We use `Latest.PerKey()` to get the elements with the latest timestamp for each key in a `PCollection` of key-values.
 
-{{< highlight py >}}
+{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/latest.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/latest.py" latest_per_key >}}
 {{< /highlight >}}
 
@@ -60,15 +58,12 @@ We use `Latest.PerKey()` to get the elements with the latest timestamp for each 
 Output:
 {{< /paragraph >}}
 
-{{< highlight class="notebook-skip" >}}
+{{< highlight >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/latest_test.py" latest_elements_per_key >}}
 {{< /highlight >}}
 
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/latest.py" >}}
-
 ## Related transforms
 
-* [Sample](/documentation/transforms/python/aggregation/sample) randomly takes some number of elements in a collection.
+- [Sample](/documentation/transforms/python/aggregation/sample) randomly takes some number of elements in a collection.
 
 {{< button-pydoc path="apache_beam.transforms.combiners" class="Latest" >}}

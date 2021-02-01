@@ -2,6 +2,7 @@
 title: "Beam WordCount Examples"
 aliases: /use/wordcount-example/
 ---
+
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -33,12 +34,12 @@ model. Begin by understanding MinimalWordCount, the simplest of the examples.
 Once you feel comfortable with the basic principles in building a pipeline,
 continue on to learn more concepts in the other examples.
 
-* **MinimalWordCount** demonstrates the basic principles involved in building a
+- **MinimalWordCount** demonstrates the basic principles involved in building a
   pipeline.
-* **WordCount** introduces some of the more common best practices in creating
+- **WordCount** introduces some of the more common best practices in creating
   re-usable and maintainable pipelines.
-* **DebuggingWordCount** introduces logging and debugging practices.
-* **WindowedWordCount** demonstrates how you can use Beam's programming model
+- **DebuggingWordCount** introduces logging and debugging practices.
+- **WindowedWordCount** demonstrates how you can use Beam's programming model
   to handle both bounded and unbounded datasets.
 
 ## MinimalWordCount example
@@ -56,15 +57,15 @@ later examples, we will parameterize the pipeline's input and output sources and
 show other best practices.
 {{< /paragraph >}}
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.MinimalWordCount
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 python -m apache_beam.examples.wordcount_minimal --input YOUR_INPUT_FILE --output counts
 {{< /highlight >}}
 
-{{< highlight go >}}
+{{< highlight language="go" >}}
 $ go install github.com/apache/beam/sdks/go/examples/minimal_wordcount
 $ minimal_wordcount
 {{< /highlight >}}
@@ -86,13 +87,13 @@ To view the full code in Go, see
 
 **Key Concepts:**
 
-* Creating the Pipeline
-* Applying transforms to the Pipeline
-* Reading input (in this example: reading text files)
-* Applying ParDo transforms
-* Applying SDK-provided transforms (in this example: Count)
-* Writing output (in this example: writing to a text file)
-* Running the Pipeline
+- Creating the Pipeline
+- Applying transforms to the Pipeline
+- Reading input (in this example: reading text files)
+- Applying ParDo transforms
+- Applying SDK-provided transforms (in this example: Count)
+- Writing output (in this example: writing to a text file)
+- Running the Pipeline
 
 The following sections explain these concepts in detail, using the relevant code
 excerpts from the MinimalWordCount pipeline.
@@ -114,15 +115,15 @@ example, your pipeline executes locally using the `DirectRunner`. In the next
 sections, we will specify the pipeline's runner.
 {{< /paragraph >}}
 
-{{< highlight java >}}
- // Create a PipelineOptions object. This object lets us set various execution
- // options for our pipeline, such as the runner you wish to use. This example
- // will run with the DirectRunner by default, based on the class path configured
- // in its dependencies.
- PipelineOptions options = PipelineOptionsFactory.create();
+{{< highlight language="java" >}}
+// Create a PipelineOptions object. This object lets us set various execution
+// options for our pipeline, such as the runner you wish to use. This example
+// will run with the DirectRunner by default, based on the class path configured
+// in its dependencies.
+PipelineOptions options = PipelineOptionsFactory.create();
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" examples_wordcount_minimal_options >}}
 {{< /highlight >}}
 
@@ -138,15 +139,15 @@ transformations to be executed, associated with that particular pipeline.
 The scope allows grouping into composite transforms.
 {{< /paragraph >}}
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 Pipeline p = Pipeline.create(options);
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" examples_wordcount_minimal_create >}}
 {{< /highlight >}}
 
-{{< highlight go >}}
+{{< highlight language="go" >}}
 p := beam.NewPipeline()
 s := p.Root()
 {{< /highlight >}}
@@ -165,7 +166,7 @@ represent a dataset of virtually any size, including unbounded datasets.
 
 <img src="/images/wordcount-pipeline.svg" width="800px" alt="The MinimalWordCount pipeline data flow.">
 
-*Figure 1: The MinimalWordCount pipeline data flow.*
+_Figure 1: The MinimalWordCount pipeline data flow._
 
 The MinimalWordCount pipeline contains five transforms:
 
@@ -174,16 +175,16 @@ The MinimalWordCount pipeline contains five transforms:
     represents one line of text from the input file. This example uses input
     data stored in a publicly accessible Google Cloud Storage bucket ("gs://").
 
-{{< highlight java >}}
-p.apply(TextIO.read().from("gs://apache-beam-samples/shakespeare/*"))
+{{< highlight language="java" >}}
+p.apply(TextIO.read().from("gs://apache-beam-samples/shakespeare/\*"))
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" examples_wordcount_minimal_read >}}
 {{< /highlight >}}
 
-{{< highlight go >}}
-lines := textio.Read(s, "gs://apache-beam-samples/shakespeare/*")
+{{< highlight language="go" >}}
+lines := textio.Read(s, "gs://apache-beam-samples/shakespeare/\*")
 {{< /highlight >}}
 
 2.  This transform splits the lines in `PCollection<String>`, where each element
@@ -196,22 +197,24 @@ lines := textio.Read(s, "gs://apache-beam-samples/shakespeare/*")
     previous `TextIO.Read` transform. The `ParDo` transform outputs a new
     `PCollection`, where each element represents an individual word in the text.
 
-{{< highlight java >}}
-    .apply("ExtractWords", FlatMapElements
-        .into(TypeDescriptors.strings())
-        .via((String line) -> Arrays.asList(line.split("[^\\p{L}]+"))))
+{{< highlight language="java" >}}
+.apply("ExtractWords", FlatMapElements
+.into(TypeDescriptors.strings())
+.via((String line) -> Arrays.asList(line.split("[^\\p{l}]+"))))
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
+
 # The Flatmap transform is a simplified version of ParDo.
+
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" examples_wordcount_minimal_pardo >}}
 {{< /highlight >}}
 
-{{< highlight go >}}
+{{< highlight language="go" >}}
 words := beam.ParDo(s, func(line string, emit func(string)) {
-    for _, word := range wordRE.FindAllString(line, -1) {
-        emit(word)
-    }
+for \_, word := range wordRE.FindAllString(line, -1) {
+emit(word)
+}
 }, lines)
 {{< /highlight >}}
 
@@ -226,15 +229,15 @@ words := beam.ParDo(s, func(line string, emit func(string)) {
     of key/value pairs where each key represents a unique word in the text and
     the associated value is the occurrence count for each.
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 .apply(Count.<String>perElement())
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" examples_wordcount_minimal_count >}}
 {{< /highlight >}}
 
-{{< highlight go >}}
+{{< highlight language="go" >}}
 counted := stats.Count(s, words)
 {{< /highlight >}}
 
@@ -246,19 +249,19 @@ counted := stats.Count(s, words)
     simple `ParDo`. For each element in the input `PCollection`, the map
     transform applies a function that produces exactly one output element.
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 .apply("FormatResults", MapElements
-    .into(TypeDescriptors.strings())
-    .via((KV<String, Long> wordCount) -> wordCount.getKey() + ": " + wordCount.getValue()))
+.into(TypeDescriptors.strings())
+.via((KV<String, Long> wordCount) -> wordCount.getKey() + ": " + wordCount.getValue()))
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" examples_wordcount_minimal_map >}}
 {{< /highlight >}}
 
-{{< highlight go >}}
+{{< highlight language="go" >}}
 formatted := beam.ParDo(s, func(w string, c int) string {
-    return fmt.Sprintf("%s: %v", w, c)
+return fmt.Sprintf("%s: %v", w, c)
 }, counted)
 {{< /highlight >}}
 
@@ -267,15 +270,15 @@ formatted := beam.ParDo(s, func(w string, c int) string {
     Each element in the input `PCollection` represents one line of text in the
     resulting output file.
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 .apply(TextIO.write().to("wordcounts"));
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" examples_wordcount_minimal_write >}}
 {{< /highlight >}}
 
-{{< highlight go >}}
+{{< highlight language="go" >}}
 textio.Write(s, "wordcounts.txt", formatted)
 {{< /highlight >}}
 
@@ -299,15 +302,15 @@ executed by the pipeline runner that you specified in your `PipelineOptions`.
 Run the pipeline by passing it to a runner.
 {{< /paragraph >}}
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 p.run().waitUntilFinish();
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" examples_wordcount_minimal_run >}}
 {{< /highlight >}}
 
-{{< highlight go >}}
+{{< highlight language="go" >}}
 direct.Execute(context.Background(), p)
 {{< /highlight >}}
 
@@ -331,50 +334,50 @@ above section, [MinimalWordCount](#minimalwordcount-example).
 
 **To run this example in Java:**
 
-{{< highlight class="runner-direct" >}}
+{{< highlight >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
-     -Dexec.args="--inputFile=pom.xml --output=counts" -Pdirect-runner
+ -Dexec.args="--inputFile=pom.xml --output=counts" -Pdirect-runner
 {{< /highlight >}}
 
-{{< highlight class="runner-flink-local" >}}
+{{< highlight >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
-     -Dexec.args="--runner=FlinkRunner --inputFile=pom.xml --output=counts" -Pflink-runner
+ -Dexec.args="--runner=FlinkRunner --inputFile=pom.xml --output=counts" -Pflink-runner
 {{< /highlight >}}
 
-{{< highlight class="runner-flink-cluster" >}}
+{{< highlight >}}
 $ mvn package exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
-     -Dexec.args="--runner=FlinkRunner --flinkMaster=<flink master> --filesToStage=target/word-count-beam-bundled-0.1.jar \
-                  --inputFile=/path/to/quickstart/pom.xml --output=/tmp/counts" -Pflink-runner
+ -Dexec.args="--runner=FlinkRunner --flinkMaster=<flink master> --filesToStage=target/word-count-beam-bundled-0.1.jar \
+ --inputFile=/path/to/quickstart/pom.xml --output=/tmp/counts" -Pflink-runner
 
 You can monitor the running job by visiting the Flink dashboard at http://<flink master>:8081
 {{< /highlight >}}
 
-{{< highlight class="runner-spark" >}}
+{{< highlight >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
-     -Dexec.args="--runner=SparkRunner --inputFile=pom.xml --output=counts" -Pspark-runner
+ -Dexec.args="--runner=SparkRunner --inputFile=pom.xml --output=counts" -Pspark-runner
 {{< /highlight >}}
 
-{{< highlight class="runner-dataflow" >}}
+{{< highlight >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
-     -Dexec.args="--runner=DataflowRunner --gcpTempLocation=gs://YOUR_GCS_BUCKET/tmp \
-                  --project=YOUR_PROJECT --region=GCE_REGION \
-                  --inputFile=gs://apache-beam-samples/shakespeare/* --output=gs://YOUR_GCS_BUCKET/counts" \
-     -Pdataflow-runner
+ -Dexec.args="--runner=DataflowRunner --gcpTempLocation=gs://YOUR_GCS_BUCKET/tmp \
+ --project=YOUR_PROJECT --region=GCE_REGION \
+ --inputFile=gs://apache-beam-samples/shakespeare/\* --output=gs://YOUR_GCS_BUCKET/counts" \
+ -Pdataflow-runner
 {{< /highlight >}}
 
-{{< highlight class="runner-samza-local" >}}
+{{< highlight >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
-     -Dexec.args="--inputFile=pom.xml --output=counts --runner=SamzaRunner" -Psamza-runner
+ -Dexec.args="--inputFile=pom.xml --output=counts --runner=SamzaRunner" -Psamza-runner
 {{< /highlight >}}
 
-{{< highlight class="runner-nemo" >}}
+{{< highlight >}}
 $ mvn package -Pnemo-runner && java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount \
-     --runner=NemoRunner --inputFile=`pwd`/pom.xml --output=counts
+ --runner=NemoRunner --inputFile=`pwd`/pom.xml --output=counts
 {{< /highlight >}}
 
-{{< highlight class="runner-jet" >}}
+{{< highlight >}}
 $ mvn package -P jet-runner && java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount \
-     --runner=JetRunner --jetLocalMode=3 --inputFile=`pwd`/pom.xml --output=counts
+ --runner=JetRunner --jetLocalMode=3 --inputFile=`pwd`/pom.xml --output=counts
 {{< /highlight >}}
 
 To view the full code in Java, see
@@ -382,47 +385,52 @@ To view the full code in Java, see
 
 **To run this example in Python:**
 
-{{< highlight class="runner-direct" >}}
+{{< highlight >}}
 python -m apache_beam.examples.wordcount --input YOUR_INPUT_FILE --output counts
 {{< /highlight >}}
 
-{{< highlight class="runner-flink-local" >}}
+{{< highlight >}}
 python -m apache_beam.examples.wordcount --input /path/to/inputfile \
-                                         --output /path/to/write/counts \
-                                         --runner FlinkRunner
+ --output /path/to/write/counts \
+ --runner FlinkRunner
 {{< /highlight >}}
 
-{{< highlight class="runner-flink-cluster" >}}
+{{< highlight >}}
+
 # Running Beam Python on a distributed Flink cluster requires additional configuration.
+
 # See https://beam.apache.org/documentation/runners/flink/ for more information.
+
 {{< /highlight >}}
 
-{{< highlight class="runner-spark" >}}
+{{< highlight >}}
 python -m apache_beam.examples.wordcount --input /path/to/inputfile \
-                                         --output /path/to/write/counts \
-                                         --runner SparkRunner
+ --output /path/to/write/counts \
+ --runner SparkRunner
 {{< /highlight >}}
 
-{{< highlight class="runner-dataflow" >}}
+{{< highlight >}}
+
 # As part of the initial setup, install Google Cloud Platform specific extra components.
+
 pip install apache-beam[gcp]
 python -m apache_beam.examples.wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
-                                         --output gs://YOUR_GCS_BUCKET/counts \
-                                         --runner DataflowRunner \
-                                         --project YOUR_GCP_PROJECT \
-                                         --region YOUR_GCP_REGION \
-                                         --temp_location gs://YOUR_GCS_BUCKET/tmp/
+ --output gs://YOUR_GCS_BUCKET/counts \
+ --runner DataflowRunner \
+ --project YOUR_GCP_PROJECT \
+ --region YOUR_GCP_REGION \
+ --temp_location gs://YOUR_GCS_BUCKET/tmp/
 {{< /highlight >}}
 
-{{< highlight class="runner-samza-local" >}}
+{{< highlight >}}
 This runner is not yet available for the Python SDK.
 {{< /highlight >}}
 
-{{< highlight class="runner-nemo" >}}
+{{< highlight >}}
 This runner is not yet available for the Python SDK.
 {{< /highlight >}}
 
-{{< highlight class="runner-jet" >}}
+{{< highlight >}}
 This runner is not yet available for the Python SDK.
 {{< /highlight >}}
 
@@ -431,46 +439,48 @@ To view the full code in Python, see
 
 **To run this example in Go:**
 
-{{< highlight class="runner-direct" >}}
+{{< highlight >}}
 $ go install github.com/apache/beam/sdks/go/examples/wordcount
 $ wordcount --input <PATH_TO_INPUT_FILE> --output counts
 {{< /highlight >}}
 
-{{< highlight class="runner-flink-local" >}}
+{{< highlight >}}
 This runner is not yet available for the Go SDK.
 {{< /highlight >}}
 
-{{< highlight class="runner-flink-cluster" >}}
+{{< highlight >}}
 This runner is not yet available for the Go SDK.
 {{< /highlight >}}
 
-{{< highlight class="runner-spark" >}}
+{{< highlight >}}
 This runner is not yet available for the Go SDK.
 {{< /highlight >}}
 
-{{< highlight class="runner-dataflow" >}}
+{{< highlight >}}
 $ go install github.com/apache/beam/sdks/go/examples/wordcount
+
 # As part of the initial setup, for non linux users - install package unix before run
+
 $ go get -u golang.org/x/sys/unix
 $ wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
-            --output gs://<your-gcs-bucket>/counts \
-            --runner dataflow \
-            --project your-gcp-project \
-            --region your-gcp-region \
-            --temp_location gs://<your-gcs-bucket>/tmp/ \
-            --staging_location gs://<your-gcs-bucket>/binaries/ \
-            --worker_harness_container_image=apache/beam_go_sdk:latest
+ --output gs://<your-gcs-bucket>/counts \
+ --runner dataflow \
+ --project your-gcp-project \
+ --region your-gcp-region \
+ --temp_location gs://<your-gcs-bucket>/tmp/ \
+ --staging_location gs://<your-gcs-bucket>/binaries/ \
+ --worker_harness_container_image=apache/beam_go_sdk:latest
 {{< /highlight >}}
 
-{{< highlight class="runner-samza-local" >}}
+{{< highlight >}}
 This runner is not yet available for the Go SDK.
 {{< /highlight >}}
 
-{{< highlight class="runner-nemo" >}}
+{{< highlight >}}
 This runner is not yet available for the Go SDK.
 {{< /highlight >}}
 
-{{< highlight class="runner-jet" >}}
+{{< highlight >}}
 This runner is not yet available for the Go SDK.
 {{< /highlight >}}
 
@@ -479,9 +489,9 @@ To view the full code in Go, see
 
 **New Concepts:**
 
-* Applying `ParDo` with an explicit `DoFn`
-* Creating Composite Transforms
-* Using Parameterizable `PipelineOptions`
+- Applying `ParDo` with an explicit `DoFn`
+- Creating Composite Transforms
+- Using Parameterizable `PipelineOptions`
 
 The following sections explain these key concepts in detail, and break down the
 pipeline code into smaller sections.
@@ -507,30 +517,32 @@ idea to define the `DoFn` at the global level, which makes it easier to unit
 test and can make the `ParDo` code more readable.
 {{< /paragraph >}}
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 // In this example, ExtractWordsFn is a DoFn that is defined as a static class:
 
 static class ExtractWordsFn extends DoFn<String, String> {
-    ...
+...
 
     @ProcessElement
     public void processElement(ProcessContext c) {
         ...
     }
+
 }
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
+
 # In this example, the DoFns are defined as classes:
 
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" examples_wordcount_wordcount_dofn >}}
 {{< /highlight >}}
 
-{{< highlight go >}}
+{{< highlight language="go" >}}
 // In this example, extractFn is a DoFn that is defined as a function:
 
 func extractFn(ctx context.Context, line string, emit func(string)) {
-   ...
+...
 }
 {{< /highlight >}}
 
@@ -564,11 +576,11 @@ When `CountWords` is defined, we specify its ultimate input and output; the
 input is the `PCollection<String>` for the extraction operation, and the output
 is the `PCollection<KV<String, Long>>` produced by the count operation.
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 public static class CountWords extends PTransform<PCollection<String>,
-    PCollection<KV<String, Long>>> {
-  @Override
-  public PCollection<KV<String, Long>> expand(PCollection<String> lines) {
+PCollection<KV<String, Long>>> {
+@Override
+public PCollection<KV<String, Long>> expand(PCollection<String> lines) {
 
     // Convert lines of text into individual words.
     PCollection<String> words = lines.apply(
@@ -579,31 +591,33 @@ public static class CountWords extends PTransform<PCollection<String>,
         words.apply(Count.<String>perElement());
 
     return wordCounts;
-  }
+
+}
 }
 
 public static void main(String[] args) throws IOException {
-  Pipeline p = ...
+Pipeline p = ...
 
-  p.apply(...)
-   .apply(new CountWords())
-   ...
+p.apply(...)
+.apply(new CountWords())
+...
 }
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" examples_wordcount_wordcount_composite >}}
 {{< /highlight >}}
 
-{{< highlight go >}}
+{{< highlight language="go" >}}
 func CountWords(s beam.Scope, lines beam.PCollection) beam.PCollection {
-	s = s.Scope("CountWords")
+s = s.Scope("CountWords")
 
-	// Convert lines of text into individual words.
-	col := beam.ParDo(s, extractFn, lines)
+    // Convert lines of text into individual words.
+    col := beam.ParDo(s, extractFn, lines)
 
-	// Count the number of times each word occurs.
-	return stats.Count(s, col)
+    // Count the number of times each word occurs.
+    return stats.Count(s, col)
+
 }
 {{< /highlight >}}
 
@@ -623,37 +637,38 @@ values for them. You can then access the options values in your pipeline code.
 You can use the standard `flag` package for this purpose.
 {{< /paragraph >}}
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 public static interface WordCountOptions extends PipelineOptions {
-  @Description("Path of the file to read from")
-  @Default.String("gs://dataflow-samples/shakespeare/kinglear.txt")
-  String getInputFile();
-  void setInputFile(String value);
-  ...
+@Description("Path of the file to read from")
+@Default.String("gs://dataflow-samples/shakespeare/kinglear.txt")
+String getInputFile();
+void setInputFile(String value);
+...
 }
 
 public static void main(String[] args) {
-  WordCountOptions options = PipelineOptionsFactory.fromArgs(args).withValidation()
-      .as(WordCountOptions.class);
-  Pipeline p = Pipeline.create(options);
-  ...
+WordCountOptions options = PipelineOptionsFactory.fromArgs(args).withValidation()
+.as(WordCountOptions.class);
+Pipeline p = Pipeline.create(options);
+...
 }
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" examples_wordcount_wordcount_options >}}
 {{< /highlight >}}
 
-{{< highlight go >}}
+{{< highlight language="go" >}}
 var input = flag.String("input", "gs://apache-beam-samples/shakespeare/kinglear.txt", "File(s) to read.")
 
 func main() {
-    ...
-    p := beam.NewPipeline()
-    s := p.Root()
+...
+p := beam.NewPipeline()
+s := p.Root()
 
     lines := textio.Read(s, *input)
     ...
+
 {{< /highlight >}}
 
 ## DebuggingWordCount example
@@ -663,50 +678,50 @@ instrumenting your pipeline code.
 
 **To run this example in Java:**
 
-{{< highlight class="runner-direct" >}}
+{{< highlight >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
-     -Dexec.args="--output=counts" -Pdirect-runner
+ -Dexec.args="--output=counts" -Pdirect-runner
 {{< /highlight >}}
 
-{{< highlight class="runner-flink-local" >}}
+{{< highlight >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
-     -Dexec.args="--runner=FlinkRunner --output=counts" -Pflink-runner
+ -Dexec.args="--runner=FlinkRunner --output=counts" -Pflink-runner
 {{< /highlight >}}
 
-{{< highlight class="runner-flink-cluster" >}}
+{{< highlight >}}
 $ mvn package exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
-     -Dexec.args="--runner=FlinkRunner --flinkMaster=<flink master> --filesToStage=target/word-count-beam-bundled-0.1.jar \
-                  --output=/tmp/counts" -Pflink-runner
+ -Dexec.args="--runner=FlinkRunner --flinkMaster=<flink master> --filesToStage=target/word-count-beam-bundled-0.1.jar \
+ --output=/tmp/counts" -Pflink-runner
 
 You can monitor the running job by visiting the Flink dashboard at http://<flink master>:8081
 {{< /highlight >}}
 
-{{< highlight class="runner-spark" >}}
+{{< highlight >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
-     -Dexec.args="--runner=SparkRunner --output=counts" -Pspark-runner
+ -Dexec.args="--runner=SparkRunner --output=counts" -Pspark-runner
 {{< /highlight >}}
 
-{{< highlight class="runner-dataflow" >}}
+{{< highlight >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
-   -Dexec.args="--runner=DataflowRunner --gcpTempLocation=gs://<your-gcs-bucket>/tmp \
-                --project=YOUR_PROJECT --region=GCE_REGION \
-                --inputFile=gs://apache-beam-samples/shakespeare/* --output=gs://<your-gcs-bucket>/counts" \
-     -Pdataflow-runner
+ -Dexec.args="--runner=DataflowRunner --gcpTempLocation=gs://<your-gcs-bucket>/tmp \
+ --project=YOUR_PROJECT --region=GCE_REGION \
+ --inputFile=gs://apache-beam-samples/shakespeare/\* --output=gs://<your-gcs-bucket>/counts" \
+ -Pdataflow-runner
 {{< /highlight >}}
 
-{{< highlight class="runner-samza-local" >}}
+{{< highlight >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
-     -Dexec.args="--runner=SamzaRunner --output=counts" -Psamza-runner
+ -Dexec.args="--runner=SamzaRunner --output=counts" -Psamza-runner
 {{< /highlight >}}
 
-{{< highlight class="runner-nemo" >}}
+{{< highlight >}}
 $ mvn package -Pnemo-runner && java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.DebuggingWordCount \
-     --runner=NemoRunner --inputFile=`pwd`/pom.xml --output=counts
+ --runner=NemoRunner --inputFile=`pwd`/pom.xml --output=counts
 {{< /highlight >}}
 
-{{< highlight class="runner-jet" >}}
+{{< highlight >}}
 $ mvn package -P jet-runner && java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.DebuggingWordCount \
-     --runner=JetRunner --jetLocalMode=3 --output=counts
+ --runner=JetRunner --jetLocalMode=3 --output=counts
 {{< /highlight >}}
 
 To view the full code in Java, see
@@ -714,41 +729,43 @@ To view the full code in Java, see
 
 **To run this example in Python:**
 
-{{< highlight class="runner-direct" >}}
+{{< highlight >}}
 python -m apache_beam.examples.wordcount_debugging --input YOUR_INPUT_FILE --output counts
 {{< /highlight >}}
 
-{{< highlight class="runner-flink-local" >}}
+{{< highlight >}}
 This runner is not yet available for the Python SDK.
 {{< /highlight >}}
 
-{{< highlight class="runner-flink-cluster" >}}
+{{< highlight >}}
 This runner is not yet available for the Python SDK.
 {{< /highlight >}}
 
-{{< highlight class="runner-spark" >}}
+{{< highlight >}}
 This runner is not yet available for the Python SDK.
 {{< /highlight >}}
 
-{{< highlight class="runner-dataflow" >}}
+{{< highlight >}}
+
 # As part of the initial setup, install Google Cloud Platform specific extra components.
+
 pip install apache-beam[gcp]
 python -m apache_beam.examples.wordcount_debugging --input gs://dataflow-samples/shakespeare/kinglear.txt \
-                                         --output gs://YOUR_GCS_BUCKET/counts \
-                                         --runner DataflowRunner \
-                                         --project YOUR_GCP_PROJECT \
-                                         --temp_location gs://YOUR_GCS_BUCKET/tmp/
+ --output gs://YOUR_GCS_BUCKET/counts \
+ --runner DataflowRunner \
+ --project YOUR_GCP_PROJECT \
+ --temp_location gs://YOUR_GCS_BUCKET/tmp/
 {{< /highlight >}}
 
-{{< highlight class="runner-samza-local" >}}
+{{< highlight >}}
 This runner is not yet available for the Python SDK.
 {{< /highlight >}}
 
-{{< highlight class="runner-nemo" >}}
+{{< highlight >}}
 This runner is not yet available for the Python SDK.
 {{< /highlight >}}
 
-{{< highlight class="runner-jet" >}}
+{{< highlight >}}
 This runner is not yet available for the Python SDK.
 {{< /highlight >}}
 
@@ -757,46 +774,48 @@ To view the full code in Python, see
 
 **To run this example in Go:**
 
-{{< highlight class="runner-direct" >}}
+{{< highlight >}}
 $ go install github.com/apache/beam/sdks/go/examples/debugging_wordcount
 $ debugging_wordcount --input <PATH_TO_INPUT_FILE> --output counts
 {{< /highlight >}}
 
-{{< highlight class="runner-flink-local" >}}
+{{< highlight >}}
 This runner is not yet available for the Go SDK.
 {{< /highlight >}}
 
-{{< highlight class="runner-flink-cluster" >}}
+{{< highlight >}}
 This runner is not yet available for the Go SDK.
 {{< /highlight >}}
 
-{{< highlight class="runner-spark" >}}
+{{< highlight >}}
 This runner is not yet available for the Go SDK.
 {{< /highlight >}}
 
-{{< highlight class="runner-dataflow" >}}
+{{< highlight >}}
 $ go install github.com/apache/beam/sdks/go/examples/debugging_wordcount
+
 # As part of the initial setup, for non linux users - install package unix before run
+
 $ go get -u golang.org/x/sys/unix
 $ debugging_wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
-                      --output gs://<your-gcs-bucket>/counts \
-                      --runner dataflow \
-                      --project your-gcp-project \
-                      --region your-gcp-region \
-                      --temp_location gs://<your-gcs-bucket>/tmp/ \
-                      --staging_location gs://<your-gcs-bucket>/binaries/ \
-                      --worker_harness_container_image=apache-docker-beam-snapshots-docker.bintray.io/beam/go:20180515
+ --output gs://<your-gcs-bucket>/counts \
+ --runner dataflow \
+ --project your-gcp-project \
+ --region your-gcp-region \
+ --temp_location gs://<your-gcs-bucket>/tmp/ \
+ --staging_location gs://<your-gcs-bucket>/binaries/ \
+ --worker_harness_container_image=apache-docker-beam-snapshots-docker.bintray.io/beam/go:20180515
 {{< /highlight >}}
 
-{{< highlight class="runner-samza-local" >}}
+{{< highlight >}}
 This runner is not yet available for the Go SDK.
 {{< /highlight >}}
 
-{{< highlight class="runner-nemo" >}}
+{{< highlight >}}
 This runner is not yet available for the Go SDK.
 {{< /highlight >}}
 
-{{< highlight class="runner-jet" >}}
+{{< highlight >}}
 This runner is not yet available for the Go SDK.
 {{< /highlight >}}
 
@@ -805,8 +824,8 @@ To view the full code in Go, see
 
 **New Concepts:**
 
-* Logging
-* Testing your Pipeline via `PAssert`
+- Logging
+- Testing your Pipeline via `PAssert`
 
 The following sections explain these key concepts in detail, and break down the
 pipeline code into smaller sections.
@@ -815,13 +834,13 @@ pipeline code into smaller sections.
 
 Each runner may choose to handle logs in its own way.
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 // This example uses .trace and .debug:
 
 public class DebuggingWordCount {
 
-  public static class FilterTextFn extends DoFn<KV<String, Long>, KV<String, Long>> {
-    ...
+public static class FilterTextFn extends DoFn<KV<String, Long>, KV<String, Long>> {
+...
 
     @ProcessElement
     public void processElement(ProcessContext c) {
@@ -833,28 +852,29 @@ public class DebuggingWordCount {
         LOG.trace("Did not match: " + c.element().getKey());
       }
     }
-  }
+
+}
 }
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" example_wordcount_debugging_logging >}}
 {{< /highlight >}}
 
-{{< highlight go >}}
+{{< highlight language="go" >}}
 type filterFn struct {
-    ...
+...
 }
 
-func (f *filterFn) ProcessElement(ctx context.Context, word string, count int, emit func(string, int)) {
-    if f.re.MatchString(word) {
-         // Log at the "INFO" level each element that we match.
-         log.Infof(ctx, "Matched: %v", word)
-         emit(word, count)
-    } else {
-        // Log at the "DEBUG" level each element that is not matched.
-        log.Debugf(ctx, "Did not match: %v", word)
-    }
+func (f \*filterFn) ProcessElement(ctx context.Context, word string, count int, emit func(string, int)) {
+if f.re.MatchString(word) {
+// Log at the "INFO" level each element that we match.
+log.Infof(ctx, "Matched: %v", word)
+emit(word, count)
+} else {
+// Log at the "DEBUG" level each element that is not matched.
+log.Debugf(ctx, "Did not match: %v", word)
+}
 }
 {{< /highlight >}}
 
@@ -941,26 +961,26 @@ assert does not produce any output, and the pipeline only succeeds if all of the
 expectations are met.
 {{< /paragraph >}}
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 public static void main(String[] args) {
-  ...
-  List<KV<String, Long>> expectedResults = Arrays.asList(
-        KV.of("Flourish", 3L),
-        KV.of("stomach", 1L));
-  PAssert.that(filteredWords).containsInAnyOrder(expectedResults);
-  ...
+...
+List<KV<String, Long>> expectedResults = Arrays.asList(
+KV.of("Flourish", 3L),
+KV.of("stomach", 1L));
+PAssert.that(filteredWords).containsInAnyOrder(expectedResults);
+...
 }
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
 with TestPipeline() as p:
-  assert_that(p | Create([1, 2, 3]), equal_to([1, 2, 3]))
+assert_that(p | Create([1, 2, 3]), equal_to([1, 2, 3]))
 {{< /highlight >}}
 
-{{< highlight go >}}
+{{< highlight language="go" >}}
 ...
 passert.Equals(s, formatted, "Flourish: 3", "stomach: 1")
 {{< /highlight >}}
@@ -977,60 +997,60 @@ examples did, but introduces several advanced concepts.
 
 **New Concepts:**
 
-* Unbounded and bounded datasets
-* Adding timestamps to data
-* Windowing
-* Reusing PTransforms over windowed PCollections
+- Unbounded and bounded datasets
+- Adding timestamps to data
+- Windowing
+- Reusing PTransforms over windowed PCollections
 
 The following sections explain these key concepts in detail, and break down the
 pipeline code into smaller sections.
 
 **To run this example in Java:**
 
-{{< highlight class="runner-direct" >}}
+{{< highlight >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCount \
-     -Dexec.args="--inputFile=pom.xml --output=counts" -Pdirect-runner
+ -Dexec.args="--inputFile=pom.xml --output=counts" -Pdirect-runner
 {{< /highlight >}}
 
-{{< highlight class="runner-flink-local" >}}
+{{< highlight >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCount \
-     -Dexec.args="--runner=FlinkRunner --inputFile=pom.xml --output=counts" -Pflink-runner
+ -Dexec.args="--runner=FlinkRunner --inputFile=pom.xml --output=counts" -Pflink-runner
 {{< /highlight >}}
 
-{{< highlight class="runner-flink-cluster" >}}
+{{< highlight >}}
 $ mvn package exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCount \
-     -Dexec.args="--runner=FlinkRunner --flinkMaster=<flink master> --filesToStage=target/word-count-beam-bundled-0.1.jar \
-                  --inputFile=/path/to/quickstart/pom.xml --output=/tmp/counts" -Pflink-runner
+ -Dexec.args="--runner=FlinkRunner --flinkMaster=<flink master> --filesToStage=target/word-count-beam-bundled-0.1.jar \
+ --inputFile=/path/to/quickstart/pom.xml --output=/tmp/counts" -Pflink-runner
 
 You can monitor the running job by visiting the Flink dashboard at http://<flink master>:8081
 {{< /highlight >}}
 
-{{< highlight class="runner-spark" >}}
+{{< highlight >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCount \
-     -Dexec.args="--runner=SparkRunner --inputFile=pom.xml --output=counts" -Pspark-runner
+ -Dexec.args="--runner=SparkRunner --inputFile=pom.xml --output=counts" -Pspark-runner
 {{< /highlight >}}
 
-{{< highlight class="runner-dataflow" >}}
+{{< highlight >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCount \
-   -Dexec.args="--runner=DataflowRunner --gcpTempLocation=gs://YOUR_GCS_BUCKET/tmp \
-                --project=YOUR_PROJECT --region=GCE_REGION \
-                --inputFile=gs://apache-beam-samples/shakespeare/* --output=gs://YOUR_GCS_BUCKET/counts" \
-     -Pdataflow-runner
+ -Dexec.args="--runner=DataflowRunner --gcpTempLocation=gs://YOUR_GCS_BUCKET/tmp \
+ --project=YOUR_PROJECT --region=GCE_REGION \
+ --inputFile=gs://apache-beam-samples/shakespeare/\* --output=gs://YOUR_GCS_BUCKET/counts" \
+ -Pdataflow-runner
 {{< /highlight >}}
 
-{{< highlight class="runner-samza-local" >}}
+{{< highlight >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCount \
-     -Dexec.args="--runner=SamzaRunner --inputFile=pom.xml --output=counts" -Psamza-runner
+ -Dexec.args="--runner=SamzaRunner --inputFile=pom.xml --output=counts" -Psamza-runner
 {{< /highlight >}}
 
-{{< highlight class="runner-nemo" >}}
+{{< highlight >}}
 $ mvn package -Pnemo-runner && java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WindowedWordCount \
-     --runner=NemoRunner --inputFile=`pwd`/pom.xml --output=counts
+ --runner=NemoRunner --inputFile=`pwd`/pom.xml --output=counts
 {{< /highlight >}}
 
-{{< highlight class="runner-jet" >}}
+{{< highlight >}}
 $ mvn package -P jet-runner && java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WindowedWordCount \
-     --runner=JetRunner --jetLocalMode=3 --inputFile=`pwd`/pom.xml --output=counts
+ --runner=JetRunner --jetLocalMode=3 --inputFile=`pwd`/pom.xml --output=counts
 {{< /highlight >}}
 
 To view the full code in Java, see
@@ -1042,41 +1062,43 @@ This pipeline writes its results to a BigQuery table `--output_table`
 parameter. using the format `PROJECT:DATASET.TABLE` or
 `DATASET.TABLE`.
 
-{{< highlight class="runner-direct" >}}
+{{< highlight >}}
 python -m apache_beam.examples.windowed_wordcount --input YOUR_INPUT_FILE --output_table PROJECT:DATASET.TABLE
 {{< /highlight >}}
 
-{{< highlight class="runner-flink-local" >}}
+{{< highlight >}}
 This runner is not yet available for the Python SDK.
 {{< /highlight >}}
 
-{{< highlight class="runner-flink-cluster" >}}
+{{< highlight >}}
 This runner is not yet available for the Python SDK.
 {{< /highlight >}}
 
-{{< highlight class="runner-spark" >}}
+{{< highlight >}}
 This runner is not yet available for the Python SDK.
 {{< /highlight >}}
 
-{{< highlight class="runner-dataflow" >}}
+{{< highlight >}}
+
 # As part of the initial setup, install Google Cloud Platform specific extra components.
+
 pip install apache-beam[gcp]
 python -m apache_beam.examples.windowed_wordcount --input YOUR_INPUT_FILE \
-                                         --output_table PROJECT:DATASET.TABLE \
-                                         --runner DataflowRunner \
-                                         --project YOUR_GCP_PROJECT \
-                                         --temp_location gs://YOUR_GCS_BUCKET/tmp/
+ --output_table PROJECT:DATASET.TABLE \
+ --runner DataflowRunner \
+ --project YOUR_GCP_PROJECT \
+ --temp_location gs://YOUR_GCS_BUCKET/tmp/
 {{< /highlight >}}
 
-{{< highlight class="runner-samza-local" >}}
+{{< highlight >}}
 This runner is not yet available for the Python SDK.
 {{< /highlight >}}
 
-{{< highlight class="runner-nemo" >}}
+{{< highlight >}}
 This runner is not yet available for the Python SDK.
 {{< /highlight >}}
 
-{{< highlight class="runner-jet" >}}
+{{< highlight >}}
 This runner is not yet available for the Python SDK.
 {{< /highlight >}}
 
@@ -1085,51 +1107,52 @@ To view the full code in Python, see
 
 **To run this example in Go:**
 
-{{< highlight class="runner-direct" >}}
+{{< highlight >}}
 $ go install github.com/apache/beam/sdks/go/examples/windowed_wordcount
 $ windowed_wordcount --input <PATH_TO_INPUT_FILE> --output counts
 {{< /highlight >}}
 
-{{< highlight class="runner-flink-local" >}}
+{{< highlight >}}
 This runner is not yet available for the Go SDK.
 {{< /highlight >}}
 
-{{< highlight class="runner-flink-cluster" >}}
+{{< highlight >}}
 This runner is not yet available for the Go SDK.
 {{< /highlight >}}
 
-{{< highlight class="runner-spark" >}}
+{{< highlight >}}
 This runner is not yet available for the Go SDK.
 {{< /highlight >}}
 
-{{< highlight class="runner-dataflow" >}}
+{{< highlight >}}
 $ go install github.com/apache/beam/sdks/go/examples/windowed_wordcount
+
 # As part of the initial setup, for non linux users - install package unix before run
+
 $ go get -u golang.org/x/sys/unix
 $ windowed_wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
-            --output gs://<your-gcs-bucket>/counts \
-            --runner dataflow \
-            --project your-gcp-project \
-            --temp_location gs://<your-gcs-bucket>/tmp/ \
-            --staging_location gs://<your-gcs-bucket>/binaries/ \
-            --worker_harness_container_image=apache-docker-beam-snapshots-docker.bintray.io/beam/go:20180515
+ --output gs://<your-gcs-bucket>/counts \
+ --runner dataflow \
+ --project your-gcp-project \
+ --temp_location gs://<your-gcs-bucket>/tmp/ \
+ --staging_location gs://<your-gcs-bucket>/binaries/ \
+ --worker_harness_container_image=apache-docker-beam-snapshots-docker.bintray.io/beam/go:20180515
 {{< /highlight >}}
 
-{{< highlight class="runner-samza-local" >}}
+{{< highlight >}}
 This runner is not yet available for the Go SDK.
 {{< /highlight >}}
 
-{{< highlight class="runner-nemo" >}}
+{{< highlight >}}
 This runner is not yet available for the Go SDK.
 {{< /highlight >}}
 
-{{< highlight class="runner-jet" >}}
+{{< highlight >}}
 This runner is not yet available for the Go SDK.
 {{< /highlight >}}
 
 To view the full code in Go, see
 **[windowed_wordcount.go](https://github.com/apache/beam/blob/master/sdks/go/examples/windowed_wordcount/windowed_wordcount.go).**
-
 
 ### Unbounded and bounded datasets
 
@@ -1156,36 +1179,36 @@ Recall that the input for this example is a set of Shakespeare's texts, which is
 a finite set of data. Therefore, this example reads bounded data from a text
 file:
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 public static void main(String[] args) throws IOException {
-    Options options = ...
-    Pipeline pipeline = Pipeline.create(options);
+Options options = ...
+Pipeline pipeline = Pipeline.create(options);
 
     PCollection<String> input = pipeline
       .apply(TextIO.read().from(options.getInputFile()))
 
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 def main(arvg=None):
-  parser = argparse.ArgumentParser()
-  parser.add_argument('--input-file',
-                      dest='input_file',
-                      default='/Users/home/words-example.txt')
-  known_args, pipeline_args = parser.parse_known_args(argv)
-  pipeline_options = PipelineOptions(pipeline_args)
-  p = beam.Pipeline(options=pipeline_options)
-  lines  = p | 'read' >> ReadFromText(known_args.input_file)
+parser = argparse.ArgumentParser()
+parser.add_argument('--input-file',
+dest='input_file',
+default='/Users/home/words-example.txt')
+known_args, pipeline_args = parser.parse_known_args(argv)
+pipeline_options = PipelineOptions(pipeline_args)
+p = beam.Pipeline(options=pipeline_options)
+lines = p | 'read' >> ReadFromText(known_args.input_file)
 {{< /highlight >}}
 
-{{< highlight go >}}
+{{< highlight language="go" >}}
 func main() {
-   ...
-   p := beam.NewPipeline()
-   s := p.Root()
+...
+p := beam.NewPipeline()
+s := p.Root()
 
-   lines := textio.Read(s, *input)
-   ...
+lines := textio.Read(s, \*input)
+...
 }
 {{< /highlight >}}
 
@@ -1202,15 +1225,15 @@ In this example the input is bounded. For the purpose of the example, the `DoFn`
 method named `AddTimestampsFn` (invoked by `ParDo`) will set a timestamp for
 each element in the `PCollection`.
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 .apply(ParDo.of(new AddTimestampFn(minTimestamp, maxTimestamp)));
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 beam.Map(AddTimestampFn(min_timestamp, max_timestamp))
 {{< /highlight >}}
 
-{{< highlight go >}}
+{{< highlight language="go" >}}
 timestampedLines := beam.ParDo(s, &addTimestampFn{Min: mtime.Now()}, lines)
 {{< /highlight >}}
 
@@ -1222,52 +1245,53 @@ works of Shakespeare, so in this case we've made up random timestamps just to
 illustrate the concept. Each line of the input text will get a random associated
 timestamp sometime in a 2-hour period.
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 static class AddTimestampFn extends DoFn<String, String> {
-  private final Instant minTimestamp;
-  private final Instant maxTimestamp;
+private final Instant minTimestamp;
+private final Instant maxTimestamp;
 
-  AddTimestampFn(Instant minTimestamp, Instant maxTimestamp) {
-    this.minTimestamp = minTimestamp;
-    this.maxTimestamp = maxTimestamp;
-  }
+AddTimestampFn(Instant minTimestamp, Instant maxTimestamp) {
+this.minTimestamp = minTimestamp;
+this.maxTimestamp = maxTimestamp;
+}
 
-  @ProcessElement
-  public void processElement(ProcessContext c) {
-    Instant randomTimestamp =
-      new Instant(
-          ThreadLocalRandom.current()
-          .nextLong(minTimestamp.getMillis(), maxTimestamp.getMillis()));
+@ProcessElement
+public void processElement(ProcessContext c) {
+Instant randomTimestamp =
+new Instant(
+ThreadLocalRandom.current()
+.nextLong(minTimestamp.getMillis(), maxTimestamp.getMillis()));
 
     /**
      * Concept #2: Set the data element with that timestamp.
      */
     c.outputWithTimestamp(c.element(), new Instant(randomTimestamp));
-  }
+
+}
 }
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 class AddTimestampFn(beam.DoFn):
 
-  def __init__(self, min_timestamp, max_timestamp):
-     self.min_timestamp = min_timestamp
-     self.max_timestamp = max_timestamp
+def **init**(self, min_timestamp, max_timestamp):
+self.min_timestamp = min_timestamp
+self.max_timestamp = max_timestamp
 
-  def process(self, element):
-    return window.TimestampedValue(
-       element,
-       random.randint(self.min_timestamp, self.max_timestamp))
+def process(self, element):
+return window.TimestampedValue(
+element,
+random.randint(self.min_timestamp, self.max_timestamp))
 {{< /highlight >}}
 
-{{< highlight go >}}
+{{< highlight language="go" >}}
 type addTimestampFn struct {
-	Min beam.EventTime `json:"min"`
+Min beam.EventTime `json:"min"`
 }
 
-func (f *addTimestampFn) ProcessElement(x beam.X) (beam.EventTime, beam.X) {
-	timestamp := f.Min.Add(time.Duration(rand.Int63n(2 * time.Hour.Nanoseconds())))
-	return timestamp, x
+func (f _addTimestampFn) ProcessElement(x beam.X) (beam.EventTime, beam.X) {
+timestamp := f.Min.Add(time.Duration(rand.Int63n(2 _ time.Hour.Nanoseconds())))
+return timestamp, x
 }
 {{< /highlight >}}
 
@@ -1287,17 +1311,17 @@ The WindowedWordCount example applies fixed-time windowing, wherein each
 window represents a fixed time interval. The fixed window size for this example
 defaults to 1 minute (you can change this with a command-line option).
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 PCollection<String> windowedWords = input
-  .apply(Window.<String>into(
-    FixedWindows.of(Duration.standardMinutes(options.getWindowSize()))));
+.apply(Window.<String>into(
+FixedWindows.of(Duration.standardMinutes(options.getWindowSize()))));
 {{< /highlight >}}
 
-{{< highlight py >}}
-windowed_words = input | beam.WindowInto(window.FixedWindows(60 * window_size_minutes))
+{{< highlight language="py" >}}
+windowed_words = input | beam.WindowInto(window.FixedWindows(60 \* window_size_minutes))
 {{< /highlight >}}
 
-{{< highlight go >}}
+{{< highlight language="go" >}}
 windowedLines := beam.WindowInto(s, window.NewFixedWindows(time.Minute), timestampedLines)
 
 {{< /highlight >}}
@@ -1307,15 +1331,15 @@ windowedLines := beam.WindowInto(s, window.NewFixedWindows(time.Minute), timesta
 You can reuse existing PTransforms that were created for manipulating simple
 PCollections over windowed PCollections as well.
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 PCollection<KV<String, Long>> wordCounts = windowedWords.apply(new WordCount.CountWords());
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 word_counts = windowed_words | CountWords()
 {{< /highlight >}}
 
-{{< highlight go >}}
+{{< highlight language="go" >}}
 counted := wordcount.CountWords(s, windowedLines)
 {{< /highlight >}}
 
@@ -1330,8 +1354,8 @@ frequency count of the words seen in each 15 second window.
 
 **New Concepts:**
 
-* Reading an unbounded dataset
-* Writing unbounded results
+- Reading an unbounded dataset
+- Writing unbounded results
 
 **To run this example in Java:**
 
@@ -1339,47 +1363,49 @@ frequency count of the words seen in each 15 second window.
 
 **To run this example in Python:**
 
-{{< highlight class="runner-direct" >}}
+{{< highlight >}}
 python -m apache_beam.examples.streaming_wordcount \
-  --input_topic "projects/YOUR_PUBSUB_PROJECT_NAME/topics/YOUR_INPUT_TOPIC" \
-  --output_topic "projects/YOUR_PUBSUB_PROJECT_NAME/topics/YOUR_OUTPUT_TOPIC" \
-  --streaming
+ --input_topic "projects/YOUR_PUBSUB_PROJECT_NAME/topics/YOUR_INPUT_TOPIC" \
+ --output_topic "projects/YOUR_PUBSUB_PROJECT_NAME/topics/YOUR_OUTPUT_TOPIC" \
+ --streaming
 {{< /highlight >}}
 
-{{< highlight class="runner-flink-local" >}}
+{{< highlight >}}
 This runner is not yet available for the Python SDK.
 {{< /highlight >}}
 
-{{< highlight class="runner-flink-cluster" >}}
+{{< highlight >}}
 This runner is not yet available for the Python SDK.
 {{< /highlight >}}
 
-{{< highlight class="runner-spark" >}}
+{{< highlight >}}
 This runner is not yet available for the Python SDK.
 {{< /highlight >}}
 
-{{< highlight class="runner-dataflow" >}}
+{{< highlight >}}
+
 # As part of the initial setup, install Google Cloud Platform specific extra components.
+
 pip install apache-beam[gcp]
 python -m apache_beam.examples.streaming_wordcount \
-  --runner DataflowRunner \
-  --project YOUR_GCP_PROJECT \
-  --region YOUR_GCP_REGION \
-  --temp_location gs://YOUR_GCS_BUCKET/tmp/ \
-  --input_topic "projects/YOUR_PUBSUB_PROJECT_NAME/topics/YOUR_INPUT_TOPIC" \
-  --output_topic "projects/YOUR_PUBSUB_PROJECT_NAME/topics/YOUR_OUTPUT_TOPIC" \
-  --streaming
+ --runner DataflowRunner \
+ --project YOUR_GCP_PROJECT \
+ --region YOUR_GCP_REGION \
+ --temp_location gs://YOUR_GCS_BUCKET/tmp/ \
+ --input_topic "projects/YOUR_PUBSUB_PROJECT_NAME/topics/YOUR_INPUT_TOPIC" \
+ --output_topic "projects/YOUR_PUBSUB_PROJECT_NAME/topics/YOUR_OUTPUT_TOPIC" \
+ --streaming
 {{< /highlight >}}
 
-{{< highlight class="runner-samza-local" >}}
+{{< highlight >}}
 This runner is not yet available for the Python SDK.
 {{< /highlight >}}
 
-{{< highlight class="runner-nemo" >}}
+{{< highlight >}}
 This runner is not yet available for the Python SDK.
 {{< /highlight >}}
 
-{{< highlight class="runner-jet" >}}
+{{< highlight >}}
 This runner is not yet available for the Python SDK.
 {{< /highlight >}}
 
@@ -1389,8 +1415,7 @@ To view the full code in Python, see
 **To run this example in Go:**
 
 > **Note:** StreamingWordCount is not yet available for the Go SDK. There is an open issue for this
-([BEAM-4292](https://issues.apache.org/jira/browse/BEAM-4292)).
-
+> ([BEAM-4292](https://issues.apache.org/jira/browse/BEAM-4292)).
 
 ### Reading an unbounded dataset
 
@@ -1398,22 +1423,24 @@ This example uses an unbounded dataset as input. The code reads Pub/Sub
 messages from a Pub/Sub subscription or topic using
 [`beam.io.ReadFromPubSub`](https://beam.apache.org/releases/pydoc/{{< param release_latest >}}/apache_beam.io.gcp.pubsub.html#apache_beam.io.gcp.pubsub.ReadFromPubSub).
 
-{{< highlight java >}}
-  // This example is not currently available for the Beam SDK for Java.
+{{< highlight language="java" >}}
+// This example is not currently available for the Beam SDK for Java.
 {{< /highlight >}}
 
-{{< highlight py >}}
-  # Read from Pub/Sub into a PCollection.
-  if known_args.input_subscription:
-    data = p | beam.io.ReadFromPubSub(
-        subscription=known_args.input_subscription)
-  else:
-    data = p | beam.io.ReadFromPubSub(topic=known_args.input_topic)
-  lines = data | 'DecodeString' >> beam.Map(lambda d: d.decode('utf-8'))
+{{< highlight language="py" >}}
+
+# Read from Pub/Sub into a PCollection.
+
+if known_args.input_subscription:
+data = p | beam.io.ReadFromPubSub(
+subscription=known_args.input_subscription)
+else:
+data = p | beam.io.ReadFromPubSub(topic=known_args.input_topic)
+lines = data | 'DecodeString' >> beam.Map(lambda d: d.decode('utf-8'))
 {{< /highlight >}}
 
-{{< highlight go >}}
-  // This example is not currently available for the Beam SDK for Go.
+{{< highlight language="go" >}}
+// This example is not currently available for the Beam SDK for Go.
 {{< /highlight >}}
 
 ### Writing unbounded results
@@ -1427,26 +1454,28 @@ This example uses an unbounded `PCollection` and streams the results to
 Google Pub/Sub. The code formats the results and writes them to a Pub/Sub topic
 using [`beam.io.WriteToPubSub`](https://beam.apache.org/releases/pydoc/{{< param release_latest >}}/apache_beam.io.gcp.pubsub.html#apache_beam.io.gcp.pubsub.WriteToPubSub).
 
-{{< highlight java >}}
-  // This example is not currently available for the Beam SDK for Java.
+{{< highlight language="java" >}}
+// This example is not currently available for the Beam SDK for Java.
 {{< /highlight >}}
 
-{{< highlight py >}}
-  # Write to Pub/Sub
-  _ = (output
-    | 'EncodeString' >> Map(lambda s: s.encode('utf-8'))
-    | beam.io.WriteToPubSub(known_args.output_topic))
+{{< highlight language="py" >}}
+
+# Write to Pub/Sub
+
+\_ = (output
+| 'EncodeString' >> Map(lambda s: s.encode('utf-8'))
+| beam.io.WriteToPubSub(known_args.output_topic))
 {{< /highlight >}}
 
-{{< highlight go >}}
-  // This example is not currently available for the Beam SDK for Go.
+{{< highlight language="go" >}}
+// This example is not currently available for the Beam SDK for Go.
 {{< /highlight >}}
 
 ## Next Steps
 
-* Walk through the Mobile Gaming examples in the [Mobile Gaming Example Walkthrough](/get-started/mobile-gaming-example).
-* Take a self-paced tour through our [Learning Resources](/documentation/resources/learning-resources).
-* Dive in to some of our favorite [Videos and Podcasts](/documentation/resources/videos-and-podcasts).
-* Join the Beam [users@](/community/contact-us) mailing list.
+- Walk through the Mobile Gaming examples in the [Mobile Gaming Example Walkthrough](/get-started/mobile-gaming-example).
+- Take a self-paced tour through our [Learning Resources](/documentation/resources/learning-resources).
+- Dive in to some of our favorite [Videos and Podcasts](/documentation/resources/videos-and-podcasts).
+- Join the Beam [users@](/community/contact-us) mailing list.
 
 Please don't hesitate to [reach out](/community/contact-us) if you encounter any issues!

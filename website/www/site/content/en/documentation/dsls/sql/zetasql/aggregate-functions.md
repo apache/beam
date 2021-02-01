@@ -32,9 +32,9 @@ This page documents the ZetaSQL aggregate functions supported by Beam ZetaSQL.
 
 ## AVG
 
-```
+{{< highlight >}}
 AVG(expression)
-```
+{{< /highlight >}}
 
 **Description**
 
@@ -53,7 +53,7 @@ you use this function.
 
 **Examples**
 
-```
+{{< highlight >}}
 SELECT AVG(x) as avg
 FROM UNNEST([0, 2, NULL, 4, 4, 5]) as x;
 
@@ -63,7 +63,7 @@ FROM UNNEST([0, 2, NULL, 4, 4, 5]) as x;
 | 3   |
 +-----+
 
-```
+{{< /highlight >}}
 
 ## COUNT
 
@@ -87,7 +87,7 @@ INT64
 
 **Examples**
 
-```
+{{< highlight >}}
 SELECT COUNT(*) AS count_star, COUNT(x) AS count_x
 FROM UNNEST([1, 4, NULL, 4, 5]) AS x;
 
@@ -98,12 +98,12 @@ FROM UNNEST([1, 4, NULL, 4, 5]) AS x;
 +------------+---------+
 
 
-```
+{{< /highlight >}}
 
 ## MAX
-```
+{{< highlight >}}
 MAX(expression)
-```
+{{< /highlight >}}
 
 **Description**
 
@@ -122,7 +122,7 @@ Same as the data type used as the input values.
 
 **Examples**
 
-```
+{{< highlight >}}
 SELECT MAX(x) AS max
 FROM UNNEST([8, NULL, 37, 4, NULL, 55]) AS x;
 
@@ -133,12 +133,12 @@ FROM UNNEST([8, NULL, 37, 4, NULL, 55]) AS x;
 +-----+
 
 
-```
+{{< /highlight >}}
 
 ## MIN
-```
+{{< highlight >}}
 MIN(expression)
-```
+{{< /highlight >}}
 
 **Description**
 
@@ -157,7 +157,7 @@ Same as the data type used as the input values.
 
 **Examples**
 
-```
+{{< highlight >}}
 SELECT MIN(x) AS min
 FROM UNNEST([8, NULL, 37, 4, NULL, 55]) AS x;
 
@@ -168,12 +168,12 @@ FROM UNNEST([8, NULL, 37, 4, NULL, 55]) AS x;
 +-----+
 
 
-```
+{{< /highlight >}}
 
 ## SUM
-```
+{{< highlight >}}
 SUM(expression)
-```
+{{< /highlight >}}
 
 **Description**
 
@@ -195,7 +195,7 @@ Returns `NULL` if the input contains only `NULL`s.
 
 **Examples**
 
-```
+{{< highlight >}}
 SELECT SUM(x) AS sum
 FROM UNNEST([1, 2, 3, 4, 5, 4, 3, 2, 1]) AS x;
 
@@ -206,4 +206,4 @@ FROM UNNEST([1, 2, 3, 4, 5, 4, 3, 2, 1]) AS x;
 +-----+
 
 
-```
+{{< /highlight >}}

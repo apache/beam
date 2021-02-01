@@ -26,9 +26,9 @@ applications on the command line in the `--<option>=<value>` format.
 
 ## Syntax
 
-```
+{{< highlight >}}
 SET option = value
-```
+{{< /highlight >}}
 
 The SET command sets a Pipeline Option.
 
@@ -38,9 +38,9 @@ The SET command sets a Pipeline Option.
     [Identifier](/documentation/dsls/sql/calcite/lexical/#identifiers).
     For flag options that have no value on the command line, use `true`.
 
-```
+{{< highlight >}}
 RESET option
-```
+{{< /highlight >}}
 
 The RESET command resets a Pipeline Option to its default value.
 

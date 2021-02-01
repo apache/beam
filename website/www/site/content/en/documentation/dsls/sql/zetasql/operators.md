@@ -224,15 +224,15 @@ is interpreted as
 
 The expression:
 
-```
+{{< highlight >}}
 x * y / z
-```
+{{< /highlight >}}
 
 is interpreted as:
 
-```
+{{< highlight >}}
 ( ( x * y ) / z )
-```
+{{< /highlight >}}
 
 All comparison operators have the same priority and are grouped using left
 associativity. However, comparison operators are not associative. As a result,

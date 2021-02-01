@@ -1,6 +1,7 @@
 ---
 title: "Runner Authoring Guide"
 ---
+
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -34,17 +35,17 @@ of operations. You want to integrate it with the Beam ecosystem to get access
 to other languages, great event time processing, and a library of connectors.
 You need to know the core vocabulary:
 
- * [_Pipeline_](#pipeline) - A pipeline is a graph of transformations that a user constructs
-   that defines the data processing they want to do.
- * [_PCollection_](#pcollections) - Data being processed in a pipeline is part of a PCollection.
- * [_PTransforms_](#ptransforms) - The operations executed within a pipeline. These are best
-   thought of as operations on PCollections.
- * _SDK_ - A language-specific library for pipeline authors (we often call them
-   "users" even though we have many kinds of users) to build transforms,
-   construct their pipelines and submit them to a runner
- * _Runner_ - You are going to write a piece of software called a runner that
-   takes a Beam pipeline and executes it using the capabilities of your data
-   processing engine.
+- [_Pipeline_](#pipeline) - A pipeline is a graph of transformations that a user constructs
+  that defines the data processing they want to do.
+- [_PCollection_](#pcollections) - Data being processed in a pipeline is part of a PCollection.
+- [_PTransforms_](#ptransforms) - The operations executed within a pipeline. These are best
+  thought of as operations on PCollections.
+- _SDK_ - A language-specific library for pipeline authors (we often call them
+  "users" even though we have many kinds of users) to build transforms,
+  construct their pipelines and submit them to a runner
+- _Runner_ - You are going to write a piece of software called a runner that
+  takes a Beam pipeline and executes it using the capabilities of your data
+  processing engine.
 
 These concepts may be very similar to your processing engine's concepts. Since
 Beam's design is for cross-language operation and reusable libraries of
@@ -62,14 +63,14 @@ RPC interfaces.
 In Beam, a PTransform can be one of the five primitives or it can be a
 composite transform encapsulating a subgraph. The primitives are:
 
- * [_Read_](#implementing-the-read-primitive) - parallel connectors to external
-   systems
- * [_ParDo_](#implementing-the-pardo-primitive) - per element processing
- * [_GroupByKey_](#implementing-the-groupbykey-and-window-primitive) -
-   aggregating elements per key and window
- * [_Flatten_](#implementing-the-flatten-primitive) - union of PCollections
- * [_Window_](#implementing-the-window-primitive) - set the windowing strategy
-   for a PCollection
+- [_Read_](#implementing-the-read-primitive) - parallel connectors to external
+  systems
+- [_ParDo_](#implementing-the-pardo-primitive) - per element processing
+- [_GroupByKey_](#implementing-the-groupbykey-and-window-primitive) -
+  aggregating elements per key and window
+- [_Flatten_](#implementing-the-flatten-primitive) - union of PCollections
+- [_Window_](#implementing-the-window-primitive) - set the windowing strategy
+  for a PCollection
 
 When implementing a runner, these are the operations you need to implement.
 Composite transforms may or may not be important to your runner. If you expose
@@ -79,15 +80,15 @@ for a user to understand. But the result of processing is not changed.
 ### PCollections
 
 A PCollection is an unordered bag of elements. Your runner will be responsible
-for storing these elements.  There are some major aspects of a PCollection to
+for storing these elements. There are some major aspects of a PCollection to
 note:
 
 #### Bounded vs Unbounded
 
 A PCollection may be bounded or unbounded.
 
- - _Bounded_ - it is finite and you know it, as in batch use cases
- - _Unbounded_ - it may be never end, you don't know, as in streaming use cases
+- _Bounded_ - it is finite and you know it, as in batch use cases
+- _Unbounded_ - it may be never end, you don't know, as in streaming use cases
 
 These derive from the intuitions of batch and stream processing, but the two
 are unified in Beam and bounded and unbounded PCollections can coexist in the
@@ -101,7 +102,7 @@ to convert everything to APIs targeting unbounded data.
 Every element in a PCollection has a timestamp associated with it.
 
 When you execute a primitive connector to some storage system, that connector
-is responsible for providing initial timestamps.  Your runner will need to
+is responsible for providing initial timestamps. Your runner will need to
 propagate and aggregate timestamps. If the timestamp is not important, as with
 certain batch processing jobs where elements do not denote events, they will be
 the minimum representable timestamp, often referred to colloquially as
@@ -170,19 +171,19 @@ definitions are language-independent (see the [Fn API](#the-fn-api)).
 
 The UDFs of Beam are:
 
- * _DoFn_ - per-element processing function (used in ParDo)
- * _WindowFn_ - places elements in windows and merges windows (used in Window
-   and GroupByKey)
- * _Source_ - emits data read from external sources, including initial and
-   dynamic splitting for parallelism (used in Read)
- * _ViewFn_ - adapts a materialized PCollection to a particular interface (used
-   in side inputs)
- * _WindowMappingFn_ - maps one element's window to another, and specifies
-   bounds on how far in the past the result window will be (used in side
-   inputs)
- * _CombineFn_ - associative and commutative aggregation (used in Combine and
-   state)
- * _Coder_ - encodes user data; some coders have standard formats and are not really UDFs
+- _DoFn_ - per-element processing function (used in ParDo)
+- _WindowFn_ - places elements in windows and merges windows (used in Window
+  and GroupByKey)
+- _Source_ - emits data read from external sources, including initial and
+  dynamic splitting for parallelism (used in Read)
+- _ViewFn_ - adapts a materialized PCollection to a particular interface (used
+  in side inputs)
+- _WindowMappingFn_ - maps one element's window to another, and specifies
+  bounds on how far in the past the result window will be (used in side
+  inputs)
+- _CombineFn_ - associative and commutative aggregation (used in Combine and
+  state)
+- _Coder_ - encodes user data; some coders have standard formats and are not really UDFs
 
 The various types of user-defined functions will be described further alongside
 the primitives that use them.
@@ -215,7 +216,7 @@ provided.
 The primitives are designed for the benefit of pipeline authors, not runner
 authors. Each represents a different conceptual mode of operation (external IO,
 element-wise, grouping, windowing, union) rather than a specific implementation
-decision.  The same primitive may require a very different implementation based
+decision. The same primitive may require a very different implementation based
 on how the user instantiates it. For example, a `ParDo` that uses state or
 timers may require key partitioning, a `GroupByKey` with speculative triggering
 may require a more costly or complex implementation, and `Read` is completely
@@ -224,20 +225,20 @@ different for bounded and unbounded data.
 ### What if you haven't implemented some of these features?
 
 That's OK! You don't have to do it all at once, and there may even be features
-that don't make sense for your runner to ever support.  We maintain a
+that don't make sense for your runner to ever support. We maintain a
 [capability matrix](/documentation/runners/capability-matrix/) on the Beam site so you can tell
 users what you support. When you receive a `Pipeline`, you should traverse it
 and determine whether or not you can execute each `DoFn` that you find. If
 you cannot execute some `DoFn` in the pipeline (or if there is any other
 requirement that your runner lacks) you should reject the pipeline. In your
 native environment, this may look like throwing an
-`UnsupportedOperationException`.  The Runner API RPCs will make this explicit,
+`UnsupportedOperationException`. The Runner API RPCs will make this explicit,
 for cross-language portability.
 
 ### Implementing the ParDo primitive
 
 The `ParDo` primitive describes element-wise transformation for a
-`PCollection`.  `ParDo` is the most complex primitive, because it is where any
+`PCollection`. `ParDo` is the most complex primitive, because it is where any
 per-element processing is described. In addition to very simple operations like
 standard `map` or `flatMap` from functional programming, `ParDo` also supports
 multiple outputs, side inputs, initialization, flushing, teardown, and stateful
@@ -275,17 +276,17 @@ However, if you choose to execute a DoFn directly to improve performance or
 single-language simplicity, then your runner is responsible for implementing
 the following sequence:
 
- * _Setup_ - called once per DoFn instance before anything else; this has not been
-   implemented in the Python SDK so the user can work around just with lazy
-   initialization
- * _StartBundle_ - called once per bundle as initialization (actually, lazy
-   initialization is almost always equivalent and more efficient, but this hook
-   remains for simplicity for users)
- * _ProcessElement_ / _OnTimer_ - called for each element and timer activation
- * _FinishBundle_ - essentially "flush"; required to be called before
-   considering elements as actually processed
- * _Teardown_ - release resources that were used across bundles; calling this
-   can be best effort due to failures
+- _Setup_ - called once per DoFn instance before anything else; this has not been
+  implemented in the Python SDK so the user can work around just with lazy
+  initialization
+- _StartBundle_ - called once per bundle as initialization (actually, lazy
+  initialization is almost always equivalent and more efficient, but this hook
+  remains for simplicity for users)
+- _ProcessElement_ / _OnTimer_ - called for each element and timer activation
+- _FinishBundle_ - essentially "flush"; required to be called before
+  considering elements as actually processed
+- _Teardown_ - release resources that were used across bundles; calling this
+  can be best effort due to failures
 
 #### DoFnRunner(s)
 
@@ -297,27 +298,27 @@ the Python codebase.
 In Java, the `beam-runners-core-java` library provides an interface
 `DoFnRunner` for bundle processing, with implementations for many situations.
 
-{{< highlight class="language-java no-toggle" >}}
+{{< highlight language="java" >}}
 interface DoFnRunner<InputT, OutputT> {
-  void startBundle();
-  void processElement(WindowedValue<InputT> elem);
-  void onTimer(String timerId, BoundedWindow window, Instant timestamp, TimeDomain timeDomain);
-  void finishBundle();
+void startBundle();
+void processElement(WindowedValue<InputT> elem);
+void onTimer(String timerId, BoundedWindow window, Instant timestamp, TimeDomain timeDomain);
+void finishBundle();
 }
 {{< /highlight >}}
 
 There are some implementations and variations of this for different scenarios:
 
- * [`SimpleDoFnRunner`](https://github.com/apache/beam/blob/master/runners/core-java/src/main/java/org/apache/beam/runners/core/SimpleDoFnRunner.java) -
-   not actually simple at all; implements lots of the core functionality of
-   `ParDo`. This is how most runners execute most `DoFns`.
- * [`LateDataDroppingDoFnRunner`](https://github.com/apache/beam/blob/master/runners/core-java/src/main/java/org/apache/beam/runners/core/LateDataDroppingDoFnRunner.java) -
-   wraps a `DoFnRunner` and drops data from expired windows so the wrapped
-   `DoFnRunner` doesn't get any unpleasant surprises
- * [`StatefulDoFnRunner`](https://github.com/apache/beam/blob/master/runners/core-java/src/main/java/org/apache/beam/runners/core/StatefulDoFnRunner.java) -
-   handles collecting expired state
- * [`PushBackSideInputDoFnRunner`](https://github.com/apache/beam/blob/master/runners/core-java/src/main/java/org/apache/beam/runners/core/PushbackSideInputDoFnRunner.java) -
-   buffers input while waiting for side inputs to be ready
+- [`SimpleDoFnRunner`](https://github.com/apache/beam/blob/master/runners/core-java/src/main/java/org/apache/beam/runners/core/SimpleDoFnRunner.java) -
+  not actually simple at all; implements lots of the core functionality of
+  `ParDo`. This is how most runners execute most `DoFns`.
+- [`LateDataDroppingDoFnRunner`](https://github.com/apache/beam/blob/master/runners/core-java/src/main/java/org/apache/beam/runners/core/LateDataDroppingDoFnRunner.java) -
+  wraps a `DoFnRunner` and drops data from expired windows so the wrapped
+  `DoFnRunner` doesn't get any unpleasant surprises
+- [`StatefulDoFnRunner`](https://github.com/apache/beam/blob/master/runners/core-java/src/main/java/org/apache/beam/runners/core/StatefulDoFnRunner.java) -
+  handles collecting expired state
+- [`PushBackSideInputDoFnRunner`](https://github.com/apache/beam/blob/master/runners/core-java/src/main/java/org/apache/beam/runners/core/PushbackSideInputDoFnRunner.java) -
+  buffers input while waiting for side inputs to be ready
 
 These are all used heavily in implementations of Java runners. Invocations
 via the [Fn API](#the-fn-api) may manifest as another implementation of
@@ -437,7 +438,7 @@ in Python for documentation on the binary format.
 
 As well as grouping by key, your runner must group elements by their window. A
 `WindowFn` has the option of declaring that it merges windows on a per-key
-basis.  For example, session windows for the same key will be merged if they
+basis. For example, session windows for the same key will be merged if they
 overlap. So your runner must invoke the merge method of the `WindowFn` during
 grouping.
 
@@ -453,7 +454,7 @@ per key.
 _Main design document:
 [https://s.apache.org/beam-lateness](https://s.apache.org/beam-lateness)_
 
-A window is expired in a `PCollection`  if the watermark of the input PCollection
+A window is expired in a `PCollection` if the watermark of the input PCollection
 has exceeded the end of the window by at least the input `PCollection`'s
 allowed lateness.
 
@@ -527,16 +528,16 @@ carefully crafted to enable efficient parallel execution. Reading from an
 An `UnboundedSource` is a source of potentially infinite data; you can think of
 it like a stream. The capabilities are:
 
- * `split(int)` - your runner should call this to get the desired parallelism
- * `createReader(...)` - call this to start reading elements; it is an enhanced iterator that also provides:
- * watermark (for this source) which you should propagate downstream
- * timestamps, which you should associate with elements read
- * record identifiers, so you can dedup downstream if needed
- * progress indication of its backlog
- * checkpointing
- * `requiresDeduping` - this indicates that there is some chance that the source
-   may emit duplicates; your runner should do its best to dedupe based on the
-   identifier attached to emitted records
+- `split(int)` - your runner should call this to get the desired parallelism
+- `createReader(...)` - call this to start reading elements; it is an enhanced iterator that also provides:
+- watermark (for this source) which you should propagate downstream
+- timestamps, which you should associate with elements read
+- record identifiers, so you can dedup downstream if needed
+- progress indication of its backlog
+- checkpointing
+- `requiresDeduping` - this indicates that there is some chance that the source
+  may emit duplicates; your runner should do its best to dedupe based on the
+  identifier attached to emitted records
 
 An unbounded source has a custom type of checkpoints and an associated coder for serializing them.
 
@@ -545,13 +546,13 @@ An unbounded source has a custom type of checkpoints and an associated coder for
 A `BoundedSource` is a source of data that you know is finite, such as a static
 collection of log files, or a database table. The capabilities are:
 
- * `split(int)` - your runner should call this to get desired initial parallelism (but you can often steal work later)
- * `getEstimatedSizeBytes(...)` - self explanatory
- * `createReader(...)` - call this to start reading elements; it is an enhanced iterator that also provides:
- * timestamps to associate with each element read
- * `splitAtFraction` for dynamic splitting to enable work stealing, and other
-   methods to support it - see the [Beam blog post on dynamic work
-   rebalancing](/blog/2016/05/18/splitAtFraction-method.html)
+- `split(int)` - your runner should call this to get desired initial parallelism (but you can often steal work later)
+- `getEstimatedSizeBytes(...)` - self explanatory
+- `createReader(...)` - call this to start reading elements; it is an enhanced iterator that also provides:
+- timestamps to associate with each element read
+- `splitAtFraction` for dynamic splitting to enable work stealing, and other
+  methods to support it - see the [Beam blog post on dynamic work
+  rebalancing](/blog/2016/05/18/splitAtFraction-method.html)
 
 The `BoundedSource` does not report a watermark currently. Most of the time, reading
 from a bounded source can be parallelized in ways that result in utterly out-of-order
@@ -606,12 +607,12 @@ Often, the best way to keep your
 translator simple will be to alter the pipeline prior to translation. Some
 alterations you might perform:
 
- * Elaboration of a Beam primitive into a composite transform that uses
-   multiple runner-specific primitives
- * Optimization of a Beam composite into a specialized primitive for your
-   runner
- * Replacement of a Beam composite with a different expansion more suitable for
-   your runner
+- Elaboration of a Beam primitive into a composite transform that uses
+  multiple runner-specific primitives
+- Optimization of a Beam composite into a specialized primitive for your
+  runner
+- Replacement of a Beam composite with a different expansion more suitable for
+  your runner
 
 The Java SDK and the "runners core construction" library (the artifact is
 `beam-runners-core-construction-java` and the namespaces is
@@ -635,21 +636,21 @@ matching a `ParDo` where the `DoFn` uses state or timers, etc.
 The Beam Java SDK and Python SDK have suites of runner validation tests. The
 configuration may evolve faster than this document, so check the configuration
 of other Beam runners. But be aware that we have tests and you can use them
-very easily!  To enable these tests in a Java-based runner using Gradle, you
+very easily! To enable these tests in a Java-based runner using Gradle, you
 scan the dependencies of the SDK for tests with the JUnit category
 `ValidatesRunner`.
 
-{{< highlight class="no-toggle" >}}
+{{< highlight >}}
 task validatesRunner(type: Test) {
-  group = "Verification"
-  description = "Validates the runner"
-  def pipelineOptions = JsonOutput.toJson(["--runner=MyRunner", ... misc test options ...])
-  systemProperty "beamTestPipelineOptions", pipelineOptions
-  classpath = configurations.validatesRunner
-  testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
-  useJUnit {
-    includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
-  }
+group = "Verification"
+description = "Validates the runner"
+def pipelineOptions = JsonOutput.toJson(["--runner=MyRunner", ... misc test options ...])
+systemProperty "beamTestPipelineOptions", pipelineOptions
+classpath = configurations.validatesRunner
+testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
+useJUnit {
+includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+}
 }
 {{< /highlight >}}
 
@@ -673,34 +674,34 @@ what you know, and follow the rules, and `PipelineOptions` will treat you well.
 You must implement a sub-interface for your runner with getters and setters
 with matching names, like so:
 
-{{< highlight class="language-java no-toggle" >}}
+{{< highlight language="java" >}}
 public interface MyRunnerOptions extends PipelineOptions {
-  @Description("The Foo to use with MyRunner")
-  @Required
-  public Foo getMyRequiredFoo();
-  public void setMyRequiredFoo(Foo newValue);
+@Description("The Foo to use with MyRunner")
+@Required
+public Foo getMyRequiredFoo();
+public void setMyRequiredFoo(Foo newValue);
 
-  @Description("Enable Baz; on by default")
-  @Default.Boolean(true)
-  public Boolean isBazEnabled();
-  public void setBazEnabled(Boolean newValue);
+@Description("Enable Baz; on by default")
+@Default.Boolean(true)
+public Boolean isBazEnabled();
+public void setBazEnabled(Boolean newValue);
 }
 {{< /highlight >}}
 
-You can set up defaults, etc. See the javadoc for details.  When your runner is
+You can set up defaults, etc. See the javadoc for details. When your runner is
 instantiated with a `PipelineOptions` object, you access your interface by
 `options.as(MyRunnerOptions.class)`.
 
 To make these options available on the command line, you register your options
 with a `PipelineOptionsRegistrar`. It is easy if you use `@AutoService`:
 
-{{< highlight class="language-java no-toggle" >}}
+{{< highlight language="java" >}}
 @AutoService(PipelineOptionsRegistrar.class)
 public static class MyOptionsRegistrar implements PipelineOptionsRegistrar {
-  @Override
-  public Iterable<Class<? extends PipelineOptions>> getPipelineOptions() {
-    return ImmutableList.<Class<? extends PipelineOptions>>of(MyRunnerOptions.class);
-  }
+@Override
+public Iterable<Class<? extends PipelineOptions>> getPipelineOptions() {
+return ImmutableList.<Class<? extends PipelineOptions>>of(MyRunnerOptions.class);
+}
 }
 {{< /highlight >}}
 
@@ -709,13 +710,13 @@ public static class MyOptionsRegistrar implements PipelineOptionsRegistrar {
 To make your runner available on the command line, you register your options
 with a `PipelineRunnerRegistrar`. It is easy if you use `@AutoService`:
 
-{{< highlight class="language-java no-toggle" >}}
+{{< highlight language="java" >}}
 @AutoService(PipelineRunnerRegistrar.class)
 public static class MyRunnerRegistrar implements PipelineRunnerRegistrar {
-  @Override
-  public Iterable<Class<? extends PipelineRunner>> getPipelineRunners() {
-    return ImmutableList.<Class<? extends PipelineRunner>>of(MyRunner.class);
-  }
+@Override
+public Iterable<Class<? extends PipelineRunner>> getPipelineRunners() {
+return ImmutableList.<Class<? extends PipelineRunner>>of(MyRunner.class);
+}
 }
 {{< /highlight >}}
 
@@ -741,19 +742,19 @@ pipelines written in other languages: The Fn API and the Runner API.
 
 _Design documents:_
 
- - _[https://s.apache.org/beam-fn-api](https://s.apache.org/beam-fn-api)_
- - _[https://s.apache.org/beam-fn-api-processing-a-bundle](https://s.apache.org/beam-fn-api-processing-a-bundle)_
- - _[https://s.apache.org/beam-fn-api-send-and-receive-data](https://s.apache.org/beam-fn-api-send-and-receive-data)_
+- _[https://s.apache.org/beam-fn-api](https://s.apache.org/beam-fn-api)_
+- _[https://s.apache.org/beam-fn-api-processing-a-bundle](https://s.apache.org/beam-fn-api-processing-a-bundle)_
+- _[https://s.apache.org/beam-fn-api-send-and-receive-data](https://s.apache.org/beam-fn-api-send-and-receive-data)_
 
-To run a user's pipeline, you need to be able to invoke their UDFs.  The Fn API
+To run a user's pipeline, you need to be able to invoke their UDFs. The Fn API
 is an RPC interface for the standard UDFs of Beam, implemented using protocol
 buffers over gRPC.
 
 The Fn API includes:
 
- - APIs for registering a subgraph of UDFs
- - APIs for streaming elements of a bundle
- - Shared data formats (key-value pairs, timestamps, iterables, etc)
+- APIs for registering a subgraph of UDFs
+- APIs for streaming elements of a bundle
+- Shared data formats (key-value pairs, timestamps, iterables, etc)
 
 You are fully welcome to _also_ use the SDK for your language for utility code,
 or provide optimized implementations of bundle processing for same-language
@@ -780,7 +781,7 @@ useful utility code.
 
 The language-independent definition of a pipeline is described via a protocol
 buffers schema, covered below for reference. But your runner _should not_
-directly manipulate protobuf messages.  Instead, the Beam codebase provides
+directly manipulate protobuf messages. Instead, the Beam codebase provides
 utilities for working with pipelines so that you don't need to be aware of
 whether or not the pipeline has ever been serialized or transmitted, or what
 language it may have been written in to begin with.
@@ -792,14 +793,14 @@ SDK-agnostic manner are in the `beam-runners-core-construction-java`
 artifact, in the `org.apache.beam.runners.core.construction` namespace.
 The utilities are named consistently, like so:
 
- * `PTransformTranslation` - registry of known transforms and standard URNs
- * `ParDoTranslation` - utilities for working with `ParDo` in a
-   language-independent manner
- * `WindowIntoTranslation` - same for `Window`
- * `FlattenTranslation` - same for `Flatten`
- * `WindowingStrategyTranslation` - same for windowing strategies
- * `CoderTranslation` - same for coders
- * ... etc, etc ...
+- `PTransformTranslation` - registry of known transforms and standard URNs
+- `ParDoTranslation` - utilities for working with `ParDo` in a
+  language-independent manner
+- `WindowIntoTranslation` - same for `Window`
+- `FlattenTranslation` - same for `Flatten`
+- `WindowingStrategyTranslation` - same for windowing strategies
+- `CoderTranslation` - same for coders
+- ... etc, etc ...
 
 By inspecting transforms only through these classes, your runner will not
 depend on the particulars of the Java SDK.
@@ -809,7 +810,7 @@ depend on the particulars of the Java SDK.
 The [Runner
 API](https://github.com/apache/beam/blob/master/model/pipeline/src/main/proto/beam_runner_api.proto)
 refers to a specific manifestation of the concepts in the Beam model, as a
-protocol buffers schema.  Even though you should not manipulate these messages
+protocol buffers schema. Even though you should not manipulate these messages
 directly, it can be helpful to know the canonical data that makes up a
 pipeline.
 
@@ -834,10 +835,10 @@ The heart of cross-language portability is the `FunctionSpec`. This is a
 language-independent specification of a function, in the usual programming
 sense that includes side effects, etc.
 
-{{< highlight class="no-toggle" >}}
+{{< highlight >}}
 message FunctionSpec {
-  string urn;
-  google.protobuf.Any parameter;
+string urn;
+google.protobuf.Any parameter;
 }
 {{< /highlight >}}
 
@@ -865,10 +866,10 @@ it will be guaranteed to understand it. So in that case, it will always come
 with an environment that can understand and execute the function. This is
 represented by the `SdkFunctionSpec`.
 
-{{< highlight class="no-toggle" >}}
+{{< highlight >}}
 message SdkFunctionSpec {
-  FunctionSpec spec;
-  bytes environment_id;
+FunctionSpec spec;
+bytes environment_id;
 }
 {{< /highlight >}}
 
@@ -896,13 +897,13 @@ A `ParDo` transform carries its `DoFn` in an `SdkFunctionSpec` and then
 provides language-independent specifications for its other features - side
 inputs, state declarations, timer declarations, etc.
 
-{{< highlight class="no-toggle" >}}
+{{< highlight >}}
 message ParDoPayload {
-  SdkFunctionSpec do_fn;
-  map<string, SideInput> side_inputs;
-  map<string, StateSpec> state_specs;
-  map<string, TimerSpec> timer_specs;
-  ...
+SdkFunctionSpec do_fn;
+map<string, SideInput> side_inputs;
+map<string, StateSpec> state_specs;
+map<string, TimerSpec> timer_specs;
+...
 }
 {{< /highlight >}}
 
@@ -910,10 +911,10 @@ message ParDoPayload {
 
 A `Read` transform carries an `SdkFunctionSpec` for its `Source` UDF.
 
-{{< highlight class="no-toggle" >}}
+{{< highlight >}}
 message ReadPayload {
-  SdkFunctionSpec source;
-  ...
+SdkFunctionSpec source;
+...
 }
 {{< /highlight >}}
 
@@ -923,10 +924,10 @@ A `Window` transform carries an `SdkFunctionSpec` for its `WindowFn` UDF. It is
 part of the Fn API that the runner passes this UDF along and tells the SDK
 harness to use it to assign windows (as opposed to merging).
 
-{{< highlight class="no-toggle" >}}
+{{< highlight >}}
 message WindowIntoPayload {
-  SdkFunctionSpec window_fn;
-  ...
+SdkFunctionSpec window_fn;
+...
 }
 {{< /highlight >}}
 
@@ -939,11 +940,11 @@ In order to effectively carry out the optimizations desired, it is also
 necessary to know the coder for intermediate accumulations, so it also carries
 a reference to this coder.
 
-{{< highlight class="no-toggle" >}}
+{{< highlight >}}
 message CombinePayload {
-  SdkFunctionSpec combine_fn;
-  string accumulator_coder_id;
-  ...
+SdkFunctionSpec combine_fn;
+string accumulator_coder_id;
+...
 }
 {{< /highlight >}}
 
@@ -954,15 +955,15 @@ represented in the proto using a FunctionSpec. Note that this is not an
 `SdkFunctionSpec`, since it is the runner that observes these. They will never
 be passed back to an SDK harness; they do not represent a UDF.
 
-{{< highlight class="no-toggle" >}}
+{{< highlight >}}
 message PTransform {
-  FunctionSpec spec;
-  repeated string subtransforms;
+FunctionSpec spec;
+repeated string subtransforms;
 
-  // Maps from local string names to PCollection ids
-  map<string, bytes> inputs;
-  map<string, bytes> outputs;
-  ...
+// Maps from local string names to PCollection ids
+map<string, bytes> inputs;
+map<string, bytes> outputs;
+...
 }
 {{< /highlight >}}
 
@@ -978,12 +979,12 @@ serialized UDFs.
 A `PCollection` just stores a coder, windowing strategy, and whether or not it
 is bounded.
 
-{{< highlight class="no-toggle" >}}
+{{< highlight >}}
 message PCollection {
-  string coder_id;
-  IsBounded is_bounded;
-  string windowing_strategy_id;
-  ...
+string coder_id;
+IsBounded is_bounded;
+string windowing_strategy_id;
+...
 }
 {{< /highlight >}}
 
@@ -994,10 +995,10 @@ only be understood by a particular SDK, hence an `SdkFunctionSpec`, but also
 may have component coders that fully define it. For example, a `ListCoder` is
 only a meta-format, while `ListCoder(VarIntCoder)` is a fully specified format.
 
-{{< highlight class="no-toggle" >}}
+{{< highlight >}}
 message Coder {
-  SdkFunctionSpec spec;
-  repeated string component_coder_ids;
+SdkFunctionSpec spec;
+repeated string component_coder_ids;
 }
 {{< /highlight >}}
 
@@ -1023,22 +1024,22 @@ rich and convenient API.
 This will take the same form, but `PipelineOptions` will have to be serialized
 to JSON (or a proto `Struct`) and passed along.
 
-{{< highlight class="no-toggle" >}}
+{{< highlight >}}
 message RunPipelineRequest {
-  Pipeline pipeline;
-  Struct pipeline_options;
+Pipeline pipeline;
+Struct pipeline_options;
 }
 {{< /highlight >}}
 
-{{< highlight class="no-toggle" >}}
+{{< highlight >}}
 message RunPipelineResponse {
-  bytes pipeline_id;
+bytes pipeline_id;
 
-  // TODO: protocol for rejecting pipelines that cannot be executed
-  // by this runner. May just be REJECTED job state with error message.
+// TODO: protocol for rejecting pipelines that cannot be executed
+// by this runner. May just be REJECTED job state with error message.
 
-  // totally opaque to the SDK; for the shim to interpret
-  Any contents;
+// totally opaque to the SDK; for the shim to interpret
+Any contents;
 }
 {{< /highlight >}}
 
@@ -1050,23 +1051,23 @@ be generalized to support draining a job (stop reading input and let watermarks
 go to infinity). Today, verifying our test framework benefits (but does not
 depend upon wholly) querying metrics over this channel.
 
-{{< highlight class="no-toggle" >}}
+{{< highlight >}}
 message CancelPipelineRequest {
-  bytes pipeline_id;
-  ...
+bytes pipeline_id;
+...
 }
 
 message GetStateRequest {
-  bytes pipeline_id;
-  ...
+bytes pipeline_id;
+...
 }
 
 message GetStateResponse {
-  JobState state;
-  ...
+JobState state;
+...
 }
 
 enum JobState {
-  ...
+...
 }
 {{< /highlight >}}

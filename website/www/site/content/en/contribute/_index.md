@@ -80,9 +80,9 @@ detail.
 
 </div>
 
-</br>
+To install these in a Debian-based distribution:
 
-{{< highlight1  >}}
+{{< highlight  >}}
 sudo apt-get install \
  openjdk-8-jdk \
  python-setuptools \
@@ -91,45 +91,47 @@ sudo apt-get install \
  tox \
  docker-ce
 
-{{< /highlight1  >}}
+{{< /highlight  >}}
+
+On some systems (like Ubuntu 20.04) these need to be installed also
+
+{{< highlight  >}}
+pip3 install grpcio-tools mypy-protobuf
+{{< /highlight  >}}
 
 You also need to [install Go](https://golang.org/doc/install).
 
-</br>
-
 Once Go is installed, install goavro:
 
-</br>
-
-{{< highlight1  >}}
+{{< highlight  >}}
 $ export GOPATH=`pwd`/sdks/go/examples/.gogradle/project_gopath
 $ go get github.com/linkedin/goavro
-{{< /highlight1  >}}
+{{< /highlight  >}}
 
 Linux users should configure their machines for sudoless Docker.
 
 ### Connect With the Beam community
 
-- Consider subscribing to the [dev@ mailing list](/community/contact-us/), especially
-  if you plan to make more than one change or the change will be large. All decisions happen on the
-  public dev list.
-- (Optionally) Join the [#beam channel of the ASF slack](/community/contact-us/).
-- Create an account on [Beam issue tracker (JIRA)](https://issues.apache.org/jira/projects/BEAM/issues)
-  (anyone can do this).
+1. Consider subscribing to the [dev@ mailing list](/community/contact-us/), especially
+   if you plan to make more than one change or the change will be large. All decisions happen on the
+   public dev list.
+1. (Optionally) Join the [#beam channel of the ASF slack](/community/contact-us/).
+1. Create an account on [Beam issue tracker (JIRA)](https://issues.apache.org/jira/projects/BEAM/issues)
+   (anyone can do this).
 
 ### Share your intent
 
-- Find or create an issue in the [Beam issue tracker (JIRA)](https://issues.apache.org/jira/projects/BEAM/issues).
-  Tracking your work in an issue will avoid duplicated or conflicting work, and provide
-  a place for notes. Later, your pull request will be linked to the issue as well.
-- If you want to get involved but don't have a project in mind, check our list of open starter tasks,
-  [https://s.apache.org/beam-starter-tasks](https://s.apache.org/beam-starter-tasks).
-- Assign the issue to yourself. To get the permission to do so, email
-  the [dev@ mailing list](/community/contact-us)
-  to introduce yourself and to be added as a contributor in the Beam issue tracker including your
-  ASF Jira Username. For example [this welcome email](https://lists.apache.org/thread.html/e6018c2aaf7dc7895091434295e5b0fafe192b975e3e3761fcf0cda7@%3Cdev.beam.apache.org%3E).
-- If your change is large or it is your first change, it is a good idea to
-  [discuss it on the dev@ mailing list](/community/contact-us/).
-- For large changes create a design doc
-  ([template](https://s.apache.org/beam-design-doc-template),
-  [examples](https://s.apache.org/beam-design-docs)) and email it to the [dev@ mailing list](/community/contact-us).
+1. Find or create an issue in the [Beam issue tracker (JIRA)](https://issues.apache.org/jira/projects/BEAM/issues).
+   Tracking your work in an issue will avoid duplicated or conflicting work, and provide
+   a place for notes. Later, your pull request will be linked to the issue as well.
+1. If you want to get involved but don't have a project in mind, check our list of open starter tasks,
+   [https://s.apache.org/beam-starter-tasks](https://s.apache.org/beam-starter-tasks).
+1. Assign the issue to yourself. To get the permission to do so, email
+   the [dev@ mailing list](/community/contact-us)
+   to introduce yourself and to be added as a contributor in the Beam issue tracker including your
+   ASF Jira Username. For example [this welcome email](https://lists.apache.org/thread.html/e6018c2aaf7dc7895091434295e5b0fafe192b975e3e3761fcf0cda7@%3Cdev.beam.apache.org%3E).
+1. If your change is large or it is your first change, it is a good idea to
+   [discuss it on the dev@ mailing list](/community/contact-us/).
+1. For large changes create a design doc
+   ([template](https://s.apache.org/beam-design-doc-template),
+   [examples](https://s.apache.org/beam-design-docs)) and email it to the [dev@ mailing list](/community/contact-us).

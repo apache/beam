@@ -1,6 +1,7 @@
 ---
 title: "ParDo"
 ---
+
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -41,7 +42,8 @@ which stores the `delimiter` as an object field.
 The `process` method is called once per element,
 and it can yield zero or more output elements.
 
-{{< highlight py >}}
+{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/pardo" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py" pardo_dofn >}}
 {{</ highlight >}}
 
@@ -49,28 +51,25 @@ and it can yield zero or more output elements.
 Output:
 {{< /paragraph >}}
 
-{{< highlight class="notebook-skip" >}}
+{{< highlight >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo_test.py" plants >}}
 {{< /highlight >}}
-
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/pardo" >}}
 
 ### Example 2: ParDo with timestamp and window information
 
 In this example, we add new parameters to the `process` method to bind parameter values at runtime.
 
-* [`beam.DoFn.TimestampParam`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.TimestampParam)
+- [`beam.DoFn.TimestampParam`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.TimestampParam)
   binds the timestamp information as an
   [`apache_beam.utils.timestamp.Timestamp`](https://beam.apache.org/releases/pydoc/current/apache_beam.utils.timestamp.html#apache_beam.utils.timestamp.Timestamp)
   object.
-* [`beam.DoFn.WindowParam`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.WindowParam)
+- [`beam.DoFn.WindowParam`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.WindowParam)
   binds the window information as the appropriate
   [`apache_beam.transforms.window.*Window`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.window.html)
   object.
 
-{{< highlight py >}}
+{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/pardo" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py" pardo_dofn_params >}}
 {{</ highlight >}}
 
@@ -78,13 +77,9 @@ In this example, we add new parameters to the `process` method to bind parameter
 Output:
 {{< /paragraph >}}
 
-{{< highlight class="notebook-skip" >}}
+{{< highlight >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo_test.py" dofn_params >}}
 {{< /highlight >}}
-
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/pardo" >}}
 
 ### Example 3: ParDo with DoFn methods
 
@@ -92,27 +87,27 @@ A [`DoFn`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms
 can be customized with a number of methods that can help create more complex behaviors.
 You can customize what a worker does when it starts and shuts down with `setup` and `teardown`.
 You can also customize what to do when a
-[*bundle of elements*](https://beam.apache.org/documentation/runtime/model/#bundling-and-persistence)
+[_bundle of elements_](https://beam.apache.org/documentation/runtime/model/#bundling-and-persistence)
 starts and finishes with `start_bundle` and `finish_bundle`.
 
-* [`DoFn.setup()`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.setup):
-  Called *once per `DoFn` instance* when the `DoFn` instance is initialized.
+- [`DoFn.setup()`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.setup):
+  Called _once per `DoFn` instance_ when the `DoFn` instance is initialized.
   `setup` need not to be cached, so it could be called more than once per worker.
   This is a good place to connect to database instances, open network connections or other resources.
 
-* [`DoFn.start_bundle()`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.start_bundle):
-  Called *once per bundle of elements* before calling `process` on the first element of the bundle.
+- [`DoFn.start_bundle()`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.start_bundle):
+  Called _once per bundle of elements_ before calling `process` on the first element of the bundle.
   This is a good place to start keeping track of the bundle elements.
 
-* [**`DoFn.process(element, *args, **kwargs)`**](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.process):
-  Called *once per element*, can *yield zero or more elements*.
+- [**`DoFn.process(element, \*args, **kwargs)`\*\*](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.process):
+  Called _once per element_, can _yield zero or more elements_.
   Additional `*args` or `**kwargs` can be passed through
   [`beam.ParDo()`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.ParDo).
   **[required]**
 
-* [`DoFn.finish_bundle()`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.finish_bundle):
-  Called *once per bundle of elements* after calling `process` after the last element of the bundle,
-  can *yield zero or more elements*. This is a good place to do batch calls on a bundle of elements,
+- [`DoFn.finish_bundle()`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.finish_bundle):
+  Called _once per bundle of elements_ after calling `process` after the last element of the bundle,
+  can _yield zero or more elements_. This is a good place to do batch calls on a bundle of elements,
   such as running a database query.
 
   For example, you can initialize a batch in `start_bundle`,
@@ -124,14 +119,15 @@ starts and finishes with `start_bundle` and `finish_bundle`.
   You need to provide a timestamp as a unix timestamp, which you can get from the last processed element.
   You also need to provide a window, which you can get from the last processed element like in the example below.
 
-* [`DoFn.teardown()`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.teardown):
-  Called *once (as a best effort) per `DoFn` instance* when the `DoFn` instance is shutting down.
+- [`DoFn.teardown()`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.teardown):
+  Called _once (as a best effort) per `DoFn` instance_ when the `DoFn` instance is shutting down.
   This is a good place to close database instances, close network connections or other resources.
 
-  Note that `teardown` is called as a *best effort* and is *not guaranteed*.
+  Note that `teardown` is called as a _best effort_ and is _not guaranteed_.
   For example, if the worker crashes, `teardown` might not be called.
 
-{{< highlight py >}}
+{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/pardo" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py" pardo_dofn_methods >}}
 {{</ highlight >}}
 
@@ -139,27 +135,23 @@ starts and finishes with `start_bundle` and `finish_bundle`.
 Output:
 {{< /paragraph >}}
 
-{{< highlight class="notebook-skip" >}}
+{{< highlight >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo_test.py" results >}}
 {{< /highlight >}}
 
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/pardo" >}}
-
-> *Known issues:*
+> _Known issues:_
 >
-> * [[BEAM-7885]](https://issues.apache.org/jira/browse/BEAM-7885)
+> - [[BEAM-7885]](https://issues.apache.org/jira/browse/BEAM-7885)
 >   `DoFn.setup()` doesn't run for streaming jobs running in the `DirectRunner`.
-> * [[BEAM-7340]](https://issues.apache.org/jira/browse/BEAM-7340)
+> - [[BEAM-7340]](https://issues.apache.org/jira/browse/BEAM-7340)
 >   `DoFn.teardown()` metrics are lost.
 
 ## Related transforms
 
-* [Map](/documentation/transforms/python/elementwise/map) behaves the same, but produces exactly one output for each input.
-* [FlatMap](/documentation/transforms/python/elementwise/flatmap) behaves the same as `Map`,
+- [Map](/documentation/transforms/python/elementwise/map) behaves the same, but produces exactly one output for each input.
+- [FlatMap](/documentation/transforms/python/elementwise/flatmap) behaves the same as `Map`,
   but for each input it may produce zero or more outputs.
-* [Filter](/documentation/transforms/python/elementwise/filter) is useful if the function is just
+- [Filter](/documentation/transforms/python/elementwise/filter) is useful if the function is just
   deciding whether to output an element or not.
 
 {{< button-pydoc path="apache_beam.transforms.core" class="Pardo" >}}

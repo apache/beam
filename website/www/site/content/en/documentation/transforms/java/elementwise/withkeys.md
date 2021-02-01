@@ -1,6 +1,7 @@
 ---
 title: "WithKeys"
 ---
+
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,7 +15,9 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
+
 # WithKeys
+
 <table align="left">
     <a target="_blank" class="button"
         href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/transforms/WithKeys.html">
@@ -30,24 +33,26 @@ each input element with a key.
 
 There are two versions of `WithKeys`, depending on how the key should be determined:
 
-* `WithKeys.of(SerializableFunction<V, K> fn)` takes a function to
+- `WithKeys.of(SerializableFunction<V, K> fn)` takes a function to
   compute the key from each value.
-* `WithKeys.of(K key)` associates each value with the specified key.
+- `WithKeys.of(K key)` associates each value with the specified key.
 
 ## Examples
+
 **Example**
-{{< highlight java >}}
+{{< highlight language="java" >}}
 PCollection<String> words = Create.of("Hello", "World", "Beam", "is", "fun");
 PCollection<KV<Integer, String>> lengthAndWord =
-  words.apply(WithKeys.of(new SerialiazableFunction<String, Integer>() {
-    @Override
-    public Integer apply(String s) {
-      return s.length();
-    }
-  });
+words.apply(WithKeys.of(new SerialiazableFunction<String, Integer>() {
+@Override
+public Integer apply(String s) {
+return s.length();
+}
+});
 {{< /highlight >}}
 
 ## Related transforms
-* [Keys](/documentation/transforms/java/elementwise/keys) for extracting the key of each component.
-* [Values](/documentation/transforms/java/elementwise/values) for extracting the value of each element.
-* [KvSwap](/documentation/transforms/java/elementwise/kvswap) swaps key-value pair values.
+
+- [Keys](/documentation/transforms/java/elementwise/keys) for extracting the key of each component.
+- [Values](/documentation/transforms/java/elementwise/values) for extracting the value of each element.
+- [KvSwap](/documentation/transforms/java/elementwise/kvswap) swaps key-value pair values.

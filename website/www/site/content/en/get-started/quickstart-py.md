@@ -1,6 +1,7 @@
 ---
 title: "Beam Quickstart for Python"
 ---
+
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -46,14 +47,13 @@ pip --version
 If you do not have `pip` version 7.0.0 or newer, run the following command to
 install it. This command might require administrative privileges.
 
-{{< highlight class="shell-unix" >}}
+{{< highlight >}}
 pip install --upgrade pip
 {{< /highlight >}}
 
-{{< highlight class="shell-PowerShell" >}}
+{{< highlight >}}
 PS> python -m pip install --upgrade pip
 {{< /highlight >}}
-
 
 ### Install Python virtual environment
 
@@ -62,11 +62,11 @@ for initial experiments. If you do not have `virtualenv` version 13.1.0 or
 newer, run the following command to install it. This command might require
 administrative privileges.
 
-{{< highlight class="shell-unix" >}}
+{{< highlight >}}
 pip install --upgrade virtualenv
 {{< /highlight >}}
 
-{{< highlight class="shell-PowerShell" >}}
+{{< highlight >}}
 PS> python -m pip install --upgrade virtualenv
 {{< /highlight >}}
 
@@ -74,11 +74,11 @@ If you do not want to use a Python virtual environment (not recommended), ensure
 `setuptools` is installed on your machine. If you do not have `setuptools`
 version 17.1 or newer, run the following command to install it.
 
-{{< highlight class="shell-unix" >}}
+{{< highlight >}}
 pip install --upgrade setuptools
 {{< /highlight >}}
 
-{{< highlight class="shell-PowerShell" >}}
+{{< highlight >}}
 PS> python -m pip install --upgrade setuptools
 {{< /highlight >}}
 
@@ -88,11 +88,11 @@ PS> python -m pip install --upgrade setuptools
 
 A virtual environment is a directory tree containing its own Python distribution. To create a virtual environment, create a directory and run:
 
-{{< highlight class="shell-unix" >}}
+{{< highlight >}}
 virtualenv /path/to/directory
 {{< /highlight >}}
 
-{{< highlight class="shell-PowerShell" >}}
+{{< highlight >}}
 PS> virtualenv C:\path\to\directory
 {{< /highlight >}}
 
@@ -102,11 +102,11 @@ environment's directories.
 
 To activate a virtual environment in Bash, run:
 
-{{< highlight class="shell-unix" >}}
+{{< highlight >}}
 . /path/to/directory/bin/activate
 {{< /highlight >}}
 
-{{< highlight class="shell-PowerShell" >}}
+{{< highlight >}}
 PS> C:\path\to\directory\Scripts\activate.ps1
 {{< /highlight >}}
 
@@ -118,11 +118,11 @@ For instructions using other shells, see the [virtualenv documentation](https://
 
 Install the latest Python SDK from PyPI:
 
-{{< highlight class="shell-unix" >}}
+{{< highlight >}}
 pip install apache-beam
 {{< /highlight >}}
 
-{{< highlight class="shell-PowerShell" >}}
+{{< highlight >}}
 PS> python -m pip install apache-beam
 {{< /highlight >}}
 
@@ -153,35 +153,38 @@ The Apache Beam [examples](https://github.com/apache/beam/tree/master/sdks/pytho
 
 For example, run `wordcount.py` with the following command:
 
-{{< highlight class="runner-direct" >}}
+{{< highlight >}}
 python -m apache_beam.examples.wordcount --input /path/to/inputfile --output /path/to/write/counts
 {{< /highlight >}}
 
-{{< highlight class="runner-flink" >}}
+{{< highlight >}}
 python -m apache_beam.examples.wordcount --input /path/to/inputfile \
-                                         --output /path/to/write/counts \
-                                         --runner FlinkRunner
+ --output /path/to/write/counts \
+ --runner FlinkRunner
 {{< /highlight >}}
 
-{{< highlight class="runner-spark" >}}
+{{< highlight >}}
 python -m apache_beam.examples.wordcount --input /path/to/inputfile \
-                                         --output /path/to/write/counts \
-                                         --runner SparkRunner
+ --output /path/to/write/counts \
+ --runner SparkRunner
 {{< /highlight >}}
 
-{{< highlight class="runner-dataflow" >}}
+{{< highlight >}}
+
 # As part of the initial setup, install Google Cloud Platform specific extra components. Make sure you
+
 # complete the setup steps at /documentation/runners/dataflow/#setup
+
 pip install apache-beam[gcp]
 python -m apache_beam.examples.wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
-                                         --output gs://<your-gcs-bucket>/counts \
-                                         --runner DataflowRunner \
-                                         --project your-gcp-project \
-                                         --region your-gcp-region \
-                                         --temp_location gs://<your-gcs-bucket>/tmp/
+ --output gs://<your-gcs-bucket>/counts \
+ --runner DataflowRunner \
+ --project your-gcp-project \
+ --region your-gcp-region \
+ --temp_location gs://<your-gcs-bucket>/tmp/
 {{< /highlight >}}
 
-{{< highlight class="runner-nemo" >}}
+{{< highlight >}}
 This runner is not yet available for the Python SDK.
 {{< /highlight >}}
 
@@ -192,11 +195,11 @@ sequentially in the format `counts-0000-of-0001`.
 
 ## Next Steps
 
-* Learn more about the [Beam SDK for Python](/documentation/sdks/python/)
+- Learn more about the [Beam SDK for Python](/documentation/sdks/python/)
   and look through the [Python SDK API reference](https://beam.apache.org/releases/pydoc).
-* Walk through these WordCount examples in the [WordCount Example Walkthrough](/get-started/wordcount-example).
-* Take a self-paced tour through our [Learning Resources](/documentation/resources/learning-resources).
-* Dive in to some of our favorite [Videos and Podcasts](/documentation/resources/videos-and-podcasts).
-* Join the Beam [users@](/community/contact-us) mailing list.
+- Walk through these WordCount examples in the [WordCount Example Walkthrough](/get-started/wordcount-example).
+- Take a self-paced tour through our [Learning Resources](/documentation/resources/learning-resources).
+- Dive in to some of our favorite [Videos and Podcasts](/documentation/resources/videos-and-podcasts).
+- Join the Beam [users@](/community/contact-us) mailing list.
 
 Please don't hesitate to [reach out](/community/contact-us) if you encounter any issues!

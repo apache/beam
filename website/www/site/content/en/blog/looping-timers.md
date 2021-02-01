@@ -1,14 +1,15 @@
 ---
-title:  "Looping timers in Apache Beam"
-date:   2019-06-11 00:00:01 -0800
+title: "Looping timers in Apache Beam"
+date: 2019-06-11 00:00:01 -0800
 categories:
   - blog
 aliases:
   - /blog/2019/06/11/looping-timers.html
 authors:
-       - rez
-       - klk
+  - rez
+  - klk
 ---
+
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -47,76 +48,74 @@ event, there is nothing to count!
 
 Let's build a simple pipeline to work with:
 
-```
-  // We will start our timer at 1 sec from the fixed upper boundary of our
-  // minute window
-  Instant now = Instant.parse("2000-01-01T00:00:59Z");
+{{< highlight >}}
+// We will start our timer at 1 sec from the fixed upper boundary of our
+// minute window
+Instant now = Instant.parse("2000-01-01T00:00:59Z");
 
-  // ----- Create some dummy data
+// ----- Create some dummy data
 
-  // Create 3 elements, incrementing by 1 minute and leaving a time gap between
-  // element 2 and element 3
-  TimestampedValue<KV<String, Integer>> time_1 =
-    TimestampedValue.of(KV.of("Key_A", 1), now);
+// Create 3 elements, incrementing by 1 minute and leaving a time gap between
+// element 2 and element 3
+TimestampedValue<KV<String, Integer>> time_1 =
+TimestampedValue.of(KV.of("Key_A", 1), now);
 
-  TimestampedValue<KV<String, Integer>> time_2 =
-    TimestampedValue.of(KV.of("Key_A", 2),
-    now.plus(Duration.standardMinutes(1)));
+TimestampedValue<KV<String, Integer>> time_2 =
+TimestampedValue.of(KV.of("Key_A", 2),
+now.plus(Duration.standardMinutes(1)));
 
-  // No Value for start time + 2 mins
-  TimestampedValue<KV<String, Integer>> time_3 =
-    TimestampedValue.of(KV.of("Key_A", 3),
-    now.plus(Duration.standardMinutes(3)));
+// No Value for start time + 2 mins
+TimestampedValue<KV<String, Integer>> time_3 =
+TimestampedValue.of(KV.of("Key_A", 3),
+now.plus(Duration.standardMinutes(3)));
 
-  // Create pipeline
-  PipelineOptions options = PipelineOptionsFactory.fromArgs(args).withValidation()
-    .as(PipelineOptions.class);
+// Create pipeline
+PipelineOptions options = PipelineOptionsFactory.fromArgs(args).withValidation()
+.as(PipelineOptions.class);
 
-  Pipeline p = Pipeline.create(options);
+Pipeline p = Pipeline.create(options);
 
-  // Apply a fixed window of duration 1 min and Sum the results
-  p.apply(Create.timestamped(time_1, time_2, time_3))
-   .apply(
-      Window.<KV<String,Integer>>into(
+// Apply a fixed window of duration 1 min and Sum the results
+p.apply(Create.timestamped(time_1, time_2, time_3))
+.apply(
+Window.<KV<String,Integer>>into(
 FixedWindows.<Integer>of(Duration.standardMinutes(1))))
-        .apply(Sum.integersPerKey())
-        .apply(ParDo.of(new DoFn<KV<String, Integer>, KV<String, Integer>>() {
+.apply(Sum.integersPerKey())
+.apply(ParDo.of(new DoFn<KV<String, Integer>, KV<String, Integer>>() {
 
           @ProcessElement public void process(ProcessContext c) {
             LOG.info("Value is {} timestamp is {}", c.element(), c.timestamp());
           }
        }));
 
-  p.run();
-```
+p.run();
+{{< /highlight >}}
 
 Running that pipeline will result in the following output:
 
-```
-INFO  LoopingTimer  - Value is KV{Key_A, 1} timestamp is 2000-01-01T00:00:59.999Z
-INFO  LoopingTimer  - Value is KV{Key_A, 3} timestamp is 2000-01-01T00:03:59.999Z
-INFO  LoopingTimer  - Value is KV{Key_A, 2} timestamp is 2000-01-01T00:01:59.999Z
-```
+{{< highlight >}}
+INFO LoopingTimer - Value is KV{Key_A, 1} timestamp is 2000-01-01T00:00:59.999Z
+INFO LoopingTimer - Value is KV{Key_A, 3} timestamp is 2000-01-01T00:03:59.999Z
+INFO LoopingTimer - Value is KV{Key_A, 2} timestamp is 2000-01-01T00:01:59.999Z
+{{< /highlight >}}
 
 > Note: The lack of order in the output should be expected, however the
 > key-window tuple is correctly computed.
 
-
 As expected, we see output in each of the interval windows which had a data
 point with a timestamp between the minimum and maximum value of the window.
-There was a data point at timestamps  00:00:59,  00:01:59 and  00:03:59, which
+There was a data point at timestamps 00:00:59, 00:01:59 and 00:03:59, which
 fell into the following interval windows.
 
-*  [00:00:00, 00:00:59.999)
-*  [00:01:00, 00:01:59.999)
-*  [00:03:00, 00:03:59.999)
+- [00:00:00, 00:00:59.999)
+- [00:01:00, 00:01:59.999)
+- [00:03:00, 00:03:59.999)
 
-But as there was no data between  00:02:00 and  00:02:59, no value is produced
-for interval window  [00:02:00,00:02:59.999).
+But as there was no data between 00:02:00 and 00:02:59, no value is produced
+for interval window [00:02:00,00:02:59.999).
 
 How can we get Beam to output values for that missing window? First, let’s walk
 through some options that do not make use of the Timer API.
-
 
 ## Option 1: External heartbeat
 
@@ -126,15 +125,14 @@ complexity out of the Beam pipeline. But using an external system means we need
 to monitor this system and perform other maintenance tasks in tandem with the
 Beam pipeline.
 
-
 ## Option 2: Use a generated source in the Beam pipeline
 
 We can use a generating source to emit the value using this code snippet:
 
-```
+{{< highlight >}}
 pipeline.apply(GenerateSequence.
-            from(0).withRate(1,Duration.standardSeconds(1L)))
-```
+from(0).withRate(1,Duration.standardSeconds(1L)))
+{{< /highlight >}}
 
 We can then:
 
@@ -143,7 +141,6 @@ We can then:
 3. Produce a PCollection which has ticks in every time interval.
 
 This is also a simple way of producing a value in each time interval.
-
 
 ## Option 1 & 2 The problem with multiple keys
 
@@ -166,14 +163,13 @@ with a list of keys that are dynamically changing. We would need to add a
 transform that does a Distinct operation and feed the data produced as a
 side-input into the FanOut DoFn.
 
-
 ## Option 3: Implementing a heartbeat using Beam timers
 
 So how do timers help? Well let's have a look at a new transform:
 
 Edit: Looping Timer State changed from Boolean to Long to allow for min value check.
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 public static class LoopingStatefulTimer extends DoFn<KV<String, Integer>, KV<String, Integer>> {
 
     Instant stopTimerTime;
@@ -236,18 +232,19 @@ public static class LoopingStatefulTimer extends DoFn<KV<String, Integer>, KV<St
             stopTimerTime);
       }
     }
-  }
+
+}
 {{< /highlight >}}
 
 There are two data values that the state API needs to keep:
 
 1. A boolean `timeRunning` value used to avoid resetting the timer if it’s
    already running.
-2. A "*key*" state object value that allows us to store the key that we are
+2. A "_key_" state object value that allows us to store the key that we are
    working with. This information will be needed in the `OnTimer` event later.
 
 We also have a Timer with the ID `**loopingTimer**` that acts as our per
-interval alarm clock. Note that the timer is an *event timer*. It fires based on
+interval alarm clock. Note that the timer is an _event timer_. It fires based on
 the watermark, not on the passage of time as the pipeline runs.
 
 Next, let's unpack what's happening in the @ProcessElement block:
@@ -266,7 +263,7 @@ The first element to come to this block will:
 In the @OnTimer block, the following occurs:
 
 1. The code emits a value with the key pulled from our key StateValue and a
-   value of 0. The timestamp of the event corresponds to  the event time of the
+   value of 0. The timestamp of the event corresponds to the event time of the
    timer firing.
 2. We set a new timer for one minute from now, unless we are past the
    `stopTimerTime` value. Your use case will normally have more complex stopping
@@ -276,25 +273,26 @@ In the @OnTimer block, the following occurs:
 
 And that's it, let's add our transform back into the pipeline:
 
-{{< highlight java >}}
-  // Apply a fixed window of duration 1 min and Sum the results
-  p.apply(Create.timestamped(time_1, time_2, time_3)).apply(
-    Window.<KV<String, Integer>>into(FixedWindows.<Integer>of(Duration.standardMinutes(1))))
-    // We use a combiner to reduce the number of calls in keyed state
-    // from all elements to 1 per FixedWindow
-    .apply(Sum.integersPerKey())
-    .apply(Window.into(new GlobalWindows()))
-    .apply(ParDo.of(new LoopingStatefulTimer(Instant.parse("2000-01-01T00:04:00Z"))))
-    .apply(Window.into(FixedWindows.of(Duration.standardMinutes(1))))
-    .apply(Sum.integersPerKey())
-    .apply(ParDo.of(new DoFn<KV<String, Integer>, KV<String, Integer>>() {
+{{< highlight language="java" >}}
+// Apply a fixed window of duration 1 min and Sum the results
+p.apply(Create.timestamped(time_1, time_2, time_3)).apply(
+Window.<KV<String, Integer>>into(FixedWindows.<Integer>of(Duration.standardMinutes(1))))
+// We use a combiner to reduce the number of calls in keyed state
+// from all elements to 1 per FixedWindow
+.apply(Sum.integersPerKey())
+.apply(Window.into(new GlobalWindows()))
+.apply(ParDo.of(new LoopingStatefulTimer(Instant.parse("2000-01-01T00:04:00Z"))))
+.apply(Window.into(FixedWindows.of(Duration.standardMinutes(1))))
+.apply(Sum.integersPerKey())
+.apply(ParDo.of(new DoFn<KV<String, Integer>, KV<String, Integer>>() {
 
       @ProcessElement public void process(ProcessContext c) {
 
         LOG.info("Value is {} timestamp is {}", c.element(), c.timestamp());
 
      }
-  }));
+
+}));
 {{< /highlight >}}
 
 1. In the first part of the pipeline we create FixedWindows and reduce the value
@@ -319,16 +317,16 @@ interval. This can reduce the number of reads of the State API during the
 
 Here is the logging output of running our modified pipeline:
 
-```
-INFO  LoopingTimer  - Timer @ 2000-01-01T00:01:59.999Z fired
-INFO  LoopingTimer  - Timer @ 2000-01-01T00:02:59.999Z fired
-INFO  LoopingTimer  - Timer @ 2000-01-01T00:03:59.999Z fired
-INFO  LoopingTimer  - Timer not being set as exceeded Stop Timer value 2000-01-01T00:04:00.000Z
-INFO  LoopingTimer  - Value is KV{Key_A, 1} timestamp is 2000-01-01T00:00:59.999Z
-INFO  LoopingTimer  - Value is KV{Key_A, 0} timestamp is 2000-01-01T00:02:59.999Z
-INFO  LoopingTimer  - Value is KV{Key_A, 2} timestamp is 2000-01-01T00:01:59.999Z
-INFO  LoopingTimer  - Value is KV{Key_A, 3} timestamp is 2000-01-01T00:03:59.999Z
-```
+{{< highlight >}}
+INFO LoopingTimer - Timer @ 2000-01-01T00:01:59.999Z fired
+INFO LoopingTimer - Timer @ 2000-01-01T00:02:59.999Z fired
+INFO LoopingTimer - Timer @ 2000-01-01T00:03:59.999Z fired
+INFO LoopingTimer - Timer not being set as exceeded Stop Timer value 2000-01-01T00:04:00.000Z
+INFO LoopingTimer - Value is KV{Key_A, 1} timestamp is 2000-01-01T00:00:59.999Z
+INFO LoopingTimer - Value is KV{Key_A, 0} timestamp is 2000-01-01T00:02:59.999Z
+INFO LoopingTimer - Value is KV{Key_A, 2} timestamp is 2000-01-01T00:01:59.999Z
+INFO LoopingTimer - Value is KV{Key_A, 3} timestamp is 2000-01-01T00:03:59.999Z
+{{< /highlight >}}
 
 Yay! We now have output from the time interval [00:01:00, 00:01:59.999), even
 though the source dataset has no elements in that interval.
@@ -344,7 +342,6 @@ DirectRunner. For other runners, please look out for their release notes on
 support for dealing with this use case in production.
 
 ([Capability Matrix](/documentation/runners/capability-matrix/))
-
 
 Runner specific notes:
 Google Cloud Dataflow Runners Drain feature does not support looping timers (Link to matrix)

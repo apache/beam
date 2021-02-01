@@ -1,5 +1,5 @@
 ---
-title:  "DataFrame API Preview now Available!"
+title: "DataFrame API Preview now Available!"
 date: "2020-12-16T09:09:41-08:00"
 categories:
   - blog
@@ -7,6 +7,7 @@ authors:
   - bhulette
   - robertwb
 ---
+
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -28,58 +29,61 @@ API is now available in [Beam
 [Python](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.sql.html#apache_beam.transforms.sql.SqlTransform)),
 the DataFrame API gives Beam users a way to express complex
 relational logic much more concisely than previously possible.
+
 <!--more-->
 
 ## A more expressive API
+
 Beam's new DataFrame API aims to be compatible with the well known
 [Pandas](https://pandas.pydata.org/pandas-docs/stable/index.html)
 DataFrame API, with a few caveats detailed below. With this new API a simple
 pipeline that reads NYC taxiride data from a CSV, performs a grouped
 aggregation, and writes the output to CSV, can be expressed very concisely:
 
-```
+{{< highlight >}}
 from apache_beam.dataframe.io import read_csv
 
 with beam.Pipeline() as p:
-  df = p | read_csv("gs://apache-beam-samples/nyc_taxi/2019/*.csv",
-                    use_ncols=['passenger_count' , 'DOLocationID'])
-  # Count the number of passengers dropped off per LocationID
-  agg = df.groupby('DOLocationID').sum()
-  agg.to_csv(output)
-```
+df = p | read_csv("gs://apache-beam-samples/nyc_taxi/2019/\*.csv",
+use_ncols=['passenger_count' , 'DOLocationID'])
+
+# Count the number of passengers dropped off per LocationID
+
+agg = df.groupby('DOLocationID').sum()
+agg.to_csv(output)
+{{< /highlight >}}
 
 Compare this to the same logic implemented as a conventional Beam python
 pipeline with a `CombinePerKey`:
 
-```
+{{< highlight >}}
 with beam.Pipeline() as p:
-  (p | beam.io.ReadFromText("gs://apache-beam-samples/nyc_taxi/2019/*.csv",
-                            skip_header_lines=1)
-     | beam.Map(lambda line: line.split(','))
-     # Parse CSV, create key - value pairs
-     | beam.Map(lambda splits: (int(splits[8] or 0),  # DOLocationID
-                                int(splits[3] or 0))) # passenger_count
-     # Sum values per key
-     | beam.CombinePerKey(sum)
-     | beam.MapTuple(lambda loc_id, pc: f'{loc_id},{pc}')
-     | beam.io.WriteToText(known_args.output))
-```
+(p | beam.io.ReadFromText("gs://apache-beam-samples/nyc_taxi/2019/\*.csv",
+skip_header_lines=1)
+| beam.Map(lambda line: line.split(',')) # Parse CSV, create key - value pairs
+| beam.Map(lambda splits: (int(splits[8] or 0), # DOLocationID
+int(splits[3] or 0))) # passenger_count # Sum values per key
+| beam.CombinePerKey(sum)
+| beam.MapTuple(lambda loc_id, pc: f'{loc_id},{pc}')
+| beam.io.WriteToText(known_args.output))
+{{< /highlight >}}
 
 The DataFrame example is much easier to quickly inspect and understand, as it
 allows you to concisely express grouped aggregations without using the low-level
 `CombinePerKey`.
 
 In addition to being more expressive, a pipeline written with the DataFrame API
-can often be more efficient than a conventional Beam pipeline.  This is because
+can often be more efficient than a conventional Beam pipeline. This is because
 the DataFrame API defers to the very efficient, columnar Pandas implementation
 as much as possible.
 
 ## DataFrames as a DSL
+
 You may already be aware of [Beam
 SQL](https://beam.apache.org/documentation/dsls/sql/overview/), which is
 a Domain-Specific Language (DSL) built with Beam's Java SDK. SQL is
 considered a DSL because it's possible to express a full pipeline, including IOs
-and complex operations, entirely with SQL. 
+and complex operations, entirely with SQL.
 
 Similarly, the DataFrame API is a DSL built with the Python SDK. You can see
 that the above example is written without traditional Beam constructs like IOs,
@@ -93,51 +97,52 @@ Like SQL, it's also possible to embed the DataFrame API into a larger pipeline
 by using
 [schemas](https://beam.apache.org/documentation/programming-guide/#what-is-a-schema).
 A schema-aware PCollection can be converted to a DataFrame, processed, and the
-result converted back to another schema-aware PCollection.  For example, if you
+result converted back to another schema-aware PCollection. For example, if you
 wanted to use traditional Beam IOs rather than one of the DataFrame IOs you
 could rewrite the above pipeline like this:
 
-```
+{{< highlight >}}
 from apache_beam.dataframe.convert import to_dataframe
 from apache_beam.dataframe.convert import to_pcollection
 
 with beam.Pipeline() as p:
-  ...
-  schema_pc = (p | beam.ReadFromText(..)
-                 # Use beam.Select to assign a schema
-                 | beam.Select(DOLocationID=lambda line: int(...),
-                               passenger_count=lambda line: int(...)))
-  df = to_dataframe(schema_pc)
-  agg = df.groupby('DOLocationID').sum()
-  agg_pc = to_pcollection(pc)
+...
+schema_pc = (p | beam.ReadFromText(..) # Use beam.Select to assign a schema
+| beam.Select(DOLocationID=lambda line: int(...),
+passenger_count=lambda line: int(...)))
+df = to_dataframe(schema_pc)
+agg = df.groupby('DOLocationID').sum()
+agg_pc = to_pcollection(pc)
 
-  # agg_pc has a schema based on the structure of agg
-  (agg_pc | beam.Map(lambda row: f'{row.DOLocationID},{row.passenger_count}')
-          | beam.WriteToText(..))
-```
+# agg_pc has a schema based on the structure of agg
+
+(agg_pc | beam.Map(lambda row: f'{row.DOLocationID},{row.passenger_count}')
+| beam.WriteToText(..))
+{{< /highlight >}}
 
 It's also possible to use the DataFrame API by passing a function to
 [`DataframeTransform`](https://beam.apache.org/releases/pydoc/current/apache_beam.dataframe.transforms.html#apache_beam.dataframe.transforms.DataframeTransform):
 
-```
+{{< highlight >}}
 from apache_beam.dataframe.transforms import DataframeTransform
 
 with beam.Pipeline() as p:
-  ...
-  | beam.Select(DOLocationID=lambda line: int(..),
-                passenger_count=lambda line: int(..))
-  | DataframeTransform(lambda df: df.groupby('DOLocationID').sum())
-  | beam.Map(lambda row: f'{row.DOLocationID},{row.passenger_count}')
-  ...
-```
+...
+| beam.Select(DOLocationID=lambda line: int(..),
+passenger_count=lambda line: int(..))
+| DataframeTransform(lambda df: df.groupby('DOLocationID').sum())
+| beam.Map(lambda row: f'{row.DOLocationID},{row.passenger_count}')
+...
+{{< /highlight >}}
 
 ## Caveats
+
 As hinted above, there are some differences between Beam's DataFrame API and the
-Pandas API. The most significant difference is that the Beam  DataFrame API is
-*deferred*, just like the rest of the Beam API. This means that you can't
+Pandas API. The most significant difference is that the Beam DataFrame API is
+_deferred_, just like the rest of the Beam API. This means that you can't
 `print()` a DataFrame instance in order to inspect the data, because we haven't
 computed the data yet! The computation doesn't take place until the pipeline is
-`run()`.  Before that, we only know about the shape/schema of the result (i.e.
+`run()`. Before that, we only know about the shape/schema of the result (i.e.
 the names and types of the columns), and not the result itself.
 
 There are a few common exceptions you will likely see when attempting to use
@@ -153,7 +158,7 @@ certain Pandas operations:
   are order sensitive (e.g. shift, cummax, cummin, head, tail, etc..). These
   cannot be trivially mapped to Beam because PCollections, representing
   distributed datasets, are unordered. Note that even some of these operations
-  *may* get implemented in the future - we actually have some ideas for how we
+  _may_ get implemented in the future - we actually have some ideas for how we
   might support order sensitive operations - but it's a ways off.
 
 Finally, it's important to note that this is a preview of a new feature that
@@ -162,6 +167,7 @@ it out now and give us some feedback, but we do not yet recommend it for use in
 production workloads.
 
 ## How to get involved
+
 The easiest way to get involved with this effort is to try out DataFrames and
 let us know what you think! You can send questions to user@beam.apache.org, or
 file bug reports and feature requests in [jira](https://issues.apache.org/jira).

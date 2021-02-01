@@ -54,12 +54,13 @@ functions, syntax, and data types supported by Beam Calcite SQL.
 For more information on the ZetaSQL features in Beam SQL, see the [Beam ZetaSQL dialect reference](/documentation/dsls/sql/zetasql/overview).
 
 To switch to Beam ZetaSQL, configure the [pipeline options](https://beam.apache.org/releases/javadoc/2.15.0/org/apache/beam/sdk/options/PipelineOptions.html) as follows:
-```
+{{< highlight >}}
 PipelineOptions options = ...;
 options
     .as(BeamSqlPipelineOptions.class)
     .setPlannerName("org.apache.beam.sdk.extensions.sql.zetasql.ZetaSQLQueryPlanner");
-```
+{{< /highlight >}}
+
 Note, Use of the `ZetaSQLQueryPlanner` requires an additional dependency on `beam-sdks-java-extensions-sql-zetasql` in addition to the `beam-sdks-java-extensions-sql` package required for `CalciteQueryPlanner`.
 
 ## Beam SQL extensions

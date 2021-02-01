@@ -1,6 +1,7 @@
 ---
 title: "Min"
 ---
+
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -30,9 +31,9 @@ Then, we get the element with the minimum value in different ways.
 
 ### Example 1: Minimum element in a PCollection
 
-We use `Combine.Globally()` to get the minimum element from the *entire* `PCollection`.
+We use `Combine.Globally()` to get the minimum element from the _entire_ `PCollection`.
 
-{{< highlight py >}}
+{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/min.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/min.py" min_globally >}}
 {{< /highlight >}}
 
@@ -40,18 +41,15 @@ We use `Combine.Globally()` to get the minimum element from the *entire* `PColle
 Output:
 {{< /paragraph >}}
 
-{{< highlight class="notebook-skip" >}}
+{{< highlight >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/min_test.py" min_element >}}
 {{< /highlight >}}
-
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/min.py" >}}
 
 ### Example 2: Minimum elements for each key
 
 We use `Combine.PerKey()` to get the minimum element for each unique key in a `PCollection` of key-values.
 
-{{< highlight py >}}
+{{< highlight language="py"  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/min.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/min.py" min_per_key >}}
 {{< /highlight >}}
 
@@ -59,19 +57,16 @@ We use `Combine.PerKey()` to get the minimum element for each unique key in a `P
 Output:
 {{< /paragraph >}}
 
-{{< highlight class="notebook-skip" >}}
+{{< highlight >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/min_test.py" elements_with_min_value_per_key >}}
 {{< /highlight >}}
 
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/min.py" >}}
-
 ## Related transforms
 
-* [CombineGlobally](/documentation/transforms/python/aggregation/combineglobally)
-* [CombinePerKey](/documentation/transforms/python/aggregation/combineperkey)
-* [Max](/documentation/transforms/python/aggregation/max)
-* [Mean](/documentation/transforms/python/aggregation/mean)
-* [Sum](/documentation/transforms/python/aggregation/sum)
+- [CombineGlobally](/documentation/transforms/python/aggregation/combineglobally)
+- [CombinePerKey](/documentation/transforms/python/aggregation/combineperkey)
+- [Max](/documentation/transforms/python/aggregation/max)
+- [Mean](/documentation/transforms/python/aggregation/mean)
+- [Sum](/documentation/transforms/python/aggregation/sum)
 
 {{< button-pydoc path="apache_beam.transforms.core" class="CombineGlobally" >}}

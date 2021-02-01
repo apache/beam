@@ -46,7 +46,7 @@ Just follow the instruction from the [Java Quickstart page](/get-started/quickst
 
 Issue following command in the Beam examples project to start new Twister2 Local cluster and run the WordCount example on it.
 
-```
+{{< highlight >}}
     $ mvn package exec:java \
         -DskipTests \
         -Dexec.mainClass=org.apache.beam.examples.WordCount \
@@ -55,7 +55,7 @@ Issue following command in the Beam examples project to start new Twister2 Local
             --inputFile=pom.xml \
             --output=counts" \
         -Ptwister2-runner
-```
+{{< /highlight >}}
 
 ### Running WordCount on a Twister2 Deployment
 
@@ -98,7 +98,7 @@ deployment.
 
 Note: Currently file paths need to be absolute paths.
 
-```
+{{< highlight >}}
     $ mvn package exec:java \
         -DskipTests \
         -Dexec.mainClass=org.apache.beam.examples.WordCount \
@@ -109,7 +109,7 @@ Note: Currently file paths need to be absolute paths.
             --inputFile=<PATH_TO_FILE>/pom.xml \
             --output=<PATH_TO_FILE>/counts" \
         -Ptwister2-runner
-```
+{{< /highlight >}}
 
 ## Pipeline Options for the Twister2 Runner
 

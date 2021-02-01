@@ -1,6 +1,6 @@
 ---
-title:  "Python SDK released in Apache Beam 0.6.0"
-date:   2017-03-16 00:00:01 -0800
+title: "Python SDK released in Apache Beam 0.6.0"
+date: 2017-03-16 00:00:01 -0800
 categories:
   - blog
 aliases:
@@ -8,6 +8,7 @@ aliases:
 authors:
   - altay
 ---
+
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -36,44 +37,44 @@ If you would like to try out the Python SDK, a good place to start is the [Quick
 
 Let’s take a look at a quick example together. First, install the `apache-beam` package from PyPI and start your Python interpreter.
 
-```
+{{< highlight >}}
 $ pip install apache-beam
 $ python
-```
+{{< /highlight >}}
 
 We will harness the power of Apache Beam to estimate Pi in honor of the recently passed Pi Day.
 
-```
+{{< highlight >}}
 import random
 import apache_beam as beam
 
-def run_trials(count):
-  """Throw darts into unit square and count how many fall into unit circle."""
-  inside = 0
-  for _ in xrange(count):
-    x, y = random.uniform(0, 1), random.uniform(0, 1)
-    inside += 1 if x*x + y*y <= 1.0 else 0
-  return count, inside
+def run*trials(count):
+"""Throw darts into unit square and count how many fall into unit circle."""
+inside = 0
+for * in xrange(count):
+x, y = random.uniform(0, 1), random.uniform(0, 1)
+inside += 1 if x*x + y*y <= 1.0 else 0
+return count, inside
 
 def combine_results(results):
-  """Given all the trial results, estimate pi."""
-  total, inside = sum(r[0] for r in results), sum(r[1] for r in results)
-  return total, inside, 4 * float(inside) / total if total > 0 else 0
+"""Given all the trial results, estimate pi."""
+total, inside = sum(r[0] for r in results), sum(r[1] for r in results)
+return total, inside, 4 \* float(inside) / total if total > 0 else 0
 
 p = beam.Pipeline()
-(p | beam.Create([500] * 10)  # Create 10 experiments with 500 samples each.
-   | beam.Map(run_trials)     # Run experiments in parallel.
-   | beam.CombineGlobally(combine_results)      # Combine the results.
-   | beam.io.WriteToText('./pi_estimate.txt'))  # Write PI estimate to a file.
+(p | beam.Create([500] \* 10) # Create 10 experiments with 500 samples each.
+| beam.Map(run_trials) # Run experiments in parallel.
+| beam.CombineGlobally(combine_results) # Combine the results.
+| beam.io.WriteToText('./pi_estimate.txt')) # Write PI estimate to a file.
 
 p.run()
-```
+{{< /highlight >}}
 
 This example estimates Pi by throwing random darts into the unit square and keeping track of the fraction of those darts that fell into the unit circle (see the full [example](https://github.com/apache/beam/blob/v0.6.0/sdks/python/apache_beam/examples/complete/estimate_pi.py) for details). If you are curious, you can check the result of our estimation by looking at the output file.
 
-```
-$ cat pi_estimate.txt*
-```
+{{< highlight >}}
+$ cat pi_estimate.txt\*
+{{< /highlight >}}
 
 #### Roadmap
 

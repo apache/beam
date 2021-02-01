@@ -4,6 +4,7 @@ aliases:
   - /learn/programming-guide/
   - /docs/learn/programming-guide/
 ---
+
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -37,7 +38,7 @@ The Python SDK supports Python 3.6, 3.7, and 3.8. Beam 2.24.0 was the last Pytho
 ## 1. Overview {#overview}
 
 To use Beam, you need to first create a driver program using the classes in one
-of the Beam SDKs. Your driver program *defines* your pipeline, including all of
+of the Beam SDKs. Your driver program _defines_ your pipeline, including all of
 the inputs, transforms, and outputs; it also sets execution options for your
 pipeline (typically passed in using command-line options). These include the
 Pipeline Runner, which, in turn, determines what back-end your pipeline will run
@@ -49,47 +50,47 @@ both batch and streaming data sources. When you create your Beam pipeline, you
 can think about your data processing task in terms of these abstractions. They
 include:
 
-* `Pipeline`: A `Pipeline` encapsulates your entire data processing task, from
+- `Pipeline`: A `Pipeline` encapsulates your entire data processing task, from
   start to finish. This includes reading input data, transforming that data, and
   writing output data. All Beam driver programs must create a `Pipeline`. When
   you create the `Pipeline`, you must also specify the execution options that
   tell the `Pipeline` where and how to run.
 
-* `PCollection`: A `PCollection` represents a distributed data set that your
-  Beam pipeline operates on. The data set can be *bounded*, meaning it comes
-  from a fixed source like a file, or *unbounded*, meaning it comes from a
+- `PCollection`: A `PCollection` represents a distributed data set that your
+  Beam pipeline operates on. The data set can be _bounded_, meaning it comes
+  from a fixed source like a file, or _unbounded_, meaning it comes from a
   continuously updating source via a subscription or other mechanism. Your
   pipeline typically creates an initial `PCollection` by reading data from an
   external data source, but you can also create a `PCollection` from in-memory
   data within your driver program. From there, `PCollection`s are the inputs and
   outputs for each step in your pipeline.
 
-* `PTransform`: A `PTransform` represents a data processing operation, or a step,
+- `PTransform`: A `PTransform` represents a data processing operation, or a step,
   in your pipeline. Every `PTransform` takes one or more `PCollection` objects as
   input, performs a processing function that you provide on the elements of that
   `PCollection`, and produces zero or more output `PCollection` objects.
 
-* I/O transforms: Beam comes with a number of "IOs" - library `PTransform`s that
+- I/O transforms: Beam comes with a number of "IOs" - library `PTransform`s that
   read or write data to various external storage systems.
 
 A typical Beam driver program works as follows:
 
-* **Create** a `Pipeline` object and set the pipeline execution options, including
+- **Create** a `Pipeline` object and set the pipeline execution options, including
   the Pipeline Runner.
-* Create an initial `PCollection` for pipeline data, either using the IOs
+- Create an initial `PCollection` for pipeline data, either using the IOs
   to read data from an external storage system, or using a `Create` transform to
   build a `PCollection` from in-memory data.
-* **Apply** `PTransform`s to each `PCollection`. Transforms can change, filter,
+- **Apply** `PTransform`s to each `PCollection`. Transforms can change, filter,
   group, analyze, or otherwise process the elements in a `PCollection`. A
-  transform creates a new output `PCollection` *without modifying the input
-  collection*. A typical pipeline applies subsequent transforms to each new
+  transform creates a new output `PCollection` _without modifying the input
+  collection_. A typical pipeline applies subsequent transforms to each new
   output `PCollection` in turn until processing is complete. However, note that
   a pipeline does not have to be a single straight line of transforms applied
   one after another: think of `PCollection`s as variables and `PTransform`s as
   functions applied to these variables: the shape of the pipeline can be an
   arbitrarily complex processing graph.
-* Use IOs to write the final, transformed `PCollection`(s) to an external source.
-* **Run** the pipeline using the designated Pipeline Runner.
+- Use IOs to write the final, transformed `PCollection`(s) to an external source.
+- **Run** the pipeline using the designated Pipeline Runner.
 
 When you run your Beam driver program, the Pipeline Runner that you designate
 constructs a **workflow graph** of your pipeline based on the `PCollection`
@@ -113,7 +114,7 @@ your pipeline's configuration options programmatically, but it's often easier to
 set the options ahead of time (or read them from the command line) and pass them
 to the `Pipeline` object when you create the object.
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 // Start by defining the options for the pipeline.
 PipelineOptions options = PipelineOptionsFactory.create();
 
@@ -121,11 +122,11 @@ PipelineOptions options = PipelineOptionsFactory.create();
 Pipeline p = Pipeline.create(options);
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" pipelines_constructing_creating >}}
 {{< /highlight >}}
 
-{{< highlight go >}}
+{{< highlight language="go" >}}
 // In order to start creating the pipeline for execution, a Pipeline object and a Scope object are needed.
 p, s := beam.NewPipelineWithRoot()
 {{< /highlight >}}
@@ -151,25 +152,25 @@ you can use to set fields in `PipelineOptions` using command-line arguments.
 To read options from the command-line, construct your `PipelineOptions` object
 as demonstrated in the following example code:
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 PipelineOptions options =
-    PipelineOptionsFactory.fromArgs(args).withValidation().create();
+PipelineOptionsFactory.fromArgs(args).withValidation().create();
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" pipelines_constructing_creating >}}
 {{< /highlight >}}
 
-{{< highlight go >}}
+{{< highlight language="go" >}}
 // If beamx or Go flags are used, flags must be parsed first.
 flag.Parse()
 {{< /highlight >}}
 
 This interprets command-line arguments that follow the format:
 
-```
+{{< highlight >}}
 --<option>=<value>
-```
+{{< /highlight >}}
 
 > **Note:** Appending the method `.withValidation` will check for required
 > command-line arguments and validate argument values.
@@ -188,24 +189,25 @@ You can add your own custom options in addition to the standard
 setter methods for each option, as in the following example for
 adding `input` and `output` custom options:
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 public interface MyOptions extends PipelineOptions {
-    String getInput();
-    void setInput(String input);
+String getInput();
+void setInput(String input);
 
     String getOutput();
     void setOutput(String output);
+
 }
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" pipeline_options_define_custom >}}
 {{< /highlight >}}
 
-{{< highlight go >}}
+{{< highlight language="go" >}}
 var (
-  input = flag.String("input", "", "")
-  output = flag.String("output", "", "")
+input = flag.String("input", "", "")
+output = flag.String("output", "", "")
 )
 {{< /highlight >}}
 
@@ -214,28 +216,29 @@ a command-line argument, and a default value.
 
 You set the description and default value using annotations, as follows:
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 public interface MyOptions extends PipelineOptions {
-    @Description("Input for the pipeline")
-    @Default.String("gs://my-bucket/input")
-    String getInput();
-    void setInput(String input);
+@Description("Input for the pipeline")
+@Default.String("gs://my-bucket/input")
+String getInput();
+void setInput(String input);
 
     @Description("Output for the pipeline")
     @Default.String("gs://my-bucket/output")
     String getOutput();
     void setOutput(String output);
+
 }
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" pipeline_options_define_custom_with_help_and_default >}}
 {{< /highlight >}}
 
-{{< highlight go >}}
+{{< highlight language="go" >}}
 var (
-  input = flag.String("input", "gs://my-bucket/input", "Input for the pipeline")
-  output = flag.String("output", "gs://my-bucket/output", "Output for the pipeline")
+input = flag.String("input", "gs://my-bucket/input", "Input for the pipeline")
+output = flag.String("output", "gs://my-bucket/output", "Output for the pipeline")
 )
 {{< /highlight >}}
 
@@ -253,11 +256,11 @@ The following example code shows how to register your custom options interface
 with `PipelineOptionsFactory`:
 {{< /paragraph >}}
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 PipelineOptionsFactory.register(MyOptions.class);
 MyOptions options = PipelineOptionsFactory.fromArgs(args)
-                                                .withValidation()
-                                                .as(MyOptions.class);
+.withValidation()
+.as(MyOptions.class);
 {{< /highlight >}}
 
 Now your pipeline can accept `--input=value` and `--output=value` as command-line arguments.
@@ -302,24 +305,25 @@ would apply <span class="language-java">`TextIO.Read`</span>
 <span class="language-py">`io.TextFileSource`</span> to your `Pipeline` to create
 a `PCollection`:
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 public static void main(String[] args) {
-    // Create the pipeline.
-    PipelineOptions options =
-        PipelineOptionsFactory.fromArgs(args).create();
-    Pipeline p = Pipeline.create(options);
+// Create the pipeline.
+PipelineOptions options =
+PipelineOptionsFactory.fromArgs(args).create();
+Pipeline p = Pipeline.create(options);
 
     // Create the PCollection 'lines' by applying a 'Read' transform.
     PCollection<String> lines = p.apply(
       "ReadMyFile", TextIO.read().from("gs://some/inputData.txt"));
+
 }
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" pipelines_constructing_reading >}}
 {{< /highlight >}}
 
-{{< highlight go >}}
+{{< highlight language="go" >}}
 lines := textio.Read(s, "gs://some/inputData.txt")
 {{< /highlight >}}
 
@@ -349,14 +353,14 @@ itself.
 The following example code shows how to create a `PCollection` from an in-memory
 <span class="language-java">`List`</span><span class="language-py">`list`</span>:
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 public static void main(String[] args) {
-    // Create a Java Collection, in this case a List of Strings.
-    final List<String> LINES = Arrays.asList(
-      "To be, or not to be: that is the question: ",
-      "Whether 'tis nobler in the mind to suffer ",
-      "The slings and arrows of outrageous fortune, ",
-      "Or to take arms against a sea of troubles, ");
+// Create a Java Collection, in this case a List of Strings.
+final List<String> LINES = Arrays.asList(
+"To be, or not to be: that is the question: ",
+"Whether 'tis nobler in the mind to suffer ",
+"The slings and arrows of outrageous fortune, ",
+"Or to take arms against a sea of troubles, ");
 
     // Create the pipeline.
     PipelineOptions options =
@@ -365,10 +369,11 @@ public static void main(String[] args) {
 
     // Apply Create, passing the list and the coder, to create the PCollection.
     p.apply(Create.of(LINES)).setCoder(StringUtf8Coder.of());
+
 }
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_pcollection >}}
 {{< /highlight >}}
 
@@ -398,8 +403,8 @@ express types as a set of named fields, allowing for more-expressive aggregation
 
 A `PCollection` is immutable. Once created, you cannot add, remove, or change
 individual elements. A Beam Transform might process each element of a
-`PCollection` and generate new pipeline data (as a new `PCollection`), *but it
-does not consume or modify the original input collection*.
+`PCollection` and generate new pipeline data (as a new `PCollection`), _but it
+does not consume or modify the original input collection_.
 
 #### 3.2.4. Random access {#random-access}
 
@@ -435,7 +440,6 @@ determined by some characteristic associated with a data element, such as a
 **timestamp**. Aggregation transforms (such as `GroupByKey` and `Combine`) work
 on a per-window basis — as the data set is generated, they process each
 `PCollection` as a succession of these finite windows.
-
 
 #### 3.2.6. Element timestamps {#element-timestamps}
 
@@ -486,16 +490,16 @@ more complex composite transforms to fit your pipeline's exact use case.
 
 To invoke a transform, you must **apply** it to the input `PCollection`. Each
 transform in the Beam SDKs has a generic `apply` method <span class="language-py">(or pipe operator `|`)</span>.
-Invoking multiple Beam transforms is similar to *method chaining*, but with one
+Invoking multiple Beam transforms is similar to _method chaining_, but with one
 slight difference: You apply the transform to the input `PCollection`, passing
 the transform itself as an argument, and the operation returns the output
 `PCollection`. This takes the general form:
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 [Output PCollection] = [Input PCollection].apply([Transform])
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 [Output PCollection] = [Input PCollection] | [Transform]
 {{< /highlight >}}
 
@@ -510,16 +514,16 @@ where `PTransform` nodes are subroutines that accept `PCollection` nodes as
 inputs and emit `PCollection` nodes as outputs. For example, you can chain
 together transforms to create a pipeline that successively modifies input data:
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 [Final Output PCollection] = [Initial Input PCollection].apply([First Transform])
 .apply([Second Transform])
 .apply([Third Transform])
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 [Final Output PCollection] = ([Initial Input PCollection] | [First Transform]
-              | [Second Transform]
-              | [Third Transform])
+| [Second Transform]
+| [Third Transform])
 {{< /highlight >}}
 
 The graph of this pipeline looks like the following:
@@ -527,20 +531,20 @@ The graph of this pipeline looks like the following:
 ![This linear pipeline starts with one input collection, sequentially applies
   three transforms, and ends with one output collection.](/images/design-your-pipeline-linear.svg)
 
-*Figure 1: A linear pipeline with three sequential transforms.*
+_Figure 1: A linear pipeline with three sequential transforms._
 
-However, note that a transform *does not consume or otherwise alter* the input
+However, note that a transform _does not consume or otherwise alter_ the input
 collection — remember that a `PCollection` is immutable by definition. This means
 that you can apply multiple transforms to the same input `PCollection` to create
 a branching pipeline, like so:
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 [PCollection of database table rows] = [Database Table Reader].apply([Read Transform])
 [PCollection of 'A' names] = [PCollection of database table rows].apply([Transform A])
 [PCollection of 'B' names] = [PCollection of database table rows].apply([Transform B])
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 [PCollection of database table rows] = [Database Table Reader] | [Read Transform]
 [PCollection of 'A' names] = [PCollection of database table rows] | [Transform A]
 [PCollection of 'B' names] = [PCollection of database table rows] | [Transform B]
@@ -551,8 +555,8 @@ The graph of this branching pipeline looks like the following:
 ![This pipeline applies two transforms to a single input collection. Each
   transform produces an output collection.](/images/design-your-pipeline-multiple-pcollections.svg)
 
-*Figure 2: A branching pipeline. Two transforms are applied to a single
-PCollection of database table rows.*
+_Figure 2: A branching pipeline. Two transforms are applied to a single
+PCollection of database table rows._
 
 You can also build your own [composite transforms](#composite-transforms) that
 nest multiple transforms inside a single, larger transform. Composite transforms
@@ -564,12 +568,12 @@ get used in a lot of different places.
 Beam provides the following core transforms, each of which represents a different
 processing paradigm:
 
-* `ParDo`
-* `GroupByKey`
-* `CoGroupByKey`
-* `Combine`
-* `Flatten`
-* `Partition`
+- `ParDo`
+- `GroupByKey`
+- `CoGroupByKey`
+- `Combine`
+- `Flatten`
+- `Partition`
 
 #### 4.2.1. ParDo {#pardo}
 
@@ -582,18 +586,18 @@ element, and emits zero, one, or multiple elements to an output `PCollection`.
 
 `ParDo` is useful for a variety of common data processing operations, including:
 
-* **Filtering a data set.** You can use `ParDo` to consider each element in a
+- **Filtering a data set.** You can use `ParDo` to consider each element in a
   `PCollection` and either output that element to a new collection or discard
   it.
-* **Formatting or type-converting each element in a data set.** If your input
+- **Formatting or type-converting each element in a data set.** If your input
   `PCollection` contains elements that are of a different type or format than
   you want, you can use `ParDo` to perform a conversion on each element and
   output the result to a new `PCollection`.
-* **Extracting parts of each element in a data set.** If you have a
+- **Extracting parts of each element in a data set.** If you have a
   `PCollection` of records with multiple fields, for example, you can use a
   `ParDo` to parse out just the fields you want to consider into a new
   `PCollection`.
-* **Performing computations on each element in a data set.** You can use `ParDo`
+- **Performing computations on each element in a data set.** You can use `ParDo`
   to perform simple or complex computations on every element, or certain
   elements, of a `PCollection` and output the results as a new `PCollection`.
 
@@ -616,7 +620,7 @@ Like all Beam transforms, you apply `ParDo` by calling the `apply` method on the
 input `PCollection` and passing `ParDo` as an argument, as shown in the
 following example code:
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 // The input PCollection of Strings.
 PCollection<String> words = ...;
 
@@ -625,26 +629,29 @@ static class ComputeWordLengthFn extends DoFn<String, Integer> { ... }
 
 // Apply a ParDo to the PCollection "words" to compute lengths for each word.
 PCollection<Integer> wordLengths = words.apply(
-    ParDo
-    .of(new ComputeWordLengthFn()));        // The DoFn to perform on each element, which
-                                            // we define above.
+ParDo
+.of(new ComputeWordLengthFn())); // The DoFn to perform on each element, which
+// we define above.
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
+
 # The input PCollection of Strings.
+
 words = ...
 
 # The DoFn to perform on each element in the input PCollection.
+
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_pardo >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_apply >}}
 {{< /highlight >}}
 
-{{< highlight go >}}
+{{< highlight language="go" >}}
 // words is the input PCollection of strings
 var words beam.PCollection = ...
 
 func computeWordLengthFn(word string) int {
-      return len(word)
+return len(word)
 }
 
 wordLengths := beam.ParDo(s, computeWordLengthFn, words)
@@ -675,7 +682,7 @@ the types of the input and output elements. If your `DoFn` processes incoming
 look like this:
 {{< /paragraph >}}
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 static class ComputeWordLengthFn extends DoFn<String, Integer> { ... }
 {{< /highlight >}}
 
@@ -702,25 +709,26 @@ elements with `yield` statements. You can also use a `return` statement
 with an iterable, like a list or a generator.
 {{< /paragraph >}}
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 static class ComputeWordLengthFn extends DoFn<String, Integer> {
-  @ProcessElement
-  public void processElement(@Element String word, OutputReceiver<Integer> out) {
-    // Use OutputReceiver.output to emit the output element.
-    out.output(word.length());
-  }
+@ProcessElement
+public void processElement(@Element String word, OutputReceiver<Integer> out) {
+// Use OutputReceiver.output to emit the output element.
+out.output(word.length());
+}
 }
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_pardo >}}
 {{< /highlight >}}
 
 {{< paragraph class="language-java" >}}
+
 > **Note:** If the elements in your input `PCollection` are key/value pairs, you
 > can access the key or value by using `element.getKey()` or
 > `element.getValue()`, respectively.
-{{< /paragraph >}}
+> {{< /paragraph >}}
 
 A given `DoFn` instance generally gets invoked one or more times to process some
 arbitrary bundle of elements. However, Beam doesn't guarantee an exact number of
@@ -735,19 +743,21 @@ serialize and cache the values in your pipeline. Your method should meet the
 following requirements:
 
 {{< paragraph class="language-java" >}}
-* You should not in any way modify an element returned by
+
+- You should not in any way modify an element returned by
   the `@Element` annotation or `ProcessContext.sideInput()` (the incoming
   elements from the input collection).
-* Once you output a value using `OutputReceiver.output()` you should not modify
+- Once you output a value using `OutputReceiver.output()` you should not modify
   that value in any way.
-{{< /paragraph >}}
+  {{< /paragraph >}}
 
 {{< paragraph class="language-py" >}}
-* You should not in any way modify the `element` argument provided to the
+
+- You should not in any way modify the `element` argument provided to the
   `process` method, or any side inputs.
-* Once you output a value using `yield` or `return`, you should not modify
+- Once you output a value using `yield` or `return`, you should not modify
   that value in any way.
-{{< /paragraph >}}
+  {{< /paragraph >}}
 
 ##### 4.2.1.3. Lightweight DoFns and other abstractions {#lightweight-dofns}
 
@@ -761,43 +771,47 @@ Here's the previous example, `ParDo` with `ComputeLengthWordsFn`, with the
 <span class="language-java">an anonymous inner class instance</span>
 <span class="language-py">a lambda function</span>:
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 // The input PCollection.
 PCollection<String> words = ...;
 
 // Apply a ParDo with an anonymous DoFn to the PCollection words.
 // Save the result as the PCollection wordLengths.
 PCollection<Integer> wordLengths = words.apply(
-  "ComputeWordLengths",                     // the transform name
-  ParDo.of(new DoFn<String, Integer>() {    // a DoFn as an anonymous inner class instance
-      @ProcessElement
-      public void processElement(@Element String word, OutputReceiver<Integer> out) {
-        out.output(word.length());
-      }
-    }));
+"ComputeWordLengths", // the transform name
+ParDo.of(new DoFn<String, Integer>() { // a DoFn as an anonymous inner class instance
+@ProcessElement
+public void processElement(@Element String word, OutputReceiver<Integer> out) {
+out.output(word.length());
+}
+}));
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
+
 # The input PCollection of strings.
+
 words = ...
 
 # Apply a lambda function to the PCollection words.
+
 # Save the result as the PCollection word_lengths.
+
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_using_flatmap >}}
 {{< /highlight >}}
 
-{{< highlight go >}}
+{{< highlight language="go" >}}
 // words is the input PCollection of strings
 var words beam.PCollection = ...
 
 lengths := beam.ParDo(s, func (word string) int {
-      return len(word)
+return len(word)
 }, words)
 {{< /highlight >}}
 
 If your `ParDo` performs a one-to-one mapping of input elements to output
 elements--that is, for each input element, it applies a function that produces
-*exactly one* output element, you can use the higher-level
+_exactly one_ output element, you can use the higher-level
 <span class="language-java">`MapElements`</span><span class="language-py">`Map`</span>
 transform. <span class="language-java">`MapElements` can accept an anonymous
 Java 8 lambda function for additional brevity.</span>
@@ -805,39 +819,46 @@ Java 8 lambda function for additional brevity.</span>
 Here's the previous example using <span class="language-java">`MapElements`</span>
 <span class="language-py">`Map`</span>:
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 // The input PCollection.
 PCollection<String> words = ...;
 
 // Apply a MapElements with an anonymous lambda function to the PCollection words.
 // Save the result as the PCollection wordLengths.
 PCollection<Integer> wordLengths = words.apply(
-  MapElements.into(TypeDescriptors.integers())
-             .via((String word) -> word.length()));
+MapElements.into(TypeDescriptors.integers())
+.via((String word) -> word.length()));
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
+
 # The input PCollection of string.
+
 words = ...
 
 # Apply a Map with a lambda function to the PCollection words.
+
 # Save the result as the PCollection word_lengths.
+
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_using_map >}}
 {{< /highlight >}}
 
 {{< paragraph class="language-java" >}}
+
 > **Note:** You can use Java 8 lambda functions with several other Beam
 > transforms, including `Filter`, `FlatMapElements`, and `Partition`.
-{{< /paragraph >}}
+> {{< /paragraph >}}
 
 ##### 4.2.1.4. DoFn lifecycle {#dofn}
+
 Here is a sequence diagram that shows the lifecycle of the DoFn during
- the execution of the ParDo transform. The comments give useful
- information to pipeline developers such as the constraints that
- apply to the objects or particular cases such as failover or
- instance reuse. They also give instantiation use cases.
+the execution of the ParDo transform. The comments give useful
+information to pipeline developers such as the constraints that
+apply to the objects or particular cases such as failover or
+instance reuse. They also give instantiation use cases.
 
 <!-- The source for the sequence diagram can be found in the the SVG resource. -->
+
 ![This is a sequence diagram that shows the lifecycle of the DoFn](/images/dofn-sequence-diagram.svg)
 
 #### 4.2.2. GroupByKey {#groupbykey}
@@ -845,7 +866,7 @@ Here is a sequence diagram that shows the lifecycle of the DoFn during
 `GroupByKey` is a Beam transform for processing collections of key/value pairs.
 It's a parallel reduction operation, analogous to the Shuffle phase of a
 Map/Shuffle/Reduce-style algorithm. The input to `GroupByKey` is a collection of
-key/value pairs that represents a *multimap*, where the collection contains
+key/value pairs that represents a _multimap_, where the collection contains
 multiple pairs that have the same key, but different values. Given such a
 collection, you use `GroupByKey` to collect all of the values associated with
 each unique key.
@@ -866,7 +887,7 @@ Our input is a `PCollection` of key/value pairs where each word is a key, and
 the value is a line number in the file where the word appears. Here's a list of
 the key/value pairs in the input collection:
 
-```
+{{< highlight >}}
 cat, 1
 dog, 5
 and, 1
@@ -878,21 +899,21 @@ and, 2
 cat, 9
 and, 6
 ...
-```
+{{< /highlight >}}
 
 `GroupByKey` gathers up all the values with the same key and outputs a new pair
 consisting of the unique key and a collection of all of the values that were
 associated with that key in the input collection. If we apply `GroupByKey` to
 our input collection above, the output collection would look like this:
 
-```
+{{< highlight >}}
 cat, [1,5,9]
 dog, [5,2]
 and, [1,2,6]
 jump, [3]
 tree, [2]
 ...
-```
+{{< /highlight >}}
 
 Thus, `GroupByKey` represents a transform from a multimap (multiple keys to
 individual values) to a uni-map (unique keys to collections of values).
@@ -915,7 +936,7 @@ error at pipeline construction time.
 
 When using `GroupByKey` or `CoGroupByKey` to group `PCollection`s that have a
 [windowing strategy](#windowing) applied, all of the `PCollection`s you want to
-group *must use the same windowing strategy* and window sizing. For example, all
+group _must use the same windowing strategy_ and window sizing. For example, all
 of the collections you are merging must use (hypothetically) identical 5-minute
 fixed windows, or 4-minute sliding windows starting every 30 seconds.
 
@@ -977,22 +998,22 @@ The first set of data contains names and email addresses. The second set of
 data contains names and phone numbers.
 </span>
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 {{< code_sample "examples/java/src/test/java/org/apache/beam/examples/snippets/SnippetsTest.java" CoGroupByKeyTupleInputs >}}
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_group_by_key_cogroupbykey_tuple_inputs >}}
 {{< /highlight >}}
 
 After `CoGroupByKey`, the resulting data contains all data associated with each
 unique key from any of the input collections.
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 {{< code_sample "examples/java/src/test/java/org/apache/beam/examples/snippets/SnippetsTest.java" CoGroupByKeyTupleOutputs >}}
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_group_by_key_cogroupbykey_tuple_outputs >}}
 {{< /highlight >}}
 
@@ -1000,21 +1021,21 @@ The following code example joins the two `PCollection`s with `CoGroupByKey`,
 followed by a `ParDo` to consume the result. Then, the code uses tags to look up
 and format data from each collection.
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" CoGroupByKeyTuple >}}
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_group_by_key_cogroupbykey_tuple >}}
 {{< /highlight >}}
 
 The formatted data looks like this:
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 {{< code_sample "examples/java/src/test/java/org/apache/beam/examples/snippets/SnippetsTest.java" CoGroupByKeyTupleFormattedOutputs >}}
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_group_by_key_cogroupbykey_tuple_formatted_outputs >}}
 {{< /highlight >}}
 
@@ -1045,21 +1066,21 @@ input/output type.
 
 The following example code shows a simple combine function.
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 // Sum a collection of Integer values. The function SumInts implements the interface SerializableFunction.
 public static class SumInts implements SerializableFunction<Iterable<Integer>, Integer> {
-  @Override
-  public Integer apply(Iterable<Integer> input) {
-    int sum = 0;
-    for (int item : input) {
-      sum += item;
-    }
-    return sum;
-  }
+@Override
+public Integer apply(Iterable<Integer> input) {
+int sum = 0;
+for (int item : input) {
+sum += item;
+}
+return sum;
+}
 }
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" combine_bounded_sum >}}
 {{< /highlight >}}
 
@@ -1097,41 +1118,41 @@ corresponding methods:
 The following example code shows how to define a `CombineFn` that computes a
 mean average:
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 public class AverageFn extends CombineFn<Integer, AverageFn.Accum, Double> {
-  public static class Accum {
-    int sum = 0;
-    int count = 0;
-  }
+public static class Accum {
+int sum = 0;
+int count = 0;
+}
 
-  @Override
-  public Accum createAccumulator() { return new Accum(); }
+@Override
+public Accum createAccumulator() { return new Accum(); }
 
-  @Override
-  public Accum addInput(Accum accum, Integer input) {
-      accum.sum += input;
-      accum.count++;
-      return accum;
-  }
+@Override
+public Accum addInput(Accum accum, Integer input) {
+accum.sum += input;
+accum.count++;
+return accum;
+}
 
-  @Override
-  public Accum mergeAccumulators(Iterable<Accum> accums) {
-    Accum merged = createAccumulator();
-    for (Accum accum : accums) {
-      merged.sum += accum.sum;
-      merged.count += accum.count;
-    }
-    return merged;
-  }
+@Override
+public Accum mergeAccumulators(Iterable<Accum> accums) {
+Accum merged = createAccumulator();
+for (Accum accum : accums) {
+merged.sum += accum.sum;
+merged.count += accum.count;
+}
+return merged;
+}
 
-  @Override
-  public Double extractOutput(Accum accum) {
-    return ((double) accum.sum) / accum.count;
-  }
+@Override
+public Double extractOutput(Accum accum) {
+return ((double) accum.sum) / accum.count;
+}
 }
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 pc = ...
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" combine_custom_average_define >}}
 {{< /highlight >}}
@@ -1144,18 +1165,22 @@ containing one element. The following example code shows how to apply the Beam
 provided sum combine function to produce a single sum value for a `PCollection`
 of integers.
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 // Sum.SumIntegerFn() combines the elements in the input PCollection. The resulting PCollection, called sum,
 // contains one value: the sum of all the elements in the input PCollection.
 PCollection<Integer> pc = ...;
 PCollection<Integer> sum = pc.apply(
-   Combine.globally(new Sum.SumIntegerFn()));
+Combine.globally(new Sum.SumIntegerFn()));
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
+
 # sum combines the elements in the input PCollection.
+
 # The resulting PCollection, called result, contains one value: the sum of all
+
 # the elements in the input PCollection.
+
 pc = ...
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" combine_custom_average_execute >}}
 {{< /highlight >}}
@@ -1173,13 +1198,13 @@ To have `Combine` instead return an empty `PCollection` if the input is empty,
 specify `.withoutDefaults` when you apply your `Combine` transform, as in the
 following code example:
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 PCollection<Integer> pc = ...;
 PCollection<Integer> sum = pc.apply(
-  Combine.globally(new Sum.SumIntegerFn()).withoutDefaults());
+Combine.globally(new Sum.SumIntegerFn()).withoutDefaults());
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 pc = ...
 sum = pc | beam.CombineGlobally(sum).without_defaults()
 {{< /highlight >}}
@@ -1190,9 +1215,9 @@ If your `PCollection` uses any non-global windowing function, Beam does not
 provide the default behavior. You must specify one of the following options when
 applying `Combine`:
 
-* Specify `.withoutDefaults`, where windows that are empty in the input
+- Specify `.withoutDefaults`, where windows that are empty in the input
   `PCollection` will likewise be empty in the output collection.
-* Specify `.asSingletonView`, in which the output is immediately converted to a
+- Specify `.asSingletonView`, in which the output is immediately converted to a
   `PCollectionView`, which will provide a default value for each empty window
   when used as a side input. You'll generally only need to use this option if
   the result of your pipeline's `Combine` is to be used as a side input later in
@@ -1204,14 +1229,15 @@ After creating a keyed PCollection (for example, by using a `GroupByKey`
 transform), a common pattern is to combine the collection of values associated
 with each key into a single, merged value. Drawing on the previous example from
 `GroupByKey`, a key-grouped `PCollection` called `groupedWords` looks like this:
-```
+
+{{< highlight >}}
   cat, [1,5,9]
   dog, [5,2]
   and, [1,2,6]
   jump, [3]
   tree, [2]
   ...
-```
+{{< /highlight >}}
 
 In the above `PCollection`, each element has a string key (for example, "cat")
 and an iterable of integers for its value (in the first element, containing [1,
@@ -1222,24 +1248,27 @@ create a single, merged value to be paired with each key. This pattern of a
 Beam's Combine PerKey transform. The combine function you supply to Combine
 PerKey must be an associative reduction function or a subclass of `CombineFn`.
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 // PCollection is grouped by key and the Double values associated with each key are combined into a Double.
 PCollection<KV<String, Double>> salesRecords = ...;
 PCollection<KV<String, Double>> totalSalesPerPerson =
-  salesRecords.apply(Combine.<String, Double, Double>perKey(
-    new Sum.SumDoubleFn()));
+salesRecords.apply(Combine.<String, Double, Double>perKey(
+new Sum.SumDoubleFn()));
 
 // The combined value is of a different type than the original collection of values per key. PCollection has
 // keys of type String and values of type Integer, and the combined value is a Double.
 PCollection<KV<String, Integer>> playerAccuracy = ...;
 PCollection<KV<String, Double>> avgAccuracyPerPlayer =
-  playerAccuracy.apply(Combine.<String, Integer, Double>perKey(
-    new MeanInts())));
+playerAccuracy.apply(Combine.<String, Integer, Double>perKey(
+new MeanInts())));
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
+
 # PCollection is grouped by key and the numeric values associated with each key
+
 # are averaged into a float.
+
 player_accuracies = ...
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" combine_per_key >}}
 {{< /highlight >}}
@@ -1255,7 +1284,7 @@ is a Beam transform for `PCollection` objects that store the same data type.
 The following example shows how to apply a `Flatten` transform to merge multiple
 `PCollection` objects.
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 // Flatten takes a PCollectionList of PCollection objects of a given type.
 // Returns a single PCollection that contains all of the elements in the PCollection objects in that list.
 PCollection<String> pc1 = ...;
@@ -1266,10 +1295,12 @@ PCollectionList<String> collections = PCollectionList.of(pc1).and(pc2).and(pc3);
 PCollection<String> merged = collections.apply(Flatten.<String>pCollections());
 {{< /highlight >}}
 
+{{< highlight language="py" >}}
 
-{{< highlight py >}}
 # Flatten takes a tuple of PCollection objects.
+
 # Returns a single PCollection that contains all of the elements in the PCollection objects in that tuple.
+
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_multiple_pcollections_flatten >}}
 {{< /highlight >}}
 
@@ -1312,30 +1343,33 @@ for instance).
 
 The following example divides a `PCollection` into percentile groups.
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 // Provide an int value with the desired number of result partitions, and a PartitionFn that represents the
 // partitioning function. In this example, we define the PartitionFn in-line. Returns a PCollectionList
 // containing each of the resulting partitions as individual PCollection objects.
 PCollection<Student> students = ...;
 // Split students up into 10 partitions, by percentile:
 PCollectionList<Student> studentsByPercentile =
-    students.apply(Partition.of(10, new PartitionFn<Student>() {
-        public int partitionFor(Student student, int numPartitions) {
-            return student.getPercentile()  // 0..99
-                 * numPartitions / 100;
-        }}));
+students.apply(Partition.of(10, new PartitionFn<Student>() {
+public int partitionFor(Student student, int numPartitions) {
+return student.getPercentile() // 0..99 \* numPartitions / 100;
+}}));
 
 // You can extract each partition from the PCollectionList using the get method, as follows:
 PCollection<Student> fortiethPercentile = studentsByPercentile.get(4);
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
+
 # Provide an int value with the desired number of result partitions, and a partitioning function (partition_fn in this example).
+
 # Returns a tuple of PCollection objects containing each of the resulting partitions as individual PCollection objects.
+
 students = ...
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_multiple_pcollections_partition >}}
 
 # You can extract each partition from the tuple of PCollection objects as follows:
+
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_multiple_pcollections_partition_40th >}}
 {{< /highlight >}}
 
@@ -1352,9 +1386,9 @@ state dependency in your user code.
 
 In general, your user code must fulfill at least these requirements:
 
-* Your function object must be **serializable**.
-* Your function object must be **thread-compatible**, and be aware that *the
-  Beam SDKs are not thread-safe*.
+- Your function object must be **serializable**.
+- Your function object must be **thread-compatible**, and be aware that _the
+  Beam SDKs are not thread-safe_.
 
 In addition, it's recommended that you make your function object **idempotent**.
 Non-idempotent functions are supported by Beam, but require additional
@@ -1375,12 +1409,12 @@ however, your subclass must not add any non-serializable members.
 
 Some other serializability factors you should keep in mind are:
 
-* Transient fields in your function object are *not* transmitted to worker
+- Transient fields in your function object are _not_ transmitted to worker
   instances, because they are not automatically serialized.
-* Avoid loading a field with a large amount of data before serialization.
-* Individual instances of your function object cannot share data.
-* Mutating a function object after it gets applied will have no effect.
-* Take care when declaring your function object inline by using an anonymous
+- Avoid loading a field with a large amount of data before serialization.
+- Individual instances of your function object cannot share data.
+- Mutating a function object after it gets applied will have no effect.
+- Take care when declaring your function object inline by using an anonymous
   inner class instance. In a non-static context, your inner class instance will
   implicitly contain a pointer to the enclosing class and that class' state.
   That enclosing class will also be serialized, and thus the same considerations
@@ -1419,50 +1453,55 @@ processing each element in the input `PCollection`, but the additional data
 needs to be determined at runtime (and not hard-coded). Such values might be
 determined by the input data, or depend on a different branch of your pipeline.
 
-
 #### 4.4.1. Passing side inputs to ParDo {#side-inputs-pardo}
 
-{{< highlight java >}}
-  // Pass side inputs to your ParDo transform by invoking .withSideInputs.
-  // Inside your DoFn, access the side input by using the method DoFn.ProcessContext.sideInput.
+{{< highlight language="java" >}}
+// Pass side inputs to your ParDo transform by invoking .withSideInputs.
+// Inside your DoFn, access the side input by using the method DoFn.ProcessContext.sideInput.
 
-  // The input PCollection to ParDo.
-  PCollection<String> words = ...;
+// The input PCollection to ParDo.
+PCollection<String> words = ...;
 
-  // A PCollection of word lengths that we'll combine into a single value.
-  PCollection<Integer> wordLengths = ...; // Singleton PCollection
+// A PCollection of word lengths that we'll combine into a single value.
+PCollection<Integer> wordLengths = ...; // Singleton PCollection
 
-  // Create a singleton PCollectionView from wordLengths using Combine.globally and View.asSingleton.
-  final PCollectionView<Integer> maxWordLengthCutOffView =
-     wordLengths.apply(Combine.globally(new Max.MaxIntFn()).asSingletonView());
+// Create a singleton PCollectionView from wordLengths using Combine.globally and View.asSingleton.
+final PCollectionView<Integer> maxWordLengthCutOffView =
+wordLengths.apply(Combine.globally(new Max.MaxIntFn()).asSingletonView());
 
-
-  // Apply a ParDo that takes maxWordLengthCutOffView as a side input.
-  PCollection<String> wordsBelowCutOff =
-  words.apply(ParDo
-      .of(new DoFn<String, String>() {
-          @ProcessElement
-          public void processElement(@Element String word, OutputReceiver<String> out, ProcessContext c) {
-            // In our DoFn, access the side input.
-            int lengthCutOff = c.sideInput(maxWordLengthCutOffView);
-            if (word.length() <= lengthCutOff) {
-              out.output(word);
-            }
-          }
-      }).withSideInputs(maxWordLengthCutOffView)
-  );
+// Apply a ParDo that takes maxWordLengthCutOffView as a side input.
+PCollection<String> wordsBelowCutOff =
+words.apply(ParDo
+.of(new DoFn<String, String>() {
+@ProcessElement
+public void processElement(@Element String word, OutputReceiver<String> out, ProcessContext c) {
+// In our DoFn, access the side input.
+int lengthCutOff = c.sideInput(maxWordLengthCutOffView);
+if (word.length() <= lengthCutOff) {
+out.output(word);
+}
+}
+}).withSideInputs(maxWordLengthCutOffView)
+);
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
+
 # Side inputs are available as extra arguments in the DoFn's process method or Map / FlatMap's callable.
+
 # Optional, positional, and keyword arguments are all supported. Deferred arguments are unwrapped into their
+
 # actual values. For example, using pvalue.AsIteor(pcoll) at pipeline construction time results in an iterable
+
 # of the actual elements of pcoll being passed into each process invocation. In this example, side inputs are
+
 # passed to a FlatMap transform as extra arguments and consumed by filter_using_length.
+
 words = ...
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_side_input >}}
 
 # We can also pass side inputs to a ParDo transform, which will get passed to its process method.
+
 # The first two arguments for the process method would be self and element.
 
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_side_input_dofn >}}
@@ -1508,33 +1547,33 @@ together.
 
 #### 4.5.1. Tags for multiple outputs {#output-tags}
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 // To emit elements to multiple output PCollections, create a TupleTag object to identify each collection
 // that your ParDo produces. For example, if your ParDo produces three output PCollections (the main output
 // and two additional outputs), you must create three TupleTags. The following example code shows how to
 // create TupleTags for a ParDo with three output PCollections.
 
-  // Input PCollection to our ParDo.
-  PCollection<String> words = ...;
+// Input PCollection to our ParDo.
+PCollection<String> words = ...;
 
-  // The ParDo will filter words whose length is below a cutoff and add them to
-  // the main output PCollection<String>.
-  // If a word is above the cutoff, the ParDo will add the word length to an
-  // output PCollection<Integer>.
-  // If a word starts with the string "MARKER", the ParDo will add that word to an
-  // output PCollection<String>.
-  final int wordLengthCutOff = 10;
+// The ParDo will filter words whose length is below a cutoff and add them to
+// the main output PCollection<String>.
+// If a word is above the cutoff, the ParDo will add the word length to an
+// output PCollection<Integer>.
+// If a word starts with the string "MARKER", the ParDo will add that word to an
+// output PCollection<String>.
+final int wordLengthCutOff = 10;
 
-  // Create three TupleTags, one for each output PCollection.
-  // Output that contains words below the length cutoff.
-  final TupleTag<String> wordsBelowCutOffTag =
-      new TupleTag<String>(){};
-  // Output that contains word lengths.
-  final TupleTag<Integer> wordLengthsAboveCutOffTag =
-      new TupleTag<Integer>(){};
-  // Output that contains "MARKER" words.
-  final TupleTag<String> markedWordsTag =
-      new TupleTag<String>(){};
+// Create three TupleTags, one for each output PCollection.
+// Output that contains words below the length cutoff.
+final TupleTag<String> wordsBelowCutOffTag =
+new TupleTag<String>(){};
+// Output that contains word lengths.
+final TupleTag<Integer> wordLengthsAboveCutOffTag =
+new TupleTag<Integer>(){};
+// Output that contains "MARKER" words.
+final TupleTag<String> markedWordsTag =
+new TupleTag<String>(){};
 
 // Passing Output Tags to ParDo:
 // After you specify the TupleTags for each of your ParDo outputs, pass the tags to your ParDo by invoking
@@ -1543,28 +1582,33 @@ together.
 // PCollections to our ParDo. Note that all of the outputs (including the main output PCollection) are
 // bundled into the returned PCollectionTuple.
 
-  PCollectionTuple results =
-      words.apply(ParDo
-          .of(new DoFn<String, String>() {
-            // DoFn continues here.
-            ...
-          })
-          // Specify the tag for the main output.
-          .withOutputTags(wordsBelowCutOffTag,
-          // Specify the tags for the two additional outputs as a TupleTagList.
-                          TupleTagList.of(wordLengthsAboveCutOffTag)
-                                      .and(markedWordsTag)));
+PCollectionTuple results =
+words.apply(ParDo
+.of(new DoFn<String, String>() {
+// DoFn continues here.
+...
+})
+// Specify the tag for the main output.
+.withOutputTags(wordsBelowCutOffTag,
+// Specify the tags for the two additional outputs as a TupleTagList.
+TupleTagList.of(wordLengthsAboveCutOffTag)
+.and(markedWordsTag)));
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
+
 # To emit elements to multiple output PCollections, invoke with_outputs() on the ParDo, and specify the
+
 # expected tags for the outputs. with_outputs() returns a DoOutputsTuple object. Tags specified in
+
 # with_outputs are attributes on the returned DoOutputsTuple object. The tags give access to the
+
 # corresponding output PCollections.
 
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_with_tagged_outputs >}}
 
 # The result is also iterable, ordered in the same order that the tags were passed to with_outputs(),
+
 # the main tag (if specified) first.
 
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_with_tagged_outputs_iter >}}
@@ -1572,37 +1616,41 @@ together.
 
 #### 4.5.2. Emitting to multiple outputs in your DoFn {#multiple-outputs-dofn}
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 // Inside your ParDo's DoFn, you can emit an element to a specific output PCollection by providing a
 // MultiOutputReceiver to your process method, and passing in the appropriate TupleTag to obtain an OutputReceiver.
 // After your ParDo, extract the resulting output PCollections from the returned PCollectionTuple.
 // Based on the previous example, this shows the DoFn emitting to the main output and two additional outputs.
 
-  .of(new DoFn<String, String>() {
-     public void processElement(@Element String word, MultiOutputReceiver out) {
-       if (word.length() <= wordLengthCutOff) {
-         // Emit short word to the main output.
-         // In this example, it is the output with tag wordsBelowCutOffTag.
-         out.get(wordsBelowCutOffTag).output(word);
-       } else {
-         // Emit long word length to the output with tag wordLengthsAboveCutOffTag.
-         out.get(wordLengthsAboveCutOffTag).output(word.length());
-       }
-       if (word.startsWith("MARKER")) {
-         // Emit word to the output with tag markedWordsTag.
-         out.get(markedWordsTag).output(word);
-       }
-     }}));
+.of(new DoFn<String, String>() {
+public void processElement(@Element String word, MultiOutputReceiver out) {
+if (word.length() <= wordLengthCutOff) {
+// Emit short word to the main output.
+// In this example, it is the output with tag wordsBelowCutOffTag.
+out.get(wordsBelowCutOffTag).output(word);
+} else {
+// Emit long word length to the output with tag wordLengthsAboveCutOffTag.
+out.get(wordLengthsAboveCutOffTag).output(word.length());
+}
+if (word.startsWith("MARKER")) {
+// Emit word to the output with tag markedWordsTag.
+out.get(markedWordsTag).output(word);
+}
+}}));
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
+
 # Inside your ParDo's DoFn, you can emit an element to a specific output by wrapping the value and the output tag (str).
+
 # using the pvalue.OutputValue wrapper class.
+
 # Based on the previous example, this shows the DoFn emitting to the main output and two additional outputs.
 
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_emitting_values_on_tagged_outputs >}}
 
 # Producing multiple outputs is also available in Map and FlatMap.
+
 # Here is an example that uses FlatMap and shows that the tags do not need to be specified ahead of time.
 
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_with_undeclared_outputs >}}
@@ -1630,20 +1678,19 @@ To access the timestamp of an input element, add a parameter annotated with `@Ti
 To access the timestamp of an input element, add a keyword parameter default to `DoFn.TimestampParam`. For example:
 {{< /paragraph >}}
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 .of(new DoFn<String, String>() {
-     public void processElement(@Element String word, @Timestamp Instant timestamp) {
-  }})
+public void processElement(@Element String word, @Timestamp Instant timestamp) {
+}})
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 import apache_beam as beam
 
 class ProcessRecord(beam.DoFn):
 
-  def process(self, element, timestamp=beam.DoFn.TimestampParam):
-     # access timestamp of element.
-     pass
+def process(self, element, timestamp=beam.DoFn.TimestampParam): # access timestamp of element.
+pass
 
 {{< /highlight >}}
 
@@ -1663,20 +1710,19 @@ If an element falls in multiple windows (for example, this will happen when usin
 `process` method will be invoked multiple time for the element, once for each window.
 {{< /paragraph >}}
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 .of(new DoFn<String, String>() {
-     public void processElement(@Element String word, IntervalWindow window) {
-  }})
+public void processElement(@Element String word, IntervalWindow window) {
+}})
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 import apache_beam as beam
 
 class ProcessRecord(beam.DoFn):
 
-  def process(self, element, window=beam.DoFn.WindowParam):
-     # access window e.g. window.end.micros
-     pass
+def process(self, element, window=beam.DoFn.WindowParam): # access window e.g. window.end.micros
+pass
 
 {{< /highlight >}}
 
@@ -1693,20 +1739,19 @@ you can determine whether this is an early or a late firing, and how many times 
 This feature implementation in Python SDK is not fully completed; see more at [BEAM-3759](https://issues.apache.org/jira/browse/BEAM-3759).
 {{< /paragraph >}}
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 .of(new DoFn<String, String>() {
-     public void processElement(@Element String word, PaneInfo paneInfo) {
-  }})
+public void processElement(@Element String word, PaneInfo paneInfo) {
+}})
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 import apache_beam as beam
 
 class ProcessRecord(beam.DoFn):
 
-  def process(self, element, pane_info=beam.DoFn.PaneInfoParam):
-     # access pane info, e.g. pane_info.is_first, pane_info.is_last, pane_info.timing
-     pass
+def process(self, element, pane_info=beam.DoFn.PaneInfoParam): # access pane info, e.g. pane_info.is_first, pane_info.is_last, pane_info.timing
+pass
 
 {{< /highlight >}}
 
@@ -1716,10 +1761,10 @@ The `PipelineOptions` for the current pipeline can always be accessed in a proce
 as a parameter:
 {{< /paragraph >}}
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 .of(new DoFn<String, String>() {
-     public void processElement(@Element String word, PipelineOptions options) {
-  }})
+public void processElement(@Element String word, PipelineOptions options) {
+}})
 {{< /highlight >}}
 
 {{< paragraph class="language-java" >}}
@@ -1737,22 +1782,22 @@ Timers and States are explained in more detail in the
 [Timely (and Stateful) Processing with Apache Beam](/blog/2017/08/28/timely-processing.html) blog post.
 {{< /paragraph >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 
 class StatefulDoFn(beam.DoFn):
-  """An example stateful DoFn with state and timer"""
+"""An example stateful DoFn with state and timer"""
 
-  BUFFER_STATE_1 = BagStateSpec('buffer1', beam.BytesCoder())
-  BUFFER_STATE_2 = BagStateSpec('buffer2', beam.VarIntCoder())
-  WATERMARK_TIMER = TimerSpec('watermark_timer', TimeDomain.WATERMARK)
+BUFFER_STATE_1 = BagStateSpec('buffer1', beam.BytesCoder())
+BUFFER_STATE_2 = BagStateSpec('buffer2', beam.VarIntCoder())
+WATERMARK_TIMER = TimerSpec('watermark_timer', TimeDomain.WATERMARK)
 
-  def process(self,
-              element,
-              timestamp=beam.DoFn.TimestampParam,
-              window=beam.DoFn.WindowParam,
-              buffer_1=beam.DoFn.StateParam(BUFFER_STATE_1),
-              buffer_2=beam.DoFn.StateParam(BUFFER_STATE_2),
-              watermark_timer=beam.DoFn.TimerParam(WATERMARK_TIMER)):
+def process(self,
+element,
+timestamp=beam.DoFn.TimestampParam,
+window=beam.DoFn.WindowParam,
+buffer_1=beam.DoFn.StateParam(BUFFER_STATE_1),
+buffer_2=beam.DoFn.StateParam(BUFFER_STATE_2),
+watermark_timer=beam.DoFn.TimerParam(WATERMARK_TIMER)):
 
     # Do your processing here
     key, value = element
@@ -1773,25 +1818,22 @@ class StatefulDoFn(beam.DoFn):
 
     yield element
 
-  @on_timer(WATERMARK_TIMER)
-  def on_expiry_1(self,
-                  timestamp=beam.DoFn.TimestampParam,
-                  window=beam.DoFn.WindowParam,
-                  key=beam.DoFn.KeyParam,
-                  buffer_1=beam.DoFn.StateParam(BUFFER_STATE_1),
-                  buffer_2=beam.DoFn.StateParam(BUFFER_STATE_2)):
-    # Window and key parameters are really useful especially for debugging issues.
-    yield 'expired1'
+@on_timer(WATERMARK_TIMER)
+def on_expiry_1(self,
+timestamp=beam.DoFn.TimestampParam,
+window=beam.DoFn.WindowParam,
+key=beam.DoFn.KeyParam,
+buffer_1=beam.DoFn.StateParam(BUFFER_STATE_1),
+buffer_2=beam.DoFn.StateParam(BUFFER_STATE_2)): # Window and key parameters are really useful especially for debugging issues.
+yield 'expired1'
 
-  @staticmethod
-  def _all_condition_met():
-      # some logic
-      return True
+@staticmethod
+def \_all_condition_met(): # some logic
+return True
 
-  @staticmethod
-  def _is_clear_buffer_1_required(buffer_1_data):
-      # Some business logic
-      return True
+@staticmethod
+def \_is_clear_buffer_1_required(buffer_1_data): # Some business logic
+return True
 
 {{< /highlight >}}
 
@@ -1805,8 +1847,9 @@ transform can make your code more modular and easier to understand.
 
 The Beam SDK comes packed with many useful composite transforms. See the API
 reference pages for a list of transforms:
-  * [Pre-written Beam transforms for Java](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/index.html?org/apache/beam/sdk/transforms/package-summary.html)
-  * [Pre-written Beam transforms for Python](https://beam.apache.org/releases/pydoc/{{< param release_latest >}}/apache_beam.transforms.html)
+
+- [Pre-written Beam transforms for Java](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/index.html?org/apache/beam/sdk/transforms/package-summary.html)
+- [Pre-written Beam transforms for Python](https://beam.apache.org/releases/pydoc/{{< param release_latest >}}/apache_beam.transforms.html)
 
 #### 4.6.1. An example composite transform {#composite-transform-example}
 
@@ -1817,18 +1860,18 @@ that consists of multiple nested transforms.
 In its `expand` method, the `CountWords` transform applies the following
 transform operations:
 
-  1. It applies a `ParDo` on the input `PCollection` of text lines, producing
-     an output `PCollection` of individual words.
-  2. It applies the Beam SDK library transform `Count` on the `PCollection` of
-     words, producing a `PCollection` of key/value pairs. Each key represents a
-     word in the text, and each value represents the number of times that word
-     appeared in the original data.
+1. It applies a `ParDo` on the input `PCollection` of text lines, producing
+   an output `PCollection` of individual words.
+2. It applies the Beam SDK library transform `Count` on the `PCollection` of
+   words, producing a `PCollection` of key/value pairs. Each key represents a
+   word in the text, and each value represents the number of times that word
+   appeared in the original data.
 
-{{< highlight java >}}
-  public static class CountWords extends PTransform<PCollection<String>,
-      PCollection<KV<String, Long>>> {
-    @Override
-    public PCollection<KV<String, Long>> expand(PCollection<String> lines) {
+{{< highlight language="java" >}}
+public static class CountWords extends PTransform<PCollection<String>,
+PCollection<KV<String, Long>>> {
+@Override
+public PCollection<KV<String, Long>> expand(PCollection<String> lines) {
 
       // Convert lines of text into individual words.
       PCollection<String> words = lines.apply(
@@ -1840,10 +1883,11 @@ transform operations:
 
       return wordCounts;
     }
-  }
+
+}
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" pipeline_monitoring_composite >}}
 {{< /highlight >}}
 
@@ -1867,14 +1911,14 @@ of the multi-collection types for the relevant type parameter.
 The following code sample shows how to declare a `PTransform` that accepts a
 `PCollection` of `String`s for input, and outputs a `PCollection` of `Integer`s:
 
-{{< highlight java >}}
-  static class ComputeWordLengths
-    extends PTransform<PCollection<String>, PCollection<Integer>> {
-    ...
-  }
+{{< highlight language="java" >}}
+static class ComputeWordLengths
+extends PTransform<PCollection<String>, PCollection<Integer>> {
+...
+}
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_composite_transform >}}
 {{< /highlight >}}
 
@@ -1887,18 +1931,18 @@ value.
 The following code sample shows how to override `expand` for the
 `ComputeWordLengths` class declared in the previous example:
 
-{{< highlight java >}}
-  static class ComputeWordLengths
-      extends PTransform<PCollection<String>, PCollection<Integer>> {
-    @Override
-    public PCollection<Integer> expand(PCollection<String>) {
-      ...
-      // transform logic goes here
-      ...
-    }
+{{< highlight language="java" >}}
+static class ComputeWordLengths
+extends PTransform<PCollection<String>, PCollection<Integer>> {
+@Override
+public PCollection<Integer> expand(PCollection<String>) {
+...
+// transform logic goes here
+...
+}
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_composite_transform >}}
 {{< /highlight >}}
 
@@ -1921,7 +1965,7 @@ transforms to be nested within the structure of your pipeline.
 
 The [PTransform Style Guide](/contribute/ptransform-style-guide/)
 contains additional information not included here, such as style guidelines,
-logging and testing guidance, and language-specific considerations.  The guide
+logging and testing guidance, and language-specific considerations. The guide
 is a useful starting point when you want to write new composite PTransforms.
 
 ## 5. Pipeline I/O {#pipeline-io}
@@ -1942,11 +1986,11 @@ representation of the data for use by your pipeline. You can use a read
 transform at any point while constructing your pipeline to create a new
 `PCollection`, though it will be most common at the start of your pipeline.
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 PCollection<String> lines = p.apply(TextIO.read().from("gs://some/inputData.txt"));
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 lines = pipeline | beam.io.ReadFromText('gs://some/inputData.txt')
 {{< /highlight >}}
 
@@ -1957,11 +2001,11 @@ You will most often use write transforms at the end of your pipeline to output
 your pipeline's final results. However, you can use a write transform to output
 a `PCollection`'s data at any point in your pipeline.
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 output.apply(TextIO.write().to("gs://some/outputData"));
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 output | beam.io.WriteToText('gs://some/outputData')
 {{< /highlight >}}
 
@@ -1975,12 +2019,12 @@ filesystem-specific consistency models. The following TextIO example uses a glob
 operator (`*`) to read all matching input files that have prefix "input-" and the
 suffix ".csv" in the given location:
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 p.apply("ReadFromText",
-    TextIO.read().from("protocol://my_bucket/path/to/input-*.csv"));
+TextIO.read().from("protocol://my_bucket/path/to/input-\*.csv"));
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_pipelineio_read >}}
 {{< /highlight >}}
 
@@ -1999,13 +2043,13 @@ The following write transform example writes multiple output files to a
 location. Each file has the prefix "numbers", a numeric tag, and the suffix
 ".csv".
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 records.apply("WriteToText",
-    TextIO.write().to("protocol://my_bucket/path/to/numbers")
-                .withSuffix(".csv"));
+TextIO.write().to("protocol://my_bucket/path/to/numbers")
+.withSuffix(".csv"));
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_pipelineio_write >}}
 {{< /highlight >}}
 
@@ -2019,18 +2063,19 @@ page for a list of the currently available I/O transforms.
 Often, the types of the records being processed have an obvious structure. Common Beam sources produce
 JSON, Avro, Protocol Buffer, or database row objects; all of these types have well defined structures,
 structures that can often be determined by examining the type. Even within a SDK pipeline, Simple Java POJOs
-(or  equivalent structures in other languages) are often used as intermediate types, and these also have a
- clear structure that can be inferred by inspecting the class. By understanding the structure of a pipeline’s
- records, we can provide much more concise APIs for data processing.
+(or equivalent structures in other languages) are often used as intermediate types, and these also have a
+clear structure that can be inferred by inspecting the class. By understanding the structure of a pipeline’s
+records, we can provide much more concise APIs for data processing.
 
 ### 6.1. What is a schema? {#what-is-a-schema}
 
 Most structured records share some common characteristics:
-* They can be subdivided into separate named fields. Fields usually have string names, but sometimes - as in the case of indexed
- tuples - have numerical indices instead.
-* There is a confined list of primitive types that a field can have. These often match primitive types in most programming
- languages: int, long, string, etc.
-* Often a field type can be marked as optional (sometimes referred to as nullable) or required.
+
+- They can be subdivided into separate named fields. Fields usually have string names, but sometimes - as in the case of indexed
+  tuples - have numerical indices instead.
+- There is a confined list of primitive types that a field can have. These often match primitive types in most programming
+  languages: int, long, string, etc.
+- Often a field type can be marked as optional (sometimes referred to as nullable) or required.
 
 Often records have a nested structure. A nested structure occurs when a field itself has subfields so the
 type of the field itself has a schema. Fields that are array or map types is also a common feature of these structured
@@ -2151,7 +2196,7 @@ of the Beam SDK being used. This allows Beam users to continue using native type
 having Beam understand their element schemas.
 
 {{< paragraph class="language-java" >}}
-In Java you could use the following set of classes to represent the purchase schema.  Beam will automatically
+In Java you could use the following set of classes to represent the purchase schema. Beam will automatically
 infer the correct schema based on the members of the class.
 {{< /paragraph >}}
 
@@ -2159,69 +2204,69 @@ infer the correct schema based on the members of the class.
 In Python you can use the following set of classes to represent the purchase schema. Beam will automatically infer the correct schema based on the members of the class.
 {{< /paragraph >}}
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 @DefaultSchema(JavaBeanSchema.class)
 public class Purchase {
-  public String getUserId();  // Returns the id of the user who made the purchase.
-  public long getItemId();  // Returns the identifier of the item that was purchased.
-  public ShippingAddress getShippingAddress();  // Returns the shipping address, a nested type.
-  public long getCostCents();  // Returns the cost of the item.
-  public List<Transaction> getTransactions();  // Returns the transactions that paid for this purchase (returns a list, since the purchase might be spread out over multiple credit cards).
+public String getUserId(); // Returns the id of the user who made the purchase.
+public long getItemId(); // Returns the identifier of the item that was purchased.
+public ShippingAddress getShippingAddress(); // Returns the shipping address, a nested type.
+public long getCostCents(); // Returns the cost of the item.
+public List<Transaction> getTransactions(); // Returns the transactions that paid for this purchase (returns a list, since the purchase might be spread out over multiple credit cards).
 
-  @SchemaCreate
-  public Purchase(String userId, long itemId, ShippingAddress shippingAddress, long costCents,
-                  List<Transaction> transactions) {
-      ...
-  }
+@SchemaCreate
+public Purchase(String userId, long itemId, ShippingAddress shippingAddress, long costCents,
+List<Transaction> transactions) {
+...
+}
 }
 
 @DefaultSchema(JavaBeanSchema.class)
 public class ShippingAddress {
-  public String getStreetAddress();
-  public String getCity();
-  @Nullable public String getState();
-  public String getCountry();
-  public String getPostCode();
+public String getStreetAddress();
+public String getCity();
+@Nullable public String getState();
+public String getCountry();
+public String getPostCode();
 
-  @SchemaCreate
-  public ShippingAddress(String streetAddress, String city, @Nullable String state, String country,
-                         String postCode) {
-     ...
-  }
+@SchemaCreate
+public ShippingAddress(String streetAddress, String city, @Nullable String state, String country,
+String postCode) {
+...
+}
 }
 
 @DefaultSchema(JavaBeanSchema.class)
 public class Transaction {
-  public String getBank();
-  public double getPurchaseAmount();
+public String getBank();
+public double getPurchaseAmount();
 
-  @SchemaCreate
-  public Transaction(String bank, double purchaseAmount) {
-     ...
-  }
+@SchemaCreate
+public Transaction(String bank, double purchaseAmount) {
+...
+}
 }
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 import typing
 
 class Purchase(typing.NamedTuple):
-  user_id: str  # The id of the user who made the purchase.
-  item_id: int  # The identifier of the item that was purchased.
-  shipping_address: ShippingAddress  # The shipping address, a nested type.
-  cost_cents: int  # The cost of the item
-  transactions: typing.Sequence[Transaction]  # The transactions that paid for this purchase (a list, since the purchase might be spread out over multiple credit cards).
+user_id: str # The id of the user who made the purchase.
+item_id: int # The identifier of the item that was purchased.
+shipping_address: ShippingAddress # The shipping address, a nested type.
+cost_cents: int # The cost of the item
+transactions: typing.Sequence[Transaction] # The transactions that paid for this purchase (a list, since the purchase might be spread out over multiple credit cards).
 
 class ShippingAddress(typing.NamedTuple):
-  street_address: str
-  city: str
-  state: typing.Optional[str]
-  country: str
-  postal_code: str
+street_address: str
+city: str
+state: typing.Optional[str]
+country: str
+postal_code: str
 
 class Transaction(typing.NamedTuple):
-  bank: str
-  purchase_amount: float
+bank: str
+purchase_amount: float
 {{< /highlight >}}
 
 {{< paragraph class="language-java" >}}
@@ -2231,11 +2276,11 @@ conversions between types that have matching schemas. For example, the above
 `Transaction` class has the same schema as the following class:
 {{< /paragraph >}}
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 @DefaultSchema(JavaFieldSchema.class)
 public class TransactionPojo {
-  public String bank;
-  public double purchaseAmount;
+public String bank;
+public double purchaseAmount;
 }
 {{< /highlight >}}
 
@@ -2243,7 +2288,7 @@ public class TransactionPojo {
 So if we had two `PCollection`s as follows
 {{< /paragraph >}}
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 PCollection<Transaction> transactionBeans = readTransactionsAsJavaBean();
 PCollection<TransactionPojos> transactionPojos = readTransactionsAsPojo();
 {{< /highlight >}}
@@ -2253,11 +2298,11 @@ Then these two `PCollection`s would have the same schema, even though their Java
 for example the following two code snippets are valid:
 {{< /paragraph >}}
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 transactionBeans.apply(ParDo.of(new DoFn<...>() {
-   @ProcessElement public void process(@Element TransactionPojo pojo) {
-      ...
-   }
+@ProcessElement public void process(@Element TransactionPojo pojo) {
+...
+}
 }));
 {{< /highlight >}}
 
@@ -2265,10 +2310,10 @@ transactionBeans.apply(ParDo.of(new DoFn<...>() {
 and
 {{< /paragraph >}}
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 transactionPojos.apply(ParDo.of(new DoFn<...>() {
-   @ProcessElement public void process(@Element Transaction row) {
-    }
+@ProcessElement public void process(@Element Transaction row) {
+}
 }));
 {{< /highlight >}}
 
@@ -2344,14 +2389,15 @@ A field can also reference a nested schema. In this case, the field will have ty
 be an attribute of this field type.
 
 Three collection types are supported as field types: ARRAY, ITERABLE and MAP:
-* **ARRAY** This represents a repeated value type, where the repeated elements can have any supported type. Arrays of
-nested rows are supported, as are arrays of arrays.
-* **ITERABLE** This is very similar to the array type, it represents a repeated value, but one in which the full list of
-items is not known until iterated over. This is intended for the case where an iterable might be larger than the
-available memory, and backed by external storage (for example, this can happen with the iterable returned by a
-`GroupByKey`). The repeated elements can have any supported type.
-* **MAP** This represents an associative map from keys to values. All schema types are supported for both keys and values.
- Values that contain map types cannot be used as keys in any grouping operation.
+
+- **ARRAY** This represents a repeated value type, where the repeated elements can have any supported type. Arrays of
+  nested rows are supported, as are arrays of arrays.
+- **ITERABLE** This is very similar to the array type, it represents a repeated value, but one in which the full list of
+  items is not known until iterated over. This is intended for the case where an iterable might be larger than the
+  available memory, and backed by external storage (for example, this can happen with the iterable returned by a
+  `GroupByKey`). The repeated elements can have any supported type.
+- **MAP** This represents an associative map from keys to values. All schema types are supported for both keys and values.
+  Values that contain map types cannot be used as keys in any grouping operation.
 
 ### 6.4. Logical types {#logical-types}
 
@@ -2380,25 +2426,26 @@ The argument is represented by a schema type, so can itself be a complex type.
 In Java, a logical type is specified as a subclass of the `LogicalType` class. A custom Java class can be specified to represent the logical type and conversion functions must be supplied to convert back and forth between this Java class and the underlying Schema type representation. For example, the logical type representing nanosecond timestamp might be implemented as follows
 {{< /paragraph >}}
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 // A Logical type using java.time.Instant to represent the logical type.
 public class TimestampNanos implements LogicalType<Instant, Row> {
-  // The underlying schema used to represent rows.
-  private final Schema SCHEMA = Schema.builder().addInt64Field("seconds").addInt32Field("nanos").build();
-  @Override public String getIdentifier() { return "timestampNanos"; }
-  @Override public FieldType getBaseType() { return schema; }
+// The underlying schema used to represent rows.
+private final Schema SCHEMA = Schema.builder().addInt64Field("seconds").addInt32Field("nanos").build();
+@Override public String getIdentifier() { return "timestampNanos"; }
+@Override public FieldType getBaseType() { return schema; }
 
-  // Convert the representation type to the underlying Row type. Called by Beam when necessary.
-  @Override public Row toBaseType(Instant instant) {
-    return Row.withSchema(schema).addValues(instant.getEpochSecond(), instant.getNano()).build();
-  }
+// Convert the representation type to the underlying Row type. Called by Beam when necessary.
+@Override public Row toBaseType(Instant instant) {
+return Row.withSchema(schema).addValues(instant.getEpochSecond(), instant.getNano()).build();
+}
 
-  // Convert the underlying Row type to an Instant. Called by Beam when necessary.
-  @Override public Instant toInputType(Row base) {
-    return Instant.of(row.getInt64("seconds"), row.getInt32("nanos"));
-  }
+// Convert the underlying Row type to an Instant. Called by Beam when necessary.
+@Override public Instant toInputType(Row base) {
+return Instant.of(row.getInt64("seconds"), row.getInt32("nanos"));
+}
 
      ...
+
 }
 {{< /highlight >}}
 
@@ -2408,25 +2455,25 @@ public class TimestampNanos implements LogicalType<Instant, Row> {
 
 This logical type allows creating an enumeration type consisting of a set of named constants.
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 Schema schema = Schema.builder()
-               …
-     .addLogicalTypeField("color", EnumerationType.create("RED", "GREEN", "BLUE"))
-     .build();
+…
+.addLogicalTypeField("color", EnumerationType.create("RED", "GREEN", "BLUE"))
+.build();
 {{< /highlight >}}
 
 The value of this field is stored in the row as an INT32 type, however the logical type defines a value type that lets
 you access the enumeration either as a string or a value. For example:
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 EnumerationType.Value enumValue = enumType.valueOf("RED");
-enumValue.getValue();  // Returns 0, the integer value of the constant.
-enumValue.toString();  // Returns "RED", the string value of the constant
+enumValue.getValue(); // Returns 0, the integer value of the constant.
+enumValue.toString(); // Returns "RED", the string value of the constant
 {{< /highlight >}}
 
 Given a row object with an enumeration field, you can also extract the field as the enumeration value.
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 EnumerationType.Value enumValue = row.getLogicalTypeValue("color", EnumerationType.Value.class);
 {{< /highlight >}}
 
@@ -2437,21 +2484,21 @@ types.
 
 OneOfType allows creating a disjoint union type over a set of schema fields. For example:
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 Schema schema = Schema.builder()
-               …
-     .addLogicalTypeField("oneOfField",
-        OneOfType.create(Field.of("intField", FieldType.INT32),
-                         Field.of("stringField", FieldType.STRING),
-                         Field.of("bytesField", FieldType.BYTES)))
-      .build();
+…
+.addLogicalTypeField("oneOfField",
+OneOfType.create(Field.of("intField", FieldType.INT32),
+Field.of("stringField", FieldType.STRING),
+Field.of("bytesField", FieldType.BYTES)))
+.build();
 {{< /highlight >}}
 
 The value of this field is stored in the row as another Row type, where all the fields are marked as nullable. The
 logical type however defines a Value object that contains an enumeration value indicating which field was set and allows
- getting just that field:
+getting just that field:
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 // Returns an enumeration indicating all possible case values for the enum.
 // For the above example, this will be
 // EnumerationType.create("intField", "stringField", "bytesField");
@@ -2462,17 +2509,17 @@ OneOfType.Value oneOfValue = oneOfType.createValue("stringField", "foobar");
 
 // Handle the oneof
 switch (oneOfValue.getCaseEnumType().toString()) {
-  case "intField":
-    return processInt(oneOfValue.getValue(Integer.class));
-  case "stringField":
-    return processString(oneOfValue.getValue(String.class));
-  case "bytesField":
-    return processBytes(oneOfValue.getValue(bytes[].class));
+case "intField":
+return processInt(oneOfValue.getValue(Integer.class));
+case "stringField":
+return processString(oneOfValue.getValue(String.class));
+case "bytesField":
+return processBytes(oneOfValue.getValue(bytes[].class));
 }
 {{< /highlight >}}
 
 In the above example we used the field names in the switch statement for clarity, however the enum integer values could
- also be used.
+also be used.
 
 ### 6.5. Creating Schemas {#creating-schemas}
 
@@ -2504,16 +2551,16 @@ For example, annotating the following class tells Beam to infer a schema from th
 `PCollection<TransactionPojo>`.
 {{< /paragraph >}}
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 @DefaultSchema(JavaFieldSchema.class)
 public class TransactionPojo {
-  public final String bank;
-  public final double purchaseAmount;
-  @SchemaCreate
-  public TransactionPojo(String bank, double purchaseAmount) {
-    this.bank = bank;
-    this.purchaseAmount = purchaseAmount;
-  }
+public final String bank;
+public final double purchaseAmount;
+@SchemaCreate
+public TransactionPojo(String bank, double purchaseAmount) {
+this.bank = bank;
+this.purchaseAmount = purchaseAmount;
+}
 }
 // Beam will automatically infer the correct schema for this PCollection. No coder is needed as a result.
 PCollection<TransactionPojo> pojos = readPojos();
@@ -2523,7 +2570,7 @@ PCollection<TransactionPojo> pojos = readPojos();
 The `@SchemaCreate` annotation tells Beam that this constructor can be used to create instances of TransactionPojo,
 assuming that constructor parameters have the same names as the field names. `@SchemaCreate` can also be used to annotate
 static factory methods on the class, allowing the constructor to remain private. If there is no `@SchemaCreate`
- annotation then all the fields must be non-final and the class must have a zero-argument constructor.
+annotation then all the fields must be non-final and the class must have a zero-argument constructor.
 {{< /paragraph >}}
 
 {{< paragraph class="language-java" >}}
@@ -2541,8 +2588,8 @@ not owned by the Beam pipeline author. In these cases the schema inference can b
 pipeline’s main function as follows:
 {{< /paragraph >}}
 
-{{< highlight java >}}
- pipeline.getSchemaRegistry().registerPOJO(TransactionPOJO.class);
+{{< highlight language="java" >}}
+pipeline.getSchemaRegistry().registerPOJO(TransactionPOJO.class);
 {{< /highlight >}}
 
 {{< paragraph class="language-java" >}}
@@ -2556,14 +2603,14 @@ the name format for these getters and setters is standardized. A Java Bean class
 `@DefaultSchema(JavaBeanSchema.class)` and Beam will automatically infer a schema for this class. For example:
 {{< /paragraph >}}
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 @DefaultSchema(JavaBeanSchema.class)
 public class TransactionBean {
-  public TransactionBean() { … }
-  public String getBank() { … }
-  public void setBank(String bank) { … }
-  public double getPurchaseAmount() { … }
-  public void setPurchaseAmount(double purchaseAmount) { … }
+public TransactionBean() { … }
+public String getBank() { … }
+public void setBank(String bank) { … }
+public double getPurchaseAmount() { … }
+public void setPurchaseAmount(double purchaseAmount) { … }
 }
 // Beam will automatically infer the correct schema for this PCollection. No coder is needed as a result.
 PCollection<TransactionBean> beans = readBeans();
@@ -2574,13 +2621,13 @@ The `@SchemaCreate` annotation can be used to specify a constructor or a static 
 setters and zero-argument constructor can be omitted.
 {{< /paragraph >}}
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 @DefaultSchema(JavaBeanSchema.class)
 public class TransactionBean {
-  @SchemaCreate
-  Public TransactionBean(String bank, double purchaseAmount) { … }
-  public String getBank() { … }
-  public double getPurchaseAmount() { … }
+@SchemaCreate
+Public TransactionBean(String bank, double purchaseAmount) { … }
+public String getBank() { … }
+public double getPurchaseAmount() { … }
 }
 {{< /highlight >}}
 
@@ -2602,12 +2649,12 @@ implementing a simple abstract base class.
 Beam can infer a schema from an AutoValue class. For example:
 {{< /paragraph >}}
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
 public abstract class TransactionValue {
-  public abstract String getBank();
-  public abstract double getPurchaseAmount();
+public abstract String getBank();
+public abstract double getPurchaseAmount();
 }
 {{< /highlight >}}
 
@@ -2635,14 +2682,13 @@ and restricting it to a particular type. Beam will automatically infer the
 schema for PCollections with `NamedTuple` output types. For example:
 {{< /paragraph >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 class Transaction(typing.NamedTuple):
-  bank: str
-  purchase_amount: float
+bank: str
+purchase_amount: float
 
 pc = input | beam.Map(lambda ...).with_output_types(Transaction)
 {{< /highlight >}}
-
 
 {{< paragraph class="language-py" >}}
 **beam.Row and Select**
@@ -2653,10 +2699,10 @@ There are also methods for creating ad-hoc schema declarations. First, you can
 use a lambda that returns instances of `beam.Row`:
 {{< /paragraph >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 input_pc = ... # {"bank": ..., "purchase_amount": ...}
 output_pc = input_pc | beam.Map(lambda item: beam.Row(bank=item["bank"],
-                                                      purchase_amount=item["purchase_amount"])
+purchase_amount=item["purchase_amount"])
 {{< /highlight >}}
 
 {{< paragraph class="language-py" >}}
@@ -2664,10 +2710,10 @@ Sometimes it can be more concise to express the same logic with the
 [`Select`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Select) transform:
 {{< /paragraph >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 input_pc = ... # {"bank": ..., "purchase_amount": ...}
 output_pc = input_pc | beam.Select(bank=lambda item: item["bank"],
-                                   purchase_amount=lambda item: item["purchase_amount"])
+purchase_amount=lambda item: item["purchase_amount"])
 {{< /highlight >}}
 
 {{< paragraph class="language-py" >}}
@@ -2678,12 +2724,11 @@ type information. If it's unable to it will fall back to the generic type
 correctly infers types with `beam.Row` or with `Select`:
 {{< /paragraph >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 input_pc = ... # {"bank": ..., "purchase_amount": ...}
 output_pc = input_pc | beam.Map(lambda item: beam.Row(bank=str(item["bank"]),
-                                                      purchase_amount=float(item["purchase_amount"])))
+purchase_amount=float(item["purchase_amount"])))
 {{< /highlight >}}
-
 
 ### 6.6. Using Schema Transforms {#using-schemas}
 
@@ -2703,33 +2748,33 @@ is constructed. If a field is specified that does not exist in the schema, the p
 if a field is specified with a type that does not match the type of that field in the schema, the pipeline will fail to
 launch.
 
-The following characters are not allowed in field names: . *  [ ] { }
+The following characters are not allowed in field names: . \* [ ] { }
 
 ##### **Top-level fields**
 
 In order to select a field at the top level of a schema, the name of the field is specified. For example, to select just
 the user ids from a `PCollection` of purchases one would write (using the `Select` transform)
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 purchases.apply(Select.fieldNames("userId"));
 {{< /highlight >}}
 
 ##### **Nested fields**
 
 Individual nested fields can be specified using the dot operator. For example, to select just the postal code from the
- shipping address one would write
+shipping address one would write
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 purchases.apply(Select.fieldNames("shippingAddress.postCode"));
 {{< /highlight >}}
 
 ##### **Wildcards**
 
-The * operator can be specified at any nesting level to represent all fields at that level. For example, to select all
+The \* operator can be specified at any nesting level to represent all fields at that level. For example, to select all
 shipping-address fields one would write
 
-{{< highlight java >}}
-purchases.apply(Select.fieldNames("shippingAddress.*"));
+{{< highlight language="java" >}}
+purchases.apply(Select.fieldNames("shippingAddress.\*"));
 {{< /highlight >}}
 
 ##### **Arrays**
@@ -2737,14 +2782,14 @@ purchases.apply(Select.fieldNames("shippingAddress.*"));
 An array field, where the array element type is a row, can also have subfields of the element type addressed. When
 selected, the result is an array of the selected subfield type. For example
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 purchases.apply(Select.fieldNames("transactions[].bank"));
 {{< /highlight >}}
 
 Will result in a row containing an array field with element-type string, containing the list of banks for each
 transaction.
 
-While the use of  [] brackets in the selector is recommended, to make it clear that array elements are being selected,
+While the use of [] brackets in the selector is recommended, to make it clear that array elements are being selected,
 they can be omitted for brevity. In the future, array slicing will be supported, allowing selection of portions of the
 array.
 
@@ -2776,7 +2821,7 @@ specific keys from the map. For example, given the following schema:
 
 The following
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 purchasesByType.apply(Select.fieldNames("purchases{}.userId"));
 {{< /highlight >}}
 
@@ -2796,11 +2841,11 @@ schema transforms.
 ##### **Selecting input**
 
 Often a computation is only interested in a subset of the fields in an input `PCollection`. The `Select` transform allows
-one to easily project out only the fields of interest. The resulting `PCollection` has  a schema containing each selected
+one to easily project out only the fields of interest. The resulting `PCollection` has a schema containing each selected
 field as a top-level field. Both top-level and nested fields can be selected. For example, in the Purchase schema, one
 could select only the userId and streetAddress fields as follows
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 purchases.apply(Select.fieldNames("userId", "shippingAddress.streetAddress"));
 {{< /highlight >}}
 
@@ -2828,8 +2873,8 @@ The resulting `PCollection` will have the following schema
 
 The same is true for wildcard selections. The following
 
-{{< highlight java >}}
-purchases.apply(Select.fieldNames("userId", "shippingAddress.*"));
+{{< highlight language="java" >}}
+purchases.apply(Select.fieldNames("userId", "shippingAddress.\*"));
 {{< /highlight >}}
 
 Will result in the following schema
@@ -2874,11 +2919,12 @@ When selecting fields nested inside of an array, the same rule applies that each
 top-level field in the resulting row. This means that if multiple fields are selected from the same nested row, each
 selected field will appear as its own array field. For example
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 purchases.apply(Select.fieldNames( "transactions.bank", "transactions.purchaseAmount"));
 {{< /highlight >}}
 
 Will result in the following schema
+
 <table>
   <thead>
     <tr class="header">
@@ -2903,7 +2949,7 @@ Wildcard selections are equivalent to separately selecting each field.
 
 Selecting fields nested inside of maps have the same semantics as arrays. If you select multiple fields from a map
 , then each selected field will be expanded to its own map at the top level. This means that the set of map keys will
- be copied, once for each selected field.
+be copied, once for each selected field.
 
 Sometimes different nested rows will have fields with the same name. Selecting multiple of these fields would result in
 a name conflict, as all selected fields are put in the same row schema. When this situation arises, the
@@ -2911,11 +2957,12 @@ a name conflict, as all selected fields are put in the same row schema. When thi
 
 Another use of the Select transform is to flatten a nested schema into a single flat schema. For example
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 purchases.apply(Select.flattenedSchema());
 {{< /highlight >}}
 
 Will result in the following schema
+
 <table>
   <thead>
     <tr class="header">
@@ -2977,7 +3024,7 @@ has a schema with one field corresponding to each aggregation performed.
 The simplest usage of `Group` specifies no aggregations, in which case all inputs matching the provided set of fields
 are grouped together into an `ITERABLE` field. For example
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 purchases.apply(Group.byFieldNames("userId", "shippingAddress.streetAddress"));
 {{< /highlight >}}
 
@@ -3008,25 +3055,26 @@ The key field contains the grouping key and the values field contains a list of 
 The names of the key and values fields in the output schema can be controlled using this withKeyField and withValueField
 builders, as follows:
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 purchases.apply(Group.byFieldNames("userId", "shippingAddress.streetAddress")
-    .withKeyField("userAndStreet")
-    .withValueField("matchingPurchases"));
+.withKeyField("userAndStreet")
+.withValueField("matchingPurchases"));
 {{< /highlight >}}
 
-It is quite common to apply one or more aggregations to the grouped result. Each aggregation can  specify one or more fields
+It is quite common to apply one or more aggregations to the grouped result. Each aggregation can specify one or more fields
 to aggregate, an aggregation function, and the name of the resulting field in the output schema. For example, the
 following application computes three aggregations grouped by userId, with all aggregations represented in a single
 output schema:
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 purchases.apply(Group.byFieldNames("userId")
-    .aggregateField("itemId", Count.combineFn(), "numPurchases")
-    .aggregateField("costCents", Sum.ofLongs(), "totalSpendCents")
-    .aggregateField("costCents", Top.<Long>largestLongsFn(10), "topPurchases"));
+.aggregateField("itemId", Count.combineFn(), "numPurchases")
+.aggregateField("costCents", Sum.ofLongs(), "totalSpendCents")
+.aggregateField("costCents", Top.<Long>largestLongsFn(10), "topPurchases"));
 {{< /highlight >}}
 
 The result of this aggregation will have the following schema:
+
 <table>
   <thead>
     <tr class="header">
@@ -3057,14 +3105,15 @@ that are likely associated with that transaction (both the user and product matc
 "natural join" - one in which the same field names are used on both the left-hand and right-hand sides of the join -
 and is specified with the `using` keyword:
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 PCollection<Transaction> transactions = readTransactions();
 PCollection<Review> reviews = readReviews();
 PCollection<Row> joined = transactions.apply(
-    Join.innerJoin(reviews).using("userId", "productId"));
+Join.innerJoin(reviews).using("userId", "productId"));
 {{< /highlight >}}
 
 The resulting schema is the following:
+
 <table>
   <thead>
     <tr class="header">
@@ -3090,12 +3139,12 @@ Each resulting row contains one Transaction and one Review that matched the join
 If the fields to match in the two schemas have different names, then the on function can be used. For example, if the
 Review schema named those fields differently than the Transaction schema, then we could write the following:
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 PCollection<Row> joined = transactions.apply(
-    Join.innerJoin(reviews).on(
-      FieldsEqual
-         .left("userId", "productId")
-         .right("reviewUserId", "reviewProductId")));
+Join.innerJoin(reviews).on(
+FieldsEqual
+.left("userId", "productId")
+.right("reviewUserId", "reviewProductId")));
 {{< /highlight >}}
 
 In addition to inner joins, the Join transform supports full outer joins, left outer joins, and right outer joins.
@@ -3115,14 +3164,13 @@ that key.
 The `Filter` transform can be configured with a set of predicates, each one based one specified fields. Only records for
 which all predicates return true will pass the filter. For example the following
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 purchases.apply(Filter
-    .whereFieldName("costCents", c -> c > 100 * 20)
-    .whereFieldName("shippingAddress.country", c -> c.equals("de"));
+.whereFieldName("costCents", c -> c > 100 \* 20)
+.whereFieldName("shippingAddress.country", c -> c.equals("de"));
 {{< /highlight >}}
 
 Will produce all purchases made from Germany with a purchase price of greater than twenty cents.
-
 
 ##### **Adding fields to a schema**
 
@@ -3133,11 +3181,11 @@ syntax, including nested fields inside arrays or map values.
 
 For example, the following application
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 purchases.apply(AddFields.<PurchasePojo>create()
-    .field("timeOfDaySeconds", FieldType.INT32)
-    .field("shippingAddress.deliveryNotes", FieldType.STRING)
-    .field("transactions.isFlagged", FieldType.BOOLEAN, false));
+.field("timeOfDaySeconds", FieldType.INT32)
+.field("shippingAddress.deliveryNotes", FieldType.STRING)
+.field("transactions.isFlagged", FieldType.BOOLEAN, false));
 {{< /highlight >}}
 
 Results in a `PCollection` with an expanded schema. All of the rows and fields of the input, but also with the specified
@@ -3152,7 +3200,7 @@ syntax.
 
 For example, the following snippet
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 purchases.apply(DropFields.fields("userId", "shippingAddress.streetAddress"));
 {{< /highlight >}}
 
@@ -3168,10 +3216,10 @@ renamed using the field-selection syntax.
 
 For example, the following snippet
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 purchases.apply(RenameFields.<PurchasePojo>create()
-  .rename("userId", "userIdentifier")
-  .rename("shippingAddress.streetAddress", "shippingAddress.street"));
+.rename("userId", "userIdentifier")
+.rename("shippingAddress.streetAddress", "shippingAddress.street"));
 {{< /highlight >}}
 
 Results in the same set of unmodified input elements, however the schema on the PCollection has been changed to rename
@@ -3182,10 +3230,10 @@ Results in the same set of unmodified input elements, however the schema on the 
 As mentioned, Beam can automatically convert between different Java types, as long as those types have equivalent
 schemas. One way to do this is by using the `Convert` transform, as follows.
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 PCollection<PurchaseBean> purchaseBeans = readPurchasesAsBeans();
 PCollection<PurchasePojo> pojoPurchases =
-    purchaseBeans.apply(Convert.to(PurchasePojo.class));
+purchaseBeans.apply(Convert.to(PurchasePojo.class));
 {{< /highlight >}}
 
 Beam will validate that the inferred schema for `PurchasePojo` matches that of the input `PCollection`, and will
@@ -3194,7 +3242,7 @@ then cast to a `PCollection<PurchasePojo>`.
 Since the `Row` class can support any schema, any `PCollection` with schema can be cast to a `PCollection` of rows, as
 follows.
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 PCollection<Row> purchaseRows = purchaseBeans.apply(Convert.toRows());
 {{< /highlight >}}
 
@@ -3202,7 +3250,7 @@ If the source type is a single-field schema, Convert will also convert to the ty
 unboxing the row. For example, give a schema with a single INT64 field, the following will convert it to a
 `PCollection<Long>`
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 PCollection<Long> longs = rows.apply(Convert.to(TypeDescriptors.longs()));
 {{< /highlight >}}
 
@@ -3212,7 +3260,7 @@ pipeline will fail to launch.
 #### 6.6.3. Schemas in ParDo
 
 A `PCollection` with a schema can apply a `ParDo`, just like any other `PCollection`. However the Beam runner is aware
- of schemas when applying a `ParDo`, which enables additional functionality.
+of schemas when applying a `ParDo`, which enables additional functionality.
 
 ##### **Input conversion**
 
@@ -3220,18 +3268,18 @@ Since Beam knows the schema of the source `PCollection`, it can automatically co
 which a matching schema is known. For example, using the above-mentioned Transaction schema, say we have the following
 `PCollection`:
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 PCollection<PurchasePojo> purchases = readPurchases();
 {{< /highlight >}}
 
 If there were no schema, then the applied `DoFn` would have to accept an element of type `TransactionPojo`. However
 since there is a schema, you could apply the following DoFn:
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 purchases.appy(ParDo.of(new DoFn<PurchasePojo, PurchasePojo>() {
-  @ProcessElement public void process(@Element PurchaseBean purchase) {
-      ...
-  }
+@ProcessElement public void process(@Element PurchaseBean purchase) {
+...
+}
 }));
 {{< /highlight >}}
 
@@ -3241,11 +3289,11 @@ and will fail the job with a type error.
 
 Since every schema can be represented by a Row type, Row can also be used here:
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 purchases.appy(ParDo.of(new DoFn<PurchasePojo, PurchasePojo>() {
-  @ProcessElement public void process(@Element Row purchase) {
-      ...
-  }
+@ProcessElement public void process(@Element Row purchase) {
+...
+}
 }));
 {{< /highlight >}}
 
@@ -3256,29 +3304,28 @@ Since the input has a schema, you can also automatically select specific fields 
 Given the above purchases `PCollection`, say you want to process just the userId and the itemId fields. You can do these
 using the above-described selection expressions, as follows:
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 purchases.appy(ParDo.of(new DoFn<PurchasePojo, PurchasePojo>() {
-  @ProcessElement public void process(
-     @FieldAccess("userId") String userId, @FieldAccess("itemId") long itemId) {
-      ...
-  }
+@ProcessElement public void process(
+@FieldAccess("userId") String userId, @FieldAccess("itemId") long itemId) {
+...
+}
 }));
 {{< /highlight >}}
 
 You can also select nested fields, as follows.
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 purchases.appy(ParDo.of(new DoFn<PurchasePojo, PurchasePojo>() {
-  @ProcessElement public void process(
-    @FieldAccess("shippingAddress.street") String street) {
-      ...
-  }
+@ProcessElement public void process(
+@FieldAccess("shippingAddress.street") String street) {
+...
+}
 }));
 {{< /highlight >}}
 
 For more information, see the section on field-selection expressions. When selecting subschemas, Beam will
 automatically convert to any matching schema type, just like when reading the entire row.
-
 
 ## 7. Data encoding and type safety {#data-encoding-and-type-safety}
 
@@ -3398,6 +3445,7 @@ types for any pipeline you create using the Beam SDK for
 The following table shows the standard mapping:
 
 {{< paragraph class="language-java" >}}
+
 <table>
   <thead>
     <tr class="header">
@@ -3463,6 +3511,7 @@ The following table shows the standard mapping:
 {{< /paragraph >}}
 
 {{< paragraph class="language-py" >}}
+
 <table>
   <thead>
     <tr class="header">
@@ -3530,7 +3579,7 @@ The following example code demonstrates how to set a default Coder, in this case
 <span class="language-java">Integer</span><span class="language-py">int</span>
 values for a pipeline.
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 PipelineOptions options = PipelineOptionsFactory.create();
 Pipeline p = Pipeline.create(options);
 
@@ -3538,7 +3587,7 @@ CoderRegistry cr = p.getCoderRegistry();
 cr.registerCoder(Integer.class, BigEndianIntegerCoder.class);
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 apache_beam.coders.registry.register_coder(int, BigEndianIntegerCoder)
 {{< /highlight >}}
 
@@ -3551,10 +3600,10 @@ example, let's say you have a custom data type for which you want to use
 `SerializableCoder`. You can use the `@DefaultCoder` annotation as follows:
 {{< /paragraph >}}
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 @DefaultCoder(AvroCoder.class)
 public class MyCustomDataType {
-  ...
+...
 }
 {{< /highlight >}}
 
@@ -3564,22 +3613,22 @@ the `@DefaultCoder` annotation, your coder class must implement a static
 `Coder.of(Class<T>)` factory method.
 {{< /paragraph >}}
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 public class MyCustomCoder implements Coder {
-  public static Coder<T> of(Class<T> clazz) {...}
-  ...
+public static Coder<T> of(Class<T> clazz) {...}
+...
 }
 
 @DefaultCoder(MyCustomCoder.class)
 public class MyCustomDataType {
-  ...
+...
 }
 {{< /highlight >}}
 
 {{< paragraph class="language-py" >}}
 The Beam SDK for Python does not support annotating data types with a default
 coder. If you would like to set a default coder, use the method described in the
-previous section, *Setting the default coder for a type*.
+previous section, _Setting the default coder for a type_.
 {{< /paragraph >}}
 
 ## 8. Windowing {#windowing}
@@ -3618,11 +3667,12 @@ window_.
 unbounded `PCollection`s_. Before you use a grouping transform such as
 `GroupByKey` on an unbounded `PCollection`, you must do at least one of the
 following:
- * Set a non-global windowing function. See [Setting your PCollection's
-   windowing function](#setting-your-pcollections-windowing-function).
- * Set a non-default [trigger](#triggers). This allows the global window to emit
-   results under other conditions, since the default windowing behavior (waiting
-   for all data to arrive) will never occur.
+
+- Set a non-global windowing function. See [Setting your PCollection's
+  windowing function](#setting-your-pcollections-windowing-function).
+- Set a non-default [trigger](#triggers). This allows the global window to emit
+  results under other conditions, since the default windowing behavior (waiting
+  for all data to arrive) will never occur.
 
 If you don't set a non-global windowing function or a non-default trigger for
 your unbounded `PCollection` and subsequently use a grouping transform such as
@@ -3636,7 +3686,7 @@ are used the next time you apply a grouping transform to that `PCollection`.
 Window grouping occurs on an as-needed basis. If you set a windowing function
 using the `Window` transform, each element is assigned to a window, but the
 windows are not considered until `GroupByKey` or `Combine` aggregates across a
-window and key. This can have different effects on your pipeline.  Consider the
+window and key. This can have different effects on your pipeline. Consider the
 example pipeline in the figure below:
 
 ![Diagram of pipeline applying windowing](/images/windowing-pipeline-unbounded.svg)
@@ -3690,7 +3740,7 @@ Now, consider the same pipeline, but using a windowing function:
 
 As before, the pipeline creates a bounded `PCollection` by reading lines from a
 file. We then set a [windowing function](#setting-your-pcollections-windowing-function)
-for that `PCollection`.  The `GroupByKey` transform groups the elements of the
+for that `PCollection`. The `GroupByKey` transform groups the elements of the
 `PCollection` by both key and window, based on the windowing function. The
 subsequent `ParDo` transform gets applied multiple times per key, once for each
 window.
@@ -3700,11 +3750,11 @@ window.
 You can define different kinds of windows to divide the elements of your
 `PCollection`. Beam provides several windowing functions, including:
 
-*  Fixed Time Windows
-*  Sliding Time Windows
-*  Per-Session Windows
-*  Single Global Window
-*  Calendar-based Windows (not supported by the Beam SDK for Python)
+- Fixed Time Windows
+- Sliding Time Windows
+- Per-Session Windows
+- Single Global Window
+- Calendar-based Windows (not supported by the Beam SDK for Python)
 
 You can also define your own `WindowFn` if you have a more complex need.
 
@@ -3712,7 +3762,6 @@ Note that each element can logically belong to more than one window, depending
 on the windowing function you use. Sliding time windowing, for example, creates
 overlapping windows wherein a single element can be assigned to multiple
 windows.
-
 
 #### 8.2.1. Fixed time windows {#fixed-time-windows}
 
@@ -3799,13 +3848,13 @@ for more information.
 The following example code shows how to apply `Window` to divide a `PCollection`
 into fixed windows, each 60 seconds in length:
 
-{{< highlight java >}}
-    PCollection<String> items = ...;
-    PCollection<String> fixedWindowedItems = items.apply(
-        Window.<String>into(FixedWindows.of(Duration.standardSeconds(60))));
+{{< highlight language="java" >}}
+PCollection<String> items = ...;
+PCollection<String> fixedWindowedItems = items.apply(
+Window.<String>into(FixedWindows.of(Duration.standardSeconds(60))));
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" setting_fixed_windows >}}
 {{< /highlight >}}
 
@@ -3815,13 +3864,13 @@ The following example code shows how to apply `Window` to divide a `PCollection`
 into sliding time windows. Each window is 30 seconds in length, and a new window
 begins every five seconds:
 
-{{< highlight java >}}
-    PCollection<String> items = ...;
-    PCollection<String> slidingWindowedItems = items.apply(
-        Window.<String>into(SlidingWindows.of(Duration.standardSeconds(30)).every(Duration.standardSeconds(5))));
+{{< highlight language="java" >}}
+PCollection<String> items = ...;
+PCollection<String> slidingWindowedItems = items.apply(
+Window.<String>into(SlidingWindows.of(Duration.standardSeconds(30)).every(Duration.standardSeconds(5))));
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" setting_sliding_windows >}}
 {{< /highlight >}}
 
@@ -3831,13 +3880,13 @@ The following example code shows how to apply `Window` to divide a `PCollection`
 into session windows, where each session must be separated by a time gap of at
 least 10 minutes (600 seconds):
 
-{{< highlight java >}}
-    PCollection<String> items = ...;
-    PCollection<String> sessionWindowedItems = items.apply(
-        Window.<String>into(Sessions.withGapDuration(Duration.standardSeconds(600))));
+{{< highlight language="java" >}}
+PCollection<String> items = ...;
+PCollection<String> sessionWindowedItems = items.apply(
+Window.<String>into(Sessions.withGapDuration(Duration.standardSeconds(600))));
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" setting_session_windows >}}
 {{< /highlight >}}
 
@@ -3850,13 +3899,13 @@ If your `PCollection` is bounded (the size is fixed), you can assign all the
 elements to a single global window. The following example code shows how to set
 a single global window for a `PCollection`:
 
-{{< highlight java >}}
-    PCollection<String> items = ...;
-    PCollection<String> batchItems = items.apply(
-        Window.<String>into(new GlobalWindows()));
+{{< highlight language="java" >}}
+PCollection<String> items = ...;
+PCollection<String> batchItems = items.apply(
+Window.<String>into(new GlobalWindows()));
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" setting_global_window >}}
 {{< /highlight >}}
 
@@ -3903,28 +3952,26 @@ elements.
 
 #### 8.4.1. Managing late data {#managing-late-data}
 
-
 You can allow late data by invoking the `.withAllowedLateness` operation when
 you set your `PCollection`'s windowing strategy. The following code example
 demonstrates a windowing strategy that will allow late data up to two days after
 the end of a window.
 
-{{< highlight java >}}
-    PCollection<String> items = ...;
-    PCollection<String> fixedWindowedItems = items.apply(
-        Window.<String>into(FixedWindows.of(Duration.standardMinutes(1)))
-              .withAllowedLateness(Duration.standardDays(2)));
+{{< highlight language="java" >}}
+PCollection<String> items = ...;
+PCollection<String> fixedWindowedItems = items.apply(
+Window.<String>into(FixedWindows.of(Duration.standardMinutes(1)))
+.withAllowedLateness(Duration.standardDays(2)));
 {{< /highlight >}}
 
-
-{{< highlight py >}}
-   pc = [Initial PCollection]
-   pc | beam.WindowInto(
-              FixedWindows(60),
-              trigger=trigger_fn,
-              accumulation_mode=accumulation_mode,
-              timestamp_combiner=timestamp_combiner,
-              allowed_lateness=Duration(seconds=2*24*60*60)) # 2 days
+{{< highlight language="py" >}}
+pc = [Initial PCollection]
+pc | beam.WindowInto(
+FixedWindows(60),
+trigger=trigger_fn,
+accumulation_mode=accumulation_mode,
+timestamp_combiner=timestamp_combiner,
+allowed_lateness=Duration(seconds=2*24*60\*60)) # 2 days
 {{< /highlight >}}
 
 When you set `.withAllowedLateness` on a `PCollection`, that allowed lateness
@@ -3953,21 +4000,21 @@ records in from a file, the file source doesn't assign timestamps automatically.
 You can parse the timestamp field from each record and use a `ParDo` transform
 with a `DoFn` to attach the timestamps to each element in your `PCollection`.
 
-{{< highlight java >}}
-      PCollection<LogEntry> unstampedLogs = ...;
-      PCollection<LogEntry> stampedLogs =
-          unstampedLogs.apply(ParDo.of(new DoFn<LogEntry, LogEntry>() {
-            public void processElement(@Element LogEntry element, OutputReceiver<LogEntry> out) {
-              // Extract the timestamp from log entry we're currently processing.
-              Instant logTimeStamp = extractTimeStampFromLogEntry(element);
-              // Use OutputReceiver.outputWithTimestamp (rather than
-              // OutputReceiver.output) to emit the entry with timestamp attached.
-              out.outputWithTimestamp(element, logTimeStamp);
-            }
-          }));
+{{< highlight language="java" >}}
+PCollection<LogEntry> unstampedLogs = ...;
+PCollection<LogEntry> stampedLogs =
+unstampedLogs.apply(ParDo.of(new DoFn<LogEntry, LogEntry>() {
+public void processElement(@Element LogEntry element, OutputReceiver<LogEntry> out) {
+// Extract the timestamp from log entry we're currently processing.
+Instant logTimeStamp = extractTimeStampFromLogEntry(element);
+// Use OutputReceiver.outputWithTimestamp (rather than
+// OutputReceiver.output) to emit the entry with timestamp attached.
+out.outputWithTimestamp(element, logTimeStamp);
+}
+}));
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" setting_timestamp >}}
 {{< /highlight >}}
 
@@ -3975,7 +4022,7 @@ with a `DoFn` to attach the timestamps to each element in your `PCollection`.
 
 When collecting and grouping data into windows, Beam uses **triggers** to
 determine when to emit the aggregated results of each window (referred to as a
-*pane*). If you use Beam's default windowing configuration and [default
+_pane_). If you use Beam's default windowing configuration and [default
 trigger](#default-trigger), Beam outputs the aggregated result when it
 [estimates all data has arrived](#watermarks-and-late-data), and discards all
 subsequent data for that window.
@@ -3983,40 +4030,40 @@ subsequent data for that window.
 You can set triggers for your `PCollection`s to change this default behavior.
 Beam provides a number of pre-built triggers that you can set:
 
-*   **Event time triggers**. These triggers operate on the event time, as
-    indicated by the timestamp on each data element. Beam's default trigger is
-    event time-based.
-*   **Processing time triggers**. These triggers operate on the processing time
-    -- the time when the data element is processed at any given stage in the
-    pipeline.
-*   **Data-driven triggers**. These triggers operate by examining the data as it
-    arrives in each window, and firing when that data meets a certain property.
-    Currently, data-driven triggers only support firing after a certain number
-    of data elements.
-*   **Composite triggers**. These triggers combine multiple triggers in various
-    ways.
+- **Event time triggers**. These triggers operate on the event time, as
+  indicated by the timestamp on each data element. Beam's default trigger is
+  event time-based.
+- **Processing time triggers**. These triggers operate on the processing time
+  -- the time when the data element is processed at any given stage in the
+  pipeline.
+- **Data-driven triggers**. These triggers operate by examining the data as it
+  arrives in each window, and firing when that data meets a certain property.
+  Currently, data-driven triggers only support firing after a certain number
+  of data elements.
+- **Composite triggers**. These triggers combine multiple triggers in various
+  ways.
 
 At a high level, triggers provide two additional capabilities compared to simply
 outputting at the end of a window:
 
-*   Triggers allow Beam to emit early results, before all the data in a given
-    window has arrived. For example, emitting after a certain amount of time
-    elapses, or after a certain number of elements arrives.
-*   Triggers allow processing of late data by triggering after the event time
-    watermark passes the end of the window.
+- Triggers allow Beam to emit early results, before all the data in a given
+  window has arrived. For example, emitting after a certain amount of time
+  elapses, or after a certain number of elements arrives.
+- Triggers allow processing of late data by triggering after the event time
+  watermark passes the end of the window.
 
 These capabilities allow you to control the flow of your data and balance
 between different factors depending on your use case:
 
-*   **Completeness:** How important is it to have all of your data before you
-    compute your result?
-*   **Latency:** How long do you want to wait for data? For example, do you wait
-    until you think you have all data? Do you process data as it arrives?
-*   **Cost:** How much compute power/money are you willing to spend to lower the
-    latency?
+- **Completeness:** How important is it to have all of your data before you
+  compute your result?
+- **Latency:** How long do you want to wait for data? For example, do you wait
+  until you think you have all data? Do you process data as it arrives?
+- **Cost:** How much compute power/money are you willing to spend to lower the
+  latency?
 
 For example, a system that requires time-sensitive updates might use a strict
-time-based trigger that emits a window every *N* seconds, valuing promptness
+time-based trigger that emits a window every _N_ seconds, valuing promptness
 over data completeness. A system that values data completeness more than the
 exact timing of results might choose to use Beam's default trigger, which fires
 at the end of the window.
@@ -4029,13 +4076,13 @@ every N seconds or every N elements.
 
 ### 9.1. Event time triggers {#event-time-triggers}
 
-The `AfterWatermark` trigger operates on *event time*. The `AfterWatermark`
+The `AfterWatermark` trigger operates on _event time_. The `AfterWatermark`
 trigger emits the contents of a window after the
 [watermark](#watermarks-and-late-data) passes the end of the window, based on the
 timestamps attached to the data elements. The watermark is a global progress
 metric, and is Beam's notion of input completeness within your pipeline at any
 given point. <span class="language-java">`AfterWatermark.pastEndOfWindow()`</span>
-<span class="language-py">`AfterWatermark`</span> *only* fires when the
+<span class="language-py">`AfterWatermark`</span> _only_ fires when the
 watermark passes the end of the window.
 
 In addition, you can configure triggers that fire if your pipeline receives data
@@ -4044,19 +4091,19 @@ before or after the end of the window.
 The following example shows a billing scenario, and uses both early and late
 firings:
 
-{{< highlight java >}}
-  // Create a bill at the end of the month.
-  AfterWatermark.pastEndOfWindow()
-      // During the month, get near real-time estimates.
-      .withEarlyFirings(
-          AfterProcessingTime
-              .pastFirstElementInPane()
-              .plusDuration(Duration.standardMinutes(1))
-      // Fire on any late data so the bill can be corrected.
-      .withLateFirings(AfterPane.elementCountAtLeast(1))
+{{< highlight language="java" >}}
+// Create a bill at the end of the month.
+AfterWatermark.pastEndOfWindow()
+// During the month, get near real-time estimates.
+.withEarlyFirings(
+AfterProcessingTime
+.pastFirstElementInPane()
+.plusDuration(Duration.standardMinutes(1))
+// Fire on any late data so the bill can be corrected.
+.withLateFirings(AfterPane.elementCountAtLeast(1))
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_early_late_triggers >}}
 {{< /highlight >}}
 
@@ -4074,7 +4121,7 @@ modifying this behavior.
 
 ### 9.2. Processing time triggers {#processing-time-triggers}
 
-The `AfterProcessingTime` trigger operates on *processing time*. For example,
+The `AfterProcessingTime` trigger operates on _processing time_. For example,
 the <span class="language-java">`AfterProcessingTime.pastFirstElementInPane()`</span>
 <span class="language-py">`AfterProcessingTime`</span> trigger emits a window
 after a certain amount of processing time has passed since data was received.
@@ -4090,7 +4137,7 @@ window.
 Beam provides one data-driven trigger,
 <span class="language-java">`AfterPane.elementCountAtLeast()`</span>
 <span class="language-py">`AfterCount`</span>. This trigger works on an element
-count; it fires after the current pane has collected at least *N* elements. This
+count; it fires after the current pane has collected at least _N_ elements. This
 allows a window to emit early results (before all the data has accumulated),
 which can be particularly useful if you are using a single global window.
 
@@ -4112,7 +4159,7 @@ transform, you can also specify a trigger.
 You set the trigger(s) for a `PCollection` by invoking the method
 `.triggering()` on the result of your `Window.into()` transform. This code
 sample sets a time-based trigger for a `PCollection`, which emits results one
-minute after the first element in that window has been processed.  The last line
+minute after the first element in that window has been processed. The last line
 in the code sample, `.discardingFiredPanes()`, sets the window's **accumulation
 mode**.
 {{< /paragraph >}}
@@ -4125,19 +4172,19 @@ element in that window has been processed. The `accumulation_mode` parameter
 sets the window's **accumulation mode**.
 {{< /paragraph >}}
 
-{{< highlight java >}}
-  PCollection<String> pc = ...;
-  pc.apply(Window.<String>into(FixedWindows.of(1, TimeUnit.MINUTES))
-                               .triggering(AfterProcessingTime.pastFirstElementInPane()
-                                                              .plusDelayOf(Duration.standardMinutes(1)))
-                               .discardingFiredPanes());
+{{< highlight language="java" >}}
+PCollection<String> pc = ...;
+pc.apply(Window.<String>into(FixedWindows.of(1, TimeUnit.MINUTES))
+.triggering(AfterProcessingTime.pastFirstElementInPane()
+.plusDelayOf(Duration.standardMinutes(1)))
+.discardingFiredPanes());
 {{< /highlight >}}
 
-{{< highlight py >}}
-  pcollection | WindowInto(
-    FixedWindows(1 * 60),
-    trigger=AfterProcessingTime(1 * 60),
-    accumulation_mode=AccumulationMode.DISCARDING)
+{{< highlight language="py" >}}
+pcollection | WindowInto(
+FixedWindows(1 _ 60),
+trigger=AfterProcessingTime(1 _ 60),
+accumulation_mode=AccumulationMode.DISCARDING)
 {{< /highlight >}}
 
 #### 9.4.1. Window accumulation modes {#window-accumulation-modes}
@@ -4145,8 +4192,8 @@ sets the window's **accumulation mode**.
 When you specify a trigger, you must also set the the window's **accumulation
 mode**. When a trigger fires, it emits the current contents of the window as a
 pane. Since a trigger can fire multiple times, the accumulation mode determines
-whether the system *accumulates* the window panes as the trigger fires, or
-*discards* them.
+whether the system _accumulates_ the window panes as the trigger fires, or
+_discards_ them.
 
 {{< paragraph class="language-java" >}}
 To set a window to accumulate the panes that are produced when the trigger
@@ -4167,9 +4214,9 @@ represented a ten-minute running average, but you wanted to display the current
 value of the average in a UI more frequently than every ten minutes. We'll
 assume the following conditions:
 
-*   The `PCollection` uses 10-minute fixed-time windows.
-*   The `PCollection` has a repeating trigger that fires every time 3 elements
-    arrive.
+- The `PCollection` uses 10-minute fixed-time windows.
+- The `PCollection` has a repeating trigger that fires every time 3 elements
+  arrive.
 
 The following diagram shows data events for key X as they arrive in the
 PCollection and are assigned to windows. To keep the diagram a bit simpler,
@@ -4183,29 +4230,27 @@ If our trigger is set to accumulating mode, the trigger emits the following
 values each time it fires. Keep in mind that the trigger fires every time three
 elements arrive:
 
-```
+{{< highlight >}}
   First trigger firing:  [5, 8, 3]
   Second trigger firing: [5, 8, 3, 15, 19, 23]
   Third trigger firing:  [5, 8, 3, 15, 19, 23, 9, 13, 10]
-```
-
+{{< /highlight >}}
 
 ##### 9.4.1.2. Discarding mode {#discarding-mode}
 
 If our trigger is set to discarding mode, the trigger emits the following values
 on each firing:
 
-```
+{{< highlight >}}
   First trigger firing:  [5, 8, 3]
   Second trigger firing:           [15, 19, 23]
   Third trigger firing:                         [9, 13, 10]
-```
+{{< /highlight >}}
 
 #### 9.4.2. Handling late data {#handling-late-data}
 
-
 If you want your pipeline to process data that arrives after the watermark
-passes the end of the window, you can apply an *allowed lateness* when you set
+passes the end of the window, you can apply an _allowed lateness_ when you set
 your windowing configuration. This gives your trigger the opportunity to react
 to the late data. If allowed lateness is set, the default trigger will emit new
 results immediately whenever late data arrives.
@@ -4213,21 +4258,21 @@ results immediately whenever late data arrives.
 You set the allowed lateness by using `.withAllowedLateness()` when you set your
 windowing function:
 
-{{< highlight java >}}
-  PCollection<String> pc = ...;
-  pc.apply(Window.<String>into(FixedWindows.of(1, TimeUnit.MINUTES))
-                              .triggering(AfterProcessingTime.pastFirstElementInPane()
-                                                             .plusDelayOf(Duration.standardMinutes(1)))
-                              .withAllowedLateness(Duration.standardMinutes(30));
+{{< highlight language="java" >}}
+PCollection<String> pc = ...;
+pc.apply(Window.<String>into(FixedWindows.of(1, TimeUnit.MINUTES))
+.triggering(AfterProcessingTime.pastFirstElementInPane()
+.plusDelayOf(Duration.standardMinutes(1)))
+.withAllowedLateness(Duration.standardMinutes(30));
 {{< /highlight >}}
 
-{{< highlight py >}}
-  pc = [Initial PCollection]
-  pc | beam.WindowInto(
-            FixedWindows(60),
-            trigger=AfterProcessingTime(60),
-            allowed_lateness=1800) # 30 minutes
-     | ...
+{{< highlight language="py" >}}
+pc = [Initial PCollection]
+pc | beam.WindowInto(
+FixedWindows(60),
+trigger=AfterProcessingTime(60),
+allowed_lateness=1800) # 30 minutes
+| ...
 
 {{< /highlight >}}
 
@@ -4235,7 +4280,6 @@ This allowed lateness propagates to all `PCollection`s derived as a result of
 applying transforms to the original `PCollection`. If you want to change the
 allowed lateness later in your pipeline, you can apply
 `Window.configure().withAllowedLateness()` again, explicitly.
-
 
 ### 9.5. Composite triggers {#composite-triggers}
 
@@ -4247,25 +4291,25 @@ custom conditions.
 
 Beam includes the following composite triggers:
 
-*   You can add additional early firings or late firings to
-    `AfterWatermark.pastEndOfWindow` via `.withEarlyFirings` and
-    `.withLateFirings`.
-*   `Repeatedly.forever` specifies a trigger that executes forever. Any time the
-    trigger's conditions are met, it causes a window to emit results and then
-    resets and starts over. It can be useful to combine `Repeatedly.forever`
-    with `.orFinally` to specify a condition that causes the repeating trigger
-    to stop.
-*   `AfterEach.inOrder` combines multiple triggers to fire in a specific
-    sequence. Each time a trigger in the sequence emits a window, the sequence
-    advances to the next trigger.
-*   `AfterFirst` takes multiple triggers and emits the first time *any* of its
-    argument triggers is satisfied. This is equivalent to a logical OR operation
-    for multiple triggers.
-*   `AfterAll` takes multiple triggers and emits when *all* of its argument
-    triggers are satisfied. This is equivalent to a logical AND operation for
-    multiple triggers.
-*   `orFinally` can serve as a final condition to cause any trigger to fire one
-    final time and never fire again.
+- You can add additional early firings or late firings to
+  `AfterWatermark.pastEndOfWindow` via `.withEarlyFirings` and
+  `.withLateFirings`.
+- `Repeatedly.forever` specifies a trigger that executes forever. Any time the
+  trigger's conditions are met, it causes a window to emit results and then
+  resets and starts over. It can be useful to combine `Repeatedly.forever`
+  with `.orFinally` to specify a condition that causes the repeating trigger
+  to stop.
+- `AfterEach.inOrder` combines multiple triggers to fire in a specific
+  sequence. Each time a trigger in the sequence emits a window, the sequence
+  advances to the next trigger.
+- `AfterFirst` takes multiple triggers and emits the first time _any_ of its
+  argument triggers is satisfied. This is equivalent to a logical OR operation
+  for multiple triggers.
+- `AfterAll` takes multiple triggers and emits when _all_ of its argument
+  triggers are satisfied. This is equivalent to a logical AND operation for
+  multiple triggers.
+- `orFinally` can serve as a final condition to cause any trigger to fire one
+  final time and never fire again.
 
 #### 9.5.2. Composition with AfterWatermark {#composite-afterwatermark}
 
@@ -4273,37 +4317,38 @@ Some of the most useful composite triggers fire a single time when Beam
 estimates that all the data has arrived (i.e. when the watermark passes the end
 of the window) combined with either, or both, of the following:
 
-*   Speculative firings that precede the watermark passing the end of the window
-    to allow faster processing of partial results.
+- Speculative firings that precede the watermark passing the end of the window
+  to allow faster processing of partial results.
 
-*   Late firings that happen after the watermark passes the end of the window,
-    to allow for handling late-arriving data
+- Late firings that happen after the watermark passes the end of the window,
+  to allow for handling late-arriving data
 
 You can express this pattern using `AfterWatermark`. For example, the following
 example trigger code fires on the following conditions:
 
-*   On Beam's estimate that all the data has arrived (the watermark passes the
-    end of the window)
+- On Beam's estimate that all the data has arrived (the watermark passes the
+  end of the window)
 
-*   Any time late data arrives, after a ten-minute delay
+- Any time late data arrives, after a ten-minute delay
 
 {{< paragraph class="language-java" >}}
-*   After two days, we assume no more data of interest will arrive, and the
-    trigger stops executing
-{{< /paragraph >}}
 
-{{< highlight java >}}
-  .apply(Window
-      .configure()
-      .triggering(AfterWatermark
-           .pastEndOfWindow()
-           .withLateFirings(AfterProcessingTime
-                .pastFirstElementInPane()
-                .plusDelayOf(Duration.standardMinutes(10))))
-      .withAllowedLateness(Duration.standardDays(2)));
+- After two days, we assume no more data of interest will arrive, and the
+  trigger stops executing
+  {{< /paragraph >}}
+
+{{< highlight language="java" >}}
+.apply(Window
+.configure()
+.triggering(AfterWatermark
+.pastEndOfWindow()
+.withLateFirings(AfterProcessingTime
+.pastFirstElementInPane()
+.plusDelayOf(Duration.standardMinutes(10))))
+.withAllowedLateness(Duration.standardDays(2)));
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_composite_triggers >}}
 {{< /highlight >}}
 
@@ -4313,153 +4358,159 @@ You can also build other sorts of composite triggers. The following example code
 shows a simple composite trigger that fires whenever the pane has at least 100
 elements, or after a minute.
 
-{{< highlight java >}}
-  Repeatedly.forever(AfterFirst.of(
-      AfterPane.elementCountAtLeast(100),
-      AfterProcessingTime.pastFirstElementInPane().plusDelayOf(Duration.standardMinutes(1))))
+{{< highlight language="java" >}}
+Repeatedly.forever(AfterFirst.of(
+AfterPane.elementCountAtLeast(100),
+AfterProcessingTime.pastFirstElementInPane().plusDelayOf(Duration.standardMinutes(1))))
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_other_composite_triggers >}}
 {{< /highlight >}}
 
 ## 10. Metrics {#metrics}
+
 In the Beam model, metrics provide some insight into the current state of a user pipeline,
 potentially while the pipeline is running. There could be different reasons for that, for instance:
-*   Check the number of errors encountered while running a specific step in the pipeline;
-*   Monitor the number of RPCs made to backend service;
-*   Retrieve an accurate count of the number of elements that have been processed;
-*   ...and so on.
+
+- Check the number of errors encountered while running a specific step in the pipeline;
+- Monitor the number of RPCs made to backend service;
+- Retrieve an accurate count of the number of elements that have been processed;
+- ...and so on.
 
 ### 10.1. The main concepts of Beam metrics
-*   **Named**. Each metric has a name which consists of a namespace and an actual name. The
-    namespace can be used to differentiate between multiple metrics with the same name and also
-    allows querying for all metrics within a specific namespace.
-*   **Scoped**. Each metric is reported against a specific step in the pipeline, indicating what
-    code was running when the metric was incremented.
-*   **Dynamically Created**. Metrics may be created during runtime without pre-declaring them, in
-    much the same way a logger could be created. This makes it easier to produce metrics in utility
-    code and have them usefully reported.
-*   **Degrade Gracefully**. If a runner doesn’t support some part of reporting metrics, the
-    fallback behavior is to drop the metric updates rather than failing the pipeline. If a runner
-    doesn’t support some part of querying metrics, the runner will not return the associated data.
+
+- **Named**. Each metric has a name which consists of a namespace and an actual name. The
+  namespace can be used to differentiate between multiple metrics with the same name and also
+  allows querying for all metrics within a specific namespace.
+- **Scoped**. Each metric is reported against a specific step in the pipeline, indicating what
+  code was running when the metric was incremented.
+- **Dynamically Created**. Metrics may be created during runtime without pre-declaring them, in
+  much the same way a logger could be created. This makes it easier to produce metrics in utility
+  code and have them usefully reported.
+- **Degrade Gracefully**. If a runner doesn’t support some part of reporting metrics, the
+  fallback behavior is to drop the metric updates rather than failing the pipeline. If a runner
+  doesn’t support some part of querying metrics, the runner will not return the associated data.
 
 Reported metrics are implicitly scoped to the transform within the pipeline that reported them.
 This allows reporting the same metric name in multiple places and identifying the value each
 transform reported, as well as aggregating the metric across the entire pipeline.
 
 > **Note:** It is runner-dependent whether metrics are accessible during pipeline execution or only
-after jobs have completed.
+> after jobs have completed.
 
 ### 10.2. Types of metrics {#types-of-metrics}
+
 There are three types of metrics that are supported for the moment: `Counter`, `Distribution` and
 `Gauge`.
 
 **Counter**: A metric that reports a single long value and can be incremented or decremented.
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 Counter counter = Metrics.counter( "namespace", "counter1");
 
 @ProcessElement
 public void processElement(ProcessContext context) {
-  // count the elements
-  counter.inc();
-  ...
+// count the elements
+counter.inc();
+...
 }
 {{< /highlight >}}
 
 **Distribution**: A metric that reports information about the distribution of reported values.
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 Distribution distribution = Metrics.distribution( "namespace", "distribution1");
 
 @ProcessElement
 public void processElement(ProcessContext context) {
-  Integer element = context.element();
-    // create a distribution (histogram) of the values
-    distribution.update(element);
-    ...
+Integer element = context.element();
+// create a distribution (histogram) of the values
+distribution.update(element);
+...
 }
 {{< /highlight >}}
 
 **Gauge**: A metric that reports the latest value out of reported values. Since metrics are
 collected from many workers the value may not be the absolute last, but one of the latest values.
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 Gauge gauge = Metrics.gauge( "namespace", "gauge1");
 
 @ProcessElement
 public void processElement(ProcessContext context) {
-  Integer element = context.element();
-  // create a gauge (latest value received) of the values
-  gauge.set(element);
-  ...
+Integer element = context.element();
+// create a gauge (latest value received) of the values
+gauge.set(element);
+...
 }
 {{< /highlight >}}
 
 ### 10.3. Querying metrics {#querying-metrics}
+
 `PipelineResult` has a method `metrics()` which returns a `MetricResults` object that allows
 accessing metrics. The main method available in `MetricResults` allows querying for all metrics
 matching a given filter.
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 public interface PipelineResult {
-  MetricResults metrics();
+MetricResults metrics();
 }
 
 public abstract class MetricResults {
-  public abstract MetricQueryResults queryMetrics(@Nullable MetricsFilter filter);
+public abstract MetricQueryResults queryMetrics(@Nullable MetricsFilter filter);
 }
 
 public interface MetricQueryResults {
-  Iterable<MetricResult<Long>> getCounters();
-  Iterable<MetricResult<DistributionResult>> getDistributions();
-  Iterable<MetricResult<GaugeResult>> getGauges();
+Iterable<MetricResult<Long>> getCounters();
+Iterable<MetricResult<DistributionResult>> getDistributions();
+Iterable<MetricResult<GaugeResult>> getGauges();
 }
 
 public interface MetricResult<T> {
-  MetricName getName();
-  String getStep();
-  T getCommitted();
-  T getAttempted();
+MetricName getName();
+String getStep();
+T getCommitted();
+T getAttempted();
 }
 {{< /highlight >}}
 
 ### 10.4. Using metrics in pipeline {#using-metrics}
+
 Below, there is a simple example of how to use a `Counter` metric in a user pipeline.
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 // creating a pipeline with custom metrics DoFn
 pipeline
-    .apply(...)
-    .apply(ParDo.of(new MyMetricsDoFn()));
+.apply(...)
+.apply(ParDo.of(new MyMetricsDoFn()));
 
 pipelineResult = pipeline.run().waitUntilFinish(...);
 
 // request the metric called "counter1" in namespace called "namespace"
 MetricQueryResults metrics =
-    pipelineResult
-        .metrics()
-        .queryMetrics(
-            MetricsFilter.builder()
-                .addNameFilter(MetricNameFilter.named("namespace", "counter1"))
-                .build());
+pipelineResult
+.metrics()
+.queryMetrics(
+MetricsFilter.builder()
+.addNameFilter(MetricNameFilter.named("namespace", "counter1"))
+.build());
 
 // print the metric value - there should be only one line because there is only one metric
 // called "counter1" in the namespace called "namespace"
 for (MetricResult<Long> counter: metrics.getCounters()) {
-  System.out.println(counter.getName() + ":" + counter.getAttempted());
+System.out.println(counter.getName() + ":" + counter.getAttempted());
 }
 
 public class MyMetricsDoFn extends DoFn<Integer, Integer> {
-  private final Counter counter = Metrics.counter( "namespace", "counter1");
+private final Counter counter = Metrics.counter( "namespace", "counter1");
 
-  @ProcessElement
-  public void processElement(ProcessContext context) {
-    // count the elements
-    counter.inc();
-    context.output(context.element());
-  }
+@ProcessElement
+public void processElement(ProcessContext context) {
+// count the elements
+counter.inc();
+context.output(context.element());
+}
 }
 {{< /highlight >}}
 
@@ -4516,32 +4567,46 @@ Beam provides several types of state:
 A ValueState is a scalar state value. For each key in the input, a ValueState will store a typed value that can be
 read and modified inside the DoFn's `@ProcessElement` or `@OnTimer` methods. If the type of the ValueState has a coder
 registered, then Beam will automatically infer the coder for the state value. Otherwise, a coder can be explicitly
-specified when creating the ValueState. For example, the following ParDo creates a  single state variable that
+specified when creating the ValueState. For example, the following ParDo creates a single state variable that
 accumulates the number of elements seen.
 
-{{< highlight java >}}
+Note: `ValueState` is called `ReadModifyWriteState` in the Python SDK.
+
+{{< highlight language="java" >}}
 PCollection<KV<String, ValueT>> perUser = readPerUser();
 perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
-  @StateId("state") private final StateSpec<ValueState<Integer>> numElements = StateSpecs.value();
+@StateId("state") private final StateSpec<ValueState<Integer>> numElements = StateSpecs.value();
 
-  @ProcessElement public void process(@StateId("state") ValueState<Integer> state) {
-    // Read the number element seen so far for this user key.
-    // state.read() returns null if it was never set. The below code allows us to have a default value of 0.
-    int currentValue = MoreObjects.firstNonNull(state.read(), 0);
-    // Update the state.
-    state.write(currentValue + 1);
-  }
+@ProcessElement public void process(@StateId("state") ValueState<Integer> state) {
+// Read the number element seen so far for this user key.
+// state.read() returns null if it was never set. The below code allows us to have a default value of 0.
+int currentValue = MoreObjects.firstNonNull(state.read(), 0);
+// Update the state.
+state.write(currentValue + 1);
+}
 }));
 {{< /highlight >}}
 
 Beam also allows explicitly specifying a coder for `ValueState` values. For example:
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 PCollection<KV<String, ValueT>> perUser = readPerUser();
 perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
-  @StateId("state") private final StateSpec<ValueState<MyType>> numElements = StateSpecs.value(new MyTypeCoder());
-                 ...
+@StateId("state") private final StateSpec<ValueState<MyType>> numElements = StateSpecs.value(new MyTypeCoder());
+...
 }));
+{{< /highlight >}}
+
+{{< highlight language="py" >}}
+class ReadModifyWriteStateDoFn(DoFn):
+STATE_SPEC = ReadModifyWriteStateSpec('num_elements', VarIntCoder())
+
+def process(self, element, state=DoFn.StateParam(STATE_SPEC)): # Read the number element seen so far for this user key.
+current_value = state.read() or 0
+state.write(current_value+1)
+
+\_ = (p | 'Read per user' >> ReadPerUser()
+| 'state pardo' >> beam.ParDo(ReadModifyWriteStateDoFn()))
 {{< /highlight >}}
 
 #### CombiningState
@@ -4549,27 +4614,27 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
 `CombiningState` allows you to create a state object that is updated using a Beam combiner. For example, the previous
 `ValueState` example could be rewritten to use `CombiningState`
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 PCollection<KV<String, ValueT>> perUser = readPerUser();
 perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
-  @StateId("state") private final StateSpec<CombiningState<Integer, int[], Integer>> numElements =
-      StateSpecs.combining(Sum.ofIntegers());
+@StateId("state") private final StateSpec<CombiningState<Integer, int[], Integer>> numElements =
+StateSpecs.combining(Sum.ofIntegers());
 
-  @ProcessElement public void process(@StateId("state") ValueState<Integer> state) {
-    state.add(1);
-  }
+@ProcessElement public void process(@StateId("state") ValueState<Integer> state) {
+state.add(1);
+}
 }));
 {{< /highlight >}}
 
-{{< highlight python >}}
+{{< highlight language="py" >}}
 class CombiningStateDoFn(DoFn):
-  SUM_TOTAL = CombiningValueStateSpec('total', sum)
+SUM_TOTAL = CombiningValueStateSpec('total', sum)
 
-  def process(self, element, state=SoFn.StateParam(SUM_TOTAL)):
-    state.add(1)
+def process(self, element, state=DoFn.StateParam(SUM_TOTAL)):
+state.add(1)
 
-_ = (p | 'Read per user' >> ReadPerUser()
-       | 'Combine state pardo' >> beam.ParDo(CombiningStateDofn()))
+\_ = (p | 'Read per user' >> ReadPerUser()
+| 'Combine state pardo' >> beam.ParDo(CombiningStateDofn()))
 {{< /highlight >}}
 
 #### BagState
@@ -4579,39 +4644,39 @@ of elements. This allows for addition of elements to the collection without requ
 collection first, which is an efficiency gain. In addition, runners that support paged reads can allow individual
 bags larger than available memory.
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 PCollection<KV<String, ValueT>> perUser = readPerUser();
 perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
-  @StateId("state") private final StateSpec<BagState<ValueT>> numElements = StateSpecs.bag();
+@StateId("state") private final StateSpec<BagState<ValueT>> numElements = StateSpecs.bag();
 
-  @ProcessElement public void process(
-    @Element KV<String, ValueT> element,
-    @StateId("state") BagState<ValueT> state) {
-    // Add the current element to the bag for this key.
-    state.add(element.getValue());
-    if (shouldFetch()) {
-      // Occasionally we fetch and process the values.
-      Iterable<ValueT> values = state.read();
-      processValues(values);
-      state.clear();  // Clear the state for this key.
-    }
-  }
+@ProcessElement public void process(
+@Element KV<String, ValueT> element,
+@StateId("state") BagState<ValueT> state) {
+// Add the current element to the bag for this key.
+state.add(element.getValue());
+if (shouldFetch()) {
+// Occasionally we fetch and process the values.
+Iterable<ValueT> values = state.read();
+processValues(values);
+state.clear(); // Clear the state for this key.
+}
+}
 }));
 {{< /highlight >}}
 
-{{< highlight python >}}
+{{< highlight language="py" >}}
 class BagStateDoFn(DoFn):
-  ALL_ELEMENTS = BagStateSpec('buffer', coders.VarIntCoder())
+ALL_ELEMENTS = BagStateSpec('buffer', coders.VarIntCoder())
 
-  def process(self, element_pair, state=DoFn.StateParam(ALL_ELEMENTS)):
-    state.add(element_pair[1])
-    if should_fetch():
-      all_elements = list(state.read())
-      process_values(all_elements)
-      state.clear()
+def process(self, element_pair, state=DoFn.StateParam(ALL_ELEMENTS)):
+state.add(element_pair[1])
+if should_fetch():
+all_elements = list(state.read())
+process_values(all_elements)
+state.clear()
 
-_ = (p | 'Read per user' >> ReadPerUser()
-       | 'Bag state pardo' >> beam.ParDo(BagStateDoFn()))
+\_ = (p | 'Read per user' >> ReadPerUser()
+| 'Bag state pardo' >> beam.ParDo(BagStateDoFn()))
 {{< /highlight >}}
 
 ### 11.2. Deferred state reads {#deferred-state-reads}
@@ -4621,50 +4686,55 @@ on a state can cause the runner to perform a blocking read. Performing multiple 
 to element processing. If you know that a state will always be read, you can annotate it as @AlwaysFetched, and then the
 runner can prefetch all of the states necessary. For example:
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 PCollection<KV<String, ValueT>> perUser = readPerUser();
 perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
-   @StateId("state1") private final StateSpec<ValueState<Integer>> state1 = StateSpecs.value();
-   @StateId("state2") private final StateSpec<ValueState<String>> state2 = StateSpecs.value();
-   @StateId("state3") private final StateSpec<BagState<ValueT>> state3 = StateSpecs.bag();
+@StateId("state1") private final StateSpec<ValueState<Integer>> state1 = StateSpecs.value();
+@StateId("state2") private final StateSpec<ValueState<String>> state2 = StateSpecs.value();
+@StateId("state3") private final StateSpec<BagState<ValueT>> state3 = StateSpecs.bag();
 
-  @ProcessElement public void process(
-    @AlwaysFetched @StateId("state1") ValueState<Integer> state1,
-    @AlwaysFetched @StateId("state2") ValueState<String> state2,
-    @AlwaysFetched @StateId("state3") BagState<ValueT> state3) {
-    state1.read();
-    state2.read();
-    state3.read();
-  }
+@ProcessElement public void process(
+@AlwaysFetched @StateId("state1") ValueState<Integer> state1,
+@AlwaysFetched @StateId("state2") ValueState<String> state2,
+@AlwaysFetched @StateId("state3") BagState<ValueT> state3) {
+state1.read();
+state2.read();
+state3.read();
+}
 }));
+{{< /highlight >}}
+
+{{< highlight language="py" >}}
+This is not supported yet, see BEAM-11506.
 {{< /highlight >}}
 
 If however there are code paths in which the states are not fetched, then annotating with @AlwaysFetched will add
 unnecessary fetching for those paths. In this case, the readLater method allows the runner to know that the state will
 be read in the future, allowing multiple state reads to be batched together.
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 PCollection<KV<String, ValueT>> perUser = readPerUser();
 perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
-  @StateId("state1") private final StateSpec<ValueState<Integer>> state1 = StateSpecs.value();
-  @StateId("state2") private final StateSpec<ValueState<String>> state2 = StateSpecs.value();
-  @StateId("state3") private final StateSpec<BagState<ValueT>> state3 = StateSpecs.bag();
+@StateId("state1") private final StateSpec<ValueState<Integer>> state1 = StateSpecs.value();
+@StateId("state2") private final StateSpec<ValueState<String>> state2 = StateSpecs.value();
+@StateId("state3") private final StateSpec<BagState<ValueT>> state3 = StateSpecs.bag();
 
-  @ProcessElement public void process(
-    @StateId("state1") ValueState<Integer> state1,
-    @StateId("state2") ValueState<String> state2,
-    @StateId("state3") BagState<ValueT> state3) {
-    if (/* should read state */) {
-      state1.readLater();
-      state2.readLater();
-      state3.readLater();
-    }
+@ProcessElement public void process(
+@StateId("state1") ValueState<Integer> state1,
+@StateId("state2") ValueState<String> state2,
+@StateId("state3") BagState<ValueT> state3) {
+if (/_ should read state _/) {
+state1.readLater();
+state2.readLater();
+state3.readLater();
+}
 
     // The runner can now batch all three states into a single read, reducing latency.
     processState1(state1.read());
     processState2(state2.read());
     processState3(state3.read());
-  }
+
+}
 }));
 {{< /highlight >}}
 
@@ -4681,48 +4751,47 @@ Event-time timers fire when the input watermark for the DoFn passes the time at 
 the runner believes that there are no more elements to be processed with timestamps before the timer timestamp. This
 allows for event-time aggregations.
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 PCollection<KV<String, ValueT>> perUser = readPerUser();
 perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
-  @StateId("state") private final StateSpec<ValueState<Integer>> state = StateSpecs.value();
-  @TimerId("timer") private final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+@StateId("state") private final StateSpec<ValueState<Integer>> state = StateSpecs.value();
+@TimerId("timer") private final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
-  @ProcessElement public void process(
-      @Element KV<String, ValueT> element,
-      @Timestamp Instant elementTs,
-      @StateId("state") ValueState<Integer> state,
-      @TimerId("timer") Timer timer) {
-     ...
-     // Set an event-time timer to the element timestamp.
-     timer.set(elementTs);
-  }
+@ProcessElement public void process(
+@Element KV<String, ValueT> element,
+@Timestamp Instant elementTs,
+@StateId("state") ValueState<Integer> state,
+@TimerId("timer") Timer timer) {
+...
+// Set an event-time timer to the element timestamp.
+timer.set(elementTs);
+}
 
-   @OnTimer("timer") public void onTimer() {
-      //Process timer.
-   }
+@OnTimer("timer") public void onTimer() {
+//Process timer.
+}
 }));
 {{< /highlight >}}
 
-{{< highlight python >}}
+{{< highlight language="py" >}}
 class EventTimerDoFn(DoFn):
-  ALL_ELEMENTS = BagStateSpec('buffer', coders.VarIntCoder())
-  TIMER = TimerSpec('timer', TimeDomain.WATERMARK)
+ALL_ELEMENTS = BagStateSpec('buffer', coders.VarIntCoder())
+TIMER = TimerSpec('timer', TimeDomain.WATERMARK)
 
-  def process(self,
-              element_pair,
-              t = DoFn.TimestampParam,
-              buffer = DoFn.StateParam(ALL_ELEMENTS),
-              timer = DoFn.TimerParam(TIMER)):
-    buffer.add(element_pair[1])
-    # Set an event-time timer to the element timestamp.
-    timer.set(t)
+def process(self,
+element_pair,
+t = DoFn.TimestampParam,
+buffer = DoFn.StateParam(ALL_ELEMENTS),
+timer = DoFn.TimerParam(TIMER)):
+buffer.add(element_pair[1]) # Set an event-time timer to the element timestamp.
+timer.set(t)
 
-  @on_timer(TIMER)
-  def expiry_callback(self, buffer = DoFn.StateParam(ALL_ELEMENTS)):
-    state.clear()
+@on_timer(TIMER)
+def expiry_callback(self, buffer = DoFn.StateParam(ALL_ELEMENTS)):
+state.clear()
 
-_ = (p | 'Read per user' >> ReadPerUser()
-       | 'EventTime timer pardo' >> beam.ParDo(EventTimerDoFn()))
+\_ = (p | 'Read per user' >> ReadPerUser()
+| 'EventTime timer pardo' >> beam.ParDo(EventTimerDoFn()))
 {{< /highlight >}}
 
 #### 11.3.2. Processing-time timers {#processing-time-timers}
@@ -4734,75 +4803,95 @@ event-time timers, processing-time timers are per key - each key has a separate 
 While processing-time timers can be set to an absolute timestamp, it is very common to set them to an offset relative
 to the current time. In Java, the `Timer.offset` and `Timer.setRelative` methods can be used to accomplish this.
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 PCollection<KV<String, ValueT>> perUser = readPerUser();
 perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
-  @TimerId("timer") private final TimerSpec timer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
+@TimerId("timer") private final TimerSpec timer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 
-  @ProcessElement public void process(@TimerId("timer") Timer timer) {
-     ...
-     // Set a timer to go off 30 seconds in the future.
-     timer.offset(Duration.standardSeconds(30)).setRelative();
-  }
+@ProcessElement public void process(@TimerId("timer") Timer timer) {
+...
+// Set a timer to go off 30 seconds in the future.
+timer.offset(Duration.standardSeconds(30)).setRelative();
+}
 
-   @OnTimer("timer") public void onTimer() {
-      //Process timer.
-   }
+@OnTimer("timer") public void onTimer() {
+//Process timer.
+}
 }));
 {{< /highlight >}}
 
-{{< highlight python >}}
+{{< highlight language="py" >}}
 class ProcessingTimerDoFn(DoFn):
-  ALL_ELEMENTS = BagStateSpec('buffer', coders.VarIntCoder())
-  TIMER = TimerSpec('timer', TimeDomain.REAL_TIME)
+ALL_ELEMENTS = BagStateSpec('buffer', coders.VarIntCoder())
+TIMER = TimerSpec('timer', TimeDomain.REAL_TIME)
 
-  def process(self,
-              element_pair,
-              buffer = DoFn.StateParam(ALL_ELEMENTS),
-              timer = DoFn.TimerParam(TIMER)):
-    buffer.add(element_pair[1])
-    # Set a timer to go off 30 seconds in the future.
-    timer.set(Timestamp.now() + Duration(seconds=30))
+def process(self,
+element_pair,
+buffer = DoFn.StateParam(ALL_ELEMENTS),
+timer = DoFn.TimerParam(TIMER)):
+buffer.add(element_pair[1]) # Set a timer to go off 30 seconds in the future.
+timer.set(Timestamp.now() + Duration(seconds=30))
 
-  @on_timer(TIMER)
-  def expiry_callback(self, buffer = DoFn.StateParam(ALL_ELEMENTS)):
-    # Process timer.
-    state.clear()
+@on_timer(TIMER)
+def expiry_callback(self, buffer = DoFn.StateParam(ALL_ELEMENTS)): # Process timer.
+state.clear()
 
-_ = (p | 'Read per user' >> ReadPerUser()
-       | 'ProcessingTime timer pardo' >> beam.ParDo(ProcessingTimerDoFn()))
+\_ = (p | 'Read per user' >> ReadPerUser()
+| 'ProcessingTime timer pardo' >> beam.ParDo(ProcessingTimerDoFn()))
 {{< /highlight >}}
 
 #### 11.3.3. Dynamic timer tags {#dynamic-timer-tags}
 
-Beam also supports dynamically setting a timer tag using `TimerMap`. This allows for setting multiple different timers
+Beam also supports dynamically setting a timer tag using `TimerMap` in the Java SDK. This allows for setting multiple different timers
 in a `DoFn` and allowing for the timer tags to be dynamically chosen - e.g. based on data in the input elements. A
 timer with a specific tag can only be set to a single timestamp, so setting the timer again has the effect of
 overwriting the previous expiration time for the timer with that tag. Each `TimerMap` is identified with a timer family
 id, and timers in different timer families are independent.
 
-{{< highlight java >}}
+In the Python SDK, a dynamic timer tag can be specified while calling `set()` or `clear()`. By default, the timer
+tag is an empty string if not specified.
+
+{{< highlight language="java" >}}
 PCollection<KV<String, ValueT>> perUser = readPerUser();
 perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
-  @TimerFamily("actionTimers") private final TimerSpec timer =
-    TimerSpecs.timerMap(TimeDomain.EVENT_TIME);
+@TimerFamily("actionTimers") private final TimerSpec timer =
+TimerSpecs.timerMap(TimeDomain.EVENT_TIME);
 
-  @ProcessElement public void process(
-      @Element KV<String, ValueT> element,
-      @Timestamp Instant elementTs,
-      @TimerFamily("actionTimers") TimerMap timers) {
-     timers.set(element.getValue().getActionType(), elementTs);
-  }
+@ProcessElement public void process(
+@Element KV<String, ValueT> element,
+@Timestamp Instant elementTs,
+@TimerFamily("actionTimers") TimerMap timers) {
+timers.set(element.getValue().getActionType(), elementTs);
+}
 
-   @OnTimerFamily("actionTimers") public void onTimer(@TimerId String timerId) {
-     LOG.info("Timer fired with id " + timerId);
-   }
+@OnTimerFamily("actionTimers") public void onTimer(@TimerId String timerId) {
+LOG.info("Timer fired with id " + timerId);
+}
 }));
 {{< /highlight >}}
 
-{{< highlight python >}}
-To be supported, See BEAM-9602
+{{< highlight language="py" >}}
+class TimerDoFn(DoFn):
+ALL_ELEMENTS = BagStateSpec('buffer', coders.VarIntCoder())
+TIMER = TimerSpec('timer', TimeDomain.REAL_TIME)
+
+def process(self,
+element_pair,
+buffer = DoFn.StateParam(ALL_ELEMENTS),
+timer = DoFn.TimerParam(TIMER)):
+buffer.add(element_pair[1]) # Set a timer to go off 30 seconds in the future with dynamic timer tag 'first_timer'. # And set a timer to go off 60 seconds in the future with dynamic timer tag 'second_timer'.
+timer.set(Timestamp.now() + Duration(seconds=30), dynamic_timer_tag='first_timer')
+timer.set(Timestamp.now() + Duration(seconds=60), dynamic_timer_tag='second_timer') # Note that a timer can also be explicitly cleared if previously set with a dynamic timer tag: # timer.clear(dynamic_timer_tag=...)
+
+@on_timer(TIMER)
+def expiry_callback(self, buffer = DoFn.StateParam(ALL_ELEMENTS), timer_tag=DoFn.DynamicTimerTagParam): # Process timer, the dynamic timer tag associated with expiring timer can be read back with DoFn.DynamicTimerTagParam.
+buffer.clear()
+yield (timer_tag, 'fired')
+
+\_ = (p | 'Read per user' >> ReadPerUser()
+| 'ProcessingTime timer pardo' >> beam.ParDo(TimerDoFn()))
 {{< /highlight >}}
+
 #### 11.3.4. Timer output timestamps {#timer-output-timestamps}
 
 By default, event-time timers will hold the output watermark of the `ParDo` to the timestamp of the timer. This means
@@ -4816,39 +4905,39 @@ In some cases, a DoFn needs to output timestamps earlier than the timer expirati
 hold its output watermark to those timestamps. For example, consider the following pipeline that temporarily batches
 records into state, and sets a timer to drain the state. This code may appear correct, but will not work properly.
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 PCollection<KV<String, ValueT>> perUser = readPerUser();
 perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
-  @StateId("elementBag") private final StateSpec<BagState<ValueT>> elementBag = StateSpecs.bag();
-  @StateId("timerSet") private final StateSpec<ValueState<Boolean>> timerSet = StateSpecs.value();
-  @TimerId("outputState") private final TimerSpec timer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
+@StateId("elementBag") private final StateSpec<BagState<ValueT>> elementBag = StateSpecs.bag();
+@StateId("timerSet") private final StateSpec<ValueState<Boolean>> timerSet = StateSpecs.value();
+@TimerId("outputState") private final TimerSpec timer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 
-  @ProcessElement public void process(
-      @Element KV<String, ValueT> element,
-      @StateId("elementBag") BagState<ValueT> elementBag,
-      @StateId("timerSet") ValueState<Boolean> timerSet,
-      @TimerId("outputState") Timer timer) {
-    // Add the current element to the bag for this key.
-    elementBag.add(element.getValue());
-    if (!MoreObjects.firstNonNull(timerSet.read(), false)) {
-      // If the timer is not current set, then set it to go off in a minute.
-      timer.offset(Duration.standardMinutes(1)).setRelative();
-      timerSet.write(true);
-    }
-  }
+@ProcessElement public void process(
+@Element KV<String, ValueT> element,
+@StateId("elementBag") BagState<ValueT> elementBag,
+@StateId("timerSet") ValueState<Boolean> timerSet,
+@TimerId("outputState") Timer timer) {
+// Add the current element to the bag for this key.
+elementBag.add(element.getValue());
+if (!MoreObjects.firstNonNull(timerSet.read(), false)) {
+// If the timer is not current set, then set it to go off in a minute.
+timer.offset(Duration.standardMinutes(1)).setRelative();
+timerSet.write(true);
+}
+}
 
-  @OnTimer("outputState") public void onTimer(
-      @StateId("elementBag") BagState<ValueT> elementBag,
-      @StateId("timerSet") ValueState<Boolean> timerSet,
-      OutputReceiver<ValueT> output) {
-    for (ValueT bufferedElement : elementBag.read()) {
-      // Output each element.
-      output.outputWithTimestamp(bufferedElement, bufferedElement.timestamp());
-    }
-    elementBag.clear();
-    // Note that the timer has now fired.
-    timerSet.clear();
-  }
+@OnTimer("outputState") public void onTimer(
+@StateId("elementBag") BagState<ValueT> elementBag,
+@StateId("timerSet") ValueState<Boolean> timerSet,
+OutputReceiver<ValueT> output) {
+for (ValueT bufferedElement : elementBag.read()) {
+// Output each element.
+output.outputWithTimestamp(bufferedElement, bufferedElement.timestamp());
+}
+elementBag.clear();
+// Note that the timer has now fired.
+timerSet.clear();
+}
 }));
 {{< /highlight >}}
 
@@ -4857,29 +4946,29 @@ from advancing past the timestamp of those elements, so all those elements might
 to prevent this from happening, an output timestamp needs to be set on the timer to prevent the watermark from advancing
 past the timestamp of the minimum element. The following code demonstrates this.
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 PCollection<KV<String, ValueT>> perUser = readPerUser();
 perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
-  // The bag of elements accumulated.
-  @StateId("elementBag") private final StateSpec<BagState<ValueT>> elementBag = StateSpecs.bag();
-  // The timestamp of the timer set.
-  @StateId("timerTimestamp") private final StateSpec<ValueState<Long>> timerTimestamp = StateSpecs.value();
-  // The minimum timestamp stored in the bag.
-  @StateId("minTimestampInBag") private final StateSpec<CombiningState<Long, long[], Long>>
-     minTimestampInBag = StateSpecs.combining(Min.ofLongs());
+// The bag of elements accumulated.
+@StateId("elementBag") private final StateSpec<BagState<ValueT>> elementBag = StateSpecs.bag();
+// The timestamp of the timer set.
+@StateId("timerTimestamp") private final StateSpec<ValueState<Long>> timerTimestamp = StateSpecs.value();
+// The minimum timestamp stored in the bag.
+@StateId("minTimestampInBag") private final StateSpec<CombiningState<Long, long[], Long>>
+minTimestampInBag = StateSpecs.combining(Min.ofLongs());
 
-  @TimerId("outputState") private final TimerSpec timer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
+@TimerId("outputState") private final TimerSpec timer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 
-  @ProcessElement public void process(
-      @Element KV<String, ValueT> element,
-      @StateId("elementBag") BagState<ValueT> elementBag,
-      @AlwaysFetched @StateId("timerTimestamp") ValueState<Long> timerTimestamp,
-      @AlwaysFetched @StateId("minTimestampInBag") CombiningState<Long, long[], Long> minTimestamp,
-      @TimerId("outputState") Timer timer) {
-    // Add the current element to the bag for this key.
-    elementBag.add(element.getValue());
-    // Keep track of the minimum element timestamp currently stored in the bag.
-    minTimestamp.add(element.getValue().timestamp());
+@ProcessElement public void process(
+@Element KV<String, ValueT> element,
+@StateId("elementBag") BagState<ValueT> elementBag,
+@AlwaysFetched @StateId("timerTimestamp") ValueState<Long> timerTimestamp,
+@AlwaysFetched @StateId("minTimestampInBag") CombiningState<Long, long[], Long> minTimestamp,
+@TimerId("outputState") Timer timer) {
+// Add the current element to the bag for this key.
+elementBag.add(element.getValue());
+// Keep track of the minimum element timestamp currently stored in the bag.
+minTimestamp.add(element.getValue().timestamp());
 
     // If the timer is already set, then reset it at the same time but with an updated output timestamp (otherwise
     // we would keep resetting the timer to the future). If there is no timer set, then set one to expire in a minute.
@@ -4890,27 +4979,34 @@ perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
     // timer fires. This allows outputting all the elements with their timestamp.
     timer.withOutputTimestamp(minTimestamp.read()).set(timerToSet).
     timerTimestamp.write(timerToSet.getMillis());
-  }
 
-  @OnTimer("outputState") public void onTimer(
-      @StateId("elementBag") BagState<ValueT> elementBag,
-      @StateId("timerTimestamp") ValueState<Long> timerTimestamp,
-      OutputReceiver<ValueT> output) {
-    for (ValueT bufferedElement : elementBag.read()) {
-      // Output each element.
-      output.outputWithTimestamp(bufferedElement, bufferedElement.timestamp());
-    }
-    // Note that the timer has now fired.
-    timerTimestamp.clear();
-  }
+}
+
+@OnTimer("outputState") public void onTimer(
+@StateId("elementBag") BagState<ValueT> elementBag,
+@StateId("timerTimestamp") ValueState<Long> timerTimestamp,
+OutputReceiver<ValueT> output) {
+for (ValueT bufferedElement : elementBag.read()) {
+// Output each element.
+output.outputWithTimestamp(bufferedElement, bufferedElement.timestamp());
+}
+// Note that the timer has now fired.
+timerTimestamp.clear();
+}
 }));
 {{< /highlight >}}
 
+{{< highlight language="py" >}}
+Timer output timestamps is not yet supported in Python SDK. See BEAM-11507.
+{{< /highlight >}}
+
 ### 11.4. Garbage collecting state {#garbage-collecting-state}
+
 Per-key state needs to be garbage collected, or eventually the increasing size of state may negatively impact
 performance. There are two common strategies for garbage collecting state.
 
 ##### 11.4.1. **Using windows for garbage collection** {#using-windows-for-garbage-collection}
+
 All state and timers for a key is scoped to the window it is in. This means that depending on the timestamp of the
 input element the ParDo will see different values for the state depending on the window that element falls into. In
 addition, once the input watermark passes the end of the window, the runner should garbage collect all state for that
@@ -4920,32 +5016,32 @@ garbage-collection strategy.
 
 For example, given the following:
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 PCollection<KV<String, ValueT>> perUser = readPerUser();
 perUser.apply(Window.into(CalendarWindows.days(1)
-   .withTimeZone(DateTimeZone.forID("America/Los_Angeles"))));
-       .apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
-           @StateId("state") private final StateSpec<ValueState<Integer>> state = StateSpecs.value();
-                              ...
-           @ProcessElement public void process(@Timestamp Instant ts, @StateId("state") ValueState<Integer> state) {
-              // The state is scoped to a calendar day window. That means that if the input timestamp ts is after
-              // midnight PST, then a new copy of the state will be seen for the next day.
-           }
-         }));
+.withTimeZone(DateTimeZone.forID("America/Los_Angeles"))));
+.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
+@StateId("state") private final StateSpec<ValueState<Integer>> state = StateSpecs.value();
+...
+@ProcessElement public void process(@Timestamp Instant ts, @StateId("state") ValueState<Integer> state) {
+// The state is scoped to a calendar day window. That means that if the input timestamp ts is after
+// midnight PST, then a new copy of the state will be seen for the next day.
+}
+}));
 {{< /highlight >}}
 
-{{< highlight python >}}
+{{< highlight language="py" >}}
 class StateDoFn(DoFn):
-  ALL_ELEMENTS = BagStateSpec('buffer', coders.VarIntCoder())
+ALL_ELEMENTS = BagStateSpec('buffer', coders.VarIntCoder())
 
-  def process(self,
-              element_pair,
-              buffer = DoFn.StateParam(ALL_ELEMENTS)):
-    ...
+def process(self,
+element_pair,
+buffer = DoFn.StateParam(ALL_ELEMENTS)):
+...
 
-_ = (p | 'Read per user' >> ReadPerUser()
-       | 'Windowing' >> beam.WindowInto(FixedWindows(60 * 60 * 24))
-       | 'DoFn' >> beam.ParDo(StateDoFn()))
+\_ = (p | 'Read per user' >> ReadPerUser()
+| 'Windowing' >> beam.WindowInto(FixedWindows(60 _ 60 _ 24))
+| 'DoFn' >> beam.ParDo(StateDoFn()))
 {{< /highlight >}}
 
 This `ParDo` stores state per day. Once the pipeline is done processing data for a given day, all the state for that
@@ -4957,58 +5053,59 @@ In some cases, it is difficult to find a windowing strategy that models the desi
 example, a common desire is to garbage collect state for a key once no activity has been seen on the key for some time.
 This can be done by updating a timer that garbage collects state. For example
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 PCollection<KV<String, ValueT>> perUser = readPerUser();
 perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
-  // The state for the key.
-  @StateId("state") private final StateSpec<ValueState<ValueT>> state = StateSpecs.value();
+// The state for the key.
+@StateId("state") private final StateSpec<ValueState<ValueT>> state = StateSpecs.value();
 
-  // The maximum element timestamp seen so far.
-  @StateId("maxTimestampSeen") private final StateSpec<CombiningState<Long, long[], Long>>
-     maxTimestamp = StateSpecs.combining(Max.ofLongs());
+// The maximum element timestamp seen so far.
+@StateId("maxTimestampSeen") private final StateSpec<CombiningState<Long, long[], Long>>
+maxTimestamp = StateSpecs.combining(Max.ofLongs());
 
-  @TimerId("gcTimer") private final TimerSpec gcTimer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+@TimerId("gcTimer") private final TimerSpec gcTimer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
-  @ProcessElement public void process(
-      @Element KV<String, ValueT> element,
-      @Timestamp Instant ts,
-      @StateId("state") ValueState<ValueT> state,
-      @StateId("maxTimestampSeen") CombiningState<Long, long[], Long> maxTimestamp,
-      @TimerId("gcTimer") gcTimer) {
-    updateState(state, element);
-    maxTimestamp.add(ts.getMillis());
+@ProcessElement public void process(
+@Element KV<String, ValueT> element,
+@Timestamp Instant ts,
+@StateId("state") ValueState<ValueT> state,
+@StateId("maxTimestampSeen") CombiningState<Long, long[], Long> maxTimestamp,
+@TimerId("gcTimer") gcTimer) {
+updateState(state, element);
+maxTimestamp.add(ts.getMillis());
 
     // Set the timer to be one hour after the maximum timestamp seen. This will keep overwriting the same timer, so
     // as long as there is activity on this key the state will stay active. Once the key goes inactive for one hour's
     // worth of event time (as measured by the watermark), then the gc timer will fire.
     Instant expirationTime = new Instant(maxTimestamp.read()).plus(Duration.standardHours(1));
     timer.set(expirationTime);
-  }
 
-  @OnTimer("gcTimer") public void onTimer(
-      @StateId("state") ValueState<ValueT> state,
-      @StateId("maxTimestampSeen") CombiningState<Long, long[], Long> maxTimestamp) {
-       // Clear all state for the key.
-       state.clear();
-       maxTimestamp.clear();
-    }
- }
+}
+
+@OnTimer("gcTimer") public void onTimer(
+@StateId("state") ValueState<ValueT> state,
+@StateId("maxTimestampSeen") CombiningState<Long, long[], Long> maxTimestamp) {
+// Clear all state for the key.
+state.clear();
+maxTimestamp.clear();
+}
+}
 {{< /highlight >}}
 
-{{< highlight python >}}
+{{< highlight language="py" >}}
 class UserDoFn(DoFn):
-  ALL_ELEMENTS = BagStateSpec('state', coders.VarIntCoder())
-  MAX_TIMESTAMP = CombiningValueStateSpec('max_timestamp_seen', max)
-  TIMER = TimerSpec('gc-timer', TimeDomain.WATERMARK)
+ALL_ELEMENTS = BagStateSpec('state', coders.VarIntCoder())
+MAX_TIMESTAMP = CombiningValueStateSpec('max_timestamp_seen', max)
+TIMER = TimerSpec('gc-timer', TimeDomain.WATERMARK)
 
-  def process(self,
-              element,
-              t = DoFn.TimestampParam,
-              state = DoFn.StateParam(ALL_ELEMENTS),
-              max_timestamp = DoFn.StateParam(MAX_TIMESTAMP),
-              timer = DoFn.TimerParam(TIMER)):
-    update_state(state, element)
-    max_timestamp.add(t.micros)
+def process(self,
+element,
+t = DoFn.TimestampParam,
+state = DoFn.StateParam(ALL_ELEMENTS),
+max_timestamp = DoFn.StateParam(MAX_TIMESTAMP),
+timer = DoFn.TimerParam(TIMER)):
+update_state(state, element)
+max_timestamp.add(t.micros)
 
     # Set the timer to be one hour after the maximum timestamp seen. This will keep overwriting the same timer, so
     # as long as there is activity on this key the state will stay active. Once the key goes inactive for one hour's
@@ -5016,16 +5113,15 @@ class UserDoFn(DoFn):
     expiration_time = Timestamp(micros=max_timestamp.read()) + Duration(seconds=60*60)
     timer.set(expiration_time)
 
-  @on_timer(TIMER)
-  def expiry_callback(self,
-                      state = DoFn.StateParam(ALL_ELEMENTS),
-                      max_timestamp = DoFn.StateParam(MAX_TIMESTAMP)):
-    state.clear()
-    max_timestamp.clear()
+@on_timer(TIMER)
+def expiry_callback(self,
+state = DoFn.StateParam(ALL_ELEMENTS),
+max_timestamp = DoFn.StateParam(MAX_TIMESTAMP)):
+state.clear()
+max_timestamp.clear()
 
-
-_ = (p | 'Read per user' >> ReadPerUser()
-       | 'User DoFn' >> beam.ParDo(UserDoFn()))
+\_ = (p | 'Read per user' >> ReadPerUser()
+| 'User DoFn' >> beam.ParDo(UserDoFn()))
 {{< /highlight >}}
 
 ### 11.5. State and timers examples {#state-timers-examples}
@@ -5046,37 +5142,37 @@ lost and never make it to the Beam pipeline; the pipeline will similarly wait on
 give up if the view event does not arrive in that time. Input events are not ordered - it is possible to see the click
 event before the view event. The one hour join timeout should be based on event time, not on processing time.
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 // Read the event stream and key it by the link id.
 PCollection<KV<String, Event>> eventsPerLinkId =
-    readEvents()
-    .apply(WithKeys.of(Event::getLinkId).withKeyType(TypeDescriptors.strings()));
+readEvents()
+.apply(WithKeys.of(Event::getLinkId).withKeyType(TypeDescriptors.strings()));
 
-perUser.apply(ParDo.of(new DoFn<KV<String, Event>, JoinedEvent>() {
-  // Store the view event.
-  @StateId("view") private final StateSpec<ValueState<Event>> viewState = StateSpecs.value();
-  // Store the click event.
-  @StateId("click") private final StateSpec<ValueState<Event>> clickState = StateSpecs.value();
+eventsPerLinkId.apply(ParDo.of(new DoFn<KV<String, Event>, JoinedEvent>() {
+// Store the view event.
+@StateId("view") private final StateSpec<ValueState<Event>> viewState = StateSpecs.value();
+// Store the click event.
+@StateId("click") private final StateSpec<ValueState<Event>> clickState = StateSpecs.value();
 
-  // The maximum element timestamp seen so far.
-  @StateId("maxTimestampSeen") private final StateSpec<CombiningState<Long, long[], Long>>
-     maxTimestamp = StateSpecs.combining(Max.ofLongs());
+// The maximum element timestamp seen so far.
+@StateId("maxTimestampSeen") private final StateSpec<CombiningState<Long, long[], Long>>
+maxTimestamp = StateSpecs.combining(Max.ofLongs());
 
-  // Timer that fires when an hour goes by with an incomplete join.
-  @TimerId("gcTimer") private final TimerSpec gcTimer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+// Timer that fires when an hour goes by with an incomplete join.
+@TimerId("gcTimer") private final TimerSpec gcTimer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
-  @ProcessElement public void process(
-      @Element KV<String, Event> element,
-      @Timestamp Instant ts,
-      @AlwaysFetched @StateId("view") ValueState<Event> viewState,
-      @AlwaysFetched @StateId("click") ValueState<Event> clickState,
-      @AlwaysFetched @StateId("maxTimestampSeen") CombiningState<Long, long[], Long> maxTimestampState,
-      @TimerId("gcTimer") gcTimer,
-      OutputReceiver<JoinedEvent> output) {
-    // Store the event into the correct state variable.
-    Event event = element.getValue();
-    ValueState<Event> valueState = event.getType().equals(VIEW) ? viewState : clickState;
-    valueState.write(event);
+@ProcessElement public void process(
+@Element KV<String, Event> element,
+@Timestamp Instant ts,
+@AlwaysFetched @StateId("view") ValueState<Event> viewState,
+@AlwaysFetched @StateId("click") ValueState<Event> clickState,
+@AlwaysFetched @StateId("maxTimestampSeen") CombiningState<Long, long[], Long> maxTimestampState,
+@TimerId("gcTimer") gcTimer,
+OutputReceiver<JoinedEvent> output) {
+// Store the event into the correct state variable.
+Event event = element.getValue();
+ValueState<Event> valueState = event.getType().equals(VIEW) ? viewState : clickState;
+valueState.write(event);
 
     Event view = viewState.read();
     Event click = clickState.read();
@@ -5093,15 +5189,16 @@ perUser.apply(ParDo.of(new DoFn<KV<String, Event>, JoinedEvent>() {
        Instant expirationTime = new Instant(maxTimestampState.read()).plus(Duration.standardHours(1));
        gcTimer.set(expirationTime);
     }
-  }
 
-  @OnTimer("gcTimer") public void onTimer(
-      @StateId("view") ValueState<Event> viewState,
-      @StateId("click") ValueState<Event> clickState,
-      @StateId("maxTimestampSeen") CombiningState<Long, long[], Long> maxTimestampState) {
-       // An hour has gone by with an incomplete join. Give up and clear the state.
-       clearState(viewState, clickState, maxTimestampState);
-    }
+}
+
+@OnTimer("gcTimer") public void onTimer(
+@StateId("view") ValueState<Event> viewState,
+@StateId("click") ValueState<Event> clickState,
+@StateId("maxTimestampSeen") CombiningState<Long, long[], Long> maxTimestampState) {
+// An hour has gone by with an incomplete join. Give up and clear the state.
+clearState(viewState, clickState, maxTimestampState);
+}
 
     private void clearState(
       @StateId("view") ValueState<Event> viewState,
@@ -5111,7 +5208,66 @@ perUser.apply(ParDo.of(new DoFn<KV<String, Event>, JoinedEvent>() {
       clickState.clear();
       maxTimestampState.clear();
     }
- }));
+
+}));
+{{< /highlight >}}
+
+{{< highlight language="py" >}}
+class JoinDoFn(DoFn):
+
+# stores the view event.
+
+VIEW_STATE_SPEC = ReadModifyWriteStateSpec('view', EventCoder())
+
+# stores the click event.
+
+CLICK_STATE_SPEC = ReadModifyWriteStateSpec('click', EventCoder())
+
+# The maximum element timestamp value seen so far.
+
+MAX_TIMESTAMP = CombiningValueStateSpec('max_timestamp_seen', max)
+
+# Timer that fires when an hour goes by with an incomplete join.
+
+GC_TIMER = TimerSpec('gc', TimeDomain.WATERMARK)
+
+def process(self,
+element,
+view=DoFn.StateParam(VIEW_STATE_SPEC),
+click=DoFn.StateParam(CLICK_STATE_SPEC),
+max_timestamp_seen=DoFn.StateParam(MAX_TIMESTAMP),
+ts=DoFn.TimestampParam,
+gc=DoFn.TimerParam(GC_TIMER)):
+event = element
+if event.type == 'view':
+view.write(event)
+else:
+click.write(event)
+
+    previous_view = view.read()
+    previous_click = click.read()
+
+    # We've seen both a view and a click. Output a joined event and clear state.
+    if previous_view and previous_click:
+      yield (previous_view, previous_click)
+      view.clear()
+      click.clear()
+      max_timestamp_seen.clear()
+    else:
+      max_timestamp_seen.add(ts)
+      gc.set(max_timestamp_seen.read() + Duration(seconds=3600))
+
+@on_timer(GC_TIMER)
+def gc_callback(self,
+view=DoFn.StateParam(VIEW_STATE_SPEC),
+click=DoFn.StateParam(CLICK_STATE_SPEC),
+max_timestamp_seen=DoFn.StateParam(MAX_TIMESTAMP)):
+view.clear()
+click.clear()
+max_timestamp_seen.clear()
+
+\_ = (p | 'EventsPerLinkId' >> ReadPerLinkEvents()
+| 'Join DoFn' >> beam.ParDo(JoinDoFn()))
 {{< /highlight >}}
 
 #### 11.5.2. Batching RPCs {#batching-rpcs}
@@ -5120,39 +5276,64 @@ In this example, input elements are being forwarded to an external RPC service. 
 multiple events for the same user can be batched in a single RPC call. Since this RPC service also imposes rate limits,
 we want to batch ten seconds worth of events together in order to reduce the number of calls.
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 PCollection<KV<String, ValueT>> perUser = readPerUser();
 perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
-  // Store the elements buffered so far.
-  @StateId("state") private final StateSpec<BagState<ValueT>> elements = StateSpecs.bag();
-  // Keep track of whether a timer is currently set or not.
-  @StateId("isTimerSet") private final StateSpec<ValueState<Boolean>> isTimerSet = StateSpecs.value();
-  // The processing-time timer user to publish the RPC.
-  @TimerId("outputState") private final TimerSpec timer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
+// Store the elements buffered so far.
+@StateId("state") private final StateSpec<BagState<ValueT>> elements = StateSpecs.bag();
+// Keep track of whether a timer is currently set or not.
+@StateId("isTimerSet") private final StateSpec<ValueState<Boolean>> isTimerSet = StateSpecs.value();
+// The processing-time timer user to publish the RPC.
+@TimerId("outputState") private final TimerSpec timer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 
-  @ProcessElement public void process(
-    @Element KV<String, ValueT> element,
-    @StateId("state") BagState<ValueT> elementsState,
-    @StateId("isTimerSet") ValueState<Boolean> isTimerSetState,
-    @TimerId("outputState") Timer timer) {
-    // Add the current element to the bag for this key.
-    state.add(element.getValue());
-    if (!MoreObjects.firstNonNull(isTimerSetState.read(), false)) {
-      // If there is no timer currently set, then set one to go off in 10 seconds.
-      timer.offset(Duration.standardSeconds(10)).setRelative();
-      isTimerSetState.write(true);
-   }
-  }
+@ProcessElement public void process(
+@Element KV<String, ValueT> element,
+@StateId("state") BagState<ValueT> elementsState,
+@StateId("isTimerSet") ValueState<Boolean> isTimerSetState,
+@TimerId("outputState") Timer timer) {
+// Add the current element to the bag for this key.
+state.add(element.getValue());
+if (!MoreObjects.firstNonNull(isTimerSetState.read(), false)) {
+// If there is no timer currently set, then set one to go off in 10 seconds.
+timer.offset(Duration.standardSeconds(10)).setRelative();
+isTimerSetState.write(true);
+}
+}
 
-  @OnTimer("outputState") public void onTimer(
-    @StateId("state") BagState<ValueT> elementsState,
-    @StateId("isTimerSet") ValueState<Boolean> isTimerSetState) {
-    // Send an RPC containing the batched elements and clear state.
-    sendRPC(elementsState.read());
-    elementsState.clear();
-    isTimerSetState.clear();
-  }
+@OnTimer("outputState") public void onTimer(
+@StateId("state") BagState<ValueT> elementsState,
+@StateId("isTimerSet") ValueState<Boolean> isTimerSetState) {
+// Send an RPC containing the batched elements and clear state.
+sendRPC(elementsState.read());
+elementsState.clear();
+isTimerSetState.clear();
+}
 }));
+{{< /highlight >}}
+
+{{< highlight language="py" >}}
+class BufferDoFn(DoFn):
+BUFFER = BagStateSpec('buffer', EventCoder())
+IS_TIMER_SET = ReadModifyWriteStateSpec('is_timer_set', BooleanCoder())
+OUTPUT = TimerSpec('output', TimeDomain.REAL_TIME)
+
+def process(self,
+buffer=DoFn.StateParam(BUFFER),
+is_timer_set=DoFn.StateParam(IS_TIMER_SET),
+timer=DoFn.TimerParam(OUTPUT)):
+buffer.add(element)
+if not is_timer_set.read():
+timer.set(Timestamp.now() + Duration(seconds=10))
+is_timer_set.write(True)
+
+@on_timer(OUTPUT)
+def output_callback(self,
+buffer=DoFn.StateParam(BUFFER),
+is_timer_set=DoFn.StateParam(IS_TIMER_SET)):
+send_rpc(list(buffer.read()))
+buffer.clear()
+is_timer_set.clear()
+
 {{< /highlight >}}
 
 ## 12. Splittable `DoFns` {#splittable-dofns}
@@ -5179,11 +5360,10 @@ Executing an SDF follows the following steps:
 2. Each element and restriction pair is split (e.g. offset ranges are broken up into smaller pieces).
 3. The runner redistributes the element and restriction pairs to several workers.
 4. Element and restriction pairs are processed in parallel (e.g. the file is read). Within this last step,
-the element and restriction pair can pause its own processing and/or be split into further element and
-restriction pairs.
+   the element and restriction pair can pause its own processing and/or be split into further element and
+   restriction pairs.
 
 ![Diagram of steps that an SDF is composed of](/images/sdf_high_level_overview.svg)
-
 
 #### 12.1.1. A basic SDF {#a-basic-sdf}
 
@@ -5208,11 +5388,13 @@ and [Python](https://beam.apache.org/releases/pydoc/current/apache_beam.io.iobas
 reference documentation.
 
 There are some built-in `RestrictionTracker` implementations defined in Java:
+
 1. [OffsetRangeTracker](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/splittabledofn/OffsetRangeTracker.html)
 2. [GrowableOffsetRangeTracker](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/splittabledofn/GrowableOffsetRangeTracker.html)
 3. [ByteKeyRangeTracker](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/splittabledofn/ByteKeyRangeTracker.html)
 
 The SDF also has a built-in `RestrictionTracker` implementation in Python:
+
 1. [OffsetRangeTracker](https://beam.apache.org/releases/pydoc/current/apache_beam.io.restriction_trackers.html#apache_beam.io.restriction_trackers.OffsetRestrictionTracker)
 
 The watermark state is a user-defined object which is used to create a `WatermarkEstimator` from a
@@ -5229,12 +5411,14 @@ and [Python](https://beam.apache.org/releases/pydoc/current/apache_beam.io.iobas
 reference documentation.
 
 There are some built-in `WatermarkEstimator` implementations in Java:
+
 1. [Manual](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/splittabledofn/WatermarkEstimators.Manual.html)
 2. [MonotonicallyIncreasing](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/splittabledofn/WatermarkEstimators.MonotonicallyIncreasing.html)
 3. [WallTime](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/splittabledofn/WatermarkEstimators.WallTime.html)
 
 Along with the default `WatermarkEstimatorProvider`, there are the same set of built-in
 `WatermarkEstimator` implementations in Python:
+
 1. [ManualWatermarkEstimator](https://beam.apache.org/releases/pydoc/current/apache_beam.io.watermark_estimators.html#apache_beam.io.watermark_estimators.ManualWatermarkEstimator)
 2. [MonotonicWatermarkEstimator](https://beam.apache.org/releases/pydoc/current/apache_beam.io.watermark_estimators.html#apache_beam.io.watermark_estimators.MonotonicWatermarkEstimator)
 3. [WalltimeWatermarkEstimator](https://beam.apache.org/releases/pydoc/current/apache_beam.io.watermark_estimators.html#apache_beam.io.watermark_estimators.WalltimeWatermarkEstimator)
@@ -5242,53 +5426,55 @@ Along with the default `WatermarkEstimatorProvider`, there are the same set of b
 To define an SDF, you must choose whether the SDF is bounded (default) or
 unbounded and define a way to initialize an initial restriction for an element. The distinction is
 based on how the amount of work is represented:
-* Bounded DoFns are those where the work represented by an element is well-known beforehand and has
-an end. Examples of bounded elements include a file or group of files.
-* Unbounded DoFns are those where the amount of work does not have a specific end or the
-amount of work is not known befrehand. Examples of unbounded elements include a Kafka or a PubSub
-topic.
+
+- Bounded DoFns are those where the work represented by an element is well-known beforehand and has
+  an end. Examples of bounded elements include a file or group of files.
+- Unbounded DoFns are those where the amount of work does not have a specific end or the
+  amount of work is not known befrehand. Examples of unbounded elements include a Kafka or a PubSub
+  topic.
 
 In Java, you can use [@UnboundedPerElement](https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/transforms/DoFn.UnboundedPerElement.html)
 or [@BoundedPerElement](https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/transforms/DoFn.BoundedPerElement.html)
 to annotate your `DoFn`. In Python, you can use [@unbounded_per_element](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.unbounded_per_element)
 to annotate the `DoFn`.
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" SDF_BasicExample >}}
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" SDF_BasicExample >}}
 {{< /highlight >}}
 
-{{< highlight go >}}
-func (fn *splittableDoFn) CreateInitialRestriction(filename string) offsetrange.Restriction {
-	return offsetrange.Restriction{
-		Start: 0,
-		End:   getFileLength(filename),
-	}
+{{< highlight language="go" >}}
+func (fn \*splittableDoFn) CreateInitialRestriction(filename string) offsetrange.Restriction {
+return offsetrange.Restriction{
+Start: 0,
+End: getFileLength(filename),
+}
 }
 
 func (fn *splittableDoFn) CreateTracker(rest offsetrange.Restriction) *sdf.LockRTracker {
-	return sdf.NewLockRTracker(offsetrange.NewTracker(rest))
+return sdf.NewLockRTracker(offsetrange.NewTracker(rest))
 }
 
 func (fn *splittableDoFn) ProcessElement(rt *sdf.LockRTracker, filename string, emit func(int)) error {
-            file, err := os.Open(filename)
-	if err != nil {
-		return err
-	}
-	offset, err := seekToNextRecordBoundaryInFile(file, rt.GetRestriction().(offsetrange.Restriction).Start)
+file, err := os.Open(filename)
+if err != nil {
+return err
+}
+offset, err := seekToNextRecordBoundaryInFile(file, rt.GetRestriction().(offsetrange.Restriction).Start)
 
-	if err != nil {
-		return err
-	}
-	for rt.TryClaim(offset) {
-		record, newOffset := readNextRecord(file)
-		emit(record)
-		offset = newOffset
-	}
-	return nil
+    if err != nil {
+    	return err
+    }
+    for rt.TryClaim(offset) {
+    	record, newOffset := readNextRecord(file)
+    	emit(record)
+    	offset = newOffset
+    }
+    return nil
+
 }
 {{< /highlight >}}
 
@@ -5297,27 +5483,27 @@ enabling dynamic work rebalancing. To increase the rate at which initial paralle
 or for those runners that do not support runner-initiated splitting, we recommend providing
 a set of initial splits:
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" SDF_BasicExampleWithSplitting >}}
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" SDF_BasicExampleWithSplitting >}}
 {{< /highlight >}}
 
-{{< highlight go >}}
-func (fn *splittableDoFn) SplitRestriction(filename string, rest offsetrange.Restriction) (splits []offsetrange.Restriction) {
-	size := 64 * (1 << 20)
-	i := rest.Start
-	for i < rest.End - size {
-		// Compute and output 64 MiB size ranges to process in parallel
-		end := i + size
-     		splits = append(splits, offsetrange.Restriction{i, end})
-		i = end
-	}
-	// Output the last range
-	splits = append(splits, offsetrange.Restriction{i, rest.End})
-	return splits
+{{< highlight language="go" >}}
+func (fn _splittableDoFn) SplitRestriction(filename string, rest offsetrange.Restriction) (splits []offsetrange.Restriction) {
+size := 64 _ (1 << 20)
+i := rest.Start
+for i < rest.End - size {
+// Compute and output 64 MiB size ranges to process in parallel
+end := i + size
+splits = append(splits, offsetrange.Restriction{i, end})
+i = end
+}
+// Output the last range
+splits = append(splits, offsetrange.Restriction{i, rest.End})
+return splits
 }
 {{< /highlight >}}
 
@@ -5335,21 +5521,21 @@ By default, we use the restriction tracker’s estimate for work remaining falli
 that all restrictions have an equal cost. To override the default, SDF authors can provide the
 appropriate method within the restriction provider.
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" SDF_GetSize >}}
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" SDF_GetSize >}}
 {{< /highlight >}}
 
-{{< highlight go >}}
-func (fn *splittableDoFn) RestrictionSize(filename string, rest offsetrange.Restriction) float64 {
-	weight := float64(1)
-	if strings.Contains(filename, “expensiveRecords”) {
-		weight = 2
-	}
-	return weight * (rest.End - rest.Start)
+{{< highlight language="go" >}}
+func (fn _splittableDoFn) RestrictionSize(filename string, rest offsetrange.Restriction) float64 {
+weight := float64(1)
+if strings.Contains(filename, “expensiveRecords”) {
+weight = 2
+}
+return weight _ (rest.End - rest.Start)
 }
 {{< /highlight >}}
 
@@ -5365,11 +5551,11 @@ signal can suggest a time to resume at. While the runner tries to honor the resu
 guaranteed. This allows execution to continue on a restriction that has available work improving
 resource utilization.
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" SDF_UserInitiatedCheckpoint >}}
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" SDF_UserInitiatedCheckpoint >}}
 {{< /highlight >}}
 
@@ -5388,38 +5574,39 @@ you can process until the end.
 
 One incorrect example could be:
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" SDF_BadTryClaimLoop >}}
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" SDF_BadTryClaimLoop >}}
 {{< /highlight >}}
 
-{{< highlight go >}}
+{{< highlight language="go" >}}
 func (fn *badTryClaimLoop) ProcessElement(rt *sdf.LockRTracker, filename string, emit func(int)) error {
-            file, err := os.Open(filename)
-	if err != nil {
-		return err
-	}
-	offset, err := seekToNextRecordBoundaryInFile(file, rt.GetRestriction().(offsetrange.Restriction).Start)
+file, err := os.Open(filename)
+if err != nil {
+return err
+}
+offset, err := seekToNextRecordBoundaryInFile(file, rt.GetRestriction().(offsetrange.Restriction).Start)
 
-	if err != nil {
-		return err
-	}
+    if err != nil {
+    	return err
+    }
 
-	// The restriction tracker can be modified by another thread in parallel
-	// so storing state locally is ill advised.
-	end = rt.GetRestriction().(offsetrange.Restriction).End
-	for offset < end {
-		// Only after successfully claiming should we produce any output and/or
-		// perform side effects.
+    // The restriction tracker can be modified by another thread in parallel
+    // so storing state locally is ill advised.
+    end = rt.GetRestriction().(offsetrange.Restriction).End
+    for offset < end {
+    	// Only after successfully claiming should we produce any output and/or
+    	// perform side effects.
     	rt.TryClaim(offset)
-		record, newOffset := readNextRecord(file)
-		emit(record)
-		offset = newOffset
-	}
-	return nil
+    	record, newOffset := readNextRecord(file)
+    	emit(record)
+    	offset = newOffset
+    }
+    return nil
+
 }
 {{< /highlight >}}
 
@@ -5436,10 +5623,11 @@ pair across bundle boundaries. When an element and restriction pair stops proces
 it is no longer considered part of the above calculation.
 
 Tips:
-*   If you author an SDF that outputs records with timestamps, you should expose ways to allow users of
-this SDF to configure which watermark estimator to use.
-*   Any data produced before the watermark may be considered late. See
-[watermarks and late data](#watermarks-and-late-data) for more details.
+
+- If you author an SDF that outputs records with timestamps, you should expose ways to allow users of
+  this SDF to configure which watermark estimator to use.
+- Any data produced before the watermark may be considered late. See
+  [watermarks and late data](#watermarks-and-late-data) for more details.
 
 #### 12.5.1. Controlling the watermark {#controlling-the-watermark}
 
@@ -5452,11 +5640,11 @@ through an external service.
 The watermark estimator provider lets you override the default watermark estimation logic and use an existing
 watermark estimator implementation. You can also provide your own watermark estimator implementation.
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" SDF_CustomWatermarkEstimator >}}
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" SDF_CustomWatermarkEstimator >}}
 {{< /highlight >}}
 
@@ -5468,11 +5656,11 @@ unbounded restrictions finish processing at the next SDF-initiated checkpoint or
 You are able to override this default behavior by defining the appropriate method on the restriction
 provider.
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" SDF_Truncate >}}
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" SDF_Truncate >}}
 {{< /highlight >}}
 
@@ -5484,11 +5672,11 @@ For example, a message queue might need to acknowledge messages that it has inge
 Bundle finalization is not limited to SDFs but is called out here since this is the primary
 use case.
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BundleFinalize >}}
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" BundleFinalize >}}
 {{< /highlight >}}
 
@@ -5496,11 +5684,11 @@ use case.
 
 Beam allows you to combine transforms written in any supported SDK language (currently, Java and Python) and use them in one multi-language pipeline. This capability makes it easy to provide new functionality simultaneously in different Apache Beam SDKs through a single cross-language transform. For example, the [Apache Kafka connector](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/kafka.py) and [SQL transform](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/sql.py) from the Java SDK can be used in Python streaming pipelines.
 
-Pipelines that use transforms from more than one SDK-language are known as *multi-language pipelines*.
+Pipelines that use transforms from more than one SDK-language are known as _multi-language pipelines_.
 
 ### 13.1. Creating cross-language transforms {#create-x-lang-transforms}
 
-To make transforms written in one language available to pipelines written in another language, an *expansion service* for transforms written in the same language is used to create and inject the appropriate language-specific pipeline fragments into your pipeline.
+To make transforms written in one language available to pipelines written in another language, an _expansion service_ for transforms written in the same language is used to create and inject the appropriate language-specific pipeline fragments into your pipeline.
 
 In the following example, a Python pipeline written the Apache Beam SDK for Python starts up a local Java expansion service on your computer to create and inject the appropriate Java pipeline fragments for executing the Java Kafka cross-language transform into your Python pipeline. The SDK then downloads and stages the necessary Java dependencies needed to execute these transforms.
 
@@ -5516,58 +5704,61 @@ To make your Apache Beam Java SDK transform portable across SDK languages, you m
 
 **Implementing the interfaces**
 
-1. Define a Builder class for your transform that implements the `ExternalTransformBuilder` interface and overrides the `buildExternal` method that will be used to build your transform object. Initial configuration values for your transform should be defined in the `buildExternal` method. In most cases, it is convenient to make the Java transform builder class implement `ExternalTransformBuilder`.
+1.  Define a Builder class for your transform that implements the `ExternalTransformBuilder` interface and overrides the `buildExternal` method that will be used to build your transform object. Initial configuration values for your transform should be defined in the `buildExternal` method. In most cases, it is convenient to make the Java transform builder class implement `ExternalTransformBuilder`.
 
-    > **Note:** `ExternalTransformBuilder` requires you to define a configuration object (a simple POJO) to capture a set of parameters sent by external SDKs to initiate the Java transform. Usually these parameters directly map to constructor parameters of the Java transform.
+        > **Note:** `ExternalTransformBuilder` requires you to define a configuration object (a simple POJO) to capture a set of parameters sent by external SDKs to initiate the Java transform. Usually these parameters directly map to constructor parameters of the Java transform.
 
-    {{< highlight >}}
-@AutoValue.Builder
-abstract static class Builder<K, V>
-  implements ExternalTransformBuilder<External.Configuration, PBegin, PCollection<KV<K, V>>> {
-  abstract Builder<K, V> setConsumerConfig(Map<String, Object> config);
+        {{< highlight >}}
 
-  abstract Builder<K, V> setTopics(List<String> topics);
+    @AutoValue.Builder
+    abstract static class Builder<K, V>
+    implements ExternalTransformBuilder<External.Configuration, PBegin, PCollection<KV<K, V>>> {
+    abstract Builder<K, V> setConsumerConfig(Map<String, Object> config);
 
-  /** Remaining property declarations omitted for clarity. */
+abstract Builder<K, V> setTopics(List<String> topics);
 
-  abstract Read<K, V> build();
+/\*_ Remaining property declarations omitted for clarity. _/
 
-  @Override
-  public PTransform<PBegin, PCollection<KV<K, V>>> buildExternal(
-      External.Configuration config) {
-    setTopics(ImmutableList.copyOf(config.topics));
+abstract Read<K, V> build();
+
+@Override
+public PTransform<PBegin, PCollection<KV<K, V>>> buildExternal(
+External.Configuration config) {
+setTopics(ImmutableList.copyOf(config.topics));
 
     /** Remaining property defaults omitted for clarity. */
-  }
+
 }
-    {{< /highlight >}}
+}
+{{< /highlight >}}
 
     Note that `buildExternal` method may choose to perform additional operations before setting properties received from external SDKs in the transform. For example, `buildExternal` method may validates properties available in the configuration object before setting them in the transform.
 
-2. Register the transform as an external cross-language transform by defining a class that implements `ExternalTransformRegistrar`. You must annotate your class with the `AutoService` annotation to ensure that your transform is registered and instantiated properly by the expansion service.
-3. In your registrar class, define a Uniform Resource Name (URN) for your transform. The URN must be a unique string that identifies your transform with the expansion service.
-4. From within your registrar class, define a configuration class for the parameters used during the initialization of your transform by the external SDK.
+2.  Register the transform as an external cross-language transform by defining a class that implements `ExternalTransformRegistrar`. You must annotate your class with the `AutoService` annotation to ensure that your transform is registered and instantiated properly by the expansion service.
+3.  In your registrar class, define a Uniform Resource Name (URN) for your transform. The URN must be a unique string that identifies your transform with the expansion service.
+4.  From within your registrar class, define a configuration class for the parameters used during the initialization of your transform by the external SDK.
 
-    The following example from the KafkaIO transform shows how to implement steps two through four:
+        The following example from the KafkaIO transform shows how to implement steps two through four:
 
-    {{< highlight >}}
-@AutoService(ExternalTransformRegistrar.class)
-public static class External implements ExternalTransformRegistrar {
+        {{< highlight >}}
 
-  public static final String URN = "beam:external:java:kafka:read:v1";
+    @AutoService(ExternalTransformRegistrar.class)
+    public static class External implements ExternalTransformRegistrar {
 
-  @Override
-  public Map<String, Class<? extends ExternalTransformBuilder<?, ?, ?>>> knownBuilders() {
-    return ImmutableMap.of(
-        URN,
-        (Class<? extends ExternalTransformBuilder<?, ?, ?>>)
-            (Class<?>) AutoValue_KafkaIO_Read.Builder.class);
-  }
+public static final String URN = "beam:external:java:kafka:read:v1";
 
-  /** Parameters class to expose the Read transform to an external SDK. */
-  public static class Configuration {
-    private Map<String, String> consumerConfig;
-    private List<String> topics;
+@Override
+public Map<String, Class<? extends ExternalTransformBuilder<?, ?, ?>>> knownBuilders() {
+return ImmutableMap.of(
+URN,
+(Class<? extends ExternalTransformBuilder<?, ?, ?>>)
+(Class<?>) AutoValue_KafkaIO_Read.Builder.class);
+}
+
+/\*_ Parameters class to expose the Read transform to an external SDK. _/
+public static class Configuration {
+private Map<String, String> consumerConfig;
+private List<String> topics;
 
     public void setConsumerConfig(Map<String, String> consumerConfig) {
       this.consumerConfig = consumerConfig;
@@ -5578,9 +5769,10 @@ public static class External implements ExternalTransformRegistrar {
     }
 
     /** Remaining properties omitted for clarity. */
-  }
+
 }
-    {{< /highlight >}}
+}
+{{< /highlight >}}
 
 After you have implemented the `ExternalTransformBuilder` and `ExternalTransformRegistrar` interfaces, your transform can be registered and created successfully by the default Java expansion service.
 
@@ -5591,9 +5783,11 @@ An expansion service can be used with multiple transforms in the same pipeline. 
 Perform the following to start up a Java expansion service directly:
 
 {{< highlight >}}
+
 # Build a JAR with both your transform and the expansion service
 
 # Start the expansion service at the specified port.
+
 $ jar -jar /path/to/expansion_service.jar <PORT_NUMBER>
 {{< /highlight >}}
 
@@ -5611,33 +5805,35 @@ Your cross-language Java transform can be called through the lower-level [Extern
 
 To create an SDK wrapper for use in a Python pipeline, do the following:
 
-1. Create a Python module for your cross-language transform(s).
-2. In the module, build the payload that should be used to initiate the cross-language transform expansion request using one of the available [PayloadBuilder](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/external.py) classes.
+1.  Create a Python module for your cross-language transform(s).
+2.  In the module, build the payload that should be used to initiate the cross-language transform expansion request using one of the available [PayloadBuilder](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/external.py) classes.
 
-    The parameter names and types of the payload should map to parameter names and types of the configuration POJO provided to the Java `ExternalTransformBuilder`. Parameter types are mapped across SDKs using a [Beam schema](https://github.com/apache/beam/blob/master/model/pipeline/src/main/proto/schema.proto). Parameter names are mapped by simply converting Python underscore-separated variable names to camel-case (Java standard).
+        The parameter names and types of the payload should map to parameter names and types of the configuration POJO provided to the Java `ExternalTransformBuilder`. Parameter types are mapped across SDKs using a [Beam schema](https://github.com/apache/beam/blob/master/model/pipeline/src/main/proto/schema.proto). Parameter names are mapped by simply converting Python underscore-separated variable names to camel-case (Java standard).
 
-    In the following example, [kafka.py](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/kafka.py) uses `NamedTupleBasedPayloadBuilder` to build the payload. The parameters map to the Java [KafkaIO.External.Configuration](https://github.com/apache/beam/blob/master/sdks/java/io/kafka/src/main/java/org/apache/beam/sdk/io/kafka/KafkaIO.java) config object defined previously in the **Implementing the interfaces** section.
+        In the following example, [kafka.py](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/kafka.py) uses `NamedTupleBasedPayloadBuilder` to build the payload. The parameters map to the Java [KafkaIO.External.Configuration](https://github.com/apache/beam/blob/master/sdks/java/io/kafka/src/main/java/org/apache/beam/sdk/io/kafka/KafkaIO.java) config object defined previously in the **Implementing the interfaces** section.
 
-    {{< highlight >}}
-class ReadFromKafkaSchema(typing.NamedTuple):
-      consumer_config: typing.Mapping[str, str]
-      topics: typing.List[str]
-      # Other properties omitted for clarity.
+        {{< highlight >}}
+
+    class ReadFromKafkaSchema(typing.NamedTuple):
+    consumer_config: typing.Mapping[str, str]
+    topics: typing.List[str] # Other properties omitted for clarity.
 
 payload = NamedTupleBasedPayloadBuilder(ReadFromKafkaSchema(...))
-    {{< /highlight >}}
+{{< /highlight >}}
 
-3. Start an expansion service unless one is specified by the pipeline creator. The Apache Beam Python SDK provides utilities `JavaJarExpansionService` and `BeamJarExpansionService` for easily starting up an expansion service using a JAR file.. `JavaJarExpansionService` can be used to startup an expansion service using path (a local path or a URL) to a given JAR file. `BeamJarExpansionService` can be used for easily starting an expansion service based on a JAR released with Beam.
+3.  Start an expansion service unless one is specified by the pipeline creator. The Apache Beam Python SDK provides utilities `JavaJarExpansionService` and `BeamJarExpansionService` for easily starting up an expansion service using a JAR file.. `JavaJarExpansionService` can be used to startup an expansion service using path (a local path or a URL) to a given JAR file. `BeamJarExpansionService` can be used for easily starting an expansion service based on a JAR released with Beam.
 
     For transforms released with Beam do the following:
 
-    1. Add a Gradle target to Beam that can be used to build a shaded expansion service JAR for the target Java transform. This target should produce a Beam JAR that contains all dependencies needed for expanding the Java transform and the JAR should be released with Beam. Note that you might be able to use one of the existing Gradle target that offer an aggregated version of an expansion service jar (for example, for all GCP IO).
-    2. In your Python module, instantiate `BeamJarExpansionService` with the Gradle target.
+    1.  Add a Gradle target to Beam that can be used to build a shaded expansion service JAR for the target Java transform. This target should produce a Beam JAR that contains all dependencies needed for expanding the Java transform and the JAR should be released with Beam. Note that you might be able to use one of the existing Gradle target that offer an aggregated version of an expansion service jar (for example, for all GCP IO).
+    2.  In your Python module, instantiate `BeamJarExpansionService` with the Gradle target.
 
-        {{< highlight >}}
-    expansion_service = BeamJarExpansionService('sdks:java:io:expansion-service:shadowJar')
+            {{< highlight >}}
+
+        expansion_service = BeamJarExpansionService('sdks:java:io:expansion-service:shadowJar')
         {{< /highlight >}}
-4. Add a Python wrapper transform class that extends [ExternalTransform](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/external.py). Pass the payload and expansion service defined above as parameters to the constructor of the `ExternalTransform` parent class.
+
+4.  Add a Python wrapper transform class that extends [ExternalTransform](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/external.py). Pass the payload and expansion service defined above as parameters to the constructor of the `ExternalTransform` parent class.
 
 #### 13.1.2. Creating cross-language Python transforms
 
@@ -5645,37 +5841,46 @@ To make your Python transform usable with different SDK languages, you must crea
 
 **Defining the Python module**
 
-1. Define a Uniform Resource Name (URN) for your transform. The URN must be a unique string that identifies your transform with the expansion service.
+1.  Define a Uniform Resource Name (URN) for your transform. The URN must be a unique string that identifies your transform with the expansion service.
 
-    {{< highlight >}}
-TEST_COMPK_URN = "beam:transforms:xlang:test:compk"
+        {{< highlight >}}
+
+    TEST_COMPK_URN = "beam:transforms:xlang:test:compk"
     {{< /highlight >}}
-2. For an existing Python transform, create a new class to register the URN with the Python expansion service.
 
-    {{< highlight >}}
-@ptransform.PTransform.register_urn(TEST_COMPK_URN, None)
-class CombinePerKeyTransform(ptransform.PTransform):
+2.  For an existing Python transform, create a new class to register the URN with the Python expansion service.
+
+        {{< highlight >}}
+
+    @ptransform.PTransform.register_urn(TEST_COMPK_URN, None)
+    class CombinePerKeyTransform(ptransform.PTransform):
     {{< /highlight >}}
-3. From within the class, define an expand method that takes an input PCollection, runs the Python transform, and then returns the output PCollection.
 
-    {{< highlight >}}
-def expand(self, pcoll):
+3.  From within the class, define an expand method that takes an input PCollection, runs the Python transform, and then returns the output PCollection.
+
+        {{< highlight >}}
+
+    def expand(self, pcoll):
     return pcoll \
-        | beam.CombinePerKey(sum).with_output_types(
-              typing.Tuple[unicode, int])
+     | beam.CombinePerKey(sum).with_output_types(
+    typing.Tuple[unicode, int])
     {{< /highlight >}}
-4. As with other Python transforms, define a `to_runner_api_parameter` method that returns the URN.
 
-    {{< highlight >}}
-def to_runner_api_parameter(self, unused_context):
+4.  As with other Python transforms, define a `to_runner_api_parameter` method that returns the URN.
+
+        {{< highlight >}}
+
+    def to_runner_api_parameter(self, unused_context):
     return TEST_COMPK_URN, None
     {{< /highlight >}}
-5. Define a static `from_runner_api_parameter` method that returns an instantiation of the cross-language Python transform.
 
-    {{< highlight >}}
-@staticmethod
-def from_runner_api_parameter(
-      unused_ptransform, unused_parameter, unused_context):
+5.  Define a static `from_runner_api_parameter` method that returns an instantiation of the cross-language Python transform.
+
+        {{< highlight >}}
+
+    @staticmethod
+    def from_runner_api_parameter(
+    unused_ptransform, unused_parameter, unused_context):
     return CombinePerKeyTransform()
     {{< /highlight >}}
 
@@ -5685,16 +5890,18 @@ An expansion service can be used with multiple transforms in the same pipeline. 
 
 Perform the following steps to start up the default Python expansion service directly:
 
-1. Create a virtual environment and [install the Apache Beam SDK](https://beam.apache.org/get-started/quickstart-py/).
-2. Start the Python SDK’s expansion service with a specified port.
+1.  Create a virtual environment and [install the Apache Beam SDK](https://beam.apache.org/get-started/quickstart-py/).
+2.  Start the Python SDK’s expansion service with a specified port.
 
-    {{< highlight >}}
-$ export PORT_FOR_EXPANSION_SERVICE=12345
-3. Import any modules that contain transforms to be made available using the expansion service.
-$ python -m apache_beam.runners.portability.expansion_service -p $PORT_FOR_EXPANSION_SERVICE
+        {{< highlight >}}
+
+    $ export PORT_FOR_EXPANSION_SERVICE=12345
+
+3.  Import any modules that contain transforms to be made available using the expansion service.
+    $ python -m apache_beam.runners.portability.expansion_service -p $PORT_FOR_EXPANSION_SERVICE
     {{< /highlight >}}
 
-4. This expansion service is not ready to serve up transforms on the address `localhost:$PORT_FOR_EXPANSION_SERVICE`.
+4.  This expansion service is not ready to serve up transforms on the address `localhost:$PORT_FOR_EXPANSION_SERVICE`.
 
 **Including dependencies**
 
@@ -5712,10 +5919,12 @@ Currently, to access cross-language transforms from the Java SDK, you have to us
 
 1. Make sure you have any runtime environment dependencies (like JRE) installed on your local machine (either directly on the local machine or available through a container). See the expansion service section for more details.
 
-    > **Note:** When including Python transforms from within a Java pipeline, all Python dependencies have to be included in the SDK harness container.
+   > **Note:** When including Python transforms from within a Java pipeline, all Python dependencies have to be included in the SDK harness container.
+
 2. Start up the expansion service for the SDK that is in the language of the transform you're trying to consume, if not available.
 
-    Make sure the transform you are trying to use is available and can be used by the expansion service.
+   Make sure the transform you are trying to use is available and can be used by the expansion service.
+
 3. Include [External.of(...)](https://github.com/apache/beam/blob/master/runners/core-construction-java/src/main/java/org/apache/beam/runners/core/construction/External.java) when instantiating your pipeline. Reference the URN, payload, and expansion service. For examples, see the [cross-language transform test suite](https://github.com/apache/beam/blob/master/runners/core-construction-java/src/test/java/org/apache/beam/runners/core/construction/ValidateRunnerXlangTest.java).
 4. After the job has been submitted to the Beam runner, shutdown the expansion service by terminating the expansion service process.
 
@@ -5727,44 +5936,46 @@ If a Python-specific wrapper for a cross-language transform is available, use th
 
 To use a cross-language transform through an SDK wrapper, import the module for the SDK wrapper and call it from your pipeline as shown in the example:
 
-  {{< highlight >}}
+{{< highlight >}}
 from apache_beam.io.kafka import ReadFromKafka
 
 kafka_records = (
-        pipeline
-        | 'ReadFromKafka' >> ReadFromKafka(
-            consumer_config={
-                'bootstrap.servers': self.bootstrap_servers,
-                'auto.offset.reset': 'earliest'
-            },
-            topics=[self.topic],
-            max_num_records=max_num_records,
-            expansion_service=<Address of expansion service>))
-  {{< /highlight >}}
+pipeline
+| 'ReadFromKafka' >> ReadFromKafka(
+consumer_config={
+'bootstrap.servers': self.bootstrap_servers,
+'auto.offset.reset': 'earliest'
+},
+topics=[self.topic],
+max_num_records=max_num_records,
+expansion_service=<Address of expansion service>))
+{{< /highlight >}}
 
 **Using the ExternalTransform class**
 
 When an SDK-specific wrapper isn't available, you will have to access the cross-language transform through the `ExternalTransform` class.
 
-1. Make sure you have any runtime environment dependencies (like JRE) installed on your local machine. See the expansion service section for more details.
-2. Start up the expansion service for the SDK that is in the language of the transform you're trying to consume, if not available.
+1.  Make sure you have any runtime environment dependencies (like JRE) installed on your local machine. See the expansion service section for more details.
+2.  Start up the expansion service for the SDK that is in the language of the transform you're trying to consume, if not available.
 
     Make sure the transform you're trying to use is available and can be used by the expansion service. For Java, make sure the builder and registrar for the transform are available in the classpath of the expansion service.
-3. Include `ExternalTransform` when instantiating your pipeline. Reference the URN, Payload, and expansion service. You can use one of the available [PayloadBuilder](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/external.py) classes to build the payload for `ExternalTransform`.
 
-    {{< highlight >}}
-with pipeline as p:
+3.  Include `ExternalTransform` when instantiating your pipeline. Reference the URN, Payload, and expansion service. You can use one of the available [PayloadBuilder](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/external.py) classes to build the payload for `ExternalTransform`.
+
+        {{< highlight >}}
+
+    with pipeline as p:
     res = (
-        p
-        | beam.Create(['a', 'b']).with_output_types(unicode)
-        | beam.ExternalTransform(
-            TEST_PREFIX_URN,
-            ImplicitSchemaPayloadBuilder({'data': u'0'}),
-            <Address of expansion service>))
+    p
+    | beam.Create(['a', 'b']).with_output_types(unicode)
+    | beam.ExternalTransform(
+    TEST_PREFIX_URN,
+    ImplicitSchemaPayloadBuilder({'data': u'0'}),
+    <Address of expansion service>))
     assert_that(res, equal_to(['0a', '0b']))
     {{< /highlight >}}
 
-4. After the job has been submitted to the Beam runner, shutdown the expansion service by terminating the expansion service process.
+4.  After the job has been submitted to the Beam runner, shutdown the expansion service by terminating the expansion service process.
 
 ### 13.3. Runner Support {#x-lang-transform-runner-support}
 

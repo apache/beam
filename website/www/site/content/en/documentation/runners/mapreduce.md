@@ -27,41 +27,41 @@ You need to have an Apache Hadoop environment with either [Single Node Setup](ht
 The Apache Hadoop MapReduce runner currently supports Apache Hadoop version 2.8.1.
 
 You can add a dependency on the latest version of the Apache Hadoop MapReduce runner by adding the following to your pom.xml:
-```
+{{< highlight >}}
 <dependency>
   <groupId>org.apache.beam</groupId>
   <artifactId>beam-runners-mapreduce</artifactId>
   <version>{{< param release_latest >}}</version>
 </dependency>
-```
+{{< /highlight >}}
 
 ## Deploying Apache Hadoop MapReduce with your application
 To execute in a local Hadoop environment, use this command:
-```
+{{< highlight >}}
 $ mvn exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
     -Pmapreduce-runner \
     -Dexec.args="--runner=MapReduceRunner \
       --inputFile=/path/to/pom.xml \
       --output=/path/to/counts \
       --fileOutputDir=<directory for intermediate outputs>"
-```
+{{< /highlight >}}
 
 To execute in a Hadoop cluster, package your program along with all dependencies in a fat jar.
 
 If you are following through the [Beam Java SDK Quickstart](/get-started/quickstart-java/), you can run this command:
-```
+{{< highlight >}}
 $ mvn package -Pflink-runner
-```
+{{< /highlight >}}
 
 For actually running the pipeline you would use this command
-```
+{{< highlight >}}
 $ yarn jar word-count-beam-bundled-0.1.jar \
     org.apache.beam.examples.WordCount \
     --runner=MapReduceRunner \
     --inputFile=/path/to/pom.xml \
       --output=/path/to/counts \
       --fileOutputDir=<directory for intermediate outputs>"
-```
+{{< /highlight >}}
 
 ## Pipeline options for the Apache Hadoop MapReduce Runner
 

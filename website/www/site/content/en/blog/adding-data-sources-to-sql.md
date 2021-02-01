@@ -1,14 +1,14 @@
 ---
-title:  "Adding new Data Sources to Beam SQL CLI"
-date:   2019-06-04 00:00:01 -0800
+title: "Adding new Data Sources to Beam SQL CLI"
+date: 2019-06-04 00:00:01 -0800
 categories:
   - blog
 aliases:
   - /blog/2019/06/04/adding-data-sources-to-sql.html
 authors:
   - pabloem
-
 ---
+
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -33,7 +33,7 @@ data interactively, be it Batch or Streaming. If you haven't tried it, check out
 [http://bit.ly/ExploreBeamSQL](https://bit.ly/ExploreBeamSQL).
 
 A nice feature of the SQL CLI is that you can use `CREATE EXTERNAL TABLE`
-commands to *add* data sources to be accessed in the CLI. Currently, the CLI
+commands to _add_ data sources to be accessed in the CLI. Currently, the CLI
 supports creating tables from BigQuery, PubSub, Kafka, and text files. In this
 post, we explore how to add new data sources, so that you will be able to
 consume data from other Beam sources.
@@ -46,22 +46,22 @@ continuous unbounded stream of integers. It will be based on the
 from the Beam SDK. In the end will be able to define and use the sequence generator
 in SQL like this:
 
-```
-CREATE EXTERNAL TABLE                      -- all tables in Beam are external, they are not persisted
-  sequenceTable                              -- table alias that will be used in queries
-  (
-         sequence BIGINT,                  -- sequence number
-         event_timestamp TIMESTAMP         -- timestamp of the generated event
-  )
-TYPE sequence                              -- type identifies the table provider
+{{< highlight >}}
+CREATE EXTERNAL TABLE -- all tables in Beam are external, they are not persisted
+sequenceTable -- table alias that will be used in queries
+(
+sequence BIGINT, -- sequence number
+event_timestamp TIMESTAMP -- timestamp of the generated event
+)
+TYPE sequence -- type identifies the table provider
 TBLPROPERTIES '{ elementsPerSecond : 12 }' -- optional rate at which events are generated
-```
+{{< /highlight >}}
 
 And we'll be able to use it in queries like so:
 
-```
+{{< highlight >}}
 SELECT sequence FROM sequenceTable;
-```
+{{< /highlight >}}
 
 Let's dive in!
 
@@ -81,19 +81,19 @@ The `TableProvider` classes are under
 
 Our table provider looks like this:
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 @AutoService(TableProvider.class)
 public class GenerateSequenceTableProvider extends InMemoryMetaTableProvider {
 
-  @Override
-  public String getTableType() {
-    return "sequence";
-  }
+@Override
+public String getTableType() {
+return "sequence";
+}
 
-  @Override
-  public BeamSqlTable buildBeamSqlTable(Table table) {
-    return new GenerateSequenceTable(table);
-  }
+@Override
+public BeamSqlTable buildBeamSqlTable(Table table) {
+return new GenerateSequenceTable(table);
+}
 }
 {{< /highlight >}}
 
@@ -108,39 +108,39 @@ allow users to define the number of elements to be emitted per second. We will
 define a simple table that emits sequential integers in a streaming fashion.
 This looks like so:
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 class GenerateSequenceTable extends BaseBeamTable implements Serializable {
-  public static final Schema TABLE_SCHEMA =
-      Schema.of(Field.of("sequence", FieldType.INT64), Field.of("event_time", FieldType.DATETIME));
+public static final Schema TABLE_SCHEMA =
+Schema.of(Field.of("sequence", FieldType.INT64), Field.of("event_time", FieldType.DATETIME));
 
-  Integer elementsPerSecond = 5;
+Integer elementsPerSecond = 5;
 
-  GenerateSequenceTable(Table table) {
-    super(TABLE_SCHEMA);
-    if (table.getProperties().containsKey("elementsPerSecond")) {
-      elementsPerSecond = table.getProperties().getInteger("elementsPerSecond");
-    }
-  }
+GenerateSequenceTable(Table table) {
+super(TABLE_SCHEMA);
+if (table.getProperties().containsKey("elementsPerSecond")) {
+elementsPerSecond = table.getProperties().getInteger("elementsPerSecond");
+}
+}
 
-  @Override
-  public PCollection.IsBounded isBounded() {
-    return IsBounded.UNBOUNDED;
-  }
+@Override
+public PCollection.IsBounded isBounded() {
+return IsBounded.UNBOUNDED;
+}
 
-  @Override
-  public PCollection<Row> buildIOReader(PBegin begin) {
-    return begin
-        .apply(GenerateSequence.from(0).withRate(elementsPerSecond, Duration.standardSeconds(1)))
-        .apply(
-            MapElements.into(TypeDescriptor.of(Row.class))
-                .via(elm -> Row.withSchema(TABLE_SCHEMA).addValues(elm, Instant.now()).build()))
-        .setRowSchema(getSchema());
-  }
+@Override
+public PCollection<Row> buildIOReader(PBegin begin) {
+return begin
+.apply(GenerateSequence.from(0).withRate(elementsPerSecond, Duration.standardSeconds(1)))
+.apply(
+MapElements.into(TypeDescriptor.of(Row.class))
+.via(elm -> Row.withSchema(TABLE_SCHEMA).addValues(elm, Instant.now()).build()))
+.setRowSchema(getSchema());
+}
 
-  @Override
-  public POutput buildIOWriter(PCollection<Row> input) {
-    throw new UnsupportedOperationException("buildIOWriter unsupported!");
-  }
+@Override
+public POutput buildIOWriter(PCollection<Row> input) {
+throw new UnsupportedOperationException("buildIOWriter unsupported!");
+}
 }
 {{< /highlight >}}
 
@@ -151,51 +151,51 @@ Now that we have implemented the two basic classes (a `BaseBeamTable`, and a
 [SQL CLI](https://beam.apache.org/documentation/dsls/sql/shell/), we
 can now perform selections on the table:
 
-```
+{{< highlight >}}
 0: BeamSQL> CREATE EXTERNAL TABLE input_seq (
-. . . . . >   sequence BIGINT COMMENT 'this is the primary key',
-. . . . . >   event_time TIMESTAMP COMMENT 'this is the element timestamp'
+. . . . . > sequence BIGINT COMMENT 'this is the primary key',
+. . . . . > event_time TIMESTAMP COMMENT 'this is the element timestamp'
 . . . . . > )
 . . . . . > TYPE 'sequence';
 No rows affected (0.005 seconds)
-```
+{{< /highlight >}}
 
 And let's select a few rows:
 
-```
-0: BeamSQL> SELECT * FROM input_seq LIMIT 5;
+{{< highlight >}}
+0: BeamSQL> SELECT \* FROM input_seq LIMIT 5;
 +---------------------+------------+
-|      sequence       | event_time |
+| sequence | event_time |
 +---------------------+------------+
-| 0                   | 2019-05-21 00:36:33 |
-| 1                   | 2019-05-21 00:36:33 |
-| 2                   | 2019-05-21 00:36:33 |
-| 3                   | 2019-05-21 00:36:33 |
-| 4                   | 2019-05-21 00:36:33 |
+| 0 | 2019-05-21 00:36:33 |
+| 1 | 2019-05-21 00:36:33 |
+| 2 | 2019-05-21 00:36:33 |
+| 3 | 2019-05-21 00:36:33 |
+| 4 | 2019-05-21 00:36:33 |
 +---------------------+------------+
 5 rows selected (1.138 seconds)
-```
+{{< /highlight >}}
 
 Now let's try something more interesting. Such as grouping. This will also let
 us make sure that we're providing the timestamp for each row properly:
 
-```
+{{< highlight >}}
 0: BeamSQL> SELECT
-. . . . . >   COUNT(sequence) as elements,
-. . . . . >   TUMBLE_START(event_time, INTERVAL '2' SECOND) as window_start
+. . . . . > COUNT(sequence) as elements,
+. . . . . > TUMBLE_START(event_time, INTERVAL '2' SECOND) as window_start
 . . . . . > FROM input_seq
 . . . . . > GROUP BY TUMBLE(event_time, INTERVAL '2' SECOND) LIMIT 5;
 +---------------------+--------------+
-|      elements       | window_start |
+| elements | window_start |
 +---------------------+--------------+
-| 6                   | 2019-06-05 00:39:24 |
-| 10                  | 2019-06-05 00:39:26 |
-| 10                  | 2019-06-05 00:39:28 |
-| 10                  | 2019-06-05 00:39:30 |
-| 10                  | 2019-06-05 00:39:32 |
+| 6 | 2019-06-05 00:39:24 |
+| 10 | 2019-06-05 00:39:26 |
+| 10 | 2019-06-05 00:39:28 |
+| 10 | 2019-06-05 00:39:30 |
+| 10 | 2019-06-05 00:39:32 |
 +---------------------+--------------+
 5 rows selected (10.142 seconds)
-```
+{{< /highlight >}}
 
 And voilà! We can start playing with some interesting streaming queries to our
 sequence generator.

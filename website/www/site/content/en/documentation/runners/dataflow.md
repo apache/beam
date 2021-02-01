@@ -3,6 +3,7 @@ type: runners
 title: "Cloud Dataflow Runner"
 aliases: /learn/runners/dataflow/
 ---
+
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16,6 +17,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
+
 # Using the Google Cloud Dataflow Runner
 
 {{< language-switcher java py >}}
@@ -24,16 +26,16 @@ The Google Cloud Dataflow Runner uses the [Cloud Dataflow managed service](https
 
 The Cloud Dataflow Runner and service are suitable for large scale, continuous jobs, and provide:
 
-* a fully managed service
-* [autoscaling](https://cloud.google.com/dataflow/service/dataflow-service-desc#autoscaling) of the number of workers throughout the lifetime of the job
-* [dynamic work rebalancing](https://cloud.google.com/blog/big-data/2016/05/no-shard-left-behind-dynamic-work-rebalancing-in-google-cloud-dataflow)
+- a fully managed service
+- [autoscaling](https://cloud.google.com/dataflow/service/dataflow-service-desc#autoscaling) of the number of workers throughout the lifetime of the job
+- [dynamic work rebalancing](https://cloud.google.com/blog/big-data/2016/05/no-shard-left-behind-dynamic-work-rebalancing-in-google-cloud-dataflow)
 
 The [Beam Capability Matrix](/documentation/runners/capability-matrix/) documents the supported capabilities of the Cloud Dataflow Runner.
 
 ## Cloud Dataflow Runner prerequisites and setup {#setup}
 
-To use the Cloud Dataflow Runner, you must complete the setup in the *Before you
-begin* section of the [Cloud Dataflow quickstart](https://cloud.google.com/dataflow/docs/quickstarts)
+To use the Cloud Dataflow Runner, you must complete the setup in the _Before you
+begin_ section of the [Cloud Dataflow quickstart](https://cloud.google.com/dataflow/docs/quickstarts)
 for your chosen language.
 
 1. Select or create a Google Cloud Platform Console project.
@@ -49,12 +51,12 @@ for your chosen language.
 ### Specify your dependency {#dependency}
 
 <span class="language-java">When using Java, you must specify your dependency on the Cloud Dataflow Runner in your `pom.xml`.</span>
-{{< highlight java >}}
+{{< highlight language="java" >}}
 <dependency>
-  <groupId>org.apache.beam</groupId>
-  <artifactId>beam-runners-google-cloud-dataflow-java</artifactId>
-  <version>{{< param release_latest >}}</version>
-  <scope>runtime</scope>
+<groupId>org.apache.beam</groupId>
+<artifactId>beam-runners-google-cloud-dataflow-java</artifactId>
+<version>{{< param release_latest >}}</version>
+<scope>runtime</scope>
 </dependency>
 {{< /highlight >}}
 
@@ -70,12 +72,12 @@ This section is not applicable to the Beam SDK for Python.
 In some cases, such as starting a pipeline using a scheduler such as [Apache AirFlow](https://airflow.apache.org), you must have a self-contained application. You can pack a self-executing JAR by explicitly adding the following dependency on the Project section of your pom.xml, in addition to the adding existing dependency shown in the previous section.
 {{< /paragraph >}}
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 <dependency>
-    <groupId>org.apache.beam</groupId>
-    <artifactId>beam-runners-google-cloud-dataflow-java</artifactId>
-    <version>${beam.version}</version>
-    <scope>runtime</scope>
+<groupId>org.apache.beam</groupId>
+<artifactId>beam-runners-google-cloud-dataflow-java</artifactId>
+<version>${beam.version}</version>
+<scope>runtime</scope>
 </dependency>
 {{< /highlight >}}
 
@@ -83,20 +85,20 @@ In some cases, such as starting a pipeline using a scheduler such as [Apache Air
 Then, add the mainClass name in the Maven JAR plugin.
 {{< /paragraph >}}
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 <plugin>
-  <groupId>org.apache.maven.plugins</groupId>
-  <artifactId>maven-jar-plugin</artifactId>
-  <version>${maven-jar-plugin.version}</version>
-  <configuration>
-    <archive>
-      <manifest>
-        <addClasspath>true</addClasspath>
-        <classpathPrefix>lib/</classpathPrefix>
-        <mainClass>YOUR_MAIN_CLASS_NAME</mainClass>
-      </manifest>
-    </archive>
-  </configuration>
+<groupId>org.apache.maven.plugins</groupId>
+<artifactId>maven-jar-plugin</artifactId>
+<version>${maven-jar-plugin.version}</version>
+<configuration>
+<archive>
+<manifest>
+<addClasspath>true</addClasspath>
+<classpathPrefix>lib/</classpathPrefix>
+<mainClass>YOUR_MAIN_CLASS_NAME</mainClass>
+</manifest>
+</archive>
+</configuration>
 </plugin>
 {{< /highlight >}}
 
@@ -104,7 +106,7 @@ Then, add the mainClass name in the Maven JAR plugin.
 After running <code>mvn package</code>, run <code>ls target</code> and you should see (assuming your artifactId is `beam-examples` and the version is 1.0.0) the following output.
 {{< /paragraph >}}
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 beam-examples-bundled-1.0.0.jar
 {{< /highlight >}}
 
@@ -112,12 +114,12 @@ beam-examples-bundled-1.0.0.jar
 To run the self-executing JAR on Cloud Dataflow, use the following command.
 {{< /paragraph >}}
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 java -jar target/beam-examples-bundled-1.0.0.jar \
-  --runner=DataflowRunner \
-  --project=<YOUR_GCP_PROJECT_ID> \
-  --region=<GCP_REGION> \
-  --tempLocation=gs://<YOUR_GCS_BUCKET>/temp/
+ --runner=DataflowRunner \
+ --project=<YOUR_GCP_PROJECT_ID> \
+ --region=<GCP_REGION> \
+ --tempLocation=gs://<YOUR_GCS_BUCKET>/temp/
 {{< /highlight >}}
 
 ## Pipeline options for the Cloud Dataflow Runner {#pipeline-options}
@@ -203,7 +205,6 @@ java -jar target/beam-examples-bundled-1.0.0.jar \
   <td><code>default</code></td>
 </tr>
 
-
 </table>
 
 See the reference documentation for the
@@ -240,5 +241,3 @@ When using streaming execution, keep the following considerations in mind.
 
 3. Streaming execution [pricing](https://cloud.google.com/dataflow/pricing)
    differs from batch execution.
-
-

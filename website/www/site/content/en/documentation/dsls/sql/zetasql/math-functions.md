@@ -33,9 +33,9 @@ All mathematical functions return `NULL` if any of the input parameters is `NULL
 
 ## MOD
 
-```
+{{< highlight >}}
 MOD(X, Y)
-```
+{{< /highlight >}}
 
 **Description**
 
@@ -44,9 +44,9 @@ has the same sign as X.
 
 ## CEIL
 
-```
+{{< highlight >}}
 CEIL(X)
-```
+{{< /highlight >}}
 
 **Description**
 
@@ -55,9 +55,9 @@ type) that is not less than X.
 
 ## CEILING
 
-```
+{{< highlight >}}
 CEILING(X)
-```
+{{< /highlight >}}
 
 **Description**
 
@@ -65,9 +65,9 @@ Synonym of CEIL(X)
 
 ## FLOOR
 
-```
+{{< highlight >}}
 FLOOR(X)
-```
+{{< /highlight >}}
 
 **Description**
 

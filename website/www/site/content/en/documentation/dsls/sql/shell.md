@@ -28,24 +28,24 @@ This page describes how to work with the shell, but does not focus on specific f
 
 To use Beam SQL shell, you must first clone the [Beam SDK repository](https://github.com/apache/beam). Then, from the root of the repository clone, execute the following commands to run the shell:
 
-```
+{{< highlight >}}
 ./gradlew -p sdks/java/extensions/sql/shell -Pbeam.sql.shell.bundled=':runners:flink:1.10,:sdks:java:io:kafka' installDist
 
 ./sdks/java/extensions/sql/shell/build/install/shell/bin/shell
-```
+{{< /highlight >}}
 
 After you run the commands,  the SQL shell starts and you can type queries:
 
-```
+{{< highlight >}}
 Welcome to Beam SQL 2.6.0-SNAPSHOT (based on sqlline version 1.4.0)
 0: BeamSQL>
-```
+{{< /highlight >}}
 
 _Note: If you haven't built the project before running the Gradle command, the command will take a few minutes as Gradle must build all dependencies first._
 
 The shell converts the queries into Beam pipelines, runs them using `DirectRunner`, and returns the results as tables when the pipelines finish:
 
-```
+{{< highlight >}}
 0: BeamSQL> SELECT 'foo' AS NAME, 'bar' AS TYPE, 'num' AS NUMBER;
 +------+------+--------+
 | NAME | TYPE | NUMBER |
@@ -53,17 +53,17 @@ The shell converts the queries into Beam pipelines, runs them using `DirectRunne
 | foo  | bar  | num    |
 +------+------+--------+
 1 row selected (0.826 seconds)
-```
+{{< /highlight >}}
 
 ## Declaring Tables
 
 Before reading data from a source or writing data to a destination, you must declare a virtual table using the `CREATE EXTERNAL TABLE` statement. For example, if you have a local CSV file `"test-file.csv"` in the current folder, you can create a table with the following statement:
 
-```
+{{< highlight >}}
 0: BeamSQL> CREATE EXTERNAL TABLE csv_file (field1 VARCHAR, field2 INTEGER) TYPE text LOCATION 'test-file.csv';
 
 No rows affected (0.042 seconds)
-```
+{{< /highlight >}}
 
 The `CREATE EXTERNAL TABLE` statement registers the CSV file as a table in Beam SQL and specifies the table's schema. This statement does not directly create a persistent physical table; it only describes the source/sink to Beam SQL so that you can use the table in the queries that read data and write data.
 
@@ -73,7 +73,7 @@ _For more information about `CREATE EXTERNAL TABLE` syntax and supported table t
 
 To read data from the local CSV file that you declared in the previous section, execute the following query:
 
-```
+{{< highlight >}}
 0: BeamSQL> SELECT field1 AS field FROM csv_file;
 +--------+
 | field  |
@@ -84,15 +84,16 @@ To read data from the local CSV file that you declared in the previous section, 
 | bar    |
 | foo    |
 +--------+
-```
+{{< /highlight >}}
 
 _For more information about `SELECT` syntax, see the [Query syntax page](/documentation/dsls/sql/calcite/query-syntax/)._
 
 To write data to the CSV file, use the `INSERT INTO … SELECT ...` statement:
 
-```
+{{< highlight >}}
 0: BeamSQL> INSERT INTO csv_file SELECT 'foo', 'bar';
-```
+{{< /highlight >}}
+
 Read and write behavior depends on the type of the table. For example:
 
 *   The table type `text` is implemented using `TextIO`, so writing to a `text` table can produce multiple numbered files.
@@ -102,9 +103,9 @@ Read and write behavior depends on the type of the table. For example:
 
 When you want to inspect the data from an unbounded source during development, you must specify the `LIMIT x` clause at the end of the `SELECT` statement to limit the output to `x` number of records. Otherwise, the pipeline will never finish.
 
-```
+{{< highlight >}}
 0: BeamSQL> SELECT field1 FROM unbounded_source LIMIT 10 ;
-```
+{{< /highlight >}}
 
 The example queries shown so far are fast queries that execute locally. These queries are helpful when you are investigating the data and iteratively designing the pipeline. Ideally, you want the queries to finish quickly and return output when complete.
 
@@ -116,17 +117,17 @@ By default, Beam uses the `DirectRunner` to run the pipeline on the machine wher
 
 1.  Make sure the SQL shell includes the desired runner. Add the corresponding project id to the `-Pbeam.sql.shell.bundled` parameter of the Gradle invocation ([source code](https://github.com/apache/beam/blob/master/sdks/java/extensions/sql/shell/build.gradle), [project ids](https://github.com/apache/beam/blob/master/settings.gradle)). For example, use the following command to include Flink runner and KafkaIO:
 
-    ```
+    {{< highlight >}}
     ./gradlew -p sdks/java/extensions/sql/shell -Pbeam.sql.shell.bundled=':runners:flink:1.10,:sdks:java:io:kafka' installDist
-    ```
+    {{< /highlight >}}
 
     _Note: You can bundle multiple runners (using a comma-separated list) or other additional components in the same manner. For example, you can add support for more I/Os._
 
 1.  Then, specify the runner using the `SET` command ([reference page](/documentation/dsls/sql/set/)):
 
-    ```
+    {{< highlight >}}
     0: BeamSQL> SET runner='FlinkRunner';
-    ```
+    {{< /highlight >}}
 
 Beam will submit all future `INSERT` statements as pipelines to the specified runner. In this case, the Beam SQL shell does not display the query results. You must manage the submitted jobs through the corresponding runner's UI (for example, using the Flink UI or command line).
 
@@ -134,18 +135,18 @@ Beam will submit all future `INSERT` statements as pipelines to the specified ru
 
 To configure the runner, you must specify `PipelineOptions` by using the `SET` command ([details](/documentation/dsls/sql/set/)):
 
-```
+{{< highlight >}}
 0: BeamSQL> SET projectId='gcpProjectId';
 0: BeamSQL> SET tempLocation='/tmp/tempDir';
-```
+{{< /highlight >}}
+
 ## Packaging the SQL Shell
 
 You can also build your own standalone package for SQL shell using `distZip` or `distTar` tasks. For example:
 
-```
+{{< highlight >}}
 ./gradlew -p sdks/java/extensions/sql/shell -Pbeam.sql.shell.bundled=':runners:flink:1.10,:sdks:java:io:kafka' distZip
 
 ls ./sdks/java/extensions/sql/shell/build/distributions/
 beam-sdks-java-extensions-sql-shell-2.6.0-SNAPSHOT.tar beam-sdks-java-extensions-sql-shell-2.6.0-SNAPSHOT.zip
-```
-
+{{< /highlight >}}

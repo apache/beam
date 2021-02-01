@@ -3,6 +3,7 @@ type: runners
 title: "Direct Runner"
 aliases: /learn/runners/direct/
 ---
+
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16,20 +17,22 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
+
 # Using the Direct Runner
 
 {{< language-switcher java py >}}
 
 The Direct Runner executes pipelines on your machine and is designed to validate that pipelines adhere to the Apache Beam model as closely as possible. Instead of focusing on efficient pipeline execution, the Direct Runner performs additional checks to ensure that users do not rely on semantics that are not guaranteed by the model. Some of these checks include:
 
-* enforcing immutability of elements
-* enforcing encodability of elements
-* elements are processed in an arbitrary order at all points
-* serialization of user functions (`DoFn`, `CombineFn`, etc.)
+- enforcing immutability of elements
+- enforcing encodability of elements
+- elements are processed in an arbitrary order at all points
+- serialization of user functions (`DoFn`, `CombineFn`, etc.)
 
 Using the Direct Runner for testing and development helps ensure that pipelines are robust across different Beam runners. In addition, debugging failed runs can be a non-trivial task when a pipeline executes on a remote cluster. Instead, it is often faster and simpler to perform local unit testing on your pipeline code. Unit testing your pipeline locally also allows you to use your preferred local debugging tools.
 
 Here are some resources with information about how to test your pipelines.
+
 <ul>
   <!-- Java specific links -->
   <li class="language-java"><a href="/blog/2016/10/20/test-stream.html">Testing Unbounded Pipelines in Apache Beam</a> talks about the use of Java classes <a href="https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/index.html?org/apache/beam/sdk/testing/PAssert.html">PAssert</a> and <a href="https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/index.html?org/apache/beam/sdk/testing/TestStream.html">TestStream</a> to test your pipelines.</li>
@@ -44,12 +47,12 @@ Here are some resources with information about how to test your pipelines.
 ### Specify your dependency
 
 <span class="language-java">When using Java, you must specify your dependency on the Direct Runner in your `pom.xml`.</span>
-{{< highlight java >}}
+{{< highlight language="java" >}}
 <dependency>
-   <groupId>org.apache.beam</groupId>
-   <artifactId>beam-runners-direct-java</artifactId>
-   <version>{{< param release_latest >}}</version>
-   <scope>runtime</scope>
+<groupId>org.apache.beam</groupId>
+<artifactId>beam-runners-direct-java</artifactId>
+<version>{{< param release_latest >}}</version>
+<scope>runtime</scope>
 </dependency>
 {{< /highlight >}}
 

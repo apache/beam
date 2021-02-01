@@ -1,6 +1,7 @@
 ---
 title: "Sample"
 ---
+
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -32,9 +33,9 @@ Then, we get a random sample of elements in different ways.
 
 ### Example 1: Sample elements from a PCollection
 
-We use `Sample.FixedSizeGlobally()` to get a fixed-size random sample of elements from the *entire* `PCollection`.
+We use `Sample.FixedSizeGlobally()` to get a fixed-size random sample of elements from the _entire_ `PCollection`.
 
-{{< highlight py >}}
+{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/sample.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/sample.py" sample_fixed_size_globally >}}
 {{< /highlight >}}
 
@@ -42,18 +43,15 @@ We use `Sample.FixedSizeGlobally()` to get a fixed-size random sample of element
 Output:
 {{< /paragraph >}}
 
-{{< highlight class="notebook-skip" >}}
+{{< highlight >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/sample_test.py" sample >}}
 {{< /highlight >}}
-
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/sample.py" >}}
 
 ### Example 2: Sample elements for each key
 
 We use `Sample.FixedSizePerKey()` to get fixed-size random samples for each unique key in a `PCollection` of key-values.
 
-{{< highlight py >}}
+{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/sample.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/sample.py" sample_fixed_size_per_key >}}
 {{< /highlight >}}
 
@@ -61,15 +59,12 @@ We use `Sample.FixedSizePerKey()` to get fixed-size random samples for each uniq
 Output:
 {{< /paragraph >}}
 
-{{< highlight class="notebook-skip" >}}
+{{< highlight >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/sample_test.py" samples_per_key >}}
 {{< /highlight >}}
 
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/sample.py" >}}
-
 ## Related transforms
 
-* [Top](/documentation/transforms/python/aggregation/top) finds the largest or smallest element.
+- [Top](/documentation/transforms/python/aggregation/top) finds the largest or smallest element.
 
 {{< button-pydoc path="apache_beam.transforms.combiners" class="Sample" >}}

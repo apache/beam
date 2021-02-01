@@ -3,6 +3,7 @@ type: runners
 title: "Apache Samza Runner"
 aliases: /learn/runners/Samza/
 ---
+
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,11 +24,11 @@ The Apache Samza Runner can be used to execute Beam pipelines using [Apache Samz
 
 The Samza Runner and Samza are suitable for large scale, stateful streaming jobs, and provide:
 
-* First class support for local state (with RocksDB store). This allows fast state access for high frequency streaming jobs.
-* Fault-tolerance with support for incremental checkpointing of state instead of full snapshots. This enables Samza to scale to applications with very large state.
-* A fully asynchronous processing engine that makes remote calls efficient.
-* Flexible deployment model for running the the applications in any hosting environment with Zookeeper.
-* Features like canaries, upgrades and rollbacks that support extremely large deployments with minimal downtime.
+- First class support for local state (with RocksDB store). This allows fast state access for high frequency streaming jobs.
+- Fault-tolerance with support for incremental checkpointing of state instead of full snapshots. This enables Samza to scale to applications with very large state.
+- A fully asynchronous processing engine that makes remote calls efficient.
+- Flexible deployment model for running the the applications in any hosting environment with Zookeeper.
+- Features like canaries, upgrades and rollbacks that support extremely large deployments with minimal downtime.
 
 The [Beam Capability Matrix](/documentation/runners/capability-matrix/) documents the currently supported capabilities of the Samza Runner.
 
@@ -38,12 +39,12 @@ The Samza Runner is built on Samza version greater than 1.0.
 ### Specify your dependency
 
 <span class="language-java">You can specify your dependency on the Samza Runner by adding the following to your `pom.xml`:</span>
-{{< highlight java >}}
+{{< highlight language="java" >}}
 <dependency>
-  <groupId>org.apache.beam</groupId>
-  <artifactId>beam-runners-samza</artifactId>
-  <version>{{< param release_latest >}}</version>
-  <scope>runtime</scope>
+<groupId>org.apache.beam</groupId>
+<artifactId>beam-runners-samza</artifactId>
+<version>{{< param release_latest >}}</version>
+<scope>runtime</scope>
 </dependency>
 
 <!-- Samza dependencies -->
@@ -86,24 +87,24 @@ The Samza Runner is built on Samza version greater than 1.0.
 
 If you run your pipeline locally or deploy it to a standalone cluster with all the jars and resource files, no packaging is required. For example, the following command runs the WordCount example:
 
-```
+{{< highlight >}}
 $ mvn exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
     -Psamza-runner \
     -Dexec.args="--runner=SamzaRunner \
       --inputFile=/path/to/input \
       --output=/path/to/counts"
-```
+{{< /highlight >}}
 
 To deploy your pipeline to a YARN cluster, here is the [instructions](https://samza.apache.org/startup/hello-samza/latest/) of deploying a sample Samza job. First you need to package your application jars and resource files into a `.tgz` archive file, and make it available to download for Yarn containers. In your config, you need to specify the URI of this TGZ file location:
 
-```
+{{< highlight >}}
 yarn.package.path=${your_job_tgz_URI}
 
 job.name=${your_job_name}
 job.factory.class=org.apache.samza.job.yarn.YarnJobFactory
 job.coordinator.system=${job_coordinator_system}
 job.default.system=${job_default_system}
-```
+{{< /highlight >}}
 
 For more details on the configuration, see [Samza Configuration Reference](https://samza.apache.org/learn/documentation/latest/jobs/configuration-table.html).
 

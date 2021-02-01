@@ -2,6 +2,7 @@
 type: languages
 title: "Beam DataFrames: Overview"
 ---
+
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -32,13 +33,13 @@ If you’re new to Pandas DataFrames, you can get started by reading [10 minutes
 
 To use Beam DataFrames, you need to install Apache Beam version 2.26.0 or higher (for complete setup instructions, see the [Apache Beam Python SDK Quickstart](https://beam.apache.org/get-started/quickstart-py/)) and Pandas version 1.0 or higher. You can use DataFrames as shown in the following example, which reads New York City taxi data from a CSV file, performs a grouped aggregation, and writes the output back to CSV:
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 from apache_beam.dataframe.io import read_csv
 
 with beam.Pipeline() as p:
-  df = p | read_csv("gs://apache-beam-samples/nyc_taxi/misc/sample.csv")
-  agg = df[['passenger_count', 'DOLocationID']].groupby('DOLocationID').sum()
-  agg.to_csv('output')
+df = p | read_csv("gs://apache-beam-samples/nyc_taxi/misc/sample.csv")
+agg = df[['passenger_count', 'DOLocationID']].groupby('DOLocationID').sum()
+agg.to_csv('output')
 {{< /highlight >}}
 
 Pandas is able to infer column names from the first row of the CSV data, which is where `passenger_count` and `DOLocationID` come from.
@@ -49,17 +50,17 @@ The Beam DataFrame API aims to be compatible with the native Pandas implementati
 
 ## Embedding DataFrames in a pipeline
 
-To use the DataFrames API in a larger pipeline, you can convert a PCollection to a DataFrame, process the DataFrame, and then convert the DataFrame back to a PCollection. In order to convert a PCollection to a DataFrame and back, you have to use PCollections that have [schemas](https://beam.apache.org/documentation/programming-guide/#what-is-a-schema) attached. A PCollection with a schema attached is also referred to as a *schema-aware PCollection*. To learn more about attaching a schema to a PCollection, see [Creating schemas](https://beam.apache.org/documentation/programming-guide/#creating-schemas).
+To use the DataFrames API in a larger pipeline, you can convert a PCollection to a DataFrame, process the DataFrame, and then convert the DataFrame back to a PCollection. In order to convert a PCollection to a DataFrame and back, you have to use PCollections that have [schemas](https://beam.apache.org/documentation/programming-guide/#what-is-a-schema) attached. A PCollection with a schema attached is also referred to as a _schema-aware PCollection_. To learn more about attaching a schema to a PCollection, see [Creating schemas](https://beam.apache.org/documentation/programming-guide/#creating-schemas).
 
 Here’s an example that creates a schema-aware PCollection, converts it to a DataFrame using `to_dataframe`, processes the DataFrame, and then converts the DataFrame back to a PCollection using `to_pcollection`:
 
 <!-- TODO(BEAM-11480): Convert these examples to snippets -->
-{{< highlight py >}}
+
+{{< highlight language="py" >}}
 from apache_beam.dataframe.convert import to_dataframe
 from apache_beam.dataframe.convert import to_pcollection
-...
-    # Read the text file[pattern] into a PCollection.
-    lines = p | 'Read' >> ReadFromText(known_args.input)
+... # Read the text file[pattern] into a PCollection.
+lines = p | 'Read' >> ReadFromText(known_args.input)
 
     words = (
         lines
@@ -79,29 +80,30 @@ from apache_beam.dataframe.convert import to_pcollection
 
     # Do something with counted_pc
     ...
+
 {{< /highlight >}}
 
 You can [see the full example on GitHub](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/wordcount_dataframe.py).
 
 It’s also possible to use the DataFrame API by passing a function to [`DataframeTransform`][pydoc_dataframe_transform]:
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 from apache_beam.dataframe.transforms import DataframeTransform
 
 with beam.Pipeline() as p:
-  ...
-  | beam.Select(DOLocationID=lambda line: int(..),
-                passenger_count=lambda line: int(..))
-  | DataframeTransform(lambda df: df.groupby('DOLocationID').sum())
-  | beam.Map(lambda row: f"{row.DOLocationID},{row.passenger_count}")
-  ...
+...
+| beam.Select(DOLocationID=lambda line: int(..),
+passenger_count=lambda line: int(..))
+| DataframeTransform(lambda df: df.groupby('DOLocationID').sum())
+| beam.Map(lambda row: f"{row.DOLocationID},{row.passenger_count}")
+...
 {{< /highlight >}}
 
 [`DataframeTransform`][pydoc_dataframe_transform] is similar to [`SqlTransform`][pydoc_sql_transform] from the [Beam SQL](https://beam.apache.org/documentation/dsls/sql/overview/) DSL. Where `SqlTransform` translates a SQL query to a PTransform, `DataframeTransform` is a PTransform that applies a function that takes and returns DataFrames. A `DataframeTransform` can be particularly useful if you have a stand-alone function that can be called both on Beam and on ordinary Pandas DataFrames.
 
 `DataframeTransform` can accept and return multiple PCollections by name and by keyword, as shown in the following examples:
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 output = (pc1, pc2) | DataframeTransform(lambda df1, df2: ...)
 
 output = {'a': pc, ...} | DataframeTransform(lambda a, ...: ...)
@@ -115,17 +117,17 @@ pc1, pc2 = {'a': pc} | DataframeTransform(lambda a: expr1, expr2)
 
 Beam DataFrames are deferred, like the rest of the Beam API. As a result, there are some limitations on what you can do with Beam DataFrames, compared to the standard Pandas implementation:
 
-* Because all operations are deferred, the result of a given operation may not be available for control flow. For example, you can compute a sum, but you can't branch on the result.
-* Result columns must be computable without access to the data. For example, you can’t use [transpose](https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.transpose.html).
-* PCollections in Beam are inherently unordered, so Pandas operations that are sensitive to the ordering of rows are unsupported. For example, order-sensitive operations such as [shift](https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.shift.html), [cummax](https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.cummax.html), [cummin](https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.cummin.html), [head](https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.head.html), and [tail](https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.tail.html#pandas.DataFrame.tail) are not supported.
+- Because all operations are deferred, the result of a given operation may not be available for control flow. For example, you can compute a sum, but you can't branch on the result.
+- Result columns must be computable without access to the data. For example, you can’t use [transpose](https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.transpose.html).
+- PCollections in Beam are inherently unordered, so Pandas operations that are sensitive to the ordering of rows are unsupported. For example, order-sensitive operations such as [shift](https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.shift.html), [cummax](https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.cummax.html), [cummin](https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.cummin.html), [head](https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.head.html), and [tail](https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.tail.html#pandas.DataFrame.tail) are not supported.
 
 With Beam DataFrames, computation doesn’t take place until the pipeline runs. Before that, only the shape or schema of the result is known, meaning that you can work with the names and types of the columns, but not the result data itself.
 
 There are a few common exceptions you may see when attempting to use certain Pandas operations:
 
-* **WontImplementError**: Indicates that this operation or argument isn’t supported because it’s incompatible with the Beam model. The largest class of operations that raise this error are order-sensitive operations.
-* **NotImplementedError**: Indicates this is an operation or argument that hasn’t been implemented yet. Many Pandas operations are already available through Beam DataFrames, but there’s still a long tail of unimplemented operations.
-* **NonParallelOperation**: Indicates that you’re attempting a non-parallel operation outside of an `allow_non_parallel_operations` block. Some operations don't lend themselves to parallel computation. They can still be used, but must be guarded in a `with beam.dataframe.allow_non_parallel_operations(True)` block.
+- **WontImplementError**: Indicates that this operation or argument isn’t supported because it’s incompatible with the Beam model. The largest class of operations that raise this error are order-sensitive operations.
+- **NotImplementedError**: Indicates this is an operation or argument that hasn’t been implemented yet. Many Pandas operations are already available through Beam DataFrames, but there’s still a long tail of unimplemented operations.
+- **NonParallelOperation**: Indicates that you’re attempting a non-parallel operation outside of an `allow_non_parallel_operations` block. Some operations don't lend themselves to parallel computation. They can still be used, but must be guarded in a `with beam.dataframe.allow_non_parallel_operations(True)` block.
 
 [pydoc_dataframe_transform]: https://beam.apache.org/releases/pydoc/current/apache_beam.dataframe.transforms.html#apache_beam.dataframe.transforms.DataframeTransform
 [pydoc_sql_transform]: https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.sql.html#apache_beam.transforms.sql.SqlTransform

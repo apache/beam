@@ -2,6 +2,7 @@
 type: languages
 title: "Apache Beam Python Streaming Pipelines"
 ---
+
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,7 +22,6 @@ limitations under the License.
 Python streaming pipeline execution became available (with some
 [limitations](#unsupported-features)) starting with Beam SDK version 2.5.0.
 
-
 ## Why use streaming execution?
 
 Beam creates an unbounded PCollection if your pipeline reads from a streaming or
@@ -31,15 +31,14 @@ as the entire collection is never available for processing at any one time.
 [Size and boundedness](/documentation/programming-guide/#size-and-boundedness)
 has more information about bounded and unbounded collections.
 
-
 ## Modifying a pipeline to use stream processing
 
 To modify a batch pipeline to support streaming, you must make the following
 code changes:
 
-* Use an I/O connector that supports reading from an unbounded source.
-* Use an I/O connector that supports writing to an unbounded source.
-* Choose a [windowing strategy](/documentation/programming-guide/index.html#windowing).
+- Use an I/O connector that supports reading from an unbounded source.
+- Use an I/O connector that supports writing to an unbounded source.
+- Choose a [windowing strategy](/documentation/programming-guide/index.html#windowing).
 
 The Beam SDK for Python includes two I/O connectors that support unbounded
 PCollections: Google Cloud Pub/Sub (reading and writing) and Google BigQuery
@@ -53,7 +52,7 @@ These batch WordCount snippets are from
 This code uses the TextIO I/O connector to read from and write to a bounded
 collection.
 
-```
+{{< highlight >}}
   lines = p | 'read' >> ReadFromText(known_args.input)
   ...
 
@@ -69,14 +68,14 @@ collection.
 
   # Write the output using a "Write" transform that has side effects.
   output | 'write' >> WriteToText(known_args.output)
-```
+{{< /highlight >}}
 
 These streaming WordCount snippets are from
 [streaming_wordcount.py](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/streaming_wordcount.py).
 This code uses an I/O connector that reads from and writes to an unbounded
 source (Cloud Pub/Sub) and specifies a fixed windowing strategy.
 
-```
+{{< highlight >}}
   lines = p | beam.io.ReadFromPubSub(topic=known_args.input_topic)
   ...
 
@@ -94,7 +93,7 @@ source (Cloud Pub/Sub) and specifies a fixed windowing strategy.
 
   # Write to Pub/Sub
   output | beam.io.WriteStringsToPubSub(known_args.output_topic)
-```
+{{< /highlight >}}
 
 ## Running a streaming pipeline
 
@@ -105,9 +104,9 @@ testing purposes, you can use the commands in the [Cloud Pub/Sub quickstart](htt
 The following simple bash script feeds lines of an input text file to your input
 topic:
 
-```
+{{< highlight >}}
 cat <YOUR_LOCAL_TEXT_FILE> | while read line; do gcloud pubsub topics publish <YOUR_INPUT_TOPIC_NAME> --message "$line"; done
-```
+{{< /highlight >}}
 
 Alternately, you can read from a publicly available Cloud Pub/Sub stream, such
 as `projects/pubsub-public-data/topics/taxirides-realtime`. However, you must
@@ -118,35 +117,40 @@ The following commands run the
 example streaming pipeline. Specify your Cloud Pub/Sub project and input topic
 (`--input_topic`), output Cloud Pub/Sub project and topic (`--output_topic`).
 
-{{< highlight class="runner-direct" >}}
+{{< highlight >}}
+
 # DirectRunner requires the --streaming option
+
 python -m apache_beam.examples.streaming_wordcount \
-  --input_topic "projects/YOUR_PUBSUB_PROJECT_NAME/topics/YOUR_INPUT_TOPIC" \
-  --output_topic "projects/YOUR_PUBSUB_PROJECT_NAME/topics/YOUR_OUTPUT_TOPIC" \
-  --streaming
+ --input_topic "projects/YOUR_PUBSUB_PROJECT_NAME/topics/YOUR_INPUT_TOPIC" \
+ --output_topic "projects/YOUR_PUBSUB_PROJECT_NAME/topics/YOUR_OUTPUT_TOPIC" \
+ --streaming
 {{< /highlight >}}
 
-{{< highlight class="runner-flink" >}}
+{{< highlight >}}
 See https://beam.apache.org/documentation/runners/flink/ for more information.
 {{< /highlight >}}
 
-{{< highlight class="runner-spark" >}}
+{{< highlight >}}
 See https://beam.apache.org/documentation/runners/spark/ for more information.
 {{< /highlight >}}
 
-{{< highlight class="runner-dataflow" >}}
+{{< highlight >}}
+
 # As part of the initial setup, install Google Cloud Platform specific extra components.
+
 pip install apache-beam[gcp]
 
 # DataflowRunner requires the --streaming option
+
 python -m apache_beam.examples.streaming_wordcount \
-  --runner DataflowRunner \
-  --project YOUR_GCP_PROJECT \
-  --region YOUR_GCP_REGION \
-  --temp_location gs://YOUR_GCS_BUCKET/tmp/ \
-  --input_topic "projects/YOUR_PUBSUB_PROJECT_NAME/topics/YOUR_INPUT_TOPIC" \
-  --output_topic "projects/YOUR_PUBSUB_PROJECT_NAME/topics/YOUR_OUTPUT_TOPIC" \
-  --streaming
+ --runner DataflowRunner \
+ --project YOUR_GCP_PROJECT \
+ --region YOUR_GCP_REGION \
+ --temp_location gs://YOUR_GCS_BUCKET/tmp/ \
+ --input_topic "projects/YOUR_PUBSUB_PROJECT_NAME/topics/YOUR_INPUT_TOPIC" \
+ --output_topic "projects/YOUR_PUBSUB_PROJECT_NAME/topics/YOUR_OUTPUT_TOPIC" \
+ --streaming
 {{< /highlight >}}
 
 Check your runner's documentation for any additional runner-specific information

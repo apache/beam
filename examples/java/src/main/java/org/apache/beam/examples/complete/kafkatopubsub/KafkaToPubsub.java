@@ -21,6 +21,7 @@ import static org.apache.beam.examples.complete.kafkatopubsub.kafka.consumer.Uti
 import static org.apache.beam.examples.complete.kafkatopubsub.kafka.consumer.Utils.configureSsl;
 import static org.apache.beam.examples.complete.kafkatopubsub.kafka.consumer.Utils.getKafkaCredentialsFromVault;
 import static org.apache.beam.examples.complete.kafkatopubsub.kafka.consumer.Utils.isSslSpecified;
+import static org.apache.beam.examples.complete.kafkatopubsub.kafka.consumer.Utils.parseKafkaConsumerConfig;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.ArrayList;
@@ -151,7 +152,9 @@ public class KafkaToPubsub {
     KafkaToPubsubOptions options =
         PipelineOptionsFactory.fromArgs(args).withValidation().as(KafkaToPubsubOptions.class);
 
-    run(options);
+    // Create the pipeline
+    Pipeline pipeline = Pipeline.create(options);
+    run(pipeline, options);
   }
 
   /**
@@ -159,9 +162,10 @@ public class KafkaToPubsub {
    *
    * @param options arguments to the pipeline
    */
-  public static PipelineResult run(KafkaToPubsubOptions options) {
+  public static PipelineResult run(Pipeline pipeline, KafkaToPubsubOptions options) {
     // Configure Kafka consumer properties
     Map<String, Object> kafkaConfig = new HashMap<>();
+    kafkaConfig.putAll(parseKafkaConsumerConfig(options.getKafkaConsumerConfig()));
     Map<String, String> sslConfig = new HashMap<>();
     if (options.getSecretStoreUrl() != null && options.getVaultToken() != null) {
       Map<String, Map<String, String>> credentials =
@@ -194,8 +198,6 @@ public class KafkaToPubsub {
         bootstrapServersList.size() > 0 && topicsList.get(0).length() > 0,
         "bootstrapServers cannot be an empty string.");
 
-    // Create the pipeline
-    Pipeline pipeline = Pipeline.create(options);
     LOG.info(
         "Starting Kafka-To-PubSub pipeline with parameters bootstrap servers:"
             + options.getBootstrapServers()

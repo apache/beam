@@ -1,6 +1,7 @@
 ---
 title: "Partition"
 ---
+
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -46,7 +47,8 @@ and it must return an integer in the range `0` to `num_partitions-1`.
 In the following example, we have a known list of durations.
 We partition the `PCollection` into one `PCollection` for every duration type.
 
-{{< highlight py >}}
+{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/partition" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py" partition_function >}}
 {{< /highlight >}}
 
@@ -54,19 +56,16 @@ We partition the `PCollection` into one `PCollection` for every duration type.
 Output:
 {{< /paragraph >}}
 
-{{< highlight class="notebook-skip" >}}
+{{< highlight >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition_test.py" partitions >}}
 {{< /highlight >}}
-
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/partition" >}}
 
 ### Example 2: Partition with a lambda function
 
 We can also use lambda functions to simplify **Example 1**.
 
-{{< highlight py >}}
+{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/partition" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py" partition_lambda >}}
 {{< /highlight >}}
 
@@ -74,13 +73,9 @@ We can also use lambda functions to simplify **Example 1**.
 Output:
 {{< /paragraph >}}
 
-{{< highlight class="notebook-skip" >}}
+{{< highlight >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition_test.py" partitions >}}
 {{< /highlight >}}
-
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/partition" >}}
 
 ### Example 3: Partition with multiple arguments
 
@@ -114,7 +109,8 @@ identify the partition index to which that bucket corresponds.
 This `split_dataset` function is generic enough to support any number of partitions by any ratio.
 You might want to adapt the bucket assignment to use a more appropriate or randomized hash for your dataset.
 
-{{< highlight py >}}
+{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/partition" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py" partition_multiple_arguments >}}
 {{< /highlight >}}
 
@@ -122,21 +118,17 @@ You might want to adapt the bucket assignment to use a more appropriate or rando
 Output:
 {{< /paragraph >}}
 
-{{< highlight class="notebook-skip" >}}
+{{< highlight >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition_test.py" train_test >}}
 {{< /highlight >}}
 
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/partition" >}}
-
 ## Related transforms
 
-* [Filter](/documentation/transforms/python/elementwise/filter) is useful if the function is just
+- [Filter](/documentation/transforms/python/elementwise/filter) is useful if the function is just
   deciding whether to output an element or not.
-* [ParDo](/documentation/transforms/python/elementwise/pardo) is the most general elementwise mapping
+- [ParDo](/documentation/transforms/python/elementwise/pardo) is the most general elementwise mapping
   operation, and includes other abilities such as multiple output collections and side-inputs.
-* [CoGroupByKey](/documentation/transforms/python/aggregation/cogroupbykey)
-performs a per-key equijoin.
+- [CoGroupByKey](/documentation/transforms/python/aggregation/cogroupbykey)
+  performs a per-key equijoin.
 
 {{< button-pydoc path="apache_beam.transforms.core" class="Partition" >}}

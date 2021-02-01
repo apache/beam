@@ -1,6 +1,7 @@
 ---
 title: "WithTimestamps"
 ---
+
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -33,7 +34,8 @@ The elements themselves often already contain a timestamp field.
 [Unix timestamp](https://en.wikipedia.org/wiki/Unix_time)
 in the form of seconds.
 
-{{< highlight py >}}
+{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/withtimestamps" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py" withtimestamps_event_time >}}
 {{< /highlight >}}
 
@@ -41,13 +43,9 @@ in the form of seconds.
 Output:
 {{< /paragraph >}}
 
-{{< highlight class="notebook-skip" >}}
+{{< highlight >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps_test.py" plant_timestamps >}}
 {{< /highlight >}}
-
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/withtimestamps" >}}
 
 To convert from a
 [`time.struct_time`](https://docs.python.org/3/library/time.html#time.struct_time)
@@ -73,9 +71,10 @@ to `unix_time` you can use convert it to a `time.struct_time` first with
 
 If each element has a chronological number, these numbers can be used as a
 [logical clock](https://en.wikipedia.org/wiki/Logical_clock).
-These numbers have to be converted to a *"seconds"* equivalent, which can be especially important depending on your windowing and late data rules.
+These numbers have to be converted to a _"seconds"_ equivalent, which can be especially important depending on your windowing and late data rules.
 
-{{< highlight py >}}
+{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/withtimestamps" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py" withtimestamps_logical_clock >}}
 {{< /highlight >}}
 
@@ -83,23 +82,20 @@ These numbers have to be converted to a *"seconds"* equivalent, which can be esp
 Output:
 {{< /paragraph >}}
 
-{{< highlight class="notebook-skip" >}}
+{{< highlight >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps_test.py" plant_events >}}
 {{< /highlight >}}
-
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/withtimestamps" >}}
 
 ### Example 3: Timestamp by processing time
 
 If the elements do not have any time data available, you can also use the current processing time for each element.
-Note that this grabs the local time of the *worker* that is processing each element.
+Note that this grabs the local time of the _worker_ that is processing each element.
 Workers might have time deltas, so using this method is not a reliable way to do precise ordering.
 
-By using processing time, there is no way of knowing if data is arriving late because the timestamp is attached when the element *enters* into the pipeline.
+By using processing time, there is no way of knowing if data is arriving late because the timestamp is attached when the element _enters_ into the pipeline.
 
-{{< highlight py >}}
+{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/withtimestamps" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py" withtimestamps_processing_time >}}
 {{< /highlight >}}
 
@@ -107,14 +103,10 @@ By using processing time, there is no way of knowing if data is arriving late be
 Output:
 {{< /paragraph >}}
 
-{{< highlight class="notebook-skip" >}}
+{{< highlight >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps_test.py" plant_processing_times >}}
 {{< /highlight >}}
 
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/withtimestamps" >}}
-
 ## Related transforms
 
-* [Reify](/documentation/transforms/python/elementwise/reify) converts between explicit and implicit forms of Beam values.
+- [Reify](/documentation/transforms/python/elementwise/reify) converts between explicit and implicit forms of Beam values.

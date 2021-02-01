@@ -1,6 +1,7 @@
 ---
 title: "Values"
 ---
+
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,7 +15,9 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
+
 # Values
+
 <table align="left">
     <a target="_blank" class="button"
         href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/transforms/Values.html">
@@ -29,14 +32,16 @@ The `Values` transform takes a collection of key-value pairs, and
 returns the value of each element.
 
 ## Examples
+
 **Example**
 
-{{< highlight java >}}
-PCollection<KV<String, Integer>> keyValuePairs = /* ... */;
+{{< highlight language="java" >}}
+PCollection<KV<String, Integer>> keyValuePairs = /_ ... _/;
 PCollection<Integer> values = keyValuePairs.apply(Values.create());
 {{< /highlight >}}
 
 ## Related transforms
-* [Keys](/documentation/transforms/java/elementwise/keys) for extracting the key of each component.
-* [KvSwap](/documentation/transforms/java/elementwise/kvswap) swaps key-value pair values.
-* [WithKeys](/documentation/transforms/java/elementwise/withkeys) for adding a key to each element.
+
+- [Keys](/documentation/transforms/java/elementwise/keys) for extracting the key of each component.
+- [KvSwap](/documentation/transforms/java/elementwise/kvswap) swaps key-value pair values.
+- [WithKeys](/documentation/transforms/java/elementwise/withkeys) for adding a key to each element.

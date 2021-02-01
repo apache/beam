@@ -1,6 +1,6 @@
 ---
-title:  "Stateful processing with Apache Beam"
-date:   2017-02-13 00:00:01 -0800
+title: "Stateful processing with Apache Beam"
+date: 2017-02-13 00:00:01 -0800
 categories:
   - blog
 aliases:
@@ -8,6 +8,7 @@ aliases:
 authors:
   - klk
 ---
+
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -88,7 +89,7 @@ The state is partitioned by key, so it is drawn as having disjoint sections for
 each color. It is also partitioned per window, but I thought plaid
 <img src="/images/blog/stateful-processing/plaid.png"
     alt="A plaid storage cylinder" width="20">
-would be a bit much  :-). I'll talk about
+would be a bit much :-). I'll talk about
 why state is partitioned this way a bit later, via my first example.
 
 For the rest of this post, I will describe this new feature of Beam in detail -
@@ -100,9 +101,9 @@ SDK.
 ## How does stateful processing in Beam work?
 
 The processing logic of your `ParDo` transform is expressed through the `DoFn`
-that it applies to each element.  Without stateful augmentations, a `DoFn` is a
+that it applies to each element. Without stateful augmentations, a `DoFn` is a
 mostly-pure function from inputs to one or more outputs, corresponding to the
-Mapper in a MapReduce.  With state, a `DoFn` has the ability to access
+Mapper in a MapReduce. With state, a `DoFn` has the ability to access
 persistent mutable state while processing each input element. Consider this
 illustration:
 
@@ -118,12 +119,12 @@ the context of a single key - all of the elements are key-value pairs with the
 same key. Calls from your chosen Beam runner to the `DoFn` are colored in
 yellow, while calls from the `DoFn` to the runner are in purple:
 
- - The runner invokes the `DoFn`'s `@ProcessElement` method on each element for a
-   key+window.
- - The `DoFn` reads and writes state - the curved arrows to/from the storage on
-   the side.
- - The `DoFn` emits output (or side output) to the runner as usual via
-   `ProcessContext.output` (resp. `ProcessContext.sideOutput`).
+- The runner invokes the `DoFn`'s `@ProcessElement` method on each element for a
+  key+window.
+- The `DoFn` reads and writes state - the curved arrows to/from the storage on
+  the side.
+- The `DoFn` emits output (or side output) to the runner as usual via
+  `ProcessContext.output` (resp. `ProcessContext.sideOutput`).
 
 At this very high level, it is pretty intuitive: In your programming
 experience, you have probably at some point written a loop over elements that
@@ -154,23 +155,23 @@ this is the processing of Combine for a single key. The illustrated method
 calls are colored yellow, since they are all controlled by the runner: The
 runner invokes `addInput` on each method to add it to the current accumulator.
 
- - The runner persists the accumulator when it chooses.
- - The runner calls `extractOutput` when ready to emit an output element.
+- The runner persists the accumulator when it chooses.
+- The runner calls `extractOutput` when ready to emit an output element.
 
 At this point, the diagram for `CombineFn` looks a whole lot like the diagram
 for stateful `DoFn`. In practice, the flow of data is, indeed, quite similar.
 But there are important differences, even so:
 
- - The runner controls all invocations and storage here. You do not decide when
-   or how state is persisted, when an accumulator is discarded (based on
-   triggering) or when output is extracted from an accumulator.
- - You can only have one piece of state - the accumulator. In a stateful DoFn
-   you can read only what you need to know and write only what has changed.
- - You don't have the extended features of `DoFn`, such as multiple outputs per
-   input or side outputs. (These could be simulated by a sufficient complex
-   accumulator, but it would not be natural or efficient. Some other features of
-   `DoFn` such as side inputs and access to the window make perfect sense for
-   `CombineFn`)
+- The runner controls all invocations and storage here. You do not decide when
+  or how state is persisted, when an accumulator is discarded (based on
+  triggering) or when output is extracted from an accumulator.
+- You can only have one piece of state - the accumulator. In a stateful DoFn
+  you can read only what you need to know and write only what has changed.
+- You don't have the extended features of `DoFn`, such as multiple outputs per
+  input or side outputs. (These could be simulated by a sufficient complex
+  accumulator, but it would not be natural or efficient. Some other features of
+  `DoFn` such as side inputs and access to the window make perfect sense for
+  `CombineFn`)
 
 But the main thing that `CombineFn` allows a runner to do is to
 `mergeAccumulators`, the concrete expression of the `CombineFn`'s associativity.
@@ -225,31 +226,31 @@ gaps, and every element gets an index.
 Conceptually expressing this as a stateful loop is as trivial as you can
 imagine: The state you should store is the next index.
 
- - As an element comes in, output it along with the next index.
- - Increment the index.
+- As an element comes in, output it along with the next index.
+- Increment the index.
 
 This presents a good opportunity to talk about big data and parallelism,
 because the algorithm in those bullet points is not parallelizable at all! If
 you wanted to apply this logic over an entire `PCollection`, you would have to
 process each element of the `PCollection` one-at-a-time... this is obviously a
-bad idea.  State in Beam is tightly scoped so that most of the time a stateful
+bad idea. State in Beam is tightly scoped so that most of the time a stateful
 `ParDo` transform should still be possible for a runner to execute in parallel,
 though you still have to be thoughtful about it.
 
 A state cell in Beam is scoped to a key+window pair. When your DoFn reads or
 writes state by the name of `"index"`, it is actually accessing a mutable cell
 specified by `"index"` _along with_ the key and window currently being
-processed.  So, when thinking about a state cell, it may be helpful to consider
+processed. So, when thinking about a state cell, it may be helpful to consider
 the full state of your transform as a table, where the rows are named according
 to names you use in your program, like `"index"`, and the columns are
 key+window pairs, like this:
 
 {{< table >}}
-|               | (key, window)<sub>1</sub> | (key, window)<sub>2</sub> | (key, window)<sub>3</sub> | ... |
+| | (key, window)<sub>1</sub> | (key, window)<sub>2</sub> | (key, window)<sub>3</sub> | ... |
 |---------------|---------------------------|---------------------------|---------------------------|-----|
-| `"index"`       | `3`                         | `7`                         | `15`                        | ... |
-| `"fizzOrBuzz?"` | `"fizz"`                    | `"7"`                       | `"fizzbuzz"`                | ... |
-| ...           | ...                       | ...                       | ...                       | ... |
+| `"index"` | `3` | `7` | `15` | ... |
+| `"fizzOrBuzz?"` | `"fizz"` | `"7"` | `"fizzbuzz"` | ... |
+| ... | ... | ... | ... | ... |
 {{< /table >}}
 
 (if you have a superb spatial sense, feel free to imagine this as a cube where
@@ -274,75 +275,75 @@ directly, by design.
 
 Now that I have talked a bit about stateful processing in the Beam model and
 worked through an abstract example, I'd like to show you what it looks like to
-write stateful processing code using Beam's Java SDK.  Here is the code for a
+write stateful processing code using Beam's Java SDK. Here is the code for a
 stateful `DoFn` that assigns an arbitrary-but-consistent index to each element
 on a per key-and-window basis:
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 new DoFn<KV<MyKey, MyValue>, KV<Integer, KV<MyKey, MyValue>>>() {
 
-  // A state cell holding a single Integer per key+window
-  @StateId("index")
-  private final StateSpec<ValueState<Integer>> indexSpec =
-      StateSpecs.value(VarIntCoder.of());
+// A state cell holding a single Integer per key+window
+@StateId("index")
+private final StateSpec<ValueState<Integer>> indexSpec =
+StateSpecs.value(VarIntCoder.of());
 
-  @ProcessElement
-  public void processElement(
-      ProcessContext context,
-      @StateId("index") ValueState<Integer> index) {
-    int current = firstNonNull(index.read(), 0);
-    context.output(KV.of(current, context.element()));
-    index.write(current+1);
-  }
+@ProcessElement
+public void processElement(
+ProcessContext context,
+@StateId("index") ValueState<Integer> index) {
+int current = firstNonNull(index.read(), 0);
+context.output(KV.of(current, context.element()));
+index.write(current+1);
+}
 }
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 class IndexAssigningStatefulDoFn(DoFn):
-  INDEX_STATE = CombiningStateSpec('index', sum)
+INDEX_STATE = CombiningStateSpec('index', sum)
 
-  def process(self, element, index=DoFn.StateParam(INDEX_STATE)):
-    unused_key, value = element
-    current_index = index.read()
-    yield (value, current_index)
-    index.add(1)
+def process(self, element, index=DoFn.StateParam(INDEX_STATE)):
+unused_key, value = element
+current_index = index.read()
+yield (value, current_index)
+index.add(1)
 {{< /highlight >}}
 
 Let's dissect this:
 
- - The first thing to look at is the presence of a couple of `@StateId("index")`
-   annotations. This calls out that you are using a mutable state cell named
-   "index" in this `DoFn`. The Beam Java SDK, and from there your chosen runner,
-   will also note these annotations and use them to wire up your DoFn correctly.
- - The first `@StateId("index")` is annotated on a field of type `StateSpec` (for
-   "state specification"). This declares and configures the state cell. The
-   type parameter `ValueState` describes the kind of state you can get out of this
-   cell - `ValueState` stores just a single value. Note that the spec itself is not
-   a usable state cell - you need the runner to provide that during pipeline
-   execution.
- - To fully specify a `ValueState` cell, you need to provide the coder
-   that the runner will use (as necessary) to serialize the value
-   you will be storing. This is the invocation `StateSpecs.value(VarIntCoder.of())`.
- - The second `@StateId("index")` annotation is on a parameter to your
-   `@ProcessElement` method. This indicates access to the ValueState cell that
-   was specified earlier.
- - The state is accessed in the simplest way: `read()` to read it, and
-   `write(newvalue)` to write it.
- - The other features of `DoFn` are available in the usual way - such as
-   `context.output(...)`. You can also use side inputs, side outputs, gain access
-   to the window, etc.
+- The first thing to look at is the presence of a couple of `@StateId("index")`
+  annotations. This calls out that you are using a mutable state cell named
+  "index" in this `DoFn`. The Beam Java SDK, and from there your chosen runner,
+  will also note these annotations and use them to wire up your DoFn correctly.
+- The first `@StateId("index")` is annotated on a field of type `StateSpec` (for
+  "state specification"). This declares and configures the state cell. The
+  type parameter `ValueState` describes the kind of state you can get out of this
+  cell - `ValueState` stores just a single value. Note that the spec itself is not
+  a usable state cell - you need the runner to provide that during pipeline
+  execution.
+- To fully specify a `ValueState` cell, you need to provide the coder
+  that the runner will use (as necessary) to serialize the value
+  you will be storing. This is the invocation `StateSpecs.value(VarIntCoder.of())`.
+- The second `@StateId("index")` annotation is on a parameter to your
+  `@ProcessElement` method. This indicates access to the ValueState cell that
+  was specified earlier.
+- The state is accessed in the simplest way: `read()` to read it, and
+  `write(newvalue)` to write it.
+- The other features of `DoFn` are available in the usual way - such as
+  `context.output(...)`. You can also use side inputs, side outputs, gain access
+  to the window, etc.
 
 A few notes on how the SDK and runners see this DoFn:
 
- - Your state cells are all explicitly declared so a Beam SDK or runner can
-   reason about them, for example to clear them out when a window expires.
- - If you declare a state cell and then use it with the wrong type, the Beam
-   Java SDK will catch that error for you.
- - If you declare two state cells with the same ID, the SDK will catch that,
-   too.
- - The runner knows that this is a stateful `DoFn` and may run it quite
-   differently, for example by additional data shuffling and synchronization in
-   order to avoid concurrent access to state cells.
+- Your state cells are all explicitly declared so a Beam SDK or runner can
+  reason about them, for example to clear them out when a window expires.
+- If you declare a state cell and then use it with the wrong type, the Beam
+  Java SDK will catch that error for you.
+- If you declare two state cells with the same ID, the SDK will catch that,
+  too.
+- The runner knows that this is a stateful `DoFn` and may run it quite
+  differently, for example by additional data shuffling and synchronization in
+  order to avoid concurrent access to state cells.
 
 Let's look at one more example of how to use this API, this time a bit more real-world.
 
@@ -358,12 +359,12 @@ If you try to express the building of your model as a `CombineFn`, you may have
 trouble with `mergeAccumulators`. Assuming you could express that, it might
 look something like this:
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 class ModelFromEventsFn extends CombineFn<Event, Model, Model> {
-    @Override
-    public abstract Model createAccumulator() {
-      return Model.empty();
-    }
+@Override
+public abstract Model createAccumulator() {
+return Model.empty();
+}
 
     @Override
     public abstract Model addInput(Model accumulator, Event input) {
@@ -378,24 +379,23 @@ class ModelFromEventsFn extends CombineFn<Event, Model, Model> {
     @Override
     public abstract Model extractOutput(Model accumulator) {
       return accumulator; }
+
 }
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 class ModelFromEventsFn(apache_beam.core.CombineFn):
 
-  def create_accumulator(self):
-    # Create a new empty model
-    return Model()
+def create_accumulator(self): # Create a new empty model
+return Model()
 
-  def add_input(self, model, input):
-    return model.update(input)
+def add_input(self, model, input):
+return model.update(input)
 
-  def merge_accumulators(self, accumulators):
-    # Custom merging logic
+def merge_accumulators(self, accumulators): # Custom merging logic
 
-  def extract_output(self, model):
-    return model
+def extract_output(self, model):
+return model
 {{< /highlight >}}
 
 Now you have a way to compute the model of a particular user for a window as
@@ -406,15 +406,15 @@ elements of a `PCollection` is to read it as a side input to a `ParDo`
 transform. So you could side input the model and check the stream of events
 against it, outputting the prediction, like so:
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 PCollection<KV<UserId, Event>> events = ...
 
 final PCollectionView<Map<UserId, Model>> userModels = events
-    .apply(Combine.perKey(new ModelFromEventsFn()))
-    .apply(View.asMap());
+.apply(Combine.perKey(new ModelFromEventsFn()))
+.apply(View.asMap());
 
 PCollection<KV<UserId, Prediction>> predictions = events
-    .apply(ParDo.of(new DoFn<KV<UserId, Event>>() {
+.apply(ParDo.of(new DoFn<KV<UserId, Event>>() {
 
       @ProcessElement
       public void processElement(ProcessContext ctx) {
@@ -427,26 +427,31 @@ PCollection<KV<UserId, Prediction>> predictions = events
         … c.output(KV.of(userId, model.prediction(event))) …
       }
     }));
+
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
+
 # Events is a collection of (user, event) pairs.
+
 events = (p | ReadFromEventSource() | beam.WindowInto(....))
 
 user_models = beam.pvalue.AsDict(
-                  events
-                  | beam.core.CombinePerKey(ModelFromEventsFn()))
+events
+| beam.core.CombinePerKey(ModelFromEventsFn()))
 
 def event_prediction(user_event, models):
-  user = user_event[0]
-  event = user_event[1]
+user = user_event[0]
+event = user_event[1]
 
-  # Retrieve the model calculated for this user
-  model = models[user]
+# Retrieve the model calculated for this user
 
-  return (user, model.prediction(event))
+model = models[user]
+
+return (user, model.prediction(event))
 
 # Predictions is a collection of (user, prediction) pairs.
+
 predictions = events | beam.Map(event_prediction, user_models)
 {{< /highlight >}}
 
@@ -466,7 +471,7 @@ generic Beam feature for managing completeness versus latency tradeoffs. So here
 is the same pipeline with an added trigger that outputs a new model one second
 after input arrives:
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 PCollection<KV<UserId, Event>> events = ...
 
 PCollectionView<Map<UserId, Model>> userModels = events
@@ -477,18 +482,19 @@ PCollectionView<Map<UserId, Model>> userModels = events
 
     .apply(Combine.perKey(new ModelFromEventsFn()))
     .apply(View.asMap());
+
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 events = ...
 
 user_models = beam.pvalue.AsDict(
-                  events
-                  | beam.WindowInto(GlobalWindows(),
-                      trigger=trigger.AfterAll(
-                          trigger.AfterCount(1),
-                          trigger.AfterProcessingTime(1)))
-                  | beam.CombinePerKey(ModelFromEventsFn()))
+events
+| beam.WindowInto(GlobalWindows(),
+trigger=trigger.AfterAll(
+trigger.AfterCount(1),
+trigger.AfterProcessingTime(1)))
+| beam.CombinePerKey(ModelFromEventsFn()))
 {{< /highlight >}}
 
 This is often a pretty nice tradeoff between latency and cost: If a huge flood
@@ -511,24 +517,24 @@ Stateful processing lets you address both the latency problem of side inputs
 and the cost problem of excessive uninteresting output. Here is the code, using
 only features I have already introduced:
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 new DoFn<KV<UserId, Event>, KV<UserId, Prediction>>() {
 
-  @StateId("model")
-  private final StateSpec<ValueState<Model>> modelSpec =
-      StateSpecs.value(Model.coder());
+@StateId("model")
+private final StateSpec<ValueState<Model>> modelSpec =
+StateSpecs.value(Model.coder());
 
-  @StateId("previousPrediction")
-  private final StateSpec<ValueState<Prediction>> previousPredictionSpec =
-      StateSpecs.value(Prediction.coder());
+@StateId("previousPrediction")
+private final StateSpec<ValueState<Prediction>> previousPredictionSpec =
+StateSpecs.value(Prediction.coder());
 
-  @ProcessElement
-  public void processElement(
-      ProcessContext c,
-      @StateId("previousPrediction") ValueState<Prediction> previousPredictionState,
-      @StateId("model") ValueState<Model> modelState) {
-    UserId userId = c.element().getKey();
-    Event event = c.element().getValue()
+@ProcessElement
+public void processElement(
+ProcessContext c,
+@StateId("previousPrediction") ValueState<Prediction> previousPredictionState,
+@StateId("model") ValueState<Model> modelState) {
+UserId userId = c.element().getKey();
+Event event = c.element().getValue()
 
     Model model = modelState.read();
     Prediction previousPrediction = previousPredictionState.read();
@@ -540,26 +546,27 @@ new DoFn<KV<UserId, Event>, KV<UserId, Prediction>>() {
       c.output(KV.of(userId, newPrediction));
       previousPredictionState.write(newPrediction);
     }
-  }
+
+}
 };
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 class ModelStatefulFn(beam.DoFn):
 
-  PREVIOUS_PREDICTION = BagStateSpec('previous_pred_state', PredictionCoder())
-  MODEL_STATE = CombiningValueStateSpec('model_state',
-                                        ModelCoder(),
-                                        ModelFromEventsFn())
+PREVIOUS_PREDICTION = BagStateSpec('previous_pred_state', PredictionCoder())
+MODEL_STATE = CombiningValueStateSpec('model_state',
+ModelCoder(),
+ModelFromEventsFn())
 
-  def process(self,
-              user_event,
-              previous_pred_state=beam.DoFn.StateParam(PREVIOUS_PREDICTION),
-              model_state=beam.DoFn.StateParam(MODEL_STATE)):
-    user = user_event[0]
-    event = user_event[1]
-    model = model_state.read()
-    previous_prediction = previous_pred_state.read()
+def process(self,
+user_event,
+previous_pred_state=beam.DoFn.StateParam(PREVIOUS_PREDICTION),
+model_state=beam.DoFn.StateParam(MODEL_STATE)):
+user = user_event[0]
+event = user_event[1]
+model = model_state.read()
+previous_prediction = previous_pred_state.read()
 
     new_prediction = model.prediction(event)
     model_state.add(event)
@@ -570,30 +577,31 @@ class ModelStatefulFn(beam.DoFn):
       previous_pred_state.clear()
       previous_pred_state.add(new_prediction)
       yield (user, new_prediction)
+
 {{< /highlight >}}
 
 Let's walk through it,
 
- - You have two state cells declared, `@StateId("model")` to hold the current
-   state of the model for a user and `@StateId("previousPrediction")` to hold
-   the prediction output previously.
- - Access to the two state cells by annotation in the `@ProcessElement` method
-   is as before.
- - You read the current model via `modelState.read()`.
-   per-key-and-window, this is a model just for the UserId of the Event
-   currently being processed.
- - You derive a new prediction `model.prediction(event)` and compare it against
-   the last one you output, accessed via
-   `previousPredicationState.read()`.
- - You then update the model `model.update()` and write it via
-   `modelState.write(...)`. It is perfectly fine to mutate the value
-   you pulled out of state as long as you also remember to write the mutated
-   value, in the same way you are encouraged to mutate `CombineFn` accumulators.
- - If the prediction has changed a significant amount since the last time you
-   output, you emit it via `context.output(...)` and
-   save the prediction using `previousPredictionState.write(...)`.
-   Here the decision is relative to the prior prediction output, not the last
-   one computed - realistically you might have some complex conditions here.
+- You have two state cells declared, `@StateId("model")` to hold the current
+  state of the model for a user and `@StateId("previousPrediction")` to hold
+  the prediction output previously.
+- Access to the two state cells by annotation in the `@ProcessElement` method
+  is as before.
+- You read the current model via `modelState.read()`.
+  per-key-and-window, this is a model just for the UserId of the Event
+  currently being processed.
+- You derive a new prediction `model.prediction(event)` and compare it against
+  the last one you output, accessed via
+  `previousPredicationState.read()`.
+- You then update the model `model.update()` and write it via
+  `modelState.write(...)`. It is perfectly fine to mutate the value
+  you pulled out of state as long as you also remember to write the mutated
+  value, in the same way you are encouraged to mutate `CombineFn` accumulators.
+- If the prediction has changed a significant amount since the last time you
+  output, you emit it via `context.output(...)` and
+  save the prediction using `previousPredictionState.write(...)`.
+  Here the decision is relative to the prior prediction output, not the last
+  one computed - realistically you might have some complex conditions here.
 
 Most of the above is just talking through Java! But before you go out and
 convert all of your pipelines to use stateful processing, I want to go over
@@ -605,29 +613,29 @@ To decide whether to use per-key-and-window state, you need to consider how it
 executes. You can dig into how a particular runner manages state, but there are
 some general things to keep in mind:
 
- - Partitioning per-key-and-window: perhaps the most important thing to
-   consider is that the runner may have to shuffle your data to colocate all
-   the data for a particular key+window. If the data is already shuffled
-   correctly, the runner may take advantage of this.
- - Synchronization overhead: the API is designed so the runner takes care of
-   concurrency control, but this means that the runner cannot parallelize
-   processing of elements for a particular key+window even when it would otherwise
-   be advantageous.
- - Storage and fault tolerance of state: since state is per-key-and-window, the
-   more keys and windows you expect to process simultaneously, the more storage
-   you will incur. Because state benefits from all the fault tolerance /
-   consistency properties of your other data in Beam, it also adds to the cost of
-   committing the results of processing.
- - Expiration of state: also since state is per-window, the runner can reclaim
-   the resources when a window expires (when the watermark exceeds its allowed
-   lateness) but this could mean that the runner is tracking an additional timer
-   per key and window to cause reclamation code to execute.
+- Partitioning per-key-and-window: perhaps the most important thing to
+  consider is that the runner may have to shuffle your data to colocate all
+  the data for a particular key+window. If the data is already shuffled
+  correctly, the runner may take advantage of this.
+- Synchronization overhead: the API is designed so the runner takes care of
+  concurrency control, but this means that the runner cannot parallelize
+  processing of elements for a particular key+window even when it would otherwise
+  be advantageous.
+- Storage and fault tolerance of state: since state is per-key-and-window, the
+  more keys and windows you expect to process simultaneously, the more storage
+  you will incur. Because state benefits from all the fault tolerance /
+  consistency properties of your other data in Beam, it also adds to the cost of
+  committing the results of processing.
+- Expiration of state: also since state is per-window, the runner can reclaim
+  the resources when a window expires (when the watermark exceeds its allowed
+  lateness) but this could mean that the runner is tracking an additional timer
+  per key and window to cause reclamation code to execute.
 
 ## Go use it!
 
 If you are new to Beam, I hope you are now interested in seeing if Beam with
-stateful processing addresses your use case.  If you are already using Beam, I
-hope this new addition to the model unlocks new use cases for you.  Do check
+stateful processing addresses your use case. If you are already using Beam, I
+hope this new addition to the model unlocks new use cases for you. Do check
 the [capability
 matrix](/documentation/runners/capability-matrix/) to
 see the level of support for this new model feature on your favorite

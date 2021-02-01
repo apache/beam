@@ -1,6 +1,7 @@
 ---
 title: "ToString"
 ---
+
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -35,7 +36,8 @@ expect their input elements to be strings.
 The following example converts a `(key, value)` pair into a string delimited by `','`.
 You can specify a different delimiter using the `delimiter` argument.
 
-{{< highlight py >}}
+{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/tostring" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring.py" tostring_kvs >}}
 {{< /highlight >}}
 
@@ -43,20 +45,17 @@ You can specify a different delimiter using the `delimiter` argument.
 Output:
 {{< /paragraph >}}
 
-{{< highlight class="notebook-skip" >}}
+{{< highlight >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring_test.py" plants >}}
 {{< /highlight >}}
-
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/tostring" >}}
 
 ### Example 2: Elements to string
 
 The following example converts a dictionary into a string.
 The string output will be equivalent to `str(element)`.
 
-{{< highlight py >}}
+{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/tostring" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring.py" tostring_element >}}
 {{< /highlight >}}
 
@@ -64,13 +63,9 @@ The string output will be equivalent to `str(element)`.
 Output:
 {{< /paragraph >}}
 
-{{< highlight class="notebook-skip" >}}
+{{< highlight >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring_test.py" plant_lists >}}
 {{< /highlight >}}
-
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/tostring" >}}
 
 ### Example 3: Iterables to string
 
@@ -79,7 +74,8 @@ into a string delimited by `','`.
 You can specify a different delimiter using the `delimiter` argument.
 The string output will be equivalent to `iterable.join(delimiter)`.
 
-{{< highlight py >}}
+{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/tostring" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring.py" tostring_iterables >}}
 {{< /highlight >}}
 
@@ -87,16 +83,12 @@ The string output will be equivalent to `iterable.join(delimiter)`.
 Output:
 {{< /paragraph >}}
 
-{{< highlight class="notebook-skip" >}}
+{{< highlight >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring_test.py" plants_csv >}}
 {{< /highlight >}}
 
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/tostring" >}}
-
 ## Related transforms
 
-* [Map](/documentation/transforms/python/elementwise/map) applies a simple 1-to-1 mapping function over each element in the collection
+- [Map](/documentation/transforms/python/elementwise/map) applies a simple 1-to-1 mapping function over each element in the collection
 
 {{< button-pydoc path="apache_beam.transforms.util" class="ToString" >}}

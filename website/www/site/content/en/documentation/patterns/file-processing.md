@@ -1,6 +1,7 @@
 ---
 title: "File processing patterns"
 ---
+
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -35,7 +36,7 @@ You can use `FileIO` or `TextIO` to continuously read the source for new files.
 Use the [`FileIO`](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/FileIO.html) class to continuously watch a single file pattern. The following example matches a file pattern repeatedly every 30 seconds, continuously returns new matched files as an unbounded `PCollection<Metadata>`, and stops if no new files appear for one hour:
 {{< /paragraph >}}
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" FileProcessPatternProcessNewFilesSnip1 >}}
 {{< /highlight >}}
 
@@ -43,7 +44,7 @@ Use the [`FileIO`](https://beam.apache.org/releases/javadoc/current/org/apache/b
 The [`TextIO`](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/TextIO.html) class `watchForNewFiles` property streams new file matches.
 {{< /paragraph >}}
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" FileProcessPatternProcessNewFilesSnip2 >}}
 {{< /highlight >}}
 
@@ -52,9 +53,10 @@ Some runners may retain file lists during updates, but file lists don’t persis
 {{< /paragraph >}}
 
 {{< paragraph class="language-java" >}}
-* Storing processed filenames in an external file and deduplicating the lists at the next transform
-* Adding timestamps to filenames, writing a glob pattern to pull in only new files, and matching the pattern when the pipeline restarts
-{{< /paragraph >}}
+
+- Storing processed filenames in an external file and deduplicating the lists at the next transform
+- Adding timestamps to filenames, writing a glob pattern to pull in only new files, and matching the pattern when the pipeline restarts
+  {{< /paragraph >}}
 
 {{< paragraph class="language-py" >}}
 The continuous-read option is not available for Python.
@@ -84,23 +86,25 @@ To access filenames:
 {{< /paragraph >}}
 
 {{< paragraph class="language-java" >}}
+
 1. Create a `ReadableFile` instance with `FileIO`. `FileIO` returns a `PCollection<ReadableFile>` object. The `ReadableFile` class contains the filename.
 1. Call the `readFullyAsUTF8String()` method to read the file into memory and return the filename as a `String` object. If memory is limited, you can use utility classes like [`FileSystems`](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/FileSystems.html) to work directly with the file.
-{{< /paragraph >}}
+   {{< /paragraph >}}
 
 {{< paragraph class="language-py" >}}
 To read filenames in a pipeline job:
 {{< /paragraph >}}
 
 {{< paragraph class="language-py" >}}
+
 1. Collect the list of file URIs. You can use the [`FileSystems`](https://beam.apache.org/releases/pydoc/current/apache_beam.io.filesystems.html?highlight=filesystems#module-apache_beam.io.filesystems) module to get a list of files that match a glob pattern.
 1. Pass the file URIs to a `PCollection`.
-{{< /paragraph >}}
+   {{< /paragraph >}}
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" FileProcessPatternAccessMetadataSnip1 >}}
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" FileProcessPatternAccessMetadataSnip1 >}}
 {{< /highlight >}}

@@ -104,7 +104,7 @@ Each item in the `SELECT` list is one of:
 `SELECT *`, often referred to as *select star*, produces one output column for
 each column that is visible after executing the full query.
 
-```
+{{< highlight >}}
 SELECT * FROM (SELECT 'apple' AS fruit, 'carrot' AS vegetable);
 
 +-------+-----------+
@@ -112,7 +112,7 @@ SELECT * FROM (SELECT 'apple' AS fruit, 'carrot' AS vegetable);
 +-------+-----------+
 | apple | carrot    |
 +-------+-----------+
-```
+{{< /highlight >}}
 
 ### SELECT `expression`
 
@@ -133,7 +133,7 @@ The expression must be a table alias.
 The following query produces one output column for each column in the table
 `groceries`, aliased as `g`.
 
-```
+{{< highlight >}}
 WITH groceries AS
   (SELECT 'milk' AS dairy,
    'eggs' AS protein,
@@ -146,7 +146,7 @@ FROM groceries AS g;
 +-------+---------+-------+
 | milk  | eggs    | bread |
 +-------+---------+-------+
-```
+{{< /highlight >}}
 
 ### SELECT modifiers
 
@@ -234,23 +234,23 @@ Note that there must be parentheses around both types of subqueries.
 
 Example:
 
-```
+{{< highlight >}}
 SELECT AVG ( PointsScored )
 FROM
 ( SELECT PointsScored
   FROM Stats
   WHERE SchoolID = 77 )
-```
+{{< /highlight >}}
 
 Optionally, a table subquery can have an alias.
 
 Example:
 
-```
+{{< highlight >}}
 SELECT r.LastName
 FROM
 ( SELECT * FROM Roster) AS r;
-```
+{{< /highlight >}}
 
 ### Aliases {#aliases_1}
 
@@ -335,10 +335,10 @@ joining two rows) meets the join condition if `bool_expression` returns TRUE.
 
 Example:
 
-```
+{{< highlight >}}
 SELECT * FROM Roster INNER JOIN PlayerStats
 ON Roster.LastName = PlayerStats.LastName;
-```
+{{< /highlight >}}
 
 ### USING clause
 
@@ -349,27 +349,27 @@ rows meet the join condition if the equality comparison returns TRUE.
 In most cases, a statement with the `USING` keyword is equivalent to using the
 `ON` keyword. For example, the statement:
 
-```
+{{< highlight >}}
 SELECT FirstName
 FROM Roster INNER JOIN PlayerStats
 USING (LastName);
-```
+{{< /highlight >}}
 
 is equivalent to:
 
-```
+{{< highlight >}}
 SELECT FirstName
 FROM Roster INNER JOIN PlayerStats
 ON Roster.LastName = PlayerStats.LastName;
-```
+{{< /highlight >}}
 
 The results from queries with `USING` do differ from queries that use `ON` when
 you use `SELECT *`. To illustrate this, consider the query:
 
-```
+{{< highlight >}}
 SELECT * FROM Roster INNER JOIN PlayerStats
 USING (LastName);
-```
+{{< /highlight >}}
 
 This statement returns the rows from `Roster` and `PlayerStats` where
 `Roster.LastName` is the same as `PlayerStats.LastName`. The results include a
@@ -377,10 +377,10 @@ single `LastName` column.
 
 By contrast, consider the following query:
 
-```
+{{< highlight >}}
 SELECT * FROM Roster INNER JOIN PlayerStats
 ON Roster.LastName = PlayerStats.LastName;
-```
+{{< /highlight >}}
 
 This statement returns the rows from `Roster` and `PlayerStats` where
 `Roster.LastName` is the same as `PlayerStats.LastName`. The results include two
@@ -392,9 +392,9 @@ The `FROM` clause can contain multiple `JOIN` clauses in sequence.
 
 Example:
 
-```
+{{< highlight >}}
 SELECT * FROM a LEFT JOIN b ON TRUE LEFT JOIN c ON TRUE;
-```
+{{< /highlight >}}
 
 where `a`, `b`, and `c` are any `from_item`s. JOINs are bound from left to
 right, but you can insert parentheses to group them in a different order.
@@ -403,9 +403,9 @@ right, but you can insert parentheses to group them in a different order.
 
 ### Syntax {#syntax_2}
 
-```
+{{< highlight >}}
 WHERE bool_expression
-```
+{{< /highlight >}}
 
 The `WHERE` clause filters out rows by evaluating each row against
 `bool_expression`, and discards all rows that do not return TRUE (that is, rows
@@ -413,19 +413,19 @@ that return FALSE or NULL).
 
 Example:
 
-```
+{{< highlight >}}
 SELECT * FROM Roster
 WHERE SchoolID = 52;
-```
+{{< /highlight >}}
 
 The `bool_expression` can contain multiple sub-conditions.
 
 Example:
 
-```
+{{< highlight >}}
 SELECT * FROM Roster
 WHERE LastName LIKE 'Mc%' OR LastName LIKE 'Mac%';
-```
+{{< /highlight >}}
 
 You cannot reference column aliases from the `SELECT` list in the `WHERE`
 clause.
@@ -436,17 +436,17 @@ expression using `CROSS JOIN` and `WHERE`.
 
 Example - this query:
 
-```
+{{< highlight >}}
 SELECT * FROM Roster INNER JOIN TeamMascot
 ON Roster.SchoolID = TeamMascot.SchoolID;
-```
+{{< /highlight >}}
 
 is equivalent to:
 
-```
+{{< highlight >}}
 SELECT * FROM Roster CROSS JOIN TeamMascot
 WHERE Roster.SchoolID = TeamMascot.SchoolID;
-```
+{{< /highlight >}}
 
 ## GROUP BY clause
 
@@ -464,19 +464,19 @@ present in the `SELECT` list, or to eliminate redundancy in the output.
 
 Example:
 
-```
+{{< highlight >}}
 SELECT SUM(PointsScored), LastName
 FROM PlayerStats
 GROUP BY LastName;
-```
+{{< /highlight >}}
 
 ## HAVING clause
 
 ### Syntax {#syntax_4}
 
-```
+{{< highlight >}}
 HAVING bool_expression
-```
+{{< /highlight >}}
 
 The `HAVING` clause is similar to the `WHERE` clause: it filters out rows that
 do not return TRUE when they are evaluated against the `bool_expression`.
@@ -498,12 +498,12 @@ well as `SELECT` list aliases. Expressions referenced in the `HAVING` clause
 must either appear in the `GROUP BY` clause or they must be the result of an
 aggregate function:
 
-```
+{{< highlight >}}
 SELECT LastName
 FROM Roster
 GROUP BY LastName
 HAVING SUM(PointsScored) > 15;
-```
+{{< /highlight >}}
 
 ## Set operators
 
@@ -550,10 +550,10 @@ The following rules apply:
 
 Examples:
 
-```
+{{< highlight >}}
 query1 UNION ALL (query2 UNION DISTINCT query3)
 query1 UNION ALL query2 UNION ALL query3
-```
+{{< /highlight >}}
 
 Invalid:
 
@@ -581,9 +581,9 @@ present in the right input query.
 
 ### Syntax {#syntax_7}
 
-```
+{{< highlight >}}
 LIMIT count [ OFFSET skip_rows ]
-```
+{{< /highlight >}}
 
 `LIMIT` specifies a non-negative `count` of type INTEGER, and no more than `count`
 rows will be returned. `LIMIT` `0` returns 0 rows. If there is a set operation,
@@ -605,13 +605,13 @@ statements on either side of a set operator, such as `UNION`.
 
 Example:
 
-```
+{{< highlight >}}
 WITH subQ1 AS (SELECT SchoolID FROM Roster),
      subQ2 AS (SELECT OpponentID FROM PlayerStats)
 SELECT * FROM subQ1
 UNION ALL
 SELECT * FROM subQ2;
-```
+{{< /highlight >}}
 
 ## Aliases {#aliases_2}
 
@@ -632,20 +632,20 @@ keyword is optional.
 
 Example:
 
-```
+{{< highlight >}}
 SELECT s.FirstName, s2.SongName
 FROM Singers AS s JOIN Songs AS s2 ON s.SingerID = s2.SingerID;
-```
+{{< /highlight >}}
 
 You can introduce explicit aliases for any expression in the `SELECT` list using
 `[AS] alias`. The `AS` keyword is optional.
 
 Example:
 
-```
+{{< highlight >}}
 SELECT s.FirstName AS name, LOWER(s.FirstName) AS lname
 FROM Singers s;
-```
+{{< /highlight >}}
 
 ### Explicit alias visibility
 
@@ -668,10 +668,10 @@ Examples:
 This query contains column names that conflict between tables, since both
 `Singers` and `Songs` have a column named `SingerID`:
 
-```
+{{< highlight >}}
 SELECT SingerID
 FROM Singers, Songs;
-```
+{{< /highlight >}}
 
 ### Implicit aliases
 

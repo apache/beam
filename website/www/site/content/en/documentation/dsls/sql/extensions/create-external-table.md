@@ -32,7 +32,7 @@ The `CREATE EXTERNAL TABLE` statement includes a schema and extended clauses.
 
 ## Syntax
 
-```
+{{< highlight >}}
 CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName (tableElement [, tableElement ]*)
 TYPE type
 [LOCATION location]
@@ -43,7 +43,7 @@ simpleType: TINYINT | SMALLINT | INTEGER | BIGINT | FLOAT | DOUBLE | DECIMAL | B
 fieldType: simpleType | MAP<simpleType, fieldType> | ARRAY<fieldType> | ROW<tableElement [, tableElement ]*>
 
 tableElement: columnName fieldType [ NOT NULL ]
-```
+{{< /highlight >}}
 
 *   `IF NOT EXISTS`: Optional. If the table is already registered, Beam SQL
     ignores the statement instead of returning an error.
@@ -84,12 +84,12 @@ tableElement: columnName fieldType [ NOT NULL ]
 
 ### Syntax
 
-```
+{{< highlight >}}
 CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName (tableElement [, tableElement ]*)
 TYPE bigquery
 LOCATION '[PROJECT_ID]:[DATASET].[TABLE]'
 TBLPROPERTIES '{"method": "DIRECT_READ"}'
-```
+{{< /highlight >}}
 
 *   `LOCATION`: Location of the table in the BigQuery CLI format.
     *   `PROJECT_ID`: ID of the Google Cloud Project.
@@ -199,17 +199,17 @@ as follows:
 
 ### Example
 
-```
+{{< highlight >}}
 CREATE EXTERNAL TABLE users (id INTEGER, username VARCHAR)
 TYPE bigquery
 LOCATION 'testing-integration:apache.users'
-```
+{{< /highlight >}}
 
 ## Cloud Bigtable
 
 ### Syntax
 
-```
+{{< highlight >}}
 CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName (
     key VARCHAR NOT NULL,
     family ROW<qualifier cells [, qualifier cells ]* >
@@ -217,7 +217,7 @@ CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName (
 )
 TYPE bigtable
 LOCATION 'googleapis.com/bigtable/projects/[PROJECT_ID]/instances/[INSTANCE_ID]/tables/[TABLE]'
-```
+{{< /highlight >}}
 
 *   `key`: key of the Bigtable row
 *   `family`: name of the column family
@@ -244,7 +244,7 @@ LOCATION 'googleapis.com/bigtable/projects/[PROJECT_ID]/instances/[INSTANCE_ID]/
     *   `TIMESTAMP`
 
 An alternative syntax with a flat schema:
-```
+{{< highlight >}}
 CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName (
     key VARCHAR NOT NULL,
     qualifier SIMPLE_TYPE
@@ -255,7 +255,7 @@ LOCATION 'googleapis.com/bigtable/projects/[PROJECT_ID]/instances/[INSTANCE_ID]/
 TBLPROPERTIES '{
   "columnsMapping": "family:qualifier[,family:qualifier]*"
 }'
-```
+{{< /highlight >}}
 
 *   `key`: key of the Bigtable row
 *   `family`: name of the column family
@@ -291,7 +291,7 @@ Supported for flat schema only.
 
 ### Example
 
-```
+{{< highlight >}}
 CREATE EXTERNAL TABLE beamTable(
   key VARCHAR NOT NULL,
   beamFamily ROW<
@@ -314,11 +314,11 @@ CREATE EXTERNAL TABLE beamTable(
   )
 TYPE bigtable
 LOCATION 'googleapis.com/bigtable/projects/beam/instances/beamInstance/tables/beamTable'
-```
+{{< /highlight >}}
 
 Flat schema example:
 
-```
+{{< highlight >}}
 CREATE EXTERNAL TABLE flatTable(
   key VARCHAR NOT NULL,
   boolColumn BOOLEAN NOT NULL,
@@ -332,19 +332,19 @@ LOCATION 'googleapis.com/bigtable/projects/beam/instances/beamInstance/tables/fl
 TBLPROPERTIES '{
   "columnsMapping": "f:boolColumn,f:longColumn,f:stringColumn,f2:doubleColumn,f2:binaryColumn"
 }'
-```
+{{< /highlight >}}
 
 Write example:
-```
+{{< highlight >}}
 INSERT INTO writeTable(key, boolColumn, longColumn, stringColumn, doubleColumn)
   VALUES ('key', TRUE, 10, 'stringValue', 5.5)
-```
+{{< /highlight >}}
 
 ## Pub/Sub
 
 ### Syntax
 
-```
+{{< highlight >}}
 CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName(
     event_timestamp TIMESTAMP,
     attributes MAP<VARCHAR, VARCHAR>,
@@ -357,7 +357,7 @@ TBLPROPERTIES '{
     "deadLetterQueue": "projects/[PROJECT]/topics/[TOPIC]",
     "format": "format"
 }'
-```
+{{< /highlight >}}
 
 *   `event_timestamp`: The event timestamp associated with the Pub/Sub message
     by PubsubIO. It can be one of the following:
@@ -421,11 +421,11 @@ declare a special set of columns, as shown below.
 
 ### Example
 
-```
+{{< highlight >}}
 CREATE EXTERNAL TABLE locations (event_timestamp TIMESTAMP, attributes MAP<VARCHAR, VARCHAR>, payload ROW<id INTEGER, location VARCHAR>)
 TYPE pubsub
 LOCATION 'projects/testing-integration/topics/user-location'
-```
+{{< /highlight >}}
 
 ## Kafka
 
@@ -433,7 +433,7 @@ KafkaIO is experimental in Beam SQL.
 
 ### Syntax
 
-```
+{{< highlight >}}
 CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName (tableElement [, tableElement ]*)
 TYPE kafka
 LOCATION 'kafka://localhost:2181/brokers'
@@ -443,7 +443,7 @@ TBLPROPERTIES '{
     "format": "avro"
     [, "protoClass": "com.example.ExampleMessage" ]
 }'
-```
+{{< /highlight >}}
 
 *   `LOCATION`: The Kafka topic URL.
 *   `TBLPROPERTIES`:
@@ -494,11 +494,11 @@ For CSV only simple types are supported.
 
 ### Syntax
 
-```
+{{< highlight >}}
 CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName (tableElement [, tableElement ]*)
 TYPE mongodb
 LOCATION 'mongodb://[HOST]:[PORT]/[DATABASE]/[COLLECTION]'
-```
+{{< /highlight >}}
 *   `LOCATION`: Location of the collection.
     *   `HOST`: Location of the MongoDB server. Can be localhost or an ip address.
          When authentication is required username and password can be specified
@@ -521,11 +521,11 @@ Only simple types are supported. MongoDB documents are mapped to Beam SQL types 
 
 ### Example
 
-```
+{{< highlight >}}
 CREATE EXTERNAL TABLE users (id INTEGER, username VARCHAR)
 TYPE mongodb
 LOCATION 'mongodb://localhost:27017/apache/users'
-```
+{{< /highlight >}}
 
 ## Text
 
@@ -534,12 +534,12 @@ access the same underlying data.
 
 ### Syntax
 
-```
+{{< highlight >}}
 CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName (tableElement [, tableElement ]*)
 TYPE text
 LOCATION '/home/admin/orders'
 TBLPROPERTIES '{"format: "Excel"}'
-```
+{{< /highlight >}}
 
 *   `LOCATION`: The path to the file for Read Mode. The prefix for Write Mode.
 *   `TBLPROPERTIES`:
@@ -577,8 +577,8 @@ Only simple types are supported.
 
 ### Example
 
-```
+{{< highlight >}}
 CREATE EXTERNAL TABLE orders (id INTEGER, price INTEGER)
 TYPE text
 LOCATION '/home/admin/orders'
-```
+{{< /highlight >}}

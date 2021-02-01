@@ -1,6 +1,7 @@
 ---
 title: "Create Your Pipeline"
 ---
+
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,11 +22,11 @@ limitations under the License.
 
 Your Beam program expresses a data processing pipeline, from start to finish. This section explains the mechanics of using the classes in the Beam SDKs to build a pipeline. To construct a pipeline using the classes in the Beam SDKs, your program will need to perform the following general steps:
 
-*   Create a `Pipeline` object.
-*   Use a **Read** or **Create** transform to create one or more `PCollection`s for your pipeline data.
-*   Apply **transforms** to each `PCollection`. Transforms can change, filter, group, analyze, or otherwise process the elements in a `PCollection`. Each transform creates a new output `PCollection`, to which you can apply additional transforms until processing is complete.
-*   **Write** or otherwise output the final, transformed `PCollection`s.
-*   **Run** the pipeline.
+- Create a `Pipeline` object.
+- Use a **Read** or **Create** transform to create one or more `PCollection`s for your pipeline data.
+- Apply **transforms** to each `PCollection`. Transforms can change, filter, group, analyze, or otherwise process the elements in a `PCollection`. Each transform creates a new output `PCollection`, to which you can apply additional transforms until processing is complete.
+- **Write** or otherwise output the final, transformed `PCollection`s.
+- **Run** the pipeline.
 
 ## Creating Your Pipeline Object
 
@@ -35,7 +36,7 @@ In the Beam SDKs, each pipeline is represented by an explicit object of type `Pi
 
 To create a pipeline, declare a `Pipeline` object, and pass it some [configuration options](/documentation/programming-guide#configuring-pipeline-options).
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 // Start by defining the options for the pipeline.
 PipelineOptions options = PipelineOptionsFactory.create();
 
@@ -51,9 +52,9 @@ There are two kinds of root transforms in the Beam SDKs: `Read` and `Create`. `R
 
 The following example code shows how to `apply` a `TextIO.Read` root transform to read data from a text file. The transform is applied to a `Pipeline` object `p`, and returns a pipeline data set in the form of a `PCollection<String>`:
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 PCollection<String> lines = p.apply(
-  "ReadLines", TextIO.read().from("gs://some/inputData.txt"));
+"ReadLines", TextIO.read().from("gs://some/inputData.txt"));
 {{< /highlight >}}
 
 ## Applying Transforms to Process Pipeline Data
@@ -64,7 +65,7 @@ The following code shows how to `apply` a transform to a `PCollection` of string
 
 The input is a `PCollection<String>` called `words`; the code passes an instance of a `PTransform` object called `ReverseWords` to `apply`, and saves the return value as the `PCollection<String>` called `reversedWords`.
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 PCollection<String> words = ...;
 
 PCollection<String> reversedWords = words.apply(new ReverseWords());
@@ -76,7 +77,7 @@ Once your pipeline has applied all of its transforms, you'll usually need to out
 
 The following example code shows how to `apply` a `TextIO.Write` transform to write a `PCollection` of `String` to a text file:
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 PCollection<String> filteredWords = ...;
 
 filteredWords.apply("WriteMyFile", TextIO.write().to("gs://some/outputData.txt"));
@@ -86,17 +87,17 @@ filteredWords.apply("WriteMyFile", TextIO.write().to("gs://some/outputData.txt")
 
 Once you have constructed your pipeline, use the `run` method to execute the pipeline. Pipelines are executed asynchronously: the program you create sends a specification for your pipeline to a **pipeline runner**, which then constructs and runs the actual series of pipeline operations.
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 p.run();
 {{< /highlight >}}
 
 The `run` method is asynchronous. If you'd like a blocking execution instead, run your pipeline appending the `waitUntilFinish` method:
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 p.run().waitUntilFinish();
 {{< /highlight >}}
 
 ## What's next
 
-*   [Programming Guide](/documentation/programming-guide) - Learn the details of creating your pipeline, configuring pipeline options, and applying transforms.
-*   [Test your pipeline](/documentation/pipelines/test-your-pipeline).
+- [Programming Guide](/documentation/programming-guide) - Learn the details of creating your pipeline, configuring pipeline options, and applying transforms.
+- [Test your pipeline](/documentation/pipelines/test-your-pipeline).

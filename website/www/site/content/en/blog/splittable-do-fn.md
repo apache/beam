@@ -1,6 +1,6 @@
 ---
-title:  "Powerful and modular IO connectors with Splittable DoFn in Apache Beam"
-date:   2017-08-16 00:00:01 -0800
+title: "Powerful and modular IO connectors with Splittable DoFn in Apache Beam"
+date: 2017-08-16 00:00:01 -0800
 categories:
   - blog
 aliases:
@@ -8,6 +8,7 @@ aliases:
 authors:
   - jkff
 ---
+
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -44,7 +45,7 @@ into a single `ParDo` with some batching for performance; `JdbcIO.read()`
 [expands](https://github.com/apache/beam/blob/f7e8f886c91ea9d0b51e00331eeb4484e2f6e000/sdks/java/io/jdbc/src/main/java/org/apache/beam/sdk/io/jdbc/JdbcIO.java#L329)
 into `Create.of(query)`, a reshuffle to [prevent
 fusion](https://cloud.google.com/dataflow/service/dataflow-service-desc#preventing-fusion),
-and `ParDo(execute sub-query)`.  Some IOs
+and `ParDo(execute sub-query)`. Some IOs
 [construct](https://github.com/apache/beam/blob/8503adbbc3a590cd0dc2939f6a45d335682a9442/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.java#L1139)
 considerably more complicated pipelines.
 
@@ -68,19 +69,17 @@ useful capability, often overlooked by other data processing frameworks.
 Despite the flexibility of `ParDo`, `GroupByKey` and their derivatives, in some
 cases building an efficient IO connector requires extra capabilities.
 
-For example, imagine reading files using the sequence `ParDo(filepattern →
-expand into files)`, `ParDo(filename → read records)`, or reading a Kafka topic
-using `ParDo(topic → list partitions)`, `ParDo(topic, partition → read
-records)`. This approach has two big issues:
+For example, imagine reading files using the sequence `ParDo(filepattern → expand into files)`, `ParDo(filename → read records)`, or reading a Kafka topic
+using `ParDo(topic → list partitions)`, `ParDo(topic, partition → read records)`. This approach has two big issues:
 
-* In the file example, some files might be much larger than others, so the
-second `ParDo` may have very long individual `@ProcessElement` calls. As a
-result, the pipeline can suffer from poor performance due to stragglers.
+- In the file example, some files might be much larger than others, so the
+  second `ParDo` may have very long individual `@ProcessElement` calls. As a
+  result, the pipeline can suffer from poor performance due to stragglers.
 
-* In the Kafka example, implementing the second `ParDo` is *simply impossible*
-with a regular `DoFn`, because it would need to output an infinite number of
-records per each input element `topic, partition` *([stateful processing](/blog/2017/02/13/stateful-processing.html) comes close, but it
-has other limitations that make it insufficient for this task*).
+- In the Kafka example, implementing the second `ParDo` is _simply impossible_
+  with a regular `DoFn`, because it would need to output an infinite number of
+  records per each input element `topic, partition` _([stateful processing](/blog/2017/02/13/stateful-processing.html) comes close, but it
+  has other limitations that make it insufficient for this task_).
 
 ## Beam Source API
 
@@ -101,23 +100,23 @@ API provides advanced features such as progress reporting and [dynamic
 rebalancing](/blog/2016/05/18/splitAtFraction-method.html)
 (which together enable autoscaling), and
 [`UnboundedSource`](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/org/apache/beam/sdk/io/UnboundedSource.html) supports
-reporting the source's watermark and backlog *(until SDF, we believed that
+reporting the source's watermark and backlog _(until SDF, we believed that
 "batch" and "streaming" data sources are fundamentally different and thus
-require fundamentally different APIs)*.
+require fundamentally different APIs)_.
 
 Unfortunately, these features come at a price. Coding against the Source API
 involves a lot of boilerplate and is error-prone, and it does not compose well
 with the rest of the Beam model because a `Source` can appear only at the root
 of a pipeline. For example:
 
-* Using the Source API, it is not possible to read a `PCollection` of
-filepatterns.
+- Using the Source API, it is not possible to read a `PCollection` of
+  filepatterns.
 
-* A `Source` can not read a side input, or wait on another pipeline step to
-produce the data.
+- A `Source` can not read a side input, or wait on another pipeline step to
+  produce the data.
 
-* A `Source` can not emit an additional output (for example, records that failed to
-parse) and so on.
+- A `Source` can not emit an additional output (for example, records that failed to
+  parse) and so on.
 
 The Source API is not composable even with itself. For example, suppose Alice
 implements an unbounded `Source` that watches a directory for new matching
@@ -131,20 +130,19 @@ implementation of such a `Source` is incredibly difficult and error-prone.
 Another class of issues with the `Source` API comes from its strict
 bounded/unbounded dichotomy:
 
-* It is difficult or impossible to reuse code between seemingly very similar
-bounded and unbounded sources, for example, the `BoundedSource` that generates
-a sequence `[a, b)` and the `UnboundedSource` that generates a sequence `[a,
-inf)` [don't share any
-code](https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/io/CountingSource.java)
-in the Beam Java SDK.
+- It is difficult or impossible to reuse code between seemingly very similar
+  bounded and unbounded sources, for example, the `BoundedSource` that generates
+  a sequence `[a, b)` and the `UnboundedSource` that generates a sequence `[a, inf)` [don't share any
+  code](https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/io/CountingSource.java)
+  in the Beam Java SDK.
 
-* It is not clear how to classify the ingestion of a very large and
-continuously growing dataset. Ingesting its "already available" part seems to
-require a `BoundedSource`: the runner could benefit from knowing its size, and
-could perform dynamic rebalancing. However, ingesting the continuously arriving
-new data seems to require an `UnboundedSource` for providing watermarks. From
-this angle, the `Source` API has [the same issues as Lambda
-Architecture](https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-101).
+- It is not clear how to classify the ingestion of a very large and
+  continuously growing dataset. Ingesting its "already available" part seems to
+  require a `BoundedSource`: the runner could benefit from knowing its size, and
+  could perform dynamic rebalancing. However, ingesting the continuously arriving
+  new data seems to require an `UnboundedSource` for providing watermarks. From
+  this angle, the `Source` API has [the same issues as Lambda
+  Architecture](https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-101).
 
 About two years ago we began thinking about how to address the limitations of
 the Source API, and ended up, surprisingly, addressing the limitations of
@@ -154,11 +152,11 @@ the Source API, and ended up, surprisingly, addressing the limitations of
 
 [Splittable DoFn](https://s.apache.org/splittable-do-fn) (SDF) is a
 generalization of `DoFn` that gives it the core capabilities of `Source` while
-retaining `DoFn`'s syntax, flexibility, modularity, and ease of coding.  As a
+retaining `DoFn`'s syntax, flexibility, modularity, and ease of coding. As a
 result, it becomes possible to develop more powerful IO connectors than before,
 with shorter, simpler, more reusable code.
 
-Note that, unlike `Source`, SDF *does not* have distinct bounded/unbounded APIs,
+Note that, unlike `Source`, SDF _does not_ have distinct bounded/unbounded APIs,
 just as regular `DoFn`s don't: there is only one API, which covers both of these
 use cases and anything in between. Thus, SDF closes the final gap in the unified
 batch/streaming programming model of Apache Beam.
@@ -167,30 +165,30 @@ When reading the explanation of SDF below, keep in mind the running example of a
 `DoFn` that takes a filename as input and outputs the records in that file.
 People familiar with the `Source` API may find it useful to think of SDF as a
 way to read a `PCollection` of sources, treating the source itself as just
-another piece of data in the pipeline *(this, in fact, was one of the early
-design iterations among the work that led to creation of SDF)*.
+another piece of data in the pipeline _(this, in fact, was one of the early
+design iterations among the work that led to creation of SDF)_.
 
 The two aspects where `Source` has an advantage over a regular `DoFn` are:
 
-* **Splittability:** applying a `DoFn` to a single element is *monolithic*, but
-reading from a `Source` is *non-monolithic*. The whole `Source` doesn't have to
-be read at once; rather, it is read in parts, called *bundles*. For example, a
-large file is usually read in several bundles, each reading some sub-range of
-offsets within the file. Likewise, a Kafka topic (which, of course, can never
-be read "fully") is read over an infinite number of bundles, each reading some
-finite number of elements.
+- **Splittability:** applying a `DoFn` to a single element is _monolithic_, but
+  reading from a `Source` is _non-monolithic_. The whole `Source` doesn't have to
+  be read at once; rather, it is read in parts, called _bundles_. For example, a
+  large file is usually read in several bundles, each reading some sub-range of
+  offsets within the file. Likewise, a Kafka topic (which, of course, can never
+  be read "fully") is read over an infinite number of bundles, each reading some
+  finite number of elements.
 
-* **Interaction with the runner:** runners apply a `DoFn` to a single element as
-a "black box", but interact quite richly with `Source`. `Source` provides the
-runner with information such as its estimated size (or its generalization,
-"backlog"), progress through reading the bundle, watermarks etc. The runner
-uses this information to tune the execution and control the breakdown of the
-`Source` into bundles. For example, a slowly progressing large bundle of a file
-may be [dynamically
-split](https://cloud.google.com/blog/big-data/2016/05/no-shard-left-behind-dynamic-work-rebalancing-in-google-cloud-dataflow)
-by a batch-focused runner before it becomes a straggler, and a latency-focused
-streaming runner may control how many elements it reads from a source in each
-bundle to optimize for latency vs. per-bundle overhead.
+- **Interaction with the runner:** runners apply a `DoFn` to a single element as
+  a "black box", but interact quite richly with `Source`. `Source` provides the
+  runner with information such as its estimated size (or its generalization,
+  "backlog"), progress through reading the bundle, watermarks etc. The runner
+  uses this information to tune the execution and control the breakdown of the
+  `Source` into bundles. For example, a slowly progressing large bundle of a file
+  may be [dynamically
+  split](https://cloud.google.com/blog/big-data/2016/05/no-shard-left-behind-dynamic-work-rebalancing-in-google-cloud-dataflow)
+  by a batch-focused runner before it becomes a straggler, and a latency-focused
+  streaming runner may control how many elements it reads from a source in each
+  bundle to optimize for latency vs. per-bundle overhead.
 
 ### Non-monolithic element processing with restrictions
 
@@ -198,18 +196,18 @@ Splittable `DoFn` supports `Source`-like features by allowing the processing of
 a single element to be non-monolithic.
 
 The processing of one element by an SDF is decomposed into a (potentially
-infinite) number of *restrictions*, each describing some part of the work to be
+infinite) number of _restrictions_, each describing some part of the work to be
 done for the whole element. The input to an SDF's `@ProcessElement` call is a
 pair of an element and a restriction (compared to a regular `DoFn`, which takes
 just the element).
 
-Processing of every element starts by creating an *initial restriction* that
+Processing of every element starts by creating an _initial restriction_ that
 describes the entire work, and the initial restriction is then split further
 into sub-restrictions which must logically add up to the original. For example,
 for a splittable `DoFn` called `ReadFn` that takes a filename and outputs
 records in the file, the restriction may be a pair of starting and ending byte
-offset, and `ReadFn` may interpret it as *read records whose starting offsets
-are in the given range*.
+offset, and `ReadFn` may interpret it as _read records whose starting offsets
+are in the given range_.
 
 <img class="center-block"
     src="/images/blog/splittable-do-fn/restrictions.png"
@@ -217,13 +215,13 @@ are in the given range*.
     width="600">
 
 The idea of restrictions provides non-monolithic execution - the first
-ingredient for parity with `Source`. The other ingredient is *interaction with
-the runner*: the runner has access to the restriction of each active
+ingredient for parity with `Source`. The other ingredient is _interaction with
+the runner_: the runner has access to the restriction of each active
 `@ProcessElement` call of an SDF, can inquire about the progress of the call,
-and most importantly, can *split* the restriction while it is being processed
-(hence the name *Splittable DoFn*).
+and most importantly, can _split_ the restriction while it is being processed
+(hence the name _Splittable DoFn_).
 
-Splitting produces a *primary* and *residual* restriction that add up to the
+Splitting produces a _primary_ and _residual_ restriction that add up to the
 original restriction being split: the current `@ProcessElement` call keeps
 processing the primary, and the residual will be processed by another
 `@ProcessElement` call. For example, a runner may schedule the residual to be
@@ -231,27 +229,27 @@ processed in parallel on another worker.
 
 Splitting of a running `@ProcessElement` call has two critically important uses:
 
-* **Supporting infinite work per element.** A restriction is, in general, not
-required to describe a finite amount of work. For example, reading from a Kafka
-topic starting from offset *100* can be represented by the
-restriction *[100, inf)*. A `@ProcessElement` call processing this
-entire restriction would, of course, never complete. However, while such a call
-runs, a runner can split the restriction into a *finite* primary *[100, 150)*
-(letting the current call complete this part) and an *infinite* residual *[150,
-inf)* to be processed later, effectively checkpointing and resuming the call;
-this can be repeated forever.
+- **Supporting infinite work per element.** A restriction is, in general, not
+  required to describe a finite amount of work. For example, reading from a Kafka
+  topic starting from offset _100_ can be represented by the
+  restriction _[100, inf)_. A `@ProcessElement` call processing this
+  entire restriction would, of course, never complete. However, while such a call
+  runs, a runner can split the restriction into a _finite_ primary _[100, 150)_
+  (letting the current call complete this part) and an _infinite_ residual _[150,
+  inf)_ to be processed later, effectively checkpointing and resuming the call;
+  this can be repeated forever.
 
 <img class="center-block"
     src="/images/blog/splittable-do-fn/kafka-splitting.png"
     alt="Splitting an infinite restriction into a finite primary and infinite residual"
     width="400">
 
-* **Dynamic rebalancing.** When a (typically batch-focused) runner detects that
-a `@ProcessElement` call is going to take too long and become a straggler, it
-can split the restriction in some proportion so that the primary is short enough
-to not be a straggler, and can schedule the residual in parallel on another
-worker. For details, see [No Shard Left
-Behind](https://cloud.google.com/blog/big-data/2016/05/no-shard-left-behind-dynamic-work-rebalancing-in-google-cloud-dataflow).
+- **Dynamic rebalancing.** When a (typically batch-focused) runner detects that
+  a `@ProcessElement` call is going to take too long and become a straggler, it
+  can split the restriction in some proportion so that the primary is short enough
+  to not be a straggler, and can schedule the residual in parallel on another
+  worker. For details, see [No Shard Left
+  Behind](https://cloud.google.com/blog/big-data/2016/05/no-shard-left-behind-dynamic-work-rebalancing-in-google-cloud-dataflow).
 
 Logically, the execution of an SDF on an element works according to the
 following diagram, where "magic" stands for the runner-specific ability to split
@@ -271,21 +269,21 @@ user, and can be applied via a `ParDo` to a `PCollection<A>` producing a
 ### Which DoFns need to be splittable
 
 Note that decomposition of an element into element/restriction pairs is not
-automatic or "magical": SDF is a new API for *authoring* a `DoFn`, rather than a
-new way to *execute* an existing `DoFn`. When making a `DoFn` splittable, the
+automatic or "magical": SDF is a new API for _authoring_ a `DoFn`, rather than a
+new way to _execute_ an existing `DoFn`. When making a `DoFn` splittable, the
 author needs to:
 
-* Consider the structure of the work it does for every element.
+- Consider the structure of the work it does for every element.
 
-* Come up with a scheme for describing parts of this work using restrictions.
+- Come up with a scheme for describing parts of this work using restrictions.
 
-* Write code for creating the initial restriction, splitting it, and executing
-an element/restriction pair.
+- Write code for creating the initial restriction, splitting it, and executing
+  an element/restriction pair.
 
 An overwhelming majority of `DoFn`s found in user pipelines do not need to be
 made splittable: SDF is an advanced, powerful API, primarily targeting authors
-of new IO connectors *(though it has interesting non-IO applications as well:
-see [Non-IO examples](https://s.apache.org/splittable-do-fn#heading=h.5cep9s8k4fxv))*.
+of new IO connectors _(though it has interesting non-IO applications as well:
+see [Non-IO examples](https://s.apache.org/splittable-do-fn#heading=h.5cep9s8k4fxv))_.
 
 ### Execution of a restriction and data consistency
 
@@ -296,9 +294,9 @@ can it be sure that the call has not concurrently progressed past the point of
 splitting?
 
 This is achieved by requiring the processing of a restriction to follow a
-certain pattern. We think of a restriction as a sequence of *blocks* -
-elementary indivisible units of work, identified by a *position*. A
-`@ProcessElement` call processes the blocks one by one, first *claiming* the
+certain pattern. We think of a restriction as a sequence of _blocks_ -
+elementary indivisible units of work, identified by a _position_. A
+`@ProcessElement` call processes the blocks one by one, first _claiming_ the
 block's position to atomically check if it's still within the range of the
 restriction, until the whole restriction is processed.
 
@@ -327,54 +325,54 @@ as part of the flexible [annotation-based
 `DoFn`](https://s.apache.org/a-new-dofn) machinery, and the [proposed SDF syntax
 for Python](https://s.apache.org/splittable-do-fn-python).
 
-* A splittable `DoFn` is a `DoFn` - no new base class needed. Any SDF derives
-from the `DoFn` class and has a `@ProcessElement` method.
+- A splittable `DoFn` is a `DoFn` - no new base class needed. Any SDF derives
+  from the `DoFn` class and has a `@ProcessElement` method.
 
-* The `@ProcessElement` method takes an additional
-[`RestrictionTracker`](https://github.com/apache/beam/blob/f7e8f886c91ea9d0b51e00331eeb4484e2f6e000/sdks/java/core/src/main/java/org/apache/beam/sdk/transforms/splittabledofn/RestrictionTracker.java)
-parameter that gives access to the current restriction in addition to the
-current element.
+- The `@ProcessElement` method takes an additional
+  [`RestrictionTracker`](https://github.com/apache/beam/blob/f7e8f886c91ea9d0b51e00331eeb4484e2f6e000/sdks/java/core/src/main/java/org/apache/beam/sdk/transforms/splittabledofn/RestrictionTracker.java)
+  parameter that gives access to the current restriction in addition to the
+  current element.
 
-* An SDF needs to define a `@GetInitialRestriction` method that can create a
-restriction describing the complete work for a given element.
+- An SDF needs to define a `@GetInitialRestriction` method that can create a
+  restriction describing the complete work for a given element.
 
-* There are several less important optional methods, such as
-`@SplitRestriction` for pre-splitting the initial restriction into several
-smaller restrictions, and a few others.
+- There are several less important optional methods, such as
+  `@SplitRestriction` for pre-splitting the initial restriction into several
+  smaller restrictions, and a few others.
 
-The "Hello World" of SDF is a counter, which takes pairs *(x, N)* as input and
-produces pairs *(x, 0), (x, 1), …, (x, N-1)* as output.
+The "Hello World" of SDF is a counter, which takes pairs _(x, N)_ as input and
+produces pairs _(x, 0), (x, 1), …, (x, N-1)_ as output.
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 class CountFn<T> extends DoFn<KV<T, Long>, KV<T, Long>> {
-  @ProcessElement
-  public void process(ProcessContext c, OffsetRangeTracker tracker) {
-    for (long i = tracker.currentRestriction().getFrom(); tracker.tryClaim(i); ++i) {
-      c.output(KV.of(c.element().getKey(), i));
-    }
-  }
+@ProcessElement
+public void process(ProcessContext c, OffsetRangeTracker tracker) {
+for (long i = tracker.currentRestriction().getFrom(); tracker.tryClaim(i); ++i) {
+c.output(KV.of(c.element().getKey(), i));
+}
+}
 
-  @GetInitialRestriction
-  public OffsetRange getInitialRange(KV<T, Long> element) {
-    return new OffsetRange(0L, element.getValue());
-  }
+@GetInitialRestriction
+public OffsetRange getInitialRange(KV<T, Long> element) {
+return new OffsetRange(0L, element.getValue());
+}
 }
 
 PCollection<KV<String, Long>> input = …;
 PCollection<KV<String, Long>> output = input.apply(
-    ParDo.of(new CountFn<String>());
+ParDo.of(new CountFn<String>());
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 class CountFn(DoFn):
-  def process(element, tracker=DoFn.RestrictionTrackerParam)
-    for i in xrange(*tracker.current_restriction()):
-      if not tracker.try_claim(i):
-        return
-      yield element[0], i
+def process(element, tracker=DoFn.RestrictionTrackerParam)
+for i in xrange(\*tracker.current_restriction()):
+if not tracker.try_claim(i):
+return
+yield element[0], i
 
-  def get_initial_restriction(element):
-    return (0, element[1])
+def get_initial_restriction(element):
+return (0, element[1])
 {{< /highlight >}}
 
 This short `DoFn` subsumes the functionality of
@@ -390,61 +388,56 @@ batch-focused runner can still apply dynamic rebalancing to it and generate
 different subranges of the sequence in parallel by splitting the `OffsetRange`.
 Likewise, a streaming-focused runner can use the same splitting logic to
 checkpoint and resume the generation of the sequence even if it is, for
-practical purposes, infinite (for example, when applied to a `KV(...,
-Long.MAX_VALUE)`).
+practical purposes, infinite (for example, when applied to a `KV(..., Long.MAX_VALUE)`).
 
 A slightly more complex example is the `ReadFn` considered above, which reads
-data from Avro files and illustrates the idea of *blocks*: we provide pseudocode
+data from Avro files and illustrates the idea of _blocks_: we provide pseudocode
 to illustrate the approach.
 
-{{< highlight java >}}
+{{< highlight language="java" >}}
 class ReadFn extends DoFn<String, AvroRecord> {
-  @ProcessElement
-  void process(ProcessContext c, OffsetRangeTracker tracker) {
-    try (AvroReader reader = Avro.open(filename)) {
-      // Seek to the first block starting at or after the start offset.
-      reader.seek(tracker.currentRestriction().getFrom());
-      while (reader.readNextBlock()) {
-        // Claim the position of the current Avro block
-        if (!tracker.tryClaim(reader.currentBlockOffset())) {
-          // Out of range of the current restriction - we're done.
-          return;
-        }
-        // Emit all records in this block
-        for (AvroRecord record : reader.currentBlock()) {
-          c.output(record);
-        }
-      }
-    }
-  }
+@ProcessElement
+void process(ProcessContext c, OffsetRangeTracker tracker) {
+try (AvroReader reader = Avro.open(filename)) {
+// Seek to the first block starting at or after the start offset.
+reader.seek(tracker.currentRestriction().getFrom());
+while (reader.readNextBlock()) {
+// Claim the position of the current Avro block
+if (!tracker.tryClaim(reader.currentBlockOffset())) {
+// Out of range of the current restriction - we're done.
+return;
+}
+// Emit all records in this block
+for (AvroRecord record : reader.currentBlock()) {
+c.output(record);
+}
+}
+}
+}
 
-  @GetInitialRestriction
-  OffsetRange getInitialRestriction(String filename) {
-    return new OffsetRange(0, new File(filename).getSize());
-  }
+@GetInitialRestriction
+OffsetRange getInitialRestriction(String filename) {
+return new OffsetRange(0, new File(filename).getSize());
+}
 }
 {{< /highlight >}}
 
-{{< highlight py >}}
+{{< highlight language="py" >}}
 class AvroReader(DoFn):
-  def process(filename, tracker=DoFn.RestrictionTrackerParam)
-    with fileio.ChannelFactory.open(filename) as file:
-      start, stop = tracker.current_restriction()
-      # Seek to the first block starting at or after the start offset.
-      file.seek(start)
-      block = AvroUtils.get_next_block(file)
-      while block:
-        # Claim the position of the current Avro block
-        if not tracker.try_claim(block.start()):
-          # Out of range of the current restriction - we're done.
-          return
-        # Emit all records in this block
-        for record in block.records():
-          yield record
-        block = AvroUtils.get_next_block(file)
+def process(filename, tracker=DoFn.RestrictionTrackerParam)
+with fileio.ChannelFactory.open(filename) as file:
+start, stop = tracker.current_restriction() # Seek to the first block starting at or after the start offset.
+file.seek(start)
+block = AvroUtils.get_next_block(file)
+while block: # Claim the position of the current Avro block
+if not tracker.try_claim(block.start()): # Out of range of the current restriction - we're done.
+return # Emit all records in this block
+for record in block.records():
+yield record
+block = AvroUtils.get_next_block(file)
 
-  def get_initial_restriction(self, filename):
-    return (0, fileio.ChannelFactory.size_in_bytes(filename))
+def get_initial_restriction(self, filename):
+return (0, fileio.ChannelFactory.size_in_bytes(filename))
 {{< /highlight >}}
 
 This hypothetical `DoFn` reads records from a single Avro file. Notably missing
@@ -465,7 +458,7 @@ hood)](https://github.com/apache/beam/blob/3bd68ecfd7d576d78e02deb0476e549f11e1b
 ## Current status
 
 Splittable `DoFn` is a major new API, and its delivery and widespread adoption
-involves a lot of work in different parts of the Apache Beam ecosystem.  Some
+involves a lot of work in different parts of the Apache Beam ecosystem. Some
 of that work is already complete and provides direct benefit to users via new
 IO connectors. However, a large amount of work is in progress or planned.
 
@@ -493,25 +486,25 @@ lacking the ability to run SDF directly.
 In addition to enabling new IOs, work on SDF has influenced our thinking about
 other parts of the Beam programming model:
 
-* SDF unified the final remaining part of the Beam programming model that was
-not batch/streaming agnostic (the `Source` API). This led us to consider use
-cases that cannot be described as purely batch or streaming (for example,
-ingesting a large amount of historical data and carrying on with more data
-arriving in real time) and to develop a [unified notion of "progress" and
-"backlog"](https://s.apache.org/beam-fn-api-progress-reporting).
+- SDF unified the final remaining part of the Beam programming model that was
+  not batch/streaming agnostic (the `Source` API). This led us to consider use
+  cases that cannot be described as purely batch or streaming (for example,
+  ingesting a large amount of historical data and carrying on with more data
+  arriving in real time) and to develop a [unified notion of "progress" and
+  "backlog"](https://s.apache.org/beam-fn-api-progress-reporting).
 
-* The [Fn API](https://s.apache.org/beam-fn-api) - the foundation of Beam's
-future support for cross-language pipelines - uses SDF as *the only* concept
-representing data ingestion.
+- The [Fn API](https://s.apache.org/beam-fn-api) - the foundation of Beam's
+  future support for cross-language pipelines - uses SDF as _the only_ concept
+  representing data ingestion.
 
-* Implementation of SDF has lead to [formalizing pipeline termination
-semantics](https://lists.apache.org/thread.html/86831496a08fe148e3b982cdb904f828f262c0b571543a9fed7b915d@%3Cdev.beam.apache.org%3E)
-and making it consistent between runners.
+- Implementation of SDF has lead to [formalizing pipeline termination
+  semantics](https://lists.apache.org/thread.html/86831496a08fe148e3b982cdb904f828f262c0b571543a9fed7b915d@%3Cdev.beam.apache.org%3E)
+  and making it consistent between runners.
 
-* SDF set a new standard for how modular IO connectors can be, inspiring
-creation of similar APIs for some non-SDF-based connectors (for example,
-`SpannerIO.readAll()` and the
-[planned](https://issues.apache.org/jira/browse/BEAM-2706) `JdbcIO.readAll()`).
+- SDF set a new standard for how modular IO connectors can be, inspiring
+  creation of similar APIs for some non-SDF-based connectors (for example,
+  `SpannerIO.readAll()` and the
+  [planned](https://issues.apache.org/jira/browse/BEAM-2706) `JdbcIO.readAll()`).
 
 ## Call to action
 
@@ -519,14 +512,14 @@ Apache Beam thrives on having a large community of contributors. Here are some
 ways you can get involved in the SDF effort and help make the Beam IO connector
 ecosystem more modular:
 
-* Use the currently available SDF-based IO connectors, provide feedback, file
-bugs, and suggest or implement improvements.
+- Use the currently available SDF-based IO connectors, provide feedback, file
+  bugs, and suggest or implement improvements.
 
-* Propose or develop a new IO connector based on SDF.
+- Propose or develop a new IO connector based on SDF.
 
-* Implement or improve support for SDF in your favorite runner.
+- Implement or improve support for SDF in your favorite runner.
 
-* Subscribe and contribute to the occasional SDF-related discussions on
-[user@beam.apache.org](mailto:user@beam.apache.org) (mailing list for Beam
-users) and [dev@beam.apache.org](mailto:dev@beam.apache.org) (mailing list for
-Beam developers)!
+- Subscribe and contribute to the occasional SDF-related discussions on
+  [user@beam.apache.org](mailto:user@beam.apache.org) (mailing list for Beam
+  users) and [dev@beam.apache.org](mailto:dev@beam.apache.org) (mailing list for
+  Beam developers)!

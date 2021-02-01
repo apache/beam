@@ -28,9 +28,9 @@ Compile and runtime dependencies for your Beam SDK version are listed in `BeamMo
 
 1. Open `BeamModulePlugin.groovy`.
 
-    ```
+    {{< highlight >}}
     https://raw.githubusercontent.com/apache/beam/v<VERSION_NUMBER>/buildSrc/src/main/groovy/org/apache/beam/gradle/BeamModulePlugin.groovy
-    ```
+    {{< /highlight >}}
 
     Replace `<VERSION_NUMBER>` with the major.minor.patch version of the SDK. For example, <https://raw.githubusercontent.com/apache/beam/v{{< param release_latest >}}/buildSrc/src/main/groovy/org/apache/beam/gradle/BeamModulePlugin.groovy> will provide the dependencies for the {{< param release_latest >}} release.
 
@@ -42,14 +42,14 @@ You can also retrieve this list by creating a new project through Maven and reso
 
 1. Define the Beam SDK and Java versions for the new project.
 
-    ```
+    {{< highlight >}}
     export BEAM_VERSION={{< param release_latest >}}
     export JAVA_VERSION=11
-    ```
+    {{< /highlight >}}
 
 2. Create the project.
 
-    ```
+    {{< highlight >}}
     mvn archetype:generate \
         -DinteractiveMode=false \
         -DarchetypeGroupId=org.apache.beam \
@@ -58,17 +58,16 @@ You can also retrieve this list by creating a new project through Maven and reso
         -DtargetPlatform=$JAVA_VERSION \
         -DartifactId=check-pipeline-dependencies \
         -DgroupId=org.apache.beam.samples
-    ```
+    {{< /highlight >}}
 
 3. Change to the new project directory.
 
-    ```
+    {{< highlight >}}
     cd check-pipeline-dependencies
-    ```
+    {{< /highlight >}}
 
 4. Resolve and list the dependencies.
 
-    ```
+    {{< highlight >}}
     mvn dependency:resolve && mvn -o dependency:list
-    ```
-
+    {{< /highlight >}}
