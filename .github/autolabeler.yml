@@ -18,7 +18,7 @@
 # Please keep the entries sorted lexicographically in each category.
 
 # General
-build: ["assembly.xml", "build.gradle", "buildSrc/*", ".gitattributes", ".github/*", ".gitignore", "gradle/*", ".mailmap", "ownership/*", "release/*", "sdks/java/build-tools/*", "settings.gradle"]
+build: ["assembly.xml", "build.gradle", "buildSrc/*", ".gitattributes", ".github/*", ".gitignore", "gradle/*", ".mailmap", "ownership/*", "release/*", "sdks/java/build-tools/*", "settings.gradle.kts"]
 docker: ["runners/flink/job-server-container/*", "runners/spark/job-server/container/*", "sdks/go/container/*", "sdks/java/container/*", "sdks/python/container/*"]
 examples: ["examples/*", "sdks/go/examples/*", "sdks/python/apache_beam/examples/*"]
 go: ["sdks/go/*"]

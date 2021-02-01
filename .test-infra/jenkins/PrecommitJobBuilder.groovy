@@ -77,7 +77,7 @@ class PrecommitJobBuilder {
       '^gradle.properties$',
       '^gradlew$',
       '^gradle.bat$',
-      '^settings.gradle$'
+      '^settings.gradle.kts$'
     ]
     if (triggerPathPatterns) {
       triggerPathPatterns.addAll defaultPathTriggers
