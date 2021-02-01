@@ -978,14 +978,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 &lt;h1 id="apache-beam-java-sdk-quickstart">Apache Beam Java SDK Quickstart&lt;/h1>
-&lt;p>This Quickstart will walk you through executing your first Beam pipeline to run &lt;a href="/get-started/wordcount-example">WordCount&lt;/a>, written using Beam&amp;rsquo;s &lt;a href="/documentation/sdks/java">Java SDK&lt;/a>, on a &lt;a href="/documentation#runners">runner&lt;/a> of your choice.&lt;/p>
+&lt;p>This quickstart shows you how to set up a Java development environment and run an &lt;a href="/get-started/wordcount-example">example pipeline&lt;/a> written with the &lt;a href="/documentation/sdks/java">Apache Beam Java SDK&lt;/a>, using a &lt;a href="/documentation#runners">runner&lt;/a> of your choice.&lt;/p>
 &lt;p>If you&amp;rsquo;re interested in contributing to the Apache Beam Java codebase, see the &lt;a href="/contribute">Contribution Guide&lt;/a>.&lt;/p>
 &lt;nav id="TableOfContents">
 &lt;ul>
 &lt;li>&lt;a href="#set-up-your-development-environment">Set up your Development Environment&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#get-the-wordcount-code">Get the WordCount Code&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#optional-convert-from-maven-to-gradle-project">Optional: Convert from Maven to Gradle Project&lt;/a>&lt;/li>
-&lt;li>&lt;a href="#run-wordcount">Run WordCount&lt;/a>
+&lt;li>&lt;a href="#run-a-pipeline">Run a pipeline&lt;/a>
 &lt;ul>
 &lt;li>&lt;a href="#run-wordcount-using-maven">Run WordCount Using Maven&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#run-wordcount-using-gradle">Run WordCount Using Gradle&lt;/a>&lt;/li>
@@ -1065,9 +1065,10 @@ d----- 7/19/2018 11:00 PM subprocess
 &lt;p>Ensure you are in the same directory as the &lt;code>pom.xml&lt;/code> file generated from the previous step. Automatically convert your project from Maven to Gradle by running:
 &lt;pre>&lt;code>$ gradle init&lt;/code>&lt;/pre>
 &lt;/p>
+&lt;p>You&amp;rsquo;ll be asked if you want to generate a Gradle build. Enter &lt;strong>yes&lt;/strong>. You&amp;rsquo;ll also be prompted to choose a DSL (Groovy or Kotlin). This tutorial uses Groovy, so select that if you don&amp;rsquo;t have a preference.&lt;/p>
 &lt;p>After you have converted the project to Gradle:&lt;/p>
 &lt;ol>
-&lt;li>Edit the generated &lt;code>build.gradle&lt;/code> file by adding &lt;code>mavenCentral()&lt;/code> under &lt;code>repositories&lt;/code>:
+&lt;li>In the generated &lt;code>build.gradle&lt;/code> file, in the &lt;code>repositories&lt;/code> block, replace &lt;code>mavenLocal()&lt;/code> with &lt;code>mavenCentral()&lt;/code>:
 &lt;pre>&lt;code>repositories {
 mavenCentral()
 maven {
@@ -1090,20 +1091,21 @@ args System.getProperty(&amp;#34;exec.args&amp;#34;, &amp;#34;&amp;#34;).split()
 &lt;pre>&lt;code>$ gradle build&lt;/code>&lt;/pre>
 &lt;/li>
 &lt;/ol>
-&lt;h2 id="run-wordcount">Run WordCount&lt;/h2>
-&lt;p>A single Beam pipeline can run on multiple Beam &lt;a href="/documentation#runners">runners&lt;/a>, including the &lt;a href="/documentation/runners/flink">FlinkRunner&lt;/a>, &lt;a href="/documentation/runners/spark">SparkRunner&lt;/a>, &lt;a href="/documentation/runners/nemo">NemoRunner&lt;/a>, &lt;a href="/documentation/runners/jet">JetRunner&lt;/a>, or &lt;a href="/documentation/runners/dataflow">DataflowRunner&lt;/a>. The &lt;a href="/documentation/runners/direct">DirectRunner&lt;/a> is a common runner for getting started, as it runs locally on your machine and requires no specific setup.&lt;/p>
-&lt;p>After you&amp;rsquo;ve chosen which runner you&amp;rsquo;d like to use:&lt;/p>
+&lt;h2 id="run-a-pipeline">Run a pipeline&lt;/h2>
+&lt;p>A single Beam pipeline can run on multiple Beam &lt;a href="/documentation#runners">runners&lt;/a>, including the &lt;a href="/documentation/runners/flink">FlinkRunner&lt;/a>, &lt;a href="/documentation/runners/spark">SparkRunner&lt;/a>, &lt;a href="/documentation/runners/nemo">NemoRunner&lt;/a>, &lt;a href="/documentation/runners/jet">JetRunner&lt;/a>, or &lt;a href="/documentation/runners/dataflow">DataflowRunner&lt;/a>. The &lt;a href="/documentation/runners/direct">DirectRunner&lt;/a> is a common runner for getting started, as it runs locally on your machine and requires no specific setup. If you&amp;rsquo;re just trying out Beam and you&amp;rsquo;re not sure what to use, use the &lt;a href="/documentation/runners/direct">DirectRunner&lt;/a>.&lt;/p>
+&lt;p>The general process for running a pipeline goes like this:&lt;/p>
 &lt;ol>
 &lt;li>Ensure you&amp;rsquo;ve done any runner-specific setup.&lt;/li>
-&lt;li>Build your commandline by:
+&lt;li>Build your command line:
 &lt;ol>
-&lt;li>Specifying a specific runner with &lt;code>--runner=&amp;lt;runner&amp;gt;&lt;/code> (defaults to the &lt;a href="/documentation/runners/direct">DirectRunner&lt;/a>)&lt;/li>
-&lt;li>Adding any runner-specific required options&lt;/li>
-&lt;li>Choosing input files and an output location are accessible on the chosen runner. (For example, you can&amp;rsquo;t access a local file if you are running the pipeline on an external cluster.)&lt;/li>
+&lt;li>Specify a runner with &lt;code>--runner=&amp;lt;runner&amp;gt;&lt;/code> (defaults to the &lt;a href="/documentation/runners/direct">DirectRunner&lt;/a>).&lt;/li>
+&lt;li>Add any runner-specific required options.&lt;/li>
+&lt;li>Choose input files and an output location that are accessible to the runner. (For example, you can&amp;rsquo;t access a local file if you are running the pipeline on an external cluster.)&lt;/li>
 &lt;/ol>
 &lt;/li>
-&lt;li>Run your first WordCount pipeline.&lt;/li>
+&lt;li>Run the command.&lt;/li>
 &lt;/ol>
+&lt;p>To run the WordCount pipeline, see the Maven and Gradle examples below.&lt;/p>
 &lt;h3 id="run-wordcount-using-maven">Run WordCount Using Maven&lt;/h3>
 &lt;p>For Unix shells:&lt;/p>
 &lt;div class=runner-direct>

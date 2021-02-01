@@ -1616,6 +1616,7 @@ unassigned. Most P1 bugs should block release.&lt;/p>
 &lt;li>data loss error&lt;/li>
 &lt;li>important component is nonfunctional for important use cases&lt;/li>
 &lt;li>major performance regression&lt;/li>
+&lt;li>security related issues (CVEs)&lt;/li>
 &lt;li>failing postcommit test&lt;/li>
 &lt;li>flaky test&lt;/li>
 &lt;/ul>
