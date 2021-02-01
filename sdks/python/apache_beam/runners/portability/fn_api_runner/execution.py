@@ -350,17 +350,16 @@ class FnApiRunnerExecutionContext(object):
                stages,  # type: List[translations.Stage]
                worker_handler_manager,  # type: worker_handlers.WorkerHandlerManager
                pipeline_components,  # type: beam_runner_api_pb2.Components
-               safe_coders,
-               data_channel_coders,
-              ):
-    # type: (...) -> None
-
+               safe_coders: translations.SafeCoderMapping,
+               data_channel_coders: Dict[str, str],
+              ) -> None:
     """
     :param worker_handler_manager: This class manages the set of worker
         handlers, and the communication with state / control APIs.
-    :param pipeline_components:  (beam_runner_api_pb2.Components): TODO
-    :param safe_coders:
-    :param data_channel_coders:
+    :param pipeline_components:  (beam_runner_api_pb2.Components)
+    :param safe_coders: A map from Coder ID to Safe Coder ID.
+    :param data_channel_coders: A map from PCollection ID to the ID of the Coder
+        for that PCollection.
     """
     self.stages = stages
     self.side_input_descriptors_by_stage = (

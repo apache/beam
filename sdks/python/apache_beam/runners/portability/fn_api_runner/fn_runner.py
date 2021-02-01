@@ -362,9 +362,14 @@ class FnApiRunner(runner.PipelineRunner):
               runner_execution_context.watermark_manager.get_node(
                   bundle_context_manager.stage.name
               ).input_watermark() == timestamp.MAX_TIMESTAMP), (
-              'wrong watermark for %s' %
-              runner_execution_context.watermark_manager.get_node(
-                  bundle_context_manager.stage.name)
+              'wrong watermark for %s. Expected %s, but got %s.' % (
+                  runner_execution_context.watermark_manager.get_node(
+                      bundle_context_manager.stage.name),
+                  timestamp.MAX_TIMESTAMP,
+                  runner_execution_context.watermark_manager.get_node(
+                      bundle_context_manager.stage.name
+                  ).input_watermark()
+              )
           )
 
           stage_results = self._run_stage(
@@ -374,9 +379,13 @@ class FnApiRunner(runner.PipelineRunner):
               runner_execution_context.watermark_manager.get_node(
                   bundle_context_manager.stage.name
               ).output_watermark() == timestamp.MAX_TIMESTAMP), (
-              'wrong watermark for %s' %
+              'wrong watermark for %s. Expected %s, but got %s.' % (
               runner_execution_context.watermark_manager.get_node(
-                  bundle_context_manager.stage.name)
+                  bundle_context_manager.stage.name),
+              timestamp.MAX_TIMESTAMP,
+              runner_execution_context.watermark_manager.get_node(
+                  bundle_context_manager.stage.name
+              ).output_watermark())
           )
 
           monitoring_infos_by_stage[stage.name] = (
@@ -393,9 +402,7 @@ class FnApiRunner(runner.PipelineRunner):
       data_output,  # type: DataOutput
       fired_timers,  # type: Mapping[Tuple[str, str], execution.PartitionableBuffer]
       expected_output_timers,  # type: Dict[Tuple[str, str], bytes]
-  ):
-    # type: (...) -> None
-
+  ) -> None:
     """
     If bundle_repeat > 0, replay every bundle for profiling and debugging.
     """
@@ -414,16 +421,15 @@ class FnApiRunner(runner.PipelineRunner):
 
   @staticmethod
   def _collect_written_timers(
-      bundle_context_manager,  # type: execution.BundleContextManager
-      newly_set_timers  # type: Dict[Tuple[str, str], ListBuffer]
-  ):
+      bundle_context_manager: execution.BundleContextManager,
+      newly_set_timers: Dict[Tuple[str, str], ListBuffer],
+  ) -> Dict[Tuple[str, str], timestamp.Timestamp]:
     """Review output buffers, and collect written timers.
 
     This function reviews a stage that has just been run. The stage will have
     written timers to its output buffers. The function then takes the timers,
     and adds them to the `newly_set_timers` dictionary.
     """
-    # type: (...) -> Dict[(str, str), timestamp.Timestamp]
     timer_watermark_data = {}
     for (transform_id, timer_family_id) in bundle_context_manager.stage.timers:
       written_timers = bundle_context_manager.get_buffer(
@@ -448,7 +454,7 @@ class FnApiRunner(runner.PipelineRunner):
             timer_watermark_data[(transform_id, timer_family_id)] = min(
                 timer_watermark_data[(transform_id, timer_family_id)],
                 decoded_timer.fire_timestamp)
-        fired_timers[(transform_id, timer_family_id)] = ListBuffer(
+        newly_set_timers[(transform_id, timer_family_id)] = ListBuffer(
             coder_impl=timer_coder_impl)
         newly_set_timers[(transform_id, timer_family_id)].append(out.get())
         written_timers.clear()
@@ -479,7 +485,7 @@ class FnApiRunner(runner.PipelineRunner):
       deferred_inputs[name].append(delayed_application.application.element)
 
       transform = bundle_context_manager.process_bundle_descriptor.transforms[
-        delayed_application.application.transform_id]
+          delayed_application.application.transform_id]
       pcolls_with_delayed_apps.add(
           transform.inputs[delayed_application.application.input_id])
     return pcolls_with_delayed_apps
@@ -657,7 +663,7 @@ class FnApiRunner(runner.PipelineRunner):
       pcolls_with_da,  # type: Set[str]
       transforms_w_splits,  # type: Set[str]
       watermarks_by_transform_and_timer_family  # type: Dict[translations.TimerFamilyId, timestamp.Timestamp]
-  ):
+  ) -> Dict[Union[str, translations.TimerFamilyId], timestamp.Timestamp]:
     """Builds a dictionary of PCollection (or TimerFamilyId) to timestamp.
 
     Args:
@@ -715,9 +721,10 @@ class FnApiRunner(runner.PipelineRunner):
       input_timers,  # type: Mapping[Tuple[str, str], execution.PartitionableBuffer]
       expected_timer_output,  # type: Dict[translations.TimerFamilyId, bytes]
       bundle_manager  # type: BundleManager
-  ):
-    # type: (...) -> Tuple[beam_fn_api_pb2.InstructionResponse, Dict[str, execution.PartitionableBuffer], Dict[Tuple[str, str], ListBuffer]]
-
+  ) -> Tuple[beam_fn_api_pb2.InstructionResponse,
+             Dict[str, execution.PartitionableBuffer],
+             Dict[Tuple[str, str], ListBuffer],
+             Dict[Union[str, translations.TimerFamilyId], timestamp.Timestamp]]:
     """Execute a bundle, and return a result object, and deferred inputs."""
     self._run_bundle_multiple_times_for_testing(
         runner_execution_context,
