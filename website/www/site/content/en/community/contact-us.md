@@ -45,5 +45,4 @@ A tag is a word within a pair of brackets [] that indicate the type of message y
 
 Tip 2: If you’re asking a troubleshooting question, provide as much information as possible to help others replicate your issue or find possible solutions.
 
-Tip 3: Share complete links instead of hyperlinks. A common practice in Apache is adding a number tag like [1] to indicate a word is a link or an attachment, and use the ta as a footnote to add the complete link at the end of your message.
-
+Tip 3: Share complete links instead of hyperlinks. A common practice in Apache is adding a number tag like [1] to indicate a word is a link or an attachment, and use the tag as a footnote to add the complete link at the end of your message.
