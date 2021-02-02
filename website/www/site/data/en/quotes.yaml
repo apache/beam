@@ -10,6 +10,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+#TODO: Change the quotes about Beam
+
 - text: A framework that delivers the flexibility and advanced functionality our customers need.
   icon: icons/quote-icon.svg
   logoUrl: images/logos/full-color/nameless/eBay.png
