@@ -28,6 +28,8 @@ import logging
 import threading
 import time
 from typing import TYPE_CHECKING
+from typing import Any
+from typing import Dict
 from typing import Iterator
 from typing import Optional
 from typing import Tuple
@@ -169,6 +171,11 @@ class JobServiceHandle(object):
         add_extra_args_fn=add_runner_options,
         retain_unknown_options=self._retain_unknown_options)
 
+    return self.encode_pipeline_options(all_options)
+
+  @staticmethod
+  def encode_pipeline_options(
+      all_options: Dict[str, Any]) -> 'struct_pb2.Struct':
     def convert_pipeline_option_value(v):
       # convert int values: BEAM-5509
       if type(v) == int:
