@@ -26,23 +26,24 @@ limitations under the License.
 The Apache Beam community is friendly and welcoming. We are glad to help with any
 question, suggestion or idea you have. Contact us in the following channels:
 
-### Available contact channels
+## Available contact channels
 
 {{< community/table_with_icons contact_us >}}
 
-### Mailing list, what are they and how they work
+## Mailing list, what are they and how they work
 
-The official communication channels for Apache projects are their mailing lists, and Apache
-Beam has two main lists, user@beam.apache.org and dev@beam.apache.org. You can see
-what are the topics for each of the above.
+The official communication channels for Apache projects are their mailing lists, and Apache Beam has two main lists: [user@beam.apache.org](user@beam.apache.org) and [dev@beam.apache.org](dev@beam.apache.org). The topics for each of them can be seen in the section above.
 
 ### Subsribe and Unsubscribe:
 
-To send emails to these lists you need to subscribe first. To subscribe send a blank email to [user@](user-subscribe@beam.apache.org) or [dev@](dev@beam.apache.org) depending on the list you want to write to.
+Prior to sending emails to these lists, you need to subscribe. To subscribe, send a blank email to [user-subscribe@beam.apache.org](user-subscribe@beam.apache.org) or [dev-subscribe@beam.apache.org](dev-subscribe@beam.apache.org) depending on the list you want to write to.
 
 ### Useful Tips for Sending Emails
 
-- Tip1: Use tags in your subject line
-  A tag is a word within a pair of brackets [] that indicate the type of message you’re sending. For example: [Bug] or [Proposal] or [Question] or [Idea]. Tags help folks navigate emails easier.
-- Tip 2: If you’re asking a troubleshooting question, provide as much information as possible to help others replicate your issue or find possible solutions.
-- Tip 3: Share complete links instead of hyperlinks. A common practice in Apache is adding a number tag like [1] to indicate a word is a link or an attachment, and use the tag as a footnote to add the complete link at the end of your message.
+Tip 1: Use tags in your subject line.
+A tag is a word within a pair of brackets [] that indicate the type of message you’re sending. For example: [Bug] or [Proposal] or [Question] or [Idea]. Tags help folks navigate emails easier.
+
+Tip 2: If you’re asking a troubleshooting question, provide as much information as possible to help others replicate your issue or find possible solutions.
+
+Tip 3: Share complete links instead of hyperlinks. A common practice in Apache is adding a number tag like [1] to indicate a word is a link or an attachment, and use the ta as a footnote to add the complete link at the end of your message.
+

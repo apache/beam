@@ -12,112 +12,103 @@
 
 - columns:
     - purpose
-    - contact
+    - channel
     - action
   data:
-    - purpose: User support and questions
+    - purpose: Get user support, ask general questions and stay up-to-date with project news
       contact:
         {
-          email: user@,
+          email: user@beam.apache.org,
           link: "https://lists.apache.org/list.html?user@beam.apache.org",
-          add: mailing list,
+          add: "User mailing list:"
         }
       icon: icons/community/contact-us/question-mark.svg
       actions:
         [
-          { action: Subscribe, link: "mailto:user-subscribe@beam.apache.org" },
           {
-            action: Unsubscribe,
-            link: "mailto:user-unsubscribe@beam.apache.org",
+            action: Subscribe,
+            link: "mailto:user-subscribe@beam.apache.org"
           },
           {
             action: Archives,
             link: "https://lists.apache.org/list.html?user@beam.apache.org",
           },
+          {
+            action: Read tips below,
+          }
         ]
-    - purpose: Development discussions
+    - purpose: Developer and contributor discussions
       contact:
         {
-          email: dev@,
+          email: dev@beam.apache.org,
           link: "https://lists.apache.org/list.html?dev@beam.apache.org",
-          add: mailing list,
+          add: "Developer mailing list:"
         }
       icon: icons/community/contact-us/discussion.svg
       actions:
         [
-          { action: Subscribe, link: "mailto:dev-subscribe@beam.apache.org" },
           {
-            action: Unsubscribe,
-            link: "mailto:dev-unsubscribe@beam.apache.org",
+            action: Subscribe,
+            link: "mailto:dev-subscribe@beam.apache.org"
           },
           {
             action: Archives,
             link: "https://lists.apache.org/list.html?dev@beam.apache.org",
           },
+          {
+            action: Read tips below,
+          }
         ]
-    - purpose: Firehose of commits, bugs, pull requests, etc.
+    - purpose: Report bugs, request features, follow known issues
       contact:
         {
-          email: commits@,
-          link: "https://lists.apache.org/list.html?commits@beam.apache.org",
-          add: mailing list,
-        }
-      icon: icons/community/contact-us/gitArrows.svg
-      actions:
-        [
-          {
-            action: Subscribe,
-            link: "mailto:commits-subscribe@beam.apache.org",
-          },
-          {
-            action: Unsubscribe,
-            link: "mailto:commits-unsubscribe@beam.apache.org",
-          },
-          {
-            action: Archives,
-            link: "https://lists.apache.org/list.html?commits@beam.apache.org",
-          },
-        ]
-    - purpose: Firehose of build notifications from Jenkins
-      contact:
-        {
-          email: builds@,
-          link: "https://lists.apache.org/list.html?builds@beam.apache.org",
-          add: mailing list,
-        }
-      icon: icons/community/contact-us/notification.svg
-      actions:
-        [
-          {
-            action: Subscribe,
-            link: "mailto:builds-subscribe@beam.apache.org",
-          },
-          {
-            action: Unsubscribe,
-            link: "mailto:builds-unsubscribe@beam.apache.org",
-          },
-          {
-            action: Archives,
-            link: "https://lists.apache.org/list.html?builds@beam.apache.org",
-          },
-        ]
-    - purpose: Report bugs / discover known issues
-      contact:
-        {
-          email: JIRA bug tracker,
+          email: Apache Beam Jira Tracker,
           link: "https://issues.apache.org/jira/browse/BEAM",
         }
       icon: icons/community/contact-us/bug.svg
-      actions: [{ action: "&#8208;" }]
-    - purpose: Ask and answer user support questions
+      actions:
+        [
+          {
+            action: To create an issue you need a Jira account. Open one here.,
+            link: "https://issues.apache.org/jira/secure/Signup!default.jspa",
+          },
+        ]
+    - purpose: Ask and answer community questions
       contact:
         {
-          email: StackOverflow,
+          email: "Apache Beam category in Stackoverflow.",
           link: "https://stackoverflow.com/questions/tagged/apache-beam",
         }
       icon: icons/community/contact-us/messages.svg
       actions: [{ action: "&#8208;" }]
-    - purpose: 'Chat with users and developers in the ASF Slack. Note: Please <a href="https://s.apache.org/beam-slack-channel">join the #beam channel</a> after you <a href="https://s.apache.org/slack-invite">created an account</a>. Please do not ask Beam questions in #general.'
-      contact: { email: Slack, link: "https://s.apache.org/beam-slack-channel" }
+    - purpose: Contact users and contributors in real time through the ASF slack workspace.
+      contact:
+        {
+          email: The ASF slack workspace,
+          link: "https://s.apache.org/beam-slack-channel",
+        }
       icon: icons/community/contact-us/knot.svg
-      actions: [{ action: "&#8208;" }]
+      actions: [{ action: "Join the #beam chanel and browse other available channels. Don’t ask Beam questions in #general, we don’t monitor it." }]
+    - purpose: Firehose of commits, bugs, pull requests, etc.
+      contact:
+        {
+          email: builds@beam.apache.org,
+          link: "https://lists.apache.org/list.html?builds@beam.apache.org",
+          add: Build mailing list,
+        }
+      icon: icons/community/contact-us/gitArrows.svg
+      actions: [{
+            action: Archives,
+            link: "https://lists.apache.org/list.html?commits@beam.apache.org",
+          }]
+    - purpose: 'Firehose of build notifications from Jenkins'
+      contact: {
+        email: commits@beam.apache.org,
+        link: "https://s.apache.org/beam-slack-channel",
+        add: Commits mailing list
+      }
+      icon: icons/community/contact-us/notification.svg
+      actions: [{
+            action: Archives,
+            link: "https://lists.apache.org/list.html?commits@beam.apache.org",
+          }]

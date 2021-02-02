@@ -29,10 +29,11 @@
                     </div>
                 </td>
                 <td>
-                    <a href={{.contact.link}}>{{.contact.email}}</a>
+
                     {{ if .contact.add }}
                         <span>{{ .contact.add }}</span>
                     {{end}}
+                    <a href={{.contact.link}}>{{.contact.email}}</a>
                 </td>
                 <td>
                     <div>
