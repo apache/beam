@@ -707,7 +707,10 @@ class SubprocessSdkWorkerHandler(GrpcWorkerHandler):
     # type: () -> None
     from apache_beam.runners.portability import local_job_service
     self.worker = local_job_service.SubprocessSdkWorker(
-        self._worker_command_line, self.control_address, self.worker_id)
+        self._worker_command_line,
+        self.control_address,
+        self.provision_info,
+        self.worker_id)
     self.worker_thread = threading.Thread(
         name='run_worker', target=self.worker.run)
     self.worker_thread.start()
