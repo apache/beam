@@ -418,7 +418,7 @@ This only verifies that everything builds with unit tests passing.
 
 There are some projects that don't produce the artifacts, e.g. `beam-test-tools`, you may be able to ignore failures there.
 
-To triage the failures and narrow things down you may want to look at `settings.gradle` and run the build only for the projects you're interested at the moment, e.g. `./gradlew :runners:java-fn-execution`.
+To triage the failures and narrow things down you may want to look at `settings.gradle.kts` and run the build only for the projects you're interested at the moment, e.g. `./gradlew :runners:java-fn-execution`.
 
 #### (Alternative) Run release build manually (locally)
 * **Pre-installation for python build**
