@@ -2171,6 +2171,7 @@ class CombineValuesDoFn(DoFn):
       runtime_type_check,  # type: bool
   ):
     super(CombineValuesDoFn, self).__init__()
+    self.input_pcoll_type = input_pcoll_type
     self.combinefn = combinefn
     self.runtime_type_check = runtime_type_check
 

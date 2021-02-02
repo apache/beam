@@ -67,6 +67,7 @@ class TranslationsTest(unittest.TestCase):
     environment = environments.DockerEnvironment.from_options(
         pipeline_options.PortableOptions(sdk_location='container'))
     pipeline_proto = pipeline.to_runner_api(default_environment=environment)
+    # logging.error('[debug:yifanmai] unoptimized pipeline %s' % pipeline_proto)
     _, stages = translations.create_and_optimize_stages(
         pipeline_proto, [translations.pack_combiners],
         known_runner_urns=frozenset())

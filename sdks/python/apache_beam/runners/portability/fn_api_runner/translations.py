@@ -987,7 +987,7 @@ def pack_combiners(stages, context):
     input_pcoll = context.components.pcollections[input_pcoll_id]
     context.components.pcollections[pack_pcoll_id].CopyFrom(
         beam_runner_api_pb2.PCollection(
-            unique_name=pack_transform_name + '/Pack.out',
+            unique_name=pack_transform_name + '/CombinePerKey.out',
             coder_id=pack_output_kv_coder_id,
             windowing_strategy_id=input_pcoll.windowing_strategy_id,
             is_bounded=input_pcoll.is_bounded))
@@ -1000,13 +1000,13 @@ def pack_combiners(stages, context):
         *[
             core.CombineFn.from_runner_api(combine_payload.combine_fn, context)  # type: ignore[arg-type]
             for combine_payload in combine_payloads
-        ]).to_runner_api(context)  # type: ignore[arg-type]
+        ])  # type: ignore[arg-type]
     pack_transform = beam_runner_api_pb2.PTransform(
-        unique_name=pack_transform_name + '/Pack',
+        unique_name=pack_transform_name + '/CombinePerKey',
         spec=beam_runner_api_pb2.FunctionSpec(
             urn=common_urns.composites.COMBINE_PER_KEY.urn,
             payload=beam_runner_api_pb2.CombinePayload(
-                combine_fn=pack_combine_fn,
+                combine_fn=pack_combine_fn.to_runner_api(context),
                 accumulator_coder_id=tuple_accumulator_coder_id).
             SerializeToString()),
         inputs={'in': input_pcoll_id},
@@ -1014,11 +1014,137 @@ def pack_combiners(stages, context):
         outputs={'None': pack_pcoll_id},
         environment_id=fused_stage.environment)
     pack_stage = Stage(
-        pack_stage_name + '/Pack', [pack_transform],
+        pack_stage_name + '/CombinePerKey', [pack_transform],
         downstream_side_inputs=fused_stage.downstream_side_inputs,
         must_follow=fused_stage.must_follow,
         parent=fused_stage.parent,
         environment=fused_stage.environment)
+
+    # Traverse the subtransform structure.
+    original_group_by_key_transforms = []
+    original_combine_grouped_values_transforms = []
+    original_combine_values_par_do_transforms = []
+    for transform in transforms:
+      # CombinePerKey may contain GroupByKey and Combine subtransforms.
+      if transform.subtransforms:
+        assert len(transform.subtransforms) == 2
+
+        group_by_key_transform = context.components.transforms[
+            transform.subtransforms[0]]
+        assert group_by_key_transform.spec.urn == common_urns.primitives.GROUP_BY_KEY.urn
+        original_group_by_key_transforms.append(group_by_key_transform)
+
+        combine_grouped_values_transform = context.components.transforms[
+            transform.subtransforms[1]]
+        assert combine_grouped_values_transform.spec.urn == common_urns.combine_components.COMBINE_GROUPED_VALUES.urn
+        original_combine_grouped_values_transforms.append(
+            combine_grouped_values_transform)
+
+        # Combine may contain a ParDo subtransform.
+        if combine_grouped_values_transform.subtransforms:
+          assert len(combine_grouped_values_transform.subtransforms) == 1
+
+          combine_values_par_do_transform = context.components.transforms[
+              combine_grouped_values_transform.subtransforms[0]]
+          assert combine_values_par_do_transform.spec.urn == common_urns.primitives.PAR_DO.urn
+          original_combine_values_par_do_transforms.append(
+              combine_values_par_do_transform)
+
+    # Pack the subtransforms if and only if the original transform had subtransforms.
+    if original_group_by_key_transforms or original_combine_grouped_values_transforms:
+      assert original_group_by_key_transforms and original_combine_grouped_values_transforms
+      # For each subtransform, reuse the an arbitrary original subtransform as a template,
+      # and then rewrite it with the correct input, output and payload.
+      # Also reuse an arbitrary GroupByKey output PCollection.
+
+      grouped_pcoll_id = next(
+          iter(original_group_by_key_transforms[0].outputs.values()))
+
+      packed_group_by_key_transform_name = (
+          pack_transform_name + '/CombinePerKey/GroupByKey')
+      packed_group_by_key_transform_key = unique_name(
+          context.components.transforms, packed_group_by_key_transform_name)
+      context.components.transforms[packed_group_by_key_transform_key].CopyFrom(
+          original_group_by_key_transforms[0])
+      context.components.transforms[
+          packed_group_by_key_transform_key].unique_name = packed_group_by_key_transform_name
+      context.components.transforms[
+          packed_group_by_key_transform_key].outputs.clear()
+      context.components.transforms[packed_group_by_key_transform_key].outputs[
+          'None'] = grouped_pcoll_id
+
+      packed_combine_grouped_values_transform_name = (
+          pack_transform_name + '/CombinePerKey/Combine')
+      packed_combine_grouped_values_transform_key = unique_name(
+          context.components.transforms,
+          packed_combine_grouped_values_transform_name)
+      context.components.transforms[
+          packed_combine_grouped_values_transform_key].CopyFrom(
+              original_combine_grouped_values_transforms[0])
+      context.components.transforms[
+          packed_combine_grouped_values_transform_key].unique_name = packed_group_by_key_transform_name
+      context.components.transforms[
+          packed_combine_grouped_values_transform_key].inputs.clear()
+      context.components.transforms[
+          packed_combine_grouped_values_transform_key].inputs[
+              '0'] = grouped_pcoll_id
+      context.components.transforms[
+          packed_combine_grouped_values_transform_key].outputs.clear()
+      context.components.transforms[
+          packed_combine_grouped_values_transform_key].outputs[
+              '0'] = pack_pcoll_id
+      context.components.transforms[
+          packed_combine_grouped_values_transform_key].spec.payload = beam_runner_api_pb2.CombinePayload(
+              combine_fn=pack_combine_fn.to_runner_api(context),
+              accumulator_coder_id=tuple_accumulator_coder_id
+          ).SerializeToString()
+
+      if original_combine_values_par_do_transforms:
+        packed_combine_values_par_do_transforms_name = (
+            pack_transform_name +
+            '/CombinePerKey/Combine/ParDo(CombineValuesDoFn)')
+        unique_name(
+            context.components.transforms,
+            packed_combine_values_par_do_transforms_name)
+        context.components.transforms[
+            packed_combine_grouped_values_transform_key].CopyFrom(
+                original_combine_values_par_do_transforms[0])
+        context.components.transforms[
+            packed_combine_grouped_values_transform_key].unique_name = packed_combine_values_par_do_transforms_name
+        context.components.transforms[
+            packed_combine_grouped_values_transform_key].inputs.clear()
+        context.components.transforms[
+            packed_combine_grouped_values_transform_key].inputs[
+                '0'] = grouped_pcoll_id
+        context.components.transforms[
+            packed_combine_grouped_values_transform_key].outputs.clear()
+        context.components.transforms[
+            packed_combine_grouped_values_transform_key].outputs[
+                '0'] = pack_pcoll_id
+        combine_values_par_do_payload = beam_runner_api_pb2.ParDoPayload()
+        combine_values_par_do_payload.ParseFromString(
+            original_combine_values_par_do_transforms[0].spec.payload)
+        original_do_fn_payload = pickler.loads(
+            combine_values_par_do_payload.do_fn.payload)
+        packed_combine_values_do_fn = core.CombineValuesDoFn(
+            original_do_fn_payload[0].input_pcoll_type,
+            pack_combine_fn,
+            original_do_fn_payload[0].runtime_type_check)
+        packed_do_fn_payload = (
+            packed_combine_values_do_fn, ) + original_do_fn_payload[1:]
+        combine_values_par_do_payload.do_fn.payload = pickler.dumps(
+            packed_do_fn_payload)
+        context.components.transforms[
+            packed_combine_grouped_values_transform_key].spec.payload = combine_values_par_do_payload.SerializeToString(
+            )
+        print(original_combine_values_par_do_transforms[0])
+        print(
+            context.components.
+            transforms[packed_combine_grouped_values_transform_key])
+        context.components.transforms[
+            packed_combine_grouped_values_transform_key].subtransforms.append(
+                packed_combine_grouped_values_transform_key)
+
     yield pack_stage
 
     # Set up Unpack stage
