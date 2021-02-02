@@ -250,11 +250,11 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
     if (pipelineOptions.getEventLogEnabled()) {
       eventLoggingListener.onApplicationStart(
           new SparkListenerApplicationStart(
-              jobInfo.jobId(),
-              scala.Option.apply(jobInfo.jobName()),
+              jsc.getConf().getAppId(),
+              scala.Option.apply(jsc.getConf().getAppId()),
               startTime,
               jsc.sparkUser(),
-              scala.Option.apply(jobInfo.jobName()),
+              scala.Option.apply("1"),
               scala.Option.apply(
                   JavaConverters.mapAsScalaMapConverter(
                           SparkBeamMetric.renderAllToString(result.metrics()))
