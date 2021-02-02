@@ -1374,7 +1374,15 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     if (!hasExperiment(options, "enable_streaming_auto_sharding")) {
       LOG.warn(
           "Runner determined sharding not enabled in Dataflow for GroupIntoBatches for Streaming "
-              + "Engine jobs. Default sharding will be applied.");
+              + "Engine jobs: --enable_streaming_auto_sharding=false. Default sharding will be "
+              + "applied.");
+      return;
+    }
+    if (hasExperiment(options, "beam_fn_api") && !hasExperiment(options, "use_runner_v2")) {
+      LOG.warn(
+          "Runner determined sharding not available in Dataflow for GroupIntoBatches for portable "
+              + "jobs not using runner v2: --beam_fn_api=true, --use_runner_v2=false. Default "
+              + "sharding will be applied.");
       return;
     }
     pcollectionsRequiringAutoSharding.add(pcol);
