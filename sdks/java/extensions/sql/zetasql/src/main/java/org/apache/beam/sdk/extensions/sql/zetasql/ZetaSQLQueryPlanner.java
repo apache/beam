@@ -81,6 +81,12 @@ import org.slf4j.LoggerFactory;
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class ZetaSQLQueryPlanner implements QueryPlanner {
+  public static final Collection<RelOptRule> DEFAULT_CALC =
+      ImmutableList.<RelOptRule>builder()
+          .add(BeamZetaSqlCalcRule.INSTANCE)
+          .add(BeamJavaUdfCalcRule.INSTANCE)
+          .build();
+
   private static final Logger LOG = LoggerFactory.getLogger(ZetaSQLQueryPlanner.class);
 
   private final ZetaSQLPlannerImpl plannerImpl;
@@ -95,7 +101,8 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
    */
   public ZetaSQLQueryPlanner(JdbcConnection jdbcConnection, Collection<RuleSet> ruleSets) {
     plannerImpl =
-        new ZetaSQLPlannerImpl(defaultConfig(jdbcConnection, modifyRuleSetsForZetaSql(ruleSets)));
+        new ZetaSQLPlannerImpl(
+            defaultConfig(jdbcConnection, modifyRuleSetsForZetaSql(ruleSets, DEFAULT_CALC)));
     setDefaultTimezone(
         jdbcConnection
             .getPipelineOptions()
@@ -113,7 +120,11 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
       };
 
   public static Collection<RuleSet> getZetaSqlRuleSets() {
-    return modifyRuleSetsForZetaSql(BeamRuleSets.getRuleSets());
+    return modifyRuleSetsForZetaSql(BeamRuleSets.getRuleSets(), DEFAULT_CALC);
+  }
+
+  public static Collection<RuleSet> getZetaSqlRuleSets(Collection<RelOptRule> calc) {
+    return modifyRuleSetsForZetaSql(BeamRuleSets.getRuleSets(), calc);
   }
 
   /**
@@ -178,7 +189,8 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
     return true;
   }
 
-  private static Collection<RuleSet> modifyRuleSetsForZetaSql(Collection<RuleSet> ruleSets) {
+  private static Collection<RuleSet> modifyRuleSetsForZetaSql(
+      Collection<RuleSet> ruleSets, Collection<RelOptRule> calc) {
     ImmutableList.Builder<RuleSet> ret = ImmutableList.builder();
     for (RuleSet ruleSet : ruleSets) {
       ImmutableList.Builder<RelOptRule> bd = ImmutableList.builder();
@@ -196,8 +208,7 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
           // planning result eventually.
           continue;
         } else if (rule instanceof BeamCalcRule) {
-          bd.add(BeamZetaSqlCalcRule.INSTANCE);
-          bd.add(BeamJavaUdfCalcRule.INSTANCE);
+          bd.addAll(calc);
         } else if (rule instanceof BeamUnnestRule) {
           bd.add(BeamZetaSqlUnnestRule.INSTANCE);
         } else if (rule instanceof BeamUncollectRule) {
