@@ -17,7 +17,6 @@
     - { title: YouTube channel, description: Follow our YouTube channel for the latest training and use cases. }
     - { title: StackOverflow, description: Ask your Beam questions in StackOverflow using the apache-beam tag. }
     - { title: Events, description: Follow our calendar in the homepage which has the latest events organized by the community. }
-
 - list:
     - { title: Read our Contribution Guide and Policies, description: Get familiar with our <a href="https://beam.apache.org/contribute/">contribution guide</a> and <a href="https://beam.apache.org/contribute/precommit-policies/">policies</a>. }
     - { title: Create a Jira account, description: Create a <a href="https://issues.apache.org/jira/secure/Signup!default.jspa" target="_blank">Jira account</a> and send an email to dev@beam.apache.org to request comitter permissions. }
