@@ -34,10 +34,11 @@ var (
 )
 
 func pipLocation() string {
+	// Users can set 'pip' environment variable to use a custom pip path.
 	if v, ok := os.LookupEnv("pip"); ok {
 		return v
 	}
-	return "/usr/local/bin/pip"
+	return "pip"
 }
 
 // pipInstallRequirements installs the given requirement, if present.
