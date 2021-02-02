@@ -142,7 +142,7 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
     if (pipelineOptions.getEventLogEnabled()) {
       eventLoggingListener =
           new EventLoggingListener(
-              jobInfo.jobId(),
+              jsc.getConf().getAppId(),
               scala.Option.apply(jobInfo.jobName()),
               new URI(pipelineOptions.getSparkHistoryDir()),
               jsc.getConf(),
