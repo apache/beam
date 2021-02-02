@@ -24,7 +24,7 @@ import org.apache.beam.runners.spark.metrics.WithMetricsSupport;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Predicates;
 import org.apache.spark.metrics.sink.Sink;
 
-/** An in-memory {@link Sink} implementation for tests. */
+/** An in-memory {@link Sink} implementation for local runs and tests. */
 @SuppressWarnings({
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
