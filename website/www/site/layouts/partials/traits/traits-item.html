@@ -18,6 +18,6 @@
      </div>
      <div class="traits-item-description">
        <span class="font-weight-bold">{{ .bolded | markdownify }}</span>
-       <span>{{ .text | markdownify }}</span>
+       <span><a href="{{ .text.link }}">{{ .text.text | markdownify }}</a></span>
      </div>
    </div>
