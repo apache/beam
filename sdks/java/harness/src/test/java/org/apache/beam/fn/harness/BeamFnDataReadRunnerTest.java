@@ -159,7 +159,8 @@ public class BeamFnDataReadRunnerTest {
       consumers.register(
           localOutputId,
           pTransformId,
-          (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) outputValues::add);
+          (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) outputValues::add,
+          StringUtf8Coder.of());
       PTransformFunctionRegistry startFunctionRegistry =
           new PTransformFunctionRegistry(
               mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "start");
@@ -725,7 +726,7 @@ public class BeamFnDataReadRunnerTest {
         new PCollectionConsumerRegistry(
             metricsContainerRegistry, mock(ExecutionStateTracker.class));
     String localOutputId = "outputPC";
-    consumers.register(localOutputId, pTransformId, consumer);
+    consumers.register(localOutputId, pTransformId, consumer, StringUtf8Coder.of());
     PTransformFunctionRegistry startFunctionRegistry =
         new PTransformFunctionRegistry(
             mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "start");

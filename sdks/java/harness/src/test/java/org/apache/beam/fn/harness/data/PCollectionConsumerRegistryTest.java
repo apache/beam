@@ -20,6 +20,7 @@ package org.apache.beam.fn.harness.data;
 import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.any;
@@ -30,13 +31,18 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.withSettings;
 import static org.powermock.api.mockito.PowerMockito.mockStatic;
 
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.beam.fn.harness.HandlesSplits;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
+import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Labels;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Urns;
 import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -71,14 +77,14 @@ public class PCollectionConsumerRegistryTest {
             metricsContainerRegistry, mock(ExecutionStateTracker.class));
     FnDataReceiver<WindowedValue<String>> consumerA1 = mock(FnDataReceiver.class);
 
-    consumers.register(pCollectionA, pTransformIdA, consumerA1);
+    consumers.register(pCollectionA, pTransformIdA, consumerA1, StringUtf8Coder.of());
 
     FnDataReceiver<WindowedValue<String>> wrapperConsumer =
         (FnDataReceiver<WindowedValue<String>>)
             (FnDataReceiver) consumers.getMultiplexingConsumer(pCollectionA);
-
-    WindowedValue<String> element = valueInGlobalWindow("elem");
-    int numElements = 20;
+    String elementValue = "elem";
+    WindowedValue<String> element = valueInGlobalWindow(elementValue);
+    int numElements = 10;
     for (int i = 0; i < numElements; i++) {
       wrapperConsumer.accept(element);
     }
@@ -87,18 +93,29 @@ public class PCollectionConsumerRegistryTest {
     verify(consumerA1, times(numElements)).accept(element);
     assertThat(consumers.keySet(), contains(pCollectionA));
 
+    List<MonitoringInfo> expected = new ArrayList<>();
+
     SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
     builder.setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT);
     builder.setLabel(MonitoringInfoConstants.Labels.PCOLLECTION, pCollectionA);
     builder.setInt64SumValue(numElements);
-    MonitoringInfo expected = builder.build();
+    expected.add(builder.build());
 
+    long elementByteSize = StringUtf8Coder.of().getEncodedElementByteSize(elementValue);
+    builder = new SimpleMonitoringInfoBuilder();
+    builder.setUrn(Urns.SAMPLED_BYTE_SIZE);
+    builder.setLabel(MonitoringInfoConstants.Labels.PCOLLECTION, pCollectionA);
+    builder.setInt64DistributionValue(
+        DistributionData.create(
+            numElements * elementByteSize, numElements, elementByteSize, elementByteSize));
+    expected.add(builder.build());
     // Clear the timestamp before comparison.
-    MonitoringInfo result =
-        Iterables.find(
+    Iterable<MonitoringInfo> result =
+        Iterables.filter(
             metricsContainerRegistry.getMonitoringInfos(),
             monitoringInfo -> monitoringInfo.containsLabels(Labels.PCOLLECTION));
-    assertEquals(expected, result);
+
+    assertThat(result, containsInAnyOrder(expected.toArray()));
   }
 
   @Test
@@ -113,7 +130,7 @@ public class PCollectionConsumerRegistryTest {
             metricsContainerRegistry, mock(ExecutionStateTracker.class));
     FnDataReceiver<WindowedValue<String>> consumer = mock(FnDataReceiver.class);
 
-    consumers.register(pCollectionA, pTransformId, consumer);
+    consumers.register(pCollectionA, pTransformId, consumer, StringUtf8Coder.of());
 
     FnDataReceiver<WindowedValue<String>> wrapperConsumer =
         (FnDataReceiver<WindowedValue<String>>)
@@ -142,8 +159,8 @@ public class PCollectionConsumerRegistryTest {
     FnDataReceiver<WindowedValue<String>> consumerA1 = mock(FnDataReceiver.class);
     FnDataReceiver<WindowedValue<String>> consumerA2 = mock(FnDataReceiver.class);
 
-    consumers.register(pCollectionA, pTransformIdA, consumerA1);
-    consumers.register(pCollectionA, pTransformIdB, consumerA2);
+    consumers.register(pCollectionA, pTransformIdA, consumerA1, StringUtf8Coder.of());
+    consumers.register(pCollectionA, pTransformIdB, consumerA2, StringUtf8Coder.of());
 
     FnDataReceiver<WindowedValue<String>> wrapperConsumer =
         (FnDataReceiver<WindowedValue<String>>)
@@ -187,8 +204,8 @@ public class PCollectionConsumerRegistryTest {
     FnDataReceiver<WindowedValue<String>> consumerA1 = mock(FnDataReceiver.class);
     FnDataReceiver<WindowedValue<String>> consumerA2 = mock(FnDataReceiver.class);
 
-    consumers.register(pCollectionA, pTransformId, consumerA1);
-    consumers.register(pCollectionA, pTransformId, consumerA2);
+    consumers.register(pCollectionA, pTransformId, consumerA1, StringUtf8Coder.of());
+    consumers.register(pCollectionA, pTransformId, consumerA2, StringUtf8Coder.of());
 
     FnDataReceiver<WindowedValue<String>> wrapperConsumer =
         (FnDataReceiver<WindowedValue<String>>)
@@ -212,12 +229,12 @@ public class PCollectionConsumerRegistryTest {
     FnDataReceiver<WindowedValue<String>> consumerA1 = mock(FnDataReceiver.class);
     FnDataReceiver<WindowedValue<String>> consumerA2 = mock(FnDataReceiver.class);
 
-    consumers.register(pCollectionA, pTransformId, consumerA1);
+    consumers.register(pCollectionA, pTransformId, consumerA1, StringUtf8Coder.of());
     consumers.getMultiplexingConsumer(pCollectionA);
 
     expectedException.expect(RuntimeException.class);
     expectedException.expectMessage("cannot be register()-d after");
-    consumers.register(pCollectionA, pTransformId, consumerA2);
+    consumers.register(pCollectionA, pTransformId, consumerA2, StringUtf8Coder.of());
   }
 
   @Test
@@ -232,8 +249,8 @@ public class PCollectionConsumerRegistryTest {
     FnDataReceiver<WindowedValue<String>> consumerA1 = mock(FnDataReceiver.class);
     FnDataReceiver<WindowedValue<String>> consumerA2 = mock(FnDataReceiver.class);
 
-    consumers.register("pCollectionA", "pTransformA", consumerA1);
-    consumers.register("pCollectionA", "pTransformB", consumerA2);
+    consumers.register("pCollectionA", "pTransformA", consumerA1, StringUtf8Coder.of());
+    consumers.register("pCollectionA", "pTransformB", consumerA2, StringUtf8Coder.of());
 
     FnDataReceiver<WindowedValue<String>> wrapperConsumer =
         (FnDataReceiver<WindowedValue<String>>)
@@ -264,7 +281,7 @@ public class PCollectionConsumerRegistryTest {
     FnDataReceiver<WindowedValue<String>> consumer =
         mock(FnDataReceiver.class, withSettings().verboseLogging());
 
-    consumers.register(pCollectionA, pTransformIdA, consumer);
+    consumers.register(pCollectionA, pTransformIdA, consumer, StringUtf8Coder.of());
 
     FnDataReceiver<WindowedValue<String>> wrapperConsumer =
         (FnDataReceiver<WindowedValue<String>>)
@@ -291,7 +308,7 @@ public class PCollectionConsumerRegistryTest {
             metricsContainerRegistry, mock(ExecutionStateTracker.class));
     SplittingReceiver consumerA1 = mock(SplittingReceiver.class);
 
-    consumers.register(pCollectionA, pTransformIdA, consumerA1);
+    consumers.register(pCollectionA, pTransformIdA, consumerA1, StringUtf8Coder.of());
 
     FnDataReceiver<WindowedValue<String>> wrapperConsumer =
         (FnDataReceiver<WindowedValue<String>>)

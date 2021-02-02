@@ -26,12 +26,17 @@ import static org.mockito.Mockito.mock;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
+import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -78,8 +83,28 @@ public class FlattenRunnerTest {
     consumers.register(
         "mainOutputTarget",
         pTransformId,
-        (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add);
-
+        (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add,
+        StringUtf8Coder.of());
+    Map<String, PCollection> pCollectionMap = new HashMap<>();
+    pCollectionMap.put(
+        "inputATarget",
+        RunnerApi.PCollection.newBuilder()
+            .setUniqueName("inputATarget")
+            .setCoderId("coder-id")
+            .build());
+    pCollectionMap.put(
+        "inputBTarget",
+        RunnerApi.PCollection.newBuilder()
+            .setUniqueName("inputBTarget")
+            .setCoderId("coder-id")
+            .build());
+    pCollectionMap.put(
+        "inputCTarget",
+        RunnerApi.PCollection.newBuilder()
+            .setUniqueName("inputCTarget")
+            .setCoderId("coder-id")
+            .build());
+    RunnerApi.Coder coder = CoderTranslation.toProto(StringUtf8Coder.of()).getCoder();
     new FlattenRunner.Factory<>()
         .createRunnerForPTransform(
             PipelineOptionsFactory.create(),
@@ -89,8 +114,8 @@ public class FlattenRunnerTest {
             pTransformId,
             pTransform,
             Suppliers.ofInstance("57L")::get,
-            Collections.emptyMap(),
-            Collections.emptyMap(),
+            pCollectionMap,
+            Collections.singletonMap("coder-id", coder),
             Collections.emptyMap(),
             consumers,
             null /* startFunctionRegistry */,
@@ -129,7 +154,6 @@ public class FlattenRunnerTest {
   public void testFlattenWithDuplicateInputCollectionProducesMultipleOutputs() throws Exception {
     String pTransformId = "pTransformId";
     String mainOutputId = "101";
-
     RunnerApi.FunctionSpec functionSpec =
         RunnerApi.FunctionSpec.newBuilder()
             .setUrn(PTransformTranslation.FLATTEN_TRANSFORM_URN)
@@ -150,8 +174,15 @@ public class FlattenRunnerTest {
     consumers.register(
         "mainOutputTarget",
         pTransformId,
-        (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add);
+        (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add,
+        StringUtf8Coder.of());
 
+    RunnerApi.PCollection pCollection =
+        RunnerApi.PCollection.newBuilder()
+            .setUniqueName("inputATarget")
+            .setCoderId("coder-id")
+            .build();
+    RunnerApi.Coder coder = CoderTranslation.toProto(StringUtf8Coder.of()).getCoder();
     new FlattenRunner.Factory<>()
         .createRunnerForPTransform(
             PipelineOptionsFactory.create(),
@@ -161,8 +192,8 @@ public class FlattenRunnerTest {
             pTransformId,
             pTransform,
             Suppliers.ofInstance("57L")::get,
-            Collections.emptyMap(),
-            Collections.emptyMap(),
+            Collections.singletonMap("inputATarget", pCollection),
+            Collections.singletonMap("coder-id", coder),
             Collections.emptyMap(),
             consumers,
             null /* startFunctionRegistry */,

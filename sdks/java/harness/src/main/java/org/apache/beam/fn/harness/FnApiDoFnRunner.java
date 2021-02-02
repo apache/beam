@@ -645,7 +645,10 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         throw new IllegalStateException("Unknown urn: " + pTransform.getSpec().getUrn());
     }
     pCollectionConsumerRegistry.register(
-        pTransform.getInputsOrThrow(mainInput), pTransformId, (FnDataReceiver) mainInputConsumer);
+        pTransform.getInputsOrThrow(mainInput),
+        pTransformId,
+        (FnDataReceiver) mainInputConsumer,
+        inputCoder);
 
     this.finishBundleArgumentProvider = new FinishBundleArgumentProvider();
     switch (pTransform.getSpec().getUrn()) {
