@@ -12,6 +12,7 @@ limitations under the License. See accompanying LICENSE file.
 
 {{ define "main" }}
     {{ $authors := .Params.authors }}
+    {{ $data := index $.Site.Data.authors }}
     <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
       <div class="post-content">
       <div class="post-info">
@@ -63,10 +64,17 @@ limitations under the License. See accompanying LICENSE file.
               <div class="post">
               <p class="post-title">{{ .Title }}</p>
               <p class="post-info">
-                {{ if .Params.authors }}
-                      {{ delimit .Params.authors ", " " & " }}
+                {{ range $i, $item := $authors }}
+                    {{ $author := index $data $item }}
+                    {{ if eq $i (sub (len $authors) 1) }}
+                      {{ $author.name }}
+                    {{ else if eq $i (sub (len $authors) 2) }}
+                      {{ $author.name }} &amp;
+                    {{ else }}
+                      {{ $author.name }},
+                    {{ end }}
                 {{ end }}
-              </p>
+            </p>
             </div>
             </a>
           {{ end }}

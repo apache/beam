@@ -10,10 +10,11 @@
  limitations under the License. See accompanying LICENSE file.
 */}}
 
+
 {{ define "main" }}
 <div class="blog-content">
     <h2>{{ T "blog-title" }}</h2>
-
+    {{ $data := index $.Site.Data.authors }}
     {{ $pages := .Pages }}
     {{ $.Scratch.Set "categories" (slice ) }}
     {{ $.Scratch.Set "noCategories" 0 }}
@@ -62,7 +63,16 @@
                 </div>
                 <p class="post-title">{{ .Title }}</p>
                 <p class="post-info">
-                    {{ delimit $authors ", " " & "}}
+                    {{ range $i, $item := $authors }}
+                        {{ $author := index $data $item }}
+                        {{ if eq $i (sub (len $authors) 1) }}
+                          {{ $author.name }}
+                        {{ else if eq $i (sub (len $authors) 2) }}
+                          {{ $author.name }} &amp;
+                        {{ else }}
+                          {{ $author.name }},
+                        {{ end }}
+                    {{ end }}
                 </p>
                 <div class="post-summary">{{ .Summary | plainify | chomp }}</div>
             </a>

@@ -127,7 +127,7 @@
           <a class="twitter-timeline" data-width="381" data-height="348"  href="https://twitter.com/ApacheBeam?ref_src=twsrc%5Etfw">Tweets by ApacheBeam</a>
         </div>
       </div>
-      <div class="calendar-card-box">
+      <div class="calendar-card-box post">
         {{ range first 2 (after 1 (where .Site.Pages.ByPublishDate.Reverse "Section" "blog")) }}
             <a class="post-card" href="{{ .RelPermalink }}" data-categories="{{ with .Params.categories }}{{ if eq ( printf "%T" . ) "string" }}{{ . | replaceRE "[.]" "_" | urlize }}{{ else if eq ( printf "%T" . ) "[]string" }}{{ range . }}{{ . | replaceRE "[.]" "_" | urlize }} {{end}}{{end}}{{else}}no-author{{end}}"
             >
@@ -142,10 +142,18 @@
               <div>
               <p class="post-title">{{ .Title }}</p>
               <p class="post-info">
-                {{ if .Params.authors }}
-                      {{ delimit .Params.authors ", " " & " }}
+                {{ $authors := .Params.authors }}
+                {{ range $i, $item := $authors }}
+                    {{ $author := index $.Site.Data.authors $item }}
+                    {{ if eq $i (sub (len $authors) 1) }}
+                      {{ $author.name }}
+                    {{ else if eq $i (sub (len $authors) 2) }}
+                      {{ $author.name }} &amp;
+                    {{ else }}
+                      {{ $author.name }},
+                    {{ end }}
                 {{ end }}
-              </p>
+            </p>
             </div>
             </a>
           {{ end }}
