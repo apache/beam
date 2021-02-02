@@ -143,7 +143,8 @@ REQUIRED_PACKAGES = [
     'hdfs>=2.1.0,<3.0.0',
     'httplib2>=0.8,<0.18.0',
     'mock>=1.0.1,<3.0.0',
-    'numpy>=1.14.3,<2',
+    # TODO(BEAM-11731): Support numpy 1.20.0
+    'numpy>=1.14.3,<1.20.0',
     'pymongo>=3.8.0,<4.0.0',
     'oauth2client>=2.0.1,<5',
     'protobuf>=3.12.2,<4',
