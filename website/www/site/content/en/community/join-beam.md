@@ -23,22 +23,24 @@ limitations under the License.
 
 # Join Beam Community!
 
-We're glad that you decided to join us!
+We’re so glad you want to join the Apache Beam community. Here’s a pathway you can follow to help you get started. This is not the only way to join, but it’s the recommended progression so you’re successful at reaching your objectives.
 
-</br>
-
-### Stalk us
+## Join the Conversation
 
 {{< community/join_beam_columns 0 >}}
 
-### Do your compulsory reading
+## Contribute to the Project
 
 {{< community/join_beam_columns 1 >}}
 
-### Committer
+## Become a committer
 
 {{< community/join_beam_columns 2 >}}
 
-### Still confused?
+## Become a PMC member
 
-We're here for you! Check out ways you can talk to us and we will make sure to help.
+{{< community/join_beam_columns 2 >}}
+
+## Still have questions?
+
+Send us a note to user@beam.apache.org OR mention@ApacheBeam on Twitter OR ask us in the #beam slack channel. We look forward to seeing you in the community!
