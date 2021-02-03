@@ -24,6 +24,7 @@ For internal use only; no backwards-compatibility guarantees.
 from __future__ import absolute_import
 from __future__ import print_function
 
+import builtins  # type: ignore
 import collections
 import dis
 import inspect
@@ -39,13 +40,6 @@ from apache_beam import pvalue
 from apache_beam.typehints import Any
 from apache_beam.typehints import row_type
 from apache_beam.typehints import typehints
-
-# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
-try:  # Python 2
-  import __builtin__ as builtins
-except ImportError:  # Python 3
-  import builtins  # type: ignore
-# pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 
 class TypeInferenceError(ValueError):
@@ -368,7 +362,6 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
   code = co.co_code
   end = len(code)
   pc = 0
-  extended_arg = 0  # Python 2 only.
   free = None
 
   yields = set()
