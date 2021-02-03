@@ -476,18 +476,21 @@ class FnApiRunner(runner.PipelineRunner):
     """
     pcolls_with_delayed_apps = set()
     for delayed_application in bundle_result.process_bundle.residual_roots:
-      name = bundle_context_manager.input_for(
+      producer_name = bundle_context_manager.input_for(
           delayed_application.application.transform_id,
           delayed_application.application.input_id)
-      if name not in deferred_inputs:
-        deferred_inputs[name] = ListBuffer(
-            coder_impl=bundle_context_manager.get_input_coder_impl(name))
-      deferred_inputs[name].append(delayed_application.application.element)
+      if producer_name not in deferred_inputs:
+        deferred_inputs[producer_name] = ListBuffer(
+            coder_impl=bundle_context_manager.get_input_coder_impl(
+                producer_name))
+      deferred_inputs[producer_name].append(
+          delayed_application.application.element)
 
       transform = bundle_context_manager.process_bundle_descriptor.transforms[
-          delayed_application.application.transform_id]
-      pcolls_with_delayed_apps.add(
-          transform.inputs[delayed_application.application.input_id])
+          producer_name]
+      # We take the output with tag 'out' from the producer transform. The
+      # producer transform is a GRPC read, and it has a single output.
+      pcolls_with_delayed_apps.add(transform.outputs['out'])
     return pcolls_with_delayed_apps
 
   def _add_residuals_and_channel_splits_to_deferred_inputs(
@@ -510,17 +513,20 @@ class FnApiRunner(runner.PipelineRunner):
     prev_stops = {}  # type: Dict[str, int]
     for split in splits:
       for delayed_application in split.residual_roots:
-        name = bundle_context_manager.input_for(
+        producer_name = bundle_context_manager.input_for(
             delayed_application.application.transform_id,
             delayed_application.application.input_id)
-        if name not in deferred_inputs:
-          deferred_inputs[name] = ListBuffer(
-              coder_impl=bundle_context_manager.get_input_coder_impl(name))
-        deferred_inputs[name].append(delayed_application.application.element)
+        if producer_name not in deferred_inputs:
+          deferred_inputs[producer_name] = ListBuffer(
+              coder_impl=bundle_context_manager.get_input_coder_impl(
+                  producer_name))
+        deferred_inputs[producer_name].append(
+            delayed_application.application.element)
+        # We take the output with tag 'out' from the producer transform. The
+        # producer transform is a GRPC read, and it has a single output.
         pcolls_with_delayed_apps.add(
-            bundle_context_manager.process_bundle_descriptor.transforms[
-                delayed_application.application.transform_id].inputs[
-                    delayed_application.application.input_id])
+            bundle_context_manager.process_bundle_descriptor.
+            transforms[producer_name].outputs['out'])
       for channel_split in split.channel_splits:
         coder_impl = bundle_context_manager.get_input_coder_impl(
             channel_split.transform_id)
@@ -723,7 +729,7 @@ class FnApiRunner(runner.PipelineRunner):
       bundle_manager  # type: BundleManager
   ) -> Tuple[beam_fn_api_pb2.InstructionResponse,
              Dict[str, execution.PartitionableBuffer],
-             Dict[Tuple[str, str], ListBuffer],
+             Dict[translations.TimerFamilyId, ListBuffer],
              Dict[Union[str, translations.TimerFamilyId], timestamp.Timestamp]]:
     """Execute a bundle, and return a result object, and deferred inputs."""
     self._run_bundle_multiple_times_for_testing(
@@ -742,7 +748,7 @@ class FnApiRunner(runner.PipelineRunner):
     # - SDK-initiated deferred applications of root elements
     # - Runner-initiated deferred applications of root elements
     deferred_inputs = {}  # type: Dict[str, execution.PartitionableBuffer]
-    newly_set_timers = {}  # type: Dict[Tuple[str, str], ListBuffer]
+    newly_set_timers = {}  # type: Dict[translations.TimerFamilyId, ListBuffer]
 
     watermarks_by_transform_and_timer_family = self._collect_written_timers(
         bundle_context_manager, newly_set_timers)

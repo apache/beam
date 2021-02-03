@@ -26,7 +26,6 @@ from typing import Set
 from typing import Union
 
 from apache_beam.portability.api import beam_runner_api_pb2
-from apache_beam.portability.common_urns import sdf_components
 from apache_beam.runners.portability.fn_api_runner import translations
 from apache_beam.runners.portability.fn_api_runner.translations import split_buffer_id
 from apache_beam.runners.worker import bundle_processor
@@ -100,9 +99,14 @@ class WatermarkManager(object):
       raise NotImplementedError('Stages do not have a watermark')
 
     def output_watermark(self):
-      return min(i.watermark() for i in self.inputs)
+      if self.inputs:
+        return min(i.watermark() for i in self.inputs)
+      else:
+        return timestamp.MAX_TIMESTAMP
 
     def input_watermark(self):
+      if not self.inputs:
+        return timestamp.MAX_TIMESTAMP
       w = min(i.upstream_watermark() for i in self.inputs)
 
       if self.side_inputs:
@@ -136,14 +140,6 @@ class WatermarkManager(object):
       # 1. Get stage inputs, create nodes for them, add to _watermarks_by_name,
       #    and add as inputs to stage node.
       for transform in s.transforms:
-        if transform.spec.urn == sdf_components.TRUNCATE_SIZED_RESTRICTION.urn:
-          pcoll_name = transform.outputs['out']
-          if pcoll_name not in self._watermarks_by_name:
-            self._watermarks_by_name[
-                pcoll_name] = WatermarkManager.PCollectionNode(pcoll_name)
-          pcoll_node = self._watermarks_by_name[pcoll_name]
-          assert isinstance(pcoll_node, WatermarkManager.PCollectionNode)
-          stage_node.inputs.add(pcoll_node)
         if transform.spec.urn == bundle_processor.DATA_INPUT_URN:
           buffer_id = transform.spec.payload
           if buffer_id == translations.IMPULSE_BUFFER:
@@ -215,6 +211,12 @@ class WatermarkManager(object):
 
     g = graphviz.Digraph()
 
+    def pcoll_node_name(node):
+      if isinstance(node.name, tuple):
+        return 'PCOLL_%s_%s' % node.name
+      else:
+        return 'PCOLL_%s' % node.name
+
     def add_node(name, shape=None):
       if name not in seen_nodes:
         seen_nodes.add(name)
@@ -234,23 +236,23 @@ class WatermarkManager(object):
         add_node(name, 'box')
       else:
         assert isinstance(node, WatermarkManager.PCollectionNode)
-        name = 'PCOLL_%s' % node.name
+        name = pcoll_node_name(node)
         add_node(name)
 
     for node in self._watermarks_by_name.values():
       if isinstance(node, WatermarkManager.StageNode):
         stage = 'STAGE_%s...%s' % (node.name[:30], node.name[-30:])
         for pcoll in node.inputs:
-          input_name = 'PCOLL_%s' % pcoll.name
+          input_name = pcoll_node_name(pcoll)
           # Main inputs have a BOLD edge.
           add_links(link_from=input_name, link_to=stage, edge_style="bold")
         for pcoll in node.side_inputs:
           # Side inputs have a dashed edge.
-          input_name = 'PCOLL_%s' % pcoll.name
+          input_name = pcoll_node_name(pcoll)
           add_links(link_from=input_name, link_to=stage, edge_style="dashed")
       else:
         assert isinstance(node, WatermarkManager.PCollectionNode)
-        pcoll_name = 'PCOLL_%s' % node.name
+        pcoll_name = pcoll_node_name(node)
         for producer in node.producers:
           prod_name = 'STAGE_%s...%s' % (
               producer.name[:30], producer.name[-30:])
