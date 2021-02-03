@@ -107,9 +107,11 @@
  .icon-list {
    .list-item {
      display: flex;
-     margin-bottom: 38px;
+     margin-bottom: 8px;
      position: relative;
-
+     @media (max-width: $tablet) {
+       margin-bottom: 43px;
+     }
      img {
        position: absolute;
        top: 7px;
@@ -276,11 +278,25 @@
    margin-top: 50px;
  }
  @media (min-width: 768px) {
-  .arrow-list {
-    .collapse.dont-collapse-sm {
-      display: block;
-      height: auto !important;
-      visibility: visible;
-    }
-  }
-}
+   .arrow-list {
+     .collapse.dont-collapse-sm {
+       display: block;
+       height: auto !important;
+       visibility: visible;
+     }
+   }
+ }
+ .beam-list {
+   margin-top: 32px;
+   .beam-title {
+     margin-bottom: 4px;
+     font-weight: bold;
+   }
+   .beam-description {
+     margin: 0;
+     font-size: 14px;
+     line-height: 22px;
+     height: 44px;
+   }
+ }
+
