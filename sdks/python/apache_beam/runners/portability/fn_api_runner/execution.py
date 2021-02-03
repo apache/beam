@@ -596,6 +596,7 @@ class FnApiRunnerExecutionContext(object):
         if t.spec.urn == bundle_processor.DATA_INPUT_URN
     }
     self.watermark_manager = WatermarkManager(stages)
+    # self.watermark_manager.show()
     self.pipeline_context = pipeline_context.PipelineContext(
         self.pipeline_components,
         iterable_state_write=self._iterable_state_write)
@@ -964,8 +965,8 @@ class BundleContextManager(object):
       raise NotImplementedError(buffer_id)
     return self.execution_context.pcoll_buffers[buffer_id]
 
-  def input_for(self, transform_id, input_id):
-    # type: (str, str) -> str
+  def input_for(self, transform_id: str, input_id: str) -> str:
+    """Returns the name of the transform producing the given PCollection."""
     input_pcoll = self.process_bundle_descriptor.transforms[
         transform_id].inputs[input_id]
     for read_id, proto in self.process_bundle_descriptor.transforms.items():
