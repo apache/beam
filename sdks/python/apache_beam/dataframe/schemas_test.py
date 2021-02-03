@@ -127,8 +127,7 @@ class SchemasTest(unittest.TestCase):
 
   def test_generate_proxy(self):
     expected = pd.DataFrame({
-        'animal': pd.Series(
-            dtype=pd.StringDtype()),
+        'animal': pd.Series(dtype=pd.StringDtype()),
         'max_speed': pd.Series(dtype=np.float64)
     })
 
@@ -139,9 +138,10 @@ class SchemasTest(unittest.TestCase):
         schemas.element_type_from_dataframe(NICE_TYPES_PROXY))
     self.assertTrue(roundtripped.equals(NICE_TYPES_PROXY))
 
-  @unittest.skipIf(PD_VERSION == (1, 2, 1),
-                   "Can't roundtrip bytes in pandas 1.2.1"
-                   "https://github.com/pandas-dev/pandas/issues/39474")
+  @unittest.skipIf(
+      PD_VERSION == (1, 2, 1),
+      "Can't roundtrip bytes in pandas 1.2.1"
+      "https://github.com/pandas-dev/pandas/issues/39474")
   def test_bytes_proxy_roundtrip(self):
     proxy = pd.DataFrame({'bytes': []})
     proxy.bytes = proxy.bytes.astype(bytes)
