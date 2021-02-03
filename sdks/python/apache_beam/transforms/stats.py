@@ -33,10 +33,8 @@ from __future__ import division
 
 import hashlib
 import heapq
-import itertools
 import logging
 import math
-import sys
 import typing
 from builtins import round
 from typing import Any
@@ -682,20 +680,8 @@ class ApproximateQuantilesCombineFn(CombineFn, Generic[T]):
     for buffer_elem in i_buffers:
       iterators.append(buffer_elem.sized_iterator())
 
-    # Python 3 `heapq.merge` support key comparison and returns an iterator and
-    # does not pull the data into memory all at once. Python 2 does not
-    # support comparison on its `heapq.merge` api, so we use the itertools
-    # which takes the `key` function for comparison and creates an iterator
-    # from it.
-    if sys.version_info[0] < 3:
-      sorted_elem = iter(
-          sorted(
-              itertools.chain.from_iterable(iterators),
-              key=compare_key,
-              reverse=self._reverse))
-    else:
-      sorted_elem = heapq.merge(
-          *iterators, key=compare_key, reverse=self._reverse)
+    sorted_elem = heapq.merge(
+        *iterators, key=compare_key, reverse=self._reverse)
 
     weighted_element = next(sorted_elem)
     current = weighted_element[1]
