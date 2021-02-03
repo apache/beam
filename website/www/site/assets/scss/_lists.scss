@@ -50,6 +50,7 @@
    }
    a {
      color: #333333;
+     text-decoration: underline;
    }
  }
 
@@ -98,6 +99,10 @@
      transform: rotate(0deg) !important;
      margin-top: 10px;
    }
+ }
+ .list {
+   margin-top: 32px;
+   max-width: 640px;
  }
  .icon-list {
    .list-item {
@@ -191,7 +196,7 @@
    flex-direction: row;
    justify-content: space-between;
    flex-wrap: wrap;
-   max-width: 895px;
+   max-width: 855px;
    .row {
      display: flex;
      flex-direction: column;
