@@ -29,9 +29,11 @@ body
 
   &:not(.body--index)
     .body__contained
+      @media (max-width: $ak-breakpoint-lg)
+        padding: 0
       padding: 0 30px
       max-width: 1280px
-
+      
       figure
         img
           width: 100%
@@ -65,8 +67,12 @@ body
     width: 100%
 
 .container-main-content
-  padding: 0 20px
+  @media (max-width: $ak-breakpoint-lg)
+    padding: 0 24px
+
+  padding: 0 22px
   position: relative
+  background-color: #fff
   margin-top: 85px
 
   @media (min-width: $tablet) 

@@ -19,7 +19,7 @@
 
 .component-title {
   font-size: 36px;
-  font-weight: normal;
+  font-weight: 500;
   font-style: normal;
   line-height: 1.1;
   letter-spacing: normal;
@@ -129,11 +129,73 @@
 @media (max-width: $tablet) {
   .component-title {
     font-size: 28px;
+    line-height: 1.29;
   }
   .component-large-header {
     font-size: 24px;
   }
-  .hero-heading {
-    font-size: 32px;
-  }
+}
+
+h1 {
+  font-size: 36px;
+  font-weight: 500;
+  line-height: 1.1;
+  letter-spacing: normal;
+  margin-bottom: 24px;
+  margin-top: 64px;
+}
+h2 {
+  font-size: 30px;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: normal;
+  margin-bottom: 24px;
+  margin-top: 56px;
+}
+h3 {
+  font-size: 24px;
+  font-weight: 500;
+  line-height: 1.25;
+  letter-spacing: normal;
+  margin-bottom: 16px;
+  margin-top: 48px;
+}
+h4 {
+  font-size: 22px;
+  font-weight: 500;
+  line-height: 1.36;
+  letter-spacing: normal;
+  margin-bottom: 12px;
+  margin-top: 48px;
+}
+h5 {
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.6;
+  letter-spacing: 0.43px;
+  margin-bottom: 12px;
+  margin-top: 32px;
+}
+h6 {
+  font-size: 16px;
+  font-weight: bold;
+  line-height: 1.2;
+  letter-spacing: 0.43px;
+  margin-bottom: 12px;
+  margin-top: 32px;
+}
+
+p {
+  font-size: 16px;
+  font-weight: normal;
+  line-height: 1.63;
+  letter-spacing: 0.43px;
+}
+.hero-heading {
+  font-size: 32px;
+}
+li {
+  font-size: 16px;
+  letter-spacing: 0.43px;
+  line-height: 1.63;
 }

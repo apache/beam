@@ -101,15 +101,23 @@ $(document).ready(function () {
                 var sectionNavHeight = $(sectionNavEl).height();
                 var mainContent = $(".container-main-content");
 
-                mainContent.css({"min-height": sectionNavHeight});
-                sectionNavEl.css({"max-height": mainContent.css("height")});
-
+                $(window).load(function () {
+                    var url = window.location.href;
+                    var links = $("." + idSectionNav+' a');
+                    for(var i = 0; i < links.length; i++){
+                        if(links[i].classList.contains('underline'))
+                            links[i].removeClass('underline');
+                    }
+                    for(var i = 0; i < links.length; i++){
+                        if(url.includes(links[i].href))
+                            links[i].classList.add('underline');
+                    }
+                });
                 $(window).resize(function () {
                     if ($(window).width() > CONST.DESKTOP_BREAKPOINT) {
                         var sectionNavHeight = $(sectionNavEl).height();
-                        $(".container-main-content").css({"min-height": sectionNavHeight});
                     } else {
-                        $(".container-main-content").css({"min-height": ''});
+                        $(".container-main-content").css({"min-height": '100vh'});
                     }
                 });
 
@@ -133,9 +141,20 @@ $(document).ready(function () {
                 $("." + _self.idNavMask).click(function (el) {
                     $("." + _self.idNavMask).removeClass(CONST.OPEN_CLASS);
                     $("." + _self.idContainer).removeClass(CONST.OPEN_CLASS);
-
+                    $("body").removeClass("fixedPosition");
                     if (_self.hasSectionNav) {
                         $("." + _self.idSectionNav).removeClass(CONST.OPEN_CLASS);
+                        $("body").removeClass("fixedPosition");
+                    }
+                });
+
+                $("#closeMenu").click(function (el) {
+                    $("." + _self.idNavMask).removeClass(CONST.OPEN_CLASS);
+                    $("." + _self.idContainer).removeClass(CONST.OPEN_CLASS);
+                    $("body").removeClass("fixedPosition");
+                    if (_self.hasSectionNav) {
+                        $("." + _self.idSectionNav).removeClass(CONST.OPEN_CLASS);
+                        $("body").removeClass("fixedPosition");
                     }
                 });
 
@@ -166,7 +185,7 @@ $(document).ready(function () {
             "classNameContainer": "navbar-container",
             "classNameSectionNav": "section-nav",
             "classNameBackCTA": "section-nav-back",
-            "classNameCTA": "navbar-toggle",
+            "classNameCTA": "menu-open",
             "classNameMask": "navbar-mask",
             "classNameNavItemTitleCollapsible": "section-nav-item--collapsible span",
             "classNameNavItemCollapsible": ".section-nav-item--collapsible",
