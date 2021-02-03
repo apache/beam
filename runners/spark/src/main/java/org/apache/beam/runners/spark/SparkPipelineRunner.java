@@ -250,7 +250,7 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
     if (pipelineOptions.getEventLogEnabled()) {
       eventLoggingListener.onApplicationStart(
           new SparkListenerApplicationStart(
-                  pipelineOptions.as(ApplicationNameOptions.class).getAppName(),
+              pipelineOptions.as(ApplicationNameOptions.class).getAppName(),
               scala.Option.apply(jsc.getConf().getAppId()),
               startTime,
               jsc.sparkUser(),
