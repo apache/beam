@@ -143,7 +143,7 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
       eventLoggingListener =
           new EventLoggingListener(
               jsc.getConf().getAppId(),
-              scala.Option.apply(jobInfo.jobName()),
+              scala.Option.apply("1"),
               new URI(pipelineOptions.getSparkHistoryDir()),
               jsc.getConf(),
               jsc.hadoopConfiguration());
@@ -250,7 +250,7 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
     if (pipelineOptions.getEventLogEnabled()) {
       eventLoggingListener.onApplicationStart(
           new SparkListenerApplicationStart(
-              jsc.getConf().getAppId(),
+                  pipelineOptions.as(ApplicationNameOptions.class).getAppName(),
               scala.Option.apply(jsc.getConf().getAppId()),
               startTime,
               jsc.sparkUser(),
