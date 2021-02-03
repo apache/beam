@@ -163,8 +163,6 @@ public class GroupIntoBatches<K, InputT>
     @Override
     public PCollection<KV<ShardedKey<K>, Iterable<InputT>>> expand(
         PCollection<KV<K, InputT>> input) {
-      Duration allowedLateness = input.getWindowingStrategy().getAllowedLateness();
-
       checkArgument(
           input.getCoder() instanceof KvCoder,
           "coder specified in the input PCollection is not a KvCoder");
