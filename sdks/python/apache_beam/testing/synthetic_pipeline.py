@@ -88,10 +88,6 @@ class _Random(Random):
 
 Generator = _Random
 
-# TODO(BEAM-7372): Remove this when Beam drops Python 2.
-if np is not None and sys.version_info.major == 2:
-  Generator = np.random.RandomState
-
 
 def parse_byte_size(s):
   suffixes = 'BKMGTP'

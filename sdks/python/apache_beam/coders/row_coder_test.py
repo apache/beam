@@ -45,8 +45,7 @@ Person = typing.NamedTuple(
         ("address", typing.Optional[unicode]),
         ("aliases", typing.List[unicode]),
         ("knows_javascript", bool),
-        # TODO(BEAM-7372): Use bytes instead of ByteString
-        ("payload", typing.Optional[typing.ByteString]),
+        ("payload", typing.Optional[bytes]),
         ("custom_metadata", typing.Mapping[unicode, int]),
         ("favorite_time", Timestamp),
     ])
