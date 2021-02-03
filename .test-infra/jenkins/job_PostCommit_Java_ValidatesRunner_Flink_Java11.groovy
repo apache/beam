@@ -17,6 +17,7 @@
  */
 
 import CommonJobProperties as commonJobProperties
+import CommonTestProperties
 import PostcommitJobBuilder
 
 
@@ -36,14 +37,14 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_ValidatesRunner_Flink_J
       steps {
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
-          tasks(':runners:flink:1.10:jar')
-          tasks(':runners:flink:1.10:testJar')
+          tasks(":runners:flink:${CommonTestProperties.getFlinkVersion()}:jar")
+          tasks(":runners:flink:${CommonTestProperties.getFlinkVersion()}:testJar")
           switches("-Dorg.gradle.java.home=${JAVA_8_HOME}")
         }
 
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
-          tasks(':runners:flinK:1.10:validatesRunner')
+          tasks(":runners:flink:${CommonTestProperties.getFlinkVersion()}:validatesRunner")
           switches('-x shadowJar')
           switches('-x shadowTestJar')
           switches('-x compileJava')

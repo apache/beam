@@ -37,14 +37,36 @@ def _call_on_first_arg(name):
   return staticmethod(wrapper)
 
 
+def _maybe_wrap_constant_expr(res):
+  if type(res) in frame_base.DeferredBase._pandas_type_map.keys():
+    return frame_base.DeferredBase.wrap(
+        expressions.ConstantExpression(res, res[0:0]))
+  else:
+    return res
+
+
 def _defer_to_pandas(name):
+  func = getattr(pd, name)
+
   def wrapper(*args, **kwargs):
-    res = getattr(pd, name)(*args, **kwargs)
-    if type(res) in frame_base.DeferredBase._pandas_type_map.keys():
-      return frame_base.DeferredBase.wrap(
-          expressions.ConstantExpression(res, res[0:0]))
-    else:
-      return res
+    res = func(*args, **kwargs)
+    return _maybe_wrap_constant_expr(res)
+
+  return staticmethod(wrapper)
+
+
+def _defer_to_pandas_maybe_elementwise(name):
+  """ Same as _defer_to_pandas, except it handles DeferredBase args, assuming
+  the function can be processed elementwise. """
+  func = getattr(pd, name)
+
+  def wrapper(*args, **kwargs):
+    if any(isinstance(arg, frame_base.DeferredBase)
+           for arg in args + tuple(kwargs.values())):
+      return frame_base._elementwise_function(func, name)(*args, **kwargs)
+
+    res = func(*args, **kwargs)
+    return _maybe_wrap_constant_expr(res)
 
   return staticmethod(wrapper)
 
@@ -133,6 +155,7 @@ class DeferredPandasModule(object):
   test = frame_base.wont_implement_method('test')
   timedelta_range = _defer_to_pandas('timedelta_range')
   to_pickle = frame_base.wont_implement_method('order-sensitive')
+  to_datetime = _defer_to_pandas_maybe_elementwise('to_datetime')
   notna = _call_on_first_arg('notna')
 
   def __getattr__(self, name):

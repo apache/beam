@@ -716,6 +716,7 @@ def _python_sdk_capabilities_iter():
     if getattr(urn_spec, 'urn', None) in coders.Coder._known_urns:
       yield urn_spec.urn
   yield common_urns.protocols.LEGACY_PROGRESS_REPORTING.urn
+  yield common_urns.protocols.HARNESS_MONITORING_INFOS.urn
   yield common_urns.protocols.WORKER_STATUS.urn
   yield python_urns.PACKED_COMBINE_FN
   yield 'beam:version:sdk_base:' + DockerEnvironment.default_docker_image()

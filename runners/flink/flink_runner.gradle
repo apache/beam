@@ -27,6 +27,7 @@ import groovy.json.JsonOutput
 
 apply plugin: 'org.apache.beam.module'
 applyJavaNature(
+    enableStrictDependencies:true,
     automaticModuleName: 'org.apache.beam.runners.flink',
     archivesBaseName: (project.hasProperty('archives_base_name') ? archives_base_name : archivesBaseName),
 )
@@ -134,11 +135,13 @@ dependencies {
   compile project(":runners:java-job-service")
   compile project(":sdks:java:extensions:google-cloud-platform-core")
   compile library.java.vendored_grpc_1_26_0
-  compile library.java.jackson_annotations
   compile library.java.slf4j_api
   compile library.java.joda_time
   compile library.java.args4j
   compile "org.apache.flink:flink-clients_2.11:$flink_version"
+  // Runtime dependencies are not included in Beam's generated pom.xml, so we must declare flink-clients in compile
+  // configuration (https://issues.apache.org/jira/browse/BEAM-11732).
+  permitUnusedDeclared "org.apache.flink:flink-clients_2.11:$flink_version"
   compile "org.apache.flink:flink-core:$flink_version"
   compile "org.apache.flink:flink-metrics-core:$flink_version"
   compile "org.apache.flink:flink-java:$flink_version"
@@ -166,6 +169,14 @@ dependencies {
   validatesRunner project(path: ":runners:core-java", configuration: "testRuntime")
   validatesRunner project(project.path)
   miniCluster "org.apache.flink:flink-runtime-web_2.11:$flink_version"
+  compile project(path: ":model:fn-execution", configuration: "shadow")
+  compile project(path: ":model:pipeline", configuration: "shadow")
+  compile project(path: ":model:job-management", configuration: "shadow")
+  compile project(":sdks:java:fn-execution")
+  compile project(path: ":vendor:sdks-java-extensions-protobuf", configuration: "shadow")
+  compile library.java.jackson_databind
+  compile "org.apache.flink:flink-annotations:$flink_version"
+  compile "org.apache.flink:flink-optimizer_2.11:$flink_version"
 }
 
 class ValidatesRunnerConfig {

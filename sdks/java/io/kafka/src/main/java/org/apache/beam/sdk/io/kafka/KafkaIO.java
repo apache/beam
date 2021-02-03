@@ -141,6 +141,11 @@ import org.slf4j.LoggerFactory;
  *      // offset consumed by the pipeline can be committed back.
  *      .commitOffsetsInFinalize()
  *
+ *      // Specified a serializable function which can determine whether to stop reading from given
+ *      // TopicPartition during runtime. Note that only {@link ReadFromKafkaDoFn} respect the
+ *      // signal.
+ *      .withCheckStopReadingFn(new SerializedFunction<TopicPartition, Boolean>() {})
+ *
  *      // finally, if you don't need Kafka metadata, you can drop it.g
  *      .withoutMetadata() // PCollection<KV<Long, String>>
  *   )
@@ -514,6 +519,8 @@ public class KafkaIO {
 
     abstract @Nullable DeserializerProvider getValueDeserializerProvider();
 
+    abstract @Nullable SerializableFunction<TopicPartition, Boolean> getCheckStopReadingFn();
+
     abstract Builder<K, V> toBuilder();
 
     @Experimental(Kind.PORTABILITY)
@@ -553,6 +560,9 @@ public class KafkaIO {
       abstract Builder<K, V> setValueDeserializerProvider(
           DeserializerProvider deserializerProvider);
 
+      abstract Builder<K, V> setCheckStopReadingFn(
+          SerializableFunction<TopicPartition, Boolean> checkStopReadingFn);
+
       abstract Read<K, V> build();
 
       @Override
@@ -586,8 +596,23 @@ public class KafkaIO {
           setMaxReadTime(Duration.standardSeconds(config.maxReadTime));
         }
         setMaxNumRecords(config.maxNumRecords == null ? Long.MAX_VALUE : config.maxNumRecords);
-        setCommitOffsetsInFinalizeEnabled(false);
-        setTimestampPolicyFactory(TimestampPolicyFactory.withProcessingTime());
+
+        // Set committing offset configuration.
+        setCommitOffsetsInFinalizeEnabled(config.commitOffsetInFinalize);
+
+        // Set timestamp policy with built-in types.
+        String timestampPolicy = config.timestampPolicy;
+        if (timestampPolicy.equals("ProcessingTime")) {
+          setTimestampPolicyFactory(TimestampPolicyFactory.withProcessingTime());
+        } else if (timestampPolicy.equals("CreateTime")) {
+          setTimestampPolicyFactory(TimestampPolicyFactory.withCreateTime(Duration.ZERO));
+        } else if (timestampPolicy.equals("LogAppendTime")) {
+          setTimestampPolicyFactory(TimestampPolicyFactory.withLogAppendTime());
+        } else {
+          throw new IllegalArgumentException(
+              "timestampPolicy should be one of (ProcessingTime, CreateTime, LogAppendTime)");
+        }
+
         if (config.startReadTime != null) {
           setStartReadTime(Instant.ofEpochMilli(config.startReadTime));
         }
@@ -645,6 +670,8 @@ public class KafkaIO {
         private Long startReadTime;
         private Long maxNumRecords;
         private Long maxReadTime;
+        private Boolean commitOffsetInFinalize;
+        private String timestampPolicy;
 
         public void setConsumerConfig(Map<String, String> consumerConfig) {
           this.consumerConfig = consumerConfig;
@@ -672,6 +699,14 @@ public class KafkaIO {
 
         public void setMaxReadTime(Long maxReadTime) {
           this.maxReadTime = maxReadTime;
+        }
+
+        public void setCommitOffsetInFinalize(Boolean commitOffsetInFinalize) {
+          this.commitOffsetInFinalize = commitOffsetInFinalize;
+        }
+
+        public void setTimestampPolicy(String timestampPolicy) {
+          this.timestampPolicy = timestampPolicy;
         }
       }
     }
@@ -998,6 +1033,15 @@ public class KafkaIO {
       return toBuilder().setConsumerConfig(config).build();
     }
 
+    /**
+     * A custom {@link SerializableFunction} that determines whether the {@link ReadFromKafkaDoFn}
+     * should stop reading from the given {@link TopicPartition}.
+     */
+    public Read<K, V> withCheckStopReadingFn(
+        SerializableFunction<TopicPartition, Boolean> checkStopReadingFn) {
+      return toBuilder().setCheckStopReadingFn(checkStopReadingFn).build();
+    }
+
     /** Returns a {@link PTransform} for PCollection of {@link KV}, dropping Kafka metatdata. */
     public PTransform<PBegin, PCollection<KV<K, V>>> withoutMetadata() {
       return new TypedWithoutMetadata<>(this);
@@ -1080,7 +1124,8 @@ public class KafkaIO {
               .withKeyDeserializerProvider(getKeyDeserializerProvider())
               .withValueDeserializerProvider(getValueDeserializerProvider())
               .withManualWatermarkEstimator()
-              .withTimestampPolicyFactory(getTimestampPolicyFactory());
+              .withTimestampPolicyFactory(getTimestampPolicyFactory())
+              .withCheckStopReadingFn(getCheckStopReadingFn());
       if (isCommitOffsetsInFinalizeEnabled()) {
         readTransform = readTransform.commitOffsets();
       }
@@ -1267,6 +1312,8 @@ public class KafkaIO {
     abstract SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
         getConsumerFactoryFn();
 
+    abstract @Nullable SerializableFunction<TopicPartition, Boolean> getCheckStopReadingFn();
+
     abstract @Nullable SerializableFunction<KafkaRecord<K, V>, Instant>
         getExtractOutputTimestampFn();
 
@@ -1288,6 +1335,9 @@ public class KafkaIO {
 
       abstract ReadSourceDescriptors.Builder<K, V> setConsumerFactoryFn(
           SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> consumerFactoryFn);
+
+      abstract ReadSourceDescriptors.Builder<K, V> setCheckStopReadingFn(
+          SerializableFunction<TopicPartition, Boolean> checkStopReadingFn);
 
       abstract ReadSourceDescriptors.Builder<K, V> setKeyDeserializerProvider(
           DeserializerProvider deserializerProvider);
@@ -1400,6 +1450,15 @@ public class KafkaIO {
     public ReadSourceDescriptors<K, V> withConsumerFactoryFn(
         SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> consumerFactoryFn) {
       return toBuilder().setConsumerFactoryFn(consumerFactoryFn).build();
+    }
+
+    /**
+     * A custom {@link SerializableFunction} that determines whether the {@link ReadFromKafkaDoFn}
+     * should stop reading from the given {@link TopicPartition}.
+     */
+    public ReadSourceDescriptors<K, V> withCheckStopReadingFn(
+        SerializableFunction<TopicPartition, Boolean> checkStopReadingFn) {
+      return toBuilder().setCheckStopReadingFn(checkStopReadingFn).build();
     }
 
     /**

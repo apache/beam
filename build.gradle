@@ -160,6 +160,7 @@ task javaPreCommitPortabilityApi() {
 
 task javaPostCommit() {
   dependsOn ":runners:google-cloud-dataflow-java:postCommit"
+  dependsOn ":runners:google-cloud-dataflow-java:postCommitRunnerV2"
   dependsOn ":sdks:java:extensions:google-cloud-platform-core:postCommit"
   dependsOn ":sdks:java:extensions:zetasketch:postCommit"
   dependsOn ":sdks:java:io:google-cloud-platform:postCommit"
@@ -207,7 +208,7 @@ task goIntegrationTests() {
   doLast {
     exec {
       executable 'sh'
-      args '-c', './sdks/go/test/run_integration_tests.sh'
+      args '-c', './sdks/go/test/run_validatesrunner_tests.sh --runner dataflow --jenkins'
     }
   }
   dependsOn ":sdks:go:test:build"
@@ -307,6 +308,15 @@ task typescriptPreCommit() {
   dependsOn ":sdks:python:test-suites:tox:py38:jest"
 }
 
+task pushAllDockerImages() {
+  dependsOn ":runners:spark:job-server:container:dockerPush"
+  dependsOn ":sdks:java:container:pushAll"
+  dependsOn ":sdks:python:container:pushAll"
+  for (version in project.ext.allFlinkVersions) {
+    dependsOn ":runners:flink:${version}:job-server-container:dockerPush"
+  }
+}
+
 // Configure the release plugin to do only local work; the release manager determines what, if
 // anything, to push. On failure, the release manager can reset the branch without pushing.
 release {
@@ -334,7 +344,7 @@ if (project.hasProperty('javaLinkageArtifactIds')) {
 
   configurations { linkageCheckerJava }
   dependencies {
-    linkageCheckerJava "com.google.cloud.tools:dependencies:1.5.0"
+    linkageCheckerJava "com.google.cloud.tools:dependencies:1.5.4"
   }
 
   // We need to evaluate all the projects first so that we can find depend on all the

@@ -1412,6 +1412,10 @@ public class DoFnOperator<InputT, OutputT>
       return timer.getOutputTimestamp().isBefore(timer.getTimestamp());
     }
 
+    private String constructTimerId(String timerFamilyId, String timerId) {
+      return timerFamilyId + "+" + timerId;
+    }
+
     @Override
     public void setTimer(
         StateNamespace namespace,
@@ -1437,7 +1441,10 @@ public class DoFnOperator<InputT, OutputT>
             timer.getTimerId(),
             timer.getTimestamp().getMillis(),
             timer.getOutputTimestamp().getMillis());
-        String contextTimerId = getContextTimerId(timer.getTimerId(), timer.getNamespace());
+        String contextTimerId =
+            getContextTimerId(
+                constructTimerId(timer.getTimerFamilyId(), timer.getTimerId()),
+                timer.getNamespace());
         @Nullable final TimerData oldTimer = pendingTimersById.get(contextTimerId);
         if (!timer.equals(oldTimer)) {
           // Only one timer can exist at a time for a given timer id and context.
@@ -1500,7 +1507,10 @@ public class DoFnOperator<InputT, OutputT>
      */
     void onFiredOrDeletedTimer(TimerData timer) {
       try {
-        pendingTimersById.remove(getContextTimerId(timer.getTimerId(), timer.getNamespace()));
+        pendingTimersById.remove(
+            getContextTimerId(
+                constructTimerId(timer.getTimerFamilyId(), timer.getTimerId()),
+                timer.getNamespace()));
         if (timer.getDomain() == TimeDomain.EVENT_TIME
             || StateAndTimerBundleCheckpointHandler.isSdfTimer(timer.getTimerId())) {
           if (timerUsesOutputTimestamp(timer)) {
@@ -1532,7 +1542,10 @@ public class DoFnOperator<InputT, OutputT>
     @Override
     @Deprecated
     public void deleteTimer(TimerData timer) {
-      deleteTimer(timer.getNamespace(), timer.getTimerId(), timer.getDomain());
+      deleteTimer(
+          timer.getNamespace(),
+          constructTimerId(timer.getTimerFamilyId(), timer.getTimerId()),
+          timer.getDomain());
     }
 
     void deleteTimerInternal(TimerData timer) {

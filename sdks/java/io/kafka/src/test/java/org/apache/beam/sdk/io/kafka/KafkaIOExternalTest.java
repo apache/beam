@@ -89,12 +89,16 @@ public class KafkaIOExternalTest {
                             "consumer_config", FieldType.map(FieldType.STRING, FieldType.STRING)),
                         Field.of("key_deserializer", FieldType.STRING),
                         Field.of("value_deserializer", FieldType.STRING),
-                        Field.of("start_read_time", FieldType.INT64)))
+                        Field.of("start_read_time", FieldType.INT64),
+                        Field.of("commit_offset_in_finalize", FieldType.BOOLEAN),
+                        Field.of("timestamp_policy", FieldType.STRING)))
                 .withFieldValue("topics", topics)
                 .withFieldValue("consumer_config", consumerConfig)
                 .withFieldValue("key_deserializer", keyDeserializer)
                 .withFieldValue("value_deserializer", valueDeserializer)
                 .withFieldValue("start_read_time", startReadTime)
+                .withFieldValue("commit_offset_in_finalize", false)
+                .withFieldValue("timestamp_policy", "ProcessingTime")
                 .build());
 
     RunnerApi.Components defaultInstance = RunnerApi.Components.getDefaultInstance();

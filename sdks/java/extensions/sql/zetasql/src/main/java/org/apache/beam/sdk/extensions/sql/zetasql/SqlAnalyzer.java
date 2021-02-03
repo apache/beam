@@ -78,6 +78,9 @@ public class SqlAnalyzer {
    */
   public static final String ZETASQL_FUNCTION_GROUP_NAME = "ZetaSQL";
 
+  public static final String USER_DEFINED_JAVA_SCALAR_FUNCTIONS =
+      "user_defined_java_scalar_functions";
+
   private static final ImmutableSet<ResolvedNodeKind> SUPPORTED_STATEMENT_KINDS =
       ImmutableSet.of(
           RESOLVED_QUERY_STMT, RESOLVED_CREATE_FUNCTION_STMT, RESOLVED_CREATE_TABLE_FUNCTION_STMT);

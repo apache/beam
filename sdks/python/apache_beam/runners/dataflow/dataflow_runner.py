@@ -462,6 +462,62 @@ class DataflowRunner(PipelineRunner):
 
     self._maybe_add_unified_worker_missing_options(options)
 
+    from apache_beam.transforms import environments
+    if options.view_as(SetupOptions).prebuild_sdk_container_engine:
+      # if prebuild_sdk_container_engine is specified we will build a new sdk
+      # container image with dependencies pre-installed and use that image,
+      # instead of using the inferred default container image.
+      self._default_environment = (
+          environments.DockerEnvironment.from_options(options))
+      options.view_as(WorkerOptions).worker_harness_container_image = (
+          self._default_environment.container_image)
+    else:
+      self._default_environment = (
+          environments.DockerEnvironment.from_container_image(
+              apiclient.get_container_image_from_options(options),
+              artifacts=environments.python_sdk_dependencies(options)))
+
+    # Optimize the pipeline if it not streaming and optimizations are enabled
+    # in options.
+    pre_optimize = options.view_as(DebugOptions).lookup_experiment(
+        'pre_optimize', 'default').lower()
+    if (not options.view_as(StandardOptions).streaming and
+        pre_optimize != 'none' and pre_optimize != 'default'):
+      from apache_beam.runners.portability.fn_api_runner import translations
+      if pre_optimize == 'all':
+        phases = [
+            translations.eliminate_common_key_with_none,
+            translations.pack_combiners,
+            translations.sort_stages
+        ]
+      else:
+        phases = []
+        for phase_name in pre_optimize.split(','):
+          # For now, these are all we allow.
+          if phase_name in ('eliminate_common_key_with_none', 'pack_combiners'):
+            phases.append(getattr(translations, phase_name))
+          else:
+            raise ValueError(
+                'Unknown or inapplicable phase for pre_optimize: %s' %
+                phase_name)
+        phases.append(translations.sort_stages)
+
+      proto_pipeline_to_optimize = pipeline.to_runner_api(
+          default_environment=self._default_environment)
+      optimized_proto_pipeline = translations.optimize_pipeline(
+          proto_pipeline_to_optimize,
+          phases=phases,
+          known_runner_urns=frozenset(),
+          partial=True)
+      pipeline = beam.Pipeline.from_runner_api(
+          optimized_proto_pipeline, self, options)
+      # The translations.pack_combiners optimizer phase produces a CombinePerKey
+      # PTransform, but DataflowRunner treats CombinePerKey as a composite, so
+      # this override expands CombinePerKey into primitive PTransforms.
+      if translations.pack_combiners in phases:
+        from apache_beam.runners.dataflow.ptransform_overrides import CombinePerKeyPTransformOverride
+        pipeline.replace_all([CombinePerKeyPTransformOverride()])
+
     use_fnapi = apiclient._use_fnapi(options)
 
     if not use_fnapi:
@@ -488,21 +544,6 @@ class DataflowRunner(PipelineRunner):
     if use_fnapi and not apiclient._use_unified_worker(options):
       pipeline.replace_all(DataflowRunner._JRH_PTRANSFORM_OVERRIDES)
 
-    from apache_beam.transforms import environments
-    if options.view_as(SetupOptions).prebuild_sdk_container_engine:
-      # if prebuild_sdk_container_engine is specified we will build a new sdk
-      # container image with dependencies pre-installed and use that image,
-      # instead of using the inferred default container image.
-      self._default_environment = (
-          environments.DockerEnvironment.from_options(options))
-      options.view_as(WorkerOptions).worker_harness_container_image = (
-          self._default_environment.container_image)
-    else:
-      self._default_environment = (
-          environments.DockerEnvironment.from_container_image(
-              apiclient.get_container_image_from_options(options),
-              artifacts=environments.python_sdk_dependencies(options)))
-
     # This has to be performed before pipeline proto is constructed to make sure
     # that the changes are reflected in the portable job submission path.
     self._adjust_pipeline_for_dataflow_v2(pipeline)
@@ -510,22 +551,6 @@ class DataflowRunner(PipelineRunner):
     # Snapshot the pipeline in a portable proto.
     self.proto_pipeline, self.proto_context = pipeline.to_runner_api(
         return_context=True, default_environment=self._default_environment)
-
-    # Optimize the pipeline if it not streaming and the
-    # disable_optimize_pipeline_for_dataflow experiment has not been set.
-    if (not options.view_as(StandardOptions).streaming and
-        not options.view_as(DebugOptions).lookup_experiment(
-            "disable_optimize_pipeline_for_dataflow")):
-      from apache_beam.runners.portability.fn_api_runner import translations
-      self.proto_pipeline = translations.optimize_pipeline(
-          self.proto_pipeline,
-          phases=[
-              translations.eliminate_common_key_with_none,
-              translations.pack_combiners,
-              translations.sort_stages,
-          ],
-          known_runner_urns=frozenset(),
-          partial=True)
 
     if use_fnapi:
       self._check_for_unsupported_fnapi_features(self.proto_pipeline)

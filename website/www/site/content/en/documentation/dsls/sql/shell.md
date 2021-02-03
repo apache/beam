@@ -114,7 +114,7 @@ When you're satisfied with the logic of your SQL statements, you can submit the 
 
 By default, Beam uses the `DirectRunner` to run the pipeline on the machine where you're executing the commands. If you want to run the pipeline with a different runner, you must perform two steps:
 
-1.  Make sure the SQL shell includes the desired runner. Add the corresponding project id to the `-Pbeam.sql.shell.bundled` parameter of the Gradle invocation ([source code](https://github.com/apache/beam/blob/master/sdks/java/extensions/sql/shell/build.gradle), [project ids](https://github.com/apache/beam/blob/master/settings.gradle)). For example, use the following command to include Flink runner and KafkaIO:
+1.  Make sure the SQL shell includes the desired runner. Add the corresponding project id to the `-Pbeam.sql.shell.bundled` parameter of the Gradle invocation ([source code](https://github.com/apache/beam/blob/master/sdks/java/extensions/sql/shell/build.gradle), [project ids](https://github.com/apache/beam/blob/master/settings.gradle.kts)). For example, use the following command to include Flink runner and KafkaIO:
 
     ```
     ./gradlew -p sdks/java/extensions/sql/shell -Pbeam.sql.shell.bundled=':runners:flink:1.10,:sdks:java:io:kafka' installDist

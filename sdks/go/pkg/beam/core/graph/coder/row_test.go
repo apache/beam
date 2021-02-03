@@ -73,17 +73,26 @@ func TestReflectionRowCoderGeneration(t *testing.T) {
 				},
 			},
 		}, {
+			// embedded struct check
+			want: UserType4{
+				UserType1{
+					A: "marmalade",
+					B: 24,
+					C: "jam",
+				},
+			},
+		}, {
 			// All zeroes
 			want: struct {
 				V00 bool
-				V01 byte  // unsupported by spec (same as uint8)
-				V02 uint8 // unsupported by spec
+				V01 byte
+				V02 uint8
 				V03 int16
-				//	V04 uint16 // unsupported by spec
+				V04 uint16
 				V05 int32
-				//	V06 uint32 // unsupported by spec
+				V06 uint32
 				V07 int64
-				//	V08 uint64 // unsupported by spec
+				V08 uint64
 				V09 int
 				V10 struct{}
 				V11 *struct{}
@@ -100,14 +109,14 @@ func TestReflectionRowCoderGeneration(t *testing.T) {
 		}, {
 			want: struct {
 				V00 bool
-				V01 byte  // unsupported by spec (same as uint8)
-				V02 uint8 // unsupported by spec
+				V01 byte
+				V02 uint8
 				V03 int16
-				//	V04 uint16 // unsupported by spec
+				V04 uint16
 				V05 int32
-				//	V06 uint32 // unsupported by spec
+				V06 uint32
 				V07 int64
-				//	V08 uint64 // unsupported by spec
+				V08 uint64
 				V09 int
 				V10 struct{}
 				V11 *struct{}
@@ -119,15 +128,18 @@ func TestReflectionRowCoderGeneration(t *testing.T) {
 				V17 float64
 				V18 []byte
 				V19 [2]*int
-				V20 map[string]*int
+				V20 map[*string]*int
 				V21 []*int
 			}{
 				V00: true,
 				V01: 1,
 				V02: 2,
 				V03: 3,
+				V04: 4,
 				V05: 5,
+				V06: 6,
 				V07: 7,
+				V08: 8,
 				V09: 9,
 				V10: struct{}{},
 				V11: &struct{}{},
@@ -139,9 +151,8 @@ func TestReflectionRowCoderGeneration(t *testing.T) {
 				V17: 2.6e100,
 				V18: []byte{21, 17, 65, 255, 0, 16},
 				V19: [2]*int{nil, &num},
-				V20: map[string]*int{
-					"notnil": &num,
-					"nil":    nil,
+				V20: map[*string]*int{
+					nil: nil,
 				},
 				V21: []*int{nil, &num, nil},
 			},
@@ -190,6 +201,11 @@ type UserType2 struct {
 
 type UserType3 struct {
 	A UserType1
+}
+
+// Embedding check.
+type UserType4 struct {
+	UserType1
 }
 
 func ut1Enc(val interface{}, w io.Writer) error {
@@ -282,6 +298,15 @@ func TestRowCoder_CustomCoder(t *testing.T) {
 					C: "jam",
 				},
 			},
+		}, {
+			// embedded struct check
+			want: UserType4{
+				UserType1{
+					A: "marmalade",
+					B: 24,
+					C: "jam",
+				},
+			},
 		},
 	}
 	for _, test := range tests {
@@ -312,6 +337,62 @@ func TestRowCoder_CustomCoder(t *testing.T) {
 }
 
 func BenchmarkRowCoder_RoundTrip(b *testing.B) {
+	ut1Enc := func(val interface{}, w io.Writer) error {
+		elm := val.(UserType1)
+		// We have 3 fields we use.
+		if err := EncodeVarInt(3, w); err != nil {
+			return err
+		}
+		// Never nils, so we write the 0 byte header.
+		if err := EncodeVarInt(0, w); err != nil {
+			return err
+		}
+		if err := EncodeStringUTF8(elm.A, w); err != nil {
+			return err
+		}
+		if err := EncodeVarInt(int64(elm.B), w); err != nil {
+			return err
+		}
+		if err := EncodeStringUTF8(elm.C, w); err != nil {
+			return err
+		}
+		return nil
+	}
+	ut1Dec := func(r io.Reader) (interface{}, error) {
+		// We have 3 fields we use.
+		n, err := DecodeVarInt(r)
+		if err != nil {
+			return nil, fmt.Errorf("decoding header fieldcount: %v, %v", n, err)
+		}
+		if n != 3 {
+			return nil, fmt.Errorf("decoding header field count, got %v, want %v", n, 3)
+		}
+		// Never nils, so we read the 0 byte header.
+		n, err = DecodeVarInt(r)
+		if err != nil {
+			return nil, fmt.Errorf("decoding header nils: %v, %v", n, err)
+		}
+		if n != 0 {
+			return nil, fmt.Errorf("decoding header nils count, got %v, want %v", n, 0)
+		}
+		a, err := DecodeStringUTF8(r)
+		if err != nil {
+			return nil, fmt.Errorf("decoding string field A: %v", err)
+		}
+		b, err := DecodeVarInt(r)
+		if err != nil {
+			return nil, fmt.Errorf("decoding int field B: %v", err)
+		}
+		c, err := DecodeStringUTF8(r)
+		if err != nil {
+			return nil, fmt.Errorf("decoding string field C: %v, %v", c, err)
+		}
+		return UserType1{
+			A: a,
+			B: int(b),
+			C: c,
+		}, nil
+	}
 
 	num := 35
 	benches := []struct {
@@ -368,6 +449,18 @@ func BenchmarkRowCoder_RoundTrip(b *testing.B) {
 			// nested struct check
 			want: UserType3{
 				A: UserType1{
+					A: "marmalade",
+					B: 24,
+					C: "jam",
+				},
+			},
+			customRT:  reflect.TypeOf(UserType1{}),
+			customEnc: ut1Enc,
+			customDec: ut1Dec,
+		}, {
+			// embedded struct check
+			want: UserType4{
+				UserType1{
 					A: "marmalade",
 					B: 24,
 					C: "jam",

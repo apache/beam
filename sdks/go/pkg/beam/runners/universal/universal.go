@@ -79,11 +79,11 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 		getEnvCfg = srv.EnvironmentConfig
 	}
 
-	enviroment, err := graphx.CreateEnvironment(ctx, envUrn, getEnvCfg)
+	environment, err := graphx.CreateEnvironment(ctx, envUrn, getEnvCfg)
 	if err != nil {
 		return nil, errors.WithContextf(err, "generating model pipeline")
 	}
-	pipeline, err := graphx.Marshal(edges, &graphx.Options{Environment: enviroment})
+	pipeline, err := graphx.Marshal(edges, &graphx.Options{Environment: environment})
 	if err != nil {
 		return nil, errors.WithContextf(err, "generating model pipeline")
 	}
