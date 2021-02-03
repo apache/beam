@@ -64,6 +64,7 @@ limitations under the License. See accompanying LICENSE file.
               <div class="post">
               <p class="post-title">{{ .Title }}</p>
               <p class="post-info">
+                {{ $authors := .Params.authors }}
                 {{ range $i, $item := $authors }}
                     {{ $author := index $data $item }}
                     {{ if eq $i (sub (len $authors) 1) }}
