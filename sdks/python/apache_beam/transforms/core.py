@@ -81,11 +81,6 @@ if typing.TYPE_CHECKING:
   from apache_beam.transforms.trigger import DefaultTrigger
   from apache_beam.transforms.trigger import TriggerFn
 
-try:
-  import funcsigs  # Python 2 only.
-except ImportError:
-  funcsigs = None
-
 __all__ = [
     'DoFn',
     'CombineFn',
@@ -386,15 +381,9 @@ def get_function_args_defaults(f):
     it doesn't include bound arguments and may follow function wrappers.
   """
   signature = get_signature(f)
-  # Fall back on funcsigs if inspect module doesn't have 'Parameter'; prefer
-  # inspect.Parameter over funcsigs.Parameter if both are available.
-  try:
-    parameter = inspect.Parameter
-  except AttributeError:
-    parameter = funcsigs.Parameter
-  # TODO(BEAM-5878) support kwonlyargs on Python 3.
   _SUPPORTED_ARG_TYPES = [
-      parameter.POSITIONAL_ONLY, parameter.POSITIONAL_OR_KEYWORD
+      inspect.Parameter.POSITIONAL_ONLY,
+      inspect.Parameter.POSITIONAL_OR_KEYWORD
   ]
   args = [
       name for name,
