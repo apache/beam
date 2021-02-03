@@ -27,7 +27,6 @@ import gzip
 import logging
 import os
 import shutil
-import sys
 import tempfile
 import unittest
 import zlib
@@ -151,12 +150,6 @@ class TextSourceTest(unittest.TestCase):
 
   # Number of records that will be written by most tests.
   DEFAULT_NUM_RECORDS = 100
-
-  @classmethod
-  def setUpClass(cls):
-    # Method has been renamed in Python 3
-    if sys.version_info[0] < 3:
-      cls.assertCountEqual = cls.assertItemsEqual
 
   def _run_read_test(
       self,
@@ -1017,12 +1010,6 @@ class TextSourceTest(unittest.TestCase):
 
 
 class TextSinkTest(unittest.TestCase):
-  @classmethod
-  def setUpClass(cls):
-    # Method has been renamed in Python 3
-    if sys.version_info[0] < 3:
-      cls.assertCountEqual = cls.assertItemsEqual
-
   def setUp(self):
     super(TextSinkTest, self).setUp()
     self.lines = [b'Line %d' % d for d in range(100)]

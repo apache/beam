@@ -26,7 +26,6 @@ import glob
 import logging
 import os
 import shutil
-import sys
 import tempfile
 import unittest
 from builtins import range
@@ -105,12 +104,6 @@ class MyFileBasedSink(filebasedsink.FileBasedSink):
 
 
 class TestFileBasedSink(_TestCaseWithTempDirCleanUp):
-  @classmethod
-  def setUpClass(cls):
-    # Method has been renamed in Python 3
-    if sys.version_info[0] < 3:
-      cls.assertCountEqual = cls.assertItemsEqual
-
   def _common_init(self, sink):
     # Manually invoke the generic Sink API.
     init_token = sink.initialize_write()

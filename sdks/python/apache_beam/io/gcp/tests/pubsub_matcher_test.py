@@ -22,7 +22,6 @@
 from __future__ import absolute_import
 
 import logging
-import sys
 import unittest
 
 # patches unittest.TestCase to be python3 compatible
@@ -45,12 +44,6 @@ except ImportError:
 @mock.patch('time.sleep', return_value=None)
 @mock.patch('google.cloud.pubsub.SubscriberClient')
 class PubSubMatcherTest(unittest.TestCase):
-  @classmethod
-  def setUpClass(cls):
-    # Method has been renamed in Python 3
-    if sys.version_info[0] < 3:
-      cls.assertCountEqual = cls.assertItemsEqual
-
   def setUp(self):
     self.mock_presult = mock.MagicMock()
 

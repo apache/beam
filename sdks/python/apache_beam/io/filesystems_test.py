@@ -26,7 +26,6 @@ import filecmp
 import logging
 import os
 import shutil
-import sys
 import tempfile
 import unittest
 
@@ -48,12 +47,6 @@ def _gen_fake_join(separator):
 
 
 class FileSystemsTest(unittest.TestCase):
-  @classmethod
-  def setUpClass(cls):
-    # Method has been renamed in Python 3
-    if sys.version_info[0] < 3:
-      cls.assertCountEqual = cls.assertItemsEqual
-
   def setUp(self):
     self.tmpdir = tempfile.mkdtemp()
 

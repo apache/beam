@@ -21,7 +21,6 @@ from __future__ import division
 
 import logging
 import string
-import sys
 import unittest
 from collections import Counter
 
@@ -50,12 +49,6 @@ except ImportError:
 
 @unittest.skipIf(pa is None, "PyArrow is not installed.")
 class TestParquetIT(unittest.TestCase):
-  @classmethod
-  def setUpClass(cls):
-    # Method has been renamed in Python 3
-    if sys.version_info[0] < 3:
-      cls.assertCountEqual = cls.assertItemsEqual
-
   def setUp(self):
     pass
 

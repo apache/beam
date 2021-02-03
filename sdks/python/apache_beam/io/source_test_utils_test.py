@@ -20,7 +20,6 @@
 from __future__ import absolute_import
 
 import logging
-import sys
 import tempfile
 import unittest
 from builtins import range
@@ -30,12 +29,6 @@ from apache_beam.io.filebasedsource_test import LineSource
 
 
 class SourceTestUtilsTest(unittest.TestCase):
-  @classmethod
-  def setUpClass(cls):
-    # Method has been renamed in Python 3
-    if sys.version_info[0] < 3:
-      cls.assertCountEqual = cls.assertItemsEqual
-
   def _create_file_with_data(self, lines):
     assert isinstance(lines, list)
     with tempfile.NamedTemporaryFile(delete=False) as f:
