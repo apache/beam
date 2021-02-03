@@ -23,7 +23,7 @@ plugins {
 }
 javaVersion="1.11"
 applyJavaNature(
-
+  enableStrictDependencies: true,
   exportJavadoc: false,
   publish: false,
   disableLintWarnings: ['requires-transitive-automatic', 'requires-automatic']
@@ -59,7 +59,7 @@ dependencies {
 
   baseIntegrationTest project(path: ":sdks:java:testing:jpms-tests", configuration: "testRuntime")
   directRunnerIntegrationTest project(":runners:direct-java")
-  flinkRunnerIntegrationTest project(":runners:flink:1.10")
+  flinkRunnerIntegrationTest project(":runners:flink:${project.ext.latestFlinkVersion}")
   dataflowRunnerIntegrationTest project(":runners:google-cloud-dataflow-java")
 }
 

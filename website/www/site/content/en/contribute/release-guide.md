@@ -237,6 +237,8 @@ Release candidates are built from a release branch. As a final step in preparati
 
 There are 2 ways to cut a release branch: either running automation script(recommended), or running all commands manually.
 
+After following one of these processes you should manually update `CHANGES.md` on `master` by adding a new section for the next release.
+
 #### Use cut_release_branch.sh to cut a release branch
 * Script: [cut_release_branch.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/cut_release_branch.sh)
 
@@ -653,9 +655,8 @@ This pull request is against the `apache/beam` repo, on the `master` branch ([ex
 ### Blog post
 
 Write a blog post similar to [beam-2.23.0.md](https://github.com/apache/beam/commit/b976e7be0744a32e99c841ad790c54920c8737f5#diff-8b1c3fd0d4a6765c16dfd18509182f9d).
-
-- Update `CHANGES.md` by adding a new section for the next release.
 - Copy the changes for the current release from `CHANGES.md` to the blog post and edit as necessary.
+- Be sure to add yourself to [authors.yml](https://github.com/apache/beam/blob/master/website/www/site/data/authors.yml) if necessary.
 
 __Tip__: Use git log to find contributors to the releases. (e.g: `git log --pretty='%aN' ^v2.10.0 v2.11.0 | sort | uniq`).
 Make sure to clean it up, as there may be duplicate or incorrect user names.
@@ -667,7 +668,7 @@ Template:
 
 ```
 We are happy to present the new {$RELEASE_VERSION} release of Beam. This release includes both improvements and new functionality.
-See the [download page](/get-started/downloads/{$DOWNLOAD_ANCHOR}) for this release.
+See the [download page](/get-started/downloads/{$DOWNLOAD_ANCHOR}) for this release.<!--more-->
 For more information on changes in {$RELEASE_VERSION}, check out the
 [detailed release notes]({$JIRA_RELEASE_NOTES}).
 
@@ -1088,7 +1089,7 @@ please follow [the guide](https://help.github.com/articles/creating-a-personal-a
 All wheels should be published, in addition to the zip of the release source.
 (Signatures and hashes do _not_ need to be uploaded.)
 
-### Deploy SDK docker images to DockerHub
+### Deploy docker images to DockerHub
 * Script: [publish_docker_images.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/publish_docker_images.sh)
 * Usage
 ```
@@ -1098,6 +1099,8 @@ Verify that:
 * Images are published at [DockerHub](https://hub.docker.com/search?q=apache%2Fbeam&type=image) with tags {RELEASE} and *latest*.
 * Images with *latest* tag are pointing to current release by confirming
   1. Digest of the image with *latest* tag is the same as the one with {RELEASE} tag.
+
+(Optional) Clean up any unneeded local images afterward to save disk space.
 
 ### Merge Website pull requests
 

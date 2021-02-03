@@ -37,6 +37,7 @@ import org.apache.beam.runners.core.TimerInternalsFactory;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.SamzaRunner;
 import org.apache.beam.runners.samza.state.SamzaMapState;
+import org.apache.beam.runners.samza.state.SamzaSetState;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -64,8 +65,7 @@ import org.slf4j.LoggerFactory;
 })
 public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
   private static final Logger LOG = LoggerFactory.getLogger(SamzaTimerInternalsFactory.class);
-
-  private final NavigableSet<KeyedTimerData<K>> eventTimeTimers;
+  private final NavigableSet<KeyedTimerData<K>> eventTimeBuffer;
   private final Coder<K> keyCoder;
   private final Scheduler<KeyedTimerData<K>> timerRegistry;
   private final SamzaTimerState state;
@@ -74,16 +74,31 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
   private Instant inputWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
   private Instant outputWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
 
+  // Size of each event timer is around 200B, by default with buffer size 50k, the default size is
+  // 10M
+  private final int maxEventTimerBufferSize;
+  // Max event time stored in eventTimerBuffer
+  // If it is set to long.MAX_VALUE, it indicates the State does not contain any KeyedTimerData
+  private long maxEventTimeInBuffer;
+
+  // The maximum number of ready timers to process at once per watermark.
+  private final long maxReadyTimersToProcessOnce;
+
   private SamzaTimerInternalsFactory(
       Coder<K> keyCoder,
       Scheduler<KeyedTimerData<K>> timerRegistry,
       String timerStateId,
       SamzaStoreStateInternals.Factory<?> nonKeyedStateInternalsFactory,
       Coder<BoundedWindow> windowCoder,
-      IsBounded isBounded) {
+      IsBounded isBounded,
+      SamzaPipelineOptions pipelineOptions) {
     this.keyCoder = keyCoder;
     this.timerRegistry = timerRegistry;
-    this.eventTimeTimers = new TreeSet<>();
+    this.eventTimeBuffer = new TreeSet<>();
+    this.maxEventTimerBufferSize =
+        pipelineOptions.getEventTimerBufferSize(); // must be placed before state initialization
+    this.maxEventTimeInBuffer = Long.MAX_VALUE;
+    this.maxReadyTimersToProcessOnce = pipelineOptions.getMaxReadyTimersToProcessOnce();
     this.state = new SamzaTimerState(timerStateId, nonKeyedStateInternalsFactory, windowCoder);
     this.isBounded = isBounded;
   }
@@ -105,7 +120,8 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
         timerStateId,
         nonKeyedStateInternalsFactory,
         windowCoder,
-        isBounded);
+        isBounded,
+        pipelineOptions);
   }
 
   @Override
@@ -152,16 +168,37 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
     outputWatermark = watermark;
   }
 
+  /**
+   * The method is called when watermark comes. It compares timers in memory buffer with watermark
+   * to prepare ready timers. When memory buffer is empty, it asks store to reload timers into
+   * buffer. note that the number of timers returned may be larger than memory buffer size.
+   *
+   * @return a collection of ready timers to be fired
+   */
   public Collection<KeyedTimerData<K>> removeReadyTimers() {
     final Collection<KeyedTimerData<K>> readyTimers = new ArrayList<>();
 
-    while (!eventTimeTimers.isEmpty()
-        && eventTimeTimers.first().getTimerData().getTimestamp().isBefore(inputWatermark)) {
-      final KeyedTimerData<K> keyedTimerData = eventTimeTimers.pollFirst();
+    while (!eventTimeBuffer.isEmpty()
+        && eventTimeBuffer.first().getTimerData().getTimestamp().isBefore(inputWatermark)
+        && readyTimers.size() < maxReadyTimersToProcessOnce) {
+
+      final KeyedTimerData<K> keyedTimerData = eventTimeBuffer.pollFirst();
       readyTimers.add(keyedTimerData);
       state.deletePersisted(keyedTimerData);
-    }
 
+      if (eventTimeBuffer.isEmpty()) {
+        state.reloadEventTimeTimers();
+      }
+    }
+    LOG.debug("Removed {} ready timers", readyTimers.size());
+
+    if (readyTimers.size() == maxReadyTimersToProcessOnce
+        && !eventTimeBuffer.isEmpty()
+        && eventTimeBuffer.first().getTimerData().getTimestamp().isBefore(inputWatermark)) {
+      LOG.warn(
+          "Loaded {} expired timers, the remaining will be processed at next watermark.",
+          maxReadyTimersToProcessOnce);
+    }
     return readyTimers;
   }
 
@@ -175,6 +212,11 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
 
   public Instant getOutputWatermark() {
     return outputWatermark;
+  }
+
+  // for unit test only
+  NavigableSet<KeyedTimerData<K>> getEventTimeBuffer() {
+    return eventTimeBuffer;
   }
 
   private class SamzaTimerInternals implements TimerInternals {
@@ -202,13 +244,17 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
     public void setTimer(TimerData timerData) {
       if (isBounded == IsBounded.UNBOUNDED
           && timerData.getTimestamp().getMillis()
-              >= GlobalWindow.INSTANCE.maxTimestamp().getMillis()) {
-        // No need to register a timer of max timestamp if the input is unbounded
+              > GlobalWindow.INSTANCE.maxTimestamp().getMillis()) {
+        // No need to register a timer greater than maxTimestamp if the input is unbounded.
+        // 1. It will ignore timers with (maxTimestamp + 1) created by stateful ParDo with global
+        // window.
+        // 2. It will register timers with maxTimestamp so that global window can be closed
+        // correctly when max watermark comes.
         return;
       }
 
       final KeyedTimerData<K> keyedTimerData = new KeyedTimerData<>(keyBytes, key, timerData);
-      if (eventTimeTimers.contains(keyedTimerData)) {
+      if (eventTimeBuffer.contains(keyedTimerData)) {
         return;
       }
 
@@ -230,9 +276,32 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
         // persist it first
         state.persist(keyedTimerData);
 
+        // TO-DO: apply the same memory optimization over processing timers
         switch (timerData.getDomain()) {
           case EVENT_TIME:
-            eventTimeTimers.add(keyedTimerData);
+            /**
+             * To determine if the upcoming KeyedTimerData could be added to the Buffer while
+             * guaranteeing the Buffer's timestamps are all <= than those in State Store to preserve
+             * timestamp eviction priority:
+             *
+             * <p>1) If maxEventTimeInBuffer == long.MAX_VALUE, it indicates that the State is
+             * empty, therefore all the Event times greater or lesser than newTimestamp are in the
+             * buffer;
+             *
+             * <p>2) If newTimestamp < maxEventTimeInBuffer, it indicates that there are entries
+             * greater than newTimestamp, so it is safe to add it to the buffer
+             *
+             * <p>In case that the Buffer is full, we remove the largest timer from memory according
+             * to {@link KeyedTimerData.compareTo()}
+             */
+            if (newTimestamp < maxEventTimeInBuffer) {
+              eventTimeBuffer.add(keyedTimerData);
+              if (eventTimeBuffer.size() > maxEventTimerBufferSize) {
+                eventTimeBuffer.pollLast();
+                maxEventTimeInBuffer =
+                    eventTimeBuffer.last().getTimerData().getTimestamp().getMillis();
+              }
+            }
             break;
 
           case PROCESSING_TIME:
@@ -272,7 +341,7 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
 
       switch (timerData.getDomain()) {
         case EVENT_TIME:
-          eventTimeTimers.remove(keyedTimerData);
+          eventTimeBuffer.remove(keyedTimerData);
           break;
 
         case PROCESSING_TIME:
@@ -281,7 +350,8 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
 
         default:
           throw new UnsupportedOperationException(
-              String.format("%s currently only supports event time", SamzaRunner.class));
+              String.format(
+                  "%s currently only supports event time or processing time", SamzaRunner.class));
       }
     }
 
@@ -309,15 +379,16 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
   }
 
   private class SamzaTimerState {
-    private final SamzaMapState<TimerKey<K>, Long> eventTimerTimerState;
-    private final SamzaMapState<TimerKey<K>, Long> processingTimerTimerState;
+    private final SamzaMapState<TimerKey<K>, Long> eventTimeTimerState;
+    private final SamzaSetState<KeyedTimerData<K>> timestampSortedEventTimeTimerState;
+    private final SamzaMapState<TimerKey<K>, Long> processingTimeTimerState;
 
     SamzaTimerState(
         String timerStateId,
         SamzaStoreStateInternals.Factory<?> nonKeyedStateInternalsFactory,
         Coder<BoundedWindow> windowCoder) {
 
-      this.eventTimerTimerState =
+      this.eventTimeTimerState =
           (SamzaMapState<TimerKey<K>, Long>)
               nonKeyedStateInternalsFactory
                   .stateInternalsForKey(null)
@@ -328,7 +399,17 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
                           new TimerKeyCoder<>(keyCoder, windowCoder),
                           VarLongCoder.of()));
 
-      this.processingTimerTimerState =
+      this.timestampSortedEventTimeTimerState =
+          (SamzaSetState<KeyedTimerData<K>>)
+              nonKeyedStateInternalsFactory
+                  .stateInternalsForKey(null)
+                  .state(
+                      StateNamespaces.global(),
+                      StateTags.set(
+                          timerStateId + "-ts",
+                          new KeyedTimerData.KeyedTimerDataCoder<>(keyCoder, windowCoder)));
+
+      this.processingTimeTimerState =
           (SamzaMapState<TimerKey<K>, Long>)
               nonKeyedStateInternalsFactory
                   .stateInternalsForKey(null)
@@ -339,17 +420,17 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
                           new TimerKeyCoder<>(keyCoder, windowCoder),
                           VarLongCoder.of()));
 
-      restore();
+      init();
     }
 
     Long get(KeyedTimerData<K> keyedTimerData) {
       final TimerKey<K> timerKey = TimerKey.of(keyedTimerData);
       switch (keyedTimerData.getTimerData().getDomain()) {
         case EVENT_TIME:
-          return eventTimerTimerState.get(timerKey).read();
+          return eventTimeTimerState.get(timerKey).read();
 
         case PROCESSING_TIME:
-          return processingTimerTimerState.get(timerKey).read();
+          return processingTimeTimerState.get(timerKey).read();
 
         default:
           throw new UnsupportedOperationException(
@@ -361,18 +442,29 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
       final TimerKey<K> timerKey = TimerKey.of(keyedTimerData);
       switch (keyedTimerData.getTimerData().getDomain()) {
         case EVENT_TIME:
-          eventTimerTimerState.put(
+          final Long timestamp = eventTimeTimerState.get(timerKey).read();
+
+          if (timestamp != null) {
+            final KeyedTimerData keyedTimerDataInStore =
+                TimerKey.toKeyedTimerData(timerKey, timestamp, TimeDomain.EVENT_TIME, keyCoder);
+            timestampSortedEventTimeTimerState.remove(keyedTimerDataInStore);
+          }
+          eventTimeTimerState.put(
               timerKey, keyedTimerData.getTimerData().getTimestamp().getMillis());
+
+          timestampSortedEventTimeTimerState.add(keyedTimerData);
+
           break;
 
         case PROCESSING_TIME:
-          processingTimerTimerState.put(
+          processingTimeTimerState.put(
               timerKey, keyedTimerData.getTimerData().getTimestamp().getMillis());
           break;
 
         default:
           throw new UnsupportedOperationException(
-              String.format("%s currently only supports event time", SamzaRunner.class));
+              String.format(
+                  "%s currently only supports event time or processing time", SamzaRunner.class));
       }
     }
 
@@ -380,38 +472,52 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
       final TimerKey<K> timerKey = TimerKey.of(keyedTimerData);
       switch (keyedTimerData.getTimerData().getDomain()) {
         case EVENT_TIME:
-          eventTimerTimerState.remove(timerKey);
+          eventTimeTimerState.remove(timerKey);
+          timestampSortedEventTimeTimerState.remove(keyedTimerData);
           break;
 
         case PROCESSING_TIME:
-          processingTimerTimerState.remove(timerKey);
+          processingTimeTimerState.remove(timerKey);
           break;
 
         default:
           throw new UnsupportedOperationException(
-              String.format("%s currently only supports event time", SamzaRunner.class));
+              String.format(
+                  "%s currently only supports event time or processing time", SamzaRunner.class));
       }
     }
 
-    private void loadEventTimeTimers() {
-      final Iterator<Map.Entry<TimerKey<K>, Long>> iter =
-          eventTimerTimerState.readIterator().read();
-      // since the iterator will reach to the end, it will be closed automatically
-      while (iter.hasNext()) {
-        final Map.Entry<TimerKey<K>, Long> entry = iter.next();
-        final KeyedTimerData keyedTimerData =
-            TimerKey.toKeyedTimerData(
-                entry.getKey(), entry.getValue(), TimeDomain.EVENT_TIME, keyCoder);
+    /**
+     * Reload event time timers from state to memory buffer. Buffer size is bound by
+     * maxEventTimerBufferSize
+     */
+    private void reloadEventTimeTimers() {
+      final Iterator<KeyedTimerData<K>> iter =
+          timestampSortedEventTimeTimerState.readIterator().read();
 
-        eventTimeTimers.add(keyedTimerData);
+      while (iter.hasNext() && eventTimeBuffer.size() < maxEventTimerBufferSize) {
+        final KeyedTimerData<K> keyedTimerData = iter.next();
+        eventTimeBuffer.add(keyedTimerData);
+        maxEventTimeInBuffer = keyedTimerData.getTimerData().getTimestamp().getMillis();
       }
 
-      LOG.info("Loaded {} event time timers in memory", eventTimeTimers.size());
+      ((SamzaStoreStateInternals.KeyValueIteratorState) timestampSortedEventTimeTimerState)
+          .closeIterators();
+      LOG.info("Loaded {} event time timers in memory", eventTimeBuffer.size());
+
+      if (eventTimeBuffer.size() < maxEventTimerBufferSize) {
+        LOG.debug(
+            "Event time timers in State is empty, filled {} timers out of {} buffer capacity",
+            eventTimeBuffer.size(),
+            maxEventTimeInBuffer);
+        // Reset the flag variable to indicate there are no more KeyedTimerData in State
+        maxEventTimeInBuffer = Long.MAX_VALUE;
+      }
     }
 
     private void loadProcessingTimeTimers() {
       final Iterator<Map.Entry<TimerKey<K>, Long>> iter =
-          processingTimerTimerState.readIterator().read();
+          processingTimeTimerState.readIterator().read();
       // since the iterator will reach to the end, it will be closed automatically
       int count = 0;
       while (iter.hasNext()) {
@@ -424,12 +530,41 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
             keyedTimerData, keyedTimerData.getTimerData().getTimestamp().getMillis());
         ++count;
       }
+      ((SamzaStoreStateInternals.KeyValueIteratorState) processingTimeTimerState).closeIterators();
 
       LOG.info("Loaded {} processing time timers in memory", count);
     }
 
-    private void restore() {
-      loadEventTimeTimers();
+    /**
+     * Restore timer state from RocksDB. This is needed for migration of existing jobs. Give events
+     * in eventTimeTimerState, construct timestampSortedEventTimeTimerState preparing for memory
+     * reloading. TO-DO: processing time timers are still loaded into memory in one shot; will apply
+     * the same optimization mechanism as event time timer
+     */
+    private void init() {
+      final Iterator<Map.Entry<TimerKey<K>, Long>> eventTimersIter =
+          eventTimeTimerState.readIterator().read();
+      // use hasNext to check empty, because this is relatively cheap compared with Iterators.size()
+      if (eventTimersIter.hasNext()) {
+        final Iterator sortedEventTimerIter =
+            timestampSortedEventTimeTimerState.readIterator().read();
+
+        if (!sortedEventTimerIter.hasNext()) {
+          // inline the migration code
+          while (eventTimersIter.hasNext()) {
+            final Map.Entry<TimerKey<K>, Long> entry = eventTimersIter.next();
+            final KeyedTimerData keyedTimerData =
+                TimerKey.toKeyedTimerData(
+                    entry.getKey(), entry.getValue(), TimeDomain.EVENT_TIME, keyCoder);
+            timestampSortedEventTimeTimerState.add(keyedTimerData);
+          }
+        }
+        ((SamzaStoreStateInternals.KeyValueIteratorState) timestampSortedEventTimeTimerState)
+            .closeIterators();
+      }
+      ((SamzaStoreStateInternals.KeyValueIteratorState) eventTimeTimerState).closeIterators();
+
+      reloadEventTimeTimers();
       loadProcessingTimeTimers();
     }
   }

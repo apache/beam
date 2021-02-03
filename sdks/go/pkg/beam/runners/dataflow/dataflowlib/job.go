@@ -20,6 +20,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/apache/beam/sdks/go/pkg/beam/core"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
 	// Importing to get the side effect of the remote execution hook. See init().
 	_ "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/harness/init"
@@ -48,6 +49,7 @@ type JobOptions struct {
 	Subnetwork          string
 	NoUsePublicIPs      bool
 	NumWorkers          int64
+	DiskSizeGb          int64
 	MachineType         string
 	Labels              map[string]string
 	ServiceAccountEmail string
@@ -124,8 +126,8 @@ func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, worker
 		Environment: &df.Environment{
 			ServiceAccountEmail: opts.ServiceAccountEmail,
 			UserAgent: newMsg(userAgent{
-				Name:    "Apache Beam SDK for Go",
-				Version: "2.27.0.dev",
+				Name:    core.SdkName,
+				Version: core.SdkVersion,
 			}),
 			Version: newMsg(version{
 				JobType: apiJobType,
@@ -144,6 +146,7 @@ func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, worker
 				AutoscalingSettings: &df.AutoscalingSettings{
 					MaxNumWorkers: opts.MaxNumWorkers,
 				},
+				DiskSizeGb:                  opts.DiskSizeGb,
 				IpConfiguration:             ipConfiguration,
 				Kind:                        "harness",
 				Packages:                    packages,
@@ -238,6 +241,12 @@ func NewClient(ctx context.Context, endpoint string) (*df.Service, error) {
 		client.BasePath = endpoint
 	}
 	return client, nil
+}
+
+// GetMetrics returns a collection of metrics describing the progress of a
+// job by making a call to Cloud Monitoring service.
+func GetMetrics(ctx context.Context, client *df.Service, project, region, jobID string) (*df.JobMetrics, error) {
+	return client.Projects.Locations.Jobs.GetMetrics(project, region, jobID).Do()
 }
 
 type dataflowOptions struct {

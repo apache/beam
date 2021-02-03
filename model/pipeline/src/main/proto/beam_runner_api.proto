@@ -151,7 +151,11 @@ message PTransform {
 
   // (Optional) A list of the ids of transforms that it contains.
   //
-  // Primitive transforms are not allowed to specify this.
+  // Primitive transforms (see StandardPTransforms.Primitives) are not allowed
+  // to specify subtransforms.
+  //
+  // Note that a composite transform may have zero subtransforms as long as it
+  // only outputs PCollections that are in its inputs.
   repeated string subtransforms = 2;
 
   // (Required) A map from local names of inputs (unique only with this map, and
@@ -188,6 +192,15 @@ message PTransform {
   // Transforms that are required to be implemented by a runner must omit this.
   // All other transforms are required to specify this.
   string environment_id = 7;
+
+  // (Optional) A map from URNs designating a type of annotation, to the
+  // annotation in binary format. For example, an annotation could indicate
+  // that this PTransform has specific privacy properties.
+  //
+  // A runner MAY ignore types of annotations it doesn't understand. Therefore
+  // annotations MUST NOT be used for metadata that can affect correct
+  // execution of the transform.
+  map<string, bytes> annotations = 8;
 }
 
 message StandardPTransforms {
@@ -297,10 +310,10 @@ message StandardPTransforms {
 
     // A transform that translates a given element to its human-readable
     // representation.
-    // 
+    //
     // Input: KV<nonce, element>
     // Output: KV<nonce, string>
-    // 
+    //
     // For each given element, the implementation returns the best-effort
     // human-readable representation. When possible, the implementation could
     // call a user-overridable method on the type. For example, Java could
@@ -344,6 +357,10 @@ message StandardPTransforms {
 
     // Payload: PubSubWritePayload.
     PUBSUB_WRITE = 5 [(beam_urn) = "beam:transform:pubsub_write:v1"];
+
+    // Represents the GroupIntoBatches.WithShardedKey operation.
+    // Payload: GroupIntoBatchesPayload
+    GROUP_INTO_BATCHES_WITH_SHARDED_KEY = 6 [(beam_urn) = "beam:transform:group_into_batches_with_sharded_key:v1"];
   }
   // Payload for all of these: CombinePayload
   enum CombineComponents {
@@ -413,6 +430,10 @@ message StandardPTransforms {
     // Input: KV(KV(element, restriction), size);
     // Output: KV(KV(element, restriction), size).
     TRUNCATE_SIZED_RESTRICTION = 3 [(beam_urn) = "beam:transform:sdf_truncate_sized_restrictions:v1"];
+  }
+  // Payload for all of these: GroupIntoBatchesPayload
+  enum GroupIntoBatchesComponents {
+    GROUP_INTO_BATCHES = 0 [(beam_urn) = "beam:transform:group_into_batches:v1"];
   }
 }
 
@@ -706,6 +727,16 @@ message PubSubWritePayload {
   string id_attribute = 3;
 }
 
+// Payload for GroupIntoBatches composite transform.
+message GroupIntoBatchesPayload {
+
+  // (Required) Max size of a batch.
+  int64 batch_size = 1;
+
+  // (Optional) Max duration a batch is allowed to be cached in states.
+  int64 max_buffering_duration_millis = 2;
+}
+
 // A coder, the binary format for serialization and deserialization of data in
 // a pipeline.
 message Coder {
@@ -930,13 +961,13 @@ message StandardCoders {
     //     values.
     //   - For present values the null indicator is followed by the value
     //     encoded with it's corresponding coder.
-    // 
+    //
     // Well known logical types:
     //   beam:logical_type:micros_instant:v1
     //   - Representation type: ROW<seconds: INT64, micros: INT64>
     //   - A timestamp without a timezone where seconds + micros represents the
     //     amount of time since the epoch.
-    // 
+    //
     // The payload for RowCoder is an instance of Schema.
     // Components: None
     // Experimental.
@@ -1464,6 +1495,13 @@ message StandardProtocols {
     // simply indicates this SDK can actually parallelize the work across multiple
     // cores.
     MULTI_CORE_BUNDLE_PROCESSING = 3 [(beam_urn) = "beam:protocol:multi_core_bundle_processing:v1"];
+
+    // Indicates that this SDK handles the InstructionRequest of type
+    // HarnessMonitoringInfosRequest.
+    // A request to provide full MonitoringInfo data associated with
+    // the entire SDK harness process, not specific to a bundle.
+    HARNESS_MONITORING_INFOS = 4
+        [(beam_urn) = "beam:protocol:harness_monitoring_infos:v1"];
   }
 }
 

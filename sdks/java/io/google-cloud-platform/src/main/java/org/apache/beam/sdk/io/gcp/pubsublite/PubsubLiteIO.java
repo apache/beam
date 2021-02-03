@@ -20,9 +20,9 @@ package org.apache.beam.sdk.io.gcp.pubsublite;
 import com.google.cloud.pubsublite.proto.PubSubMessage;
 import com.google.cloud.pubsublite.proto.SequencedMessage;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 
@@ -51,21 +51,13 @@ public final class PubsubLiteIO {
    *             .setName(subscriptionName)
    *             .build();
    *
-   * FlowControlSettings flowControlSettings =
-   *         FlowControlSettings.builder()
-   *             // Set outstanding bytes to 10 MiB per partition.
-   *             .setBytesOutstanding(10 * 1024 * 1024L)
-   *             .setMessagesOutstanding(Long.MAX_VALUE)
-   *             .build();
-   *
    * PCollection<SequencedMessage> messages = p.apply(PubsubLiteIO.read(SubscriberOptions.newBuilder()
    *     .setSubscriptionPath(subscriptionPath)
-   *     .setFlowControlSettings(flowControlSettings)
    *     .build()), "read");
    * }</pre>
    */
-  public static Read.Unbounded<SequencedMessage> read(SubscriberOptions options) {
-    return Read.from(new PubsubLiteUnboundedSource(options));
+  public static PTransform<PBegin, PCollection<SequencedMessage>> read(SubscriberOptions options) {
+    return new SubscribeTransform(options);
   }
 
   /**

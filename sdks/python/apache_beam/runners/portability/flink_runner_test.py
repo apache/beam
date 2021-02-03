@@ -238,7 +238,8 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
             p
             | ReadFromKafka(
                 consumer_config={
-                    'bootstrap.servers': 'notvalid1:7777, notvalid2:3531'
+                    'bootstrap.servers': 'notvalid1:7777, notvalid2:3531',
+                    'group.id': 'any_group'
                 },
                 topics=['topic1', 'topic2'],
                 key_deserializer='org.apache.kafka.'
@@ -247,6 +248,8 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
                 value_deserializer='org.apache.kafka.'
                 'common.serialization.'
                 'LongDeserializer',
+                commit_offset_in_finalize=True,
+                timestamp_policy=ReadFromKafka.create_time_policy,
                 expansion_service=self.get_expansion_service()))
     self.assertTrue(
         'No resolvable bootstrap urls given in bootstrap.servers' in str(

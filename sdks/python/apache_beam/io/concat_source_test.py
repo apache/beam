@@ -135,6 +135,14 @@ class ConcatSourceTest(unittest.TestCase):
     self.assertEqual(range_tracker.sub_range_tracker(2).try_claim(10), True)
     self.assertEqual(range_tracker.sub_range_tracker(2).try_claim(11), False)
 
+  def test_fraction_consumed_at_end(self):
+    source = ConcatSource([
+        RangeSource(0, 2),
+        RangeSource(2, 4),
+    ])
+    range_tracker = source.get_range_tracker((2, None), None)
+    self.assertEqual(range_tracker.fraction_consumed(), 1.0)
+
   def test_estimate_size(self):
     source = ConcatSource([
         RangeSource(0, 10),

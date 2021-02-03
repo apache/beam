@@ -21,9 +21,9 @@ import static org.apache.beam.runners.dataflow.util.Structs.addList;
 import static org.apache.beam.runners.dataflow.util.Structs.addLong;
 import static org.apache.beam.runners.dataflow.util.Structs.addStringList;
 import static org.apache.beam.runners.dataflow.worker.ReaderUtils.readAllFromReader;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
 
 import com.google.api.services.dataflow.model.Source;
 import java.util.ArrayList;

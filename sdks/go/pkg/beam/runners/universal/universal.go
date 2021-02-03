@@ -40,6 +40,7 @@ func init() {
 	// Note that we also _ import harness/init to setup the remote execution hook.
 	beam.RegisterRunner("universal", Execute)
 	beam.RegisterRunner("PortableRunner", Execute)
+	beam.RegisterRunner("portable", Execute)
 }
 
 // Execute executes the pipeline on a universal beam runner.
@@ -78,11 +79,11 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 		getEnvCfg = srv.EnvironmentConfig
 	}
 
-	enviroment, err := graphx.CreateEnvironment(ctx, envUrn, getEnvCfg)
+	environment, err := graphx.CreateEnvironment(ctx, envUrn, getEnvCfg)
 	if err != nil {
 		return nil, errors.WithContextf(err, "generating model pipeline")
 	}
-	pipeline, err := graphx.Marshal(edges, &graphx.Options{Environment: enviroment})
+	pipeline, err := graphx.Marshal(edges, &graphx.Options{Environment: environment})
 	if err != nil {
 		return nil, errors.WithContextf(err, "generating model pipeline")
 	}

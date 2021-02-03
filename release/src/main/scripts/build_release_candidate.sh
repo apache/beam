@@ -48,7 +48,7 @@ LOCAL_WEBSITE_REPO=beam_website_repo
 USER_REMOTE_URL=
 USER_GITHUB_ID=
 GIT_REPO_BASE_URL=apache/beam
-GIT_REPO_URL=git@github.com:${GIT_REPO_BASE_URL}.git
+GIT_REPO_URL=https://github.com/${GIT_REPO_BASE_URL}
 ROOT_SVN_URL=https://dist.apache.org/repos/dist/dev/beam
 GIT_BEAM_ARCHIVE=https://github.com/apache/beam/archive
 GIT_BEAM_WEBSITE=https://github.com/apache/beam-site.git
@@ -56,13 +56,6 @@ GIT_BEAM_WEBSITE=https://github.com/apache/beam-site.git
 PYTHON_ARTIFACTS_DIR=python
 BEAM_ROOT_DIR=beam
 WEBSITE_ROOT_DIR=beam-site
-
-DOCKER_IMAGE_DEFAULT_REPO_ROOT=apache
-DOCKER_IMAGE_DEFAULT_REPO_PREFIX=beam_
-
-JAVA_VER=("java8", "java11")
-PYTHON_VER=("python3.6" "python3.7" "python3.8")
-FLINK_VER=("1.8" "1.9" "1.10")
 
 echo "================Setting Up Environment Variables==========="
 echo "Which release version are you working on: "
@@ -73,7 +66,7 @@ read RC_NUM
 echo "Please enter your github username(ID): "
 read USER_GITHUB_ID
 
-USER_REMOTE_URL=git@github.com:${USER_GITHUB_ID}/beam-site
+USER_REMOTE_URL=https://github.com/${USER_GITHUB_ID}/beam-site
 
 echo "=================Pre-requirements===================="
 echo "Please make sure you have configured and started your gpg by running ./preparation_before_release.sh."
@@ -257,49 +250,20 @@ read confirmation
 if [[ $confirmation = "y" ]]; then
   echo "============Staging SDK docker images on docker hub========="
   cd ~
-  if [[ -d ${LOCAL_PYTHON_STAGING_DIR} ]]; then
-    rm -rf ${LOCAL_PYTHON_STAGING_DIR}
+  if [[ -d ${LOCAL_CLONE_DIR} ]]; then
+    rm -rf ${LOCAL_CLONE_DIR}
   fi
-  mkdir -p ${LOCAL_PYTHON_STAGING_DIR}
-  cd ${LOCAL_PYTHON_STAGING_DIR}
+  mkdir -p ${LOCAL_CLONE_DIR}
+  cd ${LOCAL_CLONE_DIR}
 
   echo '-------------------Cloning Beam Release Branch-----------------'
   git clone ${GIT_REPO_URL}
   cd ${BEAM_ROOT_DIR}
   git checkout ${RELEASE_BRANCH}
 
-  echo '-------------------Generating and Pushing Python images-----------------'
-  ./gradlew :sdks:python:container:buildAll -Pdocker-pull-licenses -Pdocker-tag=${RELEASE}_rc${RC_NUM}
-  for ver in "${PYTHON_VER[@]}"; do
-    docker push ${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}${ver}_sdk:${RELEASE}_rc${RC_NUM} &
-  done
+  ./gradlew :pushAllDockerImages -Pdocker-pull-licenses -Pdocker-tag=${RELEASE}_rc${RC_NUM}
 
-  echo '-------------------Generating and Pushing Java images-----------------'
-  echo "Building containers for the following Java versions:" "${JAVA_VER[@]}"
-  for ver in "${JAVA_VER[@]}"; do
-    ./gradlew :sdks:java:container:${ver}:dockerPush -Pdocker-pull-licenses -Pdocker-tag=${RELEASE}_rc${RC_NUM}
-  done
-
-  echo '-------------Generating and Pushing Flink job server images-------------'
-  echo "Building containers for the following Flink versions:" "${FLINK_VER[@]}"
-  for ver in "${FLINK_VER[@]}"; do
-    ./gradlew ":runners:flink:${ver}:job-server-container:dockerPush" -Pdocker-tag="${RELEASE}_rc${RC_NUM}"
-  done
-
-  echo '-------------Generating and Pushing Spark job server image-------------'
-  ./gradlew ":runners:spark:job-server:container:dockerPush" -Pdocker-tag="${RELEASE}_rc${RC_NUM}"
-
-  rm -rf ~/${PYTHON_ARTIFACTS_DIR}
-
-  echo '-------------------Clean up images at local-----------------'
-  for ver in "${PYTHON_VER[@]}"; do
-     docker rmi -f ${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}${ver}_sdk:${RELEASE}_rc${RC_NUM}
-  done
-  docker rmi -f ${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}java_sdk:${RELEASE}_rc${RC_NUM}
-  for ver in "${FLINK_VER[@]}"; do
-    docker rmi -f "${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}flink${ver}_job_server:${RELEASE}_rc${RC_NUM}"
-  done
-  docker rmi -f "${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}spark_job_server:${RELEASE}_rc${RC_NUM}"
+  rm -rf ~/${LOCAL_CLONE_DIR}
 fi
 
 echo "[Current Step]: Update beam-site"

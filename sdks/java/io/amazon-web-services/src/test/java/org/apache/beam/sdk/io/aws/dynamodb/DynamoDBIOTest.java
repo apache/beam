@@ -27,28 +27,32 @@ import com.amazonaws.services.dynamodbv2.model.BatchWriteItemRequest;
 import com.amazonaws.services.dynamodbv2.model.ScanRequest;
 import com.amazonaws.services.dynamodbv2.model.WriteRequest;
 import java.io.Serializable;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
 /** Test Coverage for the IO. */
-@Ignore("[BEAM-7794] DynamoDBIOTest is blocking forever")
 @SuppressWarnings({
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
@@ -214,5 +218,65 @@ public class DynamoDBIOTest implements Serializable {
       throw e.getCause();
     }
     fail("Pipeline is expected to fail because we were unable to write to DynamoDB.");
+  }
+
+  /**
+   * A DoFn used to generate outputs duplicated N times, where N is the input. Used to generate
+   * bundles with duplicate elements.
+   */
+  private static class WriteDuplicateGeneratorDoFn extends DoFn<Integer, WriteRequest> {
+    @ProcessElement
+    public void processElement(ProcessContext ctx) {
+      for (int i = 0; i < ctx.element(); i++) {
+        DynamoDBIOTestHelper.generateWriteRequests(numOfItems).forEach(ctx::output);
+      }
+    }
+  }
+
+  @Test
+  public void testWriteDeduplication() {
+    // designate duplication factor for each bundle
+    final List<Integer> duplications = Arrays.asList(1, 2, 3);
+
+    final List<String> deduplicateKeys =
+        Arrays.asList(DynamoDBIOTestHelper.ATTR_NAME_1, DynamoDBIOTestHelper.ATTR_NAME_2);
+
+    AmazonDynamoDB amazonDynamoDBMock = Mockito.mock(AmazonDynamoDB.class);
+
+    pipeline
+        .apply(Create.of(duplications))
+        .apply("duplicate", ParDo.of(new WriteDuplicateGeneratorDoFn()))
+        .apply(
+            DynamoDBIO.<WriteRequest>write()
+                .withWriteRequestMapperFn(
+                    (SerializableFunction<WriteRequest, KV<String, WriteRequest>>)
+                        writeRequest -> KV.of(tableName, writeRequest))
+                .withRetryConfiguration(
+                    DynamoDBIO.RetryConfiguration.create(5, Duration.standardMinutes(1)))
+                .withAwsClientsProvider(AwsClientsProviderMock.of(amazonDynamoDBMock))
+                .withDeduplicateKeys(deduplicateKeys));
+
+    pipeline.run().waitUntilFinish();
+
+    ArgumentCaptor<BatchWriteItemRequest> argumentCaptor =
+        ArgumentCaptor.forClass(BatchWriteItemRequest.class);
+    Mockito.verify(amazonDynamoDBMock, Mockito.times(3)).batchWriteItem(argumentCaptor.capture());
+    List<BatchWriteItemRequest> batchRequests = argumentCaptor.getAllValues();
+    batchRequests.forEach(
+        batchRequest -> {
+          List<WriteRequest> requests = batchRequest.getRequestItems().get(tableName);
+          // assert that each bundle contains expected number of items
+          assertEquals(numOfItems, requests.size());
+          List<Map<String, AttributeValue>> requestKeys =
+              requests.stream()
+                  .map(
+                      request ->
+                          request.getPutRequest() != null
+                              ? request.getPutRequest().getItem()
+                              : request.getDeleteRequest().getKey())
+                  .collect(Collectors.toList());
+          // assert no duplicate keys in each bundle
+          assertEquals(new HashSet<>(requestKeys).size(), requestKeys.size());
+        });
   }
 }

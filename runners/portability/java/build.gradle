@@ -19,7 +19,7 @@ import groovy.json.JsonOutput
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(automaticModuleName: 'org.apache.beam.runners.portability')
+applyJavaNature(enableStrictDependencies:true, automaticModuleName: 'org.apache.beam.runners.portability')
 applyPythonNature()
 
 description = "Apache Beam :: Runners :: Portability :: Java"
@@ -32,12 +32,19 @@ configurations {
 
 dependencies {
   compile library.java.vendored_guava_26_0_jre
-  compile library.java.hamcrest_library
   compile project(":runners:java-fn-execution")
   compile project(":runners:java-job-service")
   compile project(path: ":sdks:java:harness", configuration: "shadow")
   compile library.java.vendored_grpc_1_26_0
   compile library.java.slf4j_api
+  compile library.java.joda_time
+  compile "org.hamcrest:hamcrest:2.1"
+  compile project(path: ":model:fn-execution", configuration: "shadow")
+  compile project(path: ":model:job-management:", configuration: "shadow")
+  compile project(path: ":model:pipeline", configuration: "shadow")
+  compile project(":runners:core-construction-java")
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile project(":sdks:java:fn-execution")
 
   testCompile project(path: ":runners:core-construction-java", configuration: "testRuntime")
   testCompile library.java.hamcrest_core
@@ -140,7 +147,6 @@ def createUlrValidatesRunnerTask = { name, environmentType, dockerImageTask = ""
       includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
       excludeCategories 'org.apache.beam.sdk.testing.UsesGaugeMetrics'
       excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
       excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
       excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
       excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
@@ -153,9 +159,6 @@ def createUlrValidatesRunnerTask = { name, environmentType, dockerImageTask = ""
       excludeTestsMatching 'org.apache.beam.sdk.metrics.MetricsTest$CommittedMetricTests.testCommittedCounterMetrics'
       // https://issues.apache.org/jira/browse/BEAM-10446
       excludeTestsMatching 'org.apache.beam.sdk.metrics.MetricsTest$CommittedMetricTests.testCommittedDistributionMetrics'
-
-      // This test seems erroneously labeled ValidatesRunner
-      excludeTestsMatching 'org.apache.beam.sdk.schemas.AvroSchemaTest.testAvroPipelineGroupBy'
 
       // Teardown not called in exceptions
       // https://issues.apache.org/jira/browse/BEAM-10447
@@ -176,23 +179,6 @@ def createUlrValidatesRunnerTask = { name, environmentType, dockerImageTask = ""
       excludeTestsMatching 'org.apache.beam.sdk.transforms.windowing.WindowingTest.testNonPartitioningWindowing'
       excludeTestsMatching 'org.apache.beam.sdk.transforms.GroupByKeyTest$WindowTests.testGroupByKeyMergingWindows'
 
-      // Flatten with empty PCollections hangs
-      // https://issues.apache.org/jira/browse/BEAM-10450
-      excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testEmptyFlattenAsSideInput'
-      excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testFlattenPCollectionsEmpty'
-      excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testFlattenPCollectionsEmptyThenParDo'
-
-      // Empty side inputs hang
-      // https://issues.apache.org/jira/browse/BEAM-10449
-      excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testWindowedSideInputFixedToFixedWithDefault'
-      excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testEmptyIterableSideInput'
-      excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testEmptySingletonSideInput'
-      excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testEmptyListSideInput'
-      excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testEmptyMultimapSideInput'
-      excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testEmptyMultimapSideInputWithNonDeterministicKeyCoder'
-      excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testEmptyMapSideInput'
-      excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testEmptyMapSideInputWithNonDeterministicKeyCoder'
-
       // Misc failures
       // https://issues.apache.org/jira/browse/BEAM-10451
       excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest$WindowingTests.testGlobalCombineWithDefaultsAndTriggers'
@@ -201,9 +187,6 @@ def createUlrValidatesRunnerTask = { name, environmentType, dockerImageTask = ""
 
       // https://issues.apache.org/jira/browse/BEAM-10454
       excludeTestsMatching 'org.apache.beam.sdk.testing.PAssertTest.testWindowedIsEqualTo'
-
-      // https://issues.apache.org/jira/browse/BEAM-10453
-      excludeTestsMatching 'org.apache.beam.sdk.transforms.ReshuffleTest.testReshuffleWithTimestampsStreaming'
 
       // https://issues.apache.org/jira/browse/BEAM-10452
       excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest$BasicTests.testHotKeyCombiningWithAccumulationMode'

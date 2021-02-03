@@ -19,7 +19,7 @@ limitations under the License.
 -->
 
 We are happy to present the new 2.21.0 release of Beam. This release includes both improvements and new functionality.
-See the [download page](/get-started/downloads/#2210-2020-05-27) for this release.
+See the [download page](/get-started/downloads/#2210-2020-05-27) for this release.<!--more-->
 For more information on changes in 2.21.0, check out the
 [detailed release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12347143).
 

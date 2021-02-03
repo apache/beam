@@ -221,6 +221,16 @@ public interface DataflowPipelineDebugOptions extends ExperimentalOptions, Pipel
   void setWorkerCacheMb(Integer value);
 
   /**
+   * The amount of time before UnboundedReaders are considered idle and closed during streaming
+   * execution.
+   */
+  @Description("The amount of time before UnboundedReaders are uncached, in seconds.")
+  @Default.Integer(60)
+  Integer getReaderCacheTimeoutSec();
+
+  void setReaderCacheTimeoutSec(Integer value);
+
+  /**
    * CAUTION: This option implies dumpHeapOnOOM, and has similar caveats. Specifically, heap dumps
    * can of comparable size to the default boot disk. Consider increasing the boot disk size before
    * setting this flag to true.

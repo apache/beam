@@ -17,27 +17,58 @@
  */
 package org.apache.beam.sdk.extensions.sql.zetasql.translation;
 
+import com.google.auto.value.AutoValue;
 import com.google.zetasql.resolvedast.ResolvedNode;
 import com.google.zetasql.resolvedast.ResolvedNodes;
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.udf.ScalarFn;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /** Holds user defined function definitions. */
-public class UserFunctionDefinitions {
-  public final ImmutableMap<List<String>, ResolvedNodes.ResolvedCreateFunctionStmt>
-      sqlScalarFunctions;
+@AutoValue
+public abstract class UserFunctionDefinitions {
+  public abstract ImmutableMap<List<String>, ResolvedNodes.ResolvedCreateFunctionStmt>
+      sqlScalarFunctions();
 
   /**
    * SQL native user-defined table-valued function can be resolved by Analyzer. Keeping the function
    * name to its ResolvedNode mapping so during Plan conversion, UDTVF implementation can replace
    * inputs of TVFScanConverter.
    */
-  public final ImmutableMap<List<String>, ResolvedNode> sqlTableValuedFunctions;
+  public abstract ImmutableMap<List<String>, ResolvedNode> sqlTableValuedFunctions();
 
-  public UserFunctionDefinitions(
-      ImmutableMap<List<String>, ResolvedNodes.ResolvedCreateFunctionStmt> sqlScalarFunctions,
-      ImmutableMap<List<String>, ResolvedNode> sqlTableValuedFunctions) {
-    this.sqlScalarFunctions = sqlScalarFunctions;
-    this.sqlTableValuedFunctions = sqlTableValuedFunctions;
+  public abstract ImmutableMap<List<String>, JavaScalarFunction> javaScalarFunctions();
+
+  @AutoValue
+  public abstract static class JavaScalarFunction {
+    public static JavaScalarFunction create(ScalarFn scalarFn, String jarPath) {
+      return new AutoValue_UserFunctionDefinitions_JavaScalarFunction(scalarFn, jarPath);
+    }
+
+    public abstract ScalarFn scalarFn();
+
+    /** The Beam filesystem path to the jar where scalarFn was defined. */
+    public abstract String jarPath();
+  }
+
+  @AutoValue.Builder
+  public abstract static class Builder {
+    public abstract Builder setSqlScalarFunctions(
+        ImmutableMap<List<String>, ResolvedNodes.ResolvedCreateFunctionStmt> sqlScalarFunctions);
+
+    public abstract Builder setSqlTableValuedFunctions(
+        ImmutableMap<List<String>, ResolvedNode> sqlTableValuedFunctions);
+
+    public abstract Builder setJavaScalarFunctions(
+        ImmutableMap<List<String>, JavaScalarFunction> javaScalarFunctions);
+
+    public abstract UserFunctionDefinitions build();
+  }
+
+  public static Builder newBuilder() {
+    return new AutoValue_UserFunctionDefinitions.Builder()
+        .setSqlScalarFunctions(ImmutableMap.of())
+        .setSqlTableValuedFunctions(ImmutableMap.of())
+        .setJavaScalarFunctions(ImmutableMap.of());
   }
 }

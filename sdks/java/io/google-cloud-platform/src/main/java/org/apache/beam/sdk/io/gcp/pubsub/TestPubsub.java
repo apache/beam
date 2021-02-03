@@ -22,6 +22,9 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 
 import com.google.api.core.ApiFuture;
 import com.google.api.core.ApiFutures;
+import com.google.api.gax.grpc.GrpcTransportChannel;
+import com.google.api.gax.rpc.FixedTransportChannelProvider;
+import com.google.api.gax.rpc.TransportChannelProvider;
 import com.google.cloud.pubsub.v1.AckReplyConsumer;
 import com.google.cloud.pubsub.v1.MessageReceiver;
 import com.google.cloud.pubsub.v1.Publisher;
@@ -32,7 +35,8 @@ import com.google.cloud.pubsub.v1.TopicAdminClient;
 import com.google.cloud.pubsub.v1.TopicAdminSettings;
 import com.google.protobuf.ByteString;
 import com.google.pubsub.v1.PushConfig;
-import com.google.pubsub.v1.Subscription;
+import io.grpc.ManagedChannel;
+import io.grpc.ManagedChannelBuilder;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
@@ -43,6 +47,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
@@ -78,25 +83,38 @@ public class TestPubsub implements TestRule {
 
   private final TestPubsubOptions pipelineOptions;
   private final String pubsubEndpoint;
+  private final boolean isLocalhost;
 
   private @Nullable TopicAdminClient topicAdmin = null;
   private @Nullable SubscriptionAdminClient subscriptionAdmin = null;
   private @Nullable TopicPath eventsTopicPath = null;
   private @Nullable SubscriptionPath subscriptionPath = null;
+  private @Nullable ManagedChannel channel = null;
+  private @Nullable TransportChannelProvider channelProvider = null;
 
   /**
-   * Creates an instance of this rule.
+   * Creates an instance of this rule using options provided by {@link
+   * TestPipeline#testingPipelineOptions()}.
    *
    * <p>Loads GCP configuration from {@link TestPipelineOptions}.
    */
   public static TestPubsub create() {
-    TestPubsubOptions options = TestPipeline.testingPipelineOptions().as(TestPubsubOptions.class);
-    return new TestPubsub(options);
+    return fromOptions(TestPipeline.testingPipelineOptions());
+  }
+
+  /**
+   * Creates an instance of this rule using provided options.
+   *
+   * <p>Loads GCP configuration from {@link TestPipelineOptions}.
+   */
+  public static TestPubsub fromOptions(PipelineOptions options) {
+    return new TestPubsub(options.as(TestPubsubOptions.class));
   }
 
   private TestPubsub(TestPubsubOptions pipelineOptions) {
     this.pipelineOptions = pipelineOptions;
     this.pubsubEndpoint = PubsubOptions.targetForRootUrl(this.pipelineOptions.getPubsubRootUrl());
+    this.isLocalhost = this.pubsubEndpoint.startsWith("localhost");
   }
 
   @Override
@@ -125,16 +143,24 @@ public class TestPubsub implements TestRule {
   }
 
   private void initializePubsub(Description description) throws IOException {
+    if (isLocalhost) {
+      channel = ManagedChannelBuilder.forTarget(pubsubEndpoint).usePlaintext().build();
+    } else {
+      channel = ManagedChannelBuilder.forTarget(pubsubEndpoint).useTransportSecurity().build();
+    }
+    channelProvider = FixedTransportChannelProvider.create(GrpcTransportChannel.create(channel));
     topicAdmin =
         TopicAdminClient.create(
             TopicAdminSettings.newBuilder()
                 .setCredentialsProvider(pipelineOptions::getGcpCredential)
+                .setTransportChannelProvider(channelProvider)
                 .setEndpoint(pubsubEndpoint)
                 .build());
     subscriptionAdmin =
         SubscriptionAdminClient.create(
             SubscriptionAdminSettings.newBuilder()
                 .setCredentialsProvider(pipelineOptions::getGcpCredential)
+                .setTransportChannelProvider(channelProvider)
                 .setEndpoint(pubsubEndpoint)
                 .build());
     TopicPath eventsTopicPathTmp =
@@ -142,25 +168,27 @@ public class TestPubsub implements TestRule {
             pipelineOptions.getProject(), createTopicName(description, EVENTS_TOPIC_NAME));
     topicAdmin.createTopic(eventsTopicPathTmp.getPath());
 
+    // Set this after successful creation; it signals that the topic needs teardown
     eventsTopicPath = eventsTopicPathTmp;
 
     String subscriptionName =
         topicPath().getName() + "_beam_" + ThreadLocalRandom.current().nextLong();
-    subscriptionPath =
+    SubscriptionPath subscriptionPathTmp =
         new SubscriptionPath(
             String.format(
                 "projects/%s/subscriptions/%s", pipelineOptions.getProject(), subscriptionName));
 
-    Subscription subscription =
-        subscriptionAdmin.createSubscription(
-            subscriptionPath.getPath(),
-            topicPath().getPath(),
-            PushConfig.getDefaultInstance(),
-            DEFAULT_ACK_DEADLINE_SECONDS);
+    subscriptionAdmin.createSubscription(
+        subscriptionPathTmp.getPath(),
+        topicPath().getPath(),
+        PushConfig.getDefaultInstance(),
+        DEFAULT_ACK_DEADLINE_SECONDS);
+
+    subscriptionPath = subscriptionPathTmp;
   }
 
-  private void tearDown() throws IOException {
-    if (subscriptionAdmin == null || topicAdmin == null) {
+  private void tearDown() {
+    if (subscriptionAdmin == null || topicAdmin == null || channel == null) {
       return;
     }
 
@@ -178,9 +206,12 @@ public class TestPubsub implements TestRule {
     } finally {
       subscriptionAdmin.close();
       topicAdmin.close();
+      channel.shutdown();
 
       subscriptionAdmin = null;
       topicAdmin = null;
+      channelProvider = null;
+      channel = null;
 
       eventsTopicPath = null;
       subscriptionPath = null;
@@ -244,6 +275,7 @@ public class TestPubsub implements TestRule {
       eventPublisher =
           Publisher.newBuilder(eventsTopicPath.getPath())
               .setCredentialsProvider(pipelineOptions::getGcpCredential)
+              .setChannelProvider(channelProvider)
               .setEndpoint(pubsubEndpoint)
               .build();
     } catch (IOException e) {
@@ -296,6 +328,7 @@ public class TestPubsub implements TestRule {
     Subscriber subscriber =
         Subscriber.newBuilder(subscriptionPath.getPath(), receiver)
             .setCredentialsProvider(pipelineOptions::getGcpCredential)
+            .setChannelProvider(channelProvider)
             .setEndpoint(pubsubEndpoint)
             .build();
     subscriber.startAsync();

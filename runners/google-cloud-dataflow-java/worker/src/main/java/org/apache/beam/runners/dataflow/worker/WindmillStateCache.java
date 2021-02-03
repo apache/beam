@@ -51,7 +51,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * thread at a time, so this is safe.
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class WindmillStateCache implements StatusDataProvider {
@@ -70,7 +69,7 @@ public class WindmillStateCache implements StatusDataProvider {
   private Cache<StateId, StateCacheEntry> stateCache;
   private HashMultimap<WindmillComputationKey, StateId> keyIndex =
       HashMultimap.<WindmillComputationKey, StateId>create();
-  private int displayedWeight = 0; // Only used for status pages and unit tests.
+  private long displayedWeight = 0; // Only used for status pages and unit tests.
   private long workerCacheBytes; // Copy workerCacheMb and convert to bytes.
 
   public WindmillStateCache(Integer workerCacheMb) {
@@ -222,11 +221,11 @@ public class WindmillStateCache implements StatusDataProvider {
     }
     if (entry == null || entry.getCacheToken() != cacheToken) {
       entry = new StateCacheEntry(cacheToken);
-      this.displayedWeight += (int) id.getWeight();
-      this.displayedWeight += (int) entry.getWeight();
+      this.displayedWeight += id.getWeight();
+      this.displayedWeight += entry.getWeight();
     }
     entry.setLastWorkToken(workToken);
-    this.displayedWeight += (int) entry.put(namespace, address, value, weight);
+    this.displayedWeight += entry.put(namespace, address, value, weight);
     // Always add back to the cache to update the weight.
     stateCache.put(id, entry);
   }
@@ -336,7 +335,7 @@ public class WindmillStateCache implements StatusDataProvider {
     private static class NamespacedTag<T extends State> {
 
       private final StateNamespace namespace;
-      private final Equivalence.Wrapper<StateTag> tag;
+      private final Equivalence.Wrapper<StateTag<T>> tag;
 
       NamespacedTag(StateNamespace namespace, StateTag<T> tag) {
         this.namespace = namespace;

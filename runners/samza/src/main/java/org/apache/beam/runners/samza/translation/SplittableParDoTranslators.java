@@ -119,8 +119,8 @@ public class SplittableParDoTranslators {
 
       final MessageStream<OpMessage<RawUnionValue>> taggedOutputStream =
           partitionedInputStream
-              .flatMap(OpAdapter.adapt(new KvToKeyedWorkItemOp<>()))
-              .flatMap(
+              .flatMapAsync(OpAdapter.adapt(new KvToKeyedWorkItemOp<>()))
+              .flatMapAsync(
                   OpAdapter.adapt(
                       new SplittableParDoProcessKeyedElementsOp<>(
                           transform.getMainOutputTag(),
@@ -139,7 +139,7 @@ public class SplittableParDoTranslators {
                     message ->
                         message.getType() != OpMessage.Type.ELEMENT
                             || message.getElement().getValue().getUnionTag() == outputIndex)
-                .flatMap(OpAdapter.adapt(new RawUnionValueToValue()));
+                .flatMapAsync(OpAdapter.adapt(new RawUnionValueToValue()));
 
         ctx.registerMessageStream(indexToPCollectionMap.get(outputIndex), outputStream);
       }

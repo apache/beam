@@ -222,7 +222,10 @@ class ExternalTransform(ptransform.PTransform):
     Experimental; no backwards compatibility guarantees.
   """
   _namespace_counter = 0
-  _namespace = threading.local()  # type: ignore[assignment]
+
+  # Variable name _namespace conflicts with DisplayData._namespace so we use
+  # name _external_namespace here.
+  _external_namespace = threading.local()
 
   _IMPULSE_PREFIX = 'impulse'
 
@@ -240,7 +243,7 @@ class ExternalTransform(ptransform.PTransform):
     self._payload = (
         payload.payload() if isinstance(payload, PayloadBuilder) else payload)
     self._expansion_service = expansion_service
-    self._namespace = self._fresh_namespace()
+    self._external_namespace = self._fresh_namespace()
     self._inputs = {}  # type: Dict[str, pvalue.PCollection]
     self._output = {}  # type: Dict[str, pvalue.PCollection]
 
@@ -257,15 +260,15 @@ class ExternalTransform(ptransform.PTransform):
 
   @classmethod
   def get_local_namespace(cls):
-    return getattr(cls._namespace, 'value', 'external')
+    return getattr(cls._external_namespace, 'value', 'external')
 
   @classmethod
   @contextlib.contextmanager
   def outer_namespace(cls, namespace):
     prev = cls.get_local_namespace()
-    cls._namespace.value = namespace
+    cls._external_namespace.value = namespace
     yield
-    cls._namespace.value = prev
+    cls._external_namespace.value = prev
 
   @classmethod
   def _fresh_namespace(cls):
@@ -306,7 +309,7 @@ class ExternalTransform(ptransform.PTransform):
     components = context.to_runner_api()
     request = beam_expansion_api_pb2.ExpansionRequest(
         components=components,
-        namespace=self._namespace,  # type: ignore  # mypy thinks self._namespace is threading.local
+        namespace=self._external_namespace,  # type: ignore  # mypy thinks self._namespace is threading.local
         transform=transform_proto)
 
     with self._service() as service:
@@ -412,7 +415,7 @@ class ExternalTransform(ptransform.PTransform):
       return normalized
 
     for id, proto in self._expanded_components.coders.items():
-      if id.startswith(self._namespace):
+      if id.startswith(self._external_namespace):
         context.coders.put_proto(id, proto)
       elif id in context.coders:
         if not _equivalent(context.coders._id_to_proto[id], proto):
@@ -422,10 +425,10 @@ class ExternalTransform(ptransform.PTransform):
       else:
         context.coders.put_proto(id, proto)
     for id, proto in self._expanded_components.windowing_strategies.items():
-      if id.startswith(self._namespace):
+      if id.startswith(self._external_namespace):
         context.windowing_strategies.put_proto(id, proto)
     for id, proto in self._expanded_components.environments.items():
-      if id.startswith(self._namespace):
+      if id.startswith(self._external_namespace):
         context.environments.put_proto(id, proto)
     for id, proto in self._expanded_components.pcollections.items():
       id = pcoll_renames.get(id, id)
@@ -436,10 +439,12 @@ class ExternalTransform(ptransform.PTransform):
       if id.startswith(self._IMPULSE_PREFIX):
         # Our fake inputs.
         continue
-      assert id.startswith(self._namespace), (id, self._namespace)
+      assert id.startswith(
+          self._external_namespace), (id, self._external_namespace)
       new_proto = beam_runner_api_pb2.PTransform(
           unique_name=proto.unique_name,
-          spec=proto.spec,
+          # If URN is not set this is an empty spec.
+          spec=proto.spec if proto.spec.urn else None,
           subtransforms=proto.subtransforms,
           inputs={
               tag: pcoll_renames.get(pcoll, pcoll)

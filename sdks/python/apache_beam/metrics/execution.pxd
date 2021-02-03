@@ -41,5 +41,6 @@ cdef class MetricUpdater(object):
 
 cdef class MetricsContainer(object):
   cdef object step_name
+  cdef object lock
   cdef public dict metrics
   cpdef MetricCell get_metric_cell(self, metric_key)

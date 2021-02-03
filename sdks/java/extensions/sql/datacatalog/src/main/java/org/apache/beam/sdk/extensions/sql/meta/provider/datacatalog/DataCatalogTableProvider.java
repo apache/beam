@@ -22,15 +22,19 @@ import static java.util.stream.Collectors.toMap;
 import com.google.api.gax.rpc.InvalidArgumentException;
 import com.google.api.gax.rpc.NotFoundException;
 import com.google.api.gax.rpc.PermissionDeniedException;
+import com.google.api.gax.rpc.StatusCode.Code;
 import com.google.cloud.datacatalog.v1beta1.DataCatalogClient;
 import com.google.cloud.datacatalog.v1beta1.DataCatalogSettings;
 import com.google.cloud.datacatalog.v1beta1.Entry;
 import com.google.cloud.datacatalog.v1beta1.LookupEntryRequest;
+import com.google.cloud.datacatalog.v1beta1.UpdateEntryRequest;
+import com.google.protobuf.FieldMask;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.sql.impl.TableName;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
@@ -44,10 +48,16 @@ import org.apache.beam.sdk.extensions.sql.meta.provider.text.TextTableProvider;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.threeten.bp.Duration;
 
 /** Uses DataCatalog to get the source type and schema for a table. */
 public class DataCatalogTableProvider extends FullNameTableProvider implements AutoCloseable {
+
+  private static final Logger LOG = LoggerFactory.getLogger(DataCatalogTableProvider.class);
 
   private static final TableFactory PUBSUB_TABLE_FACTORY = new PubsubTableFactory();
   private static final TableFactory GCS_TABLE_FACTORY = new GcsTableFactory();
@@ -142,13 +152,41 @@ public class DataCatalogTableProvider extends FullNameTableProvider implements A
     }
   }
 
-  private static DataCatalogClient createDataCatalogClient(DataCatalogPipelineOptions options) {
+  @Internal
+  public static DataCatalogClient createDataCatalogClient(DataCatalogPipelineOptions options) {
     try {
-      return DataCatalogClient.create(
+      DataCatalogSettings.Builder builder =
           DataCatalogSettings.newBuilder()
               .setCredentialsProvider(() -> options.as(GcpOptions.class).getGcpCredential())
-              .setEndpoint(options.getDataCatalogEndpoint())
-              .build());
+              .setEndpoint(options.getDataCatalogEndpoint());
+
+      // Retry permission denied errors, they are likely due to sync delay.
+      // Limit max retry delay to 1 minute, at that point its probably a legitimate permission error
+      // and we should get back to the user.
+      builder
+          .lookupEntrySettings()
+          .setRetryableCodes(
+              ImmutableSet.of(Code.PERMISSION_DENIED, Code.DEADLINE_EXCEEDED, Code.UNAVAILABLE))
+          .setRetrySettings(
+              builder
+                  .lookupEntrySettings()
+                  .getRetrySettings()
+                  .toBuilder()
+                  .setMaxRetryDelay(Duration.ofMinutes(1L))
+                  .build());
+      builder
+          .updateEntrySettings()
+          .setRetryableCodes(
+              ImmutableSet.of(Code.PERMISSION_DENIED, Code.DEADLINE_EXCEEDED, Code.UNAVAILABLE))
+          .setRetrySettings(
+              builder
+                  .updateEntrySettings()
+                  .getRetrySettings()
+                  .toBuilder()
+                  .setMaxRetryDelay(Duration.ofMinutes(1L))
+                  .build());
+
+      return DataCatalogClient.create(builder.build());
     } catch (IOException e) {
       throw new RuntimeException("Error creating Data Catalog client", e);
     }
@@ -176,6 +214,24 @@ public class DataCatalogTableProvider extends FullNameTableProvider implements A
     }
 
     return tableBuilder.get().schema(schema).name(tableName).build();
+  }
+
+  @Internal
+  public boolean setSchemaIfNotPresent(String resource, Schema schema) {
+    com.google.cloud.datacatalog.v1beta1.Schema dcSchema = SchemaUtils.toDataCatalog(schema);
+    Entry entry =
+        dataCatalog.lookupEntry(LookupEntryRequest.newBuilder().setSqlResource(resource).build());
+    if (entry.getSchema().getColumnsCount() == 0) {
+      dataCatalog.updateEntry(
+          UpdateEntryRequest.newBuilder()
+              .setEntry(entry.toBuilder().setSchema(dcSchema).build())
+              .setUpdateMask(FieldMask.newBuilder().addPaths("schema").build())
+              .build());
+      return true;
+    } else {
+      LOG.info(String.format("Not updating schema for '%s' since it already has one.", resource));
+      return false;
+    }
   }
 
   @Override

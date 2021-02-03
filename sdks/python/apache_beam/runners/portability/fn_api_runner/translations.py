@@ -174,7 +174,7 @@ class Stage(object):
         union(self.must_follow, other.must_follow),
         environment=self._merge_environments(
             self.environment, other.environment),
-        parent=_parent_for_fused_stages([self.name, other.name], context),
+        parent=_parent_for_fused_stages([self, other], context),
         forced_root=self.forced_root or other.forced_root)
 
   def is_runner_urn(self, context):
@@ -799,7 +799,7 @@ def eliminate_common_key_with_none(stages, context):
         only_element(stage.transforms[0].outputs.values())
         for stage in sibling_stages
     ]
-    parent = _parent_for_fused_stages([s.name for s in sibling_stages], context)
+    parent = _parent_for_fused_stages(sibling_stages, context)
     for to_delete_pcoll_id in output_pcoll_ids[1:]:
       pcoll_id_remap[to_delete_pcoll_id] = output_pcoll_ids[0]
       del context.components.pcollections[to_delete_pcoll_id]
@@ -948,13 +948,46 @@ def pack_combiners(stages, context):
         component_coder_ids=[key_coder_id, pack_output_value_coder_id])
     pack_output_kv_coder_id = context.add_or_get_coder_id(pack_output_kv_coder)
 
-    # Set up packed PCollection
-    pack_combine_name = fused_stage.name
+    def make_pack_name(names):
+      """Return the packed Transform or Stage name.
+
+      The output name will contain the input names' common prefix, the infix
+      '/Packed', and the input names' suffixes in square brackets.
+      For example, if the input names are 'a/b/c1/d1' and 'a/b/c2/d2, then
+      the output name is 'a/b/Packed[c1/d1, c2/d2]'.
+      """
+      assert names
+      tokens_in_names = [name.split('/') for name in names]
+      common_prefix_tokens = []
+
+      # Find the longest common prefix of tokens.
+      while True:
+        first_token_in_names = set()
+        for tokens in tokens_in_names:
+          if not tokens:
+            break
+          first_token_in_names.add(tokens[0])
+        if len(first_token_in_names) != 1:
+          break
+        common_prefix_tokens.append(next(iter(first_token_in_names)))
+        for tokens in tokens_in_names:
+          tokens.pop(0)
+
+      common_prefix_tokens.append('Packed')
+      common_prefix = '/'.join(common_prefix_tokens)
+      suffixes = ['/'.join(tokens) for tokens in tokens_in_names]
+      return '%s[%s]' % (common_prefix, ', '.join(suffixes))
+
+    pack_stage_name = make_pack_name([stage.name for stage in packable_stages])
+    pack_transform_name = make_pack_name([
+        only_transform(stage.transforms).unique_name
+        for stage in packable_stages
+    ])
     pack_pcoll_id = unique_name(context.components.pcollections, 'pcollection')
     input_pcoll = context.components.pcollections[input_pcoll_id]
     context.components.pcollections[pack_pcoll_id].CopyFrom(
         beam_runner_api_pb2.PCollection(
-            unique_name=pack_combine_name + '.out',
+            unique_name=pack_transform_name + '/Pack.out',
             coder_id=pack_output_kv_coder_id,
             windowing_strategy_id=input_pcoll.windowing_strategy_id,
             is_bounded=input_pcoll.is_bounded))
@@ -969,7 +1002,7 @@ def pack_combiners(stages, context):
             for combine_payload in combine_payloads
         ]).to_runner_api(context)  # type: ignore[arg-type]
     pack_transform = beam_runner_api_pb2.PTransform(
-        unique_name=pack_combine_name + '/Pack',
+        unique_name=pack_transform_name + '/Pack',
         spec=beam_runner_api_pb2.FunctionSpec(
             urn=common_urns.composites.COMBINE_PER_KEY.urn,
             payload=beam_runner_api_pb2.CombinePayload(
@@ -977,10 +1010,11 @@ def pack_combiners(stages, context):
                 accumulator_coder_id=tuple_accumulator_coder_id).
             SerializeToString()),
         inputs={'in': input_pcoll_id},
-        outputs={'out': pack_pcoll_id},
+        # 'None' single output key follows convention for CombinePerKey.
+        outputs={'None': pack_pcoll_id},
         environment_id=fused_stage.environment)
     pack_stage = Stage(
-        pack_combine_name + '/Pack', [pack_transform],
+        pack_stage_name + '/Pack', [pack_transform],
         downstream_side_inputs=fused_stage.downstream_side_inputs,
         must_follow=fused_stage.must_follow,
         parent=fused_stage.parent,
@@ -991,7 +1025,7 @@ def pack_combiners(stages, context):
     tags = [str(i) for i in range(len(output_pcoll_ids))]
     pickled_do_fn_data = pickler.dumps((_UnpackFn(tags), (), {}, [], None))
     unpack_transform = beam_runner_api_pb2.PTransform(
-        unique_name=pack_combine_name + '/Unpack',
+        unique_name=pack_transform_name + '/Unpack',
         spec=beam_runner_api_pb2.FunctionSpec(
             urn=common_urns.primitives.PAR_DO.urn,
             payload=beam_runner_api_pb2.ParDoPayload(
@@ -1002,7 +1036,7 @@ def pack_combiners(stages, context):
         outputs=dict(zip(tags, output_pcoll_ids)),
         environment_id=fused_stage.environment)
     unpack_stage = Stage(
-        pack_combine_name + '/Unpack', [unpack_transform],
+        pack_stage_name + '/Unpack', [unpack_transform],
         downstream_side_inputs=fused_stage.downstream_side_inputs,
         must_follow=fused_stage.must_follow,
         parent=fused_stage.parent,
@@ -1191,17 +1225,15 @@ def lift_combiners(stages, context):
       yield stage
 
 
-def _lowest_common_ancestor(a, b, context):
-  # type: (str, str, TransformContext) -> Optional[str]
+def _lowest_common_ancestor(a, b, parents):
+  # type: (str, str, Dict[str, str]) -> Optional[str]
 
   '''Returns the name of the lowest common ancestor of the two named stages.
 
-  The provided context is used to compute ancestors of stages. Note that stages
-  are considered to be ancestors of themselves.
+  The map of stage names to their parents' stage names should be provided
+  in parents. Note that stages are considered to be ancestors of themselves.
   '''
   assert a != b
-
-  parents = context.parents_map()
 
   def get_ancestors(name):
     ancestor = name
@@ -1217,7 +1249,7 @@ def _lowest_common_ancestor(a, b, context):
 
 
 def _parent_for_fused_stages(stages, context):
-  # type: (Iterable[Optional[str]], TransformContext) -> Optional[str]
+  # type: (Iterable[Stage], TransformContext) -> Optional[str]
 
   '''Returns the name of the new parent for the fused stages.
 
@@ -1225,15 +1257,25 @@ def _parent_for_fused_stages(stages, context):
   contained in the set of stages to be fused. The provided context is used to
   compute ancestors of stages.
   '''
+
+  parents = context.parents_map()
+  # If any of the input stages were produced by fusion or an optimizer phase,
+  # or had its parent modified by an optimizer phase, its parent will not be
+  # be reflected in the PipelineContext yet, so we need to add it to the
+  # parents map.
+  for stage in stages:
+    parents[stage.name] = stage.parent
+
   def reduce_fn(a, b):
     # type: (Optional[str], Optional[str]) -> Optional[str]
     if a is None or b is None:
       return None
-    return _lowest_common_ancestor(a, b, context)
+    return _lowest_common_ancestor(a, b, parents)
 
-  result = functools.reduce(reduce_fn, stages)
-  if result in stages:
-    result = context.parents_map().get(result)
+  stage_names = [stage.name for stage in stages]  # type: List[Optional[str]]
+  result = functools.reduce(reduce_fn, stage_names)
+  if result in stage_names:
+    result = parents.get(result)
   return result
 
 

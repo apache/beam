@@ -37,6 +37,7 @@ import com.google.api.services.clouddebugger.v2.model.RegisterDebuggeeResponse;
 import com.google.api.services.dataflow.model.DataflowPackage;
 import com.google.api.services.dataflow.model.Job;
 import com.google.api.services.dataflow.model.ListJobsResponse;
+import com.google.api.services.dataflow.model.SdkHarnessContainerImage;
 import com.google.api.services.dataflow.model.WorkerPool;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -172,6 +173,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Utf8;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.joda.time.DateTimeUtils;
 import org.joda.time.DateTimeZone;
@@ -478,14 +480,20 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
     if (streaming) {
       if (!hasExperiment(options, "enable_custom_pubsub_source")) {
-        overridesBuilder.add(
-            PTransformOverride.of(
-                PTransformMatchers.classEqualTo(PubsubUnboundedSource.class),
-                new StreamingPubsubIOReadOverrideFactory()));
+        if (useUnifiedWorker(options)) {
+          overridesBuilder.add(
+              PTransformOverride.of(
+                  PTransformMatchers.classEqualTo(PubsubUnboundedSource.class),
+                  new DataflowReadFromPubsubSourceForRunnerV2OverrideFactory()));
+        } else {
+          overridesBuilder.add(
+              PTransformOverride.of(
+                  PTransformMatchers.classEqualTo(PubsubUnboundedSource.class),
+                  new StreamingPubsubIOReadOverrideFactory()));
+        }
       }
       if (!hasExperiment(options, "enable_custom_pubsub_sink")) {
-        if (hasExperiment(options, "use_runner_v2")
-            || hasExperiment(options, "use_unified_worker")) {
+        if (useUnifiedWorker(options)) {
           overridesBuilder.add(
               PTransformOverride.of(
                   PTransformMatchers.classEqualTo(PubsubUnboundedSink.class),
@@ -598,7 +606,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                         BatchViewOverrides.BatchViewAsIterable.class, this)));
       }
     }
-    /* TODO[Beam-4684]: Support @RequiresStableInput on Dataflow in a more intelligent way
+    /* TODO(Beam-4684): Support @RequiresStableInput on Dataflow in a more intelligent way
+    Use Reshuffle might cause an extra and unnecessary shuffle to be inserted. To enable this, we
+    should make sure that we do not add extra shuffles for transforms whose input is already stable.
     // Uses Reshuffle, so has to be before the Reshuffle override
     overridesBuilder.add(
         PTransformOverride.of(
@@ -1050,6 +1060,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       workerPool.setWorkerHarnessContainerImage(workerHarnessContainerImage);
     }
 
+    configureSdkHarnessContainerImages(options, pipelineProto, newJob, workerHarnessContainerImage);
+
     newJob.getEnvironment().setVersion(getEnvironmentVersion(options));
 
     if (hooks != null) {
@@ -1184,6 +1196,48 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         MonitoringUtil.getGcloudCancelCommand(options, jobResult.getId()));
 
     return dataflowPipelineJob;
+  }
+
+  static void configureSdkHarnessContainerImages(
+      DataflowPipelineOptions options,
+      RunnerApi.Pipeline pipelineProto,
+      Job newJob,
+      String workerHarnessContainerImage) {
+    if (useUnifiedWorker(options)) {
+      ImmutableSet.Builder<String> sdkContainerUrlSetBuilder = ImmutableSet.builder();
+      sdkContainerUrlSetBuilder.add(workerHarnessContainerImage);
+      for (Map.Entry<String, RunnerApi.Environment> entry :
+          pipelineProto.getComponents().getEnvironmentsMap().entrySet()) {
+        if (!BeamUrns.getUrn(RunnerApi.StandardEnvironments.Environments.DOCKER)
+            .equals(entry.getValue().getUrn())) {
+          throw new RuntimeException(
+              "Dataflow can only execute pipeline steps in Docker environments: "
+                  + entry.getValue().getUrn());
+        }
+        RunnerApi.DockerPayload dockerPayload;
+        try {
+          dockerPayload = RunnerApi.DockerPayload.parseFrom(entry.getValue().getPayload());
+        } catch (InvalidProtocolBufferException e) {
+          throw new RuntimeException("Error parsing docker payload.", e);
+        }
+        sdkContainerUrlSetBuilder.add(dockerPayload.getContainerImage());
+      }
+      List<SdkHarnessContainerImage> sdkContainerList =
+          sdkContainerUrlSetBuilder.build().stream()
+              .map(
+                  (String url) -> {
+                    SdkHarnessContainerImage image = new SdkHarnessContainerImage();
+                    image.setContainerImage(url);
+                    if (url.toLowerCase().contains("python")) {
+                      image.setUseSingleCorePerContainer(true);
+                    }
+                    return image;
+                  })
+              .collect(Collectors.toList());
+      for (WorkerPool workerPool : newJob.getEnvironment().getWorkerPools()) {
+        workerPool.setSdkHarnessContainerImages(sdkContainerList);
+      }
+    }
   }
 
   /** Returns true if the specified experiment is enabled, handling null experiments. */
@@ -1371,12 +1425,35 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
   }
 
+  private static class DataflowReadFromPubsubSourceForRunnerV2OverrideFactory
+      implements PTransformOverrideFactory<
+          PBegin, PCollection<PubsubMessage>, PubsubUnboundedSource> {
+
+    @Override
+    public PTransformReplacement<PBegin, PCollection<PubsubMessage>> getReplacementTransform(
+        AppliedPTransform<PBegin, PCollection<PubsubMessage>, PubsubUnboundedSource> transform) {
+      return PTransformReplacement.of(
+          transform.getPipeline().begin(),
+          new DataflowReadFromPubsubForRunnerV2(transform.getTransform()));
+    }
+
+    @Override
+    public Map<PCollection<?>, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PCollection<?>> outputs, PCollection<PubsubMessage> newOutput) {
+      return ReplacementOutputs.singleton(outputs, newOutput);
+    }
+  }
+
+  private interface PubsubUnboundedSourceOverrider {
+    PubsubUnboundedSource getOverriddenTransform();
+  }
+
   /**
    * Suppress application of {@link PubsubUnboundedSource#expand} in streaming mode so that we can
    * instead defer to Windmill's implementation.
    */
-  private static class StreamingPubsubIORead
-      extends PTransform<PBegin, PCollection<PubsubMessage>> {
+  private static class StreamingPubsubIORead extends PTransform<PBegin, PCollection<PubsubMessage>>
+      implements PubsubUnboundedSourceOverrider {
 
     private final PubsubUnboundedSource transform;
 
@@ -1384,7 +1461,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       this.transform = transform;
     }
 
-    PubsubUnboundedSource getOverriddenTransform() {
+    @Override
+    public PubsubUnboundedSource getOverriddenTransform() {
       return transform;
     }
 
@@ -1409,57 +1487,131 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
   }
 
+  private static class DataflowPubsubSourceRunnerV2 extends PTransform<PBegin, PCollection<byte[]>>
+      implements PubsubUnboundedSourceOverrider {
+
+    private final PubsubUnboundedSource transform;
+
+    public DataflowPubsubSourceRunnerV2(PubsubUnboundedSource transform) {
+      this.transform = transform;
+    }
+
+    @Override
+    public PubsubUnboundedSource getOverriddenTransform() {
+      return this.transform;
+    }
+
+    @Override
+    public PCollection<byte[]> expand(PBegin input) {
+      ByteArrayCoder coder = ByteArrayCoder.of();
+      return PCollection.createPrimitiveOutputInternal(
+              input.getPipeline(), WindowingStrategy.globalDefault(), IsBounded.UNBOUNDED, coder)
+          .setCoder(coder);
+    }
+
+    @Override
+    protected String getKindString() {
+      return "DataflowPubsubSourceRunnerV2";
+    }
+
+    static {
+      DataflowPipelineTranslator.registerTransformTranslator(
+          DataflowPubsubSourceRunnerV2.class, new DataflowPubsubSourceRunnerV2Translator());
+    }
+  }
+
+  public static class DataflowReadFromPubsubForRunnerV2
+      extends PTransform<PBegin, PCollection<PubsubMessage>> {
+
+    private final PubsubUnboundedSource transform;
+
+    public DataflowReadFromPubsubForRunnerV2(PubsubUnboundedSource transform) {
+      this.transform = transform;
+    }
+
+    @Override
+    public PCollection<PubsubMessage> expand(PBegin input) {
+      if (transform.getNeedsAttributes() || transform.getNeedsMessageId()) {
+        return input
+            .apply(
+                "DataflowReadFromPubsubRunnerV2", new DataflowPubsubSourceRunnerV2(this.transform))
+            .apply(
+                "MapBytesToPubsubMessages",
+                MapElements.into(TypeDescriptor.of(PubsubMessage.class))
+                    .via(new PubsubMessages.ParsePubsubMessageProtoAsPayload()));
+      }
+      return input.apply(new StreamingPubsubIORead(transform));
+    }
+  }
+
+  private static StepTranslationContext translateOverriddenPubsubSourceStep(
+      PTransform transform, TransformTranslator.TranslationContext translationContext) {
+    checkArgument(
+        translationContext.getPipelineOptions().isStreaming(),
+        "StreamingPubsubIORead is only for streaming pipelines.");
+    checkArgument(transform instanceof PubsubUnboundedSourceOverrider);
+    PubsubUnboundedSource overriddenTransform =
+        ((PubsubUnboundedSourceOverrider) transform).getOverriddenTransform();
+    StepTranslationContext stepContext = translationContext.addStep(transform, "ParallelRead");
+    stepContext.addInput(PropertyNames.FORMAT, "pubsub");
+    if (overriddenTransform.getTopicProvider() != null) {
+      if (overriddenTransform.getTopicProvider().isAccessible()) {
+        stepContext.addInput(
+            PropertyNames.PUBSUB_TOPIC, overriddenTransform.getTopic().getV1Beta1Path());
+      } else {
+        stepContext.addInput(
+            PropertyNames.PUBSUB_TOPIC_OVERRIDE,
+            ((NestedValueProvider) overriddenTransform.getTopicProvider()).propertyName());
+      }
+    }
+    if (overriddenTransform.getSubscriptionProvider() != null) {
+      if (overriddenTransform.getSubscriptionProvider().isAccessible()) {
+        stepContext.addInput(
+            PropertyNames.PUBSUB_SUBSCRIPTION,
+            overriddenTransform.getSubscription().getV1Beta1Path());
+      } else {
+        stepContext.addInput(
+            PropertyNames.PUBSUB_SUBSCRIPTION_OVERRIDE,
+            ((NestedValueProvider) overriddenTransform.getSubscriptionProvider()).propertyName());
+      }
+    }
+    if (overriddenTransform.getTimestampAttribute() != null) {
+      stepContext.addInput(
+          PropertyNames.PUBSUB_TIMESTAMP_ATTRIBUTE, overriddenTransform.getTimestampAttribute());
+    }
+    if (overriddenTransform.getIdAttribute() != null) {
+      stepContext.addInput(PropertyNames.PUBSUB_ID_ATTRIBUTE, overriddenTransform.getIdAttribute());
+    }
+    // In both cases, the transform needs to read PubsubMessage. However, in case it needs
+    // the attributes or messageId, we supply an identity "parse fn" so the worker will
+    // read PubsubMessage's from Windmill and simply pass them around; and in case it
+    // doesn't need attributes, we're already implicitly using a "Coder" that interprets
+    // the data as a PubsubMessage's payload.
+    if (overriddenTransform.getNeedsAttributes() || overriddenTransform.getNeedsMessageId()) {
+      stepContext.addInput(
+          PropertyNames.PUBSUB_SERIALIZED_ATTRIBUTES_FN,
+          byteArrayToJsonString(serializeToByteArray(new IdentityMessageFn())));
+    }
+    return stepContext;
+  }
+
   /** Rewrite {@link StreamingPubsubIORead} to the appropriate internal node. */
   private static class StreamingPubsubIOReadTranslator
       implements TransformTranslator<StreamingPubsubIORead> {
 
     @Override
     public void translate(StreamingPubsubIORead transform, TranslationContext context) {
-      checkArgument(
-          context.getPipelineOptions().isStreaming(),
-          "StreamingPubsubIORead is only for streaming pipelines.");
-      PubsubUnboundedSource overriddenTransform = transform.getOverriddenTransform();
-      StepTranslationContext stepContext = context.addStep(transform, "ParallelRead");
-      stepContext.addInput(PropertyNames.FORMAT, "pubsub");
-      if (overriddenTransform.getTopicProvider() != null) {
-        if (overriddenTransform.getTopicProvider().isAccessible()) {
-          stepContext.addInput(
-              PropertyNames.PUBSUB_TOPIC, overriddenTransform.getTopic().getV1Beta1Path());
-        } else {
-          stepContext.addInput(
-              PropertyNames.PUBSUB_TOPIC_OVERRIDE,
-              ((NestedValueProvider) overriddenTransform.getTopicProvider()).propertyName());
-        }
-      }
-      if (overriddenTransform.getSubscriptionProvider() != null) {
-        if (overriddenTransform.getSubscriptionProvider().isAccessible()) {
-          stepContext.addInput(
-              PropertyNames.PUBSUB_SUBSCRIPTION,
-              overriddenTransform.getSubscription().getV1Beta1Path());
-        } else {
-          stepContext.addInput(
-              PropertyNames.PUBSUB_SUBSCRIPTION_OVERRIDE,
-              ((NestedValueProvider) overriddenTransform.getSubscriptionProvider()).propertyName());
-        }
-      }
-      if (overriddenTransform.getTimestampAttribute() != null) {
-        stepContext.addInput(
-            PropertyNames.PUBSUB_TIMESTAMP_ATTRIBUTE, overriddenTransform.getTimestampAttribute());
-      }
-      if (overriddenTransform.getIdAttribute() != null) {
-        stepContext.addInput(
-            PropertyNames.PUBSUB_ID_ATTRIBUTE, overriddenTransform.getIdAttribute());
-      }
-      // In both cases, the transform needs to read PubsubMessage. However, in case it needs
-      // the attributes or messageId, we supply an identity "parse fn" so the worker will
-      // read PubsubMessage's from Windmill and simply pass them around; and in case it
-      // doesn't need attributes, we're already implicitly using a "Coder" that interprets
-      // the data as a PubsubMessage's payload.
-      if (overriddenTransform.getNeedsAttributes() || overriddenTransform.getNeedsMessageId()) {
-        stepContext.addInput(
-            PropertyNames.PUBSUB_SERIALIZED_ATTRIBUTES_FN,
-            byteArrayToJsonString(serializeToByteArray(new IdentityMessageFn())));
-      }
+      StepTranslationContext stepContext = translateOverriddenPubsubSourceStep(transform, context);
+      stepContext.addOutput(PropertyNames.OUTPUT, context.getOutput(transform));
+    }
+  }
+
+  private static class DataflowPubsubSourceRunnerV2Translator
+      implements TransformTranslator<DataflowPubsubSourceRunnerV2> {
+
+    @Override
+    public void translate(DataflowPubsubSourceRunnerV2 transform, TranslationContext context) {
+      StepTranslationContext stepContext = translateOverriddenPubsubSourceStep(transform, context);
       stepContext.addOutput(PropertyNames.OUTPUT, context.getOutput(transform));
     }
   }
@@ -1563,7 +1715,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       public void translate(DataflowRunnerV2PubsubSink transform, TranslationContext context) {
         checkArgument(
             context.getPipelineOptions().isStreaming(),
-            "StreamingPubsubIOWrite is only for streaming pipelines.");
+            "DataflowRunnerV2PubsubSink is only for streaming pipelines.");
         StepTranslationContext stepContext = context.addStep(transform, "ParallelWrite");
         StreamingPubsubSinkTranslators.translate(
             transform.getOverriddenTransform(), stepContext, context.getInput(transform));
@@ -2176,6 +2328,10 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       return workerHarnessContainerImage.replace(
           "IMAGE", String.format("beam-%s-batch", javaVersionId));
     }
+  }
+
+  static boolean useUnifiedWorker(DataflowPipelineOptions options) {
+    return hasExperiment(options, "use_runner_v2") || hasExperiment(options, "use_unified_worker");
   }
 
   static void verifyDoFnSupportedBatch(DoFn<?, ?> fn) {

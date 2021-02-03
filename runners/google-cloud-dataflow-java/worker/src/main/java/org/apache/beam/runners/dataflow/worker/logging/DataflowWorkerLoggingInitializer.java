@@ -27,6 +27,7 @@ import static org.apache.beam.runners.dataflow.options.DataflowWorkerLoggingOpti
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.ErrorManager;
@@ -49,7 +50,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
  * directory and the default file size is 1 GB.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "ForbidDefaultCharset"
 })
 public class DataflowWorkerLoggingInitializer {
   private static final String ROOT_LOGGER_NAME = "";
@@ -167,10 +169,10 @@ public class DataflowWorkerLoggingInitializer {
       originalStdErr = System.err;
       System.setOut(
           JulHandlerPrintStreamAdapterFactory.create(
-              loggingHandler, SYSTEM_OUT_LOG_NAME, Level.INFO));
+              loggingHandler, SYSTEM_OUT_LOG_NAME, Level.INFO, Charset.defaultCharset()));
       System.setErr(
           JulHandlerPrintStreamAdapterFactory.create(
-              loggingHandler, SYSTEM_ERR_LOG_NAME, Level.SEVERE));
+              loggingHandler, SYSTEM_ERR_LOG_NAME, Level.SEVERE, Charset.defaultCharset()));
 
       // Initialize the SDK Logging Handler, which will only be used for the LoggingService
       sdkLoggingHandler = makeLoggingHandler(SDK_FILEPATH_PROPERTY, DEFAULT_SDK_LOGGING_LOCATION);
@@ -208,7 +210,8 @@ public class DataflowWorkerLoggingInitializer {
           JulHandlerPrintStreamAdapterFactory.create(
               loggingHandler,
               SYSTEM_OUT_LOG_NAME,
-              getJulLevel(options.getWorkerSystemOutMessageLevel())));
+              getJulLevel(options.getWorkerSystemOutMessageLevel()),
+              Charset.defaultCharset()));
     }
 
     if (options.getWorkerSystemErrMessageLevel() != null) {
@@ -217,7 +220,8 @@ public class DataflowWorkerLoggingInitializer {
           JulHandlerPrintStreamAdapterFactory.create(
               loggingHandler,
               SYSTEM_ERR_LOG_NAME,
-              getJulLevel(options.getWorkerSystemErrMessageLevel())));
+              getJulLevel(options.getWorkerSystemErrMessageLevel()),
+              Charset.defaultCharset()));
     }
   }
 
