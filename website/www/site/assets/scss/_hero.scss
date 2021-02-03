@@ -15,116 +15,116 @@
  *  limitations under the License.
  */
 
-@import "media";
-@import "typography";
+ @import "media";
+ @import "typography";
 
-.hero-desktop {
-  position: relative;
-  margin-bottom: 0;
-  width: 100%;
-  height: 100%;
-  display: inherit;
-  margin-top: -30px;
+ .hero-desktop {
+   position: relative;
+   margin-bottom: 0;
+   width: 100%;
+   height: 100%;
+   display: inherit;
+   margin-top: -30px;
+   min-height: 361px;
+   .hero-content {
+     position: absolute;
+     z-index: 1;
+     top: 50%;
+     left: 50%;
+     transform: translate(-50%, -50%);
+     text-align: center;
 
-  .hero-content {
-    position: absolute;
-    z-index: 1;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    text-align: center;
+     h3 {
+       @extend .hero-title;
+       text-transform: uppercase;
+       margin: 0 auto 24px auto;
+     }
 
-    h3 {
-      @extend .hero-title;
-      text-transform: uppercase;
-      margin: 0 auto 24px auto;
-    }
+     h1 {
+       @extend .hero-heading;
+       width: 506px;
+       height: 92px;
+       font-size: 46px;
+       margin: 0 auto 36px auto;
+     }
 
-    h1 {
-      @extend .hero-heading;
-      width: 506px;
-      height: 92px;
-      font-size: 46px;
-      margin: 0 auto 36px auto;
-    }
+     h2 {
+       @extend .hero-subheading;
+       width: 344px;
+       margin: 0 auto 56px auto;
+     }
 
-    h2 {
-      @extend .hero-subheading;
+     a {
+       text-decoration: none;
+     }
 
-      width: 344px;
-      margin: 0 auto 56px auto;
-    }
+     button {
+       width: 184px;
+       height: 46px;
+       border-radius: 100px;
+       box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.16),
+         0 4px 4px 0 rgba(0, 0, 0, 0.06);
+       background-color: $color-white;
+       display: flex;
+       align-items: center;
+       justify-content: center;
+       margin: 0 auto;
+       border: none;
+       outline: none;
+       svg {
+         width: 14px;
+         height: 16px;
+       }
+       span {
+         text-transform: uppercase;
+         font-size: 14px;
+         font-weight: bold;
+         letter-spacing: 0.6px;
+         line-height: 1.14;
+         color: $color-sun;
+         margin-left: 12px;
+       }
+     }
 
-    a {
-      text-decoration: none;
-    }
+     button:hover {
+       background-color: $color-white;
+       box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.24),
+         0 4px 6px 0 rgba(0, 0, 0, 0.24);
+     }
 
-    button {
-      width: 184px;
-      height: 46px;
-      border-radius: 100px;
-      box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.16),
-        0 4px 4px 0 rgba(0, 0, 0, 0.06);
-      background-color: $color-white;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin: 0 auto;
-      border: none;
-      outline: none;
-      svg {
-        width: 14px;
-        height: 16px;
-      }
-      span {
-        text-transform: uppercase;
-        font-size: 14px;
-        font-weight: bold;
-        letter-spacing: 0.6px;
-        line-height: 1.14;
-        color: $color-sun;
-        margin-left: 12px;
-      }
-    }
+     button:focus {
+       box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.16),
+         0 4px 4px 0 rgba(0, 0, 0, 0.06);
+     }
+   }
+ }
 
-    button:hover {
-      background-color: $color-white;
-      box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.24),
-        0 4px 6px 0 rgba(0, 0, 0, 0.24);
-    }
+ @media (max-width: $tablet) {
+   .hero-desktop {
+     margin-top: 64px;
 
-    button:focus {
-      box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.16),
-        0 4px 4px 0 rgba(0, 0, 0, 0.06);
-    }
-  }
-}
+     .hero-content {
+       h3 {
+         margin: 0 auto 16px auto;
+       }
 
-@media (max-width: $tablet) {
-  .hero-desktop {
-    margin-top: 70px;
+       h1 {
+         width: 300px;
+         margin: 0 auto 24px auto;
+         font-size: 32px;
+       }
 
-    .hero-content {
-      h3 {
-        margin: 0 auto 16px auto;
-      }
+       h2 {
+         width: 300px;
+         margin: 0 auto;
+       }
 
-      h1 {
-        width: 300px;
-        margin: 0 auto 24px auto;
-      }
-
-      h2 {
-        width: 300px;
-        margin: 0 auto;
-      }
-
-      button {
-        display: none;
-      }
-    }
-  }
-}
+       button {
+         display: none;
+       }
+     }
+   }
+ }
 
 @media (max-width: $mobile) {
   .hero-desktop {
