@@ -267,10 +267,6 @@ class TriggerFn(with_metaclass(ABCMeta, object)):  # type: ignore[misc]
   def to_runner_api(self, unused_context):
     pass
 
-  def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
-
 
 class DefaultTrigger(TriggerFn):
   """Semantically Repeatedly(AfterWatermark()), but more optimized."""
@@ -1166,10 +1162,6 @@ class _UnwindowedValues(observable.ObservableMixin):
 
   def __hash__(self):
     return hash(tuple(self))
-
-  def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
 
 
 coder_impl.FastPrimitivesCoderImpl.register_iterable_like_type(

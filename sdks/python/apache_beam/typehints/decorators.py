@@ -539,9 +539,6 @@ class IOTypeHints(NamedTuple(
         same(self.input_types, other.input_types) and
         same(self.output_types, other.output_types))
 
-  def __ne__(self, other):
-    return not self == other
-
   def __hash__(self):
     return hash(str(self))
 

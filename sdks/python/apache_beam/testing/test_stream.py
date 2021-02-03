@@ -77,10 +77,6 @@ class Event(with_metaclass(ABCMeta, object)):  # type: ignore[misc]
   def __lt__(self, other):
     raise NotImplementedError
 
-  def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
-
   @abstractmethod
   def to_runner_api(self, element_coder):
     raise NotImplementedError

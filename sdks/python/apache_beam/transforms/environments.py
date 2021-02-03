@@ -249,10 +249,6 @@ class DockerEnvironment(Environment):
     return self.__class__ == other.__class__ \
            and self.container_image == other.container_image
 
-  def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
-
   def __hash__(self):
     return hash((self.__class__, self.container_image))
 
@@ -341,10 +337,6 @@ class ProcessEnvironment(Environment):
     return self.__class__ == other.__class__ \
       and self.command == other.command and self.os == other.os \
       and self.arch == other.arch and self.env == other.env
-
-  def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
 
   def __hash__(self):
     # type: () -> int
@@ -440,10 +432,6 @@ class ExternalEnvironment(Environment):
     return self.__class__ == other.__class__ and self.url == other.url \
       and self.params == other.params
 
-  def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
-
   def __hash__(self):
     # type: () -> int
     return hash((
@@ -507,10 +495,6 @@ class EmbeddedPythonEnvironment(Environment):
   def __eq__(self, other):
     return self.__class__ == other.__class__
 
-  def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
-
   def __hash__(self):
     # type: () -> int
     return hash(self.__class__)
@@ -552,10 +536,6 @@ class EmbeddedPythonGrpcEnvironment(Environment):
     return self.__class__ == other.__class__ \
            and self.state_cache_size == other.state_cache_size \
            and self.data_buffer_time_limit_ms == other.data_buffer_time_limit_ms
-
-  def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
 
   def __hash__(self):
     # type: () -> int
@@ -645,10 +625,6 @@ class SubprocessSDKEnvironment(Environment):
     return self.__class__ == other.__class__ \
            and self.command_string == other.command_string
 
-  def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
-
   def __hash__(self):
     # type: () -> int
     return hash((self.__class__, self.command_string))
@@ -695,10 +671,6 @@ class RunnerAPIEnvironmentHolder(Environment):
 
   def __eq__(self, other):
     return self.__class__ == other.__class__ and self.proto == other.proto
-
-  def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
 
   def __hash__(self):
     # type: () -> int

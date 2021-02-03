@@ -62,10 +62,6 @@ class AccumulatorCombineFn(core.CombineFn):
         isinstance(other, AccumulatorCombineFn) and
         self._accumulator_type is other._accumulator_type)
 
-  def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
-
   def __hash__(self):
     return hash(self._accumulator_type)
 

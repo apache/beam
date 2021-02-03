@@ -87,10 +87,6 @@ class RangeSource(iobase.BoundedSource):
         type(self) == type(other) and self._start == other._start and
         self._end == other._end and self._split_freq == other._split_freq)
 
-  def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
-
 
 class ConcatSourceTest(unittest.TestCase):
   def test_range_source(self):

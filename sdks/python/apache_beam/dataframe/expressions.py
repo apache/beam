@@ -163,9 +163,6 @@ class Expression(object):
   def __eq__(self, other):
     return self._id == other._id
 
-  def __ne__(self, other):
-    return not self == other
-
   def __repr__(self):
     return '%s[%s]' % (self.__class__.__name__, self._id)
 
