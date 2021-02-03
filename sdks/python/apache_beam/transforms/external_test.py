@@ -22,7 +22,6 @@
 from __future__ import absolute_import
 
 import logging
-import sys
 import typing
 import unittest
 
@@ -39,8 +38,6 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms.external import ImplicitSchemaPayloadBuilder
 from apache_beam.transforms.external import NamedTupleBasedPayloadBuilder
-from apache_beam.typehints import typehints
-from apache_beam.typehints.native_type_compatibility import convert_to_beam_type
 
 
 def get_payload(args):
@@ -84,28 +81,8 @@ class PayloadBase(object):
     for key, value in self.values.items():
       self.assertEqual(getattr(decoded, key), value)
 
-  # TODO(BEAM-7372): Drop py2 specific "bytes" tests
-  def test_typing_payload_builder_with_bytes(self):
-    """
-    string_utf8 coder will be used even if values are not unicode in python 2.x
-    """
-    result = self.get_payload_from_typing_hints(self.bytes_values)
-    decoded = RowCoder(result.schema).decode(result.payload)
-    for key, value in self.values.items():
-      self.assertEqual(getattr(decoded, key), value)
-
   def test_typehints_payload_builder(self):
     result = self.get_payload_from_typing_hints(self.values)
-    decoded = RowCoder(result.schema).decode(result.payload)
-    for key, value in self.values.items():
-      self.assertEqual(getattr(decoded, key), value)
-
-  # TODO(BEAM-7372): Drop py2 specific "bytes" tests
-  def test_typehints_payload_builder_with_bytes(self):
-    """
-    string_utf8 coder will be used even if values are not unicode in python 2.x
-    """
-    result = self.get_payload_from_typing_hints(self.bytes_values)
     decoded = RowCoder(result.schema).decode(result.payload)
     for key, value in self.values.items():
       self.assertEqual(getattr(decoded, key), value)
@@ -162,23 +139,11 @@ class ExternalImplicitPayloadTest(unittest.TestCase):
     result = builder.build()
 
     decoded = RowCoder(result.schema).decode(result.payload)
-    if sys.version_info[0] < 3:
-      for key, value in PayloadBase.bytes_values.items():
-        # Note the default value in the getattr call.
-        # ImplicitSchemaPayloadBuilder omits fields with valu=None since their
-        # type cannot be inferred.
-        self.assertEqual(getattr(decoded, key, None), value)
-    else:
-      for key, value in PayloadBase.values.items():
-        # Note the default value in the getattr call.
-        # ImplicitSchemaPayloadBuilder omits fields with valu=None since their
-        # type cannot be inferred.
-        self.assertEqual(getattr(decoded, key, None), value)
-
-    # Verify we have not modified a cached type (BEAM-10766)
-    # TODO(BEAM-7372): Remove when bytes coercion code is removed.
-    self.assertEqual(
-        typehints.List[bytes], convert_to_beam_type(typing.List[bytes]))
+    for key, value in PayloadBase.values.items():
+      # Note the default value in the getattr call.
+      # ImplicitSchemaPayloadBuilder omits fields with valu=None since their
+      # type cannot be inferred.
+      self.assertEqual(getattr(decoded, key, None), value)
 
 
 class ExternalTransformTest(unittest.TestCase):
