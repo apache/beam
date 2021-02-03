@@ -16,16 +16,31 @@
  */
 
 .navbar
-  padding: 15px 0
-
+  padding: 0 !important
+  min-height: 64px
+  ::before
+    display: none
+  ::after
+    display: none
   .navbar-nav > li > a
     text-transform: uppercase
-
+  .navbar-link
+    font-size: 16px
+    font-weight: 500
+    line-height: normal
+    letter-spacing: normal
   .navbar-header
-    margin-left: $pad
     float: none
+    display: flex
+    align-items: center
+    justify-content: space-between
+    height: 100%
+    margin-top: 5px
 
   .navbar-brand
+    padding: 0
+    display: flex
+    align-items: center
     +md
       margin-right: $pad
 
@@ -41,11 +56,12 @@
       color: $color-dark-gray
 
   .navbar-toggle
-    margin-right: 24px
+    margin-right: 16px !important
 
     .icon-bar
       background-color: $color-sun
       height: 3px
+      width: 20px
 
     @media (max-width: $tablet)
       display: block
@@ -55,16 +71,38 @@
       background-color: $color-white
       bottom: 0
       min-height: 100vh
-      max-width: 256px
+      max-width: 303px
       padding: 15px
       position: fixed
       top: 0
       transition: transform 100ms linear
-      width: calc(100% - 32px)
+      width: calc(100% - 72px)
       right: 0
+      overflow-y: auto
 
+      .navbar-toggle
+        margin: 0
+      .dropdown-toggle
+        display: flex
+        align-items: center
+      .navbar-nav
+        margin-top: 58px
       .navbar-nav > li
         width: 100%
+        padding: 5px 0
+
+        span.navbar-link
+          padding: 10px 15px
+          color: #555555
+        ul
+          list-style: none !important
+          li
+            padding: 9px 0
+            a
+              letter-spacing: 0.2px
+
+      .navbar-link
+        text-transform: none
 
       &.closed
         transform: translateX(100%)
@@ -91,7 +129,12 @@
       &.open
         opacity: 0.5
         width: 100%
+        overflow-y: auto
 
   @media (max-width: $tablet)
     .navbar-right
       margin-right: -15px
+      margin-top: 0 !important
+
+.fixedPosition
+  position: fixed
