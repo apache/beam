@@ -87,8 +87,6 @@ __all__ = (
 
 T = TypeVar('T', bound=NamedTuple)
 
-PD_MAJOR = int(pd.__version__.split('.')[0])
-
 # Generate type map (presented visually in the docstring)
 _BIDIRECTIONAL = [
     (np.bool, np.bool),
@@ -103,13 +101,9 @@ _BIDIRECTIONAL = [
     (np.float32, Optional[np.float32]),
     (np.float64, Optional[np.float64]),
     (np.object, Any),
+    (pd.StringDtype(), Optional[str]),
+    (pd.BooleanDtype(), Optional[np.bool]),
 ]
-
-if PD_MAJOR >= 1:
-  _BIDIRECTIONAL.extend([
-      (pd.StringDtype(), Optional[str]),
-      (pd.BooleanDtype(), Optional[np.bool]),
-  ])
 
 PANDAS_TO_BEAM = {
     pd.Series([], dtype=dtype).dtype: fieldtype
@@ -121,10 +115,7 @@ BEAM_TO_PANDAS = {fieldtype: dtype for dtype, fieldtype in _BIDIRECTIONAL}
 # Shunt non-nullable Beam types to the same pandas types as their non-nullable
 # equivalents for FLOATs, DOUBLEs, and STRINGs. pandas has no non-nullable dtype
 # for these.
-OPTIONAL_SHUNTS = [np.float32, np.float64]
-
-if PD_MAJOR >= 1:
-  OPTIONAL_SHUNTS.append(str)
+OPTIONAL_SHUNTS = [np.float32, np.float64, str]
 
 for typehint in OPTIONAL_SHUNTS:
   BEAM_TO_PANDAS[typehint] = BEAM_TO_PANDAS[Optional[typehint]]
