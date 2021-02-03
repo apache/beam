@@ -20,6 +20,23 @@ $(document).ready(function() {
             document.body.removeChild(el);
             alert('copied to clipboard');
         })
+        $(".just-copy").click(function(){
+            var text=$(this).parent().siblings()[0].innerHTML;
+            const el=document.createElement('textarea');
+            el.value=text;document.body.appendChild(el);
+            el.select();document.execCommand('copy');
+            document.body.removeChild(el);
+            alert('copied to clipboard');
+        })
     }
+    let code = document.querySelectorAll('pre'),
+    copyIcon = document.createElement('span');
+    copyIcon.innerHTML = '<a class="just-copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard"><img src="/images/copy-icon.svg"/></a>';
+
+    code.forEach((hl) => {
+        if( !hl.parentElement.classList.contains('code-snippet') && !hl.parentElement.classList.contains('highlight')) {
+            hl.prepend(copyIcon.cloneNode([true]));
+        }
+    })
    copy();
 });

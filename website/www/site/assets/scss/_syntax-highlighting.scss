@@ -247,6 +247,7 @@ pre {
         color: #333;
         &:hover {
           background-color: #f2804d;
+          color: #fff;
         }
       }
       &::before {
@@ -266,6 +267,7 @@ pre {
 .language-switcher {
   ul.nav-tabs {
     padding-left: 0;
+    border:0;
     li {
       &:hover {
         cursor: pointer;
@@ -276,6 +278,7 @@ pre {
         color: #333;
         &:hover {
           background-color: #f2804d;
+          color: #fff;
         }
       }
       &::before {
@@ -304,6 +307,7 @@ nav.version-switcher {
         color: #333;
         &:hover {
           background-color: #f2804d;
+          color: #fff;
         }
       }
       &::before {
@@ -332,6 +336,7 @@ nav.runner-switcher {
         color: #333;
         &:hover {
           background-color: #f2804d;
+          color: #fff;
         }
       }
       &::before {
