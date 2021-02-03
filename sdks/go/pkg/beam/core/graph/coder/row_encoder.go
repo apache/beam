@@ -27,6 +27,12 @@ import (
 type RowEncoderBuilder struct {
 	allFuncs   map[reflect.Type]encoderProvider
 	ifaceFuncs []reflect.Type
+
+	// RequireAllFieldsExported when set to true will have the default decoder building fail if
+	// there are any unexported fields. When set false, unexported fields in default
+	// destination structs will be silently ignored when decoding.
+	// This has no effect on types with registered decoder providers.
+	RequireAllFieldsExported bool
 }
 
 type encoderProvider = func(reflect.Type) (func(interface{}, io.Writer) error, error)
@@ -80,10 +86,9 @@ func (b *RowEncoderBuilder) customFunc(t reflect.Type) (func(interface{}, io.Wri
 	// Check satisfaction of interface types in reverse registration order.
 	for i := len(b.ifaceFuncs) - 1; i >= 0; i-- {
 		it := b.ifaceFuncs[i]
-		if ok := t.AssignableTo(it); ok {
+		if ok := t.Implements(it); ok {
 			if fact, ok := b.allFuncs[it]; ok {
 				f, err := fact(t)
-				// TODO handle errors?
 				if err != nil {
 					return nil, err
 				}
@@ -174,11 +179,15 @@ func (b *RowEncoderBuilder) encoderForSingleTypeReflect(t reflect.Type) (func(re
 		}, nil
 	case reflect.Int, reflect.Int64, reflect.Int16, reflect.Int32, reflect.Int8:
 		return func(rv reflect.Value, w io.Writer) error {
-			return EncodeVarInt(int64(rv.Int()), w)
+			return EncodeVarInt(rv.Int(), w)
+		}, nil
+	case reflect.Uint, reflect.Uint64, reflect.Uint32, reflect.Uint16:
+		return func(rv reflect.Value, w io.Writer) error {
+			return EncodeVarUint64(rv.Uint(), w)
 		}, nil
 	case reflect.Float32, reflect.Float64:
 		return func(rv reflect.Value, w io.Writer) error {
-			return EncodeDouble(float64(rv.Float()), w)
+			return EncodeDouble(rv.Float(), w)
 		}, nil
 	case reflect.Ptr:
 		// Nils are handled at the struct field level.
@@ -187,6 +196,9 @@ func (b *RowEncoderBuilder) encoderForSingleTypeReflect(t reflect.Type) (func(re
 			return nil, err
 		}
 		return func(rv reflect.Value, w io.Writer) error {
+			if rv.Kind() != reflect.Ptr {
+				return fmt.Errorf("expected pointer kind but was %v got type %v, want %v", rv.Kind(), rv.Type(), t)
+			}
 			return encf(rv.Elem(), w)
 		}, nil
 	case reflect.Slice:
@@ -241,8 +253,21 @@ type typeEncoderReflect struct {
 func (b *RowEncoderBuilder) encoderForStructReflect(t reflect.Type) (func(reflect.Value, io.Writer) error, error) {
 	var coder typeEncoderReflect
 	for i := 0; i < t.NumField(); i++ {
-		coder.debug = append(coder.debug, t.Field(i).Type.Name())
-		enc, err := b.encoderForSingleTypeReflect(t.Field(i).Type)
+		coder.debug = append(coder.debug, t.Field(i).Name+" "+t.Field(i).Type.String())
+		sf := t.Field(i)
+		isUnexported := sf.PkgPath != ""
+		if isUnexported {
+			if b.RequireAllFieldsExported {
+				return nil, errors.Errorf("Cannot make schema decoder for type %v as it has unexported fields such as %s.", t, sf.Name)
+			}
+			// Silently ignore, since we can't do anything about it.
+			// Add a no-op coder to fill in field index
+			coder.fields = append(coder.fields, func(rv reflect.Value, w io.Writer) error {
+				return nil
+			})
+			continue
+		}
+		enc, err := b.encoderForSingleTypeReflect(sf.Type)
 		if err != nil {
 			return nil, err
 		}
@@ -250,7 +275,6 @@ func (b *RowEncoderBuilder) encoderForStructReflect(t reflect.Type) (func(reflec
 	}
 
 	return func(rv reflect.Value, w io.Writer) error {
-		// Row/Structs are prefixed with the number of fields that are encoded in total.
 		if err := writeRowHeader(rv, w); err != nil {
 			return err
 		}
@@ -263,7 +287,7 @@ func (b *RowEncoderBuilder) encoderForStructReflect(t reflect.Type) (func(reflec
 				}
 			}
 			if err := f(rvf, w); err != nil {
-				return errors.Wrapf(err, "encoding %v, expected: %v", rvf.Type(), coder.debug[i])
+				return errors.Wrapf(err, "encoding %v, expected: %q", rvf.Type(), coder.debug[i])
 			}
 		}
 		return nil

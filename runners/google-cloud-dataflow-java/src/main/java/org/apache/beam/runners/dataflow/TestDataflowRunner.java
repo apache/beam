@@ -114,7 +114,11 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         new ErrorMonitorMessagesHandler(job, new MonitoringUtil.LoggingHandler());
 
     if (options.isStreaming()) {
-      jobSuccess = waitForStreamingJobTermination(job, messageHandler);
+      if (options.isBlockOnRun()) {
+        jobSuccess = waitForStreamingJobTermination(job, messageHandler);
+      } else {
+        jobSuccess = true;
+      }
       // No metrics in streaming
       allAssertionsPassed = Optional.absent();
     } else {

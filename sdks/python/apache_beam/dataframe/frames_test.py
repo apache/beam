@@ -28,30 +28,58 @@ from apache_beam.dataframe import expressions
 from apache_beam.dataframe import frame_base
 from apache_beam.dataframe import frames  # pylint: disable=unused-import
 
+PD_VERSION = tuple(map(int, pd.__version__.split('.')))
+
 
 class DeferredFrameTest(unittest.TestCase):
-  def _run_test(self, func, *args, distributed=True):
+  def _run_test(self, func, *args, distributed=True, expect_error=False):
     deferred_args = [
         frame_base.DeferredFrame.wrap(
             expressions.ConstantExpression(arg, arg[0:0])) for arg in args
     ]
-    expected = func(*args)
+    try:
+      expected = func(*args)
+    except Exception as e:
+      if not expect_error:
+        raise
+      expected = e
+    else:
+      if expect_error:
+        raise AssertionError(
+            "Expected an error but computing expected result successfully "
+            f"returned: {expected}")
+
     session_type = (
         expressions.PartitioningSession if distributed else expressions.Session)
-    actual = session_type({}).evaluate(func(*deferred_args)._expr)
-    if hasattr(expected, 'equals'):
-      if distributed:
-        cmp = lambda df: expected.sort_index().equals(df.sort_index())
-      else:
-        cmp = expected.equals
-    elif isinstance(expected, float):
-      cmp = lambda x: (math.isnan(x) and math.isnan(expected)
-                       ) or x == expected == 0 or abs(expected - x) / (
-                           abs(expected) + abs(x)) < 1e-8
+    try:
+      actual = session_type({}).evaluate(func(*deferred_args)._expr)
+    except Exception as e:
+      if not expect_error:
+        raise
+      actual = e
     else:
-      cmp = expected.__eq__
-    self.assertTrue(
-        cmp(actual), 'Expected:\n\n%r\n\nActual:\n\n%r' % (expected, actual))
+      if expect_error:
+        raise AssertionError(
+            "Expected an error:\n{expected}\nbut successfully "
+            f"returned:\n{actual}")
+
+    if not expect_error:
+      if hasattr(expected, 'equals'):
+        if distributed:
+          cmp = lambda df: expected.sort_index().equals(df.sort_index())
+        else:
+          cmp = expected.equals
+      elif isinstance(expected, float):
+        cmp = lambda x: (math.isnan(x) and math.isnan(expected)
+                         ) or x == expected == 0 or abs(expected - x) / (
+                             abs(expected) + abs(x)) < 1e-8
+      else:
+        cmp = expected.__eq__
+      self.assertTrue(
+          cmp(actual), 'Expected:\n\n%r\n\nActual:\n\n%r' % (expected, actual))
+    else:
+      self.assertIsInstance(actual, type(expected))
+      self.assertEqual(str(actual), str(expected))
 
   def test_series_arithmetic(self):
     a = pd.Series([1, 2, 3])
@@ -124,6 +152,45 @@ class DeferredFrameTest(unittest.TestCase):
 
     self._run_test(lambda df: df.groupby(['second', 'A']).sum(), df)
 
+  def test_groupby_project(self):
+    df = pd.DataFrame({
+        'group': ['a' if i % 5 == 0 or i % 3 == 0 else 'b' for i in range(100)],
+        'foo': [None if i % 11 == 0 else i for i in range(100)],
+        'bar': [None if i % 7 == 0 else 99 - i for i in range(100)],
+        'baz': [None if i % 13 == 0 else i * 2 for i in range(100)],
+    })
+
+    self._run_test(lambda df: df.groupby('group').foo.agg(sum), df)
+
+    self._run_test(lambda df: df.groupby('group').sum(), df)
+    self._run_test(lambda df: df.groupby('group').foo.sum(), df)
+    self._run_test(lambda df: df.groupby('group').bar.sum(), df)
+    self._run_test(lambda df: df.groupby('group')['foo'].sum(), df)
+    self._run_test(lambda df: df.groupby('group')['baz'].sum(), df)
+    self._run_test(
+        lambda df: df.groupby('group')[['bar', 'baz']].bar.sum(),
+        df,
+        expect_error=True)
+    self._run_test(
+        lambda df: df.groupby('group')[['bat']].sum(), df, expect_error=True)
+    self._run_test(
+        lambda df: df.groupby('group').bat.sum(), df, expect_error=True)
+
+    self._run_test(lambda df: df.groupby('group').median(), df)
+    self._run_test(lambda df: df.groupby('group').foo.median(), df)
+    self._run_test(lambda df: df.groupby('group').bar.median(), df)
+    self._run_test(lambda df: df.groupby('group')['foo'].median(), df)
+    self._run_test(lambda df: df.groupby('group')['baz'].median(), df)
+    self._run_test(lambda df: df.groupby('group')[['bar', 'baz']].median(), df)
+    self._run_test(
+        lambda df: df.groupby('group')[['bar', 'baz']].bar.median(),
+        df,
+        expect_error=True)
+    self._run_test(
+        lambda df: df.groupby('group')[['bat']].median(), df, expect_error=True)
+    self._run_test(
+        lambda df: df.groupby('group').bat.median(), df, expect_error=True)
+
   def test_merge(self):
     # This is from the pandas doctests, but fails due to re-indexing being
     # order-sensitive.
@@ -148,6 +215,20 @@ class DeferredFrameTest(unittest.TestCase):
               right_on='rkey',
               suffixes=('_left', '_right')).rename(index=lambda x: '*').
           sort_values(['value_left', 'value_right']),
+          df1,
+          df2)
+
+  def test_merge_left_join(self):
+    # This is from the pandas doctests, but fails due to re-indexing being
+    # order-sensitive.
+    df1 = pd.DataFrame({'a': ['foo', 'bar'], 'b': [1, 2]})
+    df2 = pd.DataFrame({'a': ['foo', 'baz'], 'c': [3, 4]})
+
+    with beam.dataframe.allow_non_parallel_operations():
+      self._run_test(
+          lambda df1,
+          df2: df1.merge(df2, how='left', on='a').rename(index=lambda x: '*').
+          sort_values(['b', 'c']),
           df1,
           df2)
 
@@ -309,6 +390,14 @@ class DeferredFrameTest(unittest.TestCase):
     self._run_test(lambda df: df.corrwith(df.a).round(8), df)
     self._run_test(
         lambda df: df[['a', 'b']].corrwith(df[['b', 'c']]).round(8), df)
+
+  @unittest.skipIf(PD_VERSION < (1, 2), "na_action added in pandas 1.2.0")
+  def test_applymap_na_action(self):
+    # Replicates a doctest for na_action which is incompatible with
+    # doctest framework
+    df = pd.DataFrame([[pd.NA, 2.12], [3.356, 4.567]])
+    self._run_test(
+        lambda df: df.applymap(lambda x: len(str(x)), na_action='ignore'), df)
 
   def test_categorical_groupby(self):
     df = pd.DataFrame({'A': np.arange(6), 'B': list('aabbca')})
