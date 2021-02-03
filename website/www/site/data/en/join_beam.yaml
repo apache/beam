@@ -11,7 +11,7 @@
 # limitations under the License.
 
 - list:
-    - { title: Mailing Lists, description: 'Join the official Apache Beam user and developer mailing lists. Learn how <a href="https://beam.apache.org/community/contact-us/">here</a>' }
+    - { title: Mailing Lists, description: 'Join the official Apache Beam user and developer mailing lists. Learn how <a href="/community/contact-us/">here</a>' }
     - { title: Slack Channel, description: 'For real-time communication, join us on the <a target="_blank" href="https://app.slack.com/client/T4S1WH2J3/browse-channels">#beam channels</a> in the ASF workspace.' }
     - { title: Twitter account, description: Follow  '<a target="_blank" href="https://twitter.com/apachebeam?lang=en">@ApacheBeam</a> on Twitter for the most recent news on the project and community!' }
     - { title: YouTube channel, description: 'Follow our <a target="_blank" href="https://www.youtube.com/channel/UChNnb_YO_7B0HlW6FhAXZZQ">YouTube channel</a> for the latest training and use cases.' }
