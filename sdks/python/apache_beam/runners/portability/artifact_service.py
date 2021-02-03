@@ -355,6 +355,3 @@ class _QueueIter(object):
       raise self._queue.get()
     else:
       return item
-
-  if sys.version_info < (3, ):
-    next = __next__

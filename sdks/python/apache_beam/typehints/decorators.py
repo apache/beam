@@ -1091,8 +1091,6 @@ class GeneratorWrapper(object):
     self.interleave_func(next_val)
     return next_val
 
-  next = __next__
-
   def __iter__(self):
     for x in self.internal_gen:
       self.interleave_func(x)

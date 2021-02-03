@@ -427,8 +427,6 @@ class _QuantileBuffer(Generic[T]):
           value = next(self._iter)
           return (value, self.weight)
 
-      next = __next__  # For Python 2
-
     return QuantileBufferIterator(self.elements, self.weighted, self.weight)
 
 
