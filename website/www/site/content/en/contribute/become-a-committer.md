@@ -26,7 +26,8 @@ An Apache Beam committer has write access to the repository for merging pull req
 
 The [PMC](https://www.apache.org/foundation/how-it-works.html#pmc-members) makes someone a committer via nomination, discussion, and then majority vote. We use data from as many sources as possible to inform our reasoning.
 
-### Different ways you can contribute to the Apache Beam
+### Different Ways you can contribute
+Everyone is welcome to join and contribute to the project in many ways, not only with code contributions. Things like asking questions, reporting bugs, proposing new features, improving documentation or the website, organizing events or writing blog posts, are also welcome and recognized.
 
 {{< contributor/list_with_icons ways_of_contribution >}}
 

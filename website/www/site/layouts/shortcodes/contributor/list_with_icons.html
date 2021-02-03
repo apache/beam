@@ -13,6 +13,6 @@
    {{ $data := index $.Site.Data .Site.Language.Lang (.Get 0) }}
    <div class="icon-list">
        {{ range $item := $data }}
-           {{ partial "pillars/pillars-item" (dict "logo" .icon  "header" .title "text" .body) }}
+           {{ partial "pillars/pillars-item" (dict "logo" .icon  "header" .title "text" .body "list" .list) }}
        {{ end }}
    </div>

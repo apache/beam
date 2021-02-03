@@ -10,12 +10,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-- title: Beam Technical committers
-  body: Short description with hyperlinks.
+- title: Code contributions
+  body: "Ways you can contribute code to the project include:"
+  list:
+    - Building a new feature like a new IO connector or PTransform
+    - Fixing a Bug
+    - Sharing a code example or template with the community
+    - Testing a release candidate
   icon: icons/contributor/become a committer/code-icon.svg
-- title: Non-technical committers
-  body: Short description with hyperlinks.
+- title: Non-code contributions
+  body: "Non-code contributions are ways to add value to the projects outside code, here are some examples of things that you can contribute:"
+  list:
+    - Organize a meetup
+    - Give a talk about Beam at a conference
+    - Update a typo in the documentation
+    - Write a blog post with useful tips about Beam
   icon: icons/contributor/become a committer/file-icon.svg
-- title: Website maintainers
-  body: Short description with hyperlinks.
-  icon: icons/contributor/become a committer/tool-icon.svg
