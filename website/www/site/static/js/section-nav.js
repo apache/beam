@@ -109,8 +109,10 @@ $(document).ready(function () {
                             links[i].removeClass('underline');
                     }
                     for(var i = 0; i < links.length; i++){
-                        if(url.includes(links[i].href))
+                        if(url === links[i].href+'/'){
                             links[i].classList.add('underline');
+                        }
+
                     }
                 });
                 $(window).resize(function () {
