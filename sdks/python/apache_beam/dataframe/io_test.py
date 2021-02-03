@@ -22,6 +22,7 @@ import importlib
 import math
 import os
 import platform
+import pytest
 import shutil
 import sys
 import tempfile
@@ -77,6 +78,11 @@ class IOTest(unittest.TestCase):
     self.assertCountEqual(['a,b,c', '1,2,3', '3,4,7'],
                           set(self.read_all_lines(output + 'out.csv*')))
 
+  @pytest.mark.uses_pyarrow
+  def test_read_write_parquet(self):
+    self._run_read_write_test(
+        'parquet', {}, {}, dict(check_index=False), ['pyarrow'])
+
   @parameterized.expand([
       ('csv', dict(index_col=0)),
       ('csv', dict(index_col=0, splittable=True)),
@@ -100,7 +106,6 @@ class IOTest(unittest.TestCase):
           dict(check_index=False)),
       ('html', dict(index_col=0), {}, {}, ['lxml']),
       ('excel', dict(index_col=0), {}, {}, ['openpyxl', 'xlrd']),
-      ('parquet', {}, {}, dict(check_index=False), ['pyarrow']),
   ])
   # pylint: disable=dangerous-default-value
   def test_read_write(
@@ -110,6 +115,17 @@ class IOTest(unittest.TestCase):
       write_kwargs={},
       check_options={},
       requires=()):
+    self._run_read_write_test(
+        format, read_kwargs, write_kwargs, check_options, requires)
+
+  def _run_read_write_test(
+      self,
+      format,
+      read_kwargs={},
+      write_kwargs={},
+      check_options={},
+      requires=()):
+
     for module in requires:
       try:
         importlib.import_module(module)

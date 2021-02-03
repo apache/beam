@@ -21,6 +21,7 @@ from __future__ import absolute_import
 import json
 import logging
 import os
+import pytest
 import shutil
 import sys
 import tempfile
@@ -62,6 +63,7 @@ except ImportError:
 
 
 @unittest.skipIf(pa is None, "PyArrow is not installed.")
+@pytest.mark.uses_pyarrow
 class TestParquet(unittest.TestCase):
   @classmethod
   def setUpClass(cls):
