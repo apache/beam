@@ -560,7 +560,7 @@ class _ParquetSink(filebasedsink.FileBasedSink):
     return res
 
   def _write_batches(self, writer):
-    table = pa.Table.from_batches(self._record_batches)
+    table = pa.Table.from_batches(self._record_batches, schema=self._schema)
     self._record_batches = []
     self._record_batches_byte_size = 0
     writer.write_table(table)
@@ -570,7 +570,7 @@ class _ParquetSink(filebasedsink.FileBasedSink):
     for x, y in enumerate(self._buffer):
       arrays[x] = pa.array(y, type=self._schema.types[x])
       self._buffer[x] = []
-    rb = pa.RecordBatch.from_arrays(arrays, self._schema.names)
+    rb = pa.RecordBatch.from_arrays(arrays, schema=self._schema)
     self._record_batches.append(rb)
     size = 0
     for x in arrays:
