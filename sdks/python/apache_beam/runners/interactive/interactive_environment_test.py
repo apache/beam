@@ -168,20 +168,18 @@ class InteractiveEnvironmentTest(unittest.TestCase):
     self.assertIs(ie.current_env().is_terminated(self._p), True)
     self.assertIs(ie.current_env().evict_pipeline_result(self._p), None)
 
-  @patch('atexit.register')
-  def test_cleanup_registered_when_creating_new_env(self, mocked_atexit):
-    ie.new_env()
-    mocked_atexit.assert_called_once()
+  def test_cleanup_registered_when_creating_new_env(self):
+    with patch('atexit.register') as mocked_atexit:
+      a_new_env = ie.InteractiveEnvironment()
+      mocked_atexit.assert_called_once()
 
-  @patch(
-      'apache_beam.runners.interactive.interactive_environment'
-      '.InteractiveEnvironment.cleanup')
-  def test_cleanup_invoked_when_new_env_replace_not_none_env(
-      self, mocked_cleanup):
+  def test_cleanup_invoked_when_new_env_replace_not_none_env(self):
     ie._interactive_beam_env = None
     ie.new_env()
-    ie.new_env()
-    mocked_cleanup.assert_called()
+    with patch('apache_beam.runners.interactive.interactive_environment'
+               '.InteractiveEnvironment.cleanup') as mocked_cleanup:
+      ie.new_env()
+      mocked_cleanup.assert_called_once()
 
   def test_cleanup_not_invoked_when_cm_changed_from_none(self):
     ie.new_env()
