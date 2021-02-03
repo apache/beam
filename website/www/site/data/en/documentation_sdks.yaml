@@ -11,8 +11,8 @@
 # limitations under the License.
 
 - name: { text: Java SDK, link: /documentation/sdks/java/ }
-  icon: icons/documentation/sdks/Java-icon.svg
+  icon: icons/documentation/sdks/java-icon.svg
 - name: { text: Python SDK, link: /documentation/sdks/python/ }
-  icon: icons/documentation/sdks/Python-icon.svg
+  icon: icons/documentation/sdks/python-icon.svg
 - name: { text: Go SDK, link: /documentation/sdks/go/ }
-  icon: icons/documentation/sdks/Go-icon.svg
+  icon: icons/documentation/sdks/go-icon.svg
