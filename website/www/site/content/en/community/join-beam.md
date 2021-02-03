@@ -43,4 +43,4 @@ We’re so glad you want to join the Apache Beam community. Here’s a pathway y
 
 ## Still have questions?
 
-Send us a note to user@beam.apache.org OR mention@ApacheBeam on Twitter OR ask us in the #beam slack channel. We look forward to seeing you in the community!
+Send us a note at <a href="mailto:dev@beam.apache.org">user@beam.apache.org</a> OR mention <a target="_blank" href="https://twitter.com/apachebeam?lang=en">@ApacheBeam</a> on Twitter OR ask us in the #beam slack channel. We look forward to seeing you in the community!
