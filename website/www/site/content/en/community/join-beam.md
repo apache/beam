@@ -39,7 +39,7 @@ We’re so glad you want to join the Apache Beam community. Here’s a pathway y
 
 ## Become a PMC member
 
-{{< community/join_beam_columns 2 >}}
+{{< community/join_beam_columns 3 >}}
 
 ## Still have questions?
 
