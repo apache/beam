@@ -31,6 +31,7 @@ import org.slf4j.LoggerFactory;
 
 /** Driver program that starts a job server for the Spark runner. */
 public class SparkJobServerDriver extends JobServerDriver {
+
   private static final Logger LOG = LoggerFactory.getLogger(SparkJobServerDriver.class);
 
   /** Spark runner-specific Configuration for the jobServer. */
