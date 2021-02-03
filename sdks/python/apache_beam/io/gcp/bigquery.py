@@ -1297,7 +1297,7 @@ class BigQueryWriteFn(DoFn):
 
     rows = [r[0] for r in rows_and_insert_ids]
     if self.ignore_insert_ids:
-      insert_ids = None
+      insert_ids = [None for r in rows_and_insert_ids]
     else:
       insert_ids = [r[1] for r in rows_and_insert_ids]
 
@@ -1419,8 +1419,7 @@ class _StreamToBigQuery(PTransform):
         | 'AddInsertIdsWithRandomKeys' >> beam.ParDo(
             _StreamToBigQuery.InsertIdPrefixFn()))
 
-    if not self.ignore_insert_ids:
-      sharded_data = (sharded_data | 'CommitInsertIds' >> ReshufflePerKey())
+    sharded_data = (sharded_data | 'CommitInsertIds' >> ReshufflePerKey())
 
     return (
         sharded_data
