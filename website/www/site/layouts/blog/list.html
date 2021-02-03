@@ -54,7 +54,6 @@
         {{ range $pages.ByPublishDate.Reverse }}
             <a class="post-card tf-filter-item" href="{{ .RelPermalink }}" data-categories='{{ with .Params.categories }}{{ if eq ( printf "%T" . ) "string" }}{{ . | replaceRE "[.]" "_" | urlize }}{{ else if eq ( printf "%T" . ) "[]string" }}{{ range . }}{{ . | replaceRE "[.]" "_" | urlize }} {{end}}{{end}}{{else}}no-author{{end}}'
             >
-                {{ $authors := .Params.authors }}
                 <div class="post-info post-category">
                     <p>
                     {{ delimit .Params.categories ", " " & " }}
@@ -63,16 +62,20 @@
                 </div>
                 <p class="post-title">{{ .Title }}</p>
                 <p class="post-info">
-                    {{ range $i, $item := $authors }}
-                        {{ $author := index $data $item }}
-                        {{ if eq $i (sub (len $authors) 1) }}
-                          {{ $author.name }}
-                        {{ else if eq $i (sub (len $authors) 2) }}
-                          {{ $author.name }} &amp;
-                        {{ else }}
-                          {{ $author.name }},
-                        {{ end }}
+                  {{ $authors := .Params.authors }}
+                  {{ with $authors }}
+                  {{ range $i, $item := $authors }}
+                    {{ if not (isset $.Site.Data.authors $item) }} {{ errorf "Author '%s' is not defined. Please add them to 'website/www/site/data/authors.yml'" $item }} {{end}}
+                      {{ $author := index $data $item }}
+                      {{ if eq $i (sub (len $authors) 1) }}
+                        {{ $author.name }}
+                      {{ else if eq $i (sub (len $authors) 2) }}
+                        {{ $author.name }} &amp;
+                      {{ else }}
+                        {{ $author.name }},
+                      {{ end }}
                     {{ end }}
+                  {{ end }}
                 </p>
                 <div class="post-summary">{{ .Summary | plainify | chomp }}</div>
             </a>

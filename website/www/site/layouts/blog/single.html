@@ -65,7 +65,9 @@ limitations under the License. See accompanying LICENSE file.
               <p class="post-title">{{ .Title }}</p>
               <p class="post-info">
                 {{ $authors := .Params.authors }}
-                {{ range $i, $item := $authors }}
+                {{ with $authors }}
+                  {{ range $i, $item := $authors }}
+                    {{ if not (isset $.Site.Data.authors $item) }} {{ errorf "Author '%s' is not defined. Please add them to 'website/www/site/data/authors.yml'" $item }} {{end}}
                     {{ $author := index $data $item }}
                     {{ if eq $i (sub (len $authors) 1) }}
                       {{ $author.name }}
@@ -74,6 +76,7 @@ limitations under the License. See accompanying LICENSE file.
                     {{ else }}
                       {{ $author.name }},
                     {{ end }}
+                  {{ end }}
                 {{ end }}
             </p>
             </div>

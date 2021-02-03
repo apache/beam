@@ -11,7 +11,7 @@
    */}}
 
    {{ $data := index $.Site.Data .Site.Language.Lang }}
-   <div class="documentation-list">
+   <div class="documentation-list sdks">
     {{ range $item := $data.documentation_sdks }}
         {{ partial "documentation/icon-row" (dict "logo" .icon  "header" .name "text" .description) }}
    {{ end }}
