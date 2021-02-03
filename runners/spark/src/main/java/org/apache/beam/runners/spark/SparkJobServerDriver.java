@@ -35,7 +35,6 @@ public class SparkJobServerDriver extends JobServerDriver {
 
   /** Spark runner-specific Configuration for the jobServer. */
   public static class SparkServerConfiguration extends ServerConfiguration {
-
     @Option(
         name = "--spark-master-url",
         usage = "Spark master url to submit job (e.g. spark://host:port, local[4])")
@@ -72,6 +71,7 @@ public class SparkJobServerDriver extends JobServerDriver {
       printUsage(parser);
       throw new IllegalArgumentException("Unable to parse command line arguments.", e);
     }
+
     return fromConfig(configuration);
   }
 
