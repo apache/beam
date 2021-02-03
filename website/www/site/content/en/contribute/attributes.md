@@ -1,5 +1,5 @@
 ---
-title: "Beam community’s practises"
+title: "Attributes of a Beam community member"
 layout: "arrow_template"
 ---
 
@@ -17,7 +17,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Beam community’s practises
+# Attributes of a Beam community member
 
 {{< figure src="/images/community/messages-icon.svg" >}}
 

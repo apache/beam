@@ -1,7 +1,6 @@
 ---
 title: "Beam Quickstart for Go"
 ---
-
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -51,38 +50,36 @@ required arguments described in the examples.
 
 For example, to run `wordcount`, run:
 
-{{< highlight >}}
+{{< highlight class="runner-direct" >}}
 $ go install github.com/apache/beam/sdks/go/examples/wordcount
 $ wordcount --input <PATH_TO_INPUT_FILE> --output counts
 {{< /highlight >}}
 
-{{< highlight >}}
+{{< highlight class="runner-dataflow" >}}
 $ go install github.com/apache/beam/sdks/go/examples/wordcount
-
 # As part of the initial setup, for non linux users - install package unix before run
-
 $ go get -u golang.org/x/sys/unix
 $ wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
- --output gs://<your-gcs-bucket>/counts \
- --runner dataflow \
- --project your-gcp-project \
- --region your-gcp-region \
- --temp_location gs://<your-gcs-bucket>/tmp/ \
- --staging_location gs://<your-gcs-bucket>/binaries/ \
- --worker_harness_container_image=apache/beam_go_sdk:latest
+            --output gs://<your-gcs-bucket>/counts \
+            --runner dataflow \
+            --project your-gcp-project \
+            --region your-gcp-region \
+            --temp_location gs://<your-gcs-bucket>/tmp/ \
+            --staging_location gs://<your-gcs-bucket>/binaries/ \
+            --worker_harness_container_image=apache/beam_go_sdk:latest
 {{< /highlight >}}
 
-{{< highlight >}}
+{{< highlight class="runner-nemo" >}}
 This runner is not yet available for the Go SDK.
 {{< /highlight >}}
 
 ## Next Steps
 
-- Learn more about the [Beam SDK for Go](/documentation/sdks/go/)
+* Learn more about the [Beam SDK for Go](/documentation/sdks/go/)
   and look through the [godoc](https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam).
-- Walk through these WordCount examples in the [WordCount Example Walkthrough](/get-started/wordcount-example).
-- Take a self-paced tour through our [Learning Resources](/documentation/resources/learning-resources).
-- Dive in to some of our favorite [Videos and Podcasts](/documentation/resources/videos-and-podcasts).
-- Join the Beam [users@](/community/contact-us) mailing list.
+* Walk through these WordCount examples in the [WordCount Example Walkthrough](/get-started/wordcount-example).
+* Take a self-paced tour through our [Learning Resources](/documentation/resources/learning-resources).
+* Dive in to some of our favorite [Videos and Podcasts](/documentation/resources/videos-and-podcasts).
+* Join the Beam [users@](/community/contact-us) mailing list.
 
 Please don't hesitate to [reach out](/community/contact-us) if you encounter any issues!

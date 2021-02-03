@@ -37,15 +37,15 @@ limitations under the License.
 
 There are lots of opportunities to contribute. You can for example:
 
-- ask or answer questions on [user@beam.apache.org](/community/contact-us/) or
+* ask or answer questions on [user@beam.apache.org](/community/contact-us/) or
   [stackoverflow](https://stackoverflow.com/questions/tagged/apache-beam)
-- review proposed design ideas on [dev@beam.apache.org](/community/contact-us/)
-- file [bug reports](https://issues.apache.org/jira/projects/BEAM/issues)
-- review [changes](https://github.com/apache/beam/pulls)
-- work on the core programming model (what is a Beam pipeline and how does it
+* review proposed design ideas on [dev@beam.apache.org](/community/contact-us/)
+* file [bug reports](https://issues.apache.org/jira/projects/BEAM/issues)
+* review [changes](https://github.com/apache/beam/pulls)
+* work on the core programming model (what is a Beam pipeline and how does it
   run?)
-- improve the developer experience (for example, Windows guides)
-- organize local meetups of users or contributors to Apache Beam
+* improve the developer experience (for example, Windows guides)
+* organize local meetups of users or contributors to Apache Beam
 
 ...and many more. Most importantly, if you have an idea of how to contribute, then do it!
 
@@ -65,16 +65,16 @@ detail.
 
 ### Prerequisites
 
-- a GitHub account
-- a Linux, macOS, or Microsoft Windows development environment with Java JDK 8 installed
-- [Docker](https://www.docker.com/) installed for some tasks including building worker containers and testing this website
+* a GitHub account
+* a Linux, macOS, or Microsoft Windows development environment with Java JDK 8 installed
+* [Docker](https://www.docker.com/) installed for some tasks including building worker containers and testing this website
   changes locally
-- [Go](https://golang.org) 1.12 or later installed for Go SDK development
-- Python 3.6, 3.7, and 3.8. Yes, you need all four versions installed.
+* [Go](https://golang.org) 1.12 or later installed for Go SDK development
+* Python 3.6, 3.7, and 3.8. Yes, you need all four versions installed.
 
   pip, setuptools, virtualenv, and tox installed for Python development
 
-- for large contributions, a signed [Individual Contributor License
+* for large contributions, a signed [Individual Contributor License
   Agreement](https://www.apache.org/licenses/icla.pdf) (ICLA) to the Apache
   Software Foundation (ASF).
 
@@ -82,16 +82,15 @@ detail.
 
 To install these in a Debian-based distribution:
 
-{{< highlight  >}}
+```
 sudo apt-get install \
- openjdk-8-jdk \
- python-setuptools \
- python-pip \
- virtualenv \
- tox \
- docker-ce
-
-{{< /highlight  >}}
+   openjdk-8-jdk \
+   python-setuptools \
+   python-pip \
+   virtualenv \
+   tox \
+   docker-ce
+```
 
 On some systems (like Ubuntu 20.04) these need to be installed also
 
@@ -103,10 +102,10 @@ You also need to [install Go](https://golang.org/doc/install).
 
 Once Go is installed, install goavro:
 
-{{< highlight  >}}
+```
 $ export GOPATH=`pwd`/sdks/go/examples/.gogradle/project_gopath
 $ go get github.com/linkedin/goavro
-{{< /highlight  >}}
+```
 
 Linux users should configure their machines for sudoless Docker.
 

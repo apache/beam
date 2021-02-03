@@ -125,7 +125,7 @@ Pipeline p = Pipeline.create(options);
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" pipelines_constructing_creating >}}
 {{< /highlight >}}
 
-{{< highlight language="go" >}}
+{{< highlight go >}}
 // In order to start creating the pipeline for execution, a Pipeline object and a Scope object are needed.
 p, s := beam.NewPipelineWithRoot()
 {{< /highlight >}}
@@ -160,7 +160,7 @@ PipelineOptions options =
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" pipelines_constructing_creating >}}
 {{< /highlight >}}
 
-{{< highlight language="go" >}}
+{{< highlight go >}}
 // If beamx or Go flags are used, flags must be parsed first.
 flag.Parse()
 {{< /highlight >}}
@@ -202,7 +202,7 @@ public interface MyOptions extends PipelineOptions {
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" pipeline_options_define_custom >}}
 {{< /highlight >}}
 
-{{< highlight language="go" >}}
+{{< highlight go >}}
 var (
   input = flag.String("input", "", "")
   output = flag.String("output", "", "")
@@ -232,7 +232,7 @@ public interface MyOptions extends PipelineOptions {
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" pipeline_options_define_custom_with_help_and_default >}}
 {{< /highlight >}}
 
-{{< highlight language="go" >}}
+{{< highlight go >}}
 var (
   input = flag.String("input", "gs://my-bucket/input", "Input for the pipeline")
   output = flag.String("output", "gs://my-bucket/output", "Output for the pipeline")
@@ -319,7 +319,7 @@ public static void main(String[] args) {
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" pipelines_constructing_reading >}}
 {{< /highlight >}}
 
-{{< highlight language="go" >}}
+{{< highlight go >}}
 lines := textio.Read(s, "gs://some/inputData.txt")
 {{< /highlight >}}
 
@@ -639,7 +639,7 @@ words = ...
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_apply >}}
 {{< /highlight >}}
 
-{{< highlight language="go" >}}
+{{< highlight go >}}
 // words is the input PCollection of strings
 var words beam.PCollection = ...
 
@@ -786,7 +786,7 @@ words = ...
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_using_flatmap >}}
 {{< /highlight >}}
 
-{{< highlight language="go" >}}
+{{< highlight go >}}
 // words is the input PCollection of strings
 var words beam.PCollection = ...
 
@@ -5261,7 +5261,7 @@ to annotate the `DoFn`.
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" SDF_BasicExample >}}
 {{< /highlight >}}
 
-{{< highlight language="go" >}}
+{{< highlight go >}}
 func (fn *splittableDoFn) CreateInitialRestriction(filename string) offsetrange.Restriction {
 	return offsetrange.Restriction{
 		Start: 0,
@@ -5305,7 +5305,7 @@ a set of initial splits:
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" SDF_BasicExampleWithSplitting >}}
 {{< /highlight >}}
 
-{{< highlight language="go" >}}
+{{< highlight go >}}
 func (fn *splittableDoFn) SplitRestriction(filename string, rest offsetrange.Restriction) (splits []offsetrange.Restriction) {
 	size := 64 * (1 << 20)
 	i := rest.Start
@@ -5343,7 +5343,7 @@ appropriate method within the restriction provider.
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" SDF_GetSize >}}
 {{< /highlight >}}
 
-{{< highlight language="go" >}}
+{{< highlight go >}}
 func (fn *splittableDoFn) RestrictionSize(filename string, rest offsetrange.Restriction) float64 {
 	weight := float64(1)
 	if strings.Contains(filename, “expensiveRecords”) {
@@ -5396,7 +5396,7 @@ One incorrect example could be:
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" SDF_BadTryClaimLoop >}}
 {{< /highlight >}}
 
-{{< highlight language="go" >}}
+{{< highlight go >}}
 func (fn *badTryClaimLoop) ProcessElement(rt *sdf.LockRTracker, filename string, emit func(int)) error {
             file, err := os.Open(filename)
 	if err != nil {
