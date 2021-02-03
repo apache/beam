@@ -81,7 +81,7 @@ COLUMNS = [
     (['Falcon', 'Ostrich', None, 'Aardvark', 'Elephant'],
      pd.StringDtype(),
      'strdtype'),
-]
+]  # type: typing.List[typing.Tuple[typing.List[typing.Any], typing.Any, str]]
 
 NICE_TYPES_DF = pd.DataFrame(columns=[name for _, _, name in COLUMNS])
 for arr, dtype, name in COLUMNS:
