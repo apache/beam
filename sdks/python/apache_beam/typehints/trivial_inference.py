@@ -373,7 +373,7 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
   states = collections.defaultdict(lambda: None)
   jumps = collections.defaultdict(int)
 
-  # Use dis library functions to disassemble bytecode and handle EXTENDED_ARGs.
+  # Use dis library functions to disassemble bytecode.
   ofs_table = {}  # offset -> instruction
   for instruction in dis.get_instructions(f):
     ofs_table[instruction.offset] = instruction
@@ -395,10 +395,7 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
     pc += inst_size
     if op >= dis.HAVE_ARGUMENT:
       arg = instruction.arg
-      extended_arg = 0
       pc += opt_arg_size
-      if op == dis.EXTENDED_ARG:
-        extended_arg = arg * 65536
       if debug:
         print(str(arg).rjust(5), end=' ')
         if op in dis.hasconst:
