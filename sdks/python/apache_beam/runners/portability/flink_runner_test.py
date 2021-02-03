@@ -426,6 +426,11 @@ class FlinkRunnerTestOptimized(FlinkRunnerTest):
   def test_sql(self):
     raise unittest.SkipTest("BEAM-7252")
 
+  def test_pack_combiners_disabled_by_default(self):
+    raise unittest.SkipTest(
+        "Base test has expectations on counter names that fail because "
+        "stage fusion modifies counter names")
+
 
 class FlinkRunnerTestStreaming(FlinkRunnerTest):
   def __init__(self, *args, **kwargs):
