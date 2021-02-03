@@ -20,9 +20,8 @@
                 {{ end }}
             </div>
             <div>
-                <h3 class="list-item-header">
-                <a href="{{ .title.link }}">{{ .title.text }}</a>
-                <p class="list-item-text">{{ .body | markdownify }}</p>
+                <h3 class="list-item-header">{{ .title }}</h3>
+                <p class="list-item-text">{{ .body | safeHTML }}</p>
             </div>
         </div>
     {{ end }}
