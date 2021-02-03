@@ -27,19 +27,19 @@ We’re so glad you want to join the Apache Beam community. Here’s a pathway y
 
 ## Join the Conversation
 
-{{< community/join_beam_columns 0 >}}
+{{< community/join_beam_columns number-of-data="0" >}}
 
 ## Contribute to the Project
 
-{{< community/join_beam_columns 1 >}}
+{{< community/join_beam_columns number-of-data="1" >}}
 
 ## Become a committer
 
-{{< community/join_beam_columns 2 >}}
+{{< community/join_beam_columns number-of-data="2" >}}
 
 ## Become a PMC member
 
-{{< community/join_beam_columns 3 >}}
+{{< community/join_beam_columns number-of-data="3" >}}
 
 ## Still have questions?
 
