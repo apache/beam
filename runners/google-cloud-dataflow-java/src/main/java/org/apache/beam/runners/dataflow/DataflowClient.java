@@ -29,16 +29,22 @@ import com.google.api.services.dataflow.model.ListJobMessagesResponse;
 import com.google.api.services.dataflow.model.ListJobsResponse;
 import com.google.api.services.dataflow.model.ReportWorkItemStatusRequest;
 import com.google.api.services.dataflow.model.ReportWorkItemStatusResponse;
+import java.io.File;
 import java.io.IOException;
+import java.io.PrintWriter;
 import javax.annotation.Nonnull;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Wrapper around the generated {@link Dataflow} client to provide common functionality. */
 @SuppressWarnings({
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class DataflowClient {
+
+  private static final Logger LOG = LoggerFactory.getLogger(DataflowWorkProgressUpdater.class);
 
   public static DataflowClient create(DataflowPipelineOptions options) {
     return new DataflowClient(options.getDataflowClient(), options);
@@ -61,6 +67,11 @@ public class DataflowClient {
             .locations()
             .jobs()
             .create(options.getProject(), options.getRegion(), job);
+    File file = new File("job_creation_request.txt");
+    LOG.info("Logging Job.Create request to file: {}.", file);
+    try (PrintWriter out = new PrintWriter(file)) {
+      out.println(jobsCreate.toString());
+    }
     return jobsCreate.execute();
   }
 
