@@ -56,11 +56,13 @@
       }
     }
 
-    .calendar-card-big-left:hover {
-      box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.24),
-        0 4px 6px 0 rgba(0, 0, 0, 0.24);
+    .calendar-card-big-left {
+      padding: 0 !important;
+      &:hover {
+        box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.24),
+          0 4px 6px 0 rgba(0, 0, 0, 0.24);
+      }
     }
-
     // Middle cards
     .calendar-card-box {
       margin: 0 37px;
@@ -68,23 +70,64 @@
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-
-      .calendar-card-small {
-        width: 100%;
-        max-width: 381px;
+      .show-item {
+        display: inline-block;
+      }
+      .post-card {
+        width: 381px;
         height: 216px;
+        padding: 24px;
         border-radius: 16px;
         box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.16),
           0 4px 4px 0 rgba(0, 0, 0, 0.06);
-        background-color: $color-white;
-        padding: 32px 24px;
-        transition: 0.2s;
+        background-color: #ffffff;
+        margin-bottom: 36px;
+        color: #333333;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        @media (max-width: $tablet) {
+          width: 327px;
+          height: 216px;
+          padding: 24px 19.2px 24.7px 20px;
+          margin-bottom: 24px;
+        }
+        &:hover {
+          text-decoration: none;
+          box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.24),
+            0 4px 6px 0 rgba(0, 0, 0, 0.24);
+        }
 
-        .calendar-card-small-title {
-          @extend .component-small-header;
-
-          margin-top: 40px;
+        .post-title {
+          font-size: 18px;
+          font-weight: 500;
+          line-height: 1.6;
+          letter-spacing: 0.43px;
           margin-bottom: 12px;
+          text-overflow: ellipsis;
+          word-wrap: break-word;
+          overflow: hidden;
+          max-height: 4.8em;
+
+          @media (max-width: $tablet) {
+            font-size: 18px;
+            font-weight: normal;
+            line-height: 1.6;
+            letter-spacing: 0.43px;
+          }
+        }
+
+        .post-summary {
+          overflow: hidden;
+          line-height: 1.57;
+          letter-spacing: 0.43px;
+          display: -webkit-box;
+          -webkit-line-clamp: 9;
+          -webkit-box-orient: vertical;
+          @media (max-width: $tablet) {
+            display: none;
+          }
         }
       }
 
@@ -103,7 +146,17 @@
       .calendar-card-events {
         margin-top: 30px;
         margin-bottom: 70px;
-
+        .calendar-desktop {
+          @media (max-width: $tablet) {
+            display: none;
+          }
+        }
+        .calendar-mobile {
+          display: none;
+          @media (max-width: $tablet) {
+            display: block;
+          }
+        }
         .calendar-event {
           display: flex;
           padding: 14px;
@@ -191,7 +244,7 @@
     .calendar-content {
       flex-direction: column;
       align-items: center;
-      margin-top: 64px;
+      margin-top: 70px;
 
       .calendar-card-big {
         max-width: 327px;
@@ -205,11 +258,12 @@
       }
 
       .calendar-card-box {
-        margin: 24px 0px;
+        margin-bottom: 0;
+        margin-top: 24px;
         min-height: 456px;
 
         .calendar-card-small {
-          width: 327px;
+          max-width: 327px;
           height: 216px;
           padding: 24px 20px;
 

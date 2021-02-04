@@ -16,13 +16,59 @@
  */
 
 .ctas
-  text-align: center
-  margin: $pad-xl 0
+  display: flex
+  justify-content: center
+  align-items: center
+  width: 100%
+  height: 96px
+  position: fixed
+  z-index: 1020
+  bottom: 0
+  box-shadow: 0 -4px 16px 0 rgba(0, 0, 0, 0.06);
+  background-color: #ffffff
+  margin-top: -5px
 
-  .ctas__ctas
-    &--top
-      margin-bottom: $pad
+  @media (max-width: $ak-breakpoint-lg)
+    flex-wrap: nowrap
+    width: auto
+    justify-content: flex-start
+    left: 0
+    right: 0
+    overflow-y: hidden
+    overflow-x: auto
 
-  .ctas__title
-    +type-h2
-    margin-bottom: $pad
+
+  &_row
+    margin: 0 0 0 91px
+    max-width: 184px
+    transform: translate3d(0px, 0px, 0px)
+    &:first-of-type
+      margin: 0
+    @media (max-width: $ak-breakpoint-lg)
+      margin-left: 24px
+      &:first-of-type
+        margin-left: 24px
+
+  &_button
+    width: 184px
+    height: 46px
+    border-radius: 100px
+    background-color: #f26628
+    font-size: 14px
+    font-weight: bold
+    line-height: normal
+    letter-spacing: 0.39px
+    color: #ffffff
+    text-transform: uppercase
+    display: flex
+    align-items: center
+    justify-content: center
+
+    img
+      margin-right: 12px
+      height: 20px
+      width: 20px
+    &:hover
+      text-decoration: none
+      color: #ffffff
+      background-color: #f2804d

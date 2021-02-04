@@ -21,7 +21,9 @@
   position: relative;
   margin-bottom: 0;
   display: none;
-
+  width: 100%;
+  height: calc(100% - 96px);
+  min-height: 300px;
   .hero-content {
     position: absolute;
     z-index: 1;

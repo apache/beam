@@ -10,41 +10,113 @@
  limitations under the License. See accompanying LICENSE file.
 */}}
 
+
 {{ define "main" }}
-    <h1>{{ T "blog-title" }}</h1>
+<div class="blog-content">
+    <h2>{{ T "blog-title" }}</h2>
+    {{ $data := index $.Site.Data.authors }}
+    {{ $pages := .Pages }}
+    {{ $.Scratch.Set "categories" (slice ) }}
+    {{ $.Scratch.Set "noCategories" 0 }}
 
-    <p>{{ T "blog-subtitle" }}</p>
-
-    {{ range .Pages }}
-        {{ $authors := .Params.authors }}
-
-        <h3><a class="post-link" href="{{ .RelPermalink }}">{{ .Title }}</a></h3>
-        <p><i>
-            {{ .Date.Format "Jan 2, 2006" }}
-            {{ with $authors }} •
-                {{ $count := len . }}
-                {{ range $index, $authorId := . }}
-                    {{ if and (ne $index 0) (gt $count 2) }},{{ end }}
-                    {{ if and (eq $index (sub $count 1)) (gt $count 1) }} &amp;{{ end }}
-                    {{ with index $.Site.Data.authors $authorId }}
-                        {{ .name }} {{ with .twitter }}[<a href="https://twitter.com/{{ . }}">@{{ . }}</a>]{{ end }}
-                    {{ else }}
-                        {{ $authorId }}
-                    {{ end }}
+    {{ range .Pages}}
+        {{ with .Params.categories }}
+            {{ if eq ( printf "%T" . ) "string"  }}
+            {{ if ( not ( in ($.Scratch.Get "categories") . ) ) }}
+                {{ $.Scratch.Add "categories" . }}
+            {{ end }}
+            {{ else if eq ( printf "%T" . ) "[]string" }}
+            {{ range . }}
+                {{ if ( not ( in ($.Scratch.Get "categories") . ) ) }}
+                {{ $.Scratch.Add "categories" . }}
                 {{ end }}
             {{ end }}
-        </i></p>
-
-        {{ .Summary | markdownify }}
-
-        {{ if .Truncated }}
-            <p>
-                <a class="btn btn-default btn-sm" href="{{ .RelPermalink }}" role="button">
-                {{ T "blog-readmore" }}&nbsp;<span class="glyphicon glyphicon-menu-right" aria-hidden="true"></span>
-                </a>
-            </p>
+            {{ end }}
+        {{ else }}
+            {{ $.Scratch.Add "noCategories" 1 }}
         {{ end }}
-
-        <hr>
     {{ end }}
+
+    <div class="category-buttons restricted">
+      {{ range $.Scratch.Get "categories" }}
+        <button xx class="category-button" id='category-{{ . | replaceRE "[.]" "_" | urlize }}' onclick="applyFilter(this)">
+          {{ . }}
+        </button>
+      {{ end }}
+      {{ if gt ( $.Scratch.Get "noCategories") 0 }}
+      <button xx class="category-button" id="category-no-author" onclick='htf.checkFilter("no-author", "category-")'>
+        without category
+      </button>
+      {{ end }}
+    </div>
+
+    <div class="posts-list">
+        {{ range $pages.ByPublishDate.Reverse }}
+            <a class="post-card tf-filter-item" href="{{ .RelPermalink }}" data-categories='{{ with .Params.categories }}{{ if eq ( printf "%T" . ) "string" }}{{ . | replaceRE "[.]" "_" | urlize }}{{ else if eq ( printf "%T" . ) "[]string" }}{{ range . }}{{ . | replaceRE "[.]" "_" | urlize }} {{end}}{{end}}{{else}}no-author{{end}}'
+            >
+                <div class="post-info post-category">
+                    <p>
+                    {{ delimit .Params.categories ", " " & " }}
+                    </p>
+                    <p>{{ .Date.Format "2006/01/02" }}</p>
+                </div>
+                <p class="post-title">{{ .Title }}</p>
+                <p class="post-info">
+                  {{ $authors := .Params.authors }}
+                  {{ with $authors }}
+                  {{ range $i, $item := $authors }}
+                    {{ if not (isset $.Site.Data.authors $item) }} {{ errorf "Author '%s' is not defined. Please add them to 'website/www/site/data/authors.yml'" $item }} {{end}}
+                      {{ $author := index $data $item }}
+                      {{ if eq $i (sub (len $authors) 1) }}
+                        {{ $author.name }}
+                      {{ else if eq $i (sub (len $authors) 2) }}
+                        {{ $author.name }} &amp;
+                      {{ else }}
+                        {{ $author.name }},
+                      {{ end }}
+                    {{ end }}
+                  {{ end }}
+                </p>
+                <div class="post-summary">{{ .Summary | plainify | chomp }}</div>
+            </a>
+        {{ end }}
+    </div>
+    <div class="category-buttons">
+        <button id="load-button" class="load-button">{{ T "blog-loadmore" }}</button>
+    </div>
+
+</div>
+<script src='{{ "js/categories-filter.js" | relURL }}'></script>
+<script>
+var htfConfig = {
+  filters: [
+    {
+      name: 'categories',
+      prefix: 'category-',
+      buttonClass: 'category-button',
+      allSelector: '#selectAllAuthors',
+      attrName: 'data-categories',
+    }
+  ],
+  showItemClass: "show-item",
+  filterItemClass: "tf-filter-item",
+  activeButtonClass: "active",
+  populateCount: true,
+  setDisabledButtonClass: "disable-button"
+}
+var htf = new CategoriesFilter(htfConfig);
+$("#load-button").click(function(){
+    $(this).toggleClass('tf-filter-item');
+    htf.showMore();
+    htf.showCheck(htfConfig.filters[0].name, false);
+});
+
+function applyFilter (element) {
+  var category = element.id.split('category-');
+  htf.resetCount();
+  htf.checkFilter(category[1],'category-');
+}
+
+</script>
+
 {{ end }}
