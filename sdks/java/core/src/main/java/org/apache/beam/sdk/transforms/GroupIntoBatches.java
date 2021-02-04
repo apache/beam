@@ -354,7 +354,7 @@ public class GroupIntoBatches<K, InputT>
       // buffering timer (if not null) since the state is empty now. It'll be extended again if a
       // new element arrives prior to the expiration time set here.
       // TODO(BEAM-10887): Use clear() when it's available.
-      if (bufferingTimer != null && maxBufferingDuration != null) {
+      if (bufferingTimer != null && maxBufferingDuration.isLongerThan(Duration.ZERO)) {
         bufferingTimer.offset(maxBufferingDuration).setRelative();
       }
     }
