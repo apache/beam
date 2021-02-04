@@ -17,8 +17,13 @@
  */
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
+import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasProperty;
+import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.fail;
 
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.schemas.Schema;
@@ -27,6 +32,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.codehaus.commons.compiler.CompileException;
 import org.joda.time.Duration;
 import org.junit.Before;
 import org.junit.Rule;
@@ -117,8 +123,10 @@ public class ZetaSqlJavaUdfTest extends ZetaSqlTestBase {
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
     BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
-    thrown.expect(RuntimeException.class);
+    thrown.expect(Pipeline.PipelineExecutionException.class);
     thrown.expectMessage("CalcFn failed to evaluate");
+    thrown.expectCause(
+        allOf(isA(RuntimeException.class), hasProperty("cause", isA(NullPointerException.class))));
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
@@ -165,6 +173,7 @@ public class ZetaSqlJavaUdfTest extends ZetaSqlTestBase {
 
   @Test
   public void testFunctionSignatureTypeMismatchFailsPipelineConstruction() {
+    // The Java definition for isNull takes a String, but here we pass it a Long.
     String sql =
         String.format(
             "CREATE FUNCTION isNull(i INT64) RETURNS BOOLEAN LANGUAGE java "
@@ -173,8 +182,16 @@ public class ZetaSqlJavaUdfTest extends ZetaSqlTestBase {
             jarPath);
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    // TODO(BEAM-11171) This should fail earlier, before compiling the CalcFn.
     thrown.expect(UnsupportedOperationException.class);
     thrown.expectMessage("Could not compile CalcFn");
+    thrown.expectCause(
+        allOf(
+            isA(CompileException.class),
+            hasProperty(
+                "message",
+                containsString(
+                    "No applicable constructor/method found for actual parameters \"long\""))));
     BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
   }
 
@@ -196,6 +213,9 @@ public class ZetaSqlJavaUdfTest extends ZetaSqlTestBase {
         .containsInAnyOrder(Row.withSchema(singleField).addValues(true, false).build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
+
+  // TODO(BEAM-11747) Add tests that mix UDFs and builtin functions that rely on the ZetaSQL C++
+  // implementation.
 
   @Test
   public void testJavaUdfEmptyPath() {

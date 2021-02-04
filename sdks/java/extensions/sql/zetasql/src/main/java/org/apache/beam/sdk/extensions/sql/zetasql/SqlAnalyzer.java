@@ -44,7 +44,6 @@ import com.google.zetasql.ZetaSQLOptions.ParameterMode;
 import com.google.zetasql.ZetaSQLOptions.ProductMode;
 import com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind;
 import com.google.zetasql.ZetaSQLType.TypeKind;
-import com.google.zetasql.resolvedast.ResolvedNodes;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedCreateFunctionStmt;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedCreateTableFunctionStmt;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedStatement;
@@ -73,7 +72,7 @@ public class SqlAnalyzer {
   // ZetaSQL function group identifiers. Different function groups may have divergent translation
   // paths.
   public static final String PRE_DEFINED_WINDOW_FUNCTIONS = "pre_defined_window_functions";
-  public static final String USER_DEFINED_FUNCTIONS = "user_defined_functions";
+  public static final String USER_DEFINED_SQL_FUNCTIONS = "user_defined_functions";
   /**
    * Same as {@link Function}.ZETASQL_FUNCTION_GROUP_NAME. Identifies built-in ZetaSQL functions.
    */
@@ -116,22 +115,6 @@ public class SqlAnalyzer {
         >= parseResumeLocation.getInput().getBytes(UTF_8).length;
   }
 
-  static String getOptionStringValue(
-      ResolvedCreateFunctionStmt createFunctionStmt, String optionName) {
-    for (ResolvedNodes.ResolvedOption option : createFunctionStmt.getOptionList()) {
-      if (option.getName().equals(optionName)) {
-        if (option.getValue().getType().getKind() != TypeKind.TYPE_STRING) {
-          throw new IllegalArgumentException(
-              String.format(
-                  "Option '%s' has type %s (expected %s).",
-                  optionName, option.getValue().getType().getKind(), TypeKind.TYPE_STRING));
-        }
-        return ((ResolvedNodes.ResolvedLiteral) option.getValue()).getValue().getStringValue();
-      }
-    }
-    return "";
-  }
-
   /** Returns table names from all statements in the SQL string. */
   List<List<String>> extractTableNames(String sql, AnalyzerOptions options) {
     ParseResumeLocation parseResumeLocation = new ParseResumeLocation(sql);
@@ -142,13 +125,6 @@ public class SqlAnalyzer {
       tables.addAll(statementTables);
     }
     return tables.build();
-  }
-
-  /** Returns the fully qualified name of the function defined in the statement. */
-  static String getFunctionQualifiedName(ResolvedCreateFunctionStmt createFunctionStmt) {
-    return String.format(
-        "%s:%s",
-        getFunctionGroup(createFunctionStmt), String.join(".", createFunctionStmt.getNamePath()));
   }
 
   static String getFunctionGroup(ResolvedCreateFunctionStmt createFunctionStmt) {
@@ -164,7 +140,7 @@ public class SqlAnalyzer {
           throw new UnsupportedOperationException(
               "Native SQL aggregate functions are not supported (BEAM-9954).");
         }
-        return USER_DEFINED_FUNCTIONS;
+        return USER_DEFINED_SQL_FUNCTIONS;
       case "PY":
       case "PYTHON":
       case "JS":
