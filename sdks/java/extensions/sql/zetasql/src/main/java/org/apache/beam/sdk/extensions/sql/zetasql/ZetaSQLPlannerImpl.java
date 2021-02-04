@@ -25,7 +25,9 @@ import com.google.zetasql.AnalyzerOptions;
 import com.google.zetasql.LanguageOptions;
 import com.google.zetasql.ParseResumeLocation;
 import com.google.zetasql.SimpleCatalog;
+import com.google.zetasql.ZetaSQLType;
 import com.google.zetasql.resolvedast.ResolvedNode;
+import com.google.zetasql.resolvedast.ResolvedNodes;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedCreateFunctionStmt;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedCreateTableFunctionStmt;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedQueryStmt;
@@ -117,18 +119,21 @@ class ZetaSQLPlannerImpl {
       if (statement.nodeKind() == RESOLVED_CREATE_FUNCTION_STMT) {
         ResolvedCreateFunctionStmt createFunctionStmt = (ResolvedCreateFunctionStmt) statement;
         String functionGroup = SqlAnalyzer.getFunctionGroup(createFunctionStmt);
-        if (SqlAnalyzer.USER_DEFINED_FUNCTIONS.equals(functionGroup)) {
-          udfBuilder.put(createFunctionStmt.getNamePath(), createFunctionStmt);
-        } else if (SqlAnalyzer.USER_DEFINED_JAVA_SCALAR_FUNCTIONS.equals(functionGroup)) {
-          String jarPath = getJarPath(createFunctionStmt);
-          ScalarFn scalarFn =
-              javaUdfLoader.loadScalarFunction(createFunctionStmt.getNamePath(), jarPath);
-          javaScalarFunctionBuilder.put(
-              createFunctionStmt.getNamePath(),
-              UserFunctionDefinitions.JavaScalarFunction.create(scalarFn, jarPath));
-        } else {
-          throw new IllegalArgumentException(
-              String.format("Encountered unrecognized function group %s.", functionGroup));
+        switch (functionGroup) {
+          case SqlAnalyzer.USER_DEFINED_SQL_FUNCTIONS:
+            udfBuilder.put(createFunctionStmt.getNamePath(), createFunctionStmt);
+            break;
+          case SqlAnalyzer.USER_DEFINED_JAVA_SCALAR_FUNCTIONS:
+            String jarPath = getJarPath(createFunctionStmt);
+            ScalarFn scalarFn =
+                javaUdfLoader.loadScalarFunction(createFunctionStmt.getNamePath(), jarPath);
+            javaScalarFunctionBuilder.put(
+                createFunctionStmt.getNamePath(),
+                UserFunctionDefinitions.JavaScalarFunction.create(scalarFn, jarPath));
+            break;
+          default:
+            throw new IllegalArgumentException(
+                String.format("Encountered unrecognized function group %s.", functionGroup));
         }
       } else if (statement.nodeKind() == RESOLVED_CREATE_TABLE_FUNCTION_STMT) {
         ResolvedCreateTableFunctionStmt createTableFunctionStmt =
@@ -182,7 +187,7 @@ class ZetaSQLPlannerImpl {
   }
 
   private static String getJarPath(ResolvedCreateFunctionStmt createFunctionStmt) {
-    String jarPath = SqlAnalyzer.getOptionStringValue(createFunctionStmt, "path");
+    String jarPath = getOptionStringValue(createFunctionStmt, "path");
     if (jarPath.isEmpty()) {
       throw new IllegalArgumentException(
           String.format(
@@ -190,5 +195,29 @@ class ZetaSQLPlannerImpl {
               String.join(".", createFunctionStmt.getNamePath())));
     }
     return jarPath;
+  }
+
+  private static String getOptionStringValue(
+      ResolvedCreateFunctionStmt createFunctionStmt, String optionName) {
+    for (ResolvedNodes.ResolvedOption option : createFunctionStmt.getOptionList()) {
+      if (optionName.equals(option.getName())) {
+        if (option.getValue() == null) {
+          throw new IllegalArgumentException(
+              String.format(
+                  "Option '%s' has null value (expected %s).",
+                  optionName, ZetaSQLType.TypeKind.TYPE_STRING));
+        }
+        if (option.getValue().getType().getKind() != ZetaSQLType.TypeKind.TYPE_STRING) {
+          throw new IllegalArgumentException(
+              String.format(
+                  "Option '%s' has type %s (expected %s).",
+                  optionName,
+                  option.getValue().getType().getKind(),
+                  ZetaSQLType.TypeKind.TYPE_STRING));
+        }
+        return ((ResolvedNodes.ResolvedLiteral) option.getValue()).getValue().getStringValue();
+      }
+    }
+    return "";
   }
 }
