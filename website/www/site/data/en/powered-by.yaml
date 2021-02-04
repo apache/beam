@@ -11,12 +11,11 @@
 # limitations under the License.
 
 - title: Commercial projects
-  body: Learn how the companies use Apache Beam and make their work easier.
+  body: Learn how these companies use Apache Beam to make their work easier.
   icon: /icons/commercial-icon.svg
   link: /powered-by/commercial
 - title: Open source projects
   body: Learn how the companies use Apache Beam and make their work easier.
   icon: /icons/open_source-icon.svg
   link: /powered-by/open-source
-
 
