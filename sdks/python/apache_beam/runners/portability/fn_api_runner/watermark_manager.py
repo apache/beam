@@ -59,7 +59,7 @@ class WatermarkManager(object):
   class PCollectionNode(WatermarkNode):
     def __init__(self, name):
       super(WatermarkManager.PCollectionNode, self).__init__(name)
-      self._watermark = None
+      self._watermark = timestamp.MIN_TIMESTAMP
       self.producers: Set[WatermarkManager.StageNode] = set()
 
     def __str__(self):
@@ -70,15 +70,12 @@ class WatermarkManager(object):
 
     def upstream_watermark(self):
       if self.producers:
-        return min(p.output_watermark() for p in self.producers)
+        return min(p.input_watermark() for p in self.producers)
       else:
         return timestamp.MAX_TIMESTAMP
 
     def watermark(self):
-      if self._watermark is None:
-        return self.upstream_watermark()
-      else:
-        return self._watermark
+      return self._watermark
 
   class StageNode(WatermarkNode):
     def __init__(self, name):
@@ -90,6 +87,7 @@ class WatermarkManager(object):
       # can actually advance that watermark.
       self.inputs: Set[WatermarkManager.PCollectionNode] = set()
       self.side_inputs: Set[WatermarkManager.PCollectionNode] = set()
+      self.outputs: Set[WatermarkManager.PCollectionNode] = set()
 
     def __str__(self):
       return 'StageNode<inputs=%s,side_inputs=%s' % (
@@ -99,10 +97,10 @@ class WatermarkManager(object):
       raise NotImplementedError('Stages do not have a watermark')
 
     def output_watermark(self):
-      if self.inputs:
-        return min(i.watermark() for i in self.inputs)
+      if not self.outputs:
+        return self.input_watermark()
       else:
-        return timestamp.MAX_TIMESTAMP
+        return min(o.watermark() for o in self.outputs)
 
     def input_watermark(self):
       if not self.inputs:
@@ -144,9 +142,7 @@ class WatermarkManager(object):
           buffer_id = transform.spec.payload
           if buffer_id == translations.IMPULSE_BUFFER:
             pcoll_name = transform.unique_name
-            # Initializing watermark on IMPULSE buffers to MIN_TIMESTAMP
-            add_pcollection(pcoll_name,
-                            stage_node).set_watermark(timestamp.MIN_TIMESTAMP)
+            add_pcollection(pcoll_name, stage_node)
             continue
           else:
             _, pcoll_name = split_buffer_id(buffer_id)
@@ -179,6 +175,7 @@ class WatermarkManager(object):
           pcoll_node = self._watermarks_by_name[pcoll_name]
           assert isinstance(pcoll_node, WatermarkManager.PCollectionNode)
           pcoll_node.producers.add(stage_node)
+          stage_node.outputs.add(pcoll_node)
 
       # 4. Get stage side inputs, create nodes for them, add to
       #    _watermarks_by_name, and add them as side inputs of the stage.

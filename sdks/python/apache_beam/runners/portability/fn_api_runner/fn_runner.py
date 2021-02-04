@@ -388,7 +388,7 @@ class FnApiRunner(runner.PipelineRunner):
           assert (
               runner_execution_context.watermark_manager.get_node(
                   bundle_context_manager.stage.name
-              ).output_watermark() == timestamp.MAX_TIMESTAMP), (
+              ).input_watermark() == timestamp.MAX_TIMESTAMP), (
               'wrong watermark for %s. Expected %s, but got %s.' % (
               runner_execution_context.watermark_manager.get_node(
                   bundle_context_manager.stage.name),
@@ -656,7 +656,7 @@ class FnApiRunner(runner.PipelineRunner):
         assert (runner_execution_context.watermark_manager.get_node(
             bundle_context_manager.stage.name).output_watermark()
                 < timestamp.MAX_TIMESTAMP), (
-            'wrong timestamp for %s'
+            'wrong timestamp for %s. '
             % runner_execution_context.watermark_manager.get_node(
             bundle_context_manager.stage.name))
         data_input = deferred_inputs
