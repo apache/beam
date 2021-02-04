@@ -2,9 +2,6 @@
 type: runners
 title: "Unbounded Splittable DoFn Support Status"
 layout: "capability-template"
-aliases:
-  - /learn/runners/capability-matrix/
-  - /capability-matrix/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
