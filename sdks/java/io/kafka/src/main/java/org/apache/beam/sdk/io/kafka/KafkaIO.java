@@ -1058,8 +1058,7 @@ public class KafkaIO {
       checkArgument(getKeyDeserializerProvider() != null, "withKeyDeserializer() is required");
       checkArgument(getValueDeserializerProvider() != null, "withValueDeserializer() is required");
 
-      ConsumerSpEL consumerSpEL = new ConsumerSpEL();
-      if (!consumerSpEL.hasOffsetsForTimes()) {
+      if (!ConsumerSpEL.hasOffsetsForTimes()) {
         LOG.warn(
             "Kafka client version {} is too old. Versions before 0.10.1.0 are deprecated and "
                 + "may not be supported in next release of Apache Beam. "
@@ -1068,7 +1067,7 @@ public class KafkaIO {
       }
       if (getStartReadTime() != null) {
         checkArgument(
-            consumerSpEL.hasOffsetsForTimes(),
+            ConsumerSpEL.hasOffsetsForTimes(),
             "Consumer.offsetsForTimes is only supported by Kafka Client 0.10.1.0 onwards, "
                 + "current version of Kafka Client is "
                 + AppInfoParser.getVersion()
@@ -1670,8 +1669,7 @@ public class KafkaIO {
       checkArgument(getKeyDeserializerProvider() != null, "withKeyDeserializer() is required");
       checkArgument(getValueDeserializerProvider() != null, "withValueDeserializer() is required");
 
-      ConsumerSpEL consumerSpEL = new ConsumerSpEL();
-      if (!consumerSpEL.hasOffsetsForTimes()) {
+      if (!ConsumerSpEL.hasOffsetsForTimes()) {
         LOG.warn(
             "Kafka client version {} is too old. Versions before 0.10.1.0 are deprecated and "
                 + "may not be supported in next release of Apache Beam. "
