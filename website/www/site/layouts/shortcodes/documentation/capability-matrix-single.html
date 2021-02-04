@@ -92,10 +92,11 @@
 {{ end }}
 
 <script>
-    $('.table-headers').bind('wheel',function(e){
+    $('.table-headers').scroll(function(e){
         $('#'+this.id+'.table-center').scrollLeft($(this).scrollLeft());
     });
-    $('.table-center').bind('wheel',function(e){
+    $('.table-center').scroll(function(e){
         $('#'+this.id+'.table-headers').scrollLeft($(this).scrollLeft());
     });
+
 </script>

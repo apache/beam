@@ -157,6 +157,7 @@
         mix-blend-mode: multiply;
         -ms-overflow-style: none;
         scrollbar-width: none;
+        scroll-behavior: auto;
         &::-webkit-scrollbar {
             width: 0;
             background: 0 0;
@@ -190,6 +191,7 @@
         transform: rotateX(180deg);
         padding-bottom: 8px;
         scrollbar-color: #ff6d00;
+        scroll-behavior: auto;
         &::-webkit-scrollbar {
             height: 8px;
             width: 25px !important;
