@@ -1344,9 +1344,9 @@ message StandardArtifacts {
     // payload: ArtifactStagingToRolePayload
     STAGING_TO        = 0 [(beam_urn) = "beam:artifact:role:staging_to:v1"];
 
-    // A URN for pypi-install-requirement role.
+    // A URN for pip-requirements-file role.
     // payload: None
-    PYPI_INSTALL_REQUIREMENT  = 1 [(beam_urn) = "beam:artifact:role:pypi_install_requirement:v1"];
+    PIP_REQUIREMENTS_FILE  = 1 [(beam_urn) = "beam:artifact:role:pip_requirements_file:v1"];
   }
 }
 
