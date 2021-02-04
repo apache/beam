@@ -220,6 +220,7 @@
        line-height: 1.63;
        letter-spacing: 0.43px;
        color: #333333;
+       text-decoration: none;
      }
      .item-description {
        max-width: 260px;
@@ -233,19 +234,16 @@
    }
  }
  .sdks {
-   max-width: 635px;
-   .column {
-     display: flex;
-     flex-direction: column;
-     justify-content: center;
-     align-items: center;
-   }
-   .row {
-     margin-top: 48px;
-     .item-description {
-       margin-right: 0;
-     }
-   }
+   max-width: 855px;
+  .item-description {
+    font-size: 16px;
+    font-weight: bold;
+    line-height: 1.63;
+    letter-spacing: 0.43px;
+    a{
+      text-decoration: none;
+    }
+  }
  }
  .collapsable-list {
    margin: 52px 0;

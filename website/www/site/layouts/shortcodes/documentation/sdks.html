@@ -11,8 +11,11 @@
    */}}
 
    {{ $data := index $.Site.Data .Site.Language.Lang }}
-   <div class="documentation-list sdks">
+   <div class="sdks">
     {{ range $item := $data.documentation_sdks }}
-        {{ partial "documentation/icon-row" (dict "logo" .icon  "header" .name "text" .description) }}
-   {{ end }}
+      <div class="item-description">
+        <a  href={{ .name.link }} class="font-weight-bold">{{ .name.text | markdownify }}</a>
+        <p>{{ .text | safeHTML }}</p>
+      </div>
+    {{ end }}
    </div>
