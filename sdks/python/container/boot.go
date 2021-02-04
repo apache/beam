@@ -155,12 +155,18 @@ func main() {
 		// TODO(herohde): the packages to install should be specified explicitly. It
 		// would also be possible to install the SDK in the Dockerfile.
 		fileNames := make([]string, len(files))
+		requirementsFiles := []string{requirementsFile}
 		for i, v := range files {
-			log.Printf("Found artifact: %s", v.Name)
-			fileNames[i] = v.Name
+			name, _ := artifact.MustExtractFilePayload(v)
+			log.Printf("Found artifact: %s", name)
+			fileNames[i] = name
+
+			if v.RoleUrn == artifact.URNPipRequirementsFile {
+				requirementsFiles = append(requirementsFiles, name)
+			}
 		}
 
-		if setupErr := installSetupPackages(fileNames, dir); setupErr != nil {
+		if setupErr := installSetupPackages(fileNames, dir, requirementsFiles); setupErr != nil {
 			log.Fatalf("Failed to install required packages: %v", setupErr)
 		}
 	}
@@ -218,7 +224,7 @@ func setupAcceptableWheelSpecs() error {
 }
 
 // installSetupPackages installs Beam SDK and user dependencies.
-func installSetupPackages(files []string, workDir string) error {
+func installSetupPackages(files []string, workDir string, requirementsFiles []string) error {
 	log.Printf("Installing setup packages ...")
 
 	if err := setupAcceptableWheelSpecs(); err != nil {
@@ -233,8 +239,10 @@ func installSetupPackages(files []string, workDir string) error {
 	}
 	// The staged files will not disappear due to restarts because workDir is a
 	// folder that is mapped to the host (and therefore survives restarts).
-	if err := pipInstallRequirements(files, workDir, requirementsFile); err != nil {
-		return fmt.Errorf("failed to install requirements: %v", err)
+	for _, f := range requirementsFiles {
+		if err := pipInstallRequirements(files, workDir, f); err != nil {
+			return fmt.Errorf("failed to install requirements: %v", err)
+		}
 	}
 	if err := installExtraPackages(files, extraPackagesFile, workDir); err != nil {
 		return fmt.Errorf("failed to install extra packages: %v", err)
@@ -333,7 +341,7 @@ func processArtifactsInSetupOnlyMode() error {
 		}
 		files[i] = filePayload.GetPath()
 	}
-	if setupErr := installSetupPackages(files, workDir); setupErr != nil {
+	if setupErr := installSetupPackages(files, workDir, []string{requirementsFile}); setupErr != nil {
 		log.Fatalf("Failed to install required packages: %v", setupErr)
 	}
 	return nil
