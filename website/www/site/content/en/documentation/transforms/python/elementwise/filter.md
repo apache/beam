@@ -36,8 +36,7 @@ Then, we apply `Filter` in multiple ways to filter out produce by their duration
 
 We define a function `is_perennial` which returns `True` if the element's duration equals `'perennial'`, and `False` otherwise.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/filter" >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter.py" notebook="examples/notebooks/documentation/transforms/python/elementwise/filter" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter.py" filter_function >}}
 {{< /highlight >}}
 

@@ -54,7 +54,6 @@ Output:
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo_test.py" plants >}}
 {{< /highlight >}}
 
-
 ### Example 2: ParDo with timestamp and window information
 
 In this example, we add new parameters to the `process` method to bind parameter values at runtime.

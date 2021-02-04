@@ -46,7 +46,7 @@ and it must return an integer in the range `0` to `num_partitions-1`.
 In the following example, we have a known list of durations.
 We partition the `PCollection` into one `PCollection` for every duration type.
 
-{{< highlight language="py "py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py"
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py"
   notebook="examples/notebooks/documentation/transforms/python/elementwise/partition" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py" partition_function >}}
 {{< /highlight >}}

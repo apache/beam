@@ -38,7 +38,7 @@ Then, we apply `CoGroupByKey` to join both `PCollection`s using their keys.
 `CoGroupByKey` expects a dictionary of named keyed `PCollection`s, and produces elements joined by their keys.
 The values of each output element are dictionaries where the names correspond to the input dictionary, with lists of all the values found for that key.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/cogroupbykey.py" >}}
+{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/cogroupbykey.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/cogroupbykey.py" cogroupbykey >}}
 {{< /highlight >}}
 

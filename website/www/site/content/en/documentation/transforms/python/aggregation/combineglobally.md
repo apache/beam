@@ -36,7 +36,7 @@ Then, we apply `CombineGlobally` in multiple ways to combine all the elements in
 
 We define a function `get_common_items` which takes an `iterable` of sets as an input, and calculates the intersection (common items) of those sets.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineglobally.py" >}}
+{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineglobally.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineglobally.py" combineglobally_function >}}
 {{< /highlight >}}
 
@@ -52,7 +52,7 @@ Output:
 
 We can also use lambda functions to simplify **Example 1**.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineglobally.py" >}}
+{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineglobally.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineglobally.py" combineglobally_lambda >}}
 {{< /highlight >}}
 
@@ -71,7 +71,7 @@ They are passed as additional positional arguments or keyword arguments to the f
 
 In this example, the lambda function takes `sets` and `exclude` as arguments.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineglobally.py" >}}
+{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineglobally.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineglobally.py" combineglobally_multiple_arguments >}}
 {{< /highlight >}}
 
@@ -91,7 +91,7 @@ passing the `PCollection` as a *singleton* accesses that value.
 In this example, we pass a `PCollection` the value `'🥕'` as a singleton.
 We then use that value to exclude specific items.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineglobally.py" >}}
+{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineglobally.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineglobally.py" combineglobally_side_inputs_singleton >}}
 {{< /highlight >}}
 
@@ -109,7 +109,7 @@ If the `PCollection` has multiple values, pass the `PCollection` as an *iterator
 This accesses elements lazily as they are needed,
 so it is possible to iterate over large `PCollection`s that won't fit into memory.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineglobally.py" >}}
+{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineglobally.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineglobally.py" combineglobally_side_inputs_iter >}}
 {{< /highlight >}}
 
@@ -131,7 +131,7 @@ Each element must be a `(key, value)` pair.
 Note that all the elements of the `PCollection` must fit into memory for this.
 If the `PCollection` won't fit into memory, use `beam.pvalue.AsIter(pcollection)` instead.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineglobally.py" >}}
+{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineglobally.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineglobally.py" combineglobally_side_inputs_dict >}}
 {{< /highlight >}}
 
@@ -161,7 +161,7 @@ The more general way to combine elements, and the most flexible, is with a class
 * [`CombineFn.extract_output()`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.CombineFn.extract_output):
   It allows to do additional calculations before extracting a result.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineglobally.py" >}}
+{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineglobally.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineglobally.py" combineglobally_combinefn >}}
 {{< /highlight >}}
 
