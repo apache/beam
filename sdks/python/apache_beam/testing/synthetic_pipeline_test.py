@@ -62,7 +62,8 @@ def input_spec(
   }
 
 
-@unittest.skipIf(not NP_INSTALLED, 'Synthetic source dependencies are not installed')
+@unittest.skipIf(
+    not NP_INSTALLED, 'Synthetic source dependencies are not installed')
 class SyntheticPipelineTest(unittest.TestCase):
 
   # pylint: disable=expression-not-assigned
