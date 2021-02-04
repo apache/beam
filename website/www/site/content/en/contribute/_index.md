@@ -57,8 +57,6 @@ There are lots of opportunities to contribute. You can for example:
  https://cwiki.apache.org/confluence/display/BEAM/Contributor+FAQ)
  - organize local meetups of users or contributors to Apache Beam
 
-...and many more. Most importantly, if you have an idea of how to contribute, then do it!
-
 </div>
 
 <a class="arrow-list-header" data-toggle="collapse" href="#collapseContributing" role="button" aria-expanded="false" aria-controls="collapseContributing">

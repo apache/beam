@@ -21,10 +21,10 @@ $(document).ready(function() {
                 }
             })
         }
-        $(window).resize(function(){
-            stop();
-        });
     }
+    $(window).resize(function(){
+        stop();
+    });
     function rotate() {
         $(".arrow-list-header").click(function(){
             $(this).find('figure').toggleClass('rotate');
