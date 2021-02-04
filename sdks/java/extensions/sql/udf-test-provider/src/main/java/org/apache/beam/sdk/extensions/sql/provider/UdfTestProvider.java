@@ -28,13 +28,49 @@ import org.apache.beam.sdk.extensions.sql.udf.UdfProvider;
 public class UdfTestProvider implements UdfProvider {
   @Override
   public Map<String, ScalarFn> userDefinedScalarFunctions() {
-    return ImmutableMap.of("helloWorld", new HelloWorldFn());
+    return ImmutableMap.of(
+        "helloWorld",
+        new HelloWorldFn(),
+        "matches",
+        new MatchFn(),
+        "increment",
+        new IncrementFn(),
+        "isNull",
+        new IsNullFn());
   }
 
   public static class HelloWorldFn extends ScalarFn {
     @ApplyMethod
     public String helloWorld() {
       return "Hello world!";
+    }
+  }
+
+  public static class MatchFn extends ScalarFn {
+    @ApplyMethod
+    public boolean matches(String s, String regex) {
+      return s.matches(regex);
+    }
+  }
+
+  public static class IncrementFn extends ScalarFn {
+    @ApplyMethod
+    public Long increment(Long i) {
+      return i + 1;
+    }
+  }
+
+  public static class IsNullFn extends ScalarFn {
+    @ApplyMethod
+    public boolean isNull(String s) {
+      return s == null;
+    }
+  }
+
+  public static class UnusedFn extends ScalarFn {
+    @ApplyMethod
+    public String notRegistered() {
+      return "This method is not registered as a UDF.";
     }
   }
 }
