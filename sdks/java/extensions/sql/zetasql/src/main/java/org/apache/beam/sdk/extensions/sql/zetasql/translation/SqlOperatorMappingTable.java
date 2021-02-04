@@ -94,6 +94,7 @@ class SqlOperatorMappingTable {
           .put("coalesce", SqlStdOperatorTable.CASE)
           .put("ifnull", SqlStdOperatorTable.CASE)
           .put("nullif", SqlStdOperatorTable.CASE)
+          .put("countif", SqlOperators.COUNTIF)
           .build();
 
   static final Map<String, SqlOperatorRewriter> ZETASQL_FUNCTION_TO_CALCITE_SQL_OPERATOR_REWRITER =
