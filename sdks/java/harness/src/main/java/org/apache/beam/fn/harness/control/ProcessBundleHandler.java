@@ -20,6 +20,7 @@ package org.apache.beam.fn.harness.control;
 import com.google.auto.value.AutoValue;
 import java.io.Closeable;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -74,11 +75,13 @@ import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Message;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.TextFormat;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheLoader;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.LoadingCache;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.SetMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.joda.time.Instant;
@@ -538,7 +541,8 @@ public class ProcessBundleHandler {
   /** A cache for {@link BundleProcessor}s. */
   public static class BundleProcessorCache {
 
-    private final Map<String, ConcurrentLinkedQueue<BundleProcessor>> cachedBundleProcessors;
+    private final LoadingCache<String, ConcurrentLinkedQueue<BundleProcessor>>
+        cachedBundleProcessors;
     private final Map<String, BundleProcessor> activeBundleProcessors;
 
     @Override
@@ -547,14 +551,32 @@ public class ProcessBundleHandler {
     }
 
     BundleProcessorCache() {
-      this.cachedBundleProcessors = Maps.newConcurrentMap();
+      this.cachedBundleProcessors =
+          CacheBuilder.newBuilder()
+              .expireAfterAccess(Duration.ofMinutes(1L))
+              .removalListener(
+                  removalNotification -> {
+                    ((ConcurrentLinkedQueue<BundleProcessor>) removalNotification.getValue())
+                        .forEach(
+                            bundleProcessor -> {
+                              bundleProcessor.shutdown();
+                            });
+                  })
+              .build(
+                  new CacheLoader<String, ConcurrentLinkedQueue<BundleProcessor>>() {
+                    @Override
+                    public ConcurrentLinkedQueue<BundleProcessor> load(String s) throws Exception {
+                      return new ConcurrentLinkedQueue<>();
+                    }
+                  });
       // We specifically use a weak hash map so that references will automatically go out of scope
       // and not need to be freed explicitly from the cache.
       this.activeBundleProcessors = Collections.synchronizedMap(new WeakHashMap<>());
     }
 
+    @VisibleForTesting
     Map<String, ConcurrentLinkedQueue<BundleProcessor>> getCachedBundleProcessors() {
-      return cachedBundleProcessors;
+      return ImmutableMap.copyOf(cachedBundleProcessors.asMap());
     }
 
     /**
@@ -570,8 +592,7 @@ public class ProcessBundleHandler {
         String instructionId,
         Supplier<BundleProcessor> bundleProcessorSupplier) {
       ConcurrentLinkedQueue<BundleProcessor> bundleProcessors =
-          cachedBundleProcessors.computeIfAbsent(
-              bundleDescriptorId, descriptorId -> new ConcurrentLinkedQueue<>());
+          cachedBundleProcessors.getUnchecked(bundleDescriptorId);
       BundleProcessor bundleProcessor = bundleProcessors.poll();
       if (bundleProcessor == null) {
         bundleProcessor = bundleProcessorSupplier.get();
@@ -609,16 +630,7 @@ public class ProcessBundleHandler {
 
     /** Shutdown all the cached {@link BundleProcessor}s, running the tearDown() functions. */
     void shutdown() throws Exception {
-      for (ConcurrentLinkedQueue<BundleProcessor> bundleProcessors :
-          cachedBundleProcessors.values()) {
-        for (BundleProcessor bundleProcessor : bundleProcessors) {
-          for (ThrowingRunnable tearDownFunction : bundleProcessor.getTearDownFunctions()) {
-            LOG.debug("Tearing down function {}", tearDownFunction);
-            tearDownFunction.run();
-          }
-        }
-      }
-      cachedBundleProcessors.clear();
+      cachedBundleProcessors.invalidateAll();
     }
   }
 
@@ -703,6 +715,20 @@ public class ProcessBundleHandler {
       getBundleFinalizationCallbackRegistrations().clear();
       for (ThrowingRunnable resetFunction : getResetFunctions()) {
         resetFunction.run();
+      }
+    }
+
+    void shutdown() {
+      for (ThrowingRunnable tearDownFunction : getTearDownFunctions()) {
+        LOG.debug("Tearing down function {}", tearDownFunction);
+        try {
+          tearDownFunction.run();
+        } catch (Exception e) {
+          LOG.error(
+              "Exceptions are thrown from DoFn.teardown method. Note that it will not fail the"
+                  + " pipeline execution,",
+              e);
+        }
       }
     }
   }
