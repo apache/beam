@@ -43,7 +43,7 @@ import (
 // TODO(lostluck): 2018/05/28 Extract these from their enum descriptors in the pipeline_v1 proto
 const (
 	URNFileArtifact   = "beam:artifact:type:file:v1"
-	URNPypiInstallReq = "beam:artifact:role:pypi_install_requirement:v1"
+	URNPipRequirementsFile = "beam:artifact:role:pip_requirements_file:v1"
 	URNStagingTo      = "beam:artifact:role:staging_to:v1"
 	NoArtifactsStaged = "__no_artifacts_staged__"
 )

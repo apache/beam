@@ -161,7 +161,7 @@ func main() {
 			log.Printf("Found artifact: %s", name)
 			fileNames[i] = name
 
-			if v.RoleUrn == artifact.URNPypiInstallReq {
+			if v.RoleUrn == artifact.URNPipRequirementsFile {
 				requirementsFiles = append(requirementsFiles, name)
 			}
 		}
