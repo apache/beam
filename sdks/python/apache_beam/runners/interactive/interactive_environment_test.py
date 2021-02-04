@@ -170,7 +170,7 @@ class InteractiveEnvironmentTest(unittest.TestCase):
 
   def test_cleanup_registered_when_creating_new_env(self):
     with patch('atexit.register') as mocked_atexit:
-      a_new_env = ie.InteractiveEnvironment()
+      _ = ie.InteractiveEnvironment()
       mocked_atexit.assert_called_once()
 
   def test_cleanup_invoked_when_new_env_replace_not_none_env(self):
