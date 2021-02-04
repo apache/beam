@@ -30,7 +30,7 @@ Takes a collection of key-value pairs, and returns the key of each element.
 ## Examples
 **Example**
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 PCollection<KV<String, Integer>> keyValuePairs = /* ... */;
 PCollection<String> keys = keyValuePairs.apply(Keys.create());
 {{< /highlight >}}

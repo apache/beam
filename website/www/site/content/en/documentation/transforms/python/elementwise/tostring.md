@@ -35,7 +35,7 @@ expect their input elements to be strings.
 The following example converts a `(key, value)` pair into a string delimited by `','`.
 You can specify a different delimiter using the `delimiter` argument.
 
-{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring.py"
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring.py"
   notebook="examples/notebooks/documentation/transforms/python/elementwise/tostring" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring.py" tostring_kvs >}}
 {{< /highlight >}}
@@ -53,7 +53,7 @@ Output:
 The following example converts a dictionary into a string.
 The string output will be equivalent to `str(element)`.
 
-{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring.py"
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring.py"
   notebook="examples/notebooks/documentation/transforms/python/elementwise/tostring" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring.py" tostring_element >}}
 {{< /highlight >}}
@@ -73,7 +73,7 @@ into a string delimited by `','`.
 You can specify a different delimiter using the `delimiter` argument.
 The string output will be equivalent to `iterable.join(delimiter)`.
 
-{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring.py"
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring.py"
   notebook="examples/notebooks/documentation/transforms/python/elementwise/tostring" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring.py" tostring_iterables >}}
 {{< /highlight >}}

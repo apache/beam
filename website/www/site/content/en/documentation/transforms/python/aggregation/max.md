@@ -32,7 +32,7 @@ Then, we get the element with the maximum value in different ways.
 
 We use `Combine.Globally()` to get the maximum element from the *entire* `PCollection`.
 
-{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/max.py" >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/max.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/max.py" max_globally >}}
 {{< /highlight >}}
 
@@ -48,7 +48,7 @@ Output:
 
 We use `Combine.PerKey()` to get the maximum element for each unique key in a `PCollection` of key-values.
 
-{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/max.py" >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/max.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/max.py" max_per_key >}}
 {{< /highlight >}}
 

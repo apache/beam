@@ -34,14 +34,14 @@ or the mean of the values associated with each key in a collection of key-value 
 ## Examples
 **Example 1**: get the mean of a `PCollection` of `Longs`.
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 PCollection<Double> input = ...;
 PCollection<Double> mean = input.apply(Mean.globally());
 {{< /highlight >}}
 
 **Example 2**: calculate the mean of the `Integers` associated with each unique key (which is of type `String`).
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 PCollection<KV<String, Integer>> input = ...;
 PCollection<KV<String, Integer>> meanPerKey =
      input.apply(Mean.perKey());

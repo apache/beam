@@ -30,7 +30,7 @@ Takes a collection of key-value pairs and returns a collection of key-value pair
 ## Examples
 **Example**:
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 PCollection<KV<String, Integer>> strIntPairs = /* ... */;
 PCollection<KV<Integer, String>> intStrPairs = strIntPairs.apply(KvSwap.create());
 {{< /highlight >}}

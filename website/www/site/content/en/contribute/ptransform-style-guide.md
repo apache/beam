@@ -230,7 +230,7 @@ E.g. if you want to return a `PCollection<Foo>` and a `PCollection<Bar>`, expose
 
 For example:
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 public class MyTransform extends PTransform<..., PCollectionTuple> {
   private final TupleTag<Moo> mooTag = new TupleTag<Moo>() {};
   private final TupleTag<Blah> blahTag = new TupleTag<Blah>() {};
@@ -258,7 +258,7 @@ public class MyTransform extends PTransform<..., PCollectionTuple> {
 
 Make the transform class immutable, with methods to produce modified immutable objects. Use [AutoValue](https://github.com/google/auto/tree/master/value). Autovalue can provide a Builder helper class. Use `@Nullable` to mark parameters of class type that don't have a default value or whose default value is null, except for primitive types (e.g. int).
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 @AutoValue
 public abstract static class MyTransform extends PTransform<...> {
   int getMoo();
@@ -281,7 +281,7 @@ public abstract static class MyTransform extends PTransform<...> {
 
 Provide a single argumentless static factory method, either in the enclosing class (see "Packaging a family of transforms") or in the transform class itself.
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 public class Thumbs {
   public static Twiddle twiddle() {
     return new AutoValue_Thumbs_Twiddle.Builder().build();
@@ -310,7 +310,7 @@ Treat `withBlah()` methods as an unordered set of keyword arguments - result mus
 
 Document implications of each `withBlah` method: when to use this method at all, what values are allowed, what is the default, what are the implications of changing the value.
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 /**
  * Returns a new {@link TwiddleThumbs} transform with moo set
  * to the given value.
@@ -333,7 +333,7 @@ public Twiddle withMoo(int moo) {
 
 Specify them in the factory method (factory method returns an object with default values).
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 public class Thumbs {
   public static Twiddle twiddle() {
     return new AutoValue_Thumbs_Twiddle.Builder().setMoo(42).build();
@@ -350,7 +350,7 @@ If several parameters of the transform are very tightly logically coupled, somet
 
 All type parameters should be specified explicitly on factory method. Builder methods (`withBlah()`) should not change the types.
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 public class Thumbs {
   public static Twiddle<T> twiddle() {
     return new AutoValue_Thumbs_Twiddle.Builder<T>().build();
@@ -406,7 +406,7 @@ The container class must have a private constructor, so it can't be instantiated
 
 Document common stuff at `FooIO` level, and each factory method individually.
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 /** Transforms for clustering data. */
 public class Cluster {
   // Force use of static factory methods.
@@ -437,7 +437,7 @@ public class FooIO {
 
 When supporting multiple versions with incompatible APIs, use the version as a namespace-like class too, and put implementations of different API versions in different files.
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 // FooIO.java
 public class FooIO {
   // Force use of static factory methods.
@@ -484,7 +484,7 @@ public static class FooV2 {
   These validations will be executed when the pipeline is already fully constructed/expanded and is about to be run with a particular `PipelineOptions`.
   Most `PTransform`s do not use `PipelineOptions` and thus don't need a `validate()` method - instead, they should perform their validation via the two other methods above.
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 @AutoValue
 public abstract class TwiddleThumbs
     extends PTransform<PCollection<Foo>, PCollection<Bar>> {

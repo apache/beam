@@ -25,7 +25,7 @@ You can try Apache Beam using our interactive notebooks, which are hosted in [Co
 
 This interactive notebook shows you what a simple, minimal version of WordCount looks like.
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 package samples.quickstart;
 
 import org.apache.beam.sdk.Pipeline;
@@ -78,7 +78,7 @@ public class WordCount {
 To learn how to install and run the Apache Beam Java SDK on your own computer, follow the instructions in the <a href="/get-started/quickstart-java">Java Quickstart</a>.
 {{< /paragraph >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 import apache_beam as beam
 import re
 

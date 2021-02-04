@@ -32,7 +32,7 @@ A UDF can be the following:
 
 Below is an example of UDF and how to use it in DSL:
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 /**
  * A example UDF for test.
  */
@@ -76,7 +76,7 @@ PCollection<Row> result =
 Beam SQL can accept a `CombineFn` as UDAF. Registration is similar to the UDF
 example above:
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 /**
  * UDAF(CombineFn) for test, which returns the sum of square.
  */

@@ -41,11 +41,11 @@ The global window side input triggers on processing time, so the main pipeline n
 
 For instance, the following code sample uses a `Map` to create a `DoFn`. The `Map` becomes a `View.asSingleton` side input that’s rebuilt on each counter tick. The side input updates every 5 seconds in order to demonstrate the workflow. In a real-world scenario, the side input would typically update every few hours or once per day.
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" SideInputPatternSlowUpdateGlobalWindowSnip1 >}}
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 No sample present.
 {{< /highlight >}}
 
@@ -69,10 +69,10 @@ To read side input data periodically into distinct PColleciton windows:
 PCollection element.
 1. Apply the side input.
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" PeriodicallyUpdatingSideInputs >}}
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" SideInputSlowUpdateSnip1 >}}
 {{< /highlight >}}

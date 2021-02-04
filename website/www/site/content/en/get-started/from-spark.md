@@ -40,7 +40,7 @@ Here are some examples of common operations and their equivalent between PySpark
 Here's a simple example of a PySpark pipeline that takes the numbers from one to four,
 multiplies them by two, adds all the values together, and prints the result.
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 import pyspark
 
 sc = pyspark.SparkContext()
@@ -58,7 +58,7 @@ methods like `data.map(...)`, but they're doing the same thing.
 
 Here's what an equivalent pipeline looks like in Beam.
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 import apache_beam as beam
 
 with beam.Pipeline() as pipeline:
@@ -99,7 +99,7 @@ This serves both as comments and makes your pipeline easier to debug.
 
 This is how the pipeline looks after adding labels.
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 import apache_beam as beam
 
 with beam.Pipeline() as pipeline:
@@ -210,7 +210,7 @@ In PySpark, we can get a result from a collection of elements (RDD) by using
 
 Here's an example to scale numbers into a range between zero and one.
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 import pyspark
 
 sc = pyspark.SparkContext()
@@ -237,7 +237,7 @@ If we need multiple values, we can use
 [`beam.pvalue.AsIter`](https://beam.apache.org/releases/pydoc/current/apache_beam.pvalue.html#apache_beam.pvalue.AsIter)
 and access them as an [`iterable`](https://docs.python.org/3/glossary.html#term-iterable).
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 import apache_beam as beam
 
 with beam.Pipeline() as pipeline:

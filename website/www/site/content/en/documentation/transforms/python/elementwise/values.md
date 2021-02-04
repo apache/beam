@@ -28,7 +28,7 @@ Takes a collection of key-value pairs, and returns the value of each element.
 In the following example, we create a pipeline with a `PCollection` of key-value pairs.
 Then, we apply `Values` to extract the values and discard the keys.
 
-{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/values.py"
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/values.py"
   notebook="examples/notebooks/documentation/transforms/python/elementwise/values" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/values.py" values >}}
 {{< /highlight >}}

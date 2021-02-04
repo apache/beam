@@ -30,7 +30,7 @@ All authentication methods available for the Snowflake JDBC Driver are possible 
 Passing credentials is done via Pipeline options.
 
 Passing credentials is done via Pipeline options used to instantiate `SnowflakeIO.DataSourceConfiguration`:
-{{< highlight language="java" >}}
+{{< highlight java >}}
 SnowflakePipelineOptions options = PipelineOptionsFactory
         .fromArgs(args)
         .withValidation()
@@ -67,7 +67,7 @@ Once you have the token, invoke your pipeline with following Pipeline Options:
 DataSource configuration is required in both read and write object for configuring Snowflake connection properties for IO purposes.
 ### General usage
 Create the DataSource configuration:
-{{< highlight language="java" >}}
+{{< highlight java >}}
  SnowflakeIO.DataSourceConfiguration
             .create()
             .withUrl(options.getUrl())
@@ -329,7 +329,7 @@ Currently, SnowflakeIO **doesn't support** following options at runtime:
 One of the functions of SnowflakeIO is writing to Snowflake tables. This transformation enables you to finish the Beam pipeline with an output operation that sends the user's [PCollection](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/values/PCollection.html) to your Snowflake database.
 ### Batch write (from a bounded source)
 The basic .`write()` operation usage is as follows:
-{{< highlight language="java" >}}
+{{< highlight java >}}
 data.apply(
    SnowflakeIO.<type>write()
        .withDataSourceConfiguration(dc)
@@ -383,7 +383,7 @@ SnowflakeIO uses COPY statements behind the scenes to write (using [COPY to tabl
   - Example: `.withQuotationMark("'")`
 ### Streaming write  (from unbounded source)
 It is required to create a [SnowPipe](https://docs.snowflake.com/en/user-guide/data-load-snowpipe.html) in the Snowflake console. SnowPipe should use the same integration and the same bucket as specified by .withStagingBucketName and .withStorageIntegrationName methods. The write operation might look as follows:
-{{< highlight language="java" >}}
+{{< highlight java >}}
 data.apply(
    SnowflakeIO.<type>write()
       .withStagingBucketName("BUCKET")
@@ -494,7 +494,7 @@ Size of staged files will depend on the rows size and used compression (GZIP).
 
 ### UserDataMapper function
 The UserDataMapper function is required to map data from a PCollection to an array of String values before the `write()` operation saves the data to temporary .csv files. For example:
-{{< highlight language="java" >}}
+{{< highlight java >}}
 public static SnowflakeIO.UserDataMapper<Long> getCsvMapper() {
     return (SnowflakeIO.UserDataMapper<Long>) recordLine -> new String[] {recordLine.toString()};
 }
@@ -504,7 +504,7 @@ public static SnowflakeIO.UserDataMapper<Long> getCsvMapper() {
 The `.withQueryTransformation()` option for the `write()` operation accepts a SQL query as a String value, which will be performed while transfering data staged in CSV files directly to the target Snowflake table. For information about the transformation SQL syntax,  see the [Snowflake Documentation](https://docs.snowflake.net/manuals/sql-reference/sql/copy-into-table.html#transformation-parameters).
 
 Usage:
-{{< highlight language="java" >}}
+{{< highlight java >}}
 String query = "SELECT t.$1 from YOUR_TABLE;";
 data.apply(
    SnowflakeIO.<~>write()
@@ -527,7 +527,7 @@ Define the write behaviour based on the table where data will be written to by s
 - TRUNCATE - The write operation deletes all rows from the target table before writing to it.
 
 Example of usage:
-{{< highlight language="java" >}}
+{{< highlight java >}}
 data.apply(
    SnowflakeIO.<~>write()
        .withDataSourceConfiguration(dc)
@@ -547,7 +547,7 @@ The `.withCreateDisposition()` option defines the behavior of the write operatio
 - CREATE_NEVER -  The write operation fails if the target table does not exist.
 
 Usage:
-{{< highlight language="java" >}}
+{{< highlight java >}}
 data.apply(
    SnowflakeIO.<~>write()
        .withDataSourceConfiguration(dc)
@@ -564,7 +564,7 @@ When the `.withCreateDisposition()` .option is set to `CREATE_IF_NEEDED`, the `.
 A table schema is a list of `SFColumn` objects with name and type corresponding to column type for each column in the table.
 
 Usage:
-{{< highlight language="java" >}}
+{{< highlight java >}}
 SFTableSchema tableSchema =
     new SFTableSchema(
         SFColumn.of("my_date", new SFDate(), true),
@@ -587,7 +587,7 @@ One of the functions of SnowflakeIO is reading Snowflake tables - either full ta
 ### General usage
 
 The basic `.read()` operation usage:
-{{< highlight language="java" >}}
+{{< highlight java >}}
 PCollection<USER_DATA_TYPE> items = pipeline.apply(
    SnowflakeIO.<USER_DATA_TYPE>read()
        .withDataSourceConfiguration(dc)
@@ -645,7 +645,7 @@ SnowflakeIO uses a [COPY INTO <location>](https://docs.snowflake.net/manuals/sql
 The CSVMapper’s job is to give the user the possibility to convert the array of Strings to a user-defined type, ie. GenericRecord for Avro or Parquet files, or custom POJO.
 
 Example implementation of CsvMapper for GenericRecord:
-{{< highlight language="java" >}}
+{{< highlight java >}}
 static SnowflakeIO.CsvMapper<GenericRecord> getCsvMapper() {
    return (SnowflakeIO.CsvMapper<GenericRecord>)
            parts -> {
@@ -662,7 +662,7 @@ To be able to use AWS S3 bucket as `stagingBucketName` is required to:
 1. Create `PipelineOptions` interface which is [extending](https://beam.apache.org/documentation/io/built-in/snowflake/#extending-pipeline-options) `SnowflakePipelineOptions` and [S3Options](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws/options/S3Options.html)
 with `AwsAccessKey` and `AwsSecretKey` options. Example:
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 public interface AwsPipelineOptions extends SnowflakePipelineOptions, S3Options {
 
     @Description("AWS Access Key")
@@ -680,7 +680,7 @@ public interface AwsPipelineOptions extends SnowflakePipelineOptions, S3Options 
 {{< /highlight >}}
 2. Set `AwsCredentialsProvider` option by using `AwsAccessKey` and `AwsSecretKey` options.
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 options.setAwsCredentialsProvider(
     new AWSStaticCredentialsProvider(
         new BasicAWSCredentials(options.getAwsAccessKey(), options.getAwsSecretKey())
@@ -689,7 +689,7 @@ options.setAwsCredentialsProvider(
 {{< /highlight >}}
 3. Create pipeline
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 Pipeline p = Pipeline.create(options);
 {{< /highlight >}}
 
@@ -707,7 +707,7 @@ and [Cross-language transforms API and expansion service](https://beam.apache.or
 ### Reading from Snowflake
 One of the functions of SnowflakeIO is reading Snowflake tables - either full tables via table name or custom data via query. Output of the read transform is a [PCollection](https://beam.apache.org/releases/pydoc/current/apache_beam.pvalue.html#apache_beam.pvalue.PCollection) of user-defined data type.
 #### General usage
-{{< highlight language="py" >}}
+{{< highlight py >}}
 OPTIONS = ["--runner=FlinkRunner"]
 
 with TestPipeline(options=PipelineOptions(OPTIONS)) as p:
@@ -729,7 +729,7 @@ with TestPipeline(options=PipelineOptions(OPTIONS)) as p:
 
 - `csv_mapper` Specifies a function which must translate user-defined object to array of strings. SnowflakeIO uses a [COPY INTO <location>](https://docs.snowflake.net/manuals/sql-reference/sql/copy-into-location.html) statement to move data from a Snowflake table to GCS/S3 as CSV files. These files are then downloaded via [FileIO](https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/io/FileIO.html) and processed line by line. Each line is split into an array of Strings using the [OpenCSV](http://opencsv.sourceforge.net/) library. The csv_mapper function job is to give the user the possibility to convert the array of Strings to a user-defined type, ie. GenericRecord for Avro or Parquet files, or custom objects.
 Example:
-{{< highlight language="py" >}}
+{{< highlight py >}}
 def csv_mapper(strings_array):
     return User(strings_array[0], int(strings_array[1])))
 {{< /highlight >}}
@@ -798,7 +798,7 @@ with TestPipeline(options=PipelineOptions(OPTIONS)) as p:
 
 - `user_data_mapper` Specifies a function which  maps data from a PCollection to an array of String values before the write operation saves the data to temporary .csv files.
 Example:
-{{< highlight language="py" >}}
+{{< highlight py >}}
 def user_data_mapper(user):
     return [user.name, str(user.age)]
 {{< /highlight >}}
@@ -831,7 +831,7 @@ It’s required to pass one of the following combination of valid parameters for
   - TRUNCATE - The write operation deletes all rows from the target table before writing to it.
 
 - `table_schema` When the `create_disposition` parameter is set to CREATE_IF_NEEDED, the table_schema parameter enables specifying the schema for the created target table. A table schema is a JSON array with the following structure:
-{{< highlight language="py" >}}
+{{< highlight py >}}
 {"schema": [
     {
       "dataType":{"type":"<COLUMN DATA TYPE>"},

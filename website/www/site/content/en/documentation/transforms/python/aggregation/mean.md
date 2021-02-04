@@ -34,7 +34,7 @@ Then, we get the element with the average value in different ways.
 
 We use `Mean.Globally()` to get the average of the elements from the *entire* `PCollection`.
 
-{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/mean.py" >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/mean.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/mean.py" mean_globally >}}
 {{< /highlight >}}
 
@@ -50,7 +50,7 @@ Output:
 
 We use `Mean.PerKey()` to get the average of the elements for each unique key in a `PCollection` of key-values.
 
-{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/mean.py" >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/mean.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/mean.py" mean_per_key >}}
 {{< /highlight >}}
 

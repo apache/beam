@@ -56,11 +56,11 @@ For tests, use `TestPipeline` in place of `Pipeline` when you create the pipelin
 
 You create a `TestPipeline` as follows:
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 Pipeline p = TestPipeline.create();
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 with TestPipeline as p:
     ...
 {{< /highlight >}}
@@ -77,7 +77,7 @@ You can use the `Create` transform to create a `PCollection` out of a standard i
 
 For a given `PCollection`, you can use `PAssert` to verify the contents as follows:
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 PCollection<String> output = ...;
 
 // Check whether a PCollection contains some elements in any order.
@@ -88,7 +88,7 @@ PAssert.that(output)
   "elem2");
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
@@ -104,7 +104,7 @@ assert_that(
 Any Java code that uses `PAssert` must link in `JUnit` and `Hamcrest`. If you're using Maven, you can link in `Hamcrest` by adding the following dependency to your project's `pom.xml` file:
 {{< /paragraph >}}
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 <dependency>
     <groupId>org.hamcrest</groupId>
     <artifactId>hamcrest-all</artifactId>
@@ -119,7 +119,7 @@ For more information on how these classes work, see the [org.apache.beam.sdk.tes
 
 The following code shows a complete test for a composite transform. The test applies the `Count` transform to an input `PCollection` of `String` elements. The test uses the `Create` transform to create the input `PCollection` from a `List<String>`.
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 public class CountTest {
 
   // Our static input data, which will make up the initial PCollection.
@@ -156,7 +156,7 @@ public class CountTest {
 }
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
@@ -209,7 +209,7 @@ The following example code shows how one might test the [WordCount example pipel
 
 `WordCount`'s final transform (from the composite transform `CountWords`) produces a `PCollection<String>` of formatted word counts suitable for printing. Rather than write that `PCollection` to an output text file, our test pipeline uses `PAssert` to verify that the elements of the `PCollection` match those of a static `String` array containing our expected output data.
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 public class WordCountTest {
 
     // Our static input data, which will comprise the initial PCollection.
@@ -243,7 +243,7 @@ public class WordCountTest {
 }
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 class WordCountTest(unittest.TestCase):
 
   # Our input data, which will make up the initial PCollection.

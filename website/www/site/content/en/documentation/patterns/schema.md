@@ -38,20 +38,20 @@ The following conceptual example uses two input collections to show the mechanis
 
 First, we define Schemas and User data.
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 {{< code_sample "examples/java/src/test/java/org/apache/beam/examples/snippets/SnippetsTest.java" SchemaJoinPatternCreate >}}
 {{< /highlight >}}
 
 
 Then we create the `Pcollections` for user data and perform join on the two `PCollections` using a [`Join`](https://beam.apache.org/releases/javadoc/2.21.0/org/apache/beam/sdk/schemas/transforms/Join.html).
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" SchemaJoinPatternJoin >}}
 {{< /highlight >}}
 
 The result `Row` is of the type `Row: [Row(emailSchema), Row(phoneSchema)]`, and it can be converted to desired format as shown in the code snippet below.
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" SchemaJoinPatternFormat >}}
 {{< /highlight >}}
 

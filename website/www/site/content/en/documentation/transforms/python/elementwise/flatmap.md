@@ -37,7 +37,7 @@ where each of the output `iterable`'s elements is an element of the resulting `P
 We use the function `str.split` which takes a single `str` element and outputs a `list` of `str`s.
 This pipeline splits the input element using whitespaces, creating a list of zero or more elements.
 
-{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py"
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py"
   notebook="examples/notebooks/documentation/transforms/python/elementwise/flatmap" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py" flatmap_simple >}}
 {{< /highlight >}}
@@ -54,7 +54,7 @@ Output:
 
 We define a function `split_words` which splits an input `str` element using the delimiter `','` and outputs a `list` of `str`s.
 
-{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py"
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py"
   notebook="examples/notebooks/documentation/transforms/python/elementwise/flatmap" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py" flatmap_function >}}
 {{< /highlight >}}
@@ -73,7 +73,7 @@ For this example, we want to flatten a `PCollection` of lists of `str`s into a `
 Each input element is already an `iterable`, where each element is what we want in the resulting `PCollection`.
 We use a lambda function that returns the same input element it received.
 
-{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py"
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py"
   notebook="examples/notebooks/documentation/transforms/python/elementwise/flatmap" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py" flatmap_lambda >}}
 {{< /highlight >}}
@@ -92,7 +92,7 @@ For this example, we want to flatten a `PCollection` of lists of `str`s into a `
 We use a generator to iterate over the input list and yield each of the elements.
 Each yielded result in the generator is an element in the resulting `PCollection`.
 
-{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py"
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py"
   notebook="examples/notebooks/documentation/transforms/python/elementwise/flatmap" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py" flatmap_generator >}}
 {{< /highlight >}}
@@ -110,7 +110,7 @@ Output:
 If your `PCollection` consists of `(key, value)` pairs,
 you can use `FlatMapTuple` to unpack them into different function arguments.
 
-{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py"
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py"
   notebook="examples/notebooks/documentation/transforms/python/elementwise/flatmap" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py" flatmap_tuple >}}
 {{< /highlight >}}
@@ -130,7 +130,7 @@ They are passed as additional positional arguments or keyword arguments to the f
 
 In this example, `split_words` takes `text` and `delimiter` as arguments.
 
-{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py"
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py"
   notebook="examples/notebooks/documentation/transforms/python/elementwise/flatmap" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py" flatmap_multiple_arguments >}}
 {{< /highlight >}}
@@ -151,7 +151,7 @@ passing the `PCollection` as a *singleton* accesses that value.
 In this example, we pass a `PCollection` the value `','` as a singleton.
 We then use that value as the delimiter for the `str.split` method.
 
-{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py"
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py"
   notebook="examples/notebooks/documentation/transforms/python/elementwise/flatmap" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py" flatmap_side_inputs_singleton >}}
 {{< /highlight >}}
@@ -170,7 +170,7 @@ If the `PCollection` has multiple values, pass the `PCollection` as an *iterator
 This accesses elements lazily as they are needed,
 so it is possible to iterate over large `PCollection`s that won't fit into memory.
 
-{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py"
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py"
   notebook="examples/notebooks/documentation/transforms/python/elementwise/flatmap" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py" flatmap_side_inputs_iter >}}
 {{< /highlight >}}
@@ -193,7 +193,7 @@ Each element must be a `(key, value)` pair.
 Note that all the elements of the `PCollection` must fit into memory for this.
 If the `PCollection` won't fit into memory, use `beam.pvalue.AsIter(pcollection)` instead.
 
-{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py"
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py"
   notebook="examples/notebooks/documentation/transforms/python/elementwise/flatmap" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py" flatmap_side_inputs_dict >}}
 {{< /highlight >}}

@@ -100,11 +100,11 @@ This example uses batch processing, and the diagram's Y axis represents processi
 
 After reading the score events from the input file, the pipeline groups all of those user/score pairs together and sums the score values into one total value per unique user. `UserScore` encapsulates the core logic for that step as the [user-defined composite transform](/documentation/programming-guide/#composite-transforms) `ExtractAndSumScore`:
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/complete/game/UserScore.java" DocInclude_USExtractXform >}}
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/complete/game/user_score.py" extract_and_sum_score >}}
 {{< /highlight >}}
 
@@ -112,11 +112,11 @@ After reading the score events from the input file, the pipeline groups all of t
 
 Here's the main method of `UserScore`, showing how we apply all three steps of the pipeline:
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/complete/game/UserScore.java" DocInclude_USMain >}}
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/complete/game/user_score.py" main >}}
 {{< /highlight >}}
 
@@ -185,11 +185,11 @@ Beam's windowing feature uses the [intrinsic timestamp information](/documentati
 
 The following code shows this:
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/complete/game/HourlyTeamScore.java" DocInclude_HTSAddTsAndWindow >}}
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/complete/game/hourly_team_score.py" add_timestamp_and_window >}}
 {{< /highlight >}}
 
@@ -205,11 +205,11 @@ It also lets the pipeline include relevant **late data**—data events with vali
 
 The following code shows how `HourlyTeamScore` uses the `Filter` transform to filter events that occur either before or after the relevant analysis period:
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/complete/game/HourlyTeamScore.java" DocInclude_HTSFilters >}}
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/complete/game/hourly_team_score.py" filter_by_time_range >}}
 {{< /highlight >}}
 
@@ -217,11 +217,11 @@ The following code shows how `HourlyTeamScore` uses the `Filter` transform to fi
 
 `HourlyTeamScore` uses the same `ExtractAndSumScores` transform as the `UserScore` pipeline, but passes a different key (team, as opposed to user). Also, because the pipeline applies `ExtractAndSumScores` _after_ applying fixed-time 1-hour windowing to the input data, the data gets grouped by both team _and_ window. You can see the full sequence of transforms in `HourlyTeamScore`'s main method:
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/complete/game/HourlyTeamScore.java" DocInclude_HTSMain >}}
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/complete/game/hourly_team_score.py" main >}}
 {{< /highlight >}}
 
@@ -278,11 +278,11 @@ As processing time advances and more scores are processed, the trigger outputs t
 
 The following code example shows how `LeaderBoard` sets the processing time trigger to output the data for user scores:
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/complete/game/LeaderBoard.java" DocInclude_ProcTimeTrigger >}}
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/complete/game/leader_board.py" processing_time_trigger >}}
 {{< /highlight >}}
 
@@ -312,11 +312,11 @@ Data arriving above the solid watermark line is _late data_ — this is a score 
 
 The following code example shows how `LeaderBoard` applies fixed-time windowing with the appropriate triggers to have our pipeline perform the calculations we want:
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/complete/game/LeaderBoard.java" DocInclude_WindowAndTrigger >}}
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/complete/game/leader_board.py" window_and_trigger >}}
 {{< /highlight >}}
 
@@ -355,21 +355,21 @@ Since the average depends on the pipeline data, we need to calculate it, and the
 
 The following code example shows the composite transform that handles abuse detection. The transform uses the `Sum.integersPerKey` transform to sum all scores per user, and then the `Mean.globally` transform to determine the average score for all users. Once that's been calculated (as a `PCollectionView` singleton), we can pass it to the filtering `ParDo` using `.withSideInputs`:
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/complete/game/GameStats.java" DocInclude_AbuseDetect >}}
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/complete/game/game_stats.py" abuse_detect >}}
 {{< /highlight >}}
 
 The abuse-detection transform generates a view of users supected to be spambots. Later in the pipeline, we use that view to filter out any such users when we calculate the team score per hour, again by using the side input mechanism. The following code example shows where we insert the spam filter, between windowing the scores into fixed windows and extracting the team scores:
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/complete/game/GameStats.java" DocInclude_FilterAndCalc >}}
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/complete/game/game_stats.py" filter_and_calc >}}
 {{< /highlight >}}
 
@@ -389,21 +389,21 @@ between instances are.*
 
 We can use the session-windowed data to determine the average length of uninterrupted play time for all of our users, as well as the total score they achieve during each session. We can do this in the code by first applying session windows, summing the score per user and session, and then using a transform to calculate the length of each individual session:
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/complete/game/GameStats.java" DocInclude_SessionCalc >}}
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/complete/game/game_stats.py" session_calc >}}
 {{< /highlight >}}
 
 This gives us a set of user sessions, each with an attached duration. We can then calculate the _average_ session length by re-windowing the data into fixed time windows, and then calculating the average for all sessions that end in each hour:
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/complete/game/GameStats.java" DocInclude_Rewindow >}}
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/complete/game/game_stats.py" rewindow >}}
 {{< /highlight >}}
 

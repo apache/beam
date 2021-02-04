@@ -39,7 +39,7 @@ We use the function
 [`sum`](https://docs.python.org/3/library/functions.html#sum)
 which takes an `iterable` of numbers and adds them together.
 
-{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues.py" >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues.py" combinevalues_simple >}}
 {{< /highlight >}}
 
@@ -58,7 +58,7 @@ We want the sum to be bounded up to a maximum value, so we use
 
 We define a function `saturated_sum` which takes an `iterable` of numbers and adds them together, up to a predefined maximum number.
 
-{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues.py" >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues.py" combinevalues_function >}}
 {{< /highlight >}}
 
@@ -74,7 +74,7 @@ Output:
 
 We can also use lambda functions to simplify **Example 2**.
 
-{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues.py" >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues.py" combinevalues_lambda >}}
 {{< /highlight >}}
 
@@ -93,7 +93,7 @@ They are passed as additional positional arguments or keyword arguments to the f
 
 In this example, the lambda function takes `values` and `max_value` as arguments.
 
-{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues.py" >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues.py" combinevalues_multiple_arguments >}}
 {{< /highlight >}}
 
@@ -113,7 +113,7 @@ passing the `PCollection` as a *singleton* accesses that value.
 In this example, we pass a `PCollection` the value `8` as a singleton.
 We then use that value as the `max_value` for our saturated sum.
 
-{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues.py" >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues.py" combinevalues_side_inputs_singleton >}}
 {{< /highlight >}}
 
@@ -131,7 +131,7 @@ If the `PCollection` has multiple values, pass the `PCollection` as an *iterator
 This accesses elements lazily as they are needed,
 so it is possible to iterate over large `PCollection`s that won't fit into memory.
 
-{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues.py" >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues.py" combinevalues_side_inputs_iter >}}
 {{< /highlight >}}
 
@@ -153,7 +153,7 @@ Each element must be a `(key, value)` pair.
 Note that all the elements of the `PCollection` must fit into memory for this.
 If the `PCollection` won't fit into memory, use `beam.pvalue.AsIter(pcollection)` instead.
 
-{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues.py" >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues.py" combinevalues_side_inputs_dict >}}
 {{< /highlight >}}
 
@@ -183,7 +183,7 @@ The more general way to combine elements, and the most flexible, is with a class
 * [`CombineFn.extract_output()`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.CombineFn.extract_output):
   It allows to do additional calculations before extracting a result.
 
-{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues.py" >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combinevalues.py" combinevalues_combinefn >}}
 {{< /highlight >}}
 

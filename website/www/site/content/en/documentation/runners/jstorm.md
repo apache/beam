@@ -31,7 +31,7 @@ The JStorm runner currently supports JStorm version 2.5.0-SNAPSHOT.
 
 You can add a dependency on the latest version of the JStorm runner by adding the following to your pom.xml:
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 <dependency>
   <groupId>org.apache.beam</groupId>
   <artifactId>beam-runners-jstorm</artifactId>

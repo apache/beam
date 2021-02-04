@@ -44,7 +44,7 @@ Here are some resources with information about how to test your pipelines.
 ### Specify your dependency
 
 <span class="language-java">When using Java, you must specify your dependency on the Direct Runner in your `pom.xml`.</span>
-{{< highlight language="java" >}}
+{{< highlight java >}}
 <dependency>
    <groupId>org.apache.beam</groupId>
    <artifactId>beam-runners-direct-java</artifactId>

@@ -30,11 +30,11 @@ Beam provides a PTransform called [AnnotateText](https://beam.apache.org/release
 
 Here is an example of a pipeline that creates in-memory PCollection of strings, changes each string to Document object and invokes Natural Language API. Then, for each response object, a function is called to extract certain results of analysis.
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" nlp_analyze_text >}}
 {{< /highlight >}}
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" NlpAnalyzeText >}}
 {{< /highlight >}}
 
@@ -74,11 +74,11 @@ document_sentiment {
 
 The function for extracting information about sentence-level and document-level sentiments is shown in the next code snippet.
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" nlp_extract_sentiments >}}
 {{< /highlight >}}
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" NlpExtractSentiments >}}
 {{< /highlight >}}
 
@@ -94,11 +94,11 @@ The output is:
 
 The next function inspects the response for entities and returns the names and the types of those entities.
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" nlp_extract_entities >}}
 {{< /highlight >}}
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" NlpExtractEntities >}}
 {{< /highlight >}}
 
@@ -114,11 +114,11 @@ The output is:
 
 The following code loops over the sentences and, for each sentence, builds an adjacency list that represents a dependency tree. For more information on what dependency tree is, see [Morphology & Dependency Trees](https://cloud.google.com/natural-language/docs/morphology#dependency_trees).
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" analyze_dependency_tree >}}
 {{< /highlight >}}
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" NlpAnalyzeDependencyTree >}}
 {{< /highlight >}}
 
@@ -182,7 +182,7 @@ The example creates `tf.train.BytesList` instances, thus it expects byte-like st
 
 Here is the code:
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 import json
 
 import apache_beam as beam
@@ -211,6 +211,6 @@ with beam.Pipeline() as p:
                      version_name='my-model-version'))))
 {{< /highlight >}}
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 // Getting predictions is not yet available for Java. [BEAM-9501]
 {{< /highlight >}}

@@ -31,7 +31,7 @@ values in a collection, either globally or for each key.
 ## Examples
 **Example 1**: get the maximum of a `PCollection` of `Doubles`.
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 PCollection<Double> input = ...;
 PCollection<Double> max = input.apply(Max.doublesGlobally());
 {{< /highlight >}}
@@ -39,7 +39,7 @@ PCollection<Double> max = input.apply(Max.doublesGlobally());
 **Example 2**: calculate the maximum of the `Integers` associated
 with each unique key (which is of type `String`).
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 PCollection<KV<String, Integer>> input = ...;
 PCollection<KV<String, Integer>> maxPerKey = input
      .apply(Max.integersPerKey());

@@ -48,7 +48,7 @@ into a single value, represented in your pipeline as a new `PCollection` contain
 one element. The following example code shows how to apply the Beam-provided
 sum combine function to produce a single sum value for a `PCollection` of integers.
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 // Sum.SumIntegerFn() combines the elements in the input PCollection. The resulting PCollection, called sum,
 // contains one value: the sum of all the elements in the input PCollection.
 PCollection<Integer> pc = ...;
@@ -61,7 +61,7 @@ Use a keyed combine to combine all of the values associated with each key
 into a single output value for each key. As with the global combine, the
 function passed to a keyed combine must be associative and commutative.
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 // PCollection is grouped by key and the Double values associated with each key are combined into a Double.
 PCollection<KV<String, Double>> salesRecords = ...;
 PCollection<KV<String, Double>> totalSalesPerPerson =

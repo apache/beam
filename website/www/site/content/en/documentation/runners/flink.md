@@ -90,7 +90,7 @@ in your `pom.xml` or `build.gradle`. Use the Beam version and the artifact id
 from the above table. For example:
 {{< /paragraph >}}
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 <dependency>
   <groupId>org.apache.beam</groupId>
   <artifactId>beam-runners-flink-1.6</artifactId>
@@ -116,7 +116,7 @@ along with all dependencies in a so-called fat jar. How you do this depends on
 your build system but if you follow along the [Beam Quickstart](/get-started/quickstart/) this is the command that you have to run:
 {{< /paragraph >}}
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 $ mvn package -Pflink-runner
 {{< /highlight >}}
 
@@ -146,7 +146,7 @@ Alternatively you can also use Maven's exec command. For example, to execute the
 WordCount example:
 {{< /paragraph >}}
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 mvn exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
     -Pflink-runner \
     -Dexec.args="--runner=FlinkRunner \
@@ -170,7 +170,7 @@ after starting up a [local flink cluster](https://ci.apache.org/projects/flink/f
 one could run:
 {{< /paragraph >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 
@@ -220,7 +220,7 @@ The JobService will create a Flink job for the pipeline and execute the job.
 Optionally set `environment_type` set to `LOOPBACK`. For example:
 {{< /paragraph >}}
 
-{{< highlight language="portable" >}}
+{{< highlight portable >}}
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 
@@ -250,7 +250,7 @@ To run on a separate [Flink cluster](https://ci.apache.org/projects/flink/flink-
 (3) Submit the pipeline as above.
 {{< /paragraph >}}
 
-{{< highlight language="portable" >}}
+{{< highlight portable >}}
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 

@@ -25,7 +25,7 @@ To configure an HCatalog source, you must specify a metastore URI and a table na
 
 For example:
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 Map<String, String> configProperties = new HashMap<String, String>();
 configProperties.put("hive.metastore.uris","thrift://metastore-host:port");
 pipeline
@@ -36,7 +36,7 @@ pipeline
   .withFilter(filterString)) //optional, may be specified if the table is partitioned
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
   # The Beam SDK for Python does not support HCatalogIO.
 {{< /highlight >}}
 
@@ -47,7 +47,7 @@ optional parameters are database, partition and batchsize.
 The destination table should exist beforehand as the transform will not create a new table if missing.
 
 For example:
-{{< highlight language="java" >}}
+{{< highlight java >}}
 Map<String, String> configProperties = new HashMap<String, String>();
 configProperties.put("hive.metastore.uris","thrift://metastore-host:port");
 
@@ -61,7 +61,7 @@ pipeline
     .withBatchSize(1024L)) //optional, assumes a default batch size of 1024 if none specified
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
   # The Beam SDK for Python does not support HCatalogIO.
 {{< /highlight >}}
 

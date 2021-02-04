@@ -184,7 +184,7 @@ Let's set up the state we need to track batches of elements. As each element
 comes in, we will write the element to a buffer while tracking the number of
 elements we have buffered. Here are the state cells in code:
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 new DoFn<Event, EnrichedEvent>() {
 
   @StateId("buffer")
@@ -197,7 +197,7 @@ new DoFn<Event, EnrichedEvent>() {
 }
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 class StatefulBufferingFn(beam.DoFn):
 
   BUFFER_STATE = BagStateSpec('buffer', EventCoder())
@@ -217,7 +217,7 @@ method. We will choose a limit on the size of the buffer, `MAX_BUFFER_SIZE`. If
 our buffer reaches this size, we will perform a single RPC to enrich all the
 events, and output.
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 new DoFn<Event, EnrichedEvent>() {
 
   private static final int MAX_BUFFER_SIZE = 500;
@@ -252,7 +252,7 @@ new DoFn<Event, EnrichedEvent>() {
 }
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 class StatefulBufferingFn(beam.DoFn):
 
   MAX_BUFFER_SIZE = 500;
@@ -319,7 +319,7 @@ completeness for a `PCollection` - such as when a window expires.
 For our example, let us add an event time timer so that when the window expires,
 any events remaining in the buffer are processed.
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 new DoFn<Event, EnrichedEvent>() {
   …
 
@@ -353,7 +353,7 @@ new DoFn<Event, EnrichedEvent>() {
 }
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 class StatefulBufferingFn(beam.DoFn):
   …
 
@@ -435,7 +435,7 @@ timer has not been set, then we set it for the current moment plus
 `MAX_BUFFER_DURATION`. After the allotted processing time has passed, a
 callback will fire and enrich and emit any buffered elements.
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 new DoFn<Event, EnrichedEvent>() {
   …
 
@@ -479,7 +479,7 @@ new DoFn<Event, EnrichedEvent>() {
 }
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 class StatefulBufferingFn(beam.DoFn):
   …
 

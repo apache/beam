@@ -238,6 +238,8 @@ pre {
 [class*="-switcher"] {
   ul {
     li {
+      margin-bottom:0 !important;
+      padding-left: 0 !important;
       &:hover {
         cursor: pointer;
       }
@@ -245,6 +247,7 @@ pre {
         border: none;
         margin-right: 0;
         color: #333;
+        text-decoration: none;
         &:hover {
           background-color: #f2804d;
           color: #fff;

@@ -32,7 +32,7 @@ Then, we get the element with the minimum value in different ways.
 
 We use `Combine.Globally()` to get the minimum element from the *entire* `PCollection`.
 
-{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/min.py" >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/min.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/min.py" min_globally >}}
 {{< /highlight >}}
 
@@ -48,7 +48,7 @@ Output:
 
 We use `Combine.PerKey()` to get the minimum element for each unique key in a `PCollection` of key-values.
 
-{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/min.py" >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/min.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/min.py" min_per_key >}}
 {{< /highlight >}}
 

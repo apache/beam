@@ -37,10 +37,10 @@ If you also set the `withExtendedErrorInfo` property , you will be able to acces
 In the result tuple you can access `FailedRows` to access the failed inserts.
 {{< /paragraph >}}
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryIODeadLetter >}}
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" BigQueryIODeadLetter >}}
 {{< /highlight >}}

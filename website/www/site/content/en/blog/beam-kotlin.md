@@ -42,7 +42,7 @@ Here are few brief snippets of code that show how the Kotlin Samples compare to 
 
 ### Java
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
  String filename = String.format(
                     "%s-%s-of-%s%s",
                     filenamePrefixForWindow(intervalWindow),
@@ -53,14 +53,14 @@ Here are few brief snippets of code that show how the Kotlin Samples compare to 
 
 ### Kotlin
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
  // String templating
  val filename = "$filenamePrefixForWindow(intervalWindow)-$shardNumber-of-$numShards${outputFileHints.suggestedFilenameSuffix)"
 {{< /highlight >}}
 
 ### Java
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 public static class FormatAsTextFn extends SimpleFunction<KV<String, Long>, String> {
     @Override
     public String apply(KV<String, Long> input) {
@@ -71,7 +71,7 @@ public static class FormatAsTextFn extends SimpleFunction<KV<String, Long>, Stri
 
 ## Kotlin
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 public class FormatAsTextFn : SimpleFunction<KV<String, Long>, String>() {
     override fun apply(input: KV<String, Long>) = "${input.key} : ${input.value}"  //Single line functions
 }
@@ -79,7 +79,7 @@ public class FormatAsTextFn : SimpleFunction<KV<String, Long>, String>() {
 
 ### Java
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 if(tableRow != null){
     formatAndInsert(tableRow);
 }
@@ -87,7 +87,7 @@ if(tableRow != null){
 
 ### Kotlin
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 tableRow?.let{
     formatAndInsert(it)  // No need for null checks
 }
@@ -95,13 +95,13 @@ tableRow?.let{
 
 ### Java
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 String tableName = "testTable";
 {{< /highlight >}}
 
 ### Kotlin
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 val tableName = "testTable"  // Type inferencing
 {{< /highlight >}}
 

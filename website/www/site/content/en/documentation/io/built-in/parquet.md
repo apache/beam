@@ -32,7 +32,7 @@ to [Apache Parquet](https://parquet.apache.org) files.
 To use ParquetIO, add the Maven artifact dependency to your `pom.xml` file.
 {{< /paragraph >}}
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 <dependency>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-sdks-java-io-parquet</artifactId>
@@ -81,7 +81,7 @@ Additional resources:
 Include the Parquet artifact normally and ensure that it brings in the correct version of Parquet as a transitive dependency.
 {{< /paragraph >}}
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 <dependency>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-sdks-java-io-parquet</artifactId>
@@ -93,7 +93,7 @@ Include the Parquet artifact normally and ensure that it brings in the correct v
 Relocate the following packages:
 {{< /paragraph >}}
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 <plugin>
   <groupId>org.apache.maven.plugins</groupId>
   <artifactId>maven-shade-plugin</artifactId>

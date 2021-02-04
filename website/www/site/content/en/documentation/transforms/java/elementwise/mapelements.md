@@ -30,7 +30,7 @@ Applies a simple 1-to-1 mapping function over each element in the collection.
 ## Examples
 **Example 1**: providing the mapping function using a `SimpleFunction`
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 PCollection<String> lines = Create.of("Hello World", "Beam is fun");
 PCollection<Integer> lineLengths = lines.apply(MapElements.via(
     new SimpleFunction<String, Integer>() {
@@ -45,7 +45,7 @@ PCollection<Integer> lineLengths = lines.apply(MapElements.via(
 which allows the use of Java 8 lambdas. Due to type erasure, you need
 to provide a hint indicating the desired return type.
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 PCollection<String> lines = Create.of("Hello World", "Beam is fun");
 PCollection<Integer> lineLengths = lines.apply(MapElements
     .into(TypeDescriptors.integers())

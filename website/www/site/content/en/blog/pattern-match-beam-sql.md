@@ -26,7 +26,7 @@ SQL is becoming increasingly powerful and useful in the field of data analysis. 
 a new SQL component introduced in 2016, brings extra analytical functionality. This project,
 as part of Google Summer of Code, aims to support basic MATCH\_RECOGNIZE functionality. A basic MATCH\_RECOGNIZE
 query would be something like this:
-{{< highlight language="sql" >}}
+{{< highlight sql >}}
 SELECT T.aid, T.bid, T.cid
 FROM MyTable
     MATCH_RECOGNIZE (
@@ -108,7 +108,7 @@ table:
 This table reflects the price changes of a product with respect to the transaction time. We could write the following
 query:
 
-{{< highlight language="sql" >}}
+{{< highlight sql >}}
 SELECT *
 FROM MyTable
     MATCH_RECOGNIZE (

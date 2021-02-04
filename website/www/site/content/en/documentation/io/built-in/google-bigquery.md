@@ -32,7 +32,7 @@ to [Google BigQuery](https://cloud.google.com/bigquery) tables.
 To use BigQueryIO, add the Maven artifact dependency to your `pom.xml` file.
 {{< /paragraph >}}
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 <dependency>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-sdks-java-io-google-cloud-platform</artifactId>
@@ -102,11 +102,11 @@ To specify a table with a string, use the format
 `[project_id]:[dataset_id].[table_id]` to specify the fully-qualified BigQuery
 table name.
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryTableSpec >}}
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_table_spec >}}
 {{< /highlight >}}
 
@@ -119,11 +119,11 @@ you omit the project ID, Beam uses the default project ID from your
   [pipeline options](https://beam.apache.org/releases/pydoc/{{< param release_latest >}}/apache_beam.options.pipeline_options.html#apache_beam.options.pipeline_options.GoogleCloudOptions).
 </span>
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryTableSpecWithoutProject >}}
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_table_spec_without_project >}}
 {{< /highlight >}}
 
@@ -132,11 +132,11 @@ you omit the project ID, Beam uses the default project ID from your
 To specify a table with a `TableReference`, create a new `TableReference` using
 the three parts of the BigQuery table name.
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryTableSpecObject >}}
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_table_spec_object >}}
 {{< /highlight >}}
 
@@ -172,11 +172,11 @@ BigQueryIO allows you to use all of these data types. The following example
 shows the correct format for data types used when reading from and writing to
 BigQuery:
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/transforms/io/gcp/bigquery/BigQueryTableRowCreate.java" bigquery_table_row_create >}}
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_data_types >}}
 {{< /highlight >}}
 
@@ -275,11 +275,11 @@ table name.
 The following code reads an entire table that contains weather station data and
 then extracts the `max_temperature` column.
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/transforms/io/gcp/bigquery/BigQueryReadFromTable.java" bigquery_read_from_table >}}
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_read_table >}}
 {{< /highlight >}}
 
@@ -300,22 +300,22 @@ If you don't want to read an entire table, you can supply a query string to
 The following code uses a SQL query to only read the `max_temperature` column.
 {{< /paragraph >}}
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/transforms/io/gcp/bigquery/BigQueryReadFromQuery.java" bigquery_read_from_query >}}
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_read_query >}}
 {{< /highlight >}}
 
 You can also use BigQuery's standard SQL dialect with a query string, as shown
 in the following example:
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryReadQueryStdSQL >}}
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_read_query_std_sql >}}
 {{< /highlight >}}
 
@@ -349,21 +349,21 @@ the BigQuery Storage API and column projection to read public samples of weather
 data from a BigQuery table. You can view the [full source code on
 GitHub](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/cookbook/BigQueryTornadoes.java).
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/transforms/io/gcp/bigquery/BigQueryReadFromTableWithBigQueryStorageAPI.java" bigquery_read_from_table_with_bigquery_storage_api >}}
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 # The SDK for Python does not support the BigQuery Storage API.
 {{< /highlight >}}
 
 The following code snippet reads with a query string.
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 // Snippet not yet available (BEAM-7034).
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 # The SDK for Python does not support the BigQuery Storage API.
 {{< /highlight >}}
 
@@ -538,11 +538,11 @@ To create and use a table schema as a `TableSchema` object, follow these steps.
 The following example code shows how to create a `TableSchema` for a table with
 two fields (source and quote) of type string.
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/transforms/io/gcp/bigquery/BigQuerySchemaCreate.java" bigquery_schema_create >}}
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_schema_object >}}
 {{< /highlight >}}
 
@@ -583,11 +583,11 @@ To create and use a table schema as a string, follow these steps.
 The following example shows how to use a string to specify the same table schema
 as the previous example.
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQuerySchemaJson >}}
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_schema >}}
 {{< /highlight >}}
 
@@ -677,11 +677,11 @@ single row in the table. This example uses `writeTableRows` to write elements to
 table already exists, it will be replaced.
 {{< /paragraph >}}
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/transforms/io/gcp/bigquery/BigQueryWriteToTable.java" bigquery_write_to_table >}}
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_write_input >}}
 {{< /highlight >}}
 
@@ -693,7 +693,7 @@ write a `PCollection` of dictionaries to a BigQuery table. The write operation
 creates a table if needed; if the table already exists, it will be replaced.
 {{< /paragraph >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_write >}}
 {{< /highlight >}}
 
@@ -708,7 +708,7 @@ write operation creates a table if needed; if the table already exists, it will
 be replaced.
 {{< /paragraph >}}
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryWriteFunction >}}
 {{< /highlight >}}
 
@@ -755,11 +755,11 @@ uses a `PCollection` that contains weather data and writes the data into a
 different table for each year.
 {{< /paragraph >}}
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryWriteDynamicDestinations >}}
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_write_dynamic_destinations>}}
 {{< /highlight >}}
 
@@ -787,11 +787,11 @@ To use BigQuery time partitioning, use one of these two methods:
 This example generates one partition per day.
 {{< /paragraph >}}
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryTimePartitioning >}}
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_time_partitioning>}}
 {{< /highlight >}}
 

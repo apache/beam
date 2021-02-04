@@ -345,7 +345,7 @@ smaller restrictions, and a few others.
 The "Hello World" of SDF is a counter, which takes pairs *(x, N)* as input and
 produces pairs *(x, 0), (x, 1), …, (x, N-1)* as output.
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 class CountFn<T> extends DoFn<KV<T, Long>, KV<T, Long>> {
   @ProcessElement
   public void process(ProcessContext c, OffsetRangeTracker tracker) {
@@ -365,7 +365,7 @@ PCollection<KV<String, Long>> output = input.apply(
     ParDo.of(new CountFn<String>());
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 class CountFn(DoFn):
   def process(element, tracker=DoFn.RestrictionTrackerParam)
     for i in xrange(*tracker.current_restriction()):
@@ -397,7 +397,7 @@ A slightly more complex example is the `ReadFn` considered above, which reads
 data from Avro files and illustrates the idea of *blocks*: we provide pseudocode
 to illustrate the approach.
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 class ReadFn extends DoFn<String, AvroRecord> {
   @ProcessElement
   void process(ProcessContext c, OffsetRangeTracker tracker) {
@@ -425,7 +425,7 @@ class ReadFn extends DoFn<String, AvroRecord> {
 }
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 class AvroReader(DoFn):
   def process(filename, tracker=DoFn.RestrictionTrackerParam)
     with fileio.ChannelFactory.open(filename) as file:

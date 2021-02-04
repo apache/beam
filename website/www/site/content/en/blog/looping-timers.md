@@ -173,7 +173,7 @@ So how do timers help? Well let's have a look at a new transform:
 
 Edit: Looping Timer State changed from Boolean to Long to allow for min value check.
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 public static class LoopingStatefulTimer extends DoFn<KV<String, Integer>, KV<String, Integer>> {
 
     Instant stopTimerTime;
@@ -276,7 +276,7 @@ In the @OnTimer block, the following occurs:
 
 And that's it, let's add our transform back into the pipeline:
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
   // Apply a fixed window of duration 1 min and Sum the results
   p.apply(Create.timestamped(time_1, time_2, time_3)).apply(
     Window.<KV<String, Integer>>into(FixedWindows.<Integer>of(Duration.standardMinutes(1))))

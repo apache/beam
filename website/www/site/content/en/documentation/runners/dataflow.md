@@ -49,7 +49,7 @@ for your chosen language.
 ### Specify your dependency {#dependency}
 
 <span class="language-java">When using Java, you must specify your dependency on the Cloud Dataflow Runner in your `pom.xml`.</span>
-{{< highlight language="java" >}}
+{{< highlight java >}}
 <dependency>
   <groupId>org.apache.beam</groupId>
   <artifactId>beam-runners-google-cloud-dataflow-java</artifactId>
@@ -70,7 +70,7 @@ This section is not applicable to the Beam SDK for Python.
 In some cases, such as starting a pipeline using a scheduler such as [Apache AirFlow](https://airflow.apache.org), you must have a self-contained application. You can pack a self-executing JAR by explicitly adding the following dependency on the Project section of your pom.xml, in addition to the adding existing dependency shown in the previous section.
 {{< /paragraph >}}
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 <dependency>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-runners-google-cloud-dataflow-java</artifactId>
@@ -83,7 +83,7 @@ In some cases, such as starting a pipeline using a scheduler such as [Apache Air
 Then, add the mainClass name in the Maven JAR plugin.
 {{< /paragraph >}}
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 <plugin>
   <groupId>org.apache.maven.plugins</groupId>
   <artifactId>maven-jar-plugin</artifactId>
@@ -104,7 +104,7 @@ Then, add the mainClass name in the Maven JAR plugin.
 After running <code>mvn package</code>, run <code>ls target</code> and you should see (assuming your artifactId is `beam-examples` and the version is 1.0.0) the following output.
 {{< /paragraph >}}
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 beam-examples-bundled-1.0.0.jar
 {{< /highlight >}}
 
@@ -112,7 +112,7 @@ beam-examples-bundled-1.0.0.jar
 To run the self-executing JAR on Cloud Dataflow, use the following command.
 {{< /paragraph >}}
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 java -jar target/beam-examples-bundled-1.0.0.jar \
   --runner=DataflowRunner \
   --project=<YOUR_GCP_PROJECT_ID> \

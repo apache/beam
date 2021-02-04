@@ -63,7 +63,7 @@ Output:
 
 We can also use lambda functions to simplify **Example 1**.
 
-{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py"
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py"
   notebook="examples/notebooks/documentation/transforms/python/elementwise/partition" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py" partition_lambda >}}
 {{< /highlight >}}
@@ -108,7 +108,7 @@ identify the partition index to which that bucket corresponds.
 This `split_dataset` function is generic enough to support any number of partitions by any ratio.
 You might want to adapt the bucket assignment to use a more appropriate or randomized hash for your dataset.
 
-{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py"
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py"
   notebook="examples/notebooks/documentation/transforms/python/elementwise/partition" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py" partition_multiple_arguments >}}
 {{< /highlight >}}

@@ -37,7 +37,7 @@ A `PCollection<Row>` can be obtained multiple ways, for example:
 
     **Note:** you have to explicitly specify the `Row` coder. In this example we're doing it by calling `Create.of(..)`:
 
-    {{< highlight language="java" >}}
+    {{< highlight java >}}
     // Define the schema for the records.
     Schema appSchema =
         Schema
@@ -63,7 +63,7 @@ A `PCollection<Row>` can be obtained multiple ways, for example:
                     .withCoder(RowCoder.of(appSchema)));
     {{< /highlight >}}
   - **From a `PCollection<T>` of records of some other type**  (i.e.  `T` is not already a `Row`), by applying a `ParDo` that converts input records to `Row` format:
-    {{< highlight language="java" >}}
+    {{< highlight java >}}
     // An example POJO class.
     class AppPojo {
       Integer appId;
@@ -112,7 +112,7 @@ to either a single `PCollection` or a `PCollectionTuple` which holds multiple
 `PCollections`:
 
   - when applying to a single `PCollection` it can be referenced via the table name `PCOLLECTION` in the query:
-    {{< highlight language="java" >}}
+    {{< highlight java >}}
     PCollection<Row> filteredNames = testApps.apply(
         SqlTransform.query(
           "SELECT appId, description, rowtime "
@@ -122,7 +122,7 @@ to either a single `PCollection` or a `PCollectionTuple` which holds multiple
   - when applying to a `PCollectionTuple`, the tuple tag for each `PCollection` in the tuple defines the table name that may be used to query it. Note that table names are bound to the specific `PCollectionTuple`, and thus are only valid in the context of queries applied to it.
 
     For example, you can join two `PCollections`:
-    {{< highlight language="java" >}}
+    {{< highlight java >}}
     // Create the schema for reviews
     Schema reviewSchema =
         Schema

@@ -51,13 +51,13 @@ Introducing type hints for the `PTransforms` you define allows you to catch pote
 
 Consider the following example, in which `numbers` is a `PCollection` of `str` values:
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" type_hints_missing_define_numbers >}}
 {{< /highlight >}}
 
 The code then applies a `Filter` transform to the `numbers` collection with a callable that retrieves the even numbers.
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" type_hints_missing_apply >}}
 {{< /highlight >}}
 
@@ -94,7 +94,7 @@ Annotations are currently supported on:
 
 The following code declares an `int` input and a `str` output type hint on the `to_id` transform, using annotations on `my_fn`.
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test_py3.py" type_hints_map_annotations >}}
 {{< /highlight >}}
 
@@ -103,7 +103,7 @@ A valid annotation is a `PCollection` that wraps an internal (nested) type, `PBe
 The following code declares typehints on a custom PTransform, that takes a `PCollection[int]` input
 and outputs a `PCollection[str]`, using annotations.
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test_py3.py" type_hints_ptransforms >}}
 {{< /highlight >}}
 
@@ -113,7 +113,7 @@ Beam will remove the outer iterable of the return type on the `DoFn.process` met
 It is an error to have a non-iterable return type annotation for these functions.
 Other supported iterable types include: `Iterator`, `Generator`, `Tuple`, `List`.
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test_py3.py" type_hints_do_fn_annotations >}}
 {{< /highlight >}}
 
@@ -121,7 +121,7 @@ The following code declares `int` input and output type hints on `double_evens`,
 Since `process` returns a `list` or `None`, the output type is annotated as `Optional[List[int]]`.
 Beam will also remove the outer `Optional` and (as above) the outer iterable of the return type, only on the `DoFn.process` method and functions passed to `FlatMap`.
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test_py3.py" type_hints_do_fn_annotations_optional >}}
 {{< /highlight >}}
 
@@ -129,7 +129,7 @@ Beam will also remove the outer `Optional` and (as above) the outer iterable of 
 
 To specify type hints inline, use the methods `with_input_types` and `with_output_types`. The following example code declares an input type hint inline:
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" type_hints_takes >}}
 {{< /highlight >}}
 
@@ -141,7 +141,7 @@ To specify type hints as properties of a `DoFn` or `PTransform`, use the decorat
 
 The following code declares an `int` type hint on `FilterEvensDoFn`, using the decorator `@with_input_types()`.
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" type_hints_do_fn >}}
 {{< /highlight >}}
 
@@ -163,7 +163,7 @@ You can use type hint annotations to define generic types.
 The following code specifies an input type hint that asserts the generic type `T`, and an output type hint that asserts the type `Tuple[int, T]`.
 If the input to `MyTransform` is of type `str`, Beam will infer the output type to be `Tuple[int, str]`.
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" type_hints_transform >}}
 {{< /highlight >}}
 
@@ -218,13 +218,13 @@ In addition to using type hints for type checking at pipeline construction, you 
 
 For example, the following pipeline emits elements of the wrong type. Depending on the runner implementation, its execution may or may not fail at runtime.
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" type_hints_runtime_off >}}
 {{< /highlight >}}
 
 However, if you enable runtime type checking, the code is guaranteed to fail at runtime. To enable runtime type checking, set the pipeline option `runtime_type_check` to `True`.
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" type_hints_runtime_on >}}
 {{< /highlight >}}
 
@@ -256,6 +256,6 @@ For example, suppose you have a `PCollection` of key-value pairs whose keys are 
 
 The following code shows the example `Player` class and how to define a `Coder` for it. When you use type hints, Beam infers which `Coders` to use, using `beam.coders.registry`. The following code registers `PlayerCoder` as a coder for the `Player` class. In the example, the input type declared for `CombinePerKey` is `Tuple[Player, int]`. In this case, Beam infers that the `Coder` objects to use are `TupleCoder`, `PlayerCoder`, and `IntCoder`.
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" type_hints_deterministic_key >}}
 {{< /highlight >}}

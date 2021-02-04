@@ -35,7 +35,7 @@ Then, we apply `Map` in multiple ways to transform every element in the `PCollec
 We use the function `str.strip` which takes a single `str` element and outputs a `str`.
 It strips the input element's whitespaces, including newlines and tabs.
 
-{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py"
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py"
   notebook="examples/notebooks/documentation/transforms/python/elementwise/map" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py" map_simple >}}
 {{< /highlight >}}
@@ -52,7 +52,7 @@ Output:
 
 We define a function `strip_header_and_newline` which strips any `'#'`, `' '`, and `'\n'` characters from each element.
 
-{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py"
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py"
   notebook="examples/notebooks/documentation/transforms/python/elementwise/map" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py" map_function >}}
 {{< /highlight >}}
@@ -69,7 +69,7 @@ Output:
 
 We can also use lambda functions to simplify **Example 2**.
 
-{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py"
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py"
   notebook="examples/notebooks/documentation/transforms/python/elementwise/map" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py" map_lambda >}}
 {{< /highlight >}}
@@ -89,7 +89,7 @@ They are passed as additional positional arguments or keyword arguments to the f
 
 In this example, `strip` takes `text` and `chars` as arguments.
 
-{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py"
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py"
   notebook="examples/notebooks/documentation/transforms/python/elementwise/map" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py" map_multiple_arguments >}}
 {{< /highlight >}}
@@ -107,7 +107,7 @@ Output:
 If your `PCollection` consists of `(key, value)` pairs,
 you can use `MapTuple` to unpack them into different function arguments.
 
-{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py"
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py"
   notebook="examples/notebooks/documentation/transforms/python/elementwise/map" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py" map_tuple >}}
 {{< /highlight >}}
@@ -128,7 +128,7 @@ passing the `PCollection` as a *singleton* accesses that value.
 In this example, we pass a `PCollection` the value `'# \n'` as a singleton.
 We then use that value as the characters for the `str.strip` method.
 
-{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py"
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py"
   notebook="examples/notebooks/documentation/transforms/python/elementwise/map" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py" map_side_inputs_singleton >}}
 {{< /highlight >}}
@@ -147,7 +147,7 @@ If the `PCollection` has multiple values, pass the `PCollection` as an *iterator
 This accesses elements lazily as they are needed,
 so it is possible to iterate over large `PCollection`s that won't fit into memory.
 
-{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py"
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py"
   notebook="examples/notebooks/documentation/transforms/python/elementwise/map" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py" map_side_inputs_iter >}}
 {{< /highlight >}}
@@ -170,7 +170,7 @@ Each element must be a `(key, value)` pair.
 Note that all the elements of the `PCollection` must fit into memory for this.
 If the `PCollection` won't fit into memory, use `beam.pvalue.AsIter(pcollection)` instead.
 
-{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py"
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py"
   notebook="examples/notebooks/documentation/transforms/python/elementwise/map" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py" map_side_inputs_dict >}}
 {{< /highlight >}}

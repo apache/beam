@@ -60,7 +60,7 @@ PCollection of database table rows.*
 
 The following example code applies two transforms to a single input collection.
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 PCollection<String> dbRowCollection = ...;
 
 PCollection<String> aCollection = dbRowCollection.apply("aTrans", ParDo.of(new DoFn<String, String>(){
@@ -114,7 +114,7 @@ where each element in the input `PCollection` is processed once.
 The following example code applies one transform that processes each element
 once and outputs two collections.
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 // Define two TupleTags, one for each output.
 final TupleTag<String> startsWithATag = new TupleTag<String>(){};
 final TupleTag<String> startsWithBTag = new TupleTag<String>(){};
@@ -169,7 +169,7 @@ merged both contain the same type.
 
 The following example code applies `Flatten` to merge two collections.
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 //merge the two PCollections with Flatten
 PCollectionList<String> collectionList = PCollectionList.of(aCollection).and(bCollection);
 PCollection<String> mergedCollectionWithFlatten = collectionList
@@ -189,7 +189,7 @@ Your pipeline can read its input from one or more sources. If your pipeline read
 
 The following example code applies `Join` to join two input collections.
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 PCollection<KV<String, String>> userAddress = pipeline.apply(JdbcIO.<KV<String, String>>read()...);
 
 PCollection<KV<String, String>> userOrder = pipeline.apply(KafkaIO.<String, String>read()...);

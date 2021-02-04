@@ -32,7 +32,7 @@ Then, we get the sum of all the element values in different ways.
 
 We use `Combine.Globally()` to get sum of all the element values from the *entire* `PCollection`.
 
-{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/sum.py" >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/sum.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/sum.py" sum_globally >}}
 {{< /highlight >}}
 
@@ -48,7 +48,7 @@ Output:
 
 We use `Combine.PerKey()` to get the sum of all the element values for each unique key in a `PCollection` of key-values.
 
-{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/sum.py" >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/sum.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/sum.py" sum_per_key >}}
 {{< /highlight >}}
 

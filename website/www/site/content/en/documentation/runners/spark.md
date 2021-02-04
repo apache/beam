@@ -73,7 +73,7 @@ The Spark runner currently supports Spark's 2.x branch, and more specifically an
 You can add a dependency on the latest version of the Spark runner by adding to your pom.xml the following:
 {{< /paragraph >}}
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 <dependency>
   <groupId>org.apache.beam</groupId>
   <artifactId>beam-runners-spark</artifactId>
@@ -87,7 +87,7 @@ You can add a dependency on the latest version of the Spark runner by adding to 
 In some cases, such as running in local mode/Standalone, your (self-contained) application would be required to pack Spark by explicitly adding the following dependencies in your pom.xml:
 {{< /paragraph >}}
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 <dependency>
   <groupId>org.apache.spark</groupId>
   <artifactId>spark-core_2.11</artifactId>
@@ -105,7 +105,7 @@ In some cases, such as running in local mode/Standalone, your (self-contained) a
 And shading the application jar using the maven shade plugin:
 {{< /paragraph >}}
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 <plugin>
   <groupId>org.apache.maven.plugins</groupId>
   <artifactId>maven-shade-plugin</artifactId>
@@ -145,7 +145,7 @@ And shading the application jar using the maven shade plugin:
 After running <code>mvn package</code>, run <code>ls target</code> and you should see (assuming your artifactId is `beam-examples` and the version is `1.0.0`):
 {{< /paragraph >}}
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 beam-examples-1.0.0-shaded.jar
 {{< /highlight >}}
 
@@ -157,7 +157,7 @@ To run against a Standalone cluster simply run:
 <br><b>For RDD/DStream based runner:</b><br>
 {{< /paragraph >}}
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 spark-submit --class com.beam.examples.BeamPipeline --master spark://HOST:PORT target/beam-examples-1.0.0-shaded.jar --runner=SparkRunner
 {{< /highlight >}}
 
@@ -165,7 +165,7 @@ spark-submit --class com.beam.examples.BeamPipeline --master spark://HOST:PORT t
 <br><b>For Structured Streaming based runner:</b><br>
 {{< /paragraph >}}
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 spark-submit --class com.beam.examples.BeamPipeline --master spark://HOST:PORT target/beam-examples-1.0.0-shaded.jar --runner=SparkStructuredStreamingRunner
 {{< /highlight >}}
 
@@ -176,7 +176,7 @@ install apache_beam`. Please refer to the [Python documentation](/documentation/
 on how to create a Python pipeline.
 {{< /paragraph >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 pip install apache_beam
 {{< /highlight >}}
 
@@ -205,7 +205,7 @@ provided with the Spark master address.
 
 {{< paragraph class="language-py" >}}2. Submit the Python pipeline to the above endpoint by using the `PortableRunner`, `job_endpoint` set to `localhost:8099` (this is the default address of the JobService), and `environment_type` set to `LOOPBACK`. For example:{{< /paragraph >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 

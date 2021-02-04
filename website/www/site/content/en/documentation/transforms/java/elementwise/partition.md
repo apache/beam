@@ -34,7 +34,7 @@ See more information in the [Beam Programming Guide](/documentation/programming-
 ## Examples
 **Example**: dividing a `PCollection` into percentile groups
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 // Provide an int value with the desired number of result partitions, and a PartitionFn that represents the
 // partitioning function. In this example, we define the PartitionFn in-line. Returns a PCollectionList
 // containing each of the resulting partitions as individual PCollection objects.

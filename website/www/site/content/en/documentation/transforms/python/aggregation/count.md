@@ -32,7 +32,7 @@ Then, we apply `Count` to get the total number of elements in different ways.
 
 We use `Count.Globally()` to count *all* elements in a `PCollection`, even if there are duplicate elements.
 
-{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/count.py" >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/count.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/count.py" count_globally >}}
 {{< /highlight >}}
 
@@ -48,7 +48,7 @@ Output:
 
 We use `Count.PerKey()` to count the elements for each unique key in a `PCollection` of key-values.
 
-{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/count.py" >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/count.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/count.py" count_per_key >}}
 {{< /highlight >}}
 
@@ -64,7 +64,7 @@ Output:
 
 We use `Count.PerElement()` to count the only the unique elements in a `PCollection`.
 
-{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/count.py" >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/count.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/count.py" count_per_element >}}
 {{< /highlight >}}
 

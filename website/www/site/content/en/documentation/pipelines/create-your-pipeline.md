@@ -35,7 +35,7 @@ In the Beam SDKs, each pipeline is represented by an explicit object of type `Pi
 
 To create a pipeline, declare a `Pipeline` object, and pass it some [configuration options](/documentation/programming-guide#configuring-pipeline-options).
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 // Start by defining the options for the pipeline.
 PipelineOptions options = PipelineOptionsFactory.create();
 
@@ -51,7 +51,7 @@ There are two kinds of root transforms in the Beam SDKs: `Read` and `Create`. `R
 
 The following example code shows how to `apply` a `TextIO.Read` root transform to read data from a text file. The transform is applied to a `Pipeline` object `p`, and returns a pipeline data set in the form of a `PCollection<String>`:
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 PCollection<String> lines = p.apply(
   "ReadLines", TextIO.read().from("gs://some/inputData.txt"));
 {{< /highlight >}}
@@ -64,7 +64,7 @@ The following code shows how to `apply` a transform to a `PCollection` of string
 
 The input is a `PCollection<String>` called `words`; the code passes an instance of a `PTransform` object called `ReverseWords` to `apply`, and saves the return value as the `PCollection<String>` called `reversedWords`.
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 PCollection<String> words = ...;
 
 PCollection<String> reversedWords = words.apply(new ReverseWords());
@@ -76,7 +76,7 @@ Once your pipeline has applied all of its transforms, you'll usually need to out
 
 The following example code shows how to `apply` a `TextIO.Write` transform to write a `PCollection` of `String` to a text file:
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 PCollection<String> filteredWords = ...;
 
 filteredWords.apply("WriteMyFile", TextIO.write().to("gs://some/outputData.txt"));
@@ -86,13 +86,13 @@ filteredWords.apply("WriteMyFile", TextIO.write().to("gs://some/outputData.txt")
 
 Once you have constructed your pipeline, use the `run` method to execute the pipeline. Pipelines are executed asynchronously: the program you create sends a specification for your pipeline to a **pipeline runner**, which then constructs and runs the actual series of pipeline operations.
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 p.run();
 {{< /highlight >}}
 
 The `run` method is asynchronous. If you'd like a blocking execution instead, run your pipeline appending the `waitUntilFinish` method:
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 p.run().waitUntilFinish();
 {{< /highlight >}}
 

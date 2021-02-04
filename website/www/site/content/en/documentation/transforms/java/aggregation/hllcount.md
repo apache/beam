@@ -38,34 +38,34 @@ You can read more about what a sketch is at https://github.com/google/zetasketch
 
 ## Examples
 **Example 1**: creates a long-type sketch for a `PCollection<Long>` with a custom precision:
-{{< highlight language="java" >}}
+{{< highlight java >}}
  PCollection<Long> input = ...;
  int p = ...;
  PCollection<byte[]> sketch = input.apply(HllCount.Init.forLongs().withPrecision(p).globally());
 {{< /highlight >}}
 
 **Example 2**: creates a bytes-type sketch for a `PCollection<KV<String, byte[]>>`:
-{{< highlight language="java" >}}
+{{< highlight java >}}
  PCollection<KV<String, byte[]>> input = ...;
  PCollection<KV<String, byte[]>> sketch = input.apply(HllCount.Init.forBytes().perKey());
 {{< /highlight >}}
 
 **Example 3**: merges existing sketches in a `PCollection<byte[]>` into a new sketch,
 which summarizes the union of the inputs that were aggregated in the merged sketches:
-{{< highlight language="java" >}}
+{{< highlight java >}}
  PCollection<byte[]> sketches = ...;
  PCollection<byte[]> mergedSketch = sketches.apply(HllCount.MergePartial.globally());
 {{< /highlight >}}
 
 **Example 4**: estimates the count of distinct elements in a `PCollection<String>`:
-{{< highlight language="java" >}}
+{{< highlight java >}}
  PCollection<String> input = ...;
  PCollection<Long> countDistinct =
      input.apply(HllCount.Init.forStrings().globally()).apply(HllCount.Extract.globally());
 {{< /highlight >}}
 
 **Example 5**: extracts the count distinct estimate from an existing sketch:
-{{< highlight language="java" >}}
+{{< highlight java >}}
  PCollection<byte[]> sketch = ...;
  PCollection<Long> countDistinct = sketch.apply(HllCount.Extract.globally());
 {{< /highlight >}}

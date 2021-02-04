@@ -35,7 +35,7 @@ See more information in the [Beam Programming Guide](/documentation/programming-
 ## Examples
 **Example 1**: Passing side inputs
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
   // Pass side inputs to your ParDo transform by invoking .withSideInputs.
   // Inside your DoFn, access the side input by using the method DoFn.ProcessContext.sideInput.
 
@@ -68,7 +68,7 @@ See more information in the [Beam Programming Guide](/documentation/programming-
 
 **Example 2**: Emitting to multiple outputs in your `DoFn`
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 // To emit elements to multiple output PCollections, create a TupleTag object to identify each collection
 // that your ParDo produces. For example, if your ParDo produces three output PCollections (the main output
 // and two additional outputs), you must create three TupleTags. The following example code shows how to
@@ -118,7 +118,7 @@ See more information in the [Beam Programming Guide](/documentation/programming-
 
 **Example 3**: Tags for multiple outputs
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 // Inside your ParDo's DoFn, you can emit an element to a specific output PCollection by passing in the
 // appropriate TupleTag when you call ProcessContext.output.
 // After your ParDo, extract the resulting output PCollections from the returned PCollectionTuple.

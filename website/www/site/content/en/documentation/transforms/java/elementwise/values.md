@@ -31,7 +31,7 @@ returns the value of each element.
 ## Examples
 **Example**
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 PCollection<KV<String, Integer>> keyValuePairs = /* ... */;
 PCollection<Integer> values = keyValuePairs.apply(Values.create());
 {{< /highlight >}}

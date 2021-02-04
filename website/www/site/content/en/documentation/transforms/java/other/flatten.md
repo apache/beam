@@ -48,7 +48,7 @@ See more information in the [Beam Programming Guide](/documentation/programming-
 ## Examples
 **Example**: Apply a `Flatten` transform to merge multiple `PCollection` objects
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 // Flatten takes a PCollectionList of PCollection objects of a given type.
 // Returns a single PCollection that contains all of the elements in the PCollection objects in that list.
 PCollection<String> pc1 = Create.of("Hello");

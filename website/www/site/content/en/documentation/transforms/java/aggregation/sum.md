@@ -31,14 +31,14 @@ values associated with each key in a collection of key-value pairs.
 ## Examples
 **Example 1**: get the sum of a `PCollection` of `Doubles`.
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 PCollection<Double> input = ...;
 PCollection<Double> sum = input.apply(Sum.doublesGlobally());
 {{< /highlight >}}
 
 Example 2: calculate the sum of the `Integers` associated with each unique key (which is of type `String`).
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 PCollection<KV<String, Integer>> input = ...;
 PCollection<KV<String, Integer>> sumPerKey = input
      .apply(Sum.integersPerKey());

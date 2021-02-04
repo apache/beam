@@ -278,7 +278,7 @@ write stateful processing code using Beam's Java SDK.  Here is the code for a
 stateful `DoFn` that assigns an arbitrary-but-consistent index to each element
 on a per key-and-window basis:
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 new DoFn<KV<MyKey, MyValue>, KV<Integer, KV<MyKey, MyValue>>>() {
 
   // A state cell holding a single Integer per key+window
@@ -297,7 +297,7 @@ new DoFn<KV<MyKey, MyValue>, KV<Integer, KV<MyKey, MyValue>>>() {
 }
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 class IndexAssigningStatefulDoFn(DoFn):
   INDEX_STATE = CombiningStateSpec('index', sum)
 
@@ -358,7 +358,7 @@ If you try to express the building of your model as a `CombineFn`, you may have
 trouble with `mergeAccumulators`. Assuming you could express that, it might
 look something like this:
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 class ModelFromEventsFn extends CombineFn<Event, Model, Model> {
     @Override
     public abstract Model createAccumulator() {
@@ -381,7 +381,7 @@ class ModelFromEventsFn extends CombineFn<Event, Model, Model> {
 }
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 class ModelFromEventsFn(apache_beam.core.CombineFn):
 
   def create_accumulator(self):
@@ -406,7 +406,7 @@ elements of a `PCollection` is to read it as a side input to a `ParDo`
 transform. So you could side input the model and check the stream of events
 against it, outputting the prediction, like so:
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 PCollection<KV<UserId, Event>> events = ...
 
 final PCollectionView<Map<UserId, Model>> userModels = events
@@ -429,7 +429,7 @@ PCollection<KV<UserId, Prediction>> predictions = events
     }));
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 # Events is a collection of (user, event) pairs.
 events = (p | ReadFromEventSource() | beam.WindowInto(....))
 
@@ -466,7 +466,7 @@ generic Beam feature for managing completeness versus latency tradeoffs. So here
 is the same pipeline with an added trigger that outputs a new model one second
 after input arrives:
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 PCollection<KV<UserId, Event>> events = ...
 
 PCollectionView<Map<UserId, Model>> userModels = events
@@ -479,7 +479,7 @@ PCollectionView<Map<UserId, Model>> userModels = events
     .apply(View.asMap());
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 events = ...
 
 user_models = beam.pvalue.AsDict(
@@ -511,7 +511,7 @@ Stateful processing lets you address both the latency problem of side inputs
 and the cost problem of excessive uninteresting output. Here is the code, using
 only features I have already introduced:
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 new DoFn<KV<UserId, Event>, KV<UserId, Prediction>>() {
 
   @StateId("model")
@@ -544,7 +544,7 @@ new DoFn<KV<UserId, Event>, KV<UserId, Prediction>>() {
 };
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 class ModelStatefulFn(beam.DoFn):
 
   PREVIOUS_PREDICTION = BagStateSpec('previous_pred_state', PredictionCoder())

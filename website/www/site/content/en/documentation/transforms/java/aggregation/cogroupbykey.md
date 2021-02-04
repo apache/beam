@@ -43,7 +43,7 @@ other data as the associated values. After the join, you have one data set
 that contains all of the information (email addresses and phone numbers)
 associated with each name.
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 PCollection<KV<UID, Integer>> pt1 = /* ... */;
 PCollection<KV<UID, String>> pt2 = /* ... */;
 

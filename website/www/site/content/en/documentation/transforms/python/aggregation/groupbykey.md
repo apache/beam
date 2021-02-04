@@ -32,7 +32,7 @@ In the following example, we create a pipeline with a `PCollection` of produce k
 
 We use `GroupByKey` to group all the produce for each season.
 
-{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupbykey.py" >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupbykey.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupbykey.py" groupbykey >}}
 {{< /highlight >}}
 

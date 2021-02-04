@@ -56,11 +56,11 @@ later examples, we will parameterize the pipeline's input and output sources and
 show other best practices.
 {{< /paragraph >}}
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.MinimalWordCount
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 python -m apache_beam.examples.wordcount_minimal --input YOUR_INPUT_FILE --output counts
 {{< /highlight >}}
 
@@ -114,7 +114,7 @@ example, your pipeline executes locally using the `DirectRunner`. In the next
 sections, we will specify the pipeline's runner.
 {{< /paragraph >}}
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
  // Create a PipelineOptions object. This object lets us set various execution
  // options for our pipeline, such as the runner you wish to use. This example
  // will run with the DirectRunner by default, based on the class path configured
@@ -122,7 +122,7 @@ sections, we will specify the pipeline's runner.
  PipelineOptions options = PipelineOptionsFactory.create();
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" examples_wordcount_minimal_options >}}
 {{< /highlight >}}
 
@@ -138,11 +138,11 @@ transformations to be executed, associated with that particular pipeline.
 The scope allows grouping into composite transforms.
 {{< /paragraph >}}
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 Pipeline p = Pipeline.create(options);
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" examples_wordcount_minimal_create >}}
 {{< /highlight >}}
 
@@ -174,11 +174,11 @@ The MinimalWordCount pipeline contains five transforms:
     represents one line of text from the input file. This example uses input
     data stored in a publicly accessible Google Cloud Storage bucket ("gs://").
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 p.apply(TextIO.read().from("gs://apache-beam-samples/shakespeare/*"))
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" examples_wordcount_minimal_read >}}
 {{< /highlight >}}
 
@@ -196,13 +196,13 @@ lines := textio.Read(s, "gs://apache-beam-samples/shakespeare/*")
     previous `TextIO.Read` transform. The `ParDo` transform outputs a new
     `PCollection`, where each element represents an individual word in the text.
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
     .apply("ExtractWords", FlatMapElements
         .into(TypeDescriptors.strings())
         .via((String line) -> Arrays.asList(line.split("[^\\p{L}]+"))))
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 # The Flatmap transform is a simplified version of ParDo.
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" examples_wordcount_minimal_pardo >}}
 {{< /highlight >}}
@@ -226,11 +226,11 @@ words := beam.ParDo(s, func(line string, emit func(string)) {
     of key/value pairs where each key represents a unique word in the text and
     the associated value is the occurrence count for each.
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 .apply(Count.<String>perElement())
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" examples_wordcount_minimal_count >}}
 {{< /highlight >}}
 
@@ -246,13 +246,13 @@ counted := stats.Count(s, words)
     simple `ParDo`. For each element in the input `PCollection`, the map
     transform applies a function that produces exactly one output element.
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 .apply("FormatResults", MapElements
     .into(TypeDescriptors.strings())
     .via((KV<String, Long> wordCount) -> wordCount.getKey() + ": " + wordCount.getValue()))
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" examples_wordcount_minimal_map >}}
 {{< /highlight >}}
 
@@ -267,11 +267,11 @@ formatted := beam.ParDo(s, func(w string, c int) string {
     Each element in the input `PCollection` represents one line of text in the
     resulting output file.
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 .apply(TextIO.write().to("wordcounts"));
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" examples_wordcount_minimal_write >}}
 {{< /highlight >}}
 
@@ -299,11 +299,11 @@ executed by the pipeline runner that you specified in your `PipelineOptions`.
 Run the pipeline by passing it to a runner.
 {{< /paragraph >}}
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 p.run().waitUntilFinish();
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" examples_wordcount_minimal_run >}}
 {{< /highlight >}}
 
@@ -507,7 +507,7 @@ idea to define the `DoFn` at the global level, which makes it easier to unit
 test and can make the `ParDo` code more readable.
 {{< /paragraph >}}
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 // In this example, ExtractWordsFn is a DoFn that is defined as a static class:
 
 static class ExtractWordsFn extends DoFn<String, String> {
@@ -520,7 +520,7 @@ static class ExtractWordsFn extends DoFn<String, String> {
 }
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 # In this example, the DoFns are defined as classes:
 
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" examples_wordcount_wordcount_dofn >}}
@@ -564,7 +564,7 @@ When `CountWords` is defined, we specify its ultimate input and output; the
 input is the `PCollection<String>` for the extraction operation, and the output
 is the `PCollection<KV<String, Long>>` produced by the count operation.
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 public static class CountWords extends PTransform<PCollection<String>,
     PCollection<KV<String, Long>>> {
   @Override
@@ -591,7 +591,7 @@ public static void main(String[] args) throws IOException {
 }
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" examples_wordcount_wordcount_composite >}}
 {{< /highlight >}}
 
@@ -623,7 +623,7 @@ values for them. You can then access the options values in your pipeline code.
 You can use the standard `flag` package for this purpose.
 {{< /paragraph >}}
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 public static interface WordCountOptions extends PipelineOptions {
   @Description("Path of the file to read from")
   @Default.String("gs://dataflow-samples/shakespeare/kinglear.txt")
@@ -640,7 +640,7 @@ public static void main(String[] args) {
 }
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" examples_wordcount_wordcount_options >}}
 {{< /highlight >}}
 
@@ -815,7 +815,7 @@ pipeline code into smaller sections.
 
 Each runner may choose to handle logs in its own way.
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 // This example uses .trace and .debug:
 
 public class DebuggingWordCount {
@@ -837,7 +837,7 @@ public class DebuggingWordCount {
 }
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" example_wordcount_debugging_logging >}}
 {{< /highlight >}}
 
@@ -941,7 +941,7 @@ assert does not produce any output, and the pipeline only succeeds if all of the
 expectations are met.
 {{< /paragraph >}}
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 public static void main(String[] args) {
   ...
   List<KV<String, Long>> expectedResults = Arrays.asList(
@@ -952,7 +952,7 @@ public static void main(String[] args) {
 }
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
@@ -1156,7 +1156,7 @@ Recall that the input for this example is a set of Shakespeare's texts, which is
 a finite set of data. Therefore, this example reads bounded data from a text
 file:
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 public static void main(String[] args) throws IOException {
     Options options = ...
     Pipeline pipeline = Pipeline.create(options);
@@ -1166,7 +1166,7 @@ public static void main(String[] args) throws IOException {
 
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 def main(arvg=None):
   parser = argparse.ArgumentParser()
   parser.add_argument('--input-file',
@@ -1202,11 +1202,11 @@ In this example the input is bounded. For the purpose of the example, the `DoFn`
 method named `AddTimestampsFn` (invoked by `ParDo`) will set a timestamp for
 each element in the `PCollection`.
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 .apply(ParDo.of(new AddTimestampFn(minTimestamp, maxTimestamp)));
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 beam.Map(AddTimestampFn(min_timestamp, max_timestamp))
 {{< /highlight >}}
 
@@ -1222,7 +1222,7 @@ works of Shakespeare, so in this case we've made up random timestamps just to
 illustrate the concept. Each line of the input text will get a random associated
 timestamp sometime in a 2-hour period.
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 static class AddTimestampFn extends DoFn<String, String> {
   private final Instant minTimestamp;
   private final Instant maxTimestamp;
@@ -1247,7 +1247,7 @@ static class AddTimestampFn extends DoFn<String, String> {
 }
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 class AddTimestampFn(beam.DoFn):
 
   def __init__(self, min_timestamp, max_timestamp):
@@ -1287,13 +1287,13 @@ The WindowedWordCount example applies fixed-time windowing, wherein each
 window represents a fixed time interval. The fixed window size for this example
 defaults to 1 minute (you can change this with a command-line option).
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 PCollection<String> windowedWords = input
   .apply(Window.<String>into(
     FixedWindows.of(Duration.standardMinutes(options.getWindowSize()))));
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 windowed_words = input | beam.WindowInto(window.FixedWindows(60 * window_size_minutes))
 {{< /highlight >}}
 
@@ -1307,11 +1307,11 @@ windowedLines := beam.WindowInto(s, window.NewFixedWindows(time.Minute), timesta
 You can reuse existing PTransforms that were created for manipulating simple
 PCollections over windowed PCollections as well.
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 PCollection<KV<String, Long>> wordCounts = windowedWords.apply(new WordCount.CountWords());
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
 word_counts = windowed_words | CountWords()
 {{< /highlight >}}
 
@@ -1398,11 +1398,11 @@ This example uses an unbounded dataset as input. The code reads Pub/Sub
 messages from a Pub/Sub subscription or topic using
 [`beam.io.ReadFromPubSub`](https://beam.apache.org/releases/pydoc/{{< param release_latest >}}/apache_beam.io.gcp.pubsub.html#apache_beam.io.gcp.pubsub.ReadFromPubSub).
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
   // This example is not currently available for the Beam SDK for Java.
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
   # Read from Pub/Sub into a PCollection.
   if known_args.input_subscription:
     data = p | beam.io.ReadFromPubSub(
@@ -1427,11 +1427,11 @@ This example uses an unbounded `PCollection` and streams the results to
 Google Pub/Sub. The code formats the results and writes them to a Pub/Sub topic
 using [`beam.io.WriteToPubSub`](https://beam.apache.org/releases/pydoc/{{< param release_latest >}}/apache_beam.io.gcp.pubsub.html#apache_beam.io.gcp.pubsub.WriteToPubSub).
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
   // This example is not currently available for the Beam SDK for Java.
 {{< /highlight >}}
 
-{{< highlight language="py" >}}
+{{< highlight py >}}
   # Write to Pub/Sub
   _ = (output
     | 'EncodeString' >> Map(lambda s: s.encode('utf-8'))

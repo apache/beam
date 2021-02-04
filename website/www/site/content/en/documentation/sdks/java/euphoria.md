@@ -41,7 +41,7 @@ Euphoria DSL integration is still work in progress and is tracked as part of [BE
 
 ## WordCount Example
 Lets start with the small example.
-{{< highlight language="java" >}}
+{{< highlight java >}}
 PipelineOptions options = PipelineOptionsFactory.create();
 Pipeline pipeline = Pipeline.create(options);
 
@@ -98,7 +98,7 @@ Euphoria API is composed from a set of operators, which allows you to construct 
 ### Inputs and Outputs
 Input data can be supplied through Beams IO into `PCollection`, the same way as in Beam.
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 PCollection<String> input =
   pipeline
     .apply(Create.of("mouse", "rat", "elephant", "cat", "X", "duck"))
@@ -109,7 +109,7 @@ PCollection<String> input =
 Real power of Euphoria API is in its [operators suite](#operator-reference). Each Operator consumes one or more input and produces one output
 `PCollection`. Lets take a look at simple `MapElements` example.
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 PCollection<Integer> input = ...
 
 PCollection<String> mappedElements =
@@ -145,18 +145,18 @@ All you need is to create `KryoCoderProvider` and register it to your
 `Pipeline`. There are two ways of doing that.
 
 When prototyping you may decide not to care much about coders, then create `KryoCoderProvider` without any class registrations to [Kryo](https://github.com/EsotericSoftware/kryo).
-{{< highlight language="java" >}}
+{{< highlight java >}}
 //Register `KryoCoderProvider` which attempt to use `KryoCoder` to every non-primitive type
 KryoCoderProvider.of().registerTo(pipeline);
 {{< /highlight >}}
 Such a `KryoCoderProvider` will return `KryoCoder` for every non-primitive element type. That of course degrades performance, since Kryo is not able to serialize instance of unknown types effectively. But it boost speed of pipeline development. This behavior is enabled by default and can be disabled when creating `Pipeline` through `KryoOptions`.
-{{< highlight language="java" >}}
+{{< highlight java >}}
 PipelineOptions options = PipelineOptionsFactory.create();
 options.as(KryoOptions.class).setKryoRegistrationRequired(true);
 {{< /highlight >}}
 
 Second more performance friendly way is to register all the types which will Kryo serialize. Sometimes it is also a good idea to register Kryo serializers of its own too. Euphoria allows you to do that by implementing your own `KryoRegistrar` and using it when creating `KryoCoderProvider`.
-{{< highlight language="java" >}}
+{{< highlight java >}}
 //Do not allow `KryoCoderProvider` to return `KryoCoder` for unregistered types
 options.as(KryoOptions.class).setKryoRegistrationRequired(true);
 
@@ -167,7 +167,7 @@ KryoCoderProvider.of(
     .registerTo(pipeline);
 {{< /highlight >}}
 Beam resolves coders using types of elements. Type information is not available at runtime when element type is described by lambda implementation. It is due to type erasure and dynamic nature of lambda expressions. So there is an optional way of supplying `TypeDescriptor` every time new type is introduced during Operator construction.
-{{< highlight language="java" >}}
+{{< highlight java >}}
 PCollection<Integer> input = ...
 
 MapElements
@@ -180,7 +180,7 @@ Euphoria operator's will use `TypeDescriptor<Object>`, when `TypeDescriptors` is
 
 ### Metrics and Accumulators
 Statistics about job's internals are very helpful during development of distributed jobs. Euphoria calls them accumulators. They are accessible through environment `Context`, which can be obtained from `Collector`, whenever working with it. It is usually present when zero-to-many output elements are expected from operator. For example in case of `FlatMap`.
-{{< highlight language="java" >}}
+{{< highlight java >}}
 Pipeline pipeline = ...
 PCollection<String> dataset = ..
 
@@ -196,7 +196,7 @@ FlatMap
   .output();
 {{< /highlight >}}
 `MapElements` also allows for `Context` to be accessed by supplying implementations of `UnaryFunctionEnv` (add second context argument) instead of `UnaryFunctor`.
-{{< highlight language="java" >}}
+{{< highlight java >}}
 Pipeline pipeline = ...
 PCollection<String> dataset = ...
 
@@ -216,7 +216,7 @@ Accumulators are translated into Beam Metrics in background so they can be viewe
 
 ### Windowing
 Euphoria follows the same [windowing principles](/documentation/programming-guide/#windowing) as Beam Java SDK. Every shuffle operator (operator which needs to shuffle data over the network) allows you to set it. The same parameters as in Beam are required. `WindowFn`, `Trigger`, `WindowingStrategy` and other. Users are guided to either set all mandatory and several optional parameters  or none when building an operator. Windowing is propagated down through the `Pipeline`.
-{{< highlight language="java" >}}
+{{< highlight java >}}
 PCollection<KV<Integer, Long>> countedElements =
   CountByKey.of(input)
       .keyBy(e -> e)
@@ -241,7 +241,7 @@ Operators are basically higher level data transformations, which allows you to b
 
 ### `CountByKey`
 Counting elements with the same key. Requires input dataset to be mapped by given key extractor (`UnaryFunction`) to keys which are then counted. Output is emitted as `KV<K, Long>` (`K` is key type) where each `KV` contains key and number of element in input dataset for the key.
-{{< highlight language="java" >}}
+{{< highlight java >}}
 // suppose input: [1, 2, 4, 1, 1, 3]
 PCollection<KV<Integer, Long>> output =
   CountByKey.of(input)
@@ -252,7 +252,7 @@ PCollection<KV<Integer, Long>> output =
 
 ### `Distinct`
  Outputting distinct (based on equals method) elements. It takes optional `UnaryFunction` mapper parameter which maps elements to output type.
- {{< highlight language="java" >}}
+ {{< highlight java >}}
 // suppose input: [1, 2, 3, 3, 2, 1]
 Distinct.named("unique-integers-only")
   .of(input)
@@ -260,7 +260,7 @@ Distinct.named("unique-integers-only")
 // Output will contain:  1, 2, 3
  {{< /highlight >}}
 `Distinct` with mapper.
-{{< highlight language="java" >}}
+{{< highlight java >}}
 // suppose keyValueInput: [KV(1, 100L), KV(3, 100_000L), KV(42, 10L), KV(1, 0L), KV(3, 0L)]
 Distinct.named("unique-keys-only")
   .of(keyValueInput)
@@ -271,7 +271,7 @@ Distinct.named("unique-keys-only")
 
 ### `Join`
 Represents inner join of two (left and right) datasets on given key producing a new dataset. Key is extracted from both datasets by separate extractors so elements in left and right can have different types denoted as `LeftT` and `RightT`. The join itself is performed by user-supplied `BinaryFunctor` which consumes elements from both dataset sharing the same key. And outputs result of the join (`OutputT`). The operator emits output dataset of `KV<K, OutputT>` type.
-{{< highlight language="java" >}}
+{{< highlight java >}}
 // suppose that left contains: [1, 2, 3, 0, 4, 3, 1]
 // suppose that right contains: ["mouse", "rat", "elephant", "cat", "X", "duck"]
 PCollection<KV<Integer, String>> joined =
@@ -286,7 +286,7 @@ PCollection<KV<Integer, String>> joined =
 
 ### `LeftJoin`
 Represents left join of two (left and right) datasets on given key producing single new dataset. Key is extracted from both datasets by separate extractors so elements in left and right can have different types denoted as `LeftT` and `RightT`. The join itself is performed by user-supplied `BinaryFunctor` which consumes one element from both dataset, where right is present optionally, sharing the same key. And outputs result of the join (`OutputT`). The operator emits output dataset of `KV<K, OutputT>` type.
-{{< highlight language="java" >}}
+{{< highlight java >}}
 // suppose that left contains: [1, 2, 3, 0, 4, 3, 1]
 // suppose that right contains: ["mouse", "rat", "elephant", "cat", "X", "duck"]
 PCollection<KV<Integer, String>> joined =
@@ -305,7 +305,7 @@ Euphoria support performance optimization called 'BroadcastHashJoin' for the `Le
 
 ### `RightJoin`
 Represents right join of two (left and right) datasets on given key producing single new dataset. Key is extracted from both datasets by separate extractors so elements in left and right can have different types denoted as `LeftT` and `RightT`. The join itself is performed by user-supplied `BinaryFunctor` which consumes one element from both dataset, where left is present optionally, sharing the same key. And outputs result of the join (`OutputT`). The operator emits output dataset of `KV<K, OutputT>` type.
-{{< highlight language="java" >}}
+{{< highlight java >}}
 // suppose that left contains: [1, 2, 3, 0, 4, 3, 1]
 // suppose that right contains: ["mouse", "rat", "elephant", "cat", "X", "duck"]
 PCollection<KV<Integer, String>> joined =
@@ -324,7 +324,7 @@ Euphoria support performance optimization called 'BroadcastHashJoin' for the `Ri
 
 ### `FullJoin`
 Represents full outer join of two (left and right) datasets on given key producing single new dataset. Key is extracted from both datasets by separate extractors so elements in left and right can have different types denoted as `LeftT` and `RightT`. The join itself is performed by user-supplied `BinaryFunctor` which consumes one element from both dataset, where both are present only optionally, sharing the same key. And outputs result of the join (`OutputT`). The operator emits output dataset of `KV<K, OutputT>` type.
-{{< highlight language="java" >}}
+{{< highlight java >}}
 // suppose that left contains: [1, 2, 3, 0, 4, 3, 1]
 // suppose that right contains: ["mouse", "rat", "elephant", "cat", "X", "duck"]
 PCollection<KV<Integer, String>> joined =
@@ -342,7 +342,7 @@ PCollection<KV<Integer, String>> joined =
 
 ### `MapElements`
 Transforms one input element of input type `InputT` to one output element of another (potentially the same) `OutputT` type. Transformation is done through user specified `UnaryFunction`.
-{{< highlight language="java" >}}
+{{< highlight java >}}
 // suppose inputs contains: [ 0, 1, 2, 3, 4, 5]
 PCollection<String> strings =
   MapElements.named("int2str")
@@ -354,7 +354,7 @@ PCollection<String> strings =
 
 ### `FlatMap`
 Transforms one input element of input type `InputT` to zero or more output elements of another (potentially the same) `OutputT` type. Transformation is done through user specified `UnaryFunctor`, where `Collector<OutputT>` is utilized to emit output elements. Notice similarity with `MapElements` which can always emit only one element.
-{{< highlight language="java" >}}
+{{< highlight java >}}
 // suppose words contain: ["Brown", "fox", ".", ""]
 PCollection<String> letters =
   FlatMap.named("str2char")
@@ -370,7 +370,7 @@ PCollection<String> letters =
 // characters will contain: ["B", "r", "o", "w", "n",  "f", "o", "x", "."]
 {{< /highlight >}}
 `FlatMap` may be used to determine time-stamp of elements. It is done by supplying implementation of `ExtractEventTime` time extractor when building it. There is specialized `AssignEventTime` operator to assign time-stamp to elements. Consider using it, you code may be more readable.
-{{< highlight language="java" >}}
+{{< highlight java >}}
 // suppose events contain events of SomeEventObject, its 'getEventTimeInMillis()' methods returns time-stamp
 PCollection<SomeEventObject> timeStampedEvents =
   FlatMap.named("extract-event-time")
@@ -383,7 +383,7 @@ PCollection<SomeEventObject> timeStampedEvents =
 
 ### `Filter`
 `Filter` throws away all the elements which do not pass given condition. The condition is supplied by the user as implementation of `UnaryPredicate`. Input and output elements are of the same type.
-{{< highlight language="java" >}}
+{{< highlight java >}}
 // suppose nums contains: [0,  1, 2, 3, 4, 5, 6, 7, 8, 9]
 PCollection<Integer> divisibleBythree =
   Filter.named("divisibleByThree").of(nums).by(e -> e % 3 == 0).output();
@@ -396,7 +396,7 @@ Performs aggregation of `InputT` type elements with the same key through user-su
 Finally, elements with the same key are aggregated by user-defined `ReduceFunctor`, `ReduceFunction` or `CombinableReduceFunction`. They differs in number of arguments they take and in way output is interpreted. `ReduceFunction` is basically a function which takes `Stream` of elements as input and outputs one aggregation result. `ReduceFunctor` takes second `Collector` which allows for access to `Context`. When `CombinableReduceFunction` is provided, partial reduction is performed before shuffle so less data have to be transported through network.
 
 Following example shows basic usage of `ReduceByKey` operator including value extraction.
-{{< highlight language="java" >}}
+{{< highlight java >}}
 //suppose animals contains : [ "mouse", "rat", "elephant", "cat", "X", "duck"]
 PCollection<KV<Integer, Long>> countOfAnimalNamesByLength =
   ReduceByKey.named("to-letters-couts")
@@ -410,7 +410,7 @@ PCollection<KV<Integer, Long>> countOfAnimalNamesByLength =
 {{< /highlight >}}
 
 Now suppose that we want to track our `ReduceByKey` internals using counter.
-{{< highlight language="java" >}}
+{{< highlight java >}}
 //suppose animals contains : [ "mouse", "rat", "elephant", "cat", "X", "duck"]
 PCollection<KV<Integer, Long>> countOfAnimalNamesByLenght =
   ReduceByKey.named("to-letters-couts")
@@ -428,7 +428,7 @@ PCollection<KV<Integer, Long>> countOfAnimalNamesByLenght =
 {{< /highlight >}}
 
 Again the same example with optimized combinable output.
-{{< highlight language="java" >}}
+{{< highlight java >}}
 //suppose animals contains : [ "mouse", "rat", "elephant", "cat", "X", "duck"]
 PCollection<KV<Integer, Long>> countOfAnimalNamesByLenght =
   ReduceByKey.named("to-letters-couts")
@@ -443,7 +443,7 @@ PCollection<KV<Integer, Long>> countOfAnimalNamesByLenght =
 Note that the provided `CombinableReduceFunction` has to be associative and commutative to be truly combinable. So it can be used to compute partial results before shuffle. And then merge partial result to one. That is why simple `Stream::count` will not work in this example unlike in the previous one.
 
 Euphoria aims to make code easy to write and read. Therefore some support to write combinable reduce functions in form of `Fold` or folding function is already there. It allows user to supply only the reduction logic (`BinaryFunction`) and creates `CombinableReduceFunction` out of it. Supplied `BinaryFunction` still have to be associative.
-{{< highlight language="java" >}}
+{{< highlight java >}}
 //suppose animals contains : [ "mouse", "rat", "elephant", "cat", "X", "duck"]
 PCollection<KV<Integer, Long>> countOfAnimalNamesByLenght =
   ReduceByKey.named("to-letters-couts")
@@ -458,7 +458,7 @@ PCollection<KV<Integer, Long>> countOfAnimalNamesByLenght =
 
 ### `ReduceWindow`
 Reduces all elements in a [window](#windowing). The operator corresponds to `ReduceByKey` with the same key for all elements, so the actual key is defined only by window.
-{{< highlight language="java" >}}
+{{< highlight java >}}
 //suppose input contains [ 1, 2, 3, 4, 5, 6, 7, 8 ]
 //lets assign time-stamp to each input element
 PCollection<Integer> withEventTime = AssignEventTime.of(input).using(i -> 1000L * i).output();
@@ -475,7 +475,7 @@ PCollection<Integer> output =
 
 ### `SumByKey`
 Summing elements with same key. Requires input dataset to be mapped by given key extractor (`UnaryFunction`) to keys. By value extractor, also `UnaryFunction` which outputs to `Long`, to values. Those values are then grouped by key and summed. Output is emitted as `KV<K, Long>` (`K` is key type) where each `KV` contains key and number of element in input dataset for the key.
-{{< highlight language="java" >}}
+{{< highlight java >}}
 //suppose input contains: [ 1, 2, 3, 4, 5, 6, 7, 8, 9 ]
 PCollection<KV<Integer, Long>> output =
   SumByKey.named("sum-odd-and-even")
@@ -488,7 +488,7 @@ PCollection<KV<Integer, Long>> output =
 
 ### `Union`
 Merge of at least two datasets of the same type without any guarantee about elements ordering.
-{{< highlight language="java" >}}
+{{< highlight java >}}
 //suppose cats contains: [ "cheetah", "cat", "lynx", "jaguar" ]
 //suppose rodents conains: [ "squirrel", "mouse", "rat", "lemming", "beaver" ]
 PCollection<String> animals =
@@ -500,7 +500,7 @@ PCollection<String> animals =
 
 ### `TopPerKey`
 Emits one top-rated element per key. Key of type `K` is extracted by given `UnaryFunction`. Another `UnaryFunction` extractor allows for conversion input elements to values of type `V`. Selection of top element is based on _score_, which is obtained from each element by user supplied `UnaryFunction` called score calculator. Score type is denoted as `ScoreT` and it is required to extend `Comparable<ScoreT>` so scores of two elements can be compared directly. Output dataset elements are of type `Triple<K, V, ScoreT>`.
-{{< highlight language="java" >}}
+{{< highlight java >}}
 // suppose 'animals contain: [ "mouse", "elk", "rat", "mule", "elephant", "dinosaur", "cat", "duck", "caterpillar" ]
 PCollection<Triple<Character, String, Integer>> longestNamesByLetter =
   TopPerKey.named("longest-animal-names")
@@ -515,7 +515,7 @@ PCollection<Triple<Character, String, Integer>> longestNamesByLetter =
 
 ### `AssignEventTime`
 Euphoria needs to know how to extract time-stamp from elements when [windowing](#windowing) is applied. `AssignEventTime` tells Euphoria how to do that through given implementation of `ExtractEventTime` function.
-{{< highlight language="java" >}}
+{{< highlight java >}}
 // suppose events contain events of SomeEventObject, its 'getEventTimeInMillis()' methods returns time-stamp
 PCollection<SomeEventObject> timeStampedEvents =
   AssignEventTime.named("extract-event-tyme")
@@ -540,7 +540,7 @@ General `TranslationProvider`. Allows for registration of `OperatorTranslator` t
 * Registration of general (not specific to one operator type) translator with user defined predicate.
 Order of registration is important since `GenericTranslatorProvider` returns first suitable translator.
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 GenericTranslatorProvider.newBuilder()
   .register(FlatMap.class, new FlatMapTranslator<>()) // register by operator class
   .register(
@@ -561,7 +561,7 @@ GenericTranslatorProvider.newBuilder()
 #### `CompositeProvider`
 Implements chaining of `TranslationProvider`s in given order. That in turn allows for composing user defined `TranslationProvider` with already supplied by Euphoria API.
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 CompositeProvider.of(
   CustomTranslatorProvider.of(), // first ask CustomTranslatorProvider for translator
   GenericTranslatorProvider.createWithDefaultTranslators()); // then ask default provider if needed

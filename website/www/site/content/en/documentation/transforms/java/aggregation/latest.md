@@ -36,7 +36,7 @@ For elements with the same timestamp, the output element is arbitrarily selected
 
 ## Examples
 **Example**: compute the latest value for each session
-{{< highlight language="java" >}}
+{{< highlight java >}}
  PCollection input = ...;
  PCollection sessioned = input
     .apply(Window.into(Sessions.withGapDuration(Duration.standardMinutes(5)));

@@ -33,7 +33,7 @@ We use `Latest` to get the element with the latest timestamp from the `PCollecti
 
 We use `Latest.Globally()` to get the element with the latest timestamp in the entire `PCollection`.
 
-{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/latest.py" >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/latest.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/latest.py" latest_globally >}}
 {{< /highlight >}}
 
@@ -49,7 +49,7 @@ Output:
 
 We use `Latest.PerKey()` to get the elements with the latest timestamp for each key in a `PCollection` of key-values.
 
-{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/latest.py" >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/latest.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/latest.py" latest_per_key >}}
 {{< /highlight >}}
 

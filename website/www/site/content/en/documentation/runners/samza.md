@@ -38,7 +38,7 @@ The Samza Runner is built on Samza version greater than 1.0.
 ### Specify your dependency
 
 <span class="language-java">You can specify your dependency on the Samza Runner by adding the following to your `pom.xml`:</span>
-{{< highlight language="java" >}}
+{{< highlight java >}}
 <dependency>
   <groupId>org.apache.beam</groupId>
   <artifactId>beam-runners-samza</artifactId>

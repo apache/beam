@@ -31,7 +31,7 @@ that a `PCollection` contains a specific set of expected elements.
 
 ## Examples
 For a given `PCollection`, you can use `PAssert` to verify the contents as follows:
-{{< highlight language="java" >}}
+{{< highlight java >}}
 PCollection<String> output = ...;
 
 // Check whether a PCollection contains some elements in any order.
@@ -46,7 +46,7 @@ Any code that uses `PAssert` must link in `JUnit` and `Hamcrest`.
 If you're using Maven, you can link in `Hamcrest` by adding the
 following dependency to your project's pom.xml file:
 
-{{< highlight language="java" >}}
+{{< highlight java >}}
 <dependency>
     <groupId>org.hamcrest</groupId>
     <artifactId>hamcrest-all</artifactId>
