@@ -87,9 +87,9 @@ to either a single <code>PCollection</code> or a <code>PCollectionTuple</code> w
 
     <span class=c1>// Create a PCollectionTuple containing both PCollections.
 </span><span class=c1></span>    <span class=c1>// TupleTags IDs will be used as table names in the SQL query
-</span><span class=c1></span>    <span class=n>PCollectionTuple</span> <span class=n>namesAndFoods</span> <span class=o>=</span> <span class=n>PCollectionTuple</span><span class=o>.</span><span class=na>of</span><span class=o>(</span>
-        <span class=k>new</span> <span class=n>TupleTag</span><span class=o>&lt;&gt;(</span><span class=s>&#34;Apps&#34;</span><span class=o>),</span> <span class=n>appsRows</span><span class=o>),</span> <span class=c1>// appsRows from the previous example
-</span><span class=c1></span>        <span class=k>new</span> <span class=n>TupleTag</span><span class=o>&lt;&gt;(</span><span class=s>&#34;Reviews&#34;</span><span class=o>),</span> <span class=n>reviewsRows</span><span class=o>));</span>
+</span><span class=c1></span>    <span class=n>PCollectionTuple</span> <span class=n>namesAndFoods</span> <span class=o>=</span> <span class=n>PCollectionTuple</span>
+        <span class=o>.</span><span class=na>of</span><span class=o>(</span><span class=k>new</span> <span class=n>TupleTag</span><span class=o>&lt;&gt;(</span><span class=s>&#34;Apps&#34;</span><span class=o>),</span> <span class=n>appsRows</span><span class=o>)</span> <span class=c1>// appsRows from the previous example
+</span><span class=c1></span>        <span class=o>.</span><span class=na>and</span><span class=o>(</span><span class=k>new</span> <span class=n>TupleTag</span><span class=o>&lt;&gt;(</span><span class=s>&#34;Reviews&#34;</span><span class=o>),</span> <span class=n>reviewsRows</span><span class=o>);</span>
 
     <span class=c1>// Compute the total number of reviews
 </span><span class=c1></span>    <span class=c1>// and average rating per app

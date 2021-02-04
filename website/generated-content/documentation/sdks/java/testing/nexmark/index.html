@@ -53,7 +53,7 @@ to this, the necessary dependencies must be configured.</p><p>When running via G
 -P nexmark.runner
 The Gradle project name of the runner, such as &quot;:runners:direct-java&quot; or
 &quot;:runners:flink:1.10. The project names can be found in the root
-    `settings.gradle`.
+    `settings.gradle.kts`.
 </code></pre><p>Test data is deterministically synthesized on demand. The test
 data may be synthesized in the same pipeline as the query itself,
 or may be published to Pub/Sub or Kafka.</p><p>The query results may be:</p><ul><li>Published to Pub/Sub or Kafka.</li><li>Written to text files as plain text.</li><li>Written to text files using an Avro encoding.</li><li>Sent to BigQuery.</li><li>Discarded.</li></ul><h3 id=common-configuration-parameters>Common configuration parameters</h3><p>Decide if batch or streaming:</p><pre><code>--streaming=true
