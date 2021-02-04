@@ -31,7 +31,6 @@ $(document).ready(function() {
         });
         $('#apache-dropdown').click(function(){
             $(this).find('span').toggleClass('rotate');
-            console.log( $(this).find('span'))
         });
     }
    rotate();
