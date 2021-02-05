@@ -118,6 +118,7 @@ class IOTest(unittest.TestCase):
     self._run_read_write_test(
         format, read_kwargs, write_kwargs, check_options, requires)
 
+  # pylint: disable=dangerous-default-value
   def _run_read_write_test(
       self,
       format,

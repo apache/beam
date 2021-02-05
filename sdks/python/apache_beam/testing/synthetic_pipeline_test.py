@@ -36,7 +36,7 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
 try:
-  import numpy
+  import numpy  # pylint: disable=unused-import
 except ImportError:
   NP_INSTALLED = False
 else:
