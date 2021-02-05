@@ -532,6 +532,7 @@ class _QuantileState(object):
     self.unbuffered_elements = unbuffered_elements
     self.unbuffered_weights = unbuffered_weights
 
+  # This is needed for pickling to work when Cythonization is enabled.
   def __reduce__(self):
     return (
         self.__class__,
