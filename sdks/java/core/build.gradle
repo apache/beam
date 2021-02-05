@@ -63,10 +63,10 @@ processResources {
 
 // Exclude tests that need a runner
 test {
-  systemProperty "beamUseDummyRunner", "true"
-  useJUnit {
-    excludeCategories "org.apache.beam.sdk.testing.NeedsRunner"
-  }
+  // systemProperty "beamUseDummyRunner", "true"
+  // useJUnit {
+  //   excludeCategories "org.apache.beam.sdk.testing.NeedsRunner"
+  // }
 }
 
 dependencies {
@@ -106,4 +106,5 @@ dependencies {
   shadowTest library.java.avro_tests
   shadowTest library.java.zstd_jni
   testRuntimeOnly library.java.slf4j_jdk14
+  testCompile project(path: ":runners:direct-java", configuration: "shadow")
 }
