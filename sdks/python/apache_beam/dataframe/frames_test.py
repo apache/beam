@@ -383,7 +383,8 @@ class DeferredFrameTest(unittest.TestCase):
 
   def test_loc(self):
     dates = pd.date_range('1/1/2000', periods=8)
-    # We do not preserve the freq attribute on a DateTime index. Is this a bug?
+    # TODO(BEAM-11757): We do not preserve the freq attribute on a DateTime
+    # index
     dates.freq = None
     df = pd.DataFrame(
         np.arange(32).reshape((8, 4)),
