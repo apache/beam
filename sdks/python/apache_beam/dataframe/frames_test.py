@@ -36,6 +36,7 @@ GROUPBY_DF = pd.DataFrame({
     'baz': [None if i % 13 == 0 else i * 2 for i in range(100)],
 })
 
+
 class DeferredFrameTest(unittest.TestCase):
   def _run_test(self, func, *args, distributed=True, expect_error=False):
     deferred_args = [
@@ -86,7 +87,8 @@ class DeferredFrameTest(unittest.TestCase):
           pd.testing.assert_frame_equal(expected, actual)
         else:
           raise ValueError(
-              "Expected value is an NDFrame, but not a Series or DataFrame.")
+              f"Expected value is a {type(expected)},"
+              "not a Series or DataFrame.")
 
       else:
         # Expectation is not a pandas object
