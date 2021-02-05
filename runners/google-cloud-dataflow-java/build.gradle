@@ -144,6 +144,7 @@ def runnerV2PipelineOptions = [
   "--region=${dataflowRegion}",
   "--tempRoot=${dataflowValidatesTempRoot}",
   "--workerHarnessContainerImage=${dockerImageContainer}:${dockerTag}",
+  "--testTimeoutSeconds=900",
   "--experiments=beam_fn_api,use_unified_worker,use_runner_v2",
 ]
 
