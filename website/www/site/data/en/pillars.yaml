@@ -12,7 +12,7 @@
 
 - title: Unified
   body: Use a single programming model for both batch and streaming use cases.
-  icon: icons/unified-icon.svg 
+  icon: icons/unified-icon.svg
 - title: Extensible
   body: Write and share new SDKs, IO connectors, and transformation libraries.
   icon: icons/extensible-icon.svg

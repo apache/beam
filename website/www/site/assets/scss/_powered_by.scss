@@ -1,0 +1,196 @@
+/*
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+      http://www.apache.org/licenses/LICENSE-2.0
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License. See accompanying LICENSE file.
+   */
+   .powered_by {
+	display: flex;
+	flex-wrap: wrap;
+	margin-top: 74px;
+	.powered-card {
+		width: 417px;
+		height: 413px;
+		padding: 33px 26px 32px;
+		border-radius: 16px;
+		-webkit-box-shadow: 0 4px 16px 0 rgba(0, 0, 0, .16), 0 4px 4px 0 rgba(0, 0, 0, .06);
+		box-shadow: 0 4px 16px 0 rgba(0, 0, 0, .16), 0 4px 4px 0 rgba(0, 0, 0, .06);
+		background-color: #fff;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		text-align: center;
+		justify-content: space-between;
+		margin-right: 20px;
+		margin-bottom: 20px;
+		overflow: hidden;
+		&:hover {
+			text-decoration: none;
+			-webkit-box-shadow: 0 4px 20px 0 rgba(0, 0, 0, .24), 0 4px 6px 0 rgba(0, 0, 0, .24);
+			box-shadow: 0 4px 20px 0 rgba(0, 0, 0, .24), 0 4px 6px 0 rgba(0, 0, 0, .24);
+		}
+		.load-button {
+			margin-top: 0;
+		}
+		.powered-summary {
+			font-size: 14px;
+			font-weight: 400;
+			line-height: 1.57;
+			letter-spacing: .43px;
+			color: #333;
+		}
+		.powered-title {
+			color: #333;
+		}
+	}
+}
+.powered-icon {
+	width: 153px;
+	height: 153px;
+	margin: 0 auto;
+	svg {
+		width: 100%;
+		height: 100%;
+	}
+}
+.use_cases {
+	display: flex;
+	flex-direction: column;
+	.use-card {
+		width: 872px;
+		max-width: 100%;
+		height: 278px;
+		padding: 33px 33px 24px 37px;
+		border-radius: 16px;
+		-webkit-box-shadow: 0 4px 16px 0 rgba(0, 0, 0, .16), 0 4px 4px 0 rgba(0, 0, 0, .06);
+		box-shadow: 0 4px 16px 0 rgba(0, 0, 0, .16), 0 4px 4px 0 rgba(0, 0, 0, .06);
+		background-color: #fff;
+		display: flex;
+		margin-bottom: 36px;
+		&:hover {
+			text-decoration: none;
+			-webkit-box-shadow: 0 4px 20px 0 rgba(0, 0, 0, .24), 0 4px 6px 0 rgba(0, 0, 0, .24);
+			box-shadow: 0 4px 20px 0 rgba(0, 0, 0, .24), 0 4px 6px 0 rgba(0, 0, 0, .24);
+		}
+		a {
+			color: #333;
+			&:hover {
+				text-decoration: none;
+			}
+		}
+		.use-icon {
+			display: flex;
+			align-items: center;
+			height: 100%;
+			margin-right: 48px;
+			svg, img {
+				width: 153px;
+			}
+		}
+		.use-body {
+			display: flex;
+			width: calc(100% - 200px);
+			flex-direction: column;
+			justify-content: space-between;
+			.use-category {
+				margin-bottom: 16px;
+				font-size: 14px;
+				font-weight: 700;
+				line-height: normal;
+				letter-spacing: 2px;
+				text-align: left;
+				color: #8c8b8e;
+				text-transform: uppercase;
+			}
+			.read-link {
+				text-align: end;
+				color: #f26628;
+				font-weight: 700;
+				line-height: 1.14;
+				letter-spacing: .6px;
+			}
+			.use-summary {
+				max-height: 109px;
+				display: -webkit-box;
+				overflow: hidden;
+				-webkit-line-clamp: 4;
+				-webkit-box-orient: vertical;
+			}
+			h5 {
+				margin-top: 0;
+			}
+		}
+	}
+	.remove {
+		display: none;
+	}
+	.show-item {
+		display: flex;
+	}
+}
+.feedback {
+	text-align: center;
+	position: relative;
+	padding-top: 56px;
+	margin-top: 48px;
+	h3 {
+		max-width: 100%;
+	}
+	.update {
+		color: #8c8b8e;
+		float: right;
+		position: absolute;
+		top: 0;
+		right: 0;
+	}
+	.load-button {
+		margin-top: 56px;
+		padding: 15px 31px;
+		a{
+			color: #fff;
+			text-decoration: none;
+		}
+	}
+	.description {
+		max-width: 465px;
+		margin: 0 auto;
+		margin-top: 24px;
+	}
+}
+@media (max-width: $mobile) {
+	.powered_by {
+		justify-content: center;
+		.powered-card {
+			width: 327px;
+			margin-right: 0;
+		}
+	}
+	.use_cases {
+		align-items: center;
+		.use-card {
+			width: 327px;
+			height: 650px;
+			padding: 27px 25px 24px;
+			flex-direction: column;
+			align-items: center;
+			.use-icon {
+				margin-right: 0;
+				height: 153px;
+				margin-bottom: 32px;
+			}
+			.use-body {
+				width: 100%;
+				height: 100%;
+				.use-summary {
+					max-height: 234px;
+					-webkit-line-clamp: 9;
+				}
+			}
+		}
+	}
+}
