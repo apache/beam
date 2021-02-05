@@ -84,7 +84,7 @@ detail.
    Agreement](https://www.apache.org/licenses/icla.pdf) (ICLA) to the Apache
    Software Foundation (ASF).
 
-</div>
+
 
 To install these in a Debian-based distribution:
 
@@ -246,6 +246,8 @@ script which is part of the Beam repo:
    Beam committers [can squash](https://beam.apache.org/contribute/committer-guide/#merging-it)
    all commits in the PR during merge, however if a PR has a mixture of independent changes that should not be squashed, and fixup commits,
    then the PR author should help squashing fixup commits to maintain a clean commmit history.
+
+</div>
 
 ## When will my change show up in an Apache Beam release?
 
