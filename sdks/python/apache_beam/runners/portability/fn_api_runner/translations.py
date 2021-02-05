@@ -857,7 +857,7 @@ def eliminate_common_key_with_none(stages, context):
     yield stage
 
 
-def pack_combiners(stages, context):
+def pack_per_key_combiners(stages, context):
   # type: (Iterable[Stage], TransformContext) -> Iterator[Stage]
 
   """Packs sibling CombinePerKey stages into a single CombinePerKey.
@@ -1051,6 +1051,12 @@ def pack_combiners(stages, context):
         parent=fused_stage.parent,
         environment=fused_stage.environment)
     yield unpack_stage
+
+
+def pack_combiners(stages, context):
+  # type: (Iterable[Stage], TransformContext) -> Iterator[Stage]
+  yield from pack_per_key_combiners(
+      eliminate_common_key_with_none(stages, context), context)
 
 
 def lift_combiners(stages, context):
