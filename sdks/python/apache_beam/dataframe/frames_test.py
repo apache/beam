@@ -17,7 +17,6 @@
 from __future__ import absolute_import
 
 import sys
-import random
 import unittest
 
 import numpy as np
@@ -30,6 +29,12 @@ from apache_beam.dataframe import frames  # pylint: disable=unused-import
 
 PD_VERSION = tuple(map(int, pd.__version__.split('.')))
 
+GROUPBY_DF = pd.DataFrame({
+    'group': ['a' if i % 5 == 0 or i % 3 == 0 else 'b' for i in range(100)],
+    'foo': [None if i % 11 == 0 else i for i in range(100)],
+    'bar': [None if i % 7 == 0 else 99 - i for i in range(100)],
+    'baz': [None if i % 13 == 0 else i * 2 for i in range(100)],
+})
 
 class DeferredFrameTest(unittest.TestCase):
   def _run_test(self, func, *args, distributed=True, expect_error=False):
@@ -165,12 +170,7 @@ class DeferredFrameTest(unittest.TestCase):
     self._run_test(lambda df: df.groupby(['second', 'A']).sum(), df)
 
   def test_groupby_project(self):
-    df = pd.DataFrame({
-        'group': ['a' if i % 5 == 0 or i % 3 == 0 else 'b' for i in range(100)],
-        'foo': [None if i % 11 == 0 else i for i in range(100)],
-        'bar': [None if i % 7 == 0 else 99 - i for i in range(100)],
-        'baz': [None if i % 13 == 0 else i * 2 for i in range(100)],
-    })
+    df = GROUPBY_DF
 
     self._run_test(lambda df: df.groupby('group').foo.agg(sum), df)
 
@@ -195,13 +195,8 @@ class DeferredFrameTest(unittest.TestCase):
     self._run_test(lambda df: df.groupby('group')['baz'].median(), df)
     self._run_test(lambda df: df.groupby('group')[['bar', 'baz']].median(), df)
 
-  def test_groupby_errors(self):
-    df = pd.DataFrame({
-        'group': ['a' if i % 5 == 0 or i % 3 == 0 else 'b' for i in range(100)],
-        'foo': [None if i % 11 == 0 else i for i in range(100)],
-        'bar': [None if i % 7 == 0 else 99 - i for i in range(100)],
-        'baz': [None if i % 13 == 0 else i * 2 for i in range(100)],
-    })
+  def test_groupby_errors_non_existent_projection(self):
+    df = GROUPBY_DF
 
     # non-existent projection column
     self._run_test(
@@ -213,6 +208,9 @@ class DeferredFrameTest(unittest.TestCase):
 
     self._run_test(
         lambda df: df.groupby('group').bad.median(), df, expect_error=True)
+
+  def test_groupby_errors_non_existent_label(self):
+    df = GROUPBY_DF
 
     # non-existent grouping label
     self._run_test(
