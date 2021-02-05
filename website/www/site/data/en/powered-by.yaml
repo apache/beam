@@ -15,7 +15,6 @@
   icon: /icons/commercial-icon.svg
   link: /powered-by/commercial
 - title: Open source projects
-  body: Learn how the companies use Apache Beam and make their work easier.
+  body: Find other open source projects that use Apache Beam.
   icon: /icons/open_source-icon.svg
   link: /powered-by/open-source
-
