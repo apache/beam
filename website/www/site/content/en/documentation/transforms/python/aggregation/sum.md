@@ -32,7 +32,7 @@ Then, we get the sum of all the element values in different ways.
 
 We use `Combine.Globally()` to get sum of all the element values from the *entire* `PCollection`.
 
-{{< highlight py >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/sum.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/sum.py" sum_globally >}}
 {{< /highlight >}}
 
@@ -44,14 +44,11 @@ Output:
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/sum_test.py" total >}}
 {{< /highlight >}}
 
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/sum.py" >}}
-
 ### Example 2: Sum of the elements for each key
 
 We use `Combine.PerKey()` to get the sum of all the element values for each unique key in a `PCollection` of key-values.
 
-{{< highlight py >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/sum.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/sum.py" sum_per_key >}}
 {{< /highlight >}}
 
@@ -62,9 +59,6 @@ Output:
 {{< highlight class="notebook-skip" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/sum_test.py" totals_per_key >}}
 {{< /highlight >}}
-
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/sum.py" >}}
 
 ## Related transforms
 
