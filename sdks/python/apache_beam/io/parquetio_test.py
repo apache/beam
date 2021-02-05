@@ -21,7 +21,6 @@ from __future__ import absolute_import
 import json
 import logging
 import os
-import pytest
 import shutil
 import sys
 import tempfile
@@ -29,6 +28,7 @@ import unittest
 
 import hamcrest as hc
 import pandas
+import pytest
 from parameterized import param
 from parameterized import parameterized
 

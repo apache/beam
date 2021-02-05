@@ -22,7 +22,6 @@ import importlib
 import math
 import os
 import platform
-import pytest
 import shutil
 import sys
 import tempfile
@@ -32,6 +31,7 @@ from io import StringIO
 
 import pandas as pd
 import pandas.testing
+import pytest
 from pandas.testing import assert_frame_equal
 from parameterized import parameterized
 
