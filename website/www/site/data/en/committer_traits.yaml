@@ -16,6 +16,6 @@
 - body: { text: To learn more see the ASF documentation., link: https://infra.apache.org/committers.html#committer-responsibilities }
   bolded: Knows, upholds, and reinforces the responsibilities of an Apache Software Foundation committer.
   icon: icons/contributor/become a committer/beam-logo-icon.svg
-- body: { text: To learn more see our best practices!, link: https://beam.apache.org/contribute/become-a-committer/ }
+- body: { text: To learn more see our best practices!, link: https://beam.apache.org/contribute/attributes/ }
   bolded: Knows, upholds, and reinforces the Beam community’s practices.
   icon: icons/contributor/become a committer/diamond-icon.svg
