@@ -14,7 +14,7 @@
 
 // Legacy.
 @import "bootstrap";
-@import "capability-matrix";
+@import "_capability-matrix";
 @import "_syntax-highlighting";
 @import "_toggler-nav";
 
@@ -39,13 +39,14 @@
 @import "_hero-mobile.scss";
 @import "_logos.scss";
 @import "_pillars.scss";
-@import "_section-nav.scss";
-@import "_page-nav.scss";
+@import "_navbar-desktop.scss";
 @import "_table-wrapper.scss";
 @import "_calendar.scss";
+@import "_section-nav.scss";
+@import "_page-nav.scss";
 @import "_quotes.scss";
 @import "_blog.scss";
 @import "_lists.scss";
 @import "_traits.scss";
-@import "_navbar-desktop.scss";
 @import "_search.scss";
+@import "_powered_by.scss";

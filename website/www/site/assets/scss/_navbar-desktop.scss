@@ -51,6 +51,10 @@
      margin-right: 39px;
      text-decoration: none;
      cursor: pointer;
+     @media(max-width: 1273px){
+       font-size: 14px;
+       margin-right: 18px;
+     }
    }
 
    .navbar-logo {
@@ -113,6 +117,10 @@
            @extend .component-text;
            line-height: 1.63;
            letter-spacing: 0.2px;
+           @media(max-width: 1273px){
+             font-size: 14px;
+             margin-right: 5px;
+           }
          }
        }
      }
@@ -156,6 +164,12 @@
    .navbar-dropdown-apache:hover {
      .arrow-icon {
        opacity: 0.84;
+     }
+   }
+   .dropdown-menu{
+     @media(max-width: 1273px){
+       width: 132px !important;
+       left: -14% !important;
      }
    }
 

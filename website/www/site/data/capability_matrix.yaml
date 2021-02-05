@@ -44,10 +44,12 @@ capability-matrix:
   categories:
     - description: What is being computed?
       anchor: what
-      color-b: "ca1"
-      color-y: "ec3"
-      color-p: "fe5"
-      color-n: "ddd"
+      color-y: "fff"
+      color-yb: "f6f6f6"
+      color-p: "f9f9f9"
+      color-pb: "d8d8d8"
+      color-n: "e1e0e0"
+      color-nb: "bcbcbc"
       rows:
         - name: ParDo
           values:
@@ -573,10 +575,12 @@ capability-matrix:
               l3: ""
     - description: Bounded Splittable DoFn Support Status
       anchor: what
-      color-b: "ca1"
-      color-y: "ec3"
-      color-p: "fe5"
-      color-n: "ddd"
+      color-y: "fff"
+      color-yb: "f6f6f6"
+      color-p: "f9f9f9"
+      color-pb: "d8d8d8"
+      color-n: "e1e0e0"
+      color-nb: "bcbcbc"
       rows:
         - name: Base
           values:
@@ -870,10 +874,12 @@ capability-matrix:
               l3:
     - description: Unbounded Splittable DoFn Support Status
       anchor: what
-      color-b: "ca1"
-      color-y: "ec3"
-      color-p: "fe5"
-      color-n: "ddd"
+      color-y: "fff"
+      color-yb: "f6f6f6"
+      color-p: "f9f9f9"
+      color-pb: "d8d8d8"
+      color-n: "e1e0e0"
+      color-nb: "bcbcbc"
       rows:
         - name: Base
           values:
@@ -1167,10 +1173,12 @@ capability-matrix:
               l3:
     - description: Where in event time?
       anchor: where
-      color-b: "37d"
-      color-y: "59f"
-      color-p: "8cf"
-      color-n: "ddd"
+      color-y: "fff"
+      color-yb: "f6f6f6"
+      color-p: "f9f9f9"
+      color-pb: "d8d8d8"
+      color-n: "e1e0e0"
+      color-nb: "bcbcbc"
       rows:
         - name: Global windows
           values:
@@ -1525,10 +1533,12 @@ capability-matrix:
 
     - description: When in processing time?
       anchor: when
-      color-b: "6a4"
-      color-y: "8c6"
-      color-p: "ae8"
-      color-n: "ddd"
+      color-y: "fff"
+      color-yb: "f6f6f6"
+      color-p: "f9f9f9"
+      color-pb: "d8d8d8"
+      color-n: "e1e0e0"
+      color-nb: "bcbcbc"
       rows:
         - name: Configurable triggering
           values:
@@ -1941,10 +1951,12 @@ capability-matrix:
 
     - description: How do refinements relate?
       anchor: how
-      color-b: "b55"
-      color-y: "d77"
-      color-p: "faa"
-      color-n: "ddd"
+      color-y: "fff"
+      color-yb: "f6f6f6"
+      color-p: "f9f9f9"
+      color-pb: "d8d8d8"
+      color-n: "e1e0e0"
+      color-nb: "bcbcbc"
       rows:
         - name: Discarding
           values:
@@ -2101,10 +2113,12 @@ capability-matrix:
               l3: ""
     - description: Additional common features not yet part of the Beam model
       anchor: misc
-      color-b: "aaa"
-      color-y: "bbb"
-      color-p: "ccc"
-      color-n: "ddd"
+      color-y: "fff"
+      color-yb: "f6f6f6"
+      color-p: "f9f9f9"
+      color-pb: "d8d8d8"
+      color-n: "e1e0e0"
+      color-nb: "bcbcbc"
       rows:
         - name: Drain
           values:

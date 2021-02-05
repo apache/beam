@@ -69,10 +69,15 @@
        }
      }
    }
+   .category-buttons_center {
+    max-width: 872px;
+    margin:initial;
+  }
    .category-buttons_poweredBy {
      justify-content: flex-start;
      margin-top: 84px;
    }
+
    .restricted {
      max-width: 60%;
      @media (max-width: $mobile) {
