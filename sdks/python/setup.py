@@ -143,7 +143,8 @@ REQUIRED_PACKAGES = [
     'hdfs>=2.1.0,<3.0.0',
     'httplib2>=0.8,<0.18.0',
     'mock>=1.0.1,<3.0.0',
-    'numpy>=1.14.3,<2',
+    # TODO(BEAM-11731): Support numpy 1.20.0
+    'numpy>=1.14.3,<1.20.0',
     'pymongo>=3.8.0,<4.0.0',
     'oauth2client>=2.0.1,<5',
     'protobuf>=3.12.2,<4',
@@ -165,9 +166,7 @@ REQUIRED_TEST_PACKAGES = [
     'freezegun>=0.3.12',
     'nose>=1.3.7',
     'nose_xunitmp>=0.4.1',
-    # TODO(BEAM-11531): Address test breakages in pandas 1.2
-    # 'pandas>=1.0,<2',
-    'pandas>=1.0,<1.2.0',
+    'pandas>=1.0,<1.3.0',
     'parameterized>=0.7.1,<0.8.0',
     'pyhamcrest>=1.9,!=1.10.0,<2.0.0',
     'pyyaml>=3.12,<6.0.0',

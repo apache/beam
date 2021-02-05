@@ -82,7 +82,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
   public boolean start() throws IOException {
     Read<K, V> spec = source.getSpec();
     consumer = spec.getConsumerFactoryFn().apply(spec.getConsumerConfig());
-    consumerSpEL.evaluateAssign(consumer, spec.getTopicPartitions());
+    ConsumerSpEL.evaluateAssign(consumer, spec.getTopicPartitions());
 
     keyDeserializerInstance =
         spec.getKeyDeserializerProvider().getDeserializer(spec.getConsumerConfig(), true);
@@ -130,7 +130,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
             name, spec.getOffsetConsumerConfig(), spec.getConsumerConfig());
 
     offsetConsumer = spec.getConsumerFactoryFn().apply(offsetConsumerConfig);
-    consumerSpEL.evaluateAssign(offsetConsumer, spec.getTopicPartitions());
+    ConsumerSpEL.evaluateAssign(offsetConsumer, spec.getTopicPartitions());
 
     // Fetch offsets once before running periodically.
     updateLatestOffsets();
@@ -192,11 +192,11 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
                 rawRecord.topic(),
                 rawRecord.partition(),
                 rawRecord.offset(),
-                consumerSpEL.getRecordTimestamp(rawRecord),
-                consumerSpEL.getRecordTimestampType(rawRecord),
+                ConsumerSpEL.getRecordTimestamp(rawRecord),
+                ConsumerSpEL.getRecordTimestampType(rawRecord),
                 ConsumerSpEL.hasHeaders() ? rawRecord.headers() : null,
-                (K) consumerSpEL.deserializeKey(keyDeserializerInstance, rawRecord),
-                (V) consumerSpEL.deserializeValue(valueDeserializerInstance, rawRecord));
+                ConsumerSpEL.deserializeKey(keyDeserializerInstance, rawRecord),
+                ConsumerSpEL.deserializeValue(valueDeserializerInstance, rawRecord));
 
         curTimestamp =
             pState.timestampPolicy.getTimestampForRecord(pState.mkTimestampPolicyContext(), record);
@@ -357,9 +357,6 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
 
   private static final long UNINITIALIZED_OFFSET = -1;
 
-  // Add SpEL instance to cover the interface difference of Kafka client
-  private transient ConsumerSpEL consumerSpEL;
-
   /** watermark before any records have been read. */
   private static Instant initialWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
 
@@ -464,7 +461,6 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
 
   KafkaUnboundedReader(
       KafkaUnboundedSource<K, V> source, @Nullable KafkaCheckpointMark checkpointMark) {
-    this.consumerSpEL = new ConsumerSpEL();
     this.source = source;
     this.name = "Reader-" + source.getId();
 
@@ -616,7 +612,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
       Instant startReadTime = spec.getStartReadTime();
       if (startReadTime != null) {
         pState.nextOffset =
-            consumerSpEL.offsetForTime(consumer, pState.topicPartition, spec.getStartReadTime());
+            ConsumerSpEL.offsetForTime(consumer, pState.topicPartition, spec.getStartReadTime());
         consumer.seek(pState.topicPartition, pState.nextOffset);
       } else {
         pState.nextOffset = consumer.position(pState.topicPartition);
@@ -630,7 +626,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     for (PartitionState p : partitionStates) {
       try {
         Instant fetchTime = Instant.now();
-        consumerSpEL.evaluateSeek2End(offsetConsumer, p.topicPartition);
+        ConsumerSpEL.evaluateSeek2End(offsetConsumer, p.topicPartition);
         long offset = offsetConsumer.position(p.topicPartition);
         p.setLatestOffset(offset, fetchTime);
       } catch (Exception e) {

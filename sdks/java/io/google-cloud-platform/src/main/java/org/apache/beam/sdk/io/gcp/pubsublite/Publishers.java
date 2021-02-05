@@ -22,9 +22,10 @@ import static com.google.cloud.pubsublite.internal.UncheckedApiPreconditions.che
 import com.google.api.gax.rpc.ApiException;
 import com.google.cloud.pubsublite.PublishMetadata;
 import com.google.cloud.pubsublite.internal.Publisher;
+import com.google.cloud.pubsublite.internal.wire.PartitionCountWatchingPublisher;
+import com.google.cloud.pubsublite.internal.wire.PartitionCountWatchingPublisherSettings;
 import com.google.cloud.pubsublite.internal.wire.PubsubContext;
 import com.google.cloud.pubsublite.internal.wire.PubsubContext.Framework;
-import com.google.cloud.pubsublite.internal.wire.RoutingPublisherBuilder;
 import com.google.cloud.pubsublite.internal.wire.SinglePartitionPublisherBuilder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.reflect.TypeToken;
 
@@ -42,15 +43,16 @@ class Publishers {
       checkArgument(token.isSupertypeOf(supplied.getClass()));
       return (Publisher<PublishMetadata>) supplied;
     }
-    return RoutingPublisherBuilder.newBuilder()
-        .setTopic(options.topicPath())
-        .setPublisherFactory(
-            partition ->
-                SinglePartitionPublisherBuilder.newBuilder()
-                    .setTopic(options.topicPath())
-                    .setPartition(partition)
-                    .setContext(PubsubContext.of(FRAMEWORK))
-                    .build())
-        .build();
+    return new PartitionCountWatchingPublisher(
+        PartitionCountWatchingPublisherSettings.newBuilder()
+            .setTopic(options.topicPath())
+            .setPublisherFactory(
+                partition ->
+                    SinglePartitionPublisherBuilder.newBuilder()
+                        .setTopic(options.topicPath())
+                        .setPartition(partition)
+                        .setContext(PubsubContext.of(FRAMEWORK))
+                        .build())
+            .build());
   }
 }

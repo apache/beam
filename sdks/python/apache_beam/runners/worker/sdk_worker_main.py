@@ -34,6 +34,7 @@ from builtins import object
 from google.protobuf import text_format  # type: ignore # not in typeshed
 
 from apache_beam.internal import pickler
+from apache_beam.io import filesystems
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import ProfilingOptions
@@ -116,6 +117,7 @@ def main(unused_argv):
         os.environ['PIPELINE_OPTIONS'])
   else:
     sdk_pipeline_options = PipelineOptions.from_dictionary({})
+  filesystems.FileSystems.set_options(sdk_pipeline_options)
 
   if 'SEMI_PERSISTENT_DIRECTORY' in os.environ:
     semi_persistent_directory = os.environ['SEMI_PERSISTENT_DIRECTORY']

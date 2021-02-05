@@ -45,7 +45,7 @@ processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
     'dataflow.legacy_environment_major_version' : '8',
     'dataflow.fnapi_environment_major_version' : '8',
-    'dataflow.container_version' : 'beam-master-20200629'
+    'dataflow.container_version' : 'beam-master-20201116'
   ]
 }
 
@@ -250,7 +250,6 @@ def createRunnerV2ValidatesRunnerTest = { Map args ->
 task buildAndPushDockerContainer() {
   def javaVer = project.hasProperty('compileAndRunTestsWithJava11') ? "java11" : "java8"
   dependsOn ":sdks:java:container:${javaVer}:docker"
-  finalizedBy 'cleanUpDockerImages'
   def defaultDockerImageName = containerImageName(
           name: "${project.docker_image_default_repo_prefix}${javaVer}_sdk",
           root: "apache",
@@ -260,7 +259,7 @@ task buildAndPushDockerContainer() {
       commandLine "docker", "tag", "${defaultDockerImageName}", "${dockerImageName}"
     }
     exec {
-      commandLine "gcloud", "docker", "--", "push", "${dockerImageContainer}"
+      commandLine "gcloud", "docker", "--", "push", "${dockerImageName}"
     }
   }
 }
@@ -530,18 +529,13 @@ task googleCloudPlatformRunnerV2IntegrationTest(type: Test) {
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson(runnerV2PipelineOptions)
 
   include '**/*IT.class'
-  exclude '**/BigQueryIOReadIT.class'
-  exclude '**/BigQueryIOStorageQueryIT.class'
-  exclude '**/BigQueryIOStorageReadIT.class'
   exclude '**/BigQueryIOStorageReadTableRowIT.class'
-  exclude '**/PubsubReadIT.class'
-  exclude '**/SpannerReadIT.class'
-  exclude '**/BigtableReadIT.class'
-  exclude '**/V1ReadIT.class'
   exclude '**/SpannerWriteIT.class'
-  exclude '**/BigQueryNestedRecordsIT.class'
-  exclude '**/SplitQueryFnIT.class'
   exclude '**/*KmsKeyIT.class'
+  exclude '**/FhirIOReadIT.class'
+  exclude '**/FhirIOWriteIT.class'
+  exclude '**/FhirIOLROIT.class'
+  exclude '**/FhirIOSearchIT.class'
 
   maxParallelForks 4
   classpath = configurations.googleCloudPlatformIntegrationTest
@@ -670,6 +664,15 @@ createJavaExamplesArchetypeValidationTask(type: 'MobileGaming',
   gcsBucket: gcsBucket,
   bqDataset: bqDataset,
   pubsubTopic: pubsubTopic)
+
+// Generates :runners:google-cloud-dataflow-java:runMobileGamingJavaDataflowBom
+createJavaExamplesArchetypeValidationTask(type: 'MobileGaming',
+        runner: 'DataflowBom',
+        gcpProject: gcpProject,
+        gcpRegion: gcpRegion,
+        gcsBucket: gcsBucket,
+        bqDataset: bqDataset,
+        pubsubTopic: pubsubTopic)
 
 // Standalone task for testing GCS upload, use with -PfilesToStage and -PdataflowTempRoot.
 task GCSUpload(type: JavaExec) {

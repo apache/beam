@@ -43,45 +43,26 @@ import org.springframework.expression.spel.support.StandardEvaluationContext;
  * It auto detects the input type List/Collection/Varargs, to eliminate the method definition
  * differences.
  */
-@SuppressWarnings({
-  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-})
 class ConsumerSpEL {
 
   private static final Logger LOG = LoggerFactory.getLogger(ConsumerSpEL.class);
 
-  private SpelParserConfiguration config = new SpelParserConfiguration(true, true);
-  private ExpressionParser parser = new SpelExpressionParser(config);
+  private static final SpelParserConfiguration config = new SpelParserConfiguration(true, true);
+  private static final ExpressionParser parser = new SpelExpressionParser(config);
 
-  private Expression seek2endExpression = parser.parseExpression("#consumer.seekToEnd(#tp)");
+  // This method changed from accepting varargs to accepting a Collection.
+  private static final Expression seek2endExpression =
+      parser.parseExpression("#consumer.seekToEnd(#tp)");
+  // This method changed from accepting a List to accepting a Collection.
+  private static final Expression assignExpression =
+      parser.parseExpression("#consumer.assign(#tp)");
 
-  private Expression assignExpression = parser.parseExpression("#consumer.assign(#tp)");
+  private static boolean hasRecordTimestamp;
+  private static boolean hasHeaders;
+  private static boolean hasOffsetsForTimes;
+  private static boolean deserializerSupportsHeaders;
 
-  private Expression deserializeWithHeadersExpression =
-      parser.parseExpression("#deserializer.deserialize(#topic, #headers, #data)");
-
-  private boolean hasRecordTimestamp = false;
-  private boolean hasOffsetsForTimes = false;
-  private boolean deserializerSupportsHeaders = false;
-
-  static boolean hasHeaders() {
-    boolean clientHasHeaders = false;
-    try {
-      // It is supported by Kafka Client 0.11.0.0 onwards.
-      clientHasHeaders =
-          "org.apache.kafka.common.header.Headers"
-              .equals(
-                  ConsumerRecord.class
-                      .getMethod("headers", (Class<?>[]) null)
-                      .getReturnType()
-                      .getName());
-    } catch (NoSuchMethodException | SecurityException e) {
-      LOG.debug("Headers is not available");
-    }
-    return clientHasHeaders;
-  }
-
-  public ConsumerSpEL() {
+  static {
     try {
       // It is supported by Kafka Client 0.10.0.0 onwards.
       hasRecordTimestamp =
@@ -91,6 +72,19 @@ class ConsumerSpEL {
               .equals(Long.TYPE);
     } catch (NoSuchMethodException | SecurityException e) {
       LOG.debug("Timestamp for Kafka message is not available.");
+    }
+
+    try {
+      // It is supported by Kafka Client 0.11.0.0 onwards.
+      hasHeaders =
+          "org.apache.kafka.common.header.Headers"
+              .equals(
+                  ConsumerRecord.class
+                      .getMethod("headers", (Class<?>[]) null)
+                      .getReturnType()
+                      .getName());
+    } catch (NoSuchMethodException | SecurityException e) {
+      LOG.debug("Headers is not available");
     }
 
     try {
@@ -115,38 +109,30 @@ class ConsumerSpEL {
     }
   }
 
-  public void evaluateSeek2End(Consumer consumer, TopicPartition topicPartition) {
+  public static void evaluateSeek2End(Consumer<?, ?> consumer, TopicPartition topicPartition) {
     StandardEvaluationContext mapContext = new StandardEvaluationContext();
     mapContext.setVariable("consumer", consumer);
     mapContext.setVariable("tp", topicPartition);
     seek2endExpression.getValue(mapContext);
   }
 
-  public void evaluateAssign(Consumer consumer, Collection<TopicPartition> topicPartitions) {
+  public static void evaluateAssign(
+      Consumer<?, ?> consumer, Collection<TopicPartition> topicPartitions) {
     StandardEvaluationContext mapContext = new StandardEvaluationContext();
     mapContext.setVariable("consumer", consumer);
     mapContext.setVariable("tp", topicPartitions);
     assignExpression.getValue(mapContext);
   }
 
-  public Object evaluateDeserializeWithHeaders(
-      Deserializer deserializer, ConsumerRecord<byte[], byte[]> rawRecord, Boolean isKey) {
-    StandardEvaluationContext mapContext = new StandardEvaluationContext();
-    mapContext.setVariable("deserializer", deserializer);
-    mapContext.setVariable("topic", rawRecord.topic());
-    mapContext.setVariable("headers", rawRecord.headers());
-    mapContext.setVariable("data", isKey ? rawRecord.key() : rawRecord.value());
-    return deserializeWithHeadersExpression.getValue(mapContext);
-  }
-
-  public long getRecordTimestamp(ConsumerRecord<byte[], byte[]> rawRecord) {
+  public static long getRecordTimestamp(ConsumerRecord<byte[], byte[]> rawRecord) {
     if (hasRecordTimestamp) {
       return rawRecord.timestamp();
     }
     return -1L; // This is the timestamp used in Kafka for older messages without timestamps.
   }
 
-  public KafkaTimestampType getRecordTimestampType(ConsumerRecord<byte[], byte[]> rawRecord) {
+  public static KafkaTimestampType getRecordTimestampType(
+      ConsumerRecord<byte[], byte[]> rawRecord) {
     if (hasRecordTimestamp) {
       return KafkaTimestampType.forOrdinal(rawRecord.timestampType().ordinal());
     } else {
@@ -154,29 +140,33 @@ class ConsumerSpEL {
     }
   }
 
-  public boolean hasOffsetsForTimes() {
+  public static boolean hasOffsetsForTimes() {
     return hasOffsetsForTimes;
   }
 
-  public boolean deserializerSupportsHeaders() {
+  public static boolean hasHeaders() {
+    return hasHeaders;
+  }
+
+  public static boolean deserializerSupportsHeaders() {
     return deserializerSupportsHeaders;
   }
 
-  public Object deserializeKey(
-      Deserializer deserializer, ConsumerRecord<byte[], byte[]> rawRecord) {
+  public static <T> T deserializeKey(
+      Deserializer<T> deserializer, ConsumerRecord<byte[], byte[]> rawRecord) {
     if (deserializerSupportsHeaders) {
       // Kafka API 2.1.0 onwards
-      return evaluateDeserializeWithHeaders(deserializer, rawRecord, true);
+      return deserializer.deserialize(rawRecord.topic(), rawRecord.headers(), rawRecord.key());
     } else {
       return deserializer.deserialize(rawRecord.topic(), rawRecord.key());
     }
   }
 
-  public Object deserializeValue(
-      Deserializer deserializer, ConsumerRecord<byte[], byte[]> rawRecord) {
+  public static <T> T deserializeValue(
+      Deserializer<T> deserializer, ConsumerRecord<byte[], byte[]> rawRecord) {
     if (deserializerSupportsHeaders) {
       // Kafka API 2.1.0 onwards
-      return evaluateDeserializeWithHeaders(deserializer, rawRecord, false);
+      return deserializer.deserialize(rawRecord.topic(), rawRecord.headers(), rawRecord.value());
     } else {
       return deserializer.deserialize(rawRecord.topic(), rawRecord.value());
     }
@@ -187,7 +177,8 @@ class ConsumerSpEL {
    * no messages later than timestamp or if this partition does not support timestamp based offset.
    */
   @SuppressWarnings("unchecked")
-  public long offsetForTime(Consumer<?, ?> consumer, TopicPartition topicPartition, Instant time) {
+  public static long offsetForTime(
+      Consumer<?, ?> consumer, TopicPartition topicPartition, Instant time) {
 
     checkArgument(hasOffsetsForTimes, "This Kafka Client must support Consumer.OffsetsForTimes().");
 
