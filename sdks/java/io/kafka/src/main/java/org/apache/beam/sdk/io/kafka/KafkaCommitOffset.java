@@ -65,8 +65,6 @@ public class KafkaCommitOffset<K, V>
     private final SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
         consumerFactoryFn;
 
-    private transient ConsumerSpEL consumerSpEL = null;
-
     CommitOffsetDoFn(KafkaIO.ReadSourceDescriptors readSourceDescriptors) {
       offsetConsumerConfig = readSourceDescriptors.getOffsetConsumerConfig();
       consumerConfig = readSourceDescriptors.getConsumerConfig();

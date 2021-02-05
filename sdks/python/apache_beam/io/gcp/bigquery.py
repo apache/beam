@@ -739,7 +739,7 @@ class _CustomBigQuerySource(BoundedSource):
           self._job_name,
           self._source_uuid,
           bigquery_tools.BigQueryJobTypes.QUERY,
-          random.randint(0, 1000))
+          '%s_%s' % (int(time.time()), random.randint(0, 1000)))
       job = bq._start_query_job(
           project,
           self.query.get(),
@@ -831,7 +831,7 @@ class _CustomBigQuerySource(BoundedSource):
         self._job_name,
         self._source_uuid,
         bigquery_tools.BigQueryJobTypes.QUERY,
-        random.randint(0, 1000))
+        '%s_%s' % (int(time.time()), random.randint(0, 1000)))
     job = bq._start_query_job(
         self._get_project(),
         self.query.get(),
@@ -857,7 +857,7 @@ class _CustomBigQuerySource(BoundedSource):
         self._job_name,
         self._source_uuid,
         bigquery_tools.BigQueryJobTypes.EXPORT,
-        random.randint(0, 1000))
+        '%s_%s' % (int(time.time()), random.randint(0, 1000)))
     temp_location = self.options.view_as(GoogleCloudOptions).temp_location
     gcs_location = bigquery_export_destination_uri(
         self.gcs_location, temp_location, self._source_uuid)
@@ -1297,7 +1297,7 @@ class BigQueryWriteFn(DoFn):
 
     rows = [r[0] for r in rows_and_insert_ids]
     if self.ignore_insert_ids:
-      insert_ids = None
+      insert_ids = [None for r in rows_and_insert_ids]
     else:
       insert_ids = [r[1] for r in rows_and_insert_ids]
 
@@ -1419,8 +1419,7 @@ class _StreamToBigQuery(PTransform):
         | 'AddInsertIdsWithRandomKeys' >> beam.ParDo(
             _StreamToBigQuery.InsertIdPrefixFn()))
 
-    if not self.ignore_insert_ids:
-      sharded_data = (sharded_data | 'CommitInsertIds' >> ReshufflePerKey())
+    sharded_data = (sharded_data | 'CommitInsertIds' >> ReshufflePerKey())
 
     return (
         sharded_data

@@ -18,6 +18,7 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
+  enableStrictDependencies: true,
   classesTriggerCheckerBugs: [
     'WindowIntoTranslation': 'https://github.com/typetools/checker-framework/issues/3791',
     'FlattenTranslator': 'https://github.com/typetools/checker-framework/issues/3791',
@@ -31,6 +32,7 @@ applyJavaNature(
     'ReadTranslation': 'https://github.com/typetools/checker-framework/issues/3791',
     'GroupByKeyTranslation': 'https://github.com/typetools/checker-framework/issues/3791',
     'ParDoTranslation': 'https://github.com/typetools/checker-framework/issues/3791',
+    'GroupIntoBatchesTranslation': 'https://github.com/typetools/checker-framework/issues/3791',
   ],
   automaticModuleName: 'org.apache.beam.runners.core.construction',
 )
@@ -60,8 +62,8 @@ dependencies {
   compile library.java.jackson_databind
   compile library.java.joda_time
   compile library.java.slf4j_api
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
+  compile library.java.jackson_annotations
+  compile library.java.avro
   testCompile library.java.junit
   testCompile library.java.mockito_core
   testCompile library.java.jackson_annotations

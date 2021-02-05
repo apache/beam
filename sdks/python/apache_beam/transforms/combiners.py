@@ -66,6 +66,7 @@ TimestampType = Union[int, float, Timestamp, Duration]
 class CombinerWithoutDefaults(ptransform.PTransform):
   """Super class to inherit without_defaults to built-in Combiners."""
   def __init__(self, has_defaults=True):
+    super(CombinerWithoutDefaults, self).__init__()
     self.has_defaults = has_defaults
 
   def with_defaults(self, has_defaults=True):
@@ -802,9 +803,6 @@ class SingleInputTupleCombineFn(_TupleCombineFnBase):
 
 class ToList(CombinerWithoutDefaults):
   """A global CombineFn that condenses a PCollection into a single list."""
-  def __init__(self, label='ToList'):  # pylint: disable=useless-super-delegation
-    super(ToList, self).__init__(label)
-
   def expand(self, pcoll):
     if self.has_defaults:
       return pcoll | self.label >> core.CombineGlobally(ToListCombineFn())
@@ -838,9 +836,6 @@ class ToDict(CombinerWithoutDefaults):
   If multiple values are associated with the same key, only one of the values
   will be present in the resulting dict.
   """
-  def __init__(self, label='ToDict'):  # pylint: disable=useless-super-delegation
-    super(ToDict, self).__init__(label)
-
   def expand(self, pcoll):
     if self.has_defaults:
       return pcoll | self.label >> core.CombineGlobally(ToDictCombineFn())
@@ -873,9 +868,6 @@ class ToDictCombineFn(core.CombineFn):
 
 class ToSet(CombinerWithoutDefaults):
   """A global CombineFn that condenses a PCollection into a set."""
-  def __init__(self, label='ToSet'):  # pylint: disable=useless-super-delegation
-    super(ToSet, self).__init__(label)
-
   def expand(self, pcoll):
     if self.has_defaults:
       return pcoll | self.label >> core.CombineGlobally(ToSetCombineFn())

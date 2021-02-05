@@ -20,8 +20,11 @@ package org.apache.beam.sdk.io.kafka;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.kafka.KafkaIO.ReadSourceDescriptors;
@@ -52,6 +55,7 @@ import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.joda.time.Duration;
@@ -116,6 +120,23 @@ import org.slf4j.LoggerFactory;
  * extractTimestampFn} and {@link
  * ReadSourceDescriptors#withMonotonicallyIncreasingWatermarkEstimator()} as the {@link
  * WatermarkEstimator}.
+ *
+ * <h4>Stop Reading from Removed {@link TopicPartition}</h4>
+ *
+ * {@link ReadFromKafkaDoFn} will stop reading from any removed {@link TopicPartition} automatically
+ * by querying Kafka {@link Consumer} APIs. Please note that stopping reading may not happen as soon
+ * as the {@link TopicPartition} is removed. For example, the removal could happen at the same time
+ * when {@link ReadFromKafkaDoFn} performs a {@link Consumer#poll(java.time.Duration)}. In that
+ * case, the {@link ReadFromKafkaDoFn} will still output the fetched records.
+ *
+ * <h4>Stop Reading from Stopped {@link TopicPartition}</h4>
+ *
+ * {@link ReadFromKafkaDoFn} will also stop reading from certain {@link TopicPartition} if it's a
+ * good time to do so by querying {@link ReadFromKafkaDoFn#checkStopReadingFn}. {@link
+ * ReadFromKafkaDoFn#checkStopReadingFn} is a customer-provided callback which is used to determine
+ * whether to stop reading from the given {@link TopicPartition}. Similar to the mechanism of
+ * stopping reading from removed {@link TopicPartition}, the stopping reading may not happens
+ * immediately.
  */
 @UnboundedPerElement
 @SuppressWarnings({
@@ -134,11 +155,14 @@ class ReadFromKafkaDoFn<K, V>
     this.extractOutputTimestampFn = transform.getExtractOutputTimestampFn();
     this.createWatermarkEstimatorFn = transform.getCreateWatermarkEstimatorFn();
     this.timestampPolicyFactory = transform.getTimestampPolicyFactory();
+    this.checkStopReadingFn = transform.getCheckStopReadingFn();
   }
 
   private static final Logger LOG = LoggerFactory.getLogger(ReadFromKafkaDoFn.class);
 
   private final Map<String, Object> offsetConsumerConfig;
+
+  private final SerializableFunction<TopicPartition, Boolean> checkStopReadingFn;
 
   private final SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
       consumerFactoryFn;
@@ -148,7 +172,6 @@ class ReadFromKafkaDoFn<K, V>
   private final TimestampPolicyFactory<K, V> timestampPolicyFactory;
 
   // Valid between bundle start and bundle finish.
-  private transient ConsumerSpEL consumerSpEL = null;
   private transient Deserializer<K> keyDeserializerInstance = null;
   private transient Deserializer<V> valueDeserializerInstance = null;
 
@@ -169,19 +192,17 @@ class ReadFromKafkaDoFn<K, V>
 
     private final Consumer<byte[], byte[]> offsetConsumer;
     private final TopicPartition topicPartition;
-    private final ConsumerSpEL consumerSpEL;
     private final Supplier<Long> memoizedBacklog;
 
     KafkaLatestOffsetEstimator(
         Consumer<byte[], byte[]> offsetConsumer, TopicPartition topicPartition) {
       this.offsetConsumer = offsetConsumer;
       this.topicPartition = topicPartition;
-      this.consumerSpEL = new ConsumerSpEL();
-      this.consumerSpEL.evaluateAssign(this.offsetConsumer, ImmutableList.of(this.topicPartition));
+      ConsumerSpEL.evaluateAssign(this.offsetConsumer, ImmutableList.of(this.topicPartition));
       memoizedBacklog =
           Suppliers.memoizeWithExpiration(
               () -> {
-                consumerSpEL.evaluateSeek2End(offsetConsumer, topicPartition);
+                ConsumerSpEL.evaluateSeek2End(offsetConsumer, topicPartition);
                 return offsetConsumer.position(topicPartition);
               },
               5,
@@ -211,14 +232,14 @@ class ReadFromKafkaDoFn<K, V>
         consumerFactoryFn.apply(
             KafkaIOUtils.getOffsetConsumerConfig(
                 "initialOffset", offsetConsumerConfig, updatedConsumerConfig))) {
-      consumerSpEL.evaluateAssign(
+      ConsumerSpEL.evaluateAssign(
           offsetConsumer, ImmutableList.of(kafkaSourceDescriptor.getTopicPartition()));
       long startOffset;
       if (kafkaSourceDescriptor.getStartReadOffset() != null) {
         startOffset = kafkaSourceDescriptor.getStartReadOffset();
       } else if (kafkaSourceDescriptor.getStartReadTime() != null) {
         startOffset =
-            consumerSpEL.offsetForTime(
+            ConsumerSpEL.offsetForTime(
                 offsetConsumer,
                 kafkaSourceDescriptor.getTopicPartition(),
                 kafkaSourceDescriptor.getStartReadTime());
@@ -275,7 +296,11 @@ class ReadFromKafkaDoFn<K, V>
       RestrictionTracker<OffsetRange, Long> tracker,
       WatermarkEstimator watermarkEstimator,
       OutputReceiver<KV<KafkaSourceDescriptor, KafkaRecord<K, V>>> receiver) {
-    // If there is no future work, resume with max timeout and move to the next element.
+    // Stop processing current TopicPartition when it's time to stop.
+    if (checkStopReadingFn != null
+        && checkStopReadingFn.apply(kafkaSourceDescriptor.getTopicPartition())) {
+      return ProcessContinuation.stop();
+    }
     Map<String, Object> updatedConsumerConfig =
         overrideBootstrapServersConfig(consumerConfig, kafkaSourceDescriptor);
     // If there is a timestampPolicyFactory, create the TimestampPolicy for current
@@ -288,7 +313,20 @@ class ReadFromKafkaDoFn<K, V>
               Optional.ofNullable(watermarkEstimator.currentWatermark()));
     }
     try (Consumer<byte[], byte[]> consumer = consumerFactoryFn.apply(updatedConsumerConfig)) {
-      consumerSpEL.evaluateAssign(
+      // Check whether current TopicPartition is still available to read.
+      Set<TopicPartition> existingTopicPartitions = new HashSet<>();
+      for (List<PartitionInfo> topicPartitionList : consumer.listTopics().values()) {
+        topicPartitionList.forEach(
+            partitionInfo -> {
+              existingTopicPartitions.add(
+                  new TopicPartition(partitionInfo.topic(), partitionInfo.partition()));
+            });
+      }
+      if (!existingTopicPartitions.contains(kafkaSourceDescriptor.getTopicPartition())) {
+        return ProcessContinuation.stop();
+      }
+
+      ConsumerSpEL.evaluateAssign(
           consumer, ImmutableList.of(kafkaSourceDescriptor.getTopicPartition()));
       long startOffset = tracker.currentRestriction().getFrom();
       long expectedOffset = startOffset;
@@ -311,11 +349,11 @@ class ReadFromKafkaDoFn<K, V>
                   rawRecord.topic(),
                   rawRecord.partition(),
                   rawRecord.offset(),
-                  consumerSpEL.getRecordTimestamp(rawRecord),
-                  consumerSpEL.getRecordTimestampType(rawRecord),
+                  ConsumerSpEL.getRecordTimestamp(rawRecord),
+                  ConsumerSpEL.getRecordTimestampType(rawRecord),
                   ConsumerSpEL.hasHeaders() ? rawRecord.headers() : null,
-                  (K) consumerSpEL.deserializeKey(keyDeserializerInstance, rawRecord),
-                  (V) consumerSpEL.deserializeValue(valueDeserializerInstance, rawRecord));
+                  ConsumerSpEL.deserializeKey(keyDeserializerInstance, rawRecord),
+                  ConsumerSpEL.deserializeValue(valueDeserializerInstance, rawRecord));
           int recordSize =
               (rawRecord.key() == null ? 0 : rawRecord.key().length)
                   + (rawRecord.value() == null ? 0 : rawRecord.value().length);
@@ -361,7 +399,6 @@ class ReadFromKafkaDoFn<K, V>
                     return new AverageRecordSize();
                   }
                 });
-    consumerSpEL = new ConsumerSpEL();
     keyDeserializerInstance = keyDeserializerProvider.getDeserializer(consumerConfig, true);
     valueDeserializerInstance = valueDeserializerProvider.getDeserializer(consumerConfig, false);
   }

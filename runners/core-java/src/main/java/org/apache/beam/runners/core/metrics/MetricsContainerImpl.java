@@ -30,6 +30,7 @@ import java.util.ArrayList;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
+import java.util.Set;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
 import org.apache.beam.sdk.metrics.Distribution;
@@ -411,20 +412,22 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer, Met
   }
 
   /**
-   * Match a MetricName with a given namespace and a name. If the namespace or the name is null, it
-   * will be ignored for the match.
+   * Match a MetricName with a given metric filter. If the metric filter is null, the method always
+   * returns true.
    */
-  private boolean matchMetricName(
-      MetricName metricName, @Nullable String namespace, @Nullable String name) {
-    return (namespace == null || namespace.equals(metricName.getNamespace()))
-        && (name == null || name.equals(metricName.getName()));
+  private boolean matchMetricName(MetricName metricName, @Nullable Set<MetricName> metricFilter) {
+    if (metricFilter == null) {
+      return true;
+    } else {
+      return metricFilter.contains(metricName);
+    }
   }
   /** Return a string representing the cumulative values of all metrics in this container. */
   @Override
-  public String getCumulativeString(String namespace, String name) {
+  public String getCumulativeString(@Nullable Set<MetricName> metricFilter) {
     StringBuilder message = new StringBuilder();
     for (Map.Entry<MetricName, CounterCell> cell : counters.entries()) {
-      if (!matchMetricName(cell.getKey(), namespace, name)) {
+      if (!matchMetricName(cell.getKey(), metricFilter)) {
         continue;
       }
       message.append(cell.getKey().toString());
@@ -433,7 +436,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer, Met
       message.append("\n");
     }
     for (Map.Entry<MetricName, DistributionCell> cell : distributions.entries()) {
-      if (!matchMetricName(cell.getKey(), namespace, name)) {
+      if (!matchMetricName(cell.getKey(), metricFilter)) {
         continue;
       }
       message.append(cell.getKey().toString());
@@ -446,7 +449,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer, Met
       message.append("\n");
     }
     for (Map.Entry<MetricName, GaugeCell> cell : gauges.entries()) {
-      if (!matchMetricName(cell.getKey(), namespace, name)) {
+      if (!matchMetricName(cell.getKey(), metricFilter)) {
         continue;
       }
       message.append(cell.getKey().toString());
@@ -457,7 +460,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer, Met
     }
     for (Map.Entry<KV<MetricName, HistogramData.BucketType>, HistogramCell> cell :
         histograms.entries()) {
-      if (!matchMetricName(cell.getKey().getKey(), namespace, name)) {
+      if (!matchMetricName(cell.getKey().getKey(), metricFilter)) {
         continue;
       }
       message.append(cell.getKey().getKey().toString());

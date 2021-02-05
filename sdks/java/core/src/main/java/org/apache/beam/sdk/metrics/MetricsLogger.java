@@ -19,6 +19,7 @@ package org.apache.beam.sdk.metrics;
 
 import java.io.Serializable;
 import java.util.Date;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -33,8 +34,7 @@ public interface MetricsLogger extends Serializable {
 
   default void tryLoggingMetrics(
       String header,
-      String namespace,
-      String name,
+      Set<MetricName> metricFilter,
       long minimumLoggingFrequencyMillis,
       boolean resetMetrics) {
     if (REPORTING_LOCK.tryLock()) {
@@ -44,7 +44,7 @@ public interface MetricsLogger extends Serializable {
         if (currentTimeMillis - lastReported > minimumLoggingFrequencyMillis) {
           StringBuilder logMessage = new StringBuilder();
           logMessage.append(header);
-          logMessage.append(getCumulativeString(namespace, name));
+          logMessage.append(getCumulativeString(metricFilter));
           if (resetMetrics) {
             reset();
             logMessage.append(String.format("(last reported at %s)%n", new Date(lastReported)));
@@ -60,7 +60,7 @@ public interface MetricsLogger extends Serializable {
 
   Logger getMetricLogger();
 
-  String getCumulativeString(String namespace, String name);
+  String getCumulativeString(Set<MetricName> metricFilter);
 
   void reset();
 }
