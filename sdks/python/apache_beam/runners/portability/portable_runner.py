@@ -338,7 +338,6 @@ class PortableRunner(runner.PipelineRunner):
         pre_optimize != 'none'):
       if pre_optimize == 'default':
         phases = [
-            translations.eliminate_common_key_with_none,
             # TODO: https://issues.apache.org/jira/browse/BEAM-4678
             #       https://issues.apache.org/jira/browse/BEAM-11478
             # Eventually remove the 'lift_combiners' phase from 'default'.
@@ -351,8 +350,8 @@ class PortableRunner(runner.PipelineRunner):
             translations.annotate_downstream_side_inputs,
             translations.annotate_stateful_dofns_as_roots,
             translations.fix_side_input_pcoll_coders,
-            translations.eliminate_common_key_with_none,
             # TODO(BEAM-11715): Enable translations.pack_combiners.
+            # translations.eliminate_common_key_with_none,
             # translations.pack_combiners,
             translations.lift_combiners,
             translations.expand_sdf,
@@ -372,8 +371,8 @@ class PortableRunner(runner.PipelineRunner):
             translations.annotate_downstream_side_inputs,
             translations.annotate_stateful_dofns_as_roots,
             translations.fix_side_input_pcoll_coders,
-            translations.eliminate_common_key_with_none,
             # TODO(BEAM-11715): Enable translations.pack_combiners.
+            # translations.eliminate_common_key_with_none,
             # translations.pack_combiners,
             translations.lift_combiners,
             translations.expand_sdf,
