@@ -24,7 +24,7 @@
                         <img src="/images/run-icon.svg"/>
                     </a>
                 {{ end }}
-                <a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/{{ $ctx.Site.Params.branch_repo }}/{{ $ctx.Get `py` }}">
+                <a target="_blank" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="View source code" href="https://github.com/{{ $ctx.Site.Params.branch_repo }}/{{ $ctx.Get `file` }}">
                     <img src="/images/code-icon.svg"/>
                 </a>
                 <a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
@@ -59,4 +59,3 @@
         </div>
     {{ end }}
 {{ end }}
-
