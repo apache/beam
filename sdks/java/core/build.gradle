@@ -62,14 +62,6 @@ processResources {
   ]
 }
 
-// Exclude tests that need a runner
-test {
-  systemProperty "beamUseDummyRunner", "true"
-  useJUnit {
-    excludeCategories "org.apache.beam.sdk.testing.NeedsRunner"
-  }
-}
-
 dependencies {
   antlr library.java.antlr
   // antlr is used to generate code from sdks/java/core/src/main/antlr/
@@ -106,5 +98,6 @@ dependencies {
   shadowTest library.java.quickcheck_core
   shadowTest library.java.avro_tests
   shadowTest library.java.zstd_jni
+  testCompile project(path: ":runners:direct-java", configuration: "shadow")
   testRuntimeOnly library.java.slf4j_jdk14
 }
