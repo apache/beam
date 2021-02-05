@@ -10,20 +10,14 @@ See the License for the specific language governing permissions and
 limitations under the License. See accompanying LICENSE file.
 */}}
 
-<tr>
+<table align="right">
   <td>
-    <h4>{{ .Get `title` }}</h4>
-    <p>{{ .Get `body` }}</p>
+    <a class="button" target="_blank" href="{{ .Get `url` }}">
+      <img alt="Run in Colab" width="32px" height="32px"
+        src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" />
+      Run in Colab
+    </a>
   </td>
-  <td>
-    <table align="right">
-      <td>
-        <a class="button" target="_blank" href="{{ .Get `button_url` }}">
-          <img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png"
-            alt="{{ .Get `button_text` }}" width="32px" height="32px" />
-          Run in Colab
-        </a>
-      </td>
-    </table>
-  </td>
-</tr>
+</table>
+
+<p><br><br><br><br></p>

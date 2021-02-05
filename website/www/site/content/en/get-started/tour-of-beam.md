@@ -27,16 +27,11 @@ You can also [try an Apache Beam pipeline](/get-started/try-apache-beam) using t
 
 ## Get started
 
-{{< table >}}
-<table>
-  <col style="width: auto;">
-  <col style="width: 200px;">
-  {{< row-colab
-    title="Learn the basics"
-    body="In this notebook we go through the basics of what is Apache Beam and how to get started."
-    button_url="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/tour-of-beam/getting-started.ipynb" >}}
-</table>
-{{< /table >}}
+### Learn the basics
+
+In this notebook we go through the basics of what is Apache Beam and how to get started.
+
+{{< button-colab url="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/tour-of-beam/getting-started.ipynb" >}}
 
 ## Transforms
 
@@ -45,29 +40,32 @@ for a complete list of the available transforms.
 
 ### Element-wise transforms
 
-{{< table >}}
-<table>
-  <col style="width: auto;">
-  <col style="width: 200px;">
-  {{< row-colab
-    title="Map"
-    body="Applies a simple one-to-one mapping function over each element in the collection."
-    button_url="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/map-py.ipynb" >}}
-  {{< row-colab
-    title="FlatMap"
-    body="Applies a simple one-to-many mapping function over each element in the collection. The many elements are flattened into the resulting collection."
-    button_url="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/flatmap-py.ipynb" >}}
-  {{< row-colab
-    title="Filter"
-    body="Given a predicate, filter out all elements that don’t satisfy that predicate."
-    button_url="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/filter-py.ipynb" >}}
-  {{< row-colab
-    title="Partition"
-    body="Separates elements in a collection into multiple output collections."
-    button_url="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/partition-py.ipynb" >}}
-  {{< row-colab
-    title="ParDo"
-    body="A transform for generic parallel processing. It's recommended to use Map, FlatMap, Filter or other more specific transforms when possible."
-    button_url="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/pardo-py.ipynb" >}}
-</table>
-{{< /table >}}
+#### Map
+
+Applies a simple one-to-one mapping function over each element in the collection.
+
+{{< button-colab url="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/map-py.ipynb" >}}
+
+#### FlatMap
+
+Applies a simple one-to-many mapping function over each element in the collection. The many elements are flattened into the resulting collection.
+
+{{< button-colab url="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/flatmap-py.ipynb" >}}
+
+#### Filter
+
+Given a predicate, filter out all elements that don’t satisfy that predicate.
+
+{{< button-colab url="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/filter-py.ipynb" >}}
+
+#### Partition
+
+Separates elements in a collection into multiple output collections.
+
+{{< button-colab url="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/partition-py.ipynb" >}}
+
+#### ParDo
+
+A transform for generic parallel processing. It's recommended to use `Map`, `FlatMap`, `Filter` or other more specific transforms when possible.
+
+{{< button-colab url="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/pardo-py.ipynb" >}}
