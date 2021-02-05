@@ -1,0 +1,28 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- title: Code contributions
+  body: "Ways you can contribute code to the project include:"
+  list:
+    - Building a new feature like a new IO connector or PTransform
+    - Fixing a Bug
+    - Sharing a code example or template with the community
+    - Testing a release candidate
+  icon: icons/contributor/become a committer/code-icon.svg
+- title: Non-code contributions
+  body: "Non-code contributions are ways to add value to the projects outside code, here are some examples of things that you can contribute:"
+  list:
+    - Organize a meetup
+    - Give a talk about Beam at a conference
+    - Update a typo in the documentation
+    - Write a blog post with useful tips about Beam
+  icon: icons/contributor/become a committer/file-icon.svg

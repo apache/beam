@@ -19,5 +19,12 @@
   <div class="pillars-item-description">
     <h5 class="pillars-item-header">{{ .header | markdownify }}</h5>
     <p class="pillars-item-text">{{ .text | markdownify }}</p>
+    {{ if .list }}
+      <ul>
+        {{ range .list }}
+          <li>{{ . }}</li>
+        {{ end }}
+      </ul>
+    {{ end }}
   </div>
 </div>
