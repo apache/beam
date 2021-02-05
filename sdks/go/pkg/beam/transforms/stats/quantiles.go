@@ -13,7 +13,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package stats contains transforms for statistical processing.
 package stats
 
 // Approximate quantiles is implemented based on https://arxiv.org/pdf/1907.00236.pdf.
