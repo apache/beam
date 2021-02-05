@@ -55,11 +55,11 @@ def clickhouse_jdbc_version = "0.2.4"
 dependencies {
   javacc "net.java.dev.javacc:javacc:7.0.9"
   compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile library.java.guava
   compile library.java.joda_time
-  compile "ru.yandex.clickhouse:clickhouse-jdbc:$clickhouse_jdbc_version"
-  compile "com.google.guava:guava:25.1-jre"
-  compile library.java.vendored_guava_26_0_jre
   compile library.java.slf4j_api
+  compile library.java.vendored_guava_26_0_jre
+  compile "ru.yandex.clickhouse:clickhouse-jdbc:$clickhouse_jdbc_version"
   testCompile library.java.slf4j_api
   testCompile library.java.junit
   testCompile library.java.hamcrest_core

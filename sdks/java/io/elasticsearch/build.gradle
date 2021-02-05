@@ -25,8 +25,10 @@ ext.summary = "IO to read and write on Elasticsearch"
 dependencies {
   compile library.java.vendored_guava_26_0_jre
   compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile library.java.jackson_databind
+  compile library.java.jackson_annotations
+  permitUnusedDeclared library.java.jackson_annotations
   compile library.java.jackson_core
+  compile library.java.jackson_databind
   compile library.java.joda_time
   compile "org.apache.httpcomponents:httpasyncclient:4.1.4"
   compile "org.apache.httpcomponents:httpclient:4.5.10"

@@ -26,10 +26,12 @@ description = "Apache Beam :: SDKs :: Java :: Contextual-Text-IO"
 ext.summary = "Context-aware Text IO."
 
 dependencies {
-    compile library.java.vendored_guava_26_0_jre
     compile project(path: ":sdks:java:core", configuration: "shadow")
-    compile library.java.vendored_grpc_1_26_0
+    compile library.java.protobuf_java
+    permitUnusedDeclared library.java.protobuf_java
     compile library.java.slf4j_api
+    compile library.java.vendored_guava_26_0_jre
+    compile library.java.vendored_grpc_1_26_0
 
     testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
     testCompile library.java.guava_testlib
