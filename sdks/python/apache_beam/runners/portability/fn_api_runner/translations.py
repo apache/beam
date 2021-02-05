@@ -793,7 +793,7 @@ def _make_pack_name(names):
   return '%s[%s]' % (common_prefix, ', '.join(suffixes))
 
 
-def eliminate_common_key_with_none(stages, context):
+def _eliminate_common_key_with_none(stages, context):
   # type: (Iterable[Stage], TransformContext) -> Iterable[Stage]
 
   """Runs common subexpression elimination for sibling KeyWithNone stages.
@@ -1056,7 +1056,7 @@ def pack_per_key_combiners(stages, context):
 def pack_combiners(stages, context):
   # type: (Iterable[Stage], TransformContext) -> Iterator[Stage]
   yield from pack_per_key_combiners(
-      eliminate_common_key_with_none(stages, context), context)
+      _eliminate_common_key_with_none(stages, context), context)
 
 
 def lift_combiners(stages, context):

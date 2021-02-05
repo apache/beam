@@ -50,7 +50,7 @@ class TranslationsTest(unittest.TestCase):
         [1, 2, 3]) | 'multiple-key-with-none' >> MultipleKeyWithNone()
     pipeline_proto = pipeline.to_runner_api()
     _, stages = translations.create_and_optimize_stages(
-        pipeline_proto, [translations.eliminate_common_key_with_none],
+        pipeline_proto, [translations._eliminate_common_key_with_none],
         known_runner_urns=frozenset())
     key_with_none_stages = [
         stage for stage in stages if 'key-with-none' in stage.name
