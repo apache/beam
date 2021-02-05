@@ -224,21 +224,21 @@ class DeferredFrameTest(unittest.TestCase):
 
   def test_set_index(self):
     df = pd.DataFrame({
-        # Generate some unique columns to use for indexes
-        'rand1': random.sample(range(10000), 100),
-        'rand2': random.sample(range(10000), 100),
-        'group': ['a' if i % 5 == 0 or i % 3 == 0 else 'b' for i in range(100)],
-        'foo': [None if i % 11 == 0 else i for i in range(100)],
-        'bar': [None if i % 7 == 0 else 99 - i for i in range(100)],
-        'baz': [None if i % 13 == 0 else i * 2 for i in range(100)],
+        # [19, 18, ..]
+        'index1': reversed(range(20)),
+        # [15, 16, .., 0, 1, .., 13, 14]
+        'index2': np.roll(range(20), 5),
+        # ['', 'a', 'bb', ...]
+        'values': [chr(ord('a') + i) * i for i in range(20)],
     })
 
-    self._run_test(lambda df: df.set_index(['rand1', 'rand2']), df)
-    self._run_test(lambda df: df.set_index(['rand1', 'rand2'], drop=True), df)
+    self._run_test(lambda df: df.set_index(['index1', 'index2']), df)
+    self._run_test(lambda df: df.set_index(['index1', 'index2'], drop=True), df)
+    self._run_test(lambda df: df.set_index('values'), df)
 
     self._run_test(lambda df: df.set_index('bad'), df, expect_error=True)
     self._run_test(
-        lambda df: df.set_index(['rand2', 'bad', 'really_bad']),
+        lambda df: df.set_index(['index2', 'bad', 'really_bad']),
         df,
         expect_error=True)
 
