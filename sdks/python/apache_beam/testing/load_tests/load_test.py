@@ -100,6 +100,7 @@ class LoadTest(object):
     options = self.pipeline.get_pipeline_options().view_as(LoadTestOptions)
     self.timeout_ms = options.timeout_ms
     self.input_options = options.input_options
+    self.extra_metrics = {}
 
     if metrics_namespace:
       self.metrics_namespace = metrics_namespace
@@ -150,7 +151,7 @@ class LoadTest(object):
         self.result = self.pipeline.run()
         # Defaults to waiting forever, unless timeout_ms has been set
         self.result.wait_until_finish(duration=self.timeout_ms)
-      self._metrics_monitor.publish_metrics(self.result)
+      self._metrics_monitor.publish_metrics(self.result, self.extra_metrics)
     finally:
       self.cleanup()
 
