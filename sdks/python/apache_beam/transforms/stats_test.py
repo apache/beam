@@ -486,19 +486,19 @@ class ApproximateQuantilesTest(unittest.TestCase):
     with TestPipeline() as p:
       data = []
       for i in range(100):
-        data.append([(i / 10, abs(i - 500))
-                     for i in range(i * 10, (i + 1) * 10)])
+        data.append([(j / 10, abs(j - 500))
+                     for j in range(i * 10, (i + 1) * 10)])
       pc = p | Create(data)
       globally = (
-          pc |
-          'Globally' >> beam.ApproximateQuantiles.Globally(3, batch_input=True))
+          pc | 'Globally' >> beam.ApproximateQuantiles.Globally(
+              3, input_batched=True))
       with_key = (
           pc | 'Globally with key' >> beam.ApproximateQuantiles.Globally(
-              3, key=sum, batch_input=True))
+              3, key=sum, input_batched=True))
       key_with_reversed = (
           pc | 'Globally with key and reversed' >>
           beam.ApproximateQuantiles.Globally(
-              3, key=sum, reverse=True, batch_input=True))
+              3, key=sum, reverse=True, input_batched=True))
       assert_that(
           globally,
           equal_to([[(0.0, 500), (49.9, 1), (99.9, 499)]]),
@@ -521,14 +521,14 @@ class ApproximateQuantilesTest(unittest.TestCase):
       pc = p | Create(data)
       globally = (
           pc | 'Globally' >> beam.ApproximateQuantiles.Globally(
-              3, weighted=True, batch_input=True))
+              3, weighted=True, input_batched=True))
       with_key = (
           pc | 'Globally with key' >> beam.ApproximateQuantiles.Globally(
-              3, key=sum, weighted=True, batch_input=True))
+              3, key=sum, weighted=True, input_batched=True))
       key_with_reversed = (
           pc | 'Globally with key and reversed' >>
           beam.ApproximateQuantiles.Globally(
-              3, key=sum, reverse=True, weighted=True, batch_input=True))
+              3, key=sum, reverse=True, weighted=True, input_batched=True))
       assert_that(
           globally,
           equal_to([[(0.0, 500), (70.8, 208), (99.9, 499)]]),
@@ -549,7 +549,7 @@ class ApproximateQuantilesTest(unittest.TestCase):
         DisplayDataItemMatcher('weighted', str(instance._weighted)),
         DisplayDataItemMatcher('key', str(instance._key.__name__)),
         DisplayDataItemMatcher('reverse', str(instance._reverse)),
-        DisplayDataItemMatcher('batch_input', str(instance._batch_input)),
+        DisplayDataItemMatcher('input_batched', str(instance._input_batched)),
     ]
     return expected_items
 

@@ -41,6 +41,7 @@ from builtins import round
 from typing import Any
 from typing import List
 from typing import Tuple
+from typing import Callable
 
 from apache_beam import coders
 from apache_beam import typehints
@@ -298,9 +299,20 @@ class ApproximateQuantiles(object):
       weighted=True
 
     out: [0, 2, 5, 7, 100]
+
+    in: [list(range(10)), ..., list(range(90, 101))], num_quantiles=5,
+      input_batched=True
+
+    out: [0, 25, 50, 75, 100]
+
+    in: [(list(range(10)), [1]*10), (list(range(10)), [0]*10), ...,
+      (list(range(90, 101)), [0]*11)], num_quantiles=5, input_batched=True,
+      weighted=True
+
+    out: [0, 2, 5, 7, 100]
   """
   @staticmethod
-  def _display_data(num_quantiles, key, reverse, weighted, batch_input):
+  def _display_data(num_quantiles, key, reverse, weighted, input_batched):
     return {
         'num_quantiles': DisplayDataItem(num_quantiles, label='Quantile Count'),
         'key': DisplayDataItem(
@@ -309,8 +321,8 @@ class ApproximateQuantiles(object):
             label='Record Comparer Key'),
         'reverse': DisplayDataItem(str(reverse), label='Is Reversed'),
         'weighted': DisplayDataItem(str(weighted), label='Is Weighted'),
-        'batch_input': DisplayDataItem(
-            str(batch_input), label='Is Input Batched'),
+        'input_batched': DisplayDataItem(
+            str(input_batched), label='Is Input Batched'),
     }
 
   @typehints.with_input_types(
@@ -330,9 +342,11 @@ class ApproximateQuantiles(object):
       weighted: (optional) if set to True, the transform returns weighted
         quantiles. The input PCollection is then expected to contain tuples of
         input values with the corresponding weight.
-      batch_input: (optional) if set to True, the transform expects each element
-        of input PCollection to be a batch. Provides a way to accumulate
-        multiple elements at a time more efficiently.
+      input_batched: (optional) if set to True, the transform expects each
+        element of input PCollection to be a batch, which is a list of elements
+        for non-weighted case and a tuple of lists of elements and weights for
+        weighted. Provides a way to accumulate multiple elements at a time more
+        efficiently.
     """
     def __init__(
         self,
@@ -340,12 +354,12 @@ class ApproximateQuantiles(object):
         key=None,
         reverse=False,
         weighted=False,
-        batch_input=False):
+        input_batched=False):
       self._num_quantiles = num_quantiles
       self._key = key
       self._reverse = reverse
       self._weighted = weighted
-      self._batch_input = batch_input
+      self._input_batched = input_batched
 
     def expand(self, pcoll):
       return pcoll | CombineGlobally(
@@ -354,7 +368,7 @@ class ApproximateQuantiles(object):
               key=self._key,
               reverse=self._reverse,
               weighted=self._weighted,
-              batch_input=self._batch_input))
+              input_batched=self._input_batched))
 
     def display_data(self):
       return ApproximateQuantiles._display_data(
@@ -362,7 +376,7 @@ class ApproximateQuantiles(object):
           key=self._key,
           reverse=self._reverse,
           weighted=self._weighted,
-          batch_input=self._batch_input)
+          input_batched=self._input_batched)
 
   @typehints.with_input_types(
       typehints.Union[typing.Tuple[K, V],
@@ -383,9 +397,11 @@ class ApproximateQuantiles(object):
       weighted: (optional) if set to True, the transform returns weighted
         quantiles. The input PCollection is then expected to contain tuples of
         input values with the corresponding weight.
-      batch_input: (optional) if set to True, the transform expects each element
-        of input PCollection to be a batch. Provides a way to accumulate
-        multiple elements at a time more efficiently.
+      input_batched: (optional) if set to True, the transform expects each
+        element of input PCollection to be a batch, which is a list of elements
+        for non-weighted case and a tuple of lists of elements and weights for
+        weighted. Provides a way to accumulate multiple elements at a time more
+        efficiently.
     """
     def __init__(
         self,
@@ -393,12 +409,12 @@ class ApproximateQuantiles(object):
         key=None,
         reverse=False,
         weighted=False,
-        batch_input=False):
+        input_batched=False):
       self._num_quantiles = num_quantiles
       self._key = key
       self._reverse = reverse
       self._weighted = weighted
-      self._batch_input = batch_input
+      self._input_batched = input_batched
 
     def expand(self, pcoll):
       return pcoll | CombinePerKey(
@@ -407,7 +423,7 @@ class ApproximateQuantiles(object):
               key=self._key,
               reverse=self._reverse,
               weighted=self._weighted,
-              batch_input=self._batch_input))
+              input_batched=self._input_batched))
 
     def display_data(self):
       return ApproximateQuantiles._display_data(
@@ -415,7 +431,7 @@ class ApproximateQuantiles(object):
           key=self._key,
           reverse=self._reverse,
           weighted=self._weighted,
-          batch_input=self._batch_input)
+          input_batched=self._input_batched)
 
 
 class _QuantileSpec(object):
@@ -442,7 +458,7 @@ class _QuantileSpec(object):
       self.less_than = lambda a, b: key(a) < key(b)
 
   def get_argsort_key(self, elements):
-    # type: (List) -> Any
+    # type: (List) -> Callable[[int], Any]
 
     """Returns a key for sorting indices of elements by element's value."""
     if self.key is None:
@@ -469,6 +485,9 @@ class _QuantileBuffer(object):
       self, elements, weights, weighted, level=0, min_val=None, max_val=None):
     # type: (List, List, bool, int, Any, Any) -> None
     self.elements = elements
+    # In non-weighted case weights contains a single element representing weight
+    # of the buffer in the sense of the original algorithm. In weighted case,
+    # it stores weights of individual elements.
     self.weights = weights
     self.weighted = weighted
     self.level = level
@@ -763,9 +782,12 @@ class ApproximateQuantilesCombineFn(CombineFn):
   http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.6.6513&rep=rep1
   &type=pdf
 
-  The default error bound is (1 / N) for uniformly distributed data and
-  min(1e-2, 1 / N) for weighted case, though in practice the accuracy tends to
-  be much better.
+  Note that the weighted quantiles are evaluated using a generalized version of
+  the algorithm referenced in the paper.
+
+  The default error bound is (1 / num_quantiles) for uniformly distributed data
+  and min(1e-2, 1 / num_quantiles) for weighted case, though in practice the
+  accuracy tends to be much better.
 
   Args:
     num_quantiles: Number of quantiles to produce. It is the size of the final
@@ -781,8 +803,8 @@ class ApproximateQuantilesCombineFn(CombineFn):
     weighted: (optional) if set to True, the combiner produces weighted
       quantiles. The input elements are then expected to be tuples of input
       values with the corresponding weight.
-    batch_input: (optional) if set to True, inputs are expected to be batches of
-      elements.
+    input_batched: (optional) if set to True, inputs are expected to be batches
+      of elements.
   """
 
   # For alternating between biasing up and down in the above even weight
@@ -806,12 +828,12 @@ class ApproximateQuantilesCombineFn(CombineFn):
       key=None,
       reverse=False,
       weighted=False,
-      batch_input=False):
+      input_batched=False):
     self._num_quantiles = num_quantiles
     self._spec = _QuantileSpec(buffer_size, num_buffers, weighted, key, reverse)
-    self._batch_input = batch_input
-    if self._batch_input:
-      setattr(self, 'add_input', self._add_inputs)
+    self._input_batched = input_batched
+    if self._input_batched:
+      self.add_input = self._add_inputs
 
   def __reduce__(self):
     return (
@@ -823,7 +845,7 @@ class ApproximateQuantilesCombineFn(CombineFn):
             self._spec.key,
             self._spec.reverse,
             self._spec.weighted,
-            self._batch_input))
+            self._input_batched))
 
   @classmethod
   def create(
@@ -834,7 +856,7 @@ class ApproximateQuantilesCombineFn(CombineFn):
       key=None,
       reverse=False,
       weighted=False,
-      batch_input=False):
+      input_batched=False):
     # type: (...) -> ApproximateQuantilesCombineFn
 
     """
@@ -861,8 +883,8 @@ class ApproximateQuantilesCombineFn(CombineFn):
       weighted: (optional) if set to True, the combiner produces weighted
         quantiles. The input elements are then expected to be tuples of values
         with the corresponding weight.
-      batch_input: (optional) if set to True, inputs are expected to be batches
-        of elements.
+      input_batched: (optional) if set to True, inputs are expected to be
+        batches of elements.
     """
     max_num_elements = max_num_elements or cls._MAX_NUM_ELEMENTS
     if not epsilon:
@@ -880,7 +902,7 @@ class ApproximateQuantilesCombineFn(CombineFn):
         key=key,
         reverse=reverse,
         weighted=weighted,
-        batch_input=batch_input)
+        input_batched=input_batched)
 
   def _offset(self, new_weight):
     # type: (int) -> float
