@@ -36,6 +36,8 @@ import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream
 import org.apache.commons.compress.compressors.deflate.DeflateCompressorInputStream;
 import org.apache.commons.compress.compressors.deflate.DeflateCompressorOutputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
+import org.apache.commons.compress.compressors.snappy.SnappyCompressorInputStream;
+import org.apache.commons.compress.compressors.snappy.SnappyCompressorOutputStream;
 import org.apache.commons.compress.compressors.zstandard.ZstdCompressorInputStream;
 import org.apache.commons.compress.compressors.zstandard.ZstdCompressorOutputStream;
 
@@ -218,6 +220,25 @@ public enum Compression {
     public WritableByteChannel writeCompressed(WritableByteChannel channel) throws IOException {
       return Channels.newChannel(
           new DeflateCompressorOutputStream(Channels.newOutputStream(channel)));
+    }
+  },
+
+  /** Google Snappy compression. */
+  SNAPPY(".snappy", ".snappy") {
+    private int uncompressedSize;
+
+    @Override
+    public ReadableByteChannel readDecompressed(ReadableByteChannel channel) throws IOException {
+      SnappyCompressorInputStream is =
+          new SnappyCompressorInputStream(Channels.newInputStream(channel));
+      uncompressedSize = is.getSize();
+      return Channels.newChannel(is);
+    }
+
+    @Override
+    public WritableByteChannel writeCompressed(WritableByteChannel channel) throws IOException {
+      return Channels.newChannel(
+          new SnappyCompressorOutputStream(Channels.newOutputStream(channel), uncompressedSize));
     }
   };
 

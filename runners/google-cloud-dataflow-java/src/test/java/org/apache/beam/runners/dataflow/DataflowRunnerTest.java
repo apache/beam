@@ -1772,7 +1772,16 @@ public class DataflowRunnerTest implements Serializable {
   @Test
   public void testStreamingGroupIntoBatchesWithShardedKeyOverride() throws IOException {
     PipelineOptions options = buildPipelineOptions();
-    options.as(StreamingOptions.class).setStreaming(true);
+    List<String> experiments =
+        new ArrayList<>(
+            ImmutableList.of(
+                "enable_streaming_auto_sharding",
+                GcpOptions.STREAMING_ENGINE_EXPERIMENT,
+                GcpOptions.WINDMILL_SERVICE_EXPERIMENT,
+                "use_runner_v2"));
+    DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
+    dataflowOptions.setExperiments(experiments);
+    dataflowOptions.setStreaming(true);
     Pipeline p = Pipeline.create(options);
     verifyGroupIntoBatchesOverride(p, true, true);
   }

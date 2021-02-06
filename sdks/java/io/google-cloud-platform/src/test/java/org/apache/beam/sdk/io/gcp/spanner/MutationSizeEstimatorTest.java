@@ -24,7 +24,9 @@ import com.google.cloud.ByteArray;
 import com.google.cloud.Date;
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.Mutation;
+import java.math.BigDecimal;
 import java.util.Arrays;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -41,10 +43,16 @@ public class MutationSizeEstimatorTest {
     Mutation int64 = Mutation.newInsertOrUpdateBuilder("test").set("one").to(1).build();
     Mutation float64 = Mutation.newInsertOrUpdateBuilder("test").set("one").to(2.9).build();
     Mutation bool = Mutation.newInsertOrUpdateBuilder("test").set("one").to(false).build();
+    Mutation numeric =
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("one")
+            .to(new BigDecimal("12345678901234567890.123456789"))
+            .build();
 
     assertThat(MutationSizeEstimator.sizeOf(int64), is(8L));
     assertThat(MutationSizeEstimator.sizeOf(float64), is(8L));
     assertThat(MutationSizeEstimator.sizeOf(bool), is(1L));
+    assertThat(MutationSizeEstimator.sizeOf(numeric), is(30L));
   }
 
   @Test
@@ -64,10 +72,21 @@ public class MutationSizeEstimatorTest {
             .set("one")
             .toBoolArray(new boolean[] {true, true, false, true})
             .build();
+    Mutation numeric =
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("one")
+            .toNumericArray(
+                ImmutableList.of(
+                    new BigDecimal("12345678901234567890.123456789"),
+                    new BigDecimal("12345678901234567890123.1234567890123"),
+                    new BigDecimal("123456789012345678901234.1234567890123456"),
+                    new BigDecimal("1234567890123456789012345.1234567890123456789")))
+            .build();
 
     assertThat(MutationSizeEstimator.sizeOf(int64), is(24L));
     assertThat(MutationSizeEstimator.sizeOf(float64), is(16L));
     assertThat(MutationSizeEstimator.sizeOf(bool), is(4L));
+    assertThat(MutationSizeEstimator.sizeOf(numeric), is(153L));
   }
 
   @Test
@@ -81,10 +100,16 @@ public class MutationSizeEstimatorTest {
             .build();
     Mutation bool =
         Mutation.newInsertOrUpdateBuilder("test").set("one").toBoolArray((boolean[]) null).build();
+    Mutation numeric =
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("one")
+            .toNumericArray((Iterable<BigDecimal>) null)
+            .build();
 
     assertThat(MutationSizeEstimator.sizeOf(int64), is(0L));
     assertThat(MutationSizeEstimator.sizeOf(float64), is(0L));
     assertThat(MutationSizeEstimator.sizeOf(bool), is(0L));
+    assertThat(MutationSizeEstimator.sizeOf(numeric), is(0L));
   }
 
   @Test
