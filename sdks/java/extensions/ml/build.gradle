@@ -30,6 +30,8 @@ description = 'Apache Beam :: SDKs :: Java :: Extensions :: ML'
 
 dependencies {
     compile project(path: ":sdks:java:core", configuration: "shadow")
+    compile project(":sdks:java:expansion-service")
+    permitUnusedDeclared project(":sdks:java:expansion-service")
     compile 'com.google.cloud:google-cloud-video-intelligence:1.2.0'
     compile 'com.google.cloud:google-cloud-dlp:1.1.4'
     compile 'com.google.cloud:google-cloud-language:1.99.4'
@@ -37,8 +39,8 @@ dependencies {
     compile 'com.google.api.grpc:proto-google-cloud-language-v1:1.81.4'
     compile 'com.google.api.grpc:proto-google-cloud-video-intelligence-v1:1.2.0'
     compile 'com.google.api.grpc:proto-google-cloud-vision-v1:1.81.3'
-    compile 'com.google.api:gax:1.57.1'
     compile 'com.google.protobuf:protobuf-java:3.11.1'
+    compile library.java.gax
     compile library.java.slf4j_api
     provided library.java.junit
     testCompile project(path: ':sdks:java:core', configuration: 'shadowTest')

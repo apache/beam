@@ -33,10 +33,10 @@ description = "Apache Beam :: SDKs :: Java :: Extensions :: Protobuf"
 ext.summary = "Add support to Apache Beam for Google Protobuf."
 
 dependencies {
-  compile library.java.vendored_guava_26_0_jre
   compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile library.java.vendored_guava_26_0_jre
   compile library.java.protobuf_java
-  compile "org.apache.beam:beam-vendor-bytebuddy-1_10_8:0.1"
+  compile library.java.vendored_bytebuddy_1_10_8
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile library.java.junit
   testRuntimeOnly library.java.slf4j_jdk14
