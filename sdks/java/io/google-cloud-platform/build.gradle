@@ -61,6 +61,7 @@ dependencies {
   compile(library.java.google_cloud_core_grpc) {
     exclude group: 'io.grpc', module: 'grpc-core' // Use Beam's version
   }
+  permitUnusedDeclared "com.google.cloud:google-cloud-core-grpc:1.93.9"
   compile library.java.google_cloud_datastore_v1_proto_client
   compile library.java.google_cloud_pubsublite
   // GCP PubSub client is used in TestPubSub
@@ -70,20 +71,20 @@ dependencies {
   compile library.java.google_http_client
   compile library.java.google_http_client_jackson2
   compile library.java.grpc_alts
-  permitUnusedDeclared library.java.grpc_alts
+  permitUnusedDeclared "io.grpc:grpc-alts:1.32.2"
   compile library.java.grpc_api
   compile library.java.grpc_auth
   compile library.java.grpc_core
-  permitUnusedDeclared library.java.grpc_core
+  permitUnusedDeclared "io.grpc:grpc-core:1.32.2"
   compile library.java.grpc_context
-  permitUnusedDeclared library.java.grpc_context
+  permitUnusedDeclared "io.grpc:grpc-context:1.32.2"
   compile library.java.grpc_grpclb
-  permitUnusedDeclared library.java.grpc_grpclb
+  permitUnusedDeclared "io.grpc:grpc-grpclb:1.32.2"
   compile library.java.grpc_netty
   compile library.java.grpc_netty_shaded
-  permitUnusedDeclared library.java.grpc_netty_shaded
+  permitUnusedDeclared "io.grpc:grpc-netty-shaded:1.32.2"
   compile library.java.grpc_stub
-  permitUnusedDeclared library.java.grpc_stub
+  permitUnusedDeclared "io.grpc:grpc-stub:1.32.2"
   compile library.java.grpc_google_cloud_pubsub_v1
   compile library.java.grpc_google_cloud_pubsublite_v1
   permitUnusedDeclared library.java.grpc_google_cloud_pubsublite_v1
@@ -102,14 +103,14 @@ dependencies {
   permitUnusedDeclared library.java.netty_tcnative_boringssl_static
   compile library.java.proto_google_cloud_bigquery_storage_v1
   compile library.java.proto_google_cloud_bigquery_storage_v1beta1
-  permitUnusedDeclared library.java.proto_google_cloud_bigquery_storage_v1beta1
+  permitUnusedDeclared "com.google.api.grpc:proto-google-cloud-bigquerystorage-v1beta1:0.105.5"
   compile library.java.proto_google_cloud_bigtable_admin_v2
   compile library.java.proto_google_cloud_bigtable_v2
   compile library.java.proto_google_cloud_datastore_v1
   compile library.java.proto_google_cloud_pubsub_v1
   compile library.java.proto_google_cloud_pubsublite_v1
   compile library.java.proto_google_cloud_spanner_admin_database_v1
-  permitUnusedDeclared library.java.proto_google_cloud_spanner_admin_database_v1
+  permitUnusedDeclared "com.google.api.grpc:proto-google-cloud-spanner-admin-database-v1:2.0.2"
   compile library.java.proto_google_cloud_spanner_v1
   compile library.java.proto_google_common_protos
   compile library.java.protobuf_java
