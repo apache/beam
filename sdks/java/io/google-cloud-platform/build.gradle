@@ -85,9 +85,9 @@ dependencies {
   compile library.java.vendored_grpc_1_26_0
   compile library.java.vendored_guava_26_0_jre
 
-  compile "com.google.api.grpc:proto-google-cloud-bigquerystorage-v1:0.90.0"
-  compile "com.google.api.grpc:proto-google-cloud-bigtable-admin-v2:1.14.0"
-  compile "com.google.api.grpc:proto-google-cloud-spanner-v1:1.59.0"
+  compile library.java.proto_google_cloud_bigquery_storage_v1
+  compile library.java.proto_google_cloud_bigtable_admin_v2
+  compile library.java.proto_google_cloud_spanner_v1
   compile "org.threeten:threetenbp:1.4.4"
 
   compile project(path: ":model:pipeline", configuration: "shadow")
