@@ -37,7 +37,7 @@ public class BeamZetaSqlCalcRule extends ConverterRule {
 
   @Override
   public boolean matches(RelOptRuleCall x) {
-    return !ZetaSQLQueryPlanner.hasUdfInProjects(x);
+    return ZetaSQLQueryPlanner.hasNoJavaUdfInProjects(x);
   }
 
   @Override

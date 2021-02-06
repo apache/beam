@@ -116,8 +116,11 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
     return modifyRuleSetsForZetaSql(BeamRuleSets.getRuleSets());
   }
 
-  /** Returns true if the argument contains any user-defined Java functions. */
-  static boolean hasUdfInProjects(RelOptRuleCall x) {
+  /**
+   * Returns true if the arguments only contain any user-defined Java functions, otherwise returns
+   * false.
+   */
+  static boolean hasOnlyJavaUdfInProjects(RelOptRuleCall x) {
     List<RelNode> resList = x.getRelList();
     for (RelNode relNode : resList) {
       if (relNode instanceof LogicalCalc) {
@@ -129,15 +132,49 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
               SqlUserDefinedFunction udf = (SqlUserDefinedFunction) call.op;
               if (udf.function instanceof ZetaSqlScalarFunctionImpl) {
                 ZetaSqlScalarFunctionImpl scalarFunction = (ZetaSqlScalarFunctionImpl) udf.function;
-                return scalarFunction.functionGroup.equals(
-                    SqlAnalyzer.USER_DEFINED_JAVA_SCALAR_FUNCTIONS);
+                if (!scalarFunction.functionGroup.equals(
+                    SqlAnalyzer.USER_DEFINED_JAVA_SCALAR_FUNCTIONS)) {
+                  return false;
+                }
+              } else {
+                return false;
+              }
+            } else {
+              return false;
+            }
+          }
+        }
+      }
+    }
+    return true;
+  }
+
+  /**
+   * Returns false if the argument contains any user-defined Java functions, otherwise returns true.
+   */
+  static boolean hasNoJavaUdfInProjects(RelOptRuleCall x) {
+    List<RelNode> resList = x.getRelList();
+    for (RelNode relNode : resList) {
+      if (relNode instanceof LogicalCalc) {
+        LogicalCalc logicalCalc = (LogicalCalc) relNode;
+        for (RexNode rexNode : logicalCalc.getProgram().getExprList()) {
+          if (rexNode instanceof RexCall) {
+            RexCall call = (RexCall) rexNode;
+            if (call.getOperator() instanceof SqlUserDefinedFunction) {
+              SqlUserDefinedFunction udf = (SqlUserDefinedFunction) call.op;
+              if (udf.function instanceof ZetaSqlScalarFunctionImpl) {
+                ZetaSqlScalarFunctionImpl scalarFunction = (ZetaSqlScalarFunctionImpl) udf.function;
+                if (scalarFunction.functionGroup.equals(
+                    SqlAnalyzer.USER_DEFINED_JAVA_SCALAR_FUNCTIONS)) {
+                  return false;
+                }
               }
             }
           }
         }
       }
     }
-    return false;
+    return true;
   }
 
   private static Collection<RuleSet> modifyRuleSetsForZetaSql(Collection<RuleSet> ruleSets) {

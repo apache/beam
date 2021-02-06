@@ -31,6 +31,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptPlanner.CannotPlanException;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.codehaus.commons.compiler.CompileException;
 import org.joda.time.Duration;
@@ -203,15 +204,10 @@ public class ZetaSqlJavaUdfTest extends ZetaSqlTestBase {
                 + "SELECT matches(\"a\", \"a\"), 'apple'='beta'",
             jarPath);
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
-    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
-
-    Schema singleField =
-        Schema.builder().addBooleanField("field1").addBooleanField("field2").build();
-
-    PAssert.that(stream)
-        .containsInAnyOrder(Row.withSchema(singleField).addValues(true, false).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    thrown.expect(CannotPlanException.class);
+    thrown.expectMessage(
+        "There are not enough rules to produce a node with desired properties: convention=BEAM_LOGICAL.");
+    zetaSQLQueryPlanner.convertToBeamRel(sql);
   }
 
   // TODO(BEAM-11747) Add tests that mix UDFs and builtin functions that rely on the ZetaSQL C++
