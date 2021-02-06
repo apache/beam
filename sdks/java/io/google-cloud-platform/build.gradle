@@ -29,7 +29,7 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Google Cloud Platform"
 ext.summary = "IO library to read and write Google Cloud Platform systems from Beam."
 
 /* Needed to add permitUnusedDeclared (to pair with compile lines) due to BEAM-11732.
- * These lines should be removed. See https://issues.apache.org/jira/browse/BEAM-11761 
+ * These lines should be removed. See https://issues.apache.org/jira/browse/BEAM-11761
  */
 
 dependencies {
