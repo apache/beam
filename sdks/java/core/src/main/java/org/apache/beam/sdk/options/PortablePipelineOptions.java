@@ -115,7 +115,7 @@ public interface PortablePipelineOptions extends PipelineOptions {
   void setEnvironmentOptions(List<String> value);
 
   /** Return the value for the specified environment option or empty string if not present. */
-  public static String getEnvironmentOption(
+  static String getEnvironmentOption(
       PortablePipelineOptions options, String environmentOptionName) {
     List<String> environmentOptions = options.getEnvironmentOptions();
     if (environmentOptions == null) {

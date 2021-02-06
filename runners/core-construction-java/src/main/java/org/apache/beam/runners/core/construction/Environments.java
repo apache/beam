@@ -213,7 +213,6 @@ public class Environments {
                 "Environment option '%s' must be set for process environment.",
                 processCommandOption));
       }
-      Map<String, String> processVariables = getProcessVariables(options);
       return createProcessEnvironment("", "", processCommand, getProcessVariables(options));
     }
     try {
