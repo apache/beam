@@ -36,9 +36,11 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
 try:
-  import numpy as np
+  import numpy  # pylint: disable=unused-import
 except ImportError:
-  np = None
+  NP_INSTALLED = False
+else:
+  NP_INSTALLED = True
 
 
 def input_spec(
@@ -60,7 +62,8 @@ def input_spec(
   }
 
 
-@unittest.skipIf(np is None, 'Synthetic source dependencies are not installed')
+@unittest.skipIf(
+    not NP_INSTALLED, 'Synthetic source dependencies are not installed')
 class SyntheticPipelineTest(unittest.TestCase):
 
   # pylint: disable=expression-not-assigned
