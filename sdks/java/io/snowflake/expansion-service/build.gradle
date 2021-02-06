@@ -21,7 +21,7 @@ apply plugin: 'application'
 mainClassName = "org.apache.beam.sdk.expansion.service.ExpansionService"
 
 applyJavaNature(
-
+  enableStrictDependencies:true,
   automaticModuleName: 'org.apache.beam.sdk.io.expansion.service',
   exportJavadoc: false,
   validateShadowJar: false,
@@ -33,7 +33,9 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Snowflake ::Expansion Servic
 
 dependencies {
   compile project(":sdks:java:expansion-service")
+  permitUnusedDeclared project(":sdks:java:expansion-service")
   compile project(":sdks:java:io:snowflake")
+  permitUnusedDeclared project(":sdks:java:io:snowflake")
   runtime library.java.slf4j_jdk14
 }
 

@@ -77,15 +77,11 @@ COLUMNS = [
     ([375., 24., None, 10., 16.], np.float32, 'f32'),
     ([True, False, True, True, False], np.bool, 'bool'),
     (['Falcon', 'Ostrich', None, 3.14, 0], np.object, 'any'),
+    ([True, False, True, None, False], pd.BooleanDtype(), 'bool_nullable'),
+    (['Falcon', 'Ostrich', None, 'Aardvark', 'Elephant'],
+     pd.StringDtype(),
+     'strdtype'),
 ]  # type: typing.List[typing.Tuple[typing.List[typing.Any], typing.Any, str]]
-
-if schemas.PD_MAJOR >= 1:
-  COLUMNS.extend([
-      ([True, False, True, None, False], pd.BooleanDtype(), 'bool_nullable'),
-      (['Falcon', 'Ostrich', None, 'Aardvark', 'Elephant'],
-       pd.StringDtype(),
-       'strdtype'),
-  ])
 
 NICE_TYPES_DF = pd.DataFrame(columns=[name for _, _, name in COLUMNS])
 for arr, dtype, name in COLUMNS:
@@ -108,6 +104,8 @@ INDEX_DF_TESTS = [
 
 NOINDEX_DF_TESTS = [(NICE_TYPES_DF, DF_RESULT)]
 
+PD_VERSION = tuple(int(n) for n in pd.__version__.split('.'))
+
 
 class SchemasTest(unittest.TestCase):
   def test_simple_df(self):
@@ -129,8 +127,7 @@ class SchemasTest(unittest.TestCase):
 
   def test_generate_proxy(self):
     expected = pd.DataFrame({
-        'animal': pd.Series(
-            dtype=np.object if schemas.PD_MAJOR < 1 else pd.StringDtype()),
+        'animal': pd.Series(dtype=pd.StringDtype()),
         'max_speed': pd.Series(dtype=np.float64)
     })
 
@@ -141,7 +138,10 @@ class SchemasTest(unittest.TestCase):
         schemas.element_type_from_dataframe(NICE_TYPES_PROXY))
     self.assertTrue(roundtripped.equals(NICE_TYPES_PROXY))
 
-  @unittest.skipIf(schemas.PD_MAJOR < 1, "bytes not supported with 0.x")
+  @unittest.skipIf(
+      PD_VERSION == (1, 2, 1),
+      "Can't roundtrip bytes in pandas 1.2.1"
+      "https://github.com/pandas-dev/pandas/issues/39474")
   def test_bytes_proxy_roundtrip(self):
     proxy = pd.DataFrame({'bytes': []})
     proxy.bytes = proxy.bytes.astype(bytes)

@@ -510,8 +510,8 @@ public class ExecutableStageDoFnOperatorTest {
                     timestamp,
                     PaneInfo.NO_FIRING),
                 TimerInternals.TimerData.of(
-                    TimerReceiverFactory.encodeToTimerDataTimerId("transform", timerId),
                     "",
+                    TimerReceiverFactory.encodeToTimerDataTimerId("transform", timerId),
                     StateNamespaces.window(IntervalWindow.getCoder(), intervalWindow),
                     timestamp,
                     timestamp,
@@ -799,6 +799,7 @@ public class ExecutableStageDoFnOperatorTest {
     // user timer that fires after the end of the window and after state cleanup
     TimerInternals.TimerData userTimer =
         TimerInternals.TimerData.of(
+            "",
             TimerReceiverFactory.encodeToTimerDataTimerId(
                 timerInputKey.getKey(), timerInputKey.getValue()),
             stateNamespace,
@@ -834,6 +835,7 @@ public class ExecutableStageDoFnOperatorTest {
     // Cleanup timer are rescheduled if a new timer is created during the bundle
     TimerInternals.TimerData userTimer2 =
         TimerInternals.TimerData.of(
+            "",
             TimerReceiverFactory.encodeToTimerDataTimerId(
                 timerInputKey.getKey(), timerInputKey.getValue()),
             stateNamespace,

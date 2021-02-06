@@ -522,8 +522,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
       try (Locker locker = Locker.locked(stateBackendLock)) {
         getKeyedStateBackend().setCurrentKey(encodedKey);
         if (timerElement.getClearBit()) {
-          timerInternals.deleteTimer(
-              timerData.getNamespace(), timerData.getTimerId(), timerData.getDomain());
+          timerInternals.deleteTimer(timerData);
         } else {
           timerInternals.setTimer(timerData);
           if (!timerData.getTimerId().equals(GC_TIMER_ID)) {
@@ -973,7 +972,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         processElement(stateValue);
       } else {
         KV<String, String> transformAndTimerFamilyId =
-            TimerReceiverFactory.decodeTimerDataTimerId(timerId);
+            TimerReceiverFactory.decodeTimerDataTimerId(timerFamilyId);
         LOG.debug(
             "timer callback: {} {} {} {} {}",
             transformAndTimerFamilyId.getKey(),
@@ -990,7 +989,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
         Timer<?> timerValue =
             Timer.of(
                 timerKey,
-                "",
+                timerId,
                 Collections.singletonList(window),
                 timestamp,
                 outputTimestamp,

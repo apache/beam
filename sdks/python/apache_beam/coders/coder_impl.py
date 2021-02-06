@@ -291,7 +291,7 @@ class DeterministicFastPrimitivesCoderImpl(CoderImpl):
     self._step_label = step_label
 
   def _check_safe(self, value):
-    if isinstance(value, (bytes, past_unicode, long, int, float)):
+    if isinstance(value, (bytes, past_unicode, long, int, float, bool)):
       pass
     elif value is None:
       pass
@@ -336,18 +336,18 @@ class ProtoCoderImpl(SimpleCoderImpl):
     self.proto_message_type = proto_message_type
 
   def encode(self, value):
-    return value.SerializeToString()
+    return value.SerializePartialToString()
 
   def decode(self, encoded):
     proto_message = self.proto_message_type()
-    proto_message.ParseFromString(encoded)
+    proto_message.ParseFromString(encoded)  # This is in effect "ParsePartial".
     return proto_message
 
 
 class DeterministicProtoCoderImpl(ProtoCoderImpl):
   """For internal use only; no backwards-compatibility guarantees."""
   def encode(self, value):
-    return value.SerializeToString(deterministic=True)
+    return value.SerializePartialToString(deterministic=True)
 
 
 UNKNOWN_TYPE = 0xFF
