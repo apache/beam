@@ -261,18 +261,20 @@ class InteractiveEnvironment(object):
       bcj.attempt_to_cancel_background_caching_job(pipeline)
       bcj.attempt_to_stop_test_stream_service(pipeline)
       cache_manager = self.get_cache_manager(pipeline)
-      if cache_manager:
-        cache_manager.cleanup()
-    else:
-      for _, job in self._background_caching_jobs.items():
-        if job:
-          job.cancel()
-      for _, controller in self._test_stream_service_controllers.items():
-        if controller:
-          controller.stop()
-      for _, cache_manager in self._cache_managers.items():
-        if cache_manager:
+      if cache_manager and pipeline not in self._recording_managers:
+          # Recording managers also try to cleanup the same cache when evicted.
           cache_manager.cleanup()
+      else:
+        for _, job in self._background_caching_jobs.items():
+          if job:
+            job.cancel()
+        for _, controller in self._test_stream_service_controllers.items():
+          if controller:
+            controller.stop()
+        for pipeline_id, cache_manager in self._cache_managers.items():
+          if cache_manager and pipeline_id not in self._recording_managers:
+            # Recording managers also try to cleanup the same cache when evicted.
+            cache_manager.cleanup()
 
     self.evict_recording_manager(pipeline)
     self.evict_background_caching_job(pipeline)
