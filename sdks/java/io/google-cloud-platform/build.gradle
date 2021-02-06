@@ -20,7 +20,7 @@ import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-//  enableStrictDependencies:true,
+  enableStrictDependencies:true,
   automaticModuleName: 'org.apache.beam.sdk.io.gcp',
   enableSpotbugs: false,
 )
@@ -28,10 +28,11 @@ applyJavaNature(
 description = "Apache Beam :: SDKs :: Java :: IO :: Google Cloud Platform"
 ext.summary = "IO library to read and write Google Cloud Platform systems from Beam."
 
-// Needed to add permitUnusedDeclared (to pair with compile lines) due to BEAM-11732. 
-// These lines should be removed. See https://issues.apache.org/jira/browse/BEAM-11761 
-// Some permitUnusedDeclared lines that were intended to be addded needed to be commented out
-// because of build errors when running: gradlew analyzeDependencies
+/* Needed to add permitUnusedDeclared (to pair with compile lines) due to BEAM-11732.
+ * These lines should be removed. See https://issues.apache.org/jira/browse/BEAM-11761 
+ * Some permitUnusedDeclared lines that were intended to be addded needed to be commented out
+ * because of build errors when running: gradlew analyzeDependencies
+ */
 
 dependencies {
   compile enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
