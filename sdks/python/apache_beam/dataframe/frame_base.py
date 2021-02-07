@@ -18,7 +18,6 @@ from __future__ import absolute_import
 
 import functools
 import inspect
-import sys
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -31,17 +30,8 @@ import pandas as pd
 from apache_beam.dataframe import expressions
 from apache_beam.dataframe import partitionings
 
-# pylint: disable=deprecated-method
-if sys.version_info < (3, ):
-  _getargspec = inspect.getargspec
-
-  def _unwrap(func):
-    while hasattr(func, '__wrapped__'):
-      func = func.__wrapped__
-    return func
-else:
-  _getargspec = inspect.getfullargspec
-  _unwrap = inspect.unwrap
+_getargspec = inspect.getfullargspec
+_unwrap = inspect.unwrap
 
 
 class DeferredBase(object):

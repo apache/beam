@@ -21,9 +21,8 @@
 from __future__ import absolute_import
 from __future__ import print_function
 
-import platform
-import sys
 import unittest
+from io import StringIO
 
 import mock
 
@@ -33,13 +32,6 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
 from . import pardo
-
-# TODO: Remove this after Python 2 deprecation.
-# https://issues.apache.org/jira/browse/BEAM-8124
-if sys.version_info[0] == 2:
-  from io import BytesIO as StringIO
-else:
-  from io import StringIO
 
 
 def check_plants(actual):
@@ -96,11 +88,6 @@ class ParDoTest(unittest.TestCase):
   def test_pardo_dofn(self):
     pardo.pardo_dofn(check_plants)
 
-  # TODO: Remove this after Python 2 deprecation.
-  # https://issues.apache.org/jira/browse/BEAM-8124
-  @unittest.skipIf(
-      sys.version_info[0] == 2 and platform.system() == 'Windows',
-      'Python 2 on Windows uses `long` rather than `int`')
   def test_pardo_dofn_params(self):
     pardo.pardo_dofn_params(check_dofn_params)
 

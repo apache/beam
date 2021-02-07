@@ -22,7 +22,6 @@ from __future__ import absolute_import
 
 import logging
 import math
-import sys
 import unittest
 from builtins import range
 from typing import Any
@@ -97,9 +96,6 @@ class CodersTest(unittest.TestCase):
   def setUpClass(cls):
     cls.seen = set()
     cls.seen_nested = set()
-    # Method has been renamed in Python 3
-    if sys.version_info[0] < 3:
-      cls.assertCountEqual = cls.assertItemsEqual
 
   @classmethod
   def tearDownClass(cls):
