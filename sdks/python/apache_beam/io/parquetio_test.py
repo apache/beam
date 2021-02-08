@@ -28,6 +28,7 @@ import unittest
 
 import hamcrest as hc
 import pandas
+import pytest
 from parameterized import param
 from parameterized import parameterized
 
@@ -62,6 +63,7 @@ except ImportError:
 
 
 @unittest.skipIf(pa is None, "PyArrow is not installed.")
+@pytest.mark.uses_pyarrow
 class TestParquet(unittest.TestCase):
   @classmethod
   def setUpClass(cls):

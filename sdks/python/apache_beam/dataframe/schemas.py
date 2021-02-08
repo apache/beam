@@ -89,7 +89,7 @@ T = TypeVar('T', bound=NamedTuple)
 
 # Generate type map (presented visually in the docstring)
 _BIDIRECTIONAL = [
-    (np.bool, np.bool),
+    (bool, bool),
     (np.int8, np.int8),
     (np.int16, np.int16),
     (np.int32, np.int32),
@@ -100,9 +100,9 @@ _BIDIRECTIONAL = [
     (pd.Int64Dtype(), Optional[np.int64]),
     (np.float32, Optional[np.float32]),
     (np.float64, Optional[np.float64]),
-    (np.object, Any),
+    (object, Any),
     (pd.StringDtype(), Optional[str]),
-    (pd.BooleanDtype(), Optional[np.bool]),
+    (pd.BooleanDtype(), Optional[bool]),
 ]
 
 PANDAS_TO_BEAM = {
@@ -173,7 +173,7 @@ def generate_proxy(element_type):
     for name, typehint in fields:
       # Default to np.object. This is lossy, we won't be able to recover
       # the type at the output.
-      dtype = BEAM_TO_PANDAS.get(typehint, np.object)
+      dtype = BEAM_TO_PANDAS.get(typehint, object)
       proxy[name] = proxy[name].astype(dtype)
 
     return proxy

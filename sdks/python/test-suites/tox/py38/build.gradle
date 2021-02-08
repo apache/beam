@@ -37,9 +37,11 @@ testPy38Cython.mustRunAfter testPython38, testPy38CloudCoverage
 toxTask "testPy38pyarrow-0", "py38-pyarrow-0"
 toxTask "testPy38pyarrow-1", "py38-pyarrow-1"
 toxTask "testPy38pyarrow-2", "py38-pyarrow-2"
+toxTask "testPy38pyarrow-3", "py38-pyarrow-3"
 test.dependsOn "testPy38pyarrow-0"
 test.dependsOn "testPy38pyarrow-1"
 test.dependsOn "testPy38pyarrow-2"
+test.dependsOn "testPy38pyarrow-3"
 
 toxTask "whitespacelint", "whitespacelint"
 

@@ -57,7 +57,7 @@ coders_registry.register_coder(Person, RowCoder)
 class RowCoderTest(unittest.TestCase):
   JON_SNOW = Person(
       name="Jon Snow",
-      age=23,
+      age=np.int32(23),
       address=None,
       aliases=["crow", "wildling"],
       knows_javascript=False,
@@ -69,7 +69,7 @@ class RowCoderTest(unittest.TestCase):
       JON_SNOW,
       Person(
           "Daenerys Targaryen",
-          25,
+          np.int32(25),
           "Westeros",
           ["Mother of Dragons"],
           False,
@@ -79,7 +79,7 @@ class RowCoderTest(unittest.TestCase):
       ),
       Person(
           "Michael Bluth",
-          30,
+          np.int32(30),
           None, [],
           True,
           b"I've made a huge mistake", {},
