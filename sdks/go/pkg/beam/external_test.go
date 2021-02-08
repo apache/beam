@@ -17,14 +17,13 @@ package beam
 
 import (
 	"bytes"
-	"context"
 	"strings"
 	"testing"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
-	"github.com/apache/beam/sdks/go/pkg/beam/options/jobopts"
+	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 )
 
 func TestExternalTagged(t *testing.T) {
@@ -53,20 +52,11 @@ func TestExternalTagged(t *testing.T) {
 	}
 
 	// Validate the post-construction pipeline protocol buffer contents.
-
-	ctx := context.Background()
-	envUrn := jobopts.GetEnvironmentUrn(ctx)
-	getEnvCfg := jobopts.GetEnvironmentConfig
-	environment, err := graphx.CreateEnvironment(ctx, envUrn, getEnvCfg)
-	if err != nil {
-		t.Fatalf("Couldn't create environment build: %v", err)
-	}
-
 	edges, _, err := p.Build()
 	if err != nil {
 		t.Fatalf("Pipeline couldn't build: %v", err)
 	}
-	pb, err := graphx.Marshal(edges, &graphx.Options{Environment: environment})
+	pb, err := graphx.Marshal(edges, &graphx.Options{Environment: &pipepb.Environment{}})
 	if err != nil {
 		t.Fatalf("Couldn't graphx.Marshal edges: %v", err)
 	}
@@ -76,14 +66,12 @@ func TestExternalTagged(t *testing.T) {
 	foundExternalTagged := false
 	for _, transform := range transforms {
 		spec := transform.GetSpec()
-		if strings.Contains(spec.GetUrn(), urn) {
-			foundExternalTagged = true
-			if bytes.Compare(spec.GetPayload(), payload) != 0 {
-				t.Errorf("Payload value: got %v, want %v", spec.GetPayload(), payload)
-			}
-		}
-		if !foundExternalTagged {
+		if !strings.Contains(spec.GetUrn(), urn) {
 			continue
+		}
+		foundExternalTagged = true
+		if bytes.Compare(spec.GetPayload(), payload) != 0 {
+			t.Errorf("Payload value: got %v, want %v", spec.GetPayload(), payload)
 		}
 		if got, want := len(transform.GetInputs()), 1; got != want {
 			t.Errorf("transform.Inputs has size %v, want %v: %v", got, want, transform.GetInputs())
