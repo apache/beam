@@ -35,7 +35,8 @@ import org.apache.commons.lang3.exception.ExceptionUtils;
 
 @Internal
 @Experimental(Kind.SCHEMAS)
-public class DeadLetteredTransform<InputT, OutputT> extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
+public class DeadLetteredTransform<InputT, OutputT>
+    extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
   private final SimpleFunction<InputT, OutputT> transform;
   private final PTransform<PCollection<Failure>, PDone> deadLetter;
 
@@ -45,28 +46,35 @@ public class DeadLetteredTransform<InputT, OutputT> extends PTransform<PCollecti
 
   @VisibleForTesting
   DeadLetteredTransform(
-      SimpleFunction<InputT, OutputT> transform, PTransform<PCollection<Failure>, PDone> deadLetter) {
+      SimpleFunction<InputT, OutputT> transform,
+      PTransform<PCollection<Failure>, PDone> deadLetter) {
     this.transform = transform;
     this.deadLetter = deadLetter;
   }
 
   // Required to capture the generic type parameter of the PCollection.
-  private <RealInputT extends InputT> PCollection<OutputT> expandInternal(PCollection<RealInputT> input) {
+  private <RealInputT extends InputT> PCollection<OutputT> expandInternal(
+      PCollection<RealInputT> input) {
     Coder<RealInputT> coder = input.getCoder();
     SerializableFunction<RealInputT, OutputT> localTransform = transform::apply;
     MapElements.MapWithFailures<RealInputT, OutputT, Failure> mapWithFailures =
-        MapElements.into(transform.getOutputTypeDescriptor()).via(localTransform).exceptionsInto(
-                TypeDescriptor.of(Failure.class)).exceptionsVia(x -> {
-              try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
-                coder.encode(x.element(), os);
-                return Failure.newBuilder()
-                            .setPayload(os.toByteArray())
-                            .setError(
-                                String.format(
-                                    "%s\n\n%s",
-                                    x.exception().getMessage(), ExceptionUtils.getStackTrace(x.exception()))).build();
-              }
-            });
+        MapElements.into(transform.getOutputTypeDescriptor())
+            .via(localTransform)
+            .exceptionsInto(TypeDescriptor.of(Failure.class))
+            .exceptionsVia(
+                x -> {
+                  try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
+                    coder.encode(x.element(), os);
+                    return Failure.newBuilder()
+                        .setPayload(os.toByteArray())
+                        .setError(
+                            String.format(
+                                "%s\n\n%s",
+                                x.exception().getMessage(),
+                                ExceptionUtils.getStackTrace(x.exception())))
+                        .build();
+                  }
+                });
     Result<PCollection<OutputT>, Failure> result = mapWithFailures.expand(input);
     result.failures().apply(deadLetter);
     return result.output();

@@ -195,8 +195,6 @@ public class PCollection<T> extends PValueBase implements PValue {
         new StringBuilder()
             .append("Unable to return a default Coder for ")
             .append(this)
-            .append(" with type ")
-            .append(getTypeDescriptor().getRawType().getName())
             .append(". Correct one of the following root causes:");
 
     // No exception, but give the user a message about .setCoder() has not been called.
