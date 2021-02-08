@@ -32,12 +32,17 @@ import com.google.zetasql.ZetaSQLFunctions;
 import com.google.zetasql.ZetaSQLType;
 import com.google.zetasql.resolvedast.ResolvedNode;
 import com.google.zetasql.resolvedast.ResolvedNodes;
+import java.lang.reflect.Method;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.sql.impl.JavaUdfLoader;
+import org.apache.beam.sdk.extensions.sql.impl.ScalarFnReflector;
+import org.apache.beam.sdk.extensions.sql.impl.ScalarFunctionImpl;
 import org.apache.beam.sdk.extensions.sql.impl.SqlConversionException;
 import org.apache.beam.sdk.extensions.sql.impl.utils.TVFStreamingUtils;
 import org.apache.beam.sdk.extensions.sql.udf.ScalarFn;
@@ -111,7 +116,7 @@ public class BeamZetaSqlCatalog {
     BeamZetaSqlCatalog catalog =
         new BeamZetaSqlCatalog(
             calciteSchema, new SimpleCatalog(calciteSchema.getName()), typeFactory);
-    catalog.addBuiltinFunctionsToCatalog(options);
+    catalog.addFunctionsToCatalog(options);
     return catalog;
   }
 
@@ -133,9 +138,10 @@ public class BeamZetaSqlCatalog {
         String jarPath = getJarPath(createFunctionStmt);
         ScalarFn scalarFn =
             javaUdfLoader.loadScalarFunction(createFunctionStmt.getNamePath(), jarPath);
+        Method method = ScalarFnReflector.getApplyMethod(scalarFn);
         javaScalarUdfs.put(
             createFunctionStmt.getNamePath(),
-            UserFunctionDefinitions.JavaScalarFunction.create(scalarFn, jarPath));
+            UserFunctionDefinitions.JavaScalarFunction.create(method, jarPath));
         break;
       default:
         throw new IllegalArgumentException(
@@ -172,7 +178,7 @@ public class BeamZetaSqlCatalog {
         .build();
   }
 
-  private void addBuiltinFunctionsToCatalog(AnalyzerOptions options) {
+  private void addFunctionsToCatalog(AnalyzerOptions options) {
     // Enable ZetaSQL builtin functions.
     ZetaSQLBuiltinFunctionOptions zetasqlBuiltinFunctionOptions =
         new ZetaSQLBuiltinFunctionOptions(options.getLanguageOptions());
@@ -183,6 +189,9 @@ public class BeamZetaSqlCatalog {
     // Enable Beam SQL's builtin windowing functions.
     addWindowScalarFunctions(options);
     addWindowTvfs();
+
+    // Add user-defined functions already defined in the schema, if any.
+    addUdfsFromSchema();
   }
 
   private void addWindowScalarFunctions(AnalyzerOptions options) {
@@ -274,6 +283,49 @@ public class BeamZetaSqlCatalog {
                     TypeFactory.createSimpleType(ZetaSQLType.TypeKind.TYPE_TIMESTAMP))),
             null,
             null));
+  }
+
+  private void addUdfsFromSchema() {
+    for (String functionName : calciteSchema.getFunctionNames()) {
+      Collection<org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Function>
+          functions = calciteSchema.getFunctions(functionName);
+      if (functions.size() != 1) {
+        throw new IllegalArgumentException(
+            String.format(
+                "Expected exactly 1 definition for function '%s', but found %d.",
+                functionName, functions.size()));
+      }
+      for (org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Function function :
+          functions) {
+        if (function instanceof ScalarFunctionImpl) {
+          ScalarFunctionImpl scalarFunction = (ScalarFunctionImpl) function;
+          List<String> path = Arrays.asList(functionName.split("\\."));
+          Method method = scalarFunction.method;
+          javaScalarUdfs.put(path, UserFunctionDefinitions.JavaScalarFunction.create(method, ""));
+
+          FunctionArgumentType resultType =
+              new FunctionArgumentType(
+                  ZetaSqlCalciteTranslationUtils.toZetaSqlType(
+                      scalarFunction.getReturnType(typeFactory)));
+          List<FunctionArgumentType> argumentTypes =
+              scalarFunction.getParameters().stream()
+                  .map(
+                      (arg) ->
+                          new FunctionArgumentType(
+                              ZetaSqlCalciteTranslationUtils.toZetaSqlType(
+                                  arg.getType(typeFactory))))
+                  .collect(Collectors.toList());
+          FunctionSignature functionSignature =
+              new FunctionSignature(resultType, argumentTypes, 0L);
+          zetaSqlCatalog.addFunction(
+              new Function(
+                  path,
+                  USER_DEFINED_JAVA_SCALAR_FUNCTIONS,
+                  ZetaSQLFunctions.FunctionEnums.Mode.SCALAR,
+                  ImmutableList.of(functionSignature)));
+        }
+      }
+    }
   }
 
   private String getFunctionGroup(ResolvedNodes.ResolvedCreateFunctionStmt createFunctionStmt) {

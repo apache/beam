@@ -24,6 +24,8 @@ import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.fail;
 
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.extensions.sql.BeamSqlUdf;
+import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.schemas.Schema;
@@ -183,6 +185,25 @@ public class ZetaSqlJavaUdfTest extends ZetaSqlTestBase {
     Schema singleField = Schema.builder().addBooleanField("field1").build();
 
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(singleField).addValues(true).build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  public static class IncrementFn implements BeamSqlUdf {
+    public Long eval(Long i) {
+      return i + 1;
+    }
+  }
+
+  @Test
+  public void testSqlTransformRegisterUdf() {
+    String sql = "SELECT increment(0);";
+    PCollection<Row> stream =
+        pipeline.apply(
+            SqlTransform.query(sql)
+                .withQueryPlannerClass(ZetaSQLQueryPlanner.class)
+                .registerUdf("increment", IncrementFn.class));
+    final Schema schema = Schema.builder().addInt64Field("field1").build();
+    PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues(1L).build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
