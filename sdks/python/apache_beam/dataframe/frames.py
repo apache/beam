@@ -155,6 +155,9 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
       if not isinstance(by, list):
         by = [by]
       index_names = self._expr.proxy().index.names
+      for label in by:
+        if label not in index_names and label not in self._expr.proxy().columns:
+          raise KeyError(label)
       index_names_in_by = list(set(by).intersection(index_names))
       if index_names_in_by:
         if set(by) == set(index_names):
@@ -724,8 +727,12 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   def set_index(self, keys, **kwargs):
     if isinstance(keys, str):
       keys = [keys]
-    if not set(keys).issubset(self._expr.proxy().columns):
-      raise NotImplementedError(keys)
+
+    if any(isinstance(k, (_DeferredIndex, frame_base.DeferredFrame))
+           for k in keys):
+      raise NotImplementedError("set_index with Index or Series instances is "
+                                "not yet supported (BEAM-11711)")
+
     return frame_base.DeferredFrame.wrap(
       expressions.ComputedExpression(
           'set_index',
