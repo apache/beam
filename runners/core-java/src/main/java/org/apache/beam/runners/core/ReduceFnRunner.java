@@ -698,9 +698,8 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       W window = windowNamespace.getWindow();
 
       WindowTracing.debug(
-          "{}: Received timer key:{}; window:{}; data:{} with "
+          "ReduceFnRunner: Received timer key:{}; window:{}; data:{} with "
               + "inputWatermark:{}; outputWatermark:{}",
-          ReduceFnRunner.class.getSimpleName(),
           key,
           window,
           timer,
@@ -756,8 +755,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
 
       if (windowActivation.isGarbageCollection) {
         WindowTracing.debug(
-            "{}: Cleaning up for key:{}; window:{} with inputWatermark:{}; outputWatermark:{}",
-            ReduceFnRunner.class.getSimpleName(),
+            "ReduceFnRunner: Cleaning up for key:{}; window:{} with inputWatermark:{}; outputWatermark:{}",
             key,
             directContext.window(),
             timerInternals.currentInputWatermarkTime(),
