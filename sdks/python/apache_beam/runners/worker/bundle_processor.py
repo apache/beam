@@ -1898,6 +1898,7 @@ def create_merge_windows(
   return _create_simple_pardo_operation(
       factory, transform_id, transform_proto, consumers, MergeWindows())
 
+
 @BeamTransformFactory.register_urn(common_urns.primitives.TO_STRING.urn, None)
 def create_to_string_fn(
     factory,  # type: BeamTransformFactory
