@@ -54,7 +54,7 @@ dependencies {
   compile library.java.slf4j_api
   compile library.java.joda_time
   compile library.java.commons_io
-  runtimeOnly "org.rocksdb:rocksdbjni:5.7.3"
+  runtimeOnly "org.rocksdb:rocksdbjni:6.15.2"
   runtimeOnly "org.scala-lang:scala-library:2.11.8"
   compile "org.apache.samza:samza-api:$samza_version"
   compile "org.apache.samza:samza-core_2.11:$samza_version"
