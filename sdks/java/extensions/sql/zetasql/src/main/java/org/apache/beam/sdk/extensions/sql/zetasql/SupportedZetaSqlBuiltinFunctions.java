@@ -443,9 +443,9 @@ class SupportedZetaSqlBuiltinFunctions {
           // FunctionSignatureId.FN_CORR, // corr
           // FunctionSignatureId.FN_CORR_NUMERIC, // corr
           // FunctionSignatureId.FN_CORR_BIGNUMERIC, // corr
-          // FunctionSignatureId.FN_COVAR_POP, // covar_pop
-          // FunctionSignatureId.FN_COVAR_POP_NUMERIC, // covar_pop
-          // FunctionSignatureId.FN_COVAR_POP_BIGNUMERIC, // covar_pop
+          FunctionSignatureId.FN_COVAR_POP, // covar_pop
+          FunctionSignatureId.FN_COVAR_POP_NUMERIC, // covar_pop
+          FunctionSignatureId.FN_COVAR_POP_BIGNUMERIC, // covar_pop
           // FunctionSignatureId.FN_COVAR_SAMP, // covar_samp
           // FunctionSignatureId.FN_COVAR_SAMP_NUMERIC, // covar_samp
           // FunctionSignatureId.FN_COVAR_SAMP_BIGNUMERIC, // covar_samp
