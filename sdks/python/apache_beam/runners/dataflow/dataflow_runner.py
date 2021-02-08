@@ -521,7 +521,6 @@ class DataflowRunner(PipelineRunner):
       phases = []
     elif pre_optimize == 'all':
       phases = [
-          # translations.eliminate_common_key_with_none,
           # TODO(BEAM-11694): Enable translations.pack_combiners
           # translations.pack_combiners,
           translations.sort_stages
@@ -530,7 +529,7 @@ class DataflowRunner(PipelineRunner):
       phases = []
       for phase_name in pre_optimize.split(','):
         # For now, these are all we allow.
-        if phase_name in ('eliminate_common_key_with_none', 'pack_combiners'):
+        if phase_name in ('pack_combiners', ):
           phases.append(getattr(translations, phase_name))
         else:
           raise ValueError(
