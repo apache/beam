@@ -46,7 +46,7 @@ dependencies {
   runtime("io.spring.gradle:propdeps-plugin:0.0.9.RELEASE")                                            // Enable provided and optional configurations
   runtime("com.commercehub.gradle.plugin:gradle-avro-plugin:0.11.0")                                   // Enable Avro code generation
   runtime("com.diffplug.spotless:spotless-plugin-gradle:5.6.1")                                       // Enable a code formatting plugin
-  compile("gradle.plugin.com.github.blindpirate:gogradle:0.11.4")                                      // Enable Go code compilation
+  runtime("gradle.plugin.com.github.blindpirate:gogradle:0.11.4")                                      // Enable Go code compilation
   runtime("gradle.plugin.com.palantir.gradle.docker:gradle-docker:0.22.0")                             // Enable building Docker containers
   runtime("gradle.plugin.com.dorongold.plugins:task-tree:1.5")                                       // Adds a 'taskTree' task to print task dependency tree
   runtime("com.github.jengelman.gradle.plugins:shadow:6.1.0")                                          // Enable shading Java dependencies
