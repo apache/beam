@@ -93,5 +93,14 @@ deps:
   typing:
     owners: robertwb
 
+  pandas:
+    owners: bhulette, robertwb
+
+  pyarrow:
+    owners: bhulette
+
+  numpy:
+    owners: bhulette
+
 # No dependency added below this line.
 ...
