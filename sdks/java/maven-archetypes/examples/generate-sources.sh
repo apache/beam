@@ -29,6 +29,8 @@ EXAMPLES_ROOT="${HERE}/../../../../examples/java"
 # The root of the examples archetype
 ARCHETYPE_ROOT="${HERE}/src/main/resources/archetype-resources"
 
+SAMPLE_FILE="${HERE}/sample.txt"
+
 mkdir -p "${ARCHETYPE_ROOT}/src/main/java"
 mkdir -p "${ARCHETYPE_ROOT}/src/test/java"
 
@@ -46,11 +48,13 @@ rsync -a --exclude cookbook --exclude complete --exclude snippets --exclude '*IT
     --delete
 
 #
-# Copy sample.txt from examples root to archetype root.
+# Copy sample.txt from this dir to archetype root.
 #
-rsync -a                   \
-    "${HERE}/sample.txt"   \
-    "${ARCHETYPE_ROOT}"
+if [ -f "$SAMPLE_FILE" ]; then
+    rsync -a                \
+        "${SAMPLE_FILE}"    \
+        "${ARCHETYPE_ROOT}"
+fi
 
 mkdir -p "${ARCHETYPE_ROOT}/src/main/java/complete/game"
 mkdir -p "${ARCHETYPE_ROOT}/src/test/java/complete/game"
