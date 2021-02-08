@@ -36,6 +36,7 @@ import tarfile
 import tempfile
 import time
 import uuid
+from typing import Type
 
 from google.protobuf.duration_pb2 import Duration
 from google.protobuf.json_format import MessageToJson
@@ -50,6 +51,7 @@ from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.portability.stager import Stager
+from apache_beam.utils import plugin
 
 ARTIFACTS_CONTAINER_DIR = '/opt/apache/beam/artifacts'
 ARTIFACTS_MANIFEST_FILE = 'artifacts_info.json'
@@ -65,7 +67,7 @@ SOURCE_FOLDER = 'source'
 _LOGGER = logging.getLogger(__name__)
 
 
-class SdkContainerImageBuilder(object):
+class SdkContainerImageBuilder(plugin.BeamPlugin):
   def __init__(self, options):
     self._options = options
     self._docker_registry_push_url = self._options.view_as(
@@ -79,19 +81,19 @@ class SdkContainerImageBuilder(object):
         (sys.version_info[0], sys.version_info[1], version))
     self._temp_src_dir = None
 
-  def build(self):
+  def _build(self):
     container_image_tag = str(uuid.uuid4())
     container_image_name = os.path.join(
         self._docker_registry_push_url or '',
         'beam_python_prebuilt_sdk:%s' % container_image_tag)
     with tempfile.TemporaryDirectory() as temp_folder:
       self._temp_src_dir = temp_folder
-      self.prepare_dependencies()
-      self.invoke_docker_build_and_push(container_image_name)
+      self._prepare_dependencies()
+      self._invoke_docker_build_and_push(container_image_name)
 
     return container_image_name
 
-  def prepare_dependencies(self):
+  def _prepare_dependencies(self):
     with tempfile.TemporaryDirectory() as tmp:
       resources = Stager.create_job_resources(self._options, tmp)
       # make a copy of the staged artifacts into the temp source folder.
@@ -104,13 +106,18 @@ class SdkContainerImageBuilder(object):
                 workdir=ARTIFACTS_CONTAINER_DIR,
                 manifest_file=ARTIFACTS_MANIFEST_FILE,
                 entrypoint=SDK_CONTAINER_ENTRYPOINT))
-      self.generate_artifacts_manifests_json_file(resources, self._temp_src_dir)
+      self._generate_artifacts_manifests_json_file(
+          resources, self._temp_src_dir)
 
-  def invoke_docker_build_and_push(self, container_image_name):
+  def _invoke_docker_build_and_push(self, container_image_name):
     raise NotImplementedError
 
+  @classmethod
+  def _builder_key(cls) -> str:
+    return f'{cls.__module__}.{cls.__name__}'
+
   @staticmethod
-  def generate_artifacts_manifests_json_file(resources, temp_dir):
+  def _generate_artifacts_manifests_json_file(resources, temp_dir):
     infos = []
     for _, name in resources:
       info = beam_runner_api_pb2.ArtifactInformation(
@@ -126,25 +133,36 @@ class SdkContainerImageBuilder(object):
   def build_container_image(cls, pipeline_options: PipelineOptions) -> str:
     setup_options = pipeline_options.view_as(SetupOptions)
     container_build_engine = setup_options.prebuild_sdk_container_engine
-    if container_build_engine:
-      if container_build_engine == 'local_docker':
-        builder = _SdkContainerImageLocalBuilder(
-            pipeline_options)  # type: SdkContainerImageBuilder
-      elif container_build_engine == 'cloud_build':
-        builder = _SdkContainerImageCloudBuilder(pipeline_options)
-      else:
-        raise ValueError(
-            'Only (--prebuild_sdk_container_engine local_docker) and '
-            '(--prebuild_sdk_container_engine cloud_build) are supported')
-    else:
-      raise ValueError('No --prebuild_sdk_container_engine option specified.')
-    return builder.build()
+    builder_cls = cls._get_subclass_by_key(container_build_engine)
+    builder = builder_cls(pipeline_options)
+    return builder._build()
+
+  @classmethod
+  def _get_subclass_by_key(cls, key: str) -> Type['SdkContainerImageBuilder']:
+    available_builders = [
+        subclass for subclass in cls.get_all_subclasses()
+        if subclass._builder_key() == key
+    ]
+    if not available_builders:
+      available_builder_keys = [
+          subclass._builder_key() for subclass in cls.get_all_subclasses()
+      ]
+      raise ValueError(
+          f'Cannot find SDK builder type {key} in '
+          f'{available_builder_keys}')
+    elif len(available_builders) > 1:
+      raise ValueError(f'Found multiple builders under key {key}')
+    return available_builders[0]
 
 
 class _SdkContainerImageLocalBuilder(SdkContainerImageBuilder):
   """SdkContainerLocalBuilder builds the sdk container image with local
   docker."""
-  def invoke_docker_build_and_push(self, container_image_name):
+  @classmethod
+  def _builder_key(cls):
+    return 'local_docker'
+
+  def _invoke_docker_build_and_push(self, container_image_name):
     try:
       _LOGGER.info("Building sdk container, this may take a few minutes...")
       now = time.time()
@@ -196,9 +214,13 @@ class _SdkContainerImageCloudBuilder(SdkContainerImageBuilder):
         response_encoding='utf8')
     if not self._docker_registry_push_url:
       self._docker_registry_push_url = (
-          'gcr.io/%s' % self._google_cloud_options.project)
+          'gcr.io/%s/prebuilt_beam_sdk' % self._google_cloud_options.project)
 
-  def invoke_docker_build_and_push(self, container_image_name):
+  @classmethod
+  def _builder_key(cls):
+    return 'cloud_build'
+
+  def _invoke_docker_build_and_push(self, container_image_name):
     project_id = self._google_cloud_options.project
     temp_location = self._google_cloud_options.temp_location
     # google cloud build service expects all the build source file to be
@@ -219,12 +241,11 @@ class _SdkContainerImageCloudBuilder(SdkContainerImageBuilder):
     build = cloudbuild_v1.Build()
     build.steps = []
     step = cloudbuild_v1.BuildStep()
-    step.name = 'gcr.io/cloud-builders/docker'
-    step.args = ['build', '-t', container_image_name, '.']
+    step.name = 'gcr.io/kaniko-project/executor:latest'
+    step.args = ['--destination=' + container_image_name, '--cache=true']
     step.dir = SOURCE_FOLDER
 
     build.steps.append(step)
-    build.images = [container_image_name]
 
     source = cloudbuild_v1.Source()
     source.storage_source = cloudbuild_v1.StorageSource()
@@ -236,13 +257,19 @@ class _SdkContainerImageCloudBuilder(SdkContainerImageBuilder):
     build.timeout = Duration().FromSeconds(seconds=1800)
 
     now = time.time()
-    _LOGGER.info('Building sdk container, this may take a few minutes...')
     operation = client.create_build(project_id=project_id, build=build)
-    # if build fails exception will be raised and stops the job submission.
-    result = operation.result()
     _LOGGER.info(
-        "Python SDK container pre-build finished in %.2f seconds, "
-        "check build log at %s" % (time.time() - now, result.log_url))
+        'Building sdk container with Google Cloud Build, this may '
+        'take a few minutes, you may check build log at %s' %
+        operation.metadata.build.log_url)
+
+    # block until build finish, if build fails exception will be raised and
+    # stops the job submission.
+    operation.result()
+
+    _LOGGER.info(
+        "Python SDK container pre-build finished in %.2f seconds" %
+        (time.time() - now))
     _LOGGER.info(
         "Python SDK container built and pushed as %s." % container_image_name)
 

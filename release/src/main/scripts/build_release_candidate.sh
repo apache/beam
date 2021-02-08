@@ -25,6 +25,17 @@
 
 set -e
 
+if [[ "$JAVA_HOME" ]]; then
+  version=$("$JAVA_HOME/bin/java" -version 2>&1 | awk -F '"' '/version/ {print $2}')
+  if [[ ! `echo $version | sed "s/1\.8\..*/1.8/"` == "1.8" ]]; then
+    echo "Java version $version detected. Set \$JAVA_HOME to point to a JDK 8 installation."
+    exit 1
+  fi
+else
+  echo "\$JAVA_HOME must be set."
+  exit 1
+fi
+
 LOCAL_CLONE_DIR=build_release_candidate
 LOCAL_JAVA_STAGING_DIR=java_staging_dir
 LOCAL_PYTHON_STAGING_DIR=python_staging_dir
@@ -37,7 +48,7 @@ LOCAL_WEBSITE_REPO=beam_website_repo
 USER_REMOTE_URL=
 USER_GITHUB_ID=
 GIT_REPO_BASE_URL=apache/beam
-GIT_REPO_URL=git@github.com:${GIT_REPO_BASE_URL}.git
+GIT_REPO_URL=https://github.com/${GIT_REPO_BASE_URL}
 ROOT_SVN_URL=https://dist.apache.org/repos/dist/dev/beam
 GIT_BEAM_ARCHIVE=https://github.com/apache/beam/archive
 GIT_BEAM_WEBSITE=https://github.com/apache/beam-site.git
@@ -45,12 +56,6 @@ GIT_BEAM_WEBSITE=https://github.com/apache/beam-site.git
 PYTHON_ARTIFACTS_DIR=python
 BEAM_ROOT_DIR=beam
 WEBSITE_ROOT_DIR=beam-site
-
-DOCKER_IMAGE_DEFAULT_REPO_ROOT=apache
-DOCKER_IMAGE_DEFAULT_REPO_PREFIX=beam_
-
-PYTHON_VER=("python3.6" "python3.7" "python3.8")
-FLINK_VER=("1.8" "1.9" "1.10")
 
 echo "================Setting Up Environment Variables==========="
 echo "Which release version are you working on: "
@@ -61,7 +66,7 @@ read RC_NUM
 echo "Please enter your github username(ID): "
 read USER_GITHUB_ID
 
-USER_REMOTE_URL=git@github.com:${USER_GITHUB_ID}/beam-site
+USER_REMOTE_URL=https://github.com/${USER_GITHUB_ID}/beam-site
 
 echo "=================Pre-requirements===================="
 echo "Please make sure you have configured and started your gpg by running ./preparation_before_release.sh."
@@ -105,13 +110,23 @@ if [[ $confirmation = "y" ]]; then
   echo "-------------Building Java Artifacts with Gradle-------------"
   git config credential.helper store
 
-  ./gradlew release -Prelease.newVersion=${RELEASE}-SNAPSHOT \
-                -Prelease.releaseVersion=${RELEASE}-RC${RC_NUM} \
-                -Prelease.useAutomaticVersion=true --info --no-daemon
-
-  git push origin "${RELEASE_BRANCH}"
-  git push origin "v${RELEASE}-RC${RC_NUM}"
-
+  if git rev-parse "v${RELEASE}-RC${RC_NUM}" >/dev/null 2>&1; then
+    echo "Tag v${RELEASE}-RC${RC_NUM} already exists."
+    echo "Delete the tag and create a new tag commit (y) or skip this step (n)? [y/N]"
+    read confirmation
+    if [[ $confirmation = "y" ]]; then
+      # Delete tag with the git push <from>:<to> format, as shown here:
+      # https://git-scm.com/docs/git-push#Documentation/git-push.txt-codegitpushoriginexperimentalcode
+      git push origin :refs/tags/v${RELEASE}-RC${RC_NUM}
+    fi
+  fi
+  if [[ $confirmation = "y" ]]; then # Expected to be "y" unless user chose to skip creating tag.
+    ./gradlew release -Prelease.newVersion=${RELEASE}-SNAPSHOT \
+                  -Prelease.releaseVersion=${RELEASE}-RC${RC_NUM} \
+                  -Prelease.useAutomaticVersion=true --info --no-daemon
+    git push origin "${RELEASE_BRANCH}"
+    git push origin "v${RELEASE}-RC${RC_NUM}"
+  fi
   echo "-------------Staging Java Artifacts into Maven---------------"
   gpg --local-user ${SIGNING_KEY} --output /dev/null --sign ~/.bashrc
   ./gradlew publish -Psigning.gnupg.keyName=${SIGNING_KEY} -PisRelease --no-daemon
@@ -151,9 +166,15 @@ if [[ $confirmation = "y" ]]; then
   echo "----Creating Hash Value for ${SOURCE_RELEASE_ZIP}----"
   sha512sum ${SOURCE_RELEASE_ZIP} > ${SOURCE_RELEASE_ZIP}.sha512
 
-  # The svn commit is interactive already and can be aborted by deleted the commit msg
   svn add --force .
-  svn commit --no-auth-cache
+  svn status
+  echo "Please confirm these changes are ready to commit: [y|N] "
+  read confirmation
+  if [[ $confirmation != "y" ]]; then
+    echo "Exit without staging source release on dist.apache.org."
+  else
+    svn commit --no-auth-cache --non-interactive -m "Staging Java artifacts for Apache Beam ${RELEASE} RC${RC_NUM}"
+  fi
   rm -rf ~/${LOCAL_JAVA_STAGING_DIR}
 fi
 
@@ -217,10 +238,9 @@ if [[ $confirmation = "y" ]]; then
   read confirmation
   if [[ $confirmation != "y" ]]; then
     echo "Exit without staging python artifacts on dist.apache.org."
-    rm -rf "${HOME:?}/${LOCAL_PYTHON_STAGING_DIR}"
-    exit
+  else
+    svn commit --no-auth-cache --non-interactive -m "Staging Python artifacts for Apache Beam ${RELEASE} RC${RC_NUM}"
   fi
-  svn commit --no-auth-cache
   rm -rf "${HOME:?}/${LOCAL_PYTHON_STAGING_DIR}"
 fi
 
@@ -230,46 +250,20 @@ read confirmation
 if [[ $confirmation = "y" ]]; then
   echo "============Staging SDK docker images on docker hub========="
   cd ~
-  if [[ -d ${LOCAL_PYTHON_STAGING_DIR} ]]; then
-    rm -rf ${LOCAL_PYTHON_STAGING_DIR}
+  if [[ -d ${LOCAL_CLONE_DIR} ]]; then
+    rm -rf ${LOCAL_CLONE_DIR}
   fi
-  mkdir -p ${LOCAL_PYTHON_STAGING_DIR}
-  cd ${LOCAL_PYTHON_STAGING_DIR}
+  mkdir -p ${LOCAL_CLONE_DIR}
+  cd ${LOCAL_CLONE_DIR}
 
   echo '-------------------Cloning Beam Release Branch-----------------'
   git clone ${GIT_REPO_URL}
   cd ${BEAM_ROOT_DIR}
   git checkout ${RELEASE_BRANCH}
 
-  echo '-------------------Generating and Pushing Python images-----------------'
-  ./gradlew :sdks:python:container:buildAll -Pdocker-pull-licenses -Pdocker-tag=${RELEASE}_rc${RC_NUM}
-  for ver in "${PYTHON_VER[@]}"; do
-    docker push ${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}${ver}_sdk:${RELEASE}_rc${RC_NUM} &
-  done
+  ./gradlew :pushAllDockerImages -Pdocker-pull-licenses -Pdocker-tag=${RELEASE}_rc${RC_NUM}
 
-  echo '-------------------Generating and Pushing Java images-----------------'
-  ./gradlew :sdks:java:container:dockerPush -Pdocker-pull-licenses -Pdocker-tag=${RELEASE}_rc${RC_NUM}
-
-  echo '-------------Generating and Pushing Flink job server images-------------'
-  echo "Building containers for the following Flink versions:" "${FLINK_VER[@]}"
-  for ver in "${FLINK_VER[@]}"; do
-    ./gradlew ":runners:flink:${ver}:job-server-container:dockerPush" -Pdocker-tag="${RELEASE}_rc${RC_NUM}"
-  done
-
-  echo '-------------Generating and Pushing Spark job server image-------------'
-  ./gradlew ":runners:spark:job-server:container:dockerPush" -Pdocker-tag="${RELEASE}_rc${RC_NUM}"
-
-  rm -rf ~/${PYTHON_ARTIFACTS_DIR}
-
-  echo '-------------------Clean up images at local-----------------'
-  for ver in "${PYTHON_VER[@]}"; do
-     docker rmi -f ${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}${ver}_sdk:${RELEASE}_rc${RC_NUM}
-  done
-  docker rmi -f ${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}java_sdk:${RELEASE}_rc${RC_NUM}
-  for ver in "${FLINK_VER[@]}"; do
-    docker rmi -f "${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}flink${ver}_job_server:${RELEASE}_rc${RC_NUM}"
-  done
-  docker rmi -f "${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}spark_job_server:${RELEASE}_rc${RC_NUM}"
+  rm -rf ~/${LOCAL_CLONE_DIR}
 fi
 
 echo "[Current Step]: Update beam-site"

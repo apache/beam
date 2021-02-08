@@ -53,6 +53,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
  * <p>One must supply a {@link StateBackedIterableTranslationContext} when using {@link
  * CoderTranslator#fromComponents} to be able to create a {@link StateBackedIterable.Coder}.
  */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class StateBackedIterable<T> implements Iterable<T> {
 
   private final BeamFnStateClient beamFnStateClient;

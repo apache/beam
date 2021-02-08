@@ -17,10 +17,10 @@
  */
 package org.apache.beam.runners.flink;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
-import static org.junit.Assert.assertThat;
 
 import java.util.Collections;
 import org.apache.beam.runners.flink.FlinkStreamingPipelineTranslator.StreamingShardedWriteFactory;
@@ -32,7 +32,6 @@ import org.apache.beam.sdk.io.WriteFiles;
 import org.apache.beam.sdk.io.WriteFilesResult;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -41,19 +40,23 @@ import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PValues;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 /** Tests if overrides are properly applied. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class FlinkTransformOverridesTest {
 
   @Rule public transient TemporaryFolder tmpFolder = new TemporaryFolder();
 
   @Test
   public void testRunnerDeterminedSharding() {
-    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
     options.setRunner(TestFlinkRunner.class);
     options.setFlinkMaster("[auto]");
     options.setParallelism(5);
@@ -68,7 +71,8 @@ public class FlinkTransformOverridesTest {
     PCollection<Object> objs = (PCollection) p.apply(Create.empty(VoidCoder.of()));
     AppliedPTransform<PCollection<Object>, WriteFilesResult<Void>, WriteFiles<Object, Void, Object>>
         originalApplication =
-            AppliedPTransform.of("writefiles", objs.expand(), Collections.emptyMap(), original, p);
+            AppliedPTransform.of(
+                "writefiles", PValues.expandInput(objs), Collections.emptyMap(), original, p);
 
     WriteFiles<Object, Void, Object> replacement =
         (WriteFiles<Object, Void, Object>)
@@ -94,9 +98,8 @@ public class FlinkTransformOverridesTest {
             throw new UnsupportedOperationException("should not be called");
           }
 
-          @Nullable
           @Override
-          public ResourceId unwindowedFilename(
+          public @Nullable ResourceId unwindowedFilename(
               int shardNumber, int numShards, OutputFileHints outputFileHints) {
             throw new UnsupportedOperationException("should not be called");
           }

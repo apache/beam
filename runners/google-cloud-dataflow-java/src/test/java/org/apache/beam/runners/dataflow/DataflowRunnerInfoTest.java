@@ -17,10 +17,10 @@
  */
 package org.apache.beam.runners.dataflow;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
@@ -31,6 +31,9 @@ import org.junit.Test;
  * <p>Note that tests for checking that the Dataflow distribution correctly loads overridden
  * properties is contained within the Dataflow distribution.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DataflowRunnerInfoTest {
 
   @Test

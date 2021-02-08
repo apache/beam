@@ -77,6 +77,9 @@ import org.slf4j.LoggerFactory;
  *       count is met. A heap dump is made before shutdown.
  * </ul>
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class MemoryMonitor implements Runnable, StatusDataProvider {
   private static final Logger LOG = LoggerFactory.getLogger(MemoryMonitor.class);
 

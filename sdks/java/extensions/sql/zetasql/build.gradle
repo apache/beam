@@ -21,16 +21,16 @@ plugins {
 }
 
 applyJavaNature(
-  enableChecker: false,
-  ignoreRawtypeErrors: true,
-  automaticModuleName: 'org.apache.beam.sdk.extensions.sql.zetasql')
+  automaticModuleName: 'org.apache.beam.sdk.extensions.sql.zetasql',
+)
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: SQL :: ZetaSQL"
 ext.summary = "ZetaSQL to Calcite translator"
 
-def zetasql_version = "2020.08.1"
+def zetasql_version = "2020.10.1"
 
 dependencies {
+  compile enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
   compile project(":sdks:java:core")
   compile project(":sdks:java:extensions:sql")
   compile library.java.vendored_calcite_1_20_0
@@ -50,6 +50,13 @@ dependencies {
   testCompile library.java.hamcrest_library
   testCompile library.java.mockito_core
   testCompile library.java.quickcheck_core
+  testCompileOnly project(":sdks:java:extensions:sql:udf-test-provider")
   testRuntimeClasspath library.java.slf4j_jdk14
 }
 
+test {
+  dependsOn ":sdks:java:extensions:sql:emptyJar"
+  // Pass jars used by Java UDF tests via system properties.
+  systemProperty "beam.sql.udf.test.jar_path", project(":sdks:java:extensions:sql:udf-test-provider").jarPath
+  systemProperty "beam.sql.udf.test.empty_jar_path", project(":sdks:java:extensions:sql").emptyJar.archivePath
+}

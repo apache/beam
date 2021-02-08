@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -59,6 +59,9 @@ import org.junit.runners.JUnit4;
 
 /** Unit tests for {@link StreamingGroupAlsoByWindowReshuffleFn}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class StreamingGroupAlsoByWindowsReshuffleDoFnTest {
   private static final String KEY = "k";
   private static final long WORK_TOKEN = 1000L;

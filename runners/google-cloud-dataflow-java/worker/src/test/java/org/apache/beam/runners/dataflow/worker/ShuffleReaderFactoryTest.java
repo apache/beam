@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker;
 
 import static com.google.api.client.util.Base64.encodeBase64String;
 import static org.apache.beam.runners.dataflow.util.Structs.addString;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 import com.google.api.services.dataflow.model.Source;
 import org.apache.beam.runners.dataflow.util.CloudObject;
@@ -47,7 +48,11 @@ import org.junit.runners.JUnit4;
  * PartitioningShuffleReaderFactory.
  */
 @RunWith(JUnit4.class)
-@SuppressWarnings({"rawtypes", "unchecked"})
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "unchecked",
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ShuffleReaderFactoryTest {
   <T extends NativeReader> T runTestCreateShuffleReader(
       byte[] shuffleReaderConfig,
@@ -74,7 +79,7 @@ public class ShuffleReaderFactoryTest {
     NativeReader<?> reader =
         ReaderRegistry.defaultRegistry()
             .create(cloudSource, PipelineOptionsFactory.create(), context, null);
-    Assert.assertThat(reader, new IsInstanceOf(shuffleReaderClass));
+    assertThat(reader, new IsInstanceOf(shuffleReaderClass));
     return (T) reader;
   }
 

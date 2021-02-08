@@ -32,6 +32,10 @@ import org.slf4j.LoggerFactory;
  * Portable specific samza pipeline translator. This is the entry point for translating a portable
  * pipeline
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SamzaPortablePipelineTranslator {
   private static final Logger LOG = LoggerFactory.getLogger(SamzaPortablePipelineTranslator.class);
 

@@ -17,10 +17,10 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
-import static org.junit.Assert.assertThat;
 
 import java.io.IOException;
 import java.util.List;
@@ -43,6 +43,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link DataflowElementExecutionTracker}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DataflowElementExecutionTrackerTest {
   @Rule public final ExpectedException thrown = ExpectedException.none();
 

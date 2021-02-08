@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.healthcare;
 
 import com.google.api.services.healthcare.v1beta1.model.DeidentifyConfig;
+import com.google.api.services.healthcare.v1beta1.model.DicomStore;
 import com.google.api.services.healthcare.v1beta1.model.Empty;
 import com.google.api.services.healthcare.v1beta1.model.FhirStore;
 import com.google.api.services.healthcare.v1beta1.model.Hl7V2Store;
@@ -27,8 +28,10 @@ import com.google.api.services.healthcare.v1beta1.model.ListMessagesResponse;
 import com.google.api.services.healthcare.v1beta1.model.Message;
 import com.google.api.services.healthcare.v1beta1.model.Operation;
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.text.ParseException;
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.sdk.io.gcp.healthcare.HttpHealthcareApiClient.HealthcareHttpException;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
@@ -168,6 +171,22 @@ public interface HealthcareApiClient {
   HttpBody readFhirResource(String resourceId) throws IOException;
 
   /**
+   * Search fhir resource http body.
+   *
+   * @param fhirStore the fhir store
+   * @param resourceType the resource type
+   * @param parameters the parameters
+   * @return the http body
+   * @throws IOException
+   */
+  HttpBody searchFhirResource(
+      String fhirStore,
+      String resourceType,
+      @Nullable Map<String, Object> parameters,
+      String pageToken)
+      throws IOException;
+
+  /**
    * Create hl 7 v 2 store hl 7 v 2 store.
    *
    * @param dataset the dataset
@@ -202,4 +221,14 @@ public interface HealthcareApiClient {
   Empty deleteHL7v2Store(String store) throws IOException;
 
   Empty deleteFhirStore(String store) throws IOException;
+
+  String retrieveDicomStudyMetadata(String dicomWebPath) throws IOException;
+
+  DicomStore createDicomStore(String dataset, String name) throws IOException;
+
+  DicomStore createDicomStore(String dataset, String name, String pubsubTopic) throws IOException;
+
+  Empty deleteDicomStore(String name) throws IOException;
+
+  Empty uploadToDicomStore(String webPath, String filePath) throws IOException, URISyntaxException;
 }

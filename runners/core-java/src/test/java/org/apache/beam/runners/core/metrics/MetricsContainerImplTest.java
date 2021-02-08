@@ -18,11 +18,11 @@
 package org.apache.beam.runners.core.metrics;
 
 import static org.apache.beam.runners.core.metrics.MetricUpdateMatchers.metricUpdate;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -35,6 +35,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link MetricsContainerImpl}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class MetricsContainerImplTest {
 
   @Test

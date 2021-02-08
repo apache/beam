@@ -35,31 +35,37 @@ func ResolveArtifacts(ctx context.Context, edges []*graph.MultiEdge, p *pipepb.P
 	}
 	for _, e := range edges {
 		if e.Op == graph.External {
-			envs := graphx.ExpandedComponents(e.External.Expanded).Environments
+			components, err := graphx.ExpandedComponents(e.External.Expanded)
+			if err != nil {
+				panic(err)
+			}
+			envs := components.Environments
 			for eid, env := range envs {
 
 				if strings.HasPrefix(eid, "go") {
 					continue
 				}
 				deps := env.GetDependencies()
-				resolvedMeta, err := artifact.Materialize(ctx, e.External.ExpansionAddr, deps, "", path)
+				resolvedArtifacts, err := artifact.Materialize(ctx, e.External.ExpansionAddr, deps, "", path)
 				if err != nil {
 					panic(err)
 				}
 
 				var resolvedDeps []*pipepb.ArtifactInformation
-				for _, meta := range resolvedMeta {
-					fullPath := filepath.Join(path, "/", meta.Name)
+				for _, a := range resolvedArtifacts {
+					name, sha256 := artifact.MustExtractFilePayload(a)
+					fullPath := filepath.Join(path, "/", name)
 					resolvedDeps = append(resolvedDeps,
 						&pipepb.ArtifactInformation{
 							TypeUrn: "beam:artifact:type:file:v1",
 							TypePayload: protox.MustEncode(
 								&pipepb.ArtifactFilePayload{
 									Path:   fullPath,
-									Sha256: meta.Sha256,
+									Sha256: sha256,
 								},
 							),
-							RoleUrn: graphx.URNArtifactStagingTo,
+							RoleUrn:     a.RoleUrn,
+							RolePayload: a.RolePayload,
 						},
 					)
 				}

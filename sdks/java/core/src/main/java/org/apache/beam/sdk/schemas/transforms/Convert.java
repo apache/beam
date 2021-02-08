@@ -21,6 +21,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.DefaultTypeConversionsFactory;
 import org.apache.beam.sdk.schemas.utils.ConvertHelpers;
@@ -35,6 +36,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A set of utilities for converting between different objects supporting schemas. */
 @Experimental(Kind.SCHEMAS)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class Convert {
   /**
    * Convert a {@link PCollection}{@literal <InputT>} into a {@link PCollection}{@literal <Row>}.
@@ -122,6 +126,10 @@ public class Convert {
         throw new RuntimeException("Convert requires a schema on the input.");
       }
 
+      SchemaCoder<InputT> coder = (SchemaCoder<InputT>) input.getCoder();
+      if (coder.getEncodedTypeDescriptor().equals(outputTypeDescriptor)) {
+        return (PCollection<OutputT>) input;
+      }
       SchemaRegistry registry = input.getPipeline().getSchemaRegistry();
       ConvertHelpers.ConvertedSchemaInformation<OutputT> converted =
           ConvertHelpers.getConvertedSchemaInformation(

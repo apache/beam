@@ -87,11 +87,9 @@ __all__ = (
 
 T = TypeVar('T', bound=NamedTuple)
 
-PD_MAJOR = int(pd.__version__.split('.')[0])
-
 # Generate type map (presented visually in the docstring)
 _BIDIRECTIONAL = [
-    (np.bool, np.bool),
+    (bool, bool),
     (np.int8, np.int8),
     (np.int16, np.int16),
     (np.int32, np.int32),
@@ -102,14 +100,10 @@ _BIDIRECTIONAL = [
     (pd.Int64Dtype(), Optional[np.int64]),
     (np.float32, Optional[np.float32]),
     (np.float64, Optional[np.float64]),
-    (np.object, Any),
+    (object, Any),
+    (pd.StringDtype(), Optional[str]),
+    (pd.BooleanDtype(), Optional[bool]),
 ]
-
-if PD_MAJOR >= 1:
-  _BIDIRECTIONAL.extend([
-      (pd.StringDtype(), Optional[str]),
-      (pd.BooleanDtype(), Optional[np.bool]),
-  ])
 
 PANDAS_TO_BEAM = {
     pd.Series([], dtype=dtype).dtype: fieldtype
@@ -121,10 +115,7 @@ BEAM_TO_PANDAS = {fieldtype: dtype for dtype, fieldtype in _BIDIRECTIONAL}
 # Shunt non-nullable Beam types to the same pandas types as their non-nullable
 # equivalents for FLOATs, DOUBLEs, and STRINGs. pandas has no non-nullable dtype
 # for these.
-OPTIONAL_SHUNTS = [np.float32, np.float64]
-
-if PD_MAJOR >= 1:
-  OPTIONAL_SHUNTS.append(str)
+OPTIONAL_SHUNTS = [np.float32, np.float64, str]
 
 for typehint in OPTIONAL_SHUNTS:
   BEAM_TO_PANDAS[typehint] = BEAM_TO_PANDAS[Optional[typehint]]
@@ -146,15 +137,23 @@ class BatchRowsAsDataFrame(beam.PTransform):
   Batching parameters are inherited from
   :class:`~apache_beam.transforms.util.BatchElements`.
   """
-  def __init__(self, *args, **kwargs):
+  def __init__(self, *args, proxy=None, **kwargs):
     self._batch_elements_transform = BatchElements(*args, **kwargs)
+    self._proxy = proxy
 
   def expand(self, pcoll):
-    columns = [
-        name for name, _ in named_fields_from_element_type(pcoll.element_type)
-    ]
-    return pcoll | self._batch_elements_transform | beam.Map(
-        lambda batch: pd.DataFrame.from_records(batch, columns=columns))
+    proxy = generate_proxy(
+        pcoll.element_type) if self._proxy is None else self._proxy
+    if isinstance(proxy, pd.DataFrame):
+      columns = proxy.columns
+      construct = lambda batch: pd.DataFrame.from_records(
+          batch, columns=columns)
+    elif isinstance(proxy, pd.Series):
+      dtype = proxy.dtype
+      construct = lambda batch: pd.Series(batch, dtype=dtype)
+    else:
+      raise NotImplementedError("Unknown proxy type: %s" % proxy)
+    return pcoll | self._batch_elements_transform | beam.Map(construct)
 
 
 def generate_proxy(element_type):
@@ -163,18 +162,21 @@ def generate_proxy(element_type):
   """Generate a proxy pandas object for the given PCollection element_type.
 
   Currently only supports generating a DataFrame proxy from a schema-aware
-  PCollection.
+  PCollection or a Series proxy from a primitively typed PCollection.
   """
-  fields = named_fields_from_element_type(element_type)
-  proxy = pd.DataFrame(columns=[name for name, _ in fields])
+  if element_type != Any and element_type in BEAM_TO_PANDAS:
+    return pd.Series(dtype=BEAM_TO_PANDAS[element_type])
 
-  for name, typehint in fields:
-    # Default to np.object. This is lossy, we won't be able to recover the type
-    # at the output.
-    dtype = BEAM_TO_PANDAS.get(typehint, np.object)
-    proxy[name] = proxy[name].astype(dtype)
+  else:
+    fields = named_fields_from_element_type(element_type)
+    proxy = pd.DataFrame(columns=[name for name, _ in fields])
+    for name, typehint in fields:
+      # Default to np.object. This is lossy, we won't be able to recover
+      # the type at the output.
+      dtype = BEAM_TO_PANDAS.get(typehint, object)
+      proxy[name] = proxy[name].astype(dtype)
 
-  return proxy
+    return proxy
 
 
 def element_type_from_dataframe(proxy, include_indexes=False):

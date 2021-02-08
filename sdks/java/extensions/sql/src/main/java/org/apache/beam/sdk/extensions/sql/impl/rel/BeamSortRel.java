@@ -91,6 +91,10 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTyp
  *       make much sense to use ORDER BY with WINDOW.
  * </ul>
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BeamSortRel extends Sort implements BeamRelNode {
   private List<Integer> fieldIndices = new ArrayList<>();
   private List<Boolean> orientation = new ArrayList<>();

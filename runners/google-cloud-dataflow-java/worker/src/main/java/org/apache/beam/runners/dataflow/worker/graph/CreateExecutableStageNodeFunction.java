@@ -98,6 +98,9 @@ import org.joda.time.Duration;
  * {@link Node} containing an {@link
  * org.apache.beam.runners.core.construction.graph.ExecutableStage}.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class CreateExecutableStageNodeFunction
     implements Function<MutableNetwork<Node, Edge>, Node> {
   private static final String DATA_INPUT_URN = "beam:runner:source:v1";

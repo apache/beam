@@ -20,15 +20,14 @@ package org.apache.beam.sdk.io.kafka;
 import static org.apache.beam.sdk.io.kafka.ConfluentSchemaRegistryDeserializerProviderTest.mockDeserializerProvider;
 import static org.apache.beam.sdk.metrics.MetricResultsMatchers.attemptedMetricsResult;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
 import static org.junit.internal.matchers.ThrowableCauseMatcher.hasCause;
@@ -41,7 +40,7 @@ import io.confluent.kafka.serializers.KafkaAvroSerializer;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -149,6 +148,9 @@ import org.slf4j.LoggerFactory;
  * specific Kafka version.
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class KafkaIOTest {
 
   private static final Logger LOG = LoggerFactory.getLogger(KafkaIOTest.class);
@@ -505,50 +507,34 @@ public class KafkaIOTest {
 
   public static class IntegerDeserializerWithHeadersAssertor extends IntegerDeserializer
       implements Deserializer<Integer> {
-    ConsumerSpEL consumerSpEL = null;
 
     @Override
     public Integer deserialize(String topic, byte[] data) {
-      StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
-      if (consumerSpEL == null) {
-        consumerSpEL = new ConsumerSpEL();
-      }
-      if (consumerSpEL.deserializerSupportsHeaders()) {
-        // Assert we have the default deserializer with headers API in the stack trace for Kafka API
-        // 2.1.0 onwards
-        try {
-          assertEquals(Deserializer.class, Class.forName(stackTraceElements[3].getClassName()));
-          assertEquals("deserialize", stackTraceElements[3].getMethodName());
-        } catch (ClassNotFoundException e) {
-        }
-      } else {
-        assertNotEquals("deserialize", stackTraceElements[3].getMethodName());
-      }
+      assertEquals(false, ConsumerSpEL.deserializerSupportsHeaders());
+      return super.deserialize(topic, data);
+    }
+
+    @Override
+    public Integer deserialize(String topic, Headers headers, byte[] data) {
+      // Overriding the default should trigger header evaluation and this to be called.
+      assertEquals(true, ConsumerSpEL.deserializerSupportsHeaders());
       return super.deserialize(topic, data);
     }
   }
 
   public static class LongDeserializerWithHeadersAssertor extends LongDeserializer
       implements Deserializer<Long> {
-    ConsumerSpEL consumerSpEL = null;
 
     @Override
     public Long deserialize(String topic, byte[] data) {
-      if (consumerSpEL == null) {
-        consumerSpEL = new ConsumerSpEL();
-      }
-      StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
-      if (consumerSpEL.deserializerSupportsHeaders()) {
-        // Assert we have the default deserializer with headers API in the stack trace for Kafka API
-        // 2.1.0 onwards
-        try {
-          assertEquals(Deserializer.class, Class.forName(stackTraceElements[3].getClassName()));
-          assertEquals("deserialize", stackTraceElements[3].getMethodName());
-        } catch (ClassNotFoundException e) {
-        }
-      } else {
-        assertNotEquals("deserialize", stackTraceElements[3].getMethodName());
-      }
+      assertEquals(false, ConsumerSpEL.deserializerSupportsHeaders());
+      return super.deserialize(topic, data);
+    }
+
+    @Override
+    public Long deserialize(String topic, Headers headers, byte[] data) {
+      // Overriding the default should trigger header evaluation and this to be called.
+      assertEquals(true, ConsumerSpEL.deserializerSupportsHeaders());
       return super.deserialize(topic, data);
     }
   }
@@ -1405,7 +1391,7 @@ public class KafkaIOTest {
         assertEquals(1, headersArray.length);
         assertEquals(header.getKey(), headersArray[0].key());
         assertEquals(
-            header.getValue(), new String(headersArray[0].value(), Charset.defaultCharset()));
+            header.getValue(), new String(headersArray[0].value(), StandardCharsets.UTF_8));
       }
     }
   }
@@ -1488,7 +1474,7 @@ public class KafkaIOTest {
         headers =
             Arrays.asList(
                 new RecordHeader(
-                    header.getKey(), header.getValue().getBytes(Charset.defaultCharset())));
+                    header.getKey(), header.getValue().getBytes(StandardCharsets.UTF_8)));
       }
       if (isSingleTopic) {
         ctx.output(new ProducerRecord<>(topic, null, ts, kv.getKey(), kv.getValue(), headers));
@@ -1594,7 +1580,7 @@ public class KafkaIOTest {
   @Test
   public void testUnboundedSourceStartReadTime() {
 
-    assumeTrue(new ConsumerSpEL().hasOffsetsForTimes());
+    assumeTrue(ConsumerSpEL.hasOffsetsForTimes());
 
     int numElements = 1000;
     // In this MockConsumer, we let the elements of the time and offset equal and there are 20
@@ -1618,7 +1604,7 @@ public class KafkaIOTest {
   @Test
   public void testUnboundedSourceStartReadTimeException() {
 
-    assumeTrue(new ConsumerSpEL().hasOffsetsForTimes());
+    assumeTrue(ConsumerSpEL.hasOffsetsForTimes());
 
     noMessagesException.expect(RuntimeException.class);
 

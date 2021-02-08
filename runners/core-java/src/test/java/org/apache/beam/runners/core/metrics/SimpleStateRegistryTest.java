@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.core.metrics;
 
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -31,6 +31,9 @@ import org.hamcrest.Matchers;
 import org.junit.Test;
 
 /** Tests for {@link SimpleStateRegistryTest}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SimpleStateRegistryTest {
 
   @Test

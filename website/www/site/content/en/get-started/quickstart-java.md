@@ -21,7 +21,7 @@ limitations under the License.
 
 # Apache Beam Java SDK Quickstart
 
-This Quickstart will walk you through executing your first Beam pipeline to run [WordCount](/get-started/wordcount-example), written using Beam's [Java SDK](/documentation/sdks/java), on a [runner](/documentation#runners) of your choice.
+This quickstart shows you how to set up a Java development environment and run an [example pipeline](/get-started/wordcount-example) written with the [Apache Beam Java SDK](/documentation/sdks/java), using a [runner](/documentation#runners) of your choice.
 
 If you're interested in contributing to the Apache Beam Java codebase, see the [Contribution Guide](/contribute).
 
@@ -111,9 +111,11 @@ Ensure you are in the same directory as the `pom.xml` file generated from the pr
 $ gradle init
 {{< /highlight >}}
 
+You'll be asked if you want to generate a Gradle build. Enter **yes**. You'll also be prompted to choose a DSL (Groovy or Kotlin). This tutorial uses Groovy, so select that if you don't have a preference.
+
 After you have converted the project to Gradle:
 
-1. Edit the generated `build.gradle` file by adding `mavenCentral()` under `repositories`:
+1. In the generated `build.gradle` file, in the `repositories` block, replace `mavenLocal()` with `mavenCentral()`:
 {{< highlight >}}
 repositories {
     mavenCentral()
@@ -140,18 +142,20 @@ task execute (type:JavaExec) {
 $ gradle build
 {{< /highlight >}}
 
-## Run WordCount
+## Run a pipeline
 
-A single Beam pipeline can run on multiple Beam [runners](/documentation#runners), including the [FlinkRunner](/documentation/runners/flink), [SparkRunner](/documentation/runners/spark), [NemoRunner](/documentation/runners/nemo), [JetRunner](/documentation/runners/jet), or [DataflowRunner](/documentation/runners/dataflow). The [DirectRunner](/documentation/runners/direct) is a common runner for getting started, as it runs locally on your machine and requires no specific setup.
+A single Beam pipeline can run on multiple Beam [runners](/documentation#runners), including the [FlinkRunner](/documentation/runners/flink), [SparkRunner](/documentation/runners/spark), [NemoRunner](/documentation/runners/nemo), [JetRunner](/documentation/runners/jet), or [DataflowRunner](/documentation/runners/dataflow). The [DirectRunner](/documentation/runners/direct) is a common runner for getting started, as it runs locally on your machine and requires no specific setup. If you're just trying out Beam and you're not sure what to use, use the [DirectRunner](/documentation/runners/direct).
 
-After you've chosen which runner you'd like to use:
+The general process for running a pipeline goes like this:
 
 1.  Ensure you've done any runner-specific setup.
-1.  Build your commandline by:
-    1. Specifying a specific runner with `--runner=<runner>` (defaults to the [DirectRunner](/documentation/runners/direct))
-    1. Adding any runner-specific required options
-    1. Choosing input files and an output location are accessible on the chosen runner. (For example, you can't access a local file if you are running the pipeline on an external cluster.)
-1.  Run your first WordCount pipeline.
+1.  Build your command line:
+    1. Specify a runner with `--runner=<runner>` (defaults to the [DirectRunner](/documentation/runners/direct)).
+    1. Add any runner-specific required options.
+    1. Choose input files and an output location that are accessible to the runner. (For example, you can't access a local file if you are running the pipeline on an external cluster.)
+1.  Run the command.
+
+To run the WordCount pipeline, see the Maven and Gradle examples below.
 
 ### Run WordCount Using Maven
 
@@ -159,12 +163,12 @@ For Unix shells:
 
 {{< highlight class="runner-direct" >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
-     -Dexec.args="--inputFile=pom.xml --output=counts" -Pdirect-runner
+     -Dexec.args="--inputFile=/path/to/inputfile --output=counts" -Pdirect-runner
 {{< /highlight >}}
 
 {{< highlight class="runner-flink-local" >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
-     -Dexec.args="--runner=FlinkRunner --inputFile=pom.xml --output=counts" -Pflink-runner
+     -Dexec.args="--runner=FlinkRunner --inputFile=/path/to/inputfile --output=counts" -Pflink-runner
 {{< /highlight >}}
 
 {{< highlight class="runner-flink-cluster" >}}
@@ -177,7 +181,7 @@ You can monitor the running job by visiting the Flink dashboard at http://<flink
 
 {{< highlight class="runner-spark" >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
-     -Dexec.args="--runner=SparkRunner --inputFile=pom.xml --output=counts" -Pspark-runner
+     -Dexec.args="--runner=SparkRunner --inputFile=/path/to/inputfile --output=counts" -Pspark-runner
 {{< /highlight >}}
 
 {{< highlight class="runner-dataflow" >}}
@@ -193,7 +197,7 @@ $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
 
 {{< highlight class="runner-samza-local" >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
-     -Dexec.args="--inputFile=pom.xml --output=/tmp/counts --runner=SamzaRunner" -Psamza-runner
+     -Dexec.args="--inputFile=/path/to/inputfile --output=/tmp/counts --runner=SamzaRunner" -Psamza-runner
 {{< /highlight >}}
 
 {{< highlight class="runner-nemo" >}}
@@ -211,12 +215,12 @@ For Windows PowerShell:
 
 {{< highlight class="runner-direct" >}}
 PS> mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
- -D exec.args="--inputFile=pom.xml --output=counts" -P direct-runner
+ -D exec.args="--inputFile=/path/to/inputfile --output=counts" -P direct-runner
 {{< /highlight >}}
 
 {{< highlight class="runner-flink-local" >}}
 PS> mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
- -D exec.args="--runner=FlinkRunner --inputFile=pom.xml --output=counts" -P flink-runner
+ -D exec.args="--runner=FlinkRunner --inputFile=/path/to/inputfile --output=counts" -P flink-runner
 {{< /highlight >}}
 
 {{< highlight class="runner-flink-cluster" >}}
@@ -229,7 +233,7 @@ You can monitor the running job by visiting the Flink dashboard at http://<flink
 
 {{< highlight class="runner-spark" >}}
 PS> mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
- -D exec.args="--runner=SparkRunner --inputFile=pom.xml --output=counts" -P spark-runner
+ -D exec.args="--runner=SparkRunner --inputFile=/path/to/inputfile --output=counts" -P spark-runner
 {{< /highlight >}}
 
 {{< highlight class="runner-dataflow" >}}
@@ -245,7 +249,7 @@ PS> mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
 
 {{< highlight class="runner-samza-local" >}}
 PS> mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
-     -D exec.args="--inputFile=pom.xml --output=/tmp/counts --runner=SamzaRunner" -P samza-runner
+     -D exec.args="--inputFile=/path/to/inputfile --output=/tmp/counts --runner=SamzaRunner" -P samza-runner
 {{< /highlight >}}
 
 {{< highlight class="runner-nemo" >}}
@@ -266,7 +270,7 @@ For Unix shells (Instructions currently only available for Direct, Spark, and Da
 
 {{< highlight class="runner-direct">}}
 $ gradle clean execute -DmainClass=org.apache.beam.examples.WordCount \
-    -Dexec.args="--inputFile=pom.xml --output=counts" -Pdirect-runner
+    -Dexec.args="--inputFile=/path/to/inputfile --output=counts" -Pdirect-runner
 {{< /highlight >}}
 
 {{< highlight class="runner-apex">}}
@@ -283,7 +287,7 @@ We are working on adding the instruction for this runner!
 
 {{< highlight class="runner-spark" >}}
 $ gradle clean execute -DmainClass=org.apache.beam.examples.WordCount \
-    -Dexec.args="--inputFile=pom.xml --output=counts" -Pspark-runner
+    -Dexec.args="--inputFile=/path/to/inputfile --output=counts" -Pspark-runner
 {{< /highlight >}}
 
 {{< highlight class="runner-dataflow" >}}

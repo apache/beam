@@ -78,6 +78,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** PTransform that uses BigQuery batch-load jobs to write a PCollection to BigQuery. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class BatchLoads<DestinationT, ElementT>
     extends PTransform<PCollection<KV<DestinationT, ElementT>>, WriteResult> {
   private static final Logger LOG = LoggerFactory.getLogger(BatchLoads.class);

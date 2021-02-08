@@ -63,6 +63,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for various operations/functions defined by ZetaSQL dialect. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
 
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
@@ -197,21 +200,6 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     final Schema schema = Schema.builder().addNullableField("ColA", FieldType.BOOLEAN).build();
 
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues(false).build());
-
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
-  }
-
-  @Test
-  public void testFloat() {
-    String sql = "SELECT 3.0";
-
-    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
-    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
-
-    final Schema schema = Schema.builder().addNullableField("ColA", FieldType.DOUBLE).build();
-
-    PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues(3.0).build());
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
@@ -355,6 +343,42 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     final Schema schema = Schema.builder().addNullableField("field1", FieldType.BOOLEAN).build();
 
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues(false).build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testIn() {
+    String sql = "SELECT 'b' IN ('a', 'b', 'c')";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    final Schema schema = Schema.builder().addNullableField("field1", FieldType.BOOLEAN).build();
+
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(Schema.builder().addBooleanField("f_bool").build())
+                .addValues(true)
+                .build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testInArray() {
+    String sql = "SELECT 'b' IN UNNEST(['a', 'b', 'c'])";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    final Schema schema = Schema.builder().addNullableField("field1", FieldType.BOOLEAN).build();
+
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(Schema.builder().addBooleanField("f_bool").build())
+                .addValues(true)
+                .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
@@ -797,20 +821,6 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     final Schema schema = Schema.builder().addNullableField("field1", FieldType.BOOLEAN).build();
 
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues(true).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
-  }
-
-  @Test
-  public void testMod() {
-    String sql = "SELECT MOD(4, 2)";
-
-    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
-    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
-
-    final Schema schema = Schema.builder().addInt64Field("field1").build();
-
-    PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues(0L).build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
@@ -2164,376 +2174,6 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
-  /////////////////////////////////////////////////////////////////////////////
-  // DOUBLE INF and NAN tests
-  /////////////////////////////////////////////////////////////////////////////
-
-  @Test
-  public void testDoubleINF() {
-    String sql = "SELECT CAST('+inf' AS FLOAT64), CAST('-inf' AS FLOAT64)";
-
-    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
-    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
-
-    PAssert.that(stream)
-        .containsInAnyOrder(
-            Row.withSchema(
-                    Schema.builder()
-                        .addDoubleField("f_double1")
-                        .addDoubleField("f_double2")
-                        .build())
-                .addValues(Double.POSITIVE_INFINITY)
-                .addValues(Double.NEGATIVE_INFINITY)
-                .build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
-  }
-
-  @Test
-  public void testDoubleINFEQ() {
-    String sql =
-        "SELECT CAST('+inf' AS FLOAT64) = CAST('+inf' AS FLOAT64), CAST('+inf' AS FLOAT64) = CAST('-inf' AS FLOAT64)";
-
-    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
-    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
-
-    PAssert.that(stream)
-        .containsInAnyOrder(
-            Row.withSchema(
-                    Schema.builder()
-                        .addBooleanField("f_boolean1")
-                        .addBooleanField("f_boolean2")
-                        .build())
-                .addValues(true)
-                .addValues(false)
-                .build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
-  }
-
-  @Test
-  public void testDoubleNAN() {
-    String sql = "SELECT CAST('NaN' AS FLOAT64)";
-
-    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
-    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
-
-    PAssert.that(stream)
-        .containsInAnyOrder(
-            Row.withSchema(Schema.builder().addDoubleField("f_double").build())
-                .addValues(Double.NaN)
-                .build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
-  }
-
-  @Test
-  public void testDoubleNaNEQ() {
-    String sql = "SELECT CAST('NaN' AS FLOAT64) = CAST('NaN' AS FLOAT64)";
-
-    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
-    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
-
-    PAssert.that(stream)
-        .containsInAnyOrder(
-            Row.withSchema(Schema.builder().addBooleanField("f_boolean").build())
-                .addValues(false)
-                .build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
-  }
-
-  @Test
-  public void testDoubleIsINF() {
-    String sql =
-        "SELECT IS_INF(CAST('+inf' AS FLOAT64)), IS_INF(CAST('-inf' AS FLOAT64)), IS_INF(3.0)";
-
-    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
-    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
-
-    PAssert.that(stream)
-        .containsInAnyOrder(
-            Row.withSchema(
-                    Schema.builder()
-                        .addBooleanField("f_boolean1")
-                        .addBooleanField("f_boolean2")
-                        .addBooleanField("f_boolean3")
-                        .build())
-                .addValues(true)
-                .addValues(true)
-                .addValues(false)
-                .build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
-  }
-
-  @Test
-  public void testDoubleIsNAN() {
-    String sql = "SELECT IS_NAN(CAST('NaN' AS FLOAT64)), IS_NAN(3.0)";
-
-    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
-    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
-
-    PAssert.that(stream)
-        .containsInAnyOrder(
-            Row.withSchema(
-                    Schema.builder()
-                        .addBooleanField("f_boolean1")
-                        .addBooleanField("f_boolean2")
-                        .build())
-                .addValues(true)
-                .addValues(false)
-                .build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
-  }
-
-  /////////////////////////////////////////////////////////////////////////////
-  // NUMERIC type tests
-  /////////////////////////////////////////////////////////////////////////////
-
-  @Test
-  public void testNumericLiteral() {
-    String sql =
-        "SELECT NUMERIC '0', "
-            + "NUMERIC '123456', "
-            + "NUMERIC '-3.14', "
-            + "NUMERIC '-0.54321', "
-            + "NUMERIC '1.23456e05', "
-            + "NUMERIC '-9.876e-3', "
-            // min value for ZetaSQL NUMERIC type
-            + "NUMERIC '-99999999999999999999999999999.999999999', "
-            // max value for ZetaSQL NUMERIC type
-            + "NUMERIC '99999999999999999999999999999.999999999'";
-    ;
-
-    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
-    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
-
-    PAssert.that(stream)
-        .containsInAnyOrder(
-            Row.withSchema(
-                    Schema.builder()
-                        .addDecimalField("f_numeric1")
-                        .addDecimalField("f_numeric2")
-                        .addDecimalField("f_numeric3")
-                        .addDecimalField("f_numeric4")
-                        .addDecimalField("f_numeric5")
-                        .addDecimalField("f_numeric6")
-                        .addDecimalField("f_numeric7")
-                        .addDecimalField("f_numeric8")
-                        .build())
-                .addValues(ZetaSqlTypesUtils.bigDecimalAsNumeric("0"))
-                .addValues(ZetaSqlTypesUtils.bigDecimalAsNumeric("123456"))
-                .addValues(ZetaSqlTypesUtils.bigDecimalAsNumeric("-3.14"))
-                .addValues(ZetaSqlTypesUtils.bigDecimalAsNumeric("-0.54321"))
-                .addValues(ZetaSqlTypesUtils.bigDecimalAsNumeric("123456"))
-                .addValues(ZetaSqlTypesUtils.bigDecimalAsNumeric("-0.009876"))
-                .addValues(
-                    ZetaSqlTypesUtils.bigDecimalAsNumeric(
-                        "-99999999999999999999999999999.999999999"))
-                .addValues(
-                    ZetaSqlTypesUtils.bigDecimalAsNumeric(
-                        "99999999999999999999999999999.999999999"))
-                .build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
-  }
-
-  @Test
-  public void testNumericColumn() {
-    String sql = "SELECT numeric_field FROM table_with_numeric";
-
-    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
-    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
-
-    PAssert.that(stream)
-        .containsInAnyOrder(
-            Row.withSchema(Schema.builder().addDecimalField("f_numeric").build())
-                .addValues(ZetaSqlTypesUtils.bigDecimalAsNumeric("123.4567"))
-                .build(),
-            Row.withSchema(Schema.builder().addDecimalField("f_numeric").build())
-                .addValues(ZetaSqlTypesUtils.bigDecimalAsNumeric("765.4321"))
-                .build(),
-            Row.withSchema(Schema.builder().addDecimalField("f_numeric").build())
-                .addValues(ZetaSqlTypesUtils.bigDecimalAsNumeric("-555.5555"))
-                .build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
-  }
-
-  @Test
-  public void testUnaryMinusNumeric() {
-    String sql = "SELECT - NUMERIC '1.23456e05'";
-
-    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
-    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
-
-    PAssert.that(stream)
-        .containsInAnyOrder(
-            Row.withSchema(Schema.builder().addDecimalField("f_numeric").build())
-                .addValues(ZetaSqlTypesUtils.bigDecimalAsNumeric("-123456"))
-                .build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
-  }
-
-  @Test
-  public void testAddNumeric() {
-    String sql = "SELECT NUMERIC '1.23456e05' + NUMERIC '9.876e-3'";
-
-    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
-    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
-
-    PAssert.that(stream)
-        .containsInAnyOrder(
-            Row.withSchema(Schema.builder().addDecimalField("f_numeric").build())
-                .addValues(ZetaSqlTypesUtils.bigDecimalAsNumeric("123456.009876"))
-                .build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
-  }
-
-  @Test
-  public void testSubNumeric() {
-    String sql = "SELECT NUMERIC '1.23456e05' - NUMERIC '-9.876e-3'";
-
-    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
-    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
-
-    PAssert.that(stream)
-        .containsInAnyOrder(
-            Row.withSchema(Schema.builder().addDecimalField("f_numeric").build())
-                .addValues(ZetaSqlTypesUtils.bigDecimalAsNumeric("123456.009876"))
-                .build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
-  }
-
-  @Test
-  public void testMultiNumeric() {
-    String sql = "SELECT NUMERIC '1.23e02' * NUMERIC '-1.001e-3'";
-
-    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
-    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
-
-    PAssert.that(stream)
-        .containsInAnyOrder(
-            Row.withSchema(Schema.builder().addDecimalField("f_numeric").build())
-                .addValues(ZetaSqlTypesUtils.bigDecimalAsNumeric("-0.123123"))
-                .build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
-  }
-
-  @Test
-  public void testDivNumeric() {
-    String sql = "SELECT NUMERIC '-1.23123e-1' / NUMERIC '-1.001e-3'";
-
-    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
-    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
-
-    PAssert.that(stream)
-        .containsInAnyOrder(
-            Row.withSchema(Schema.builder().addDecimalField("f_numeric").build())
-                .addValues(ZetaSqlTypesUtils.bigDecimalAsNumeric("123"))
-                .build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
-  }
-
-  @Test
-  public void testModNumeric() {
-    String sql = "SELECT MOD(NUMERIC '1.23456e05', NUMERIC '5')";
-
-    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
-    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
-
-    PAssert.that(stream)
-        .containsInAnyOrder(
-            Row.withSchema(Schema.builder().addDecimalField("f_numeric").build())
-                .addValues(ZetaSqlTypesUtils.bigDecimalAsNumeric("1"))
-                .build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
-  }
-
-  @Test
-  public void testFloorNumeric() {
-    String sql = "SELECT FLOOR(NUMERIC '1.23456e04'), FLOOR(NUMERIC '-1.23456e04')";
-
-    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
-    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
-
-    PAssert.that(stream)
-        .containsInAnyOrder(
-            Row.withSchema(
-                    Schema.builder()
-                        .addDecimalField("f_numeric1")
-                        .addDecimalField("f_numeric2")
-                        .build())
-                .addValues(ZetaSqlTypesUtils.bigDecimalAsNumeric("12345"))
-                .addValues(ZetaSqlTypesUtils.bigDecimalAsNumeric("-12346"))
-                .build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
-  }
-
-  @Test
-  public void testCeilNumeric() {
-    String sql = "SELECT CEIL(NUMERIC '1.23456e04'), CEIL(NUMERIC '-1.23456e04')";
-
-    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
-    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
-
-    PAssert.that(stream)
-        .containsInAnyOrder(
-            Row.withSchema(
-                    Schema.builder()
-                        .addDecimalField("f_numeric1")
-                        .addDecimalField("f_numeric2")
-                        .build())
-                .addValues(ZetaSqlTypesUtils.bigDecimalAsNumeric("12346"))
-                .addValues(ZetaSqlTypesUtils.bigDecimalAsNumeric("-12345"))
-                .build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
-  }
-
-  @Test
-  @Ignore("https://jira.apache.org/jira/browse/BEAM-10459")
-  public void testSumNumeric() {
-    String sql = "SELECT SUM(numeric_field) FROM table_with_numeric";
-
-    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
-    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
-
-    PAssert.that(stream)
-        .containsInAnyOrder(
-            Row.withSchema(Schema.builder().addDecimalField("f_numeric").build())
-                .addValues(ZetaSqlTypesUtils.bigDecimalAsNumeric("333.3333"))
-                .build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
-  }
-
-  @Test
-  @Ignore("https://jira.apache.org/jira/browse/BEAM-10459")
-  public void testAvgNumeric() {
-    String sql = "SELECT AVG(numeric_field) FROM table_with_numeric";
-
-    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
-    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
-
-    PAssert.that(stream)
-        .containsInAnyOrder(
-            Row.withSchema(Schema.builder().addDecimalField("f_numeric").build())
-                .addValues(ZetaSqlTypesUtils.bigDecimalAsNumeric("111.1111"))
-                .build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
-  }
-
   @Test
   public void testMultipleSelectStatementsThrowsException() {
     String sql = "SELECT 1; SELECT 2;";
@@ -2865,9 +2505,106 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
   }
 
   @Test
-  public void testUnnestArrayFieldOfNestedStructColumn() {
+  public void testUnnestArrayOfStructColumn() {
+    String sql = "SELECT int_col, data FROM table_with_array_of_struct, UNNEST(array_col) AS s";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    Schema schema = Schema.builder().addInt64Field("int_col").addStringField("data").build();
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(schema).addValues(10L, "1").build(),
+            Row.withSchema(schema).addValues(20L, "2").build(),
+            Row.withSchema(schema).addValues(20L, "3").build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testUnnestArrayOfStructLiteral() {
+    String sql = "SELECT a, b FROM UNNEST([STRUCT(1 AS a, '1' AS b), STRUCT(2, '2')])";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    Schema schema = Schema.builder().addInt64Field("a").addStringField("b").build();
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(schema).addValues(1L, "1").build(),
+            Row.withSchema(schema).addValues(2L, "2").build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testUnnestStructOfStructOfArray() {
     String sql =
-        "SELECT int_col, s FROM table_with_struct_of_array, UNNEST(struct_col.struct.arr) as s";
+        "SELECT int_col, s FROM table_with_struct_of_struct_of_array, UNNEST(struct_col.struct.arr) as s";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    Schema schema = Schema.builder().addInt64Field("int_col").addStringField("p").build();
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(schema).addValues(10L, "1").build(),
+            Row.withSchema(schema).addValues(20L, "2").build(),
+            Row.withSchema(schema).addValues(20L, "3").build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testUnnestArrayOfStructOfStructColumn() {
+    String sql = "SELECT s.row FROM table_with_array_of_struct_of_struct, UNNEST(array_col) as s";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    Schema schema = Schema.builder().addRowField("row", TestInput.STRUCT_SCHEMA).build();
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(schema)
+                .addValues(Row.withSchema(TestInput.STRUCT_SCHEMA).addValues(1L, "1").build())
+                .build(),
+            Row.withSchema(schema)
+                .addValues(Row.withSchema(TestInput.STRUCT_SCHEMA).addValues(2L, "2").build())
+                .build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testUnnestArrayOfStructOfStructLiteral() {
+    String sql =
+        "SELECT s.row FROM UNNEST([STRUCT(STRUCT(1, '1') as row), STRUCT(STRUCT(2, '2'))]) as s";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    Schema schema = Schema.builder().addRowField("row", TestInput.STRUCT_SCHEMA).build();
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(schema)
+                .addValues(Row.withSchema(TestInput.STRUCT_SCHEMA).addValues(1L, "1").build())
+                .build(),
+            Row.withSchema(schema)
+                .addValues(Row.withSchema(TestInput.STRUCT_SCHEMA).addValues(2L, "2").build())
+                .build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testUnnestStructOfArrayOfStructColumn() {
+    String sql =
+        "SELECT int_col, data FROM table_with_struct_of_array_of_struct, UNNEST(struct_col.arr) as s";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
@@ -4328,6 +4065,21 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
         .containsInAnyOrder(
             Row.withSchema(singleField).addValues(14L).build(),
             Row.withSchema(singleField).addValues(15L).build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  @Ignore(
+      "Null values are not handled properly, so BIT_XOR is temporarily removed from SupportedZetaSqlBuiltinFunctions. https://issues.apache.org/jira/browse/BEAM-10379")
+  public void testZetaSQLBitXor() {
+    String sql = "SELECT BIT_XOR(x) AS bit_xor FROM UNNEST([5678, 1234]) AS x";
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    Schema schema = Schema.builder().addInt64Field("field1").build();
+    PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValue(4860L).build());
+
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 }

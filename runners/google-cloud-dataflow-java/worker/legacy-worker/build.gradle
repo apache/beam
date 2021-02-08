@@ -84,8 +84,10 @@ def excluded_dependencies = [
 applyJavaNature(
         archivesBaseName: 'beam-runners-google-cloud-dataflow-java-legacy-worker',
         publish: false,
-        enableChecker:false,
-        ignoreRawtypeErrors: true,
+        classesTriggerCheckerBugs: [
+          'BatchGroupAlsoByWindowAndCombineFn': 'TODO: file a bug report',
+          'AssignWindowsParDoFnFactory': 'TODO: file a bug report',
+        ],
         exportJavadoc: false,
         enableSpotbugs: false /* TODO(BEAM-5658): enable spotbugs */,
         shadowJarValidationExcludes: [
@@ -234,7 +236,9 @@ dependencies {
 
 project.task('validateShadedJarContainsSlf4jJdk14', dependsOn: 'shadowJar') {
     ext.outFile = project.file("${project.reportsDir}/${name}.out")
-    inputs.files project.configurations.shadow.artifacts.files
+    inputs.files(project.configurations.shadow.artifacts.files)
+        .withPropertyName("shadowArtifactsFiles")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
     outputs.files outFile
     doLast {
         project.configurations.shadow.artifacts.files.each {

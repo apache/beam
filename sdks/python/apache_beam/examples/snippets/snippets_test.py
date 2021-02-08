@@ -22,6 +22,7 @@
 from __future__ import absolute_import
 from __future__ import division
 
+import gc
 import glob
 import gzip
 import logging
@@ -38,6 +39,7 @@ from builtins import range
 from builtins import zip
 
 import mock
+import parameterized
 
 import apache_beam as beam
 import apache_beam.transforms.combiners as combiners
@@ -516,6 +518,8 @@ class SnippetsTest(unittest.TestCase):
     beam.io.WriteToText = self.old_write_to_text
     # Cleanup all the temporary files created in the test.
     map(os.remove, self.temp_files)
+    # Ensure that PipelineOptions subclasses have been cleaned up between tests
+    gc.collect()
 
   def create_temp_file(self, contents=''):
     with tempfile.NamedTemporaryFile(delete=False) as f:
@@ -711,21 +715,18 @@ class SnippetsTest(unittest.TestCase):
     self.assertEqual(
         sorted(' '.join(lines).split(' ')), self.get_output(result_path))
 
-  def test_examples_wordcount(self):
-    pipelines = [
-        snippets.examples_wordcount_minimal,
-        snippets.examples_wordcount_wordcount,
-        snippets.pipeline_monitoring,
-        snippets.examples_wordcount_templated
-    ]
-
-    for pipeline in pipelines:
-      temp_path = self.create_temp_file('abc def ghi\n abc jkl')
-      result_path = self.create_temp_file()
-      pipeline({'read': temp_path, 'write': result_path})
-      self.assertEqual(
-          self.get_output(result_path),
-          ['abc: 2', 'def: 1', 'ghi: 1', 'jkl: 1'])
+  @parameterized.parameterized.expand([
+      [snippets.examples_wordcount_minimal],
+      [snippets.examples_wordcount_wordcount],
+      [snippets.pipeline_monitoring],
+      [snippets.examples_wordcount_templated],
+  ])
+  def test_examples_wordcount(self, pipeline):
+    temp_path = self.create_temp_file('abc def ghi\n abc jkl')
+    result_path = self.create_temp_file()
+    pipeline({'read': temp_path, 'write': result_path})
+    self.assertEqual(
+        self.get_output(result_path), ['abc: 2', 'def: 1', 'ghi: 1', 'jkl: 1'])
 
   def test_examples_ptransforms_templated(self):
     pipelines = [snippets.examples_ptransforms_templated]
@@ -748,7 +749,7 @@ class SnippetsTest(unittest.TestCase):
 
   @unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')
   @mock.patch('apache_beam.io.ReadFromPubSub')
-  @mock.patch('apache_beam.io.WriteStringsToPubSub')
+  @mock.patch('apache_beam.io.WriteToPubSub')
   def test_examples_wordcount_streaming(self, *unused_mocks):
     def FakeReadFromPubSub(topic=None, subscription=None, values=None):
       expected_topic = topic
@@ -768,7 +769,7 @@ class SnippetsTest(unittest.TestCase):
       def expand(self, pcoll):
         assert_that(pcoll, self.matcher)
 
-    def FakeWriteStringsToPubSub(topic=None, values=None):
+    def FakeWriteToPubSub(topic=None, values=None):
       expected_topic = topic
 
       def _inner(topic=None, subscription=None):
@@ -785,11 +786,11 @@ class SnippetsTest(unittest.TestCase):
         TimestampedValue(b'a b c c c', 20)
     ]
     output_topic = 'projects/fake-beam-test-project/topic/outtopic'
-    output_values = ['a: 1', 'a: 2', 'b: 1', 'b: 3', 'c: 3']
+    output_values = [b'a: 1', b'a: 2', b'b: 1', b'b: 3', b'c: 3']
     beam.io.ReadFromPubSub = (
         FakeReadFromPubSub(topic=input_topic, values=input_values))
-    beam.io.WriteStringsToPubSub = (
-        FakeWriteStringsToPubSub(topic=output_topic, values=output_values))
+    beam.io.WriteToPubSub = (
+        FakeWriteToPubSub(topic=output_topic, values=output_values))
     snippets.examples_wordcount_streaming([
         '--input_topic',
         'projects/fake-beam-test-project/topic/intopic',
@@ -1011,12 +1012,10 @@ class SnippetsTest(unittest.TestCase):
           | 'pair_with_one' >> beam.Map(lambda x: (x, 1)))
 
       counts = (
-          # [START model_setting_trigger]
           pcollection | WindowInto(
               FixedWindows(1 * 60),
               trigger=AfterProcessingTime(10 * 60),
               accumulation_mode=AccumulationMode.DISCARDING)
-          # [END model_setting_trigger]
           | 'group' >> beam.GroupByKey()
           | 'count' >>
           beam.Map(lambda word_ones: (word_ones[0], sum(word_ones[1]))))

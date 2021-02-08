@@ -18,8 +18,8 @@
 package org.apache.beam.runners.core.construction;
 
 import static org.apache.beam.runners.core.construction.PTransformTranslation.TEST_STREAM_TRANSFORM_URN;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
 
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.TestStreamPayload;
@@ -30,6 +30,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PValues;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
@@ -79,7 +80,12 @@ public class TestStreamTranslationTest {
     PCollection<String> output = p.apply(testStream);
 
     AppliedPTransform<PBegin, PCollection<String>, TestStream<String>> appliedTestStream =
-        AppliedPTransform.of("fakeName", PBegin.in(p).expand(), output.expand(), testStream, p);
+        AppliedPTransform.of(
+            "fakeName",
+            PValues.expandInput(PBegin.in(p)),
+            PValues.expandOutput(output),
+            testStream,
+            p);
 
     SdkComponents components = SdkComponents.create();
     components.registerEnvironment(Environments.createDockerEnvironment("java"));

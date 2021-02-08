@@ -25,7 +25,9 @@ import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_INT64;
 import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_STRING;
 import static com.google.zetasql.ZetaSQLType.TypeKind.TYPE_TIMESTAMP;
 import static org.apache.beam.sdk.extensions.sql.zetasql.SqlAnalyzer.PRE_DEFINED_WINDOW_FUNCTIONS;
-import static org.apache.beam.sdk.extensions.sql.zetasql.SqlAnalyzer.USER_DEFINED_FUNCTIONS;
+import static org.apache.beam.sdk.extensions.sql.zetasql.SqlAnalyzer.USER_DEFINED_JAVA_SCALAR_FUNCTIONS;
+import static org.apache.beam.sdk.extensions.sql.zetasql.SqlAnalyzer.USER_DEFINED_SQL_FUNCTIONS;
+import static org.apache.beam.sdk.extensions.sql.zetasql.SqlAnalyzer.ZETASQL_FUNCTION_GROUP_NAME;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.base.Ascii;
@@ -54,6 +56,7 @@ import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedLiteral;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedOrderByScan;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedParameter;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedProjectScan;
+import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -63,6 +66,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
+import org.apache.beam.sdk.extensions.sql.impl.ScalarFnReflector;
 import org.apache.beam.sdk.extensions.sql.impl.SqlConversionException;
 import org.apache.beam.sdk.extensions.sql.impl.ZetaSqlUserDefinedSQLNativeTableValuedFunction;
 import org.apache.beam.sdk.extensions.sql.impl.utils.TVFStreamingUtils;
@@ -92,6 +96,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * to RexNodes.
  */
 @Internal
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ExpressionConverter {
 
   // Constants of pre-defined functions.
@@ -159,15 +166,15 @@ public class ExpressionConverter {
   private final RelOptCluster cluster;
   private final QueryParameters queryParams;
   private int nullParamCount = 0;
-  private final Map<String, ResolvedCreateFunctionStmt> userDefinedFunctions;
+  final UserFunctionDefinitions userFunctionDefinitions;
 
   public ExpressionConverter(
       RelOptCluster cluster,
       QueryParameters params,
-      Map<String, ResolvedCreateFunctionStmt> userDefinedFunctions) {
+      UserFunctionDefinitions userFunctionDefinitions) {
     this.cluster = cluster;
     this.queryParams = params;
-    this.userDefinedFunctions = userDefinedFunctions;
+    this.userFunctionDefinitions = userFunctionDefinitions;
   }
 
   /** Extract expressions from a project scan node. */
@@ -432,7 +439,7 @@ public class ExpressionConverter {
   public RexCall convertTableValuedFunction(
       RelNode input,
       TableValuedFunction tvf,
-      List<ResolvedNodes.ResolvedTVFArgument> argumentList,
+      List<ResolvedNodes.ResolvedFunctionArgument> argumentList,
       List<ResolvedColumn> inputTableColumns) {
     ResolvedColumn wmCol;
     // Handle builtin windowing TVF.
@@ -605,7 +612,7 @@ public class ExpressionConverter {
     SqlOperator op = SqlOperatorMappingTable.ZETASQL_FUNCTION_TO_CALCITE_SQL_OPERATOR.get(funName);
     List<RexNode> operands = new ArrayList<>();
 
-    if (funGroup.equals(PRE_DEFINED_WINDOW_FUNCTIONS)) {
+    if (PRE_DEFINED_WINDOW_FUNCTIONS.equals(funGroup)) {
       switch (funName) {
         case FIXED_WINDOW:
         case SESSION_WINDOW:
@@ -643,7 +650,7 @@ public class ExpressionConverter {
           throw new UnsupportedOperationException(
               "Unsupported function: " + funName + ". Only support TUMBLE, HOP, and SESSION now.");
       }
-    } else if (funGroup.equals("ZetaSQL")) {
+    } else if (ZETASQL_FUNCTION_GROUP_NAME.equals(funGroup)) {
       if (op == null) {
         Type returnType = functionCall.getSignature().getResultType().getType();
         if (returnType != null) {
@@ -661,9 +668,32 @@ public class ExpressionConverter {
         operands.add(
             convertRexNodeFromResolvedExpr(expr, columnList, fieldList, outerFunctionArguments));
       }
-    } else if (funGroup.equals(USER_DEFINED_FUNCTIONS)) {
-      String fullName = functionCall.getFunction().getFullName();
-      ResolvedCreateFunctionStmt createFunctionStmt = userDefinedFunctions.get(fullName);
+    } else if (USER_DEFINED_JAVA_SCALAR_FUNCTIONS.equals(funGroup)) {
+      UserFunctionDefinitions.JavaScalarFunction javaScalarFunction =
+          userFunctionDefinitions
+              .javaScalarFunctions()
+              .get(functionCall.getFunction().getNamePath());
+      Method method = ScalarFnReflector.getApplyMethod(javaScalarFunction.scalarFn());
+      ArrayList<RexNode> innerFunctionArguments = new ArrayList<>();
+      for (int i = 0; i < functionCall.getArgumentList().size(); i++) {
+        ResolvedExpr argExpr = functionCall.getArgumentList().get(i);
+        RexNode argNode =
+            convertRexNodeFromResolvedExpr(argExpr, columnList, fieldList, outerFunctionArguments);
+        innerFunctionArguments.add(argNode);
+      }
+      return rexBuilder()
+          .makeCall(
+              SqlOperators.createUdfOperator(
+                  functionCall.getFunction().getName(),
+                  method,
+                  USER_DEFINED_JAVA_SCALAR_FUNCTIONS,
+                  javaScalarFunction.jarPath()),
+              innerFunctionArguments);
+    } else if (USER_DEFINED_SQL_FUNCTIONS.equals(funGroup)) {
+      ResolvedCreateFunctionStmt createFunctionStmt =
+          userFunctionDefinitions
+              .sqlScalarFunctions()
+              .get(functionCall.getFunction().getNamePath());
       ResolvedExpr functionExpression = createFunctionStmt.getFunctionExpression();
       ImmutableMap.Builder<String, RexNode> innerFunctionArguments = ImmutableMap.builder();
       for (int i = 0; i < functionCall.getArgumentList().size(); i++) {

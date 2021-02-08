@@ -18,11 +18,11 @@
 package org.apache.beam.runners.dataflow.worker.fn.control;
 
 import static org.apache.beam.runners.dataflow.worker.fn.control.RegisterAndProcessBundleOperation.encodeAndConcat;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.empty;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
@@ -96,7 +96,11 @@ import org.mockito.stubbing.Answer;
 
 /** Tests for {@link RegisterAndProcessBundleOperation}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("FutureReturnValueIgnored")
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "FutureReturnValueIgnored",
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class RegisterAndProcessBundleOperationTest {
   private static final BeamFnApi.RegisterRequest REGISTER_REQUEST =
       BeamFnApi.RegisterRequest.newBuilder()
@@ -470,9 +474,8 @@ public class RegisterAndProcessBundleOperationTest {
 
     SideInputReader fakeSideInputReader =
         new SideInputReader() {
-          @Nullable
           @Override
-          public <T> T get(PCollectionView<T> view, BoundedWindow window) {
+          public <T> @Nullable T get(PCollectionView<T> view, BoundedWindow window) {
             assertEquals(GlobalWindow.INSTANCE, window);
             assertEquals("testSideInputId", view.getTagInternal().getId());
             return (T)

@@ -63,9 +63,6 @@ def print_with_message(msg):
 
 
 class InteractiveRunnerTest(unittest.TestCase):
-  def setUp(self):
-    ie.new_env()
-
   @unittest.skipIf(sys.platform == "win32", "[BEAM-10627]")
   def test_basic(self):
     p = beam.Pipeline(
@@ -168,7 +165,7 @@ class InteractiveRunnerTest(unittest.TestCase):
         return words
 
     # Add the TestStream so that it can be cached.
-    ib.options.capturable_sources.add(TestStream)
+    ib.options.recordable_sources.add(TestStream)
 
     p = beam.Pipeline(
         runner=interactive_runner.InteractiveRunner(),

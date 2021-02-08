@@ -447,10 +447,11 @@ class TriggerLoadJobs(beam.DoFn):
     result = {
         'create_disposition': str(self.create_disposition),
         'write_disposition': str(self.write_disposition),
+        'additional_bq_params': str(self.additional_bq_parameters),
+        'schema': str(self.schema),
+        'launchesBigQueryJobs': DisplayDataItem(
+            True, label="This Dataflow job launches bigquery jobs.")
     }
-    result['schema'] = str(self.schema)
-    result['launchesBigQueryJobs'] = DisplayDataItem(
-        True, label="This Dataflow job launches bigquery jobs.")
     return result
 
   def start_bundle(self):
@@ -793,7 +794,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
       partitions_direct_to_destination,
       load_job_name_pcv,
       copy_job_name_pcv,
-      singleton_pc,
+      p,
       step_name):
     """Load data to BigQuery
 
@@ -831,7 +832,8 @@ class BigQueryBatchFileLoads(beam.PTransform):
     temp_tables_pc = trigger_loads_outputs[TriggerLoadJobs.TEMP_TABLES]
 
     destination_copy_job_ids_pc = (
-        singleton_pc
+        p
+        | "ImpulseMonitorLoadJobs" >> beam.Create([None])
         | "WaitForTempTableLoadJobs" >> beam.ParDo(
             WaitForBQJobs(self.test_client),
             beam.pvalue.AsList(temp_tables_load_job_ids_pc))
@@ -844,7 +846,8 @@ class BigQueryBatchFileLoads(beam.PTransform):
             copy_job_name_pcv))
 
     finished_copy_jobs_pc = (
-        singleton_pc
+        p
+        | "ImpulseMonitorCopyJobs" >> beam.Create([None])
         | "WaitForCopyJobs" >> beam.ParDo(
             WaitForBQJobs(self.test_client),
             beam.pvalue.AsList(destination_copy_job_ids_pc)))
@@ -878,7 +881,8 @@ class BigQueryBatchFileLoads(beam.PTransform):
             *self.schema_side_inputs))
 
     _ = (
-        singleton_pc
+        p
+        | "ImpulseMonitorDestLoadJobs" >> beam.Create([None])
         | "WaitForDestinationLoadJobs" >> beam.ParDo(
             WaitForBQJobs(self.test_client),
             beam.pvalue.AsList(destination_load_job_ids_pc)))
@@ -963,14 +967,16 @@ class BigQueryBatchFileLoads(beam.PTransform):
                           empty_pc,
                           load_job_name_pcv,
                           copy_job_name_pcv,
-                          singleton_pc,
+                          p,
                           step_name))
     else:
       destination_load_job_ids_pc, destination_copy_job_ids_pc = (
           self._load_data(multiple_partitions_per_destination_pc,
-                         single_partition_per_destination_pc,
-                         load_job_name_pcv, copy_job_name_pcv, singleton_pc,
-                         step_name))
+                          single_partition_per_destination_pc,
+                          load_job_name_pcv,
+                          copy_job_name_pcv,
+                          p,
+                          step_name))
 
     return {
         self.DESTINATION_JOBID_PAIRS: destination_load_job_ids_pc,

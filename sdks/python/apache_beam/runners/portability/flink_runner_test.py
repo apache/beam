@@ -56,10 +56,8 @@ from apache_beam.transforms.sql import SqlTransform
 
 # Run as
 #
-# pytest flink_runner_test.py \
-#     [--test_pipeline_options "--flink_job_server_jar=/path/to/job_server.jar \
-#                               --environment_type=DOCKER"] \
-#     [FlinkRunnerTest.test_method, ...]
+# pytest flink_runner_test.py[::TestClass::test_case] \
+#     --test-pipeline-options="--environment_type=LOOPBACK"
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -240,7 +238,8 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
             p
             | ReadFromKafka(
                 consumer_config={
-                    'bootstrap.servers': 'notvalid1:7777, notvalid2:3531'
+                    'bootstrap.servers': 'notvalid1:7777, notvalid2:3531',
+                    'group.id': 'any_group'
                 },
                 topics=['topic1', 'topic2'],
                 key_deserializer='org.apache.kafka.'
@@ -249,6 +248,8 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
                 value_deserializer='org.apache.kafka.'
                 'common.serialization.'
                 'LongDeserializer',
+                commit_offset_in_finalize=True,
+                timestamp_policy=ReadFromKafka.create_time_policy,
                 expansion_service=self.get_expansion_service()))
     self.assertTrue(
         'No resolvable bootstrap urls given in bootstrap.servers' in str(
@@ -391,14 +392,11 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
   def test_sdf_with_watermark_tracking(self):
     raise unittest.SkipTest("BEAM-2939")
 
-  def test_sdf_with_sdf_initiated_checkpointing(self):
-    raise unittest.SkipTest("BEAM-2939")
-
   def test_callbacks_with_exception(self):
-    raise unittest.SkipTest("BEAM-6868")
+    raise unittest.SkipTest("BEAM-11021")
 
   def test_register_finalizations(self):
-    raise unittest.SkipTest("BEAM-6868")
+    raise unittest.SkipTest("BEAM-11021")
 
   def test_custom_merging_window(self):
     raise unittest.SkipTest("BEAM-11004")
@@ -428,12 +426,35 @@ class FlinkRunnerTestOptimized(FlinkRunnerTest):
   def test_sql(self):
     raise unittest.SkipTest("BEAM-7252")
 
+  def test_pack_combiners_disabled_by_default(self):
+    raise unittest.SkipTest(
+        "Base test has expectations on counter names that fail because "
+        "stage fusion modifies counter names")
+
 
 class FlinkRunnerTestStreaming(FlinkRunnerTest):
+  def __init__(self, *args, **kwargs):
+    super(FlinkRunnerTestStreaming, self).__init__(*args, **kwargs)
+    self.enable_commit = False
+
+  def setUp(self):
+    self.enable_commit = False
+
   def create_options(self):
     options = super(FlinkRunnerTestStreaming, self).create_options()
     options.view_as(StandardOptions).streaming = True
+    if self.enable_commit:
+      options._all_options['checkpointing_interval'] = 3000
+      options._all_options['shutdown_sources_after_idle_ms'] = 60000
     return options
+
+  def test_callbacks_with_exception(self):
+    self.enable_commit = True
+    super(FlinkRunnerTest, self).test_callbacks_with_exception()
+
+  def test_register_finalizations(self):
+    self.enable_commit = True
+    super(FlinkRunnerTest, self).test_register_finalizations()
 
 
 if __name__ == '__main__':

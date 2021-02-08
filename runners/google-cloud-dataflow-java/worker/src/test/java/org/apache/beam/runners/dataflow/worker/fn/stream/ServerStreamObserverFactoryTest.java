@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.dataflow.worker.fn.stream;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 
 import org.apache.beam.sdk.fn.stream.BufferingStreamObserver;
 import org.apache.beam.sdk.fn.stream.DirectStreamObserver;
@@ -35,6 +35,9 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link ServerStreamObserverFactory}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ServerStreamObserverFactoryTest {
   @Mock private CallStreamObserver<String> mockResponseObserver;
 

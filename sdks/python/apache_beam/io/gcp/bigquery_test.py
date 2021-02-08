@@ -44,13 +44,14 @@ from apache_beam.internal import pickler
 from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.io.filebasedsink_test import _TestCaseWithTempDirCleanUp
 from apache_beam.io.gcp import bigquery_tools
-from apache_beam.io.gcp.bigquery import ReadFromBigQuery
 from apache_beam.io.gcp.bigquery import TableRowJsonCoder
 from apache_beam.io.gcp.bigquery import WriteToBigQuery
-from apache_beam.io.gcp.bigquery import _JsonToDictCoder
 from apache_beam.io.gcp.bigquery import _StreamToBigQuery
 from apache_beam.io.gcp.bigquery_file_loads_test import _ELEMENTS
+from apache_beam.io.gcp.bigquery_read_internal import _JsonToDictCoder
+from apache_beam.io.gcp.bigquery_read_internal import bigquery_export_destination_uri
 from apache_beam.io.gcp.bigquery_tools import JSON_COMPLIANCE_ERROR
+from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam.io.gcp.bigquery_tools import RetryStrategy
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.io.gcp.pubsub import ReadFromPubSub
@@ -370,6 +371,18 @@ class TestJsonToDictCoder(unittest.TestCase):
     actual = coder.decode(input_row)
     self.assertEqual(expected_row, actual)
 
+  def test_repeatable_field_is_properly_converted(self):
+    input_row = b'{"repeated": ["55.5", "65.5"], "integer": "10"}'
+    expected_row = {'repeated': [55.5, 65.5], 'integer': 10}
+    schema = self._make_schema([
+        ('repeated', 'FLOAT', 'REPEATED', []),
+        ('integer', 'INTEGER', 'NULLABLE', []),
+    ])
+    coder = _JsonToDictCoder(schema)
+
+    actual = coder.decode(input_row)
+    self.assertEqual(expected_row, actual)
+
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestReadFromBigQuery(unittest.TestCase):
@@ -394,14 +407,14 @@ class TestReadFromBigQuery(unittest.TestCase):
       RuntimeValueProvider.set_runtime_options({})
       options = self.UserDefinedOptions()
 
-      ReadFromBigQuery.get_destination_uri(
+      bigquery_export_destination_uri(
           options.gcs_location, None, uuid.uuid4().hex)
 
   def test_get_destination_uri_none(self):
     with self.assertRaisesRegex(ValueError,
                                 '^ReadFromBigQuery requires a GCS '
                                 'location to be provided'):
-      ReadFromBigQuery.get_destination_uri(None, None, uuid.uuid4().hex)
+      bigquery_export_destination_uri(None, None, uuid.uuid4().hex)
 
   def test_get_destination_uri_runtime_vp(self):
     # Provide values at job-execution time.
@@ -409,14 +422,13 @@ class TestReadFromBigQuery(unittest.TestCase):
     options = self.UserDefinedOptions()
     unique_id = uuid.uuid4().hex
 
-    uri = ReadFromBigQuery.get_destination_uri(
-        options.gcs_location, None, unique_id)
+    uri = bigquery_export_destination_uri(options.gcs_location, None, unique_id)
     self.assertEqual(
         uri, 'gs://bucket/' + unique_id + '/bigquery-table-dump-*.json')
 
   def test_get_destination_uri_static_vp(self):
     unique_id = uuid.uuid4().hex
-    uri = ReadFromBigQuery.get_destination_uri(
+    uri = bigquery_export_destination_uri(
         StaticValueProvider(str, 'gs://bucket'), None, unique_id)
     self.assertEqual(
         uri, 'gs://bucket/' + unique_id + '/bigquery-table-dump-*.json')
@@ -426,16 +438,60 @@ class TestReadFromBigQuery(unittest.TestCase):
     RuntimeValueProvider.set_runtime_options({})
     options = self.UserDefinedOptions()
 
-    with self.assertLogs('apache_beam.io.gcp.bigquery',
+    with self.assertLogs('apache_beam.io.gcp.bigquery_read_internal',
                          level='DEBUG') as context:
-      ReadFromBigQuery.get_destination_uri(
+      bigquery_export_destination_uri(
           options.gcs_location, 'gs://bucket', uuid.uuid4().hex)
     self.assertEqual(
         context.output,
         [
-            'DEBUG:apache_beam.io.gcp.bigquery:gcs_location is empty, '
-            'using temp_location instead'
+            'DEBUG:apache_beam.io.gcp.bigquery_read_internal:gcs_location is '
+            'empty, using temp_location instead'
         ])
+
+  @mock.patch.object(BigQueryWrapper, '_delete_dataset')
+  @mock.patch('apache_beam.io.gcp.internal.clients.bigquery.BigqueryV2')
+  def test_temp_dataset_location_is_configurable(self, api, delete_dataset):
+    temp_dataset = bigquery.DatasetReference(
+        projectId='temp-project', datasetId='bq_dataset')
+    bq = BigQueryWrapper(client=api, temp_dataset_id=temp_dataset.datasetId)
+    gcs_location = 'gs://gcs_location'
+
+    # bq.get_or_create_dataset.return_value = temp_dataset
+    c = beam.io.gcp.bigquery._CustomBigQuerySource(
+        query='select * from test_table',
+        gcs_location=gcs_location,
+        validate=True,
+        pipeline_options=beam.options.pipeline_options.PipelineOptions(),
+        job_name='job_name',
+        step_name='step_name',
+        project='execution_project',
+        **{'temp_dataset': temp_dataset})
+
+    api.datasets.Get.side_effect = HttpError({
+        'status_code': 404, 'status': 404
+    },
+                                             '',
+                                             '')
+
+    c._setup_temporary_dataset(bq)
+    api.datasets.Insert.assert_called_with(
+        bigquery.BigqueryDatasetsInsertRequest(
+            dataset=bigquery.Dataset(datasetReference=temp_dataset),
+            projectId=temp_dataset.projectId))
+
+    api.datasets.Get.return_value = temp_dataset
+    api.datasets.Get.side_effect = None
+    bq.clean_up_temporary_dataset(temp_dataset.projectId)
+    delete_dataset.assert_called_with(
+        temp_dataset.projectId, temp_dataset.datasetId, True)
+
+    self.assertEqual(
+        bq._get_temp_table(temp_dataset.projectId),
+        bigquery.TableReference(
+            projectId=temp_dataset.projectId,
+            datasetId=temp_dataset.datasetId,
+            tableId=BigQueryWrapper.TEMP_TABLE + bq._temporary_table_suffix))
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
@@ -889,7 +945,6 @@ class PipelineBasedStreamingInsertTest(_TestCaseWithTempDirCleanUp):
               None,
               None, [],
               ignore_insert_ids=False,
-              latency_logging_frequency_sec=None,
               test_client=client))
 
     with open(file_name_1) as f1, open(file_name_2) as f2:
@@ -1190,8 +1245,6 @@ class PubSubBigQueryIT(unittest.TestCase):
 
   @attr('IT')
   def test_file_loads(self):
-    if isinstance(self.test_pipeline.runner, TestDataflowRunner):
-      self.skipTest('https://issuetracker.google.com/issues/118375066')
     self._run_pubsub_bq_pipeline(
         WriteToBigQuery.Method.FILE_LOADS, triggering_frequency=20)
 

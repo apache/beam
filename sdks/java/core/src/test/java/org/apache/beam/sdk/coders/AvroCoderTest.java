@@ -17,10 +17,10 @@
  */
 package org.apache.beam.sdk.coders;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 import com.esotericsoftware.kryo.Kryo;
@@ -85,6 +85,9 @@ import org.objenesis.strategy.StdInstantiatorStrategy;
 
 /** Tests for {@link AvroCoder}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class AvroCoderTest {
 
   public static final DateTime DATETIME_A =

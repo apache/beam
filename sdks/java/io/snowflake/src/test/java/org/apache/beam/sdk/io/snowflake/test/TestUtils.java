@@ -26,7 +26,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -48,6 +48,10 @@ import org.apache.beam.sdk.values.KV;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class TestUtils {
 
   private static final Logger LOG = LoggerFactory.getLogger(TestUtils.class);
@@ -148,7 +152,7 @@ public class TestUtils {
     List<String> lines = new ArrayList<>();
     try {
       GZIPInputStream gzip = new GZIPInputStream(new FileInputStream(file));
-      BufferedReader br = new BufferedReader(new InputStreamReader(gzip, Charset.defaultCharset()));
+      BufferedReader br = new BufferedReader(new InputStreamReader(gzip, StandardCharsets.UTF_8));
 
       String line;
       while ((line = br.readLine()) != null) {
@@ -171,7 +175,7 @@ public class TestUtils {
 
   public static String getRawValidPrivateKey(Class c) throws IOException {
     byte[] keyBytes = Files.readAllBytes(Paths.get(getValidPrivateKeyPath(c)));
-    return new String(keyBytes, Charset.defaultCharset());
+    return new String(keyBytes, StandardCharsets.UTF_8);
   }
 
   public static String getPrivateKeyPassphrase() {

@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.core.construction;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -85,6 +85,9 @@ import org.junit.runners.JUnit4;
  * details.
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ValidateRunnerXlangTest implements Serializable {
   @Rule public transient TestPipeline testPipeline = TestPipeline.create();
   private PipelineResult pipelineResult;

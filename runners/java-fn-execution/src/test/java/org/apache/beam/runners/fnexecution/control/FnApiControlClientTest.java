@@ -17,10 +17,10 @@
  */
 package org.apache.beam.runners.fnexecution.control;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.isA;
-import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.verify;
 
@@ -46,6 +46,9 @@ import org.mockito.MockitoAnnotations;
 
 /** Unit tests for {@link FnApiControlClient}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class FnApiControlClientTest {
 
   @Rule public ExpectedException thrown = ExpectedException.none();

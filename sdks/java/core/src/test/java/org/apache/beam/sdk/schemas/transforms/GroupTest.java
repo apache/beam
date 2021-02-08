@@ -20,8 +20,8 @@ package org.apache.beam.sdk.schemas.transforms;
 import static junit.framework.TestCase.assertEquals;
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import com.google.auto.value.AutoValue;
@@ -68,6 +68,10 @@ import org.junit.runners.JUnit4;
 /** Test for {@link Group}. */
 @RunWith(JUnit4.class)
 @Category(UsesSchema.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class GroupTest implements Serializable {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 

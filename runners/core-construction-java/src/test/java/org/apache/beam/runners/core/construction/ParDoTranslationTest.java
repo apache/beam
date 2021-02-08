@@ -17,11 +17,11 @@
  */
 package org.apache.beam.runners.core.construction;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.util.HashMap;
@@ -62,7 +62,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.PValues;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -78,6 +78,9 @@ import org.junit.runners.Parameterized.Parameters;
 
 /** Tests for {@link ParDoTranslation}. */
 @RunWith(Enclosed.class)
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class ParDoTranslationTest {
 
   /** Tests for translating various {@link ParDo} transforms to/from {@link ParDoPayload} protos. */
@@ -150,9 +153,9 @@ public class ParDoTranslationTest {
 
     @Test
     public void toTransformProto() throws Exception {
-      Map<TupleTag<?>, PValue> inputs = new HashMap<>();
+      Map<TupleTag<?>, PCollection<?>> inputs = new HashMap<>();
       inputs.put(new TupleTag<KV<Long, String>>("mainInputName") {}, mainInput);
-      inputs.putAll(parDo.getAdditionalInputs());
+      inputs.putAll(PValues.fullyExpand(parDo.getAdditionalInputs()));
       PCollectionTuple output = mainInput.apply(parDo);
 
       SdkComponents sdkComponents = SdkComponents.create();
@@ -162,7 +165,7 @@ public class ParDoTranslationTest {
       RunnerApi.PTransform protoTransform =
           PTransformTranslation.toProto(
               AppliedPTransform.<PCollection<KV<Long, String>>, PCollection<Void>, MultiOutput>of(
-                  "foo", inputs, output.expand(), parDo, p),
+                  "foo", inputs, PValues.expandOutput(output), parDo, p),
               sdkComponents);
       RunnerApi.Components components = sdkComponents.toComponents();
       RehydratedComponents rehydratedComponents = RehydratedComponents.forComponents(components);

@@ -120,6 +120,9 @@ import org.slf4j.LoggerFactory;
  * @param <OutputT> the type of values written to the sink.
  */
 @Experimental(Kind.FILESYSTEM)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public abstract class FileBasedSink<UserT, DestinationT, OutputT>
     implements Serializable, HasDisplayData {
   private static final Logger LOG = LoggerFactory.getLogger(FileBasedSink.class);
@@ -147,7 +150,10 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
     LZOP(Compression.LZOP),
 
     /** @see Compression#DEFLATE */
-    DEFLATE(Compression.DEFLATE);
+    DEFLATE(Compression.DEFLATE),
+
+    /** @see Compression#SNAPPY */
+    SNAPPY(Compression.SNAPPY);
 
     private final Compression canonical;
 
@@ -198,6 +204,9 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
 
         case DEFLATE:
           return DEFLATE;
+
+        case SNAPPY:
+          return SNAPPY;
 
         default:
           throw new UnsupportedOperationException("Unsupported compression type: " + canonical);

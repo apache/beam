@@ -17,12 +17,12 @@
  */
 package org.apache.beam.sdk.io.jdbc;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -94,6 +94,9 @@ import org.slf4j.LoggerFactory;
 
 /** Test on the JdbcIO. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class JdbcIOTest implements Serializable {
   private static final Logger LOG = LoggerFactory.getLogger(JdbcIOTest.class);
   private static final DataSourceConfiguration DATA_SOURCE_CONFIGURATION =

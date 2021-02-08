@@ -27,6 +27,8 @@ description = "Apache Beam :: SDKs :: Go :: Container"
 // "./github.com/apache/beam/sdks/go"
 resolveBuildDependencies.dependsOn ":sdks:go:goBuild"
 
+clean.dependsOn cleanVendor
+
 dependencies {
   golang {
     // TODO(herohde): use "./" prefix to prevent gogradle use base github path, for now.
@@ -51,6 +53,8 @@ docker {
           root: project.rootProject.hasProperty(["docker-repository-root"]) ?
                   project.rootProject["docker-repository-root"] :
                   project.docker_image_default_repo_root)
+  // tags used by dockerTag task
+  tags containerImageTags()
   files "./build/"
   buildArgs(['pull_licenses': project.rootProject.hasProperty(["docker-pull-licenses"]) ||
                      project.rootProject.hasProperty(["isRelease"])])

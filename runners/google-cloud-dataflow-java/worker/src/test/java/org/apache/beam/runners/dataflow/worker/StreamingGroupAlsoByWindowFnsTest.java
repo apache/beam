@@ -18,11 +18,11 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.sdk.TestUtils.KvMatcher.isKv;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.when;
 
 import java.io.IOException;
@@ -87,6 +87,9 @@ import org.mockito.MockitoAnnotations;
 
 /** Unit tests for {@link StreamingGroupAlsoByWindowsDoFns}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class StreamingGroupAlsoByWindowFnsTest {
   private static final String KEY = "k";
   private static final String STATE_FAMILY = "stateFamily";

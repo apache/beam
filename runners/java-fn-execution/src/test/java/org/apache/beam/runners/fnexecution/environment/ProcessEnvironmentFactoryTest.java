@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.fnexecution.environment;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Matchers.anyList;
 import static org.mockito.Matchers.anyMap;
@@ -49,6 +49,9 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link ProcessEnvironmentFactory}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ProcessEnvironmentFactoryTest {
 
   private static final ApiServiceDescriptor SERVICE_DESCRIPTOR =

@@ -28,6 +28,7 @@ apply plugin: 'application'
 mainClassName = "org.apache.beam.runners.spark.SparkJobServerDriver"
 
 applyJavaNature(
+  enableStrictDependencies: true,
   automaticModuleName: 'org.apache.beam.runners.spark.jobserver',
   validateShadowJar: false,
   exportJavadoc: false,
@@ -50,13 +51,14 @@ configurations.all {
 
 dependencies {
   compile project(sparkRunnerProject)
+  permitUnusedDeclared project(sparkRunnerProject)
   compile project(path: sparkRunnerProject, configuration: "provided")
   validatesPortableRunner project(path: sparkRunnerProject, configuration: "testRuntime")
   validatesPortableRunner project(path: sparkRunnerProject, configuration: "provided")
   validatesPortableRunner project(path: ":sdks:java:core", configuration: "shadowTest")
   validatesPortableRunner project(path: ":runners:core-java", configuration: "testRuntime")
   validatesPortableRunner project(path: ":runners:portability:java", configuration: "testRuntime")
-  compile project(":sdks:java:extensions:google-cloud-platform-core")
+  runtime project(":sdks:java:extensions:google-cloud-platform-core")
 //  TODO: Enable AWS and HDFS file system.
 }
 
@@ -221,39 +223,18 @@ def cleanupTask = project.tasks.create(name: "sparkJobServerCleanup", type: Exec
 createCrossLanguageValidatesRunnerTask(
   startJobServer: setupTask,
   cleanupJobServer: cleanupTask,
-  jobEndpoint: "localhost:${jobPort}",
   classpath: configurations.validatesPortableRunner,
-  numParallelTests: 1
+  numParallelTests: 1,
+  pythonPipelineOptions: [
+    "--runner=PortableRunner",
+    "--job_endpoint=localhost:${jobPort}",
+    "--environment_cache_millis=10000",
+    "--experiments=beam_fn_api",
+  ],
+  javaPipelineOptions: [
+    "--runner=PortableRunner",
+    "--jobEndpoint=localhost:${jobPort}",
+    "--environmentCacheMillis=10000",
+    "--experiments=beam_fn_api",
+  ]
 )
-
-def addTestJavaJarCreator(String pyVersion) {
-  def pyBuildPath = pyVersion.startsWith("2") ? "2" : pyVersion.replaceAll("\\.", "")
-  project.tasks.create(name: "testJavaJarCreatorPy${pyBuildPath}") {
-    dependsOn shadowJar
-    dependsOn ":sdks:python:container:py${pyBuildPath}:docker"
-    doLast{
-      exec {
-        executable "sh"
-        def options = [
-                "--runner SparkRunner",
-                "--job_server_jar ${shadowJar.archivePath}",
-                "--env_dir ${project.rootProject.buildDir}/gradleenv/${project.path.hashCode()}",
-                "--python_root_dir ${project.rootDir}/sdks/python",
-                "--python_version ${pyVersion}",
-                "--python_container_image ${project.docker_image_default_repo_root}/"
-                        + "${project.docker_image_default_repo_prefix}"
-                        + "python${pyVersion}_sdk:${project.sdk_version}",
-        ]
-        args "-c", "../../portability/test_pipeline_jar.sh ${options.join(' ')}"
-      }
-    }
-  }
-}
-
-["2.7", "3.5", "3.6", "3.7"].each { pyVersion ->
-  addTestJavaJarCreator(pyVersion)
-}
-
-task testPipelineJar() {
-  dependsOn testJavaJarCreatorPy37
-}

@@ -25,6 +25,9 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 
 /** Collections of {@code PTransform} and {@code DoFn} used to perform Set operations. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public abstract class BeamSetOperatorsTransforms {
   /** Transform a {@code BeamSqlRow} to a {@code KV<BeamSqlRow, BeamSqlRow>}. */
   public static class BeamSqlRow2KvFn extends SimpleFunction<Row, KV<Row, Row>> {

@@ -18,11 +18,11 @@
 package org.apache.beam.fn.harness;
 
 import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.core.IsEqual.equalTo;
-import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.mock;
 
 import java.util.ArrayDeque;
@@ -56,6 +56,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link CombineRunners}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class CombineRunnersTest {
   // CombineFn that converts strings to ints and sums them up to an accumulator, and negates the
   // value of the accumulator when extracting outputs. These operations are chosen to avoid

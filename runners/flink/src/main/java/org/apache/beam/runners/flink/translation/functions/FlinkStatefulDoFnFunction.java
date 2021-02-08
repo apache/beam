@@ -59,6 +59,10 @@ import org.apache.flink.util.Collector;
 import org.joda.time.Instant;
 
 /** A {@link RichGroupReduceFunction} for stateful {@link ParDo} in Flink Batch Runner. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class FlinkStatefulDoFnFunction<K, V, OutputT>
     extends RichGroupReduceFunction<WindowedValue<KV<K, V>>, WindowedValue<RawUnionValue>> {
 

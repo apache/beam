@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.extensions.sql;
 
 import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTimestampWithUTCTimeZone;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 import com.google.auto.value.AutoValue;
@@ -61,6 +61,9 @@ import org.junit.rules.ExpectedException;
  * DSL compliance tests for the row-level operators of {@link
  * org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.fun.SqlStdOperatorTable}.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegrationTestBase {
   private static final BigDecimal ZERO = BigDecimal.valueOf(0.0);
   private static final BigDecimal ONE = BigDecimal.valueOf(1.0);

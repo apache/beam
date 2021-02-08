@@ -20,9 +20,9 @@ package org.apache.beam.sdk.metrics;
 import static org.apache.beam.sdk.metrics.MetricResultsMatchers.attemptedMetricsResult;
 import static org.apache.beam.sdk.metrics.MetricResultsMatchers.distributionMinMax;
 import static org.apache.beam.sdk.metrics.MetricResultsMatchers.metricsResult;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -54,6 +54,9 @@ import org.junit.runners.JUnit4;
 import org.mockito.Mockito;
 
 /** Tests for {@link Metrics}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class MetricsTest implements Serializable {
 
   private static final String NS = "test";

@@ -20,6 +20,7 @@ package org.apache.beam.sdk.nexmark;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.joda.JodaModule;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -87,11 +88,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Odd's 'n Ends used throughout queries and driver. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class NexmarkUtils {
   private static final Logger LOG = LoggerFactory.getLogger(NexmarkUtils.class);
 
   /** Mapper for (de)serializing JSON. */
-  public static final ObjectMapper MAPPER = new ObjectMapper();
+  public static final ObjectMapper MAPPER = new ObjectMapper().registerModule(new JodaModule());
 
   /** Possible sources for events. */
   public enum SourceType {

@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.BooleanCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -66,7 +64,6 @@ import org.joda.time.Duration;
  *     words.apply(Deduplicate.<String>values());
  * }</pre>
  */
-@Experimental(Kind.SPLITTABLE_DO_FN)
 public final class Deduplicate {
   /** The default is the {@link TimeDomain#PROCESSING_TIME processing time domain}. */
   public static final TimeDomain DEFAULT_TIME_DOMAIN = TimeDomain.PROCESSING_TIME;

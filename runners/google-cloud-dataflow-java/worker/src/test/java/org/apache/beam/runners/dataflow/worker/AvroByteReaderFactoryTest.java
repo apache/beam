@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.runners.dataflow.util.Structs.addLong;
 import static org.apache.beam.runners.dataflow.util.Structs.addString;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 import com.google.api.services.dataflow.model.Source;
 import org.apache.beam.runners.dataflow.util.CloudObject;
@@ -38,7 +39,10 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link AvroByteReaderFactory}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("rawtypes")
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class AvroByteReaderFactoryTest {
   private final String pathToAvroFile = "/path/to/file.avro";
 
@@ -76,7 +80,7 @@ public class AvroByteReaderFactoryTest {
         runTestCreateAvroReader(
             pathToAvroFile, null, null, CloudObjects.asCloudObject(coder, /*sdkComponents=*/ null));
 
-    Assert.assertThat(reader, new IsInstanceOf(AvroByteReader.class));
+    assertThat(reader, new IsInstanceOf(AvroByteReader.class));
     AvroByteReader avroReader = (AvroByteReader) reader;
     Assert.assertEquals(pathToAvroFile, avroReader.avroSource.getFileOrPatternSpec());
     Assert.assertEquals(0L, avroReader.startPosition);
@@ -92,7 +96,7 @@ public class AvroByteReaderFactoryTest {
         runTestCreateAvroReader(
             pathToAvroFile, 200L, 500L, CloudObjects.asCloudObject(coder, /*sdkComponents=*/ null));
 
-    Assert.assertThat(reader, new IsInstanceOf(AvroByteReader.class));
+    assertThat(reader, new IsInstanceOf(AvroByteReader.class));
     AvroByteReader avroReader = (AvroByteReader) reader;
     Assert.assertEquals(pathToAvroFile, avroReader.avroSource.getFileOrPatternSpec());
     Assert.assertEquals(200L, avroReader.startPosition);

@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.extensions.protobuf;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import com.google.protobuf.ByteString;
@@ -41,6 +41,9 @@ import org.junit.runners.JUnit4;
 
 /** Test case for {@link ByteStringCoder}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ByteStringCoderTest {
 
   private static final ByteStringCoder TEST_CODER = ByteStringCoder.of();

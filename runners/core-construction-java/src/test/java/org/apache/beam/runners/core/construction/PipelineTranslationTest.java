@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.core.construction;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
-import static org.junit.Assert.assertThat;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -70,6 +70,10 @@ import org.junit.runners.Parameterized.Parameters;
 
 /** Tests for {@link PipelineTranslation}. */
 @RunWith(Parameterized.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class PipelineTranslationTest {
   @Parameter(0)
   public Pipeline pipeline;

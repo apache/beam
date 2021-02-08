@@ -19,13 +19,13 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.toTableRow;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.toTableSchema;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.collection.IsMapContaining.hasEntry;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertThrows;
 
 import com.google.api.services.bigquery.model.TableFieldSchema;
@@ -36,18 +36,24 @@ import java.math.RoundingMode;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
+import org.apache.avro.Conversions;
+import org.apache.avro.LogicalTypes;
 import org.apache.avro.generic.GenericData;
+import org.apache.avro.util.Utf8;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.ConversionOptions.TruncateTimestamps;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
 import org.joda.time.chrono.ISOChronology;
@@ -58,6 +64,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link BigQueryUtils}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BigQueryUtilsTest {
   private static final Schema FLAT_TYPE =
       Schema.builder()
@@ -68,10 +77,25 @@ public class BigQueryUtilsTest {
           .addNullableField("timestamp_variant2", Schema.FieldType.DATETIME)
           .addNullableField("timestamp_variant3", Schema.FieldType.DATETIME)
           .addNullableField("timestamp_variant4", Schema.FieldType.DATETIME)
+          .addNullableField("datetime", Schema.FieldType.logicalType(SqlTypes.DATETIME))
+          .addNullableField("date", Schema.FieldType.logicalType(SqlTypes.DATE))
+          .addNullableField("time", Schema.FieldType.logicalType(SqlTypes.TIME))
           .addNullableField("valid", Schema.FieldType.BOOLEAN)
           .addNullableField("binary", Schema.FieldType.BYTES)
           .addNullableField("numeric", Schema.FieldType.DECIMAL)
           .build();
+
+  private static final Schema ENUM_TYPE =
+      Schema.builder()
+          .addNullableField(
+              "color", Schema.FieldType.logicalType(EnumerationType.create("RED", "GREEN", "BLUE")))
+          .build();
+
+  private static final Schema ENUM_STRING_TYPE =
+      Schema.builder().addNullableField("color", Schema.FieldType.STRING).build();
+
+  private static final Schema MAP_TYPE =
+      Schema.builder().addStringField("key").addDoubleField("value").build();
 
   private static final Schema ARRAY_TYPE =
       Schema.builder().addArrayField("ids", Schema.FieldType.INT64).build();
@@ -81,6 +105,12 @@ public class BigQueryUtilsTest {
 
   private static final Schema ARRAY_ROW_TYPE =
       Schema.builder().addArrayField("rows", Schema.FieldType.row(FLAT_TYPE)).build();
+
+  private static final Schema MAP_ARRAY_TYPE =
+      Schema.builder().addArrayField("map", Schema.FieldType.row(MAP_TYPE)).build();
+
+  private static final Schema MAP_MAP_TYPE =
+      Schema.builder().addMapField("map", Schema.FieldType.STRING, Schema.FieldType.DOUBLE).build();
 
   private static final TableFieldSchema ID =
       new TableFieldSchema().setName("id").setType(StandardSQLTypeName.INT64.toString());
@@ -108,6 +138,15 @@ public class BigQueryUtilsTest {
           .setName("timestamp_variant4")
           .setType(StandardSQLTypeName.TIMESTAMP.toString());
 
+  private static final TableFieldSchema DATETIME =
+      new TableFieldSchema().setName("datetime").setType(StandardSQLTypeName.DATETIME.toString());
+
+  private static final TableFieldSchema DATE =
+      new TableFieldSchema().setName("date").setType(StandardSQLTypeName.DATE.toString());
+
+  private static final TableFieldSchema TIME =
+      new TableFieldSchema().setName("time").setType(StandardSQLTypeName.TIME.toString());
+
   private static final TableFieldSchema VALID =
       new TableFieldSchema().setName("valid").setType(StandardSQLTypeName.BOOL.toString());
 
@@ -117,11 +156,26 @@ public class BigQueryUtilsTest {
   private static final TableFieldSchema NUMERIC =
       new TableFieldSchema().setName("numeric").setType(StandardSQLTypeName.NUMERIC.toString());
 
+  private static final TableFieldSchema COLOR =
+      new TableFieldSchema().setName("color").setType(StandardSQLTypeName.STRING.toString());
+
   private static final TableFieldSchema IDS =
       new TableFieldSchema()
           .setName("ids")
           .setType(StandardSQLTypeName.INT64.toString())
           .setMode(Mode.REPEATED.toString());
+
+  private static final TableFieldSchema MAP_KEY =
+      new TableFieldSchema()
+          .setName("key")
+          .setType(StandardSQLTypeName.STRING.toString())
+          .setMode(Mode.REQUIRED.toString());
+
+  private static final TableFieldSchema MAP_VALUE =
+      new TableFieldSchema()
+          .setName("value")
+          .setType(StandardSQLTypeName.FLOAT64.toString())
+          .setMode(Mode.REQUIRED.toString());
 
   private static final TableFieldSchema ROW =
       new TableFieldSchema()
@@ -137,6 +191,9 @@ public class BigQueryUtilsTest {
                   TIMESTAMP_VARIANT2,
                   TIMESTAMP_VARIANT3,
                   TIMESTAMP_VARIANT4,
+                  DATETIME,
+                  DATE,
+                  TIME,
                   VALID,
                   BINARY,
                   NUMERIC));
@@ -155,9 +212,19 @@ public class BigQueryUtilsTest {
                   TIMESTAMP_VARIANT2,
                   TIMESTAMP_VARIANT3,
                   TIMESTAMP_VARIANT4,
+                  DATETIME,
+                  DATE,
+                  TIME,
                   VALID,
                   BINARY,
                   NUMERIC));
+
+  private static final TableFieldSchema MAP =
+      new TableFieldSchema()
+          .setName("map")
+          .setType(StandardSQLTypeName.STRUCT.toString())
+          .setMode(Mode.REPEATED.toString())
+          .setFields(Arrays.asList(MAP_KEY, MAP_VALUE));
 
   // Make sure that chosen BYTES test value is the same after a full base64 round trip.
   private static final Row FLAT_ROW =
@@ -176,6 +243,9 @@ public class BigQueryUtilsTest {
                   .withZoneUTC()
                   .parseDateTime("2019-08-18T15:52:07.123"),
               new DateTime(123456),
+              LocalDateTime.parse("2020-11-02T12:34:56.789876"),
+              LocalDate.parse("2020-11-02"),
+              LocalTime.parse("12:34:56.789876"),
               false,
               Base64.getDecoder().decode("ABCD1234"),
               new BigDecimal(123.456).setScale(3, RoundingMode.HALF_UP))
@@ -194,13 +264,16 @@ public class BigQueryUtilsTest {
               "timestamp_variant4",
               String.valueOf(
                   new DateTime(123456L, ISOChronology.getInstanceUTC()).getMillis() / 1000.0D))
+          .set("datetime", "2020-11-02 12:34:56.789876")
+          .set("date", "2020-11-02")
+          .set("time", "12:34:56.789876")
           .set("valid", "false")
           .set("binary", "ABCD1234")
           .set("numeric", "123.456");
 
   private static final Row NULL_FLAT_ROW =
       Row.withSchema(FLAT_TYPE)
-          .addValues(null, null, null, null, null, null, null, null, null, null)
+          .addValues(null, null, null, null, null, null, null, null, null, null, null, null, null)
           .build();
 
   private static final TableRow BQ_NULL_FLAT_ROW =
@@ -212,12 +285,26 @@ public class BigQueryUtilsTest {
           .set("timestamp_variant2", null)
           .set("timestamp_variant3", null)
           .set("timestamp_variant4", null)
+          .set("datetime", null)
+          .set("date", null)
+          .set("time", null)
           .set("valid", null)
           .set("binary", null)
           .set("numeric", null);
 
+  private static final Row ENUM_ROW =
+      Row.withSchema(ENUM_TYPE).addValues(new EnumerationType.Value(1)).build();
+
+  private static final Row ENUM_STRING_ROW =
+      Row.withSchema(ENUM_STRING_TYPE).addValues("GREEN").build();
+
+  private static final TableRow BQ_ENUM_ROW = new TableRow().set("color", "GREEN");
+
   private static final Row ARRAY_ROW =
       Row.withSchema(ARRAY_TYPE).addValues((Object) Arrays.asList(123L, 124L)).build();
+
+  private static final Row MAP_ROW =
+      Row.withSchema(MAP_MAP_TYPE).addValues(ImmutableMap.of("test", 123.456)).build();
 
   private static final TableRow BQ_ARRAY_ROW =
       new TableRow()
@@ -248,9 +335,14 @@ public class BigQueryUtilsTest {
                   TIMESTAMP_VARIANT2,
                   TIMESTAMP_VARIANT3,
                   TIMESTAMP_VARIANT4,
+                  DATETIME,
+                  DATE,
+                  TIME,
                   VALID,
                   BINARY,
                   NUMERIC));
+
+  private static final TableSchema BQ_ENUM_TYPE = new TableSchema().setFields(Arrays.asList(COLOR));
 
   private static final TableSchema BQ_ARRAY_TYPE = new TableSchema().setFields(Arrays.asList(IDS));
 
@@ -258,6 +350,8 @@ public class BigQueryUtilsTest {
 
   private static final TableSchema BQ_ARRAY_ROW_TYPE =
       new TableSchema().setFields(Arrays.asList(ROWS));
+
+  private static final TableSchema BQ_MAP_TYPE = new TableSchema().setFields(Arrays.asList(MAP));
 
   private static final Schema AVRO_FLAT_TYPE =
       Schema.builder()
@@ -287,9 +381,19 @@ public class BigQueryUtilsTest {
             TIMESTAMP_VARIANT2,
             TIMESTAMP_VARIANT3,
             TIMESTAMP_VARIANT4,
+            DATETIME,
+            DATE,
+            TIME,
             VALID,
             BINARY,
             NUMERIC));
+  }
+
+  @Test
+  public void testToTableSchema_enum() {
+    TableSchema schema = toTableSchema(ENUM_TYPE);
+
+    assertThat(schema.getFields(), containsInAnyOrder(COLOR));
   }
 
   @Test
@@ -318,6 +422,9 @@ public class BigQueryUtilsTest {
             TIMESTAMP_VARIANT2,
             TIMESTAMP_VARIANT3,
             TIMESTAMP_VARIANT4,
+            DATETIME,
+            DATE,
+            TIME,
             VALID,
             BINARY,
             NUMERIC));
@@ -342,9 +449,24 @@ public class BigQueryUtilsTest {
             TIMESTAMP_VARIANT2,
             TIMESTAMP_VARIANT3,
             TIMESTAMP_VARIANT4,
+            DATETIME,
+            DATE,
+            TIME,
             VALID,
             BINARY,
             NUMERIC));
+  }
+
+  @Test
+  public void testToTableSchema_map() {
+    TableSchema schema = toTableSchema(MAP_MAP_TYPE);
+
+    assertThat(schema.getFields().size(), equalTo(1));
+    TableFieldSchema field = schema.getFields().get(0);
+    assertThat(field.getName(), equalTo("map"));
+    assertThat(field.getType(), equalTo(StandardSQLTypeName.STRUCT.toString()));
+    assertThat(field.getMode(), equalTo(Mode.REPEATED.toString()));
+    assertThat(field.getFields(), containsInAnyOrder(MAP_KEY, MAP_VALUE));
   }
 
   @Test
@@ -352,12 +474,24 @@ public class BigQueryUtilsTest {
     TableRow row = toTableRow().apply(FLAT_ROW);
     System.out.println(row);
 
-    assertThat(row.size(), equalTo(10));
+    assertThat(row.size(), equalTo(13));
     assertThat(row, hasEntry("id", "123"));
     assertThat(row, hasEntry("value", "123.456"));
+    assertThat(row, hasEntry("datetime", "2020-11-02 12:34:56.789876"));
+    assertThat(row, hasEntry("date", "2020-11-02"));
+    assertThat(row, hasEntry("time", "12:34:56.789876"));
     assertThat(row, hasEntry("name", "test"));
     assertThat(row, hasEntry("valid", "false"));
     assertThat(row, hasEntry("binary", "ABCD1234"));
+    assertThat(row, hasEntry("numeric", "123.456"));
+  }
+
+  @Test
+  public void testToTableRow_enum() {
+    TableRow row = toTableRow().apply(ENUM_ROW);
+
+    assertThat(row.size(), equalTo(1));
+    assertThat(row, hasEntry("color", "GREEN"));
   }
 
   @Test
@@ -369,17 +503,28 @@ public class BigQueryUtilsTest {
   }
 
   @Test
+  public void testToTableRow_map() {
+    TableRow row = toTableRow().apply(MAP_ROW);
+
+    assertThat(row.size(), equalTo(1));
+    row = ((List<TableRow>) row.get("map")).get(0);
+    assertThat(row.size(), equalTo(2));
+    assertThat(row, hasEntry("key", "test"));
+    assertThat(row, hasEntry("value", "123.456"));
+  }
+
+  @Test
   public void testToTableRow_row() {
     TableRow row = toTableRow().apply(ROW_ROW);
 
     assertThat(row.size(), equalTo(1));
     row = (TableRow) row.get("row");
-    assertThat(row.size(), equalTo(10));
+    assertThat(row.size(), equalTo(13));
     assertThat(row, hasEntry("id", "123"));
     assertThat(row, hasEntry("value", "123.456"));
-    assertThat(row, hasEntry("value", "123.456"));
-    assertThat(row, hasEntry("value", "123.456"));
-    assertThat(row, hasEntry("value", "123.456"));
+    assertThat(row, hasEntry("datetime", "2020-11-02 12:34:56.789876"));
+    assertThat(row, hasEntry("date", "2020-11-02"));
+    assertThat(row, hasEntry("time", "12:34:56.789876"));
     assertThat(row, hasEntry("name", "test"));
     assertThat(row, hasEntry("valid", "false"));
     assertThat(row, hasEntry("binary", "ABCD1234"));
@@ -392,19 +537,23 @@ public class BigQueryUtilsTest {
 
     assertThat(row.size(), equalTo(1));
     row = ((List<TableRow>) row.get("rows")).get(0);
-    assertThat(row.size(), equalTo(10));
+    assertThat(row.size(), equalTo(13));
     assertThat(row, hasEntry("id", "123"));
     assertThat(row, hasEntry("value", "123.456"));
+    assertThat(row, hasEntry("datetime", "2020-11-02 12:34:56.789876"));
+    assertThat(row, hasEntry("date", "2020-11-02"));
+    assertThat(row, hasEntry("time", "12:34:56.789876"));
     assertThat(row, hasEntry("name", "test"));
     assertThat(row, hasEntry("valid", "false"));
     assertThat(row, hasEntry("binary", "ABCD1234"));
+    assertThat(row, hasEntry("numeric", "123.456"));
   }
 
   @Test
   public void testToTableRow_null_row() {
     TableRow row = toTableRow().apply(NULL_FLAT_ROW);
 
-    assertThat(row.size(), equalTo(10));
+    assertThat(row.size(), equalTo(13));
     assertThat(row, hasEntry("id", null));
     assertThat(row, hasEntry("value", null));
     assertThat(row, hasEntry("name", null));
@@ -412,6 +561,9 @@ public class BigQueryUtilsTest {
     assertThat(row, hasEntry("timestamp_variant2", null));
     assertThat(row, hasEntry("timestamp_variant3", null));
     assertThat(row, hasEntry("timestamp_variant4", null));
+    assertThat(row, hasEntry("datetime", null));
+    assertThat(row, hasEntry("date", null));
+    assertThat(row, hasEntry("time", null));
     assertThat(row, hasEntry("valid", null));
     assertThat(row, hasEntry("binary", null));
     assertThat(row, hasEntry("numeric", null));
@@ -426,6 +578,9 @@ public class BigQueryUtilsTest {
       BigQueryUtils.ConversionOptions.builder()
           .setTruncateTimestamps(TruncateTimestamps.REJECT)
           .build();
+
+  private static final BigQueryUtils.SchemaConversionOptions INFER_MAPS_OPTIONS =
+      BigQueryUtils.SchemaConversionOptions.builder().setInferMaps(true).build();
 
   @Test
   public void testSubMilliPrecisionRejected() {
@@ -470,6 +625,27 @@ public class BigQueryUtilsTest {
   }
 
   @Test
+  public void testMicroPrecisionDateTimeType() {
+    LocalDateTime dt = LocalDateTime.parse("2020-06-04T12:34:56.789876");
+    assertThat(
+        BigQueryUtils.convertAvroFormat(
+            FieldType.logicalType(SqlTypes.DATETIME), new Utf8(dt.toString()), REJECT_OPTIONS),
+        equalTo(dt));
+  }
+
+  @Test
+  public void testNumericType() {
+    // BigQuery NUMERIC type has precision 38 and scale 9
+    BigDecimal n = new BigDecimal("123456789.987654321").setScale(9);
+    assertThat(
+        BigQueryUtils.convertAvroFormat(
+            FieldType.DECIMAL,
+            new Conversions.DecimalConversion().toBytes(n, null, LogicalTypes.decimal(38, 9)),
+            REJECT_OPTIONS),
+        equalTo(n));
+  }
+
+  @Test
   public void testBytesType() {
     byte[] bytes = "hello".getBytes(StandardCharsets.UTF_8);
     assertThat(
@@ -481,6 +657,12 @@ public class BigQueryUtilsTest {
   public void testFromTableSchema_flat() {
     Schema beamSchema = BigQueryUtils.fromTableSchema(BQ_FLAT_TYPE);
     assertEquals(FLAT_TYPE, beamSchema);
+  }
+
+  @Test
+  public void testFromTableSchema_enum() {
+    Schema beamSchema = BigQueryUtils.fromTableSchema(BQ_ENUM_TYPE);
+    assertEquals(ENUM_STRING_TYPE, beamSchema);
   }
 
   @Test
@@ -502,6 +684,18 @@ public class BigQueryUtilsTest {
   }
 
   @Test
+  public void testFromTableSchema_map_array() {
+    Schema beamSchema = BigQueryUtils.fromTableSchema(BQ_MAP_TYPE);
+    assertEquals(MAP_ARRAY_TYPE, beamSchema);
+  }
+
+  @Test
+  public void testFromTableSchema_map_map() {
+    Schema beamSchema = BigQueryUtils.fromTableSchema(BQ_MAP_TYPE, INFER_MAPS_OPTIONS);
+    assertEquals(MAP_MAP_TYPE, beamSchema);
+  }
+
+  @Test
   public void testToBeamRow_flat() {
     Row beamRow = BigQueryUtils.toBeamRow(FLAT_TYPE, BQ_FLAT_ROW);
     assertEquals(FLAT_ROW, beamRow);
@@ -511,6 +705,12 @@ public class BigQueryUtilsTest {
   public void testToBeamRow_null() {
     Row beamRow = BigQueryUtils.toBeamRow(FLAT_TYPE, BQ_NULL_FLAT_ROW);
     assertEquals(NULL_FLAT_ROW, beamRow);
+  }
+
+  @Test
+  public void testToBeamRow_enum() {
+    Row beamRow = BigQueryUtils.toBeamRow(ENUM_STRING_TYPE, BQ_ENUM_ROW);
+    assertEquals(ENUM_STRING_ROW, beamRow);
   }
 
   @Test

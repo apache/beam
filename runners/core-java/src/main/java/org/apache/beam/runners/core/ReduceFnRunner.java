@@ -83,6 +83,11 @@ import org.joda.time.Instant;
  * @param <OutputT> The output type that will be produced for each key.
  * @param <W> The type of windows this operates on.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness",
+  "keyfor"
+}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
 
   /**
@@ -343,18 +348,18 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
 
     // All windows that are open before element processing may need to fire.
     Set<W> windowsToConsider = windowsThatAreOpen(windows);
+    // Prefetch state necessary to determine if the triggers should fire. This is done before
+    // user processing so it may fetch with user desired state.
+    for (W mergedWindow : windowsToConsider) {
+      triggerRunner.prefetchShouldFire(
+          mergedWindow, contextFactory.base(mergedWindow, StateStyle.DIRECT).state());
+    }
 
     // Process each element, using the updated activeWindows determined by mergeWindows.
     for (WindowedValue<InputT> value : values) {
       processElement(windowToMergeResult, value);
     }
 
-    // Now that we've processed the elements, see if any of the windows need to fire.
-    // Prefetch state necessary to determine if the triggers should fire.
-    for (W mergedWindow : windowsToConsider) {
-      triggerRunner.prefetchShouldFire(
-          mergedWindow, contextFactory.base(mergedWindow, StateStyle.DIRECT).state());
-    }
     // Filter to windows that are firing.
     Collection<W> windowsToFire = windowsThatShouldFire(windowsToConsider);
     // Prefetch windows that are firing.
@@ -693,9 +698,8 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       W window = windowNamespace.getWindow();
 
       WindowTracing.debug(
-          "{}: Received timer key:{}; window:{}; data:{} with "
+          "ReduceFnRunner: Received timer key:{}; window:{}; data:{} with "
               + "inputWatermark:{}; outputWatermark:{}",
-          ReduceFnRunner.class.getSimpleName(),
           key,
           window,
           timer,
@@ -751,8 +755,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
 
       if (windowActivation.isGarbageCollection) {
         WindowTracing.debug(
-            "{}: Cleaning up for key:{}; window:{} with inputWatermark:{}; outputWatermark:{}",
-            ReduceFnRunner.class.getSimpleName(),
+            "ReduceFnRunner: Cleaning up for key:{}; window:{} with inputWatermark:{}; outputWatermark:{}",
             key,
             directContext.window(),
             timerInternals.currentInputWatermarkTime(),
@@ -903,7 +906,6 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       ReduceFn<K, InputT, OutputT, W>.Context directContext,
       ReduceFn<K, InputT, OutputT, W>.Context renamedContext) {
     triggerRunner.prefetchShouldFire(directContext.window(), directContext.state());
-    triggerRunner.prefetchOnFire(directContext.window(), directContext.state());
     triggerRunner.prefetchIsClosed(directContext.state());
     prefetchOnTrigger(directContext, renamedContext);
   }

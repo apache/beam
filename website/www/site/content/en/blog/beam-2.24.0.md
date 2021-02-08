@@ -4,7 +4,7 @@ date:   2020-09-18 00:00:01 -0800
 categories:
   - blog
 authors:
-  - Daniel Oliveira
+  - danoliveira
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 We are happy to present the new 2.24.0 release of Apache Beam. This release includes both improvements and new functionality.
-See the [download page](/get-started/downloads/#2240-2020-09-18) for this release.
+See the [download page](/get-started/downloads/#2240-2020-09-18) for this release.<!--more-->
 For more information on changes in 2.24.0, check out the
 [detailed release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12347146).
 
@@ -55,6 +55,9 @@ For more information on changes in 2.24.0, check out the
   --temp_location, or pass method="STREAMING_INSERTS" to WriteToBigQuery ([BEAM-6928](https://issues.apache.org/jira/browse/BEAM-6928)).
 * Python SDK now understands `typing.FrozenSet` type hints, which are not interchangeable with `typing.Set`. You may need to update your pipelines if type checking fails. ([BEAM-10197](https://issues.apache.org/jira/browse/BEAM-10197))
 
+## Known Issues
+
+* Default compressor change breaks dataflow python streaming job update compatibility. Please use python SDK version <= 2.23.0 or > 2.25.0 if job update is critical.([BEAM-11113](https://issues.apache.org/jira/browse/BEAM-11113))
 
 ## List of Contributors
 

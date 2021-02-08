@@ -28,6 +28,7 @@ import unittest
 
 import hamcrest as hc
 import pandas
+import pytest
 from parameterized import param
 from parameterized import parameterized
 
@@ -62,6 +63,7 @@ except ImportError:
 
 
 @unittest.skipIf(pa is None, "PyArrow is not installed.")
+@pytest.mark.uses_pyarrow
 class TestParquet(unittest.TestCase):
   @classmethod
   def setUpClass(cls):
@@ -336,6 +338,10 @@ class TestParquet(unittest.TestCase):
       param(compression_type='zstd')
   ])
   def test_sink_transform_compressed(self, compression_type):
+    if compression_type == 'lz4' and int(pa.__version__.split('.')[0]) == 1:
+      return unittest.skip(
+          "Writing with LZ4 compression is not supported in "
+          "pyarrow 1.x")
     with TemporaryDirectory() as tmp_dirname:
       path = os.path.join(tmp_dirname + "tmp_filename")
       with TestPipeline() as p:

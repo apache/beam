@@ -54,6 +54,7 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
 from typing import Dict
+from typing import List
 from typing import Optional
 from typing import Sequence
 from typing import Tuple
@@ -72,6 +73,7 @@ from apache_beam.portability import python_urns
 from apache_beam.pvalue import DoOutputsTuple
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.display import HasDisplayData
+from apache_beam.transforms.sideinputs import SIDE_INPUT_PREFIX
 from apache_beam.typehints import native_type_compatibility
 from apache_beam.typehints import typehints
 from apache_beam.typehints.decorators import IOTypeHints
@@ -140,11 +142,13 @@ class _SetInputPValues(_PValueishTransform):
 # Caches to allow for materialization of values when executing a pipeline
 # in-process, in eager mode.  This cache allows the same _MaterializedResult
 # object to be accessed and used despite Runner API round-trip serialization.
-_pipeline_materialization_cache = {}
+_pipeline_materialization_cache = {
+}  # type: Dict[Tuple[int, int], Dict[int, _MaterializedResult]]
 _pipeline_materialization_lock = threading.Lock()
 
 
 def _allocate_materialized_pipeline(pipeline):
+  # type: (Pipeline) -> None
   pid = os.getpid()
   with _pipeline_materialization_lock:
     pipeline_id = id(pipeline)
@@ -152,6 +156,7 @@ def _allocate_materialized_pipeline(pipeline):
 
 
 def _allocate_materialized_result(pipeline):
+  # type: (Pipeline) -> _MaterializedResult
   pid = os.getpid()
   with _pipeline_materialization_lock:
     pipeline_id = id(pipeline)
@@ -166,6 +171,7 @@ def _allocate_materialized_result(pipeline):
 
 
 def _get_materialized_result(pipeline_id, result_id):
+  # type: (int, int) -> _MaterializedResult
   pid = os.getpid()
   with _pipeline_materialization_lock:
     if (pid, pipeline_id) not in _pipeline_materialization_cache:
@@ -176,6 +182,7 @@ def _get_materialized_result(pipeline_id, result_id):
 
 
 def _release_materialized_pipeline(pipeline):
+  # type: (Pipeline) -> None
   pid = os.getpid()
   with _pipeline_materialization_lock:
     pipeline_id = id(pipeline)
@@ -184,9 +191,10 @@ def _release_materialized_pipeline(pipeline):
 
 class _MaterializedResult(object):
   def __init__(self, pipeline_id, result_id):
+    # type: (int, int) -> None
     self._pipeline_id = pipeline_id
     self._result_id = result_id
-    self.elements = []
+    self.elements = []  # type: List[Any]
 
   def __reduce__(self):
     # When unpickled (during Runner API roundtrip serailization), get the
@@ -607,6 +615,35 @@ class PTransform(WithTypeHints, HasDisplayData):
     else:
       return input_dict
 
+  def _named_inputs(self, inputs, side_inputs):
+    # type: (Sequence[pvalue.PValue], Sequence[Any]) -> Dict[str, pvalue.PValue]
+
+    """Returns the dictionary of named inputs (including side inputs) as they
+    should be named in the beam proto.
+    """
+    # TODO(BEAM-1833): Push names up into the sdk construction.
+    main_inputs = {
+        str(ix): input
+        for (ix, input) in enumerate(inputs)
+        if isinstance(input, pvalue.PCollection)
+    }
+    named_side_inputs = {(SIDE_INPUT_PREFIX + '%s') % ix: si.pvalue
+                         for (ix, si) in enumerate(side_inputs)}
+    return dict(main_inputs, **named_side_inputs)
+
+  def _named_outputs(self, outputs):
+    # type: (Dict[object, pvalue.PCollection]) -> Dict[str, pvalue.PCollection]
+
+    """Returns the dictionary of named outputs as they should be named in the
+    beam proto.
+    """
+    # TODO(BEAM-1833): Push names up into the sdk construction.
+    return {
+        str(tag): output
+        for (tag, output) in outputs.items()
+        if isinstance(output, pvalue.PCollection)
+    }
+
   _known_urns = {}  # type: Dict[str, Tuple[Optional[type], ConstructorFn]]
 
   @classmethod
@@ -669,7 +706,8 @@ class PTransform(WithTypeHints, HasDisplayData):
   def to_runner_api(self, context, has_parts=False, **extra_kwargs):
     # type: (PipelineContext, bool, Any) -> beam_runner_api_pb2.FunctionSpec
     from apache_beam.portability.api import beam_runner_api_pb2
-    urn, typed_param = self.to_runner_api_parameter(context, **extra_kwargs)
+    # typing: only ParDo supports extra_kwargs
+    urn, typed_param = self.to_runner_api_parameter(context, **extra_kwargs)  # type: ignore[call-arg]
     if urn == python_urns.GENERIC_COMPOSITE_TRANSFORM and not has_parts:
       # TODO(BEAM-3812): Remove this fallback.
       urn, typed_param = self.to_runner_api_pickled(context)
@@ -689,18 +727,10 @@ class PTransform(WithTypeHints, HasDisplayData):
       return None
     parameter_type, constructor = cls._known_urns[proto.spec.urn]
 
-    try:
-      return constructor(
-          proto,
-          proto_utils.parse_Bytes(proto.spec.payload, parameter_type),
-          context)
-    except Exception:
-      if context.allow_proto_holders:
-        # For external transforms we cannot build a Python ParDo object so
-        # we build a holder transform instead.
-        from apache_beam.transforms.core import RunnerAPIPTransformHolder
-        return RunnerAPIPTransformHolder(proto.spec, context)
-      raise
+    return constructor(
+        proto,
+        proto_utils.parse_Bytes(proto.spec.payload, parameter_type),
+        context)
 
   def to_runner_api_parameter(
       self,

@@ -40,6 +40,9 @@ import org.slf4j.LoggerFactory;
  * An {@link UnboundedSource} to read from Kafka, used by {@link Read} transform in KafkaIO. See
  * {@link KafkaIO} for user visible documentation and example usage.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class KafkaUnboundedSource<K, V> extends UnboundedSource<KafkaRecord<K, V>, KafkaCheckpointMark> {
 
   /**
@@ -80,6 +83,10 @@ class KafkaUnboundedSource<K, V> extends UnboundedSource<KafkaRecord<K, V>, Kafk
         "Could not find any partitions. Please check Kafka configuration and topic names");
 
     int numSplits = Math.min(desiredNumSplits, partitions.size());
+    // XXX make all splits have the same # of partitions
+    while (partitions.size() % numSplits > 0) {
+      ++numSplits;
+    }
     List<List<TopicPartition>> assignments = new ArrayList<>(numSplits);
 
     for (int i = 0; i < numSplits; i++) {

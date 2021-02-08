@@ -50,6 +50,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
  *
  * <p>For elements with the same timestamp, the element chosen for output is arbitrary.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class Latest {
   // Do not instantiate
   private Latest() {}

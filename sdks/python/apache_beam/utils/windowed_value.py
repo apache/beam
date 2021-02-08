@@ -34,6 +34,7 @@ from __future__ import absolute_import
 from builtins import object
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import List
 from typing import Optional
 from typing import Tuple
 
@@ -121,14 +122,17 @@ class PaneInfo(object):
 
   @property
   def index(self):
+    # type: () -> int
     return self._index
 
   @property
   def nonspeculative_index(self):
+    # type: () -> int
     return self._nonspeculative_index
 
   @property
   def encoded_byte(self):
+    # type: () -> int
     return self._encoded_byte
 
   def __repr__(self):
@@ -167,6 +171,7 @@ class PaneInfo(object):
 
 
 def _construct_well_known_pane_infos():
+  # type: () -> List[PaneInfo]
   pane_infos = []
   for timing in (PaneInfoTiming.EARLY,
                  PaneInfoTiming.ON_TIME,
@@ -177,7 +182,9 @@ def _construct_well_known_pane_infos():
     pane_infos.append(PaneInfo(True, False, timing, 0, nonspeculative_index))
     pane_infos.append(PaneInfo(False, True, timing, -1, nonspeculative_index))
     pane_infos.append(PaneInfo(False, False, timing, -1, nonspeculative_index))
-  result = [None] * (max(p.encoded_byte for p in pane_infos) + 1)
+  result = [None] * (
+      max(p.encoded_byte for p in pane_infos) + 1
+  )  # type: List[PaneInfo]  # type: ignore[list-item]
   for pane_info in pane_infos:
     result[pane_info.encoded_byte] = pane_info
   return result

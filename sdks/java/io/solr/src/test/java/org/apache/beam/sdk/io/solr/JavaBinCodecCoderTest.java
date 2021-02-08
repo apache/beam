@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io.solr;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -36,6 +36,9 @@ import org.junit.runners.JUnit4;
 
 /** Test case for {@link JavaBinCodecCoder}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class JavaBinCodecCoderTest {
   private static final Coder<SolrDocument> TEST_CODER = JavaBinCodecCoder.of(SolrDocument.class);
   private static final List<SolrDocument> TEST_VALUES = new ArrayList<>();

@@ -17,10 +17,10 @@
  */
 package org.apache.beam.sdk.fn.data;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.empty;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 import java.io.IOException;
@@ -46,6 +46,9 @@ import org.junit.runners.Parameterized.Parameters;
 
 /** Tests for {@link BeamFnDataSizeBasedBufferingOutboundObserver}. */
 @RunWith(Parameterized.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BeamFnDataSizeBasedBufferingOutboundObserverTest {
   private static final LogicalEndpoint DATA_OUTPUT_LOCATION = LogicalEndpoint.data("777L", "555L");
   private static final LogicalEndpoint TIMER_OUTPUT_LOCATION =

@@ -21,6 +21,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import org.apache.beam.sdk.coders.ListCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
@@ -55,6 +57,52 @@ public class FhirIOTest {
 
     PAssert.that(failedMsgIds).containsInAnyOrder(badMessageIDs);
     PAssert.that(resources).empty();
+    pipeline.run();
+  }
+
+  @Test
+  public void test_FhirIO_failedSearches() {
+    List<FhirSearchParameter<String>> input =
+        Arrays.asList(FhirSearchParameter.of("resource-type-1", null));
+    FhirIO.Search.Result searchResult =
+        pipeline
+            .apply(Create.of(input).withCoder(FhirSearchParameterCoder.of(StringUtf8Coder.of())))
+            .apply(FhirIO.searchResources("bad-store"));
+
+    PCollection<HealthcareIOError<String>> failed = searchResult.getFailedSearches();
+
+    PCollection<String> failedMsgIds =
+        failed.apply(
+            MapElements.into(TypeDescriptors.strings()).via(HealthcareIOError::getDataResource));
+
+    PAssert.that(failedMsgIds).containsInAnyOrder(Arrays.asList("bad-store"));
+    PAssert.that(searchResult.getResources()).empty();
+    PAssert.that(searchResult.getKeyedResources()).empty();
+    pipeline.run();
+  }
+
+  @Test
+  public void test_FhirIO_failedSearchesWithGenericParameters() {
+    List<FhirSearchParameter<List<String>>> input =
+        Arrays.asList(FhirSearchParameter.of("resource-type-1", null));
+    FhirIO.Search.Result searchResult =
+        pipeline
+            .apply(
+                Create.of(input)
+                    .withCoder(FhirSearchParameterCoder.of(ListCoder.of(StringUtf8Coder.of()))))
+            .apply(
+                (FhirIO.Search<List<String>>)
+                    FhirIO.searchResourcesWithGenericParameters("bad-store"));
+
+    PCollection<HealthcareIOError<String>> failed = searchResult.getFailedSearches();
+
+    PCollection<String> failedMsgIds =
+        failed.apply(
+            MapElements.into(TypeDescriptors.strings()).via(HealthcareIOError::getDataResource));
+
+    PAssert.that(failedMsgIds).containsInAnyOrder(Arrays.asList("bad-store"));
+    PAssert.that(searchResult.getResources()).empty();
+    PAssert.that(searchResult.getKeyedResources()).empty();
     pipeline.run();
   }
 

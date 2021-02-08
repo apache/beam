@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow;
 
 import static org.apache.beam.runners.dataflow.util.Structs.getString;
 import static org.apache.beam.sdk.util.StringUtils.jsonStringToByteArray;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasKey;
@@ -28,7 +29,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.argThat;
@@ -58,6 +58,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.DockerPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.runners.core.construction.Environments;
+import org.apache.beam.runners.core.construction.ModelCoders;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
@@ -78,6 +79,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.gcp.util.GcsUtil;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.FileSystems;
@@ -130,6 +132,10 @@ import org.mockito.ArgumentMatcher;
 
 /** Tests for DataflowPipelineTranslator. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DataflowPipelineTranslatorTest implements Serializable {
 
   @Rule public transient ExpectedException thrown = ExpectedException.none();
@@ -1119,62 +1125,169 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     assertEquals("CollectionToSingleton", collectionToSingletonStep.getKind());
   }
 
-  @Test
-  public void testStreamingGroupIntoBatchesTranslation() throws Exception {
+  private JobSpecification runGroupIntoBatchesAndGetJobSpec(
+      Boolean withShardedKey, List<String> experiments) throws IOException {
     DataflowPipelineOptions options = buildPipelineOptions();
-    options.setExperiments(Arrays.asList("enable_streaming_auto_sharding"));
+    options.setExperiments(experiments);
     options.setStreaming(true);
     DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
 
     Pipeline pipeline = Pipeline.create(options);
-    pipeline
-        .apply(Create.of(Arrays.asList(KV.of(1, "1"), KV.of(2, "2"), KV.of(3, "3"))))
-        .apply(GroupIntoBatches.ofSize(2));
+    PCollection<KV<Integer, String>> input =
+        pipeline.apply(Create.of(Arrays.asList(KV.of(1, "1"), KV.of(2, "2"), KV.of(3, "3"))));
+    if (withShardedKey) {
+      input.apply(GroupIntoBatches.<Integer, String>ofSize(3).withShardedKey());
+    } else {
+      input.apply(GroupIntoBatches.ofSize(3));
+    }
 
     DataflowRunner runner = DataflowRunner.fromOptions(options);
     runner.replaceTransforms(pipeline);
     SdkComponents sdkComponents = createSdkComponents(options);
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents, true);
-    Job job =
-        translator
-            .translate(pipeline, pipelineProto, sdkComponents, runner, Collections.emptyList())
-            .getJob();
-    List<Step> steps = job.getSteps();
+    return translator.translate(
+        pipeline, pipelineProto, sdkComponents, runner, Collections.emptyList());
+  }
+
+  @Test
+  public void testStreamingGroupIntoBatchesTranslation() throws Exception {
+    List<String> experiments =
+        new ArrayList<>(
+            ImmutableList.of(
+                "enable_streaming_auto_sharding",
+                GcpOptions.STREAMING_ENGINE_EXPERIMENT,
+                GcpOptions.WINDMILL_SERVICE_EXPERIMENT));
+    JobSpecification jobSpec = runGroupIntoBatchesAndGetJobSpec(false, experiments);
+    List<Step> steps = jobSpec.getJob().getSteps();
+    Step shardedStateStep = steps.get(steps.size() - 1);
+    Map<String, Object> properties = shardedStateStep.getProperties();
+    assertTrue(properties.containsKey(PropertyNames.USES_KEYED_STATE));
+    assertEquals("true", getString(properties, PropertyNames.USES_KEYED_STATE));
+    assertFalse(properties.containsKey(PropertyNames.ALLOWS_SHARDABLE_STATE));
+    assertFalse(properties.containsKey(PropertyNames.PRESERVES_KEYS));
+  }
+
+  @Test
+  public void testStreamingGroupIntoBatchesWithShardedKeyTranslation() throws Exception {
+    List<String> experiments =
+        new ArrayList<>(
+            ImmutableList.of(
+                "enable_streaming_auto_sharding",
+                GcpOptions.STREAMING_ENGINE_EXPERIMENT,
+                GcpOptions.WINDMILL_SERVICE_EXPERIMENT));
+    JobSpecification jobSpec = runGroupIntoBatchesAndGetJobSpec(true, experiments);
+    List<Step> steps = jobSpec.getJob().getSteps();
     Step shardedStateStep = steps.get(steps.size() - 1);
     Map<String, Object> properties = shardedStateStep.getProperties();
     assertTrue(properties.containsKey(PropertyNames.USES_KEYED_STATE));
     assertEquals("true", getString(properties, PropertyNames.USES_KEYED_STATE));
     assertTrue(properties.containsKey(PropertyNames.ALLOWS_SHARDABLE_STATE));
     assertEquals("true", getString(properties, PropertyNames.ALLOWS_SHARDABLE_STATE));
+    assertTrue(properties.containsKey(PropertyNames.PRESERVES_KEYS));
+    assertEquals("true", getString(properties, PropertyNames.PRESERVES_KEYS));
   }
 
   @Test
-  public void testStreamingGroupIntoBatchesTranslationFnApi() throws Exception {
-    DataflowPipelineOptions options = buildPipelineOptions();
-    options.setExperiments(Arrays.asList("enable_windmill_auto_sharding"));
-    options.setExperiments(Arrays.asList("beam_fn_api"));
-    options.setStreaming(true);
-    DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
-
-    Pipeline pipeline = Pipeline.create(options);
-    pipeline
-        .apply(Create.of(Arrays.asList(KV.of(1, "1"), KV.of(2, "2"), KV.of(3, "3"))))
-        .apply(GroupIntoBatches.ofSize(2));
-
-    DataflowRunner runner = DataflowRunner.fromOptions(options);
-    runner.replaceTransforms(pipeline);
-    SdkComponents sdkComponents = createSdkComponents(options);
-    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents, true);
-    Job job =
-        translator
-            .translate(pipeline, pipelineProto, sdkComponents, runner, Collections.emptyList())
-            .getJob();
-    List<Step> steps = job.getSteps();
+  public void testStreamingGroupIntoBatchesTranslationUnifiedWorker() throws Exception {
+    List<String> experiments =
+        new ArrayList<>(
+            ImmutableList.of(
+                "enable_streaming_auto_sharding",
+                GcpOptions.STREAMING_ENGINE_EXPERIMENT,
+                GcpOptions.WINDMILL_SERVICE_EXPERIMENT,
+                "use_runner_v2"));
+    JobSpecification jobSpec = runGroupIntoBatchesAndGetJobSpec(false, experiments);
+    List<Step> steps = jobSpec.getJob().getSteps();
     Step shardedStateStep = steps.get(steps.size() - 1);
     Map<String, Object> properties = shardedStateStep.getProperties();
     assertTrue(properties.containsKey(PropertyNames.USES_KEYED_STATE));
-    assertEquals("true", getString(properties, PropertyNames.USES_KEYED_STATE));
     assertFalse(properties.containsKey(PropertyNames.ALLOWS_SHARDABLE_STATE));
+    assertFalse(properties.containsKey(PropertyNames.PRESERVES_KEYS));
+
+    // Also checks runner proto is correctly populated.
+    Map<String, RunnerApi.PTransform> transformMap =
+        jobSpec.getPipelineProto().getComponents().getTransformsMap();
+    boolean transformFound = false;
+    for (Map.Entry<String, RunnerApi.PTransform> transform : transformMap.entrySet()) {
+      RunnerApi.FunctionSpec spec = transform.getValue().getSpec();
+      if (spec.getUrn().equals(PTransformTranslation.GROUP_INTO_BATCHES_URN)) {
+        transformFound = true;
+      }
+    }
+    assertTrue(transformFound);
+  }
+
+  @Test
+  public void testGroupIntoBatchesWithShardedKeyTranslationUnifiedWorker() throws Exception {
+    List<String> experiments =
+        new ArrayList<>(
+            ImmutableList.of(
+                "enable_streaming_auto_sharding",
+                GcpOptions.STREAMING_ENGINE_EXPERIMENT,
+                GcpOptions.WINDMILL_SERVICE_EXPERIMENT,
+                "use_runner_v2"));
+    JobSpecification jobSpec = runGroupIntoBatchesAndGetJobSpec(true, experiments);
+    List<Step> steps = jobSpec.getJob().getSteps();
+    Step shardedStateStep = steps.get(steps.size() - 1);
+    Map<String, Object> properties = shardedStateStep.getProperties();
+    assertTrue(properties.containsKey(PropertyNames.USES_KEYED_STATE));
+    assertTrue(properties.containsKey(PropertyNames.ALLOWS_SHARDABLE_STATE));
+    assertEquals("true", getString(properties, PropertyNames.ALLOWS_SHARDABLE_STATE));
+    assertTrue(properties.containsKey(PropertyNames.PRESERVES_KEYS));
+    assertEquals("true", getString(properties, PropertyNames.PRESERVES_KEYS));
+
+    // Also checks the runner proto is correctly populated.
+    Map<String, RunnerApi.PTransform> transformMap =
+        jobSpec.getPipelineProto().getComponents().getTransformsMap();
+    boolean transformFound = false;
+    for (Map.Entry<String, RunnerApi.PTransform> transform : transformMap.entrySet()) {
+      RunnerApi.FunctionSpec spec = transform.getValue().getSpec();
+      if (spec.getUrn().equals(PTransformTranslation.GROUP_INTO_BATCHES_WITH_SHARDED_KEY_URN)) {
+        for (String subtransform : transform.getValue().getSubtransformsList()) {
+          RunnerApi.PTransform ptransform = transformMap.get(subtransform);
+          if (ptransform.getSpec().getUrn().equals(PTransformTranslation.GROUP_INTO_BATCHES_URN)) {
+            transformFound = true;
+          }
+        }
+      }
+    }
+    assertTrue(transformFound);
+
+    boolean coderFound = false;
+    Map<String, RunnerApi.Coder> coderMap =
+        jobSpec.getPipelineProto().getComponents().getCodersMap();
+    for (Map.Entry<String, RunnerApi.Coder> coder : coderMap.entrySet()) {
+      if (coder.getValue().getSpec().getUrn().equals(ModelCoders.SHARDED_KEY_CODER_URN)) {
+        coderFound = true;
+      }
+    }
+    assertTrue(coderFound);
+  }
+
+  @Test
+  public void testGroupIntoBatchesWithShardedKeyNotSupported() throws IOException {
+    List<String> experiments1 =
+        new ArrayList<>(
+            ImmutableList.of(
+                "enable_streaming_auto_sharding",
+                GcpOptions.STREAMING_ENGINE_EXPERIMENT,
+                GcpOptions.WINDMILL_SERVICE_EXPERIMENT,
+                "beam_fn_api"));
+    thrown.expect(IllegalArgumentException.class);
+    runGroupIntoBatchesAndGetJobSpec(true, experiments1);
+
+    List<String> experiments2 = new ArrayList<>(ImmutableList.of("enable_streaming_auto_sharding"));
+    thrown.expect(IllegalArgumentException.class);
+    runGroupIntoBatchesAndGetJobSpec(true, experiments2);
+
+    List<String> experiments3 =
+        new ArrayList<>(
+            ImmutableList.of(
+                GcpOptions.STREAMING_ENGINE_EXPERIMENT,
+                GcpOptions.WINDMILL_SERVICE_EXPERIMENT,
+                "use_runner_v2"));
+    thrown.expect(IllegalArgumentException.class);
+    runGroupIntoBatchesAndGetJobSpec(true, experiments3);
   }
 
   @Test

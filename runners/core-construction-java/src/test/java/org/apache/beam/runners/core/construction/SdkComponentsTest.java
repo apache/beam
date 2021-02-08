@@ -17,11 +17,11 @@
  */
 package org.apache.beam.runners.core.construction;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.isEmptyOrNullString;
 import static org.hamcrest.Matchers.not;
-import static org.junit.Assert.assertThat;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -38,6 +38,7 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.junit.Before;
@@ -49,6 +50,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link SdkComponents}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SdkComponentsTest {
   @Rule public TestPipeline pipeline = TestPipeline.create().enableAbandonedNodeEnforcement(false);
   @Rule public ExpectedException thrown = ExpectedException.none();
@@ -84,7 +88,12 @@ public class SdkComponentsTest {
     PCollection<Integer> pt = pipeline.apply(create);
     String userName = "my_transform/my_nesting";
     AppliedPTransform<?, ?, ?> transform =
-        AppliedPTransform.of(userName, pipeline.begin().expand(), pt.expand(), create, pipeline);
+        AppliedPTransform.of(
+            userName,
+            PValues.expandInput(pipeline.begin()),
+            PValues.expandOutput(pt),
+            create,
+            pipeline);
     String componentName = components.registerPTransform(transform, Collections.emptyList());
     assertThat(componentName, equalTo(userName));
     assertThat(components.getExistingPTransformId(transform), equalTo(componentName));
@@ -99,10 +108,19 @@ public class SdkComponentsTest {
     String userName = "my_transform";
     String childUserName = "my_transform/my_nesting";
     AppliedPTransform<?, ?, ?> transform =
-        AppliedPTransform.of(userName, pipeline.begin().expand(), pt.expand(), create, pipeline);
+        AppliedPTransform.of(
+            userName,
+            PValues.expandInput(pipeline.begin()),
+            PValues.expandOutput(pt),
+            create,
+            pipeline);
     AppliedPTransform<?, ?, ?> childTransform =
         AppliedPTransform.of(
-            childUserName, pipeline.begin().expand(), pt.expand(), createChild, pipeline);
+            childUserName,
+            PValues.expandInput(pipeline.begin()),
+            PValues.expandOutput(pt),
+            createChild,
+            pipeline);
 
     String childId = components.registerPTransform(childTransform, Collections.emptyList());
     String parentId =
@@ -117,7 +135,8 @@ public class SdkComponentsTest {
     Create.Values<Integer> create = Create.of(1, 2, 3);
     PCollection<Integer> pt = pipeline.apply(create);
     AppliedPTransform<?, ?, ?> transform =
-        AppliedPTransform.of("", pipeline.begin().expand(), pt.expand(), create, pipeline);
+        AppliedPTransform.of(
+            "", PValues.expandInput(pipeline.begin()), PValues.expandOutput(pt), create, pipeline);
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(transform.toString());
@@ -130,7 +149,12 @@ public class SdkComponentsTest {
     PCollection<Integer> pt = pipeline.apply(create);
     String userName = "my_transform/my_nesting";
     AppliedPTransform<?, ?, ?> transform =
-        AppliedPTransform.of(userName, pipeline.begin().expand(), pt.expand(), create, pipeline);
+        AppliedPTransform.of(
+            userName,
+            PValues.expandInput(pipeline.begin()),
+            PValues.expandOutput(pt),
+            create,
+            pipeline);
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("child nodes may not be null");
     components.registerPTransform(transform, null);
@@ -146,10 +170,19 @@ public class SdkComponentsTest {
     String userName = "my_transform";
     String childUserName = "my_transform/my_nesting";
     AppliedPTransform<?, ?, ?> transform =
-        AppliedPTransform.of(userName, pipeline.begin().expand(), pt.expand(), create, pipeline);
+        AppliedPTransform.of(
+            userName,
+            PValues.expandInput(pipeline.begin()),
+            PValues.expandOutput(pt),
+            create,
+            pipeline);
     AppliedPTransform<?, ?, ?> childTransform =
         AppliedPTransform.of(
-            childUserName, pipeline.begin().expand(), pt.expand(), createChild, pipeline);
+            childUserName,
+            PValues.expandInput(pipeline.begin()),
+            PValues.expandOutput(pt),
+            createChild,
+            pipeline);
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(childTransform.toString());

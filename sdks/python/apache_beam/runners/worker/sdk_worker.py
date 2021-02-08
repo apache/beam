@@ -59,6 +59,7 @@ from future.utils import with_metaclass
 
 from apache_beam.coders import coder_impl
 from apache_beam.metrics import monitoring_infos
+from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.portability.api import metrics_pb2
@@ -160,19 +161,20 @@ SHORT_ID_CACHE = ShortIdCache()
 class SdkHarness(object):
   REQUEST_METHOD_PREFIX = '_request_'
 
-  def __init__(self,
-               control_address,  # type: str
-               credentials=None,  # type: Optional[grpc.ChannelCredentials]
-               worker_id=None,  # type: Optional[str]
-               # Caching is disabled by default
-               state_cache_size=0,  # type: int
-               # time-based data buffering is disabled by default
-               data_buffer_time_limit_ms=0,  # type: int
-               profiler_factory=None,  # type: Optional[Callable[..., Profile]]
-               status_address=None,  # type: Optional[str]
-               # Heap dump through status api is disabled by default
-               enable_heap_dump=False, # type: bool
-               ):
+  def __init__(
+      self,
+      control_address,  # type: str
+      credentials=None,  # type: Optional[grpc.ChannelCredentials]
+      worker_id=None,  # type: Optional[str]
+      # Caching is disabled by default
+      state_cache_size=0,  # type: int
+      # time-based data buffering is disabled by default
+      data_buffer_time_limit_ms=0,  # type: int
+      profiler_factory=None,  # type: Optional[Callable[..., Profile]]
+      status_address=None,  # type: Optional[str]
+      # Heap dump through status api is disabled by default
+      enable_heap_dump=False,  # type: bool
+  ):
     # type: (...) -> None
     self._alive = True
     self._worker_index = 0
@@ -276,10 +278,11 @@ class SdkHarness(object):
       self._status_handler.close()
     _LOGGER.info('Done consuming work.')
 
-  def _execute(self,
-               task,  # type: Callable[[], beam_fn_api_pb2.InstructionResponse]
-               request  # type:  beam_fn_api_pb2.InstructionRequest
-              ):
+  def _execute(
+      self,
+      task,  # type: Callable[[], beam_fn_api_pb2.InstructionResponse]
+      request  # type:  beam_fn_api_pb2.InstructionRequest
+  ):
     # type: (...) -> None
     with statesampler.instruction_id(request.instruction_id):
       try:
@@ -326,6 +329,31 @@ class SdkHarness(object):
     # type: (beam_fn_api_pb2.InstructionRequest) -> None
     self._request_execute(request)
 
+  def _request_harness_monitoring_infos(self, request):
+    # type: (beam_fn_api_pb2.InstructionRequest) -> None
+    process_wide_monitoring_infos = MetricsEnvironment.process_wide_container(
+    ).to_runner_api_monitoring_infos(None).values()
+    self._execute(
+        lambda: beam_fn_api_pb2.InstructionResponse(
+            instruction_id=request.instruction_id,
+            harness_monitoring_infos=(
+                beam_fn_api_pb2.HarnessMonitoringInfosResponse(
+                    monitoring_data={
+                        SHORT_ID_CACHE.getShortId(info): info.payload
+                        for info in process_wide_monitoring_infos
+                    }))),
+        request)
+
+  def _request_monitoring_infos(self, request):
+    # type: (beam_fn_api_pb2.InstructionRequest) -> None
+    self._execute(
+        lambda: beam_fn_api_pb2.InstructionResponse(
+            instruction_id=request.instruction_id,
+            monitoring_infos=beam_fn_api_pb2.MonitoringInfosMetadataResponse(
+                monitoring_info=SHORT_ID_CACHE.getInfos(
+                    request.monitoring_infos.monitoring_info_id))),
+        request)
+
   def _request_execute(self, request):
     # type: (beam_fn_api_pb2.InstructionRequest) -> None
     def task():
@@ -367,11 +395,12 @@ class BundleProcessorCache(object):
   """
   periodic_shutdown = None  # type: Optional[PeriodicThread]
 
-  def __init__(self,
-               state_handler_factory,  # type: StateHandlerFactory
-               data_channel_factory,  # type: data_plane.DataChannelFactory
-               fns  # type: MutableMapping[str, beam_fn_api_pb2.ProcessBundleDescriptor]
-              ):
+  def __init__(
+      self,
+      state_handler_factory,  # type: StateHandlerFactory
+      data_channel_factory,  # type: data_plane.DataChannelFactory
+      fns  # type: MutableMapping[str, beam_fn_api_pb2.ProcessBundleDescriptor]
+  ):
     # type: (...) -> None
     self.fns = fns
     self.state_handler_factory = state_handler_factory
@@ -554,13 +583,13 @@ class BundleProcessorCache(object):
 
 
 class SdkWorker(object):
-
-  def __init__(self,
-               bundle_processor_cache,  # type: BundleProcessorCache
-               state_cache_metrics_fn=list,  # type: Callable[[], Iterable[metrics_pb2.MonitoringInfo]]
-               profiler_factory=None,  # type: Optional[Callable[..., Profile]]
-               log_lull_timeout_ns=None,  # type: Optional[int]
-              ):
+  def __init__(
+      self,
+      bundle_processor_cache,  # type: BundleProcessorCache
+      state_cache_metrics_fn=list,  # type: Callable[[], Iterable[metrics_pb2.MonitoringInfo]]
+      profiler_factory=None,  # type: Optional[Callable[..., Profile]]
+      log_lull_timeout_ns=None,  # type: Optional[int]
+  ):
     # type: (...) -> None
     self.bundle_processor_cache = bundle_processor_cache
     self.state_cache_metrics_fn = state_cache_metrics_fn
@@ -579,10 +608,11 @@ class SdkWorker(object):
     else:
       raise NotImplementedError
 
-  def register(self,
-               request,  # type: beam_fn_api_pb2.RegisterRequest
-               instruction_id  # type: str
-              ):
+  def register(
+      self,
+      request,  # type: beam_fn_api_pb2.RegisterRequest
+      instruction_id  # type: str
+  ):
     # type: (...) -> beam_fn_api_pb2.InstructionResponse
 
     """Registers a set of ``beam_fn_api_pb2.ProcessBundleDescriptor``s.
@@ -598,10 +628,11 @@ class SdkWorker(object):
         instruction_id=instruction_id,
         register=beam_fn_api_pb2.RegisterResponse())
 
-  def process_bundle(self,
-                     request,  # type: beam_fn_api_pb2.ProcessBundleRequest
-                     instruction_id  # type: str
-                    ):
+  def process_bundle(
+      self,
+      request,  # type: beam_fn_api_pb2.ProcessBundleRequest
+      instruction_id  # type: str
+  ):
     # type: (...) -> beam_fn_api_pb2.InstructionResponse
     bundle_processor = self.bundle_processor_cache.get(
         instruction_id, request.process_bundle_descriptor_id)
@@ -632,10 +663,11 @@ class SdkWorker(object):
       self.bundle_processor_cache.discard(instruction_id)
       raise
 
-  def process_bundle_split(self,
-                           request,  # type: beam_fn_api_pb2.ProcessBundleSplitRequest
-                           instruction_id  # type: str
-                          ):
+  def process_bundle_split(
+      self,
+      request,  # type: beam_fn_api_pb2.ProcessBundleSplitRequest
+      instruction_id  # type: str
+  ):
     # type: (...) -> beam_fn_api_pb2.InstructionResponse
     try:
       processor = self.bundle_processor_cache.lookup(request.instruction_id)
@@ -700,10 +732,11 @@ class SdkWorker(object):
     # type: () -> None
     thread_dump()
 
-  def process_bundle_progress(self,
-                              request,  # type: beam_fn_api_pb2.ProcessBundleProgressRequest
-                              instruction_id  # type: str
-                             ):
+  def process_bundle_progress(
+      self,
+      request,  # type: beam_fn_api_pb2.ProcessBundleProgressRequest
+      instruction_id  # type: str
+  ):
     # type: (...) -> beam_fn_api_pb2.InstructionResponse
     try:
       processor = self.bundle_processor_cache.lookup(request.instruction_id)
@@ -726,22 +759,11 @@ class SdkWorker(object):
                 for info in monitoring_infos
             }))
 
-  def process_bundle_progress_metadata_request(self,
-                                               request,  # type: beam_fn_api_pb2.ProcessBundleProgressMetadataRequest
-                                               instruction_id  # type: str
-                                              ):
-    # type: (...) -> beam_fn_api_pb2.InstructionResponse
-    return beam_fn_api_pb2.InstructionResponse(
-        instruction_id=instruction_id,
-        process_bundle_progress_metadata=beam_fn_api_pb2.
-        ProcessBundleProgressMetadataResponse(
-            monitoring_info=SHORT_ID_CACHE.getInfos(
-                request.monitoring_info_id)))
-
-  def finalize_bundle(self,
-                      request,  # type: beam_fn_api_pb2.FinalizeBundleRequest
-                      instruction_id  # type: str
-                     ):
+  def finalize_bundle(
+      self,
+      request,  # type: beam_fn_api_pb2.FinalizeBundleRequest
+      instruction_id  # type: str
+  ):
     # type: (...) -> beam_fn_api_pb2.InstructionResponse
     try:
       processor = self.bundle_processor_cache.lookup(request.instruction_id)
@@ -780,10 +802,11 @@ class SdkWorker(object):
 class StateHandler(with_metaclass(abc.ABCMeta, object)):  # type: ignore[misc]
   """An abstract object representing a ``StateHandler``."""
   @abc.abstractmethod
-  def get_raw(self,
-              state_key,  # type: beam_fn_api_pb2.StateKey
-              continuation_token=None  # type: Optional[bytes]
-             ):
+  def get_raw(
+      self,
+      state_key,  # type: beam_fn_api_pb2.StateKey
+      continuation_token=None  # type: Optional[bytes]
+  ):
     # type: (...) -> Tuple[bytes, Optional[bytes]]
     raise NotImplementedError(type(self))
 
@@ -874,10 +897,11 @@ class GrpcStateHandlerFactory(StateHandlerFactory):
 
 class ThrowingStateHandler(StateHandler):
   """A state handler that errors on any requests."""
-  def get_raw(self,
-              state_key,  # type: beam_fn_api_pb2.StateKey
-              continuation_token=None  # type: Optional[bytes]
-             ):
+  def get_raw(
+      self,
+      state_key,  # type: beam_fn_api_pb2.StateKey
+      continuation_token=None  # type: Optional[bytes]
+  ):
     # type: (...) -> Tuple[bytes, Optional[bytes]]
     raise RuntimeError(
         'Unable to handle state requests for ProcessBundleDescriptor without '
@@ -964,10 +988,11 @@ class GrpcStateHandler(StateHandler):
     self._done = True
     self._requests.put(self._DONE)
 
-  def get_raw(self,
-              state_key,  # type: beam_fn_api_pb2.StateKey
-              continuation_token=None  # type: Optional[bytes]
-             ):
+  def get_raw(
+      self,
+      state_key,  # type: beam_fn_api_pb2.StateKey
+      continuation_token=None  # type: Optional[bytes]
+  ):
     # type: (...) -> Tuple[bytes, Optional[bytes]]
     response = self._blocking_request(
         beam_fn_api_pb2.StateRequest(
@@ -976,10 +1001,11 @@ class GrpcStateHandler(StateHandler):
                 continuation_token=continuation_token)))
     return response.get.data, response.get.continuation_token
 
-  def append_raw(self,
-                 state_key,  # type: Optional[beam_fn_api_pb2.StateKey]
-                 data  # type: bytes
-                ):
+  def append_raw(
+      self,
+      state_key,  # type: Optional[beam_fn_api_pb2.StateKey]
+      data  # type: bytes
+  ):
     # type: (...) -> _Future
     return self._request(
         beam_fn_api_pb2.StateRequest(
@@ -1036,11 +1062,11 @@ class CachingStateHandler(object):
    If activated but no cache token is supplied, caching is done at the bundle
    level.
   """
-
-  def __init__(self,
-               global_state_cache,  # type: StateCache
-               underlying_state  # type: StateHandler
-              ):
+  def __init__(
+      self,
+      global_state_cache,  # type: StateCache
+      underlying_state  # type: StateHandler
+  ):
     # type: (...) -> None
     self._underlying = underlying_state
     self._state_cache = global_state_cache
@@ -1078,10 +1104,11 @@ class CachingStateHandler(object):
       self._context.user_state_cache_token = None
       self._context.bundle_cache_token = None
 
-  def blocking_get(self,
-                   state_key,  # type: beam_fn_api_pb2.StateKey
-                   coder,  # type: coder_impl.CoderImpl
-                  ):
+  def blocking_get(
+      self,
+      state_key,  # type: beam_fn_api_pb2.StateKey
+      coder,  # type: coder_impl.CoderImpl
+  ):
     # type: (...) -> Iterable[Any]
     cache_token = self._get_cache_token(state_key)
     if not cache_token:
@@ -1107,11 +1134,12 @@ class CachingStateHandler(object):
             state_key)
     return cached_value
 
-  def extend(self,
-             state_key,  # type: beam_fn_api_pb2.StateKey
-             coder,  # type: coder_impl.CoderImpl
-             elements,  # type: Iterable[Any]
-            ):
+  def extend(
+      self,
+      state_key,  # type: beam_fn_api_pb2.StateKey
+      coder,  # type: coder_impl.CoderImpl
+      elements,  # type: Iterable[Any]
+  ):
     # type: (...) -> _Future
     cache_token = self._get_cache_token(state_key)
     if cache_token:
@@ -1161,7 +1189,7 @@ class CachingStateHandler(object):
       state_key,  # type: beam_fn_api_pb2.StateKey
       coder,  # type: coder_impl.CoderImpl
       continuation_token=None  # type: Optional[bytes]
-    ):
+  ):
     # type: (...) -> Iterator[Any]
 
     """Materializes the state lazily, one element at a time.
@@ -1196,7 +1224,7 @@ class CachingStateHandler(object):
       self,
       state_key,  # type: beam_fn_api_pb2.StateKey
       coder  # type: coder_impl.CoderImpl
-    ):
+  ):
     # type: (...) -> Iterable[Any]
 
     """Materialized the first page of data, concatenated with a lazy iterable

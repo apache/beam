@@ -59,6 +59,9 @@ import org.joda.time.format.DateTimeFormatter;
  * <p>These utilities are based on the <a href="https://avro.apache.org/docs/1.8.1/spec.html">Avro
  * 1.8.1</a> specification.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class BigQueryAvroUtils {
 
   /**
@@ -337,6 +340,7 @@ class BigQueryAvroUtils {
             new Conversions.DecimalConversion()
                 .fromBytes((ByteBuffer) v, Schema.create(avroType), avroLogicalType);
         return numericValue.toString();
+      case "BOOL":
       case "BOOLEAN":
         verify(v instanceof Boolean, "Expected Boolean, got %s", v.getClass());
         return v;

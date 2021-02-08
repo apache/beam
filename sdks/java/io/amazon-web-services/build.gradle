@@ -23,9 +23,9 @@ plugins {
 }
 
 applyJavaNature(
-  enableChecker: false,
-  ignoreRawtypeErrors: true,
-  automaticModuleName: 'org.apache.beam.sdk.io.aws')
+  enableStrictDependencies:true,
+  automaticModuleName: 'org.apache.beam.sdk.io.aws',
+)
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Amazon Web Services"
 ext.summary = "IO library to read and write Amazon Web Services services from Beam."
@@ -40,23 +40,24 @@ dependencies {
   compile library.java.aws_java_sdk_sns
   compile library.java.aws_java_sdk_sqs
   compile library.java.aws_java_sdk_sts
-  compile "commons-lang:commons-lang:2.6"
   compile library.java.jackson_core
   compile library.java.jackson_annotations
   compile library.java.jackson_databind
   compile library.java.slf4j_api
+  compile library.java.joda_time
+  compile library.java.http_core
   runtime library.java.commons_codec
-  runtime "org.apache.httpcomponents:httpclient:4.5.6"
+  runtime "org.apache.httpcomponents:httpclient:4.5.12"
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
-  testCompile "io.findify:s3mock_2.12:0.2.4"
+  testCompile "io.findify:s3mock_2.12:0.2.6"
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
   testCompile library.java.mockito_core
   testCompile library.java.junit
   testCompile library.java.testcontainers_localstack
   testCompile "org.assertj:assertj-core:3.11.1"
-  testCompile 'org.elasticmq:elasticmq-rest-sqs_2.12:0.14.1'
+  testCompile 'org.elasticmq:elasticmq-rest-sqs_2.12:0.15.6'
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

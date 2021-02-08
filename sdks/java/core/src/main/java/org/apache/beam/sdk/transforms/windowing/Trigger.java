@@ -27,6 +27,7 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
@@ -71,6 +72,9 @@ import org.joda.time.Instant;
  * </ul>
  */
 @Experimental(Kind.TRIGGER)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public abstract class Trigger implements Serializable {
 
   protected final List<Trigger> subTriggers;
@@ -84,7 +88,7 @@ public abstract class Trigger implements Serializable {
   }
 
   public List<Trigger> subTriggers() {
-    return subTriggers;
+    return MoreObjects.firstNonNull(subTriggers, Collections.emptyList());
   }
 
   /**

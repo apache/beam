@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.when;
 
 import org.joda.time.Duration;
@@ -33,6 +33,9 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link Repeatedly}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class RepeatedlyTest {
 
   @Mock private Trigger mockTrigger;

@@ -34,6 +34,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -41,6 +42,9 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
 @RunWith(Parameterized.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class FhirIOWriteIT {
 
   @Parameters(name = "{0}")
@@ -116,6 +120,7 @@ public class FhirIOWriteIT {
   }
 
   @Test
+  @Ignore("https://issues.apache.org/jira/browse/BEAM-11733")
   public void testFhirIO_Import() {
     Pipeline pipeline = Pipeline.create(options);
     if (options.getTempLocation() == null) {

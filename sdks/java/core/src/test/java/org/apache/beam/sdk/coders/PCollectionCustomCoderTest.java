@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.coders;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
-import static org.junit.Assert.assertThat;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -53,6 +53,9 @@ import org.slf4j.LoggerFactory;
 
 /** Tests for coder exception handling in runners. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class PCollectionCustomCoderTest {
   private static final Logger LOG = LoggerFactory.getLogger(PCollectionCustomCoderTest.class);
   /**

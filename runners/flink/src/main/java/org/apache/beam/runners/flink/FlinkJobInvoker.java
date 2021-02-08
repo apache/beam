@@ -36,6 +36,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Job Invoker for the {@link FlinkRunner}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class FlinkJobInvoker extends JobInvoker {
   private static final Logger LOG = LoggerFactory.getLogger(FlinkJobInvoker.class);
 
@@ -46,7 +49,7 @@ public class FlinkJobInvoker extends JobInvoker {
   private final FlinkJobServerDriver.FlinkServerConfiguration serverConfig;
 
   protected FlinkJobInvoker(FlinkJobServerDriver.FlinkServerConfiguration serverConfig) {
-    super("flink-runner-job-invoker");
+    super("flink-runner-job-invoker-%d");
     this.serverConfig = serverConfig;
   }
 

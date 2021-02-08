@@ -48,10 +48,12 @@ from apache_beam.runners import TestDataflowRunner
 from apache_beam.runners import create_runner
 from apache_beam.runners.dataflow.dataflow_runner import DataflowPipelineResult
 from apache_beam.runners.dataflow.dataflow_runner import DataflowRuntimeException
+from apache_beam.runners.dataflow.dataflow_runner import PropertyNames
 from apache_beam.runners.dataflow.internal.clients import dataflow as dataflow_api
 from apache_beam.runners.runner import PipelineState
 from apache_beam.testing.extra_assertions import ExtraAssertionsMixin
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.transforms import combiners
 from apache_beam.transforms import environments
 from apache_beam.transforms import window
 from apache_beam.transforms.core import Windowing
@@ -755,6 +757,131 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         # pylint: disable=expression-not-assigned
         out = p | beam.Create([1]) | beam.io.WriteToBigQuery('some.table')
         out['destination_file_pairs'] | 'MyTransform' >> beam.Map(lambda _: _)
+
+  @unittest.skip('BEAM-3736: enable once CombineFnVisitor is fixed')
+  def test_unsupported_combinefn_detection(self):
+    class CombinerWithNonDefaultSetupTeardown(combiners.CountCombineFn):
+      def setup(self, *args, **kwargs):
+        pass
+
+      def teardown(self, *args, **kwargs):
+        pass
+
+    runner = DataflowRunner()
+    with self.assertRaisesRegex(ValueError,
+                                'CombineFn.setup and CombineFn.'
+                                'teardown are not supported'):
+      with beam.Pipeline(runner=runner,
+                         options=PipelineOptions(self.default_properties)) as p:
+        _ = (
+            p | beam.Create([1])
+            | beam.CombineGlobally(CombinerWithNonDefaultSetupTeardown()))
+
+    try:
+      with beam.Pipeline(runner=runner,
+                         options=PipelineOptions(self.default_properties)) as p:
+        _ = (
+            p | beam.Create([1])
+            | beam.CombineGlobally(
+                combiners.SingleInputTupleCombineFn(
+                    combiners.CountCombineFn(), combiners.CountCombineFn())))
+    except ValueError:
+      self.fail('ValueError raised unexpectedly')
+
+  def _run_group_into_batches_and_get_step_properties(
+      self, with_sharded_key, additional_properties):
+    self.default_properties.append('--streaming')
+    self.default_properties.append(
+        '--experiment=enable_streaming_auto_sharding')
+    for property in additional_properties:
+      self.default_properties.append(property)
+
+    runner = DataflowRunner()
+    with beam.Pipeline(runner=runner,
+                       options=PipelineOptions(self.default_properties)) as p:
+      # pylint: disable=expression-not-assigned
+      input = p | beam.Create([('a', 1), ('a', 1), ('b', 3), ('b', 4)])
+      if with_sharded_key:
+        (
+            input | beam.GroupIntoBatches.WithShardedKey(2)
+            | beam.Map(lambda key_values: (key_values[0].key, key_values[1])))
+        step_name = (
+            u'WithShardedKey/GroupIntoBatches/ParDo(_GroupIntoBatchesDoFn)')
+      else:
+        input | beam.GroupIntoBatches(2)
+        step_name = u'GroupIntoBatches/ParDo(_GroupIntoBatchesDoFn)'
+
+    return self._find_step(runner.job, step_name)['properties']
+
+  def test_group_into_batches_translation(self):
+    properties = self._run_group_into_batches_and_get_step_properties(
+        True, ['--enable_streaming_engine', '--experiment=use_runner_v2'])
+    self.assertEqual(properties[PropertyNames.USES_KEYED_STATE], u'true')
+    self.assertEqual(properties[PropertyNames.ALLOWS_SHARDABLE_STATE], u'true')
+    self.assertEqual(properties[PropertyNames.PRESERVES_KEYS], u'true')
+
+  def test_group_into_batches_translation_non_se(self):
+    properties = self._run_group_into_batches_and_get_step_properties(
+        True, ['--experiment=use_runner_v2'])
+    self.assertEqual(properties[PropertyNames.USES_KEYED_STATE], u'true')
+    self.assertNotIn(PropertyNames.ALLOWS_SHARDABLE_STATE, properties)
+    self.assertNotIn(PropertyNames.PRESERVES_KEYS, properties)
+
+  def test_group_into_batches_translation_non_sharded(self):
+    properties = self._run_group_into_batches_and_get_step_properties(
+        False, ['--enable_streaming_engine', '--experiment=use_runner_v2'])
+    self.assertEqual(properties[PropertyNames.USES_KEYED_STATE], u'true')
+    self.assertNotIn(PropertyNames.ALLOWS_SHARDABLE_STATE, properties)
+    self.assertNotIn(PropertyNames.PRESERVES_KEYS, properties)
+
+  def test_group_into_batches_translation_non_unified_worker(self):
+    # non-portable
+    properties = self._run_group_into_batches_and_get_step_properties(
+        True, ['--enable_streaming_engine'])
+    self.assertEqual(properties[PropertyNames.USES_KEYED_STATE], u'true')
+    self.assertNotIn(PropertyNames.ALLOWS_SHARDABLE_STATE, properties)
+    self.assertNotIn(PropertyNames.PRESERVES_KEYS, properties)
+
+    # JRH
+    properties = self._run_group_into_batches_and_get_step_properties(
+        True, ['--enable_streaming_engine', '--experiment=beam_fn_api'])
+    self.assertEqual(properties[PropertyNames.USES_KEYED_STATE], u'true')
+    self.assertNotIn(PropertyNames.ALLOWS_SHARDABLE_STATE, properties)
+    self.assertNotIn(PropertyNames.PRESERVES_KEYS, properties)
+
+  def _test_pack_combiners(self, pipeline_options, expect_packed):
+    runner = DataflowRunner()
+
+    with beam.Pipeline(runner=runner, options=pipeline_options) as p:
+      data = p | beam.Create([10, 20, 30])
+      _ = data | 'PackableMin' >> beam.CombineGlobally(min)
+      _ = data | 'PackableMax' >> beam.CombineGlobally(max)
+
+    unpacked_minimum_step_name = 'PackableMin/CombinePerKey/Combine'
+    unpacked_maximum_step_name = 'PackableMax/CombinePerKey/Combine'
+    packed_step_name = (
+        'Packed[PackableMin/CombinePerKey, PackableMax/CombinePerKey]/Pack/'
+        'CombinePerKey(SingleInputTupleCombineFn)/Combine')
+    job_dict = json.loads(str(runner.job))
+    step_names = set(s[u'properties'][u'user_name'] for s in job_dict[u'steps'])
+    if expect_packed:
+      self.assertNotIn(unpacked_minimum_step_name, step_names)
+      self.assertNotIn(unpacked_maximum_step_name, step_names)
+      self.assertIn(packed_step_name, step_names)
+    else:
+      self.assertIn(unpacked_minimum_step_name, step_names)
+      self.assertIn(unpacked_maximum_step_name, step_names)
+      self.assertNotIn(packed_step_name, step_names)
+
+  def test_pack_combiners_disabled_by_default(self):
+    self._test_pack_combiners(
+        PipelineOptions(self.default_properties), expect_packed=False)
+
+  @unittest.skip("BEAM-11694")
+  def test_pack_combiners_enabled_by_experiment(self):
+    self.default_properties.append('--experiment=pre_optimize=all')
+    self._test_pack_combiners(
+        PipelineOptions(self.default_properties), expect_packed=True)
 
 
 class CustomMergingWindowFn(window.WindowFn):

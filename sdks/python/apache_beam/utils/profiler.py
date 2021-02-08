@@ -21,6 +21,7 @@ For internal use only; no backwards-compatibility guarantees.
 """
 
 # pytype: skip-file
+# mypy: check-untyped-defs
 
 from __future__ import absolute_import
 
@@ -47,6 +48,9 @@ class Profile(object):
 
   SORTBY = 'cumulative'
 
+  profile_output = None  # type: str
+  stats = None  # type: pstats.Stats
+
   def __init__(
       self,
       profile_id, # type: str
@@ -72,13 +76,11 @@ class Profile(object):
         profiling session, the profiler only records the newly allocated objects
         in this session.
     """
-    self.stats = None
     self.profile_id = str(profile_id)
     self.profile_location = profile_location
     self.log_results = log_results
     self.file_copy_fn = file_copy_fn or self.default_file_copy_fn
     self.time_prefix = time_prefix
-    self.profile_output = None
     self.enable_cpu_profiling = enable_cpu_profiling
     self.enable_memory_profiling = enable_memory_profiling
 
@@ -104,7 +106,8 @@ class Profile(object):
       if self.enable_cpu_profiling:
         self.profile.create_stats()
         self.profile_output = self._upload_profile_data(
-            'cpu_profile', self.profile.stats)
+            # typing: seems stats attr is missing from typeshed
+            self.profile_location, 'cpu_profile', self.profile.stats)  # type: ignore[attr-defined]
 
       if self.enable_memory_profiling:
         if not self.hpy:
@@ -113,7 +116,10 @@ class Profile(object):
           h = self.hpy.heap()
           heap_dump_data = '%s\n%s' % (h, h.more)
           self._upload_profile_data(
-              'memory_profile', heap_dump_data, write_binary=False)
+              self.profile_location,
+              'memory_profile',
+              heap_dump_data,
+              write_binary=False)
 
     if self.log_results:
       if self.enable_cpu_profiling:
@@ -156,18 +162,20 @@ class Profile(object):
       return create_profiler
     return None
 
-  def _upload_profile_data(self, dir, data, write_binary=True):
+  def _upload_profile_data(
+      self, profile_location, dir, data, write_binary=True):
+    # type: (...) -> str
     dump_location = os.path.join(
-        self.profile_location,
+        profile_location,
         dir,
         time.strftime(self.time_prefix + self.profile_id))
     fd, filename = tempfile.mkstemp()
     try:
       os.close(fd)
       if write_binary:
-        with open(filename, 'wb') as f:
+        with open(filename, 'wb') as fb:
           import marshal
-          marshal.dump(data, f)
+          marshal.dump(data, fb)
       else:
         with open(filename, 'w') as f:
           f.write(data)

@@ -37,6 +37,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** A {@link org.apache.beam.sdk.io.Source} representing reading from a table. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BigQueryStorageTableSource<T> extends BigQueryStorageSourceBase<T> {
 
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryStorageTableSource.class);

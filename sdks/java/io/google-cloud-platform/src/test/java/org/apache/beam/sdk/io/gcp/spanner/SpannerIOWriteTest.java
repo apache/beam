@@ -18,11 +18,11 @@
 package org.apache.beam.sdk.io.gcp.spanner;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
@@ -93,6 +93,9 @@ import org.mockito.MockitoAnnotations;
  * pipeline.
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SpannerIOWriteTest implements Serializable {
   private static final long CELLS_PER_KEY = 7;
 
@@ -486,10 +489,6 @@ public class SpannerIOWriteTest implements Serializable {
             });
     pipeline.run().waitUntilFinish();
 
-    // Due to jitter in backoff algorithm, we cannot test for an exact number of retries,
-    // but there will be more than 16 (normally 18).
-    int numSleeps = Mockito.mockingDetails(WriteToSpannerFn.sleeper).getInvocations().size();
-    assertTrue(String.format("Should be least 16 sleeps, got %d", numSleeps), numSleeps > 16);
     long totalSleep =
         Mockito.mockingDetails(WriteToSpannerFn.sleeper).getInvocations().stream()
             .mapToLong(i -> i.getArgument(0))
@@ -501,6 +500,7 @@ public class SpannerIOWriteTest implements Serializable {
         String.format("Should be least 7200s of sleep, got %d", totalSleep),
         totalSleep >= Duration.standardHours(2).getMillis());
 
+    int numSleeps = Mockito.mockingDetails(WriteToSpannerFn.sleeper).getInvocations().size();
     // Number of write attempts should be numSleeps + 2 write attempts:
     //      1 batch attempt, numSleeps/2 batch retries,
     // then 1 individual attempt + numSleeps/2 individual retries

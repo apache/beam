@@ -43,6 +43,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Function to convert a {@link Row} to a user type using a creator factory. */
 @Experimental(Kind.SCHEMAS)
+@SuppressWarnings({
+  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes"
+})
 class FromRowUsingCreator<T> implements SerializableFunction<Row, T> {
   private final Class<T> clazz;
   private final GetterBasedSchemaProvider schemaProvider;

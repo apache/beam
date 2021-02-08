@@ -38,6 +38,9 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link ReaderCache}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ReaderCacheTest {
 
   private static final String C_ID = "computationId";
@@ -58,7 +61,7 @@ public class ReaderCacheTest {
 
   @Before
   public void setUp() {
-    readerCache = new ReaderCache();
+    readerCache = new ReaderCache(Duration.standardMinutes(1), Runnable::run);
     MockitoAnnotations.initMocks(this);
   }
 
@@ -66,20 +69,25 @@ public class ReaderCacheTest {
   public void testReaderCache() throws IOException {
     // Test basic caching expectations
 
-    readerCache.cacheReader(WindmillComputationKey.create(C_ID, KEY_1, SHARDING_KEY), 1, reader1);
-    readerCache.cacheReader(WindmillComputationKey.create(C_ID, KEY_2, SHARDING_KEY), 2, reader2);
+    readerCache.cacheReader(
+        WindmillComputationKey.create(C_ID, KEY_1, SHARDING_KEY), 1, 0, reader1);
+    readerCache.cacheReader(
+        WindmillComputationKey.create(C_ID, KEY_2, SHARDING_KEY), 2, 0, reader2);
 
     assertEquals(
         reader1,
-        readerCache.acquireReader(WindmillComputationKey.create(C_ID, KEY_1, SHARDING_KEY), 1));
+        readerCache.acquireReader(WindmillComputationKey.create(C_ID, KEY_1, SHARDING_KEY), 1, 1));
     assertNull(
-        readerCache.acquireReader(WindmillComputationKey.create(C_ID_1, KEY_1, SHARDING_KEY), 1));
+        readerCache.acquireReader(
+            WindmillComputationKey.create(C_ID_1, KEY_1, SHARDING_KEY), 1, 1));
     assertNull(
-        readerCache.acquireReader(WindmillComputationKey.create(C_ID, KEY_1, SHARDING_KEY_1), 1));
+        readerCache.acquireReader(
+            WindmillComputationKey.create(C_ID, KEY_1, SHARDING_KEY_1), 1, 1));
 
     // Trying to override existing reader should throw
     try {
-      readerCache.cacheReader(WindmillComputationKey.create(C_ID, KEY_2, SHARDING_KEY), 2, reader1);
+      readerCache.cacheReader(
+          WindmillComputationKey.create(C_ID, KEY_2, SHARDING_KEY), 2, 2, reader1);
       fail("Exception should have been thrown");
     } catch (RuntimeException expected) {
       // expected
@@ -88,31 +96,38 @@ public class ReaderCacheTest {
     // And it should not have overwritten the old value
     assertEquals(
         reader2,
-        readerCache.acquireReader(WindmillComputationKey.create(C_ID, KEY_2, SHARDING_KEY), 2));
+        readerCache.acquireReader(WindmillComputationKey.create(C_ID, KEY_2, SHARDING_KEY), 2, 3));
 
     assertNull(
         "acquireReader(WindmillComputationKey.create() should remove matching entry",
-        readerCache.acquireReader(WindmillComputationKey.create(C_ID, KEY_2, SHARDING_KEY), 2));
+        readerCache.acquireReader(WindmillComputationKey.create(C_ID, KEY_2, SHARDING_KEY), 2, 4));
 
     // Make sure computationId is part of the cache key
-    readerCache.cacheReader(WindmillComputationKey.create(C_ID_1, KEY_1, SHARDING_KEY), 1, reader2);
+    readerCache.cacheReader(
+        WindmillComputationKey.create(C_ID_1, KEY_1, SHARDING_KEY), 1, 5, reader2);
     assertEquals(
         reader2,
-        readerCache.acquireReader(WindmillComputationKey.create(C_ID_1, KEY_1, SHARDING_KEY), 1));
+        readerCache.acquireReader(
+            WindmillComputationKey.create(C_ID_1, KEY_1, SHARDING_KEY), 1, 6));
 
     // Make sure sharding key is part of the cache key
-    readerCache.cacheReader(WindmillComputationKey.create(C_ID, KEY_1, SHARDING_KEY_1), 1, reader3);
+    readerCache.cacheReader(
+        WindmillComputationKey.create(C_ID, KEY_1, SHARDING_KEY_1), 1, 0, reader3);
     assertEquals(
         reader3,
-        readerCache.acquireReader(WindmillComputationKey.create(C_ID, KEY_1, SHARDING_KEY_1), 1));
+        readerCache.acquireReader(
+            WindmillComputationKey.create(C_ID, KEY_1, SHARDING_KEY_1), 1, 1));
   }
 
   @Test
   public void testInvalidation() throws IOException {
 
-    readerCache.cacheReader(WindmillComputationKey.create(C_ID, KEY_1, SHARDING_KEY), 1, reader1);
-    readerCache.cacheReader(WindmillComputationKey.create(C_ID, KEY_2, SHARDING_KEY), 2, reader2);
-    readerCache.cacheReader(WindmillComputationKey.create(C_ID, KEY_2, SHARDING_KEY_1), 2, reader3);
+    readerCache.cacheReader(
+        WindmillComputationKey.create(C_ID, KEY_1, SHARDING_KEY), 1, 0, reader1);
+    readerCache.cacheReader(
+        WindmillComputationKey.create(C_ID, KEY_2, SHARDING_KEY), 2, 0, reader2);
+    readerCache.cacheReader(
+        WindmillComputationKey.create(C_ID, KEY_2, SHARDING_KEY_1), 2, 0, reader3);
 
     readerCache.invalidateReader(WindmillComputationKey.create(C_ID, KEY_1, SHARDING_KEY));
     verify(reader1).close();
@@ -137,10 +152,12 @@ public class ReaderCacheTest {
     Duration cacheDuration = Duration.millis(10);
 
     // Create a cache with short expiry period.
-    ReaderCache readerCache = new ReaderCache(cacheDuration);
+    ReaderCache readerCache = new ReaderCache(cacheDuration, Runnable::run);
 
-    readerCache.cacheReader(WindmillComputationKey.create(C_ID, KEY_1, SHARDING_KEY), 1, reader1);
-    readerCache.cacheReader(WindmillComputationKey.create(C_ID, KEY_2, SHARDING_KEY), 2, reader2);
+    readerCache.cacheReader(
+        WindmillComputationKey.create(C_ID, KEY_1, SHARDING_KEY), 1, 0, reader1);
+    readerCache.cacheReader(
+        WindmillComputationKey.create(C_ID, KEY_2, SHARDING_KEY), 2, 0, reader2);
 
     Stopwatch stopwatch = Stopwatch.createStarted();
     while (stopwatch.elapsed(TimeUnit.MILLISECONDS) < 2 * cacheDuration.getMillis()) {
@@ -148,8 +165,33 @@ public class ReaderCacheTest {
     }
 
     // Trigger clean up with a lookup, non-existing key is ok.
-    readerCache.acquireReader(WindmillComputationKey.create(C_ID, KEY_3, SHARDING_KEY), 3);
+    readerCache.acquireReader(WindmillComputationKey.create(C_ID, KEY_3, SHARDING_KEY), 3, 0);
 
     verify(reader1).close();
+  }
+
+  @Test
+  public void testReaderCacheRetries() throws IOException, InterruptedException {
+    ReaderCache readerCache = new ReaderCache(Duration.standardMinutes(1), Runnable::run);
+
+    readerCache.cacheReader(
+        WindmillComputationKey.create(C_ID, KEY_1, SHARDING_KEY), 1, 1, reader1);
+    // Same cache token should not recover the reader from the cache.
+    assertNull(
+        readerCache.acquireReader(WindmillComputationKey.create(C_ID, KEY_1, SHARDING_KEY), 1, 1));
+
+    readerCache.cacheReader(
+        WindmillComputationKey.create(C_ID, KEY_1, SHARDING_KEY), 1, 1, reader2);
+    assertEquals(
+        reader2,
+        readerCache.acquireReader(WindmillComputationKey.create(C_ID, KEY_1, SHARDING_KEY), 1, 20));
+    readerCache.cacheReader(
+        WindmillComputationKey.create(C_ID, KEY_1, SHARDING_KEY), 1, 20, reader2);
+    // Stale cache token should not recover the reader from the cache.
+    assertNull(
+        readerCache.acquireReader(WindmillComputationKey.create(C_ID, KEY_1, SHARDING_KEY), 1, 3));
+
+    verify(reader1).close();
+    verify(reader2).close();
   }
 }

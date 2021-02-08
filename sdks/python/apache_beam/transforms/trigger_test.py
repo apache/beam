@@ -157,8 +157,8 @@ class TriggerTest(unittest.TestCase):
         actual_panes[window].append(set(wvalue.value))
 
     while state.timers:
-      for timer_window, (name, time_domain,
-                         timestamp) in state.get_and_clear_timers():
+      for timer_window, (name, time_domain, timestamp,
+                         _) in state.get_and_clear_timers():
         for wvalue in driver.process_timer(timer_window,
                                            name,
                                            time_domain,
@@ -179,8 +179,8 @@ class TriggerTest(unittest.TestCase):
         actual_panes[window].append(set(wvalue.value))
 
       while state.timers:
-        for timer_window, (name, time_domain,
-                           timestamp) in state.get_and_clear_timers():
+        for timer_window, (name, time_domain, timestamp,
+                           _) in state.get_and_clear_timers():
           for wvalue in driver.process_timer(timer_window,
                                              name,
                                              time_domain,
@@ -806,9 +806,9 @@ def _windowed_value_info_check(actual, expected, key=None):
 
 
 class _ConcatCombineFn(beam.CombineFn):
-  create_accumulator = lambda self: []
+  create_accumulator = lambda self: []  # type: ignore[var-annotated]
   add_input = lambda self, acc, element: acc.append(element) or acc
-  merge_accumulators = lambda self, accs: sum(accs, [])
+  merge_accumulators = lambda self, accs: sum(accs, [])  # type: ignore[var-annotated]
   extract_output = lambda self, acc: acc
 
 
@@ -838,7 +838,7 @@ class TriggerDriverTranscriptTest(TranscriptTest):
     def fire_timers():
       to_fire = state.get_and_clear_timers(watermark)
       while to_fire:
-        for timer_window, (name, time_domain, t_timestamp) in to_fire:
+        for timer_window, (name, time_domain, t_timestamp, _) in to_fire:
           for wvalue in driver.process_timer(timer_window,
                                              name,
                                              time_domain,

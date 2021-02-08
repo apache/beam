@@ -42,20 +42,20 @@ public class AvroTableProviderTest {
   @Rule public TestPipeline readPipeline = TestPipeline.create();
   @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
 
-  private static final String AVRO_FIELD_NAMES = "(name VARCHAR, age BIGINT, country VARCHAR)";
+  private static final String FIELD_NAMES = "(name VARCHAR, age BIGINT, country VARCHAR)";
 
   private static final Schema OUTPUT_ROW_SCHEMA =
       Schema.builder().addInt64Field("age").addStringField("country").build();
 
   @Test
-  public void testReadAndWriteAvroTable() {
+  public void testWriteAndReadTable() {
     File destinationFile = new File(tempFolder.getRoot(), "person-info.avro");
 
     BeamSqlEnv env = BeamSqlEnv.inMemory(new AvroTableProvider());
     env.executeDdl(
         String.format(
             "CREATE EXTERNAL TABLE PersonInfo %s TYPE avro LOCATION '%s'",
-            AVRO_FIELD_NAMES, destinationFile.getAbsolutePath()));
+            FIELD_NAMES, destinationFile.getAbsolutePath()));
 
     BeamSqlRelUtils.toPCollection(
         writePipeline,
@@ -66,12 +66,12 @@ public class AvroTableProviderTest {
 
     PCollection<Row> rows =
         BeamSqlRelUtils.toPCollection(
-            readPipeline, env.parseQuery("SELECT age, country FROM PersonInfo where age > 25"));
+            readPipeline, env.parseQuery("SELECT age, country FROM PersonInfo WHERE age > 25"));
 
     PAssert.that(rows)
         .containsInAnyOrder(Row.withSchema(OUTPUT_ROW_SCHEMA).addValues(42L, "USA").build());
 
     PipelineResult.State state = readPipeline.run().waitUntilFinish();
-    assertEquals(state, State.DONE);
+    assertEquals(State.DONE, state);
   }
 }

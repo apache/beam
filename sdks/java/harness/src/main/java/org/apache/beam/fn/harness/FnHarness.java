@@ -36,6 +36,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse.Builde
 import org.apache.beam.model.fnexecution.v1.BeamFnControlGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
+import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
@@ -73,6 +74,9 @@ import org.slf4j.LoggerFactory;
  *       for further details.
  * </ul>
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class FnHarness {
   private static final String HARNESS_ID = "HARNESS_ID";
   private static final String CONTROL_API_SERVICE_DESCRIPTOR = "CONTROL_API_SERVICE_DESCRIPTOR";
@@ -248,11 +252,14 @@ public class FnHarness {
 
       JvmInitializers.runBeforeProcessing(options);
 
+      ExecutionStateSampler.instance().start();
+
       LOG.info("Entering instruction processing loop");
       control.processInstructionRequests(executorService);
       processBundleHandler.shutdown();
     } finally {
       System.out.println("Shutting SDK harness down.");
+      ExecutionStateSampler.instance().stop();
       executorService.shutdown();
     }
   }

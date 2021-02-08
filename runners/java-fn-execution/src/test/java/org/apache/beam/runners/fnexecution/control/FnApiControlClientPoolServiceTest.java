@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.fnexecution.control;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.argThat;
 import static org.mockito.Mockito.mock;
@@ -49,6 +49,9 @@ import org.junit.runners.JUnit4;
 
 /** Unit tests for {@link FnApiControlClientPoolService}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class FnApiControlClientPoolServiceTest {
 
   private final ControlClientPool pool = MapControlClientPool.create();

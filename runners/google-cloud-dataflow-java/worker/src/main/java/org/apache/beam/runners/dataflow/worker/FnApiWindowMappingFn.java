@@ -72,6 +72,9 @@ import org.slf4j.LoggerFactory;
  * instead of per mapping request. This requires rewriting the {@link StreamingSideInputFetcher} to
  * not be inline calls and process elements over a stream.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class FnApiWindowMappingFn<TargetWindowT extends BoundedWindow>
     extends WindowMappingFn<TargetWindowT> {
   private static final Logger LOG = LoggerFactory.getLogger(FnApiWindowMappingFn.class);

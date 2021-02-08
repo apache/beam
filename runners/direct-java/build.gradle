@@ -26,12 +26,15 @@ def dependOnProjects = [":runners:core-construction-java",
                         ":runners:core-java",
                         ":runners:local-java",
                         ":runners:java-fn-execution",
-                        ":sdks:java:fn-execution"]
+                        ":sdks:java:fn-execution"
+                        ]
 
 applyJavaNature(
+        enableStrictDependencies:true,
         automaticModuleName: 'org.apache.beam.runners.direct',
-        enableChecker: false,
-        ignoreRawtypeErrors: true,
+        classesTriggerCheckerBugs: [
+          'ImpulseEvaluatorFactory': 'https://github.com/typetools/checker-framework/issues/3791',
+        ],
         shadowClosure: {
           dependencies {
             dependOnProjects.each {
@@ -42,7 +45,8 @@ applyJavaNature(
           relocate "org.apache.beam.runners.fnexecution", getJavaRelocatedPath("runners.fnexecution")
           relocate "org.apache.beam.sdk.fn", getJavaRelocatedPath("sdk.fn")
           relocate "org.apache.beam.runners.local", getJavaRelocatedPath("runners.local")
-        })
+        },
+)
 
 description = "Apache Beam :: Runners :: Direct Java"
 
@@ -70,17 +74,12 @@ dependencies {
   shadow library.java.vendored_grpc_1_26_0
   shadow library.java.joda_time
   shadow library.java.slf4j_api
-  shadow library.java.args4j
+  shadow library.java.jackson_databind
   provided library.java.hamcrest_core
   provided library.java.junit
   shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")
   shadowTest project(path: ":runners:core-java", configuration: "testRuntime")
-  shadowTest library.java.slf4j_jdk14
   shadowTest library.java.mockito_core
-  shadowTest library.java.stax2_api
-  shadowTest library.java.woodstox_core_asl
-  shadowTest library.java.google_cloud_dataflow_java_proto_library_all
-  shadowTest library.java.jackson_dataformat_yaml
   needsRunner project(path: ":runners:core-construction-java", configuration: "testRuntime")
   needsRunner project(path: ":runners:core-java", configuration: "testRuntime")
   needsRunner project(path: ":sdks:java:core", configuration: "shadowTest")
@@ -91,6 +90,23 @@ dependencies {
   validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
   validatesRunner project(path: project.path, configuration: "shadow")
   validatesRunner project(path: project.path, configuration: "shadowTest")
+  permitUnusedDeclared library.java.vendored_grpc_1_26_0
+  permitUnusedDeclared project(":runners:java-fn-execution")
+  permitUnusedDeclared project(":sdks:java:fn-execution")
+}
+
+// windows handles quotes differently from linux,
+// on linux, the pipeline option string looks like
+// "--runner=DirectRunner", "--runnerDeterminedSharding=false"
+// on windows, the pipeline option string needs to be
+// "\"--runner=DirectRunner\"", "\"--runnerDeterminedSharding=false\""
+// to achieve the same effect
+static def pipelineOptionsStringCrossPlatformHandling(String[] options) {
+  if (System.properties['os.name'].toLowerCase().contains('windows')) {
+    return JsonOutput.toJson(options.collect { "\"$it\"" })
+  } else {
+    return JsonOutput.toJson(options)
+  }
 }
 
 task needsRunnerTests(type: Test) {
@@ -99,8 +115,8 @@ task needsRunnerTests(type: Test) {
 
   testLogging.showStandardStreams = true
 
-  def pipelineOptions = JsonOutput.toJson(["--runner=DirectRunner", "--runnerDeterminedSharding=false"])
-  systemProperty "beamTestPipelineOptions", pipelineOptions
+  String[] pipelineOptions = ["--runner=DirectRunner", "--runnerDeterminedSharding=false"]
+  systemProperty "beamTestPipelineOptions", pipelineOptionsStringCrossPlatformHandling(pipelineOptions)
 
   classpath = configurations.needsRunner
   // NOTE: We only add to the test class dirs to ensure that the direct runner
@@ -129,8 +145,8 @@ task validatesRunner(type: Test) {
   group = "Verification"
   description "Validates Direct runner"
 
-  def pipelineOptions = JsonOutput.toJson(["--runner=DirectRunner", "--runnerDeterminedSharding=false"])
-  systemProperty "beamTestPipelineOptions", pipelineOptions
+  String[] pipelineOptions = ["--runner=DirectRunner", "--runnerDeterminedSharding=false"]
+  systemProperty "beamTestPipelineOptions", pipelineOptionsStringCrossPlatformHandling(pipelineOptions)
 
   classpath = configurations.validatesRunner
   // NOTE: We only add to the test class dirs to ensure that the direct runner

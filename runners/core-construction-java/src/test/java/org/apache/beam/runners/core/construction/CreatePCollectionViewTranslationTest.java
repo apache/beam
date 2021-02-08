@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.core.construction;
 
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
@@ -36,6 +36,7 @@ import org.apache.beam.sdk.values.PCollectionViews;
 import org.apache.beam.sdk.values.PCollectionViews.TypeDescriptorSupplier;
 import org.apache.beam.sdk.values.PCollectionViews.ValueOrMetadata;
 import org.apache.beam.sdk.values.PCollectionViews.ValueOrMetadataCoder;
+import org.apache.beam.sdk.values.PValues;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.hamcrest.Matchers;
@@ -102,8 +103,8 @@ public class CreatePCollectionViewTranslationTest {
     AppliedPTransform<?, ?, ?> appliedPTransform =
         AppliedPTransform.of(
             "foo",
-            testPCollection.expand(),
-            createViewTransform.getView().expand(),
+            PValues.expandInput(testPCollection),
+            PValues.expandOutput(createViewTransform.getView()),
             createViewTransform,
             p);
 
@@ -127,8 +128,8 @@ public class CreatePCollectionViewTranslationTest {
     AppliedPTransform<?, ?, ?> appliedPTransform =
         AppliedPTransform.of(
             "foo",
-            testPCollection.expand(),
-            createViewTransform.getView().expand(),
+            PValues.expandInput(testPCollection),
+            PValues.expandOutput(createViewTransform.getView()),
             createViewTransform,
             p);
 

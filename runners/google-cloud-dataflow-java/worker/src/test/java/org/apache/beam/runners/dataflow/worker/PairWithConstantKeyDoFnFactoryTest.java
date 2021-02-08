@@ -18,8 +18,8 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
-import static org.junit.Assert.assertThat;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -38,6 +38,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link PairWithConstantKeyDoFnFactory}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class PairWithConstantKeyDoFnFactoryTest {
   @Test
   public void testConversionOfRecord() throws Exception {

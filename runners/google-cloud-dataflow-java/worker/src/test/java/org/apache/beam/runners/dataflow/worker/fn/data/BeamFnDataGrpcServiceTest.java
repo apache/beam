@@ -19,10 +19,10 @@ package org.apache.beam.runners.dataflow.worker.fn.data;
 
 import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
 import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
-import static org.junit.Assert.assertThat;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -75,7 +75,10 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link BeamFnDataGrpcService}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("FutureReturnValueIgnored")
+@SuppressWarnings({
+  "FutureReturnValueIgnored",
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BeamFnDataGrpcServiceTest {
   private static final String TRANSFORM_ID = "888";
   private static final Coder<WindowedValue<String>> CODER =

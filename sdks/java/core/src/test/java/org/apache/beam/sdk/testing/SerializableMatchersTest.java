@@ -22,7 +22,7 @@ import static org.apache.beam.sdk.testing.SerializableMatchers.anything;
 import static org.apache.beam.sdk.testing.SerializableMatchers.containsInAnyOrder;
 import static org.apache.beam.sdk.testing.SerializableMatchers.kvWithKey;
 import static org.apache.beam.sdk.testing.SerializableMatchers.not;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -49,6 +49,9 @@ import org.junit.runners.JUnit4;
  * boilerplate that is identical to each is considered thoroughly tested.
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SerializableMatchersTest implements Serializable {
   @Rule public transient ExpectedException thrown = ExpectedException.none();
 

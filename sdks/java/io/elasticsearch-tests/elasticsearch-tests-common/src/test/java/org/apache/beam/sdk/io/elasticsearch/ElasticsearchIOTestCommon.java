@@ -29,12 +29,12 @@ import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.coun
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.countByScientistName;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestUtils.refreshIndexAndGetCurrentNumDocs;
 import static org.apache.beam.sdk.testing.SourceTestUtils.readFromSource;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.lessThan;
 import static org.hamcrest.core.Is.isA;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -74,6 +74,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Common test class for {@link ElasticsearchIO}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class ElasticsearchIOTestCommon implements Serializable {
 
   private static final Logger LOG = LoggerFactory.getLogger(ElasticsearchIOTestCommon.class);

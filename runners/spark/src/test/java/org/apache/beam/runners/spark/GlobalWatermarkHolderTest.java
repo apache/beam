@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.spark;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.IsEqual.equalTo;
-import static org.junit.Assert.assertThat;
 
 import org.apache.beam.runners.spark.translation.SparkContextFactory;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
@@ -33,6 +33,9 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 /** A test suite for the propagation of watermarks in the Spark runner. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class GlobalWatermarkHolderTest {
 
   @Rule public ClearWatermarksRule clearWatermarksRule = new ClearWatermarksRule();

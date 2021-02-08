@@ -19,9 +19,10 @@
 plugins { id 'org.apache.beam.module' }
 
 applyJavaNature(
+    enableStrictDependencies: true,
     automaticModuleName: 'org.apache.beam.runners.local',
     archivesBaseName: 'beam-runners-local-java-core',
-    enableChecker: false,
+
 )
 
 description = "Apache Beam :: Runners :: Local Java Core"
@@ -35,7 +36,5 @@ dependencies {
   */
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile library.java.joda_time
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
   testCompile library.java.junit
 }

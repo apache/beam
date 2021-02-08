@@ -19,7 +19,12 @@ package org.apache.beam.sdk.transforms;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
+import com.google.auto.value.AutoValue;
+import java.io.Serializable;
+import java.nio.ByteBuffer;
+import java.util.UUID;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.state.BagState;
@@ -32,6 +37,7 @@ import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
@@ -83,34 +89,104 @@ import org.slf4j.LoggerFactory;
  *         .withMaxBufferingDuration(maxBufferingDuration));
  * }</pre>
  */
+@SuppressWarnings({
+  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes"
+})
 public class GroupIntoBatches<K, InputT>
     extends PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, Iterable<InputT>>>> {
 
-  private final long batchSize;
-  @Nullable private final Duration maxBufferingDuration;
+  /**
+   * Wrapper class for batching parameters supplied by users. Shared by both {@link
+   * GroupIntoBatches} and {@link GroupIntoBatches.WithShardedKey}.
+   */
+  @AutoValue
+  public abstract static class BatchingParams implements Serializable {
+    public static BatchingParams create(long batchSize, Duration maxBufferingDuration) {
+      return new AutoValue_GroupIntoBatches_BatchingParams(batchSize, maxBufferingDuration);
+    }
 
-  private GroupIntoBatches(long batchSize, @Nullable Duration maxBufferingDuration) {
-    this.batchSize = batchSize;
-    this.maxBufferingDuration = maxBufferingDuration;
+    public abstract long getBatchSize();
+
+    public abstract Duration getMaxBufferingDuration();
+  }
+
+  private final BatchingParams params;
+  private static final UUID workerUuid = UUID.randomUUID();
+
+  private GroupIntoBatches(BatchingParams params) {
+    this.params = params;
   }
 
   public static <K, InputT> GroupIntoBatches<K, InputT> ofSize(long batchSize) {
-    return new GroupIntoBatches<>(batchSize, null);
+    return new GroupIntoBatches<>(BatchingParams.create(batchSize, Duration.ZERO));
   }
 
-  /** Returns the size of the batch. */
-  public long getBatchSize() {
-    return batchSize;
+  /** Returns user supplied parameters for batching. */
+  public BatchingParams getBatchingParams() {
+    return params;
   }
 
   /**
-   * Set a time limit (in processing time) on how long an incomplete batch of elements is allowed to
-   * be buffered. Once a batch is flushed to output, the timer is reset.
+   * Sets a time limit (in processing time) on how long an incomplete batch of elements is allowed
+   * to be buffered. Once a batch is flushed to output, the timer is reset. The provided limit must
+   * be a positive duration or zero; a zero buffering duration effectively means no limit.
    */
   public GroupIntoBatches<K, InputT> withMaxBufferingDuration(Duration duration) {
     checkArgument(
-        duration.isLongerThan(Duration.ZERO), "max buffering duration should be a positive value");
-    return new GroupIntoBatches<>(batchSize, duration);
+        duration != null && !duration.isShorterThan(Duration.ZERO),
+        "max buffering duration should be a non-negative value");
+    return new GroupIntoBatches<>(BatchingParams.create(params.getBatchSize(), duration));
+  }
+
+  /**
+   * Outputs batched elements associated with sharded input keys. By default, keys are sharded to
+   * such that the input elements with the same key are spread to all available threads executing
+   * the transform. Runners may override the default sharding to do a better load balancing during
+   * the execution time.
+   */
+  @Experimental
+  public WithShardedKey withShardedKey() {
+    return new WithShardedKey();
+  }
+
+  public class WithShardedKey
+      extends PTransform<
+          PCollection<KV<K, InputT>>, PCollection<KV<ShardedKey<K>, Iterable<InputT>>>> {
+    private WithShardedKey() {}
+
+    /** Returns user supplied parameters for batching. */
+    public BatchingParams getBatchingParams() {
+      return params;
+    }
+
+    @Override
+    public PCollection<KV<ShardedKey<K>, Iterable<InputT>>> expand(
+        PCollection<KV<K, InputT>> input) {
+      checkArgument(
+          input.getCoder() instanceof KvCoder,
+          "coder specified in the input PCollection is not a KvCoder");
+      KvCoder<K, InputT> inputCoder = (KvCoder<K, InputT>) input.getCoder();
+      Coder<K> keyCoder = (Coder<K>) inputCoder.getCoderArguments().get(0);
+      Coder<InputT> valueCoder = (Coder<InputT>) inputCoder.getCoderArguments().get(1);
+
+      return input
+          .apply(
+              MapElements.via(
+                  new SimpleFunction<KV<K, InputT>, KV<ShardedKey<K>, InputT>>() {
+                    @Override
+                    public KV<ShardedKey<K>, InputT> apply(KV<K, InputT> input) {
+                      long tid = Thread.currentThread().getId();
+                      ByteBuffer buffer = ByteBuffer.allocate(3 * Long.BYTES);
+                      buffer.putLong(workerUuid.getMostSignificantBits());
+                      buffer.putLong(workerUuid.getLeastSignificantBits());
+                      buffer.putLong(tid);
+                      return KV.of(ShardedKey.of(input.getKey(), buffer.array()), input.getValue());
+                    }
+                  }))
+          .setCoder(KvCoder.of(ShardedKey.Coder.of(keyCoder), valueCoder))
+          .apply(new GroupIntoBatches<>(getBatchingParams()));
+    }
   }
 
   @Override
@@ -120,14 +196,18 @@ public class GroupIntoBatches<K, InputT>
     checkArgument(
         input.getCoder() instanceof KvCoder,
         "coder specified in the input PCollection is not a KvCoder");
-    KvCoder inputCoder = (KvCoder) input.getCoder();
+    KvCoder<K, InputT> inputCoder = (KvCoder<K, InputT>) input.getCoder();
     Coder<K> keyCoder = (Coder<K>) inputCoder.getCoderArguments().get(0);
     Coder<InputT> valueCoder = (Coder<InputT>) inputCoder.getCoderArguments().get(1);
 
     return input.apply(
         ParDo.of(
             new GroupIntoBatchesDoFn<>(
-                batchSize, allowedLateness, maxBufferingDuration, keyCoder, valueCoder)));
+                params.getBatchSize(),
+                allowedLateness,
+                params.getMaxBufferingDuration(),
+                keyCoder,
+                valueCoder)));
   }
 
   @VisibleForTesting
@@ -211,7 +291,7 @@ public class GroupIntoBatches<K, InputT>
       numElementsInBatch.add(1L);
 
       long num = numElementsInBatch.read();
-      if (num == 1 && maxBufferingDuration != null) {
+      if (num == 1 && maxBufferingDuration.isLongerThan(Duration.ZERO)) {
         // This is the first element in batch. Start counting buffering time if a limit was set.
         bufferingTimer.offset(maxBufferingDuration).setRelative();
       }
@@ -274,7 +354,7 @@ public class GroupIntoBatches<K, InputT>
       // buffering timer (if not null) since the state is empty now. It'll be extended again if a
       // new element arrives prior to the expiration time set here.
       // TODO(BEAM-10887): Use clear() when it's available.
-      if (bufferingTimer != null && maxBufferingDuration != null) {
+      if (bufferingTimer != null && maxBufferingDuration.isLongerThan(Duration.ZERO)) {
         bufferingTimer.offset(maxBufferingDuration).setRelative();
       }
     }

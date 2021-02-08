@@ -19,9 +19,9 @@ package org.apache.beam.sdk.io;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFor;
 import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
@@ -57,6 +57,9 @@ import org.slf4j.LoggerFactory;
 
 /** Unit tests for {@link BoundedReadFromUnboundedSource}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BoundedReadFromUnboundedSourceTest implements Serializable {
   private static final int NUM_RECORDS = 100;
 

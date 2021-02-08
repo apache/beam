@@ -21,8 +21,6 @@ import org.apache.beam.gradle.GrpcVendoring_1_26_0
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
   automaticModuleName: 'org.apache.beam.vendor.sdks.java.extensions.protobuf',
-  enableChecker: false,
-  ignoreRawtypeErrors: true,
   exportJavadoc: false,
   shadowClosure: {
     dependencies {
@@ -40,7 +38,7 @@ applyJavaNature(
     relocate "com.google.thirdparty", "org.apache.beam.vendor.grpc.v1p26p0.com.google.thirdparty"
 
     relocate "com.google.protobuf", "org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf"
-  }
+  },
 )
 
 description = "Apache Beam :: Vendored Dependencies :: SDKs :: Java :: Extensions :: Protobuf"

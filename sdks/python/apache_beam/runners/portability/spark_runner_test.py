@@ -35,10 +35,8 @@ from apache_beam.runners.portability import portable_runner_test
 
 # Run as
 #
-# pytest spark_runner_test.py \
-#     [--test_pipeline_options "--spark_job_server_jar=/path/to/job_server.jar \
-#                               --environment_type=DOCKER"] \
-#     [SparkRunnerTest.test_method, ...]
+# pytest spark_runner_test.py[::TestClass::test_case] \
+#     --test-pipeline-options="--environment_type=LOOPBACK"
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -89,7 +87,7 @@ class SparkRunnerTest(portable_runner_test.PortableRunnerTest):
     self.set_spark_job_server_jar(
         known_args.spark_job_server_jar or
         job_server.JavaJarJobServer.path_to_beam_jar(
-            ':runners:job-server:shadowJar'))
+            ':runners:spark:job-server:shadowJar'))
     self.environment_type = known_args.environment_type
     self.environment_options = known_args.environment_options
 
@@ -170,11 +168,21 @@ class SparkRunnerTest(portable_runner_test.PortableRunnerTest):
     # Skip until Spark runner supports bundle finalization.
     raise unittest.SkipTest("BEAM-7233")
 
+  def test_sdf_with_dofn_as_watermark_estimator(self):
+    # Skip until Spark runner supports SDF and self-checkpoint.
+    raise unittest.SkipTest("BEAM-7222")
+
+  def test_pardo_dynamic_timer(self):
+    raise unittest.SkipTest("BEAM-9912")
+
   def test_flattened_side_input(self):
     # Blocked on support for transcoding
     # https://jira.apache.org/jira/browse/BEAM-7236
     super(SparkRunnerTest,
           self).test_flattened_side_input(with_transcoding=False)
+
+  def test_custom_merging_window(self):
+    raise unittest.SkipTest("BEAM-11004")
 
   # Inherits all other tests from PortableRunnerTest.
 

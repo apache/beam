@@ -16,10 +16,12 @@
 package beam
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
 	"reflect"
+	"sync"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/coderx"
@@ -32,6 +34,15 @@ import (
 	protov2 "google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
+
+// EnableSchemas is a temporary configuration variable
+// to use Beam Schema encoding by default instead of JSON.
+// Before it is removed, it will be set to true by default
+// and then eventually removed.
+//
+// Only users who rely on default JSON marshalling behaviour should set
+// this explicitly.
+var EnableSchemas bool = false
 
 type jsonCoder interface {
 	json.Marshaler
@@ -181,6 +192,19 @@ func inferCoder(t FullType) (*coder.Coder, error) {
 			if c := coder.LookupCustomCoder(et); c != nil {
 				return coder.CoderFrom(c), nil
 			}
+
+			if EnableSchemas {
+				switch et.Kind() {
+				case reflect.Ptr:
+					if et.Elem().Kind() != reflect.Struct {
+						break
+					}
+					fallthrough
+				case reflect.Struct:
+					return &coder.Coder{Kind: coder.Row, T: t}, nil
+				}
+			}
+
 			// Interface types that implement JSON marshalling can be handled by the default coder.
 			// otherwise, inference needs to fail here.
 			if et.Kind() == reflect.Interface && !et.Implements(jsonCoderType) {
@@ -283,6 +307,74 @@ func jsonDec(t reflect.Type, in []byte) (T, error) {
 
 func newJSONCoder(t reflect.Type) (*coder.CustomCoder, error) {
 	c, err := coder.NewCustomCoder("json", t, jsonEnc, jsonDec)
+	if err != nil {
+		return nil, errors.Wrapf(err, "invalid coder")
+	}
+	return c, nil
+}
+
+// These maps and mutexes are actuated per element, which can be expensive.
+var (
+	encMu      sync.Mutex
+	schemaEncs = map[reflect.Type]func(interface{}, io.Writer) error{}
+
+	decMu      sync.Mutex
+	schemaDecs = map[reflect.Type]func(io.Reader) (interface{}, error){}
+)
+
+// schemaEnc encodes the supplied value as beam schema.
+func schemaEnc(t reflect.Type, in T) ([]byte, error) {
+	switch t.Kind() {
+	case reflect.Slice, reflect.Array:
+		t = t.Elem()
+	}
+	encMu.Lock()
+	enc, ok := schemaEncs[t]
+	if !ok {
+		var err error
+		enc, err = coder.RowEncoderForStruct(t)
+		if err != nil {
+			encMu.Unlock()
+			return nil, err
+		}
+		schemaEncs[t] = enc
+	}
+	encMu.Unlock()
+	var buf bytes.Buffer
+	if err := enc(in, &buf); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+// schemaDec decodes the supplied beam schema into an instance of the supplied type.
+func schemaDec(t reflect.Type, in []byte) (T, error) {
+	switch t.Kind() {
+	case reflect.Slice, reflect.Array:
+		t = t.Elem()
+	}
+	decMu.Lock()
+	dec, ok := schemaDecs[t]
+	if !ok {
+		var err error
+		dec, err = coder.RowDecoderForStruct(t)
+		if err != nil {
+			decMu.Unlock()
+			return nil, err
+		}
+		schemaDecs[t] = dec
+	}
+	decMu.Unlock()
+	buf := bytes.NewBuffer(in)
+	val, err := dec(buf)
+	if err != nil {
+		return nil, err
+	}
+	return val, nil
+}
+
+func newSchemaCoder(t reflect.Type) (*coder.CustomCoder, error) {
+	c, err := coder.NewCustomCoder("schema", t, schemaEnc, schemaDec)
 	if err != nil {
 		return nil, errors.Wrapf(err, "invalid coder")
 	}

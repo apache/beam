@@ -46,6 +46,10 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 /** Unit tests for {@link Row}. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class RowTest {
 
   @Rule public ExpectedException thrown = ExpectedException.none();

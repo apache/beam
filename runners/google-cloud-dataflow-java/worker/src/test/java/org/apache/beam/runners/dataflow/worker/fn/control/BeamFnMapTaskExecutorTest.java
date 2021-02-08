@@ -18,9 +18,9 @@
 package org.apache.beam.runners.dataflow.worker.fn.control;
 
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeInt64Counter;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.when;
@@ -72,6 +72,10 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link BeamFnMapTaskExecutor}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BeamFnMapTaskExecutorTest {
 
   @Mock private OperationContext mockContext;
@@ -218,35 +222,31 @@ public class BeamFnMapTaskExecutorTest {
   private DataflowStepContext generateDataflowStepContext(String valuesPrefix) {
     NameContext nc =
         new NameContext() {
-          @Nullable
           @Override
-          public String stageName() {
+          public @Nullable String stageName() {
             return valuesPrefix + "Stage";
           }
 
-          @Nullable
           @Override
-          public String originalName() {
+          public @Nullable String originalName() {
             return valuesPrefix + "OriginalName";
           }
 
-          @Nullable
           @Override
-          public String systemName() {
+          public @Nullable String systemName() {
             return valuesPrefix + "SystemName";
           }
 
-          @Nullable
           @Override
-          public String userName() {
+          public @Nullable String userName() {
             return valuesPrefix + "UserName";
           }
         };
     DataflowStepContext dsc =
         new DataflowStepContext(nc) {
-          @Nullable
           @Override
-          public <W extends BoundedWindow> TimerData getNextFiredTimer(Coder<W> windowCoder) {
+          public <W extends BoundedWindow> @Nullable TimerData getNextFiredTimer(
+              Coder<W> windowCoder) {
             return null;
           }
 
