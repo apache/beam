@@ -347,35 +347,52 @@ class GenericMergingWindowFn(window.WindowFn):
   TO_SDK_TRANSFORM = 'read'
   FROM_SDK_TRANSFORM = 'write'
 
-  _HANDLES = {}
+  _HANDLES = {}  # type: Dict[str, GenericMergingWindowFn]
 
   def __init__(self, execution_context, windowing_strategy_proto):
-    self._worker_handler = None
+    # type: (FnApiRunnerExecutionContext, beam_runner_api_pb2.WindowingStrategy) -> None
+    self._worker_handler = None  # type: Optional[worker_handlers.WorkerHandler]
     self._handle_id = handle_id = uuid.uuid4().hex
     self._HANDLES[handle_id] = self
     # ExecutionContexts are expensive, we don't want to keep them in the
     # static dictionary forever.  Instead we hold a weakref and pop self
     # out of the dict once this context goes away.
-    self._execution_context_ref = weakref.ref(
+    self._execution_context_ref_obj = weakref.ref(
         execution_context, lambda _: self._HANDLES.pop(handle_id, None))
     self._windowing_strategy_proto = windowing_strategy_proto
-    self._process_bundle_descriptor = None
     self._counter = 0
+    # Lazily created in make_process_bundle_descriptor()
+    self._process_bundle_descriptor = None
+    self._bundle_processor_id = None  # type: Optional[str]
+    self.windowed_input_coder_impl = None  # type: Optional[CoderImpl]
+    self.windowed_output_coder_impl = None  # type: Optional[CoderImpl]
+
+  def _execution_context_ref(self):
+    # type: () -> FnApiRunnerExecutionContext
+    result = self._execution_context_ref_obj()
+    assert result is not None
+    return result
 
   def payload(self):
+    # type: () -> bytes
     return self._handle_id.encode('utf-8')
 
   @staticmethod
   @window.urns.RunnerApiFn.register_urn(URN, bytes)
   def from_runner_api_parameter(handle_id, unused_context):
+    # type: (bytes, Any) -> GenericMergingWindowFn
     return GenericMergingWindowFn._HANDLES[handle_id.decode('utf-8')]
 
   def assign(self, assign_context):
+    # type: (window.WindowFn.AssignContext) -> Iterable[window.BoundedWindow]
     raise NotImplementedError()
 
   def merge(self, merge_context):
+    # type: (window.WindowFn.MergeContext) -> None
     worker_handler = self.worker_handle()
 
+    assert self.windowed_input_coder_impl is not None
+    assert self.windowed_output_coder_impl is not None
     process_bundle_id = self.uid('process')
     to_worker = worker_handler.data_conn.output_stream(
         process_bundle_id, self.TO_SDK_TRANSFORM)
@@ -392,7 +409,7 @@ class GenericMergingWindowFn(window.WindowFn):
     for output in worker_handler.data_conn.input_elements(
         process_bundle_id, [self.FROM_SDK_TRANSFORM],
         abort_callback=lambda:
-        (result_future.is_done() and result_future.get().error)):
+        bool(result_future.is_done() and result_future.get().error)):
       if isinstance(output, beam_fn_api_pb2.Elements.Data):
         windowed_result = self.windowed_output_coder_impl.decode_nested(
             output.data)
@@ -407,10 +424,12 @@ class GenericMergingWindowFn(window.WindowFn):
     # The result was "returned" via the merge callbacks on merge_context above.
 
   def get_window_coder(self):
+    # type: () -> coders.Coder
     return self._execution_context_ref().pipeline_context.coders[
         self._windowing_strategy_proto.window_coder_id]
 
   def worker_handle(self):
+    # type: () -> worker_handlers.WorkerHandler
     if self._worker_handler is None:
       worker_handler_manager = self._execution_context_ref(
       ).worker_handler_manager
@@ -425,10 +444,12 @@ class GenericMergingWindowFn(window.WindowFn):
 
   def make_process_bundle_descriptor(
       self, data_api_service_descriptor, state_api_service_descriptor):
+    # type: (Optional[endpoints_pb2.ApiServiceDescriptor], Optional[endpoints_pb2.ApiServiceDescriptor]) -> beam_fn_api_pb2.ProcessBundleDescriptor
     """Creates a ProcessBundleDescriptor for invoking the WindowFn's
     merge operation.
     """
     def make_channel_payload(coder_id):
+      # type: (str) -> bytes
       data_spec = beam_fn_api_pb2.RemoteGrpcPort(coder_id=coder_id)
       if data_api_service_descriptor:
         data_spec.api_service_descriptor.url = (data_api_service_descriptor.url)
@@ -441,6 +462,7 @@ class GenericMergingWindowFn(window.WindowFn):
     coders = dict(pipeline_context.coders.get_id_to_proto_map())
 
     def make_coder(urn, *components):
+      # type: (str, str) -> str
       coder_proto = beam_runner_api_pb2.Coder(
           spec=beam_runner_api_pb2.FunctionSpec(urn=urn),
           component_coder_ids=components)
@@ -528,6 +550,7 @@ class GenericMergingWindowFn(window.WindowFn):
         timer_api_service_descriptor=data_api_service_descriptor)
 
   def uid(self, name=''):
+    # type: (str) -> str
     self._counter += 1
     return '%s_%s_%s' % (self._handle_id, name, self._counter)
 
