@@ -721,6 +721,18 @@ message StateKey {
     bytes key = 4;
   }
 
+  message OrderedListStateKey {
+    // (Required) The id of the PTransform containing user state.
+    string transform_id = 1;
+    // (Required) The id of the OrderedListState.
+    string user_state_id = 2;
+    // (Required) The window encoded in a nested context.
+    bytes window = 3;
+    // (Required) The key of the currently executing element encoded in a
+    // nested context.
+    bytes key = 4;
+  }
+
   // (Required) One of the following state keys must be set.
   oneof type {
     Runner runner = 1;
@@ -728,9 +740,47 @@ message StateKey {
     BagUserState bag_user_state = 3;
     IterableSideInput iterable_side_input = 4;
     MultimapKeysSideInput multimap_keys_side_input = 5;
+    OrderedListStateKey ordered_list_state = 6;
     // TODO: represent a state key for user map state
   }
 }
+
+// A message describes a sort_key range [start, end).
+message SortKeyRange {
+  int64 start = 1;
+  int64 end = 2;
+}
+
+// A list entry which tagged with a sort_key.
+message OrderedListEntry {
+  int64 sort_key = 1;
+  bytes data = 2;
+}
+
+// This request will fetch the OrderedListState with a timestamp range. If the
+// timestamp range is not specified, the runner should use [MIN_INT64,
+// MAX_INT64) by default.
+message OrderedListStateGetRequest {
+  bytes continuation_token = 1;
+  SortKeyRange range = 2;
+}
+
+message OrderedListStateGetResponse {
+  bytes continuation_token = 1;
+  repeated OrderedListEntry entries = 2;
+}
+
+
+// This request includes 2 types of updates: added states and removed ranges.
+// Alternatively, please refer to discussion[2] below.
+message OrderedListStateUpdateRequest {
+  repeated OrderedListEntry add_entries = 1;
+  repeated SortKeyRange remove_ranges = 2;
+}
+
+// This is an empty response with no further actions asked from the SDK side.
+message OrderedListStateUpdateResponse {}
+
 
 // A request to get state.
 message StateGetRequest {

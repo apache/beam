@@ -20,6 +20,7 @@ package org.apache.beam.fn.harness.state;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
+import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -58,10 +59,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
-import org.checkerframework.checker.initialization.qual.Initialized;
-import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 import org.joda.time.Instant;
 
 /** Provides access to side inputs and state via a {@link BeamFnStateClient}. */
@@ -353,10 +351,13 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
               @Override
               public Object apply(StateKey key) {
                 return new OrderedListState<T>() {
-                  private final OrderedListState<TimestampedValue<T>> impl = createOrdedListState(id, elemCoder);
+                  private final TimestampOrderedListState<T> impl =
+                      createTimestampOrderedListState(id, elemCoder);
+
                   @Override
                   public void clear() {
-                    impl.clear();
+                    impl.clearRange(
+                        BoundedWindow.TIMESTAMP_MIN_VALUE, BoundedWindow.TIMESTAMP_MAX_VALUE);
                   }
 
                   @Override
@@ -366,22 +367,35 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
 
                   @Override
                   public ReadableState<Boolean> isEmpty() {
-                    return impl.isEmpty();
+                    return new ReadableState<Boolean>() {
+                      @Override
+                      public @Nullable Boolean read() {
+                        return Iterables.isEmpty(impl.read());
+                      }
+
+                      @Override
+                      public ReadableState<Boolean> readLater() {
+                        return this;
+                      }
+                    };
                   }
 
                   @Nullable
                   @Override
                   public Iterable<TimestampedValue<T>> read() {
-                    return readRange(BoundedWindow.TIMESTAMP_MIN_VALUE, BoundedWindow.TIMESTAMP_MAX_VALUE);
+                    return impl.read();
                   }
 
                   @Override
-                  public GroupingState<TimestampedValue<T>, Iterable<TimestampedValue<T>>> readLater() {
-                    throw new UnsupportedOperationException();
+                  public GroupingState<TimestampedValue<T>, Iterable<TimestampedValue<T>>>
+                      readLater() {
+                    // TODO: Support prefetching.
+                    return this;
                   }
 
                   @Override
-                  public Iterable<TimestampedValue<T>> readRange(Instant minTimestamp, Instant limitTimestamp) {
+                  public Iterable<TimestampedValue<T>> readRange(
+                      Instant minTimestamp, Instant limitTimestamp) {
                     return impl.readRange(minTimestamp, limitTimestamp);
                   }
 
@@ -391,10 +405,11 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
                   }
 
                   @Override
-                  public OrderedListState<T> readRangeLater(Instant minTimestamp, Instant limitTimestamp) {
-                    throw new UnsupportedOperationException();
+                  public OrderedListState<T> readRangeLater(
+                      Instant minTimestamp, Instant limitTimestamp) {
+                    // TODO: Support prefetching.
+                    return this;
                   }
-
                 };
               }
             });
@@ -540,11 +555,37 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
     return rval;
   }
 
+  private <T> TimestampOrderedListState<T> createTimestampOrderedListState(
+      String stateId, Coder<T> valueCoder) {
+    TimestampOrderedListState<T> rval =
+        new TimestampOrderedListState<>(
+            beamFnStateClient,
+            processBundleInstructionId.get(),
+            ptransformId,
+            stateId,
+            encodedCurrentKeySupplier.get(),
+            encodedCurrentKeySupplier.get(),
+            valueCoder);
+    stateFinalizers.add(rval::asyncClose);
+    return rval;
+  }
+
   private StateKey createBagUserStateKey(String stateId) {
     StateKey.Builder builder = StateKey.newBuilder();
     builder
         .getBagUserStateBuilder()
         .setWindow(encodedCurrentWindowSupplier.get())
+        .setKey(encodedCurrentKeySupplier.get())
+        .setTransformId(ptransformId)
+        .setUserStateId(stateId);
+    return builder.build();
+  }
+
+  private StateKey createOrderedListStateKey(String stateId) {
+    StateKey.Builder builder = StateKey.newBuilder();
+    builder
+        .getOrderedListStateBuilder()
+        .setWindow(encodedCurrentKeySupplier.get())
         .setKey(encodedCurrentKeySupplier.get())
         .setTransformId(ptransformId)
         .setUserStateId(stateId);
