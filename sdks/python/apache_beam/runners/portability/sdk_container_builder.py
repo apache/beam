@@ -50,6 +50,7 @@ from apache_beam.options.pipeline_options import PipelineOptions  # pylint: disa
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
+from apache_beam.runners.dataflow.internal.clients import cloudbuild
 from apache_beam.runners.portability.stager import Stager
 from apache_beam.utils import plugin
 
@@ -212,6 +213,11 @@ class _SdkContainerImageCloudBuilder(SdkContainerImageBuilder):
         get_credentials=(not self._google_cloud_options.no_auth),
         http=get_new_http(),
         response_encoding='utf8')
+    self._cloudbuild_client = cloudbuild.CloudbuildV1(
+        credentials=credentials,
+        get_credentials=(not self._google_cloud_options.no_auth),
+        http=get_new_http(),
+        response_encoding='utf8')
     if not self._docker_registry_push_url:
       self._docker_registry_push_url = (
           'gcr.io/%s/prebuilt_beam_sdk' % self._google_cloud_options.project)
@@ -236,36 +242,50 @@ class _SdkContainerImageCloudBuilder(SdkContainerImageBuilder):
         temp_location, '%s-%s.tgz' % (SOURCE_FOLDER, container_image_tag))
     self._upload_to_gcs(tarball_path, gcs_location)
 
-    from google.cloud.devtools import cloudbuild_v1
-    client = cloudbuild_v1.CloudBuildClient()
-    build = cloudbuild_v1.Build()
+    build = cloudbuild.Build()
     build.steps = []
-    step = cloudbuild_v1.BuildStep()
+    step = cloudbuild.BuildStep()
     step.name = 'gcr.io/kaniko-project/executor:latest'
     step.args = ['--destination=' + container_image_name, '--cache=true']
     step.dir = SOURCE_FOLDER
 
     build.steps.append(step)
 
-    source = cloudbuild_v1.Source()
-    source.storage_source = cloudbuild_v1.StorageSource()
+    source = cloudbuild.Source()
+    source.storageSource = cloudbuild.StorageSource()
     gcs_bucket, gcs_object = self._get_gcs_bucket_and_name(gcs_location)
-    source.storage_source.bucket = os.path.join(gcs_bucket)
-    source.storage_source.object = gcs_object
+    source.storageSource.bucket = os.path.join(gcs_bucket)
+    source.storageSource.object = gcs_object
     build.source = source
     # TODO(zyichi): make timeout configurable
     build.timeout = Duration().FromSeconds(seconds=1800)
 
     now = time.time()
-    operation = client.create_build(project_id=project_id, build=build)
+    # operation = client.create_build(project_id=project_id, build=build)
+    request = cloudbuild.CloudbuildProjectsBuildsCreateRequest(
+        projectId=project_id, build=build)
+    build = self._cloudbuild_client.projects_builds.Create(request)
+    build_id, log_url = self._get_cloud_build_id_and_log_url(build.metadata)
     _LOGGER.info(
         'Building sdk container with Google Cloud Build, this may '
-        'take a few minutes, you may check build log at %s' %
-        operation.metadata.build.log_url)
+        'take a few minutes, you may check build log at %s' % log_url)
 
     # block until build finish, if build fails exception will be raised and
     # stops the job submission.
-    operation.result()
+    response = self._cloudbuild_client.projects_builds.Get(
+        cloudbuild.CloudbuildProjectsBuildsGetRequest(
+            id=build_id, projectId=project_id))
+    while response.status in [cloudbuild.Build.StatusValueValuesEnum.QUEUED,
+                              cloudbuild.Build.StatusValueValuesEnum.WORKING]:
+      time.sleep(10)
+      response = self._cloudbuild_client.projects_builds.Get(
+          cloudbuild.CloudbuildProjectsBuildsGetRequest(
+              id=build_id, projectId=project_id))
+
+    if response.status != cloudbuild.Build.StatusValueValuesEnum.SUCCESS:
+      raise RuntimeError(
+          'Failed to build python sdk container image on google cloud build, '
+          'please check build log for error.')
 
     _LOGGER.info(
         "Python SDK container pre-build finished in %.2f seconds" %
@@ -297,6 +317,18 @@ class _SdkContainerImageCloudBuilder(SdkContainerImageBuilder):
                       (gcs_location, reportable_errors[e.status_code]))
       raise
     _LOGGER.info('Completed GCS upload to %s.', gcs_location)
+
+  def _get_cloud_build_id_and_log_url(self, metadata):
+    id = None
+    log_url = None
+    for item in metadata.additionalProperties:
+      if item.key == 'build':
+        for field in item.value.object_value.properties:
+          if field.key == 'logUrl':
+            log_url = field.value.string_value
+          if field.key == 'id':
+            id = field.value.string_value
+    return id, log_url
 
   @staticmethod
   def _get_gcs_bucket_and_name(gcs_location):
