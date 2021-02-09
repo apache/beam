@@ -133,7 +133,13 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
   def ffill(self, **kwargs):
     return self.fillna(method='ffill', **kwargs)
 
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  def bfill(self, **kwargs):
+    return self.fillna(method='bfill', **kwargs)
+
   pad = ffill
+  backfill = bfill
 
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
