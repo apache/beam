@@ -449,7 +449,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def nemo_version = "0.1"
     def netty_version = "4.1.51.Final"
     def postgres_version = "42.2.16"
-    def powermock_version = "2.0.2"
+    def powermock_version = "2.0.9"
     def protobuf_version = "3.12.0"
     def quickcheck_version = "0.8"
     def slf4j_version = "1.7.30"
