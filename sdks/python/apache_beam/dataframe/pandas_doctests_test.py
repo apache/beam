@@ -288,7 +288,6 @@ class DoctestTest(unittest.TestCase):
                 # Differs in LSB on jenkins.
                 "s1.cov(s2)",
             ],
-            'pandas.core.series.Series.drop': ['*'],
             'pandas.core.series.Series.drop_duplicates': ['*'],
             'pandas.core.series.Series.duplicated': ['*'],
             'pandas.core.series.Series.explode': ['*'],

@@ -61,6 +61,44 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
 
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
+  @frame_base.maybe_inplace
+  def drop(self, labels, axis, index, columns, errors, **kwargs):
+    if labels is not None:
+      if index is not None or columns is not None:
+        raise ValueError("Cannot specify both 'labels' and 'index'/'columns'")
+      if axis in (0, 'index'):
+        index = labels
+        columns = None
+      elif axis in (1, 'columns'):
+        index = None
+        columns = labels
+      else:
+        raise ValueError("axis must be one of (0, 1, 'index', 'columns'), "
+                         "got '%s'" % axis)
+
+    if columns is not None:
+      # Compute the proxy based on just the columns that are dropped.
+      proxy = self._expr.proxy().drop(columns=columns, errors=errors)
+    else:
+      proxy = self._expr.proxy()
+
+    if index is not None and errors == 'raise':
+      # In order to raise an error about missing index values, we'll
+      # need to collect the entire dataframe.
+      requires = partitionings.Singleton()
+    else:
+      requires = partitionings.Nothing()
+
+    return frame_base.DeferredFrame.wrap(expressions.ComputedExpression(
+        'drop',
+        lambda df: df.drop(axis=axis, index=index, columns=columns,
+                           errors=errors, **kwargs),
+        [self._expr],
+        proxy=proxy,
+        requires_partition_by=requires))
+
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
   def droplevel(self, level, axis):
     return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
@@ -781,43 +819,6 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
             requires_partition_by=partitionings.Nothing()))
 
 
-  @frame_base.args_to_kwargs(pd.DataFrame)
-  @frame_base.populate_defaults(pd.DataFrame)
-  @frame_base.maybe_inplace
-  def drop(self, labels, axis, index, columns, errors, **kwargs):
-    if labels is not None:
-      if index is not None or columns is not None:
-        raise ValueError("Cannot specify both 'labels' and 'index'/'columns'")
-      if axis in (0, 'index'):
-        index = labels
-        columns = None
-      elif axis in (1, 'columns'):
-        index = None
-        columns = labels
-      else:
-        raise ValueError("axis must be one of (0, 1, 'index', 'columns'), "
-                         "got '%s'" % axis)
-
-    if columns is not None:
-      # Compute the proxy based on just the columns that are dropped.
-      proxy = self._expr.proxy().drop(columns=columns, errors=errors)
-    else:
-      proxy = self._expr.proxy()
-
-    if index is not None and errors == 'raise':
-      # In order to raise an error about missing index values, we'll
-      # need to collect the entire dataframe.
-      requires = partitionings.Singleton()
-    else:
-      requires = partitionings.Nothing()
-
-    return frame_base.DeferredFrame.wrap(expressions.ComputedExpression(
-        'drop',
-        lambda df: df.drop(axis=axis, index=index, columns=columns,
-                           errors=errors, **kwargs),
-        [self._expr],
-        proxy=proxy,
-        requires_partition_by=requires))
 
   def aggregate(self, func, axis=0, *args, **kwargs):
     if axis is None:
