@@ -246,9 +246,9 @@ not as large as they might be, it is still few enough RPCs to avoid blowing our
 quota with the external service.</p><h3 id=processing-time-timers>Processing Time Timers</h3><p>A timer in processing time (time as it passes while your pipeline is executing)
 is intuitively simple: you want to wait a certain amount of time and then
 receive a call back.</p><p>To put the finishing touches on our example, we will set a processing time
-timer as soon as any data is buffered. We track whether or not the timer has
-been set so we don&rsquo;t continually reset it. When an element arrives, if the
-timer has not been set, then we set it for the current moment plus
+timer as soon as any data is buffered. Note that we set the timer only when
+the current buffer is empty, so that we don&rsquo;t continually reset the timer.
+When the first element arrives, we set the timer for the current moment plus
 <code>MAX_BUFFER_DURATION</code>. After the allotted processing time has passed, a
 callback will fire and enrich and emit any buffered elements.</p><div class=language-java><div class=highlight><pre class=chroma><code class=language-java data-lang=java><span class=k>new</span> <span class=n>DoFn</span><span class=o>&lt;</span><span class=n>Event</span><span class=o>,</span> <span class=n>EnrichedEvent</span><span class=o>&gt;()</span> <span class=o>{</span>
   <span class=err>…</span>
@@ -267,7 +267,6 @@ callback will fire and enrich and emit any buffered elements.</p><div class=lang
       <span class=nd>@TimerId</span><span class=o>(</span><span class=s>&#34;stale&#34;</span><span class=o>)</span> <span class=n>Timer</span> <span class=n>staleTimer</span><span class=o>,</span>
       <span class=nd>@TimerId</span><span class=o>(</span><span class=s>&#34;expiry&#34;</span><span class=o>)</span> <span class=n>Timer</span> <span class=n>expiryTimer</span><span class=o>)</span> <span class=o>{</span>
 
-    <span class=kt>boolean</span> <span class=n>staleTimerSet</span> <span class=o>=</span> <span class=n>firstNonNull</span><span class=o>(</span><span class=n>staleSetState</span><span class=o>.</span><span class=na>read</span><span class=o>(),</span> <span class=kc>false</span><span class=o>);</span>
     <span class=k>if</span> <span class=o>(</span><span class=n>firstNonNull</span><span class=o>(</span><span class=n>countState</span><span class=o>.</span><span class=na>read</span><span class=o>(),</span> <span class=n>0</span><span class=o>)</span> <span class=o>==</span> <span class=n>0</span><span class=o>)</span> <span class=o>{</span>
       <span class=n>staleTimer</span><span class=o>.</span><span class=na>offset</span><span class=o>(</span><span class=n>MAX_BUFFER_DURATION</span><span class=o>).</span><span class=na>setRelative</span><span class=o>();</span>
     <span class=o>}</span>
@@ -333,7 +332,7 @@ may not have been possible otherwise.</p><h2 id=state-and-timers-in-beams-unifie
 novel implications for state and timers. Usually, you don&rsquo;t need to do anything
 for your stateful and timely <code>DoFn</code> to work well in the Beam model. But it will
 help to be aware of the considerations below, especially if you have used
-similar features before outside of Beam.</p><h3 id=event-time-windowing-just-works>Event Time Windowing &ldquo;Just Works&rdquo;</h3><p>One of the raisons d&rsquo;etre for Beam is correct processing of out-of-order event
+similar features before outside of Beam.</p><h3 id=event-time-windowing-just-works>Event Time Windowing &ldquo;Just Works&rdquo;</h3><p>One of the raisons d'être for Beam is correct processing of out-of-order event
 data, which is almost all event data. Beam&rsquo;s solution to out-of-order data is
 event time windowing, where windows in event time yield correct results no
 matter what windowing a user chooses or what order the events come in.</p><p>If you write a stateful, timely transform, it should work no matter how the

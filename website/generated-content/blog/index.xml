@@ -4062,9 +4062,9 @@ quota with the external service.&lt;/p>
 is intuitively simple: you want to wait a certain amount of time and then
 receive a call back.&lt;/p>
 &lt;p>To put the finishing touches on our example, we will set a processing time
-timer as soon as any data is buffered. We track whether or not the timer has
-been set so we don&amp;rsquo;t continually reset it. When an element arrives, if the
-timer has not been set, then we set it for the current moment plus
+timer as soon as any data is buffered. Note that we set the timer only when
+the current buffer is empty, so that we don&amp;rsquo;t continually reset the timer.
+When the first element arrives, we set the timer for the current moment plus
 &lt;code>MAX_BUFFER_DURATION&lt;/code>. After the allotted processing time has passed, a
 callback will fire and enrich and emit any buffered elements.&lt;/p>
 &lt;div class=language-java>
@@ -4081,7 +4081,6 @@ callback will fire and enrich and emit any buffered elements.&lt;/p>
 &lt;span class="nd">@StateId&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;buffer&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="n">BagState&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Event&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">bufferState&lt;/span>&lt;span class="o">,&lt;/span>
 &lt;span class="nd">@TimerId&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;stale&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="n">Timer&lt;/span> &lt;span class="n">staleTimer&lt;/span>&lt;span class="o">,&lt;/span>
 &lt;span class="nd">@TimerId&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;expiry&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="n">Timer&lt;/span> &lt;span class="n">expiryTimer&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
-&lt;span class="kt">boolean&lt;/span> &lt;span class="n">staleTimerSet&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">firstNonNull&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">staleSetState&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">read&lt;/span>&lt;span class="o">(),&lt;/span> &lt;span class="kc">false&lt;/span>&lt;span class="o">);&lt;/span>
 &lt;span class="k">if&lt;/span> &lt;span class="o">(&lt;/span>&lt;span class="n">firstNonNull&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">countState&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">read&lt;/span>&lt;span class="o">(),&lt;/span> &lt;span class="n">0&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">==&lt;/span> &lt;span class="n">0&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
 &lt;span class="n">staleTimer&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">offset&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">MAX_BUFFER_DURATION&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">setRelative&lt;/span>&lt;span class="o">();&lt;/span>
 &lt;span class="o">}&lt;/span>
@@ -4157,7 +4156,7 @@ for your stateful and timely &lt;code>DoFn&lt;/code> to work well in the Beam mo
 help to be aware of the considerations below, especially if you have used
 similar features before outside of Beam.&lt;/p>
 &lt;h3 id="event-time-windowing-just-works">Event Time Windowing &amp;ldquo;Just Works&amp;rdquo;&lt;/h3>
-&lt;p>One of the raisons d&amp;rsquo;etre for Beam is correct processing of out-of-order event
+&lt;p>One of the raisons d'être for Beam is correct processing of out-of-order event
 data, which is almost all event data. Beam&amp;rsquo;s solution to out-of-order data is
 event time windowing, where windows in event time yield correct results no
 matter what windowing a user chooses or what order the events come in.&lt;/p>
