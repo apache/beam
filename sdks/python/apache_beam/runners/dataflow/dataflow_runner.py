@@ -521,7 +521,7 @@ class DataflowRunner(PipelineRunner):
       phases = []
     elif pre_optimize == 'all':
       phases = [
-          translations.eliminate_common_key_with_none,
+          # translations.eliminate_common_key_with_none,
           # TODO(BEAM-11694): Enable translations.pack_combiners
           # translations.pack_combiners,
           translations.sort_stages
