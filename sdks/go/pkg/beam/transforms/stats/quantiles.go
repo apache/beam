@@ -443,7 +443,7 @@ func (c *compactors) merge(other *compactors, less reflectx.Func2x1) {
 }
 
 // approximateQuantilesCombineFnState contains the payload for the combiners.
-// Ideally this would be a single combine function but if we do that, runners attempts to do all the merges on a single machine.
+// Ideally this would be a single combine function but if we do that, runners attempt to do all the merges on a single machine.
 // Unfortunately the merges can be slow for extremely large datasets and large values of K. If the merge takes too long, it will get canceled and the job will never complete.
 // Thus we split up the combiners into multiple functions to force the runner to do the work in parallel.
 // This state can be shared across all of the split-up functions.
