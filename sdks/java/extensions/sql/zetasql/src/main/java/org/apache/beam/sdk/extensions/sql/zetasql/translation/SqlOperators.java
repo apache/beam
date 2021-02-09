@@ -175,7 +175,7 @@ public class SqlOperators {
   public static final SqlOperator COUNTIF =
       createUdafOperator(
           "countif",
-          x -> createTypeFactory().createSqlType(SqlTypeName.BOOLEAN),
+          x -> createTypeFactory().createSqlType(SqlTypeName.BIGINT),
           new UdafImpl<>(new CountIf.CountIfFn()));
 
   public static final SqlUserDefinedFunction CAST_OP =
