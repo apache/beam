@@ -23,6 +23,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
+	"github.com/google/go-cmp/cmp"
 )
 
 func init() {
@@ -137,22 +138,13 @@ func TestWeightedQuantiles(t *testing.T) {
 		{Weight: 10, Element: 4}}
 	expected := []int{2, 4}
 	p, s, in, exp := ptest.CreateList2(input, [][]int{expected})
-	quantiles := ApproximateWeightedQuantiles(
-		s,
-		beam.ParDo(
-			s,
-			weightedElementToKv,
-			in,
-			beam.TypeDefinition{Var: beam.TType, T: reflect.TypeOf(1)}),
-		less,
-		Opts{
-			K:            3,
-			NumQuantiles: 3,
-		})
-	passert.Equals(
-		s,
-		quantiles,
-		exp)
+	elementWeightKvs := beam.ParDo(s, weightedElementToKv, in, beam.TypeDefinition{Var: beam.TType, T: reflect.TypeOf(1)})
+	opts := Opts{
+		K:            3,
+		NumQuantiles: 3,
+	}
+	quantiles := ApproximateWeightedQuantiles(s, elementWeightKvs, less, opts)
+	passert.Equals(s, quantiles, exp)
 
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("ApproximateQuantiles(%v) != %v: %v", input, expected, err)
@@ -168,23 +160,14 @@ func TestWeightedQuantilesWithInternalSharding(t *testing.T) {
 		{Weight: 10, Element: 4}}
 	expected := []int{2, 4}
 	p, s, in, exp := ptest.CreateList2(input, [][]int{expected})
-	quantiles := ApproximateWeightedQuantiles(
-		s,
-		beam.ParDo(
-			s,
-			weightedElementToKv,
-			in,
-			beam.TypeDefinition{Var: beam.TType, T: reflect.TypeOf(1)}),
-		less,
-		Opts{
-			K:                3,
-			NumQuantiles:     3,
-			InternalSharding: []int{4, 3, 2},
-		})
-	passert.Equals(
-		s,
-		quantiles,
-		exp)
+	elementWeightKvs := beam.ParDo(s, weightedElementToKv, in, beam.TypeDefinition{Var: beam.TType, T: reflect.TypeOf(1)})
+	opts := Opts{
+		K:                3,
+		NumQuantiles:     3,
+		InternalSharding: []int{4, 3, 2},
+	}
+	quantiles := ApproximateWeightedQuantiles(s, elementWeightKvs, less, opts)
+	passert.Equals(s, quantiles, exp)
 
 	if err := ptest.Run(p); err != nil {
 		t.Errorf("ApproximateQuantiles(%v) != %v: %v", input, expected, err)
@@ -226,8 +209,8 @@ func TestMerging(t *testing.T) {
 			},
 		},
 	}
-	if !reflect.DeepEqual(expectedCompactors, compactors1) {
-		t.Errorf("Failed. Expected %v, was %v", expectedCompactors, compactors1)
+	if d := cmp.Diff(expectedCompactors, compactors1, cmp.AllowUnexported(compactor{})); d != "" {
+		t.Errorf("Failed. Expected %v, was %v, diff: %v", expectedCompactors, compactors1, d)
 	}
 }
 
@@ -257,7 +240,7 @@ func TestCompactorsEncoding(t *testing.T) {
 	if err != nil {
 		t.Errorf("Failed to decode, %v", err)
 	}
-	// We want to use reflect.DeepEqual which makes a distinction between empty and nil slices.
+	// We want to use cmp.Diff which makes a distinction between empty and nil slices.
 	// So we need to clean up empty slices to be nil.
 	for i := range decodedCompactors.Compactors {
 		if len(decodedCompactors.Compactors[i].sorted) == 0 {
@@ -267,8 +250,8 @@ func TestCompactorsEncoding(t *testing.T) {
 			decodedCompactors.Compactors[i].unsorted = nil
 		}
 	}
-	if !reflect.DeepEqual(&compactors, decodedCompactors) {
-		t.Errorf("Invalid coder. Wanted %v got %v", &compactors, decodedCompactors)
+	if d := cmp.Diff(&compactors, decodedCompactors, cmp.AllowUnexported(compactor{})); d != "" {
+		t.Errorf("Invalid coder. Wanted %v, got %v, diff: %v", &compactors, decodedCompactors, d)
 	}
 }
 

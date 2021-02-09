@@ -52,9 +52,9 @@ type Opts struct {
 	K int
 	// Number of quantiles to return. The algorithm will return NumQuantiles - 1 numbers
 	NumQuantiles int
-	// For extremely large datasets, the Go SDK has some problems holding on to data and might OOM.
-	// If ApproximateQuantiles is running out of memory, you can use this option to tune how the data is sharded internally.
-	// This parameter is optional. If unspecified, Beam will compact all elements into a single compactor at once.
+	// For extremely large datasets, runners may have issues with out of memory errors or taking too long to finish.
+	// If ApproximateQuantiles is failing, you can use this option to tune how the data is sharded internally.
+	// This parameter is optional. If unspecified, Beam will compact all elements into a single compactor at once using a single machine.
 	InternalSharding []int
 }
 
@@ -97,9 +97,16 @@ type compactor struct {
 	capacity int
 }
 
+// serializedList represents a list of elements serialized to a byte array.
+type serializedList struct {
+	// Number of elements serialized to elements.
+	Count    int
+	Elements []byte
+}
+
 type compactorAsGob struct {
-	Sorted            [][]byte
-	Unsorted          []byte
+	Sorted            []serializedList
+	Unsorted          serializedList
 	EncodedTypeAsJSON []byte
 }
 
@@ -136,15 +143,16 @@ func (c *compactor) MarshalBinary() ([]byte, error) {
 		return buf.Bytes(), nil
 	}
 	enc := beam.NewElementEncoder(t)
-	encodedSorted := make([][]byte, 0, len(c.sorted))
+	encodedSorted := make([]serializedList, 0, len(c.sorted))
 	for _, sorted := range c.sorted {
 		encoded, err := encodeElements(enc, sorted)
 		if err != nil {
 			return nil, err
 		}
-		encodedSorted = append(encodedSorted, encoded)
+		encodedSorted = append(encodedSorted, serializedList{Count: len(sorted), Elements: encoded})
 	}
-	encodedUnsorted, err := encodeElements(enc, c.unsorted)
+	encodedUnsortedSerialized, err := encodeElements(enc, c.unsorted)
+	encodedUnsorted := serializedList{Count: len(c.unsorted), Elements: encodedUnsortedSerialized}
 	if err != nil {
 		return nil, err
 	}
@@ -163,9 +171,9 @@ func (c *compactor) MarshalBinary() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func decodeElements(dec beam.ElementDecoder, data []byte) ([]beam.T, error) {
-	buf := bytes.NewBuffer(data)
-	ret := []beam.T{}
+func (s serializedList) decodeElements(dec beam.ElementDecoder) ([]beam.T, error) {
+	buf := bytes.NewBuffer(s.Elements)
+	ret := make([]beam.T, 0, s.Count)
 	for {
 		element, err := dec.Decode(buf)
 		if err == io.EOF {
@@ -194,14 +202,14 @@ func (c *compactor) UnmarshalBinary(data []byte) error {
 	dec := beam.NewElementDecoder(t.T)
 	decodedSorted := make([][]beam.T, 0, len(g.Sorted))
 	for _, sorted := range g.Sorted {
-		decoded, err := decodeElements(dec, sorted)
+		decoded, err := sorted.decodeElements(dec)
 		if err != nil {
 			return err
 		}
 		decodedSorted = append(decodedSorted, decoded)
 	}
 	c.sorted = decodedSorted
-	if c.unsorted, err = decodeElements(dec, g.Unsorted); err != nil {
+	if c.unsorted, err = g.Unsorted.decodeElements(dec); err != nil {
 		return err
 	}
 	return nil
@@ -667,15 +675,15 @@ func reduce(s beam.Scope, weightedElements beam.PCollection, state approximateQu
 	if len(shardSizes) == 0 {
 		shardSizes = []int{1}
 	}
-	shardedCompactors := beam.DropKey(s,
-		beam.CombinePerKey(s, &approximateQuantilesInputFn{State: state},
-			beam.ParDo(s, &shardElementsFn{Shards: shardSizes[0], T: beam.EncodedType{T: reflect.TypeOf((*weightedElement)(nil)).Elem()}}, weightedElements)))
+	elementsWithShardNumber := beam.ParDo(s, &shardElementsFn{Shards: shardSizes[0], T: beam.EncodedType{T: reflect.TypeOf((*weightedElement)(nil)).Elem()}}, weightedElements)
+	reducedCompactorsWithShardNumber := beam.CombinePerKey(s, &approximateQuantilesInputFn{State: state}, elementsWithShardNumber)
+	shardedCompactors := beam.DropKey(s, reducedCompactorsWithShardNumber)
 	shardSizes = shardSizes[1:]
 	compactorsType := reflect.TypeOf((**compactors)(nil)).Elem()
 	for _, shardSize := range shardSizes {
-		shardedCompactors = beam.DropKey(s,
-			beam.CombinePerKey(s, &approximateQuantilesMergeOnlyFn{State: state},
-				beam.ParDo(s, &shardElementsFn{Shards: shardSize, T: beam.EncodedType{T: compactorsType}}, shardedCompactors)))
+		compactorsWithShardNumber := beam.ParDo(s, &shardElementsFn{Shards: shardSize, T: beam.EncodedType{T: compactorsType}}, shardedCompactors)
+		reducedCompactorsWithShardNumber = beam.CombinePerKey(s, &approximateQuantilesMergeOnlyFn{State: state}, compactorsWithShardNumber)
+		shardedCompactors = beam.DropKey(s, reducedCompactorsWithShardNumber)
 	}
 	return shardedCompactors
 }
@@ -683,7 +691,7 @@ func reduce(s beam.Scope, weightedElements beam.PCollection, state approximateQu
 // ApproximateWeightedQuantiles computes approximate quantiles for the input PCollection<(weight int, T)>.
 //
 // The output PCollection contains a single element: a list of numQuantiles - 1 elements approximately splitting up the input collection into numQuantiles separate quantiles.
-// For example, if numQuantiles = 2, the returned list would contain a single element such that approximately half of the input would be less than that element and half would be greater.
+// For example, if numQuantiles = 2, the returned list would contain a single element such that approximately half of the input would be less than that element and half would be greater or equal.
 func ApproximateWeightedQuantiles(s beam.Scope, pc beam.PCollection, less interface{}, opts Opts) beam.PCollection {
 	_, t := beam.ValidateKVType(pc)
 	state := approximateQuantilesCombineFnState{
