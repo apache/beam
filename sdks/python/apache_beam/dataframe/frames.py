@@ -520,7 +520,8 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   isnull = isna = frame_base._elementwise_method('isna')
   notnull = notna = frame_base._elementwise_method('notna')
 
-  to_numpy = to_string = frame_base.wont_implement_method('non-deferred value')
+  tolist = to_numpy = to_string = frame_base.wont_implement_method(
+      'non-deferred value')
 
   def aggregate(self, func, axis=0, *args, **kwargs):
     if isinstance(func, list) and len(func) > 1:
