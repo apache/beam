@@ -517,7 +517,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
 
   isin = frame_base._elementwise_method('isin')
 
-  isna = frame_base._elementwise_method('isna')
+  isnull = isna = frame_base._elementwise_method('isna')
   notnull = notna = frame_base._elementwise_method('notna')
 
   to_numpy = to_string = frame_base.wont_implement_method('non-deferred value')
@@ -1182,7 +1182,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   def query(self, expr, inplace, **kwargs):
     return self._eval_or_query('query', expr, inplace, **kwargs)
 
-  isna = frame_base._elementwise_method('isna')
+  isnull = isna = frame_base._elementwise_method('isna')
   notnull = notna = frame_base._elementwise_method('notna')
 
   items = itertuples = iterrows = iteritems = frame_base.wont_implement_method(
