@@ -64,7 +64,9 @@ public class CountIf {
 
     @Override
     public Long extractOutput(Accum accum) {
-      if (!accum.isExpressionFalse) return accum.countIfResult;
+      if (!accum.isExpressionFalse) {
+        return accum.countIfResult;
+      }
       return 0L;
     }
   }
