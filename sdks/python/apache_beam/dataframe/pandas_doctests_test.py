@@ -116,6 +116,11 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.frame.DataFrame.merge': [
                 "df1.merge(df2, how='cross')"
             ],
+
+            # TODO(BEAM-11711)
+            'pandas.core.frame.DataFrame.set_index': [
+                "df.set_index([s, s**2])",
+            ],
         },
         skip={
             # Throws NotImplementedError when modifying df
@@ -139,6 +144,11 @@ class DoctestTest(unittest.TestCase):
                 # Returns deferred index.
                 'df.index',
                 'df.rename(index=str).index',
+            ],
+            'pandas.core.frame.DataFrame.set_index': [
+                # TODO(BEAM-11711): This could pass in the index as
+                # a DeferredIndex, and we should fail it as order-sensitive.
+                "df.set_index([pd.Index([1, 2, 3, 4]), 'year'])",
             ],
             'pandas.core.frame.DataFrame.set_axis': ['*'],
             'pandas.core.frame.DataFrame.sort_index': ['*'],
@@ -179,11 +189,6 @@ class DoctestTest(unittest.TestCase):
             # Raises right exception, but testing framework has matching issues.
             'pandas.core.frame.DataFrame.replace': [
                 "df.replace({'a string': 'new value', True: False})  # raises"
-            ],
-            # Should raise WontImplement order-sensitive
-            'pandas.core.frame.DataFrame.set_index': [
-                "df.set_index([pd.Index([1, 2, 3, 4]), 'year'])",
-                "df.set_index([s, s**2])",
             ],
             'pandas.core.frame.DataFrame.to_sparse': ['type(df)'],
 

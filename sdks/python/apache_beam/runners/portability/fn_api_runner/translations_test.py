@@ -50,7 +50,7 @@ class TranslationsTest(unittest.TestCase):
         [1, 2, 3]) | 'multiple-key-with-none' >> MultipleKeyWithNone()
     pipeline_proto = pipeline.to_runner_api()
     _, stages = translations.create_and_optimize_stages(
-        pipeline_proto, [translations.eliminate_common_key_with_none],
+        pipeline_proto, [translations._eliminate_common_key_with_none],
         known_runner_urns=frozenset())
     key_with_none_stages = [
         stage for stage in stages if 'key-with-none' in stage.name
@@ -130,7 +130,6 @@ class TranslationsTest(unittest.TestCase):
     pipeline_proto = pipeline.to_runner_api(default_environment=environment)
     _, stages = translations.create_and_optimize_stages(
         pipeline_proto, [
-            translations.eliminate_common_key_with_none,
             translations.pack_combiners,
         ],
         known_runner_urns=frozenset())
@@ -168,9 +167,7 @@ class TranslationsTest(unittest.TestCase):
     _ = pipeline | Create(vals) | combiners.Count.Globally()
     pipeline_proto = pipeline.to_runner_api()
     optimized_pipeline_proto = translations.optimize_pipeline(
-        pipeline_proto,
-        [
-            translations.eliminate_common_key_with_none,
+        pipeline_proto, [
             translations.pack_combiners,
         ],
         known_runner_urns=frozenset(),
@@ -189,9 +186,7 @@ class TranslationsTest(unittest.TestCase):
     _ = pcoll | 'largest-globally' >> core.CombineGlobally(combiners.Largest(1))
     pipeline_proto = pipeline.to_runner_api()
     optimized_pipeline_proto = translations.optimize_pipeline(
-        pipeline_proto,
-        [
-            translations.eliminate_common_key_with_none,
+        pipeline_proto, [
             translations.pack_combiners,
         ],
         known_runner_urns=frozenset(),
