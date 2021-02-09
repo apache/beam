@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
+import static java.util.stream.Collectors.toList;
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.ATTRIBUTES_FIELD;
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.DLQ_TAG;
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.MAIN_TAG;
@@ -27,14 +28,18 @@ import static org.apache.beam.sdk.schemas.Schema.TypeName.ROW;
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
+import java.util.List;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.io.InvalidConfigurationException;
 import org.apache.beam.sdk.schemas.io.InvalidSchemaException;
 import org.apache.beam.sdk.schemas.io.SchemaIO;
 import org.apache.beam.sdk.schemas.io.SchemaIOProvider;
+import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializer;
+import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializers;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -42,6 +47,7 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -118,6 +124,11 @@ public class PubsubSchemaIOProvider implements SchemaIOProvider {
         .addNullableField("timestampAttributeKey", FieldType.STRING)
         .addNullableField("deadLetterQueue", FieldType.STRING)
         .addNullableField("format", FieldType.STRING)
+        // For ThriftPayloadSerializerProvider
+        .addNullableField("thriftClass", FieldType.STRING)
+        .addNullableField("thriftProtocolFactoryClass", FieldType.STRING)
+        // For ProtoPayloadSerializerProvider
+        .addNullableField("protoClass", FieldType.STRING)
         .build();
   }
 
@@ -204,7 +215,7 @@ public class PubsubSchemaIOProvider implements SchemaIOProvider {
                           .messageSchema(dataSchema)
                           .useDlq(config.useDeadLetterQueue())
                           .useFlatSchema(useFlatSchema)
-                          .payloadFormat(config.format())
+                          .serializerProvider(config::serializer)
                           .build());
           rowsWithDlq.get(MAIN_TAG).setRowSchema(dataSchema);
 
@@ -230,7 +241,8 @@ public class PubsubSchemaIOProvider implements SchemaIOProvider {
           return input
               .apply(
                   RowToPubsubMessage.of(
-                      config.useTimestampAttribute(), config.format(), dataSchema))
+                      config.useTimestampAttribute(),
+                      config.serializer(stripFromTimestampField(dataSchema))))
               .apply(createPubsubMessageWrite());
         }
       };
@@ -276,6 +288,14 @@ public class PubsubSchemaIOProvider implements SchemaIOProvider {
     }
   }
 
+  private static Schema stripFromTimestampField(Schema schema) {
+    List<Field> selectedFields =
+        schema.getFields().stream()
+            .filter(field -> !TIMESTAMP_FIELD.equals(field.getName()))
+            .collect(toList());
+    return Schema.of(selectedFields.toArray(new Schema.Field[0]));
+  }
+
   @AutoValue
   abstract static class Config implements Serializable {
 
@@ -285,6 +305,14 @@ public class PubsubSchemaIOProvider implements SchemaIOProvider {
 
     abstract @Nullable String getFormat();
 
+    // For ThriftPayloadSerializerProvider
+    abstract @Nullable String getThriftClass();
+
+    abstract @Nullable String getThriftProtocolFactoryClass();
+
+    // For ProtoPayloadSerializerProvider
+    abstract @Nullable String getProtoClass();
+
     boolean useDeadLetterQueue() {
       return getDeadLetterQueue() != null;
     }
@@ -293,10 +321,19 @@ public class PubsubSchemaIOProvider implements SchemaIOProvider {
       return getTimestampAttributeKey() != null;
     }
 
-    PayloadFormat format() {
-      return getFormat() == null
-          ? PayloadFormat.JSON
-          : PayloadFormat.valueOf(getFormat().toUpperCase());
+    PayloadSerializer serializer(Schema schema) {
+      String format = getFormat() == null ? "json" : getFormat();
+      ImmutableMap.Builder<String, Object> params = ImmutableMap.builder();
+      if (getThriftClass() != null) {
+        params.put("thriftClass", getThriftClass());
+      }
+      if (getThriftProtocolFactoryClass() != null) {
+        params.put("thriftProtocolFactoryClass", getThriftProtocolFactoryClass());
+      }
+      if (getProtoClass() != null) {
+        params.put("protoClass", getProtoClass());
+      }
+      return PayloadSerializers.getSerializer(format, schema, params.build());
     }
   }
 }

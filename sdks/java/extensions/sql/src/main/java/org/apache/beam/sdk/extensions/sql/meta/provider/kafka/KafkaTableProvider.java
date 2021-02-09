@@ -20,7 +20,6 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.google.auto.service.AutoService;
-import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
@@ -28,8 +27,7 @@ import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.InMemoryMetaTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.thrift.TBase;
-import org.apache.thrift.protocol.TProtocolFactory;
+import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializers;
 
 /**
  * Kafka table provider.
@@ -48,15 +46,6 @@ import org.apache.thrift.protocol.TProtocolFactory;
  */
 @AutoService(TableProvider.class)
 public class KafkaTableProvider extends InMemoryMetaTableProvider {
-
-  private enum PayloadFormat {
-    CSV,
-    AVRO,
-    JSON,
-    PROTO,
-    THRIFT
-  }
-
   @Override
   public BeamSqlTable buildBeamSqlTable(Table table) {
     Schema schema = table.getSchema();
@@ -69,65 +58,22 @@ public class KafkaTableProvider extends InMemoryMetaTableProvider {
       topics.add(topic.toString());
     }
 
-    PayloadFormat payloadFormat =
-        properties.containsKey("format")
-            ? PayloadFormat.valueOf(properties.getString("format").toUpperCase())
-            : PayloadFormat.CSV;
-
-    switch (payloadFormat) {
-      case CSV:
-        return new BeamKafkaCSVTable(schema, bootstrapServers, topics);
-      case AVRO:
-        return new BeamKafkaAvroTable(schema, bootstrapServers, topics);
-      case JSON:
-        return new BeamKafkaJsonTable(schema, bootstrapServers, topics);
-      case PROTO:
-        return protoTable(schema, bootstrapServers, topics, properties);
-      case THRIFT:
-        return thriftTable(schema, bootstrapServers, topics, properties);
-      default:
-        throw new IllegalArgumentException("Unsupported payload format: " + payloadFormat);
+    String payloadFormat =
+        properties.containsKey("format") ? properties.getString("format") : "csv";
+    /*
+     * CSV is handled separately because multiple rows can be produced from a single message, which
+     * adds complexity to payload extraction. It remains here and as the default because it is the
+     * historical default, but it will not be extended to support attaching extended attributes to
+     * rows.
+     */
+    if (payloadFormat.equals("csv")) {
+      return new BeamKafkaCSVTable(schema, bootstrapServers, topics);
     }
-  }
-
-  private BeamKafkaProtoTable protoTable(
-      Schema schema, String bootstrapServers, List<String> topics, JSONObject properties) {
-    String protoClassName = properties.getString("protoClass");
-    try {
-      Class<?> protoClass = Class.forName(protoClassName);
-      return new BeamKafkaProtoTable(schema, bootstrapServers, topics, protoClass);
-    } catch (ClassNotFoundException e) {
-      throw new IllegalArgumentException("Incorrect proto class provided: " + protoClassName);
-    }
-  }
-
-  private BeamKafkaThriftTable thriftTable(
-      Schema schema, String bootstrapServers, List<String> topics, JSONObject properties) {
-    final String thriftClassName = properties.getString("thriftClass");
-    final String thriftProtocolFactoryClassName =
-        properties.getString("thriftProtocolFactoryClass");
-    try {
-      final Class<TBase> thriftClass = (Class<TBase>) Class.forName(thriftClassName);
-      final TProtocolFactory thriftProtocolFactory;
-      try {
-        final Class<TProtocolFactory> thriftProtocolFactoryClass =
-            (Class<TProtocolFactory>) Class.forName(thriftProtocolFactoryClassName);
-        thriftProtocolFactory = thriftProtocolFactoryClass.getDeclaredConstructor().newInstance();
-      } catch (ClassNotFoundException e) {
-        throw new IllegalArgumentException(
-            "Incorrect thrift protocol factory class provided: " + thriftProtocolFactoryClassName);
-      } catch (InstantiationException
-          | IllegalAccessException
-          | InvocationTargetException
-          | NoSuchMethodException e) {
-        throw new IllegalStateException(
-            "Could not instantiate the thrift protocol factory class", e);
-      }
-      return new BeamKafkaThriftTable<>(
-          schema, bootstrapServers, topics, thriftClass, thriftProtocolFactory);
-    } catch (ClassNotFoundException e) {
-      throw new IllegalArgumentException("Incorrect thrift class provided: " + thriftClassName);
-    }
+    return new PayloadSerializerKafkaTable(
+        schema,
+        bootstrapServers,
+        topics,
+        PayloadSerializers.getSerializer(payloadFormat, schema, properties.getInnerMap()));
   }
 
   @Override

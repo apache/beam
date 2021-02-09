@@ -19,35 +19,36 @@ package org.apache.beam.sdk.schemas.io;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
-import java.util.List;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.ServiceLoader;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
 
-/** Helper to generate a DLQ transform to write PCollection<Failure> to an external system. */
+/** Helpers for implementing the "Provider" pattern. */
 @Internal
 @Experimental(Kind.SCHEMAS)
-public final class GenericDlq {
-  private GenericDlq() {}
+public final class Providers {
+  public interface Identifyable {
+    /**
+     * Returns an id that uniquely represents this among others implementing its derived interface.
+     */
+    String identifier();
+  }
 
-  private static final Map<String, GenericDlqProvider> PROVIDERS =
-      Providers.loadProviders(GenericDlqProvider.class);
+  private Providers() {}
 
-  @SuppressWarnings("dereference.of.nullable")
-  public static PTransform<PCollection<Failure>, PDone> getDlqTransform(String fullConfig) {
-    List<String> strings = Splitter.on(":").limit(2).splitToList(fullConfig);
-    checkArgument(
-        strings.size() == 2, "Invalid config, must start with `identifier:`. %s", fullConfig);
-    String key = strings.get(0);
-    String config = strings.get(1).trim();
-    GenericDlqProvider provider = PROVIDERS.get(key);
-    checkArgument(
-        provider != null, "Invalid config, no DLQ provider exists with identifier `%s`.", key);
-    return provider.newDlqTransform(config);
+  public static <T extends Identifyable> Map<String, T> loadProviders(Class<T> klass) {
+    Map<String, T> providers = new HashMap<>();
+    for (T provider : ServiceLoader.load(klass)) {
+      checkArgument(
+          !providers.containsKey(provider.identifier()),
+          "Duplicate providers exist with identifier `%s` for class %s.",
+          provider.identifier(),
+          klass);
+      providers.put(provider.identifier(), provider);
+    }
+    return providers;
   }
 }

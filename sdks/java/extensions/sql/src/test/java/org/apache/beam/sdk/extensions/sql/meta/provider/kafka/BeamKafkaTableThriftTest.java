@@ -21,7 +21,9 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertThrows;
 
+import com.alibaba.fastjson.JSON;
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.kafka.thrift.TestThriftMessage;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
@@ -61,16 +63,14 @@ public class BeamKafkaTableThriftTest extends BeamKafkaTableTest {
 
   @Test
   public void testWithShuffledSchema() {
-    BeamKafkaTable kafkaTable =
-        new BeamKafkaThriftTable(
-            SHUFFLED_SCHEMA, "", ImmutableList.of(), TestThriftMessage.class, protocolFactory);
+    BeamKafkaTable kafkaTable = getBeamKafkaTable(SHUFFLED_SCHEMA);
 
     PCollection<Row> result =
         pipeline
             .apply(Create.of(shuffledRow(1), shuffledRow(2)))
             .apply(kafkaTable.getPTransformForOutput())
             .apply(kafkaTable.getPTransformForInput());
-    PAssert.that(result).containsInAnyOrder(generateRow(1), generateRow(2));
+    PAssert.that(result).containsInAnyOrder(shuffledRow(1), shuffledRow(2));
     pipeline.run();
   }
 
@@ -79,21 +79,34 @@ public class BeamKafkaTableThriftTest extends BeamKafkaTableTest {
     Schema schema = Schema.builder().addStringField("non_existing_field").build();
 
     IllegalArgumentException e =
-        assertThrows(
-            IllegalArgumentException.class,
-            () ->
-                new BeamKafkaThriftTable(
-                    schema, "", ImmutableList.of(), TestThriftMessage.class, protocolFactory));
+        assertThrows(IllegalArgumentException.class, () -> getBeamKafkaTable(schema));
 
     assertThat(
         e.getMessage(),
         containsString("does not match schema inferred from thrift class.\nThrift class: "));
   }
 
+  private static BeamKafkaTable getBeamKafkaTable(Schema schema) {
+    return (BeamKafkaTable)
+        (new KafkaTableProvider()
+            .buildBeamSqlTable(
+                Table.builder()
+                    .name("kafka")
+                    .type("kafka")
+                    .schema(schema)
+                    .properties(
+                        JSON.parseObject(
+                            "{ \"topics\": [], \"format\": \"thrift\", \"thriftClass\": \""
+                                + TestThriftMessage.class.getName()
+                                + "\", \"thriftProtocolFactoryClass\": \""
+                                + TCompactProtocol.Factory.class.getName()
+                                + "\" }"))
+                    .build()));
+  }
+
   @Override
   protected BeamKafkaTable getBeamKafkaTable() {
-    return new BeamKafkaThriftTable(
-        TEST_SCHEMA, "", ImmutableList.of(), TestThriftMessage.class, protocolFactory);
+    return getBeamKafkaTable(TEST_SCHEMA);
   }
 
   @Override

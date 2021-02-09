@@ -15,20 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.schemas.io;
 
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.sdk.schemas.io.Providers.Identifyable;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PDone;
+/** Provides abstractions for schema-aware IOs. */
+@DefaultAnnotation(NonNull.class)
+package org.apache.beam.sdk.schemas.io.payloads;
 
-/** A Provider for generic DLQ transforms that handle deserialization failures. */
-@Internal
-@Experimental(Kind.SCHEMAS)
-public interface GenericDlqProvider extends Identifyable {
-  /** Generate a DLQ output from the provided config value. */
-  PTransform<PCollection<Failure>, PDone> newDlqTransform(String config);
-}
+import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
+import org.checkerframework.checker.nullness.qual.NonNull;
