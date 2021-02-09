@@ -17,6 +17,7 @@
 
 """Common imports for generated cloudbuild client library."""
 # pylint:disable=wildcard-import
+# mypy: ignore-errors
 
 from __future__ import absolute_import
 
