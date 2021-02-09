@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.zetasql;
 
 import com.google.zetasql.AnalyzerOptions;
 import com.google.zetasql.LanguageOptions;
+import com.google.zetasql.SimpleCatalog;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedQueryStmt;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
@@ -77,17 +78,20 @@ class ZetaSQLPlannerImpl {
 
   public RelRoot rel(String sql, QueryParameters params) {
     RelOptCluster cluster = RelOptCluster.create(planner, new RexBuilder(typeFactory));
-    QueryTrait trait = new QueryTrait();
     AnalyzerOptions options = SqlAnalyzer.getAnalyzerOptions(params, defaultTimezone);
     BeamZetaSqlCatalog catalog =
         BeamZetaSqlCatalog.create(
-            defaultSchemaPlus, trait, (JavaTypeFactory) cluster.getTypeFactory(), options);
+            defaultSchemaPlus,
+            new SimpleCatalog(defaultSchemaPlus.getName()),
+            (JavaTypeFactory) cluster.getTypeFactory(),
+            options);
 
     // Set up table providers that need to be pre-registered
     SqlAnalyzer analyzer = new SqlAnalyzer();
     List<List<String>> tables = analyzer.extractTableNames(sql, options);
     TableResolution.registerTables(this.defaultSchemaPlus, tables);
-    catalog.addTables(tables);
+    QueryTrait trait = new QueryTrait();
+    catalog.addTables(tables, trait);
 
     ResolvedQueryStmt statement = analyzer.analyzeQuery(sql, options, catalog);
 

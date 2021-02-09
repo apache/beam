@@ -22,8 +22,6 @@ import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLV
 import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_QUERY_STMT;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
 import com.google.zetasql.Analyzer;
 import com.google.zetasql.AnalyzerOptions;
 import com.google.zetasql.ParseResumeLocation;
@@ -43,6 +41,8 @@ import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters.Kind;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 
 /** Adapter for {@link Analyzer} to simplify the API for parsing the query and resolving the AST. */
 @SuppressWarnings({
@@ -110,7 +110,7 @@ public class SqlAnalyzer {
       AnalyzerOptions options,
       BeamZetaSqlCatalog catalog) {
     ResolvedStatement resolvedStatement =
-        Analyzer.analyzeNextStatement(parseResumeLocation, options, catalog);
+        Analyzer.analyzeNextStatement(parseResumeLocation, options, catalog.getZetaSqlCatalog());
     if (resolvedStatement.nodeKind() == RESOLVED_CREATE_FUNCTION_STMT) {
       ResolvedCreateFunctionStmt createFunctionStmt =
           (ResolvedCreateFunctionStmt) resolvedStatement;

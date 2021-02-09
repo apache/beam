@@ -48,8 +48,11 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDat
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.SchemaPlus;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
-/** Beam extension of a ZetaSQL {@link SimpleCatalog} for registering tables and functions. */
-public class BeamZetaSqlCatalog extends SimpleCatalog {
+/**
+ * Catalog for registering tables and functions. Populates a {@link SimpleCatalog} based on a {@link
+ * SchemaPlus}.
+ */
+public class BeamZetaSqlCatalog {
   // ZetaSQL function group identifiers. Different function groups may have divergent translation
   // paths.
   public static final String PRE_DEFINED_WINDOW_FUNCTIONS = "pre_defined_window_functions";
@@ -76,8 +79,14 @@ public class BeamZetaSqlCatalog extends SimpleCatalog {
           "CREATE FUNCTION SESSION_START(session_gap STRING) RETURNS TIMESTAMP AS (null);",
           "CREATE FUNCTION SESSION_END(session_gap STRING) RETURNS TIMESTAMP AS (null);");
 
-  private final QueryTrait queryTrait;
-  private final SchemaPlus topLevelSchema;
+  /** The top-level Calcite schema, which may contain sub-schemas. */
+  private final SchemaPlus calciteSchema;
+  /**
+   * The top-level ZetaSQL catalog, which may contain nested catalogs for qualified table and
+   * function references.
+   */
+  private final SimpleCatalog zetaSqlCatalog;
+
   private final JavaTypeFactory typeFactory;
 
   private final JavaUdfLoader javaUdfLoader = new JavaUdfLoader();
@@ -90,26 +99,30 @@ public class BeamZetaSqlCatalog extends SimpleCatalog {
       new HashMap<>();
 
   private BeamZetaSqlCatalog(
-      SchemaPlus topLevelSchema, QueryTrait queryTrait, JavaTypeFactory typeFactory) {
-    super(topLevelSchema.getName());
-    this.topLevelSchema = topLevelSchema;
-    this.queryTrait = queryTrait;
+      SchemaPlus calciteSchema, SimpleCatalog zetaSqlCatalog, JavaTypeFactory typeFactory) {
+    this.calciteSchema = calciteSchema;
+    this.zetaSqlCatalog = zetaSqlCatalog;
     this.typeFactory = typeFactory;
   }
 
   /** Return catalog pre-populated with builtin functions. */
   static BeamZetaSqlCatalog create(
       SchemaPlus topLevelSchema,
-      QueryTrait queryTrait,
+      SimpleCatalog zetaSqlCatalog,
       JavaTypeFactory typeFactory,
       AnalyzerOptions options) {
-    BeamZetaSqlCatalog catalog = new BeamZetaSqlCatalog(topLevelSchema, queryTrait, typeFactory);
+    BeamZetaSqlCatalog catalog =
+        new BeamZetaSqlCatalog(topLevelSchema, zetaSqlCatalog, typeFactory);
     catalog.addBuiltinFunctionsToCatalog(options);
     return catalog;
   }
 
-  void addTables(List<List<String>> tables) {
-    tables.forEach(table -> addTableToLeafCatalog(table));
+  SimpleCatalog getZetaSqlCatalog() {
+    return zetaSqlCatalog;
+  }
+
+  void addTables(List<List<String>> tables, QueryTrait queryTrait) {
+    tables.forEach(table -> addTableToLeafCatalog(table, queryTrait));
   }
 
   void addFunction(ResolvedNodes.ResolvedCreateFunctionStmt createFunctionStmt) {
@@ -130,7 +143,7 @@ public class BeamZetaSqlCatalog extends SimpleCatalog {
         throw new IllegalArgumentException(
             String.format("Encountered unrecognized function group %s.", functionGroup));
     }
-    addFunction(
+    zetaSqlCatalog.addFunction(
         new Function(
             createFunctionStmt.getNamePath(),
             functionGroup,
@@ -142,7 +155,7 @@ public class BeamZetaSqlCatalog extends SimpleCatalog {
 
   void addTableValuedFunction(
       ResolvedNodes.ResolvedCreateTableFunctionStmt createTableFunctionStmt) {
-    addTableValuedFunction(
+    zetaSqlCatalog.addTableValuedFunction(
         new TableValuedFunction.FixedOutputSchemaTVF(
             createTableFunctionStmt.getNamePath(),
             createTableFunctionStmt.getSignature(),
@@ -167,7 +180,7 @@ public class BeamZetaSqlCatalog extends SimpleCatalog {
         new ZetaSQLBuiltinFunctionOptions(options.getLanguageOptions());
     SupportedZetaSqlBuiltinFunctions.ALLOWLIST.forEach(
         zetasqlBuiltinFunctionOptions::includeFunctionSignatureId);
-    addZetaSQLFunctions(zetasqlBuiltinFunctionOptions);
+    zetaSqlCatalog.addZetaSQLFunctions(zetasqlBuiltinFunctionOptions);
 
     // Enable Beam SQL's builtin windowing functions.
     addWindowScalarFunctions(options);
@@ -179,7 +192,7 @@ public class BeamZetaSqlCatalog extends SimpleCatalog {
         .map(
             func ->
                 (ResolvedNodes.ResolvedCreateFunctionStmt)
-                    Analyzer.analyzeStatement(func, options, this))
+                    Analyzer.analyzeStatement(func, options, zetaSqlCatalog))
         .map(
             resolvedFunc ->
                 new Function(
@@ -187,7 +200,7 @@ public class BeamZetaSqlCatalog extends SimpleCatalog {
                     PRE_DEFINED_WINDOW_FUNCTIONS,
                     ZetaSQLFunctions.FunctionEnums.Mode.SCALAR,
                     ImmutableList.of(resolvedFunc.getSignature())))
-        .forEach(this::addFunction);
+        .forEach(zetaSqlCatalog::addFunction);
   }
 
   @SuppressWarnings({
@@ -213,7 +226,7 @@ public class BeamZetaSqlCatalog extends SimpleCatalog {
         new FunctionArgumentType(TypeFactory.createSimpleType(ZetaSQLType.TypeKind.TYPE_STRING));
 
     // TUMBLE
-    addTableValuedFunction(
+    zetaSqlCatalog.addTableValuedFunction(
         new TableValuedFunction.ForwardInputSchemaToOutputSchemaWithAppendedColumnTVF(
             ImmutableList.of(TVFStreamingUtils.FIXED_WINDOW_TVF),
             new FunctionSignature(
@@ -229,7 +242,7 @@ public class BeamZetaSqlCatalog extends SimpleCatalog {
             null));
 
     // HOP
-    addTableValuedFunction(
+    zetaSqlCatalog.addTableValuedFunction(
         new TableValuedFunction.ForwardInputSchemaToOutputSchemaWithAppendedColumnTVF(
             ImmutableList.of(TVFStreamingUtils.SLIDING_WINDOW_TVF),
             new FunctionSignature(
@@ -247,7 +260,7 @@ public class BeamZetaSqlCatalog extends SimpleCatalog {
             null));
 
     // SESSION
-    addTableValuedFunction(
+    zetaSqlCatalog.addTableValuedFunction(
         new TableValuedFunction.ForwardInputSchemaToOutputSchemaWithAppendedColumnTVF(
             ImmutableList.of(TVFStreamingUtils.SESSION_WINDOW_TVF),
             new FunctionSignature(
@@ -305,19 +318,19 @@ public class BeamZetaSqlCatalog extends SimpleCatalog {
    * e.g. either by drilling down the schema.getSubschema() path or joining the table name with dots
    * to construct a single compound identifier (e.g. Data Catalog use case).
    */
-  private void addTableToLeafCatalog(List<String> tablePath) {
+  private void addTableToLeafCatalog(List<String> tablePath, QueryTrait queryTrait) {
 
-    SimpleCatalog leafCatalog = createNestedCatalogs(this, tablePath);
+    SimpleCatalog leafCatalog = createNestedCatalogs(zetaSqlCatalog, tablePath);
 
     org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Table calciteTable =
-        TableResolution.resolveCalciteTable(topLevelSchema, tablePath);
+        TableResolution.resolveCalciteTable(calciteSchema, tablePath);
 
     if (calciteTable == null) {
       throw new SqlConversionException(
           "Wasn't able to resolve the path "
               + tablePath
               + " in schema: "
-              + topLevelSchema.getName());
+              + calciteSchema.getName());
     }
 
     RelDataType rowType = calciteTable.getRowType(typeFactory);
