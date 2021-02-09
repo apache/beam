@@ -21,7 +21,6 @@ plugins {
   `java-gradle-plugin`
   groovy
   id("com.diffplug.spotless") version "5.6.1"
-  `kotlin-dsl`
 }
 
 // Define the set of repositories required to fetch and enable plugins.
