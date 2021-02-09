@@ -566,6 +566,8 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   max = frame_base._agg_method('max')
   prod = product = frame_base._agg_method('prod')
   sum = frame_base._agg_method('sum')
+  mean = frame_base._agg_method('mean')
+  median = frame_base._agg_method('median')
 
   cummax = cummin = cumsum = cumprod = frame_base.wont_implement_method(
       'order-sensitive')
@@ -952,9 +954,6 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   memory_usage = frame_base.wont_implement_method('non-deferred value')
   info = frame_base.wont_implement_method('non-deferred value')
 
-  all = frame_base._agg_method('all')
-  any = frame_base._agg_method('any')
-
   clip = frame_base._elementwise_method(
       'clip', restrictions={'axis': lambda axis: axis in (0, 'index')})
 
@@ -1115,9 +1114,6 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   __matmul__ = dot
 
   head = tail = frame_base.wont_implement_method('order-sensitive')
-
-  max = frame_base._agg_method('max')
-  min = frame_base._agg_method('min')
 
   def mode(self, axis=0, *args, **kwargs):
     if axis == 1 or axis == 'columns':
@@ -1397,8 +1393,6 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
             requires_partition_by=partitionings.Nothing())
     return result
 
-  prod = product = frame_base._agg_method('prod')
-
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
   def quantile(self, axis, **kwargs):
@@ -1538,7 +1532,14 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
 
   stack = frame_base._elementwise_method('stack')
 
+  all = frame_base._agg_method('all')
+  any = frame_base._agg_method('any')
+  max = frame_base._agg_method('max')
+  min = frame_base._agg_method('min')
+  prod = product = frame_base._agg_method('prod')
   sum = frame_base._agg_method('sum')
+  mean = frame_base._agg_method('mean')
+  median = frame_base._agg_method('median')
 
   take = frame_base.wont_implement_method('deprecated')
 
