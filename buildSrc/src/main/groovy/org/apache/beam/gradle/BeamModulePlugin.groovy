@@ -590,6 +590,7 @@ class BeamModulePlugin implements Plugin<Project> {
         kafka                                       : "org.apache.kafka:kafka_2.11:$kafka_version",
         kafka_clients                               : "org.apache.kafka:kafka-clients:$kafka_version",
         mockito_core                                : "org.mockito:mockito-core:3.7.7",
+        mongo_java_driver                           : "org.mongodb:mongo-java-driver:3.12.7",
         nemo_compiler_frontend_beam                 : "org.apache.nemo:nemo-compiler-frontend-beam:$nemo_version",
         netty_all                                   : "io.netty:netty-all:$netty_version",
         netty_handler                               : "io.netty:netty-handler:$netty_version",
