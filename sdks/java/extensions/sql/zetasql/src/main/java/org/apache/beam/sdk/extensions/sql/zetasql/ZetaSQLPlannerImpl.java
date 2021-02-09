@@ -17,29 +17,14 @@
  */
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
-import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_CREATE_FUNCTION_STMT;
-import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_CREATE_TABLE_FUNCTION_STMT;
-import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_QUERY_STMT;
-
 import com.google.zetasql.AnalyzerOptions;
 import com.google.zetasql.LanguageOptions;
-import com.google.zetasql.ParseResumeLocation;
-import com.google.zetasql.SimpleCatalog;
-import com.google.zetasql.ZetaSQLType;
-import com.google.zetasql.resolvedast.ResolvedNode;
-import com.google.zetasql.resolvedast.ResolvedNodes;
-import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedCreateFunctionStmt;
-import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedCreateTableFunctionStmt;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedQueryStmt;
-import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedStatement;
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.impl.JavaUdfLoader;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
-import org.apache.beam.sdk.extensions.sql.udf.ScalarFn;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.ConversionContext;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.ExpressionConverter;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.QueryStatementConverter;
-import org.apache.beam.sdk.extensions.sql.zetasql.translation.UserFunctionDefinitions;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.adapter.java.JavaTypeFactory;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptCluster;
@@ -55,7 +40,6 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.Framework
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.Frameworks;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.Program;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.Util;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /** ZetaSQLPlannerImpl. */
 @SuppressWarnings({
@@ -94,78 +78,24 @@ class ZetaSQLPlannerImpl {
   public RelRoot rel(String sql, QueryParameters params) {
     RelOptCluster cluster = RelOptCluster.create(planner, new RexBuilder(typeFactory));
     QueryTrait trait = new QueryTrait();
-    SqlAnalyzer analyzer =
-        new SqlAnalyzer(trait, defaultSchemaPlus, (JavaTypeFactory) cluster.getTypeFactory());
-
     AnalyzerOptions options = SqlAnalyzer.getAnalyzerOptions(params, defaultTimezone);
+    BeamZetaSqlCatalog catalog =
+        BeamZetaSqlCatalog.create(
+            defaultSchemaPlus, trait, (JavaTypeFactory) cluster.getTypeFactory(), options);
 
     // Set up table providers that need to be pre-registered
+    SqlAnalyzer analyzer = new SqlAnalyzer();
     List<List<String>> tables = analyzer.extractTableNames(sql, options);
     TableResolution.registerTables(this.defaultSchemaPlus, tables);
-    SimpleCatalog catalog =
-        analyzer.createPopulatedCatalog(defaultSchemaPlus.getName(), options, tables);
+    catalog.addTables(tables);
 
-    ImmutableMap.Builder<List<String>, ResolvedCreateFunctionStmt> udfBuilder =
-        ImmutableMap.builder();
-    ImmutableMap.Builder<List<String>, ResolvedNode> udtvfBuilder = ImmutableMap.builder();
-    ImmutableMap.Builder<List<String>, UserFunctionDefinitions.JavaScalarFunction>
-        javaScalarFunctionBuilder = ImmutableMap.builder();
-    JavaUdfLoader javaUdfLoader = new JavaUdfLoader();
-
-    ResolvedStatement statement;
-    ParseResumeLocation parseResumeLocation = new ParseResumeLocation(sql);
-    do {
-      statement = analyzer.analyzeNextStatement(parseResumeLocation, options, catalog);
-      if (statement.nodeKind() == RESOLVED_CREATE_FUNCTION_STMT) {
-        ResolvedCreateFunctionStmt createFunctionStmt = (ResolvedCreateFunctionStmt) statement;
-        String functionGroup = SqlAnalyzer.getFunctionGroup(createFunctionStmt);
-        switch (functionGroup) {
-          case SqlAnalyzer.USER_DEFINED_SQL_FUNCTIONS:
-            udfBuilder.put(createFunctionStmt.getNamePath(), createFunctionStmt);
-            break;
-          case SqlAnalyzer.USER_DEFINED_JAVA_SCALAR_FUNCTIONS:
-            String jarPath = getJarPath(createFunctionStmt);
-            ScalarFn scalarFn =
-                javaUdfLoader.loadScalarFunction(createFunctionStmt.getNamePath(), jarPath);
-            javaScalarFunctionBuilder.put(
-                createFunctionStmt.getNamePath(),
-                UserFunctionDefinitions.JavaScalarFunction.create(scalarFn, jarPath));
-            break;
-          default:
-            throw new IllegalArgumentException(
-                String.format("Encountered unrecognized function group %s.", functionGroup));
-        }
-      } else if (statement.nodeKind() == RESOLVED_CREATE_TABLE_FUNCTION_STMT) {
-        ResolvedCreateTableFunctionStmt createTableFunctionStmt =
-            (ResolvedCreateTableFunctionStmt) statement;
-        udtvfBuilder.put(createTableFunctionStmt.getNamePath(), createTableFunctionStmt.getQuery());
-      } else if (statement.nodeKind() == RESOLVED_QUERY_STMT) {
-        if (!SqlAnalyzer.isEndOfInput(parseResumeLocation)) {
-          throw new UnsupportedOperationException(
-              "No additional statements are allowed after a SELECT statement.");
-        }
-        break;
-      }
-    } while (!SqlAnalyzer.isEndOfInput(parseResumeLocation));
-
-    if (!(statement instanceof ResolvedQueryStmt)) {
-      throw new UnsupportedOperationException(
-          "Statement list must end in a SELECT statement, not " + statement.nodeKindString());
-    }
-
-    UserFunctionDefinitions userFunctionDefinitions =
-        UserFunctionDefinitions.newBuilder()
-            .setSqlScalarFunctions(udfBuilder.build())
-            .setSqlTableValuedFunctions(udtvfBuilder.build())
-            .setJavaScalarFunctions(javaScalarFunctionBuilder.build())
-            .build();
+    ResolvedQueryStmt statement = analyzer.analyzeQuery(sql, options, catalog);
 
     ExpressionConverter expressionConverter =
-        new ExpressionConverter(cluster, params, userFunctionDefinitions);
+        new ExpressionConverter(cluster, params, catalog.getUserFunctionDefinitions());
     ConversionContext context = ConversionContext.of(config, expressionConverter, cluster, trait);
 
-    RelNode convertedNode =
-        QueryStatementConverter.convertRootQuery(context, (ResolvedQueryStmt) statement);
+    RelNode convertedNode = QueryStatementConverter.convertRootQuery(context, statement);
     return RelRoot.of(convertedNode, SqlKind.ALL);
   }
 
@@ -184,40 +114,5 @@ class ZetaSQLPlannerImpl {
 
   static LanguageOptions getLanguageOptions() {
     return SqlAnalyzer.baseAnalyzerOptions().getLanguageOptions();
-  }
-
-  private static String getJarPath(ResolvedCreateFunctionStmt createFunctionStmt) {
-    String jarPath = getOptionStringValue(createFunctionStmt, "path");
-    if (jarPath.isEmpty()) {
-      throw new IllegalArgumentException(
-          String.format(
-              "No jar was provided to define function %s. Add 'OPTIONS (path=<jar location>)' to the CREATE FUNCTION statement.",
-              String.join(".", createFunctionStmt.getNamePath())));
-    }
-    return jarPath;
-  }
-
-  private static String getOptionStringValue(
-      ResolvedCreateFunctionStmt createFunctionStmt, String optionName) {
-    for (ResolvedNodes.ResolvedOption option : createFunctionStmt.getOptionList()) {
-      if (optionName.equals(option.getName())) {
-        if (option.getValue() == null) {
-          throw new IllegalArgumentException(
-              String.format(
-                  "Option '%s' has null value (expected %s).",
-                  optionName, ZetaSQLType.TypeKind.TYPE_STRING));
-        }
-        if (option.getValue().getType().getKind() != ZetaSQLType.TypeKind.TYPE_STRING) {
-          throw new IllegalArgumentException(
-              String.format(
-                  "Option '%s' has type %s (expected %s).",
-                  optionName,
-                  option.getValue().getType().getKind(),
-                  ZetaSQLType.TypeKind.TYPE_STRING));
-        }
-        return ((ResolvedNodes.ResolvedLiteral) option.getValue()).getValue().getStringValue();
-      }
-    }
-    return "";
   }
 }
