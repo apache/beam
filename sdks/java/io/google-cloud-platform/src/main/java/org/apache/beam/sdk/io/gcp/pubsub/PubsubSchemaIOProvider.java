@@ -309,11 +309,14 @@ public class PubsubSchemaIOProvider implements SchemaIOProvider {
 
     // For ThriftPayloadSerializerProvider
     abstract @Nullable String getThriftClass();
+
     abstract @Nullable String getThriftProtocolFactoryClass();
 
     // For ProtoPayloadSerializerProvider
     abstract @Nullable String getProtoClass();
+
     abstract @Nullable String getProtoMessageName();
+
     abstract @Nullable String getProtoDescriptorSetFile();
 
     boolean useDeadLetterQueue() {
