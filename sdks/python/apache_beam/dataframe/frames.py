@@ -376,9 +376,13 @@ class DeferredSeries(DeferredDataFrameOrSeries):
 
   __matmul__ = dot
 
+  def std(self, *args, **kwargs):
+    # Compute variance (deferred scalar) with same args, then sqrt it
+    return self.var(*args, **kwargs).apply(lambda var: math.sqrt(var))
+
   @frame_base.args_to_kwargs(pd.Series)
   @frame_base.populate_defaults(pd.Series)
-  def std(self, axis, skipna, level, ddof, **kwargs):
+  def var(self, axis, skipna, level, ddof, **kwargs):
     if level is not None:
       raise NotImplementedError("per-level aggregation")
     if skipna is None or skipna:
@@ -409,7 +413,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       if n <= ddof:
         return float('nan')
       else:
-        return math.sqrt(m / (n - ddof))
+        return m / (n - ddof)
 
     moments = expressions.ComputedExpression(
         'compute_moments',

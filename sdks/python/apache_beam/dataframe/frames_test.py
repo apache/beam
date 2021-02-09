@@ -476,6 +476,7 @@ class DeferredFrameTest(unittest.TestCase):
               pd.Series(range(100)),
               pd.Series([x**3 for x in range(-50, 50)])]:
       self._run_test(lambda s: s.std(), s)
+      self._run_test(lambda s: s.var(), s)
       self._run_test(lambda s: s.corr(s), s)
       self._run_test(lambda s: s.corr(s + 1), s)
       self._run_test(lambda s: s.corr(s * s), s)
