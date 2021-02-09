@@ -17,8 +17,9 @@
  */
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
+import static org.hamcrest.Matchers.isA;
+
 import com.google.zetasql.SqlException;
-import org.apache.beam.sdk.extensions.sql.impl.ParseException;
 import org.apache.beam.sdk.extensions.sql.impl.SqlConversionException;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
@@ -35,8 +36,6 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import static org.hamcrest.Matchers.isA;
 
 /** Tests for SQL-native user defined functions in the ZetaSQL dialect. */
 @RunWith(JUnit4.class)
