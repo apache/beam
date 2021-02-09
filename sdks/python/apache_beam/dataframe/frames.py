@@ -283,6 +283,9 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       # be more surprising than a clear error.
       raise frame_base.WontImplementError('non-deferred')
 
+  def keys(self):
+    return self.index
+
   @frame_base.args_to_kwargs(pd.Series)
   @frame_base.populate_defaults(pd.Series)
   def append(self, to_append, ignore_index, verify_integrity, **kwargs):
@@ -709,6 +712,9 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
             set_columns, [self._expr],
             requires_partition_by=partitionings.Nothing(),
             preserves_partition_by=partitionings.Singleton()))
+
+  def keys(self):
+    return self.columns
 
   def __getattr__(self, name):
     # Column attribute access.
