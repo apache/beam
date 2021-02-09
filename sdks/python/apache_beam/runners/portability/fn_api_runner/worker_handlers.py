@@ -71,8 +71,8 @@ from apache_beam.runners.worker.sdk_worker import _Future
 from apache_beam.runners.worker.statecache import StateCache
 from apache_beam.utils import proto_utils
 from apache_beam.utils import thread_pool_executor
-from apache_beam.utils.sentinel import Sentinel
 from apache_beam.utils.interactive_utils import is_in_notebook
+from apache_beam.utils.sentinel import Sentinel
 
 if TYPE_CHECKING:
   from grpc import ServicerContext
