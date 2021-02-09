@@ -24,7 +24,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import com.google.cloud.pubsublite.proto.AttributeValues;
 import com.google.cloud.pubsublite.proto.PubSubMessage;
 import com.google.cloud.pubsublite.proto.SequencedMessage;
-import com.google.common.collect.ImmutableList;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.util.Timestamps;
 import java.io.Serializable;
@@ -37,6 +36,7 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializer;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.Instant;
 import org.joda.time.ReadableDateTime;
