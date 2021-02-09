@@ -439,6 +439,20 @@ class DeferredFrameTest(unittest.TestCase):
       self._run_test(lambda s: s.agg(['mean']), s)
       self._run_test(lambda s: s.agg('mean'), s)
 
+  def test_append_sort(self):
+    df1 = pd.DataFrame({'int': [1, 2, 3], 'str': ['a', 'b', 'c']},
+                       columns=['int', 'str'],
+                       index=[1, 3, 5])
+    df2 = pd.DataFrame({'int': [4, 5, 6], 'str': ['d', 'e', 'f']},
+                       columns=['str', 'int'],
+                       index=[2, 4, 6])
+
+    self._run_test(lambda df1, df2: df1.append(df2, sort=True), df1, df2)
+    self._run_test(lambda df1, df2: df1.append(df2, sort=False), df1, df2)
+    self._run_test(lambda df1, df2: df2.append(df1, sort=True), df1, df2)
+    self._run_test(lambda df1, df2: df2.append(df1, sort=False), df1, df2)
+
+
   @unittest.skipIf(sys.version_info < (3, 6), 'Nondeterministic dict ordering.')
   def test_dataframe_agg(self):
     df = pd.DataFrame({'A': [1, 2, 3, 4], 'B': [2, 3, 5, 7]})

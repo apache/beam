@@ -285,6 +285,33 @@ class DeferredSeries(DeferredDataFrameOrSeries):
 
   @frame_base.args_to_kwargs(pd.Series)
   @frame_base.populate_defaults(pd.Series)
+  def append(self, to_append, ignore_index, verify_integrity, **kwargs):
+    if not isinstance(to_append, DeferredSeries):
+      raise frame_base.WontImplementError(
+          "append() only accepts DeferredSeries instances, received " +
+          str(type(to_append)))
+    if ignore_index:
+      raise frame_base.WontImplementError(
+          "append(ignore_index=True) is order sensitive")
+
+    if verify_integrity:
+      # verifying output has a unique index requires global index.
+      requires = partitionings.Singleton()
+    else:
+      requires = partitionings.Nothing()
+
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'append',
+            lambda s, to_append: s.append(to_append, verify_integrity=verify_integrity, **kwargs),
+            [self._expr, to_append._expr],
+            requires_partition_by=requires,
+            preserves_partition_by=partitionings.Index()
+        )
+    )
+
+  @frame_base.args_to_kwargs(pd.Series)
+  @frame_base.populate_defaults(pd.Series)
   def align(self, other, join, axis, level, method, **kwargs):
     if level is not None:
       raise NotImplementedError('per-level align')
@@ -764,6 +791,30 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
             [self._expr, other._expr],
             requires_partition_by=requires_partition_by,
             preserves_partition_by=partitionings.Index()))
+
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  def append(self, other, ignore_index, verify_integrity, sort, **kwargs):
+    if not isinstance(other, DeferredDataFrame):
+      raise frame_base.WontImplementError(
+          "append() only accepts DeferredDataFrame instances, received " +
+          str(type(other)))
+    if ignore_index:
+      raise frame_base.WontImplementError(
+          "append(ignore_index=True) is order sensitive")
+    if verify_integrity:
+      raise frame_base.WontImplementError(
+          "append(verify_integrity=True) produces an execution time error")
+
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'append',
+            lambda s, other: s.append(other, sort=sort, **kwargs),
+            [self._expr, other._expr],
+            requires_partition_by=partitionings.Nothing(),
+            preserves_partition_by=partitionings.Index()
+        )
+    )
 
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
