@@ -73,8 +73,9 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
         index = None
         columns = labels
       else:
-        raise ValueError("axis must be one of (0, 1, 'index', 'columns'), "
-                         "got '%s'" % axis)
+        raise ValueError(
+            "axis must be one of (0, 1, 'index', 'columns'), "
+            "got '%s'" % axis)
 
     if columns is not None:
       # Compute the proxy based on just the columns that are dropped.
@@ -89,13 +90,17 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
     else:
       requires = partitionings.Nothing()
 
-    return frame_base.DeferredFrame.wrap(expressions.ComputedExpression(
-        'drop',
-        lambda df: df.drop(axis=axis, index=index, columns=columns,
-                           errors=errors, **kwargs),
-        [self._expr],
-        proxy=proxy,
-        requires_partition_by=requires))
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'drop',
+            lambda df: df.drop(
+                axis=axis,
+                index=index,
+                columns=columns,
+                errors=errors,
+                **kwargs), [self._expr],
+            proxy=proxy,
+            requires_partition_by=requires))
 
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
@@ -306,12 +311,12 @@ class DeferredSeries(DeferredDataFrameOrSeries):
     return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
             'append',
-            lambda s, to_append: s.append(to_append, verify_integrity=verify_integrity, **kwargs),
+            lambda s,
+            to_append: s.append(
+                to_append, verify_integrity=verify_integrity, **kwargs),
             [self._expr, to_append._expr],
             requires_partition_by=requires,
-            preserves_partition_by=partitionings.Index()
-        )
-    )
+            preserves_partition_by=partitionings.Index()))
 
   @frame_base.args_to_kwargs(pd.Series)
   @frame_base.populate_defaults(pd.Series)

@@ -78,7 +78,8 @@ class DoctestTest(unittest.TestCase):
             ],
             'pandas.core.frame.DataFrame.append': [
                 'df.append(df2, ignore_index=True)',
-                "for i in range(5):\n    df = df.append({'A': i}, ignore_index=True)",
+                "for i in range(5):\n" +
+                "    df = df.append({'A': i}, ignore_index=True)",
             ],
         },
         not_implemented_ok={

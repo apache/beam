@@ -243,12 +243,10 @@ class DeferredFrameTest(unittest.TestCase):
         expect_error=True)
 
   def test_series_drop_ignore_errors(self):
-    midx = pd.MultiIndex(levels=[['lama', 'cow', 'falcon'],
-                              ['speed', 'weight', 'length']],
-                      codes=[[0, 0, 0, 1, 1, 1, 2, 2, 2],
-                             [0, 1, 2, 0, 1, 2, 0, 1, 2]])
-    s = pd.Series([45, 200, 1.2, 30, 250, 1.5, 320, 1, 0.3],
-                  index=midx)
+    midx = pd.MultiIndex(
+        levels=[['lama', 'cow', 'falcon'], ['speed', 'weight', 'length']],
+        codes=[[0, 0, 0, 1, 1, 1, 2, 2, 2], [0, 1, 2, 0, 1, 2, 0, 1, 2]])
+    s = pd.Series([45, 200, 1.2, 30, 250, 1.5, 320, 1, 0.3], index=midx)
 
     # drop() requires singleton partitioning unless errors are ignored
     # Add some additional tests here to make sure the implementation works in
@@ -257,24 +255,27 @@ class DeferredFrameTest(unittest.TestCase):
     self._run_test(lambda s: s.drop(('cow', 'speed'), errors='ignore'), s)
     self._run_test(lambda s: s.drop('falcon', level=0, errors='ignore'), s)
 
-
   def test_dataframe_drop_ignore_errors(self):
-    midx = pd.MultiIndex(levels=[['lama', 'cow', 'falcon'],
-                                 ['speed', 'weight', 'length']],
-                         codes=[[0, 0, 0, 1, 1, 1, 2, 2, 2],
-                                [0, 1, 2, 0, 1, 2, 0, 1, 2]])
-    df = pd.DataFrame(index=midx, columns=['big', 'small'],
-                      data=[[45, 30], [200, 100], [1.5, 1], [30, 20],
-                            [250, 150], [1.5, 0.8], [320, 250],
-                            [1, 0.8], [0.3, 0.2]])
+    midx = pd.MultiIndex(
+        levels=[['lama', 'cow', 'falcon'], ['speed', 'weight', 'length']],
+        codes=[[0, 0, 0, 1, 1, 1, 2, 2, 2], [0, 1, 2, 0, 1, 2, 0, 1, 2]])
+    df = pd.DataFrame(
+        index=midx,
+        columns=['big', 'small'],
+        data=[[45, 30], [200, 100], [1.5, 1], [30, 20], [250, 150], [1.5, 0.8],
+              [320, 250], [1, 0.8], [0.3, 0.2]])
 
     # drop() requires singleton partitioning unless errors are ignored
     # Add some additional tests here to make sure the implementation works in
     # non-singleton partitioning.
-    self._run_test(lambda df: df.drop(index='lama', level=0, errors='ignore'), df)
-    self._run_test(lambda df: df.drop(index=('cow', 'speed'), errors='ignore'), df)
-    self._run_test(lambda df: df.drop(index='falcon', level=0, errors='ignore'), df)
-    self._run_test(lambda df: df.drop(index='cow', columns='small', errors='ignore'), df)
+    self._run_test(
+        lambda df: df.drop(index='lama', level=0, errors='ignore'), df)
+    self._run_test(
+        lambda df: df.drop(index=('cow', 'speed'), errors='ignore'), df)
+    self._run_test(
+        lambda df: df.drop(index='falcon', level=0, errors='ignore'), df)
+    self._run_test(
+        lambda df: df.drop(index='cow', columns='small', errors='ignore'), df)
 
   def test_merge(self):
     # This is from the pandas doctests, but fails due to re-indexing being
@@ -451,7 +452,6 @@ class DeferredFrameTest(unittest.TestCase):
     self._run_test(lambda df1, df2: df1.append(df2, sort=False), df1, df2)
     self._run_test(lambda df1, df2: df2.append(df1, sort=True), df1, df2)
     self._run_test(lambda df1, df2: df2.append(df1, sort=False), df1, df2)
-
 
   @unittest.skipIf(sys.version_info < (3, 6), 'Nondeterministic dict ordering.')
   def test_dataframe_agg(self):
