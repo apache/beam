@@ -258,7 +258,7 @@ class _SdkContainerImageCloudBuilder(SdkContainerImageBuilder):
     source.storageSource.object = gcs_object
     build.source = source
     # TODO(zyichi): make timeout configurable
-    build.timeout = Duration().FromSeconds(seconds=1800)
+    build.timeout = Duration().FromSeconds(seconds=7200)
 
     now = time.time()
     # operation = client.create_build(project_id=project_id, build=build)
