@@ -31,21 +31,35 @@ class _ClientCallDetails(
     pass
 
 
-class TokenAuthInterceptor(grpc.StreamStreamClientInterceptor):
+class TokenAuthInterceptor(grpc.StreamStreamClientInterceptor,
+                           grpc.UnaryUnaryClientInterceptor,
+                           grpc.StreamUnaryClientInterceptor,
+                           grpc.UnaryStreamClientInterceptor):
 
     def __init__(self, token=None):
         self._token = token
 
-    def intercept_stream_stream(self, continuation, client_call_details,
-                                request_iterator):
+    def intercept_unary_unary(self, continuation, client_call_details, request):
+        return self._intercept(continuation, client_call_details, request)
+
+    def intercept_unary_stream(self, continuation, client_call_details, request):
+        return self._intercept(continuation, client_call_details, request)
+
+    def intercept_stream_unary(self, continuation, client_call_details, request_iterator):
+        return self._intercept(continuation, client_call_details, request_iterator)
+
+    def intercept_stream_stream(self, continuation, client_call_details, request_iterator):
+        return self._intercept(continuation, client_call_details, request_iterator)
+
+    def _intercept(self, continuation, client_call_details, request):
         metadata = []
         if client_call_details.metadata is not None:
             metadata = list(client_call_details.metadata)
         if 'fs_token' in metadata:
-            raise RuntimeError('Header metadata alreay have fs_token.')
+            raise RuntimeError('Header metadata already have fs_token.')
         if self._token:
             metadata.append(('fs_token', self._token))
         new_client_details = _ClientCallDetails(
             client_call_details.method, client_call_details.timeout, metadata,
             client_call_details.credentials)
-        return continuation(new_client_details, request_iterator)
+        return continuation(new_client_details, request)
