@@ -16,26 +16,31 @@
  * limitations under the License.
  */
 
-plugins { id 'groovy' }
+plugins {
+  groovy
+  id("org.apache.beam.module")
+}
 
 repositories {
   mavenCentral()
 }
 
+val library = project.extensions.extraProperties["library"] as Map<String, Map<String, String>>
+
 dependencies {
-  compile library.groovy.groovy_all
-  compile 'commons-cli:commons-cli:1.2'
+  compile(library.getValue("groovy").getValue("groovy_all"))
+  compile("commons-cli:commons-cli:1.2")
 }
 
-task runJavaExamplesValidationTask {
+task("runJavaExamplesValidationTask") {
   group = "Verification"
   description = "Run the Beam quickstart across all Java runners"
-  dependsOn ":runners:direct-java:runQuickstartJavaDirect"
-  dependsOn ":runners:google-cloud-dataflow-java:runQuickstartJavaDataflow"
-  dependsOn ":runners:spark:runQuickstartJavaSpark"
-  dependsOn ":runners:flink:1.10:runQuickstartJavaFlinkLocal"
-  dependsOn ":runners:direct-java:runMobileGamingJavaDirect"
-  dependsOn ":runners:google-cloud-dataflow-java:runMobileGamingJavaDataflow"
-  dependsOn ":runners:twister2:runQuickstartJavaTwister2"
-  dependsOn ":runners:google-cloud-dataflow-java:runMobileGamingJavaDataflowBom"
+  dependsOn(":runners:direct-java:runQuickstartJavaDirect")
+  dependsOn(":runners:google-cloud-dataflow-java:runQuickstartJavaDataflow")
+  dependsOn(":runners:spark:runQuickstartJavaSpark")
+  dependsOn(":runners:flink:1.10:runQuickstartJavaFlinkLocal")
+  dependsOn(":runners:direct-java:runMobileGamingJavaDirect")
+  dependsOn(":runners:google-cloud-dataflow-java:runMobileGamingJavaDataflow")
+  dependsOn(":runners:twister2:runQuickstartJavaTwister2")
+  dependsOn(":runners:google-cloud-dataflow-java:runMobileGamingJavaDataflowBom")
 }
