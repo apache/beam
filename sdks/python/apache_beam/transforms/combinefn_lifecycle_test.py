@@ -69,6 +69,7 @@ class CombineFnLifecycleTest(unittest.TestCase):
 
   @skip_unless_v2
   def test_combining_value_state(self):
+    self.skipTest('BEAM-11793')
     run_pardo(self.pipeline)
 
 
