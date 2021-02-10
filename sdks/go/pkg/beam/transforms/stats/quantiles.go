@@ -55,6 +55,7 @@ type Opts struct {
 	// For extremely large datasets, runners may have issues with out of memory errors or taking too long to finish.
 	// If ApproximateQuantiles is failing, you can use this option to tune how the data is sharded internally.
 	// This parameter is optional. If unspecified, Beam will compact all elements into a single compactor at once using a single machine.
+	// For example, if this is set to [8, 4, 2]: First, elements will be assigned to 8 shards which will run in parallel. Then the intermediate results from those 8 shards will be reassigned to 4 shards and merged in parallel. Then once again to 2 shards. Finally the intermediate results of those two shards will be merged on one machine before returning the final result.
 	InternalSharding []int
 }
 
