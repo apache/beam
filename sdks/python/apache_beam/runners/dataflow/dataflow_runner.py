@@ -515,7 +515,7 @@ class DataflowRunner(PipelineRunner):
     # experiment is set.
     if not options.view_as(StandardOptions).streaming:
       pre_optimize = options.view_as(DebugOptions).lookup_experiment(
-        'pre_optimize', 'default').lower()
+          'pre_optimize', 'default').lower()
       from apache_beam.runners.portability.fn_api_runner import translations
       if pre_optimize == 'none' or pre_optimize == 'default':
         phases = []
@@ -533,7 +533,8 @@ class DataflowRunner(PipelineRunner):
             phases.append(getattr(translations, phase_name))
           else:
             raise ValueError(
-                'Unknown or inapplicable phase for pre_optimize: %s' % phase_name)
+                'Unknown or inapplicable phase for pre_optimize: %s' %
+                phase_name)
         phases.append(translations.sort_stages)
 
       if phases:
