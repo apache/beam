@@ -21,6 +21,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.stream.Collectors.toSet;
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.DLQ_TAG;
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.MAIN_TAG;
+import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.getParsePayloadFn;
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubSchemaIOProvider.VARCHAR;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables.size;
 import static org.junit.Assert.assertEquals;
@@ -30,13 +31,14 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.StreamSupport;
-import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.SerializerProvider;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubSchemaIOProvider.PayloadFormat;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
-import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializers;
+import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
@@ -54,8 +56,6 @@ import org.junit.Test;
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class PubsubMessageToRowTest implements Serializable {
-  private static final SerializerProvider JSON_SERIALIZER_PROVIDER =
-      schema -> PayloadSerializers.getSerializer("json", schema, ImmutableMap.of());
 
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
 
@@ -90,7 +90,6 @@ public class PubsubMessageToRowTest implements Serializable {
                     .messageSchema(messageSchema)
                     .useDlq(false)
                     .useFlatSchema(false)
-                    .serializerProvider(JSON_SERIALIZER_PROVIDER)
                     .build());
 
     PAssert.that(rows.get(MAIN_TAG))
@@ -140,7 +139,6 @@ public class PubsubMessageToRowTest implements Serializable {
                     .messageSchema(messageSchema)
                     .useDlq(true)
                     .useFlatSchema(false)
-                    .serializerProvider(JSON_SERIALIZER_PROVIDER)
                     .build());
 
     PCollection<Row> rows = outputs.get(MAIN_TAG);
@@ -197,7 +195,6 @@ public class PubsubMessageToRowTest implements Serializable {
                     .messageSchema(messageSchema)
                     .useDlq(false)
                     .useFlatSchema(true)
-                    .serializerProvider(JSON_SERIALIZER_PROVIDER)
                     .build());
 
     PAssert.that(rows.get(MAIN_TAG))
@@ -245,7 +242,6 @@ public class PubsubMessageToRowTest implements Serializable {
                     .messageSchema(messageSchema)
                     .useDlq(true)
                     .useFlatSchema(true)
-                    .serializerProvider(JSON_SERIALIZER_PROVIDER)
                     .build());
 
     PCollection<Row> rows = outputs.get(MAIN_TAG);
@@ -298,12 +294,10 @@ public class PubsubMessageToRowTest implements Serializable {
                 .messageSchema(messageSchema)
                 .useDlq(false)
                 .useFlatSchema(true)
-                .serializerProvider(JSON_SERIALIZER_PROVIDER)
                 .build());
 
     Exception exception = Assert.assertThrows(RuntimeException.class, () -> pipeline.run());
-    Assert.assertTrue(
-        exception.toString(), exception.getMessage().contains("Non-nullable field 'id'"));
+    Assert.assertTrue(exception.getMessage().contains("Error parsing message"));
   }
 
   @Test
@@ -329,12 +323,30 @@ public class PubsubMessageToRowTest implements Serializable {
                 .messageSchema(messageSchema)
                 .useDlq(false)
                 .useFlatSchema(false)
-                .serializerProvider(JSON_SERIALIZER_PROVIDER)
                 .build());
 
     Exception exception = Assert.assertThrows(RuntimeException.class, () -> pipeline.run());
-    Assert.assertTrue(
-        exception.toString(), exception.getMessage().contains("Non-nullable field 'id'"));
+    Assert.assertTrue(exception.getMessage().contains("Error parsing message"));
+  }
+
+  @Test
+  public void testParsesAvroPayload() {
+    Schema payloadSchema = getParserSchema();
+    Row row = row(payloadSchema, 3, "Dovahkiin", 5.5, 5L);
+    byte[] payload = AvroUtils.getRowToAvroBytesFunction(payloadSchema).apply(row);
+    SimpleFunction<PubsubMessage, Row> messageToRowFn =
+        getParsePayloadFn(PayloadFormat.AVRO, payloadSchema);
+    Row parsedRow = messageToRowFn.apply(new PubsubMessage(payload, null));
+    assertEquals(row, parsedRow);
+  }
+
+  private Schema getParserSchema() {
+    return Schema.builder()
+        .addInt32Field("id")
+        .addNullableField("name", FieldType.STRING)
+        .addNullableField("real", FieldType.DOUBLE)
+        .addNullableField("number", FieldType.INT64)
+        .build();
   }
 
   private Row row(Schema schema, Object... objects) {

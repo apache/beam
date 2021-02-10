@@ -19,8 +19,10 @@ package org.apache.beam.sdk.schemas.io;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.ServiceLoader;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
@@ -35,8 +37,19 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
 public final class GenericDlq {
   private GenericDlq() {}
 
-  private static final Map<String, GenericDlqProvider> PROVIDERS =
-      Providers.loadProviders(GenericDlqProvider.class);
+  private static final Map<String, GenericDlqProvider> PROVIDERS = loadDlqProviders();
+
+  private static Map<String, GenericDlqProvider> loadDlqProviders() {
+    Map<String, GenericDlqProvider> providers = new HashMap<>();
+    for (GenericDlqProvider provider : ServiceLoader.load(GenericDlqProvider.class)) {
+      checkArgument(
+          !providers.containsKey(provider.identifier()),
+          "Duplicate providers exist with identifier `%s`.",
+          provider.identifier());
+      providers.put(provider.identifier(), provider);
+    }
+    return providers;
+  }
 
   @SuppressWarnings("dereference.of.nullable")
   public static PTransform<PCollection<Failure>, PDone> getDlqTransform(String fullConfig) {

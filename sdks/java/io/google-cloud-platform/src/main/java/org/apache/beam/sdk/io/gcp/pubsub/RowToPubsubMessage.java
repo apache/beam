@@ -17,18 +17,24 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.stream.Collectors.toList;
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.TIMESTAMP_FIELD;
+import static org.apache.beam.sdk.io.gcp.pubsub.PubsubSchemaIOProvider.PayloadFormat;
 
-import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializer;
+import java.util.List;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.transforms.DropFields;
+import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.transforms.ToJson;
 import org.apache.beam.sdk.transforms.WithTimestamps;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,15 +52,23 @@ import org.slf4j.LoggerFactory;
 class RowToPubsubMessage extends PTransform<PCollection<Row>, PCollection<PubsubMessage>> {
   private static final Logger LOG = LoggerFactory.getLogger(RowToPubsubMessage.class);
   private final boolean useTimestampAttribute;
-  private final PayloadSerializer serializer;
+  private final PayloadFormat payloadFormat;
+  private final @Nullable Schema payloadSchema;
 
-  private RowToPubsubMessage(boolean useTimestampAttribute, PayloadSerializer serializer) {
+  private RowToPubsubMessage(
+      boolean useTimestampAttribute, PayloadFormat payloadFormat, @Nullable Schema schema) {
     this.useTimestampAttribute = useTimestampAttribute;
-    this.serializer = serializer;
+    this.payloadFormat = payloadFormat;
+    this.payloadSchema = schema == null ? null : stripFromTimestampField(schema);
   }
 
-  public static RowToPubsubMessage of(boolean useTimestampAttribute, PayloadSerializer serializer) {
-    return new RowToPubsubMessage(useTimestampAttribute, serializer);
+  public static RowToPubsubMessage of(boolean useTimestampAttribute, PayloadFormat payloadFormat) {
+    return new RowToPubsubMessage(useTimestampAttribute, payloadFormat, null);
+  }
+
+  public static RowToPubsubMessage of(
+      boolean useTimestampAttribute, PayloadFormat payloadFormat, Schema schema) {
+    return new RowToPubsubMessage(useTimestampAttribute, payloadFormat, schema);
   }
 
   @Override
@@ -82,10 +96,26 @@ class RowToPubsubMessage extends PTransform<PCollection<Row>, PCollection<Pubsub
       rows = withTimestamp;
     }
 
-    return rows.apply(
-            "MapRowToBytes",
-            MapElements.into(new TypeDescriptor<byte[]>() {}).via(serializer::serialize))
-        .apply("MapToPubsubMessage", MapElements.via(new ToPubsubMessage()));
+    switch (payloadFormat) {
+      case JSON:
+        return rows.apply("MapRowToJsonString", ToJson.of())
+            .apply("MapToJsonBytes", MapElements.via(new StringToBytes()))
+            .apply("MapToPubsubMessage", MapElements.via(new ToPubsubMessage()));
+      case AVRO:
+        return rows.apply(
+                "MapRowToAvroBytes",
+                MapElements.via(AvroUtils.getRowToAvroBytesFunction(payloadSchema)))
+            .apply("MapToPubsubMessage", MapElements.via(new ToPubsubMessage()));
+      default:
+        throw new IllegalArgumentException("Unsupported payload format: " + payloadFormat);
+    }
+  }
+
+  private static class StringToBytes extends SimpleFunction<String, byte[]> {
+    @Override
+    public byte[] apply(String s) {
+      return s.getBytes(UTF_8);
+    }
   }
 
   private static class ToPubsubMessage extends SimpleFunction<byte[], PubsubMessage> {
@@ -93,5 +123,13 @@ class RowToPubsubMessage extends PTransform<PCollection<Row>, PCollection<Pubsub
     public PubsubMessage apply(byte[] bytes) {
       return new PubsubMessage(bytes, ImmutableMap.of());
     }
+  }
+
+  private Schema stripFromTimestampField(Schema schema) {
+    List<Schema.Field> selectedFields =
+        schema.getFields().stream()
+            .filter(field -> !TIMESTAMP_FIELD.equals(field.getName()))
+            .collect(toList());
+    return Schema.of(selectedFields.toArray(new Schema.Field[0]));
   }
 }
