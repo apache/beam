@@ -17,11 +17,15 @@
  */
 package org.apache.beam.fn.harness.state;
 
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+
 import com.google.auto.value.AutoValue;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.SortedSet;
+import java.util.concurrent.CompletableFuture;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.OrderedListStateGetRequest;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.OrderedListStateUpdateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.SortKeyRange;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.sdk.coders.Coder;
@@ -42,6 +46,7 @@ public class TimestampOrderedListState<T> {
   private final BeamFnStateClient beamFnStateClient;
   private final StateRequest stateRequest;
   private final Coder<T> valueCoder;
+  private boolean isClosed;
   // Most of implementations are taken from WindmillStateInternals.
   private boolean cleared = false;
   private SortedSet<TimestampedValueWithId<T>> pendingAdds =
@@ -110,6 +115,10 @@ public class TimestampOrderedListState<T> {
   }
 
   public void add(TimestampedValue<T> value) {
+    checkState(
+        !isClosed,
+        "OrderedListState is no longer usable because it is closed for %s",
+        stateRequest.getStateKey());
     pendingAdds.add(TimestampedValueWithId.of(value, pendingAdds.size()));
   }
 
@@ -133,6 +142,10 @@ public class TimestampOrderedListState<T> {
   }
 
   public Iterable<TimestampedValue<T>> readRange(Instant minTimestamp, Instant limitTimestamp) {
+    checkState(
+        !isClosed,
+        "OrderedListState is no longer usable because it is closed for %s",
+        stateRequest.getStateKey());
     SortedSet<TimestampedValueWithId<T>> pendingInRange =
         getPendingAddRange(minTimestamp, limitTimestamp);
     Iterable<TimestampedValueWithId<T>> data =
@@ -169,16 +182,36 @@ public class TimestampOrderedListState<T> {
   }
 
   public void clearRange(Instant minTimestamp, Instant limitTimestamp) {
+    checkState(
+        !isClosed,
+        "OrderedListState is no longer usable because it is closed for %s",
+        stateRequest.getStateKey());
     getPendingAddRange(minTimestamp, limitTimestamp).clear();
     pendingDeletes.add(Range.closedOpen(minTimestamp, limitTimestamp));
   }
 
   public void clear() {
+    checkState(
+        !isClosed,
+        "OrderedListState is no longer usable because it is closed for %s",
+        stateRequest.getStateKey());
     // TODO(boyuanz@): figure out what is expected in clear
     cleared = true;
     pendingDeletes.clear();
     pendingAdds.clear();
   }
 
-  public void asyncClose() throws Exception {}
+  public void asyncClose() throws Exception {
+    checkState(
+        !isClosed,
+        "OrderedListState is no longer usable because it is closed for %s",
+        stateRequest.getStateKey());
+    // TODO(boyuanz@): Plump through update request.
+    beamFnStateClient.handle(
+        stateRequest
+            .toBuilder()
+            .setOrderedListStateUpdate(OrderedListStateUpdateRequest.newBuilder().build()),
+        new CompletableFuture<>());
+    isClosed = true;
+  }
 }
