@@ -268,7 +268,7 @@ func TestWeightedElementEncoding(t *testing.T) {
 	if err != nil {
 		t.Errorf("Failed to decode %v", err)
 	}
-	if !reflect.DeepEqual(w, decoded) {
+	if d := cmp.Diff(w, decoded, cmp.AllowUnexported(weightedElement{})); d != "" {
 		t.Errorf("Invalid coder. Wanted %v got %v", w, decoded)
 	}
 }
