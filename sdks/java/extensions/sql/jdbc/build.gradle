@@ -33,6 +33,8 @@ configurations {
 
 dependencies {
   compile project(":sdks:java:extensions:sql")
+  compile "jline:jline:2.14.6"
+  permitUnusedDeclared "jline:jline:2.14.6" // BEAM-11761
   compile "sqlline:sqlline:1.4.0"
   compile library.java.vendored_guava_26_0_jre
   runtimeOnly library.java.slf4j_jdk14

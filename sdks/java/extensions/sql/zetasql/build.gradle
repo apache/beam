@@ -38,14 +38,20 @@ dependencies {
   compile library.java.vendored_calcite_1_20_0
   compile library.java.guava
   compile library.java.grpc_api
+  compile library.java.joda_time
   compile library.java.protobuf_java
+  compile library.java.protobuf_java_util
+  permitUnusedDeclared library.java.protobuf_java_util
   compile library.java.slf4j_api
+  compile library.java.vendored_guava_26_0_jre
+  compile library.java.proto_google_common_protos // Interfaces with ZetaSQL use this
+  permitUnusedDeclared "com.google.api.grpc:proto-google-common-protos:1.18.1" // BEAM-11761
+  compile library.java.grpc_google_common_protos // Interfaces with ZetaSQL use this
+  permitUnusedDeclared "com.google.api.grpc:grpc-google-common-protos:1.18.1" // BEAM-11761
   compile "com.google.zetasql:zetasql-client:$zetasql_version"
   compile "com.google.zetasql:zetasql-types:$zetasql_version"
-  compile library.java.joda_time
-  compile library.java.vendored_guava_26_0_jre
   compile "com.google.zetasql:zetasql-jni-channel:$zetasql_version"
-  permitUnusedDeclared "com.google.zetasql:zetasql-jni-channel:$zetasql_version"
+  permitUnusedDeclared "com.google.zetasql:zetasql-jni-channel:$zetasql_version" // BEAM-11761
   testCompile library.java.vendored_calcite_1_20_0
   testCompile library.java.vendored_guava_26_0_jre
   testCompile library.java.junit
