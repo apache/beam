@@ -21,6 +21,8 @@ import com.google.auto.value.AutoValue;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.SortedSet;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.OrderedListStateGetRequest;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.SortKeyRange;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -38,7 +40,7 @@ import org.joda.time.Instant;
 public class TimestampOrderedListState<T> {
 
   private final BeamFnStateClient beamFnStateClient;
-  private final StateRequest request;
+  private final StateRequest stateRequest;
   private final Coder<T> valueCoder;
   // Most of implementations are taken from WindmillStateInternals.
   private boolean cleared = false;
@@ -88,7 +90,7 @@ public class TimestampOrderedListState<T> {
         .setUserStateId(stateId)
         .setWindow(encodedKey)
         .setKey(encodedKey);
-    request = requestBuilder.build();
+    stateRequest = requestBuilder.build();
   }
 
   private SortedSet<TimestampedValueWithId<T>> getPendingAddRange(
@@ -116,7 +118,19 @@ public class TimestampOrderedListState<T> {
   }
 
   private Iterable<TimestampedValue<T>> fetchDataFromStateRequest(
-      Instant minTimestamp, Instant limitTimestamp) {}
+      Instant minTimestamp, Instant limitTimestamp) {
+    OrderedListStateGetRequest getRequest =
+        OrderedListStateGetRequest.newBuilder()
+            .setRange(
+                SortKeyRange.newBuilder()
+                    .setStart(minTimestamp.getMillis())
+                    .setEnd(limitTimestamp.getMillis())
+                    .build())
+            .build();
+    return new LazyCachingIteratorToIterable<>(
+        new OrderedListStateFetchIterator<>(
+            beamFnStateClient, stateRequest, getRequest, valueCoder));
+  }
 
   public Iterable<TimestampedValue<T>> readRange(Instant minTimestamp, Instant limitTimestamp) {
     SortedSet<TimestampedValueWithId<T>> pendingInRange =
@@ -160,6 +174,7 @@ public class TimestampOrderedListState<T> {
   }
 
   public void clear() {
+    // TODO(boyuanz@): figure out what is expected in clear
     cleared = true;
     pendingDeletes.clear();
     pendingAdds.clear();

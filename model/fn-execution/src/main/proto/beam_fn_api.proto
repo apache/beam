@@ -593,6 +593,12 @@ message StateRequest {
 
     // A request to clear state.
     StateClearRequest clear = 1002;
+
+    // A request to fetch OrderedListState.
+    OrderedListStateGetRequest ordered_list_state_get = 1003;
+
+    // A request to update OrderedListState.
+    OrderedListStateUpdateRequest ordered_list_state_update = 1004;
   }
 }
 
@@ -617,6 +623,12 @@ message StateResponse {
 
     // A response to clearing state.
     StateClearResponse clear = 1002;
+
+    // A response to getting OrderedListState.
+    OrderedListStateGetResponse ordered_list_state_get = 1003;
+
+    // A response to updating OrderedListState.
+    OrderedListStateUpdateResponse ordered_list_state_update = 1004;
   }
 }
 
