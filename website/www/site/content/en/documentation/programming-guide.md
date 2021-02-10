@@ -5818,8 +5818,12 @@ Perform the following steps to start up the default Python expansion service dir
 
     {{< highlight >}}
 $ export PORT_FOR_EXPANSION_SERVICE=12345
+    {{< /highlight >}}
+
 3. Import any modules that contain transforms to be made available using the expansion service.
-$ python -m apache_beam.runners.portability.expansion_service -p $PORT_FOR_EXPANSION_SERVICE
+
+    {{< highlight >}}
+$ python -m apache_beam.runners.portability.expansion_service_test -p $PORT_FOR_EXPANSION_SERVICE
     {{< /highlight >}}
 
 4. This expansion service is not ready to serve up transforms on the address `localhost:$PORT_FOR_EXPANSION_SERVICE`.
