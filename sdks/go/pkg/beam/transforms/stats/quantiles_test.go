@@ -138,7 +138,7 @@ func TestWeightedQuantiles(t *testing.T) {
 		{Weight: 10, Element: 4}}
 	expected := []int{2, 4}
 	p, s, in, exp := ptest.CreateList2(input, [][]int{expected})
-	elementWeightKvs := beam.ParDo(s, weightedElementToKv, in, beam.TypeDefinition{Var: beam.TType, T: reflect.TypeOf(1)})
+	elementWeightKvs := beam.ParDo(s, weightedElementToKv, in, beam.TypeDefinition{Var: beam.TType, T: reflectx.Int})
 	opts := Opts{
 		K:            3,
 		NumQuantiles: 3,
@@ -160,7 +160,7 @@ func TestWeightedQuantilesWithInternalSharding(t *testing.T) {
 		{Weight: 10, Element: 4}}
 	expected := []int{2, 4}
 	p, s, in, exp := ptest.CreateList2(input, [][]int{expected})
-	elementWeightKvs := beam.ParDo(s, weightedElementToKv, in, beam.TypeDefinition{Var: beam.TType, T: reflect.TypeOf(1)})
+	elementWeightKvs := beam.ParDo(s, weightedElementToKv, in, beam.TypeDefinition{Var: beam.TType, T: reflectx.Int})
 	opts := Opts{
 		K:                3,
 		NumQuantiles:     3,
