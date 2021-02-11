@@ -181,6 +181,9 @@ class SparkRunnerTest(portable_runner_test.PortableRunnerTest):
     super(SparkRunnerTest,
           self).test_flattened_side_input(with_transcoding=False)
 
+  def test_custom_merging_window(self):
+    raise unittest.SkipTest("BEAM-11004")
+
   # Inherits all other tests from PortableRunnerTest.
 
 
