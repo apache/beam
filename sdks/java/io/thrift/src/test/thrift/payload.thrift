@@ -18,13 +18,13 @@
 
 /*
 thrift --gen java:private-members,fullcamel \
-    -out sdks/java/extensions/sql/src/test/java/ \
-    sdks/java/extensions/sql/src/test/thrift/kafka/message.thrift
+    -out sdks/java/io/thrift/src/test/java/ \
+    sdks/java/io/thrift/src/test/thrift/payload.thrift
 
 ./gradlew :sdks:java:extensions:sql:spotlessApply
 */
 
-namespace java org.apache.beam.sdk.extensions.sql.meta.provider.kafka.thrift
+namespace java org.apache.beam.sdk.io.thrift.payloads
 
 struct TestThriftMessage {
   1: required i64 f_long

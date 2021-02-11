@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.meta.provider.kafka.thrift;
+package org.apache.beam.sdk.io.thrift.payloads;
 
 @SuppressWarnings({"cast", "rawtypes", "serial", "unchecked", "unused"})
 @javax.annotation.Generated(
@@ -46,7 +46,7 @@ public class ItThriftMessage
 
   private long f_long; // required
   private int f_int; // required
-  private @org.apache.thrift.annotation.Nullable java.lang.String f_string; // required
+  private @org.apache.thrift.annotation.Nullable String f_string; // required
 
   /**
    * The set of fields this struct contains, along with convenience methods for finding and
@@ -57,8 +57,8 @@ public class ItThriftMessage
     F_INT((short) 2, "f_int"),
     F_STRING((short) 3, "f_string");
 
-    private static final java.util.Map<java.lang.String, _Fields> byName =
-        new java.util.HashMap<java.lang.String, _Fields>();
+    private static final java.util.Map<String, _Fields> byName =
+        new java.util.HashMap<String, _Fields>();
 
     static {
       for (_Fields field : java.util.EnumSet.allOf(_Fields.class)) {
@@ -85,20 +85,20 @@ public class ItThriftMessage
     public static _Fields findByThriftIdOrThrow(int fieldId) {
       _Fields fields = findByThriftId(fieldId);
       if (fields == null)
-        throw new java.lang.IllegalArgumentException("Field " + fieldId + " doesn't exist!");
+        throw new IllegalArgumentException("Field " + fieldId + " doesn't exist!");
       return fields;
     }
 
     /** Find the _Fields constant that matches name, or null if its not found. */
     @org.apache.thrift.annotation.Nullable
-    public static _Fields findByName(java.lang.String name) {
+    public static _Fields findByName(String name) {
       return byName.get(name);
     }
 
     private final short _thriftId;
-    private final java.lang.String _fieldName;
+    private final String _fieldName;
 
-    _Fields(short thriftId, java.lang.String fieldName) {
+    _Fields(short thriftId, String fieldName) {
       _thriftId = thriftId;
       _fieldName = fieldName;
     }
@@ -107,7 +107,7 @@ public class ItThriftMessage
       return _thriftId;
     }
 
-    public java.lang.String getFieldName() {
+    public String getFieldName() {
       return _fieldName;
     }
   }
@@ -149,7 +149,7 @@ public class ItThriftMessage
 
   public ItThriftMessage() {}
 
-  public ItThriftMessage(long f_long, int f_int, java.lang.String f_string) {
+  public ItThriftMessage(long f_long, int f_int, String f_string) {
     this();
     this.f_long = f_long;
     setFLongIsSet(true);
@@ -231,12 +231,11 @@ public class ItThriftMessage
   }
 
   @org.apache.thrift.annotation.Nullable
-  public java.lang.String getFString() {
+  public String getFString() {
     return this.f_string;
   }
 
-  public ItThriftMessage setFString(
-      @org.apache.thrift.annotation.Nullable java.lang.String f_string) {
+  public ItThriftMessage setFString(@org.apache.thrift.annotation.Nullable String f_string) {
     this.f_string = f_string;
     return this;
   }
@@ -256,14 +255,13 @@ public class ItThriftMessage
     }
   }
 
-  public void setFieldValue(
-      _Fields field, @org.apache.thrift.annotation.Nullable java.lang.Object value) {
+  public void setFieldValue(_Fields field, @org.apache.thrift.annotation.Nullable Object value) {
     switch (field) {
       case F_LONG:
         if (value == null) {
           unsetFLong();
         } else {
-          setFLong((java.lang.Long) value);
+          setFLong((Long) value);
         }
         break;
 
@@ -271,7 +269,7 @@ public class ItThriftMessage
         if (value == null) {
           unsetFInt();
         } else {
-          setFInt((java.lang.Integer) value);
+          setFInt((Integer) value);
         }
         break;
 
@@ -279,14 +277,14 @@ public class ItThriftMessage
         if (value == null) {
           unsetFString();
         } else {
-          setFString((java.lang.String) value);
+          setFString((String) value);
         }
         break;
     }
   }
 
   @org.apache.thrift.annotation.Nullable
-  public java.lang.Object getFieldValue(_Fields field) {
+  public Object getFieldValue(_Fields field) {
     switch (field) {
       case F_LONG:
         return getFLong();
@@ -297,7 +295,7 @@ public class ItThriftMessage
       case F_STRING:
         return getFString();
     }
-    throw new java.lang.IllegalStateException();
+    throw new IllegalStateException();
   }
 
   /**
@@ -306,7 +304,7 @@ public class ItThriftMessage
    */
   public boolean isSet(_Fields field) {
     if (field == null) {
-      throw new java.lang.IllegalArgumentException();
+      throw new IllegalArgumentException();
     }
 
     switch (field) {
@@ -317,11 +315,11 @@ public class ItThriftMessage
       case F_STRING:
         return isSetFString();
     }
-    throw new java.lang.IllegalStateException();
+    throw new IllegalStateException();
   }
 
   @Override
-  public boolean equals(java.lang.Object that) {
+  public boolean equals(Object that) {
     if (that == null) return false;
     if (that instanceof ItThriftMessage) return this.equals((ItThriftMessage) that);
     return false;
@@ -377,7 +375,7 @@ public class ItThriftMessage
 
     int lastComparison = 0;
 
-    lastComparison = java.lang.Boolean.valueOf(isSetFLong()).compareTo(other.isSetFLong());
+    lastComparison = Boolean.valueOf(isSetFLong()).compareTo(other.isSetFLong());
     if (lastComparison != 0) {
       return lastComparison;
     }
@@ -387,7 +385,7 @@ public class ItThriftMessage
         return lastComparison;
       }
     }
-    lastComparison = java.lang.Boolean.valueOf(isSetFInt()).compareTo(other.isSetFInt());
+    lastComparison = Boolean.valueOf(isSetFInt()).compareTo(other.isSetFInt());
     if (lastComparison != 0) {
       return lastComparison;
     }
@@ -397,7 +395,7 @@ public class ItThriftMessage
         return lastComparison;
       }
     }
-    lastComparison = java.lang.Boolean.valueOf(isSetFString()).compareTo(other.isSetFString());
+    lastComparison = Boolean.valueOf(isSetFString()).compareTo(other.isSetFString());
     if (lastComparison != 0) {
       return lastComparison;
     }
@@ -425,8 +423,8 @@ public class ItThriftMessage
   }
 
   @Override
-  public java.lang.String toString() {
-    java.lang.StringBuilder sb = new java.lang.StringBuilder("ItThriftMessage(");
+  public String toString() {
+    StringBuilder sb = new StringBuilder("ItThriftMessage(");
     boolean first = true;
 
     sb.append("f_long:");
@@ -471,7 +469,7 @@ public class ItThriftMessage
   }
 
   private void readObject(java.io.ObjectInputStream in)
-      throws java.io.IOException, java.lang.ClassNotFoundException {
+      throws java.io.IOException, ClassNotFoundException {
     try {
       // it doesn't seem like you should have to do this, but java serialization is wacky, and
       // doesn't call the default constructor.
