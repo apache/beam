@@ -40,6 +40,7 @@ import org.apache.thrift.protocol.TProtocolFactory;
 
 @Internal
 @Experimental(Kind.SCHEMAS)
+@SuppressWarnings("rawtypes")
 @AutoService(PayloadSerializerProvider.class)
 public class ThriftPayloadSerializerProvider implements PayloadSerializerProvider {
   @Override
