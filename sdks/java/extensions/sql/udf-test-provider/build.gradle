@@ -30,5 +30,5 @@ project.ext.jarPath = jar.archivePath
 dependencies {
   // No dependency (direct or transitive) on :sdks:java:core.
   compile project(":sdks:java:extensions:sql:udf")
-  compile library.java.guava
+  compile library.java.vendored_guava_26_0_jre
 }
