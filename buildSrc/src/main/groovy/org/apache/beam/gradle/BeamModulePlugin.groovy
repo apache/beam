@@ -1618,7 +1618,7 @@ class BeamModulePlugin implements Plugin<Project> {
       project.apply plugin: 'base'
 
       project.apply plugin: "com.github.blindpirate.gogradle"
-      project.golang { goVersion = '1.12' }
+      project.golang { goVersion = '1.12.7' }
 
       project.repositories {
         golang {
