@@ -6,8 +6,10 @@ import static org.apache.beam.sdk.io.gcp.pubsub.PubsubSchemaIOProvider.ATTRIBUTE
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubSchemaIOProvider.ATTRIBUTE_ARRAY_FIELD_TYPE;
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubSchemaIOProvider.ATTRIBUTE_MAP_FIELD_TYPE;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 import static org.mockito.Mockito.mock;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.mockito.Mockito.when;
 
 import java.util.Map;
 import org.apache.beam.sdk.schemas.Schema;
@@ -45,9 +47,20 @@ public class NestedRowToMessageTest {
   public void rowPayloadTransformed() {
     Schema payloadSchema = Schema.builder().addStringField("fieldName").build();
     Row payload = Row.withSchema(payloadSchema).attachValues("abc");
-    Row row = Row.withSchema(Schema.builder().addRowField(PAYLOAD_FIELD, ).addField(ATTRIBUTES_FIELD, ATTRIBUTE_MAP_FIELD_TYPE).build())
+    Row row = Row.withSchema(Schema.builder().addRowField(PAYLOAD_FIELD, payloadSchema).addField(ATTRIBUTES_FIELD, ATTRIBUTE_MAP_FIELD_TYPE).build())
         .attachValues(payload, ATTRIBUTES);
+    when(SERIALIZER.serialize(payload)).thenReturn("abc".getBytes(UTF_8));
     PubsubMessage message = new PubsubMessage("abc".getBytes(UTF_8), ATTRIBUTES);
     assertEquals(message, TRANSFORM.apply(row));
+  }
+
+  @Test
+  public void rowPayloadTransformFailure() {
+    Schema payloadSchema = Schema.builder().addStringField("fieldName").build();
+    Row payload = Row.withSchema(payloadSchema).attachValues("abc");
+    Row row = Row.withSchema(Schema.builder().addRowField(PAYLOAD_FIELD, payloadSchema).addField(ATTRIBUTES_FIELD, ATTRIBUTE_MAP_FIELD_TYPE).build())
+        .attachValues(payload, ATTRIBUTES);
+    when(SERIALIZER.serialize(payload)).thenThrow(new IllegalArgumentException());
+    assertThrows(IllegalArgumentException.class, () -> TRANSFORM.apply(row));
   }
 }
