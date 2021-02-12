@@ -74,6 +74,7 @@ job(jobName) {
     kafkaTopic                   : 'beam-runnerv2',
     bigQueryTable                : 'kafkaioit_results_sdf_wrapper',
     influxMeasurement            : 'kafkaioit_results_sdf_wrapper',
+    // TODO(BEAM-11779) remove shuffle_mode=appliance with runner v2 once issue is resolved.
     experiments                  : 'beam_fn_api,use_runner_v2,shuffle_mode=appliance,use_unified_worker',
   ]
 
@@ -88,6 +89,7 @@ job(jobName) {
     kafkaTopic                   : 'beam-sdf',
     bigQueryTable                : 'kafkaioit_results_runner_v2',
     influxMeasurement            : 'kafkaioit_results_runner_v2',
+    // TODO(BEAM-11779) remove shuffle_mode=appliance with runner v2 once issue is resolved.
     experiments                  : 'beam_fn_api,use_runner_v2,shuffle_mode=appliance,use_unified_worker,use_sdf_kafka_read',
   ]
 
