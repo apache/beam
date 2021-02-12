@@ -57,7 +57,8 @@ class Client(object):
       api_version = options.get('s3_api_version')
       verify = options.get('s3_verify')
 
-    self.client = boto3.client(
+    session = boto3.session.Session()
+    self.client = session.client(
         service_name='s3',
         region_name=region_name,
         api_version=api_version,
