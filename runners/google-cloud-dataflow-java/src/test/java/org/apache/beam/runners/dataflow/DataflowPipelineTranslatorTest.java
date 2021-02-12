@@ -434,15 +434,14 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("numWorkers (43) cannot exceed maxNumWorkers (42).");
-    Job job =
-        DataflowPipelineTranslator.fromOptions(options)
-            .translate(
-                p,
-                pipelineProto,
-                sdkComponents,
-                DataflowRunner.fromOptions(options),
-                Collections.emptyList())
-            .getJob();
+    DataflowPipelineTranslator.fromOptions(options)
+        .translate(
+            p,
+            pipelineProto,
+            sdkComponents,
+            DataflowRunner.fromOptions(options),
+            Collections.emptyList())
+        .getJob();
   }
 
   @Test
