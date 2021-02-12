@@ -140,7 +140,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 	if !v2set {
 		experiments = append(experiments, "use_unified_worker")
 	}
-	// BEAM-11779 use shuffle_mode=appliance with runner v2 until issue is resolved.
+	// TODO(BEAM-11779) remove shuffle_mode=appliance with runner v2 once issue is resolved.
 	experiments = append(experiments, "shuffle_mode=appliance")
 
 	if *minCPUPlatform != "" {
