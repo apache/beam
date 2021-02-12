@@ -542,6 +542,48 @@ class ApproximateQuantilesTest(unittest.TestCase):
           equal_to([[(99.9, 499), (21.0, 290), (50.0, 0)]]),
           label='checkGloballyWithKeyAndReversed')
 
+  def test_quantiles_merge_accumulators(self):
+    # This test exercises merging multiple buffers and approximation accuracy.
+    # The max_num_elements is set to a small value to trigger buffers collapse
+    # and interpolation. Under the conditions below, buffer_size=125 and
+    # num_buffers=4, so we're only allowed to keep half of the input values.
+    num_accumulators = 100
+    num_quantiles = 5
+    eps = 0.01
+    max_num_elements = 1000
+    combine_fn = ApproximateQuantilesCombineFn.create(
+        num_quantiles, eps, max_num_elements)
+    combine_fn_weighted = ApproximateQuantilesCombineFn.create(
+        num_quantiles, eps, max_num_elements, weighted=True)
+    data = list(range(1000))
+    weights = list(reversed(range(1000)))
+    step = math.ceil(len(data) / num_accumulators)
+    accumulators = []
+    accumulators_weighted = []
+    for i in range(num_accumulators):
+      accumulator = combine_fn.create_accumulator()
+      accumulator_weighted = combine_fn_weighted.create_accumulator()
+      for element, weight in zip(data[i*step:(i+1)*step],
+                                 weights[i*step:(i+1)*step]):
+        accumulator = combine_fn.add_input(accumulator, element)
+        accumulator_weighted = combine_fn_weighted.add_input(
+            accumulator_weighted, (element, weight))
+      accumulators.append(accumulator)
+      accumulators_weighted.append(accumulator_weighted)
+    accumulator = combine_fn.merge_accumulators(accumulators)
+    accumulator_weighted = combine_fn_weighted.merge_accumulators(
+        accumulators_weighted)
+    quantiles = combine_fn.extract_output(accumulator)
+    quantiles_weighted = combine_fn_weighted.extract_output(
+        accumulator_weighted)
+
+    # In fact, the final accuracy is much higher than eps, but we test for a
+    # minimal accuracy here.
+    for q, actual_q in zip(quantiles, [0, 249, 499, 749, 999]):
+      self.assertAlmostEqual(q, actual_q, delta=max_num_elements * eps)
+    for q, actual_q in zip(quantiles_weighted, [0, 133, 292, 499, 999]):
+      self.assertAlmostEqual(q, actual_q, delta=max_num_elements * eps)
+
   @staticmethod
   def _display_data_matcher(instance):
     expected_items = [

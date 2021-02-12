@@ -891,6 +891,10 @@ class ApproximateQuantilesCombineFn(CombineFn):
     if not epsilon:
       epsilon = min(1e-2, 1.0 / num_quantiles) \
         if weighted else (1.0 / num_quantiles)
+    # Note that calculation of the buffer size and the number of buffers here
+    # is based on technique used in the Munro-Paterson algorithm. Switching to
+    # the logic used in the "New Algorithm" may result in memory savings since
+    # it results in lower values for b and k in practice.
     b = 2
     while (b - 2) * (1 << (b - 2)) < epsilon * max_num_elements:
       b = b + 1
