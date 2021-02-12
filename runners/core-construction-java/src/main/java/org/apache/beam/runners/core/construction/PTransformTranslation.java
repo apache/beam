@@ -102,6 +102,8 @@ public class PTransformTranslation {
   public static final String COMBINE_GLOBALLY_TRANSFORM_URN = "beam:transform:combine_globally:v1";
   public static final String RESHUFFLE_URN = "beam:transform:reshuffle:v1";
   public static final String WRITE_FILES_TRANSFORM_URN = "beam:transform:write_files:v1";
+  public static final String GROUP_INTO_BATCHES_WITH_SHARDED_KEY_URN =
+      "beam:transform:group_into_batches_with_sharded_key:v1";
 
   // CombineComponents
   public static final String COMBINE_PER_KEY_PRECOMBINE_TRANSFORM_URN =
@@ -139,6 +141,9 @@ public class PTransformTranslation {
       "beam:transform:sdf_split_and_size_restrictions:v1";
   public static final String SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN =
       "beam:transform:sdf_process_sized_element_and_restrictions:v1";
+
+  // GroupIntoBatchesComponents
+  public static final String GROUP_INTO_BATCHES_URN = "beam:transform:group_into_batches:v1";
 
   static {
     // Primitives

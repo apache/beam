@@ -24,7 +24,6 @@ Only those coders listed in __all__ are part of the public API of this module.
 from __future__ import absolute_import
 
 import base64
-import sys
 from builtins import object
 from typing import TYPE_CHECKING
 from typing import Any
@@ -426,19 +425,8 @@ Coder.register_structured_urn(common_urns.coders.STRING_UTF8.urn, StrUtf8Coder)
 
 class ToBytesCoder(Coder):
   """A default string coder used if no sink coder is specified."""
-
-  if sys.version_info.major == 2:
-
-    def encode(self, value):
-      # pylint: disable=unicode-builtin
-      return (
-          value.encode('utf-8') if isinstance(value, unicode)  # noqa: F821
-          else str(value))
-
-  else:
-
-    def encode(self, value):
-      return value if isinstance(value, bytes) else str(value).encode('utf-8')
+  def encode(self, value):
+    return value if isinstance(value, bytes) else str(value).encode('utf-8')
 
   def decode(self, _):
     raise NotImplementedError('ToBytesCoder cannot be used for decoding.')

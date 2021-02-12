@@ -21,7 +21,9 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertThrows;
 
+import com.alibaba.fastjson.JSON;
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Create;
@@ -34,7 +36,6 @@ import org.junit.Test;
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class BeamKafkaTableProtoTest extends BeamKafkaTableTest {
-
   private static final Schema TEST_SCHEMA =
       Schema.builder()
           .addInt64Field("f_long")
@@ -54,17 +55,15 @@ public class BeamKafkaTableProtoTest extends BeamKafkaTableTest {
           .build();
 
   @Test
-  public void testWithShuffledSchema() {
-    BeamKafkaTable kafkaTable =
-        new BeamKafkaProtoTable(
-            SHUFFLED_SCHEMA, "", ImmutableList.of(), KafkaMessages.TestMessage.class);
+  public void testWithShuffledSchema() throws Exception {
+    BeamKafkaTable kafkaTable = getBeamKafkaTable(SHUFFLED_SCHEMA);
 
     PCollection<Row> result =
         pipeline
             .apply(Create.of(shuffledRow(1), shuffledRow(2)))
             .apply(kafkaTable.getPTransformForOutput())
             .apply(kafkaTable.getPTransformForInput());
-    PAssert.that(result).containsInAnyOrder(generateRow(1), generateRow(2));
+    PAssert.that(result).containsInAnyOrder(shuffledRow(1), shuffledRow(2));
     pipeline.run();
   }
 
@@ -73,21 +72,32 @@ public class BeamKafkaTableProtoTest extends BeamKafkaTableTest {
     Schema schema = Schema.builder().addStringField("non_existing_field").build();
 
     IllegalArgumentException e =
-        assertThrows(
-            IllegalArgumentException.class,
-            () ->
-                new BeamKafkaProtoTable(
-                    schema, "", ImmutableList.of(), KafkaMessages.TestMessage.class));
+        assertThrows(IllegalArgumentException.class, () -> getBeamKafkaTable(schema));
 
     assertThat(
         e.getMessage(),
         containsString("does not match schema inferred from protobuf class.\nProtobuf class: "));
   }
 
+  private static BeamKafkaTable getBeamKafkaTable(Schema schema) {
+    return (BeamKafkaTable)
+        (new KafkaTableProvider()
+            .buildBeamSqlTable(
+                Table.builder()
+                    .name("kafka")
+                    .type("kafka")
+                    .schema(schema)
+                    .properties(
+                        JSON.parseObject(
+                            "{ \"topics\": [], \"format\": \"proto\", \"protoClass\": \""
+                                + KafkaMessages.TestMessage.class.getName()
+                                + "\" }"))
+                    .build()));
+  }
+
   @Override
   protected BeamKafkaTable getBeamKafkaTable() {
-    return new BeamKafkaProtoTable(
-        TEST_SCHEMA, "", ImmutableList.of(), KafkaMessages.TestMessage.class);
+    return getBeamKafkaTable(TEST_SCHEMA);
   }
 
   @Override

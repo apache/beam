@@ -27,7 +27,7 @@ from apache_beam.runners.interactive.testing.integration.screen_diff import Base
 
 class InitSquareCubeTest(BaseTestCase):
   def __init__(self, *args, **kwargs):
-    kwargs['golden_size'] = (1024, 7000)
+    kwargs['golden_size'] = (1024, 10000)
     super(InitSquareCubeTest, self).__init__(*args, **kwargs)
 
   def test_init_square_cube_notebook(self):

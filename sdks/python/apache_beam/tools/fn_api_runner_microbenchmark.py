@@ -77,7 +77,7 @@ from apache_beam.transforms.userstate import on_timer
 
 NUM_PARALLEL_STAGES = 7
 
-NUM_SERIAL_STAGES = 5
+NUM_SERIAL_STAGES = 7
 
 
 class BagInStateOutputAfterTimer(beam.DoFn):
@@ -128,12 +128,13 @@ def run_single_pipeline(size):
   return _pipeline_runner
 
 
-def run_benchmark(starting_point, num_runs, num_elements_step, verbose):
+def run_benchmark(
+    starting_point=1, num_runs=10, num_elements_step=100, verbose=True):
   suite = [
       utils.LinearRegressionBenchmarkConfig(
           run_single_pipeline, starting_point, num_elements_step, num_runs)
   ]
-  utils.run_benchmarks(suite, verbose=verbose)
+  return utils.run_benchmarks(suite, verbose=verbose)
 
 
 if __name__ == '__main__':

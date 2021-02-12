@@ -68,6 +68,23 @@ class PartitioningSession(Session):
     def is_scalar(expr):
       return not isinstance(expr.proxy(), pd.core.generic.NDFrame)
 
+    def difficulty(partitioning):
+      """Imposes an ordering on partitionings where the largest schemes are the
+      most likely to reveal an error. This order is different from the one
+      defined by is_subpartitioning_of:
+
+        Nothing() > Index() > ... > Index([i,j]) > Index([j]) > Singleton()
+      """
+      if isinstance(partitioning, partitionings.Singleton):
+        return -float('inf')
+      elif isinstance(partitioning, partitionings.Index):
+        if partitioning._levels is None:
+          return 1_000_000
+        else:
+          return len(partitioning._levels)
+      elif isinstance(partitioning, partitionings.Nothing):
+        return float('inf')
+
     if expr not in self._bindings:
       if is_scalar(expr) or not expr.args():
         result = super(PartitioningSession, self).evaluate(expr)
@@ -116,17 +133,22 @@ class PartitioningSession(Session):
         # the expression is part of a test that relies on the random seed.
         random_state = random.getstate()
 
-        for input_partitioning in set([expr.requires_partition_by(),
-                                       partitionings.Nothing(),
-                                       partitionings.Index(),
-                                       partitionings.Singleton()]):
+        # Run with all supported partitionings in order of ascending
+        # "difficulty". This way the final result is computed with the
+        # most challenging partitioning. Avoids heisenbugs where sometimes
+        # the result is computed trivially with Singleton partitioning and
+        # passes.
+        for input_partitioning in sorted(set([expr.requires_partition_by(),
+                                              partitionings.Nothing(),
+                                              partitionings.Index(),
+                                              partitionings.Singleton()]),
+                                         key=difficulty):
           if not input_partitioning.is_subpartitioning_of(
               expr.requires_partition_by()):
             continue
 
           random.setstate(random_state)
 
-          # TODO(BEAM-11324): Consider verifying result is always the same
           result = evaluate_with(input_partitioning)
 
         self._bindings[expr] = result

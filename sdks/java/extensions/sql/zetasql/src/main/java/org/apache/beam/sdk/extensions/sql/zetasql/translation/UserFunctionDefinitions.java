@@ -21,6 +21,7 @@ import com.google.auto.value.AutoValue;
 import com.google.zetasql.resolvedast.ResolvedNode;
 import com.google.zetasql.resolvedast.ResolvedNodes;
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.udf.ScalarFn;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /** Holds user defined function definitions. */
@@ -36,6 +37,20 @@ public abstract class UserFunctionDefinitions {
    */
   public abstract ImmutableMap<List<String>, ResolvedNode> sqlTableValuedFunctions();
 
+  public abstract ImmutableMap<List<String>, JavaScalarFunction> javaScalarFunctions();
+
+  @AutoValue
+  public abstract static class JavaScalarFunction {
+    public static JavaScalarFunction create(ScalarFn scalarFn, String jarPath) {
+      return new AutoValue_UserFunctionDefinitions_JavaScalarFunction(scalarFn, jarPath);
+    }
+
+    public abstract ScalarFn scalarFn();
+
+    /** The Beam filesystem path to the jar where scalarFn was defined. */
+    public abstract String jarPath();
+  }
+
   @AutoValue.Builder
   public abstract static class Builder {
     public abstract Builder setSqlScalarFunctions(
@@ -44,12 +59,16 @@ public abstract class UserFunctionDefinitions {
     public abstract Builder setSqlTableValuedFunctions(
         ImmutableMap<List<String>, ResolvedNode> sqlTableValuedFunctions);
 
+    public abstract Builder setJavaScalarFunctions(
+        ImmutableMap<List<String>, JavaScalarFunction> javaScalarFunctions);
+
     public abstract UserFunctionDefinitions build();
   }
 
   public static Builder newBuilder() {
     return new AutoValue_UserFunctionDefinitions.Builder()
         .setSqlScalarFunctions(ImmutableMap.of())
-        .setSqlTableValuedFunctions(ImmutableMap.of());
+        .setSqlTableValuedFunctions(ImmutableMap.of())
+        .setJavaScalarFunctions(ImmutableMap.of());
   }
 }

@@ -28,7 +28,7 @@ fastavro==1.0.0.post1
 crcmod==1.7
 dill==0.3.1.1
 future==0.18.2
-grpcio==1.29.0
+grpcio==1.32.0
 hdfs==2.5.8
 httplib2==0.12.0
 mock==2.0.0
@@ -56,12 +56,12 @@ guppy3==3.0.9
 mmh3==2.5.1
 
 # These are additional packages likely to be used by customers.
-numpy==1.17.3
+numpy==1.19.5
 scipy==1.4.1
 pandas==1.1.4
 protorpc==0.12.0
 python-gflags==3.0.6
-tensorflow==2.3.0
+tensorflow==2.4.1
 
 # Packages needed for testing.
 tenacity>=5.0.2

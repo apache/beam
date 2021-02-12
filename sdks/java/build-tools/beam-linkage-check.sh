@@ -17,11 +17,10 @@
 #
 
 # This script compares linkage errors (checkJavaLinkage task in the root gradle project) between
-# one branch and master branch.
-# This is a temporary solution before Linkage Checker implements exclusion rules (BEAM-9206).
+# one branch and another.
 
 # Usage:
-#  /bin/bash sdks/java/build-tools/beam-linkage-check.sh
+#  /bin/bash sdks/java/build-tools/beam-linkage-check.sh origin/master <your branch>
 #
 #  By default, this checks the Maven artifacts listed in ARTIFACTS variable below.
 #
@@ -87,7 +86,7 @@ function runLinkageCheck () {
   MODE=$1 # "baseline" or "validate"
 
   for ARTIFACT_LIST in $ARTIFACT_LISTS; do
-    echo "`date`:" "Running linkage check (${MODE}) for ${ARTIFACT_LISTS}"
+    echo "`date`:" "Running linkage check (${MODE}) for ${ARTIFACT_LIST}"
 
     BASELINE_FILE=${OUTPUT_DIR}/baseline-${ARTIFACT_LIST}.xml
     if [ "$MODE" = "baseline" ]; then
@@ -96,6 +95,12 @@ function runLinkageCheck () {
     elif [ "$MODE" = "validate" ]; then
       BASELINE_OPTION="-PjavaLinkageReadBaseline=${BASELINE_FILE}"
       echo "`date`:" "using baseline $BASELINE_FILE"
+      if [ ! -r "${BASELINE_FILE}" ]; then
+        # If baseline generation failed in previous baseline step, no need to build the project.
+        echo "`date`:" "Error: Baseline file not found"
+        ACCUMULATED_RESULT=1
+        continue
+      fi
     else
       BASELINE_OPTION=""
       echo "`date`:" "Unexpected mode: ${MODE}. Not using baseline file."
@@ -107,7 +112,10 @@ function runLinkageCheck () {
     RESULT=$?
     set -e
     set +x
-    if [ "$MODE" = "validate" ]; then
+    if [ "$MODE" = "baseline" ] && [ ! -r "${BASELINE_FILE}" ]; then
+      echo "`date`:" "Failed to generate the baseline file. Check the build error above."
+      ACCUMULATED_RESULT=1
+    elif [ "$MODE" = "validate" ]; then
       echo "`date`:" "Done: ${RESULT}"
       ACCUMULATED_RESULT=$((ACCUMULATED_RESULT | RESULT))
     fi

@@ -76,6 +76,7 @@ class SqlOperatorMappingTable {
           // https://issues.apache.org/jira/browse/BEAM-10379
           .put("string_agg", SqlOperators.STRING_AGG_STRING_FN) // NULL values not supported
           .put("bit_or", SqlStdOperatorTable.BIT_OR)
+          .put("bit_xor", SqlOperators.BIT_XOR)
           .put("ceil", SqlStdOperatorTable.CEIL)
           .put("floor", SqlStdOperatorTable.FLOOR)
           .put("mod", SqlStdOperatorTable.MOD)
@@ -93,6 +94,7 @@ class SqlOperatorMappingTable {
           .put("coalesce", SqlStdOperatorTable.CASE)
           .put("ifnull", SqlStdOperatorTable.CASE)
           .put("nullif", SqlStdOperatorTable.CASE)
+          .put("countif", SqlOperators.COUNTIF)
           .build();
 
   static final Map<String, SqlOperatorRewriter> ZETASQL_FUNCTION_TO_CALCITE_SQL_OPERATOR_REWRITER =

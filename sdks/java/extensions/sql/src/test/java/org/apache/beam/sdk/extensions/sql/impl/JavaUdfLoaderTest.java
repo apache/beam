@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.impl;
 
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.fail;
+import static org.junit.Assume.assumeFalse;
 
 import java.io.IOException;
 import java.nio.file.ProviderNotFoundException;
@@ -46,18 +46,8 @@ public class JavaUdfLoaderTest {
 
   @Before
   public void setUp() {
-    if (jarPath.isEmpty()) {
-      fail(
-          String.format(
-              "System property %s must be set to run %s.",
-              jarPathProperty, JavaUdfLoaderTest.class.getSimpleName()));
-    }
-    if (emptyJarPath.isEmpty()) {
-      fail(
-          String.format(
-              "System property %s must be set to run %s.",
-              emptyJarPathProperty, JavaUdfLoaderTest.class.getSimpleName()));
-    }
+    assumeFalse(jarPath.isEmpty());
+    assumeFalse(emptyJarPath.isEmpty());
   }
 
   /**

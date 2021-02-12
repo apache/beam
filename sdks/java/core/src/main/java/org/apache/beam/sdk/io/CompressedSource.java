@@ -49,15 +49,18 @@ import org.joda.time.Instant;
  * }</pre>
  *
  * <p>Supported compression algorithms are {@link Compression#GZIP}, {@link Compression#BZIP2},
- * {@link Compression#ZIP}, {@link Compression#ZSTD}, and {@link Compression#DEFLATE}. User-defined
+ * {@link Compression#ZIP}, {@link Compression#ZSTD}, {@link Compression#LZO}, {@link
+ * Compression#LZOP}, {@link Compression#SNAPPY}, and {@link Compression#DEFLATE}. User-defined
  * compression types are supported by implementing a {@link DecompressingChannelFactory}.
  *
  * <p>By default, the compression algorithm is selected from those supported in {@link Compression}
  * based on the file name provided to the source, namely {@code ".bz2"} indicates {@link
  * Compression#BZIP2}, {@code ".gz"} indicates {@link Compression#GZIP}, {@code ".zip"} indicates
- * {@link Compression#ZIP}, {@code ".zst"} indicates {@link Compression#ZSTD}, and {@code
- * ".deflate"} indicates {@link Compression#DEFLATE}. If the file name does not match any of the
- * supported algorithms, it is assumed to be uncompressed data.
+ * {@link Compression#ZIP}, {@code ".zst"} indicates {@link Compression#ZSTD}, {@code
+ * ".lzo_deflate"} indicates {@link Compression#LZO}, {@code ".lzo"} indicates {@link
+ * Compression#LZOP}, {@code ".snappy"} indicted {@link Compression#SNAPPY}, and {@code ".deflate"}
+ * indicates {@link Compression#DEFLATE}. If the file name does not match any of the supported
+ * algorithms, it is assumed to be uncompressed data.
  *
  * @param <T> The type to read from the compressed file.
  */
@@ -102,7 +105,10 @@ public class CompressedSource<T> extends FileBasedSource<T> {
     LZOP(Compression.LZOP),
 
     /** @see Compression#DEFLATE */
-    DEFLATE(Compression.DEFLATE);
+    DEFLATE(Compression.DEFLATE),
+
+    /** @see Compression#SNAPPY */
+    SNAPPY(Compression.SNAPPY);
 
     private final Compression canonical;
 
@@ -157,6 +163,9 @@ public class CompressedSource<T> extends FileBasedSource<T> {
 
         case DEFLATE:
           return DEFLATE;
+
+        case SNAPPY:
+          return SNAPPY;
 
         default:
           throw new IllegalArgumentException("Unsupported compression type: " + compression);

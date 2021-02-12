@@ -89,6 +89,7 @@ public class TimerReceiverFactory {
         StateNamespace namespace = StateNamespaces.window(windowCoder, (BoundedWindow) window);
         TimerInternals.TimerData timerData =
             TimerInternals.TimerData.of(
+                timer.getDynamicTimerTag(),
                 encodeToTimerDataTimerId(timerSpec.transformId(), timerSpec.timerId()),
                 namespace,
                 timer.getClearBit() ? BoundedWindow.TIMESTAMP_MAX_VALUE : timer.getFireTimestamp(),
