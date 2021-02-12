@@ -20,7 +20,10 @@ package org.apache.beam.sdk.extensions.sql;
 import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTimestampWithUTCTimeZone;
 import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTimestampWithoutTimeZone;
 import static org.hamcrest.Matchers.containsString;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
 import java.math.BigDecimal;
@@ -1023,7 +1026,9 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
 
     List<Row> rowsInTableA =
         TestUtils.RowsBuilder.of(schemaInTableA)
-            .addRows(1.0, 2.0, 0, 3.0, 4.0, 0, 10.2, 8.2, 0)
+            .addRows(1.0, 2.0, 0,
+                    3.0, 4.0, 0,
+                    10.2, 8.2, 0)
             .getRows();
 
     String sql =
