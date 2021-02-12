@@ -533,7 +533,7 @@ class BeamModulePlugin implements Plugin<Project> {
         // https://storage.googleapis.com/cloud-opensource-java-dashboard/com.google.cloud/libraries-bom/16.3.0/artifact_details.html
         // Update libraries-bom version on sdks/java/container/license_scripts/dep_urls_java.yaml
         google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:16.3.0",
-        google_cloud_spanner                        : "com.google.cloud:google-cloud-spanner", // google_cloud_platform_libraries_bom sets version
+        google_cloud_spanner                        : "com.google.cloud:google-cloud-spanner:2.0.2", // TODO(BEAM-11805):  User google_cloud_platform_libraries_bom version
         google_code_gson                            : "com.google.code.gson:gson:$google_code_gson_version",
         // google-http-client's version is explicitly declared for sdks/java/maven-archetypes/examples
         // This version should be in line with the one in com.google.cloud:libraries-bom.
