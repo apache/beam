@@ -1026,9 +1026,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
 
     List<Row> rowsInTableA =
         TestUtils.RowsBuilder.of(schemaInTableA)
-            .addRows(1.0, 2.0, 0,
-                    3.0, 4.0, 0,
-                    10.2, 8.2, 0)
+            .addRows(1.0, 2.0, 0, 3.0, 4.0, 0, 10.2, 8.2, 0)
             .getRows();
 
     String sql =
