@@ -26,7 +26,6 @@ import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
@@ -206,7 +205,8 @@ abstract class PubsubMessageToRow extends PTransform<PCollection<PubsubMessage>,
         return attributeMap;
       }
       ImmutableList.Builder<Row> rows = ImmutableList.builder();
-      attributeMap.forEach((k, v) -> rows.add(Row.withSchema(ATTRIBUTE_ARRAY_ENTRY_SCHEMA).attachValues(k, v)));
+      attributeMap.forEach(
+          (k, v) -> rows.add(Row.withSchema(ATTRIBUTE_ARRAY_ENTRY_SCHEMA).attachValues(k, v)));
       return rows.build();
     }
 

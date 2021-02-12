@@ -101,9 +101,12 @@ import org.checkerframework.checker.nullness.qual.Nullable;
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class PubsubSchemaIOProvider implements SchemaIOProvider {
-  public static final FieldType ATTRIBUTE_MAP_FIELD_TYPE = Schema.FieldType.map(FieldType.STRING.withNullable(false), FieldType.STRING);
-  public static final Schema ATTRIBUTE_ARRAY_ENTRY_SCHEMA = Schema.builder().addStringField("key").addStringField("vallue").build();
-  public static final FieldType ATTRIBUTE_ARRAY_FIELD_TYPE = Schema.FieldType.array(Schema.FieldType.row(ATTRIBUTE_ARRAY_ENTRY_SCHEMA));
+  public static final FieldType ATTRIBUTE_MAP_FIELD_TYPE =
+      Schema.FieldType.map(FieldType.STRING.withNullable(false), FieldType.STRING);
+  public static final Schema ATTRIBUTE_ARRAY_ENTRY_SCHEMA =
+      Schema.builder().addStringField("key").addStringField("vallue").build();
+  public static final FieldType ATTRIBUTE_ARRAY_FIELD_TYPE =
+      Schema.FieldType.array(Schema.FieldType.row(ATTRIBUTE_ARRAY_ENTRY_SCHEMA));
 
   public enum PayloadFormat {
     JSON,
@@ -238,12 +241,21 @@ public class PubsubSchemaIOProvider implements SchemaIOProvider {
       return new PTransform<PCollection<Row>, POutput>() {
         @Override
         public POutput expand(PCollection<Row> input) {
-          PCollection<Row> filtered = input.apply(new AddTimestampAttribute(config.useTimestampAttribute()));
+          PCollection<Row> filtered =
+              input.apply(new AddTimestampAttribute(config.useTimestampAttribute()));
           PCollection<PubsubMessage> transformed;
           if (useFlatSchema) {
-            transformed = filtered.apply("Transform Flat Schema", MapElements.into(TypeDescriptor.of(PubsubMessage.class)).via(row ->  new PubsubMessage(serializer.serialize(row), ImmutableMap.of())));
+            transformed =
+                filtered.apply(
+                    "Transform Flat Schema",
+                    MapElements.into(TypeDescriptor.of(PubsubMessage.class))
+                        .via(
+                            row ->
+                                new PubsubMessage(serializer.serialize(row), ImmutableMap.of())));
           } else {
-            transformed = filtered.apply("Transform Nested Schema", MapElements.via(new NestedRowToMessage(serializer)));
+            transformed =
+                filtered.apply(
+                    "Transform Nested Schema", MapElements.via(new NestedRowToMessage(serializer)));
           }
           return transformed.apply(createPubsubMessageWrite());
         }
@@ -276,7 +288,8 @@ public class PubsubSchemaIOProvider implements SchemaIOProvider {
     }
 
     private boolean hasValidAttributesField(Schema schema) {
-      return fieldPresent(schema, ATTRIBUTES_FIELD, ATTRIBUTE_MAP_FIELD_TYPE) || fieldPresent(schema, ATTRIBUTES_FIELD, ATTRIBUTE_ARRAY_FIELD_TYPE);
+      return fieldPresent(schema, ATTRIBUTES_FIELD, ATTRIBUTE_MAP_FIELD_TYPE)
+          || fieldPresent(schema, ATTRIBUTES_FIELD, ATTRIBUTE_ARRAY_FIELD_TYPE);
     }
 
     private boolean hasValidPayloadField(Schema schema) {
