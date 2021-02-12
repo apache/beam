@@ -356,6 +356,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
     DataflowPipelineOptions options = buildPipelineOptions();
     options.setAutoscalingAlgorithm(noScaling);
+    options.setNumWorkers(42);
 
     Pipeline p = buildPipeline(options);
     p.traverseTopologically(new RecordingPipelineVisitor());
@@ -375,6 +376,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     assertEquals(
         "AUTOSCALING_ALGORITHM_NONE",
         job.getEnvironment().getWorkerPools().get(0).getAutoscalingSettings().getAlgorithm());
+    assertEquals(42, job.getEnvironment().getWorkerPools().get(0).getNumWorkers().intValue());
     assertEquals(
         0,
         job.getEnvironment()
@@ -417,6 +419,30 @@ public class DataflowPipelineTranslatorTest implements Serializable {
             .getAutoscalingSettings()
             .getMaxNumWorkers()
             .intValue());
+  }
+
+  @Test
+  public void testNumWorkersCannotExceedMaxNumWorkers() throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.setNumWorkers(43);
+    options.setMaxNumWorkers(42);
+
+    Pipeline p = buildPipeline(options);
+    p.traverseTopologically(new RecordingPipelineVisitor());
+    SdkComponents sdkComponents = createSdkComponents(options);
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p, sdkComponents, true);
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("numWorkers (43) cannot exceed maxNumWorkers (42).");
+    Job job =
+        DataflowPipelineTranslator.fromOptions(options)
+            .translate(
+                p,
+                pipelineProto,
+                sdkComponents,
+                DataflowRunner.fromOptions(options),
+                Collections.emptyList())
+            .getJob();
   }
 
   @Test
