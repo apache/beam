@@ -20,9 +20,7 @@ package org.apache.beam.sdk.extensions.sql;
 import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTimestampWithUTCTimeZone;
 import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTimestampWithoutTimeZone;
 import static org.hamcrest.Matchers.containsString;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
 import java.math.BigDecimal;
@@ -55,6 +53,7 @@ import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.testcontainers.shaded.com.google.common.collect.Iterables;
 
 /**
  * Tests for GROUP-BY/aggregation, with global_window/fix_time_window/sliding_window/session_window
@@ -1008,6 +1007,42 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
         inputRows.apply(
             "sql", SqlTransform.query(sql).registerUdaf("COUNTIF", new CountIf.CountIfFn()));
     PAssert.that(result).containsInAnyOrder(rowResult);
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testCovarSampFunction() throws Exception {
+    pipeline.enableAbandonedNodeEnforcement(false);
+
+    Schema schemaInTableA =
+        Schema.builder()
+            .addDoubleField("f_double")
+            .addDoubleField("f_double_2")
+            .addInt32Field("f_int2")
+            .build();
+
+    List<Row> rowsInTableA =
+        TestUtils.RowsBuilder.of(schemaInTableA)
+            .addRows(1.0, 2.0, 0, 3.0, 4.0, 0, 10.2, 8.2, 0)
+            .getRows();
+
+    String sql =
+        "SELECT covar_samp(f_double, f_double_2) as covarsamp "
+            + "FROM PCOLLECTION GROUP BY f_int2";
+
+    PCollection<Row> inputRows =
+        pipeline.apply("longVals", Create.of(rowsInTableA).withRowSchema(schemaInTableA));
+    PCollection<Row> result = inputRows.apply("sql", SqlTransform.query(sql));
+
+    PAssert.that(result)
+        .satisfies(
+            input -> {
+              Row row = Iterables.getOnlyElement(input);
+              assertNotNull(row);
+              assertEquals(15.21333, row.getDouble(0), 1e-5);
+              return null;
+            });
+
     pipeline.run().waitUntilFinish();
   }
 }
