@@ -73,7 +73,7 @@ dependencies {
   compile "com.alibaba:fastjson:1.2.69"
   compile "org.codehaus.janino:janino:3.0.11"
   compile "org.codehaus.janino:commons-compiler:3.0.11"
-  provided "org.checkerframework:checker-qual:3.4.1"
+  provided "org.checkerframework:checker-qual:3.10.0"
   provided project(":sdks:java:io:kafka")
   provided project(":sdks:java:io:google-cloud-platform")
   compile project(":sdks:java:io:mongodb")
