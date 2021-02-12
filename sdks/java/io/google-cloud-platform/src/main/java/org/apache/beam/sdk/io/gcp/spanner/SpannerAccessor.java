@@ -54,9 +54,6 @@ import org.slf4j.LoggerFactory;
 class SpannerAccessor implements AutoCloseable {
   private static final Logger LOG = LoggerFactory.getLogger(SpannerAccessor.class);
 
-  // A common user agent token that indicates that this request was originated from Apache Beam.
-  private static final String USER_AGENT_PREFIX = "Apache_Beam_Java";
-
   // Only create one SpannerAccessor for each different SpannerConfig.
   private static final ConcurrentHashMap<SpannerConfig, SpannerAccessor> spannerAccessors =
       new ConcurrentHashMap<>();
@@ -156,8 +153,6 @@ class SpannerAccessor implements AutoCloseable {
       builder.setEmulatorHost(emulatorHost.get());
       builder.setCredentials(NoCredentials.getInstance());
     }
-    String userAgentString = USER_AGENT_PREFIX + "/" + ReleaseInfo.getReleaseInfo().getVersion();
-    builder.setHeaderProvider(FixedHeaderProvider.create("user-agent", userAgentString));
     SpannerOptions options = builder.build();
 
     Spanner spanner = options.getService();
