@@ -333,7 +333,7 @@ createCrossLanguageValidatesRunnerTask(
     "--project=${dataflowProject}",
     "--region=${dataflowRegion}",
     "--sdk_harness_container_image_overrides=.*java.*,${dockerImageContainer}:${dockerTag}",
-    "--experiments=use_runner_v2",
+    "--experiments=use_runner_v2,shuffle_mode=appliance",
   ],
   javaPipelineOptions: [
     "--runner=TestDataflowRunner",
@@ -341,7 +341,7 @@ createCrossLanguageValidatesRunnerTask(
     "--region=${dataflowRegion}",
     "--tempRoot=${dataflowValidatesTempRoot}",
     "--sdkHarnessContainerImageOverrides=.*java.*,${dockerImageContainer}:${dockerTag}",
-    "--experiments=use_runner_v2",
+    "--experiments=use_runner_v2,shuffle_mode=appliance",
   ],
   nosetestsOptions: [
     "--nocapture",

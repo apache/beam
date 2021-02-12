@@ -39,7 +39,7 @@ def fromTemplate = { mode, name, id, datasetName, testSpecificOptions ->
       influx_measurement   : "python_${mode}_sideinput_${id}",
       num_workers          : 10,
       autoscaling_algorithm: 'NONE',
-      experiments          : 'use_runner_v2',
+      experiments          : 'use_runner_v2, shuffle_mode=appliance',
     ] << testSpecificOptions
   ]
 }
