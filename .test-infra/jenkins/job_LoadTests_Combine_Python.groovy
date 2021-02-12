@@ -100,7 +100,7 @@ def loadTestConfigurations = { datasetName, mode ->
 
 def addStreamingOptions(test){
   test.pipelineOptions << [streaming: null,
-    experiments: "use_runner_v2"
+    experiments: "use_runner_v2, shuffle_mode=appliance"
   ]
 }
 

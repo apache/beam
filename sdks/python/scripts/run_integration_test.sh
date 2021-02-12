@@ -239,7 +239,7 @@ if [[ -z $PIPELINE_OPTS ]]; then
 
   # Add --runner_v2 if provided
   if [[ "$RUNNER_V2" = true ]]; then
-    opts+=("--experiments=use_runner_v2")
+    opts+=("--experiments=use_runner_v2,shuffle_mode=appliance")
     if [[ "$STREAMING" = true ]]; then
       # Dataflow Runner V2 only supports streaming engine.
       opts+=("--enable_streaming_engine")
