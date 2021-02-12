@@ -834,7 +834,7 @@ class ApproximateQuantilesCombineFn(CombineFn):
     self._spec = _QuantileSpec(buffer_size, num_buffers, weighted, key, reverse)
     self._input_batched = input_batched
     if self._input_batched:
-      self.add_input = self._add_inputs
+      setattr(self, 'add_input', self._add_inputs)
 
   def __reduce__(self):
     return (
