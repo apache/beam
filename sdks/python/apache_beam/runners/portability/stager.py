@@ -153,6 +153,8 @@ class Stager(object):
         else:
           raise RuntimeError("unknown role type: %s" % artifact.role_urn)
         yield (src, dst)
+      else:
+        raise RuntimeError("unknown artifact type: %s" % artifact.type_urn)
 
   @staticmethod
   def create_job_resources(options,  # type: PipelineOptions
