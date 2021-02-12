@@ -46,6 +46,7 @@ import org.apache.beam.runners.core.construction.graph.SideInputReference;
 import org.apache.beam.runners.core.construction.graph.TimerReference;
 import org.apache.beam.runners.core.construction.graph.UserStateReference;
 import org.apache.beam.runners.fnexecution.data.RemoteInputDestination;
+import org.apache.beam.runners.fnexecution.wire.ByteStringCoder;
 import org.apache.beam.runners.fnexecution.wire.LengthPrefixUnknownCoders;
 import org.apache.beam.runners.fnexecution.wire.WireCoders;
 import org.apache.beam.sdk.coders.Coder;
@@ -61,7 +62,6 @@ import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.InvalidProtocolBu
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableTable;
-import org.apache.beam.vendor.sdk.v2.sdk.extensions.protobuf.ByteStringCoder;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Utility methods for creating {@link ProcessBundleDescriptor} instances. */

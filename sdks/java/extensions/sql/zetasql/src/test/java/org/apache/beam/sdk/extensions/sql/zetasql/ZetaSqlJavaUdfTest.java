@@ -95,6 +95,27 @@ public class ZetaSqlJavaUdfTest extends ZetaSqlTestBase {
   }
 
   @Test
+  public void testJavaUdfColumnReference() {
+    String sql =
+        String.format(
+            "CREATE FUNCTION increment(i INT64) RETURNS INT64 LANGUAGE java "
+                + "OPTIONS (path='%s'); "
+                + "SELECT increment(Key) FROM KeyValue;",
+            jarPath);
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    Schema singleField = Schema.builder().addInt64Field("field1").build();
+
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(singleField).addValues(15L).build(),
+            Row.withSchema(singleField).addValues(16L).build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
   public void testNestedJavaUdf() {
     String sql =
         String.format(

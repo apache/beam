@@ -15,24 +15,23 @@
 # limitations under the License.
 #
 
-"""Integration tests for interactive beam."""
-# pytype: skip-file
+"""Common imports for generated cloudbuild client library."""
+# pylint:disable=wildcard-import
+# mypy: ignore-errors
 
 from __future__ import absolute_import
 
-import unittest
+import pkgutil
 
-from apache_beam.runners.interactive.testing.integration.screen_diff import BaseTestCase
+# Protect against environments where apitools library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
+try:
+  from apitools.base.py import *
 
+  from apache_beam.runners.dataflow.internal.clients.cloudbuild.cloudbuild_v1_client import *
+  from apache_beam.runners.dataflow.internal.clients.cloudbuild.cloudbuild_v1_messages import *
+except ImportError:
+  pass
+# pylint: enable=wrong-import-order, wrong-import-position
 
-class InitSquareCubeTest(BaseTestCase):
-  def __init__(self, *args, **kwargs):
-    kwargs['golden_size'] = (1024, 10000)
-    super(InitSquareCubeTest, self).__init__(*args, **kwargs)
-
-  def test_init_square_cube_notebook(self):
-    self.assert_notebook('init_square_cube')
-
-
-if __name__ == '__main__':
-  unittest.main()
+__path__ = pkgutil.extend_path(__path__, __name__)
