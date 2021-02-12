@@ -45,9 +45,9 @@ dependencies {
   compile library.java.slf4j_api
   compile library.java.vendored_guava_26_0_jre
   compile library.java.proto_google_common_protos // Interfaces with ZetaSQL use this
-  permitUnusedDeclared "com.google.api.grpc:proto-google-common-protos:1.18.1" // BEAM-11761
+  permitUnusedDeclared "com.google.api.grpc:proto-google-common-protos:2.0.1" // BEAM-11761
   compile library.java.grpc_google_common_protos // Interfaces with ZetaSQL use this
-  permitUnusedDeclared "com.google.api.grpc:grpc-google-common-protos:1.18.1" // BEAM-11761
+  permitUnusedDeclared "com.google.api.grpc:grpc-google-common-protos:2.0.1" // BEAM-11761
   compile "com.google.zetasql:zetasql-client:$zetasql_version"
   compile "com.google.zetasql:zetasql-types:$zetasql_version"
   compile "com.google.zetasql:zetasql-jni-channel:$zetasql_version"
@@ -64,6 +64,6 @@ dependencies {
 test {
   dependsOn ":sdks:java:extensions:sql:emptyJar"
   // Pass jars used by Java UDF tests via system properties.
-  systemProperty "beam.sql.udf.test.jar_path", project(":sdks:java:extensions:sql:udf-test-provider").jarPath
-  systemProperty "beam.sql.udf.test.empty_jar_path", project(":sdks:java:extensions:sql").emptyJar.archivePath
+//  systemProperty "beam.sql.udf.test.jar_path", project(":sdks:java:extensions:sql:udf-test-provider").jarPath
+//  systemProperty "beam.sql.udf.test.empty_jar_path", project(":sdks:java:extensions:sql").emptyJar.archivePath
 }
