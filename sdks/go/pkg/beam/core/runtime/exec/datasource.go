@@ -278,7 +278,12 @@ func (n *DataSource) Progress() ProgressReportSnapshot {
 	// The count is the number of "completely processed elements"
 	// which matches the index of the currently processing element.
 	c := n.index
+	s := n.splitIdx
 	n.mu.Unlock()
+	// Do not send the split index as the current element.
+	if c == s {
+	  c--
+	}
 	// Do not sent negative progress reports, index is initialized to 0.
 	if c < 0 {
 		c = 0
