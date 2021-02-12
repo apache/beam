@@ -4098,4 +4098,23 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
+
+  @Test
+  @Ignore(
+      "Zetasql layer does not support aggregate function with more than one argument. [https://issues.apache.org/jira/browse/BEAM-11808]")
+  public void testZetaSqlCovarPop() {
+    String sql = "SELECT COVAR_POP(row_id,int64_col) FROM table_all_types  GROUP BY bool_col";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    final Schema schema = Schema.builder().addDoubleField("field1").build();
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(schema).addValue(-1.00000).build(),
+            Row.withSchema(schema).addValue(-1.55556).build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
 }
