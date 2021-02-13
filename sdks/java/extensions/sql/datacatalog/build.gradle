@@ -33,12 +33,10 @@ dependencies {
   compile library.java.google_auth_library_credentials
   compile library.java.proto_google_cloud_datacatalog_v1beta1
   compile library.java.protobuf_java
-  permitUnusedDeclared library.java.protobuf_java
   compile library.java.slf4j_api
   compile library.java.vendored_guava_26_0_jre
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile "org.threeten:threetenbp:1.4.5"
-  permitUnusedDeclared "org.threeten:threetenbp:1.4.5"
   provided project(":sdks:java:extensions:sql")
 
   // Dependencies for the example
