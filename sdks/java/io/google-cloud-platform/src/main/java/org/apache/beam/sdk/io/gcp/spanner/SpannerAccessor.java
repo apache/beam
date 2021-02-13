@@ -17,8 +17,10 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner;
 
+import com.google.api.gax.core.ExecutorProvider;
+import com.google.api.gax.grpc.InstantiatingGrpcChannelProvider;
 import com.google.api.gax.retrying.RetrySettings;
-import com.google.api.gax.rpc.FixedHeaderProvider;
+import com.google.api.gax.rpc.HeaderProvider;
 import com.google.api.gax.rpc.ServerStreamingCallSettings;
 import com.google.api.gax.rpc.UnaryCallSettings;
 import com.google.cloud.NoCredentials;
@@ -29,6 +31,8 @@ import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
+import com.google.cloud.spanner.spi.v1.SpannerInterceptorProvider;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.spanner.v1.CommitRequest;
 import com.google.spanner.v1.CommitResponse;
 import com.google.spanner.v1.ExecuteSqlRequest;
@@ -38,7 +42,14 @@ import io.grpc.Channel;
 import io.grpc.ClientCall;
 import io.grpc.ClientInterceptor;
 import io.grpc.MethodDescriptor;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -54,7 +65,10 @@ import org.slf4j.LoggerFactory;
 class SpannerAccessor implements AutoCloseable {
   private static final Logger LOG = LoggerFactory.getLogger(SpannerAccessor.class);
 
-  // A common user agent token that indicates that this request was originated from Apache Beam.
+  /* A common user agent token that indicates that this request was originated from
+   * Apache Beam. Setting the user-agent allows Cloud Spanner to detect that the
+   * workload is coming from Dataflow and to potentially apply performance optimizations
+   */
   private static final String USER_AGENT_PREFIX = "Apache_Beam_Java";
 
   // Only create one SpannerAccessor for each different SpannerConfig.
@@ -71,6 +85,12 @@ class SpannerAccessor implements AutoCloseable {
   private final BatchClient batchClient;
   private final DatabaseAdminClient databaseAdminClient;
   private final SpannerConfig spannerConfig;
+
+  private static final int MAX_MESSAGE_SIZE = 100 * 1024 * 1024;
+  private static final int MAX_METADATA_SIZE = 32 * 1024; // bytes
+  private static final int NUM_CHANNELS = 4;
+  public static final org.threeten.bp.Duration GRPC_KEEP_ALIVE_SECONDS =
+      org.threeten.bp.Duration.ofSeconds(120);
 
   private SpannerAccessor(
       Spanner spanner,
@@ -139,6 +159,23 @@ class SpannerAccessor implements AutoCloseable {
             .setTotalTimeout(org.threeten.bp.Duration.ofMinutes(120))
             .build());
 
+    ManagedInstantiatingExecutorProvider executorProvider =
+        new ManagedInstantiatingExecutorProvider(
+            new ThreadFactoryBuilder()
+                .setDaemon(true)
+                .setNameFormat("Cloud-Spanner-TransportChannel-%d")
+                .build());
+
+    InstantiatingGrpcChannelProvider.Builder instantiatingGrpcChannelProvider =
+        InstantiatingGrpcChannelProvider.newBuilder()
+            .setMaxInboundMessageSize(MAX_MESSAGE_SIZE)
+            .setMaxInboundMetadataSize(MAX_METADATA_SIZE)
+            .setPoolSize(NUM_CHANNELS)
+            .setExecutorProvider(executorProvider)
+            .setKeepAliveTime(GRPC_KEEP_ALIVE_SECONDS)
+            .setInterceptorProvider(SpannerInterceptorProvider.createDefault())
+            .setAttemptDirectPath(true);
+
     ValueProvider<String> projectId = spannerConfig.getProjectId();
     if (projectId != null) {
       builder.setProjectId(projectId.get());
@@ -150,14 +187,35 @@ class SpannerAccessor implements AutoCloseable {
     ValueProvider<String> host = spannerConfig.getHost();
     if (host != null) {
       builder.setHost(host.get());
+      instantiatingGrpcChannelProvider.setEndpoint(host.get());
     }
     ValueProvider<String> emulatorHost = spannerConfig.getEmulatorHost();
     if (emulatorHost != null) {
       builder.setEmulatorHost(emulatorHost.get());
       builder.setCredentials(NoCredentials.getInstance());
     }
+
     String userAgentString = USER_AGENT_PREFIX + "/" + ReleaseInfo.getReleaseInfo().getVersion();
-    builder.setHeaderProvider(FixedHeaderProvider.create("user-agent", userAgentString));
+    /* Workaround to setup user-agent string.
+     * InstantiatingGrpcChannelProvider will override the settings provided.
+     * The section below and all associated artifacts will be removed once the bug
+     * that prevents setting user-agent is fixed.
+     * https://github.com/googleapis/java-spanner/pull/747
+     *
+     * Code to be replaced:
+     * builder.setHeaderProvider(FixedHeaderProvider.create("user-agent", userAgentString));
+     */
+    instantiatingGrpcChannelProvider.setHeaderProvider(
+        new HeaderProvider() {
+          @Override
+          public Map<String, String> getHeaders() {
+            final Map<String, String> headers = new HashMap<>();
+            headers.put("user-agent", userAgentString);
+            return headers;
+          }
+        });
+    builder.setChannelProvider(instantiatingGrpcChannelProvider.build());
+
     SpannerOptions options = builder.build();
 
     Spanner spanner = options.getService();
@@ -219,6 +277,34 @@ class SpannerAccessor implements AutoCloseable {
             callOptions.withDeadlineAfter(commitDeadlineMilliseconds, TimeUnit.MILLISECONDS);
       }
       return next.newCall(method, callOptions);
+    }
+  }
+
+  private static final class ManagedInstantiatingExecutorProvider implements ExecutorProvider {
+    // 4 Gapic clients * 4 channels per client.
+    private static final int DEFAULT_MIN_THREAD_COUNT = 16;
+    private final List<ScheduledExecutorService> executors = new ArrayList<>();
+    private final ThreadFactory threadFactory;
+
+    private ManagedInstantiatingExecutorProvider(ThreadFactory threadFactory) {
+      this.threadFactory = threadFactory;
+    }
+
+    @Override
+    public boolean shouldAutoClose() {
+      return false;
+    }
+
+    @Override
+    public ScheduledExecutorService getExecutor() {
+      int numCpus = Runtime.getRuntime().availableProcessors();
+      int numThreads = Math.max(DEFAULT_MIN_THREAD_COUNT, numCpus);
+      ScheduledExecutorService executor =
+          new ScheduledThreadPoolExecutor(numThreads, threadFactory);
+      synchronized (this) {
+        executors.add(executor);
+      }
+      return executor;
     }
   }
 }
