@@ -61,7 +61,6 @@ dependencies {
   compile library.java.google_http_client
   compile library.java.google_http_client_jackson2
   compile library.java.grpc_alts
-  compile library.java.grpc_api
   compile library.java.grpc_auth
   compile library.java.grpc_core
   compile library.java.grpc_context
@@ -78,7 +77,7 @@ dependencies {
   compile library.java.junit
   compile library.java.netty_handler
   compile library.java.netty_tcnative_boringssl_static
-  compile library.java.proto_google_cloud_bigquerybeta2_storage_v1
+  compile library.java.proto_google_cloud_bigquery_storage_v1beta1
   compile library.java.proto_google_cloud_bigtable_v2
   compile library.java.proto_google_cloud_datastore_v1
   compile library.java.proto_google_cloud_pubsub_v1
