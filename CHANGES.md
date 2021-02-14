@@ -45,16 +45,21 @@
 
 * Fixed X (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 -->
-# [2.28.0] - Unreleased
+# [2.28.0] - 2021-02-13
 
 ## Highlights
-
-* New highly anticipated feature X added to Python SDK ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
-* New highly anticipated feature Y added to Java SDK ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-Y)).
+* Many improvements related to Parquet support ([BEAM-11460](https://issues.apache.org/jira/browse/BEAM-11460), [BEAM-8202](https://issues.apache.org/jira/browse/BEAM-8202), and [BEAM-11526](https://issues.apache.org/jira/browse/BEAM-11526))
+* Hash Functions in BeamSQL ([BEAM-10074](https://issues.apache.org/jira/browse/BEAM-10074))
+* Hash functions in ZetaSQL ([BEAM-11624](https://issues.apache.org/jira/browse/BEAM-11624))
+* Create ApproximateDistinct using HLL Impl ([BEAM-10324](https://issues.apache.org/jira/browse/BEAM-10324))
 
 ## I/Os
 
-* Support for X source added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* SpannerIO supports using BigDecimal for Numeric fields ([BEAM-11643](https://issues.apache.org/jira/browse/BEAM-11643))
+* Add Beam schema support to ParquetIO ([BEAM-11526](https://issues.apache.org/jira/browse/BEAM-11526))
+* Support ParquetTable Writer ([BEAM-8202](https://issues.apache.org/jira/browse/BEAM-8202))
+* GCP BigQuery sink (streaming inserts) uses runner determined sharding ([BEAM-11408](https://issues.apache.org/jira/browse/BEAM-11408))
+* PubSub support types: TIMESTAMP, DATE, TIME, DATETIME ([BEAM-11533](https://issues.apache.org/jira/browse/BEAM-11533))
 
 ## New Features / Improvements
 
@@ -63,7 +68,24 @@
 * Added support for HadoopFormatIO to skip key/value clone ([BEAM-11457](https://issues.apache.org/jira/browse/BEAM-11457))
 * Support Conversion to GenericRecords in Convert.to transform ([BEAM-11571](https://issues.apache.org/jira/browse/BEAM-11571)).
 * Support writes for Parquet Tables in Beam SQL ([BEAM-8202](https://issues.apache.org/jira/browse/BEAM-8202)).
-* X feature added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* Support reading Parquet files with unknown schema ([BEAM-11460](https://issues.apache.org/jira/browse/BEAM-11460))
+* Support user configurable Hadoop Configuration flags for ParquetIO ([BEAM-11527](https://issues.apache.org/jira/browse/BEAM-11527))
+* Expose commit_offset_in_finalize and timestamp_policy to ReadFromKafka ([BEAM-11677](https://issues.apache.org/jira/browse/BEAM-11677))
+* S3 options does not provided to boto3 client while using FlinkRunner and Beam worker pool container ([BEAM-11799](https://issues.apache.org/jira/browse/BEAM-11799))
+* HDFS not deduplicating identical configuration paths ([BEAM-11329](https://issues.apache.org/jira/browse/BEAM-11329))
+* Hash Functions in BeamSQL ([BEAM-10074](https://issues.apache.org/jira/browse/BEAM-10074))
+* Create ApproximateDistinct using HLL Impl ([BEAM-10324](https://issues.apache.org/jira/browse/BEAM-10324))
+* Add Beam schema support to ParquetIO ([BEAM-11526](https://issues.apache.org/jira/browse/BEAM-11526))
+* Add a Deque Encoder ([BEAM-11538](https://issues.apache.org/jira/browse/BEAM-11538))
+* Hash functions in ZetaSQL ([BEAM-11624](https://issues.apache.org/jira/browse/BEAM-11624))
+* Refactor ParquetTableProvider ([](https://issues.apache.org/jira/browse/))
+* Add JVM properties to JavaJobServer ([BEAM-8344](https://issues.apache.org/jira/browse/BEAM-8344))
+* Single source of truth for supported Flink versions ([](https://issues.apache.org/jira/browse/))
+* Use metric for Python BigQuery streaming insert API latency logging ([BEAM-11018](https://issues.apache.org/jira/browse/BEAM-11018))
+* Use metric for Java BigQuery streaming insert API latency logging ([BEAM-11032](https://issues.apache.org/jira/browse/BEAM-11032))
+* Upgrade Flink runner to Flink versions 1.12.1 and 1.11.3 ([BEAM-11697](https://issues.apache.org/jira/browse/BEAM-11697))
+* Upgrade Beam base image to use Tensorflow 2.4.1 ([BEAM-11762](https://issues.apache.org/jira/browse/BEAM-11762))
+* Create Beam GCP BOM ([BEAM-11665](https://issues.apache.org/jira/browse/BEAM-11665))
 
 ## Breaking Changes
 
@@ -72,15 +94,6 @@
   This new Guava version may introduce dependency conflicts if your project or dependencies rely
   on removed APIs. If affected, ensure to use an appropriate Guava version via `dependencyManagement` in Maven and
   `force` in Gradle.
-* X behavior was changed ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
-
-## Deprecations
-
-* X behavior is deprecated and will be removed in X versions ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
-
-## Known Issues
-
-* X known issue
 
 # [2.27.0] - 2021-01-08
 
