@@ -185,6 +185,10 @@ public class SqlOperators {
           x -> createTypeFactory().createSqlType(SqlTypeName.BIGINT),
           new UdafImpl<>(new CountIf.CountIfFn()));
 
+  public static final SqlOperator LOGICAL_OR =
+          createUdafOperator("LOGICAL_OR", x -> createTypeFactory().createSqlType(SqlTypeName.BOOLEAN),
+                  new UdafImpl<>(new BeamBuiltinAggregations.LogicalOr()));
+
   public static final SqlUserDefinedFunction CAST_OP =
       new SqlUserDefinedFunction(
           new SqlIdentifier("CAST", SqlParserPos.ZERO),

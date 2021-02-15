@@ -4129,4 +4129,31 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
+
+  @Test
+  public void testLogicalOrZetaSql() {
+    String sql = "SELECT LOGICAL_OR(x) AS logical_or FROM UNNEST([true, false, true]) AS x";
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    Schema schema = Schema.builder().addBooleanField("bool_field").build();
+    PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValue(true).build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  @Ignore("Null values don't work as expected.")
+  public void testLogicalOrWithNullAndNoNullInput() {
+    String sql = "SELECT LOGICAL_OR(x) AS logical_and FROM UNNEST([false, null, true]) AS x";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    Schema schema = Schema.builder().addNullableField("bool_col", FieldType.BOOLEAN).build();
+    PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues(true).build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
 }

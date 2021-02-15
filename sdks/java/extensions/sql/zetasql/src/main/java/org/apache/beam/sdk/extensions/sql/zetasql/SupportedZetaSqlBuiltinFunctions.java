@@ -418,7 +418,7 @@ class SupportedZetaSqlBuiltinFunctions {
           // TODO(BEAM-10379) Re-enable when nulls are handled properly.
           // FunctionSignatureId.FN_BIT_XOR_INT64, // bit_xor
           // FunctionSignatureId.FN_LOGICAL_AND, // logical_and
-          // FunctionSignatureId.FN_LOGICAL_OR, // logical_or
+          FunctionSignatureId.FN_LOGICAL_OR, // logical_or
           // Approximate aggregate functions.
           // FunctionSignatureId.FN_APPROX_COUNT_DISTINCT, // approx_count_distinct
           // FunctionSignatureId.FN_APPROX_QUANTILES, // approx_quantiles

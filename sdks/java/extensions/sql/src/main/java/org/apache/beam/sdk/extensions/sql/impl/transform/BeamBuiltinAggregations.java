@@ -22,6 +22,8 @@ import java.math.MathContext;
 import java.math.RoundingMode;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.stream.StreamSupport;
+
 import org.apache.beam.sdk.coders.BigDecimalCoder;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -64,6 +66,7 @@ public class BeamBuiltinAggregations {
               .put("AVG", BeamBuiltinAggregations::createAvg)
               .put("BIT_OR", BeamBuiltinAggregations::createBitOr)
               .put("BIT_XOR", BeamBuiltinAggregations::createBitXOr)
+              .put("LOGICAL_OR", BeamBuiltinAggregations::createLogicalOr)
               // JIRA link:https://issues.apache.org/jira/browse/BEAM-10379
               .put("BIT_AND", BeamBuiltinAggregations::createBitAnd)
               .put("VAR_POP", t -> VarianceFn.newPopulation(t.getTypeName()))
@@ -208,6 +211,14 @@ public class BeamBuiltinAggregations {
     }
     throw new UnsupportedOperationException(
         String.format("[%s] is not supported in BIT_XOR", fieldType));
+  }
+
+  public static CombineFn createLogicalOr(Schema.FieldType fieldType) {
+    if (fieldType.getTypeName() == TypeName.BOOLEAN) {
+      return new LogicalOr();
+    }
+    throw new UnsupportedOperationException(
+            String.format("[%s] is not supported in LOGICAL_OR", fieldType));
   }
 
   static class CustMax<T extends Comparable<T>> extends Combine.BinaryCombineFn<T> {
@@ -493,6 +504,67 @@ public class BeamBuiltinAggregations {
     @Override
     public Long extractOutput(Long accumulator) {
       return accumulator;
+    }
+  }
+
+  public static class LogicalOr extends CombineFn<Boolean, LogicalOr.Accum, Boolean> {
+
+    static class Accum {
+      /** Initially, input is empty */
+      boolean isEmpty = true;
+      /** true if any null value is seen in the input, null values are to be ignored */
+      boolean isNull = false;
+      /** logical_or operation result */
+      boolean logicalOr= false;
+    }
+
+    @Override
+    public Accum createAccumulator() {
+      return new Accum();
+    }
+
+    @Override
+    public Accum addInput(Accum accum, Boolean input) {
+      if (input == null){
+        accum.isNull = true;
+      }
+      accum.isEmpty = false;
+      accum.logicalOr = (accum.logicalOr || input);
+      accum.isNull = false;
+      return accum;
+    }
+
+    @Override
+    public Accum mergeAccumulators(Iterable<Accum> accums) {
+      LogicalOr.Accum merged = createAccumulator();
+
+      /** merged accum has isNull=true when all accums have isNull=true */
+      if (StreamSupport.stream(accums.spliterator(), false).allMatch(a -> a.isNull)) {
+        merged.isNull = true;
+        return merged;
+      }
+
+      for (LogicalOr.Accum accum : accums) {
+        if (accum.isEmpty) {
+          continue;
+        }
+        // Ignore null values
+        if (accum.isNull) {
+          continue;
+        }
+        merged.isEmpty = false;
+        merged.isNull = false;
+        merged.logicalOr = (merged.logicalOr || accum.logicalOr);
+      }
+      return merged;
+    }
+
+    @Override
+    public Boolean extractOutput(Accum accum) {
+      if(accum.isNull || accum.isEmpty){
+        return null;
+      }
+      return accum.logicalOr;
     }
   }
 }
