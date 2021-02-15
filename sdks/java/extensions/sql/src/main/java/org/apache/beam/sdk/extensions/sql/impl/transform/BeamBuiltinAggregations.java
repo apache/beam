@@ -517,7 +517,7 @@ public class BeamBuiltinAggregations {
       /** true if any null value is seen in the input, null values are to be ignored */
       boolean isNull = false;
       /** logical_and operation result */
-      boolean logicalAnd = false;
+      boolean logicalAnd = true;
     }
 
     @Override
@@ -527,11 +527,11 @@ public class BeamBuiltinAggregations {
 
     @Override
     public Accum addInput(Accum accum, Boolean input) {
-      accum.isEmpty = false;
       if (input == null) {
         accum.isNull = true;
         return accum;
       }
+      accum.isEmpty = false;
       accum.isNull = false;
       accum.logicalAnd = (accum.logicalAnd && input);
       return accum;
