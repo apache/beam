@@ -519,7 +519,7 @@ public class BeamBuiltinAggregations {
       boolean isEmpty = true;
       /** true if any null value is seen in the input, null values are to be ignored */
       boolean isNull = false;
-      /** logical_or operation result */
+      /** logical_or operation result. */
       boolean logicalOr = false;
     }
 
