@@ -507,8 +507,10 @@ public class BeamBuiltinAggregations {
   }
 
   /**
-   * Returns the logical OR of all non-NULL expressions. Returns NULL if there are zero input rows
-   * or expression evaluates to NULL for all rows.
+   * Logical_Or function implementation
+   *
+   * <p>Returns the logical AND of all non-NULL expressions. Returns NULL if there are zero input
+   * rows or expression evaluates to NULL for all rows.
    */
   public static class LogicalOr extends CombineFn<Boolean, LogicalOr.Accum, Boolean> {
 

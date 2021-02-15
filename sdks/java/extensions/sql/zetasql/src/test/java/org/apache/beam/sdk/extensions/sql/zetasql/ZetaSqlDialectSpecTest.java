@@ -4156,4 +4156,30 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues(true).build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
+
+  @Test
+  public void testLogicalOrAllTrueValues() {
+    String sql = "SELECT LOGICAL_OR(x) AS logical_or FROM UNNEST([true, true, true]) AS x";
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    Schema schema = Schema.builder().addBooleanField("bool_field").build();
+    PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValue(true).build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testLogicalOrAllFalseValues() {
+    String sql = "SELECT LOGICAL_OR(x) AS logical_or FROM UNNEST([false, false, false]) AS x";
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    Schema schema = Schema.builder().addBooleanField("bool_field").build();
+    PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValue(false).build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
 }
