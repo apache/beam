@@ -32,7 +32,6 @@ import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
 import com.google.cloud.spanner.spi.v1.SpannerInterceptorProvider;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.spanner.v1.CommitRequest;
 import com.google.spanner.v1.CommitResponse;
 import com.google.spanner.v1.ExecuteSqlRequest;
@@ -54,6 +53,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.util.ReleaseInfo;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -193,29 +193,28 @@ class SpannerAccessor implements AutoCloseable {
     if (emulatorHost != null) {
       builder.setEmulatorHost(emulatorHost.get());
       builder.setCredentials(NoCredentials.getInstance());
+    } else {
+      String userAgentString = USER_AGENT_PREFIX + "/" + ReleaseInfo.getReleaseInfo().getVersion();
+      /* Workaround to setup user-agent string.
+       * InstantiatingGrpcChannelProvider will override the settings provided.
+       * The section below and all associated artifacts will be removed once the bug
+       * that prevents setting user-agent is fixed.
+       * https://github.com/googleapis/java-spanner/pull/747
+       *
+       * Code to be replaced:
+       * builder.setHeaderProvider(FixedHeaderProvider.create("user-agent", userAgentString));
+       */
+      instantiatingGrpcChannelProvider.setHeaderProvider(
+          new HeaderProvider() {
+            @Override
+            public Map<String, String> getHeaders() {
+              final Map<String, String> headers = new HashMap<>();
+              headers.put("user-agent", userAgentString);
+              return headers;
+            }
+          });
+      builder.setChannelProvider(instantiatingGrpcChannelProvider.build());
     }
-
-    String userAgentString = USER_AGENT_PREFIX + "/" + ReleaseInfo.getReleaseInfo().getVersion();
-    /* Workaround to setup user-agent string.
-     * InstantiatingGrpcChannelProvider will override the settings provided.
-     * The section below and all associated artifacts will be removed once the bug
-     * that prevents setting user-agent is fixed.
-     * https://github.com/googleapis/java-spanner/pull/747
-     *
-     * Code to be replaced:
-     * builder.setHeaderProvider(FixedHeaderProvider.create("user-agent", userAgentString));
-     */
-    instantiatingGrpcChannelProvider.setHeaderProvider(
-        new HeaderProvider() {
-          @Override
-          public Map<String, String> getHeaders() {
-            final Map<String, String> headers = new HashMap<>();
-            headers.put("user-agent", userAgentString);
-            return headers;
-          }
-        });
-    builder.setChannelProvider(instantiatingGrpcChannelProvider.build());
-
     SpannerOptions options = builder.build();
 
     Spanner spanner = options.getService();
