@@ -23,7 +23,6 @@ import java.math.RoundingMode;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.StreamSupport;
-
 import org.apache.beam.sdk.coders.BigDecimalCoder;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -218,7 +217,7 @@ public class BeamBuiltinAggregations {
       return new LogicalOr();
     }
     throw new UnsupportedOperationException(
-            String.format("[%s] is not supported in LOGICAL_OR", fieldType));
+        String.format("[%s] is not supported in LOGICAL_OR", fieldType));
   }
 
   static class CustMax<T extends Comparable<T>> extends Combine.BinaryCombineFn<T> {
@@ -507,6 +506,10 @@ public class BeamBuiltinAggregations {
     }
   }
 
+  /**
+   * Returns the logical OR of all non-NULL expressions. Returns NULL if there are zero input rows
+   * or expression evaluates to NULL for all rows.
+   */
   public static class LogicalOr extends CombineFn<Boolean, LogicalOr.Accum, Boolean> {
 
     static class Accum {
@@ -515,7 +518,7 @@ public class BeamBuiltinAggregations {
       /** true if any null value is seen in the input, null values are to be ignored */
       boolean isNull = false;
       /** logical_or operation result */
-      boolean logicalOr= false;
+      boolean logicalOr = false;
     }
 
     @Override
@@ -525,7 +528,7 @@ public class BeamBuiltinAggregations {
 
     @Override
     public Accum addInput(Accum accum, Boolean input) {
-      if (input == null){
+      if (input == null) {
         accum.isNull = true;
       }
       accum.isEmpty = false;
@@ -561,7 +564,7 @@ public class BeamBuiltinAggregations {
 
     @Override
     public Boolean extractOutput(Accum accum) {
-      if(accum.isNull || accum.isEmpty){
+      if (accum.isNull || accum.isEmpty) {
         return null;
       }
       return accum.logicalOr;

@@ -83,7 +83,7 @@ class SqlOperatorMappingTable {
           .put("mod", SqlStdOperatorTable.MOD)
           .put("timestamp", SqlOperators.TIMESTAMP_OP)
           .put("$case_no_value", SqlStdOperatorTable.CASE)
-           .put("logical_or", SqlOperators.LOGICAL_OR)
+          .put("logical_or", SqlOperators.LOGICAL_OR)
 
           // if operator - IF(cond, pos, neg) can actually be mapped directly to `CASE WHEN cond
           // THEN pos ELSE neg`
