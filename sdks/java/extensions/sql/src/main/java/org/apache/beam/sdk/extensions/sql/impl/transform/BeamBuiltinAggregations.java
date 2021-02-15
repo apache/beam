@@ -22,6 +22,7 @@ import java.math.MathContext;
 import java.math.RoundingMode;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.coders.BigDecimalCoder;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -208,6 +209,14 @@ public class BeamBuiltinAggregations {
     }
     throw new UnsupportedOperationException(
         String.format("[%s] is not supported in BIT_XOR", fieldType));
+  }
+
+  static CombineFn createLogicalAnd(Schema.FieldType fieldType) {
+    if (fieldType.getTypeName() == TypeName.BOOLEAN) {
+      return new LogicalAnd();
+    }
+    throw new UnsupportedOperationException(
+        String.format("[%s] is not supported in LOGICAL_AND", fieldType));
   }
 
   static class CustMax<T extends Comparable<T>> extends Combine.BinaryCombineFn<T> {
@@ -493,6 +502,72 @@ public class BeamBuiltinAggregations {
     @Override
     public Long extractOutput(Long accumulator) {
       return accumulator;
+    }
+  }
+  /**
+   * Logical_And function implementation
+   *
+   * <p>Returns the logical AND of all non-NULL expressions. Returns NULL if there are zero input
+   * rows or expression evaluates to NULL for all rows.
+   */
+  public static class LogicalAnd extends CombineFn<Boolean, LogicalAnd.Accum, Boolean> {
+    static class Accum {
+      /** Initially, input is empty */
+      boolean isEmpty = true;
+      /** true if any null value is seen in the input, null values are to be ignored */
+      boolean isNull = false;
+      /** logical_and operation result */
+      boolean logicalAnd = false;
+    }
+
+    @Override
+    public Accum createAccumulator() {
+      return new Accum();
+    }
+
+    @Override
+    public Accum addInput(Accum accum, Boolean input) {
+      accum.isEmpty = false;
+      if (input == null) {
+        accum.isNull = true;
+        return accum;
+      }
+      accum.isNull = false;
+      accum.logicalAnd = (accum.logicalAnd && input);
+      return accum;
+    }
+
+    @Override
+    public Accum mergeAccumulators(Iterable<Accum> accums) {
+      LogicalAnd.Accum merged = createAccumulator();
+
+      /** merged accum has isNull=true when all accums have isNull=true */
+      if (StreamSupport.stream(accums.spliterator(), false).allMatch(a -> a.isNull)) {
+        merged.isNull = true;
+        return merged;
+      }
+
+      for (LogicalAnd.Accum accum : accums) {
+        if (accum.isEmpty) {
+          continue;
+        }
+        /** ignore null values in the input */
+        if (accum.isNull) {
+          continue;
+        }
+        merged.isEmpty = false;
+        merged.isNull = false;
+        merged.logicalAnd = (merged.logicalAnd && accum.logicalAnd);
+      }
+      return merged;
+    }
+
+    @Override
+    public Boolean extractOutput(Accum accum) {
+      if (accum.isEmpty || accum.isNull) {
+        return null;
+      }
+      return accum.logicalAnd;
     }
   }
 }
