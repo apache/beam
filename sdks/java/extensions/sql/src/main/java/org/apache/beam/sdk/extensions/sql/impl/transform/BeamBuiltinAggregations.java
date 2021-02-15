@@ -515,9 +515,9 @@ public class BeamBuiltinAggregations {
   public static class LogicalOr extends CombineFn<Boolean, LogicalOr.Accum, Boolean> {
 
     static class Accum {
-      /** Initially, input is empty */
+      /** Initially, input is empty. */
       boolean isEmpty = true;
-      /** true if any null value is seen in the input, null values are to be ignored */
+      /** true if any null value is seen in the input, null values are to be ignored. */
       boolean isNull = false;
       /** logical_or operation result. */
       boolean logicalOr = false;
