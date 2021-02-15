@@ -512,11 +512,11 @@ public class BeamBuiltinAggregations {
    */
   public static class LogicalAnd extends CombineFn<Boolean, LogicalAnd.Accum, Boolean> {
     static class Accum {
-      /** Initially, input is empty */
+      /** Initially, input is empty. */
       boolean isEmpty = true;
-      /** true if any null value is seen in the input, null values are to be ignored */
+      /** true if any null value is seen in the input, null values are to be ignored. */
       boolean isNull = false;
-      /** logical_and operation result */
+      /** logical_and operation result. */
       boolean logicalAnd = true;
     }
 
