@@ -1,7 +1,6 @@
 package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
 import static org.apache.beam.sdk.extensions.sql.meta.provider.kafka.Schemas.*;
-import static org.apache.beam.sdk.extensions.sql.meta.provider.kafka.Schemas.HEADERS_VALUES_FIELD;
 import static org.apache.beam.sdk.schemas.transforms.Cast.castRow;
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
@@ -13,6 +12,8 @@ import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.kafka.KafkaRecord;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.EquivalenceNullablePolicy;
+import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializer;
@@ -89,9 +90,12 @@ class NestedPayloadKafkaTable extends BeamKafkaTable {
     if (payloadSerializer == null) {
       builder.withFieldValue(PAYLOAD_FIELD, record.getKV().getValue());
     } else {
-      builder.withFieldValue(
-          PAYLOAD_FIELD,
-          payloadSerializer.deserialize(record.getKV().getValue()));
+      byte[] payload = record.getKV().getValue();
+      if (payload != null) {
+        builder.withFieldValue(
+            PAYLOAD_FIELD,
+            payloadSerializer.deserialize(record.getKV().getValue()));
+      }
     }
     return builder.build();
   }
@@ -106,6 +110,45 @@ class NestedPayloadKafkaTable extends BeamKafkaTable {
     };
   }
 
+  private static void checkFieldHasType(Field field, FieldType type) {
+    checkArgument(
+        type.equivalent(field.getType(), EquivalenceNullablePolicy.WEAKEN),
+        String.format("'%s' field must have schema matching '%s'.", field.getName(), type));
+  }
+
+  private static void validateNestedSchema(Schema schema) {
+    checkArgument(
+        schema.hasField(PAYLOAD_FIELD),
+        "Must provide a 'payload' field for Kafka.");
+    for (Field field : schema.getFields()) {
+      switch (field.getName()) {
+        case HEADERS_FIELD:
+          checkFieldHasType(field, HEADERS_FIELD_TYPE);
+          break;
+        case EVENT_TIMESTAMP_FIELD:
+          checkFieldHasType(field, FieldType.DATETIME);
+          break;
+        case MESSAGE_KEY_FIELD:
+          checkFieldHasType(field, FieldType.BYTES);
+          break;
+        case PAYLOAD_FIELD:
+          checkArgument(
+              FieldType.BYTES.equivalent(field.getType(), EquivalenceNullablePolicy.WEAKEN)
+                  || field.getType().getTypeName().equals(TypeName.ROW),
+              String.format(
+                  "'%s' field must either have a 'BYTES NOT NULL' or 'ROW' schema.",
+                  field.getName()));
+          break;
+        default:
+          throw new IllegalArgumentException(
+              String.format(
+                  "'%s' field is invalid at the top level for Kafka in the nested schema.", field.getName()));
+      }
+    }
+  }
+
+  // Suppress nullability warnings: ProducerRecord is supposed to accept null arguments.
+  @SuppressWarnings("argument.type.incompatible")
   private ProducerRecord<byte[], byte[]> transformOutput(Row row) {
     row = castRow(row, row.getSchema(), schema);
     String topic = Iterables.getOnlyElement(getTopics());
@@ -135,6 +178,7 @@ class NestedPayloadKafkaTable extends BeamKafkaTable {
       headers = headersBuilder.build();
     }
     if (payloadSerializer == null) {
+      validateNestedSchema(schema);
       payload = row.getBytes(PAYLOAD_FIELD);
     } else {
       payload = payloadSerializer.serialize(checkArgumentNotNull(row.getRow(PAYLOAD_FIELD)));

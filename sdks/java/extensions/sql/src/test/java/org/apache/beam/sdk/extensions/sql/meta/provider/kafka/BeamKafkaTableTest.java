@@ -21,6 +21,7 @@ import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.io.kafka.KafkaRecord;
 import org.apache.beam.sdk.io.kafka.KafkaRecordCoder;
 import org.apache.beam.sdk.io.kafka.KafkaTimestampType;
+import org.apache.beam.sdk.io.kafka.ProducerRecordCoder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -69,6 +70,7 @@ public abstract class BeamKafkaTableTest {
         pipeline
             .apply(Create.of(generateRow(1), generateRow(2)))
             .apply(kafkaTable.getPTransformForOutput())
+            .setCoder(ProducerRecordCoder.of(ByteArrayCoder.of(), ByteArrayCoder.of()))
             .apply(MapElements.via(new ProducerToRecord()))
             .setCoder(KafkaRecordCoder.of(ByteArrayCoder.of(), ByteArrayCoder.of()))
             .apply(kafkaTable.getPTransformForInput());
@@ -86,7 +88,7 @@ public abstract class BeamKafkaTableTest {
   static class ProducerToRecord extends SimpleFunction<ProducerRecord<byte[], byte[]>, KafkaRecord<byte[], byte[]>> {
     @Override
     public KafkaRecord<byte[], byte[]> apply(ProducerRecord<byte[], byte[]> record) {
-      return new KafkaRecord<>(record.topic(), record.partition(), 0, 0, KafkaTimestampType.LOG_APPEND_TIME, record.headers(), record.key(), record.value());
+      return new KafkaRecord<>(record.topic(), record.partition() != null ? record.partition() : 0, 0, 0, KafkaTimestampType.LOG_APPEND_TIME, record.headers(), record.key(), record.value());
     }
   }
 }

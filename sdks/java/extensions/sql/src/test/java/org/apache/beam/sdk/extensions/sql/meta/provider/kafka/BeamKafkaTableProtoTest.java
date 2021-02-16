@@ -27,6 +27,7 @@ import org.apache.beam.sdk.extensions.protobuf.PayloadMessages;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.io.kafka.KafkaRecordCoder;
+import org.apache.beam.sdk.io.kafka.ProducerRecordCoder;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Create;
@@ -66,6 +67,7 @@ public class BeamKafkaTableProtoTest extends BeamKafkaTableTest {
         pipeline
             .apply(Create.of(shuffledRow(1), shuffledRow(2)))
             .apply(kafkaTable.getPTransformForOutput())
+            .setCoder(ProducerRecordCoder.of(ByteArrayCoder.of(), ByteArrayCoder.of()))
             .apply(MapElements.via(new ProducerToRecord()))
             .setCoder(KafkaRecordCoder.of(ByteArrayCoder.of(), ByteArrayCoder.of()))
             .apply(kafkaTable.getPTransformForInput());
