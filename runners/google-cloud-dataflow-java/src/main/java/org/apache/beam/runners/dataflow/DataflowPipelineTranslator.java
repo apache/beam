@@ -388,6 +388,13 @@ public class DataflowPipelineTranslator {
       workerPool.setPackages(packages);
       workerPool.setNumWorkers(options.getNumWorkers());
 
+      if (options.getMaxNumWorkers() != 0 && options.getNumWorkers() > options.getMaxNumWorkers()) {
+        throw new IllegalArgumentException(
+            String.format(
+                "numWorkers (%d) cannot exceed maxNumWorkers (%d).",
+                options.getNumWorkers(), options.getMaxNumWorkers()));
+      }
+
       if (options.getLabels() != null) {
         job.setLabels(options.getLabels());
       }
