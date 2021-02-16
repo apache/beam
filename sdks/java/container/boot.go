@@ -125,16 +125,17 @@ func main() {
 	}
 
 	var hasWorkerExperiment = strings.Contains(options, "use_staged_dataflow_worker_jar")
-	for _, md := range artifacts {
+	for _, a := range artifacts {
+		name, _ := artifact.MustExtractFilePayload(a)
 		if hasWorkerExperiment {
-			if strings.HasPrefix(md.Name, "beam-runners-google-cloud-dataflow-java-fn-api-worker") {
+			if strings.HasPrefix(name, "beam-runners-google-cloud-dataflow-java-fn-api-worker") {
 				continue
 			}
-			if md.Name == "dataflow-worker.jar" {
+			if name == "dataflow-worker.jar" {
 				continue
 			}
 		}
-		cp = append(cp, filepath.Join(dir, filepath.FromSlash(md.Name)))
+		cp = append(cp, filepath.Join(dir, filepath.FromSlash(name)))
 	}
 
 	args := []string{

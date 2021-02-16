@@ -36,14 +36,15 @@ import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.extensions.protobuf.PayloadMessages;
 import org.apache.beam.sdk.extensions.protobuf.ProtoMessageSchema;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
-import org.apache.beam.sdk.extensions.sql.meta.provider.kafka.thrift.ItThriftMessage;
 import org.apache.beam.sdk.io.thrift.ThriftCoder;
 import org.apache.beam.sdk.io.thrift.ThriftSchema;
+import org.apache.beam.sdk.io.thrift.payloads.ItThriftMessage;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -343,7 +344,7 @@ public class KafkaTableProviderIT {
 
   private static class KafkaProtoObjectProvider extends KafkaObjectProvider {
     private final SimpleFunction<Row, byte[]> toBytesFn =
-        ProtoMessageSchema.getRowToProtoBytesFn(KafkaMessages.ItMessage.class);
+        ProtoMessageSchema.getRowToProtoBytesFn(PayloadMessages.ItMessage.class);
 
     @Override
     protected ProducerRecord<String, byte[]> generateProducerRecord(int i) {
@@ -366,7 +367,7 @@ public class KafkaTableProviderIT {
           + kafkaOptions.getKafkaTopic()
           + "\"],"
           + "\"protoClass\": \""
-          + KafkaMessages.ItMessage.class.getName()
+          + PayloadMessages.ItMessage.class.getName()
           + "\"}";
     }
   }

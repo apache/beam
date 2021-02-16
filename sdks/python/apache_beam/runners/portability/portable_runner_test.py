@@ -235,6 +235,19 @@ class PortableRunnerOptimized(PortableRunnerTest):
     return options
 
 
+# TODO(BEAM-7248): Delete this test after PortableRunner supports
+# beam:runner:executable_stage:v1.
+class PortableRunnerOptimizedWithoutFusion(PortableRunnerTest):
+  def create_options(self):
+    options = super(PortableRunnerOptimizedWithoutFusion, self).create_options()
+    options.view_as(DebugOptions).add_experiment(
+        'pre_optimize=all_except_fusion')
+    options.view_as(DebugOptions).add_experiment('state_cache_size=100')
+    options.view_as(DebugOptions).add_experiment(
+        'data_buffer_time_limit_ms=1000')
+    return options
+
+
 class PortableRunnerTestWithExternalEnv(PortableRunnerTest):
   @classmethod
   def setUpClass(cls):

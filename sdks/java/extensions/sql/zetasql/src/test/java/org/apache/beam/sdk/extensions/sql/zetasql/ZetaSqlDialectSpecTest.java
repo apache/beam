@@ -4069,6 +4069,8 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
   }
 
   @Test
+  @Ignore(
+      "Null values are not handled properly, so BIT_XOR is temporarily removed from SupportedZetaSqlBuiltinFunctions. https://issues.apache.org/jira/browse/BEAM-10379")
   public void testZetaSQLBitXor() {
     String sql = "SELECT BIT_XOR(x) AS bit_xor FROM UNNEST([5678, 1234]) AS x";
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
@@ -4077,6 +4079,22 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
 
     Schema schema = Schema.builder().addInt64Field("field1").build();
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValue(4860L).build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testCountIfZetaSQLDialect() {
+    String sql =
+        "WITH is_positive AS ( SELECT x > 0 flag FROM UNNEST([5, -2, 3, 6, -10, -7, 4, 0]) AS x) "
+            + "SELECT COUNTIF(flag) FROM is_positive";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    final Schema schema = Schema.builder().addInt64Field("field1").build();
+    PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValue(4L).build());
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }

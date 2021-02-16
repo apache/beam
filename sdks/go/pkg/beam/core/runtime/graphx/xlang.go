@@ -258,10 +258,14 @@ func ExpandedTransform(exp *graph.ExpandedTransform) (*pipepb.PTransform, error)
 // pcollection) of input nodes with respect to the map (tag -> index of Inbound
 // in MultiEdge.Input) of named inputs
 func ExternalInputs(e *graph.MultiEdge) map[string]*graph.Node {
-	inputs := make(map[string]*graph.Node)
+	return InboundTagToNode(e.External.InputsMap, e.Input)
+}
 
-	for tag, id := range e.External.InputsMap {
-		inputs[tag] = e.Input[id].From
+// InboundTagToNode relates the tags from inbound links to their respective nodes.
+func InboundTagToNode(inputsMap map[string]int, inbound []*graph.Inbound) map[string]*graph.Node {
+	inputs := make(map[string]*graph.Node)
+	for tag, id := range inputsMap {
+		inputs[tag] = inbound[id].From
 	}
 	return inputs
 }
@@ -270,10 +274,14 @@ func ExternalInputs(e *graph.MultiEdge) map[string]*graph.Node {
 // pcollection) of output nodes with respect to the map (tag -> index of
 // Outbound in MultiEdge.Output) of named outputs
 func ExternalOutputs(e *graph.MultiEdge) map[string]*graph.Node {
-	outputs := make(map[string]*graph.Node)
+	return OutboundTagToNode(e.External.OutputsMap, e.Output)
+}
 
-	for tag, id := range e.External.OutputsMap {
-		outputs[tag] = e.Output[id].To
+// OutboundTagToNode relates the tags from outbound links to their respective nodes.
+func OutboundTagToNode(outputsMap map[string]int, outbound []*graph.Outbound) map[string]*graph.Node {
+	outputs := make(map[string]*graph.Node)
+	for tag, id := range outputsMap {
+		outputs[tag] = outbound[id].To
 	}
 	return outputs
 }

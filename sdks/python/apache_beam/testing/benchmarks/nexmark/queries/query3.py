@@ -45,7 +45,7 @@ from apache_beam.transforms import window
 from apache_beam.transforms.userstate import on_timer
 
 
-def load(events, metadata=None):
+def load(events, metadata=None, pipeline_options=None):
   num_events_in_pane = 30
   windowed_events = (
       events

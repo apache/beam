@@ -54,6 +54,8 @@ pip_dependencies:
   fastavro:
     license: "https://raw.githubusercontent.com/fastavro/fastavro/master/LICENSE"
     notice: "https://raw.githubusercontent.com/fastavro/fastavro/master/NOTICE.txt"
+  flatbuffers:
+    license: "https://raw.githubusercontent.com/google/flatbuffers/master/LICENSE.txt"
   funcsigs:
     license: "https://raw.githubusercontent.com/aliles/funcsigs/master/LICENSE"
   futures:

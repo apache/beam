@@ -168,78 +168,59 @@ class InteractiveEnvironmentTest(unittest.TestCase):
     self.assertIs(ie.current_env().is_terminated(self._p), True)
     self.assertIs(ie.current_env().evict_pipeline_result(self._p), None)
 
-  @patch('atexit.register')
-  def test_cleanup_registered_when_creating_new_env(self, mocked_atexit):
-    ie.new_env()
-    mocked_atexit.assert_called_once()
+  def test_cleanup_registered_when_creating_new_env(self):
+    with patch('atexit.register') as mocked_atexit:
+      _ = ie.InteractiveEnvironment()
+      mocked_atexit.assert_called_once()
 
-  @patch(
-      'apache_beam.runners.interactive.interactive_environment'
-      '.InteractiveEnvironment.cleanup')
-  def test_cleanup_invoked_when_new_env_replace_not_none_env(
-      self, mocked_cleanup):
+  def test_cleanup_invoked_when_new_env_replace_not_none_env(self):
     ie._interactive_beam_env = None
     ie.new_env()
-    mocked_cleanup.assert_not_called()
-    ie.new_env()
-    mocked_cleanup.assert_called_once()
+    with patch('apache_beam.runners.interactive.interactive_environment'
+               '.InteractiveEnvironment.cleanup') as mocked_cleanup:
+      ie.new_env()
+      mocked_cleanup.assert_called_once()
 
-  @patch(
-      'apache_beam.runners.interactive.interactive_environment'
-      '.InteractiveEnvironment.cleanup')
-  def test_cleanup_not_invoked_when_cm_changed_from_none(self, mocked_cleanup):
-    ie._interactive_beam_env = None
-    ie.new_env()
-    dummy_pipeline = 'dummy'
-    self.assertIsNone(ie.current_env().get_cache_manager(dummy_pipeline))
-    cache_manager = cache.FileBasedCacheManager()
-    ie.current_env().set_cache_manager(cache_manager, dummy_pipeline)
-    mocked_cleanup.assert_not_called()
-    self.assertIs(
-        ie.current_env().get_cache_manager(dummy_pipeline), cache_manager)
+  def test_cleanup_not_invoked_when_cm_changed_from_none(self):
+    env = ie.InteractiveEnvironment()
+    with patch('apache_beam.runners.interactive.interactive_environment'
+               '.InteractiveEnvironment.cleanup') as mocked_cleanup:
+      dummy_pipeline = 'dummy'
+      self.assertIsNone(env.get_cache_manager(dummy_pipeline))
+      cache_manager = cache.FileBasedCacheManager()
+      env.set_cache_manager(cache_manager, dummy_pipeline)
+      mocked_cleanup.assert_not_called()
+      self.assertIs(env.get_cache_manager(dummy_pipeline), cache_manager)
 
-  @patch(
-      'apache_beam.runners.interactive.interactive_environment'
-      '.InteractiveEnvironment.cleanup')
-  def test_cleanup_invoked_when_not_none_cm_changed(self, mocked_cleanup):
-    ie._interactive_beam_env = None
-    ie.new_env()
-    dummy_pipeline = 'dummy'
-    ie.current_env().set_cache_manager(
-        cache.FileBasedCacheManager(), dummy_pipeline)
-    mocked_cleanup.assert_not_called()
-    ie.current_env().set_cache_manager(
-        cache.FileBasedCacheManager(), dummy_pipeline)
-    mocked_cleanup.assert_called_once()
+  def test_cleanup_invoked_when_not_none_cm_changed(self):
+    env = ie.InteractiveEnvironment()
+    with patch('apache_beam.runners.interactive.interactive_environment'
+               '.InteractiveEnvironment.cleanup') as mocked_cleanup:
+      dummy_pipeline = 'dummy'
+      env.set_cache_manager(cache.FileBasedCacheManager(), dummy_pipeline)
+      mocked_cleanup.assert_not_called()
+      env.set_cache_manager(cache.FileBasedCacheManager(), dummy_pipeline)
+      mocked_cleanup.assert_called_once()
 
-  @patch(
-      'apache_beam.runners.interactive.interactive_environment'
-      '.InteractiveEnvironment.cleanup')
-  def test_noop_when_cm_is_not_changed(self, mocked_cleanup):
-    ie._interactive_beam_env = None
+  def test_noop_when_cm_is_not_changed(self):
     cache_manager = cache.FileBasedCacheManager()
     dummy_pipeline = 'dummy'
-    ie.new_env()
-    ie.current_env()._cache_managers[str(id(dummy_pipeline))] = cache_manager
-    mocked_cleanup.assert_not_called()
-    ie.current_env().set_cache_manager(cache_manager, dummy_pipeline)
-    mocked_cleanup.assert_not_called()
+    env = ie.InteractiveEnvironment()
+    with patch('apache_beam.runners.interactive.interactive_environment'
+               '.InteractiveEnvironment.cleanup') as mocked_cleanup:
+      env._cache_managers[str(id(dummy_pipeline))] = cache_manager
+      mocked_cleanup.assert_not_called()
+      env.set_cache_manager(cache_manager, dummy_pipeline)
+      mocked_cleanup.assert_not_called()
 
   def test_get_cache_manager_creates_cache_manager_if_absent(self):
-    ie._interactive_beam_env = None
-    ie.new_env()
+    env = ie.InteractiveEnvironment()
     dummy_pipeline = 'dummy'
-    self.assertIsNone(ie.current_env().get_cache_manager(dummy_pipeline))
+    self.assertIsNone(env.get_cache_manager(dummy_pipeline))
     self.assertIsNotNone(
-        ie.current_env().get_cache_manager(
-            dummy_pipeline, create_if_absent=True))
+        env.get_cache_manager(dummy_pipeline, create_if_absent=True))
 
-  @patch(
-      'apache_beam.runners.interactive.interactive_environment'
-      '.InteractiveEnvironment.cleanup')
-  def test_track_user_pipeline_cleanup_non_inspectable_pipeline(
-      self, mocked_cleanup):
-    ie._interactive_beam_env = None
+  def test_track_user_pipeline_cleanup_non_inspectable_pipeline(self):
     ie.new_env()
     dummy_pipeline_1 = beam.Pipeline()
     dummy_pipeline_2 = beam.Pipeline()
@@ -262,9 +243,10 @@ class InteractiveEnvironmentTest(unittest.TestCase):
         dummy_non_inspectable_pipeline, None)
     ie.current_env().set_pipeline_result(
         dummy_pipeline_5, runner.PipelineResult(runner.PipelineState.RUNNING))
-    mocked_cleanup.assert_not_called()
-    ie.current_env().track_user_pipelines()
-    mocked_cleanup.assert_called_once()
+    with patch('apache_beam.runners.interactive.interactive_environment'
+               '.InteractiveEnvironment.cleanup') as mocked_cleanup:
+      ie.current_env().track_user_pipelines()
+      mocked_cleanup.assert_called_once()
 
   def test_evict_pcollections(self):
     """Tests the evicton logic in the InteractiveEnvironment."""

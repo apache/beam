@@ -35,6 +35,9 @@ t.describe 'Run Apache Beam Java SDK Quickstart - Dataflow'
 
     // Run the wordcount example with the Dataflow runner
     t.run """mvn compile exec:java -q \
+      -Dmaven.wagon.http.retryHandler.class=default \
+      -Dmaven.wagon.http.retryHandler.count=5 \
+      -Dhttp.keepAlive=false \
       -Dexec.mainClass=org.apache.beam.examples.WordCount \
       -Dexec.args="--runner=DataflowRunner \
                    --project=${t.gcpProject()} \

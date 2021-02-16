@@ -70,6 +70,9 @@ class MobileGamingCommands {
       className = exampleName
     }
     return """mvn compile exec:java -q \
+      -Dmaven.wagon.http.retryHandler.class=default \
+      -Dmaven.wagon.http.retryHandler.count=5 \
+      -Dhttp.keepAlive=false \
       -Dexec.mainClass=org.apache.beam.examples.complete.game.${className} \
       -Dexec.args=\"${getArgs(exampleName, runner, jobName)}\" \
       -P${RUNNERS[runner]}"""

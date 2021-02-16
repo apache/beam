@@ -22,11 +22,14 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"io"
+	"log"
 	"math/rand"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
@@ -39,6 +42,8 @@ import (
 
 // TODO(lostluck): 2018/05/28 Extract these from their enum descriptors in the pipeline_v1 proto
 const (
+	URNFileArtifact   = "beam:artifact:type:file:v1"
+	URNPipRequirementsFile = "beam:artifact:role:pip_requirements_file:v1"
 	URNStagingTo      = "beam:artifact:role:staging_to:v1"
 	NoArtifactsStaged = "__no_artifacts_staged__"
 )
@@ -49,17 +54,17 @@ const (
 // present.
 // TODO(BEAM-9577): Return a mapping of filename to dependency, rather than []*jobpb.ArtifactMetadata.
 // TODO(BEAM-9577): Leverage richness of roles rather than magic names to understand artifacts.
-func Materialize(ctx context.Context, endpoint string, dependencies []*pipepb.ArtifactInformation, rt string, dest string) ([]*jobpb.ArtifactMetadata, error) {
+func Materialize(ctx context.Context, endpoint string, dependencies []*pipepb.ArtifactInformation, rt string, dest string) ([]*pipepb.ArtifactInformation, error) {
 	if len(dependencies) > 0 {
 		return newMaterialize(ctx, endpoint, dependencies, dest)
 	} else if rt == "" || rt == NoArtifactsStaged {
-		return []*jobpb.ArtifactMetadata{}, nil
+		return []*pipepb.ArtifactInformation{}, nil
 	} else {
 		return legacyMaterialize(ctx, endpoint, rt, dest)
 	}
 }
 
-func newMaterialize(ctx context.Context, endpoint string, dependencies []*pipepb.ArtifactInformation, dest string) ([]*jobpb.ArtifactMetadata, error) {
+func newMaterialize(ctx context.Context, endpoint string, dependencies []*pipepb.ArtifactInformation, dest string) ([]*pipepb.ArtifactInformation, error) {
 	cc, err := grpcx.Dial(ctx, endpoint, 2*time.Minute)
 	if err != nil {
 		return nil, err
@@ -69,41 +74,97 @@ func newMaterialize(ctx context.Context, endpoint string, dependencies []*pipepb
 	return newMaterializeWithClient(ctx, jobpb.NewArtifactRetrievalServiceClient(cc), dependencies, dest)
 }
 
-func newMaterializeWithClient(ctx context.Context, client jobpb.ArtifactRetrievalServiceClient, dependencies []*pipepb.ArtifactInformation, dest string) ([]*jobpb.ArtifactMetadata, error) {
+func newMaterializeWithClient(ctx context.Context, client jobpb.ArtifactRetrievalServiceClient, dependencies []*pipepb.ArtifactInformation, dest string) ([]*pipepb.ArtifactInformation, error) {
 	resolution, err := client.ResolveArtifacts(ctx, &jobpb.ResolveArtifactsRequest{Artifacts: dependencies})
 	if err != nil {
 		return nil, err
 	}
 
-	var md []*jobpb.ArtifactMetadata
+	var artifacts []*pipepb.ArtifactInformation
 	var list []retrievable
 	for _, dep := range resolution.Replacements {
 		path, err := extractStagingToPath(dep)
 		if err != nil {
 			return nil, err
 		}
-		md = append(md, &jobpb.ArtifactMetadata{
-			Name: path,
+		filePayload := pipepb.ArtifactFilePayload{
+			Path: path,
+		}
+		if dep.TypeUrn == URNFileArtifact {
+			typePayload := pipepb.ArtifactFilePayload{}
+			if err := proto.Unmarshal(dep.TypePayload, &typePayload); err != nil {
+				return nil, errors.Wrap(err, "failed to parse artifact file payload")
+			}
+			filePayload.Sha256 = typePayload.Sha256
+		}
+		newTypePayload, err := proto.Marshal(&filePayload)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to create artifact type payload")
+		}
+		artifacts = append(artifacts, &pipepb.ArtifactInformation{
+			TypeUrn:     URNFileArtifact,
+			TypePayload: newTypePayload,
+			RoleUrn:     dep.RoleUrn,
+			RolePayload: dep.RolePayload,
 		})
 
+		rolePayload, err := proto.Marshal(&pipepb.ArtifactStagingToRolePayload{
+			StagedName: path,
+		})
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to create artifact role payload")
+		}
 		list = append(list, &artifact{
 			client: client,
-			dep:    dep,
+			dep: &pipepb.ArtifactInformation{
+				TypeUrn:     dep.TypeUrn,
+				TypePayload: dep.TypePayload,
+				RoleUrn:     URNStagingTo,
+				RolePayload: rolePayload,
+			},
 		})
 	}
 
-	return md, MultiRetrieve(ctx, 10, list, dest)
+	return artifacts, MultiRetrieve(ctx, 10, list, dest)
+}
+
+// Used for generating unique IDs. We assign uniquely generated names to staged files without staging names.
+var idCounter uint64
+
+func generateId() string {
+	id := atomic.AddUint64(&idCounter, 1)
+	return strconv.FormatUint(id, 10)
 }
 
 func extractStagingToPath(artifact *pipepb.ArtifactInformation) (string, error) {
-	if artifact.RoleUrn != URNStagingTo {
-		return "", errors.Errorf("Unsupported artifact role %s", artifact.RoleUrn)
+	var stagedName string
+	if artifact.RoleUrn == URNStagingTo {
+		role := pipepb.ArtifactStagingToRolePayload{}
+		if err := proto.Unmarshal(artifact.RolePayload, &role); err != nil {
+			return "", err
+		}
+		stagedName = role.StagedName
+	} else if artifact.TypeUrn == URNFileArtifact {
+		ty := pipepb.ArtifactFilePayload{}
+		if err := proto.Unmarshal(artifact.TypePayload, &ty); err != nil {
+			return "", err
+		}
+		stagedName = generateId() + "-" + filepath.Base(ty.Path)
+	} else {
+		return "", errors.Errorf("failed to extract staging path for artifact type %v role %v", artifact.TypeUrn, artifact.RoleUrn)
 	}
-	role := pipepb.ArtifactStagingToRolePayload{}
-	if err := proto.Unmarshal(artifact.RolePayload, &role); err != nil {
-		return "", err
+	return stagedName, nil
+}
+
+func MustExtractFilePayload(artifact *pipepb.ArtifactInformation) (string, string) {
+	if artifact.TypeUrn != URNFileArtifact {
+		log.Fatalf("Unsupported artifact type #{artifact.TypeUrn}")
 	}
-	return role.StagedName, nil
+	ty := pipepb.ArtifactFilePayload{}
+	if err := proto.Unmarshal(artifact.TypePayload, &ty); err != nil {
+		log.Fatalf("failed to parse artifact file payload: #{err}")
+	}
+	return ty.Path, ty.Sha256
 }
 
 type artifact struct {
@@ -172,7 +233,7 @@ func writeChunks(stream jobpb.ArtifactRetrievalService_GetArtifactClient, w io.W
 	return nil
 }
 
-func legacyMaterialize(ctx context.Context, endpoint string, rt string, dest string) ([]*jobpb.ArtifactMetadata, error) {
+func legacyMaterialize(ctx context.Context, endpoint string, rt string, dest string) ([]*pipepb.ArtifactInformation, error) {
 	cc, err := grpcx.Dial(ctx, endpoint, 2*time.Minute)
 	if err != nil {
 		return nil, err
@@ -187,8 +248,28 @@ func legacyMaterialize(ctx context.Context, endpoint string, rt string, dest str
 	}
 	mds := m.GetManifest().GetArtifact()
 
+	var artifacts []*pipepb.ArtifactInformation
 	var list []retrievable
 	for _, md := range mds {
+		typePayload, err := proto.Marshal(&pipepb.ArtifactFilePayload{
+			Path:   md.Name,
+			Sha256: md.Sha256,
+		})
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to create artifact type payload")
+		}
+		rolePayload, err := proto.Marshal(&pipepb.ArtifactStagingToRolePayload{
+			StagedName: md.Name,
+		})
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to create artifact role payload")
+		}
+		artifacts = append(artifacts, &pipepb.ArtifactInformation{
+			TypeUrn:     URNFileArtifact,
+			TypePayload: typePayload,
+			RoleUrn:     URNStagingTo,
+			RolePayload: rolePayload,
+		})
 		list = append(list, &legacyArtifact{
 			client: client,
 			rt:     rt,
@@ -196,7 +277,7 @@ func legacyMaterialize(ctx context.Context, endpoint string, rt string, dest str
 		})
 	}
 
-	return mds, MultiRetrieve(ctx, 10, list, dest)
+	return artifacts, MultiRetrieve(ctx, 10, list, dest)
 }
 
 // MultiRetrieve retrieves multiple artifacts concurrently, using at most 'cpus'
