@@ -47,9 +47,12 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.GroupIntoBatches;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.WithKeys;
@@ -265,31 +268,44 @@ class BatchLoads<DestinationT, ElementT>
 
   // Expand the pipeline when the user has requested periodically-triggered file writes.
   private WriteResult expandTriggered(PCollection<KV<DestinationT, ElementT>> input) {
-    checkArgument(numFileShards > 0);
     Pipeline p = input.getPipeline();
     final PCollectionView<String> loadJobIdPrefixView = createJobIdPrefixView(p, JobType.LOAD);
     final PCollectionView<String> copyJobIdPrefixView = createJobIdPrefixView(p, JobType.COPY);
     final PCollectionView<String> tempFilePrefixView =
         createTempFilePrefixView(p, loadJobIdPrefixView);
-    // The user-supplied triggeringDuration is often chosen to control how many BigQuery load
-    // jobs are generated, to prevent going over BigQuery's daily quota for load jobs. If this
-    // is set to a large value, currently we have to buffer all the data until the trigger fires.
-    // Instead we ensure that the files are written if a threshold number of records are ready.
-    // We use only the user-supplied trigger on the actual BigQuery load. This allows us to
-    // offload the data to the filesystem.
-    PCollection<KV<DestinationT, ElementT>> inputInGlobalWindow =
-        input.apply(
-            "rewindowIntoGlobal",
-            Window.<KV<DestinationT, ElementT>>into(new GlobalWindows())
-                .triggering(
-                    Repeatedly.forever(
-                        AfterFirst.of(
-                            AfterProcessingTime.pastFirstElementInPane()
-                                .plusDelayOf(triggeringFrequency),
-                            AfterPane.elementCountAtLeast(FILE_TRIGGERING_RECORD_COUNT))))
-                .discardingFiredPanes());
-    PCollection<WriteBundlesToFiles.Result<DestinationT>> results =
-        writeShardedFiles(inputInGlobalWindow, tempFilePrefixView);
+    PCollection<WriteBundlesToFiles.Result<DestinationT>> results;
+    if (numFileShards > 0) {
+      // The user-supplied triggeringFrequency is often chosen to control how many BigQuery load
+      // jobs are generated, to prevent going over BigQuery's daily quota for load jobs. If this
+      // is set to a large value, currently we have to buffer all the data until the trigger fires.
+      // Instead we ensure that the files are written if a threshold number of records are ready.
+      // We use only the user-supplied trigger on the actual BigQuery load. This allows us to
+      // offload the data to the filesystem.
+      PCollection<KV<DestinationT, ElementT>> inputInGlobalWindow =
+          input.apply(
+              "rewindowIntoGlobal",
+              Window.<KV<DestinationT, ElementT>>into(new GlobalWindows())
+                  .triggering(
+                      Repeatedly.forever(
+                          AfterFirst.of(
+                              AfterProcessingTime.pastFirstElementInPane()
+                                  .plusDelayOf(triggeringFrequency),
+                              AfterPane.elementCountAtLeast(FILE_TRIGGERING_RECORD_COUNT))))
+                  .discardingFiredPanes());
+      results = writeStaticallyShardedFiles(inputInGlobalWindow, tempFilePrefixView);
+    } else {
+      // In the case of dynamic sharding, however, we use a default triggering and instead apply the
+      // user supplied triggeringFrequency to the sharding transform. See
+      // writeDynamicallyShardedFilesTriggered.
+      PCollection<KV<DestinationT, ElementT>> inputInGlobalWindow =
+          input.apply(
+              "rewindowIntoGlobal",
+              Window.<KV<DestinationT, ElementT>>into(new GlobalWindows())
+                  .triggering(DefaultTrigger.of())
+                  .discardingFiredPanes());
+      results = writeDynamicallyShardedFilesTriggered(inputInGlobalWindow, tempFilePrefixView);
+    }
+
     // Apply the user's trigger before we start generating BigQuery load jobs.
     results =
         results.apply(
@@ -307,7 +323,7 @@ class BatchLoads<DestinationT, ElementT>
         new TupleTag<>("singlePartitionTag");
 
     // If we have non-default triggered output, we can't use the side-input technique used in
-    // expandUntriggered . Instead make the result list a main input. Apply a GroupByKey first for
+    // expandUntriggered. Instead make the result list a main input. Apply a GroupByKey first for
     // determinism.
     PCollectionTuple partitions =
         results
@@ -371,8 +387,8 @@ class BatchLoads<DestinationT, ElementT>
                 .discardingFiredPanes());
     PCollection<WriteBundlesToFiles.Result<DestinationT>> results =
         (numFileShards == 0)
-            ? writeDynamicallyShardedFiles(inputInGlobalWindow, tempFilePrefixView)
-            : writeShardedFiles(inputInGlobalWindow, tempFilePrefixView);
+            ? writeDynamicallyShardedFilesUntriggered(inputInGlobalWindow, tempFilePrefixView)
+            : writeStaticallyShardedFiles(inputInGlobalWindow, tempFilePrefixView);
 
     TupleTag<KV<ShardedKey<DestinationT>, List<String>>> multiPartitionsTag =
         new TupleTag<KV<ShardedKey<DestinationT>, List<String>>>("multiPartitionsTag") {};
@@ -470,9 +486,10 @@ class BatchLoads<DestinationT, ElementT>
         .apply("TempFilePrefixView", View.asSingleton());
   }
 
-  // Writes input data to dynamically-sharded, per-bundle files. Returns a PCollection of filename,
-  // file byte size, and table destination.
-  PCollection<WriteBundlesToFiles.Result<DestinationT>> writeDynamicallyShardedFiles(
+  // Writes input data to dynamically-sharded per-bundle files without triggering. Input records are
+  // spilt to new files if memory is constrained. Returns a PCollection of filename, file byte size,
+  // and table destination.
+  PCollection<WriteBundlesToFiles.Result<DestinationT>> writeDynamicallyShardedFilesUntriggered(
       PCollection<KV<DestinationT, ElementT>> input, PCollectionView<String> tempFilePrefix) {
     TupleTag<WriteBundlesToFiles.Result<DestinationT>> writtenFilesTag =
         new TupleTag<WriteBundlesToFiles.Result<DestinationT>>("writtenFiles") {};
@@ -513,9 +530,9 @@ class BatchLoads<DestinationT, ElementT>
         .setCoder(WriteBundlesToFiles.ResultCoder.of(destinationCoder));
   }
 
-  // Writes input data to statically-sharded files. Returns a PCollection of filename,
-  // file byte size, and table destination.
-  PCollection<WriteBundlesToFiles.Result<DestinationT>> writeShardedFiles(
+  // Writes input data to statically-sharded files. Returns a PCollection of filename, file byte
+  // size, and table destination.
+  PCollection<WriteBundlesToFiles.Result<DestinationT>> writeStaticallyShardedFiles(
       PCollection<KV<DestinationT, ElementT>> input, PCollectionView<String> tempFilePrefix) {
     checkState(numFileShards > 0);
     PCollection<KV<ShardedKey<DestinationT>, ElementT>> shardedRecords =
@@ -547,11 +564,66 @@ class BatchLoads<DestinationT, ElementT>
     return writeShardedRecords(shardedRecords, tempFilePrefix);
   }
 
+  // Writes input data to dynamically-sharded files with triggering. The input data is sharded by
+  // table destinations and each destination may be sub-sharded dynamically. Returns a PCollection
+  // of filename, file byte size, and table destination.
+  PCollection<WriteBundlesToFiles.Result<DestinationT>> writeDynamicallyShardedFilesTriggered(
+      PCollection<KV<DestinationT, ElementT>> input, PCollectionView<String> tempFilePrefix) {
+    // In contrast to fixed sharding with triggering, here we use a global window with default
+    // trigger and apply the user supplied triggeringFrequency in the subsequent GroupIntoBatches
+    // transform. We also ensure that the files are written if a threshold number of records are
+    // ready. Dynamic sharding is achieved via the withShardedKey() option provided by
+    // GroupIntoBatches.
+    return input
+        .apply(
+            GroupIntoBatches.<DestinationT, ElementT>ofSize(FILE_TRIGGERING_RECORD_COUNT)
+                .withMaxBufferingDuration(triggeringFrequency)
+                .withShardedKey())
+        .setCoder(
+            KvCoder.of(
+                org.apache.beam.sdk.util.ShardedKey.Coder.of(destinationCoder),
+                IterableCoder.of(elementCoder)))
+        .apply(
+            "StripShardId",
+            MapElements.via(
+                new SimpleFunction<
+                    KV<org.apache.beam.sdk.util.ShardedKey<DestinationT>, Iterable<ElementT>>,
+                    KV<DestinationT, Iterable<ElementT>>>() {
+                  @Override
+                  public KV<DestinationT, Iterable<ElementT>> apply(
+                      KV<org.apache.beam.sdk.util.ShardedKey<DestinationT>, Iterable<ElementT>>
+                          input) {
+                    return KV.of(input.getKey().getKey(), input.getValue());
+                  }
+                }))
+        .setCoder(KvCoder.of(destinationCoder, IterableCoder.of(elementCoder)))
+        .apply(
+            "WriteGroupedRecords",
+            ParDo.of(
+                    new WriteGroupedRecordsToFiles<DestinationT, ElementT>(
+                        tempFilePrefix, maxFileSize, rowWriterFactory))
+                .withSideInputs(tempFilePrefix))
+        .setCoder(WriteBundlesToFiles.ResultCoder.of(destinationCoder));
+  }
+
   private PCollection<Result<DestinationT>> writeShardedRecords(
       PCollection<KV<ShardedKey<DestinationT>, ElementT>> shardedRecords,
       PCollectionView<String> tempFilePrefix) {
     return shardedRecords
         .apply("GroupByDestination", GroupByKey.create())
+        .apply(
+            "StripShardId",
+            MapElements.via(
+                new SimpleFunction<
+                    KV<ShardedKey<DestinationT>, Iterable<ElementT>>,
+                    KV<DestinationT, Iterable<ElementT>>>() {
+                  @Override
+                  public KV<DestinationT, Iterable<ElementT>> apply(
+                      KV<ShardedKey<DestinationT>, Iterable<ElementT>> input) {
+                    return KV.of(input.getKey().getKey(), input.getValue());
+                  }
+                }))
+        .setCoder(KvCoder.of(destinationCoder, IterableCoder.of(elementCoder)))
         .apply(
             "WriteGroupedRecords",
             ParDo.of(

@@ -19,7 +19,9 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import com.alibaba.fastjson.JSON;
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
 import org.testcontainers.shaded.com.google.common.collect.ImmutableList;
@@ -57,7 +59,15 @@ public class BeamKafkaTableJsonTest extends BeamKafkaTableTest {
 
   @Override
   protected BeamKafkaTable getBeamKafkaTable() {
-    return new BeamKafkaJsonTable(TEST_SCHEMA, "", ImmutableList.of());
+    return (BeamKafkaTable)
+        (new KafkaTableProvider()
+            .buildBeamSqlTable(
+                Table.builder()
+                    .name("kafka")
+                    .type("kafka")
+                    .schema(TEST_SCHEMA)
+                    .properties(JSON.parseObject("{ \"topics\": [], \"format\": \"json\" }"))
+                    .build()));
   }
 
   private String createJson(int i) {
