@@ -64,7 +64,6 @@ This section describes what is needed to get the template up and running.
     - Build Data Tokenization Dataflow Flex Template
     - Creating the Dataflow Flex Template
     - Executing Template
-    
 
 ## Gradle preparation
 
