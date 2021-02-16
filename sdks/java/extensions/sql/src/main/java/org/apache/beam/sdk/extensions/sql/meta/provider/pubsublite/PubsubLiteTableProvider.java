@@ -32,6 +32,7 @@ import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.InMemoryMetaTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.EquivalenceNullablePolicy;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
@@ -55,11 +56,11 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  *
  * <pre>{@code
  * CREATE EXTERNAL TABLE tableName(
- *     message_key BYTES,  // optional
- *     publish_timestamp NOT NULL TIMESTAMP,  // optional, readable tables only
- *     event_timestamp TIMESTAMP,  // optional
- *     attributes ARRAY<ROW<key VARCHAR, values ARRAY<BYTES>>>,  // optional
- *     payload BYTES | ROW<[INSERT SCHEMA HERE]>,
+ *     message_key BYTES NOT NULL,  // optional
+ *     publish_timestamp TIMESTAMP NOT NULL,  // optional, readable tables only
+ *     event_timestamp TIMESTAMP [NOT NULL],  // optional, null if not present in readable table, unset in message if null in writable table. NOT NULL enforces field presence on read
+ *     attributes ARRAY<ROW<key VARCHAR NOT NULL, values ARRAY<BYTES NOT NULL> NOT NULL> NOT NULL> NOT NULL,  // optional
+ *     payload BYTES NOT NULL | ROW<[INSERT SCHEMA HERE]>,
  * )
  * TYPE pubsublite
  * // For writable tables
@@ -101,27 +102,36 @@ public class PubsubLiteTableProvider extends InMemoryMetaTableProvider {
           checkArgument(
               field.getType().equals(RowHandler.ATTRIBUTES_FIELD_TYPE),
               String.format(
-                  "'%s' field must have schema of exactly 'ARRAY<ROW<key VARCHAR, values ARRAY<BYTES>>>'.",
+                  "'%s' field must have schema of exactly 'ARRAY<ROW<key VARCHAR NOT NULL, values ARRAY<BYTES NOT NULL> NOT NULL> NOT NULL> NOT NULL'.",
                   field.getName()));
           break;
         case RowHandler.EVENT_TIMESTAMP_FIELD:
+          // Event timestamps may be nullable or non-null.
+          checkArgument(
+              FieldType.DATETIME.equivalent(field.getType(), EquivalenceNullablePolicy.WEAKEN),
+              String.format(
+                  "'%s' field must have schema of exactly 'TIMESTAMP [NOT NULL]'.",
+                  field.getName()));
+          break;
         case RowHandler.PUBLISH_TIMESTAMP_FIELD:
           checkArgument(
               field.getType().equals(FieldType.DATETIME),
               String.format(
-                  "'%s' field must have schema of exactly 'TIMESTAMP'.", field.getName()));
+                  "'%s' field must have schema of exactly 'TIMESTAMP NOT NULL'.", field.getName()));
           break;
         case RowHandler.MESSAGE_KEY_FIELD:
           checkArgument(
               field.getType().equals(FieldType.BYTES),
-              String.format("'%s' field must have schema of exactly 'BYTES'.", field.getName()));
+              String.format(
+                  "'%s' field must have schema of exactly 'BYTES NOT NULL'.", field.getName()));
           break;
         case RowHandler.PAYLOAD_FIELD:
           checkArgument(
               field.getType().equals(FieldType.BYTES)
                   || field.getType().getTypeName().equals(TypeName.ROW),
               String.format(
-                  "'%s' field must either have a 'BYTES' or 'ROW' schema.", field.getName()));
+                  "'%s' field must either have a 'BYTES NOT NULL' or 'ROW' schema.",
+                  field.getName()));
           break;
         default:
           throw new IllegalArgumentException(
@@ -195,6 +205,9 @@ public class PubsubLiteTableProvider extends InMemoryMetaTableProvider {
 
     switch (location.getKind()) {
       case TOPIC:
+        checkArgument(
+            !table.getSchema().hasField(RowHandler.PUBLISH_TIMESTAMP_FIELD),
+            "May not write to publish timestamp, this field is read-only.");
         return new PubsubLiteTopicTable(
             table.getSchema(),
             location.topic(),

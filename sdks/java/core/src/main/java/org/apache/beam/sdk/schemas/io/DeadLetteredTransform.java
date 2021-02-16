@@ -69,7 +69,7 @@ public class DeadLetteredTransform<InputT, OutputT>
                         .setPayload(os.toByteArray())
                         .setError(
                             String.format(
-                                "%s\n\n%s",
+                                "%s%n%n%s",
                                 x.exception().getMessage(),
                                 ExceptionUtils.getStackTrace(x.exception())))
                         .build();

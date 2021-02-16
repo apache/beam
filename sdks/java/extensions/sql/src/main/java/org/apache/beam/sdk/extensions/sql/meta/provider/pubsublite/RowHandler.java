@@ -89,7 +89,7 @@ class RowHandler implements Serializable {
     if (schema.hasField(MESSAGE_KEY_FIELD)) {
       builder.withFieldValue(MESSAGE_KEY_FIELD, message.getMessage().getKey().toByteArray());
     }
-    if (schema.hasField(EVENT_TIMESTAMP_FIELD)) {
+    if (schema.hasField(EVENT_TIMESTAMP_FIELD) && message.getMessage().hasEventTime()) {
       builder.withFieldValue(
           EVENT_TIMESTAMP_FIELD,
           Instant.ofEpochMilli(Timestamps.toMillis(message.getMessage().getEventTime())));

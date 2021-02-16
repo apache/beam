@@ -47,7 +47,7 @@ public class RowHandlerTest {
   private static final Schema FULL_WRITE_SCHEMA =
       Schema.builder()
           .addByteArrayField(RowHandler.MESSAGE_KEY_FIELD)
-          .addDateTimeField(RowHandler.EVENT_TIMESTAMP_FIELD)
+          .addField(RowHandler.EVENT_TIMESTAMP_FIELD, FieldType.DATETIME.withNullable(true))
           .addArrayField(
               RowHandler.ATTRIBUTES_FIELD, FieldType.row(RowHandler.ATTRIBUTES_ENTRY_SCHEMA))
           .addByteArrayField(RowHandler.PAYLOAD_FIELD)
@@ -55,7 +55,7 @@ public class RowHandlerTest {
   private static final Schema FULL_READ_SCHEMA =
       Schema.builder()
           .addByteArrayField(RowHandler.MESSAGE_KEY_FIELD)
-          .addDateTimeField(RowHandler.EVENT_TIMESTAMP_FIELD)
+          .addField(RowHandler.EVENT_TIMESTAMP_FIELD, FieldType.DATETIME.withNullable(true))
           .addArrayField(
               RowHandler.ATTRIBUTES_FIELD, FieldType.row(RowHandler.ATTRIBUTES_ENTRY_SCHEMA))
           .addByteArrayField(RowHandler.PAYLOAD_FIELD)
@@ -90,15 +90,29 @@ public class RowHandlerTest {
 
   @Test
   public void messageToRowFailures() {
-    Schema payloadSchema = Schema.builder().addStringField("def").build();
-    RowHandler rowHandler =
-        new RowHandler(
-            Schema.builder().addRowField(RowHandler.PAYLOAD_FIELD, payloadSchema).build(),
-            serializer);
-    doThrow(new IllegalArgumentException("")).when(serializer).deserialize(any());
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> rowHandler.messageToRow(SequencedMessage.getDefaultInstance()));
+    {
+      Schema payloadSchema = Schema.builder().addStringField("def").build();
+      RowHandler rowHandler =
+          new RowHandler(
+              Schema.builder().addRowField(RowHandler.PAYLOAD_FIELD, payloadSchema).build(),
+              serializer);
+      doThrow(new IllegalArgumentException("")).when(serializer).deserialize(any());
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> rowHandler.messageToRow(SequencedMessage.getDefaultInstance()));
+    }
+    // Schema requires event time, missing in message
+    {
+      RowHandler rowHandler =
+          new RowHandler(
+              Schema.builder()
+                  .addByteArrayField(RowHandler.PAYLOAD_FIELD)
+                  .addDateTimeField(RowHandler.EVENT_TIMESTAMP_FIELD)
+                  .build());
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> rowHandler.messageToRow(SequencedMessage.getDefaultInstance()));
+    }
   }
 
   @Test
