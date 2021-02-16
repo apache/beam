@@ -15,12 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.meta.provider.payloads;
+package org.apache.beam.sdk.io.thrift;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 
-import org.apache.beam.sdk.extensions.sql.meta.provider.kafka.thrift.TestThriftMessage;
+import org.apache.beam.sdk.io.thrift.payloads.TestThriftMessage;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializerProvider;
 import org.apache.beam.sdk.values.Row;

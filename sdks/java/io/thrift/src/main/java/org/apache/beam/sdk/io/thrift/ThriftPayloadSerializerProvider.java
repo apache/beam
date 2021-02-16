@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.meta.provider.payloads;
+package org.apache.beam.sdk.io.thrift;
 
 import static org.apache.beam.sdk.schemas.transforms.Cast.castRow;
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
@@ -26,8 +26,6 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.io.thrift.ThriftCoder;
-import org.apache.beam.sdk.io.thrift.ThriftSchema;
 import org.apache.beam.sdk.schemas.RowMessages;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializer;
@@ -40,6 +38,7 @@ import org.apache.thrift.protocol.TProtocolFactory;
 
 @Internal
 @Experimental(Kind.SCHEMAS)
+@SuppressWarnings("rawtypes")
 @AutoService(PayloadSerializerProvider.class)
 public class ThriftPayloadSerializerProvider implements PayloadSerializerProvider {
   @Override

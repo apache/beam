@@ -25,9 +25,10 @@ import static org.junit.Assert.assertTrue;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import java.util.stream.Stream;
+import org.apache.beam.sdk.extensions.protobuf.PayloadMessages;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
-import org.apache.beam.sdk.extensions.sql.meta.provider.kafka.thrift.SimpleThriftMessage;
+import org.apache.beam.sdk.io.thrift.payloads.SimpleThriftMessage;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableList;
 import org.apache.thrift.TBase;
@@ -68,7 +69,7 @@ public class KafkaTableProviderTest {
 
   @Test
   public void testBuildBeamSqlProtoTable() {
-    Table table = mockProtoTable("hello", KafkaMessages.SimpleMessage.class);
+    Table table = mockProtoTable("hello", PayloadMessages.SimpleMessage.class);
     BeamSqlTable sqlTable = provider.buildBeamSqlTable(table);
 
     assertNotNull(sqlTable);

@@ -23,6 +23,7 @@ import static org.junit.Assert.assertThrows;
 
 import com.alibaba.fastjson.JSON;
 import java.util.List;
+import org.apache.beam.sdk.extensions.protobuf.PayloadMessages;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
@@ -90,7 +91,7 @@ public class BeamKafkaTableProtoTest extends BeamKafkaTableTest {
                     .properties(
                         JSON.parseObject(
                             "{ \"topics\": [], \"format\": \"proto\", \"protoClass\": \""
-                                + KafkaMessages.TestMessage.class.getName()
+                                + PayloadMessages.TestMessage.class.getName()
                                 + "\" }"))
                     .build()));
   }
@@ -109,8 +110,8 @@ public class BeamKafkaTableProtoTest extends BeamKafkaTableTest {
 
   @Override
   protected byte[] generateEncodedPayload(int i) {
-    KafkaMessages.TestMessage message =
-        KafkaMessages.TestMessage.newBuilder()
+    PayloadMessages.TestMessage message =
+        PayloadMessages.TestMessage.newBuilder()
             .setFLong(i)
             .setFInt(i)
             .setFDouble(i)
