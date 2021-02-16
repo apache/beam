@@ -59,29 +59,31 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * The {@link DataTokenization} pipeline reads data from one of the supported sources,
- * tokenizes data with external API calls to some tokenization server, and writes data
- * into one of the supported sinks.
- * <br>
+ * The {@link DataTokenization} pipeline reads data from one of the supported sources, tokenizes
+ * data with external API calls to some tokenization server, and writes data into one of the
+ * supported sinks. <br>
+ *
  * <p><b>Pipeline Requirements</b>
+ *
  * <ul>
- *   <li>Java 8</li>
- *   <li>Data schema (JSON with an array of fields described in BigQuery format)</li>
- *   <li>1 of supported sources to read data from</li>
- *   <ul>
- *     <li>File system (Only JSON or CSV)</li>
- *     <li><a href=https://cloud.google.com/pubsub>Google Pub/Sub</a></li>
- *   </ul>
- *   <li>1 of supported destination sinks to write data into</li>
- *   <ul>
- *     <li>File system (Only JSON or CSV)</li>
- *     <li><a href=https://cloud.google.com/bigquery>Google Cloud BigQuery</a></li>
- *     <li><a href=https://cloud.google.com/bigtable>Cloud BigTable</a></li>
- *   </ul>
- *   <li>A configured tokenization server</li>
+ *   <li>Java 8
+ *   <li>Data schema (JSON with an array of fields described in BigQuery format)
+ *   <li>1 of supported sources to read data from
+ *       <ul>
+ *         <li>File system (Only JSON or CSV)
+ *         <li><a href=https://cloud.google.com/pubsub>Google Pub/Sub</a>
+ *       </ul>
+ *   <li>1 of supported destination sinks to write data into
+ *       <ul>
+ *         <li>File system (Only JSON or CSV)
+ *         <li><a href=https://cloud.google.com/bigquery>Google Cloud BigQuery</a>
+ *         <li><a href=https://cloud.google.com/bigtable>Cloud BigTable</a>
+ *       </ul>
+ *   <li>A configured tokenization server
  * </ul>
  *
  * <p><b>Example Usage</b>
+ *
  * <pre>
  * <b>Gradle Preparation</b>
  * To run this example your  build.gradle file should contain the following task
