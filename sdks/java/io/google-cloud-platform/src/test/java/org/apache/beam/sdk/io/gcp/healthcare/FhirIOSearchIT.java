@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.healthcare;
 
 import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.HEALTHCARE_DATASET_TEMPLATE;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
 import com.google.gson.JsonArray;
@@ -30,17 +31,16 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import org.apache.beam.runners.direct.DirectOptions;
-import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.MapCoder;
+import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.junit.AfterClass;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -67,8 +67,10 @@ public class FhirIOSearchIT {
   private static final String BASE_STORE_ID =
       "FHIR_store_search_it_" + System.currentTimeMillis() + "_" + (new SecureRandom().nextInt(32));
   private String fhirStoreId;
-  private static final int MAX_NUM_OF_SEARCHES = 100;
-  private List<KV<String, Map<String, String>>> input = new ArrayList<>();
+  private static final int MAX_NUM_OF_SEARCHES = 50;
+  private List<FhirSearchParameter<String>> input = new ArrayList<>();
+  private List<FhirSearchParameter<List<Integer>>> genericParametersInput = new ArrayList<>();
+  private static final String KEY = "key";
 
   public String version;
 
@@ -96,17 +98,15 @@ public class FhirIOSearchIT {
     JsonArray fhirResources =
         JsonParser.parseString(bundles.get(0)).getAsJsonObject().getAsJsonArray("entry");
     HashMap<String, String> searchParameters = new HashMap<>();
-    searchParameters.put("_count", Integer.toString(100));
+    searchParameters.put("_count", Integer.toString(50));
+    HashMap<String, List<Integer>> genericSearchParameters = new HashMap<>();
+    genericSearchParameters.put("_count", Arrays.asList(50));
     int searches = 0;
     for (JsonElement resource : fhirResources) {
-      input.add(
-          KV.of(
-              resource
-                  .getAsJsonObject()
-                  .getAsJsonObject("resource")
-                  .get("resourceType")
-                  .getAsString(),
-              searchParameters));
+      String resourceType =
+          resource.getAsJsonObject().getAsJsonObject("resource").get("resourceType").getAsString();
+      input.add(FhirSearchParameter.of(resourceType, KEY, searchParameters));
+      genericParametersInput.add(FhirSearchParameter.of(resourceType, genericSearchParameters));
       searches++;
       if (searches > MAX_NUM_OF_SEARCHES) {
         break;
@@ -114,8 +114,8 @@ public class FhirIOSearchIT {
     }
   }
 
-  @AfterClass
-  public static void teardown() throws IOException {
+  @After
+  public void teardown() throws IOException {
     HealthcareApiClient client = new HttpHealthcareApiClient();
     for (String version : versions()) {
       client.deleteFhirStore(healthcareDataset + "/fhirStores/" + BASE_STORE_ID + version);
@@ -127,26 +127,54 @@ public class FhirIOSearchIT {
     pipeline.getOptions().as(DirectOptions.class).setBlockOnRun(false);
 
     // Search using the resource type of each written resource and empty search parameters.
-    PCollection<KV<String, Map<String, String>>> searchConfigs =
+    PCollection<FhirSearchParameter<String>> searchConfigs =
         pipeline.apply(
-            Create.of(input)
-                .withCoder(
-                    KvCoder.of(
-                        StringUtf8Coder.of(),
-                        MapCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))));
+            Create.of(input).withCoder(FhirSearchParameterCoder.of(StringUtf8Coder.of())));
     FhirIO.Search.Result result =
         searchConfigs.apply(
             FhirIO.searchResources(healthcareDataset + "/fhirStores/" + fhirStoreId));
 
     // Verify that there are no failures.
     PAssert.that(result.getFailedSearches()).empty();
-    // Verify that none of the result resource sets are empty sets.
+    // Verify that none of the result resource sets are empty sets, using both getResources methods.
+    PCollection<KV<String, JsonArray>> keyedResources = result.getKeyedResources();
+    PAssert.that(keyedResources)
+        .satisfies(
+            input -> {
+              for (KV<String, JsonArray> resource : input) {
+                assertEquals(KEY, resource.getKey());
+                assertNotEquals(0, resource.getValue().size());
+              }
+              return null;
+            });
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testFhirIOSearchWithGenericParameters() {
+    pipeline.getOptions().as(DirectOptions.class).setBlockOnRun(false);
+
+    // Search using the resource type of each written resource and empty search parameters.
+    PCollection<FhirSearchParameter<List<Integer>>> searchConfigs =
+        pipeline.apply(
+            Create.of(genericParametersInput)
+                .withCoder(FhirSearchParameterCoder.of(ListCoder.of(VarIntCoder.of()))));
+    FhirIO.Search.Result result =
+        searchConfigs.apply(
+            (FhirIO.Search<List<Integer>>)
+                FhirIO.searchResourcesWithGenericParameters(
+                    healthcareDataset + "/fhirStores/" + fhirStoreId));
+
+    // Verify that there are no failures.
+    PAssert.that(result.getFailedSearches()).empty();
+    // Verify that none of the result resource sets are empty sets, using both getResources methods.
     PCollection<JsonArray> resources = result.getResources();
     PAssert.that(resources)
         .satisfies(
             input -> {
               for (JsonArray resource : input) {
-                assertNotEquals(resource.size(), 0);
+                assertNotEquals(0, resource.size());
               }
               return null;
             });

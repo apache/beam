@@ -35,6 +35,15 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
+// EnableSchemas is a temporary configuration variable
+// to use Beam Schema encoding by default instead of JSON.
+// Before it is removed, it will be set to true by default
+// and then eventually removed.
+//
+// Only users who rely on default JSON marshalling behaviour should set
+// this explicitly.
+var EnableSchemas bool = false
+
 type jsonCoder interface {
 	json.Marshaler
 	json.Unmarshaler
@@ -183,6 +192,19 @@ func inferCoder(t FullType) (*coder.Coder, error) {
 			if c := coder.LookupCustomCoder(et); c != nil {
 				return coder.CoderFrom(c), nil
 			}
+
+			if EnableSchemas {
+				switch et.Kind() {
+				case reflect.Ptr:
+					if et.Elem().Kind() != reflect.Struct {
+						break
+					}
+					fallthrough
+				case reflect.Struct:
+					return &coder.Coder{Kind: coder.Row, T: t}, nil
+				}
+			}
+
 			// Interface types that implement JSON marshalling can be handled by the default coder.
 			// otherwise, inference needs to fail here.
 			if et.Kind() == reflect.Interface && !et.Implements(jsonCoderType) {

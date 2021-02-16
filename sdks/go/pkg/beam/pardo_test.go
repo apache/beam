@@ -16,9 +16,19 @@
 package beam
 
 import (
+	"bytes"
+	"context"
+	"reflect"
 	"strings"
 	"testing"
+	
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
+	"github.com/apache/beam/sdks/go/pkg/beam/options/jobopts"
 )
+
+func init() {
+	RegisterType(reflect.TypeOf((*AnnotationsFn)(nil)))
+}
 
 func TestParDoForSize(t *testing.T) {
 	var tests = []struct {
@@ -61,3 +71,65 @@ func TestFormatParDoError(t *testing.T) {
 		t.Errorf("formatParDoError(testFunction,2,1) = %v, want = %v", got, want)
 	}
 }
+
+func TestAnnotations(t *testing.T) {
+	m := make(map[string][]byte)
+	m["privacy_property"] = []byte("differential_privacy")
+	doFn := &AnnotationsFn{Annotations: m}
+
+	p := NewPipeline()
+	s := p.Root()
+
+	values := [2]int{0, 1}
+	col := CreateList(s, values)
+	ParDo(s, doFn, col)
+
+	ctx := context.Background()
+	envUrn := jobopts.GetEnvironmentUrn(ctx)
+	getEnvCfg := jobopts.GetEnvironmentConfig
+
+	environment, err := graphx.CreateEnvironment(ctx, envUrn, getEnvCfg)
+	if err != nil {
+		t.Fatalf("Couldn't create environment build: %v", err)
+	}
+
+	edges, _, err := p.Build()
+	if err != nil {
+		t.Fatalf("Pipeline couldn't build: %v", err)
+	}
+	pb, err := graphx.Marshal(edges, &graphx.Options{Environment: environment})
+	if err != nil {
+		t.Fatalf("Couldn't graphx.Marshal edges: %v", err)
+	}
+	components := pb.GetComponents()
+	transforms := components.GetTransforms()
+
+	foundAnnotationsFn := false
+	for _, transform := range transforms {
+		if strings.Contains(transform.GetUniqueName(), "AnnotationsFn") {
+			foundAnnotationsFn = true
+			annotations := transform.GetAnnotations()
+			for name, annotation := range annotations {
+				if strings.Compare(name, "privacy_property") != 0 {
+					t.Errorf("Annotation name: got %v, want %v", name, "privacy_property")
+				}
+				if bytes.Compare(annotation, []byte("differential_privacy")) != 0 {
+					t.Errorf("Annotation value: got %v, want %v", annotation, []byte("differential_privacy"))
+				}
+			}
+		}
+	}
+	if !foundAnnotationsFn {
+		t.Errorf("Couldn't find AnnotationsFn in graph %v", transforms)
+	}
+}
+
+// AnnotationsFn is a dummy DoFn with an annotation.
+type AnnotationsFn struct {
+	Annotations map[string][]byte
+}
+
+func (fn *AnnotationsFn) ProcessElement(v int) int {
+	return v
+}
+

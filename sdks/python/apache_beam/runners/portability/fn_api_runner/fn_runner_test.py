@@ -20,6 +20,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 import collections
+import gc
 import logging
 import os
 import random
@@ -46,6 +47,7 @@ from tenacity import retry
 from tenacity import stop_after_attempt
 
 import apache_beam as beam
+from apache_beam.coders import coders
 from apache_beam.coders.coders import StrUtf8Coder
 from apache_beam.io import restriction_trackers
 from apache_beam.io.watermark_estimators import ManualWatermarkEstimator
@@ -780,6 +782,21 @@ class FnApiRunnerTest(unittest.TestCase):
           | beam.Map(lambda k_vs1: (k_vs1[0], sorted(k_vs1[1]))))
       assert_that(res, equal_to([('k', [1, 2]), ('k', [100, 101, 102])]))
 
+  def test_custom_merging_window(self):
+    with self.create_pipeline() as p:
+      res = (
+          p
+          | beam.Create([1, 2, 100, 101, 102])
+          | beam.Map(lambda t: window.TimestampedValue(('k', t), t))
+          | beam.WindowInto(CustomMergingWindowFn())
+          | beam.GroupByKey()
+          | beam.Map(lambda k_vs1: (k_vs1[0], sorted(k_vs1[1]))))
+      assert_that(
+          res, equal_to([('k', [1]), ('k', [101]), ('k', [2, 100, 102])]))
+    gc.collect()
+    from apache_beam.runners.portability.fn_api_runner.execution import GenericMergingWindowFn
+    self.assertEqual(GenericMergingWindowFn._HANDLES, {})
+
   @unittest.skip('BEAM-9119: test is flaky')
   def test_large_elements(self):
     with self.create_pipeline() as p:
@@ -986,6 +1003,58 @@ class FnApiRunnerTest(unittest.TestCase):
 
     with self.create_pipeline() as p:
       assert_that(p | beam.Create(['a', 'b']), equal_to(['a', 'b']))
+
+  def _test_pack_combiners(self, experiments, expect_packed):
+    counter = beam.metrics.Metrics.counter('ns', 'num_values')
+
+    def min_with_counter(values):
+      counter.inc()
+      return min(values)
+
+    def max_with_counter(values):
+      counter.inc()
+      return max(values)
+
+    with self.create_pipeline() as p:
+      for experiment in experiments:
+        p._options.view_as(DebugOptions).add_experiment(experiment)
+      pcoll = p | beam.Create([10, 20, 30])
+      assert_that(
+          pcoll | 'PackableMin' >> beam.CombineGlobally(min_with_counter),
+          equal_to([10]),
+          label='AssertMin')
+      assert_that(
+          pcoll | 'PackableMax' >> beam.CombineGlobally(max_with_counter),
+          equal_to([30]),
+          label='AssertMax')
+
+    res = p.run()
+    res.wait_until_finish()
+
+    unpacked_min_step_name = 'PackableMin/CombinePerKey'
+    unpacked_max_step_name = 'PackableMax/CombinePerKey'
+    packed_step_name = (
+        'Packed[PackableMin/CombinePerKey, PackableMax/CombinePerKey]/' +
+        'Pack')
+
+    counters = res.metrics().query(beam.metrics.MetricsFilter())['counters']
+    step_names = set(m.key.step for m in counters)
+    if expect_packed:
+      self.assertFalse(any([unpacked_min_step_name in s for s in step_names]))
+      self.assertFalse(any([unpacked_max_step_name in s for s in step_names]))
+      self.assertTrue(any([packed_step_name in s for s in step_names]))
+    else:
+      self.assertTrue(any([unpacked_min_step_name in s for s in step_names]))
+      self.assertTrue(any([unpacked_max_step_name in s for s in step_names]))
+      self.assertFalse(any([packed_step_name in s for s in step_names]))
+
+  def test_pack_combiners_disabled_by_default(self):
+    self._test_pack_combiners(experiments=(), expect_packed=False)
+
+  @unittest.skip("BEAM-11694")
+  def test_pack_combiners_enabled_by_experiment(self):
+    self._test_pack_combiners(
+        experiments=('pre_optimize=all', ), expect_packed=True)
 
 
 # These tests are kept in a separate group so that they are
@@ -1948,6 +2017,26 @@ class FnApiBasedStateBackedCoderTest(unittest.TestCase):
           | beam.MapTuple(lambda _, vs: sum(e.num_elements for e in vs)))
 
       assert_that(r, equal_to([VALUES_PER_ELEMENT * NUM_OF_ELEMENTS]))
+
+
+# TODO(robertwb): Why does pickling break when this is inlined?
+class CustomMergingWindowFn(window.WindowFn):
+  def assign(self, assign_context):
+    return [
+        window.IntervalWindow(
+            assign_context.timestamp, assign_context.timestamp + 1)
+    ]
+
+  def merge(self, merge_context):
+    evens = [w for w in merge_context.windows if w.start % 2 == 0]
+    if evens:
+      merge_context.merge(
+          evens,
+          window.IntervalWindow(
+              min(w.start for w in evens), max(w.end for w in evens)))
+
+  def get_window_coder(self):
+    return coders.IntervalWindowCoder()
 
 
 if __name__ == '__main__':

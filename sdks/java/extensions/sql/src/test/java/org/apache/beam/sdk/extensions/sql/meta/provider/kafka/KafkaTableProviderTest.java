@@ -59,9 +59,9 @@ public class KafkaTableProviderTest {
     BeamSqlTable sqlTable = provider.buildBeamSqlTable(table);
 
     assertNotNull(sqlTable);
-    assertTrue(sqlTable instanceof BeamKafkaAvroTable);
+    assertTrue(sqlTable instanceof BeamKafkaTable);
 
-    BeamKafkaAvroTable csvTable = (BeamKafkaAvroTable) sqlTable;
+    BeamKafkaTable csvTable = (BeamKafkaTable) sqlTable;
     assertEquals("localhost:9092", csvTable.getBootstrapServers());
     assertEquals(ImmutableList.of("topic1", "topic2"), csvTable.getTopics());
   }
@@ -72,9 +72,9 @@ public class KafkaTableProviderTest {
     BeamSqlTable sqlTable = provider.buildBeamSqlTable(table);
 
     assertNotNull(sqlTable);
-    assertTrue(sqlTable instanceof BeamKafkaProtoTable);
+    assertTrue(sqlTable instanceof BeamKafkaTable);
 
-    BeamKafkaProtoTable protoTable = (BeamKafkaProtoTable) sqlTable;
+    BeamKafkaTable protoTable = (BeamKafkaTable) sqlTable;
     assertEquals("localhost:9092", protoTable.getBootstrapServers());
     assertEquals(ImmutableList.of("topic1", "topic2"), protoTable.getTopics());
   }
@@ -86,9 +86,9 @@ public class KafkaTableProviderTest {
     BeamSqlTable sqlTable = provider.buildBeamSqlTable(table);
 
     assertNotNull(sqlTable);
-    assertTrue(sqlTable instanceof BeamKafkaThriftTable);
+    assertTrue(sqlTable instanceof BeamKafkaTable);
 
-    BeamKafkaThriftTable thriftTable = (BeamKafkaThriftTable) sqlTable;
+    BeamKafkaTable thriftTable = (BeamKafkaTable) sqlTable;
     assertEquals("localhost:9092", thriftTable.getBootstrapServers());
     assertEquals(ImmutableList.of("topic1", "topic2"), thriftTable.getTopics());
   }

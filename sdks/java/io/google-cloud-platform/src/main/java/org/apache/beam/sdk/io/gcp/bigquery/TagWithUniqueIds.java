@@ -20,9 +20,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import java.io.IOException;
 import java.util.UUID;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 
 /**
@@ -35,8 +33,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
 @SuppressWarnings({
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
-class TagWithUniqueIds<ElementT>
-    extends DoFn<KV<ShardedKey<String>, ElementT>, KV<ShardedKey<String>, TableRowInfo<ElementT>>> {
+class TagWithUniqueIds<KeyT, ElementT>
+    extends DoFn<KV<KeyT, ElementT>, KV<KeyT, TableRowInfo<ElementT>>> {
   private transient String randomUUID;
   private transient long sequenceNo = 0L;
 
@@ -47,7 +45,7 @@ class TagWithUniqueIds<ElementT>
 
   /** Tag the input with a unique id. */
   @ProcessElement
-  public void processElement(ProcessContext context, BoundedWindow window) throws IOException {
+  public void processElement(ProcessContext context) throws IOException {
     String uniqueId = randomUUID + sequenceNo++;
     // We output on keys 0-50 to ensure that there's enough batching for
     // BigQuery.

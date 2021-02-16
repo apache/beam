@@ -150,7 +150,10 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
     LZOP(Compression.LZOP),
 
     /** @see Compression#DEFLATE */
-    DEFLATE(Compression.DEFLATE);
+    DEFLATE(Compression.DEFLATE),
+
+    /** @see Compression#SNAPPY */
+    SNAPPY(Compression.SNAPPY);
 
     private final Compression canonical;
 
@@ -201,6 +204,9 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
 
         case DEFLATE:
           return DEFLATE;
+
+        case SNAPPY:
+          return SNAPPY;
 
         default:
           throw new UnsupportedOperationException("Unsupported compression type: " + canonical);

@@ -17,11 +17,30 @@ package beam
 
 import (
 	"encoding/json"
+	"io"
 	"reflect"
 
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/schema"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
+
+var (
+	encodedTypeType    = reflect.TypeOf((*EncodedType)(nil)).Elem()
+	encodedFuncType    = reflect.TypeOf((*EncodedFunc)(nil)).Elem()
+	encodedCoderType   = reflect.TypeOf((*EncodedCoder)(nil)).Elem()
+	encodedStorageType = reflect.TypeOf((*struct{ Data string })(nil)).Elem()
+)
+
+func init() {
+	schema.RegisterLogicalType(schema.ToLogicalType("beam.EncodedType", encodedTypeType, encodedStorageType))
+	schema.RegisterLogicalType(schema.ToLogicalType("beam.EncodedFunc", encodedFuncType, encodedStorageType))
+	schema.RegisterLogicalType(schema.ToLogicalType("beam.EncodedCoder", encodedCoderType, encodedStorageType))
+	coder.RegisterSchemaProviders(encodedTypeType, encodedTypeEnc, encodedTypeDec)
+	coder.RegisterSchemaProviders(encodedFuncType, encodedFuncEnc, encodedFuncDec)
+	coder.RegisterSchemaProviders(encodedCoderType, encodedCoderEnc, encodedCoderDec)
+}
 
 // EncodedType is a serialization wrapper around a type for convenience.
 type EncodedType struct {
@@ -52,6 +71,44 @@ func (w *EncodedType) UnmarshalJSON(buf []byte) error {
 	return nil
 }
 
+func encodedTypeEnc(reflect.Type) (func(interface{}, io.Writer) error, error) {
+	return func(iface interface{}, w io.Writer) error {
+			if err := coder.WriteSimpleRowHeader(1, w); err != nil {
+				return err
+			}
+			v := iface.(EncodedType)
+			str, err := graphx.EncodeType(v.T)
+			if err != nil {
+				return err
+			}
+			if err := coder.EncodeStringUTF8(str, w); err != nil {
+				return err
+			}
+			return nil
+		},
+		nil
+}
+
+func encodedTypeDec(reflect.Type) (func(io.Reader) (interface{}, error), error) {
+	return func(r io.Reader) (interface{}, error) {
+			if err := coder.ReadSimpleRowHeader(1, r); err != nil {
+				return nil, err
+			}
+			s, err := coder.DecodeStringUTF8(r)
+			if err != nil {
+				return nil, err
+			}
+			t, err := graphx.DecodeType(s)
+			if err != nil {
+				return nil, err
+			}
+			return EncodedType{
+				T: t,
+			}, nil
+		},
+		nil
+}
+
 // EncodedFunc is a serialization wrapper around a function for convenience.
 type EncodedFunc struct {
 	// Fn is the function to preserve across serialization.
@@ -79,6 +136,44 @@ func (w *EncodedFunc) UnmarshalJSON(buf []byte) error {
 	}
 	w.Fn = fn
 	return nil
+}
+
+func encodedFuncEnc(reflect.Type) (func(interface{}, io.Writer) error, error) {
+	return func(iface interface{}, w io.Writer) error {
+			if err := coder.WriteSimpleRowHeader(1, w); err != nil {
+				return err
+			}
+			v := iface.(EncodedFunc)
+			str, err := graphx.EncodeFn(v.Fn)
+			if err != nil {
+				return err
+			}
+			if err := coder.EncodeStringUTF8(str, w); err != nil {
+				return err
+			}
+			return nil
+		},
+		nil
+}
+
+func encodedFuncDec(reflect.Type) (func(io.Reader) (interface{}, error), error) {
+	return func(r io.Reader) (interface{}, error) {
+			if err := coder.ReadSimpleRowHeader(1, r); err != nil {
+				return nil, err
+			}
+			s, err := coder.DecodeStringUTF8(r)
+			if err != nil {
+				return nil, err
+			}
+			fn, err := graphx.DecodeFn(s)
+			if err != nil {
+				return nil, err
+			}
+			return EncodedFunc{
+				Fn: fn,
+			}, nil
+		},
+		nil
 }
 
 // DecodeCoder decodes a coder. Any custom coder function symbol must be
@@ -118,4 +213,40 @@ func (w *EncodedCoder) UnmarshalJSON(buf []byte) error {
 	}
 	w.Coder = Coder{coder: c}
 	return nil
+}
+
+func encodedCoderEnc(reflect.Type) (func(interface{}, io.Writer) error, error) {
+	return func(iface interface{}, w io.Writer) error {
+			if err := coder.WriteSimpleRowHeader(1, w); err != nil {
+				return err
+			}
+			v := iface.(EncodedCoder)
+			str, err := graphx.EncodeCoder(v.Coder.coder)
+			if err != nil {
+				return err
+			}
+			if err := coder.EncodeStringUTF8(str, w); err != nil {
+				return err
+			}
+			return nil
+		},
+		nil
+}
+
+func encodedCoderDec(reflect.Type) (func(io.Reader) (interface{}, error), error) {
+	return func(r io.Reader) (interface{}, error) {
+			if err := coder.ReadSimpleRowHeader(1, r); err != nil {
+				return nil, err
+			}
+			s, err := coder.DecodeStringUTF8(r)
+			if err != nil {
+				return nil, err
+			}
+			c, err := graphx.DecodeCoder(s)
+			if err != nil {
+				return EncodedCoder{}, err
+			}
+			return EncodedCoder{Coder: Coder{coder: c}}, nil
+		},
+		nil
 }

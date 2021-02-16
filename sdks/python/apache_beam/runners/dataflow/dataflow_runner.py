@@ -511,21 +511,38 @@ class DataflowRunner(PipelineRunner):
     self.proto_pipeline, self.proto_context = pipeline.to_runner_api(
         return_context=True, default_environment=self._default_environment)
 
-    # Optimize the pipeline if it not streaming and the
-    # disable_optimize_pipeline_for_dataflow experiment has not been set.
-    if (not options.view_as(StandardOptions).streaming and
-        not options.view_as(DebugOptions).lookup_experiment(
-            "disable_optimize_pipeline_for_dataflow")):
+    # Optimize the pipeline if it not streaming and the pre_optimize
+    # experiment is set.
+    if not options.view_as(StandardOptions).streaming:
+      pre_optimize = options.view_as(DebugOptions).lookup_experiment(
+          'pre_optimize', 'default').lower()
       from apache_beam.runners.portability.fn_api_runner import translations
-      self.proto_pipeline = translations.optimize_pipeline(
-          self.proto_pipeline,
-          phases=[
-              translations.eliminate_common_key_with_none,
-              translations.pack_combiners,
-              translations.sort_stages,
-          ],
-          known_runner_urns=frozenset(),
-          partial=True)
+      if pre_optimize == 'none' or pre_optimize == 'default':
+        phases = []
+      elif pre_optimize == 'all':
+        phases = [
+            # TODO(BEAM-11694): Enable translations.pack_combiners
+            # translations.pack_combiners,
+            translations.sort_stages
+        ]
+      else:
+        phases = []
+        for phase_name in pre_optimize.split(','):
+          # For now, these are all we allow.
+          if phase_name in ('pack_combiners', ):
+            phases.append(getattr(translations, phase_name))
+          else:
+            raise ValueError(
+                'Unknown or inapplicable phase for pre_optimize: %s' %
+                phase_name)
+        phases.append(translations.sort_stages)
+
+      if phases:
+        self.proto_pipeline = translations.optimize_pipeline(
+            self.proto_pipeline,
+            phases=phases,
+            known_runner_urns=frozenset(),
+            partial=True)
 
     if use_fnapi:
       self._check_for_unsupported_fnapi_features(self.proto_pipeline)

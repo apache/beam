@@ -67,9 +67,12 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
+        with:
+          persist-credentials: false
+          submodules: recursive
       # :sdks:java:core:test
       - name: Run :sdks:java:core:test
-        uses: eskatos/gradle-command-action@v1
+        uses: ./.github/actions/gradle-command-action
         with:
           arguments: :sdks:java:core:test
       - name: Upload test logs for :sdks:java:core:test
@@ -80,7 +83,7 @@ jobs:
           path: sdks/java/core/build/reports/tests/test
       # :sdks:java:harness:test
       - name: Run :sdks:java:harness:test
-        uses: eskatos/gradle-command-action@v1
+        uses: ./.github/actions/gradle-command-action
         with:
           arguments: :sdks:java:harness:test
         if: always()
@@ -92,7 +95,7 @@ jobs:
           path: sdks/java/harness/build/reports/tests/test
       # :runners:core-java:test
       - name: Run :runners:core-java:test
-        uses: eskatos/gradle-command-action@v1
+        uses: ./.github/actions/gradle-command-action
         with:
           arguments: :runners:core-java:test
         if: always()
@@ -113,8 +116,11 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
+        with:
+          persist-credentials: false
+          submodules: recursive
       - name: Run WordCount Unix
-        uses: eskatos/gradle-command-action@v1
+        uses: ./.github/actions/gradle-command-action
         with:
           arguments: -p examples/ integrationTest --tests org.apache.beam.examples.WordCountIT
             -DintegrationTestRunner=direct
@@ -143,6 +149,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
+        with:
+          persist-credentials: false
+          submodules: recursive
       - name: Authenticate on GCP
         uses: google-github-actions/setup-gcloud@master
         with:
@@ -151,7 +160,7 @@ jobs:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
           export_default_credentials: true
       - name: Run WordCount
-        uses: eskatos/gradle-command-action@v1
+        uses: ./.github/actions/gradle-command-action
         with:
           arguments: -p examples/ integrationTest --tests org.apache.beam.examples.WordCountIT
             -DintegrationTestPipelineOptions=["--runner=DataflowRunner","--project=${{ secrets.GCP_PROJECT_ID }}","--tempRoot=gs://${{ secrets.GCP_TESTING_BUCKET }}/tmp/"]

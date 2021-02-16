@@ -19,13 +19,13 @@ package top
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"reflect"
 	"sort"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
@@ -129,13 +129,6 @@ type accum struct {
 	list []interface{}
 }
 
-// UnmarshalJSON allows accum to hook into the JSON Decoder, and
-// deserialize it's own representation.
-func (a *accum) UnmarshalJSON(b []byte) error {
-	json.Unmarshal(b, &a.data)
-	return nil
-}
-
 func (a *accum) unmarshal() error {
 	if a.data == nil {
 		return nil
@@ -151,21 +144,63 @@ func (a *accum) unmarshal() error {
 	return nil
 }
 
-// MarshalJSON uses the hook into the JSON encoder library to encode the accumulator.
-func (a accum) MarshalJSON() ([]byte, error) {
-	if a.enc == nil {
-		return nil, errors.Errorf("top.accum: element encoder unspecified")
+var (
+	accumType = reflect.TypeOf((*accum)(nil)).Elem()
+)
+
+func init() {
+	beam.RegisterType(accumType)
+	beam.RegisterCoder(accumType, accumEnc(), accumDec())
+}
+
+func accumEnc() func(accum) ([]byte, error) {
+	byteEnc, err := coder.EncoderForSlice(reflect.TypeOf((*[][]byte)(nil)).Elem())
+	if err != nil {
+		panic(err)
 	}
-	var values [][]byte
-	for _, value := range a.list {
-		var buf bytes.Buffer
-		if err := a.enc.Encode(value, &buf); err != nil {
-			return nil, errors.WithContextf(err, "top.accum: marshalling %v", value)
+	return func(a accum) ([]byte, error) {
+		if a.enc == nil {
+			return nil, errors.Errorf("top.accum: element encoder unspecified")
 		}
-		values = append(values, buf.Bytes())
+		var values [][]byte
+		for _, value := range a.list {
+			var buf bytes.Buffer
+			if err := a.enc.Encode(value, &buf); err != nil {
+				return nil, errors.WithContextf(err, "top.accum: marshalling %v", value)
+			}
+			values = append(values, buf.Bytes())
+		}
+		a.list = nil
+
+		var buf bytes.Buffer
+		if err := coder.WriteSimpleRowHeader(1, &buf); err != nil {
+			return nil, err
+		}
+		if err := byteEnc(values, &buf); err != nil {
+			return nil, err
+		}
+		return buf.Bytes(), nil
 	}
-	a.list = nil
-	return json.Marshal(values)
+}
+
+func accumDec() func([]byte) (accum, error) {
+	byteDec, err := coder.DecoderForSlice(reflect.TypeOf((*[][]byte)(nil)).Elem())
+	if err != nil {
+		panic(err)
+	}
+	return func(b []byte) (accum, error) {
+		buf := bytes.NewBuffer(b)
+		if err := coder.ReadSimpleRowHeader(1, buf); err != nil {
+			return accum{}, err
+		}
+		s, err := byteDec(buf)
+		if err != nil {
+			return accum{}, err
+		}
+		return accum{
+			data: s.([][]byte),
+		}, nil
+	}
 }
 
 // combineFn is the internal CombineFn. It maintains accumulators containing

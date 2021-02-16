@@ -27,6 +27,12 @@ import (
 type RowDecoderBuilder struct {
 	allFuncs   map[reflect.Type]decoderProvider
 	ifaceFuncs []reflect.Type
+
+	// RequireAllFieldsExported when set to true will have the default decoder building fail if
+	// there are any unexported fields. When set false, unexported fields in default
+	// destination structs will be silently ignored when decoding.
+	// This has no effect on types with registered decoder providers.
+	RequireAllFieldsExported bool
 }
 
 type decoderProvider = func(reflect.Type) (func(io.Reader) (interface{}, error), error)
@@ -44,7 +50,7 @@ type decoderProvider = func(reflect.Type) (func(io.Reader) (interface{}, error),
 func (b *RowDecoderBuilder) Register(rt reflect.Type, f interface{}) {
 	fd, ok := f.(decoderProvider)
 	if !ok {
-		panic(fmt.Sprintf("%T isn't a supported decoder function type (passed with %v)", f, rt))
+		panic(fmt.Sprintf("%T isn't a supported decoder function type (passed with %v), currently expecting %T", f, rt, (decoderProvider)(nil)))
 	}
 
 	if rt.Kind() == reflect.Interface && rt.NumMethod() == 0 {
@@ -95,29 +101,42 @@ func (b *RowDecoderBuilder) decoderForType(t reflect.Type) (func(io.Reader) (int
 		return func(r io.Reader) (interface{}, error) {
 			rv := reflect.New(t)
 			err := dec(rv.Elem(), r)
-			return rv.Interface(), err
+			return rv.Interface(), errors.Wrapf(err, "decoding a *%v", t)
 		}, nil
 	}
 	return func(r io.Reader) (interface{}, error) {
 		rv := reflect.New(t)
 		err := dec(rv.Elem(), r)
-		return rv.Elem().Interface(), err
+		return rv.Elem().Interface(), errors.Wrapf(err, "decoding a *%v", t)
 	}, nil
 }
 
 // decoderForStructReflect returns a reflection based decoder function for the
 // given struct type.
 func (b *RowDecoderBuilder) decoderForStructReflect(t reflect.Type) (func(reflect.Value, io.Reader) error, error) {
+
 	var coder typeDecoderReflect
+	coder.typ = t
 	for i := 0; i < t.NumField(); i++ {
 		i := i // avoid alias issues in the closures.
-		dec, err := b.decoderForSingleTypeReflect(t.Field(i).Type)
+		sf := t.Field(i)
+		isUnexported := sf.PkgPath != ""
+		if isUnexported {
+			if b.RequireAllFieldsExported {
+				return nil, errors.Errorf("Cannot make schema decoder for type %v as it has unexported fields such as %s.", t, sf.Name)
+			}
+			// Silently ignore, since we can't do anything about it.
+			// Add a no-op coder to fill in field index
+			coder.fields = append(coder.fields, func(rv reflect.Value, r io.Reader) error {
+				return nil
+			})
+			continue
+		}
+		dec, err := b.decoderForSingleTypeReflect(sf.Type)
 		if err != nil {
 			return nil, err
 		}
-		coder.fields = append(coder.fields, func(rv reflect.Value, r io.Reader) error {
-			return dec(rv.Field(i), r)
-		})
+		coder.fields = append(coder.fields, dec)
 	}
 	return func(rv reflect.Value, r io.Reader) error {
 		nf, nils, err := ReadRowHeader(r)
@@ -125,13 +144,13 @@ func (b *RowDecoderBuilder) decoderForStructReflect(t reflect.Type) (func(reflec
 			return err
 		}
 		if nf != len(coder.fields) {
-			return errors.Errorf("schema[%v] changed: got %d fields, want %d fields", "TODO", nf, len(coder.fields))
+			return errors.Errorf("schema[%v] changed: got %d fields, want %d fields", coder.typ, nf, len(coder.fields))
 		}
 		for i, f := range coder.fields {
 			if IsFieldNil(nils, i) {
 				continue
 			}
-			if err := f(rv, r); err != nil {
+			if err := f(rv.Field(i), r); err != nil {
 				return err
 			}
 		}
@@ -175,6 +194,15 @@ func reflectDecodeInt(rv reflect.Value, r io.Reader) error {
 	return nil
 }
 
+func reflectDecodeUint(rv reflect.Value, r io.Reader) error {
+	v, err := DecodeVarUint64(r)
+	if err != nil {
+		return errors.Wrap(err, "error decoding varint field")
+	}
+	rv.SetUint(v)
+	return nil
+}
+
 func reflectDecodeFloat(rv reflect.Value, r io.Reader) error {
 	v, err := DecodeDouble(r)
 	if err != nil {
@@ -207,7 +235,7 @@ func (b *RowDecoderBuilder) customFunc(t reflect.Type) (func(io.Reader) (interfa
 	// Check satisfaction of interface types in reverse registration order.
 	for i := len(b.ifaceFuncs) - 1; i >= 0; i-- {
 		it := b.ifaceFuncs[i]
-		if ok := t.AssignableTo(it); ok {
+		if ok := t.Implements(it); ok {
 			if fact, ok := b.allFuncs[it]; ok {
 				f, err := fact(t)
 				if err != nil {
@@ -249,6 +277,8 @@ func (b *RowDecoderBuilder) decoderForSingleTypeReflect(t reflect.Type) (func(re
 		return reflectDecodeString, nil
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		return reflectDecodeInt, nil
+	case reflect.Uint, reflect.Uint64, reflect.Uint32, reflect.Uint16:
+		return reflectDecodeUint, nil
 	case reflect.Float32, reflect.Float64:
 		return reflectDecodeFloat, nil
 	case reflect.Ptr:

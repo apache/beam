@@ -40,6 +40,7 @@ For more information on changes in 2.27.0, check out the
 * Added Cloud Bigtable Provider extension to Beam SQL ([BEAM-11173](https://issues.apache.org/jira/browse/BEAM-11173), [BEAM-11373](https://issues.apache.org/jira/browse/BEAM-11373))
 * Added a schema provider for thrift data ([BEAM-11338](https://issues.apache.org/jira/browse/BEAM-11338))
 * Added combiner packing pipeline optimization to Dataflow runner. ([BEAM-10641](https://issues.apache.org/jira/browse/BEAM-10641))
+* Added an example to ingest data from Apache Kafka to Google Pub/Sub. ([BEAM-11065](https://issues.apache.org/jira/browse/BEAM-11065))
 
 ## Breaking Changes
 

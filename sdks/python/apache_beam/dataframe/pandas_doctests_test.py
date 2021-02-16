@@ -25,8 +25,6 @@ from apache_beam.dataframe import doctests
 from apache_beam.dataframe.pandas_top_level_functions import _is_top_level_function
 
 
-@unittest.skipIf(sys.version_info <= (3, ), 'Requires contextlib.ExitStack.')
-@unittest.skipIf(sys.version_info < (3, 6), 'Nondeterministic dict ordering.')
 @unittest.skipIf(sys.platform == 'win32', '[BEAM-10626]')
 class DoctestTest(unittest.TestCase):
   def test_dataframe_tests(self):
@@ -78,6 +76,7 @@ class DoctestTest(unittest.TestCase):
             ],
         },
         not_implemented_ok={
+            'pandas.core.frame.DataFrame.transform': ['*'],
             'pandas.core.frame.DataFrame.isin': ['*'],
             'pandas.core.frame.DataFrame.melt': ['*'],
             'pandas.core.frame.DataFrame.count': ['*'],
@@ -110,8 +109,20 @@ class DoctestTest(unittest.TestCase):
 
             # In theory this is possible for bounded inputs?
             'pandas.core.frame.DataFrame.append': ['*'],
+
+            # Cross-join not implemented
+            'pandas.core.frame.DataFrame.merge': [
+                "df1.merge(df2, how='cross')"
+            ],
+
+            # TODO(BEAM-11711)
+            'pandas.core.frame.DataFrame.set_index': [
+                "df.set_index([s, s**2])",
+            ],
         },
         skip={
+            # Throws NotImplementedError when modifying df
+            'pandas.core.frame.DataFrame.transform': ['df'],
             'pandas.core.frame.DataFrame.axes': [
                 # Returns deferred index.
                 'df.axes',
@@ -131,6 +142,11 @@ class DoctestTest(unittest.TestCase):
                 # Returns deferred index.
                 'df.index',
                 'df.rename(index=str).index',
+            ],
+            'pandas.core.frame.DataFrame.set_index': [
+                # TODO(BEAM-11711): This could pass in the index as
+                # a DeferredIndex, and we should fail it as order-sensitive.
+                "df.set_index([pd.Index([1, 2, 3, 4]), 'year'])",
             ],
             'pandas.core.frame.DataFrame.set_axis': ['*'],
             'pandas.core.frame.DataFrame.sort_index': ['*'],
@@ -166,15 +182,11 @@ class DoctestTest(unittest.TestCase):
                 "df1.merge(df2, left_on='lkey', right_on='rkey')",
                 "df1.merge(df2, left_on='lkey', right_on='rkey',\n"
                 "          suffixes=('_left', '_right'))",
+                "df1.merge(df2, how='left', on='a')",
             ],
             # Raises right exception, but testing framework has matching issues.
             'pandas.core.frame.DataFrame.replace': [
                 "df.replace({'a string': 'new value', True: False})  # raises"
-            ],
-            # Should raise WontImplement order-sensitive
-            'pandas.core.frame.DataFrame.set_index': [
-                "df.set_index([pd.Index([1, 2, 3, 4]), 'year'])",
-                "df.set_index([s, s**2])",
             ],
             'pandas.core.frame.DataFrame.to_sparse': ['type(df)'],
 
@@ -185,6 +197,25 @@ class DoctestTest(unittest.TestCase):
             ],
             'pandas.core.frame.DataFrame.transpose': [
                 'df1_transposed.dtypes', 'df2_transposed.dtypes'
+            ],
+            # Skipped because the relies on iloc to set a cell to NA. Test is
+            # replicated in frames_test::DeferredFrameTest::test_applymap.
+            'pandas.core.frame.DataFrame.applymap': [
+                'df_copy.iloc[0, 0] = pd.NA',
+                "df_copy.applymap(lambda x: len(str(x)), na_action='ignore')",
+            ],
+            # Skipped so we don't need to install natsort
+            'pandas.core.frame.DataFrame.sort_values': [
+                'from natsort import index_natsorted',
+                'df.sort_values(\n'
+                '   by="time",\n'
+                '   key=lambda x: np.argsort(index_natsorted(df["time"]))\n'
+                ')'
+            ],
+            # Mode that we don't yet support, documentation added in pandas
+            # 1.2.0 (https://github.com/pandas-dev/pandas/issues/35912)
+            'pandas.core.frame.DataFrame.aggregate': [
+                "df.agg(x=('A', max), y=('B', 'min'), z=('C', np.mean))"
             ],
         })
     self.assertEqual(result.failed, 0)
@@ -230,6 +261,7 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.view': ['*'],
         },
         not_implemented_ok={
+            'pandas.core.series.Series.transform': ['*'],
             'pandas.core.series.Series.groupby': [
                 'ser.groupby(["a", "b", "a", "b"]).mean()',
                 'ser.groupby(["a", "b", "a", np.nan]).mean()',
@@ -240,6 +272,8 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.reindex': ['*'],
         },
         skip={
+            # Throws NotImplementedError when modifying df
+            'pandas.core.series.Series.transform': ['df'],
             'pandas.core.series.Series.append': ['*'],
             'pandas.core.series.Series.argmax': ['*'],
             'pandas.core.series.Series.argmin': ['*'],
@@ -393,6 +427,7 @@ class DoctestTest(unittest.TestCase):
             'infer_freq': ['*'],
             'lreshape': ['*'],
             'melt': ['*'],
+            'merge': ["df1.merge(df2, how='cross')"],
             'merge_asof': ['*'],
             'pivot': ['*'],
             'pivot_table': ['*'],
@@ -400,7 +435,6 @@ class DoctestTest(unittest.TestCase):
             'reset_option': ['*'],
             'set_eng_float_format': ['*'],
             'set_option': ['*'],
-            'to_datetime': ['*'],
             'to_numeric': ['*'],
             'to_timedelta': ['*'],
             'unique': ['*'],
@@ -420,7 +454,8 @@ class DoctestTest(unittest.TestCase):
             'merge': [
                 "df1.merge(df2, left_on='lkey', right_on='rkey')",
                 "df1.merge(df2, left_on='lkey', right_on='rkey',\n"
-                "          suffixes=('_left', '_right'))"
+                "          suffixes=('_left', '_right'))",
+                "df1.merge(df2, how='left', on='a')",
             ],
             # Not an actual test.
             'option_context': ['*'],

@@ -443,7 +443,8 @@ class ExternalTransform(ptransform.PTransform):
           self._external_namespace), (id, self._external_namespace)
       new_proto = beam_runner_api_pb2.PTransform(
           unique_name=proto.unique_name,
-          spec=proto.spec,
+          # If URN is not set this is an empty spec.
+          spec=proto.spec if proto.spec.urn else None,
           subtransforms=proto.subtransforms,
           inputs={
               tag: pcoll_renames.get(pcoll, pcoll)

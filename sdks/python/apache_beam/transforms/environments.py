@@ -716,6 +716,7 @@ def _python_sdk_capabilities_iter():
     if getattr(urn_spec, 'urn', None) in coders.Coder._known_urns:
       yield urn_spec.urn
   yield common_urns.protocols.LEGACY_PROGRESS_REPORTING.urn
+  yield common_urns.protocols.HARNESS_MONITORING_INFOS.urn
   yield common_urns.protocols.WORKER_STATUS.urn
   yield python_urns.PACKED_COMBINE_FN
   yield 'beam:version:sdk_base:' + DockerEnvironment.default_docker_image()
@@ -727,15 +728,5 @@ def python_sdk_dependencies(options, tmp_dir=None):
     tmp_dir = tempfile.mkdtemp()
   skip_prestaged_dependencies = options.view_as(
       SetupOptions).prebuild_sdk_container_engine is not None
-  return tuple(
-      beam_runner_api_pb2.ArtifactInformation(
-          type_urn=common_urns.artifact_types.FILE.urn,
-          type_payload=beam_runner_api_pb2.ArtifactFilePayload(
-              path=local_path).SerializeToString(),
-          role_urn=common_urns.artifact_roles.STAGING_TO.urn,
-          role_payload=beam_runner_api_pb2.ArtifactStagingToRolePayload(
-              staged_name=staged_name).SerializeToString()) for local_path,
-      staged_name in stager.Stager.create_job_resources(
-          options,
-          tmp_dir,
-          skip_prestaged_dependencies=skip_prestaged_dependencies))
+  return stager.Stager.create_job_resources(
+      options, tmp_dir, skip_prestaged_dependencies=skip_prestaged_dependencies)

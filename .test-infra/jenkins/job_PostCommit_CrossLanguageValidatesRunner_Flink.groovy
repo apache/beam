@@ -17,6 +17,7 @@
  */
 
 import CommonJobProperties as commonJobProperties
+import CommonTestProperties
 import PostcommitJobBuilder
 
 import static PythonTestProperties.CROSS_LANGUAGE_VALIDATES_RUNNER_PYTHON_VERSIONS
@@ -40,7 +41,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_XVR_Flink',
           shell("echo \"*** RUN CROSS-LANGUAGE FLINK USING PYTHON ${pythonVersion} ***\"")
           gradle {
             rootBuildScriptDir(commonJobProperties.checkoutDir)
-            tasks(':runners:flink:1.10:job-server:validatesCrossLanguageRunner')
+            tasks(":runners:flink:${CommonTestProperties.getFlinkVersion()}:job-server:validatesCrossLanguageRunner")
             commonJobProperties.setGradleSwitches(delegate)
             switches("-PpythonVersion=${pythonVersion}")
           }

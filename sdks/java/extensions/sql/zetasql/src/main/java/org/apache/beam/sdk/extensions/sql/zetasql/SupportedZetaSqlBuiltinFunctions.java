@@ -415,6 +415,7 @@ class SupportedZetaSqlBuiltinFunctions {
           // JIRA link: https://issues.apache.org/jira/browse/BEAM-10379
           // FunctionSignatureId.FN_BIT_AND_INT64, // bit_and
           FunctionSignatureId.FN_BIT_OR_INT64, // bit_or
+          // TODO(BEAM-10379) Re-enable when nulls are handled properly.
           // FunctionSignatureId.FN_BIT_XOR_INT64, // bit_xor
           // FunctionSignatureId.FN_LOGICAL_AND, // logical_and
           // FunctionSignatureId.FN_LOGICAL_OR, // logical_or
@@ -461,7 +462,7 @@ class SupportedZetaSqlBuiltinFunctions {
           // FunctionSignatureId.FN_VAR_SAMP_NUMERIC, // var_samp
           // FunctionSignatureId.FN_VAR_SAMP_BIGNUMERIC, // var_samp
 
-          // FunctionSignatureId.FN_COUNTIF, // countif
+          FunctionSignatureId.FN_COUNTIF, // countif
 
           // Approximate quantiles functions that produce or consume intermediate
           // sketches. All found in the "kll_quantiles.*" namespace.
@@ -525,7 +526,7 @@ class SupportedZetaSqlBuiltinFunctions {
           FunctionSignatureId.FN_TO_JSON_STRING, // to_json_string(any[, bool]) -> string
           FunctionSignatureId.FN_JSON_QUERY, // json_query(string, string) -> string
           // FunctionSignatureId.FN_JSON_QUERY_JSON, // json_query(json, string) -> json
-          FunctionSignatureId.FN_JSON_VALUE // json_value(string, string) -> string
+          FunctionSignatureId.FN_JSON_VALUE, // json_value(string, string) -> string
           // FunctionSignatureId.FN_JSON_VALUE_JSON, // json_value(json, string) -> json
 
           // Net functions. These are all found in the "net.*" namespace.
@@ -547,14 +548,14 @@ class SupportedZetaSqlBuiltinFunctions {
           // FunctionSignatureId.FN_NET_IPV4_TO_INT64, // net.ipv4_to_int64(bytes)
 
           // Hashing functions.
-          // FunctionSignatureId.FN_MD5_BYTES, // md5(bytes)
-          // FunctionSignatureId.FN_MD5_STRING, // md5(string)
-          // FunctionSignatureId.FN_SHA1_BYTES, // sha1(bytes)
-          // FunctionSignatureId.FN_SHA1_STRING, // sha1(string)
-          // FunctionSignatureId.FN_SHA256_BYTES, // sha256(bytes)
-          // FunctionSignatureId.FN_SHA256_STRING, // sha256(string)
-          // FunctionSignatureId.FN_SHA512_BYTES, // sha512(bytes)
-          // FunctionSignatureId.FN_SHA512_STRING, // sha512(string)
+          FunctionSignatureId.FN_MD5_BYTES, // md5(bytes)
+          FunctionSignatureId.FN_MD5_STRING, // md5(string)
+          FunctionSignatureId.FN_SHA1_BYTES, // sha1(bytes)
+          FunctionSignatureId.FN_SHA1_STRING, // sha1(string)
+          FunctionSignatureId.FN_SHA256_BYTES, // sha256(bytes)
+          FunctionSignatureId.FN_SHA256_STRING, // sha256(string)
+          FunctionSignatureId.FN_SHA512_BYTES, // sha512(bytes)
+          FunctionSignatureId.FN_SHA512_STRING // sha512(string)
 
           // Fingerprinting functions
           // FunctionSignatureId.FN_FARM_FINGERPRINT_BYTES, // farm_fingerprint(bytes) -> int64

@@ -321,7 +321,33 @@ message MonitoringInfoSpecs {
       annotations: [
         {
           key: "description",
-          value: "Request counts with status made to an IOs service APIs to batch read or write elements."
+          value: "Request counts with status made to IO service APIs to batch read or write elements."
+        },
+        {
+          key: "process_metric",  // Should be reported as a process metric
+                                  // instead of a bundle metric
+          value: "true"
+        }
+      ]
+    }];
+
+    API_REQUEST_LATENCIES = 20 [(monitoring_info_spec) = {
+      urn: "beam:metric:io:api_request_latencies:v1",
+      type: "beam:metrics:histogram_int64:v1",
+      required_labels: [
+        "SERVICE",
+        "METHOD",
+        "RESOURCE",
+        "PTRANSFORM"
+      ],
+      annotations: [
+        {
+          key: "description",
+          value: "Histogram counts for request latencies made to IO service APIs to batch read or write elements."
+        },
+        {
+          key: "units",
+          value: "Milliseconds"
         },
         {
           key: "process_metric",  // Should be reported as a process metric

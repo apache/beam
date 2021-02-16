@@ -18,7 +18,7 @@ limitations under the License.
 
 # Beam SQL overview
 
-Beam SQL allows a Beam user (currently only available in Beam Java) to query
+Beam SQL allows a Beam user (currently only available in Beam Java and Python) to query
 bounded and unbounded `PCollections` with SQL statements. Your SQL query
 is translated to a `PTransform`, an encapsulated segment of a Beam pipeline.
 You can freely mix SQL `PTransforms` and other `PTransforms` in your pipeline.

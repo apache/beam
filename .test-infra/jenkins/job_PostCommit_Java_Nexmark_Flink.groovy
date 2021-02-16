@@ -17,6 +17,7 @@
  */
 
 import CommonJobProperties as commonJobProperties
+import CommonTestProperties
 import CommonTestProperties.Runner
 import CommonTestProperties.SDK
 import CommonTestProperties.TriggeringContext
@@ -44,7 +45,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
           rootBuildScriptDir(commonJobProperties.checkoutDir)
           tasks(':sdks:java:testing:nexmark:run')
           commonJobProperties.setGradleSwitches(delegate)
-          switches('-Pnexmark.runner=":runners:flink:1.10"' +
+          switches("-Pnexmark.runner=\":runners:flink:${CommonTestProperties.getFlinkVersion()}\"" +
               ' -Pnexmark.args="' +
               [
                 commonJobProperties.mapToArgString(nexmarkBigQueryArgs),
@@ -62,7 +63,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
           rootBuildScriptDir(commonJobProperties.checkoutDir)
           tasks(':sdks:java:testing:nexmark:run')
           commonJobProperties.setGradleSwitches(delegate)
-          switches('-Pnexmark.runner=":runners:flink:1.10"' +
+          switches("-Pnexmark.runner=\":runners:flink:${CommonTestProperties.getFlinkVersion()}\"" +
               ' -Pnexmark.args="' +
               [
                 commonJobProperties.mapToArgString(nexmarkBigQueryArgs),
@@ -80,7 +81,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
           rootBuildScriptDir(commonJobProperties.checkoutDir)
           tasks(':sdks:java:testing:nexmark:run')
           commonJobProperties.setGradleSwitches(delegate)
-          switches('-Pnexmark.runner=":runners:flink:1.10"' +
+          switches("-Pnexmark.runner=\":runners:flink:${CommonTestProperties.getFlinkVersion()}\"" +
               ' -Pnexmark.args="' +
               [
                 commonJobProperties.mapToArgString(nexmarkBigQueryArgs),
@@ -98,7 +99,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
           rootBuildScriptDir(commonJobProperties.checkoutDir)
           tasks(':sdks:java:testing:nexmark:run')
           commonJobProperties.setGradleSwitches(delegate)
-          switches('-Pnexmark.runner=":runners:flink:1.10"' +
+          switches("-Pnexmark.runner=\":runners:flink:${CommonTestProperties.getFlinkVersion()}\"" +
               ' -Pnexmark.args="' +
               [
                 commonJobProperties.mapToArgString(nexmarkBigQueryArgs),
@@ -117,7 +118,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
           rootBuildScriptDir(commonJobProperties.checkoutDir)
           tasks(':sdks:java:testing:nexmark:run')
           commonJobProperties.setGradleSwitches(delegate)
-          switches('-Pnexmark.runner=":runners:flink:1.10"' +
+          switches("-Pnexmark.runner=\":runners:flink:${CommonTestProperties.getFlinkVersion()}\"" +
               ' -Pnexmark.args="' +
               [
                 commonJobProperties.mapToArgString(nexmarkBigQueryArgs),
@@ -135,7 +136,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
           rootBuildScriptDir(commonJobProperties.checkoutDir)
           tasks(':sdks:java:testing:nexmark:run')
           commonJobProperties.setGradleSwitches(delegate)
-          switches('-Pnexmark.runner=":runners:flink:1.10"' +
+          switches("-Pnexmark.runner=\":runners:flink:${CommonTestProperties.getFlinkVersion()}\"" +
               ' -Pnexmark.args="' +
               [
                 commonJobProperties.mapToArgString(nexmarkBigQueryArgs),

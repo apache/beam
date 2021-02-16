@@ -137,6 +137,13 @@ func (o *Outbound) String() string {
 type Payload struct {
 	URN  string
 	Data []byte
+
+	// Optional fields mapping tags to inputs. If present, will override
+	// the default IO tagging for the transform's input PCollections.
+	InputsMap map[string]int
+	// Optional fields mapping tags to outputs. If present, will override
+	// the default IO tagging for the transform's output PCollections.
+	OutputsMap map[string]int
 }
 
 // MultiEdge represents a primitive data processing operation. Each non-user
@@ -366,6 +373,25 @@ func NewExternal(g *Graph, s *Scope, payload *Payload, in []*Node, out []typex.F
 		n := g.NewNode(t, inputWindow(in), bounded)
 		edge.Output = append(edge.Output, &Outbound{To: n, Type: t})
 	}
+	return edge
+}
+
+// NewTaggedExternal inserts an External transform with tagged inbound and
+// outbound connections. The system makes no assumptions about what this
+// transform might do.
+func NewTaggedExternal(g *Graph, s *Scope, payload *Payload, ins []*Inbound, outs []*Outbound, bounded bool) *MultiEdge {
+	edge := g.NewEdge(s)
+	edge.Op = External
+	edge.Payload = payload
+
+	windowingStrategy := inputWindow([]*Node{ins[0].From})
+	for _, o := range outs {
+		o.To.w = windowingStrategy
+		o.To.bounded = bounded
+	}
+
+	edge.Input = ins
+	edge.Output = outs
 	return edge
 }
 

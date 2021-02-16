@@ -152,7 +152,8 @@ public class DataCatalogTableProvider extends FullNameTableProvider implements A
     }
   }
 
-  private static DataCatalogClient createDataCatalogClient(DataCatalogPipelineOptions options) {
+  @Internal
+  public static DataCatalogClient createDataCatalogClient(DataCatalogPipelineOptions options) {
     try {
       DataCatalogSettings.Builder builder =
           DataCatalogSettings.newBuilder()

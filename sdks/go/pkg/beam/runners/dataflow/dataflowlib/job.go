@@ -20,6 +20,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/apache/beam/sdks/go/pkg/beam/core"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
 	// Importing to get the side effect of the remote execution hook. See init().
 	_ "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/harness/init"
@@ -125,8 +126,8 @@ func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, worker
 		Environment: &df.Environment{
 			ServiceAccountEmail: opts.ServiceAccountEmail,
 			UserAgent: newMsg(userAgent{
-				Name:    "Apache Beam SDK for Go",
-				Version: "2.27.0.dev",
+				Name:    core.SdkName,
+				Version: core.SdkVersion,
 			}),
 			Version: newMsg(version{
 				JobType: apiJobType,

@@ -38,7 +38,7 @@ ext {
 }
 
 for (p in rootProject.subprojects) {
-  if (!p.path.equals(project.path)) {
+  if (!p.path.startsWith(project.path)) {
     evaluationDependsOn(p.path)
   }
 }
@@ -83,6 +83,13 @@ tasks.whenTaskAdded { task ->
 // Starting in Gradle 6.2 a sanity check is performed before uploading. The
 // check fails without generating the jar.
 jar.enabled = true
+
+// Starting in Gradle 6.0, the Gradle module metadata is generated automatically
+// Disable generating the metadata until this project uses java-platform to
+// publish the BOM (see BEAM-11709)
+tasks.withType(GenerateModuleMetadata) {
+  enabled = false
+}
 
 // Remove the default jar archive which is added by the 'java' plugin.
 configurations.archives.artifacts.with { archives ->

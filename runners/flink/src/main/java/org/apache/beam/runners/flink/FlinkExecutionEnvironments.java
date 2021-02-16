@@ -28,6 +28,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.api.java.CollectionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.LocalEnvironment;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.GlobalConfiguration;
@@ -41,6 +42,7 @@ import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.CheckpointConfig.ExternalizedCheckpointCleanup;
+import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.RemoteStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -83,6 +85,11 @@ public class FlinkExecutionEnvironments {
       flinkBatchEnv = new CollectionEnvironment();
     } else if ("[auto]".equals(flinkMasterHostPort)) {
       flinkBatchEnv = ExecutionEnvironment.getExecutionEnvironment();
+      if (flinkBatchEnv instanceof LocalEnvironment) {
+        disableClassLoaderLeakCheck(flinkConfiguration);
+        flinkBatchEnv = ExecutionEnvironment.createLocalEnvironment(flinkConfiguration);
+        flinkBatchEnv.setParallelism(getDefaultLocalParallelism());
+      }
     } else {
       int defaultPort = flinkConfiguration.getInteger(RestOptions.PORT);
       HostAndPort hostAndPort =
@@ -151,7 +158,7 @@ public class FlinkExecutionEnvironments {
     // Although Flink uses Rest, it expects the address not to contain a http scheme
     String masterUrl = stripHttpSchema(options.getFlinkMaster());
     Configuration flinkConfiguration = getFlinkConfiguration(confDir);
-    final StreamExecutionEnvironment flinkStreamEnv;
+    StreamExecutionEnvironment flinkStreamEnv;
 
     // depending on the master, create the right environment.
     if ("[local]".equals(masterUrl)) {
@@ -162,6 +169,12 @@ public class FlinkExecutionEnvironments {
               getDefaultLocalParallelism(), flinkConfiguration);
     } else if ("[auto]".equals(masterUrl)) {
       flinkStreamEnv = StreamExecutionEnvironment.getExecutionEnvironment();
+      if (flinkStreamEnv instanceof LocalStreamEnvironment) {
+        disableClassLoaderLeakCheck(flinkConfiguration);
+        flinkStreamEnv =
+            StreamExecutionEnvironment.createLocalEnvironment(
+                getDefaultLocalParallelism(), flinkConfiguration);
+      }
     } else {
       int defaultPort = flinkConfiguration.getInteger(RestOptions.PORT);
       HostAndPort hostAndPort = HostAndPort.fromString(masterUrl).withDefaultPort(defaultPort);

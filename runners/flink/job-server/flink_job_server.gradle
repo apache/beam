@@ -163,7 +163,6 @@ def portableValidatesRunnerTask(String name, Boolean streaming, Boolean checkpoi
         excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
         excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
         excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
-        excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
         excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
         excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
         excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'

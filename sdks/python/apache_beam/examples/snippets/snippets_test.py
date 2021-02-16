@@ -22,12 +22,12 @@
 from __future__ import absolute_import
 from __future__ import division
 
+import gc
 import glob
 import gzip
 import logging
 import math
 import os
-import sys
 import tempfile
 import time
 import unittest
@@ -38,6 +38,7 @@ from builtins import range
 from builtins import zip
 
 import mock
+import parameterized
 
 import apache_beam as beam
 import apache_beam.transforms.combiners as combiners
@@ -495,12 +496,6 @@ class SnippetsTest(unittest.TestCase):
       return pcoll | 'DummyWriteForTesting' >> beam.ParDo(
           SnippetsTest.DummyWriteTransform.WriteDoFn(self.file_to_write))
 
-  @classmethod
-  def setUpClass(cls):
-    # Method has been renamed in Python 3
-    if sys.version_info[0] < 3:
-      cls.assertCountEqual = cls.assertItemsEqual
-
   def setUp(self):
     self.old_read_from_text = beam.io.ReadFromText
     self.old_write_to_text = beam.io.WriteToText
@@ -516,6 +511,8 @@ class SnippetsTest(unittest.TestCase):
     beam.io.WriteToText = self.old_write_to_text
     # Cleanup all the temporary files created in the test.
     map(os.remove, self.temp_files)
+    # Ensure that PipelineOptions subclasses have been cleaned up between tests
+    gc.collect()
 
   def create_temp_file(self, contents=''):
     with tempfile.NamedTemporaryFile(delete=False) as f:
@@ -711,21 +708,18 @@ class SnippetsTest(unittest.TestCase):
     self.assertEqual(
         sorted(' '.join(lines).split(' ')), self.get_output(result_path))
 
-  def test_examples_wordcount(self):
-    pipelines = [
-        snippets.examples_wordcount_minimal,
-        snippets.examples_wordcount_wordcount,
-        snippets.pipeline_monitoring,
-        snippets.examples_wordcount_templated
-    ]
-
-    for pipeline in pipelines:
-      temp_path = self.create_temp_file('abc def ghi\n abc jkl')
-      result_path = self.create_temp_file()
-      pipeline({'read': temp_path, 'write': result_path})
-      self.assertEqual(
-          self.get_output(result_path),
-          ['abc: 2', 'def: 1', 'ghi: 1', 'jkl: 1'])
+  @parameterized.parameterized.expand([
+      [snippets.examples_wordcount_minimal],
+      [snippets.examples_wordcount_wordcount],
+      [snippets.pipeline_monitoring],
+      [snippets.examples_wordcount_templated],
+  ])
+  def test_examples_wordcount(self, pipeline):
+    temp_path = self.create_temp_file('abc def ghi\n abc jkl')
+    result_path = self.create_temp_file()
+    pipeline({'read': temp_path, 'write': result_path})
+    self.assertEqual(
+        self.get_output(result_path), ['abc: 2', 'def: 1', 'ghi: 1', 'jkl: 1'])
 
   def test_examples_ptransforms_templated(self):
     pipelines = [snippets.examples_ptransforms_templated]

@@ -70,7 +70,12 @@ class KafkaWriter<K, V> extends DoFn<ProducerRecord<K, V>, Void> {
 
     producer.send(
         new ProducerRecord<>(
-            topicName, null, timestampMillis, record.key(), record.value(), record.headers()),
+            topicName,
+            record.partition(),
+            timestampMillis,
+            record.key(),
+            record.value(),
+            record.headers()),
         new SendCallback());
 
     elementsWritten.inc();

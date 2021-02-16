@@ -39,6 +39,7 @@ dependencies {
   compile enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
   compile library.java.vendored_guava_26_0_jre
   compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile project(path: ":runners:core-java")
   compile library.java.google_http_client_jackson2
   compile library.java.google_auth_library_oauth2_http
   compile library.java.google_api_client

@@ -302,8 +302,10 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 		}
 		return []string{reshuffleID}, nil
 	case edge.Edge.Op == graph.External:
-		if edge.Edge.External.Expanded != nil {
-			m.needsExpansion = true
+		if edge.Edge.External != nil {
+			if edge.Edge.External.Expanded != nil {
+				m.needsExpansion = true
+			}
 		}
 		if edge.Edge.Payload == nil {
 			edgeID, err := m.expandCrossLanguage(edge)
@@ -328,6 +330,7 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 		}
 		outputs[fmt.Sprintf("i%v", i)] = nodeID(out.To)
 	}
+	var annotations map[string][]byte
 
 	// allPIds tracks additional PTransformIDs generated for the pipeline
 	var allPIds []string
@@ -424,6 +427,7 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 			m.requirements[URNRequiresSplittableDoFn] = true
 		}
 		spec = &pipepb.FunctionSpec{Urn: URNParDo, Payload: protox.MustEncode(payload)}
+		annotations = edge.Edge.DoFn.Annotations()
 
 	case graph.Combine:
 		mustEncodeMultiEdge, err := mustEncodeMultiEdgeBase64(edge.Edge)
@@ -455,7 +459,34 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 		spec = &pipepb.FunctionSpec{Urn: URNWindow, Payload: protox.MustEncode(payload)}
 
 	case graph.External:
-		spec = &pipepb.FunctionSpec{Urn: edge.Edge.Payload.URN, Payload: edge.Edge.Payload.Data}
+		pyld := edge.Edge.Payload
+		spec = &pipepb.FunctionSpec{Urn: pyld.URN, Payload: pyld.Data}
+
+		if len(pyld.InputsMap) != 0 {
+			if got, want := len(pyld.InputsMap), len(edge.Edge.Input); got != want {
+				return handleErr(errors.Errorf("mismatch'd counts between External tags (%v) and inputs (%v)", got, want))
+			}
+			inputs = make(map[string]string)
+			for tag, in := range InboundTagToNode(pyld.InputsMap, edge.Edge.Input) {
+				if _, err := m.addNode(in); err != nil {
+					return handleErr(err)
+				}
+				inputs[tag] = nodeID(in)
+			}
+		}
+
+		if len(pyld.OutputsMap) != 0 {
+			if got, want := len(pyld.OutputsMap), len(edge.Edge.Output); got != want {
+				return handleErr(errors.Errorf("mismatch'd counts between External tags (%v) and outputs (%v)", got, want))
+			}
+			outputs = make(map[string]string)
+			for tag, out := range OutboundTagToNode(pyld.OutputsMap, edge.Edge.Output) {
+				if _, err := m.addNode(out); err != nil {
+					return handleErr(err)
+				}
+				outputs[tag] = nodeID(out)
+			}
+		}
 
 	default:
 		err := errors.Errorf("unexpected opcode: %v", edge.Edge.Op)
@@ -473,6 +504,7 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 		Inputs:        inputs,
 		Outputs:       outputs,
 		EnvironmentId: transformEnvID,
+		Annotations:   annotations,
 	}
 	m.transforms[id] = transform
 	allPIds = append(allPIds, id)

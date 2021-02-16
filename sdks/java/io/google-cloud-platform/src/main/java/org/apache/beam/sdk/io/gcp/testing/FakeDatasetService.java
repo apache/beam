@@ -32,6 +32,7 @@ import java.io.Serializable;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers;
@@ -62,8 +63,12 @@ public class FakeDatasetService implements DatasetService, Serializable {
 
   Map<String, List<String>> insertErrors = Maps.newHashMap();
 
+  // The counter for the number of insertions performed.
+  static AtomicInteger insertCount;
+
   public static void setUp() {
     tables = HashBasedTable.create();
+    insertCount = new AtomicInteger(0);
     FakeJobService.setUp();
   }
 
@@ -217,6 +222,10 @@ public class FakeDatasetService implements DatasetService, Serializable {
     }
   }
 
+  public int getInsertCount() {
+    return insertCount.get();
+  }
+
   public long insertAll(
       TableReference ref, List<TableRow> rowList, @Nullable List<String> insertIdList)
       throws IOException, InterruptedException {
@@ -292,6 +301,7 @@ public class FakeDatasetService implements DatasetService, Serializable {
               failedInserts, allErrors.get(allErrors.size() - 1), ref, rowList.get(i));
         }
       }
+      insertCount.addAndGet(1);
       return dataSize;
     }
   }

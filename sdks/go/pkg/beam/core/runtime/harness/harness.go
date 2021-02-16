@@ -445,6 +445,16 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 				},
 			},
 		}
+	case req.GetHarnessMonitoringInfos() != nil:
+		return &fnpb.InstructionResponse{
+			InstructionId: string(instID),
+			Response: &fnpb.InstructionResponse_HarnessMonitoringInfos{
+				HarnessMonitoringInfos: &fnpb.HarnessMonitoringInfosResponse{
+					// TODO(BEAM-11092): Populate with non-bundle metrics data.
+					MonitoringData: map[string][]byte{},
+				},
+			},
+		}
 
 	default:
 		return fail(ctx, instID, "Unexpected request: %v", req)
