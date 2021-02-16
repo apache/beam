@@ -159,7 +159,7 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
               if (udf.function instanceof ZetaSqlScalarFunctionImpl) {
                 ZetaSqlScalarFunctionImpl scalarFunction = (ZetaSqlScalarFunctionImpl) udf.function;
                 if (!scalarFunction.functionGroup.equals(
-                    SqlAnalyzer.USER_DEFINED_JAVA_SCALAR_FUNCTIONS)) {
+                    BeamZetaSqlCatalog.USER_DEFINED_JAVA_SCALAR_FUNCTIONS)) {
                   // Reject ZetaSQL Builtin Scalar Functions
                   return false;
                 }
