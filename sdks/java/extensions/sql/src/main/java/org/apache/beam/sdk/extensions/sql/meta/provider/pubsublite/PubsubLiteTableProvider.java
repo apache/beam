@@ -95,9 +95,7 @@ public class PubsubLiteTableProvider extends InMemoryMetaTableProvider {
   private static void checkFieldHasType(Field field, FieldType type) {
     checkArgument(
         type.equivalent(field.getType(), EquivalenceNullablePolicy.WEAKEN),
-        String.format(
-            "'%s' field must have schema matching '%s'.",
-            field.getName(), type));
+        String.format("'%s' field must have schema matching '%s'.", field.getName(), type));
   }
 
   private static void validateSchema(Schema schema) {
