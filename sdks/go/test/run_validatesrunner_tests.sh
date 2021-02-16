@@ -276,7 +276,7 @@ ARGS="$ARGS --staging_location=$GCS_LOCATION/staging-validatesrunner-test"
 ARGS="$ARGS --temp_location=$GCS_LOCATION/temp-validatesrunner-test"
 ARGS="$ARGS --dataflow_worker_jar=$DATAFLOW_WORKER_JAR"
 ARGS="$ARGS --endpoint=$ENDPOINT"
-if [[-n "$EXPANSION_ADDR"]]; then
+if [[ -n "$EXPANSION_ADDR" ]]; then
   ARGS="$ARGS --expansion_addr=$EXPANSION_ADDR"
 fi
 
