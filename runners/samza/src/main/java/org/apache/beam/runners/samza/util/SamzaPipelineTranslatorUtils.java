@@ -80,13 +80,13 @@ public final class SamzaPipelineTranslatorUtils {
   }
 
   /**
-   * Escape the non-alphabet chars in the name so we can create a physical stream out of it.
+   * Escape the non-alphanumeric chars in the name so we can create a samza safe name out of it.
    *
-   * <p>This escape will replace ".", "(" and "/" as "-", and then remove all the other
-   * non-alphabetic characters.
+   * <p>This escape will replace non-alphanumeric chars except underscore and hyphen with
+   * underscores.
    */
   public static String escape(String name) {
-    return name.replaceAll("[\\.(/]", "-").replaceAll("[^A-Za-z0-9-_]", "");
+    return name.replaceFirst(".*:([a-zA-Z#0-9]+).*", "$1").replaceAll("[^A-Za-z0-9_-]", "_");
   }
 
   public static PCollection.IsBounded isBounded(RunnerApi.PCollection pCollection) {

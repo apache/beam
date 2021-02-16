@@ -20,6 +20,7 @@ package org.apache.beam.runners.samza.translation;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import org.apache.beam.runners.samza.util.SamzaPipelineTranslatorUtils;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.util.NameUtils;
@@ -48,10 +49,7 @@ public class PViewToIdMapper extends Pipeline.PipelineVisitor.Defaults {
 
   @Override
   public void visitValue(PValue value, TransformHierarchy.Node producer) {
-    final String valueDesc = pValueToString(value).replaceFirst(".*:([a-zA-Z#0-9]+).*", "$1");
-
-    final String samzaSafeValueDesc = valueDesc.replaceAll("[^A-Za-z0-9_-]", "_");
-
+    final String samzaSafeValueDesc = SamzaPipelineTranslatorUtils.escape(pValueToString(value));
     idMap.put(value, String.format("%d-%s", nextId++, samzaSafeValueDesc));
   }
 
