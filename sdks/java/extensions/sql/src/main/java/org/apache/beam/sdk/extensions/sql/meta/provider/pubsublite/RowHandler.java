@@ -156,11 +156,15 @@ class RowHandler implements Serializable {
       }
     }
     if (payloadSerializer == null) {
-      builder.setData(ByteString.copyFrom(checkArgumentNotNull(row.getBytes(PAYLOAD_FIELD))));
+      byte[] payload = row.getBytes(PAYLOAD_FIELD);
+      if (payload != null) {
+        builder.setData(ByteString.copyFrom(payload));
+      }
     } else {
-      builder.setData(
-          ByteString.copyFrom(
-              payloadSerializer.serialize(checkArgumentNotNull(row.getRow(PAYLOAD_FIELD)))));
+      Row payload = row.getRow(PAYLOAD_FIELD);
+      if (payload != null) {
+        builder.setData(ByteString.copyFrom(payloadSerializer.serialize(payload)));
+      }
     }
     return builder.build();
   }

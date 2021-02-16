@@ -56,11 +56,11 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  *
  * <pre>{@code
  * CREATE EXTERNAL TABLE tableName(
- *     message_key BYTES NOT NULL,  // optional
- *     publish_timestamp TIMESTAMP NOT NULL,  // optional, readable tables only
+ *     message_key BYTES [NOT NULL],  // optional, always present on read
+ *     publish_timestamp TIMESTAMP [NOT NULL],  // optional, readable tables only, always present on read
  *     event_timestamp TIMESTAMP [NOT NULL],  // optional, null if not present in readable table, unset in message if null in writable table. NOT NULL enforces field presence on read
- *     attributes ARRAY<ROW<key VARCHAR NOT NULL, values ARRAY<BYTES NOT NULL> NOT NULL> NOT NULL> NOT NULL,  // optional
- *     payload BYTES NOT NULL | ROW<[INSERT SCHEMA HERE]>,
+ *     attributes ARRAY<ROW<key VARCHAR, values ARRAY<BYTES>>>,  // optional, null values never present on reads or handled on writes
+ *     payload BYTES | ROW<[INSERT SCHEMA HERE]>,
  * )
  * TYPE pubsublite
  * // For writable tables
@@ -92,6 +92,14 @@ public class PubsubLiteTableProvider extends InMemoryMetaTableProvider {
     return Optional.of(PayloadSerializers.getSerializer(format, schema, properties.getInnerMap()));
   }
 
+  private static void checkFieldHasType(Field field, FieldType type) {
+    checkArgument(
+        type.equivalent(field.getType(), EquivalenceNullablePolicy.WEAKEN),
+        String.format(
+            "'%s' field must have schema matching '%s'.",
+            field.getName(), type));
+  }
+
   private static void validateSchema(Schema schema) {
     checkArgument(
         schema.hasField(RowHandler.PAYLOAD_FIELD),
@@ -99,35 +107,18 @@ public class PubsubLiteTableProvider extends InMemoryMetaTableProvider {
     for (Field field : schema.getFields()) {
       switch (field.getName()) {
         case RowHandler.ATTRIBUTES_FIELD:
-          checkArgument(
-              field.getType().equals(RowHandler.ATTRIBUTES_FIELD_TYPE),
-              String.format(
-                  "'%s' field must have schema of exactly 'ARRAY<ROW<key VARCHAR NOT NULL, values ARRAY<BYTES NOT NULL> NOT NULL> NOT NULL> NOT NULL'.",
-                  field.getName()));
+          checkFieldHasType(field, RowHandler.ATTRIBUTES_FIELD_TYPE);
           break;
         case RowHandler.EVENT_TIMESTAMP_FIELD:
-          // Event timestamps may be nullable or non-null.
-          checkArgument(
-              FieldType.DATETIME.equivalent(field.getType(), EquivalenceNullablePolicy.WEAKEN),
-              String.format(
-                  "'%s' field must have schema of exactly 'TIMESTAMP [NOT NULL]'.",
-                  field.getName()));
-          break;
         case RowHandler.PUBLISH_TIMESTAMP_FIELD:
-          checkArgument(
-              field.getType().equals(FieldType.DATETIME),
-              String.format(
-                  "'%s' field must have schema of exactly 'TIMESTAMP NOT NULL'.", field.getName()));
+          checkFieldHasType(field, FieldType.DATETIME);
           break;
         case RowHandler.MESSAGE_KEY_FIELD:
-          checkArgument(
-              field.getType().equals(FieldType.BYTES),
-              String.format(
-                  "'%s' field must have schema of exactly 'BYTES NOT NULL'.", field.getName()));
+          checkFieldHasType(field, FieldType.BYTES);
           break;
         case RowHandler.PAYLOAD_FIELD:
           checkArgument(
-              field.getType().equals(FieldType.BYTES)
+              FieldType.BYTES.equivalent(field.getType(), EquivalenceNullablePolicy.WEAKEN)
                   || field.getType().getTypeName().equals(TypeName.ROW),
               String.format(
                   "'%s' field must either have a 'BYTES NOT NULL' or 'ROW' schema.",
