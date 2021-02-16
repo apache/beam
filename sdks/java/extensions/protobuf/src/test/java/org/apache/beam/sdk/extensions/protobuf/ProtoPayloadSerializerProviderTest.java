@@ -15,12 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.meta.provider.payloads;
+package org.apache.beam.sdk.extensions.protobuf;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 
-import org.apache.beam.sdk.extensions.sql.meta.provider.kafka.KafkaMessages;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.values.Row;
@@ -48,8 +47,8 @@ public class ProtoPayloadSerializerProviderTest {
           .withFieldValue("f_double", 9.0)
           .withFieldValue("f_long", 456L)
           .build();
-  private static final KafkaMessages.TestMessage MESSAGE =
-      KafkaMessages.TestMessage.newBuilder()
+  private static final PayloadMessages.TestMessage MESSAGE =
+      PayloadMessages.TestMessage.newBuilder()
           .setFLong(456)
           .setFInt(123)
           .setFDouble(9.0)
@@ -83,7 +82,7 @@ public class ProtoPayloadSerializerProviderTest {
                     .addDoubleField("f_double")
                     .addInt64Field("f_long")
                     .build(),
-                ImmutableMap.of("protoClass", KafkaMessages.TestMessage.class.getName())));
+                ImmutableMap.of("protoClass", PayloadMessages.TestMessage.class.getName())));
   }
 
   @Test
@@ -92,9 +91,9 @@ public class ProtoPayloadSerializerProviderTest {
         provider
             .getSerializer(
                 SHUFFLED_SCHEMA,
-                ImmutableMap.of("protoClass", KafkaMessages.TestMessage.class.getName()))
+                ImmutableMap.of("protoClass", PayloadMessages.TestMessage.class.getName()))
             .serialize(ROW);
-    KafkaMessages.TestMessage result = KafkaMessages.TestMessage.parseFrom(bytes);
+    PayloadMessages.TestMessage result = PayloadMessages.TestMessage.parseFrom(bytes);
     assertEquals(MESSAGE, result);
   }
 
@@ -104,7 +103,7 @@ public class ProtoPayloadSerializerProviderTest {
         provider
             .getSerializer(
                 SHUFFLED_SCHEMA,
-                ImmutableMap.of("protoClass", KafkaMessages.TestMessage.class.getName()))
+                ImmutableMap.of("protoClass", PayloadMessages.TestMessage.class.getName()))
             .deserialize(MESSAGE.toByteArray());
     assertEquals(ROW, row);
   }

@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.meta.provider.kafka.thrift;
+package org.apache.beam.sdk.io.thrift.payloads;
 
 @SuppressWarnings({"cast", "rawtypes", "serial", "unchecked", "unused"})
 @javax.annotation.Generated(
@@ -53,9 +53,8 @@ public class TestThriftMessage
   private long f_long; // required
   private int f_int; // required
   private double f_double; // required
-  private @org.apache.thrift.annotation.Nullable java.lang.String f_string; // required
-  private @org.apache.thrift.annotation.Nullable java.util.List<java.lang.Double>
-      f_double_array; // required
+  private @org.apache.thrift.annotation.Nullable String f_string; // required
+  private @org.apache.thrift.annotation.Nullable java.util.List<Double> f_double_array; // required
 
   /**
    * The set of fields this struct contains, along with convenience methods for finding and
@@ -68,8 +67,8 @@ public class TestThriftMessage
     F_STRING((short) 4, "f_string"),
     F_DOUBLE_ARRAY((short) 5, "f_double_array");
 
-    private static final java.util.Map<java.lang.String, _Fields> byName =
-        new java.util.HashMap<java.lang.String, _Fields>();
+    private static final java.util.Map<String, _Fields> byName =
+        new java.util.HashMap<String, _Fields>();
 
     static {
       for (_Fields field : java.util.EnumSet.allOf(_Fields.class)) {
@@ -100,20 +99,20 @@ public class TestThriftMessage
     public static _Fields findByThriftIdOrThrow(int fieldId) {
       _Fields fields = findByThriftId(fieldId);
       if (fields == null)
-        throw new java.lang.IllegalArgumentException("Field " + fieldId + " doesn't exist!");
+        throw new IllegalArgumentException("Field " + fieldId + " doesn't exist!");
       return fields;
     }
 
     /** Find the _Fields constant that matches name, or null if its not found. */
     @org.apache.thrift.annotation.Nullable
-    public static _Fields findByName(java.lang.String name) {
+    public static _Fields findByName(String name) {
       return byName.get(name);
     }
 
     private final short _thriftId;
-    private final java.lang.String _fieldName;
+    private final String _fieldName;
 
-    _Fields(short thriftId, java.lang.String fieldName) {
+    _Fields(short thriftId, String fieldName) {
       _thriftId = thriftId;
       _fieldName = fieldName;
     }
@@ -122,7 +121,7 @@ public class TestThriftMessage
       return _thriftId;
     }
 
-    public java.lang.String getFieldName() {
+    public String getFieldName() {
       return _fieldName;
     }
   }
@@ -180,15 +179,15 @@ public class TestThriftMessage
   }
 
   public TestThriftMessage() {
-    this.f_double_array = new java.util.ArrayList<java.lang.Double>();
+    this.f_double_array = new java.util.ArrayList<Double>();
   }
 
   public TestThriftMessage(
       long f_long,
       int f_int,
       double f_double,
-      java.lang.String f_string,
-      java.util.List<java.lang.Double> f_double_array) {
+      String f_string,
+      java.util.List<Double> f_double_array) {
     this();
     this.f_long = f_long;
     setFLongIsSet(true);
@@ -210,8 +209,8 @@ public class TestThriftMessage
       this.f_string = other.f_string;
     }
     if (other.isSetFDoubleArray()) {
-      java.util.List<java.lang.Double> __this__f_double_array =
-          new java.util.ArrayList<java.lang.Double>(other.f_double_array);
+      java.util.List<Double> __this__f_double_array =
+          new java.util.ArrayList<Double>(other.f_double_array);
       this.f_double_array = __this__f_double_array;
     }
   }
@@ -229,7 +228,7 @@ public class TestThriftMessage
     setFDoubleIsSet(false);
     this.f_double = 0.0;
     this.f_string = null;
-    this.f_double_array = new java.util.ArrayList<java.lang.Double>();
+    this.f_double_array = new java.util.ArrayList<Double>();
   }
 
   public long getFLong() {
@@ -307,12 +306,11 @@ public class TestThriftMessage
   }
 
   @org.apache.thrift.annotation.Nullable
-  public java.lang.String getFString() {
+  public String getFString() {
     return this.f_string;
   }
 
-  public TestThriftMessage setFString(
-      @org.apache.thrift.annotation.Nullable java.lang.String f_string) {
+  public TestThriftMessage setFString(@org.apache.thrift.annotation.Nullable String f_string) {
     this.f_string = f_string;
     return this;
   }
@@ -337,24 +335,24 @@ public class TestThriftMessage
   }
 
   @org.apache.thrift.annotation.Nullable
-  public java.util.Iterator<java.lang.Double> getFDoubleArrayIterator() {
+  public java.util.Iterator<Double> getFDoubleArrayIterator() {
     return (this.f_double_array == null) ? null : this.f_double_array.iterator();
   }
 
   public void addToFDoubleArray(double elem) {
     if (this.f_double_array == null) {
-      this.f_double_array = new java.util.ArrayList<java.lang.Double>();
+      this.f_double_array = new java.util.ArrayList<Double>();
     }
     this.f_double_array.add(elem);
   }
 
   @org.apache.thrift.annotation.Nullable
-  public java.util.List<java.lang.Double> getFDoubleArray() {
+  public java.util.List<Double> getFDoubleArray() {
     return this.f_double_array;
   }
 
   public TestThriftMessage setFDoubleArray(
-      @org.apache.thrift.annotation.Nullable java.util.List<java.lang.Double> f_double_array) {
+      @org.apache.thrift.annotation.Nullable java.util.List<Double> f_double_array) {
     this.f_double_array = f_double_array;
     return this;
   }
@@ -374,14 +372,13 @@ public class TestThriftMessage
     }
   }
 
-  public void setFieldValue(
-      _Fields field, @org.apache.thrift.annotation.Nullable java.lang.Object value) {
+  public void setFieldValue(_Fields field, @org.apache.thrift.annotation.Nullable Object value) {
     switch (field) {
       case F_LONG:
         if (value == null) {
           unsetFLong();
         } else {
-          setFLong((java.lang.Long) value);
+          setFLong((Long) value);
         }
         break;
 
@@ -389,7 +386,7 @@ public class TestThriftMessage
         if (value == null) {
           unsetFInt();
         } else {
-          setFInt((java.lang.Integer) value);
+          setFInt((Integer) value);
         }
         break;
 
@@ -397,7 +394,7 @@ public class TestThriftMessage
         if (value == null) {
           unsetFDouble();
         } else {
-          setFDouble((java.lang.Double) value);
+          setFDouble((Double) value);
         }
         break;
 
@@ -405,7 +402,7 @@ public class TestThriftMessage
         if (value == null) {
           unsetFString();
         } else {
-          setFString((java.lang.String) value);
+          setFString((String) value);
         }
         break;
 
@@ -413,14 +410,14 @@ public class TestThriftMessage
         if (value == null) {
           unsetFDoubleArray();
         } else {
-          setFDoubleArray((java.util.List<java.lang.Double>) value);
+          setFDoubleArray((java.util.List<Double>) value);
         }
         break;
     }
   }
 
   @org.apache.thrift.annotation.Nullable
-  public java.lang.Object getFieldValue(_Fields field) {
+  public Object getFieldValue(_Fields field) {
     switch (field) {
       case F_LONG:
         return getFLong();
@@ -437,7 +434,7 @@ public class TestThriftMessage
       case F_DOUBLE_ARRAY:
         return getFDoubleArray();
     }
-    throw new java.lang.IllegalStateException();
+    throw new IllegalStateException();
   }
 
   /**
@@ -446,7 +443,7 @@ public class TestThriftMessage
    */
   public boolean isSet(_Fields field) {
     if (field == null) {
-      throw new java.lang.IllegalArgumentException();
+      throw new IllegalArgumentException();
     }
 
     switch (field) {
@@ -461,11 +458,11 @@ public class TestThriftMessage
       case F_DOUBLE_ARRAY:
         return isSetFDoubleArray();
     }
-    throw new java.lang.IllegalStateException();
+    throw new IllegalStateException();
   }
 
   @Override
-  public boolean equals(java.lang.Object that) {
+  public boolean equals(Object that) {
     if (that == null) return false;
     if (that instanceof TestThriftMessage) return this.equals((TestThriftMessage) that);
     return false;
@@ -540,7 +537,7 @@ public class TestThriftMessage
 
     int lastComparison = 0;
 
-    lastComparison = java.lang.Boolean.valueOf(isSetFLong()).compareTo(other.isSetFLong());
+    lastComparison = Boolean.valueOf(isSetFLong()).compareTo(other.isSetFLong());
     if (lastComparison != 0) {
       return lastComparison;
     }
@@ -550,7 +547,7 @@ public class TestThriftMessage
         return lastComparison;
       }
     }
-    lastComparison = java.lang.Boolean.valueOf(isSetFInt()).compareTo(other.isSetFInt());
+    lastComparison = Boolean.valueOf(isSetFInt()).compareTo(other.isSetFInt());
     if (lastComparison != 0) {
       return lastComparison;
     }
@@ -560,7 +557,7 @@ public class TestThriftMessage
         return lastComparison;
       }
     }
-    lastComparison = java.lang.Boolean.valueOf(isSetFDouble()).compareTo(other.isSetFDouble());
+    lastComparison = Boolean.valueOf(isSetFDouble()).compareTo(other.isSetFDouble());
     if (lastComparison != 0) {
       return lastComparison;
     }
@@ -570,7 +567,7 @@ public class TestThriftMessage
         return lastComparison;
       }
     }
-    lastComparison = java.lang.Boolean.valueOf(isSetFString()).compareTo(other.isSetFString());
+    lastComparison = Boolean.valueOf(isSetFString()).compareTo(other.isSetFString());
     if (lastComparison != 0) {
       return lastComparison;
     }
@@ -580,8 +577,7 @@ public class TestThriftMessage
         return lastComparison;
       }
     }
-    lastComparison =
-        java.lang.Boolean.valueOf(isSetFDoubleArray()).compareTo(other.isSetFDoubleArray());
+    lastComparison = Boolean.valueOf(isSetFDoubleArray()).compareTo(other.isSetFDoubleArray());
     if (lastComparison != 0) {
       return lastComparison;
     }
@@ -610,8 +606,8 @@ public class TestThriftMessage
   }
 
   @Override
-  public java.lang.String toString() {
-    java.lang.StringBuilder sb = new java.lang.StringBuilder("TestThriftMessage(");
+  public String toString() {
+    StringBuilder sb = new StringBuilder("TestThriftMessage(");
     boolean first = true;
 
     sb.append("f_long:");
@@ -674,7 +670,7 @@ public class TestThriftMessage
   }
 
   private void readObject(java.io.ObjectInputStream in)
-      throws java.io.IOException, java.lang.ClassNotFoundException {
+      throws java.io.IOException, ClassNotFoundException {
     try {
       // it doesn't seem like you should have to do this, but java serialization is wacky, and
       // doesn't call the default constructor.
@@ -743,7 +739,7 @@ public class TestThriftMessage
             if (schemeField.type == org.apache.thrift.protocol.TType.LIST) {
               {
                 org.apache.thrift.protocol.TList _list0 = iprot.readListBegin();
-                struct.f_double_array = new java.util.ArrayList<java.lang.Double>(_list0.size);
+                struct.f_double_array = new java.util.ArrayList<Double>(_list0.size);
                 double _elem1;
                 for (int _i2 = 0; _i2 < _list0.size; ++_i2) {
                   _elem1 = iprot.readDouble();
@@ -860,7 +856,7 @@ public class TestThriftMessage
         org.apache.thrift.protocol.TList _list5 =
             new org.apache.thrift.protocol.TList(
                 org.apache.thrift.protocol.TType.DOUBLE, iprot.readI32());
-        struct.f_double_array = new java.util.ArrayList<java.lang.Double>(_list5.size);
+        struct.f_double_array = new java.util.ArrayList<Double>(_list5.size);
         double _elem6;
         for (int _i7 = 0; _i7 < _list5.size; ++_i7) {
           _elem6 = iprot.readDouble();

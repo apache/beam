@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.meta.provider.kafka.thrift;
+package org.apache.beam.sdk.io.thrift.payloads;
 
 @SuppressWarnings({"cast", "rawtypes", "serial", "unchecked", "unused"})
 @javax.annotation.Generated(
@@ -41,7 +41,7 @@ public class SimpleThriftMessage
       new SimpleThriftMessageTupleSchemeFactory();
 
   private int id; // required
-  private @org.apache.thrift.annotation.Nullable java.lang.String name; // required
+  private @org.apache.thrift.annotation.Nullable String name; // required
 
   /**
    * The set of fields this struct contains, along with convenience methods for finding and
@@ -51,8 +51,8 @@ public class SimpleThriftMessage
     ID((short) 1, "id"),
     NAME((short) 2, "name");
 
-    private static final java.util.Map<java.lang.String, _Fields> byName =
-        new java.util.HashMap<java.lang.String, _Fields>();
+    private static final java.util.Map<String, _Fields> byName =
+        new java.util.HashMap<String, _Fields>();
 
     static {
       for (_Fields field : java.util.EnumSet.allOf(_Fields.class)) {
@@ -77,20 +77,20 @@ public class SimpleThriftMessage
     public static _Fields findByThriftIdOrThrow(int fieldId) {
       _Fields fields = findByThriftId(fieldId);
       if (fields == null)
-        throw new java.lang.IllegalArgumentException("Field " + fieldId + " doesn't exist!");
+        throw new IllegalArgumentException("Field " + fieldId + " doesn't exist!");
       return fields;
     }
 
     /** Find the _Fields constant that matches name, or null if its not found. */
     @org.apache.thrift.annotation.Nullable
-    public static _Fields findByName(java.lang.String name) {
+    public static _Fields findByName(String name) {
       return byName.get(name);
     }
 
     private final short _thriftId;
-    private final java.lang.String _fieldName;
+    private final String _fieldName;
 
-    _Fields(short thriftId, java.lang.String fieldName) {
+    _Fields(short thriftId, String fieldName) {
       _thriftId = thriftId;
       _fieldName = fieldName;
     }
@@ -99,7 +99,7 @@ public class SimpleThriftMessage
       return _thriftId;
     }
 
-    public java.lang.String getFieldName() {
+    public String getFieldName() {
       return _fieldName;
     }
   }
@@ -133,7 +133,7 @@ public class SimpleThriftMessage
 
   public SimpleThriftMessage() {}
 
-  public SimpleThriftMessage(int id, java.lang.String name) {
+  public SimpleThriftMessage(int id, String name) {
     this();
     this.id = id;
     setIdIsSet(true);
@@ -185,11 +185,11 @@ public class SimpleThriftMessage
   }
 
   @org.apache.thrift.annotation.Nullable
-  public java.lang.String getName() {
+  public String getName() {
     return this.name;
   }
 
-  public SimpleThriftMessage setName(@org.apache.thrift.annotation.Nullable java.lang.String name) {
+  public SimpleThriftMessage setName(@org.apache.thrift.annotation.Nullable String name) {
     this.name = name;
     return this;
   }
@@ -209,14 +209,13 @@ public class SimpleThriftMessage
     }
   }
 
-  public void setFieldValue(
-      _Fields field, @org.apache.thrift.annotation.Nullable java.lang.Object value) {
+  public void setFieldValue(_Fields field, @org.apache.thrift.annotation.Nullable Object value) {
     switch (field) {
       case ID:
         if (value == null) {
           unsetId();
         } else {
-          setId((java.lang.Integer) value);
+          setId((Integer) value);
         }
         break;
 
@@ -224,14 +223,14 @@ public class SimpleThriftMessage
         if (value == null) {
           unsetName();
         } else {
-          setName((java.lang.String) value);
+          setName((String) value);
         }
         break;
     }
   }
 
   @org.apache.thrift.annotation.Nullable
-  public java.lang.Object getFieldValue(_Fields field) {
+  public Object getFieldValue(_Fields field) {
     switch (field) {
       case ID:
         return getId();
@@ -239,7 +238,7 @@ public class SimpleThriftMessage
       case NAME:
         return getName();
     }
-    throw new java.lang.IllegalStateException();
+    throw new IllegalStateException();
   }
 
   /**
@@ -248,7 +247,7 @@ public class SimpleThriftMessage
    */
   public boolean isSet(_Fields field) {
     if (field == null) {
-      throw new java.lang.IllegalArgumentException();
+      throw new IllegalArgumentException();
     }
 
     switch (field) {
@@ -257,11 +256,11 @@ public class SimpleThriftMessage
       case NAME:
         return isSetName();
     }
-    throw new java.lang.IllegalStateException();
+    throw new IllegalStateException();
   }
 
   @Override
-  public boolean equals(java.lang.Object that) {
+  public boolean equals(Object that) {
     if (that == null) return false;
     if (that instanceof SimpleThriftMessage) return this.equals((SimpleThriftMessage) that);
     return false;
@@ -308,7 +307,7 @@ public class SimpleThriftMessage
 
     int lastComparison = 0;
 
-    lastComparison = java.lang.Boolean.valueOf(isSetId()).compareTo(other.isSetId());
+    lastComparison = Boolean.valueOf(isSetId()).compareTo(other.isSetId());
     if (lastComparison != 0) {
       return lastComparison;
     }
@@ -318,7 +317,7 @@ public class SimpleThriftMessage
         return lastComparison;
       }
     }
-    lastComparison = java.lang.Boolean.valueOf(isSetName()).compareTo(other.isSetName());
+    lastComparison = Boolean.valueOf(isSetName()).compareTo(other.isSetName());
     if (lastComparison != 0) {
       return lastComparison;
     }
@@ -346,8 +345,8 @@ public class SimpleThriftMessage
   }
 
   @Override
-  public java.lang.String toString() {
-    java.lang.StringBuilder sb = new java.lang.StringBuilder("SimpleThriftMessage(");
+  public String toString() {
+    StringBuilder sb = new StringBuilder("SimpleThriftMessage(");
     boolean first = true;
 
     sb.append("id:");
@@ -386,7 +385,7 @@ public class SimpleThriftMessage
   }
 
   private void readObject(java.io.ObjectInputStream in)
-      throws java.io.IOException, java.lang.ClassNotFoundException {
+      throws java.io.IOException, ClassNotFoundException {
     try {
       // it doesn't seem like you should have to do this, but java serialization is wacky, and
       // doesn't call the default constructor.

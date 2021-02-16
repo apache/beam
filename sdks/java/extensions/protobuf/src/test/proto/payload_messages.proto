@@ -22,7 +22,7 @@
 
 syntax = "proto3";
 
-option java_package = "org.apache.beam.sdk.extensions.sql.meta.provider.kafka";
+option java_package = "org.apache.beam.sdk.extensions.protobuf";
 
 message TestMessage {
   int64 f_long = 1;
