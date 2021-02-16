@@ -7802,8 +7802,11 @@ return CombinePerKeyTransform()
 &lt;li>
 &lt;p>Start the Python SDK’s expansion service with a specified port.&lt;/p>
 &lt;pre>&lt;code>$ export PORT_FOR_EXPANSION_SERVICE=12345
-3. Import any modules that contain transforms to be made available using the expansion service.
-$ python -m apache_beam.runners.portability.expansion_service -p $PORT_FOR_EXPANSION_SERVICE
+&lt;/code>&lt;/pre>
+&lt;/li>
+&lt;li>
+&lt;p>Import any modules that contain transforms to be made available using the expansion service.&lt;/p>
+&lt;pre>&lt;code>$ python -m apache_beam.runners.portability.expansion_service_test -p $PORT_FOR_EXPANSION_SERVICE
 &lt;/code>&lt;/pre>
 &lt;/li>
 &lt;li>
