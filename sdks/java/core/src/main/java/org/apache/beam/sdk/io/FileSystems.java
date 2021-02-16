@@ -413,17 +413,21 @@ public class FileSystems {
     List<ResourceId> destToHandle = new ArrayList<>();
 
     List<MatchResult> matchSrcResults = matchResources(srcResourceIds);
-    List<MatchResult> matchDestResults = matchResources(destResourceIds);
+    List<MatchResult> matchDestResults = new ArrayList<>();
+    if (skipExistingDest) {
+      matchDestResults = matchResources(destResourceIds);
+    }
 
     for (int i = 0; i < matchSrcResults.size(); ++i) {
       if (matchSrcResults.get(i).status().equals(Status.NOT_FOUND) && ignoreMissingSrc) {
         // If the source is not found, and we are ignoring found source files, then we skip it.
         continue;
       }
-      if (matchDestResults.get(i).status().equals(Status.OK)
-          && matchDestResults.get(i).metadata().get(0).sizeBytes()
-              == matchSrcResults.get(i).metadata().get(0).sizeBytes()
-          && skipExistingDest) {
+      if (skipExistingDest
+          && matchDestResults.get(i).status().equals(Status.OK)
+          && filesMatch(
+              matchDestResults.get(i).metadata().get(0),
+              matchSrcResults.get(i).metadata().get(0))) {
         // If the destination exists, and we are skipping when destinations exist, then we skip.
         continue;
       }
@@ -431,6 +435,15 @@ public class FileSystems {
       destToHandle.add(destResourceIds.get(i));
     }
     return KV.of(srcToHandle, destToHandle);
+  }
+
+  private static boolean filesMatch(MatchResult.Metadata first, MatchResult.Metadata second) {
+    if (!first.checksum().isPresent() && !second.checksum().isPresent()) {
+      // If filesystem does not provide a checksum, we match files by size only (not recommended).
+      return first.sizeBytes() == second.sizeBytes();
+    } else {
+      return first.checksum().equals(second.checksum());
+    }
   }
 
   private static void validateSrcDestLists(

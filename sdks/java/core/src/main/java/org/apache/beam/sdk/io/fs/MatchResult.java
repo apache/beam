@@ -22,6 +22,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
+import java.util.Optional;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.FileSystems;
@@ -89,6 +90,9 @@ public abstract class MatchResult {
 
     public abstract boolean isReadSeekEfficient();
 
+    /** An optional checksum to identify the contents of a file. */
+    public abstract Optional<String> checksum();
+
     /**
      * Last modification timestamp in milliseconds since Unix epoch.
      *
@@ -126,6 +130,8 @@ public abstract class MatchResult {
       public abstract Builder setIsReadSeekEfficient(boolean value);
 
       public abstract Builder setLastModifiedMillis(long value);
+
+      public abstract Builder setChecksum(String value);
 
       public abstract Metadata build();
     }
