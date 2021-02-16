@@ -39,7 +39,7 @@ from apache_beam.transforms import trigger
 from apache_beam.transforms import window
 
 
-def load(events, metadata=None):
+def load(events, metadata=None, pipeline_options=None):
   # find winning bids for each closed auction
   return (
       events
