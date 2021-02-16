@@ -104,7 +104,7 @@ public class PubsubSchemaIOProvider implements SchemaIOProvider {
   public static final FieldType ATTRIBUTE_MAP_FIELD_TYPE =
       Schema.FieldType.map(FieldType.STRING.withNullable(false), FieldType.STRING);
   public static final Schema ATTRIBUTE_ARRAY_ENTRY_SCHEMA =
-      Schema.builder().addStringField("key").addStringField("vallue").build();
+      Schema.builder().addStringField("key").addStringField("value").build();
   public static final FieldType ATTRIBUTE_ARRAY_FIELD_TYPE =
       Schema.FieldType.array(Schema.FieldType.row(ATTRIBUTE_ARRAY_ENTRY_SCHEMA));
 
