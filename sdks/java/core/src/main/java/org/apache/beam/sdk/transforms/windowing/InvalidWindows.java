@@ -87,4 +87,9 @@ public class InvalidWindows<W extends BoundedWindow> extends WindowFn<Object, W>
   public Instant getOutputTime(Instant inputTimestamp, W window) {
     return inputTimestamp;
   }
+
+  @Override
+  public boolean isNonMerging() {
+    return true;
+  }
 }
