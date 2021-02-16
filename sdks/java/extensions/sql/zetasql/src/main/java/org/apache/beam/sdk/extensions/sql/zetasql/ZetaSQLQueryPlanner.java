@@ -117,8 +117,9 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
   }
 
   /**
-   * Returns true if the arguments only contain any user-defined Java functions, otherwise returns
-   * false.
+   * Returns true if the arguments only contain user-defined Java functions, otherwise returns
+   * false. User-defined java functions are in the category whose function group is equal to {@code
+   * SqlAnalyzer.USER_DEFINED_JAVA_SCALAR_FUNCTIONS}
    */
   static boolean hasOnlyJavaUdfInProjects(RelOptRuleCall x) {
     List<RelNode> resList = x.getRelList();
