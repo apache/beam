@@ -542,6 +542,9 @@ class DataflowRunner(PipelineRunner):
         and/or enable_streaming_engine experiments are present.
         It is recommended you only set the --enable_streaming_engine flag.""")
 
+    if google_cloud_options.enable_hot_key_logging:
+      debug_options.add_experiment('enable_hot_key_logging')
+
     dataflow_worker_jar = getattr(worker_options, 'dataflow_worker_jar', None)
     if dataflow_worker_jar is not None:
       if not apiclient._use_fnapi(options):

@@ -1070,6 +1070,10 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       }
     }
 
+    if (dataflowOptions.isHotKeyLoggingEnabled()) {
+      experiments.add("enable_hot_key_logging");
+    }
+
     newJob.getEnvironment().setExperiments(experiments);
 
     // Set the Docker container image that executes Dataflow worker harness, residing in Google
