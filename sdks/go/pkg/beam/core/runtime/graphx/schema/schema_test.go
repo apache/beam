@@ -41,6 +41,12 @@ type justAType struct {
 	C    int
 }
 
+type myInt int
+
+type anotherStruct struct {
+	Q myInt
+}
+
 func init() {
 	runtime.RegisterType(reflect.TypeOf((*registeredType)(nil)))
 }
@@ -63,8 +69,9 @@ type exportedFunc struct {
 func (*exportedFunc) hidden() {}
 
 var (
-	unexType   = reflect.TypeOf((*unexportedFields)(nil)).Elem()
-	exFuncType = reflect.TypeOf((*exportedFunc)(nil))
+	unexType    = reflect.TypeOf((*unexportedFields)(nil)).Elem()
+	exFuncType  = reflect.TypeOf((*exportedFunc)(nil))
+	anotherType = reflect.TypeOf((*anotherStruct)(nil)).Elem()
 )
 
 func TestSchemaConversion(t *testing.T) {
@@ -460,6 +467,34 @@ func TestSchemaConversion(t *testing.T) {
 				}},
 			},
 			rt: exFuncType,
+		}, {
+			st: &pipepb.Schema{
+				Fields: []*pipepb.Field{
+					{
+						Name: "Q",
+						Type: &pipepb.FieldType{
+							TypeInfo: &pipepb.FieldType_LogicalType{
+								LogicalType: &pipepb.LogicalType{
+									Urn: "schema.myInt",
+									Representation: &pipepb.FieldType{
+										TypeInfo: &pipepb.FieldType_LogicalType{
+											LogicalType: &pipepb.LogicalType{
+												Urn: "int",
+												Representation: &pipepb.FieldType{
+													TypeInfo: &pipepb.FieldType_AtomicType{
+														AtomicType: pipepb.AtomicType_INT64,
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			rt: anotherType,
 		},
 	}
 
@@ -480,6 +515,7 @@ func TestSchemaConversion(t *testing.T) {
 			})
 			reg.RegisterType(unexType)
 			reg.RegisterType(exFuncType)
+			reg.RegisterType(anotherType)
 
 			{
 				got, err := reg.ToType(test.st)

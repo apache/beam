@@ -53,6 +53,7 @@ type LogicalTypeProvider = func(reflect.Type) (reflect.Type, error)
 type Registry struct {
 	lastShortID     int64
 	typeToSchema    map[reflect.Type]*pipepb.Schema
+	idToType        map[string]reflect.Type
 	syntheticToUser map[reflect.Type]reflect.Type
 
 	logicalTypeProviders  map[reflect.Type]LogicalTypeProvider
@@ -64,12 +65,18 @@ type Registry struct {
 	// ... why don't we treat all types as Logical types?
 	logicalTypes           map[string]LogicalType
 	logicalTypeIdentifiers map[reflect.Type]string
+
+	// toReconcile contains a list of types that have been registered
+	// but not yet processed. Registration actually happens on first
+	// call to ToType or FromType or once Initialize is called on beam.Init.
+	toReconcile []reflect.Type
 }
 
 // NewRegistry creates an initialized LogicalTypeRegistry.
 func NewRegistry() *Registry {
 	return &Registry{
 		typeToSchema:    map[reflect.Type]*pipepb.Schema{},
+		idToType:        map[string]reflect.Type{},
 		syntheticToUser: map[reflect.Type]reflect.Type{},
 
 		logicalTypes:           map[string]LogicalType{},
