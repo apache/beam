@@ -38,7 +38,8 @@ public class BeamJavaUdfCalcRule extends ConverterRule {
 
   @Override
   public boolean matches(RelOptRuleCall x) {
-    return ZetaSQLQueryPlanner.hasOnlyJavaUdfInProjects(x);
+    // TODO(BEAM-11747) Re-enable this rule when we can guarantee its correctness.
+    return false;
   }
 
   @Override
