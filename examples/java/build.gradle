@@ -72,10 +72,12 @@ dependencies {
   compile library.java.google_code_gson
   compile library.java.google_http_client
   compile library.java.google_oauth_client
+  compile library.java.jackson_databind
   compile library.java.joda_time
+  compile library.java.protobuf_java
+  compile library.java.proto_google_cloud_bigtable_v2
   compile library.java.proto_google_cloud_datastore_v1
   compile library.java.slf4j_api
-  compile library.java.slf4j_jdk14
   provided library.java.commons_io
   provided library.java.commons_csv
   runtime project(path: ":runners:direct-java", configuration: "shadow")
@@ -87,6 +89,7 @@ dependencies {
     // "spotbugs-annotations:3.1.12" used in Beam. Not required.
     exclude group: "org.apache.zookeeper", module: "zookeeper"
   }
+  compile "org.apache.commons:commons-lang3:3.9"
   compile "org.apache.httpcomponents:httpclient:4.5.13"
   compile "org.apache.httpcomponents:httpcore:4.4.13"
   testCompile project(path: ":runners:direct-java", configuration: "shadow")
