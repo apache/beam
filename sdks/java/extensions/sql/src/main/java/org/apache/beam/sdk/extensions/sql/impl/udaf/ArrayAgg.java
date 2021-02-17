@@ -39,7 +39,9 @@ public class ArrayAgg {
     public List<Object> mergeAccumulators(Iterable<List<Object>> accums) {
       List<Object> merged = new ArrayList<>();
       for (List<Object> accum : accums) {
-        merged.add(accum);
+        for (Object o : accum) {
+          merged.add(o);
+        }
       }
       return merged;
     }
