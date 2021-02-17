@@ -5,16 +5,19 @@ ARG USER
 # Install python, Java, misc utilities, and tools.
 ##################################################
 RUN apt -y update
-RUN apt -y install apt-utils
+RUN ["apt", "-y", "install", "apt-utils"]
 RUN yes | unminimize
-RUN apt -y install python3.8, python3.8-venv, python3.8-distutils, python-is-python3
-RUN apt -y install openjdk-8-jdk, python-setuptools, virtualenv, tox
-RUN apt -y install vim
-RUN apt -y install git
-RUN apt -y install sudo
-RUN apt -y install man-db
-RUN apt -y install time
-RUN apt -y install bash-completion
+RUN ["apt", "-y", "install", "python3.8", "python3.8-venv", "python3.8-distutils", "python-is-python3"]
+RUN ["apt", "-y", "install", "openjdk-8-jdk", "python-setuptools", "virtualenv", "tox"]
+RUN ["apt", "-y", "install", "vim"]
+RUN ["apt", "-y", "install", "git"]
+RUN ["apt", "-y", "install", "sudo"]
+RUN ["apt", "-y", "install", "man-db"]
+RUN ["apt", "-y", "install", "time"]
+RUN ["apt", "-y", "install", "bash-completion"]
+RUN ["apt", "-y", "install", "rsync"]
+RUN ["apt", "-y", "install", "wget"]
+RUN ["apt", "-y", "install", "curl"]
 
 
 #########################################################################
@@ -43,12 +46,29 @@ RUN cd beam && git remote rename origin upstream
 ################################
 # Copy user customization files.
 ################################
-# Uncomment if you want to copy your config files to the container.
-# Make sure to also uncomment the `cp` commands in `build.sh`.
-# COPY --chown=$USER .bashrc /home/$USER
-# COPY --chown=$USER .profile /home/$USER
-# COPY --chown=$USER .gitconfig /home/$USER
-# COPY --chown=$USER .vimrc /home/$USER
+COPY --chown=$USER .bashrc /home/$USER
+COPY --chown=$USER .profile /home/$USER
+COPY --chown=$USER .gitconfig /home/$USER
+COPY --chown=$USER .vimrc /home/$USER
 
+
+#################################
+# VIM customization options.
+# Uncomment to add functionality.
+#################################
+# RUN git clone https://github.com/VundleVim/Vundle.vim.git ~/.vim/bundle/Vundle.vim
+# RUN vim +PluginInstall +qall > /dev/null
+# 
+# # Install YouCompleteMe
+# USER root
+# RUN apt -y install build-essential cmake
+# RUN cd /home/$USER/.vim/bundle/YouCompleteMe && python install.py --java-completer
+
+###############################################
+# X11 Options used for Intellij and other GUIs.
+###############################################
+RUN apt-get install -qqy x11-apps
 
 USER $USER
+ENV DISPLAY :0
+
