@@ -41,6 +41,8 @@ import io.grpc.Channel;
 import io.grpc.ClientCall;
 import io.grpc.ClientInterceptor;
 import io.grpc.MethodDescriptor;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -187,7 +189,7 @@ class SpannerAccessor implements AutoCloseable {
     ValueProvider<String> host = spannerConfig.getHost();
     if (host != null) {
       builder.setHost(host.get());
-      instantiatingGrpcChannelProvider.setEndpoint(host.get());
+      instantiatingGrpcChannelProvider.setEndpoint(getEndpoint(host.get()));
     }
     ValueProvider<String> emulatorHost = spannerConfig.getEmulatorHost();
     if (emulatorHost != null) {
@@ -199,7 +201,7 @@ class SpannerAccessor implements AutoCloseable {
        * InstantiatingGrpcChannelProvider will override the settings provided.
        * The section below and all associated artifacts will be removed once the bug
        * that prevents setting user-agent is fixed.
-       * https://github.com/googleapis/java-spanner/pull/747
+       * https://github.com/googleapis/java-spanner/pull/871
        *
        * Code to be replaced:
        * builder.setHeaderProvider(FixedHeaderProvider.create("user-agent", userAgentString));
@@ -228,6 +230,17 @@ class SpannerAccessor implements AutoCloseable {
 
     return new SpannerAccessor(
         spanner, databaseClient, databaseAdminClient, batchClient, spannerConfig);
+  }
+
+  private static String getEndpoint(String host) {
+    URL url;
+    try {
+      url = new URL(host);
+    } catch (MalformedURLException e) {
+      throw new IllegalArgumentException("Invalid host: " + host, e);
+    }
+    return String.format(
+        "%s:%s", url.getHost(), url.getPort() < 0 ? url.getDefaultPort() : url.getPort());
   }
 
   public DatabaseClient getDatabaseClient() {
