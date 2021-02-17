@@ -17,7 +17,7 @@
 from __future__ import absolute_import
 
 import functools
-import inspect
+from inspect import getfullargspec, unwrap
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -29,9 +29,6 @@ import pandas as pd
 
 from apache_beam.dataframe import expressions
 from apache_beam.dataframe import partitionings
-
-_getargspec = inspect.getfullargspec
-_unwrap = inspect.unwrap
 
 
 class DeferredBase(object):
@@ -188,7 +185,7 @@ def _proxy_function(
         value = kwargs[key]
       else:
         try:
-          ix = _getargspec(func).args.index(key)
+          ix = getfullargspec(func).args.index(key)
         except ValueError:
           # TODO: fix for delegation?
           continue
@@ -333,7 +330,7 @@ def maybe_inplace(func):
 
 def args_to_kwargs(base_type):
   def wrap(func):
-    arg_names = _getargspec(_unwrap(getattr(base_type, func.__name__))).args
+    arg_names = getfullargspec(unwrap(getattr(base_type, func.__name__))).args
 
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
@@ -352,7 +349,7 @@ def args_to_kwargs(base_type):
 
 def populate_defaults(base_type):
   def wrap(func):
-    base_argspec = _getargspec(_unwrap(getattr(base_type, func.__name__)))
+    base_argspec = getfullargspec(unwrap(getattr(base_type, func.__name__)))
     if not base_argspec.defaults:
       return func
 
@@ -361,9 +358,9 @@ def populate_defaults(base_type):
             base_argspec.args[-len(base_argspec.defaults):],
             base_argspec.defaults))
 
-    unwrapped_func = _unwrap(func)
+    unwrapped_func = unwrap(func)
     # args that do not have defaults in func, but do have defaults in base
-    func_argspec = _getargspec(unwrapped_func)
+    func_argspec = getfullargspec(unwrapped_func)
     num_non_defaults = len(func_argspec.args) - len(func_argspec.defaults or ())
     defaults_to_populate = set(
         func_argspec.args[:num_non_defaults]).intersection(
