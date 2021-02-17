@@ -56,7 +56,7 @@ guppy3==3.0.9
 mmh3==2.5.1
 
 # These are additional packages likely to be used by customers.
-numpy==1.20.1
+numpy==1.19.5
 scipy==1.4.1
 pandas==1.2.2
 protorpc==0.12.0
