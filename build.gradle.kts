@@ -348,7 +348,7 @@ if (project.hasProperty("javaLinkageArtifactIds")) {
 
   val linkageCheckerJava by configurations.creating
   dependencies {
-    linkageCheckerJava("com.google.cloud.tools:dependencies:1.5.4")
+    linkageCheckerJava("com.google.cloud.tools:dependencies:1.5.6")
   }
 
   // We need to evaluate all the projects first so that we can find depend on all the
@@ -381,7 +381,7 @@ if (project.hasProperty("javaLinkageArtifactIds")) {
       arguments += "--exclusion-file"
       arguments += project.property("javaLinkageReadBaseline") as String
     }
-    args(arguments)
+    args(*arguments)
     doLast {
       println("NOTE: This task published artifacts into your local Maven repository. You may want to remove them manually.")
     }
