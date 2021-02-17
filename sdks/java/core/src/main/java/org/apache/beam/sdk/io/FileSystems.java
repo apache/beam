@@ -425,7 +425,7 @@ public class FileSystems {
       }
       if (skipExistingDest
           && matchDestResults.get(i).status().equals(Status.OK)
-          && filesMatch(
+          && checksumMatch(
               matchDestResults.get(i).metadata().get(0),
               matchSrcResults.get(i).metadata().get(0))) {
         // If the destination exists, and we are skipping when destinations exist, then we skip.
@@ -437,13 +437,8 @@ public class FileSystems {
     return KV.of(srcToHandle, destToHandle);
   }
 
-  private static boolean filesMatch(MatchResult.Metadata first, MatchResult.Metadata second) {
-    if (first.checksum() == null && second.checksum() == null) {
-      // If filesystem does not provide a checksum, we match files by size only (not recommended).
-      return first.sizeBytes() == second.sizeBytes();
-    } else {
-      return first.checksum() != null && first.checksum().equals(second.checksum());
-    }
+  private static boolean checksumMatch(MatchResult.Metadata first, MatchResult.Metadata second) {
+    return first.checksum() != null && first.checksum().equals(second.checksum());
   }
 
   private static void validateSrcDestLists(
