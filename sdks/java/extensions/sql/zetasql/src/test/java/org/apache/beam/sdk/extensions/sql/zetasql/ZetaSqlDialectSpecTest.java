@@ -4100,7 +4100,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
   }
 
   @Test
-  public void testArrayAggregation() {
+  public void testArrayAggZetasql() {
     String sql = "SELECT ARRAY_AGG(x) AS array_agg " + "FROM UNNEST([2, 1]) AS x";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
