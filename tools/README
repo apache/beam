@@ -1,12 +1,16 @@
-Build instructions:
-If you want to add your bashrc/profilec/etc. configurations then open up build.sh in a text editor and uncomment out the lines pertaining to HOME_DIR.
-If you want to add VIM customizations to the container go the the VIM customization section in the `Dockerfile` and uncomment out that section.
+# Build instructions:
+If you want to add your bashrc/profilec/etc. configurations then open up build.sh in a text editor
+and uncomment out the lines pertaining to HOME_DIR. Then set the HOME_DIR variable to the absolute
+path to your home directory.
+
+If you want to add VIM customizations to the container go the the VIM customization section in the
+`Dockerfile` and uncomment out that section.
 
 ```
 sudo ./build.sh
 ```
 
-Run instructions:
+# Run instructions:
 
 ```
 sudo ./run.sh
