@@ -18,6 +18,7 @@ RUN ["apt", "-y", "install", "bash-completion"]
 RUN ["apt", "-y", "install", "rsync"]
 RUN ["apt", "-y", "install", "wget"]
 RUN ["apt", "-y", "install", "curl"]
+RUN ["apt", "-y", "install", "x11-apps"]
 
 
 #########################################################################
@@ -67,8 +68,6 @@ COPY --chown=$USER .vimrc /home/$USER
 ###############################################
 # X11 Options used for Intellij and other GUIs.
 ###############################################
-RUN apt-get install -qqy x11-apps
-
 USER $USER
 ENV DISPLAY :0
 
