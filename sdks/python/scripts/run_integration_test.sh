@@ -240,6 +240,8 @@ if [[ -z $PIPELINE_OPTS ]]; then
   # Add --runner_v2 if provided
   if [[ "$RUNNER_V2" = true ]]; then
     opts+=("--experiments=use_runner_v2")
+    # TODO(BEAM-11779) remove shuffle_mode=appliance with runner v2 once issue is resolved.
+    opts+=("--experiments=shuffle_mode=appliance")
     if [[ "$STREAMING" = true ]]; then
       # Dataflow Runner V2 only supports streaming engine.
       opts+=("--enable_streaming_engine")
