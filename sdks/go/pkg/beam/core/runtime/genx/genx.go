@@ -46,7 +46,6 @@ func RegisterDoFn(dofn interface{}) {
 	}
 	for _, t := range ts {
 		runtime.RegisterType(t)
-		//	schema.RegisterType(t)
 	}
 }
 

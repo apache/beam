@@ -216,15 +216,15 @@ func (r *Registry) registerType(ut reflect.Type, seen map[reflect.Type]struct{})
 		return nil
 	case reflect.Struct: // What we expect here.
 	default:
-		rt := reflectKindToTypeMap[t.Kind()]
-		// It's only a logical type if it's not a built in primitive type.
+		rt, ok := reflectKindToTypeMap[t.Kind()]
+		if !ok {
+			// Kind is not listed, meaning it's an unlisted somehow, which means either the map
+			// is missing something, or the above switch cases are missing something.
+			return errors.Errorf("Unlisted kind %v for type %v reached.", t.Kind(), t)
+		}
 		if t != rt {
-			st, ok := reflectKindToTypeMap[t.Kind()]
-			if !ok {
-				fmt.Printf("\n nil type to RegisterLogicalType for t %v\n", t)
-				return nil
-			}
-			r.RegisterLogicalType(ToLogicalType(t.String(), t, st))
+			// It's only a logical type if it's not a built in primitive type, which is returned by the map.
+			r.RegisterLogicalType(ToLogicalType(t.String(), t, rt))
 		}
 		return nil
 	}
