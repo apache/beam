@@ -438,11 +438,11 @@ public class FileSystems {
   }
 
   private static boolean filesMatch(MatchResult.Metadata first, MatchResult.Metadata second) {
-    if (!first.checksum().isPresent() && !second.checksum().isPresent()) {
+    if (first.checksum() == null && second.checksum() == null) {
       // If filesystem does not provide a checksum, we match files by size only (not recommended).
       return first.sizeBytes() == second.sizeBytes();
     } else {
-      return first.checksum().equals(second.checksum());
+      return first.checksum() != null && first.checksum().equals(second.checksum());
     }
   }
 

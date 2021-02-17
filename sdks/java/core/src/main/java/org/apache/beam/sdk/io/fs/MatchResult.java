@@ -22,10 +22,10 @@ import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
-import java.util.Optional;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.FileSystems;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** The result of {@link org.apache.beam.sdk.io.FileSystem#match}. */
 public abstract class MatchResult {
@@ -91,7 +91,7 @@ public abstract class MatchResult {
     public abstract boolean isReadSeekEfficient();
 
     /** An optional checksum to identify the contents of a file. */
-    public abstract Optional<String> checksum();
+    public abstract @Nullable String checksum();
 
     /**
      * Last modification timestamp in milliseconds since Unix epoch.
