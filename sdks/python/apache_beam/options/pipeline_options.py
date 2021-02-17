@@ -1125,7 +1125,7 @@ class PortableOptions(PipelineOptions):
             'For DOCKER: docker_container_image (optional)\n '
             'For PROCESS: process_command (required), process_variables '
             '(optional, comma-separated)\n '
-            'For EXTERNAL: external_service_address (required)'))
+            'For E_address (required)'))
     parser.add_argument(
         '--sdk_worker_parallelism',
         default=1,
