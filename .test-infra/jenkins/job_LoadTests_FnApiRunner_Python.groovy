@@ -16,8 +16,10 @@
  * limitations under the License.
  */
 
+import CommonJobProperties as commonJobProperties
 import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
+import InfluxDBCredentialsHelper
 
 def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
@@ -57,7 +59,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
     this
     ) {
       additionalPipelineArgs = [:]
-      loadTestJob(delegate, CommonTestProperties.TriggeringContext.PR, "batch")
+      loadTestJob(delegate, CommonTestProperties.TriggeringContext.PR)
     }
 
 
