@@ -51,7 +51,6 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptUtil
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Function;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlExecutableStatement;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RuleSet;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 
 /**
  * Contains the metadata of tables/UDF functions, and exposes APIs to
@@ -89,11 +88,8 @@ public class BeamSqlEnv {
    * This method creates {@link org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv} using empty
    * Pipeline Options. It should only be used in tests.
    */
-  @VisibleForTesting
   public static BeamSqlEnv withTableProvider(TableProvider tableProvider) {
-    return builder(tableProvider)
-        .setPipelineOptions(PipelineOptionsFactory.create().as(BeamSqlPipelineOptions.class))
-        .build();
+    return builder(tableProvider).setPipelineOptions(PipelineOptionsFactory.create()).build();
   }
 
   /**
@@ -145,19 +141,23 @@ public class BeamSqlEnv {
 
   /** BeamSqlEnv's Builder. */
   public static class BeamSqlEnvBuilder {
+    private static final String CALCITE_PLANNER =
+        "org.apache.beam.sdk.extensions.sql.impl.CalciteQueryPlanner";
+    private String queryPlannerClassName;
     private TableProvider defaultTableProvider;
     private String currentSchemaName;
     private Map<String, TableProvider> schemaMap;
     private Set<Map.Entry<String, Function>> functionSet;
     private boolean autoLoadBuiltinFunctions;
     private boolean autoLoadUdfs;
-    private BeamSqlPipelineOptions pipelineOptions;
+    private PipelineOptions pipelineOptions;
     private Collection<RuleSet> ruleSets;
 
     private BeamSqlEnvBuilder(TableProvider tableProvider) {
       checkNotNull(tableProvider, "Table provider for the default schema must be sets.");
 
       defaultTableProvider = tableProvider;
+      queryPlannerClassName = CALCITE_PLANNER;
       schemaMap = new HashMap<>();
       functionSet = new HashSet<>();
       autoLoadUdfs = false;
@@ -225,8 +225,13 @@ public class BeamSqlEnv {
       return this;
     }
 
+    public BeamSqlEnvBuilder setQueryPlannerClassName(String name) {
+      queryPlannerClassName = name;
+      return this;
+    }
+
     public BeamSqlEnvBuilder setPipelineOptions(PipelineOptions pipelineOptions) {
-      this.pipelineOptions = pipelineOptions.as(BeamSqlPipelineOptions.class);
+      this.pipelineOptions = pipelineOptions;
       return this;
     }
 
@@ -313,10 +318,10 @@ public class BeamSqlEnv {
         JdbcConnection jdbcConnection, Collection<RuleSet> ruleSets) {
       Class<?> queryPlannerClass;
       try {
-        queryPlannerClass = Class.forName(pipelineOptions.getPlannerName());
+        queryPlannerClass = Class.forName(queryPlannerClassName);
       } catch (ClassNotFoundException exc) {
         throw new RuntimeException(
-            "Cannot find requested QueryPlanner class: " + pipelineOptions.getPlannerName(), exc);
+            "Cannot find requested QueryPlanner class: " + queryPlannerClassName, exc);
       }
 
       QueryPlanner.Factory factory;
@@ -326,7 +331,7 @@ public class BeamSqlEnv {
         throw new RuntimeException(
             String.format(
                 "QueryPlanner class %s does not have an accessible static field 'FACTORY' of type QueryPlanner.Factory",
-                pipelineOptions.getPlannerName()),
+                queryPlannerClassName),
             exc);
       }
 
