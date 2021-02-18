@@ -23,7 +23,6 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializer;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -43,7 +42,8 @@ public class PayloadSerializerKafkaTable extends BeamKafkaTable {
   }
 
   @Override
-  protected PTransform<PCollection<KafkaRecord<byte[], byte[]>>, PCollection<Row>> getPTransformForInput() {
+  protected PTransform<PCollection<KafkaRecord<byte[], byte[]>>, PCollection<Row>>
+      getPTransformForInput() {
     return new PTransform<PCollection<KafkaRecord<byte[], byte[]>>, PCollection<Row>>(
         "deserialize-kafka-rows") {
       @Override
@@ -58,7 +58,8 @@ public class PayloadSerializerKafkaTable extends BeamKafkaTable {
   }
 
   @Override
-  protected PTransform<PCollection<Row>, PCollection<ProducerRecord<byte[], byte[]>>> getPTransformForOutput() {
+  protected PTransform<PCollection<Row>, PCollection<ProducerRecord<byte[], byte[]>>>
+      getPTransformForOutput() {
     String topic = Iterables.getOnlyElement(getTopics());
     return new PTransform<PCollection<Row>, PCollection<ProducerRecord<byte[], byte[]>>>(
         "serialize-kafka-rows") {

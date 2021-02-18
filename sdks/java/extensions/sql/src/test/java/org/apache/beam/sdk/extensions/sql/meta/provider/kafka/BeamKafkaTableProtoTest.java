@@ -23,8 +23,8 @@ import static org.junit.Assert.assertThrows;
 
 import com.alibaba.fastjson.JSON;
 import java.util.List;
-import org.apache.beam.sdk.extensions.protobuf.PayloadMessages;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
+import org.apache.beam.sdk.extensions.protobuf.PayloadMessages;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.io.kafka.KafkaRecordCoder;
 import org.apache.beam.sdk.io.kafka.ProducerRecordCoder;

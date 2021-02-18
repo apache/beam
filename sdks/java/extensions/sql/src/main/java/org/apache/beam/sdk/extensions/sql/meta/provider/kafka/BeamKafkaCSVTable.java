@@ -50,12 +50,14 @@ public class BeamKafkaCSVTable extends BeamKafkaTable {
   }
 
   @Override
-  protected PTransform<PCollection<KafkaRecord<byte[], byte[]>>, PCollection<Row>> getPTransformForInput() {
+  protected PTransform<PCollection<KafkaRecord<byte[], byte[]>>, PCollection<Row>>
+      getPTransformForInput() {
     return new CsvRecorderDecoder(schema, csvFormat);
   }
 
   @Override
-  protected PTransform<PCollection<Row>, PCollection<ProducerRecord<byte[], byte[]>>> getPTransformForOutput() {
+  protected PTransform<PCollection<Row>, PCollection<ProducerRecord<byte[], byte[]>>>
+      getPTransformForOutput() {
     return new CsvRecorderEncoder(csvFormat, Iterables.getOnlyElement(getTopics()));
   }
 
@@ -110,9 +112,9 @@ public class BeamKafkaCSVTable extends BeamKafkaTable {
                 @ProcessElement
                 public void processElement(ProcessContext c) {
                   Row in = checkArgumentNotNull(c.element());
-                  c.output(new ProducerRecord<>(
-                      topic, new byte[] {}, beamRow2CsvLine(in, format).getBytes(UTF_8)
-                  ));
+                  c.output(
+                      new ProducerRecord<>(
+                          topic, new byte[] {}, beamRow2CsvLine(in, format).getBytes(UTF_8)));
                 }
               }));
     }

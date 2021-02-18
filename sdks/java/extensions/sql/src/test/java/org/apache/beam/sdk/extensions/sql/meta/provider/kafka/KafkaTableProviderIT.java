@@ -111,10 +111,11 @@ public class KafkaTableProviderIT {
           .addStringField("f_string")
           .build();
 
-  private static final Schema NESTED_TABLE_SCHEMA = Schema.builder()
-      .addRowField(Schemas.PAYLOAD_FIELD, TEST_TABLE_SCHEMA)
-      .addArrayField(Schemas.HEADERS_FIELD, Schemas.HEADERS_FIELD_TYPE)
-      .build();
+  private static final Schema NESTED_TABLE_SCHEMA =
+      Schema.builder()
+          .addRowField(Schemas.PAYLOAD_FIELD, TEST_TABLE_SCHEMA)
+          .addArrayField(Schemas.HEADERS_FIELD, Schemas.HEADERS_FIELD_TYPE)
+          .build();
 
   @Parameters
   public static Collection<Object[]> data() {
@@ -238,7 +239,8 @@ public class KafkaTableProviderIT {
             "waitForSuccess",
             ParDo.of(
                 new StreamAssertEqual(
-                    ImmutableSet.of(generateNestedRow(0), generateNestedRow(1), generateNestedRow(2)))));
+                    ImmutableSet.of(
+                        generateNestedRow(0), generateNestedRow(1), generateNestedRow(2)))));
     queryOutput.apply(logRecords(""));
     pipeline.run();
     TimeUnit.SECONDS.sleep(4);
@@ -316,7 +318,8 @@ public class KafkaTableProviderIT {
 
   private static Row generateNestedRow(int i) {
     return Row.withSchema(NESTED_TABLE_SCHEMA)
-        .addValues(generateRow(i), ImmutableList.of()).build();
+        .addValues(generateRow(i), ImmutableList.of())
+        .build();
   }
 
   @SuppressWarnings("FutureReturnValueIgnored")

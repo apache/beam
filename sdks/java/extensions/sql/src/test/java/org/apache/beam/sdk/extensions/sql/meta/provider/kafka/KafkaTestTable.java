@@ -33,7 +33,6 @@ import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.io.kafka.KafkaRecord;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -205,12 +204,14 @@ public class KafkaTestTable extends BeamKafkaTable {
   }
 
   @Override
-  public PTransform<PCollection<KafkaRecord<byte[], byte[]>>, PCollection<Row>> getPTransformForInput() {
+  public PTransform<PCollection<KafkaRecord<byte[], byte[]>>, PCollection<Row>>
+      getPTransformForInput() {
     throw new RuntimeException("KafkaTestTable does not implement getPTransformForInput method.");
   }
 
   @Override
-  public PTransform<PCollection<Row>, PCollection<ProducerRecord<byte[], byte[]>>> getPTransformForOutput() {
+  public PTransform<PCollection<Row>, PCollection<ProducerRecord<byte[], byte[]>>>
+      getPTransformForOutput() {
     throw new RuntimeException("KafkaTestTable does not implement getPTransformForOutput method.");
   }
 }

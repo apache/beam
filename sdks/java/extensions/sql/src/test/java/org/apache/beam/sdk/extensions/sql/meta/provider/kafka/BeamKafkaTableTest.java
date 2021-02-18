@@ -81,14 +81,30 @@ public abstract class BeamKafkaTableTest {
   private static class BytesToRecord extends SimpleFunction<byte[], KafkaRecord<byte[], byte[]>> {
     @Override
     public KafkaRecord<byte[], byte[]> apply(byte[] bytes) {
-      return new KafkaRecord<>("abc", 0, 0, 0, KafkaTimestampType.LOG_APPEND_TIME, new RecordHeaders(), KV.of(new byte[]{}, bytes));
+      return new KafkaRecord<>(
+          "abc",
+          0,
+          0,
+          0,
+          KafkaTimestampType.LOG_APPEND_TIME,
+          new RecordHeaders(),
+          KV.of(new byte[] {}, bytes));
     }
   }
 
-  static class ProducerToRecord extends SimpleFunction<ProducerRecord<byte[], byte[]>, KafkaRecord<byte[], byte[]>> {
+  static class ProducerToRecord
+      extends SimpleFunction<ProducerRecord<byte[], byte[]>, KafkaRecord<byte[], byte[]>> {
     @Override
     public KafkaRecord<byte[], byte[]> apply(ProducerRecord<byte[], byte[]> record) {
-      return new KafkaRecord<>(record.topic(), record.partition() != null ? record.partition() : 0, 0, 0, KafkaTimestampType.LOG_APPEND_TIME, record.headers(), record.key(), record.value());
+      return new KafkaRecord<>(
+          record.topic(),
+          record.partition() != null ? record.partition() : 0,
+          0,
+          0,
+          KafkaTimestampType.LOG_APPEND_TIME,
+          record.headers(),
+          record.key(),
+          record.value());
     }
   }
 }

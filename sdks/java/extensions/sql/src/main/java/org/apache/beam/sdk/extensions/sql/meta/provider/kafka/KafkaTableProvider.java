@@ -17,7 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.sdk.extensions.sql.meta.provider.kafka.Schemas.PAYLOAD_FIELD;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
@@ -63,22 +64,31 @@ public class KafkaTableProvider extends InMemoryMetaTableProvider {
     }
 
     Optional<String> payloadFormat =
-        properties.containsKey("format") ? Optional.of(properties.getString("format")) : Optional.empty();
-    /*
-     * CSV is handled separately because multiple rows can be produced from a single message, which
-     * adds complexity to payload extraction. It remains here and as the default because it is the
-     * historical default, but it will not be extended to support attaching extended attributes to
-     * rows.
-     */
-    if (payloadFormat.orElse("csv").equals("csv") && !Schemas.isNestedSchema(schema)) {
-      return new BeamKafkaCSVTable(schema, bootstrapServers, topics);
-    }
-    Optional<PayloadSerializer> serializer = payloadFormat.map(format -> PayloadSerializers.getSerializer(format, schema, properties.getInnerMap()));
+        properties.containsKey("format")
+            ? Optional.of(properties.getString("format"))
+            : Optional.empty();
     if (Schemas.isNestedSchema(schema)) {
+      Optional<PayloadSerializer> serializer =
+          payloadFormat.map(
+              format ->
+                  PayloadSerializers.getSerializer(
+                      format,
+                      checkArgumentNotNull(schema.getField(PAYLOAD_FIELD).getType().getRowSchema()),
+                      properties.getInnerMap()));
       return new NestedPayloadKafkaTable(schema, bootstrapServers, topics, serializer);
     } else {
-      checkArgument(serializer.isPresent(), "Should be unreachable, please file a beam bug.");
-      return new PayloadSerializerKafkaTable(schema, bootstrapServers, topics, serializer.get());
+      /*
+       * CSV is handled separately because multiple rows can be produced from a single message, which
+       * adds complexity to payload extraction. It remains here and as the default because it is the
+       * historical default, but it will not be extended to support attaching extended attributes to
+       * rows.
+       */
+      if (payloadFormat.orElse("csv").equals("csv")) {
+        return new BeamKafkaCSVTable(schema, bootstrapServers, topics);
+      }
+      PayloadSerializer serializer =
+          PayloadSerializers.getSerializer(payloadFormat.get(), schema, properties.getInnerMap());
+      return new PayloadSerializerKafkaTable(schema, bootstrapServers, topics, serializer);
     }
   }
 
