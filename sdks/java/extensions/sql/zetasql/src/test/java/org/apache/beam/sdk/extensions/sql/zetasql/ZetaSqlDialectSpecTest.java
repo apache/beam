@@ -2421,6 +2421,22 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
   }
 
   @Test
+  public void testUnnestLiteralWithNullElements() {
+    String sql = "SELECT * FROM UNNEST(ARRAY<STRING>['foo', NULL, 'bar']);";
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+    Schema schema = Schema.builder().addNullableField("str_field", FieldType.STRING).build();
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(schema).addValues("foo").build(),
+            Row.withSchema(schema).addValues((String) null).build(),
+            Row.withSchema(schema).addValues("bar").build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
   public void testUNNESTParameters() {
     String sql = "SELECT * FROM UNNEST(@p0);";
     ImmutableMap<String, Value> params =
