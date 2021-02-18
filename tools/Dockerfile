@@ -59,7 +59,7 @@ COPY --chown=$USER .vimrc /home/$USER
 #################################
 # RUN git clone https://github.com/VundleVim/Vundle.vim.git ~/.vim/bundle/Vundle.vim
 # RUN vim +PluginInstall +qall > /dev/null
-# 
+#
 # # Install YouCompleteMe
 # USER root
 # RUN apt -y install build-essential cmake
