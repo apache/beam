@@ -44,6 +44,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -127,12 +128,12 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
       sqlEnvBuilder.autoLoadUserDefinedFunctions();
     }
 
-    BeamSqlPipelineOptions options =
-        input.getPipeline().getOptions().as(BeamSqlPipelineOptions.class);
-    if (queryPlannerClassName() != null) {
-      options.setPlannerName(queryPlannerClassName());
-    }
-    sqlEnvBuilder.setPipelineOptions(options);
+    sqlEnvBuilder.setQueryPlannerClassName(
+        MoreObjects.firstNonNull(
+            queryPlannerClassName(),
+            input.getPipeline().getOptions().as(BeamSqlPipelineOptions.class).getPlannerName()));
+
+    sqlEnvBuilder.setPipelineOptions(input.getPipeline().getOptions());
 
     BeamSqlEnv sqlEnv = sqlEnvBuilder.build();
     return BeamSqlRelUtils.toPCollection(
