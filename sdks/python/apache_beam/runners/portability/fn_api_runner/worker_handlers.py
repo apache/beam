@@ -741,7 +741,7 @@ class DockerSdkWorkerHandler(GrpcWorkerHandler):
     if sys.platform == 'darwin':
       # See https://docs.docker.com/docker-for-mac/networking/
       return 'host.docker.internal'
-    if sys.platform != 'win32' and is_in_notebook():
+    if sys.platform == 'linux' and is_in_notebook():
       import socket
       # Gets ipv4 address of current host. Note the host is not guaranteed to
       # be localhost because the python SDK could be running within a container.
