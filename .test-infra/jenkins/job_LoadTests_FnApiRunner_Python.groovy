@@ -29,7 +29,7 @@ def loadTestConfigurations = { datasetName ->
       runner         : CommonTestProperties.Runner.DIRECT,
       pipelineOptions: [
         publish_to_big_query: true,
-        influx_measurement  : 'python_microbenchmarks',
+        influx_measurement  : 'python_direct_microbenchmarks',
         project             : 'apache-beam-testing',
         metrics_dataset     : datasetName,
         metrics_table       : 'python_direct_microbenchmarks',
@@ -37,6 +37,17 @@ def loadTestConfigurations = { datasetName ->
       ]
     ],
   ]
+  .each { test -> test.pipelineOptions.putAll(additionalPipelineArgs) }
+}
+
+def loadTestJob = { scope, triggeringContext ->
+  scope.description("Runs Python FnApiRunner Microbenchmark")
+  commonJobProperties.setTopLevelMainJobProperties(scope, 'master', 120)
+
+  def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
+  for (testConfiguration in loadTestConfigurations(datasetName)) {
+    loadTestsBuilder.loadTest(scope, testConfiguration.title, testConfiguration.runner, CommonTestProperties.SDK.PYTHON, testConfiguration.pipelineOptions, testConfiguration.test)
+  }
 }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(
@@ -45,9 +56,8 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
     'Python Load Tests FnApiRunner Microbenchmark',
     this
     ) {
-      def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', CommonTestProperties.TriggeringContext.PR)
-      loadTestsBuilder.loadTests(delegate, CommonTestProperties.SDK.PYTHON,
-          loadTestConfigurations(datasetName), "MicroBenchmarks", "batch")
+      additionalPipelineArgs = [:]
+      loadTestJob(delegate, CommonTestProperties.TriggeringContext.PR, "batch")
     }
 
 
@@ -57,8 +67,6 @@ CronJobBuilder.cronJob('beam_Python_LoadTests_FnApiRunner_Microbenchmark', 'H */
     influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
     influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,
   ]
-  def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', CommonTestProperties.TriggeringContext.POST_COMMIT)
-  loadTestsBuilder.loadTests(delegate, CommonTestProperties.SDK.PYTHON,
-      loadTestConfigurations(datasetName), "MicroBenchmarks", "batch")
+  loadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT)
 }
 
