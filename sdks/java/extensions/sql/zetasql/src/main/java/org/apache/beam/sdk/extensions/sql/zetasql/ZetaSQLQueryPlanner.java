@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.sql.zetasql;
 import com.google.zetasql.LanguageOptions;
 import com.google.zetasql.Value;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlPipelineOptions;
@@ -63,6 +64,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexCall;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexInputRef;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexLiteral;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexSlot;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.SchemaPlus;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlOperator;
@@ -141,11 +143,14 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
    * group is equal to {@code SqlAnalyzer.USER_DEFINED_JAVA_SCALAR_FUNCTIONS}
    */
   static boolean hasOnlyJavaUdfInProjects(RelOptRuleCall x) {
+    HashSet<Integer> udfs = new HashSet<>();
     List<RelNode> resList = x.getRelList();
     for (RelNode relNode : resList) {
       if (relNode instanceof LogicalCalc) {
         LogicalCalc logicalCalc = (LogicalCalc) relNode;
-        for (RexNode rexNode : logicalCalc.getProgram().getExprList()) {
+        List<RexNode> exprList = logicalCalc.getProgram().getExprList();
+        for (int i = 0; i < exprList.size(); i++) {
+          RexNode rexNode = exprList.get(i);
           if (rexNode instanceof RexCall) {
             RexCall call = (RexCall) rexNode;
             final SqlOperator operator = call.getOperator();
@@ -160,8 +165,10 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
               SqlUserDefinedFunction udf = (SqlUserDefinedFunction) call.op;
               if (udf.function instanceof ZetaSqlScalarFunctionImpl) {
                 ZetaSqlScalarFunctionImpl scalarFunction = (ZetaSqlScalarFunctionImpl) udf.function;
-                if (!scalarFunction.functionGroup.equals(
+                if (scalarFunction.functionGroup.equals(
                     SqlAnalyzer.USER_DEFINED_JAVA_SCALAR_FUNCTIONS)) {
+                  udfs.add(i);
+                } else {
                   // Reject ZetaSQL Builtin Scalar Functions
                   return false;
                 }
@@ -205,9 +212,21 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
             return false;
           }
         }
+        for (RexSlot slot : logicalCalc.getProgram().getProjectList()) {
+          if (!udfs.contains(slot.getIndex())) {
+            // Reject non-udf project
+            return false;
+          }
+        }
+        if (logicalCalc.getProgram().getCondition() != null) {
+          if (!udfs.contains(logicalCalc.getProgram().getCondition().getIndex())) {
+            // Reject non-udf condition
+            return false;
+          }
+        }
       }
     }
-    return true;
+    return !udfs.isEmpty();
   }
 
   /**
