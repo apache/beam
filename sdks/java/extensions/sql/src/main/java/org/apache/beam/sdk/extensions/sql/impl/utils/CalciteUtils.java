@@ -234,7 +234,7 @@ public class CalciteUtils {
         return FieldType.row(toSchema(calciteType));
 
       default:
-        return toFieldType(calciteType.getSqlTypeName());
+        return toFieldType(calciteType.getSqlTypeName()).withNullable(calciteType.isNullable());
     }
   }
 
