@@ -141,12 +141,10 @@ public class BeamSqlEnvRunner {
         // Directly create all tables and register them into inMemoryMetaStore before creating BeamSqlEnv object.
         registerAllTablesByInMemoryMetaStore(inMemoryMetaStore, dataSize);
 
-        BeamSqlPipelineOptions beamSqlPipelineOptions = tpcdsOptions.as(BeamSqlPipelineOptions.class);
         BeamSqlEnv env =
                 BeamSqlEnv
                         .builder(inMemoryMetaStore)
-                        .setPipelineOptions(beamSqlPipelineOptions)
-                        .setQueryPlannerClassName(beamSqlPipelineOptions.getPlannerName())
+                        .setPipelineOptions(tpcdsOptions)
                         .build();
 
         // Make an array of pipelines, each pipeline is responsible for running a corresponding query.

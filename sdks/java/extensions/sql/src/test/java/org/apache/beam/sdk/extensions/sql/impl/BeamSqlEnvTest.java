@@ -62,9 +62,9 @@ public class BeamSqlEnvTest {
     exceptions.expectCause(hasMessage(containsString("org.test.ClassNotFound")));
 
     TestTableProvider root = new TestTableProvider();
-    BeamSqlEnv.builder(root)
-        .setQueryPlannerClassName("org.test.ClassNotFound")
-        .setPipelineOptions(PipelineOptionsFactory.create())
-        .build();
+    BeamSqlPipelineOptions options =
+        PipelineOptionsFactory.create().as(BeamSqlPipelineOptions.class);
+    options.setPlannerName("org.test.ClassNotFound");
+    BeamSqlEnv.builder(root).setPipelineOptions(options).build();
   }
 }
