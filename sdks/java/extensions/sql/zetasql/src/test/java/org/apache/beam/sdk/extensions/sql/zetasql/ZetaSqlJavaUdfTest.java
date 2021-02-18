@@ -36,6 +36,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.codehaus.commons.compiler.CompileException;
 import org.joda.time.Duration;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -49,6 +50,7 @@ import org.junit.runners.JUnit4;
  * beam.sql.udf.test.empty_jar_path</code> must be set.
  */
 @RunWith(JUnit4.class)
+@Ignore("TODO(BEAM-11747) Re-enable when BeamJavaUdfCalcRule can be re-enabled.")
 public class ZetaSqlJavaUdfTest extends ZetaSqlTestBase {
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
   @Rule public ExpectedException thrown = ExpectedException.none();
