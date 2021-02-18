@@ -24,7 +24,7 @@ import (
 func TestEncodeDecodeDouble(t *testing.T) {
 	var tests []float64
 	for x := -100.0; x <= 100.0; x++ {
-		tests = append(tests, 0.1 * x)
+		tests = append(tests, 0.1*x)
 		tests = append(tests, math.Pow(2, 0.1*x))
 	}
 	tests = append(tests, -math.MaxFloat64)
