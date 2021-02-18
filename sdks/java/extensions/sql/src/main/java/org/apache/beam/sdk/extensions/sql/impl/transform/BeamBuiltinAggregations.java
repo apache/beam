@@ -527,10 +527,21 @@ public class BeamBuiltinAggregations {
 
     @Override
     public Accum addInput(Accum accum, Boolean input) {
-      if (input == null) {
+      /** when accum is empty and it sees null, it remains null */
+      if (accum.isEmpty && input == null) {
         accum.isNull = true;
         return accum;
       }
+      /** when accum is null and it sees null, it remains null */
+      if (accum.isNull && input == null) {
+        accum.isNull = true;
+        return accum;
+      }
+      /** when accum is neither null and nor empty, it remains unchanged */
+      if (!accum.isNull && !accum.isEmpty && input == null) {
+        return accum;
+      }
+      /** when accum sees non-null value, accum becomes non-empty, non-null */
       accum.isEmpty = false;
       accum.isNull = false;
       accum.logicalAnd = (accum.logicalAnd && input);

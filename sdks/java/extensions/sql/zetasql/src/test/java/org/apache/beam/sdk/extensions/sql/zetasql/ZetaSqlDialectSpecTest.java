@@ -4170,9 +4170,9 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
   }
 
   @Test
-  @Ignore("NULL values don't work correctly. [https://issues.apache.org/jira/browse/BEAM-11696]")
+  @Ignore("need to be fixed.")
   public void testLogicalAndWithNullAndNoNullInput() throws Exception {
-    String sql = "SELECT LOGICAL_AND(x) AS logical_and FROM UNNEST([false, null]) AS x";
+    String sql = "SELECT LOGICAL_AND(x) AS logical_and FROM UNNEST([false, null, true]) AS x";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
