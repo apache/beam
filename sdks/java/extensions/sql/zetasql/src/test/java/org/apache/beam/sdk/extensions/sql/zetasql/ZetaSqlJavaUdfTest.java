@@ -101,7 +101,7 @@ public class ZetaSqlJavaUdfTest extends ZetaSqlTestBase {
         String.format(
             "CREATE FUNCTION increment(i INT64) RETURNS INT64 LANGUAGE java "
                 + "OPTIONS (path='%s'); "
-                + "SELECT increment(Key) FROM KeyValue;",
+                + "SELECT increment(int64_col) FROM table_all_types;",
             jarPath);
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
@@ -111,8 +111,11 @@ public class ZetaSqlJavaUdfTest extends ZetaSqlTestBase {
 
     PAssert.that(stream)
         .containsInAnyOrder(
-            Row.withSchema(singleField).addValues(15L).build(),
-            Row.withSchema(singleField).addValues(16L).build());
+            Row.withSchema(singleField).addValues(0L).build(),
+            Row.withSchema(singleField).addValues(-1L).build(),
+            Row.withSchema(singleField).addValues(-2L).build(),
+            Row.withSchema(singleField).addValues(-3L).build(),
+            Row.withSchema(singleField).addValues(-4L).build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
