@@ -21,17 +21,17 @@ package org.apache.beam.gradle
 /**
  * Utilities for working with our vendored version of gRPC.
  */
-class GrpcVendoring_1_26_0 {
+class GrpcVendoring_1_35_0 {
 
-  static def guava_version = "26.0-jre"
-  static def protobuf_version = "3.11.0"
-  static def grpc_version = "1.26.0"
+  static def guava_version = "30.1-jre"
+  static def protobuf_version = "3.14.0"
+  static def grpc_version = "1.35.0"
   static def gson_version = "2.8.6"
   static def netty_version = "4.1.51.Final"
-  static def google_auth_version = "0.18.0"
-  static def proto_google_common_protos_version = "1.12.0"
-  static def opencensus_version = "0.24.0"
-  static def perfmark_version = "0.19.0"
+  static def google_auth_version = "0.23.0"
+  static def proto_google_common_protos_version = "2.0.1"
+  static def opencensus_version = "0.28.0"
+  static def perfmark_version = "0.23.0"
   static def lzma_java_version = "1.3"
   static def protobuf_javanano_version = "3.0.0-alpha-5"
   static def jzlib_version = "1.1.3"
@@ -86,7 +86,7 @@ class GrpcVendoring_1_26_0 {
    */
   static List<String> runtimeDependencies() {
     return [
-      'com.google.errorprone:error_prone_annotations:2.3.3',
+      'com.google.errorprone:error_prone_annotations:2.4.0',
       'commons-logging:commons-logging:1.2',
       'org.apache.logging.log4j:log4j-api:2.6.2',
       'org.slf4j:slf4j-api:1.7.30',
@@ -119,7 +119,7 @@ class GrpcVendoring_1_26_0 {
     // those libraries may provide. The 'validateShadedJarDoesntLeakNonOrgApacheBeamClasses'
     // ensures that there are no classes outside of the 'org.apache.beam' namespace.
 
-    String version = "v1p26p0";
+    String version = "v1p35p0";
     String prefix = "org.apache.beam.vendor.grpc.${version}";
     List<String> packagesToRelocate = [
       // guava uses the com.google.common and com.google.thirdparty package namespaces
