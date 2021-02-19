@@ -304,6 +304,8 @@ class DeferredSeries(DeferredDataFrameOrSeries):
 
     if verify_integrity:
       # verifying output has a unique index requires global index.
+      # TODO(BEAM-11839): Attach an explanation to the Singleton partitioning
+      # requirement, and include it in raised errors.
       requires = partitionings.Singleton()
     else:
       requires = partitionings.Nothing()
@@ -448,6 +450,8 @@ class DeferredSeries(DeferredDataFrameOrSeries):
               lambda df,
               other: df.corr(other, method=method, min_periods=min_periods),
               [self._expr, other._expr],
+              # TODO(BEAM-11839): Attach an explanation to the Singleton
+              # partitioning requirement, and include it in raised errors.
               requires_partition_by=partitionings.Singleton()))
 
   def _corr_aligned(self, other, min_periods):
