@@ -1448,6 +1448,11 @@ message Environment {
   // (Optional) artifact dependency information used for executing UDFs in this environment.
   repeated ArtifactInformation dependencies = 6;
 
+  // (Optional) A mapping of resource URNs to requested values.  The encoding
+  // of the values is specified by the URN.  Resource hints are advisory;
+  // a runner is free to ignore resource hints that it does not understand.
+  map<string, bytes> resource_hints = 7;
+
   reserved 1;
 }
 
