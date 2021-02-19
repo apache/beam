@@ -537,6 +537,7 @@ public class Read {
       while (tracker.tryClaim(out) && out[0] != null) {
         receiver.outputWithTimestamp(
             new ValueWithRecordId<>(out[0].getValue(), out[0].getId()), out[0].getTimestamp());
+        watermarkEstimator.setWatermark(tracker.currentRestriction().getWatermark());
       }
 
       UnboundedSourceRestriction<OutputT, CheckpointT> currentRestriction =
