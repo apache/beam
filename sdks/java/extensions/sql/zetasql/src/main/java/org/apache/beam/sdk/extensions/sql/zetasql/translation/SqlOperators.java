@@ -188,7 +188,7 @@ public class SqlOperators {
   public static final SqlOperator LOGICAL_AND =
       createUdafOperator(
           "LOGICAL_AND",
-          x -> createTypeFactory().createSqlType(SqlTypeName.BOOLEAN),
+          x -> createSqlType(SqlTypeName.BOOLEAN, true),
           new UdafImpl<>(new BeamBuiltinAggregations.LogicalAnd()));
 
   public static final SqlUserDefinedFunction CAST_OP =
