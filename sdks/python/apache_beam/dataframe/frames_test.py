@@ -441,12 +441,14 @@ class DeferredFrameTest(unittest.TestCase):
       self._run_test(lambda s: s.agg('mean'), s)
 
   def test_append_sort(self):
+    # yapf: disable
     df1 = pd.DataFrame({'int': [1, 2, 3], 'str': ['a', 'b', 'c']},
                        columns=['int', 'str'],
                        index=[1, 3, 5])
     df2 = pd.DataFrame({'int': [4, 5, 6], 'str': ['d', 'e', 'f']},
                        columns=['str', 'int'],
                        index=[2, 4, 6])
+    # yapf: enable
 
     self._run_test(lambda df1, df2: df1.append(df2, sort=True), df1, df2)
     self._run_test(lambda df1, df2: df1.append(df2, sort=False), df1, df2)
