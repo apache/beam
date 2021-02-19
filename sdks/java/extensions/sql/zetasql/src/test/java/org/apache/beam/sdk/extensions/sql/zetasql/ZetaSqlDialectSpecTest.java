@@ -4114,4 +4114,19 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
+
+  @Test
+  public void testArrayAggZetasql() {
+    String sql = "SELECT ARRAY_AGG(x) AS array_agg " + "FROM UNNEST([1, 2, 3, 4, 5]) AS x";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    Schema schema = Schema.builder().addArrayField("array_field", FieldType.INT64).build();
+    PAssert.that(stream)
+        .containsInAnyOrder(Row.withSchema(schema).addArray(1L, 2L, 3L, 4L, 5L).build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
 }
