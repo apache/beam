@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.HEALTHCARE_D
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
@@ -175,6 +176,37 @@ public class FhirIOSearchIT {
             input -> {
               for (JsonArray resource : input) {
                 assertNotEquals(0, resource.size());
+              }
+              return null;
+            });
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testFhirIOSearch_emptyResult() {
+    pipeline.getOptions().as(DirectOptions.class).setBlockOnRun(false);
+
+    // Search using a search that will return no results.
+    FhirSearchParameter<String> emptySearch =
+        FhirSearchParameter.of("Patient", KEY, ImmutableMap.of("name", "INVALID_NAME"));
+    PCollection<FhirSearchParameter<String>> searchConfigs =
+        pipeline.apply(
+            Create.of(emptySearch).withCoder(FhirSearchParameterCoder.of(StringUtf8Coder.of())));
+    FhirIO.Search.Result result =
+        searchConfigs.apply(
+            FhirIO.searchResources(healthcareDataset + "/fhirStores/" + fhirStoreId));
+
+    // Verify that there are no failures.
+    PAssert.that(result.getFailedSearches()).empty();
+    // Verify that the result is empty.
+    PCollection<KV<String, JsonArray>> keyedResources = result.getKeyedResources();
+    PAssert.that(keyedResources)
+        .satisfies(
+            input -> {
+              for (KV<String, JsonArray> resource : input) {
+                assertEquals(KEY, resource.getKey());
+                assertEquals(0, resource.getValue().size());
               }
               return null;
             });
