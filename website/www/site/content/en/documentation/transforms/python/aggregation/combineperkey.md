@@ -113,76 +113,7 @@ Output:
 {{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey.py" >}}
 
-### Example 5: Combining with side inputs as singletons
-
-If the `PCollection` has a single value, such as the average from another computation,
-passing the `PCollection` as a *singleton* accesses that value.
-
-In this example, we pass a `PCollection` the value `8` as a singleton.
-We then use that value as the `max_value` for our saturated sum.
-
-{{< highlight py >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey.py" combineperkey_side_inputs_singleton >}}
-{{< /highlight >}}
-
-{{< paragraph class="notebook-skip" >}}
-Output:
-{{< /paragraph >}}
-
-{{< highlight class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey_test.py" saturated_total >}}
-{{< /highlight >}}
-
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey.py" >}}
-
-### Example 6: Combining with side inputs as iterators
-
-If the `PCollection` has multiple values, pass the `PCollection` as an *iterator*.
-This accesses elements lazily as they are needed,
-so it is possible to iterate over large `PCollection`s that won't fit into memory.
-
-{{< highlight py >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey.py" combineperkey_side_inputs_iter >}}
-{{< /highlight >}}
-
-{{< paragraph class="notebook-skip" >}}
-Output:
-{{< /paragraph >}}
-
-{{< highlight class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey_test.py" bounded_total >}}
-{{< /highlight >}}
-
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey.py" >}}
-
-> **Note**: You can pass the `PCollection` as a *list* with `beam.pvalue.AsList(pcollection)`,
-> but this requires that all the elements fit into memory.
-
-### Example 7: Combining with side inputs as dictionaries
-
-If a `PCollection` is small enough to fit into memory, then that `PCollection` can be passed as a *dictionary*.
-Each element must be a `(key, value)` pair.
-Note that all the elements of the `PCollection` must fit into memory for this.
-If the `PCollection` won't fit into memory, use `beam.pvalue.AsIter(pcollection)` instead.
-
-{{< highlight py >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey.py" combineperkey_side_inputs_dict >}}
-{{< /highlight >}}
-
-{{< paragraph class="notebook-skip" >}}
-Output:
-{{< /paragraph >}}
-
-{{< highlight class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey_test.py" bounded_total >}}
-{{< /highlight >}}
-
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey.py" >}}
-
-### Example 8: Combining with a `CombineFn`
+### Example 5: Combining with a `CombineFn`
 
 The more general way to combine elements, and the most flexible, is with a class that inherits from `CombineFn`.
 
