@@ -854,6 +854,16 @@ class FastPrimitivesCoder(FastCoder):
     return hash(type(self))
 
 
+class FakeDeterministicFastPrimitivesCoder(FastPrimitivesCoder):
+  """A FastPrimitivesCoder that claims to be deterministic.
+
+  This can be registered as a fallback coder to go back to the behavior before
+  deterministic encoding was enforced (BEAM-11719).
+  """
+  def is_deterministic(self):
+    return True
+
+
 class Base64PickleCoder(Coder):
   """Coder of objects by Python pickle, then base64 encoding."""
 

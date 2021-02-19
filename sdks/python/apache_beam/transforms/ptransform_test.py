@@ -36,6 +36,7 @@ from builtins import range
 from builtins import zip
 from functools import reduce
 from typing import Optional
+from unittest.mock import patch
 
 # patches unittest.TestCase to be python3 compatible
 import future.tests.base  # pylint: disable=unused-import
@@ -552,6 +553,22 @@ class PTransformTest(unittest.TestCase):
           equal_to([(0, [0, 2, 4, 6, 8]), (1, [1, 3, 5, 7, 9])]),
           'CheckGrouped')
       assert_that(combined, equal_to([(0, 20), (1, 25)]), 'CheckCombined')
+
+  def test_group_by_key_fake_determanistic_coder(self):
+    fresh_registry = beam.coders.typecoders.CoderRegistry()
+    with patch.object(
+        beam.coders, 'registry', fresh_registry), patch.object(
+        beam.coders.typecoders, 'registry', fresh_registry):
+      with TestPipeline() as pipeline:
+        # The GroupByKey below would fail without this registration.
+        beam.coders.registry.register_fallback_coder(
+            beam.coders.coders.FakeDeterministicFastPrimitivesCoder())
+        grouped = (
+            pipeline
+            | beam.Create([(PickledObject(10), None)])
+            | beam.GroupByKey()
+            | beam.MapTuple(lambda k, v: list(v)))
+      assert_that(grouped, equal_to([[None]]))
 
   def test_partition_with_partition_fn(self):
     class SomePartitionFn(beam.PartitionFn):
@@ -2559,6 +2576,12 @@ def _sort_lists(result):
 
 
 _SortLists = beam.Map(_sort_lists)
+
+
+class PickledObject(object):
+  def __init__(self, value):
+    self.value = value
+
 
 if __name__ == '__main__':
   unittest.main()
