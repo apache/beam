@@ -23,7 +23,7 @@ import org.apache.beam.sdk.transforms.Combine;
 
 public class ArrayAgg {
 
-  public static class ArrayAggArray extends Combine.CombineFn<Object, List<Object>, Object[]> {
+  public static class ArrayAggArray extends Combine.CombineFn<Object, List<Object>, List<Object>> {
     @Override
     public List<Object> createAccumulator() {
       return new ArrayList<>();
@@ -47,8 +47,8 @@ public class ArrayAgg {
     }
 
     @Override
-    public Object[] extractOutput(List<Object> accumulator) {
-      return accumulator.toArray();
+    public List<Object> extractOutput(List<Object> accumulator) {
+      return accumulator;
     }
   }
 }
