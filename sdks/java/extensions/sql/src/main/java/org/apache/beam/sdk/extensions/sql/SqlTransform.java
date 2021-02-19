@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.extensions.sql;
 
 import com.google.auto.value.AutoValue;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -254,9 +253,9 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
   }
 
   public SqlTransform withDdlString(String ddlString) {
-    List<String> ddlStrings = new ArrayList<>(ddlStrings());
-    ddlStrings.add(ddlString);
-    return toBuilder().setDdlStrings(ddlStrings).build();
+    return toBuilder()
+        .setDdlStrings(ImmutableList.<String>builder().addAll(ddlStrings()).add(ddlString).build())
+        .build();
   }
 
   public SqlTransform withAutoLoading(boolean autoLoading) {
