@@ -961,7 +961,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
           JsonObject jsonResponse =
               JsonParser.parseString(mapper.writeValueAsString(response)).getAsJsonObject();
           JsonArray resources = jsonResponse.getAsJsonArray("entry");
-          return resources.size() != 0;
+          return resources != null && resources.size() != 0;
         } catch (IOException e) {
           throw new NoSuchElementException(
               String.format(
