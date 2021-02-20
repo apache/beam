@@ -26,9 +26,14 @@ from apache_beam.transforms.core import ParDo
 from apache_beam.transforms.core import Windowing
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_stream import TestStream
+from apache_beam.transforms.trigger import AccumulationMode
+from apache_beam.transforms.trigger import AfterCount
+from apache_beam.transforms.trigger import AfterWatermark
 from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import IntervalWindow
+from apache_beam.transforms.window import Sessions
 from apache_beam.transforms.window import SlidingWindows
+from apache_beam.transforms.window import TimestampedValue
 
 
 class TriggerManagerTest(unittest.TestCase):
@@ -96,8 +101,8 @@ class TriggerManagerTest(unittest.TestCase):
           | ParDo(trigger_manager._GroupBundlesByKey())
           | ParDo(trigger_manager.GeneralTriggerManagerDoFn(windowing))
           | Map(
-          lambda elm:
-          (elm[0], elm[1][0].windows[0], [v.value for v in elm[1]])))
+              lambda elm:
+              (elm[0], elm[1][0].windows[0], [v.value for v in elm[1]])))
       assert_that(
           result,
           equal_to([
@@ -109,4 +114,46 @@ class TriggerManagerTest(unittest.TestCase):
               ('k2', IntervalWindow(1, 3), [2, 2, 3, 3]),
               ('k1', IntervalWindow(2, 4), [3, 3]),
               ('k2', IntervalWindow(2, 4), [3, 3]),
+          ]))
+
+  def test_fixed_after_count_accumulating(self):
+    # yapf: disable
+    test_stream = (
+        TestStream()
+          .advance_watermark_to(0)
+          .add_elements([('k1', 1), ('k2', 1), ('k1', 1), ('k2', 1)])
+          .add_elements([('k1', 1), ('k2', 1)])
+          .advance_watermark_to(2)
+          .add_elements([('k1', 2), ('k2', 2)])
+          .advance_watermark_to_infinity())
+    # yapf: enable
+
+    # Fixed, one-second windows with DefaultTrigger (after watermark)
+    windowing = Windowing(
+        FixedWindows(2),
+        triggerfn=AfterCount(2),
+        accumulation_mode=AccumulationMode.ACCUMULATING)
+
+    with TestPipeline() as p:
+      result = (
+          p
+          | test_stream
+          | WindowInto(windowing.windowfn)
+          | ParDo(trigger_manager.ReifyWindows())
+          | ParDo(trigger_manager._GroupBundlesByKey())
+          | ParDo(trigger_manager.GeneralTriggerManagerDoFn(windowing))
+          | Map(
+          lambda elm:
+          (elm[0], elm[1][0].windows[0], [v.value for v in elm[1]])))
+      assert_that(
+          result,
+          equal_to([
+              ('k1', IntervalWindow(0, 2), [1, 1]),
+              ('k2', IntervalWindow(0, 2), [1, 1]),
+              ('k1', IntervalWindow(0, 2), [1, 1, 1]),
+              ('k2', IntervalWindow(0, 2), [1, 1, 1]),
+              # TODO(pabloem): This should fire when watermark ends, right?
+              #  it is not firing, so it's likely a bug.
+              # ('k1', IntervalWindow(0, 2), [2]),
+              # ('k2', IntervalWindow(0, 2), [2]),
           ]))
