@@ -66,10 +66,7 @@ var directFilters = []string{
 	"TestXLang.*",
 }
 
-var portableFilters = []string{
-	// TODO(BEAM-11499): XLang tests timing out.
-	"TestXLang.*",
-}
+var portableFilters = []string{}
 
 var flinkFilters = []string{
 	// TODO(BEAM-11500): Flink tests timing out on reads.
