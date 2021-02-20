@@ -26,6 +26,8 @@ enableJavaPerformanceTesting()
 description = "Apache Beam :: SDKs :: Java :: IO :: JDBC"
 ext.summary = "IO to read and write on JDBC datasource."
 
+def derby_version = "10.15.2.0"
+
 dependencies {
   compile library.java.vendored_guava_26_0_jre
   compile project(path: ":sdks:java:core", configuration: "shadow")
@@ -38,9 +40,9 @@ dependencies {
   testCompile library.java.hamcrest_library
   testCompile library.java.slf4j_api
   testCompile library.java.postgres
-  testCompile "org.apache.derby:derby:10.14.2.0"
-  testCompile "org.apache.derby:derbyclient:10.14.2.0"
-  testCompile "org.apache.derby:derbynet:10.14.2.0"
+  testCompile "org.apache.derby:derby:$derby_version"
+  testCompile "org.apache.derby:derbyclient:$derby_version"
+  testCompile "org.apache.derby:derbynet:$derby_version"
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }
