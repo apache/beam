@@ -31,6 +31,9 @@ t.describe 'Run Apache Beam Java SDK Quickstart - Twister2'
   t.intent 'Runs the WordCount Code with Spark runner'
     // Run the wordcount example with the Twister2 runner
     t.run """mvn compile exec:java -q \
+      -Dmaven.wagon.http.retryHandler.class=default \
+      -Dmaven.wagon.http.retryHandler.count=5 \
+      -Dhttp.keepAlive=false \
       -Dexec.mainClass=org.apache.beam.examples.WordCount \
       -Dexec.args="--inputFile=pom.xml --output=counts \
       --runner=Twister2Runner" -Ptwister2-runner"""

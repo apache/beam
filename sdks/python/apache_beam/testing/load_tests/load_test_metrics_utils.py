@@ -218,7 +218,8 @@ class MetricsReader(object):
           'InfluxDB')
     self.filters = filters
 
-  def publish_metrics(self, result):
+  def publish_metrics(self, result, extra_metrics: dict):
+    metric_id = uuid.uuid4().hex
     metrics = result.metrics().query(self.filters)
 
     # Metrics from pipeline result are stored in map with keys: 'gauges',
@@ -226,10 +227,19 @@ class MetricsReader(object):
     # Under each key there is list of objects of each metric type. It is
     # required to prepare metrics for publishing purposes. Expected is to have
     # a list of dictionaries matching the schema.
-    insert_dicts = self._prepare_all_metrics(metrics)
+    insert_dicts = self._prepare_all_metrics(metrics, metric_id)
+
+    insert_dicts += self._prepare_extra_metrics(extra_metrics, metric_id)
     if len(insert_dicts) > 0:
       for publisher in self.publishers:
         publisher.publish(insert_dicts)
+
+  def _prepare_extra_metrics(self, extra_metrics: dict, metric_id: str):
+    ts = time.time()
+    return [
+        Metric(ts, metric_id, v, label=k).as_dict() for k,
+        v in extra_metrics.items()
+    ]
 
   def publish_values(self, labeled_values):
     """The method to publish simple labeled values.
@@ -246,8 +256,7 @@ class MetricsReader(object):
     for publisher in self.publishers:
       publisher.publish(metric_dicts)
 
-  def _prepare_all_metrics(self, metrics):
-    metric_id = uuid.uuid4().hex
+  def _prepare_all_metrics(self, metrics, metric_id):
 
     insert_rows = self._get_counters(metrics['counters'], metric_id)
     insert_rows += self._get_distributions(metrics['distributions'], metric_id)
@@ -398,11 +407,10 @@ class BigQueryMetricsPublisher(object):
     outputs = self.bq.save(results)
     if len(outputs) > 0:
       for output in outputs:
-        errors = output['errors']
-        for err in errors:
-          _LOGGER.error(err['message'])
+        if output['errors']:
+          _LOGGER.error(output)
           raise ValueError(
-              'Unable save rows in BigQuery: {}'.format(err['message']))
+              'Unable save rows in BigQuery: {}'.format(output['errors']))
 
 
 class BigQueryClient(object):

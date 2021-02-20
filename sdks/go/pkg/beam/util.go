@@ -106,6 +106,14 @@ func MustN(list []PCollection, err error) []PCollection {
 	return list
 }
 
+// MustTaggedN returns the input, but panics if err != nil.
+func MustTaggedN(ret map[string]PCollection, err error) map[string]PCollection {
+	if err != nil {
+		panic(err)
+	}
+	return ret
+}
+
 // Must returns the input, but panics if err != nil.
 func Must(a PCollection, err error) PCollection {
 	if err != nil {

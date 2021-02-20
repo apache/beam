@@ -34,7 +34,8 @@ project.task("preCommitPy${pythonVersionSuffix}") {
       // Generates coverage reports only once, in Py38, to remove duplicated work
       if (pythonVersionSuffix.equals('38')) {
           dependsOn = ["testPy38CloudCoverage", "testPy38Cython",
-              "testPy38pyarrow-0", "testPy38pyarrow-1", "testPy38pyarrow-2"]
+              "testPy38pyarrow-0", "testPy38pyarrow-1", "testPy38pyarrow-2",
+              "testPy38pyarrow-3"]
       } else {
           dependsOn = ["testPy${pythonVersionSuffix}Cloud", "testPy${pythonVersionSuffix}Cython"]
       }

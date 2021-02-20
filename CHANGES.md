@@ -67,6 +67,11 @@
 
 ## Breaking Changes
 
+* The Java artifacts "beam-sdks-java-io-kinesis", "beam-sdks-java-io-google-cloud-platform", and
+  "beam-sdks-java-extensions-sql-zetasql" declare Guava 30.1-jre dependency (It was 25.1-jre in Beam 2.27.0).
+  This new Guava version may introduce dependency conflicts if your project or dependencies rely
+  on removed APIs. If affected, ensure to use an appropriate Guava version via `dependencyManagement` in Maven and
+  `force` in Gradle.
 * X behavior was changed ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 
 ## Deprecations

@@ -351,7 +351,6 @@ class PortableRunner(runner.PipelineRunner):
             translations.annotate_stateful_dofns_as_roots,
             translations.fix_side_input_pcoll_coders,
             # TODO(BEAM-11715): Enable translations.pack_combiners.
-            # translations.eliminate_common_key_with_none,
             # translations.pack_combiners,
             translations.lift_combiners,
             translations.expand_sdf,
@@ -372,7 +371,6 @@ class PortableRunner(runner.PipelineRunner):
             translations.annotate_stateful_dofns_as_roots,
             translations.fix_side_input_pcoll_coders,
             # TODO(BEAM-11715): Enable translations.pack_combiners.
-            # translations.eliminate_common_key_with_none,
             # translations.pack_combiners,
             translations.lift_combiners,
             translations.expand_sdf,
@@ -389,9 +387,7 @@ class PortableRunner(runner.PipelineRunner):
         phases = []
         for phase_name in pre_optimize.split(','):
           # For now, these are all we allow.
-          if phase_name in ('eliminate_common_key_with_none',
-                            'pack_combiners',
-                            'lift_combiners'):
+          if phase_name in ('pack_combiners', 'lift_combiners'):
             phases.append(getattr(translations, phase_name))
           else:
             raise ValueError(

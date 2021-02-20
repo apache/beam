@@ -28,7 +28,6 @@ import gzip
 import logging
 import math
 import os
-import sys
 import tempfile
 import time
 import unittest
@@ -496,12 +495,6 @@ class SnippetsTest(unittest.TestCase):
     def expand(self, pcoll):
       return pcoll | 'DummyWriteForTesting' >> beam.ParDo(
           SnippetsTest.DummyWriteTransform.WriteDoFn(self.file_to_write))
-
-  @classmethod
-  def setUpClass(cls):
-    # Method has been renamed in Python 3
-    if sys.version_info[0] < 3:
-      cls.assertCountEqual = cls.assertItemsEqual
 
   def setUp(self):
     self.old_read_from_text = beam.io.ReadFromText
