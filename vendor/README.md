@@ -33,6 +33,17 @@ is useful for the vendored dependency upgrades. It reports the linkage errors ac
 
 For example, when we upgrade the version of gRPC to 1.26.0 and the version of the vendored gRPC is 0.1-SNAPSHOT,
 we could run the linkage tool as following:
+
 ```
-./gradlew -PvendoredDependenciesOnly -Ppublishing -PjavaLinkageArtifactIds=beam-vendor-grpc-1_26_0:0.1-SNAPSHOT :checkJavaLinkage
+$ cd vendor/grpc-1_26_0
+$ ../../gradlew shadowJar
+$ find . -name '*.jar'
+./build/libs/beam-vendor-grpc-1_26_0-0.1.jar
+$ mvn install:install-file \
+      -Dfile=./build/libs/beam-vendor-grpc-1_26_0-0.1.jar \
+      -DgroupId=org.apache.beam \
+      -DartifactId=beam-vendor-grpc-1_26_0 \
+      -Dversion=0.1-SNAPSHOT \
+      -Dpackaging=jar
+$ ./gradlew -PvendoredDependenciesOnly -Ppublishing -PjavaLinkageArtifactIds=beam-vendor-grpc-1_26_0:0.1-SNAPSHOT :checkJavaLinkage
 ```
