@@ -44,7 +44,6 @@ import org.apache.beam.runners.jobsubmission.PortablePipelineResult;
 import org.apache.beam.runners.jobsubmission.PortablePipelineRunner;
 import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
-import org.apache.beam.runners.spark.metrics.SparkBeamMetric;
 import org.apache.beam.runners.spark.translation.SparkBatchPortablePipelineTranslator;
 import org.apache.beam.runners.spark.translation.SparkContextFactory;
 import org.apache.beam.runners.spark.translation.SparkPortablePipelineTranslator;
@@ -52,17 +51,16 @@ import org.apache.beam.runners.spark.translation.SparkStreamingPortablePipelineT
 import org.apache.beam.runners.spark.translation.SparkStreamingTranslationContext;
 import org.apache.beam.runners.spark.translation.SparkTranslationContext;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
+import org.apache.beam.runners.spark.util.SparkCompat;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.metrics.MetricsOptions;
-import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.scheduler.EventLoggingListener;
 import org.apache.spark.scheduler.SparkListenerApplicationEnd;
-import org.apache.spark.scheduler.SparkListenerApplicationStart;
 import org.apache.spark.scheduler.SparkListenerExecutorAdded;
 import org.apache.spark.scheduler.cluster.ExecutorInfo;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
@@ -75,7 +73,6 @@ import org.kohsuke.args4j.Option;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Tuple2;
-import scala.collection.JavaConverters;
 
 /** Runs a portable pipeline on Apache Spark. */
 @SuppressWarnings({
@@ -163,8 +160,6 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
       }
     }
 
-    LOG.info(String.format("Running job %s on Spark master %s", jobInfo.jobId(), jsc.master()));
-
     // Initialize accumulators.
     AggregatorsAccumulator.init(pipelineOptions, jsc);
     MetricsEnvironment.setMetricsSupported(true);
@@ -250,16 +245,7 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
     metricsPusher.start();
     if (pipelineOptions.getEventLogEnabled()) {
       eventLoggingListener.onApplicationStart(
-          new SparkListenerApplicationStart(
-              pipelineOptions.as(ApplicationNameOptions.class).getAppName(),
-              scala.Option.apply(jsc.getConf().getAppId()),
-              startTime,
-              jsc.sparkUser(),
-              scala.Option.apply("1"),
-              scala.Option.apply(
-                  JavaConverters.mapAsScalaMapConverter(
-                          SparkBeamMetric.renderAllToString(result.metrics()))
-                      .asScala())));
+          SparkCompat.buildSparkListenerApplicationStart(jsc, pipelineOptions, startTime, result));
       eventLoggingListener.onApplicationEnd(
           new SparkListenerApplicationEnd(Instant.now().getMillis()));
       eventLoggingListener.stop();
