@@ -4153,7 +4153,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
 
     Schema schema = Schema.builder().addNullableField("bool_col", FieldType.BOOLEAN).build();
     PAssert.that(stream)
-            .containsInAnyOrder(Row.withSchema(schema).addValues((Boolean) null).build());
+        .containsInAnyOrder(Row.withSchema(schema).addValues((Boolean) null).build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
@@ -4199,7 +4199,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
   @Test
   public void testLogicalAndWithAllNullInputs() {
     String sql =
-            "SELECT LOGICAL_OR(x) AS logical_and FROM UNNEST([CAST(null AS bool), null, null]) AS x";
+        "SELECT LOGICAL_OR(x) AS logical_and FROM UNNEST([CAST(null AS bool), null, null]) AS x";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
@@ -4207,7 +4207,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
 
     Schema schema = Schema.builder().addNullableField("bool_col", FieldType.BOOLEAN).build();
     PAssert.that(stream)
-            .containsInAnyOrder(Row.withSchema(schema).addValues((Boolean) null).build());
+        .containsInAnyOrder(Row.withSchema(schema).addValues((Boolean) null).build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 }
