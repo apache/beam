@@ -553,6 +553,9 @@ public class BeamBuiltinAggregations {
           }
           continue;
         }
+        merged.isEmpty = false;
+        merged.isNull = false;
+        merged.logicalAnd = (merged.logicalAnd || accum.logicalAnd);
       }
       return merged;
     }
