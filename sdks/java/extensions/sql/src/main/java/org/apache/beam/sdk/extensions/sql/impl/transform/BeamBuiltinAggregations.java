@@ -528,17 +528,11 @@ public class BeamBuiltinAggregations {
     @Override
     public Accum addInput(Accum accum, Boolean input) {
       /** when accum is empty and it sees null, it remains null */
-      if (accum.isEmpty && input == null) {
-        accum.isNull = true;
-        return accum;
-      }
-      /** when accum is null and it sees null, it remains null */
-      if (accum.isNull && input == null) {
-        accum.isNull = true;
-        return accum;
-      }
-      /** when accum is neither null and nor empty, it remains unchanged */
-      if (!accum.isNull && !accum.isEmpty && input == null) {
+      if (input == null) {
+        if (accum.isEmpty) {
+          accum.isEmpty = false;
+          accum.isNull = true;
+        }
         return accum;
       }
       /** when accum sees non-null value, accum becomes non-empty, non-null */
@@ -552,23 +546,14 @@ public class BeamBuiltinAggregations {
     public Accum mergeAccumulators(Iterable<Accum> accums) {
       LogicalAnd.Accum merged = createAccumulator();
 
-      /** merged accum has isNull=true when all accums have isNull=true */
-      if (StreamSupport.stream(accums.spliterator(), false).allMatch(a -> a.isNull)) {
-        merged.isNull = true;
-        return merged;
-      }
-
       for (LogicalAnd.Accum accum : accums) {
-        if (accum.isEmpty) {
-          continue;
-        }
-        /** ignore null values in the input */
         if (accum.isNull) {
+          if (merged.isEmpty) {
+            merged.isEmpty = false;
+            merged.isNull = true;
+          }
           continue;
         }
-        merged.isEmpty = false;
-        merged.isNull = false;
-        merged.logicalAnd = (merged.logicalAnd && accum.logicalAnd);
       }
       return merged;
     }

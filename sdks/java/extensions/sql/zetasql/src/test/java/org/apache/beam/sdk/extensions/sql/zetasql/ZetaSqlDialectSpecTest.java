@@ -4196,4 +4196,19 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
         .containsInAnyOrder(Row.withSchema(schema).addValues((Boolean) null).build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
+
+  @Test
+  public void testLogicalAndWithEmptyInput() {
+    String sql =
+            "SELECT LOGICAL_AND(x) AS logical_and FROM UNNEST(ARRAY<BOOL>[]) AS x";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    Schema schema = Schema.builder().addNullableField("bool_col", FieldType.BOOLEAN).build();
+    PAssert.that(stream)
+            .containsInAnyOrder(Row.withSchema(schema).addValues((Boolean) null).build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
 }
