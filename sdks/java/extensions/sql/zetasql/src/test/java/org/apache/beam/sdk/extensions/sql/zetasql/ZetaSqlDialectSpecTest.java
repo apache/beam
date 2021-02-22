@@ -4139,7 +4139,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
 
     Schema singleField = Schema.builder().addBooleanField("field1").build();
-    PAssert.that(stream).containsInAnyOrder(Row.withSchema(singleField).addValues(false).build());
+    PAssert.that(stream).containsInAnyOrder(Row.withSchema(singleField).addValues(true).build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
@@ -4192,7 +4192,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
 
     Schema schema = Schema.builder().addNullableField("bool_col", FieldType.BOOLEAN).build();
-    PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues(false).build());
+    PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues(true).build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
