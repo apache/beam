@@ -94,8 +94,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// TODO(b/175212927): Remove this package and use the Beam library once FHIR Search connector is
-// released.
 /**
  * {@link FhirIO} provides an API for reading and writing resources to <a
  * href="https://cloud.google.com/healthcare/docs/concepts/fhir">Google Cloud Healthcare Fhir API.
@@ -240,7 +238,7 @@ import org.slf4j.LoggerFactory;
  * </pre>
  */
 @SuppressWarnings({
-    "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class FhirIO {
   private static final String BASE_METRIC_PREFIX = "fhirio/";
@@ -1013,11 +1011,11 @@ public class FhirIO {
           input.apply(
               "Write nd json to GCS",
               ParDo.of(new WriteBundlesToFilesFn(fhirStore, tempPath, deadLetterGcsPath))
-                  .withOutputTags(Write.TEMP_FILES, TupleTagList.of(FAILED_BODY)));
+                  .withOutputTags(Write.TEMP_FILES, TupleTagList.of(Write.FAILED_BODY)));
 
       PCollection<HealthcareIOError<String>> failedBodies =
           writeTmpFileResults
-              .get(FAILED_BODY)
+              .get(Write.FAILED_BODY)
               .setCoder(HealthcareIOErrorCoder.of(StringUtf8Coder.of()));
       int numShards = 100;
       PCollection<HealthcareIOError<String>> failedFiles =
@@ -1053,17 +1051,12 @@ public class FhirIO {
                   new DoFn<Metadata, Void>() {
                     @ProcessElement
                     public void delete(@Element Metadata path, ProcessContext context) {
-                      // Wait til window closes for failedBodies and
-                      // failedFiles to ensure we are
-                      // done processing
-                      // anything under tempGcsPath because it has been
-                      // successfully imported to
-                      // FHIR store or
-                      // copies have been moved to the dead letter path.
-                      // Clean up all of tempGcsPath. This will handle
-                      // removing phantom temporary
-                      // objects from
-                      // failed / rescheduled ImportFn::importBatch.
+                      // Wait til window closes for failedBodies and failedFiles to ensure we are
+                      // done processing anything under tempGcsPath because it has been
+                      // successfully imported to FHIR store or copies have been moved to the
+                      // dead letter path.
+                      // Clean up all of tempGcsPath. This will handle removing phantom temporary
+                      // objects from failed / rescheduled ImportFn::importBatch.
                       try {
                         FileSystems.delete(
                             Collections.singleton(path.resourceId()),
@@ -1163,7 +1156,8 @@ public class FhirIO {
                       + "Dropping message from batch import.",
                   httpBody.toString(), e.getLocation().getCharOffset(), e.getMessage());
           LOG.warn(resource);
-          context.output(FAILED_BODY, HealthcareIOError.of(httpBody, new IOException(resource)));
+          context.output(
+              Write.FAILED_BODY, HealthcareIOError.of(httpBody, new IOException(resource)));
         }
       }
 
@@ -1259,8 +1253,7 @@ public class FhirIO {
               client.importFhirResource(
                   fhirStore.get(), importUri.toString(), contentStructure.name());
           client.pollOperation(operation, 500L);
-          // Clean up temp files on GCS as they we successfully imported to FHIR store and
-          // no longer
+          // Clean up temp files on GCS as they we successfully imported to FHIR store and no longer
           // needed.
           FileSystems.delete(tempDestinations);
         } catch (IOException | InterruptedException e) {
@@ -1273,8 +1266,7 @@ public class FhirIO {
           FileSystems.rename(tempDestinations, deadLetterDestinations);
           output.output(HealthcareIOError.of(importUri.toString(), e));
         } finally {
-          // If we've reached this point files have either been successfully import to
-          // FHIR store
+          // If we've reached this point files have either been successfully import to FHIR store
           // or moved to Dead Letter Queue.
           // Clean up original files for this batch on GCS.
           FileSystems.delete(ImmutableList.copyOf(batch));
