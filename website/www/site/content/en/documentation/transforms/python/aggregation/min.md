@@ -32,7 +32,7 @@ Then, we get the element with the minimum value in different ways.
 
 We use `Combine.Globally()` to get the minimum element from the *entire* `PCollection`.
 
-{{< highlight py >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/min.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/min.py" min_globally >}}
 {{< /highlight >}}
 
@@ -44,14 +44,11 @@ Output:
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/min_test.py" min_element >}}
 {{< /highlight >}}
 
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/min.py" >}}
-
 ### Example 2: Minimum elements for each key
 
 We use `Combine.PerKey()` to get the minimum element for each unique key in a `PCollection` of key-values.
 
-{{< highlight py >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/min.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/min.py" min_per_key >}}
 {{< /highlight >}}
 
@@ -62,9 +59,6 @@ Output:
 {{< highlight class="notebook-skip" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/min_test.py" elements_with_min_value_per_key >}}
 {{< /highlight >}}
-
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/min.py" >}}
 
 ## Related transforms
 
