@@ -605,22 +605,19 @@ public class FhirIO {
        * Creates a {@link FhirIO.Write.Result} in the given {@link Pipeline}.
        *
        * @param pipeline the pipeline
-       * @param failedBodies the failed inserts
-       * @return the result
-       */
-      static Result in(Pipeline pipeline, PCollection<HealthcareIOError<String>> failedBodies) {
-        return new Result(pipeline, null, failedBodies, null);
-      }
-
-      /**
-       * Creates a {@link FhirIO.Write.Result} in the given {@link Pipeline}.
-       *
-       * @param pipeline the pipeline
        * @param bodies the successful and failing bodies results.
        * @return the result
        */
-      static Result in(Pipeline pipeline, PCollectionTuple bodies) {
-        return new Result(pipeline, bodies.get(SUCCESSFUL_BODY), bodies.get(FAILED_BODY), null);
+      static Result in(Pipeline pipeline, PCollectionTuple bodies) throws IllegalArgumentException {
+        if (bodies.getAll()
+            .keySet()
+            .containsAll((Collection<?>) TupleTagList.of(SUCCESSFUL_BODY).and(FAILED_BODY))) {
+          return new Result(pipeline, bodies.get(SUCCESSFUL_BODY), bodies.get(FAILED_BODY), null);
+        } else {
+          throw new IllegalArgumentException(
+              "The PCollection tuple bodies must have the FhirIO.Write.SUCCESSFUL_BODY "
+                  + "and FhirIO.Write.FAILED_BODY tuple tags.");
+        }
       }
 
       static Result in(
