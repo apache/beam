@@ -29,6 +29,7 @@ import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelDataTypeSystem;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamBuiltinAggregations;
 import org.apache.beam.sdk.extensions.sql.impl.transform.agg.CountIf;
 import org.apache.beam.sdk.extensions.sql.impl.udaf.ArrayAgg;
+import org.apache.beam.sdk.extensions.sql.impl.udaf.ArrayConcatAgg;
 import org.apache.beam.sdk.extensions.sql.impl.udaf.StringAgg;
 import org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.impl.BeamBuiltinMethods;
@@ -91,6 +92,12 @@ public class SqlOperators {
           "array_agg",
           x -> createTypeFactory().createArrayType(x.getOperandType(0), -1),
           new UdafImpl<>(new ArrayAgg.ArrayAggArray()));
+
+  public static final SqlOperator ARRAY_CONCAT_AGG_FN =
+      createUdafOperator(
+          "array_concat_agg",
+          x -> createTypeFactory().createArrayType(x.getOperandType(0), -1),
+          new UdafImpl<>(new ArrayConcatAgg.ArrayAggArray()));
 
   public static final SqlOperator START_WITHS =
       createUdfOperator(
