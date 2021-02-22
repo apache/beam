@@ -32,7 +32,7 @@ Then, we get the element with the maximum value in different ways.
 
 We use `Combine.Globally()` to get the maximum element from the *entire* `PCollection`.
 
-{{< highlight py >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/max.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/max.py" max_globally >}}
 {{< /highlight >}}
 
@@ -44,14 +44,11 @@ Output:
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/max_test.py" max_element >}}
 {{< /highlight >}}
 
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/max.py" >}}
-
 ### Example 2: Maximum elements for each key
 
 We use `Combine.PerKey()` to get the maximum element for each unique key in a `PCollection` of key-values.
 
-{{< highlight py >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/max.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/max.py" max_per_key >}}
 {{< /highlight >}}
 
@@ -62,9 +59,6 @@ Output:
 {{< highlight class="notebook-skip" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/max_test.py" elements_with_max_value_per_key >}}
 {{< /highlight >}}
-
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/max.py" >}}
 
 ## Related transforms
 

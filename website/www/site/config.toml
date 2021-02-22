@@ -37,7 +37,7 @@ pygmentsUseClassic = false
 # See https://help.farbox.com/pygments.html
 pygmentsStyle = "tango"
 
-summaryLength = "unlimited"
+summaryLength = "30"
 
 canonifyURLs = true
 
