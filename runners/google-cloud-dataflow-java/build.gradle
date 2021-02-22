@@ -428,6 +428,9 @@ task validatesRunnerV2Streaming {
       'org.apache.beam.sdk.transforms.ParDoTest$OnWindowExpirationTests.testOnWindowExpirationSimpleBounded',
       'org.apache.beam.sdk.transforms.ParDoTest$OnWindowExpirationTests.testOnWindowExpirationSimpleUnbounded',
 
+      // TODO(BEAM-11858) reading a side input twice fails
+      'org.apache.beam.sdk.transforms.ParDoTest$MultipleInputsAndOutputTests.testSameSideInputReadTwice',
+
       'org.apache.beam.runners.dataflow.DataflowRunnerTest.testBatchGroupIntoBatchesOverride',
 
       'org.apache.beam.sdk.transforms.GroupByKeyTest.testCombiningAccumulatingProcessingTime',
