@@ -607,7 +607,7 @@ public class FhirIO {
        * @return the result
        */
       static Result in(Pipeline pipeline, PCollectionTuple bodies) throws IllegalArgumentException {
-        if (bodies.has(SUCCESSFUL_BODY) && bodies.has(FAILED_BODY))) {
+        if (bodies.has(SUCCESSFUL_BODY) && bodies.has(FAILED_BODY)) {
           return new Result(pipeline, bodies.get(SUCCESSFUL_BODY), bodies.get(FAILED_BODY), null);
         } else {
           throw new IllegalArgumentException(
