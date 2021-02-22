@@ -129,6 +129,13 @@ hadoopVersions.each {kv ->
   }
 }
 
+// Hadoop dependencies require old version of Guava (BEAM-11626)
+configurations.all {
+  resolutionStrategy {
+    force 'com.google.guava:guava:25.1-jre'
+  }
+}
+
 // The cassandra.yaml file currently assumes "target/..." exists.
 // TODO: Update cassandra.yaml to inject new properties representing
 // the root path. Also migrate cassandra.yaml to use any open ports

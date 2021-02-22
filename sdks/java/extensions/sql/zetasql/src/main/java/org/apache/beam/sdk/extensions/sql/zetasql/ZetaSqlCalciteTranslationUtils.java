@@ -290,7 +290,10 @@ public final class ZetaSqlCalciteTranslationUtils {
 
   private static RexNode arrayValueToRexNode(Value value, RexBuilder rexBuilder) {
     return rexBuilder.makeCall(
-        toCalciteArrayType(value.getType().asArray().getElementType(), false, rexBuilder),
+        toCalciteArrayType(
+            value.getType().asArray().getElementType(),
+            value.getElementList().stream().anyMatch(v -> v.isNull()),
+            rexBuilder),
         SqlStdOperatorTable.ARRAY_VALUE_CONSTRUCTOR,
         value.getElementList().stream()
             .map(v -> toRexNode(v, rexBuilder))
