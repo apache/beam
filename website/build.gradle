@@ -269,9 +269,10 @@ task commitWebsite {
 
     def git = grgit.open(currentDir: project.rootDir)
     // get the latest commit on master
-    def latestCommit = grgit.log(maxCommits: 1)[0].abbreviatedId
+    def latestCommit = grgit.log(maxCommits: 1)[0].id
 
     shell "git fetch --force origin +asf-site:asf-site"
+    git.reset(mode: 'hard', commit: latestCommit)
     git.checkout(branch: 'asf-site')
 
     // Delete the previous content. These are asf-site branch paths.
