@@ -402,9 +402,7 @@ public class FhirIO {
        * @throws IllegalArgumentException the illegal argument exception
        */
       static FhirIO.Read.Result of(PCollectionTuple pct) throws IllegalArgumentException {
-        if (pct.getAll()
-            .keySet()
-            .containsAll((Collection<?>) TupleTagList.of(OUT).and(DEAD_LETTER))) {
+        if (pct.has(OUT) && pct.has(DEAD_LETTER)) {
           return new FhirIO.Read.Result(pct);
         } else {
           throw new IllegalArgumentException(
@@ -609,9 +607,7 @@ public class FhirIO {
        * @return the result
        */
       static Result in(Pipeline pipeline, PCollectionTuple bodies) throws IllegalArgumentException {
-        if (bodies.getAll()
-            .keySet()
-            .containsAll((Collection<?>) TupleTagList.of(SUCCESSFUL_BODY).and(FAILED_BODY))) {
+        if (bodies.has(SUCCESSFUL_BODY) && bodies.has(FAILED_BODY))) {
           return new Result(pipeline, bodies.get(SUCCESSFUL_BODY), bodies.get(FAILED_BODY), null);
         } else {
           throw new IllegalArgumentException(
@@ -1525,9 +1521,7 @@ public class FhirIO {
        * @throws IllegalArgumentException the illegal argument exception
        */
       static FhirIO.Search.Result of(PCollectionTuple pct) throws IllegalArgumentException {
-        if (pct.getAll()
-            .keySet()
-            .containsAll((Collection<?>) TupleTagList.of(OUT).and(DEAD_LETTER))) {
+        if (pct.has(OUT) && pct.has(DEAD_LETTER)) {
           return new FhirIO.Search.Result(pct);
         } else {
           throw new IllegalArgumentException(
