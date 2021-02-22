@@ -719,7 +719,7 @@ class BigQueryFileLoadsIT(unittest.TestCase):
   @parameterized.expand(
       [param(with_auto_sharding=False), param(with_auto_sharding=True)])
   @attr('IT')
-  def test_bqfl_streaming(self):
+  def test_bqfl_streaming(self, with_auto_sharding):
     if isinstance(self.test_pipeline.runner, TestDataflowRunner):
       self.skipTest("TestStream is not supported on TestDataflowRunner")
     output_table = '%s_%s' % (self.output_table, 'ints')

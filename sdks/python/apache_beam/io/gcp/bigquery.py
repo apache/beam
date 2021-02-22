@@ -1358,9 +1358,10 @@ class BigQueryWriteFn(DoFn):
     ]
 
 
-"""The number of shards per destination when writing via streaming inserts."""
+# The number of shards per destination when writing via streaming inserts.
 DEFAULT_SHARDS_PER_DESTINATION = 500
-"""The max duration a batch of elements is allowed to be buffered before being flushed to BigQuery."""
+# The max duration a batch of elements is allowed to be buffered before being
+# flushed to BigQuery.
 DEFAULT_BATCH_BUFFERING_DURATION_LIMIT_SEC = 0.2
 
 
@@ -1442,30 +1443,28 @@ class _StreamToBigQuery(PTransform):
             *self.table_side_inputs)
         | 'AddInsertIds' >> beam.ParDo(_StreamToBigQuery.InsertIdPrefixFn()))
 
-    if not self.ignore_insert_ids:
-      if not self.with_auto_sharding:
-        tagged_data = (
-            tagged_data
-            | 'WithFixedSharding' >> beam.Map(_add_random_shard)
-            | 'CommitInsertIds' >> ReshufflePerKey()
-            | 'DropShard' >> beam.Map(lambda kv: (kv[0][0], kv[1])))
-      else:
-        # Auto-sharding is achieved via GroupIntoBatches.WithShardedKey
-        # transform which shards, groups and at the same time batches the table
-        # rows to be inserted to BigQuery.
+    if not self.with_auto_sharding:
+      tagged_data = (
+          tagged_data
+          | 'WithFixedSharding' >> beam.Map(_add_random_shard)
+          | 'CommitInsertIds' >> ReshufflePerKey()
+          | 'DropShard' >> beam.Map(lambda kv: (kv[0][0], kv[1])))
+    else:
+      # Auto-sharding is achieved via GroupIntoBatches.WithShardedKey
+      # transform which shards, groups and at the same time batches the table
+      # rows to be inserted to BigQuery.
 
-        # Firstly the keys of tagged_data (table references) are converted to a
-        # hashable format. This is needed to work with the keyed states used by
-        # GroupIntoBatches. After grouping and batching is done, original table
-        # references are restored.
-        tagged_data = (
-            tagged_data
-            | 'ToHashableTableRef' >> beam.Map(_to_hashable_table_ref)
-            | 'WithAutoSharding' >> beam.GroupIntoBatches.WithShardedKey(
-                (self.batch_size or BigQueryWriteFn.DEFAULT_MAX_BUFFERED_ROWS),
-                DEFAULT_BATCH_BUFFERING_DURATION_LIMIT_SEC)
-            |
-            'FromHashableTableRefAndDropShard' >> beam.Map(_restore_table_ref))
+      # Firstly the keys of tagged_data (table references) are converted to a
+      # hashable format. This is needed to work with the keyed states used by
+      # GroupIntoBatches. After grouping and batching is done, original table
+      # references are restored.
+      tagged_data = (
+          tagged_data
+          | 'ToHashableTableRef' >> beam.Map(_to_hashable_table_ref)
+          | 'WithAutoSharding' >> beam.GroupIntoBatches.WithShardedKey(
+              (self.batch_size or BigQueryWriteFn.DEFAULT_MAX_BUFFERED_ROWS),
+              DEFAULT_BATCH_BUFFERING_DURATION_LIMIT_SEC)
+          | 'FromHashableTableRefAndDropShard' >> beam.Map(_restore_table_ref))
 
     return (
         tagged_data
@@ -1536,8 +1535,8 @@ class WriteToBigQuery(PTransform):
       schema (str,dict,ValueProvider,callable): The schema to be used if the
         BigQuery table to write has to be created. This can be either specified
         as a :class:`~apache_beam.io.gcp.internal.clients.bigquery.\
-        bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON
-        string, or a python dictionary, or the string or dictionary itself,
+bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
+        or a python dictionary, or the string or dictionary itself,
         object or a single string  of the form
         ``'field1:type1,field2:type2,field3:type3'`` that defines a comma
         separated list of fields. Here ``'type'`` should specify the BigQuery
