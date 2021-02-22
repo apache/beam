@@ -1685,7 +1685,6 @@ public class FhirIO {
               new HttpHealthcareApiClient.FhirResourcePages.FhirResourcePagesIterator(
                   client, fhirStore, resourceType, parameterObjects);
           JsonArray result = new JsonArray();
-          result.addAll(iter.next());
           while (iter.hasNext()) {
             result.addAll(iter.next());
           }

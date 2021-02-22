@@ -206,9 +206,6 @@ abstract class BigtableConfig implements Serializable {
           CredentialOptions.credential(pipelineOptions.as(GcpOptions.class).getGcpCredential()));
     }
 
-    // Default option that should be forced
-    bigtableOptions.setUseCachedDataPool(true);
-
     return new BigtableServiceImpl(bigtableOptions.build());
   }
 
@@ -228,6 +225,9 @@ abstract class BigtableConfig implements Serializable {
       effectiveOptions = getBigtableOptionsConfigurator().apply(effectiveOptions);
     }
 
+    // Default option that should be forced in most cases
+    effectiveOptions.setUseCachedDataPool(true);
+
     if (getInstanceId() != null) {
       effectiveOptions.setInstanceId(getInstanceId().get());
     }
@@ -238,6 +238,7 @@ abstract class BigtableConfig implements Serializable {
 
     if (getEmulatorHost() != null) {
       effectiveOptions.enableEmulator(getEmulatorHost());
+      effectiveOptions.setUseCachedDataPool(false);
     }
 
     return effectiveOptions;

@@ -18,7 +18,7 @@
 
 plugins {
   id 'org.apache.beam.module'
-  id 'com.github.jk1.dependency-license-report' version '1.13'
+  id 'com.github.jk1.dependency-license-report' version '1.16'
 }
 
 applyGoNature()
