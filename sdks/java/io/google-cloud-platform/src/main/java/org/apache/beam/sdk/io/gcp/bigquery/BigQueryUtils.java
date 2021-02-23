@@ -88,6 +88,10 @@ import org.joda.time.format.DateTimeFormatterBuilder;
 })
 public class BigQueryUtils {
 
+  /**
+   * Given a BigQuery TableSchema, returns a protocol-buffer Descriptor that can be used to write
+   * data using the Vortex streaming API.
+   */
   public static Descriptor getDescriptorFromTableSchema(TableSchema jsonSchema)
       throws DescriptorValidationException {
     DescriptorProto descriptorProto = descriptorSchemaFromTableSchema(jsonSchema);
@@ -430,13 +434,14 @@ public class BigQueryUtils {
     return fromTableFieldSchema(tableSchema.getFields(), options);
   }
 
-  public static DescriptorProto descriptorSchemaFromTableSchema(TableSchema tableSchema) {
+  static DescriptorProto descriptorSchemaFromTableSchema(TableSchema tableSchema) {
     return descriptorSchemaFromTableFieldSchemas(tableSchema.getFields());
   }
 
-  public static DescriptorProto descriptorSchemaFromTableFieldSchemas(
+  static DescriptorProto descriptorSchemaFromTableFieldSchemas(
       Iterable<TableFieldSchema> tableFieldSchemas) {
     DescriptorProto.Builder descriptorBuilder = DescriptorProto.newBuilder();
+    // Create a unique name for the descriptor ('-' characters cannot be used).
     descriptorBuilder.setName("D" + UUID.randomUUID().toString().replace("-", "_"));
     int i = 1;
     for (TableFieldSchema fieldSchema : tableFieldSchemas) {
@@ -445,7 +450,7 @@ public class BigQueryUtils {
     return descriptorBuilder.build();
   }
 
-  public static void fieldDescriptorFromTableField(
+  static void fieldDescriptorFromTableField(
       TableFieldSchema fieldSchema, int fieldNumber, DescriptorProto.Builder descriptorBuilder) {
     FieldDescriptorProto.Builder fieldDescriptorBuilder = FieldDescriptorProto.newBuilder();
     fieldDescriptorBuilder = fieldDescriptorBuilder.setName(fieldSchema.getName());
@@ -500,6 +505,10 @@ public class BigQueryUtils {
     descriptorBuilder.addField(fieldDescriptorBuilder.build());
   }
 
+  /**
+   * Given a BigQuery TableRow, returns a protocol-buffer message that can be used to write data
+   * using the Vortex streaming API.
+   */
   public static DynamicMessage messageFromTableRow(Descriptor descriptor, TableRow tableRow) {
     DynamicMessage.Builder builder = DynamicMessage.newBuilder(descriptor);
     for (FieldDescriptor fieldDescriptor : descriptor.getFields()) {
@@ -512,7 +521,7 @@ public class BigQueryUtils {
     return builder.build();
   }
 
-  public static Object messageValueFromFieldValue(FieldDescriptor fieldDescriptor, Object bqValue) {
+  static Object messageValueFromFieldValue(FieldDescriptor fieldDescriptor, Object bqValue) {
     if (bqValue == null) {
       if (fieldDescriptor.isOptional()) {
         return null;
@@ -550,7 +559,11 @@ public class BigQueryUtils {
         case LONG:
           return Long.valueOf((int) jsonBQValue);
         default:
-          throw new RuntimeException("foo");
+          throw new RuntimeException(
+              "Unexpectecd java type "
+                  + jsonBQValue.getClass()
+                  + " for field descriptor "
+                  + fieldDescriptor);
       }
     } else if (jsonBQValue instanceof List) {
       return ((List<Object>) jsonBQValue)
@@ -563,7 +576,6 @@ public class BigQueryUtils {
       TableRow tr = new TableRow();
       tr.putAll((AbstractMap<String, Object>) jsonBQValue);
       return messageFromTableRow(fieldDescriptor.getMessageType(), tr);
-    } else if (jsonBQValue instanceof TableRow) {
     } else {
       return toProtoValue(fieldDescriptor, jsonBQValue.toString());
     }
