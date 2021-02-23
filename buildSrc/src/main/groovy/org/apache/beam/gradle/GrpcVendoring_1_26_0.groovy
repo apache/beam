@@ -41,7 +41,7 @@ class GrpcVendoring_1_26_0 {
   static def conscrypt_version = "2.5.1"
   static def alpn_api_version = "1.1.2.v20150522"
   static def npn_api_version = "1.1.1.v20141010"
-  static def jboss_marshalling_version = "1.4.11.Final"
+  static def jboss_marshalling_version = "2.0.10.Final"
   static def jboss_modules_version = "1.11.0.Final"
 
   /** Returns the list of compile time dependencies. */
