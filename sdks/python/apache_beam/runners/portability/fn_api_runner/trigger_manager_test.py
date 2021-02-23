@@ -20,12 +20,12 @@ import unittest
 from apache_beam import Map
 from apache_beam import WindowInto
 from apache_beam.runners.portability.fn_api_runner import trigger_manager
+from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms.core import ParDo
 from apache_beam.transforms.core import Windowing
-from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.testing.test_stream import TestStream
 from apache_beam.transforms.trigger import AccumulationMode
 from apache_beam.transforms.trigger import AfterCount
 from apache_beam.transforms.trigger import AfterWatermark
@@ -244,3 +244,7 @@ class TriggerManagerTest(unittest.TestCase):
               ('k1', IntervalWindow(1, 25), {1, 2, 3, -3, -2}), # late
               ('k1', IntervalWindow(1, 40), {1, 2, 3, 4, -3, -2, -1}), # late
           ]))
+
+
+if __name__ == '__main__':
+  unittest.main()

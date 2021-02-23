@@ -16,7 +16,6 @@
 #
 import collections
 import logging
-
 import typing
 from collections import defaultdict
 
@@ -28,6 +27,7 @@ from apache_beam.coders import VarIntCoder
 from apache_beam.coders.coders import IntervalWindowCoder
 from apache_beam.transforms import DoFn
 from apache_beam.transforms.core import Windowing
+from apache_beam.transforms.timeutil import TimeDomain
 from apache_beam.transforms.trigger import AccumulationMode
 from apache_beam.transforms.trigger import TriggerContext
 from apache_beam.transforms.trigger import _CombiningValueStateTag
@@ -40,7 +40,6 @@ from apache_beam.transforms.userstate import RuntimeTimer
 from apache_beam.transforms.userstate import SetRuntimeState
 from apache_beam.transforms.userstate import SetStateSpec
 from apache_beam.transforms.userstate import TimerSpec
-from apache_beam.transforms.timeutil import TimeDomain
 from apache_beam.transforms.userstate import on_timer
 from apache_beam.transforms.window import BoundedWindow
 from apache_beam.transforms.window import GlobalWindow
@@ -49,6 +48,7 @@ from apache_beam.transforms.window import WindowFn
 from apache_beam.typehints import TypeCheckError
 from apache_beam.utils import windowed_value
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
+from apache_beam.utils.timestamp import Timestamp
 from apache_beam.utils.windowed_value import WindowedValue
 
 _LOGGER = logging.getLogger(__name__)
@@ -100,7 +100,7 @@ class TriggerMergeContext(WindowFn.MergeContext):
     super(TriggerMergeContext, self).__init__(all_windows)
     self.trigger_context = context
     self.windowing = windowing
-    self.merged_away = {}
+    self.merged_away: typing.Dict[BoundedWindow, BoundedWindow] = {}
 
   def merge(self, to_be_merged, merge_result):
     _LOGGER.debug("Merging %s into %s", to_be_merged, merge_result)
@@ -153,16 +153,17 @@ class GeneralTriggerManagerDoFn(DoFn):
   def process(
       self,
       element: typing.Tuple[K, typing.Iterable[windowed_value.WindowedValue]],
-      element_bag: BagRuntimeState = DoFn.StateParam(WINDOW_ELEMENT_PAIRS),
-      time_state: AccumulatingRuntimeState = DoFn.StateParam(LAST_KNOWN_TIME),
-      watermark_state: AccumulatingRuntimeState = DoFn.StateParam(
+      element_bag: BagRuntimeState = DoFn.StateParam(WINDOW_ELEMENT_PAIRS),  # type: ignore
+      time_state: AccumulatingRuntimeState = DoFn.StateParam(LAST_KNOWN_TIME),  # type: ignore
+      watermark_state: AccumulatingRuntimeState = DoFn.StateParam(  # type: ignore
           LAST_KNOWN_WATERMARK),
-      window_tag_values: BagRuntimeState = DoFn.StateParam(WINDOW_TAG_VALUES),
-      windows_state: SetRuntimeState = DoFn.StateParam(KNOWN_WINDOWS),
-      finished_windows_state: SetRuntimeState = DoFn.StateParam(
+      window_tag_values: BagRuntimeState = DoFn.StateParam(WINDOW_TAG_VALUES),  # type: ignore
+      windows_state: SetRuntimeState = DoFn.StateParam(KNOWN_WINDOWS),  # type: ignore
+      finished_windows_state: SetRuntimeState = DoFn.StateParam(  # type: ignore
           FINISHED_WINDOWS),
       processing_time_timer=DoFn.TimerParam(PROCESSING_TIME_TIMER),
-      watermark_timer=DoFn.TimerParam(WATERMARK_TIMER)):
+      watermark_timer=DoFn.TimerParam(WATERMARK_TIMER),
+      *args, **kwargs):
     context = FnRunnerStatefulTriggerContext(
         processing_time_timer=processing_time_timer,
         watermark_timer=watermark_timer,
@@ -223,10 +224,10 @@ class GeneralTriggerManagerDoFn(DoFn):
       self,
       key: K,
       time_domain,
-      timestamp,
-      timer_tag: str,
+      timestamp: Timestamp,
+      timer_tag: typing.Optional[str],
       context: 'FnRunnerStatefulTriggerContext',
-      windows_of_interest=None):
+      windows_of_interest: typing.Optional[typing.Set[BoundedWindow]] = None):
     windows_to_elements = context.windows_to_elements_map()
     context.elements_bag_state.clear()
 
@@ -274,8 +275,8 @@ class GeneralTriggerManagerDoFn(DoFn):
       processing_time_state=DoFn.StateParam(LAST_KNOWN_TIME),
       element_bag=DoFn.StateParam(WINDOW_ELEMENT_PAIRS),
       processing_time_timer=DoFn.TimerParam(PROCESSING_TIME_TIMER),
-      window_tag_values: BagRuntimeState = DoFn.StateParam(WINDOW_TAG_VALUES),
-      finished_windows_state: SetRuntimeState = DoFn.StateParam(
+      window_tag_values: BagRuntimeState = DoFn.StateParam(WINDOW_TAG_VALUES),  # type: ignore
+      finished_windows_state: SetRuntimeState = DoFn.StateParam(  # type: ignore
           FINISHED_WINDOWS),
       watermark_timer=DoFn.TimerParam(WATERMARK_TIMER)):
     context = FnRunnerStatefulTriggerContext(
@@ -300,8 +301,8 @@ class GeneralTriggerManagerDoFn(DoFn):
       watermark_state=DoFn.StateParam(LAST_KNOWN_WATERMARK),
       element_bag=DoFn.StateParam(WINDOW_ELEMENT_PAIRS),
       processing_time_timer=DoFn.TimerParam(PROCESSING_TIME_TIMER),
-      window_tag_values: BagRuntimeState = DoFn.StateParam(WINDOW_TAG_VALUES),
-      finished_windows_state: SetRuntimeState = DoFn.StateParam(
+      window_tag_values: BagRuntimeState = DoFn.StateParam(WINDOW_TAG_VALUES),  # type: ignore
+      finished_windows_state: SetRuntimeState = DoFn.StateParam(  # type: ignore
           FINISHED_WINDOWS),
       watermark_timer=DoFn.TimerParam(WATERMARK_TIMER)):
     context = FnRunnerStatefulTriggerContext(
@@ -323,8 +324,8 @@ class FnRunnerStatefulTriggerContext(TriggerContext):
       self,
       processing_time_timer: RuntimeTimer,
       watermark_timer: RuntimeTimer,
-      current_time_state: AccumulatingRuntimeState,
-      watermark_state: AccumulatingRuntimeState,
+      current_time_state: typing.Optional[AccumulatingRuntimeState],
+      watermark_state: typing.Optional[AccumulatingRuntimeState],
       elements_bag_state: BagRuntimeState,
       window_tag_values_bag_state: BagRuntimeState,
       finished_windows_state: SetRuntimeState):
@@ -346,7 +347,8 @@ class FnRunnerStatefulTriggerContext(TriggerContext):
     window_element_pairs: typing.Iterable[typing.Tuple[
         BoundedWindow,
         windowed_value.WindowedValue]] = self.elements_bag_state.read()
-    result = {}
+    result: typing.Dict[BoundedWindow,
+                        typing.List[windowed_value.WindowedValue]] = {}
     for w, e in window_element_pairs:
       if w not in result:
         result[w] = []
