@@ -131,10 +131,9 @@ public class TriggerTranslation implements Serializable {
           return RunnerApi.TimeDomain.Enum.EVENT_TIME;
         case PROCESSING_TIME:
           return RunnerApi.TimeDomain.Enum.PROCESSING_TIME;
-        case SYNCHRONIZED_PROCESSING_TIME:
-          return RunnerApi.TimeDomain.Enum.SYNCHRONIZED_PROCESSING_TIME;
         default:
-          throw new IllegalArgumentException(String.format("Unknown time domain: %s", timeDomain));
+          throw new IllegalArgumentException(
+              String.format("Unknown or unsupported time domain: %s", timeDomain));
       }
     }
 
