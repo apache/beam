@@ -554,6 +554,27 @@ class PTransformTest(unittest.TestCase):
           'CheckGrouped')
       assert_that(combined, equal_to([(0, 20), (1, 25)]), 'CheckCombined')
 
+  def test_group_by_key_non_determanistic_coder(self):
+    with self.assertRaises(Exception) as e:
+      with TestPipeline() as pipeline:
+        grouped = (
+            pipeline
+            | beam.Create([(PickledObject(10), None)])
+            | beam.GroupByKey()
+            | beam.MapTuple(lambda k, v: list(v)))
+
+  def test_group_by_key_allow_non_determanistic_coder(self):
+    with TestPipeline() as pipeline:
+      # The GroupByKey below would fail without this option.
+      pipeline._options.view_as(
+          TypeOptions).allow_non_deterministic_key_coders = True
+      grouped = (
+          pipeline
+          | beam.Create([(PickledObject(10), None)])
+          | beam.GroupByKey()
+          | beam.MapTuple(lambda k, v: list(v)))
+    assert_that(grouped, equal_to([[None]]))
+
   def test_group_by_key_fake_determanistic_coder(self):
     fresh_registry = beam.coders.typecoders.CoderRegistry()
     with patch.object(
