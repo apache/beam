@@ -109,20 +109,20 @@ location.hash = anchor;
 &lt;div id='cap-blog' style='display:block'>
 &lt;table class='cap-summary'>
 &lt;tr class='cap-summary' id='cap-blog-what'>
-&lt;th class='cap-summary color-metadata format-category' colspan='8' style='color:#ca1'>
+&lt;th class='cap-summary color-metadata format-category' colspan='8' style='color:#'>
 What is being computed?
 &lt;/th>
 &lt;/tr>
 &lt;tr class='cap-summary'>
 &lt;th class='cap-summary color-capability'>&lt;/th>
-&lt;th class='cap-summary color-platform format-platform' style='color:#ec3'>Beam Model&lt;/th>
-&lt;th class='cap-summary color-platform format-platform' style='color:#ec3'>Google Cloud Dataflow&lt;/th>
-&lt;th class='cap-summary color-platform format-platform' style='color:#ec3'>Apache Flink&lt;/th>
-&lt;th class='cap-summary color-platform format-platform' style='color:#ec3'>Apache Spark&lt;/th>
+&lt;th class='cap-summary color-platform format-platform' style='color:#fff'>Beam Model&lt;/th>
+&lt;th class='cap-summary color-platform format-platform' style='color:#fff'>Google Cloud Dataflow&lt;/th>
+&lt;th class='cap-summary color-platform format-platform' style='color:#fff'>Apache Flink&lt;/th>
+&lt;th class='cap-summary color-platform format-platform' style='color:#fff'>Apache Spark&lt;/th>
 &lt;/tr>
 &lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#ec3'>ParDo&lt;/th>
-&lt;td width='25%' class='cap-summary' style='background-color:#ec3;border-color:#ca1'>
+&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>ParDo&lt;/th>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2713;
@@ -131,7 +131,7 @@ What is being computed?
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#ec3;border-color:#ca1'>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2713;
@@ -140,7 +140,7 @@ What is being computed?
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#ec3;border-color:#ca1'>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2713;
@@ -149,85 +149,7 @@ What is being computed?
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#ec3;border-color:#ca1'>
-&lt;center>
-&lt;b>
-&amp;#x2713;
-&lt;/b>
-&lt;b>
-&lt;/b>
-&lt;/center>
-&lt;/td>
-&lt;/tr>
-&lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#ec3'>GroupByKey&lt;/th>
-&lt;td width='25%' class='cap-summary' style='background-color:#ec3;border-color:#ca1'>
-&lt;center>
-&lt;b>
-&amp;#x2713;
-&lt;/b>
-&lt;b>
-&lt;/b>
-&lt;/center>
-&lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#ec3;border-color:#ca1'>
-&lt;center>
-&lt;b>
-&amp;#x2713;
-&lt;/b>
-&lt;b>
-&lt;/b>
-&lt;/center>
-&lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#ec3;border-color:#ca1'>
-&lt;center>
-&lt;b>
-&amp;#x2713;
-&lt;/b>
-&lt;b>
-&lt;/b>
-&lt;/center>
-&lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#fe5;border-color:#ca1'>
-&lt;center>
-&lt;b>
-~
-&lt;/b>
-&lt;b>
-&lt;/b>
-&lt;/center>
-&lt;/td>
-&lt;/tr>
-&lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#ec3'>Flatten&lt;/th>
-&lt;td width='25%' class='cap-summary' style='background-color:#ec3;border-color:#ca1'>
-&lt;center>
-&lt;b>
-&amp;#x2713;
-&lt;/b>
-&lt;b>
-&lt;/b>
-&lt;/center>
-&lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#ec3;border-color:#ca1'>
-&lt;center>
-&lt;b>
-&amp;#x2713;
-&lt;/b>
-&lt;b>
-&lt;/b>
-&lt;/center>
-&lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#ec3;border-color:#ca1'>
-&lt;center>
-&lt;b>
-&amp;#x2713;
-&lt;/b>
-&lt;b>
-&lt;/b>
-&lt;/center>
-&lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#ec3;border-color:#ca1'>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2713;
@@ -238,8 +160,8 @@ What is being computed?
 &lt;/td>
 &lt;/tr>
 &lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#ec3'>Combine&lt;/th>
-&lt;td width='25%' class='cap-summary' style='background-color:#ec3;border-color:#ca1'>
+&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>GroupByKey&lt;/th>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2713;
@@ -248,7 +170,7 @@ What is being computed?
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#ec3;border-color:#ca1'>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2713;
@@ -257,7 +179,7 @@ What is being computed?
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#ec3;border-color:#ca1'>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2713;
@@ -266,46 +188,7 @@ What is being computed?
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#ec3;border-color:#ca1'>
-&lt;center>
-&lt;b>
-&amp;#x2713;
-&lt;/b>
-&lt;b>
-&lt;/b>
-&lt;/center>
-&lt;/td>
-&lt;/tr>
-&lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#ec3'>Composite Transforms&lt;/th>
-&lt;td width='25%' class='cap-summary' style='background-color:#ec3;border-color:#ca1'>
-&lt;center>
-&lt;b>
-&amp;#x2713;
-&lt;/b>
-&lt;b>
-&lt;/b>
-&lt;/center>
-&lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#fe5;border-color:#ca1'>
-&lt;center>
-&lt;b>
-~
-&lt;/b>
-&lt;b>
-&lt;/b>
-&lt;/center>
-&lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#fe5;border-color:#ca1'>
-&lt;center>
-&lt;b>
-~
-&lt;/b>
-&lt;b>
-&lt;/b>
-&lt;/center>
-&lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#fe5;border-color:#ca1'>
+&lt;td width='25%' class='cap-summary' style='background-color:#f9f9f9;border-color:#'>
 &lt;center>
 &lt;b>
 ~
@@ -316,8 +199,8 @@ What is being computed?
 &lt;/td>
 &lt;/tr>
 &lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#ec3'>Side Inputs&lt;/th>
-&lt;td width='25%' class='cap-summary' style='background-color:#ec3;border-color:#ca1'>
+&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>Flatten&lt;/th>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2713;
@@ -326,7 +209,7 @@ What is being computed?
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#ec3;border-color:#ca1'>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2713;
@@ -335,28 +218,7 @@ What is being computed?
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#fe5;border-color:#ca1'>
-&lt;center>
-&lt;b>
-~
-&lt;/b>
-&lt;b>
-&lt;/b>
-&lt;/center>
-&lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#fe5;border-color:#ca1'>
-&lt;center>
-&lt;b>
-~
-&lt;/b>
-&lt;b>
-&lt;/b>
-&lt;/center>
-&lt;/td>
-&lt;/tr>
-&lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#ec3'>Source API&lt;/th>
-&lt;td width='25%' class='cap-summary' style='background-color:#ec3;border-color:#ca1'>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2713;
@@ -365,25 +227,7 @@ What is being computed?
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#ec3;border-color:#ca1'>
-&lt;center>
-&lt;b>
-&amp;#x2713;
-&lt;/b>
-&lt;b>
-&lt;/b>
-&lt;/center>
-&lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#fe5;border-color:#ca1'>
-&lt;center>
-&lt;b>
-~
-&lt;/b>
-&lt;b>
-&lt;/b>
-&lt;/center>
-&lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#ec3;border-color:#ca1'>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2713;
@@ -394,8 +238,56 @@ What is being computed?
 &lt;/td>
 &lt;/tr>
 &lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#ec3'>Aggregators&lt;/th>
-&lt;td width='25%' class='cap-summary' style='background-color:#fe5;border-color:#ca1'>
+&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>Combine&lt;/th>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
+&lt;center>
+&lt;b>
+&amp;#x2713;
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
+&lt;center>
+&lt;b>
+&amp;#x2713;
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
+&lt;center>
+&lt;b>
+&amp;#x2713;
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
+&lt;center>
+&lt;b>
+&amp;#x2713;
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;/tr>
+&lt;tr class='cap-summary'>
+&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>Composite Transforms&lt;/th>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
+&lt;center>
+&lt;b>
+&amp;#x2713;
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;td width='25%' class='cap-summary' style='background-color:#f9f9f9;border-color:#'>
 &lt;center>
 &lt;b>
 ~
@@ -404,7 +296,7 @@ What is being computed?
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#fe5;border-color:#ca1'>
+&lt;td width='25%' class='cap-summary' style='background-color:#f9f9f9;border-color:#'>
 &lt;center>
 &lt;b>
 ~
@@ -413,16 +305,7 @@ What is being computed?
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#fe5;border-color:#ca1'>
-&lt;center>
-&lt;b>
-~
-&lt;/b>
-&lt;b>
-&lt;/b>
-&lt;/center>
-&lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#fe5;border-color:#ca1'>
+&lt;td width='25%' class='cap-summary' style='background-color:#f9f9f9;border-color:#'>
 &lt;center>
 &lt;b>
 ~
@@ -433,8 +316,125 @@ What is being computed?
 &lt;/td>
 &lt;/tr>
 &lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#ec3'>Keyed State&lt;/th>
-&lt;td width='25%' class='cap-summary' style='background-color:#ddd;border-color:#ca1'>
+&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>Side Inputs&lt;/th>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
+&lt;center>
+&lt;b>
+&amp;#x2713;
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
+&lt;center>
+&lt;b>
+&amp;#x2713;
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;td width='25%' class='cap-summary' style='background-color:#f9f9f9;border-color:#'>
+&lt;center>
+&lt;b>
+~
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;td width='25%' class='cap-summary' style='background-color:#f9f9f9;border-color:#'>
+&lt;center>
+&lt;b>
+~
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;/tr>
+&lt;tr class='cap-summary'>
+&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>Source API&lt;/th>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
+&lt;center>
+&lt;b>
+&amp;#x2713;
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
+&lt;center>
+&lt;b>
+&amp;#x2713;
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;td width='25%' class='cap-summary' style='background-color:#f9f9f9;border-color:#'>
+&lt;center>
+&lt;b>
+~
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
+&lt;center>
+&lt;b>
+&amp;#x2713;
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;/tr>
+&lt;tr class='cap-summary'>
+&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>Aggregators&lt;/th>
+&lt;td width='25%' class='cap-summary' style='background-color:#f9f9f9;border-color:#'>
+&lt;center>
+&lt;b>
+~
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;td width='25%' class='cap-summary' style='background-color:#f9f9f9;border-color:#'>
+&lt;center>
+&lt;b>
+~
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;td width='25%' class='cap-summary' style='background-color:#f9f9f9;border-color:#'>
+&lt;center>
+&lt;b>
+~
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;td width='25%' class='cap-summary' style='background-color:#f9f9f9;border-color:#'>
+&lt;center>
+&lt;b>
+~
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;/tr>
+&lt;tr class='cap-summary'>
+&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>Keyed State&lt;/th>
+&lt;td width='25%' class='cap-summary' style='background-color:#e1e0e0;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2715;
@@ -443,7 +443,7 @@ What is being computed?
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#ddd;border-color:#ca1'>
+&lt;td width='25%' class='cap-summary' style='background-color:#e1e0e0;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2715;
@@ -452,7 +452,7 @@ What is being computed?
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#ddd;border-color:#ca1'>
+&lt;td width='25%' class='cap-summary' style='background-color:#e1e0e0;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2715;
@@ -461,7 +461,7 @@ What is being computed?
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#ddd;border-color:#ca1'>
+&lt;td width='25%' class='cap-summary' style='background-color:#e1e0e0;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2715;
@@ -475,20 +475,20 @@ What is being computed?
 &lt;td class='cap-summary color-blank cap-blank' colspan='5'>&lt;/td>
 &lt;/tr>
 &lt;tr class='cap-summary' id='cap-blog-where'>
-&lt;th class='cap-summary color-metadata format-category' colspan='8' style='color:#37d'>
+&lt;th class='cap-summary color-metadata format-category' colspan='8' style='color:#'>
 Where in event time?
 &lt;/th>
 &lt;/tr>
 &lt;tr class='cap-summary'>
 &lt;th class='cap-summary color-capability'>&lt;/th>
-&lt;th class='cap-summary color-platform format-platform' style='color:#59f'>Beam Model&lt;/th>
-&lt;th class='cap-summary color-platform format-platform' style='color:#59f'>Google Cloud Dataflow&lt;/th>
-&lt;th class='cap-summary color-platform format-platform' style='color:#59f'>Apache Flink&lt;/th>
-&lt;th class='cap-summary color-platform format-platform' style='color:#59f'>Apache Spark&lt;/th>
+&lt;th class='cap-summary color-platform format-platform' style='color:#fff'>Beam Model&lt;/th>
+&lt;th class='cap-summary color-platform format-platform' style='color:#fff'>Google Cloud Dataflow&lt;/th>
+&lt;th class='cap-summary color-platform format-platform' style='color:#fff'>Apache Flink&lt;/th>
+&lt;th class='cap-summary color-platform format-platform' style='color:#fff'>Apache Spark&lt;/th>
 &lt;/tr>
 &lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#59f'>Global windows&lt;/th>
-&lt;td width='25%' class='cap-summary' style='background-color:#59f;border-color:#37d'>
+&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>Global windows&lt;/th>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2713;
@@ -497,7 +497,7 @@ Where in event time?
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#59f;border-color:#37d'>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2713;
@@ -506,7 +506,7 @@ Where in event time?
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#59f;border-color:#37d'>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2713;
@@ -515,7 +515,7 @@ Where in event time?
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#59f;border-color:#37d'>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2713;
@@ -526,8 +526,8 @@ Where in event time?
 &lt;/td>
 &lt;/tr>
 &lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#59f'>Fixed windows&lt;/th>
-&lt;td width='25%' class='cap-summary' style='background-color:#59f;border-color:#37d'>
+&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>Fixed windows&lt;/th>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2713;
@@ -536,7 +536,7 @@ Where in event time?
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#59f;border-color:#37d'>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2713;
@@ -545,7 +545,7 @@ Where in event time?
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#59f;border-color:#37d'>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2713;
@@ -554,7 +554,7 @@ Where in event time?
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#8cf;border-color:#37d'>
+&lt;td width='25%' class='cap-summary' style='background-color:#f9f9f9;border-color:#'>
 &lt;center>
 &lt;b>
 ~
@@ -565,8 +565,8 @@ Where in event time?
 &lt;/td>
 &lt;/tr>
 &lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#59f'>Sliding windows&lt;/th>
-&lt;td width='25%' class='cap-summary' style='background-color:#59f;border-color:#37d'>
+&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>Sliding windows&lt;/th>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2713;
@@ -575,7 +575,7 @@ Where in event time?
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#59f;border-color:#37d'>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2713;
@@ -584,7 +584,7 @@ Where in event time?
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#59f;border-color:#37d'>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2713;
@@ -593,7 +593,7 @@ Where in event time?
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#ddd;border-color:#37d'>
+&lt;td width='25%' class='cap-summary' style='background-color:#e1e0e0;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2715;
@@ -604,8 +604,8 @@ Where in event time?
 &lt;/td>
 &lt;/tr>
 &lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#59f'>Session windows&lt;/th>
-&lt;td width='25%' class='cap-summary' style='background-color:#59f;border-color:#37d'>
+&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>Session windows&lt;/th>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2713;
@@ -614,7 +614,7 @@ Where in event time?
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#59f;border-color:#37d'>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2713;
@@ -623,7 +623,7 @@ Where in event time?
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#59f;border-color:#37d'>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2713;
@@ -632,7 +632,7 @@ Where in event time?
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#ddd;border-color:#37d'>
+&lt;td width='25%' class='cap-summary' style='background-color:#e1e0e0;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2715;
@@ -643,8 +643,8 @@ Where in event time?
 &lt;/td>
 &lt;/tr>
 &lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#59f'>Custom windows&lt;/th>
-&lt;td width='25%' class='cap-summary' style='background-color:#59f;border-color:#37d'>
+&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>Custom windows&lt;/th>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2713;
@@ -653,7 +653,7 @@ Where in event time?
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#59f;border-color:#37d'>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2713;
@@ -662,7 +662,7 @@ Where in event time?
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#59f;border-color:#37d'>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2713;
@@ -671,7 +671,7 @@ Where in event time?
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#ddd;border-color:#37d'>
+&lt;td width='25%' class='cap-summary' style='background-color:#e1e0e0;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2715;
@@ -682,8 +682,8 @@ Where in event time?
 &lt;/td>
 &lt;/tr>
 &lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#59f'>Custom merging windows&lt;/th>
-&lt;td width='25%' class='cap-summary' style='background-color:#59f;border-color:#37d'>
+&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>Custom merging windows&lt;/th>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2713;
@@ -692,7 +692,7 @@ Where in event time?
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#59f;border-color:#37d'>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2713;
@@ -701,7 +701,7 @@ Where in event time?
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#59f;border-color:#37d'>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2713;
@@ -710,7 +710,7 @@ Where in event time?
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#ddd;border-color:#37d'>
+&lt;td width='25%' class='cap-summary' style='background-color:#e1e0e0;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2715;
@@ -721,8 +721,8 @@ Where in event time?
 &lt;/td>
 &lt;/tr>
 &lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#59f'>Timestamp control&lt;/th>
-&lt;td width='25%' class='cap-summary' style='background-color:#59f;border-color:#37d'>
+&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>Timestamp control&lt;/th>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2713;
@@ -731,7 +731,7 @@ Where in event time?
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#59f;border-color:#37d'>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2713;
@@ -740,7 +740,7 @@ Where in event time?
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#59f;border-color:#37d'>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2713;
@@ -749,7 +749,7 @@ Where in event time?
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#ddd;border-color:#37d'>
+&lt;td width='25%' class='cap-summary' style='background-color:#e1e0e0;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2715;
@@ -763,20 +763,20 @@ Where in event time?
 &lt;td class='cap-summary color-blank cap-blank' colspan='5'>&lt;/td>
 &lt;/tr>
 &lt;tr class='cap-summary' id='cap-blog-when'>
-&lt;th class='cap-summary color-metadata format-category' colspan='8' style='color:#6a4'>
+&lt;th class='cap-summary color-metadata format-category' colspan='8' style='color:#'>
 When in processing time?
 &lt;/th>
 &lt;/tr>
 &lt;tr class='cap-summary'>
 &lt;th class='cap-summary color-capability'>&lt;/th>
-&lt;th class='cap-summary color-platform format-platform' style='color:#8c6'>Beam Model&lt;/th>
-&lt;th class='cap-summary color-platform format-platform' style='color:#8c6'>Google Cloud Dataflow&lt;/th>
-&lt;th class='cap-summary color-platform format-platform' style='color:#8c6'>Apache Flink&lt;/th>
-&lt;th class='cap-summary color-platform format-platform' style='color:#8c6'>Apache Spark&lt;/th>
+&lt;th class='cap-summary color-platform format-platform' style='color:#fff'>Beam Model&lt;/th>
+&lt;th class='cap-summary color-platform format-platform' style='color:#fff'>Google Cloud Dataflow&lt;/th>
+&lt;th class='cap-summary color-platform format-platform' style='color:#fff'>Apache Flink&lt;/th>
+&lt;th class='cap-summary color-platform format-platform' style='color:#fff'>Apache Spark&lt;/th>
 &lt;/tr>
 &lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#8c6'>Configurable triggering&lt;/th>
-&lt;td width='25%' class='cap-summary' style='background-color:#8c6;border-color:#6a4'>
+&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>Configurable triggering&lt;/th>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2713;
@@ -785,7 +785,7 @@ When in processing time?
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#8c6;border-color:#6a4'>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2713;
@@ -794,7 +794,7 @@ When in processing time?
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#8c6;border-color:#6a4'>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2713;
@@ -803,46 +803,7 @@ When in processing time?
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#ddd;border-color:#6a4'>
-&lt;center>
-&lt;b>
-&amp;#x2715;
-&lt;/b>
-&lt;b>
-&lt;/b>
-&lt;/center>
-&lt;/td>
-&lt;/tr>
-&lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#8c6'>Event-time triggers&lt;/th>
-&lt;td width='25%' class='cap-summary' style='background-color:#8c6;border-color:#6a4'>
-&lt;center>
-&lt;b>
-&amp;#x2713;
-&lt;/b>
-&lt;b>
-&lt;/b>
-&lt;/center>
-&lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#8c6;border-color:#6a4'>
-&lt;center>
-&lt;b>
-&amp;#x2713;
-&lt;/b>
-&lt;b>
-&lt;/b>
-&lt;/center>
-&lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#8c6;border-color:#6a4'>
-&lt;center>
-&lt;b>
-&amp;#x2713;
-&lt;/b>
-&lt;b>
-&lt;/b>
-&lt;/center>
-&lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#ddd;border-color:#6a4'>
+&lt;td width='25%' class='cap-summary' style='background-color:#e1e0e0;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2715;
@@ -853,8 +814,8 @@ When in processing time?
 &lt;/td>
 &lt;/tr>
 &lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#8c6'>Processing-time triggers&lt;/th>
-&lt;td width='25%' class='cap-summary' style='background-color:#8c6;border-color:#6a4'>
+&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>Event-time triggers&lt;/th>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2713;
@@ -863,7 +824,7 @@ When in processing time?
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#8c6;border-color:#6a4'>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2713;
@@ -872,7 +833,7 @@ When in processing time?
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#8c6;border-color:#6a4'>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2713;
@@ -881,46 +842,7 @@ When in processing time?
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#8c6;border-color:#6a4'>
-&lt;center>
-&lt;b>
-&amp;#x2713;
-&lt;/b>
-&lt;b>
-&lt;/b>
-&lt;/center>
-&lt;/td>
-&lt;/tr>
-&lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#8c6'>Count triggers&lt;/th>
-&lt;td width='25%' class='cap-summary' style='background-color:#8c6;border-color:#6a4'>
-&lt;center>
-&lt;b>
-&amp;#x2713;
-&lt;/b>
-&lt;b>
-&lt;/b>
-&lt;/center>
-&lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#8c6;border-color:#6a4'>
-&lt;center>
-&lt;b>
-&amp;#x2713;
-&lt;/b>
-&lt;b>
-&lt;/b>
-&lt;/center>
-&lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#8c6;border-color:#6a4'>
-&lt;center>
-&lt;b>
-&amp;#x2713;
-&lt;/b>
-&lt;b>
-&lt;/b>
-&lt;/center>
-&lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#ddd;border-color:#6a4'>
+&lt;td width='25%' class='cap-summary' style='background-color:#e1e0e0;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2715;
@@ -931,35 +853,74 @@ When in processing time?
 &lt;/td>
 &lt;/tr>
 &lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#8c6'>[Meta]data driven triggers&lt;/th>
-&lt;td width='25%' class='cap-summary' style='background-color:#ddd;border-color:#6a4'>
+&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>Processing-time triggers&lt;/th>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
-&amp;#x2715;
+&amp;#x2713;
 &lt;/b>
 &lt;b>
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#ddd;border-color:#6a4'>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
-&amp;#x2715;
+&amp;#x2713;
 &lt;/b>
 &lt;b>
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#ddd;border-color:#6a4'>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
-&amp;#x2715;
+&amp;#x2713;
 &lt;/b>
 &lt;b>
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#ddd;border-color:#6a4'>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
+&lt;center>
+&lt;b>
+&amp;#x2713;
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;/tr>
+&lt;tr class='cap-summary'>
+&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>Count triggers&lt;/th>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
+&lt;center>
+&lt;b>
+&amp;#x2713;
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
+&lt;center>
+&lt;b>
+&amp;#x2713;
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
+&lt;center>
+&lt;b>
+&amp;#x2713;
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;td width='25%' class='cap-summary' style='background-color:#e1e0e0;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2715;
@@ -970,35 +931,35 @@ When in processing time?
 &lt;/td>
 &lt;/tr>
 &lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#8c6'>Composite triggers&lt;/th>
-&lt;td width='25%' class='cap-summary' style='background-color:#8c6;border-color:#6a4'>
+&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>[Meta]data driven triggers&lt;/th>
+&lt;td width='25%' class='cap-summary' style='background-color:#e1e0e0;border-color:#'>
 &lt;center>
 &lt;b>
-&amp;#x2713;
+&amp;#x2715;
 &lt;/b>
 &lt;b>
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#8c6;border-color:#6a4'>
+&lt;td width='25%' class='cap-summary' style='background-color:#e1e0e0;border-color:#'>
 &lt;center>
 &lt;b>
-&amp;#x2713;
+&amp;#x2715;
 &lt;/b>
 &lt;b>
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#8c6;border-color:#6a4'>
+&lt;td width='25%' class='cap-summary' style='background-color:#e1e0e0;border-color:#'>
 &lt;center>
 &lt;b>
-&amp;#x2713;
+&amp;#x2715;
 &lt;/b>
 &lt;b>
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#ddd;border-color:#6a4'>
+&lt;td width='25%' class='cap-summary' style='background-color:#e1e0e0;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2715;
@@ -1009,8 +970,8 @@ When in processing time?
 &lt;/td>
 &lt;/tr>
 &lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#8c6'>Allowed lateness&lt;/th>
-&lt;td width='25%' class='cap-summary' style='background-color:#8c6;border-color:#6a4'>
+&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>Composite triggers&lt;/th>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2713;
@@ -1019,7 +980,7 @@ When in processing time?
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#8c6;border-color:#6a4'>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2713;
@@ -1028,7 +989,7 @@ When in processing time?
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#8c6;border-color:#6a4'>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2713;
@@ -1037,7 +998,7 @@ When in processing time?
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#ddd;border-color:#6a4'>
+&lt;td width='25%' class='cap-summary' style='background-color:#e1e0e0;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2715;
@@ -1048,8 +1009,35 @@ When in processing time?
 &lt;/td>
 &lt;/tr>
 &lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#8c6'>Timers&lt;/th>
-&lt;td width='25%' class='cap-summary' style='background-color:#ddd;border-color:#6a4'>
+&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>Allowed lateness&lt;/th>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
+&lt;center>
+&lt;b>
+&amp;#x2713;
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
+&lt;center>
+&lt;b>
+&amp;#x2713;
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
+&lt;center>
+&lt;b>
+&amp;#x2713;
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;td width='25%' class='cap-summary' style='background-color:#e1e0e0;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2715;
@@ -1058,7 +1046,10 @@ When in processing time?
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#ddd;border-color:#6a4'>
+&lt;/tr>
+&lt;tr class='cap-summary'>
+&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>Timers&lt;/th>
+&lt;td width='25%' class='cap-summary' style='background-color:#e1e0e0;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2715;
@@ -1067,7 +1058,7 @@ When in processing time?
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#ddd;border-color:#6a4'>
+&lt;td width='25%' class='cap-summary' style='background-color:#e1e0e0;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2715;
@@ -1076,7 +1067,16 @@ When in processing time?
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#ddd;border-color:#6a4'>
+&lt;td width='25%' class='cap-summary' style='background-color:#e1e0e0;border-color:#'>
+&lt;center>
+&lt;b>
+&amp;#x2715;
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;td width='25%' class='cap-summary' style='background-color:#e1e0e0;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2715;
@@ -1090,20 +1090,20 @@ When in processing time?
 &lt;td class='cap-summary color-blank cap-blank' colspan='5'>&lt;/td>
 &lt;/tr>
 &lt;tr class='cap-summary' id='cap-blog-how'>
-&lt;th class='cap-summary color-metadata format-category' colspan='8' style='color:#b55'>
+&lt;th class='cap-summary color-metadata format-category' colspan='8' style='color:#'>
 How do refinements relate?
 &lt;/th>
 &lt;/tr>
 &lt;tr class='cap-summary'>
 &lt;th class='cap-summary color-capability'>&lt;/th>
-&lt;th class='cap-summary color-platform format-platform' style='color:#d77'>Beam Model&lt;/th>
-&lt;th class='cap-summary color-platform format-platform' style='color:#d77'>Google Cloud Dataflow&lt;/th>
-&lt;th class='cap-summary color-platform format-platform' style='color:#d77'>Apache Flink&lt;/th>
-&lt;th class='cap-summary color-platform format-platform' style='color:#d77'>Apache Spark&lt;/th>
+&lt;th class='cap-summary color-platform format-platform' style='color:#fff'>Beam Model&lt;/th>
+&lt;th class='cap-summary color-platform format-platform' style='color:#fff'>Google Cloud Dataflow&lt;/th>
+&lt;th class='cap-summary color-platform format-platform' style='color:#fff'>Apache Flink&lt;/th>
+&lt;th class='cap-summary color-platform format-platform' style='color:#fff'>Apache Spark&lt;/th>
 &lt;/tr>
 &lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#d77'>Discarding&lt;/th>
-&lt;td width='25%' class='cap-summary' style='background-color:#d77;border-color:#b55'>
+&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>Discarding&lt;/th>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2713;
@@ -1112,7 +1112,7 @@ How do refinements relate?
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#d77;border-color:#b55'>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2713;
@@ -1121,7 +1121,7 @@ How do refinements relate?
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#d77;border-color:#b55'>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2713;
@@ -1130,49 +1130,10 @@ How do refinements relate?
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#d77;border-color:#b55'>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2713;
-&lt;/b>
-&lt;b>
-&lt;/b>
-&lt;/center>
-&lt;/td>
-&lt;/tr>
-&lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#d77'>Accumulating&lt;/th>
-&lt;td width='25%' class='cap-summary' style='background-color:#d77;border-color:#b55'>
-&lt;center>
-&lt;b>
-&amp;#x2713;
-&lt;/b>
-&lt;b>
-&lt;/b>
-&lt;/center>
-&lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#d77;border-color:#b55'>
-&lt;center>
-&lt;b>
-&amp;#x2713;
-&lt;/b>
-&lt;b>
-&lt;/b>
-&lt;/center>
-&lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#d77;border-color:#b55'>
-&lt;center>
-&lt;b>
-&amp;#x2713;
-&lt;/b>
-&lt;b>
-&lt;/b>
-&lt;/center>
-&lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#ddd;border-color:#b55'>
-&lt;center>
-&lt;b>
-&amp;#x2715;
 &lt;/b>
 &lt;b>
 &lt;/b>
@@ -1180,8 +1141,35 @@ How do refinements relate?
 &lt;/td>
 &lt;/tr>
 &lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#d77'>Accumulating &amp;amp; Retracting&lt;/th>
-&lt;td width='25%' class='cap-summary' style='background-color:#ddd;border-color:#b55'>
+&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>Accumulating&lt;/th>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
+&lt;center>
+&lt;b>
+&amp;#x2713;
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
+&lt;center>
+&lt;b>
+&amp;#x2713;
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
+&lt;center>
+&lt;b>
+&amp;#x2713;
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;td width='25%' class='cap-summary' style='background-color:#e1e0e0;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2715;
@@ -1190,7 +1178,10 @@ How do refinements relate?
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#ddd;border-color:#b55'>
+&lt;/tr>
+&lt;tr class='cap-summary'>
+&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>Accumulating &amp;amp; Retracting&lt;/th>
+&lt;td width='25%' class='cap-summary' style='background-color:#e1e0e0;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2715;
@@ -1199,7 +1190,7 @@ How do refinements relate?
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#ddd;border-color:#b55'>
+&lt;td width='25%' class='cap-summary' style='background-color:#e1e0e0;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2715;
@@ -1208,7 +1199,16 @@ How do refinements relate?
 &lt;/b>
 &lt;/center>
 &lt;/td>
-&lt;td width='25%' class='cap-summary' style='background-color:#ddd;border-color:#b55'>
+&lt;td width='25%' class='cap-summary' style='background-color:#e1e0e0;border-color:#'>
+&lt;center>
+&lt;b>
+&amp;#x2715;
+&lt;/b>
+&lt;b>
+&lt;/b>
+&lt;/center>
+&lt;/td>
+&lt;td width='25%' class='cap-summary' style='background-color:#e1e0e0;border-color:#'>
 &lt;center>
 &lt;b>
 &amp;#x2715;

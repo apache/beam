@@ -1,0 +1,3737 @@
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Apache Beam Capability Matrix</title><link>/documentation/runners/capability-matrix/</link><description>Recent content in Apache Beam Capability Matrix on Apache Beam</description><generator>Hugo -- gohugo.io</generator><atom:link href="/documentation/runners/capability-matrix/index.xml" rel="self" type="application/rss+xml"/><item><title>Documentation: Additional common features not yet part of the Beam model</title><link>/documentation/runners/capability-matrix/additional-common-features-not-yet-part-of-the-beam-model/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/runners/capability-matrix/additional-common-features-not-yet-part-of-the-beam-model/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;!-- Summary table -->
+&lt;a class="back-button" href="/documentation/runners/capability-matrix">
+&lt;i class="fas fa-arrow-left">&lt;/i>
+back to collapsed details
+&lt;/a>
+&lt;h4>Additional common features not yet part of the Beam model&lt;/h4>
+&lt;div class="table-container">
+&lt;div class="table-left big-left">
+&lt;table>
+&lt;tr>
+&lt;th>&lt;/th>
+&lt;/tr>
+&lt;tr>
+&lt;th>Drain&lt;/th>
+&lt;/tr>
+&lt;tr>
+&lt;th>Checkpoint&lt;/th>
+&lt;/tr>
+&lt;/table>
+&lt;/div>
+&lt;div class="table-right big-right">
+&lt;div id="additional-common-features-not-yet-part-of-the-beam-model" class="table-headers big-headers">
+&lt;table>
+&lt;tr>
+&lt;th>Beam Model&lt;/th>
+&lt;th>Google Cloud Dataflow&lt;/th>
+&lt;th>Apache Flink&lt;/th>
+&lt;th>Apache Spark (RDD/DStream based)&lt;/th>
+&lt;th>Apache Spark Structured Streaming (Dataset based)&lt;/th>
+&lt;th>Apache Hadoop MapReduce&lt;/th>
+&lt;th>JStorm&lt;/th>
+&lt;th>IBM Streams&lt;/th>
+&lt;th>Apache Samza&lt;/th>
+&lt;th>Apache Nemo&lt;/th>
+&lt;th>Hazelcast Jet&lt;/th>
+&lt;th>Twister2&lt;/th>
+&lt;th>Python Direct FnRunner&lt;/th>
+&lt;th>Go Direct Runner&lt;/th>
+&lt;/tr>
+&lt;/table>
+&lt;/div>
+&lt;div id="additional-common-features-not-yet-part-of-the-beam-model" class="table-center big-center">
+&lt;table>
+&lt;tr>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : &lt;/p>
+&lt;/b>
+&lt;br>
+APIs and semantics for draining a pipeline are under discussion. This would cause incomplete aggregations to be emitted regardless of trigger and tagged with metadata indicating it is incompleted.
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : &lt;/p>
+&lt;/b>
+&lt;br>
+Dataflow has a native drain operation, but it does not work in the presence of event time timer loops. Final implemention pending model support.
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : &lt;/p>
+&lt;/b>
+&lt;br>
+Flink supports taking a &amp;#34;savepoint&amp;#34; of the pipeline and shutting the pipeline down after its completion.
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : &lt;/p>
+&lt;/b>
+&lt;br>
+APIs and semantics for saving a pipeline checkpoint are under discussion. This would be a runner-specific materialization of the pipeline state required to resume or duplicate the pipeline.
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : &lt;/p>
+&lt;/b>
+&lt;br>
+Flink has a native savepoint capability.
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : &lt;/p>
+&lt;/b>
+&lt;br>
+Spark has a native savepoint capability.
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : &lt;/p>
+&lt;/b>
+&lt;br>
+not implemented
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : &lt;/p>
+&lt;/b>
+&lt;br>
+Samza has a native checkpoint capability.
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;/tr>
+&lt;/table>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;script>
+$('.table-headers').bind('wheel',function(e){
+$('#'+this.id+'.table-center').scrollLeft($(this).scrollLeft());
+});
+$('.table-center').bind('wheel',function(e){
+$('#'+this.id+'.table-headers').scrollLeft($(this).scrollLeft());
+});
+&lt;/script></description></item><item><title>Documentation: Bounded Splittable DoFn Support Status</title><link>/documentation/runners/capability-matrix/bounded-splittable-dofn-support-status/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/runners/capability-matrix/bounded-splittable-dofn-support-status/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;!-- Summary table -->
+&lt;a class="back-button" href="/documentation/runners/capability-matrix">
+&lt;i class="fas fa-arrow-left">&lt;/i>
+back to collapsed details
+&lt;/a>
+&lt;h4>Bounded Splittable DoFn Support Status&lt;/h4>
+&lt;div class="table-container">
+&lt;div class="table-left big-left">
+&lt;table>
+&lt;tr>
+&lt;th>&lt;/th>
+&lt;/tr>
+&lt;tr>
+&lt;th>Base&lt;/th>
+&lt;/tr>
+&lt;tr>
+&lt;th>Side Inputs&lt;/th>
+&lt;/tr>
+&lt;tr>
+&lt;th>Splittable DoFn Initiated Checkpointing&lt;/th>
+&lt;/tr>
+&lt;tr>
+&lt;th>Dynamic Splitting&lt;/th>
+&lt;/tr>
+&lt;tr>
+&lt;th>Bundle Finalization&lt;/th>
+&lt;/tr>
+&lt;/table>
+&lt;/div>
+&lt;div class="table-right big-right">
+&lt;div id="bounded-splittable-dofn-support-status" class="table-headers big-headers">
+&lt;table>
+&lt;tr>
+&lt;th>Beam Model&lt;/th>
+&lt;th>Google Cloud Dataflow&lt;/th>
+&lt;th>Apache Flink&lt;/th>
+&lt;th>Apache Spark (RDD/DStream based)&lt;/th>
+&lt;th>Apache Spark Structured Streaming (Dataset based)&lt;/th>
+&lt;th>Apache Hadoop MapReduce&lt;/th>
+&lt;th>JStorm&lt;/th>
+&lt;th>IBM Streams&lt;/th>
+&lt;th>Apache Samza&lt;/th>
+&lt;th>Apache Nemo&lt;/th>
+&lt;th>Hazelcast Jet&lt;/th>
+&lt;th>Twister2&lt;/th>
+&lt;th>Python Direct FnRunner&lt;/th>
+&lt;th>Go Direct Runner&lt;/th>
+&lt;/tr>
+&lt;/table>
+&lt;/div>
+&lt;div id="bounded-splittable-dofn-support-status" class="table-center big-center">
+&lt;table>
+&lt;tr>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : Only Dataflow Runner V2 supports this.&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : Only portable Flink Runner supports this.&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : Only Dataflow Runner V2 supports this.&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : Only portable Flink Runner supports this.&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : Only Dataflow Runner v2 supports this.&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : Only portable Flink Runner supports this.&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : Only Dataflow Runner V2 supports this.&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : Only with Python SDK&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : Only Dataflow Runner V2 supports this.&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;/tr>
+&lt;/table>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;script>
+$('.table-headers').bind('wheel',function(e){
+$('#'+this.id+'.table-center').scrollLeft($(this).scrollLeft());
+});
+$('.table-center').bind('wheel',function(e){
+$('#'+this.id+'.table-headers').scrollLeft($(this).scrollLeft());
+});
+&lt;/script></description></item><item><title>Documentation: How do refinements relate?</title><link>/documentation/runners/capability-matrix/how-do-refinements-relate/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/runners/capability-matrix/how-do-refinements-relate/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;!-- Summary table -->
+&lt;a class="back-button" href="/documentation/runners/capability-matrix">
+&lt;i class="fas fa-arrow-left">&lt;/i>
+back to collapsed details
+&lt;/a>
+&lt;h4>How do refinements relate?&lt;/h4>
+&lt;div class="table-container">
+&lt;div class="table-left big-left">
+&lt;table>
+&lt;tr>
+&lt;th>&lt;/th>
+&lt;/tr>
+&lt;tr>
+&lt;th>Discarding&lt;/th>
+&lt;/tr>
+&lt;tr>
+&lt;th>Accumulating&lt;/th>
+&lt;/tr>
+&lt;tr>
+&lt;th>Accumulating &amp;amp; Retracting&lt;/th>
+&lt;/tr>
+&lt;/table>
+&lt;/div>
+&lt;div class="table-right big-right">
+&lt;div id="how-do-refinements-relate" class="table-headers big-headers">
+&lt;table>
+&lt;tr>
+&lt;th>Beam Model&lt;/th>
+&lt;th>Google Cloud Dataflow&lt;/th>
+&lt;th>Apache Flink&lt;/th>
+&lt;th>Apache Spark (RDD/DStream based)&lt;/th>
+&lt;th>Apache Spark Structured Streaming (Dataset based)&lt;/th>
+&lt;th>Apache Hadoop MapReduce&lt;/th>
+&lt;th>JStorm&lt;/th>
+&lt;th>IBM Streams&lt;/th>
+&lt;th>Apache Samza&lt;/th>
+&lt;th>Apache Nemo&lt;/th>
+&lt;th>Hazelcast Jet&lt;/th>
+&lt;th>Twister2&lt;/th>
+&lt;th>Python Direct FnRunner&lt;/th>
+&lt;th>Go Direct Runner&lt;/th>
+&lt;/tr>
+&lt;/table>
+&lt;/div>
+&lt;div id="how-do-refinements-relate" class="table-center big-center">
+&lt;table>
+&lt;tr>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : panes discard elements when fired&lt;/p>
+&lt;/b>
+&lt;br>
+Elements are discarded from accumulated state as their pane is fired.
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+Spark streaming natively discards elements after firing.
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : fully supported in batch mode&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : batch-only runner&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : panes accumulate elements across firings&lt;/p>
+&lt;/b>
+&lt;br>
+Elements are accumulated in state across multiple pane firings for the same window.
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+Requires that the accumulated pane fits in memory, after being passed through the combiner (if relevant)
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : accumulation plus retraction of old panes&lt;/p>
+&lt;br>
+(&lt;a href='https://issues.apache.org/jira/browse/BEAM-91'>BEAM-91&lt;/a>)
+&lt;/b>
+&lt;br>
+Elements are accumulated across multiple pane firings and old emitted values are retracted. Also known as &amp;#34;backsies&amp;#34; ;-D
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : pending model support&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : pending model support&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : pending model support&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : pending model support&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : pending model support&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : pending model support&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : pending model support&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : pending model support&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : pending model support&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : pending model support&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;/tr>
+&lt;/table>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;script>
+$('.table-headers').bind('wheel',function(e){
+$('#'+this.id+'.table-center').scrollLeft($(this).scrollLeft());
+});
+$('.table-center').bind('wheel',function(e){
+$('#'+this.id+'.table-headers').scrollLeft($(this).scrollLeft());
+});
+&lt;/script></description></item><item><title>Documentation: Unbounded Splittable DoFn Support Status</title><link>/documentation/runners/capability-matrix/unbounded-splittable-dofn-support-status/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/runners/capability-matrix/unbounded-splittable-dofn-support-status/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;!-- Summary table -->
+&lt;a class="back-button" href="/documentation/runners/capability-matrix">
+&lt;i class="fas fa-arrow-left">&lt;/i>
+back to collapsed details
+&lt;/a>
+&lt;h4>Unbounded Splittable DoFn Support Status&lt;/h4>
+&lt;div class="table-container">
+&lt;div class="table-left big-left">
+&lt;table>
+&lt;tr>
+&lt;th>&lt;/th>
+&lt;/tr>
+&lt;tr>
+&lt;th>Base&lt;/th>
+&lt;/tr>
+&lt;tr>
+&lt;th>Side Inputs&lt;/th>
+&lt;/tr>
+&lt;tr>
+&lt;th>Splittable DoFn Initiated Checkpointing&lt;/th>
+&lt;/tr>
+&lt;tr>
+&lt;th>Dynamic Splitting&lt;/th>
+&lt;/tr>
+&lt;tr>
+&lt;th>Bundle Finalization&lt;/th>
+&lt;/tr>
+&lt;/table>
+&lt;/div>
+&lt;div class="table-right big-right">
+&lt;div id="unbounded-splittable-dofn-support-status" class="table-headers big-headers">
+&lt;table>
+&lt;tr>
+&lt;th>Beam Model&lt;/th>
+&lt;th>Google Cloud Dataflow&lt;/th>
+&lt;th>Apache Flink&lt;/th>
+&lt;th>Apache Spark (RDD/DStream based)&lt;/th>
+&lt;th>Apache Spark Structured Streaming (Dataset based)&lt;/th>
+&lt;th>Apache Hadoop MapReduce&lt;/th>
+&lt;th>JStorm&lt;/th>
+&lt;th>IBM Streams&lt;/th>
+&lt;th>Apache Samza&lt;/th>
+&lt;th>Apache Nemo&lt;/th>
+&lt;th>Hazelcast Jet&lt;/th>
+&lt;th>Twister2&lt;/th>
+&lt;th>Python Direct FnRunner&lt;/th>
+&lt;th>Go Direct Runner&lt;/th>
+&lt;/tr>
+&lt;/table>
+&lt;/div>
+&lt;div id="unbounded-splittable-dofn-support-status" class="table-center big-center">
+&lt;table>
+&lt;tr>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : Only Dataflow Runner V2 supports this.&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : Only portable Flink Runner supports this.&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : Only Dataflow Runner V2 supports this.&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : Only portable Flink Runner supports this with checkpointing enabled.&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;/tr>
+&lt;/table>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;script>
+$('.table-headers').bind('wheel',function(e){
+$('#'+this.id+'.table-center').scrollLeft($(this).scrollLeft());
+});
+$('.table-center').bind('wheel',function(e){
+$('#'+this.id+'.table-headers').scrollLeft($(this).scrollLeft());
+});
+&lt;/script></description></item><item><title>Documentation: What is being computed?</title><link>/documentation/runners/capability-matrix/what-is-being-computed/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/runners/capability-matrix/what-is-being-computed/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;!-- Summary table -->
+&lt;a class="back-button" href="/documentation/runners/capability-matrix">
+&lt;i class="fas fa-arrow-left">&lt;/i>
+back to collapsed details
+&lt;/a>
+&lt;h4>What is being computed?&lt;/h4>
+&lt;div class="table-container">
+&lt;div class="table-left big-left">
+&lt;table>
+&lt;tr>
+&lt;th>&lt;/th>
+&lt;/tr>
+&lt;tr>
+&lt;th>ParDo&lt;/th>
+&lt;/tr>
+&lt;tr>
+&lt;th>GroupByKey&lt;/th>
+&lt;/tr>
+&lt;tr>
+&lt;th>Flatten&lt;/th>
+&lt;/tr>
+&lt;tr>
+&lt;th>Combine&lt;/th>
+&lt;/tr>
+&lt;tr>
+&lt;th>Composite Transforms&lt;/th>
+&lt;/tr>
+&lt;tr>
+&lt;th>Side Inputs&lt;/th>
+&lt;/tr>
+&lt;tr>
+&lt;th>Source API&lt;/th>
+&lt;/tr>
+&lt;tr>
+&lt;th>Metrics&lt;/th>
+&lt;/tr>
+&lt;tr>
+&lt;th>Stateful Processing&lt;/th>
+&lt;/tr>
+&lt;/table>
+&lt;/div>
+&lt;div class="table-right big-right">
+&lt;div id="what-is-being-computed" class="table-headers big-headers">
+&lt;table>
+&lt;tr>
+&lt;th>Beam Model&lt;/th>
+&lt;th>Google Cloud Dataflow&lt;/th>
+&lt;th>Apache Flink&lt;/th>
+&lt;th>Apache Spark (RDD/DStream based)&lt;/th>
+&lt;th>Apache Spark Structured Streaming (Dataset based)&lt;/th>
+&lt;th>Apache Hadoop MapReduce&lt;/th>
+&lt;th>JStorm&lt;/th>
+&lt;th>IBM Streams&lt;/th>
+&lt;th>Apache Samza&lt;/th>
+&lt;th>Apache Nemo&lt;/th>
+&lt;th>Hazelcast Jet&lt;/th>
+&lt;th>Twister2&lt;/th>
+&lt;th>Python Direct FnRunner&lt;/th>
+&lt;th>Go Direct Runner&lt;/th>
+&lt;/tr>
+&lt;/table>
+&lt;/div>
+&lt;div id="what-is-being-computed" class="table-center big-center">
+&lt;table>
+&lt;tr>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : element-wise processing&lt;/p>
+&lt;/b>
+&lt;br>
+Element-wise transformation parameterized by a chunk of user code. Elements are processed in bundles, with initialization and termination hooks. Bundle size is chosen by the runner and cannot be controlled by user code. ParDo processes a main input PCollection one element at a time, but provides side input access to additional PCollections.
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+Batch mode uses large bundle sizes. Streaming uses smaller bundle sizes.
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+ParDo itself, as per-element transformation with UDFs, is fully supported by Flink for both batch and streaming.
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+ParDo applies per-element transformations as Spark FlatMapFunction.
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : fully supported in batch mode&lt;/p>
+&lt;/b>
+&lt;br>
+ParDo applies per-element transformations as Spark FlatMapFunction.
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+Supported with per-element transformation.
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : key grouping&lt;/p>
+&lt;/b>
+&lt;br>
+Grouping of key-value pairs per key, window, and pane. (See also other tabs.)
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+Uses Flink&amp;#39;s keyBy for key grouping. When grouping by window in streaming (creating the panes) the Flink runner uses the Beam code. This guarantees support for all windowing and triggering mechanisms.
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : fully supported in batch mode&lt;/p>
+&lt;/b>
+&lt;br>
+Using Spark&amp;#39;s &amp;lt;tt&amp;gt;groupByKey&amp;lt;/tt&amp;gt;. GroupByKey with multiple trigger firings in streaming mode is a work in progress.
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : fully supported in batch mode&lt;/p>
+&lt;/b>
+&lt;br>
+Using Spark&amp;#39;s &amp;lt;tt&amp;gt;groupByKey&amp;lt;/tt&amp;gt;.
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+Uses Samza&amp;#39;s partitionBy for key grouping and Beam&amp;#39;s logic for window aggregation and triggering.
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : collection concatenation&lt;/p>
+&lt;/b>
+&lt;br>
+Concatenates multiple homogenously typed collections together.
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : fully supported in batch mode&lt;/p>
+&lt;/b>
+&lt;br>
+Some corner cases like flatten on empty collections are not yet supported.
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : associative &amp;amp;amp; commutative aggregation&lt;/p>
+&lt;/b>
+&lt;br>
+Application of an associative, commutative operation over all values (&amp;#34;globally&amp;#34;) or over all values associated with each key (&amp;#34;per key&amp;#34;). Can be implemented using ParDo, but often more efficient implementations exist.
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : efficient execution&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+Uses a combiner for pre-aggregation for batch and streaming.
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+Using Spark&amp;#39;s &amp;lt;tt&amp;gt;combineByKey&amp;lt;/tt&amp;gt; and &amp;lt;tt&amp;gt;aggregate&amp;lt;/tt&amp;gt; functions.
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : fully supported in batch mode&lt;/p>
+&lt;/b>
+&lt;br>
+Using Spark&amp;#39;s &amp;lt;tt&amp;gt;Aggregator&amp;lt;/tt&amp;gt; and agg function
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+Use combiner for efficient pre-aggregation.
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+Batch mode uses pre-aggregation
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+Batch mode uses pre-aggregation
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : user-defined transformation subgraphs&lt;/p>
+&lt;/b>
+&lt;br>
+Allows easy extensibility for library writers. In the near future, we expect there to be more information provided at this level -- customized metadata hooks for monitoring, additional runtime/environment hooks, etc.
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : supported via inlining&lt;/p>
+&lt;/b>
+&lt;br>
+Currently composite transformations are inlined during execution. The structure is later recreated from the names, but other transform level information (if added to the model) will be lost.
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : supported via inlining&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : supported via inlining&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : supported via inlining only in batch mode&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : supported via inlining&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : supported via inlining&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : supported via inlining&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : supported via inlining&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : additional elements available during DoFn execution&lt;/p>
+&lt;/b>
+&lt;br>
+Side inputs are additional &amp;lt;tt&amp;gt;PCollections&amp;lt;/tt&amp;gt; whose contents are computed during pipeline execution and then made accessible to DoFn code. The exact shape of the side input depends both on the &amp;lt;tt&amp;gt;PCollectionView&amp;lt;/tt&amp;gt; used to describe the access pattern (interable, map, singleton) and the window of the element from the main input that is currently being processed.
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : some size restrictions in streaming&lt;/p>
+&lt;/b>
+&lt;br>
+Batch mode supports a distributed implementation, but streaming mode may force some size restrictions. Neither mode is able to push lookups directly up into key-based sources.
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : some size restrictions in streaming&lt;/p>
+&lt;/b>
+&lt;br>
+Batch mode supports a distributed implementation, but streaming mode may force some size restrictions. Neither mode is able to push lookups directly up into key-based sources.
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+Using Spark&amp;#39;s broadcast variables. In streaming mode, side inputs may update but only between micro-batches.
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : fully supported in batch mode&lt;/p>
+&lt;/b>
+&lt;br>
+Using Spark&amp;#39;s broadcast variables.
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : some size restrictions&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+Uses Samza&amp;#39;s broadcast operator to distribute the side inputs.
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : with restrictions&lt;/p>
+&lt;/b>
+&lt;br>
+Supported only when the side input source is bounded and windowing uses global window
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : user-defined sources&lt;/p>
+&lt;/b>
+&lt;br>
+Allows users to provide additional input sources. Supports both bounded and unbounded data. Includes hooks necessary to provide efficient parallelization (size estimation, progress information, dynamic splitting, etc).
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+Support includes autotuning features (https://cloud.google.com/dataflow/service/dataflow-service-desc#autotuning-features).
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : bounded source only&lt;/p>
+&lt;/b>
+&lt;br>
+Using Spark&amp;#39;s DatasourceV2 API in microbatch mode (Continuous streaming mode is tagged experimental in spark and does not support aggregation).
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : bounded source only&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : user-provided metrics&lt;/p>
+&lt;/b>
+&lt;br>
+Allow transforms to gather simple metrics across bundles in a &amp;lt;tt&amp;gt;PTransform&amp;lt;/tt&amp;gt;. Provide a mechanism to obtain both committed and attempted metrics. Semantically similar to using an additional output, but support partial results as the transform executes, and support both committed and attempted values. Will likely want to augment &amp;lt;tt&amp;gt;Metrics&amp;lt;/tt&amp;gt; to be more useful for processing unbounded data by making them windowed.
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially&lt;/p>
+&lt;/b>
+&lt;br>
+Gauge metrics are not supported. All other metric types are supported.
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : All metrics types are supported.&lt;/p>
+&lt;/b>
+&lt;br>
+Only attempted values are supported. No committed values for metrics.
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : All metric types are supported.&lt;/p>
+&lt;/b>
+&lt;br>
+Only attempted values are supported. No committed values for metrics.
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : All metric types are supported in batch mode.&lt;/p>
+&lt;/b>
+&lt;br>
+Only attempted values are supported. No committed values for metrics.
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : Only attempted counters are supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : Metrics are only supported in local mode.&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : All metrics types are supported.&lt;/p>
+&lt;/b>
+&lt;br>
+Only attempted values are supported. No committed values for metrics.
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : Counter and Gauge are supported.&lt;/p>
+&lt;/b>
+&lt;br>
+Only attempted values are supported. No committed values for metrics.
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : not implemented&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : All metrics types supported, both in batching and streaming mode.&lt;/p>
+&lt;/b>
+&lt;br>
+Doesn&amp;#39;t differentiate between committed and attempted values.
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : not implemented&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : storage per key, per window&lt;/p>
+&lt;/b>
+&lt;br>
+Allows fine-grained access to per-key, per-window persistent state. Necessary for certain use cases (e.g. high-volume windows which store large amounts of data, but typically only access small portions of it; complex state machines; etc.) that are not easily or efficiently addressed via &amp;lt;tt&amp;gt;Combine&amp;lt;/tt&amp;gt; or &amp;lt;tt&amp;gt;GroupByKey&amp;lt;/tt&amp;gt;&amp;#43;&amp;lt;tt&amp;gt;ParDo&amp;lt;/tt&amp;gt;.
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : non-merging windows&lt;/p>
+&lt;/b>
+&lt;br>
+State is supported for non-merging windows. SetState and MapState are not yet supported.
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : non-merging windows&lt;/p>
+&lt;/b>
+&lt;br>
+State is supported for non-merging windows. SetState and MapState are not yet supported.
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : full support in batch mode&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : not implemented&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : non-merging windows&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : non-merging windows&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : non-merging windows&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : non-merging windows&lt;/p>
+&lt;/b>
+&lt;br>
+States are backed up by either rocksDb KV store or in-memory hash map, and persist using changelog.
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : not implemented&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : non-merging windows&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : not implemented&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;/tr>
+&lt;/table>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;script>
+$('.table-headers').bind('wheel',function(e){
+$('#'+this.id+'.table-center').scrollLeft($(this).scrollLeft());
+});
+$('.table-center').bind('wheel',function(e){
+$('#'+this.id+'.table-headers').scrollLeft($(this).scrollLeft());
+});
+&lt;/script></description></item><item><title>Documentation: When in processing time?</title><link>/documentation/runners/capability-matrix/when-in-processing-time/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/runners/capability-matrix/when-in-processing-time/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;!-- Summary table -->
+&lt;a class="back-button" href="/documentation/runners/capability-matrix">
+&lt;i class="fas fa-arrow-left">&lt;/i>
+back to collapsed details
+&lt;/a>
+&lt;h4>When in processing time?&lt;/h4>
+&lt;div class="table-container">
+&lt;div class="table-left big-left">
+&lt;table>
+&lt;tr>
+&lt;th>&lt;/th>
+&lt;/tr>
+&lt;tr>
+&lt;th>Configurable triggering&lt;/th>
+&lt;/tr>
+&lt;tr>
+&lt;th>Event-time triggers&lt;/th>
+&lt;/tr>
+&lt;tr>
+&lt;th>Processing-time triggers&lt;/th>
+&lt;/tr>
+&lt;tr>
+&lt;th>Count triggers&lt;/th>
+&lt;/tr>
+&lt;tr>
+&lt;th>[Meta]data driven triggers&lt;/th>
+&lt;/tr>
+&lt;tr>
+&lt;th>Composite triggers&lt;/th>
+&lt;/tr>
+&lt;tr>
+&lt;th>Allowed lateness&lt;/th>
+&lt;/tr>
+&lt;tr>
+&lt;th>Timers&lt;/th>
+&lt;/tr>
+&lt;/table>
+&lt;/div>
+&lt;div class="table-right big-right">
+&lt;div id="when-in-processing-time" class="table-headers big-headers">
+&lt;table>
+&lt;tr>
+&lt;th>Beam Model&lt;/th>
+&lt;th>Google Cloud Dataflow&lt;/th>
+&lt;th>Apache Flink&lt;/th>
+&lt;th>Apache Spark (RDD/DStream based)&lt;/th>
+&lt;th>Apache Spark Structured Streaming (Dataset based)&lt;/th>
+&lt;th>Apache Hadoop MapReduce&lt;/th>
+&lt;th>JStorm&lt;/th>
+&lt;th>IBM Streams&lt;/th>
+&lt;th>Apache Samza&lt;/th>
+&lt;th>Apache Nemo&lt;/th>
+&lt;th>Hazelcast Jet&lt;/th>
+&lt;th>Twister2&lt;/th>
+&lt;th>Python Direct FnRunner&lt;/th>
+&lt;th>Go Direct Runner&lt;/th>
+&lt;/tr>
+&lt;/table>
+&lt;/div>
+&lt;div id="when-in-processing-time" class="table-center big-center">
+&lt;table>
+&lt;tr>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : user customizable&lt;/p>
+&lt;/b>
+&lt;br>
+Triggering may be specified by the user (instead of simply driven by hardcoded defaults).
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+Fully supported in streaming mode. In batch mode, intermediate trigger firings are effectively meaningless.
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : fully supported in batch mode&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : batch-only runner&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : relative to event time&lt;/p>
+&lt;/b>
+&lt;br>
+Triggers that fire in response to event-time completeness signals, such as watermarks progressing.
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : yes in streaming, fixed granularity in batch&lt;/p>
+&lt;/b>
+&lt;br>
+Fully supported in streaming mode. In batch mode, currently watermark progress jumps from the beginning of time to the end of time once the input has been fully consumed, thus no additional triggering granularity is available.
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : fully supported in batch mode&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : relative to processing time&lt;/p>
+&lt;/b>
+&lt;br>
+Triggers that fire in response to processing-time advancing.
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : yes in streaming, fixed granularity in batch&lt;/p>
+&lt;/b>
+&lt;br>
+Fully supported in streaming mode. In batch mode, from the perspective of triggers, processing time currently jumps from the beginning of time to the end of time once the input has been fully consumed, thus no additional triggering granularity is available.
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : This is Spark streaming&amp;#39;s native model&lt;/p>
+&lt;/b>
+&lt;br>
+Spark processes streams in micro-batches. The micro-batch size is actually a pre-set, fixed, time interval. Currently, the runner takes the first window size in the pipeline and sets it&amp;#39;s size as the batch interval. Any following window operations will be considered processing time windows and will affect triggering.
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : fully supported in batch mode&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : every N elements&lt;/p>
+&lt;/b>
+&lt;br>
+Triggers that fire after seeing at least N elements.
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+Fully supported in streaming mode. In batch mode, elements are processed in the largest bundles possible, so count-based triggers are effectively meaningless.
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : fully supported in batch mode&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : in response to data&lt;/p>
+&lt;br>
+(&lt;a href='https://issues.apache.org/jira/browse/BEAM-101'>BEAM-101&lt;/a>)
+&lt;/b>
+&lt;br>
+Triggers that fire in response to attributes of the data being processed.
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : pending model support&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : pending model support&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : pending model support&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : pending model support&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : pending model support&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : pending model support&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : pending model support&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : pending model support&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : pending model support&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : compositions of one or more sub-triggers&lt;/p>
+&lt;/b>
+&lt;br>
+Triggers which compose other triggers in more complex structures, such as logical AND, logical OR, early/on-time/late, etc.
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : fully supported in batch mode&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : event-time bound on window lifetimes&lt;/p>
+&lt;/b>
+&lt;br>
+A way to bound the useful lifetime of a window (in event time), after which any unemitted results may be materialized, the window contents may be garbage collected, and any addtional late data that arrive for the window may be discarded.
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+Fully supported in streaming mode. In batch mode no data is ever late.
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : no streaming support in the runner&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : delayed processing callbacks&lt;/p>
+&lt;/b>
+&lt;br>
+A fine-grained mechanism for performing work at some point in the future, in either the event-time or processing-time domain. Useful for orchestrating delayed events, timeouts, etc in complex state per-key, per-window state machines.
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : non-merging windows&lt;/p>
+&lt;/b>
+&lt;br>
+Dataflow supports timers in non-merging windows.
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : non-merging windows&lt;/p>
+&lt;/b>
+&lt;br>
+The Flink Runner supports timers in non-merging windows.
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : fully supported in batch mode&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : not implemented&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : non-merging windows&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : non-merging windows&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : non-merging windows&lt;/p>
+&lt;/b>
+&lt;br>
+The Samza Runner supports timers in non-merging windows.
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : not implemented&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : non-merging windows&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;/tr>
+&lt;/table>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;script>
+$('.table-headers').bind('wheel',function(e){
+$('#'+this.id+'.table-center').scrollLeft($(this).scrollLeft());
+});
+$('.table-center').bind('wheel',function(e){
+$('#'+this.id+'.table-headers').scrollLeft($(this).scrollLeft());
+});
+&lt;/script></description></item><item><title>Documentation: Where in event time?</title><link>/documentation/runners/capability-matrix/where-in-event-time/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/runners/capability-matrix/where-in-event-time/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;!-- Summary table -->
+&lt;a class="back-button" href="/documentation/runners/capability-matrix">
+&lt;i class="fas fa-arrow-left">&lt;/i>
+back to collapsed details
+&lt;/a>
+&lt;h4>Where in event time?&lt;/h4>
+&lt;div class="table-container">
+&lt;div class="table-left big-left">
+&lt;table>
+&lt;tr>
+&lt;th>&lt;/th>
+&lt;/tr>
+&lt;tr>
+&lt;th>Global windows&lt;/th>
+&lt;/tr>
+&lt;tr>
+&lt;th>Fixed windows&lt;/th>
+&lt;/tr>
+&lt;tr>
+&lt;th>Sliding windows&lt;/th>
+&lt;/tr>
+&lt;tr>
+&lt;th>Session windows&lt;/th>
+&lt;/tr>
+&lt;tr>
+&lt;th>Custom windows&lt;/th>
+&lt;/tr>
+&lt;tr>
+&lt;th>Custom merging windows&lt;/th>
+&lt;/tr>
+&lt;tr>
+&lt;th>Timestamp control&lt;/th>
+&lt;/tr>
+&lt;/table>
+&lt;/div>
+&lt;div class="table-right big-right">
+&lt;div id="where-in-event-time" class="table-headers big-headers">
+&lt;table>
+&lt;tr>
+&lt;th>Beam Model&lt;/th>
+&lt;th>Google Cloud Dataflow&lt;/th>
+&lt;th>Apache Flink&lt;/th>
+&lt;th>Apache Spark (RDD/DStream based)&lt;/th>
+&lt;th>Apache Spark Structured Streaming (Dataset based)&lt;/th>
+&lt;th>Apache Hadoop MapReduce&lt;/th>
+&lt;th>JStorm&lt;/th>
+&lt;th>IBM Streams&lt;/th>
+&lt;th>Apache Samza&lt;/th>
+&lt;th>Apache Nemo&lt;/th>
+&lt;th>Hazelcast Jet&lt;/th>
+&lt;th>Twister2&lt;/th>
+&lt;th>Python Direct FnRunner&lt;/th>
+&lt;th>Go Direct Runner&lt;/th>
+&lt;/tr>
+&lt;/table>
+&lt;/div>
+&lt;div id="where-in-event-time" class="table-center big-center">
+&lt;table>
+&lt;tr>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : all time&lt;/p>
+&lt;/b>
+&lt;br>
+The default window which covers all of time. (Basically how traditional batch cases fit in the model.)
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : default&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : fully supported in batch mode&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : periodic, non-overlapping&lt;/p>
+&lt;/b>
+&lt;br>
+Fixed-size, timestamp-based windows. (Hourly, Daily, etc)
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : built-in&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : fully supported in batch mode&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : periodic, overlapping&lt;/p>
+&lt;/b>
+&lt;br>
+Possibly overlapping fixed-size timestamp-based windows (Every minute, use the last ten minutes of data.)
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : built-in&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : fully supported in batch mode&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : activity-based&lt;/p>
+&lt;/b>
+&lt;br>
+Based on bursts of activity separated by a gap size. Different per key.
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : built-in&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : fully supported in batch mode&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : user-defined windows&lt;/p>
+&lt;/b>
+&lt;br>
+All windows must implement &amp;lt;tt&amp;gt;BoundedWindow&amp;lt;/tt&amp;gt;, which specifies a max timestamp. Each &amp;lt;tt&amp;gt;WindowFn&amp;lt;/tt&amp;gt; assigns elements to an associated window.
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : fully supported in batch mode&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : user-defined merging windows&lt;/p>
+&lt;/b>
+&lt;br>
+A custom &amp;lt;tt&amp;gt;WindowFn&amp;lt;/tt&amp;gt; additionally specifies whether and how to merge windows.
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : fully supported in batch mode&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : output timestamp for window panes&lt;/p>
+&lt;/b>
+&lt;br>
+For a grouping transform, such as GBK or Combine, an OutputTimeFn specifies (1) how to combine input timestamps within a window and (2) how to merge aggregated timestamps when windows merge.
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : fully supported in batch mode&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;/tr>
+&lt;/table>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;script>
+$('.table-headers').bind('wheel',function(e){
+$('#'+this.id+'.table-center').scrollLeft($(this).scrollLeft());
+});
+$('.table-center').bind('wheel',function(e){
+$('#'+this.id+'.table-headers').scrollLeft($(this).scrollLeft());
+});
+&lt;/script></description></item></channel></rss>

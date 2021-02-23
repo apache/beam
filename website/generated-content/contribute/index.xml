@@ -2345,8 +2345,8 @@ E.g. when expanding a filepattern into files, log what the filepattern was and h
 &lt;p>Do:&lt;/p>
 &lt;ul>
 &lt;li>Generally, follow the rules of &lt;a href="https://semver.org/">semantic versioning&lt;/a>.&lt;/li>
-&lt;li>If the API of the transform is not yet stable, annotate it as &lt;code>@Experimental&lt;/code> (Java) or &lt;code>@experimental&lt;/code> (&lt;a href="https://beam.apache.org/releases/pydoc/2.27.0/apache_beam.utils.annotations.html">Python&lt;/a>).&lt;/li>
-&lt;li>If the API deprecated, annotate it as &lt;code>@Deprecated&lt;/code> (Java) or &lt;code>@deprecated&lt;/code> (&lt;a href="https://beam.apache.org/releases/pydoc/2.27.0/apache_beam.utils.annotations.html">Python&lt;/a>).&lt;/li>
+&lt;li>If the API of the transform is not yet stable, annotate it as &lt;code>@Experimental&lt;/code> (Java) or &lt;code>@experimental&lt;/code> (&lt;a href="https://beam.apache.org/releases/pydoc/2.28.0/apache_beam.utils.annotations.html">Python&lt;/a>).&lt;/li>
+&lt;li>If the API deprecated, annotate it as &lt;code>@Deprecated&lt;/code> (Java) or &lt;code>@deprecated&lt;/code> (&lt;a href="https://beam.apache.org/releases/pydoc/2.28.0/apache_beam.utils.annotations.html">Python&lt;/a>).&lt;/li>
 &lt;li>Pay attention to the stability and versioning of third-party classes exposed by the transform&amp;rsquo;s API: if they are unstable or improperly versioned (do not obey &lt;a href="https://semver.org/">semantic versioning&lt;/a>), it is better to wrap them in your own classes.&lt;/li>
 &lt;/ul>
 &lt;p>Do not:&lt;/p>
@@ -2366,7 +2366,11 @@ Strive to make such incompatible behavior changes cause a compile error (e.g. it
 &lt;p>If the transform needs to return multiple collections, it should be a &lt;code>PTransform&amp;lt;..., PCollectionTuple&amp;gt;&lt;/code> and expose methods &lt;code>getBlahTag()&lt;/code> for each collection.&lt;/p>
 &lt;p>E.g. if you want to return a &lt;code>PCollection&amp;lt;Foo&amp;gt;&lt;/code> and a &lt;code>PCollection&amp;lt;Bar&amp;gt;&lt;/code>, expose &lt;code>TupleTag&amp;lt;Foo&amp;gt; getFooTag()&lt;/code> and &lt;code>TupleTag&amp;lt;Bar&amp;gt; getBarTag()&lt;/code>.&lt;/p>
 &lt;p>For example:&lt;/p>
-&lt;div class=language-java>
+&lt;div class='language-java snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="kd">public&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">MyTransform&lt;/span> &lt;span class="kd">extends&lt;/span> &lt;span class="n">PTransform&lt;/span>&lt;span class="o">&amp;lt;...,&lt;/span> &lt;span class="n">PCollectionTuple&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="o">{&lt;/span>
 &lt;span class="kd">private&lt;/span> &lt;span class="kd">final&lt;/span> &lt;span class="n">TupleTag&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Moo&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">mooTag&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="k">new&lt;/span> &lt;span class="n">TupleTag&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Moo&lt;/span>&lt;span class="o">&amp;gt;()&lt;/span> &lt;span class="o">{};&lt;/span>
 &lt;span class="kd">private&lt;/span> &lt;span class="kd">final&lt;/span> &lt;span class="n">TupleTag&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Blah&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">blahTag&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="k">new&lt;/span> &lt;span class="n">TupleTag&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Blah&lt;/span>&lt;span class="o">&amp;gt;()&lt;/span> &lt;span class="o">{};&lt;/span>
@@ -2387,9 +2391,14 @@ Strive to make such incompatible behavior changes cause a compile error (e.g. it
 &lt;span class="o">...&lt;/span>
 &lt;span class="o">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
+&lt;/div>
 &lt;h4 id="fluent-builders-for-configuration">Fluent builders for configuration&lt;/h4>
 &lt;p>Make the transform class immutable, with methods to produce modified immutable objects. Use &lt;a href="https://github.com/google/auto/tree/master/value">AutoValue&lt;/a>. Autovalue can provide a Builder helper class. Use &lt;code>@Nullable&lt;/code> to mark parameters of class type that don&amp;rsquo;t have a default value or whose default value is null, except for primitive types (e.g. int).&lt;/p>
-&lt;div class=language-java>
+&lt;div class='language-java snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="nd">@AutoValue&lt;/span>
 &lt;span class="kd">public&lt;/span> &lt;span class="kd">abstract&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">MyTransform&lt;/span> &lt;span class="kd">extends&lt;/span> &lt;span class="n">PTransform&lt;/span>&lt;span class="o">&amp;lt;...&amp;gt;&lt;/span> &lt;span class="o">{&lt;/span>
 &lt;span class="kt">int&lt;/span> &lt;span class="nf">getMoo&lt;/span>&lt;span class="o">();&lt;/span>
@@ -2404,9 +2413,14 @@ Strive to make such incompatible behavior changes cause a compile error (e.g. it
 &lt;span class="o">...&lt;/span>
 &lt;span class="o">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
+&lt;/div>
 &lt;h5 id="factory-methods">Factory methods&lt;/h5>
 &lt;p>Provide a single argumentless static factory method, either in the enclosing class (see &amp;ldquo;Packaging a family of transforms&amp;rdquo;) or in the transform class itself.&lt;/p>
-&lt;div class=language-java>
+&lt;div class='language-java snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="kd">public&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">Thumbs&lt;/span> &lt;span class="o">{&lt;/span>
 &lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="n">Twiddle&lt;/span> &lt;span class="nf">twiddle&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">{&lt;/span>
 &lt;span class="k">return&lt;/span> &lt;span class="k">new&lt;/span> &lt;span class="n">AutoValue_Thumbs_Twiddle&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">Builder&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">build&lt;/span>&lt;span class="o">();&lt;/span>
@@ -2421,12 +2435,17 @@ Strive to make such incompatible behavior changes cause a compile error (e.g. it
 &lt;span class="o">...&lt;/span>
 &lt;span class="o">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
+&lt;/div>
 &lt;p>Exception: when transform has a single overwhelmingly most important parameter, then call the factory method &lt;code>of&lt;/code> and put the parameter into an argument of the factory method: &lt;code>ParDo.of(DoFn).withAllowedLateness()&lt;/code>.&lt;/p>
 &lt;h5 id="fluent-builder-methods-for-setting-parameters">Fluent builder methods for setting parameters&lt;/h5>
 &lt;p>Call them &lt;code>withBlah()&lt;/code>. All builder methods must return exactly the same type; if it&amp;rsquo;s a parameterized (generic) type, with the same values of type parameters.&lt;/p>
 &lt;p>Treat &lt;code>withBlah()&lt;/code> methods as an unordered set of keyword arguments - result must not depend on the order in which you call &lt;code>withFoo()&lt;/code> and &lt;code>withBar()&lt;/code> (e.g., &lt;code>withBar()&lt;/code> must not read the current value of foo).&lt;/p>
 &lt;p>Document implications of each &lt;code>withBlah&lt;/code> method: when to use this method at all, what values are allowed, what is the default, what are the implications of changing the value.&lt;/p>
-&lt;div class=language-java>
+&lt;div class='language-java snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="cm">/**
 &lt;/span>&lt;span class="cm"> * Returns a new {@link TwiddleThumbs} transform with moo set
 &lt;/span>&lt;span class="cm"> * to the given value.
@@ -2444,9 +2463,14 @@ Strive to make such incompatible behavior changes cause a compile error (e.g. it
 &lt;span class="k">return&lt;/span> &lt;span class="n">toBuilder&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">setMoo&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">moo&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">build&lt;/span>&lt;span class="o">();&lt;/span>
 &lt;span class="o">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
+&lt;/div>
 &lt;h5 id="default-values-for-parameters">Default values for parameters&lt;/h5>
 &lt;p>Specify them in the factory method (factory method returns an object with default values).&lt;/p>
-&lt;div class=language-java>
+&lt;div class='language-java snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="kd">public&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">Thumbs&lt;/span> &lt;span class="o">{&lt;/span>
 &lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="n">Twiddle&lt;/span> &lt;span class="nf">twiddle&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">{&lt;/span>
 &lt;span class="k">return&lt;/span> &lt;span class="k">new&lt;/span> &lt;span class="n">AutoValue_Thumbs_Twiddle&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">Builder&lt;/span>&lt;span class="o">().&lt;/span>&lt;span class="na">setMoo&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">42&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">build&lt;/span>&lt;span class="o">();&lt;/span>
@@ -2454,11 +2478,16 @@ Strive to make such incompatible behavior changes cause a compile error (e.g. it
 &lt;span class="o">...&lt;/span>
 &lt;span class="o">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
+&lt;/div>
 &lt;h5 id="packaging-multiple-parameters-into-a-reusable-object">Packaging multiple parameters into a reusable object&lt;/h5>
 &lt;p>If several parameters of the transform are very tightly logically coupled, sometimes it makes sense to encapsulate them into a container object. Use the same guidelines for this container object (make it immutable, use AutoValue with builders, document &lt;code>withBlah()&lt;/code> methods, etc.). For an example, see &lt;a href="https://github.com/apache/beam/blob/master/sdks/java/io/jdbc/src/main/java/org/apache/beam/sdk/io/jdbc/JdbcIO.java">JdbcIO.DataSourceConfiguration&lt;/a>.&lt;/p>
 &lt;h4 id="transforms-with-type-parameters">Transforms with type parameters&lt;/h4>
 &lt;p>All type parameters should be specified explicitly on factory method. Builder methods (&lt;code>withBlah()&lt;/code>) should not change the types.&lt;/p>
-&lt;div class=language-java>
+&lt;div class='language-java snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="kd">public&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">Thumbs&lt;/span> &lt;span class="o">{&lt;/span>
 &lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="n">Twiddle&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">T&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="nf">twiddle&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="o">{&lt;/span>
 &lt;span class="k">return&lt;/span> &lt;span class="k">new&lt;/span> &lt;span class="n">AutoValue_Thumbs_Twiddle&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">Builder&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">T&lt;/span>&lt;span class="o">&amp;gt;().&lt;/span>&lt;span class="na">build&lt;/span>&lt;span class="o">();&lt;/span>
@@ -2483,6 +2512,7 @@ Strive to make such incompatible behavior changes cause a compile error (e.g. it
 &lt;span class="c1">// Or:
 &lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Bar&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">bars&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">foos&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Thumbs&lt;/span>&lt;span class="o">.&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&lt;/span>&lt;span class="n">twiddle&lt;/span>&lt;span class="o">()&lt;/span> &lt;span class="err">…&lt;/span> &lt;span class="o">);&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
+&lt;/div>
 &lt;p>Exception: when the transform has a single most important parameter and this parameter depends on type T, then prefer to put it right into the factory method: e.g. &lt;code>Combine.globally(SerializableFunction&amp;lt;Iterable&amp;lt;V&amp;gt;,V&amp;gt;&lt;/code>). This improves Java&amp;rsquo;s type inference and allows the user not to specify type parameters explicitly.&lt;/p>
 &lt;p>When the transform has more than one type parameter, or if the meaning of the parameter is non-obvious, name the type parameters like &lt;code>SomethingT&lt;/code>, e.g.: a PTransform implementing a classifier algorithm and assigning each input element with a label might be typed as &lt;code>Classify&amp;lt;InputT, LabelT&amp;gt;&lt;/code>.&lt;/p>
 &lt;h4 id="injecting-user-specified-behavior">Injecting user-specified behavior&lt;/h4>
@@ -2500,7 +2530,11 @@ Strive to make such incompatible behavior changes cause a compile error (e.g. it
 &lt;p>When developing a family of highly related transforms (e.g. interacting with the same system in different ways, or providing different implementations of the same high-level task), use a top-level class as a namespace, with multiple factory methods returning transforms corresponding to each individual use case.&lt;/p>
 &lt;p>The container class must have a private constructor, so it can&amp;rsquo;t be instantiated directly.&lt;/p>
 &lt;p>Document common stuff at &lt;code>FooIO&lt;/code> level, and each factory method individually.&lt;/p>
-&lt;div class=language-java>
+&lt;div class='language-java snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="cm">/** Transforms for clustering data. */&lt;/span>
 &lt;span class="kd">public&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">Cluster&lt;/span> &lt;span class="o">{&lt;/span>
 &lt;span class="c1">// Force use of static factory methods.
@@ -2523,8 +2557,13 @@ Strive to make such incompatible behavior changes cause a compile error (e.g. it
 &lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">Mutate&lt;/span> &lt;span class="kd">extends&lt;/span> &lt;span class="n">PTransform&lt;/span>&lt;span class="o">&amp;lt;...&amp;gt;&lt;/span> &lt;span class="o">{&lt;/span> &lt;span class="o">...&lt;/span> &lt;span class="o">}&lt;/span>
 &lt;span class="o">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
+&lt;/div>
 &lt;p>When supporting multiple versions with incompatible APIs, use the version as a namespace-like class too, and put implementations of different API versions in different files.&lt;/p>
-&lt;div class=language-java>
+&lt;div class='language-java snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="c1">// FooIO.java
 &lt;/span>&lt;span class="c1">&lt;/span>&lt;span class="kd">public&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">FooIO&lt;/span> &lt;span class="o">{&lt;/span>
 &lt;span class="c1">// Force use of static factory methods.
@@ -2547,6 +2586,7 @@ Strive to make such incompatible behavior changes cause a compile error (e.g. it
 &lt;span class="kd">public&lt;/span> &lt;span class="kd">static&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">Read&lt;/span> &lt;span class="kd">extends&lt;/span> &lt;span class="n">PTransform&lt;/span>&lt;span class="o">&amp;lt;...&amp;gt;&lt;/span> &lt;span class="o">{&lt;/span> &lt;span class="o">...&lt;/span> &lt;span class="o">}&lt;/span>
 &lt;span class="o">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
+&lt;/div>
 &lt;h3 id="behavior">Behavior&lt;/h3>
 &lt;h4 id="immutability">Immutability&lt;/h4>
 &lt;ul>
@@ -2563,7 +2603,11 @@ Strive to make such incompatible behavior changes cause a compile error (e.g. it
 These validations will be executed when the pipeline is already fully constructed/expanded and is about to be run with a particular &lt;code>PipelineOptions&lt;/code>.
 Most &lt;code>PTransform&lt;/code>s do not use &lt;code>PipelineOptions&lt;/code> and thus don&amp;rsquo;t need a &lt;code>validate()&lt;/code> method - instead, they should perform their validation via the two other methods above.&lt;/li>
 &lt;/ul>
-&lt;div class=language-java>
+&lt;div class='language-java snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="nd">@AutoValue&lt;/span>
 &lt;span class="kd">public&lt;/span> &lt;span class="kd">abstract&lt;/span> &lt;span class="kd">class&lt;/span> &lt;span class="nc">TwiddleThumbs&lt;/span>
 &lt;span class="kd">extends&lt;/span> &lt;span class="n">PTransform&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Foo&lt;/span>&lt;span class="o">&amp;gt;,&lt;/span> &lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">Bar&lt;/span>&lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="o">{&lt;/span>
@@ -2603,6 +2647,7 @@ Most &lt;code>PTransform&lt;/code>s do not use &lt;code>PipelineOptions&lt;/code
 &lt;span class="o">...&lt;/span>
 &lt;span class="o">}&lt;/span>
 &lt;span class="o">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
 &lt;/div>
 &lt;h4 id="coders">Coders&lt;/h4>
 &lt;p>&lt;code>Coder&lt;/code>s are a way for a Beam runner to materialize intermediate data or transmit it between workers when necessary. &lt;code>Coder&lt;/code> should not be used as a general-purpose API for parsing or writing binary formats because the particular binary encoding of a &lt;code>Coder&lt;/code> is intended to be its private implementation detail.&lt;/p>
@@ -2662,24 +2707,6 @@ throughout the development of your runner.&lt;/p>
 &lt;p>Topics covered:&lt;/p>
 &lt;nav id="TableOfContents">
 &lt;ul>
-&lt;li>&lt;a href="#basics-of-the-beam-model">Basics of the Beam model&lt;/a>
-&lt;ul>
-&lt;li>&lt;a href="#pipeline">Pipeline&lt;/a>&lt;/li>
-&lt;li>&lt;a href="#ptransforms">PTransforms&lt;/a>&lt;/li>
-&lt;li>&lt;a href="#pcollections">PCollections&lt;/a>
-&lt;ul>
-&lt;li>&lt;a href="#bounded-vs-unbounded">Bounded vs Unbounded&lt;/a>&lt;/li>
-&lt;li>&lt;a href="#timestamps">Timestamps&lt;/a>&lt;/li>
-&lt;li>&lt;a href="#watermarks">Watermarks&lt;/a>&lt;/li>
-&lt;li>&lt;a href="#windowed-elements">Windowed elements&lt;/a>&lt;/li>
-&lt;li>&lt;a href="#coder">Coder&lt;/a>&lt;/li>
-&lt;li>&lt;a href="#windowing-strategy">Windowing Strategy&lt;/a>&lt;/li>
-&lt;/ul>
-&lt;/li>
-&lt;li>&lt;a href="#user-defined-functions-udfs">User-Defined Functions (UDFs)&lt;/a>&lt;/li>
-&lt;li>&lt;a href="#runner">Runner&lt;/a>&lt;/li>
-&lt;/ul>
-&lt;/li>
 &lt;li>&lt;a href="#implementing-the-beam-primitives">Implementing the Beam Primitives&lt;/a>
 &lt;ul>
 &lt;li>&lt;a href="#what-if-you-havent-implemented-some-of-these-features">What if you haven&amp;rsquo;t implemented some of these features?&lt;/a>&lt;/li>
@@ -2763,149 +2790,6 @@ throughout the development of your runner.&lt;/p>
 &lt;/li>
 &lt;/ul>
 &lt;/nav>
-&lt;h2 id="basics-of-the-beam-model">Basics of the Beam model&lt;/h2>
-&lt;p>Suppose you have a data processing engine that can pretty easily process graphs
-of operations. You want to integrate it with the Beam ecosystem to get access
-to other languages, great event time processing, and a library of connectors.
-You need to know the core vocabulary:&lt;/p>
-&lt;ul>
-&lt;li>&lt;a href="#pipeline">&lt;em>Pipeline&lt;/em>&lt;/a> - A pipeline is a graph of transformations that a user constructs
-that defines the data processing they want to do.&lt;/li>
-&lt;li>&lt;a href="#pcollections">&lt;em>PCollection&lt;/em>&lt;/a> - Data being processed in a pipeline is part of a PCollection.&lt;/li>
-&lt;li>&lt;a href="#ptransforms">&lt;em>PTransforms&lt;/em>&lt;/a> - The operations executed within a pipeline. These are best
-thought of as operations on PCollections.&lt;/li>
-&lt;li>&lt;em>SDK&lt;/em> - A language-specific library for pipeline authors (we often call them
-&amp;ldquo;users&amp;rdquo; even though we have many kinds of users) to build transforms,
-construct their pipelines and submit them to a runner&lt;/li>
-&lt;li>&lt;em>Runner&lt;/em> - You are going to write a piece of software called a runner that
-takes a Beam pipeline and executes it using the capabilities of your data
-processing engine.&lt;/li>
-&lt;/ul>
-&lt;p>These concepts may be very similar to your processing engine&amp;rsquo;s concepts. Since
-Beam&amp;rsquo;s design is for cross-language operation and reusable libraries of
-transforms, there are some special features worth highlighting.&lt;/p>
-&lt;h3 id="pipeline">Pipeline&lt;/h3>
-&lt;p>A pipeline in Beam is a graph of PTransforms operating on PCollections. A
-pipeline is constructed by a user in their SDK of choice, and makes its way to
-your runner either via the SDK directly or via the Runner API&amp;rsquo;s (forthcoming)
-RPC interfaces.&lt;/p>
-&lt;h3 id="ptransforms">PTransforms&lt;/h3>
-&lt;p>In Beam, a PTransform can be one of the five primitives or it can be a
-composite transform encapsulating a subgraph. The primitives are:&lt;/p>
-&lt;ul>
-&lt;li>&lt;a href="#implementing-the-read-primitive">&lt;em>Read&lt;/em>&lt;/a> - parallel connectors to external
-systems&lt;/li>
-&lt;li>&lt;a href="#implementing-the-pardo-primitive">&lt;em>ParDo&lt;/em>&lt;/a> - per element processing&lt;/li>
-&lt;li>&lt;a href="#implementing-the-groupbykey-and-window-primitive">&lt;em>GroupByKey&lt;/em>&lt;/a> -
-aggregating elements per key and window&lt;/li>
-&lt;li>&lt;a href="#implementing-the-flatten-primitive">&lt;em>Flatten&lt;/em>&lt;/a> - union of PCollections&lt;/li>
-&lt;li>&lt;a href="#implementing-the-window-primitive">&lt;em>Window&lt;/em>&lt;/a> - set the windowing strategy
-for a PCollection&lt;/li>
-&lt;/ul>
-&lt;p>When implementing a runner, these are the operations you need to implement.
-Composite transforms may or may not be important to your runner. If you expose
-a UI, maintaining some of the composite structure will make the pipeline easier
-for a user to understand. But the result of processing is not changed.&lt;/p>
-&lt;h3 id="pcollections">PCollections&lt;/h3>
-&lt;p>A PCollection is an unordered bag of elements. Your runner will be responsible
-for storing these elements. There are some major aspects of a PCollection to
-note:&lt;/p>
-&lt;h4 id="bounded-vs-unbounded">Bounded vs Unbounded&lt;/h4>
-&lt;p>A PCollection may be bounded or unbounded.&lt;/p>
-&lt;ul>
-&lt;li>&lt;em>Bounded&lt;/em> - it is finite and you know it, as in batch use cases&lt;/li>
-&lt;li>&lt;em>Unbounded&lt;/em> - it may be never end, you don&amp;rsquo;t know, as in streaming use cases&lt;/li>
-&lt;/ul>
-&lt;p>These derive from the intuitions of batch and stream processing, but the two
-are unified in Beam and bounded and unbounded PCollections can coexist in the
-same pipeline. If your runner can only support bounded PCollections, you&amp;rsquo;ll
-need to reject pipelines that contain unbounded PCollections. If your
-runner is only really targeting streams, there are adapters in our support code
-to convert everything to APIs targeting unbounded data.&lt;/p>
-&lt;h4 id="timestamps">Timestamps&lt;/h4>
-&lt;p>Every element in a PCollection has a timestamp associated with it.&lt;/p>
-&lt;p>When you execute a primitive connector to some storage system, that connector
-is responsible for providing initial timestamps. Your runner will need to
-propagate and aggregate timestamps. If the timestamp is not important, as with
-certain batch processing jobs where elements do not denote events, they will be
-the minimum representable timestamp, often referred to colloquially as
-&amp;ldquo;negative infinity&amp;rdquo;.&lt;/p>
-&lt;h4 id="watermarks">Watermarks&lt;/h4>
-&lt;p>Every PCollection has to have a watermark that estimates how complete the
-PCollection is.&lt;/p>
-&lt;p>The watermark is a guess that &amp;ldquo;we&amp;rsquo;ll never see an element with an earlier
-timestamp&amp;rdquo;. Sources of data are responsible for producing a watermark. Your
-runner needs to implement watermark propagation as PCollections are processed,
-merged, and partitioned.&lt;/p>
-&lt;p>The contents of a PCollection are complete when a watermark advances to
-&amp;ldquo;infinity&amp;rdquo;. In this manner, you may discover that an unbounded PCollection is
-finite.&lt;/p>
-&lt;h4 id="windowed-elements">Windowed elements&lt;/h4>
-&lt;p>Every element in a PCollection resides in a window. No element resides in
-multiple windows (two elements can be equal except for their window, but they
-are not the same).&lt;/p>
-&lt;p>When elements are read from the outside world they arrive in the global window.
-When they are written to the outside world, they are effectively placed back
-into the global window (any writing transform that doesn&amp;rsquo;t take this
-perspective probably risks data loss).&lt;/p>
-&lt;p>A window has a maximum timestamp, and when the watermark exceeds this plus
-user-specified allowed lateness the window is expired. All data related
-to an expired window may be discarded at any time.&lt;/p>
-&lt;h4 id="coder">Coder&lt;/h4>
-&lt;p>Every PCollection has a coder, a specification of the binary format of the elements.&lt;/p>
-&lt;p>In Beam, the user&amp;rsquo;s pipeline may be written in a language other than the
-language of the runner. There is no expectation that the runner can actually
-deserialize user data. So the Beam model operates principally on encoded data -
-&amp;ldquo;just bytes&amp;rdquo;. Each PCollection has a declared encoding for its elements, called
-a coder. A coder has a URN that identifies the encoding, and may have
-additional sub-coders (for example, a coder for lists may contain a coder for
-the elements of the list). Language-specific serialization techniques can, and
-frequently are used, but there are a few key formats - such as key-value pairs
-and timestamps - that are common so your runner can understand them.&lt;/p>
-&lt;h4 id="windowing-strategy">Windowing Strategy&lt;/h4>
-&lt;p>Every PCollection has a windowing strategy, a specification of essential
-information for grouping and triggering operations.&lt;/p>
-&lt;p>The details will be discussed below when we discuss the
-&lt;a href="#implementing-the-window-primitive">Window&lt;/a> primitive, which sets up the
-windowing strategy, and
-&lt;a href="#implementing-the-groupbykey-and-window-primitive">GroupByKey&lt;/a> primitive,
-which has behavior governed by the windowing strategy.&lt;/p>
-&lt;h3 id="user-defined-functions-udfs">User-Defined Functions (UDFs)&lt;/h3>
-&lt;p>Beam has seven varieties of user-defined function (UDF). A Beam pipeline
-may contain UDFs written in a language other than your runner, or even multiple
-languages in the same pipeline (see the &lt;a href="#the-runner-api">Runner API&lt;/a>) so the
-definitions are language-independent (see the &lt;a href="#the-fn-api">Fn API&lt;/a>).&lt;/p>
-&lt;p>The UDFs of Beam are:&lt;/p>
-&lt;ul>
-&lt;li>&lt;em>DoFn&lt;/em> - per-element processing function (used in ParDo)&lt;/li>
-&lt;li>&lt;em>WindowFn&lt;/em> - places elements in windows and merges windows (used in Window
-and GroupByKey)&lt;/li>
-&lt;li>&lt;em>Source&lt;/em> - emits data read from external sources, including initial and
-dynamic splitting for parallelism (used in Read)&lt;/li>
-&lt;li>&lt;em>ViewFn&lt;/em> - adapts a materialized PCollection to a particular interface (used
-in side inputs)&lt;/li>
-&lt;li>&lt;em>WindowMappingFn&lt;/em> - maps one element&amp;rsquo;s window to another, and specifies
-bounds on how far in the past the result window will be (used in side
-inputs)&lt;/li>
-&lt;li>&lt;em>CombineFn&lt;/em> - associative and commutative aggregation (used in Combine and
-state)&lt;/li>
-&lt;li>&lt;em>Coder&lt;/em> - encodes user data; some coders have standard formats and are not really UDFs&lt;/li>
-&lt;/ul>
-&lt;p>The various types of user-defined functions will be described further alongside
-the primitives that use them.&lt;/p>
-&lt;h3 id="runner">Runner&lt;/h3>
-&lt;p>The term &amp;ldquo;runner&amp;rdquo; is used for a couple of things. It generally refers to the
-software that takes a Beam pipeline and executes it somehow. Often, this is the
-translation code that you write. It usually also includes some customized
-operators for your data processing engine, and is sometimes used to refer to
-the full stack.&lt;/p>
-&lt;p>A runner has just a single method &lt;code>run(Pipeline)&lt;/code>. From here on, I will often
-use code font for proper nouns in our APIs, whether or not the identifiers
-match across all SDKs.&lt;/p>
-&lt;p>The &lt;code>run(Pipeline)&lt;/code> method should be asynchronous and results in a
-PipelineResult which generally will be a job descriptor for your data
-processing engine, providing methods for checking its status, canceling it, and
-waiting for it to terminate.&lt;/p>
 &lt;h2 id="implementing-the-beam-primitives">Implementing the Beam Primitives&lt;/h2>
 &lt;p>Aside from encoding and persisting data - which presumably your engine already
 does in some way or another - most of what you need to do is implement the Beam
@@ -2981,13 +2865,18 @@ the Python codebase.&lt;/p>
 &lt;p>&lt;strong>Java&lt;/strong>&lt;/p>
 &lt;p>In Java, the &lt;code>beam-runners-core-java&lt;/code> library provides an interface
 &lt;code>DoFnRunner&lt;/code> for bundle processing, with implementations for many situations.&lt;/p>
-&lt;div class=language-java&amp;#32;no-toggle>
+&lt;div class="snippet">
+&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
 &lt;pre>&lt;code>interface DoFnRunner&amp;lt;InputT, OutputT&amp;gt; {
 void startBundle();
 void processElement(WindowedValue&amp;lt;InputT&amp;gt; elem);
 void onTimer(String timerId, BoundedWindow window, Instant timestamp, TimeDomain timeDomain);
 void finishBundle();
 }&lt;/code>&lt;/pre>
+&lt;/div>
 &lt;/div>
 &lt;p>There are some implementations and variations of this for different scenarios:&lt;/p>
 &lt;ul>
@@ -3248,7 +3137,11 @@ of other Beam runners. But be aware that we have tests and you can use them
 very easily! To enable these tests in a Java-based runner using Gradle, you
 scan the dependencies of the SDK for tests with the JUnit category
 &lt;code>ValidatesRunner&lt;/code>.&lt;/p>
-&lt;div class=no-toggle>
+&lt;div class="snippet">
+&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
 &lt;pre>&lt;code>task validatesRunner(type: Test) {
 group = &amp;#34;Verification&amp;#34;
 description = &amp;#34;Validates the runner&amp;#34;
@@ -3260,6 +3153,7 @@ useJUnit {
 includeCategories &amp;#39;org.apache.beam.sdk.testing.ValidatesRunner&amp;#39;
 }
 }&lt;/code>&lt;/pre>
+&lt;/div>
 &lt;/div>
 &lt;p>Enabling these tests in other languages is unexplored.&lt;/p>
 &lt;h2 id="integrating-your-runner-nicely-with-sdks">Integrating your runner nicely with SDKs&lt;/h2>
@@ -3274,7 +3168,11 @@ an interface that works completely differently than normal Java objects. Forget
 what you know, and follow the rules, and &lt;code>PipelineOptions&lt;/code> will treat you well.&lt;/p>
 &lt;p>You must implement a sub-interface for your runner with getters and setters
 with matching names, like so:&lt;/p>
-&lt;div class=language-java&amp;#32;no-toggle>
+&lt;div class="snippet">
+&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
 &lt;pre>&lt;code>public interface MyRunnerOptions extends PipelineOptions {
 @Description(&amp;#34;The Foo to use with MyRunner&amp;#34;)
 @Required
@@ -3286,12 +3184,17 @@ public Boolean isBazEnabled();
 public void setBazEnabled(Boolean newValue);
 }&lt;/code>&lt;/pre>
 &lt;/div>
+&lt;/div>
 &lt;p>You can set up defaults, etc. See the javadoc for details. When your runner is
 instantiated with a &lt;code>PipelineOptions&lt;/code> object, you access your interface by
 &lt;code>options.as(MyRunnerOptions.class)&lt;/code>.&lt;/p>
 &lt;p>To make these options available on the command line, you register your options
 with a &lt;code>PipelineOptionsRegistrar&lt;/code>. It is easy if you use &lt;code>@AutoService&lt;/code>:&lt;/p>
-&lt;div class=language-java&amp;#32;no-toggle>
+&lt;div class="snippet">
+&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
 &lt;pre>&lt;code>@AutoService(PipelineOptionsRegistrar.class)
 public static class MyOptionsRegistrar implements PipelineOptionsRegistrar {
 @Override
@@ -3300,10 +3203,15 @@ return ImmutableList.&amp;lt;Class&amp;lt;? extends PipelineOptions&amp;gt;&amp;
 }
 }&lt;/code>&lt;/pre>
 &lt;/div>
+&lt;/div>
 &lt;h4 id="registering-your-runner-with-sdks-for-command-line-use">Registering your runner with SDKs for command line use&lt;/h4>
 &lt;p>To make your runner available on the command line, you register your options
 with a &lt;code>PipelineRunnerRegistrar&lt;/code>. It is easy if you use &lt;code>@AutoService&lt;/code>:&lt;/p>
-&lt;div class=language-java&amp;#32;no-toggle>
+&lt;div class="snippet">
+&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
 &lt;pre>&lt;code>@AutoService(PipelineRunnerRegistrar.class)
 public static class MyRunnerRegistrar implements PipelineRunnerRegistrar {
 @Override
@@ -3311,6 +3219,7 @@ public Iterable&amp;lt;Class&amp;lt;? extends PipelineRunner&amp;gt;&amp;gt; get
 return ImmutableList.&amp;lt;Class&amp;lt;? extends PipelineRunner&amp;gt;&amp;gt;of(MyRunner.class);
 }
 }&lt;/code>&lt;/pre>
+&lt;/div>
 &lt;/div>
 &lt;h3 id="integrating-with-the-python-sdk">Integrating with the Python SDK&lt;/h3>
 &lt;p>In the Python SDK the registration of the code is not automatic. So there are
@@ -3403,11 +3312,16 @@ the higher-level, mostly obvious, record definitions.&lt;/p>
 &lt;p>The heart of cross-language portability is the &lt;code>FunctionSpec&lt;/code>. This is a
 language-independent specification of a function, in the usual programming
 sense that includes side effects, etc.&lt;/p>
-&lt;div class=no-toggle>
+&lt;div class="snippet">
+&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
 &lt;pre>&lt;code>message FunctionSpec {
 string urn;
 google.protobuf.Any parameter;
 }&lt;/code>&lt;/pre>
+&lt;/div>
 &lt;/div>
 &lt;p>A &lt;code>FunctionSpec&lt;/code> includes a URN identifying the function as well as an arbitrary
 fixed parameter. For example the (hypothetical) &amp;ldquo;max&amp;rdquo; CombineFn might have the
@@ -3428,11 +3342,16 @@ transforms and producing &lt;code>PCollections&lt;/code>.&lt;/p>
 it will be guaranteed to understand it. So in that case, it will always come
 with an environment that can understand and execute the function. This is
 represented by the &lt;code>SdkFunctionSpec&lt;/code>.&lt;/p>
-&lt;div class=no-toggle>
+&lt;div class="snippet">
+&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
 &lt;pre>&lt;code>message SdkFunctionSpec {
 FunctionSpec spec;
 bytes environment_id;
 }&lt;/code>&lt;/pre>
+&lt;/div>
 &lt;/div>
 &lt;p>In the Runner API, many objects are stored by reference. Here in the
 &lt;code>environment_id&lt;/code> is a pointer, local to the pipeline and just made up by the
@@ -3451,7 +3370,11 @@ the transform.&lt;/p>
 &lt;p>A &lt;code>ParDo&lt;/code> transform carries its &lt;code>DoFn&lt;/code> in an &lt;code>SdkFunctionSpec&lt;/code> and then
 provides language-independent specifications for its other features - side
 inputs, state declarations, timer declarations, etc.&lt;/p>
-&lt;div class=no-toggle>
+&lt;div class="snippet">
+&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
 &lt;pre>&lt;code>message ParDoPayload {
 SdkFunctionSpec do_fn;
 map&amp;lt;string, SideInput&amp;gt; side_inputs;
@@ -3460,23 +3383,34 @@ map&amp;lt;string, TimerSpec&amp;gt; timer_specs;
 ...
 }&lt;/code>&lt;/pre>
 &lt;/div>
+&lt;/div>
 &lt;h4 id="readpayload-proto">&lt;code>ReadPayload&lt;/code> proto&lt;/h4>
 &lt;p>A &lt;code>Read&lt;/code> transform carries an &lt;code>SdkFunctionSpec&lt;/code> for its &lt;code>Source&lt;/code> UDF.&lt;/p>
-&lt;div class=no-toggle>
+&lt;div class="snippet">
+&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
 &lt;pre>&lt;code>message ReadPayload {
 SdkFunctionSpec source;
 ...
 }&lt;/code>&lt;/pre>
 &lt;/div>
+&lt;/div>
 &lt;h4 id="windowintopayload-proto">&lt;code>WindowIntoPayload&lt;/code> proto&lt;/h4>
 &lt;p>A &lt;code>Window&lt;/code> transform carries an &lt;code>SdkFunctionSpec&lt;/code> for its &lt;code>WindowFn&lt;/code> UDF. It is
 part of the Fn API that the runner passes this UDF along and tells the SDK
 harness to use it to assign windows (as opposed to merging).&lt;/p>
-&lt;div class=no-toggle>
+&lt;div class="snippet">
+&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
 &lt;pre>&lt;code>message WindowIntoPayload {
 SdkFunctionSpec window_fn;
 ...
 }&lt;/code>&lt;/pre>
+&lt;/div>
 &lt;/div>
 &lt;h4 id="combinepayload-proto">&lt;code>CombinePayload&lt;/code> proto&lt;/h4>
 &lt;p>&lt;code>Combine&lt;/code> is not a primitive. But non-primitives are perfectly able to carry
@@ -3485,19 +3419,28 @@ additional information for better optimization. The most important thing that a
 In order to effectively carry out the optimizations desired, it is also
 necessary to know the coder for intermediate accumulations, so it also carries
 a reference to this coder.&lt;/p>
-&lt;div class=no-toggle>
+&lt;div class="snippet">
+&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
 &lt;pre>&lt;code>message CombinePayload {
 SdkFunctionSpec combine_fn;
 string accumulator_coder_id;
 ...
 }&lt;/code>&lt;/pre>
 &lt;/div>
+&lt;/div>
 &lt;h3 id="ptransform-proto">&lt;code>PTransform&lt;/code> proto&lt;/h3>
 &lt;p>A &lt;code>PTransform&lt;/code> is a function from &lt;code>PCollection&lt;/code> to &lt;code>PCollection&lt;/code>. This is
 represented in the proto using a FunctionSpec. Note that this is not an
 &lt;code>SdkFunctionSpec&lt;/code>, since it is the runner that observes these. They will never
 be passed back to an SDK harness; they do not represent a UDF.&lt;/p>
-&lt;div class=no-toggle>
+&lt;div class="snippet">
+&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
 &lt;pre>&lt;code>message PTransform {
 FunctionSpec spec;
 repeated string subtransforms;
@@ -3507,6 +3450,7 @@ map&amp;lt;string, bytes&amp;gt; outputs;
 ...
 }&lt;/code>&lt;/pre>
 &lt;/div>
+&lt;/div>
 &lt;p>A &lt;code>PTransform&lt;/code> may have subtransforms if it is a composite, in which case the
 &lt;code>FunctionSpec&lt;/code> may be omitted since the subtransforms define its behavior.&lt;/p>
 &lt;p>The input and output &lt;code>PCollections&lt;/code> are unordered and referred to by a local
@@ -3515,7 +3459,11 @@ serialized UDFs.&lt;/p>
 &lt;h3 id="pcollection-proto">&lt;code>PCollection&lt;/code> proto&lt;/h3>
 &lt;p>A &lt;code>PCollection&lt;/code> just stores a coder, windowing strategy, and whether or not it
 is bounded.&lt;/p>
-&lt;div class=no-toggle>
+&lt;div class="snippet">
+&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
 &lt;pre>&lt;code>message PCollection {
 string coder_id;
 IsBounded is_bounded;
@@ -3523,16 +3471,22 @@ string windowing_strategy_id;
 ...
 }&lt;/code>&lt;/pre>
 &lt;/div>
+&lt;/div>
 &lt;h3 id="coder-proto">&lt;code>Coder&lt;/code> proto&lt;/h3>
 &lt;p>This is a very interesting proto. A coder is a parameterized function that may
 only be understood by a particular SDK, hence an &lt;code>SdkFunctionSpec&lt;/code>, but also
 may have component coders that fully define it. For example, a &lt;code>ListCoder&lt;/code> is
 only a meta-format, while &lt;code>ListCoder(VarIntCoder)&lt;/code> is a fully specified format.&lt;/p>
-&lt;div class=no-toggle>
+&lt;div class="snippet">
+&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
 &lt;pre>&lt;code>message Coder {
 SdkFunctionSpec spec;
 repeated string component_coder_ids;
 }&lt;/code>&lt;/pre>
+&lt;/div>
 &lt;/div>
 &lt;h2 id="the-runner-api-rpcs">The Runner API RPCs&lt;/h2>
 &lt;p>While your language&amp;rsquo;s SDK will probably insulate you from touching the Runner
@@ -3550,13 +3504,22 @@ rich and convenient API.&lt;/p>
 &lt;h3 id="pipelinerunnerrunpipeline-rpc">&lt;code>PipelineRunner.run(Pipeline)&lt;/code> RPC&lt;/h3>
 &lt;p>This will take the same form, but &lt;code>PipelineOptions&lt;/code> will have to be serialized
 to JSON (or a proto &lt;code>Struct&lt;/code>) and passed along.&lt;/p>
-&lt;div class=no-toggle>
+&lt;div class="snippet">
+&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
 &lt;pre>&lt;code>message RunPipelineRequest {
 Pipeline pipeline;
 Struct pipeline_options;
 }&lt;/code>&lt;/pre>
 &lt;/div>
-&lt;div class=no-toggle>
+&lt;/div>
+&lt;div class="snippet">
+&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
 &lt;pre>&lt;code>message RunPipelineResponse {
 bytes pipeline_id;
 // TODO: protocol for rejecting pipelines that cannot be executed
@@ -3565,13 +3528,18 @@ bytes pipeline_id;
 Any contents;
 }&lt;/code>&lt;/pre>
 &lt;/div>
+&lt;/div>
 &lt;h3 id="pipelineresult-aka-job-api">&lt;code>PipelineResult&lt;/code> aka &amp;ldquo;Job API&amp;rdquo;&lt;/h3>
 &lt;p>The two core pieces of functionality in this API today are getting the state of
 a job and canceling the job. It is very much likely to evolve, for example to
 be generalized to support draining a job (stop reading input and let watermarks
 go to infinity). Today, verifying our test framework benefits (but does not
 depend upon wholly) querying metrics over this channel.&lt;/p>
-&lt;div class=no-toggle>
+&lt;div class="snippet">
+&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
 &lt;pre>&lt;code>message CancelPipelineRequest {
 bytes pipeline_id;
 ...
@@ -3587,4 +3555,5 @@ JobState state;
 enum JobState {
 ...
 }&lt;/code>&lt;/pre>
+&lt;/div>
 &lt;/div></description></item></channel></rss>

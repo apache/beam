@@ -1,0 +1,26 @@
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Machine Learning</title><link>/categories/machine-learning/</link><description>Recent content in Machine Learning on Apache Beam</description><generator>Hugo -- gohugo.io</generator><atom:link href="/categories/machine-learning/index.xml" rel="self" type="application/rss+xml"/><item><title>Powered-By: Beam and Geocoding</title><link>/powered-by/commercial/goga/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/powered-by/commercial/goga/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>GOGA Data Analysis and Consulting is a company based in Japan that specializes in analytics of geospatial and mapping data. They use Apache Beam and Cloud Dataflow for a smooth data transformation process for analytical purposes. This use case focuses on handling multiple extractions, geocoding, and insertion process by wrangling and requesting API call of each data based on the location provided.&lt;/p></description></item><item><title>Powered-By: From Apache Beam to Leukemia early detection</title><link>/powered-by/commercial/oriel/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/powered-by/commercial/oriel/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>Oriel Research Therapeutics (ORT) is a startup company in the greater Boston area that provides early detection services for
+multiple medical conditions, utilizing cutting edge Artificial Intelligence technologies and Next Generation Sequencing (NGS). ORT utilizes Apache Beam pipelines to process over 1 million samples of genomics and clinical information. The processed data is used by ORT in detecting Leukemia, Sepsis and other medical conditions.&lt;/p></description></item></channel></rss>

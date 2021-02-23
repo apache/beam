@@ -1,4 +1,81 @@
-<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Apache Beam</title><description>Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.</description><link>/</link><generator>Hugo -- gohugo.io</generator><item><title>Example to ingest data from Apache Kafka to Google Cloud Pub/Sub</title><description>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Apache Beam</title><description>Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.</description><link>/</link><generator>Hugo -- gohugo.io</generator><item><title>Apache Beam 2.28.0</title><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>We are happy to present the new 2.28.0 release of Apache Beam. This release includes both improvements and new functionality.
+See the &lt;a href="/get-started/downloads/#2280-2021-02-13">download page&lt;/a> for this release.
+For more information on changes in 2.28.0, check out the
+&lt;a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12349499">detailed release notes&lt;/a>.&lt;/p>
+&lt;h2 id="highlights">Highlights&lt;/h2>
+&lt;ul>
+&lt;li>Many improvements related to Parquet support (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11460">BEAM-11460&lt;/a>, &lt;a href="https://issues.apache.org/jira/browse/BEAM-8202">BEAM-8202&lt;/a>, and &lt;a href="https://issues.apache.org/jira/browse/BEAM-11526">BEAM-11526&lt;/a>)&lt;/li>
+&lt;li>Hash Functions in BeamSQL (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10074">BEAM-10074&lt;/a>)&lt;/li>
+&lt;li>Hash functions in ZetaSQL (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11624">BEAM-11624&lt;/a>)&lt;/li>
+&lt;li>Create ApproximateDistinct using HLL Impl (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10324">BEAM-10324&lt;/a>)&lt;/li>
+&lt;/ul>
+&lt;h2 id="ios">I/Os&lt;/h2>
+&lt;ul>
+&lt;li>SpannerIO supports using BigDecimal for Numeric fields (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11643">BEAM-11643&lt;/a>)&lt;/li>
+&lt;li>Add Beam schema support to ParquetIO (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11526">BEAM-11526&lt;/a>)&lt;/li>
+&lt;li>Support ParquetTable Writer (&lt;a href="https://issues.apache.org/jira/browse/BEAM-8202">BEAM-8202&lt;/a>)&lt;/li>
+&lt;li>GCP BigQuery sink (streaming inserts) uses runner determined sharding (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11408">BEAM-11408&lt;/a>)&lt;/li>
+&lt;li>PubSub support types: TIMESTAMP, DATE, TIME, DATETIME (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11533">BEAM-11533&lt;/a>)&lt;/li>
+&lt;/ul>
+&lt;h2 id="new-features--improvements">New Features / Improvements&lt;/h2>
+&lt;ul>
+&lt;li>ParquetIO add methods &lt;em>readGenericRecords&lt;/em> and &lt;em>readFilesGenericRecords&lt;/em> can read files with an unknown schema. See &lt;a href="https://github.com/apache/beam/pull/13554">PR-13554&lt;/a> and (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11460">BEAM-11460&lt;/a>)&lt;/li>
+&lt;li>Added support for thrift in KafkaTableProvider (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11482">BEAM-11482&lt;/a>)&lt;/li>
+&lt;li>Added support for HadoopFormatIO to skip key/value clone (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11457">BEAM-11457&lt;/a>)&lt;/li>
+&lt;li>Support Conversion to GenericRecords in Convert.to transform (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11571">BEAM-11571&lt;/a>).&lt;/li>
+&lt;li>Support writes for Parquet Tables in Beam SQL (&lt;a href="https://issues.apache.org/jira/browse/BEAM-8202">BEAM-8202&lt;/a>).&lt;/li>
+&lt;li>Support reading Parquet files with unknown schema (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11460">BEAM-11460&lt;/a>)&lt;/li>
+&lt;li>Support user configurable Hadoop Configuration flags for ParquetIO (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11527">BEAM-11527&lt;/a>)&lt;/li>
+&lt;li>Expose commit_offset_in_finalize and timestamp_policy to ReadFromKafka (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11677">BEAM-11677&lt;/a>)&lt;/li>
+&lt;li>S3 options does not provided to boto3 client while using FlinkRunner and Beam worker pool container (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11799">BEAM-11799&lt;/a>)&lt;/li>
+&lt;li>HDFS not deduplicating identical configuration paths (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11329">BEAM-11329&lt;/a>)&lt;/li>
+&lt;li>Hash Functions in BeamSQL (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10074">BEAM-10074&lt;/a>)&lt;/li>
+&lt;li>Create ApproximateDistinct using HLL Impl (&lt;a href="https://issues.apache.org/jira/browse/BEAM-10324">BEAM-10324&lt;/a>)&lt;/li>
+&lt;li>Add Beam schema support to ParquetIO (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11526">BEAM-11526&lt;/a>)&lt;/li>
+&lt;li>Add a Deque Encoder (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11538">BEAM-11538&lt;/a>)&lt;/li>
+&lt;li>Hash functions in ZetaSQL (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11624">BEAM-11624&lt;/a>)&lt;/li>
+&lt;li>Refactor ParquetTableProvider (&lt;a href="https://issues.apache.org/jira/browse/">&lt;/a>)&lt;/li>
+&lt;li>Add JVM properties to JavaJobServer (&lt;a href="https://issues.apache.org/jira/browse/BEAM-8344">BEAM-8344&lt;/a>)&lt;/li>
+&lt;li>Single source of truth for supported Flink versions (&lt;a href="https://issues.apache.org/jira/browse/">&lt;/a>)&lt;/li>
+&lt;li>Use metric for Python BigQuery streaming insert API latency logging (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11018">BEAM-11018&lt;/a>)&lt;/li>
+&lt;li>Use metric for Java BigQuery streaming insert API latency logging (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11032">BEAM-11032&lt;/a>)&lt;/li>
+&lt;li>Upgrade Flink runner to Flink versions 1.12.1 and 1.11.3 (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11697">BEAM-11697&lt;/a>)&lt;/li>
+&lt;li>Upgrade Beam base image to use Tensorflow 2.4.1 (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11762">BEAM-11762&lt;/a>)&lt;/li>
+&lt;li>Create Beam GCP BOM (&lt;a href="https://issues.apache.org/jira/browse/BEAM-11665">BEAM-11665&lt;/a>)&lt;/li>
+&lt;/ul>
+&lt;h2 id="breaking-changes">Breaking Changes&lt;/h2>
+&lt;ul>
+&lt;li>The Java artifacts &amp;ldquo;beam-sdks-java-io-kinesis&amp;rdquo;, &amp;ldquo;beam-sdks-java-io-google-cloud-platform&amp;rdquo;, and
+&amp;ldquo;beam-sdks-java-extensions-sql-zetasql&amp;rdquo; declare Guava 30.1-jre dependency (It was 25.1-jre in Beam 2.27.0).
+This new Guava version may introduce dependency conflicts if your project or dependencies rely
+on removed APIs. If affected, ensure to use an appropriate Guava version via &lt;code>dependencyManagement&lt;/code> in Maven and
+&lt;code>force&lt;/code> in Gradle.&lt;/li>
+&lt;/ul>
+&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
+&lt;p>According to git shortlog, the following people contributed to the 2.28.0 release. Thank you to all contributors!&lt;/p>
+&lt;p>Ahmet Altay, Alex Amato, Alexey Romanenko, Allen Pradeep Xavier, Anant Damle, Artur Khanin,
+Boyuan Zhang, Brian Hulette, Chamikara Jayalath, Chris Roth, Costi Ciudatu, Damon Douglas,
+Daniel Collins, Daniel Oliveira, David Cavazos, David Huntsperger, Elliotte Rusty Harold,
+Emily Ye, Etienne Chauchot, Etta Rapp, Evan Palmer, Eyal, Filip Krakowski, Fokko Driesprong,
+Heejong Lee, Ismaël Mejía, janeliulwq, Jan Lukavský, John Edmonds, Jozef Vilcek, Kenneth Knowles
+Ke Wu, kileys, Kyle Weaver, MabelYC, masahitojp, Masato Nakamura, Milena Bukal, Miraç Vuslat Başaran,
+Nelson Osacky, Niel Markwick, Ning Kang, omarismail94, Pablo Estrada, Piotr Szuberski,
+ramazan-yapparov, Reuven Lax, Reza Rokni, rHermes, Robert Bradshaw, Robert Burke, Robert Gruener,
+Romster, Rui Wang, Sam Whittle, shehzaadn-vd, Siyuan Chen, Sonam Ramchand, Tobiasz Kędzierski,
+Tomo Suzuki, tszerszen, tvalentyn, Tyson Hamilton, Udi Meiri, Xinbin Huang, Yichi Zhang,
+Yifan Mai, yoshiki.obata, Yueyang Qiu, Yusaku Matsuki&lt;/p></description><link>/blog/beam-2.28.0/</link><pubDate>Mon, 22 Feb 2021 12:00:00 -0800</pubDate><guid>/blog/beam-2.28.0/</guid><category>blog</category></item><item><title>Example to ingest data from Apache Kafka to Google Cloud Pub/Sub</title><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -559,7 +636,11 @@ limitations under the License.
 a new SQL component introduced in 2016, brings extra analytical functionality. This project,
 as part of Google Summer of Code, aims to support basic MATCH_RECOGNIZE functionality. A basic MATCH_RECOGNIZE
 query would be something like this:
-&lt;div class=language-sql>
+&lt;div class='language-sql snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-sql" data-lang="sql">&lt;span class="k">SELECT&lt;/span> &lt;span class="n">T&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">aid&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">T&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">bid&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">T&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">cid&lt;/span>
 &lt;span class="k">FROM&lt;/span> &lt;span class="n">MyTable&lt;/span>
 &lt;span class="n">MATCH_RECOGNIZE&lt;/span> &lt;span class="p">(&lt;/span>
@@ -575,6 +656,7 @@ query would be something like this:
 &lt;span class="n">B&lt;/span> &lt;span class="k">AS&lt;/span> &lt;span class="n">name&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s1">&amp;#39;b&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span>
 &lt;span class="k">C&lt;/span> &lt;span class="k">AS&lt;/span> &lt;span class="n">name&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s1">&amp;#39;c&amp;#39;&lt;/span>
 &lt;span class="p">)&lt;/span> &lt;span class="k">AS&lt;/span> &lt;span class="n">T&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
 &lt;/div>
 &lt;/p>
 &lt;p>The above query finds out ordered sets of events that have names &amp;lsquo;a&amp;rsquo;, &amp;lsquo;b&amp;rsquo; and &amp;lsquo;c&amp;rsquo;. Apart from this basic usage of
@@ -669,7 +751,11 @@ table:&lt;/p>
 &lt;/table>
 &lt;p>This table reflects the price changes of a product with respect to the transaction time. We could write the following
 query:&lt;/p>
-&lt;div class=language-sql>
+&lt;div class='language-sql snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-sql" data-lang="sql">&lt;span class="k">SELECT&lt;/span> &lt;span class="o">*&lt;/span>
 &lt;span class="k">FROM&lt;/span> &lt;span class="n">MyTable&lt;/span>
 &lt;span class="n">MATCH_RECOGNIZE&lt;/span> &lt;span class="p">(&lt;/span>
@@ -682,6 +768,7 @@ query:&lt;/p>
 &lt;span class="n">A&lt;/span> &lt;span class="k">AS&lt;/span> &lt;span class="n">price&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="n">PREV&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">A&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">price&lt;/span>&lt;span class="p">),&lt;/span>
 &lt;span class="n">B&lt;/span> &lt;span class="k">AS&lt;/span> &lt;span class="n">price&lt;/span> &lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">PREV&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">B&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="n">price&lt;/span>&lt;span class="p">)&lt;/span>
 &lt;span class="p">)&lt;/span> &lt;span class="k">AS&lt;/span> &lt;span class="n">T&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
 &lt;/div>
 &lt;p>This will find the local minimum price and the price after it. For the example dataset, the first 3 rows will be
 mapped to A and the rest of the rows will be mapped to B. Thus, we will have (1, 5) as the result.&lt;/p>
@@ -803,171 +890,4 @@ return pcoll | beam.io.WriteToBigQuery(...)
 &lt;a href="https://beam.apache.org/documentation/sdks/python-type-safety/">Ensuring Python Type Safety&lt;/a>.&lt;/p>
 &lt;p>Finally, please
 &lt;a href="https://beam.apache.org/community/contact-us/">let us know&lt;/a>
-if you encounter any issues.&lt;/p></description><link>/blog/python-improved-annotations/</link><pubDate>Fri, 21 Aug 2020 00:00:01 -0800</pubDate><guid>/blog/python-improved-annotations/</guid><category>blog</category><category>python</category><category>typing</category></item><item><title>Performance-Driven Runtime Type Checking for the Python SDK</title><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>In this blog post, we&amp;rsquo;re announcing the upcoming release of a new, opt-in
-runtime type checking system for Beam&amp;rsquo;s Python SDK that&amp;rsquo;s optimized for performance
-in both development and production environments.&lt;/p>
-&lt;p>But let&amp;rsquo;s take a step back - why do we even care about runtime type checking
-in the first place? Let&amp;rsquo;s look at an example.&lt;/p>
-&lt;pre>&lt;code>class MultiplyNumberByTwo(beam.DoFn):
-def process(self, element: int):
-return element * 2
-p = Pipeline()
-p | beam.Create(['1', '2'] | beam.ParDo(MultiplyNumberByTwo())
-&lt;/code>&lt;/pre>&lt;p>In this code, we passed a list of strings to a DoFn that&amp;rsquo;s clearly intended for use with
-integers. Luckily, this code will throw an error during pipeline construction because
-the inferred output type of &lt;code>beam.Create(['1', '2'])&lt;/code> is &lt;code>str&lt;/code> which is incompatible with
-the declared input type of &lt;code>MultiplyNumberByTwo.process&lt;/code> which is &lt;code>int&lt;/code>.&lt;/p>
-&lt;p>However, what if we turned pipeline type checking off using the &lt;code>no_pipeline_type_check&lt;/code>
-flag? Or more realistically, what if the input PCollection to &lt;code>MultiplyNumberByTwo&lt;/code> arrived
-from a database, meaning that the output data type can only be known at runtime?&lt;/p>
-&lt;p>In either case, no error would be thrown during pipeline construction.
-And even at runtime, this code works. Each string would be multiplied by 2,
-yielding a result of &lt;code>['11', '22']&lt;/code>, but that&amp;rsquo;s certainly not the outcome we want.&lt;/p>
-&lt;p>So how do you debug this breed of &amp;ldquo;hidden&amp;rdquo; errors? More broadly speaking, how do you debug
-any typing or serialization error in Beam?&lt;/p>
-&lt;p>The answer is to use runtime type checking.&lt;/p>
-&lt;h1 id="runtime-type-checking-rtc">Runtime Type Checking (RTC)&lt;/h1>
-&lt;p>This feature works by checking that actual input and output values satisfy the declared
-type constraints during pipeline execution. If you ran the code from before with
-&lt;code>runtime_type_check&lt;/code> on, you would receive the following error message:&lt;/p>
-&lt;pre>&lt;code>Type hint violation for 'ParDo(MultiplyByTwo)': requires &amp;lt;class 'int'&amp;gt; but got &amp;lt;class 'str'&amp;gt; for element
-&lt;/code>&lt;/pre>&lt;p>This is an actionable error message - it tells you that either your code has a bug
-or that your declared type hints are incorrect. Sounds simple enough, so what&amp;rsquo;s the catch?&lt;/p>
-&lt;p>&lt;em>It is soooo slowwwwww.&lt;/em> See for yourself.&lt;/p>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th>Element Size&lt;/th>
-&lt;th>Normal Pipeline&lt;/th>
-&lt;th>Runtime Type Checking Pipeline&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td>1&lt;/td>
-&lt;td>5.3 sec&lt;/td>
-&lt;td>5.6 sec&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>2,001&lt;/td>
-&lt;td>9.4 sec&lt;/td>
-&lt;td>57.2 sec&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>10,001&lt;/td>
-&lt;td>24.5 sec&lt;/td>
-&lt;td>259.8 sec&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>18,001&lt;/td>
-&lt;td>38.7 sec&lt;/td>
-&lt;td>450.5 sec&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;p>In this micro-benchmark, the pipeline with runtime type checking was over 10x slower,
-with the gap only increasing as our input PCollection increased in size.&lt;/p>
-&lt;p>So, is there any production-friendly alternative?&lt;/p>
-&lt;h1 id="performance-runtime-type-check">Performance Runtime Type Check&lt;/h1>
-&lt;p>There is! We developed a new flag called &lt;code>performance_runtime_type_check&lt;/code> that
-minimizes its footprint on the pipeline&amp;rsquo;s time complexity using a combination of&lt;/p>
-&lt;ul>
-&lt;li>efficient Cython code,&lt;/li>
-&lt;li>smart sampling techniques, and&lt;/li>
-&lt;li>optimized mega type-hints.&lt;/li>
-&lt;/ul>
-&lt;p>So what do the new numbers look like?&lt;/p>
-&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th>Element Size&lt;/th>
-&lt;th>Normal&lt;/th>
-&lt;th>RTC&lt;/th>
-&lt;th>Performance RTC&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td>1&lt;/td>
-&lt;td>5.3 sec&lt;/td>
-&lt;td>5.6 sec&lt;/td>
-&lt;td>5.4 sec&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>2,001&lt;/td>
-&lt;td>9.4 sec&lt;/td>
-&lt;td>57.2 sec&lt;/td>
-&lt;td>11.2 sec&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>10,001&lt;/td>
-&lt;td>24.5 sec&lt;/td>
-&lt;td>259.8 sec&lt;/td>
-&lt;td>25.5 sec&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td>18,001&lt;/td>
-&lt;td>38.7 sec&lt;/td>
-&lt;td>450.5 sec&lt;/td>
-&lt;td>39.4 sec&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;p>On average, the new Performance RTC is 4.4% slower than a normal pipeline whereas the old RTC
-is over 900% slower! Additionally, as the size of the input PCollection increases, the fixed cost
-of setting up the Performance RTC system is spread across each element, decreasing the relative
-impact on the overall pipeline. With 18,001 elements, the difference is less than 1 second.&lt;/p>
-&lt;h2 id="how-does-it-work">How does it work?&lt;/h2>
-&lt;p>There are three key factors responsible for this upgrade in performance.&lt;/p>
-&lt;ol>
-&lt;li>
-&lt;p>Instead of type checking all values, we only type check a subset of values, known as
-a sample in statistics. Initially, we sample a substantial number of elements, but as our
-confidence that the element type won&amp;rsquo;t change over time increases, we reduce our
-sampling rate (up to a fixed minimum).&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Whereas the old RTC system used heavy wrappers to perform the type check, the new RTC system
-moves the type check to a Cython-optimized, non-decorated portion of the codebase. For reference,
-Cython is a programming language that gives C-like performance to Python code.&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Finally, we use a single mega type hint to type-check only the output values of transforms
-instead of type-checking both the input and output values separately. This mega typehint is composed of
-the original transform&amp;rsquo;s output type constraints along with all consumer transforms&amp;rsquo; input type
-constraints. Using this mega type hint allows us to reduce overhead while simultaneously allowing
-us to throw &lt;em>more actionable errors&lt;/em>. For instance, consider the following error (which was
-generated from the old RTC system):&lt;/p>
-&lt;/li>
-&lt;/ol>
-&lt;pre>&lt;code>Runtime type violation detected within ParDo(DownstreamDoFn): Type-hint for argument: 'element' violated. Expected an instance of &amp;lt;class ‘str’&amp;gt;, instead found 9, an instance of &amp;lt;class ‘int’&amp;gt;.
-&lt;/code>&lt;/pre>&lt;p>This error tells us that the &lt;code>DownstreamDoFn&lt;/code> received an &lt;code>int&lt;/code> when it was expecting a &lt;code>str&lt;/code>, but doesn&amp;rsquo;t tell us
-who created that &lt;code>int&lt;/code> in the first place. Who is the offending upstream transform that&amp;rsquo;s responsible for
-this &lt;code>int&lt;/code>? Presumably, &lt;em>that&lt;/em> transform&amp;rsquo;s output type hints were too expansive (e.g. &lt;code>Any&lt;/code>) or otherwise non-existent because
-no error was thrown during the runtime type check of its output.&lt;/p>
-&lt;p>The problem here boils down to a lack of context. If we knew who our consumers were when type
-checking our output, we could simultaneously type check our output value against our output type
-constraints and every consumers&amp;rsquo; input type constraints to know whether there is &lt;em>any&lt;/em> possibility
-for a mismatch. This is exactly what the mega type hint does, and it allows us to throw errors
-at the point of declaration rather than the point of exception, saving you valuable time
-while providing higher quality error messages.&lt;/p>
-&lt;p>So what would the same error look like using Performance RTC? It&amp;rsquo;s the exact same string but with one additional line:&lt;/p>
-&lt;pre>&lt;code>[while running 'ParDo(UpstreamDoFn)']
-&lt;/code>&lt;/pre>&lt;p>And that&amp;rsquo;s much more actionable for an investigation :)&lt;/p>
-&lt;h1 id="next-steps">Next Steps&lt;/h1>
-&lt;p>Go play with the new &lt;code>performance_runtime_type_check&lt;/code> feature!&lt;/p>
-&lt;p>It&amp;rsquo;s in an experimental state so please
-&lt;a href="https://beam.apache.org/community/contact-us/">let us know&lt;/a>
-if you encounter any issues.&lt;/p></description><link>/blog/python-performance-runtime-type-checking/</link><pubDate>Fri, 21 Aug 2020 00:00:01 -0800</pubDate><guid>/blog/python-performance-runtime-type-checking/</guid><category>blog</category><category>python</category><category>typing</category></item></channel></rss>
+if you encounter any issues.&lt;/p></description><link>/blog/python-improved-annotations/</link><pubDate>Fri, 21 Aug 2020 00:00:01 -0800</pubDate><guid>/blog/python-improved-annotations/</guid><category>blog</category><category>python</category><category>typing</category></item></channel></rss>

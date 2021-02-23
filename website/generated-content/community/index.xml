@@ -1,4 +1,4 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Communities</title><link>/community/</link><description>Recent content in Communities on Apache Beam</description><generator>Hugo -- gohugo.io</generator><atom:link href="/community/index.xml" rel="self" type="application/rss+xml"/><item><title>Community: Beam Logos</title><link>/community/logos/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/community/logos/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Community Beam</title><link>/community/</link><description>Recent content in Community Beam on Apache Beam</description><generator>Hugo -- gohugo.io</generator><atom:link href="/community/index.xml" rel="self" type="application/rss+xml"/><item><title>Community: Beam Logos</title><link>/community/logos/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/community/logos/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -396,60 +396,284 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-&lt;h1 id="contact-us">Contact Us&lt;/h1>
-&lt;p>There are many ways to reach the Beam user and developer communities - use
-whichever one seems best.&lt;/p>
-&lt;!-- We use div instead of table shortcode here, because markdownify break superscripts -->
+&lt;h1 id="contact-us">Contact us!&lt;/h1>
+&lt;p>The Apache Beam community is friendly and welcoming. We are glad to help with any
+question, suggestion or idea you have. Contact us in the following channels:&lt;/p>
+&lt;h2 id="available-contact-channels">Available contact channels&lt;/h2>
 &lt;div class="table-wrapper">
 &lt;table>
-&lt;thead>
 &lt;tr>
-&lt;th>How to contact us&lt;/th>
-&lt;th>When to use it&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td>&lt;a href="https://lists.apache.org/list.html?user@beam.apache.org">user@&lt;/a> mailing list&lt;/td>
-&lt;td>User support and questions (&lt;a href="mailto:user-subscribe@beam.apache.org">Subscribe&lt;/a>&lt;sup id="fnref:1">&lt;a href="#fn:1" class="footnote-ref" role="doc-noteref">1&lt;/a>&lt;/sup>, &lt;a href="mailto:user-unsubscribe@beam.apache.org">Unsubscribe&lt;/a>&lt;sup id="fnref:1">&lt;a href="#fn:1" class="footnote-ref" role="doc-noteref">1&lt;/a>&lt;/sup>, &lt;a href="https://lists.apache.org/list.html?user@beam.apache.org">Archives&lt;/a>)&lt;/td>
+&lt;th>purpose&lt;/th>
+&lt;th>channel&lt;/th>
+&lt;th>action&lt;/th>
 &lt;/tr>
 &lt;tr>
-&lt;td>&lt;a href="https://lists.apache.org/list.html?dev@beam.apache.org">dev@&lt;/a> mailing list&lt;/td>
-&lt;td>Development discussions (&lt;a href="mailto:dev-subscribe@beam.apache.org">Subscribe&lt;/a>&lt;sup id="fnref:1">&lt;a href="#fn:1" class="footnote-ref" role="doc-noteref">1&lt;/a>&lt;/sup>, &lt;a href="mailto:dev-unsubscribe@beam.apache.org">Unsubscribe&lt;/a>&lt;sup id="fnref:1">&lt;a href="#fn:1" class="footnote-ref" role="doc-noteref">1&lt;/a>&lt;/sup>, &lt;a href="https://lists.apache.org/list.html?dev@beam.apache.org">Archives&lt;/a>)&lt;/td>
+&lt;td>
+&lt;div>
+&lt;?xml version="1.0" encoding="UTF-8"?>
+&lt;!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements. See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership. The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License. You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied. See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
+&lt;svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" fill="none" viewBox="0 0 44 44">
+&lt;path stroke="#FF6D00" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.75" d="M22 38.5c9.113 0 16.5-7.387 16.5-16.5S31.113 5.5 22 5.5 5.5 12.887 5.5 22 12.887 38.5 22 38.5zM22 31.167v.018"/>
+&lt;path stroke="#FF6D00" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.75" d="M21.999 24.75c-.034-.595.127-1.185.457-1.681s.814-.871 1.376-1.07c.69-.263 1.308-.682 1.807-1.226.5-.543.866-1.195 1.07-1.903.205-.71.242-1.456.109-2.181-.133-.726-.433-1.411-.875-2.001-.443-.59-1.017-1.07-1.676-1.4-.66-.332-1.387-.505-2.124-.507-.738-.002-1.466.167-2.128.494-.66.328-1.237.804-1.683 1.392"/>
+&lt;/svg>
+&lt;p>Get user support, ask general questions and stay up-to-date with project news&lt;/p>
+&lt;/div>
+&lt;/td>
+&lt;td>
+&lt;span>User mailing list:&lt;/span>
+&lt;a href=https://lists.apache.org/list.html?user@beam.apache.org>user@beam.apache.org&lt;/a>
+&lt;/td>
+&lt;td>
+&lt;div>
+&lt;a href=mailto:user-subscribe@beam.apache.org>Subscribe&lt;/a>
+&lt;a href=https://lists.apache.org/list.html?user@beam.apache.org>Archives&lt;/a>
+Read tips below
+&lt;/div>
+&lt;/td>
 &lt;/tr>
 &lt;tr>
-&lt;td>&lt;a href="https://lists.apache.org/list.html?commits@beam.apache.org">commits@&lt;/a> mailing list&lt;/td>
-&lt;td>Firehose of commits, bugs, pull requests, etc. (&lt;a href="mailto:commits-subscribe@beam.apache.org">Subscribe&lt;/a>&lt;sup id="fnref:1">&lt;a href="#fn:1" class="footnote-ref" role="doc-noteref">1&lt;/a>&lt;/sup>, &lt;a href="mailto:commits-unsubscribe@beam.apache.org">Unsubscribe&lt;/a>&lt;sup id="fnref:1">&lt;a href="#fn:1" class="footnote-ref" role="doc-noteref">1&lt;/a>&lt;/sup>, &lt;a href="https://lists.apache.org/list.html?commits@beam.apache.org">Archives&lt;/a>)&lt;/td>
+&lt;td>
+&lt;div>
+&lt;?xml version="1.0" encoding="UTF-8"?>
+&lt;!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements. See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership. The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License. You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied. See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
+&lt;svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" fill="none" viewBox="0 0 44 44">
+&lt;path stroke="#FF6D00" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.75" d="M5.5 36.667l2.383-7.15c-2.06-3.047-2.805-6.655-2.097-10.153.708-3.498 2.822-6.649 5.947-8.866 3.125-2.217 7.05-3.35 11.044-3.188 3.995.162 7.787 1.608 10.673 4.069 2.885 2.46 4.667 5.77 5.014 9.31.346 3.541-.765 7.074-3.129 9.94-2.363 2.868-5.817 4.875-9.72 5.648-3.903.773-7.989.26-11.498-1.444L5.5 36.667"/>
+&lt;path stroke="#FF6D00" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.75" d="M17 19.333L13 22.5l4 3.167M27.684 19.333l4 3.167-4 3.167M24 16.167l-4 12.666"/>
+&lt;/svg>
+&lt;p>Developer and contributor discussions&lt;/p>
+&lt;/div>
+&lt;/td>
+&lt;td>
+&lt;span>Developer mailing list:&lt;/span>
+&lt;a href=https://lists.apache.org/list.html?dev@beam.apache.org>dev@beam.apache.org&lt;/a>
+&lt;/td>
+&lt;td>
+&lt;div>
+&lt;a href=mailto:dev-subscribe@beam.apache.org>Subscribe&lt;/a>
+&lt;a href=https://lists.apache.org/list.html?dev@beam.apache.org>Archives&lt;/a>
+Read tips below
+&lt;/div>
+&lt;/td>
 &lt;/tr>
 &lt;tr>
-&lt;td>&lt;a href="https://lists.apache.org/list.html?builds@beam.apache.org">builds@&lt;/a> mailing list&lt;/td>
-&lt;td>Firehose of build notifications from Jenkins (&lt;a href="mailto:builds-subscribe@beam.apache.org">Subscribe&lt;/a>&lt;sup id="fnref:1">&lt;a href="#fn:1" class="footnote-ref" role="doc-noteref">1&lt;/a>&lt;/sup>, &lt;a href="mailto:builds-unsubscribe@beam.apache.org">Unsubscribe&lt;/a>&lt;sup id="fnref:1">&lt;a href="#fn:1" class="footnote-ref" role="doc-noteref">1&lt;/a>&lt;/sup>, &lt;a href="https://lists.apache.org/list.html?builds@beam.apache.org">Archives&lt;/a>)&lt;/td>
+&lt;td>
+&lt;div>
+&lt;?xml version="1.0" encoding="UTF-8"?>
+&lt;!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements. See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership. The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License. You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied. See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
+&lt;svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" fill="none" viewBox="0 0 44 44">
+&lt;path stroke="#FF6D00" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.75" d="M16.5 16.5v-1.834c0-1.458.58-2.857 1.61-3.889 1.032-1.031 2.431-1.61 3.89-1.61s2.858.579 3.89 1.61c1.03 1.032 1.61 2.43 1.61 3.89V16.5M14.665 16.5h14.667c1.092 1.636 1.725 3.536 1.833 5.5v5.5c0 2.431-.965 4.763-2.684 6.482-1.72 1.719-4.051 2.685-6.482 2.685s-4.763-.966-6.482-2.685c-1.72-1.72-2.685-4.05-2.685-6.482V22c.108-1.964.741-3.864 1.833-5.5M5.5 23.834h7.333M31.168 23.834h7.333M22 36.666v-11M7.332 34.833l6.142-3.666M36.665 34.833l-6.142-3.666M7.332 12.834l6.875 4.4M36.668 12.834l-6.875 4.4"/>
+&lt;/svg>
+&lt;p>Report bugs, request features, follow known issues&lt;/p>
+&lt;/div>
+&lt;/td>
+&lt;td>
+&lt;a href=https://issues.apache.org/jira/browse/BEAM>Apache Beam Jira Tracker&lt;/a>
+&lt;/td>
+&lt;td>
+&lt;div>
+&lt;a href=https://issues.apache.org/jira/secure/Signup!default.jspa>To create an issue you need a Jira account. Open one here.&lt;/a>
+&lt;/div>
+&lt;/td>
 &lt;/tr>
 &lt;tr>
-&lt;td>&lt;a href="https://issues.apache.org/jira/browse/BEAM">JIRA bug tracker&lt;/a>&lt;/td>
-&lt;td>Report bugs / discover known issues&lt;/td>
+&lt;td>
+&lt;div>
+&lt;?xml version="1.0" encoding="UTF-8"?>
+&lt;!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements. See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership. The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License. You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied. See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
+&lt;svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" fill="none" viewBox="0 0 44 44">
+&lt;path stroke="#FF6D00" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.75" d="M38.499 25.667l-5.5-5.5H20.165c-.486 0-.952-.194-1.296-.537-.344-.344-.537-.81-.537-1.297v-11c0-.486.193-.952.537-1.296.344-.344.81-.537 1.296-.537h16.5c.487 0 .953.193 1.297.537.343.344.537.81.537 1.296v18.334zM25.667 27.5v3.667c0 .486-.194.952-.537 1.296-.344.344-.81.537-1.297.537H11l-5.5 5.5V20.167c0-.486.193-.953.537-1.297.344-.343.81-.537 1.296-.537H11"/>
+&lt;/svg>
+&lt;p>Ask and answer community questions&lt;/p>
+&lt;/div>
+&lt;/td>
+&lt;td>
+&lt;a href=https://stackoverflow.com/questions/tagged/apache-beam>Apache Beam category in Stackoverflow.&lt;/a>
+&lt;/td>
+&lt;td>
+&lt;div>
+&amp;#8208;
+&lt;/div>
+&lt;/td>
 &lt;/tr>
 &lt;tr>
-&lt;td>&lt;a href="https://stackoverflow.com/questions/tagged/apache-beam">StackOverflow&lt;/a>&lt;/td>
-&lt;td>Ask and answer user support questions&lt;/td>
+&lt;td>
+&lt;div>
+&lt;?xml version="1.0" encoding="UTF-8"?>
+&lt;!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements. See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership. The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License. You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied. See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
+&lt;svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" fill="none" viewBox="0 0 44 44">
+&lt;path stroke="#FF6D00" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.75" d="M29.333 18.334c0-.726.215-1.435.618-2.038.403-.603.976-1.072 1.646-1.35.67-.278 1.407-.35 2.118-.209.712.142 1.365.491 1.878 1.004.512.513.862 1.166 1.003 1.877.142.711.07 1.449-.208 2.119-.278.67-.748 1.242-1.35 1.645-.604.403-1.313.618-2.038.618H22m0 0V11c0-.972.386-1.905 1.074-2.593.688-.687 1.62-1.074 2.593-1.074.972 0 1.905.387 2.592 1.074.688.688 1.074 1.62 1.074 2.593v11H22zM25.667 29.333c.725 0 1.434.215 2.037.618s1.073.976 1.35 1.646c.278.67.35 1.407.209 2.118-.142.712-.49 1.365-1.004 1.878-.512.512-1.166.862-1.877 1.003-.711.142-1.449.07-2.119-.208-.67-.278-1.242-.748-1.645-1.35C22.215 34.433 22 33.724 22 33V22m0 0h11c.972 0 1.905.386 2.593 1.074.687.688 1.074 1.62 1.074 2.593 0 .972-.387 1.905-1.074 2.592-.688.688-1.62 1.074-2.593 1.074H22V22zM14.665 25.667c0 .725-.215 1.434-.618 2.037-.402.603-.975 1.073-1.645 1.35-.67.278-1.407.35-2.119.209-.71-.142-1.364-.49-1.877-1.004-.513-.512-.862-1.166-1.004-1.877-.141-.711-.068-1.449.21-2.119.277-.67.747-1.242 1.35-1.645.603-.403 1.312-.618 2.037-.618h11m0 0v11c0 .972-.387 1.905-1.074 2.593-.688.687-1.62 1.074-2.593 1.074-.972 0-1.905-.387-2.593-1.074-.687-.688-1.074-1.62-1.074-2.593V22H22zM18.332 14.667c-.725 0-1.434-.215-2.037-.618s-1.073-.976-1.35-1.646c-.278-.67-.35-1.407-.21-2.118.142-.711.492-1.365 1.004-1.878.513-.512 1.166-.862 1.878-1.003.711-.142 1.448-.069 2.118.209.67.277 1.243.747 1.646 1.35.403.603.618 1.312.618 2.037v11m0 0h-11c-.973 0-1.905-.386-2.593-1.074-.688-.687-1.074-1.62-1.074-2.592 0-.973.386-1.906 1.074-2.593.688-.688 1.62-1.074 2.593-1.074h11V22z"/>
+&lt;/svg>
+&lt;p>Contact users and contributors in real time through the ASF slack workspace.&lt;/p>
+&lt;/div>
+&lt;/td>
+&lt;td>
+&lt;a href=https://s.apache.org/beam-slack-channel>The ASF slack workspace&lt;/a>
+&lt;/td>
+&lt;td>
+&lt;div>
+Join the #beam chanel and browse other available channels. Don’t ask Beam questions in #general, we don’t monitor it.
+&lt;/div>
+&lt;/td>
 &lt;/tr>
 &lt;tr>
-&lt;td>&lt;a href="https://s.apache.org/beam-slack-channel">Slack&lt;/a>&lt;/td>
-&lt;td>Chat with users and developers in the ASF Slack. Note: Please &lt;a href="https://s.apache.org/beam-slack-channel">join the #beam channel&lt;/a> after you &lt;a href="https://s.apache.org/slack-invite">created an account&lt;/a>. Please do not ask Beam questions in #general.&lt;/td>
+&lt;td>
+&lt;div>
+&lt;?xml version="1.0" encoding="UTF-8"?>
+&lt;!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements. See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership. The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License. You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied. See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
+&lt;svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" fill="none" viewBox="0 0 44 44">
+&lt;path stroke="#FF6D00" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.75" d="M10.999 36.667c2.025 0 3.666-1.642 3.666-3.667S13.024 29.333 11 29.333 7.332 30.975 7.332 33s1.642 3.667 3.667 3.667zM10.999 14.667c2.025 0 3.666-1.642 3.666-3.667S13.024 7.333 11 7.333 7.332 8.975 7.332 11s1.642 3.667 3.667 3.667zM32.999 36.667c2.025 0 3.666-1.642 3.666-3.667S35.024 29.333 33 29.333 29.332 30.975 29.332 33s1.642 3.667 3.667 3.667zM11 14.667v14.666M20.168 11h9.167c.972 0 1.905.386 2.592 1.074.688.688 1.074 1.62 1.074 2.593v14.666"/>
+&lt;path stroke="#FF6D00" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.75" d="M25.668 16.5l-5.5-5.5 5.5-5.5"/>
+&lt;/svg>
+&lt;p>Firehose of commits, bugs, pull requests, etc.&lt;/p>
+&lt;/div>
+&lt;/td>
+&lt;td>
+&lt;span>Build mailing list&lt;/span>
+&lt;a href=https://lists.apache.org/list.html?builds@beam.apache.org>builds@beam.apache.org&lt;/a>
+&lt;/td>
+&lt;td>
+&lt;div>
+&lt;a href=https://lists.apache.org/list.html?commits@beam.apache.org>Archives&lt;/a>
+&lt;/div>
+&lt;/td>
 &lt;/tr>
-&lt;/tbody>
+&lt;tr>
+&lt;td>
+&lt;div>
+&lt;?xml version="1.0" encoding="UTF-8"?>
+&lt;!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements. See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership. The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License. You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied. See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
+&lt;svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" fill="none" viewBox="0 0 44 44">
+&lt;path stroke="#FF6D00" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.75" d="M18.335 11h-5.5c-.973 0-1.905.386-2.593 1.074-.688.688-1.074 1.62-1.074 2.593v16.5c0 .972.386 1.905 1.074 2.592.688.688 1.62 1.074 2.593 1.074h16.5c.972 0 1.905-.386 2.592-1.074.688-.687 1.074-1.62 1.074-2.592v-5.5M28 9v5.5M28 20v.018"/>
+&lt;/svg>
+&lt;p>Firehose of build notifications from Jenkins&lt;/p>
+&lt;/div>
+&lt;/td>
+&lt;td>
+&lt;span>Commits mailing list&lt;/span>
+&lt;a href=https://s.apache.org/beam-slack-channel>commits@beam.apache.org&lt;/a>
+&lt;/td>
+&lt;td>
+&lt;div>
+&lt;a href=https://lists.apache.org/list.html?commits@beam.apache.org>Archives&lt;/a>
+&lt;/div>
+&lt;/td>
+&lt;/tr>
 &lt;/table>
 &lt;/div>
-&lt;p>If you have questions about how to use Apache Beam, we recommend you try out the &lt;a href="https://lists.apache.org/list.html?user@beam.apache.org">user@&lt;/a> mailing list, and &lt;a href="https://stackoverflow.com/questions/tagged/apache-beam">StackOverflow&lt;/a>.&lt;/p>
-&lt;p>If you wish to report a security vulnerability, please contact &lt;a href="mailto:security@apache.org">security@apache.org&lt;/a>. Apache Beam follows the typical &lt;a href="https://apache.org/security/committers.html#vulnerability-handling">Apache vulnerability handling process&lt;/a>.&lt;/p>
-&lt;section class="footnotes" role="doc-endnotes">
-&lt;hr>
-&lt;ol>
-&lt;li id="fn:1" role="doc-endnote">
-&lt;p>To subscribe or unsubscribe, a blank email is fine. &lt;a href="#fnref:1" class="footnote-backref" role="doc-backlink">&amp;#x21a9;&amp;#xfe0e;&lt;/a>&lt;/p>
-&lt;/li>
-&lt;/ol>
-&lt;/section></description></item><item><title>Community: Contact Us</title><link>/community/in-person/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/community/in-person/</guid><description>
+&lt;h2 id="mailing-list-what-are-they-and-how-they-work">Mailing list, what are they and how they work&lt;/h2>
+&lt;p>The official communication channels for Apache projects are their mailing lists, and Apache Beam has two main lists: &lt;a href="user@beam.apache.org">user@beam.apache.org&lt;/a> and &lt;a href="dev@beam.apache.org">dev@beam.apache.org&lt;/a>. The topics for each of them can be seen in the section above.&lt;/p>
+&lt;h3 id="subsribe-and-unsubscribe">Subsribe and Unsubscribe:&lt;/h3>
+&lt;p>Prior to sending emails to these lists, you need to subscribe. To subscribe, send a blank email to &lt;a href="user-subscribe@beam.apache.org">user-subscribe@beam.apache.org&lt;/a> or &lt;a href="dev-subscribe@beam.apache.org">dev-subscribe@beam.apache.org&lt;/a> depending on the list you want to write to.&lt;/p>
+&lt;h3 id="useful-tips-for-sending-emails">Useful Tips for Sending Emails&lt;/h3>
+&lt;p>Tip 1: Use tags in your subject line.
+A tag is a word within a pair of brackets [] that indicate the type of message you’re sending. For example: [Bug] or [Proposal] or [Question] or [Idea]. Tags help folks navigate emails easier.&lt;/p>
+&lt;p>Tip 2: If you’re asking a troubleshooting question, provide as much information as possible to help others replicate your issue or find possible solutions.&lt;/p>
+&lt;p>Tip 3: Share complete links instead of hyperlinks. A common practice in Apache is adding a number tag like [1] to indicate a word is a link or an attachment, and use the tag as a footnote to add the complete link at the end of your message.&lt;/p></description></item><item><title>Community: Contact Us</title><link>/community/in-person/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/community/in-person/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -545,7 +769,203 @@ The resulting pipelines can be translated to Beam pipelines.&lt;/p>
 &lt;p>&lt;a href="https://github.com/pentaho/pentaho-kettle/">Kettle GitHub&lt;/a>&lt;/p>
 &lt;/li>
 &lt;/ul>
-&lt;p>Kettle License: Apache 2.0&lt;/p></description></item><item><title>Community: Policies</title><link>/community/policies/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/community/policies/</guid><description>
+&lt;p>Kettle License: Apache 2.0&lt;/p></description></item><item><title>Community: Join Beam Community</title><link>/community/join-beam/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/community/join-beam/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;h1 id="join-beam-community">Join Beam Community!&lt;/h1>
+&lt;p>We’re so glad you want to join the Apache Beam community. Here’s a pathway you can follow to help you get started. This is not the only way to join, but it’s the recommended progression so you’re successful at reaching your objectives.&lt;/p>
+&lt;h2 id="join-the-conversation">Join the Conversation&lt;/h2>
+&lt;div class="icon-list beam-list">
+&lt;div>
+&lt;div class="list-item">
+&lt;div class="list-item-icon">
+&lt;div class="cirkle">
+&lt;i class="fas fa-check">&lt;/i>
+&lt;/div>
+&lt;img src="/images/ellipse.svg" class="desktop" alt="elipse icon">
+&lt;img src="/images/ellipse-mobile.svg" class="mobile" alt="elipse icon">
+&lt;/div>
+&lt;div class="list-item-description">
+&lt;p class="beam-title">Mailing Lists&lt;/p>
+&lt;p class="beam-description">Join the official Apache Beam user and developer mailing lists. Learn how &lt;a href="/community/contact-us/">here&lt;/a>&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;div class="list-item">
+&lt;div class="list-item-icon">
+&lt;div class="cirkle">
+&lt;i class="fas fa-check">&lt;/i>
+&lt;/div>
+&lt;img src="/images/ellipse.svg" class="reverse desktop" alt="elipse icon">
+&lt;img src="/images/ellipse-mobile.svg" class="reverse mobile" alt="elipse icon">
+&lt;/div>
+&lt;div class="list-item-description">
+&lt;p class="beam-title">Slack Channel&lt;/p>
+&lt;p class="beam-description">For real-time communication, join us on the &lt;a target="_blank" href="https://app.slack.com/client/T4S1WH2J3/C9H0YNP3P">#beam&lt;/a> channel in the ASF workspace.&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;div class="list-item">
+&lt;div class="list-item-icon">
+&lt;div class="cirkle">
+&lt;i class="fas fa-check">&lt;/i>
+&lt;/div>
+&lt;img src="/images/ellipse.svg" class="desktop" alt="elipse icon">
+&lt;img src="/images/ellipse-mobile.svg" class="mobile" alt="elipse icon">
+&lt;/div>
+&lt;div class="list-item-description">
+&lt;p class="beam-title">Twitter account&lt;/p>
+&lt;p class="beam-description">Follow &lt;a target="_blank" href="https://twitter.com/apachebeam?lang=en">@ApacheBeam&lt;/a> on Twitter for the most recent news on the project and community!&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;div class="list-item">
+&lt;div class="list-item-icon">
+&lt;div class="cirkle">
+&lt;i class="fas fa-check">&lt;/i>
+&lt;/div>
+&lt;img src="/images/ellipse.svg" class="reverse desktop" alt="elipse icon">
+&lt;img src="/images/ellipse-mobile.svg" class="reverse mobile" alt="elipse icon">
+&lt;/div>
+&lt;div class="list-item-description">
+&lt;p class="beam-title">YouTube channel&lt;/p>
+&lt;p class="beam-description">Follow our &lt;a target="_blank" href="https://www.youtube.com/channel/UChNnb_YO_7B0HlW6FhAXZZQ">YouTube channel&lt;/a> for the latest training and use cases.&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;div class="list-item">
+&lt;div class="list-item-icon">
+&lt;div class="cirkle">
+&lt;i class="fas fa-check">&lt;/i>
+&lt;/div>
+&lt;img src="/images/ellipse.svg" class="desktop" alt="elipse icon">
+&lt;img src="/images/ellipse-mobile.svg" class="mobile" alt="elipse icon">
+&lt;/div>
+&lt;div class="list-item-description">
+&lt;p class="beam-title">StackOverflow&lt;/p>
+&lt;p class="beam-description">Ask your Beam questions in StackOverflow using the &lt;a target="_blank" href="https://stackoverflow.com/questions/tagged/apache-beam">apache-beam tag&lt;/a>.&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;div class="list-item">
+&lt;div class="list-item-icon">
+&lt;div class="cirkle">
+&lt;i class="fas fa-check">&lt;/i>
+&lt;/div>
+&lt;/div>
+&lt;div class="list-item-description">
+&lt;p class="beam-title">Events&lt;/p>
+&lt;p class="beam-description">Follow our &lt;a href="/">calendar&lt;/a> in the homepage which has the latest events organized by the community.&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;h2 id="contribute-to-the-project">Contribute to the Project&lt;/h2>
+&lt;div class="icon-list beam-list">
+&lt;div>
+&lt;div class="list-item">
+&lt;div class="list-item-icon">
+&lt;div class="cirkle">
+&lt;i class="fas fa-check">&lt;/i>
+&lt;/div>
+&lt;img src="/images/ellipse.svg" class="desktop" alt="elipse icon">
+&lt;img src="/images/ellipse-mobile.svg" class="mobile" alt="elipse icon">
+&lt;/div>
+&lt;div class="list-item-description">
+&lt;p class="beam-title">Read our Contribution Guide and Policies&lt;/p>
+&lt;p class="beam-description">Get familiar with our &lt;a href="/contribute/">contribution guide&lt;/a> and &lt;a href="/contribute/precommit-policies/">policies&lt;/a>.&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;div class="list-item">
+&lt;div class="list-item-icon">
+&lt;div class="cirkle">
+&lt;i class="fas fa-check">&lt;/i>
+&lt;/div>
+&lt;img src="/images/ellipse.svg" class="reverse desktop" alt="elipse icon">
+&lt;img src="/images/ellipse-mobile.svg" class="reverse mobile" alt="elipse icon">
+&lt;/div>
+&lt;div class="list-item-description">
+&lt;p class="beam-title">Create a Jira account&lt;/p>
+&lt;p class="beam-description">Create a &lt;a target="_blank" href="https://issues.apache.org/jira/secure/Signup!default.jspa" target="_blank">Jira account&lt;/a> and send an email to &lt;a href="mailto:dev@beam.apache.org">dev@beam.apache.org&lt;/a> to request comitter permissions.&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;div class="list-item">
+&lt;div class="list-item-icon">
+&lt;div class="cirkle">
+&lt;i class="fas fa-check">&lt;/i>
+&lt;/div>
+&lt;img src="/images/ellipse.svg" class="desktop" alt="elipse icon">
+&lt;img src="/images/ellipse-mobile.svg" class="mobile" alt="elipse icon">
+&lt;/div>
+&lt;div class="list-item-description">
+&lt;p class="beam-title">Find an area to contribute&lt;/p>
+&lt;p class="beam-description">Beam recognizes code and non-code contributions. Check out this &lt;a target="_blank" href="https://issues.apache.org/jira/secure/Dashboard.jspa?selectPageId=12335926">Jira board&lt;/a> for some inspiration.&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;div class="list-item">
+&lt;div class="list-item-icon">
+&lt;div class="cirkle">
+&lt;i class="fas fa-check">&lt;/i>
+&lt;/div>
+&lt;img src="/images/ellipse.svg" class="reverse desktop" alt="elipse icon">
+&lt;img src="/images/ellipse-mobile.svg" class="reverse mobile" alt="elipse icon">
+&lt;/div>
+&lt;div class="list-item-description">
+&lt;p class="beam-title">Contribute&lt;/p>
+&lt;p class="beam-description">To contribute code, you need to sign an &lt;a href="https://www.apache.org/licenses/icla.pdf">Individual Contributor License Agreement (ICLA)&lt;/a>. Learn more &lt;a target="_blank" href="https://www.apache.org/licenses/icla.pdf">here&lt;/a>.&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;div class="list-item">
+&lt;div class="list-item-icon">
+&lt;div class="cirkle">
+&lt;i class="fas fa-check">&lt;/i>
+&lt;/div>
+&lt;/div>
+&lt;div class="list-item-description">
+&lt;p class="beam-title">Stay engaged!&lt;/p>
+&lt;p class="beam-description">Finds ways to stay engaged in the project and community and help us shape it’s strategy and vision.&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;h2 id="become-a-committer">Become a committer&lt;/h2>
+&lt;div class="icon-list beam-list">
+&lt;div>
+&lt;div class="list-item">
+&lt;div class="list-item-icon">
+&lt;div class="cirkle">
+&lt;i class="fas fa-check">&lt;/i>
+&lt;/div>
+&lt;/div>
+&lt;div class="list-item-description">
+&lt;p class="beam-title">Learn about Apache Beam Committers&lt;/p>
+&lt;p class="beam-description">Read &lt;a href="/contribute/become-a-committer/">how to become a committer&lt;/a> to learn about ways to get nominated for committership.&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;h2 id="become-a-pmc-member">Become a PMC member&lt;/h2>
+&lt;div class="icon-list beam-list">
+&lt;div>
+&lt;div class="list-item">
+&lt;div class="list-item-icon">
+&lt;div class="cirkle">
+&lt;i class="fas fa-check">&lt;/i>
+&lt;/div>
+&lt;/div>
+&lt;div class="list-item-description">
+&lt;p class="beam-title">Learn about the Project Management Committee (PMC)&lt;/p>
+&lt;p class="beam-description">The Project Management Committee (PMC) is the highest recognition in Apache projects. If you’re interested in becoming part of it, learn more about it &lt;a target="_blank" href="https://www.apache.org/foundation/how-it-works.html#pmc-members">here&lt;/a>.&lt;/p>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;h2 id="still-have-questions">Still have questions?&lt;/h2>
+&lt;p>Send us a note at &lt;a href="mailto:dev@beam.apache.org">&lt;a href="mailto:user@beam.apache.org">user@beam.apache.org&lt;/a>&lt;/a> OR mention &lt;a target="_blank" href="https://twitter.com/apachebeam?lang=en">@ApacheBeam&lt;/a> on Twitter OR ask us in the #beam slack channel. We look forward to seeing you in the community!&lt;/p></description></item><item><title>Community: Policies</title><link>/community/policies/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/community/policies/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -562,24 +982,4 @@ limitations under the License.
 &lt;h2 id="releases">Releases&lt;/h2>
 &lt;p>Apache Beam makes minor releases every 6 weeks, therefore 8 releases in a 12 month period. Apache Beam has a &lt;a href="https://calendar.google.com/calendar/embed?src=0p73sl034k80oob7seouanigd0%40group.calendar.google.com">calendar&lt;/a> for cutting the next release branch. After a release branch is cut, the community works quickly to finalize that release. We encourage you to update early and often; do not wait until the deprecation date of the version you are using.&lt;/p>
 &lt;p>It is up to the Apache Beam community to decide whether an identified issue is a major issue that warrants a patch release. Some examples of major issues are high severity security issues and high risk data integrity issues.&lt;/p>
-&lt;p>If you wish to report a security vulnerability, please contact &lt;a href="mailto:security@apache.org">security@apache.org&lt;/a>. Apache Beam follows the typical &lt;a href="https://apache.org/security/committers.html#vulnerability-handling">Apache vulnerability handling process&lt;/a>.&lt;/p></description></item><item><title>Community: Powered by Apache Beam</title><link>/community/powered-by/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/community/powered-by/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;h1 id="projects-and-products-powered-by-apache-beam">Projects and Products Powered by Apache Beam&lt;/h1>
-&lt;p>To add yourself to the list, please open a &lt;a href="https://github.com/apache/beam/edit/master/website/www/site/content/en/community/powered_by.md">pull request&lt;/a> adding your organization name, URL, a list of which Beam components you are using, and a short description of your use case.&lt;/p>
-&lt;ul>
-&lt;li>&lt;strong>&lt;a href="https://cloud.google.com/dataflow">Cloud Dataflow&lt;/a>:&lt;/strong> Google Cloud Dataflow is a fully managed service for executing
-Apache Beam pipelines within the Google Cloud Platform ecosystem.&lt;/li>
-&lt;li>&lt;strong>&lt;a href="https://www.tensorflow.org/tfx">TensorFlow Extended (TFX)&lt;/a>:&lt;/strong> TensorFlow Extended (TFX) is an end-to-end platform
-for deploying production ML pipelines.&lt;/li>
-&lt;li>&lt;strong>&lt;a href="http://hop.apache.org">Apache Hop (incubating)&lt;/a>:&lt;/strong> Hop provides a complete data orchestration (ETL / DI) toolset with visual pipeline development. It supports execution on the main Apache Beam runners.&lt;/li>
-&lt;/ul></description></item></channel></rss>
+&lt;p>If you wish to report a security vulnerability, please contact &lt;a href="mailto:security@apache.org">security@apache.org&lt;/a>. Apache Beam follows the typical &lt;a href="https://apache.org/security/committers.html#vulnerability-handling">Apache vulnerability handling process&lt;/a>.&lt;/p></description></item></channel></rss>
