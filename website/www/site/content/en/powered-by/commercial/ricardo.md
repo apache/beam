@@ -1,5 +1,5 @@
 ---
-title: "Four Apache Technologies Combined for Fun and Profit"
+title: "Combining the Power of Beam With Three Other Apache Technologies for Fun and Profit"
 type: commercial
 categories:
   - Online & Traditional Retail
