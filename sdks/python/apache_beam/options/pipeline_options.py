@@ -516,6 +516,14 @@ class TypeOptions(PipelineOptions):
         help='Enable faster type checking via sampling at pipeline execution '
         'time. NOTE: only supported with portable runners '
         '(including the DirectRunner)')
+    parser.add_argument(
+        '--allow_non_deterministic_key_coders',
+        default=False,
+        action='store_true',
+        help='Use non-deterministic coders (such as pickling) for key-grouping '
+        'operations such as GropuByKey.  This is unsafe, as runners may group '
+        'keys based on their encoded bytes, but is available for backwards '
+        'compatibility. See BEAM-11719.')
 
   def validate(self, unused_validator):
     errors = []

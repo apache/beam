@@ -155,7 +155,10 @@ class FnApiRunner(runner.PipelineRunner):
     # are known to be KVs.
     from apache_beam.runners.dataflow.dataflow_runner import DataflowRunner
     # TODO: Move group_by_key_input_visitor() to a non-dataflow specific file.
-    pipeline.visit(DataflowRunner.group_by_key_input_visitor())
+    pipeline.visit(
+        DataflowRunner.group_by_key_input_visitor(
+            not options.view_as(pipeline_options.TypeOptions).
+            allow_non_deterministic_key_coders))
     self._bundle_repeat = self._bundle_repeat or options.view_as(
         pipeline_options.DirectOptions).direct_runner_bundle_repeat
     pipeline_direct_num_workers = options.view_as(
