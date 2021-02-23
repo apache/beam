@@ -79,7 +79,6 @@ from apache_beam.transforms.display_test import DisplayDataItemMatcher
 # pylint: disable=wrong-import-order, wrong-import-position
 from parameterized import param
 from parameterized import parameterized
-
 try:
   from apitools.base.py.exceptions import HttpError
 except ImportError:

@@ -33,6 +33,7 @@ from __future__ import absolute_import
 import hashlib
 import logging
 import random
+import time
 import uuid
 
 from future.utils import iteritems
@@ -803,6 +804,8 @@ class BigQueryBatchFileLoads(beam.PTransform):
 
   def _write_files_with_auto_sharding(
       self, destination_data_kv_pc, file_prefix_pcv):
+    clock = self.test_client.test_clock if self.test_client else time.time
+
     # Auto-sharding is achieved via GroupIntoBatches.WithShardedKey
     # transform which shards, groups and at the same time batches the table rows
     # to be inserted to BigQuery.
@@ -817,7 +820,8 @@ class BigQueryBatchFileLoads(beam.PTransform):
             lambda kv: (bigquery_tools.get_hashable_destination(kv[0]), kv[1]))
         | 'WithAutoSharding' >> GroupIntoBatches.WithShardedKey(
             batch_size=_FILE_TRIGGERING_RECORD_COUNT,
-            max_buffering_duration_secs=self.triggering_frequency)
+            max_buffering_duration_secs=self.triggering_frequency,
+            clock=clock)
         | 'FromHashableTableRefAndDropShard' >> beam.Map(
             lambda kvs:
             (bigquery_tools.parse_table_reference(kvs[0].key), kvs[1]))
