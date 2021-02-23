@@ -21,7 +21,7 @@ import PostcommitJobBuilder
 
 
 // This job builds and publishes the website into the asf-site branch of the beam repo.
-PostcommitJobBuilder.postCommitJob('beam_PostCommit_Website_Publish', '',
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_Website_Publish', 'Run Website Publish',
     'Website Publish', this) {
 
       description('Publish generated website content into asf-site branch for hosting.')
