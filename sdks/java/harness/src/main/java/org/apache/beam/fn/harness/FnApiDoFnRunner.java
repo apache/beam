@@ -1721,11 +1721,9 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         case PROCESSING_TIME:
           fireTimestamp = new Instant(DateTimeUtils.currentTimeMillis());
           break;
-        case SYNCHRONIZED_PROCESSING_TIME:
-          fireTimestamp = new Instant(DateTimeUtils.currentTimeMillis());
-          break;
         default:
-          throw new IllegalArgumentException(String.format("Unknown time domain %s", timeDomain));
+          throw new IllegalArgumentException(
+              String.format("Unknown or unsupported time domain %s", timeDomain));
       }
 
       try {
@@ -2587,8 +2585,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         return TimeDomain.EVENT_TIME;
       case PROCESSING_TIME:
         return TimeDomain.PROCESSING_TIME;
-      case SYNCHRONIZED_PROCESSING_TIME:
-        return TimeDomain.SYNCHRONIZED_PROCESSING_TIME;
       default:
         throw new IllegalArgumentException("Unknown time domain");
     }

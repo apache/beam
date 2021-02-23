@@ -44,8 +44,6 @@ class TimeDomain(object):
   _RUNNER_API_MAPPING = {
       WATERMARK: beam_runner_api_pb2.TimeDomain.EVENT_TIME,
       REAL_TIME: beam_runner_api_pb2.TimeDomain.PROCESSING_TIME,
-      DEPENDENT_REAL_TIME: beam_runner_api_pb2.TimeDomain.
-      SYNCHRONIZED_PROCESSING_TIME,
   }
 
   @staticmethod
