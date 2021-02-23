@@ -272,12 +272,8 @@ task commitWebsite {
     def latestCommit = grgit.log(maxCommits: 1)[0].id
 
     shell "git fetch --force origin +asf-site:asf-site"
-    git.reset(commit: latestCommit, paths: [
-      'website/www/site/static/images/mascot/beam_mascot.ai',
-      'website/www/site/static/images/mascot/big_data.ai/',
-      'website/www/site/static/images/mascot/learning_independently.ai',
-      'website/www/site/static/images/mascot/model_sheet.ai'
-    ])
+    shell "git stash"
+    shell "git checkout asf-site"
     git.checkout(branch: 'asf-site')
 
     // Delete the previous content. These are asf-site branch paths.
