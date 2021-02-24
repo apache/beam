@@ -482,13 +482,116 @@ class ApproximateQuantilesTest(unittest.TestCase):
           equal_to([["ccccc", "aaa", "b"]]),
           label='checkWithKeyAndReversed')
 
+  def test_batched_quantiles(self):
+    with TestPipeline() as p:
+      data = []
+      for i in range(100):
+        data.append([(j / 10, abs(j - 500))
+                     for j in range(i * 10, (i + 1) * 10)])
+      pc = p | Create(data)
+      globally = (
+          pc | 'Globally' >> beam.ApproximateQuantiles.Globally(
+              3, input_batched=True))
+      with_key = (
+          pc | 'Globally with key' >> beam.ApproximateQuantiles.Globally(
+              3, key=sum, input_batched=True))
+      key_with_reversed = (
+          pc | 'Globally with key and reversed' >>
+          beam.ApproximateQuantiles.Globally(
+              3, key=sum, reverse=True, input_batched=True))
+      assert_that(
+          globally,
+          equal_to([[(0.0, 500), (49.9, 1), (99.9, 499)]]),
+          label='checkGlobally')
+      assert_that(
+          with_key,
+          equal_to([[(50.0, 0), (72.5, 225), (99.9, 499)]]),
+          label='checkGloballyWithKey')
+      assert_that(
+          key_with_reversed,
+          equal_to([[(99.9, 499), (72.5, 225), (50.0, 0)]]),
+          label='checkGloballyWithKeyAndReversed')
+
+  def test_batched_weighted_quantiles(self):
+    with TestPipeline() as p:
+      data = []
+      for i in range(100):
+        data.append([[(i / 10, abs(i - 500))
+                      for i in range(i * 10, (i + 1) * 10)], [i] * 10])
+      pc = p | Create(data)
+      globally = (
+          pc | 'Globally' >> beam.ApproximateQuantiles.Globally(
+              3, weighted=True, input_batched=True))
+      with_key = (
+          pc | 'Globally with key' >> beam.ApproximateQuantiles.Globally(
+              3, key=sum, weighted=True, input_batched=True))
+      key_with_reversed = (
+          pc | 'Globally with key and reversed' >>
+          beam.ApproximateQuantiles.Globally(
+              3, key=sum, reverse=True, weighted=True, input_batched=True))
+      assert_that(
+          globally,
+          equal_to([[(0.0, 500), (70.8, 208), (99.9, 499)]]),
+          label='checkGlobally')
+      assert_that(
+          with_key,
+          equal_to([[(50.0, 0), (21.0, 290), (99.9, 499)]]),
+          label='checkGloballyWithKey')
+      assert_that(
+          key_with_reversed,
+          equal_to([[(99.9, 499), (21.0, 290), (50.0, 0)]]),
+          label='checkGloballyWithKeyAndReversed')
+
+  def test_quantiles_merge_accumulators(self):
+    # This test exercises merging multiple buffers and approximation accuracy.
+    # The max_num_elements is set to a small value to trigger buffers collapse
+    # and interpolation. Under the conditions below, buffer_size=125 and
+    # num_buffers=4, so we're only allowed to keep half of the input values.
+    num_accumulators = 100
+    num_quantiles = 5
+    eps = 0.01
+    max_num_elements = 1000
+    combine_fn = ApproximateQuantilesCombineFn.create(
+        num_quantiles, eps, max_num_elements)
+    combine_fn_weighted = ApproximateQuantilesCombineFn.create(
+        num_quantiles, eps, max_num_elements, weighted=True)
+    data = list(range(1000))
+    weights = list(reversed(range(1000)))
+    step = math.ceil(len(data) / num_accumulators)
+    accumulators = []
+    accumulators_weighted = []
+    for i in range(num_accumulators):
+      accumulator = combine_fn.create_accumulator()
+      accumulator_weighted = combine_fn_weighted.create_accumulator()
+      for element, weight in zip(data[i*step:(i+1)*step],
+                                 weights[i*step:(i+1)*step]):
+        accumulator = combine_fn.add_input(accumulator, element)
+        accumulator_weighted = combine_fn_weighted.add_input(
+            accumulator_weighted, (element, weight))
+      accumulators.append(accumulator)
+      accumulators_weighted.append(accumulator_weighted)
+    accumulator = combine_fn.merge_accumulators(accumulators)
+    accumulator_weighted = combine_fn_weighted.merge_accumulators(
+        accumulators_weighted)
+    quantiles = combine_fn.extract_output(accumulator)
+    quantiles_weighted = combine_fn_weighted.extract_output(
+        accumulator_weighted)
+
+    # In fact, the final accuracy is much higher than eps, but we test for a
+    # minimal accuracy here.
+    for q, actual_q in zip(quantiles, [0, 249, 499, 749, 999]):
+      self.assertAlmostEqual(q, actual_q, delta=max_num_elements * eps)
+    for q, actual_q in zip(quantiles_weighted, [0, 133, 292, 499, 999]):
+      self.assertAlmostEqual(q, actual_q, delta=max_num_elements * eps)
+
   @staticmethod
   def _display_data_matcher(instance):
     expected_items = [
         DisplayDataItemMatcher('num_quantiles', instance._num_quantiles),
         DisplayDataItemMatcher('weighted', str(instance._weighted)),
         DisplayDataItemMatcher('key', str(instance._key.__name__)),
-        DisplayDataItemMatcher('reverse', str(instance._reverse))
+        DisplayDataItemMatcher('reverse', str(instance._reverse)),
+        DisplayDataItemMatcher('input_batched', str(instance._input_batched)),
     ]
     return expected_items
 
@@ -551,8 +654,9 @@ class ApproximateQuantilesBufferTest(unittest.TestCase):
     combine_fn = ApproximateQuantilesCombineFn.create(
         num_quantiles=10, max_num_elements=maxInputSize, epsilon=epsilon)
     self.assertEqual(
-        expectedNumBuffers, combine_fn._num_buffers, "Number of buffers")
-    self.assertEqual(expectedBufferSize, combine_fn._buffer_size, "Buffer size")
+        expectedNumBuffers, combine_fn._spec.num_buffers, "Number of buffers")
+    self.assertEqual(
+        expectedBufferSize, combine_fn._spec.buffer_size, "Buffer size")
 
   @parameterized.expand(_build_quantilebuffer_test_data)
   def test_correctness(self, epsilon, maxInputSize, *args):
@@ -561,8 +665,8 @@ class ApproximateQuantilesBufferTest(unittest.TestCase):
     """
     combine_fn = ApproximateQuantilesCombineFn.create(
         num_quantiles=10, max_num_elements=maxInputSize, epsilon=epsilon)
-    b = combine_fn._num_buffers
-    k = combine_fn._buffer_size
+    b = combine_fn._spec.num_buffers
+    k = combine_fn._spec.buffer_size
     n = maxInputSize
     self.assertLessEqual((b - 2) * (1 << (b - 2)) + 0.5, (epsilon * n),
                          '(b-2)2^(b-2) + 1/2 <= eN')

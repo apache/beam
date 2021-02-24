@@ -48,10 +48,11 @@ func Expand(edge *graph.MultiEdge, ext *graph.ExternalTransform) error {
 	extTransform := transforms[extTransformID]
 	for extTransform.UniqueName != "External" {
 		delete(transforms, extTransformID)
-		p, err := pipelinex.Normalize(p)
+		p, err = pipelinex.Normalize(p) // Update root transform IDs.
 		if err != nil {
 			return err
 		}
+		transforms = p.GetComponents().GetTransforms()
 		extTransformID = p.GetRootTransformIds()[0]
 		extTransform = transforms[extTransformID]
 	}
@@ -118,6 +119,11 @@ func queryExpansionService(
 	// Handling ExpansionResponse
 	res, err := client.Expand(ctx, req)
 	if err != nil {
+		err = errors.Wrapf(err, "expansion failed")
+		return nil, errors.WithContextf(err, "expanding transform with ExpansionRequest: %v", req)
+	}
+	if len(res.GetError()) != 0 { // ExpansionResponse includes an error.
+		err := errors.New(res.GetError())
 		err = errors.Wrapf(err, "expansion failed")
 		return nil, errors.WithContextf(err, "expanding transform with ExpansionRequest: %v", req)
 	}

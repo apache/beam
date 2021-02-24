@@ -32,6 +32,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.impl.ParseException;
+import org.apache.beam.sdk.extensions.sql.impl.transform.agg.CountIf;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestStream;
@@ -981,5 +982,32 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
         .inPipeline(pipeline)
         .withTimestampField(timestampField)
         .buildUnbounded();
+  }
+
+  @Test
+  public void testCountIfFunction() throws Exception {
+    pipeline.enableAbandonedNodeEnforcement(false);
+
+    Schema schemaInTableA =
+        Schema.builder().addInt64Field("f_int64").addInt64Field("f_int64_2").build();
+    Schema resultType = Schema.builder().addInt64Field("finalAnswer").build();
+    List<Row> rowsInTableA =
+        TestUtils.RowsBuilder.of(schemaInTableA)
+            .addRows(
+                1L, 0L,
+                3L, 0L,
+                4L, 0L)
+            .getRows();
+
+    String sql =
+        "SELECT COUNTIF(f_int64 >" + 0 + ") AS countif_no " + "FROM PCOLLECTION GROUP BY f_int64_2";
+    Row rowResult = Row.withSchema(resultType).addValues(3L).build();
+    PCollection<Row> inputRows =
+        pipeline.apply("longVals", Create.of(rowsInTableA).withRowSchema(schemaInTableA));
+    PCollection<Row> result =
+        inputRows.apply(
+            "sql", SqlTransform.query(sql).registerUdaf("COUNTIF", new CountIf.CountIfFn()));
+    PAssert.that(result).containsInAnyOrder(rowResult);
+    pipeline.run().waitUntilFinish();
   }
 }

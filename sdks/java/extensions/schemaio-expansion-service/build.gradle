@@ -37,5 +37,5 @@ dependencies {
     testCompile library.java.powermock_mockito
     testCompile library.java.mockito_core
     // TODO(BEAM-10632): remove this dependency
-    testCompile "org.checkerframework:checker-qual:3.5.0"
+    testCompile "org.checkerframework:checker-qual:3.10.0"
 }

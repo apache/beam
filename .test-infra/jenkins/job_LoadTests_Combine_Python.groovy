@@ -100,7 +100,8 @@ def loadTestConfigurations = { datasetName, mode ->
 
 def addStreamingOptions(test){
   test.pipelineOptions << [streaming: null,
-    experiments: "use_runner_v2"
+    // TODO(BEAM-11779) remove shuffle_mode=appliance with runner v2 once issue is resolved.
+    experiments: "use_runner_v2, shuffle_mode=appliance"
   ]
 }
 

@@ -31,7 +31,7 @@ from apache_beam.transforms import window
 from apache_beam.utils.timestamp import Duration
 
 NUM_SHARD_PER_WORKER = 5
-LATE_BATCHING_PERIOD = Duration.of(10)
+LATE_BATCHING_PERIOD = 10
 
 output_path = None
 max_num_workers = 5
@@ -78,7 +78,7 @@ def index_path_for(window):
     return None
 
 
-def load(events, pipeline_options, metadata=None):
+def load(events, metadata=None, pipeline_options=None):
   return (
       events
       | 'query10_shard_events' >> beam.ParDo(ShardEventsDoFn())

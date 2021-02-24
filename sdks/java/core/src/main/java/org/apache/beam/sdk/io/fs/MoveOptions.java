@@ -28,5 +28,6 @@ public interface MoveOptions {
   /** Defines the standard {@link MoveOptions}. */
   enum StandardMoveOptions implements MoveOptions {
     IGNORE_MISSING_FILES,
+    SKIP_IF_DESTINATION_EXISTS,
   }
 }

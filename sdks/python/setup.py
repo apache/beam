@@ -196,8 +196,6 @@ GCP_REQUIREMENTS = [
     'google-cloud-language>=1.3.0,<2',
     'google-cloud-videointelligence>=1.8.0,<2',
     'google-cloud-vision>=0.38.0,<2',
-    # GCP packages required by prebuild sdk container functionality.
-    'google-cloud-build>=2.0.0,<3',
 ]
 
 INTERACTIVE_BEAM = [
@@ -279,6 +277,7 @@ setuptools.setup(
         'apache_beam/runners/worker/opcounters.py',
         'apache_beam/runners/worker/operations.py',
         'apache_beam/transforms/cy_combiners.py',
+        'apache_beam/transforms/stats.py',
         'apache_beam/utils/counters.py',
         'apache_beam/utils/windowed_value.py',
     ]),

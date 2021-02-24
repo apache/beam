@@ -6,6 +6,7 @@ aliases:
   - /use/mailing-lists/
   - /get-started/support/
 ---
+
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,28 +21,28 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Contact Us
+# Contact us!
 
-There are many ways to reach the Beam user and developer communities - use
-whichever one seems best.
+The Apache Beam community is friendly and welcoming. We are glad to help with any
+question, suggestion or idea you have. Contact us in the following channels:
 
-<!-- We use div instead of table shortcode here, because markdownify break superscripts -->
-<div class="table-wrapper">
+## Available contact channels
 
-| How to contact us | When to use it |
-| ----------------- | ---------------|
-| [user@](https://lists.apache.org/list.html?user@beam.apache.org) mailing list | User support and questions ([Subscribe](mailto:user-subscribe@beam.apache.org)[^1], [Unsubscribe](mailto:user-unsubscribe@beam.apache.org)[^1], [Archives](https://lists.apache.org/list.html?user@beam.apache.org)) |
-| [dev@](https://lists.apache.org/list.html?dev@beam.apache.org) mailing list | Development discussions ([Subscribe](mailto:dev-subscribe@beam.apache.org)[^1], [Unsubscribe](mailto:dev-unsubscribe@beam.apache.org)[^1], [Archives](https://lists.apache.org/list.html?dev@beam.apache.org)) |
-| [commits@](https://lists.apache.org/list.html?commits@beam.apache.org) mailing list | Firehose of commits, bugs, pull requests, etc. ([Subscribe](mailto:commits-subscribe@beam.apache.org)[^1], [Unsubscribe](mailto:commits-unsubscribe@beam.apache.org)[^1], [Archives](https://lists.apache.org/list.html?commits@beam.apache.org)) |
-| [builds@](https://lists.apache.org/list.html?builds@beam.apache.org) mailing list | Firehose of build notifications from Jenkins ([Subscribe](mailto:builds-subscribe@beam.apache.org)[^1], [Unsubscribe](mailto:builds-unsubscribe@beam.apache.org)[^1], [Archives](https://lists.apache.org/list.html?builds@beam.apache.org)) |
-| [JIRA bug tracker](https://issues.apache.org/jira/browse/BEAM) | Report bugs / discover known issues |
-| [StackOverflow](https://stackoverflow.com/questions/tagged/apache-beam) | Ask and answer user support questions |
-| [Slack](https://s.apache.org/beam-slack-channel) | Chat with users and developers in the ASF Slack. Note: Please [join the #beam channel](https://s.apache.org/beam-slack-channel) after you [created an account](https://s.apache.org/slack-invite). Please do not ask Beam questions in #general. |
+{{< community/table_with_icons contact_us >}}
 
-</div>
+## Mailing list, what are they and how they work
 
-If you have questions about how to use Apache Beam, we recommend you try out the [user@](https://lists.apache.org/list.html?user@beam.apache.org) mailing list, and [StackOverflow](https://stackoverflow.com/questions/tagged/apache-beam).
+The official communication channels for Apache projects are their mailing lists, and Apache Beam has two main lists: [user@beam.apache.org](user@beam.apache.org) and [dev@beam.apache.org](dev@beam.apache.org). The topics for each of them can be seen in the section above.
 
-[^1]: To subscribe or unsubscribe, a blank email is fine.
+### Subsribe and Unsubscribe:
 
-If you wish to report a security vulnerability, please contact [security@apache.org](mailto:security@apache.org). Apache Beam follows the typical [Apache vulnerability handling process](https://apache.org/security/committers.html#vulnerability-handling).
+Prior to sending emails to these lists, you need to subscribe. To subscribe, send a blank email to [user-subscribe@beam.apache.org](user-subscribe@beam.apache.org) or [dev-subscribe@beam.apache.org](dev-subscribe@beam.apache.org) depending on the list you want to write to.
+
+### Useful Tips for Sending Emails
+
+Tip 1: Use tags in your subject line.
+A tag is a word within a pair of brackets [] that indicate the type of message you’re sending. For example: [Bug] or [Proposal] or [Question] or [Idea]. Tags help folks navigate emails easier.
+
+Tip 2: If you’re asking a troubleshooting question, provide as much information as possible to help others replicate your issue or find possible solutions.
+
+Tip 3: Share complete links instead of hyperlinks. A common practice in Apache is adding a number tag like [1] to indicate a word is a link or an attachment, and use the tag as a footnote to add the complete link at the end of your message.

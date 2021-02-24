@@ -144,7 +144,8 @@ def runnerV2PipelineOptions = [
   "--region=${dataflowRegion}",
   "--tempRoot=${dataflowValidatesTempRoot}",
   "--workerHarnessContainerImage=${dockerImageContainer}:${dockerTag}",
-  "--experiments=beam_fn_api,use_unified_worker,use_runner_v2",
+  // TODO(BEAM-11779) remove shuffle_mode=appliance with runner v2 once issue is resolved.
+  "--experiments=beam_fn_api,use_unified_worker,use_runner_v2,shuffle_mode=appliance",
 ]
 
 def commonLegacyExcludeCategories = [
@@ -334,6 +335,8 @@ createCrossLanguageValidatesRunnerTask(
     "--region=${dataflowRegion}",
     "--sdk_harness_container_image_overrides=.*java.*,${dockerImageContainer}:${dockerTag}",
     "--experiments=use_runner_v2",
+    // TODO(BEAM-11779) remove shuffle_mode=appliance with runner v2 once issue is resolved
+    "--experiments=shuffle_mode=appliance",
   ],
   javaPipelineOptions: [
     "--runner=TestDataflowRunner",
@@ -341,7 +344,8 @@ createCrossLanguageValidatesRunnerTask(
     "--region=${dataflowRegion}",
     "--tempRoot=${dataflowValidatesTempRoot}",
     "--sdkHarnessContainerImageOverrides=.*java.*,${dockerImageContainer}:${dockerTag}",
-    "--experiments=use_runner_v2",
+    // TODO(BEAM-11779) remove shuffle_mode=appliance with runner v2 once issue is resolved.
+    "--experiments=use_runner_v2,shuffle_mode=appliance",
   ],
   nosetestsOptions: [
     "--nocapture",
