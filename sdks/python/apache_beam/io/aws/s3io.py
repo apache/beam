@@ -493,7 +493,7 @@ class S3IO(object):
     for src, dest, err in copy_results:
       if err is not None: rename_results.append((src, dest, err))
       elif delete_results_dict[src] is not None:
-        rename_results.append(src, dest, delete_results_dict[src])
+        rename_results.append((src, dest, delete_results_dict[src]))
       else:
         rename_results.append((src, dest, None))
 
