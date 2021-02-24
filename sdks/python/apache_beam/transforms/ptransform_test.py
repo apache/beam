@@ -503,7 +503,7 @@ class PTransformTest(unittest.TestCase):
           | 'Reiteration-Sum' >> beam.ParDo(MyDoFn()))
       assert_that(result, equal_to([(1, 170)]))
 
-  def test_group_by_key_determanistic_coder(self):
+  def test_group_by_key_deterministic_coder(self):
     # pylint: disable=global-variable-not-assigned
     global MyObject  # for pickling of the class instance
 
@@ -525,12 +525,12 @@ class PTransformTest(unittest.TestCase):
         return MyObject(pickle.loads(encoded)[0])
 
       def as_deterministic_coder(self, *args):
-        return MyDetermanisticObjectCoder()
+        return MydeterministicObjectCoder()
 
       def to_type_hint(self):
         return MyObject
 
-    class MyDetermanisticObjectCoder(beam.coders.Coder):
+    class MydeterministicObjectCoder(beam.coders.Coder):
       def encode(self, o):
         return pickle.dumps(o.value)
 
@@ -554,8 +554,8 @@ class PTransformTest(unittest.TestCase):
           'CheckGrouped')
       assert_that(combined, equal_to([(0, 20), (1, 25)]), 'CheckCombined')
 
-  def test_group_by_key_non_determanistic_coder(self):
-    with self.assertRaises(Exception):
+  def test_group_by_key_non_deterministic_coder(self):
+    with self.assertRaisesRegex(Exception, r'deterministic'):
       with TestPipeline() as pipeline:
         _ = (
             pipeline
@@ -563,7 +563,7 @@ class PTransformTest(unittest.TestCase):
             | beam.GroupByKey()
             | beam.MapTuple(lambda k, v: list(v)))
 
-  def test_group_by_key_allow_non_determanistic_coder(self):
+  def test_group_by_key_allow_non_deterministic_coder(self):
     with TestPipeline() as pipeline:
       # The GroupByKey below would fail without this option.
       pipeline._options.view_as(
@@ -573,9 +573,9 @@ class PTransformTest(unittest.TestCase):
           | beam.Create([(PickledObject(10), None)])
           | beam.GroupByKey()
           | beam.MapTuple(lambda k, v: list(v)))
-    assert_that(grouped, equal_to([[None]]))
+      assert_that(grouped, equal_to([[None]]))
 
-  def test_group_by_key_fake_determanistic_coder(self):
+  def test_group_by_key_fake_deterministic_coder(self):
     fresh_registry = beam.coders.typecoders.CoderRegistry()
     with patch.object(
         beam.coders, 'registry', fresh_registry), patch.object(
@@ -589,7 +589,7 @@ class PTransformTest(unittest.TestCase):
             | beam.Create([(PickledObject(10), None)])
             | beam.GroupByKey()
             | beam.MapTuple(lambda k, v: list(v)))
-      assert_that(grouped, equal_to([[None]]))
+        assert_that(grouped, equal_to([[None]]))
 
   def test_partition_with_partition_fn(self):
     class SomePartitionFn(beam.PartitionFn):
