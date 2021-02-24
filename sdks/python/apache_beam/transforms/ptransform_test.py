@@ -56,6 +56,10 @@ from apache_beam.transforms import window
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.ptransform import PTransform
+from apache_beam.transforms.trigger import AccumulationMode
+from apache_beam.transforms.trigger import AfterProcessingTime
+from apache_beam.transforms.trigger import AfterSynchronizedProcessingTime
+from apache_beam.transforms.window import GlobalWindows
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.typehints import with_input_types
 from apache_beam.typehints import with_output_types
@@ -481,6 +485,18 @@ class PTransformTest(unittest.TestCase):
                                                  (2, 2), (1, 3)])
       result = pcoll | 'Group' >> beam.GroupByKey() | _SortLists
       assert_that(result, equal_to([(1, [1, 2, 3]), (2, [1, 2]), (3, [1])]))
+
+  def test_group_by_key_trigger(self):
+    with TestPipeline() as pipeline:
+      input = pipeline | 'Start' >> beam.Create([(0, 0)])
+      triggered = input | 'Trigger' >> beam.WindowInto(
+          GlobalWindows(),
+          trigger=AfterProcessingTime(1),
+          accumulation_mode=AccumulationMode.DISCARDING)
+      output = triggered | 'Gbk' >> beam.GroupByKey()
+      self.assertTrue(
+          isinstance(
+              output.windowing.triggerfn, AfterSynchronizedProcessingTime))
 
   def test_group_by_key_reiteration(self):
     class MyDoFn(beam.DoFn):

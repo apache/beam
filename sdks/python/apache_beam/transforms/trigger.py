@@ -60,6 +60,7 @@ __all__ = [
     'DefaultTrigger',
     'AfterWatermark',
     'AfterProcessingTime',
+    'AfterSynchronizedProcessingTime',
     'AfterCount',
     'Repeatedly',
     'AfterAny',
@@ -254,7 +255,7 @@ class TriggerFn(with_metaclass(ABCMeta, object)):  # type: ignore[misc]
         'after_each': AfterEach,
         'after_end_of_window': AfterWatermark,
         'after_processing_time': AfterProcessingTime,
-        # after_processing_time, after_synchronized_processing_time
+        'after_synchronized_processing_time': AfterSynchronizedProcessingTime,
         'always': Always,
         'default': DefaultTrigger,
         'element_count': AfterCount,
@@ -367,6 +368,53 @@ class AfterProcessingTime(TriggerFn):
 
   def has_ontime_pane(self):
     return False
+
+
+class AfterSynchronizedProcessingTime(TriggerFn):
+  """A "runner's-discretion" trigger downstream of a GroupByKey
+  with AfterProcessingTime trigger.
+
+  AfterSynchronizedProcessingTime is experimental.
+  No backwards compatibility guarantees.
+  """
+  def __init__(self):
+    pass
+
+  def __repr__(self):
+    return 'AfterSynchronizedProcessingTime()'
+
+  def __eq__(self, other):
+    return type(self) == type(other)
+
+  def __hash__(self):
+    return 1
+
+  def on_element(self, element, window, context):
+    pass
+
+  def on_merge(self, to_be_merged, merge_result, context):
+    pass
+
+  def has_ontime_pane(self):
+    return False
+
+  def reset(self, window, context):
+    pass
+
+  def should_fire(self, time_domain, watermark, window, context):
+    return True
+
+  def on_fire(self, watermark, window, context):
+    return False
+
+  @staticmethod
+  def from_runner_api(proto, context):
+    return AfterSynchronizedProcessingTime()
+
+  def to_runner_api(self, context):
+    return beam_runner_api_pb2.Trigger(
+        after_synchronized_processing_time=beam_runner_api_pb2.Trigger.
+        AfterSynchronizedProcessingTime())
 
 
 class Always(TriggerFn):
