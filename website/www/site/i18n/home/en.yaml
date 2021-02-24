@@ -12,8 +12,8 @@
 
 - id: home-learn-more
   translation: "Learn more"
-- id: home-tour-of-beam
-  translation: "Tour of Beam"
+- id: home-try-beam
+  translation: "Try Beam"
 - id: home-download-beam
   translation: "Download Beam SDK {{ .Site.Params.release_latest }}"
 - id: home-java-quickstart
