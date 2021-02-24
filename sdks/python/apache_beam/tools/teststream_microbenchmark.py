@@ -34,10 +34,6 @@ Run as
 
    python -m apache_beam.tools.teststream_microbenchmark
 
-Initial results were:
-
-    TODO(pabloem)
-
 """
 
 # pytype: skip-file
