@@ -25,16 +25,16 @@ ext.summary = "IO to read and write on Elasticsearch"
 dependencies {
   compile library.java.vendored_guava_26_0_jre
   compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile library.java.http_client
+  compile library.java.http_core
   compile library.java.jackson_annotations
   permitUnusedDeclared library.java.jackson_annotations // BEAM-11761
   compile library.java.jackson_core
   compile library.java.jackson_databind
   compile library.java.joda_time
-  compile "org.apache.httpcomponents:httpasyncclient:4.1.4"
-  compile "org.apache.httpcomponents:httpclient:4.5.10"
-  compile "org.apache.httpcomponents:httpcore-nio:4.4.12"
-  compile "org.apache.httpcomponents:httpcore:4.4.12"
   compile library.java.slf4j_api
+  compile "org.apache.httpcomponents:httpasyncclient:4.1.4"
+  compile "org.apache.httpcomponents:httpcore-nio:4.4.12"
   compile "org.elasticsearch.client:elasticsearch-rest-client:7.9.2"
   testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
 }
