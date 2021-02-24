@@ -20,7 +20,7 @@ import java.util.stream.Collectors
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-  enableStrictDependencies:true,
+  enableStrictDependencies: true,
   automaticModuleName: 'org.apache.beam.sdk.io.kafka',
   mavenRepositories: [
     [id: 'io.confluent', url: 'https://packages.confluent.io/maven/']
@@ -50,8 +50,7 @@ dependencies {
   compile library.java.vendored_guava_26_0_jre
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile project(":sdks:java:expansion-service")
-  permitUnusedDeclared project(":sdks:java:expansion-service")
-  compile "org.apache.kafka:kafka-clients:2.4.1"
+  permitUnusedDeclared project(":sdks:java:expansion-service") // BEAM-11761
   compile library.java.avro
   // Get back to "provided" since 2.14
   provided library.java.kafka_clients
