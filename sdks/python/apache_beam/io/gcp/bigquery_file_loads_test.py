@@ -826,10 +826,8 @@ class BigQueryFileLoadsIT(unittest.TestCase):
               max_file_size=20,
               max_files_per_bundle=-1))
 
-  @parameterized.expand(
-      [param(with_auto_sharding=False), param(with_auto_sharding=True)])
   @attr('IT')
-  def test_bqfl_streaming(self, with_auto_sharding):
+  def test_bqfl_streaming(self):
     if isinstance(self.test_pipeline.runner, TestDataflowRunner):
       self.skipTest("TestStream is not supported on TestDataflowRunner")
     output_table = '%s_%s' % (self.output_table, 'ints')
@@ -862,8 +860,7 @@ class BigQueryFileLoadsIT(unittest.TestCase):
                                       schema=schema,
                                       method=bigquery.WriteToBigQuery \
                                         .Method.FILE_LOADS,
-                                      triggering_frequency=100,
-                                      with_auto_sharding=with_auto_sharding))
+                                      triggering_frequency=100))
 
   @attr('IT')
   def test_one_job_fails_all_jobs_fail(self):

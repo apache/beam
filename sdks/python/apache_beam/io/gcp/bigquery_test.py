@@ -38,6 +38,8 @@ import hamcrest as hc
 import mock
 import pytz
 from nose.plugins.attrib import attr
+from parameterized import param
+from parameterized import parameterized
 
 import apache_beam as beam
 from apache_beam.internal import pickler
@@ -77,8 +79,6 @@ from apache_beam.transforms.display_test import DisplayDataItemMatcher
 
 # Protect against environments where bigquery library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
-from parameterized import param
-from parameterized import parameterized
 try:
   from apitools.base.py.exceptions import HttpError
 except ImportError:

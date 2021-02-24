@@ -1268,8 +1268,7 @@ class BigQueryWriteFn(DoFn):
     else:
       # The input is already batched per destination, flush the rows now.
       batched_rows = element[1]
-      for row in batched_rows:
-        self._rows_buffer[destination].append(row)
+      self._rows_buffer[destination].extend(batched_rows)
       return self._flush_batch(destination)
 
   def finish_bundle(self):
@@ -1418,8 +1417,7 @@ class _StreamToBigQuery(PTransform):
         test_client=self.test_client,
         additional_bq_parameters=self.additional_bq_parameters,
         ignore_insert_ids=self.ignore_insert_ids,
-        with_batched_input=(
-            not self.ignore_insert_ids and self.with_auto_sharding))
+        with_batched_input=self.with_auto_sharding)
 
     def _add_random_shard(element):
       key = element[0]
@@ -1512,6 +1510,7 @@ class WriteToBigQuery(PTransform):
       validate=True,
       temp_file_format=None,
       ignore_insert_ids=False,
+      # TODO(BEAM-11857): Switch the default when the feature is mature.
       with_auto_sharding=False):
     """Initialize a WriteToBigQuery transform.
 
