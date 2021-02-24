@@ -33,6 +33,7 @@ from __future__ import absolute_import
 import hashlib
 import logging
 import random
+import time
 import uuid
 
 from future.utils import iteritems
@@ -46,6 +47,7 @@ from apache_beam.options import value_provider as vp
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.transforms import trigger
 from apache_beam.transforms.display import DisplayDataItem
+from apache_beam.transforms.util import GroupIntoBatches
 from apache_beam.transforms.window import GlobalWindows
 
 _LOGGER = logging.getLogger(__name__)
@@ -641,6 +643,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
       create_disposition=None,
       write_disposition=None,
       triggering_frequency=None,
+      with_auto_sharding=False,
       temp_file_format=None,
       max_file_size=None,
       max_files_per_bundle=None,
@@ -656,6 +659,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
     self.create_disposition = create_disposition
     self.write_disposition = write_disposition
     self.triggering_frequency = triggering_frequency
+    self.with_auto_sharding = with_auto_sharding
     self.max_file_size = max_file_size or _DEFAULT_MAX_FILE_SIZE
     self.max_files_per_bundle = (
         max_files_per_bundle or _DEFAULT_MAX_WRITERS_PER_BUNDLE)
@@ -708,6 +712,9 @@ class BigQueryBatchFileLoads(beam.PTransform):
       raise ValueError(
           'triggering_frequency can only be used with file'
           'loads in streaming')
+    if not self.is_streaming_pipeline and self.with_auto_sharding:
+      return ValueError(
+          'with_auto_sharding can only be used with file loads in streaming.')
 
   def _window_fn(self):
     """Set the correct WindowInto PTransform"""
@@ -719,7 +726,11 @@ class BigQueryBatchFileLoads(beam.PTransform):
     # that the files are written if a threshold number of records are ready.
     # We use only the user-supplied trigger on the actual BigQuery load.
     # This allows us to offload the data to the filesystem.
-    if self.is_streaming_pipeline:
+    #
+    # In the case of auto sharding, however, we use a default triggering and
+    # instead apply the user supplied triggering_frequency to the transfrom that
+    # performs sharding.
+    if self.is_streaming_pipeline and not self.with_auto_sharding:
       return beam.WindowInto(beam.window.GlobalWindows(),
                              trigger=trigger.Repeatedly(
                                  trigger.AfterAny(
@@ -731,6 +742,21 @@ class BigQueryBatchFileLoads(beam.PTransform):
                                  .DISCARDING)
     else:
       return beam.WindowInto(beam.window.GlobalWindows())
+
+  def _maybe_apply_user_trigger(self, destination_file_kv_pc):
+    if self.is_streaming_pipeline:
+      # Apply the user's trigger back before we start triggering load jobs
+      return (
+          destination_file_kv_pc
+          | "ApplyUserTrigger" >> beam.WindowInto(
+              beam.window.GlobalWindows(),
+              trigger=trigger.Repeatedly(
+                  trigger.AfterAll(
+                      trigger.AfterProcessingTime(self.triggering_frequency),
+                      trigger.AfterCount(1))),
+              accumulation_mode=trigger.AccumulationMode.DISCARDING))
+    else:
+      return destination_file_kv_pc
 
   def _write_files(self, destination_data_kv_pc, file_prefix_pcv):
     outputs = (
@@ -774,19 +800,38 @@ class BigQueryBatchFileLoads(beam.PTransform):
         (destination_files_kv_pc, more_destination_files_kv_pc)
         | "DestinationFilesUnion" >> beam.Flatten()
         | "IdentityWorkaround" >> beam.Map(lambda x: x))
+    return self._maybe_apply_user_trigger(all_destination_file_pairs_pc)
 
-    if self.is_streaming_pipeline:
-      # Apply the user's trigger back before we start triggering load jobs
-      all_destination_file_pairs_pc = (
-          all_destination_file_pairs_pc
-          | "ApplyUserTrigger" >> beam.WindowInto(
-              beam.window.GlobalWindows(),
-              trigger=trigger.Repeatedly(
-                  trigger.AfterAll(
-                      trigger.AfterProcessingTime(self.triggering_frequency),
-                      trigger.AfterCount(1))),
-              accumulation_mode=trigger.AccumulationMode.DISCARDING))
-    return all_destination_file_pairs_pc
+  def _write_files_with_auto_sharding(
+      self, destination_data_kv_pc, file_prefix_pcv):
+    clock = self.test_client.test_clock if self.test_client else time.time
+
+    # Auto-sharding is achieved via GroupIntoBatches.WithShardedKey
+    # transform which shards, groups and at the same time batches the table rows
+    # to be inserted to BigQuery.
+
+    # Firstly, the keys of tagged_data (table references) are converted to a
+    # hashable format. This is needed to work with the keyed states used by.
+    # GroupIntoBatches. After grouping and batching is done, table references
+    # are restored.
+    destination_files_kv_pc = (
+        destination_data_kv_pc
+        | 'ToHashableTableRef' >> beam.Map(
+            lambda kv: (bigquery_tools.get_hashable_destination(kv[0]), kv[1]))
+        | 'WithAutoSharding' >> GroupIntoBatches.WithShardedKey(
+            batch_size=_FILE_TRIGGERING_RECORD_COUNT,
+            max_buffering_duration_secs=self.triggering_frequency,
+            clock=clock)
+        | 'FromHashableTableRefAndDropShard' >> beam.Map(
+            lambda kvs:
+            (bigquery_tools.parse_table_reference(kvs[0].key), kvs[1]))
+        | beam.ParDo(
+            WriteGroupedRecordsToFile(
+                schema=self.schema, file_format=self._temp_file_format),
+            file_prefix_pcv,
+            *self.schema_side_inputs))
+
+    return self._maybe_apply_user_trigger(destination_files_kv_pc)
 
   def _load_data(
       self,
@@ -933,8 +978,12 @@ class BigQueryBatchFileLoads(beam.PTransform):
             bigquery_tools.AppendDestinationsFn(self.destination),
             *self.table_side_inputs))
 
-    all_destination_file_pairs_pc = self._write_files(
-        destination_data_kv_pc, file_prefix_pcv)
+    if not self.with_auto_sharding:
+      all_destination_file_pairs_pc = self._write_files(
+          destination_data_kv_pc, file_prefix_pcv)
+    else:
+      all_destination_file_pairs_pc = self._write_files_with_auto_sharding(
+          destination_data_kv_pc, file_prefix_pcv)
 
     grouped_files_pc = (
         all_destination_file_pairs_pc
