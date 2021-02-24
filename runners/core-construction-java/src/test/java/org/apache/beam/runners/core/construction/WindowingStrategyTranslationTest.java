@@ -53,19 +53,20 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
+import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
 /** Unit tests for {@link WindowingStrategy}. */
-@RunWith(Parameterized.class)
+@RunWith(Enclosed.class)
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class WindowingStrategyTranslationTest {
-
   // Each spec activates tests of all subsets of its fields
   @AutoValue
   @AutoValue.CopyAnnotations
@@ -74,93 +75,127 @@ public class WindowingStrategyTranslationTest {
     abstract WindowingStrategy getWindowingStrategy();
   }
 
-  private static ToProtoAndBackSpec toProtoAndBackSpec(WindowingStrategy windowingStrategy) {
-    return new AutoValue_WindowingStrategyTranslationTest_ToProtoAndBackSpec(windowingStrategy);
+  @RunWith(Parameterized.class)
+  public static class ToProtoAndBackTests {
+
+    private static ToProtoAndBackSpec toProtoAndBackSpec(WindowingStrategy windowingStrategy) {
+      return new AutoValue_WindowingStrategyTranslationTest_ToProtoAndBackSpec(windowingStrategy);
+    }
+
+    private static final WindowFn<?, ?> REPRESENTATIVE_WINDOW_FN =
+        FixedWindows.of(Duration.millis(12));
+
+    private static final Trigger REPRESENTATIVE_TRIGGER = AfterWatermark.pastEndOfWindow();
+
+    @Parameters(name = "{index}: {0}")
+    public static Iterable<ToProtoAndBackSpec> data() {
+      return ImmutableList.of(
+          toProtoAndBackSpec(WindowingStrategy.globalDefault()),
+          toProtoAndBackSpec(
+              WindowingStrategy.of(
+                  FixedWindows.of(Duration.millis(11)).withOffset(Duration.millis(3)))),
+          toProtoAndBackSpec(
+              WindowingStrategy.of(
+                  SlidingWindows.of(Duration.millis(37))
+                      .every(Duration.millis(3))
+                      .withOffset(Duration.millis(2)))),
+          toProtoAndBackSpec(WindowingStrategy.of(Sessions.withGapDuration(Duration.millis(389)))),
+          toProtoAndBackSpec(
+              WindowingStrategy.of(REPRESENTATIVE_WINDOW_FN)
+                  .withClosingBehavior(ClosingBehavior.FIRE_ALWAYS)
+                  .withMode(AccumulationMode.ACCUMULATING_FIRED_PANES)
+                  .withTrigger(REPRESENTATIVE_TRIGGER)
+                  .withAllowedLateness(Duration.millis(71))
+                  .withTimestampCombiner(TimestampCombiner.EARLIEST)),
+          toProtoAndBackSpec(
+              WindowingStrategy.of(REPRESENTATIVE_WINDOW_FN)
+                  .withClosingBehavior(ClosingBehavior.FIRE_IF_NON_EMPTY)
+                  .withMode(AccumulationMode.DISCARDING_FIRED_PANES)
+                  .withTrigger(REPRESENTATIVE_TRIGGER)
+                  .withAllowedLateness(Duration.millis(93))
+                  .withTimestampCombiner(TimestampCombiner.LATEST)),
+          toProtoAndBackSpec(
+              WindowingStrategy.of(REPRESENTATIVE_WINDOW_FN)
+                  .withClosingBehavior(ClosingBehavior.FIRE_IF_NON_EMPTY)
+                  .withMode(AccumulationMode.RETRACTING_FIRED_PANES)
+                  .withTrigger(REPRESENTATIVE_TRIGGER)
+                  .withAllowedLateness(Duration.millis(100))
+                  .withTimestampCombiner(TimestampCombiner.LATEST)),
+          toProtoAndBackSpec(WindowingStrategy.of(new CustomWindowFn())));
+    }
+
+    @Parameter(0)
+    public ToProtoAndBackSpec toProtoAndBackSpec;
+
+    @Test
+    public void testToProtoAndBack() throws Exception {
+      WindowingStrategy<?, ?> windowingStrategy = toProtoAndBackSpec.getWindowingStrategy();
+      SdkComponents components = SdkComponents.create();
+      components.registerEnvironment(Environments.createDockerEnvironment("java"));
+      WindowingStrategy<?, ?> toProtoAndBackWindowingStrategy =
+          WindowingStrategyTranslation.fromProto(
+              WindowingStrategyTranslation.toMessageProto(windowingStrategy, components));
+
+      assertThat(
+          toProtoAndBackWindowingStrategy,
+          equalTo(
+              (WindowingStrategy)
+                  windowingStrategy
+                      .withEnvironmentId(components.getOnlyEnvironmentId())
+                      .fixDefaults()));
+    }
+
+    @Test
+    public void testToProtoAndBackWithComponents() throws Exception {
+      WindowingStrategy<?, ?> windowingStrategy = toProtoAndBackSpec.getWindowingStrategy();
+      SdkComponents components = SdkComponents.create();
+      components.registerEnvironment(Environments.createDockerEnvironment("java"));
+      RunnerApi.WindowingStrategy proto =
+          WindowingStrategyTranslation.toProto(windowingStrategy, components);
+      RehydratedComponents protoComponents =
+          RehydratedComponents.forComponents(components.toComponents());
+
+      assertThat(
+          WindowingStrategyTranslation.fromProto(proto, protoComponents).fixDefaults(),
+          equalTo(
+              windowingStrategy
+                  .withEnvironmentId(components.getOnlyEnvironmentId())
+                  .fixDefaults()));
+
+      protoComponents.getCoder(
+          components.registerCoder(windowingStrategy.getWindowFn().windowCoder()));
+      assertThat(
+          proto.getAssignsToOneWindow(),
+          equalTo(windowingStrategy.getWindowFn().assignsToOneWindow()));
+    }
   }
 
-  private static final WindowFn<?, ?> REPRESENTATIVE_WINDOW_FN =
-      FixedWindows.of(Duration.millis(12));
+  @RunWith(JUnit4.class)
+  public static class ExpectedProtoTests {
 
-  private static final Trigger REPRESENTATIVE_TRIGGER = AfterWatermark.pastEndOfWindow();
+    @Test
+    public void testSessionsMergeStatus() throws Exception {
+      WindowingStrategy<?, ?> windowingStrategy =
+          WindowingStrategy.of(Sessions.withGapDuration(Duration.millis(456)));
+      SdkComponents components = SdkComponents.create();
+      components.registerEnvironment(Environments.createDockerEnvironment("java"));
+      RunnerApi.WindowingStrategy proto =
+          WindowingStrategyTranslation.toProto(windowingStrategy, components);
 
-  @Parameters(name = "{index}: {0}")
-  public static Iterable<ToProtoAndBackSpec> data() {
-    return ImmutableList.of(
-        toProtoAndBackSpec(WindowingStrategy.globalDefault()),
-        toProtoAndBackSpec(
-            WindowingStrategy.of(
-                FixedWindows.of(Duration.millis(11)).withOffset(Duration.millis(3)))),
-        toProtoAndBackSpec(
-            WindowingStrategy.of(
-                SlidingWindows.of(Duration.millis(37))
-                    .every(Duration.millis(3))
-                    .withOffset(Duration.millis(2)))),
-        toProtoAndBackSpec(WindowingStrategy.of(Sessions.withGapDuration(Duration.millis(389)))),
-        toProtoAndBackSpec(
-            WindowingStrategy.of(REPRESENTATIVE_WINDOW_FN)
-                .withClosingBehavior(ClosingBehavior.FIRE_ALWAYS)
-                .withMode(AccumulationMode.ACCUMULATING_FIRED_PANES)
-                .withTrigger(REPRESENTATIVE_TRIGGER)
-                .withAllowedLateness(Duration.millis(71))
-                .withTimestampCombiner(TimestampCombiner.EARLIEST)),
-        toProtoAndBackSpec(
-            WindowingStrategy.of(REPRESENTATIVE_WINDOW_FN)
-                .withClosingBehavior(ClosingBehavior.FIRE_IF_NON_EMPTY)
-                .withMode(AccumulationMode.DISCARDING_FIRED_PANES)
-                .withTrigger(REPRESENTATIVE_TRIGGER)
-                .withAllowedLateness(Duration.millis(93))
-                .withTimestampCombiner(TimestampCombiner.LATEST)),
-        toProtoAndBackSpec(
-            WindowingStrategy.of(REPRESENTATIVE_WINDOW_FN)
-                .withClosingBehavior(ClosingBehavior.FIRE_IF_NON_EMPTY)
-                .withMode(AccumulationMode.RETRACTING_FIRED_PANES)
-                .withTrigger(REPRESENTATIVE_TRIGGER)
-                .withAllowedLateness(Duration.millis(100))
-                .withTimestampCombiner(TimestampCombiner.LATEST)),
-        toProtoAndBackSpec(WindowingStrategy.of(new CustomWindowFn())));
-  }
+      assertThat(proto.getMergeStatus(), equalTo(RunnerApi.MergeStatus.Enum.NEEDS_MERGE));
+    }
 
-  @Parameter(0)
-  public ToProtoAndBackSpec toProtoAndBackSpec;
+    @Test
+    public void testFixedMergeStatus() throws Exception {
+      WindowingStrategy<?, ?> windowingStrategy =
+          WindowingStrategy.of(FixedWindows.of(Duration.millis(2)));
+      SdkComponents components = SdkComponents.create();
+      components.registerEnvironment(Environments.createDockerEnvironment("java"));
+      RunnerApi.WindowingStrategy proto =
+          WindowingStrategyTranslation.toProto(windowingStrategy, components);
 
-  @Test
-  public void testToProtoAndBack() throws Exception {
-    WindowingStrategy<?, ?> windowingStrategy = toProtoAndBackSpec.getWindowingStrategy();
-    SdkComponents components = SdkComponents.create();
-    components.registerEnvironment(Environments.createDockerEnvironment("java"));
-    WindowingStrategy<?, ?> toProtoAndBackWindowingStrategy =
-        WindowingStrategyTranslation.fromProto(
-            WindowingStrategyTranslation.toMessageProto(windowingStrategy, components));
-
-    assertThat(
-        toProtoAndBackWindowingStrategy,
-        equalTo(
-            (WindowingStrategy)
-                windowingStrategy
-                    .withEnvironmentId(components.getOnlyEnvironmentId())
-                    .fixDefaults()));
-  }
-
-  @Test
-  public void testToProtoAndBackWithComponents() throws Exception {
-    WindowingStrategy<?, ?> windowingStrategy = toProtoAndBackSpec.getWindowingStrategy();
-    SdkComponents components = SdkComponents.create();
-    components.registerEnvironment(Environments.createDockerEnvironment("java"));
-    RunnerApi.WindowingStrategy proto =
-        WindowingStrategyTranslation.toProto(windowingStrategy, components);
-    RehydratedComponents protoComponents =
-        RehydratedComponents.forComponents(components.toComponents());
-
-    assertThat(
-        WindowingStrategyTranslation.fromProto(proto, protoComponents).fixDefaults(),
-        equalTo(
-            windowingStrategy.withEnvironmentId(components.getOnlyEnvironmentId()).fixDefaults()));
-
-    protoComponents.getCoder(
-        components.registerCoder(windowingStrategy.getWindowFn().windowCoder()));
-    assertThat(
-        proto.getAssignsToOneWindow(),
-        equalTo(windowingStrategy.getWindowFn().assignsToOneWindow()));
+      assertThat(proto.getMergeStatus(), equalTo(RunnerApi.MergeStatus.Enum.NON_MERGING));
+    }
   }
 
   private static class CustomWindow extends IntervalWindow {
