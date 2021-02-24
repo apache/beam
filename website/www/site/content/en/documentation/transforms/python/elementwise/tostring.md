@@ -35,7 +35,8 @@ expect their input elements to be strings.
 The following example converts a `(key, value)` pair into a string delimited by `','`.
 You can specify a different delimiter using the `delimiter` argument.
 
-{{< highlight py >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/tostring" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring.py" tostring_kvs >}}
 {{< /highlight >}}
 
@@ -47,16 +48,13 @@ Output:
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring_test.py" plants >}}
 {{< /highlight >}}
 
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/tostring" >}}
-
 ### Example 2: Elements to string
 
 The following example converts a dictionary into a string.
 The string output will be equivalent to `str(element)`.
 
-{{< highlight py >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/tostring" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring.py" tostring_element >}}
 {{< /highlight >}}
 
@@ -68,10 +66,6 @@ Output:
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring_test.py" plant_lists >}}
 {{< /highlight >}}
 
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/tostring" >}}
-
 ### Example 3: Iterables to string
 
 The following example converts an iterable, in this case a list of strings,
@@ -79,7 +73,8 @@ into a string delimited by `','`.
 You can specify a different delimiter using the `delimiter` argument.
 The string output will be equivalent to `iterable.join(delimiter)`.
 
-{{< highlight py >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/tostring" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring.py" tostring_iterables >}}
 {{< /highlight >}}
 
@@ -90,10 +85,6 @@ Output:
 {{< highlight class="notebook-skip" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring_test.py" plants_csv >}}
 {{< /highlight >}}
-
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/tostring" >}}
 
 ## Related transforms
 
