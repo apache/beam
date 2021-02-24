@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.pubsublite;
 
 import static com.google.cloud.pubsublite.internal.ExtractStatus.toCanonical;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
 import com.google.cloud.pubsublite.Offset;
 import com.google.cloud.pubsublite.internal.wire.Committer;
@@ -93,7 +94,7 @@ class PerSubscriptionPartitionSdf extends DoFn<SubscriptionPartition, SequencedM
                 try {
                   committer.commitOffset(Offset.of(lastClaimedOffset.value() + 1)).get();
                 } catch (ExecutionException e) {
-                  throw toCanonical(e.getCause()).underlying;
+                  throw toCanonical(checkArgumentNotNull(e.getCause())).underlying;
                 } catch (Exception e) {
                   throw toCanonical(e).underlying;
                 }
