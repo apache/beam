@@ -32,8 +32,8 @@ public class ZetaSqlScalarFunctionImpl extends ScalarFunctionImpl {
   public final String functionGroup;
 
   private ZetaSqlScalarFunctionImpl(
-      Method method, CallImplementor implementor, String functionGroup) {
-    super(method, implementor);
+      Method method, CallImplementor implementor, String functionGroup, String jarPath) {
+    super(method, implementor, jarPath);
     this.functionGroup = functionGroup;
   }
 
@@ -49,8 +49,9 @@ public class ZetaSqlScalarFunctionImpl extends ScalarFunctionImpl {
    *     divergent translation paths.
    * @return created {@link ScalarFunction} or null
    */
-  public static Function create(Class<?> clazz, String methodName, String functionGroup) {
-    return create(findMethod(clazz, methodName));
+  public static Function create(
+      Class<?> clazz, String methodName, String functionGroup, String jarPath) {
+    return create(findMethod(clazz, methodName), functionGroup, jarPath);
   }
 
   /**
@@ -62,10 +63,10 @@ public class ZetaSqlScalarFunctionImpl extends ScalarFunctionImpl {
    *     divergent translation paths.
    * @return created {@link Function} or null
    */
-  public static Function create(Method method, String functionGroup) {
+  public static Function create(Method method, String functionGroup, String jarPath) {
     validateMethod(method);
     CallImplementor implementor = createImplementor(method);
-    return new ZetaSqlScalarFunctionImpl(method, implementor, functionGroup);
+    return new ZetaSqlScalarFunctionImpl(method, implementor, functionGroup, jarPath);
   }
 
   /*

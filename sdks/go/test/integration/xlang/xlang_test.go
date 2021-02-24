@@ -41,6 +41,12 @@ func init() {
 	beam.RegisterFunction(collectValues)
 }
 
+func checkFlags(t *testing.T) {
+	if *ptest.ExpansionAddr == "" {
+		t.Skip("No expansion address provided")
+	}
+}
+
 // formatIntStringsFn is a DoFn that formats an int64 and a list of strings.
 func formatIntStringsFn(i int64, s []string) string {
 	sort.Strings(s)
@@ -104,10 +110,7 @@ func collectValues(key string, iter func(*int64) bool) (string, []int) {
 
 func TestXLang_CoGroupBy(t *testing.T) {
 	integration.CheckFilters(t)
-
-	if *ptest.ExpansionAddr == "" {
-		t.Fatal("No expansion address provided")
-	}
+	checkFlags(t)
 
 	p := beam.NewPipeline()
 	s := p.Root()
@@ -125,10 +128,7 @@ func TestXLang_CoGroupBy(t *testing.T) {
 
 func TestXLang_Combine(t *testing.T) {
 	integration.CheckFilters(t)
-
-	if *ptest.ExpansionAddr == "" {
-		t.Fatal("No expansion address provided")
-	}
+	checkFlags(t)
 
 	p := beam.NewPipeline()
 	s := p.Root()
@@ -146,10 +146,7 @@ func TestXLang_Combine(t *testing.T) {
 
 func TestXLang_CombineGlobally(t *testing.T) {
 	integration.CheckFilters(t)
-
-	if *ptest.ExpansionAddr == "" {
-		t.Fatal("No expansion address provided")
-	}
+	checkFlags(t)
 
 	p := beam.NewPipeline()
 	s := p.Root()
@@ -167,10 +164,7 @@ func TestXLang_CombineGlobally(t *testing.T) {
 
 func TestXLang_Flatten(t *testing.T) {
 	integration.CheckFilters(t)
-
-	if *ptest.ExpansionAddr == "" {
-		t.Fatal("No expansion address provided")
-	}
+	checkFlags(t)
 
 	p := beam.NewPipeline()
 	s := p.Root()
@@ -189,10 +183,7 @@ func TestXLang_Flatten(t *testing.T) {
 
 func TestXLang_GroupBy(t *testing.T) {
 	integration.CheckFilters(t)
-
-	if *ptest.ExpansionAddr == "" {
-		t.Fatal("No expansion address provided")
-	}
+	checkFlags(t)
 
 	p := beam.NewPipeline()
 	s := p.Root()
@@ -211,10 +202,7 @@ func TestXLang_GroupBy(t *testing.T) {
 
 func TestXLang_Multi(t *testing.T) {
 	integration.CheckFilters(t)
-
-	if *ptest.ExpansionAddr == "" {
-		t.Fatal("No expansion address provided")
-	}
+	checkFlags(t)
 
 	p := beam.NewPipeline()
 	s := p.Root()
@@ -234,10 +222,7 @@ func TestXLang_Multi(t *testing.T) {
 
 func TestXLang_Partition(t *testing.T) {
 	integration.CheckFilters(t)
-
-	if *ptest.ExpansionAddr == "" {
-		t.Fatal("No expansion address provided")
-	}
+	checkFlags(t)
 
 	p := beam.NewPipeline()
 	s := p.Root()

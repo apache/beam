@@ -1355,7 +1355,11 @@ message StandardArtifacts {
   enum Roles {
     // A URN for staging-to role.
     // payload: ArtifactStagingToRolePayload
-    STAGING_TO  = 0 [(beam_urn) = "beam:artifact:role:staging_to:v1"];
+    STAGING_TO        = 0 [(beam_urn) = "beam:artifact:role:staging_to:v1"];
+
+    // A URN for pip-requirements-file role.
+    // payload: None
+    PIP_REQUIREMENTS_FILE  = 1 [(beam_urn) = "beam:artifact:role:pip_requirements_file:v1"];
   }
 }
 
@@ -1443,6 +1447,11 @@ message Environment {
 
   // (Optional) artifact dependency information used for executing UDFs in this environment.
   repeated ArtifactInformation dependencies = 6;
+
+  // (Optional) A mapping of resource URNs to requested values.  The encoding
+  // of the values is specified by the URN.  Resource hints are advisory;
+  // a runner is free to ignore resource hints that it does not understand.
+  map<string, bytes> resource_hints = 7;
 
   reserved 1;
 }

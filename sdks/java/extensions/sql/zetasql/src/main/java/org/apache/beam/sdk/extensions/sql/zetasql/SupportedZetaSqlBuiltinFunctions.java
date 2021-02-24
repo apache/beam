@@ -395,7 +395,7 @@ class SupportedZetaSqlBuiltinFunctions {
 
           // Aggregate functions.
           FunctionSignatureId.FN_ANY_VALUE, // any_value
-          // FunctionSignatureId.FN_ARRAY_AGG, // array_agg
+          FunctionSignatureId.FN_ARRAY_AGG, // array_agg
           // FunctionSignatureId.FN_ARRAY_CONCAT_AGG, // array_concat_agg
           FunctionSignatureId.FN_AVG_INT64, // avg
           FunctionSignatureId.FN_AVG_DOUBLE, // avg
@@ -415,6 +415,7 @@ class SupportedZetaSqlBuiltinFunctions {
           // JIRA link: https://issues.apache.org/jira/browse/BEAM-10379
           // FunctionSignatureId.FN_BIT_AND_INT64, // bit_and
           FunctionSignatureId.FN_BIT_OR_INT64, // bit_or
+          // TODO(BEAM-10379) Re-enable when nulls are handled properly.
           // FunctionSignatureId.FN_BIT_XOR_INT64, // bit_xor
           // FunctionSignatureId.FN_LOGICAL_AND, // logical_and
           // FunctionSignatureId.FN_LOGICAL_OR, // logical_or
@@ -461,7 +462,7 @@ class SupportedZetaSqlBuiltinFunctions {
           // FunctionSignatureId.FN_VAR_SAMP_NUMERIC, // var_samp
           // FunctionSignatureId.FN_VAR_SAMP_BIGNUMERIC, // var_samp
 
-          // FunctionSignatureId.FN_COUNTIF, // countif
+          FunctionSignatureId.FN_COUNTIF, // countif
 
           // Approximate quantiles functions that produce or consume intermediate
           // sketches. All found in the "kll_quantiles.*" namespace.

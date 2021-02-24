@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.core;
 
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -29,7 +29,6 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.joda.time.Instant;
 
 /**
@@ -124,52 +123,37 @@ public class LateDataDroppingDoFnRunner<K, InputT, OutputT, W extends BoundedWin
      */
     public <K, InputT> Iterable<WindowedValue<InputT>> filter(
         final K key, Iterable<WindowedValue<InputT>> elements) {
-      Iterable<Iterable<WindowedValue<InputT>>> windowsExpandedElements =
-          StreamSupport.stream(elements.spliterator(), false)
-              .map(
-                  input ->
-                      input.getWindows().stream()
-                          .map(
-                              window ->
-                                  WindowedValue.of(
-                                      input.getValue(),
-                                      input.getTimestamp(),
-                                      window,
-                                      input.getPane()))
-                          .collect(Collectors.toList()))
-              .collect(Collectors.toList());
-      Iterable<WindowedValue<InputT>> concatElements = Iterables.concat(windowsExpandedElements);
-
-      // Bump the counter separately since we don't want multiple iterations to
-      // increase it multiple times.
-      for (WindowedValue<InputT> input : concatElements) {
-        BoundedWindow window = Iterables.getOnlyElement(input.getWindows());
-        if (canDropDueToExpiredWindow(window)) {
-          // The element is too late for this window.
-          droppedDueToLateness.inc();
-          WindowTracing.debug(
-              "{}: Dropping element at {} for key:{}; window:{} "
-                  + "since too far behind inputWatermark:{}; outputWatermark:{}",
-              LateDataFilter.class.getSimpleName(),
-              input.getTimestamp(),
-              key,
-              window,
-              timerInternals.currentInputWatermarkTime(),
-              timerInternals.currentOutputWatermarkTime());
+      final List<WindowedValue<InputT>> nonLateElements = new ArrayList<>();
+      for (WindowedValue<InputT> element : elements) {
+        for (BoundedWindow window : element.getWindows()) {
+          if (canDropDueToExpiredWindow(window)) {
+            // The element is too late for this window.
+            droppedDueToLateness.inc();
+            WindowTracing.debug(
+                "{}: Dropping element at {} for key:{}; window:{} "
+                    + "since too far behind inputWatermark:{}; outputWatermark:{}",
+                LateDataFilter.class.getSimpleName(),
+                element.getTimestamp(),
+                key,
+                window,
+                timerInternals.currentInputWatermarkTime(),
+                timerInternals.currentOutputWatermarkTime());
+          } else {
+            nonLateElements.add(
+                WindowedValue.of(
+                    element.getValue(), element.getTimestamp(), window, element.getPane()));
+          }
         }
       }
-
-      // return nonLateElements
-      return StreamSupport.stream(concatElements.spliterator(), false)
-          .filter(
-              input -> {
-                BoundedWindow window = Iterables.getOnlyElement(input.getWindows());
-                return !canDropDueToExpiredWindow(window);
-              })
-          .collect(Collectors.toList());
+      return nonLateElements;
     }
 
-    /** Is {@code window} expired w.r.t. the garbage collection watermark? */
+    /**
+     * Is {@code window} expired w.r.t. the garbage collection watermark?
+     *
+     * @param window Window to check for expiration.
+     * @return True if element can be dropped.
+     */
     private boolean canDropDueToExpiredWindow(BoundedWindow window) {
       Instant inputWM = timerInternals.currentInputWatermarkTime();
       return LateDataUtils.garbageCollectionTime(window, windowingStrategy).isBefore(inputWM);

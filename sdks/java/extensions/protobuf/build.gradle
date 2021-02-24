@@ -19,6 +19,7 @@
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
   generatedClassPatterns: [
+    /^org\.apache\.beam\.sdk\.extensions\.protobuf\.PayloadMessages/,
     /^org\.apache\.beam\.sdk\.extensions\.protobuf\.Proto2CoderTestMessages/,
     /^org\.apache\.beam\.sdk\.extensions\.protobuf\.Proto2SchemaMessages/,
     /^org\.apache\.beam\.sdk\.extensions\.protobuf\.Proto3SchemaMessages/,

@@ -398,9 +398,6 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
   def test_register_finalizations(self):
     raise unittest.SkipTest("BEAM-11021")
 
-  def test_pardo_dynamic_timer(self):
-    raise unittest.SkipTest("BEAM-10120")
-
   # Inherits all other tests.
 
 
@@ -425,6 +422,11 @@ class FlinkRunnerTestOptimized(FlinkRunnerTest):
 
   def test_sql(self):
     raise unittest.SkipTest("BEAM-7252")
+
+  def test_pack_combiners_disabled_by_default(self):
+    raise unittest.SkipTest(
+        "Base test has expectations on counter names that fail because "
+        "stage fusion modifies counter names")
 
 
 class FlinkRunnerTestStreaming(FlinkRunnerTest):

@@ -70,7 +70,6 @@ import org.apache.beam.runners.dataflow.util.CloudObjects;
 import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.runners.dataflow.util.RandomAccessData;
 import org.apache.beam.runners.dataflow.worker.DataflowOperationContext.DataflowExecutionState;
-import org.apache.beam.runners.dataflow.worker.ExperimentContext.Experiment;
 import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Kind;
 import org.apache.beam.runners.dataflow.worker.counters.Counter;
 import org.apache.beam.runners.dataflow.worker.counters.CounterName;
@@ -114,7 +113,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ListMultimap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Ordering;
@@ -169,9 +167,7 @@ public class IsmSideInputReaderTest {
 
   @Before
   public void setUp() {
-    pipelineOptions
-        .as(DataflowPipelineDebugOptions.class)
-        .setExperiments(Lists.newArrayList(Experiment.SideInputIOMetrics.getName()));
+    pipelineOptions.as(DataflowPipelineDebugOptions.class);
     setupCloser = Closer.create();
     setupCloser.register(executionContext.getExecutionStateTracker().activate());
     setupCloser.register(operationContext.enterProcess());

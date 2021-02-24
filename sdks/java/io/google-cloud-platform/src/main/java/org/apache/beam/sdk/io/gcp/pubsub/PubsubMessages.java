@@ -37,6 +37,10 @@ public class PubsubMessages {
       if (attributes != null) {
         message.putAllAttributes(attributes);
       }
+      String messageId = input.getMessageId();
+      if (messageId != null) {
+        message.setMessageId(messageId);
+      }
       return message.build().toByteArray();
     }
   }
@@ -49,7 +53,8 @@ public class PubsubMessages {
       try {
         com.google.pubsub.v1.PubsubMessage message =
             com.google.pubsub.v1.PubsubMessage.parseFrom(input);
-        return new PubsubMessage(message.getData().toByteArray(), message.getAttributesMap());
+        return new PubsubMessage(
+            message.getData().toByteArray(), message.getAttributesMap(), message.getMessageId());
       } catch (InvalidProtocolBufferException e) {
         throw new RuntimeException("Could not decode Pubsub message", e);
       }

@@ -50,6 +50,13 @@ dependencies {
   testCompile library.java.hamcrest_library
   testCompile library.java.mockito_core
   testCompile library.java.quickcheck_core
+  testCompileOnly project(":sdks:java:extensions:sql:udf-test-provider")
   testRuntimeClasspath library.java.slf4j_jdk14
 }
 
+test {
+  dependsOn ":sdks:java:extensions:sql:emptyJar"
+  // Pass jars used by Java UDF tests via system properties.
+  systemProperty "beam.sql.udf.test.jar_path", project(":sdks:java:extensions:sql:udf-test-provider").jarPath
+  systemProperty "beam.sql.udf.test.empty_jar_path", project(":sdks:java:extensions:sql").emptyJar.archivePath
+}

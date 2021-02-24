@@ -57,6 +57,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -224,25 +225,31 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testWriteDynamicDestinationsBatch() throws Exception {
-    writeDynamicDestinations(false, false);
+    writeDynamicDestinations(false, false, false);
   }
 
   @Test
   public void testWriteDynamicDestinationsBatchWithSchemas() throws Exception {
-    writeDynamicDestinations(false, true);
+    writeDynamicDestinations(false, true, false);
   }
 
   @Test
   public void testWriteDynamicDestinationsStreaming() throws Exception {
-    writeDynamicDestinations(true, false);
+    writeDynamicDestinations(true, false, false);
   }
 
   @Test
   public void testWriteDynamicDestinationsStreamingWithSchemas() throws Exception {
-    writeDynamicDestinations(true, true);
+    writeDynamicDestinations(true, true, false);
   }
 
-  public void writeDynamicDestinations(boolean streaming, boolean schemas) throws Exception {
+  @Test
+  public void testWriteDynamicDestinationsStreamingWithAutoSharding() throws Exception {
+    writeDynamicDestinations(true, true, true);
+  }
+
+  public void writeDynamicDestinations(boolean streaming, boolean schemas, boolean autoSharding)
+      throws Exception {
     final Schema schema =
         Schema.builder().addField("name", FieldType.STRING).addField("id", FieldType.INT32).build();
 
@@ -357,6 +364,9 @@ public class BigQueryIOWriteTest implements Serializable {
                 checkState(matcher.matches());
                 return new TableRow().set("name", matcher.group(1)).set("id", matcher.group(2));
               });
+    }
+    if (autoSharding) {
+      write = write.withAutoSharding();
     }
     users.apply("WriteBigQuery", write);
     p.run();
@@ -593,6 +603,74 @@ public class BigQueryIOWriteTest implements Serializable {
   @Test
   public void testTriggeredFileLoadsWithTempTablesDefaultProject() throws Exception {
     testTriggeredFileLoadsWithTempTables("dataset-id.table-id");
+  }
+
+  @Test
+  public void testTriggeredFileLoadsWithAutoSharding() throws Exception {
+    List<TableRow> elements = Lists.newArrayList();
+    for (int i = 0; i < 30; ++i) {
+      elements.add(new TableRow().set("number", i));
+    }
+
+    Instant startInstant = new Instant(0L);
+    TestStream<TableRow> testStream =
+        TestStream.create(TableRowJsonCoder.of())
+            // Initialize watermark for timer to be triggered correctly.
+            .advanceWatermarkTo(startInstant)
+            .addElements(
+                elements.get(0), Iterables.toArray(elements.subList(1, 10), TableRow.class))
+            .advanceProcessingTime(Duration.standardMinutes(1))
+            .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(10)))
+            .addElements(
+                elements.get(10), Iterables.toArray(elements.subList(11, 20), TableRow.class))
+            .advanceProcessingTime(Duration.standardMinutes(1))
+            .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(30)))
+            .addElements(
+                elements.get(20), Iterables.toArray(elements.subList(21, 30), TableRow.class))
+            .advanceProcessingTime(Duration.standardMinutes(2))
+            .advanceWatermarkToInfinity();
+
+    int numTables = 3;
+    p.apply(testStream)
+        .apply(
+            BigQueryIO.writeTableRows()
+                .to(
+                    (ValueInSingleWindow<TableRow> vsw) -> {
+                      String tableSpec =
+                          "project-id:dataset-id.table-"
+                              + ((int) vsw.getValue().get("number") % numTables);
+                      return new TableDestination(tableSpec, null);
+                    })
+                .withSchema(
+                    new TableSchema()
+                        .setFields(
+                            ImmutableList.of(
+                                new TableFieldSchema().setName("number").setType("INTEGER"))))
+                .withTestServices(fakeBqServices)
+                // Set a triggering frequency without needing to also specify numFileShards when
+                // using autoSharding.
+                .withTriggeringFrequency(Duration.standardSeconds(100))
+                .withAutoSharding()
+                .withMaxBytesPerPartition(1000)
+                .withMaxFilesPerPartition(10)
+                .withMethod(BigQueryIO.Write.Method.FILE_LOADS)
+                .withoutValidation());
+    p.run();
+
+    Map<Integer, List<TableRow>> elementsByTableIdx = new HashMap<>();
+    for (int i = 0; i < elements.size(); i++) {
+      elementsByTableIdx
+          .computeIfAbsent(i % numTables, k -> new ArrayList<>())
+          .add(elements.get(i));
+    }
+    for (Map.Entry<Integer, List<TableRow>> entry : elementsByTableIdx.entrySet()) {
+      assertThat(
+          fakeDatasetService.getAllRows("project-id", "dataset-id", "table-" + entry.getKey()),
+          containsInAnyOrder(Iterables.toArray(entry.getValue(), TableRow.class)));
+    }
+    // For each table destination, it's expected to create two load jobs based on the triggering
+    // frequency and processing time intervals.
+    assertEquals(2 * numTables, fakeDatasetService.getInsertCount());
   }
 
   @Test
@@ -860,6 +938,30 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testStreamingWrite() throws Exception {
+    streamingWrite(false);
+  }
+
+  @Test
+  public void testStreamingWriteWithAutoSharding() throws Exception {
+    streamingWrite(true);
+  }
+
+  private void streamingWrite(boolean autoSharding) throws Exception {
+    BigQueryIO.Write<TableRow> write =
+        BigQueryIO.writeTableRows()
+            .to("project-id:dataset-id.table-id")
+            .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+            .withSchema(
+                new TableSchema()
+                    .setFields(
+                        ImmutableList.of(
+                            new TableFieldSchema().setName("name").setType("STRING"),
+                            new TableFieldSchema().setName("number").setType("INTEGER"))))
+            .withTestServices(fakeBqServices)
+            .withoutValidation();
+    if (autoSharding) {
+      write = write.withAutoSharding();
+    }
     p.apply(
             Create.of(
                     new TableRow().set("name", "a").set("number", 1),
@@ -868,18 +970,7 @@ public class BigQueryIOWriteTest implements Serializable {
                     new TableRow().set("name", "d").set("number", 4))
                 .withCoder(TableRowJsonCoder.of()))
         .setIsBoundedInternal(PCollection.IsBounded.UNBOUNDED)
-        .apply(
-            BigQueryIO.writeTableRows()
-                .to("project-id:dataset-id.table-id")
-                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
-                .withSchema(
-                    new TableSchema()
-                        .setFields(
-                            ImmutableList.of(
-                                new TableFieldSchema().setName("name").setType("STRING"),
-                                new TableFieldSchema().setName("number").setType("INTEGER"))))
-                .withTestServices(fakeBqServices)
-                .withoutValidation());
+        .apply(write);
     p.run();
 
     assertThat(
@@ -1248,6 +1339,7 @@ public class BigQueryIOWriteTest implements Serializable {
     assertEquals(BigQueryIO.Write.WriteDisposition.WRITE_EMPTY, write.getWriteDisposition());
     assertEquals(null, write.getTableDescription());
     assertTrue(write.getValidate());
+    assertFalse(write.getAutoSharding());
 
     assertFalse(write.withoutValidation().getValidate());
     TableSchema schema = new TableSchema();
@@ -1467,6 +1559,22 @@ public class BigQueryIOWriteTest implements Serializable {
                 .withSchema(new TableSchema())
                 .withAvroFormatFunction(r -> new GenericData.Record(r.getSchema()))
                 .withMethod(Method.STREAMING_INSERTS)
+                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED));
+  }
+
+  @Test
+  public void testWriteValidateFailsWithBatchAutoSharding() {
+    p.enableAbandonedNodeEnforcement(false);
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Auto-sharding is only applicable to unbounded input.");
+    p.apply(Create.empty(INPUT_RECORD_CODER))
+        .apply(
+            BigQueryIO.<InputRecord>write()
+                .to("dataset.table")
+                .withSchema(new TableSchema())
+                .withMethod(Method.STREAMING_INSERTS)
+                .withAutoSharding()
                 .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED));
   }
 

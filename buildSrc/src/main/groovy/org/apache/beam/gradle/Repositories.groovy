@@ -81,6 +81,7 @@ class Repositories {
         jcenter()
         maven { url "https://plugins.gradle.org/m2/" }
         maven { url "https://repo.spring.io/plugins-release" }
+        maven { url "https://public.nexus.pentaho.org/repository/proxy-public-3rd-party-release" }
         maven { url "https://packages.confluent.io/maven/" }
         maven { url project.offlineRepositoryRoot }
       }

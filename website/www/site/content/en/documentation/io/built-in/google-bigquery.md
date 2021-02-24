@@ -365,7 +365,7 @@ GitHub](https://github.com/apache/beam/blob/master/examples/java/src/main/java/o
 The following code snippet reads with a query string.
 
 {{< highlight java >}}
-// Snippet not yet available (BEAM-7034).
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/transforms/io/gcp/bigquery/BigQueryReadFromQueryWithBigQueryStorageAPI.java" bigquery_read_from_query_with_bigquery_storage_api >}}
 {{< /highlight >}}
 
 {{< highlight py >}}

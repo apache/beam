@@ -49,7 +49,7 @@ public class FlinkJobInvoker extends JobInvoker {
   private final FlinkJobServerDriver.FlinkServerConfiguration serverConfig;
 
   protected FlinkJobInvoker(FlinkJobServerDriver.FlinkServerConfiguration serverConfig) {
-    super("flink-runner-job-invoker");
+    super("flink-runner-job-invoker-%d");
     this.serverConfig = serverConfig;
   }
 

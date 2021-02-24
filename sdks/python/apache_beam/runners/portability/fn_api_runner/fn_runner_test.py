@@ -987,6 +987,58 @@ class FnApiRunnerTest(unittest.TestCase):
     with self.create_pipeline() as p:
       assert_that(p | beam.Create(['a', 'b']), equal_to(['a', 'b']))
 
+  def _test_pack_combiners(self, experiments, expect_packed):
+    counter = beam.metrics.Metrics.counter('ns', 'num_values')
+
+    def min_with_counter(values):
+      counter.inc()
+      return min(values)
+
+    def max_with_counter(values):
+      counter.inc()
+      return max(values)
+
+    with self.create_pipeline() as p:
+      for experiment in experiments:
+        p._options.view_as(DebugOptions).add_experiment(experiment)
+      pcoll = p | beam.Create([10, 20, 30])
+      assert_that(
+          pcoll | 'PackableMin' >> beam.CombineGlobally(min_with_counter),
+          equal_to([10]),
+          label='AssertMin')
+      assert_that(
+          pcoll | 'PackableMax' >> beam.CombineGlobally(max_with_counter),
+          equal_to([30]),
+          label='AssertMax')
+
+    res = p.run()
+    res.wait_until_finish()
+
+    unpacked_min_step_name = 'PackableMin/CombinePerKey'
+    unpacked_max_step_name = 'PackableMax/CombinePerKey'
+    packed_step_name = (
+        'Packed[PackableMin/CombinePerKey, PackableMax/CombinePerKey]/' +
+        'Pack')
+
+    counters = res.metrics().query(beam.metrics.MetricsFilter())['counters']
+    step_names = set(m.key.step for m in counters)
+    if expect_packed:
+      self.assertFalse(any([unpacked_min_step_name in s for s in step_names]))
+      self.assertFalse(any([unpacked_max_step_name in s for s in step_names]))
+      self.assertTrue(any([packed_step_name in s for s in step_names]))
+    else:
+      self.assertTrue(any([unpacked_min_step_name in s for s in step_names]))
+      self.assertTrue(any([unpacked_max_step_name in s for s in step_names]))
+      self.assertFalse(any([packed_step_name in s for s in step_names]))
+
+  def test_pack_combiners_disabled_by_default(self):
+    self._test_pack_combiners(experiments=(), expect_packed=False)
+
+  @unittest.skip("BEAM-11694")
+  def test_pack_combiners_enabled_by_experiment(self):
+    self._test_pack_combiners(
+        experiments=('pre_optimize=all', ), expect_packed=True)
+
 
 # These tests are kept in a separate group so that they are
 # not ran in the FnApiRunnerTestWithBundleRepeat which repeats

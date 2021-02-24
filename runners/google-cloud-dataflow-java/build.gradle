@@ -45,7 +45,7 @@ processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
     'dataflow.legacy_environment_major_version' : '8',
     'dataflow.fnapi_environment_major_version' : '8',
-    'dataflow.container_version' : 'beam-master-20200629'
+    'dataflow.container_version' : 'beam-master-20201116'
   ]
 }
 
@@ -144,7 +144,8 @@ def runnerV2PipelineOptions = [
   "--region=${dataflowRegion}",
   "--tempRoot=${dataflowValidatesTempRoot}",
   "--workerHarnessContainerImage=${dockerImageContainer}:${dockerTag}",
-  "--experiments=beam_fn_api,use_unified_worker,use_runner_v2",
+  // TODO(BEAM-11779) remove shuffle_mode=appliance with runner v2 once issue is resolved.
+  "--experiments=beam_fn_api,use_unified_worker,use_runner_v2,shuffle_mode=appliance",
 ]
 
 def commonLegacyExcludeCategories = [
@@ -259,7 +260,7 @@ task buildAndPushDockerContainer() {
       commandLine "docker", "tag", "${defaultDockerImageName}", "${dockerImageName}"
     }
     exec {
-      commandLine "gcloud", "docker", "--", "push", "${dockerImageContainer}"
+      commandLine "gcloud", "docker", "--", "push", "${dockerImageName}"
     }
   }
 }
@@ -334,6 +335,8 @@ createCrossLanguageValidatesRunnerTask(
     "--region=${dataflowRegion}",
     "--sdk_harness_container_image_overrides=.*java.*,${dockerImageContainer}:${dockerTag}",
     "--experiments=use_runner_v2",
+    // TODO(BEAM-11779) remove shuffle_mode=appliance with runner v2 once issue is resolved
+    "--experiments=shuffle_mode=appliance",
   ],
   javaPipelineOptions: [
     "--runner=TestDataflowRunner",
@@ -341,7 +344,8 @@ createCrossLanguageValidatesRunnerTask(
     "--region=${dataflowRegion}",
     "--tempRoot=${dataflowValidatesTempRoot}",
     "--sdkHarnessContainerImageOverrides=.*java.*,${dockerImageContainer}:${dockerTag}",
-    "--experiments=use_runner_v2",
+    // TODO(BEAM-11779) remove shuffle_mode=appliance with runner v2 once issue is resolved.
+    "--experiments=use_runner_v2,shuffle_mode=appliance",
   ],
   nosetestsOptions: [
     "--nocapture",
@@ -529,18 +533,13 @@ task googleCloudPlatformRunnerV2IntegrationTest(type: Test) {
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson(runnerV2PipelineOptions)
 
   include '**/*IT.class'
-  exclude '**/BigQueryIOReadIT.class'
-  exclude '**/BigQueryIOStorageQueryIT.class'
-  exclude '**/BigQueryIOStorageReadIT.class'
   exclude '**/BigQueryIOStorageReadTableRowIT.class'
-  exclude '**/PubsubReadIT.class'
-  exclude '**/SpannerReadIT.class'
-  exclude '**/BigtableReadIT.class'
-  exclude '**/V1ReadIT.class'
   exclude '**/SpannerWriteIT.class'
-  exclude '**/BigQueryNestedRecordsIT.class'
-  exclude '**/SplitQueryFnIT.class'
   exclude '**/*KmsKeyIT.class'
+  exclude '**/FhirIOReadIT.class'
+  exclude '**/FhirIOWriteIT.class'
+  exclude '**/FhirIOLROIT.class'
+  exclude '**/FhirIOSearchIT.class'
 
   maxParallelForks 4
   classpath = configurations.googleCloudPlatformIntegrationTest
