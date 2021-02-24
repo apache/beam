@@ -794,8 +794,7 @@ public class DataflowPipelineTranslator {
                 byteArrayToJsonString(
                     serializeWindowingStrategy(windowingStrategy, context.getPipelineOptions())));
             stepContext.addInput(
-                PropertyNames.IS_MERGING_WINDOW_FN,
-                !windowingStrategy.getWindowFn().isNonMerging());
+                PropertyNames.IS_MERGING_WINDOW_FN, windowingStrategy.needsMerge());
             stepContext.addCollectionToSingletonOutput(
                 input, PropertyNames.OUTPUT, transform.getView());
           }
@@ -926,7 +925,7 @@ public class DataflowPipelineTranslator {
             boolean isStreaming =
                 context.getPipelineOptions().as(StreamingOptions.class).isStreaming();
             boolean allowCombinerLifting =
-                windowingStrategy.getWindowFn().isNonMerging()
+                !windowingStrategy.needsMerge()
                     && windowingStrategy.getWindowFn().assignsToOneWindow();
             if (isStreaming) {
               allowCombinerLifting &= transform.fewKeys();

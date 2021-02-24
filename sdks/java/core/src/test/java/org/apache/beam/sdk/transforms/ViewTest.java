@@ -55,7 +55,6 @@ import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
-import org.apache.beam.sdk.transforms.windowing.InvalidWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
@@ -1616,22 +1615,6 @@ public class ViewTest implements Serializable {
         .apply(view);
   }
 
-  private void testViewNonmerging(
-      Pipeline pipeline,
-      PTransform<PCollection<KV<String, Integer>>, ? extends PCollectionView<?>> view) {
-    thrown.expect(IllegalStateException.class);
-    thrown.expectMessage("Unable to create a side-input view from input");
-    thrown.expectCause(
-        ThrowableMessageMatcher.hasMessage(Matchers.containsString("Consumed by GroupByKey")));
-    pipeline
-        .apply(Create.of(KV.of("hello", 5)))
-        .apply(
-            Window.into(
-                new InvalidWindows<>(
-                    "Consumed by GroupByKey", FixedWindows.of(Duration.standardHours(1)))))
-        .apply(view);
-  }
-
   @Test
   public void testViewUnboundedAsSingletonDirect() {
     testViewUnbounded(pipeline, View.asSingleton());
@@ -1655,30 +1638,5 @@ public class ViewTest implements Serializable {
   @Test
   public void testViewUnboundedAsMultimapDirect() {
     testViewUnbounded(pipeline, View.asMultimap());
-  }
-
-  @Test
-  public void testViewNonmergingAsSingletonDirect() {
-    testViewNonmerging(pipeline, View.asSingleton());
-  }
-
-  @Test
-  public void testViewNonmergingAsIterableDirect() {
-    testViewNonmerging(pipeline, View.asIterable());
-  }
-
-  @Test
-  public void testViewNonmergingAsListDirect() {
-    testViewNonmerging(pipeline, View.asList());
-  }
-
-  @Test
-  public void testViewNonmergingAsMapDirect() {
-    testViewNonmerging(pipeline, View.asMap());
-  }
-
-  @Test
-  public void testViewNonmergingAsMultimapDirect() {
-    testViewNonmerging(pipeline, View.asMultimap());
   }
 }

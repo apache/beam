@@ -332,7 +332,7 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
   public WindowingStrategy<?, ?> getOutputStrategyInternal(WindowingStrategy<?, ?> inputStrategy) {
     WindowingStrategy<?, ?> result = inputStrategy;
     if (getWindowFn() != null) {
-      result = result.withWindowFn(getWindowFn());
+      result = result.withAlreadyMerged(false).withWindowFn(getWindowFn());
     }
     if (getTrigger() != null) {
       result = result.withTrigger(getTrigger());
@@ -509,9 +509,6 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
   private static class Remerge<T> extends PTransform<PCollection<T>, PCollection<T>> {
     @Override
     public PCollection<T> expand(PCollection<T> input) {
-      WindowingStrategy<?, ?> outputWindowingStrategy =
-          getOutputWindowing(input.getWindowingStrategy());
-
       return input
           // We first apply a (trivial) transform to the input PCollection to produce a new
           // PCollection. This ensures that we don't modify the windowing strategy of the input
@@ -526,18 +523,7 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
                     }
                   }))
           // Then we modify the windowing strategy.
-          .setWindowingStrategyInternal(outputWindowingStrategy);
-    }
-
-    private <W extends BoundedWindow> WindowingStrategy<?, W> getOutputWindowing(
-        WindowingStrategy<?, W> inputStrategy) {
-      if (inputStrategy.getWindowFn() instanceof InvalidWindows) {
-        @SuppressWarnings("unchecked")
-        InvalidWindows<W> invalidWindows = (InvalidWindows<W>) inputStrategy.getWindowFn();
-        return inputStrategy.withWindowFn(invalidWindows.getOriginalWindowFn());
-      } else {
-        return inputStrategy;
-      }
+          .setWindowingStrategyInternal(input.getWindowingStrategy().withAlreadyMerged(false));
     }
   }
 }

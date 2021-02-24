@@ -1013,7 +1013,7 @@ class FlinkStreamingTransformTranslators {
       WindowingStrategy<?, BoundedWindow> windowingStrategy =
           (WindowingStrategy<?, BoundedWindow>) input.getWindowingStrategy();
 
-      return windowingStrategy.getWindowFn().isNonMerging()
+      return !windowingStrategy.needsMerge()
           || ((Combine.PerKey) transform).getSideInputs().isEmpty();
     }
 
