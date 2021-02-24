@@ -19,7 +19,7 @@ limitations under the License.
 
 # Attributes of a Beam community member
 
-{{< figure src="/images/community/messages-icon.svg" >}}
+{{< figure src="/images/community/beam-logo-icon.svg" >}}
 
 ## Knows, upholds, and reinforces the Beam community’s practices
 
@@ -35,7 +35,7 @@ In particular, if a code contributor:
 - They accept and integrate feedback on their code
 - They know, follow, and enforce Beam’s practices while reviewing/merging code - style, documentation, testing, backward compatibility, etc.
 
-{{< figure src="/images/community/beam-logo-icon.svg" >}}
+{{< figure src="/images/community/messages-icon.svg" >}}
 
 ## Knows, upholds, and reinforces the Apache Software Foundation code of conduct
 
