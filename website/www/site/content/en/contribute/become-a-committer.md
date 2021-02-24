@@ -20,7 +20,7 @@ limitations under the License.
 
 An Apache Beam [committer](https://www.apache.org/foundation/how-it-works.html#committers) takes many forms. There are many actions other than coding that build the trust we place in a committer - code review, design discussion, user support, community outreach, improving infrastructure, documentation, project management, etc.
 
-### What does it mean being a commiter?
+### What does it mean to be a committer?
 
 An Apache Beam committer has write access to the repository for merging pull requests, but you don’t have to be a code contributor to become a committer. Becoming a committer means that you have the project’s trust. Read the [ASF documentation](https://www.apache.org/dev/committers.html#committer-responsibilities) for more about being a committer in the Apache Software Foundation.
 
@@ -29,7 +29,7 @@ Everyone is welcome to join and contribute to the project in many ways, not only
 
 {{< contributor/list_with_icons ways_of_contribution >}}
 
-### What are the traits of an Apache Beam Committer?
+### What are the traits of an Apache Beam committer?
 
 {{< contributor/row_of_traits committer_traits >}}
 
