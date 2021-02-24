@@ -17,6 +17,7 @@
 
 from __future__ import absolute_import
 
+import copy
 import json
 import logging
 import sys
@@ -25,10 +26,15 @@ import unittest
 import numpy as np
 import pandas as pd
 
+import apache_beam as beam
 from apache_beam import coders
 from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import utils
+from apache_beam.runners.interactive.testing.pipeline_assertion import assert_pipeline_equal
+from apache_beam.runners.interactive.testing.pipeline_assertion import assert_pipeline_proto_contain_top_level_transform
+from apache_beam.runners.interactive.testing.pipeline_assertion import \
+    assert_pipeline_proto_not_contain_top_level_transform
 from apache_beam.testing.test_stream import WindowedValueHolder
 from apache_beam.utils.timestamp import Timestamp
 from apache_beam.utils.windowed_value import WindowedValue
@@ -253,6 +259,48 @@ class MessagingUtilTest(unittest.TestCase):
     # As of Python 3.6, for the CPython implementation of Python,
     # dictionaries remember the order of items inserted.
     self.assertEqual(json.loads(dummy()), MessagingUtilTest.SAMPLE_DATA)
+
+
+@unittest.skipIf(
+    not ie.current_env().is_interactive_ready,
+    '[interactive] dependency is not installed.')
+@unittest.skipIf(
+    sys.version_info < (3, 6), 'The tests require at least Python 3.6 to work.')
+class DeepCopyTest(unittest.TestCase):
+  def setUp(self):
+    ie.new_env()
+
+  def test_deepcopied_pipeline_has_same_structure(self):
+    pipeline = beam.Pipeline()
+    pcoll = pipeline | beam.Create(range(10))
+    _ = pcoll | beam.Map(lambda x: x * x)
+
+    pipeline_copy = copy.deepcopy(pipeline)
+    assert_pipeline_equal(self, pipeline, pipeline_copy)
+
+  def test_modify_deepcopied_pipeline_not_affect_original_pipeline(self):
+    pipeline = beam.Pipeline()
+    _ = pipeline | 'Create 1' >> beam.Create(range(10))
+    assert_pipeline_proto_contain_top_level_transform(
+        self, pipeline.to_runner_api(), 'Create 1')
+
+    pipeline_copy = copy.deepcopy(pipeline)
+    _ = pipeline_copy | 'Create 2' >> beam.Create(range(20))
+    pipeline_copy_proto = pipeline_copy.to_runner_api()
+    assert_pipeline_proto_contain_top_level_transform(
+        self, pipeline_copy_proto, 'Create 1')
+    assert_pipeline_proto_contain_top_level_transform(
+        self, pipeline_copy_proto, 'Create 2')
+    assert_pipeline_proto_not_contain_top_level_transform(
+        self, pipeline.to_runner_api(), 'Create 2')
+
+  def test_copy_pipeline_util_tracks_derivation_relationship(self):
+    pipeline = beam.Pipeline()
+    with patch('apache_beam.runners.interactive.user_pipeline_tracker'
+               '.UserPipelineTracker.add_derived_pipeline'
+               ) as mocked_add_derived_pipeline:
+      _ = utils.copy_pipeline(pipeline)
+      mocked_add_derived_pipeline.assert_called_once()
 
 
 if __name__ == '__main__':

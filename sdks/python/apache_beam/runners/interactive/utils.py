@@ -20,12 +20,15 @@
 
 from __future__ import absolute_import
 
+import copy
 import hashlib
 import json
 import logging
 
 import pandas as pd
 
+import apache_beam as beam
+from apache_beam.pipeline import ExternalTransformFinder
 from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
 from apache_beam.testing.test_stream import WindowedValueHolder
 
@@ -248,3 +251,28 @@ def as_json(func):
       return str(return_value)
 
   return return_as_json
+
+
+def copy_pipeline(pipeline, use_fake_coders=True, options=None):
+  # type: (Pipeline, bool, Optional[PipelineOptions]) -> Pipeline
+
+  """Copy a pipeline so that any modification to the copied pipeline would not
+  affect the state of the given pipeline and the copied pipeline can be
+  executed by the same runner to generate the same result as the original
+  pipeline.
+  It also registers the derivation relationship between the given pipeline and
+  the copied pipeline.
+  """
+  import apache_beam.runners.interactive.interactive_environment as ie
+  assert isinstance(pipeline, beam.pipeline.Pipeline), (
+      'pipeline must be an instance of beam.piepline.Pipeline')
+  copied_pipeline = None
+  if ExternalTransformFinder.contains_external_transforms(pipeline):
+    copied_pipeline = copy.deepcopy(pipeline)
+  else:
+    copied_pipeline = beam.pipeline.Pipeline.from_runner_api(
+        pipeline.to_runner_api(use_fake_coders=use_fake_coders),
+        pipeline.runner,
+        options)
+  ie.current_env().add_derived_pipeline(pipeline, copied_pipeline)
+  return copied_pipeline

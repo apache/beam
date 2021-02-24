@@ -29,6 +29,7 @@ produced when the pipeline gets executed.
 from __future__ import absolute_import
 
 import collections
+import copy
 import itertools
 from builtins import hex
 from builtins import object
@@ -157,6 +158,23 @@ class PCollection(PValue, Generic[T]):
 
   def __hash__(self):
     return hash((self.tag, self.producer))
+
+  def __deepcopy__(self, memo):
+    # type: (Dict[int, Any]) -> PCollection
+
+    """For internal use only; no backwards-compatibility guarantees."""
+    if id(self) in memo:
+      return memo[id(self)]
+    pcoll_copy = PCollection(
+      pipeline=copy.deepcopy(self.pipeline, memo),
+      tag=copy.deepcopy(self.tag, memo),
+      element_type=self.element_type,  # no need to deepcopy element type
+      windowing=None,  # handled through _windowing attribute
+      is_bounded=self.is_bounded)
+    memo[id(self)] = pcoll_copy
+    pcoll_copy._windowing = self.windowing
+    pcoll_copy.producer = copy.deepcopy(self.producer, memo)
+    return pcoll_copy
 
   @property
   def windowing(self):

@@ -50,6 +50,7 @@ Typical usage::
 from __future__ import absolute_import
 
 import abc
+import copy
 import logging
 import os
 import shutil
@@ -781,6 +782,98 @@ class Pipeline(object):
     # require pickled pipelines to be executable, break the chain here.
     return str, ('Pickled pipeline stub.', )
 
+  def __deepcopy__(self, memo):
+    # type: (Dict[int, Any]) -> Pipeline
+
+    """For internal use only; no backwards-compatibility guarantees."""
+    if id(self) in memo:
+      return memo[id(self)]
+    # There is no need to deep copy runner.
+    p_copy = Pipeline(self.runner, copy.deepcopy(self._options, memo))
+    # Immediately memoize the copied pipeline because the following deepcopies
+    # of transform and pvalueish could reference back to the copied pipeline.
+    memo[id(self)] = p_copy
+    p_copy.applied_labels = copy.deepcopy(self.applied_labels, memo)
+
+    # No need to copy component_id_map as it can be populated automatically.
+
+    class DeepCopyVisitor(PipelineVisitor):
+      """A visitor to deep copy a pipeline.
+
+      The visit only alters the copied_pipeline instance and memo passed in the
+      constructor.
+      """
+      def __init__(self, pipeline, copied_pipeline, memo):
+        self._p = pipeline
+        self._cp = copied_pipeline
+        # Dict[int, Any]. memo holds the original object id mapped to the deep
+        # copied object.
+        self._memo = memo
+
+      def enter_composite_transform(self, transform_node):
+        self.visit_transform(transform_node)
+
+      def visit_transform(self, transform_node):
+        copied_transform_node = copy.deepcopy(transform_node, self._memo)
+        # If the current transform node is the root of the original pipeline,
+        # assign the copied transform node to the copied pipeline as the root.
+        if transform_node is self._p._root_transform():
+          self._cp.transforms_stack[0] = copied_transform_node
+
+    copy_visitor = DeepCopyVisitor(self, p_copy, memo)
+    self.visit(copy_visitor)
+
+    class LinkVisitor(PipelineVisitor):
+      """A visitor to link AppliedPTransforms in the copied pipeline.
+      """
+      def __init__(self, memo):
+        self._memo = memo
+
+      def enter_composite_transform(self, transform_node):
+        self.visit_transform(transform_node)
+
+      def visit_transform(self, transform_node):
+        # Replace all possible placeholder ids with their deepcopied instances
+        # in the memo.
+        if isinstance(transform_node.parent, int):
+          transform_node.parent = self._memo[transform_node.parent]
+        for i in range(len(transform_node.parts)):
+          if isinstance(transform_node.parts[i], int):
+            transform_node.parts[i] = self._memo[transform_node.parts[i]]
+
+    link_visitor = LinkVisitor(memo)
+    p_copy.visit(link_visitor)
+
+    class ExternalTransformLinkVisitor(PipelineVisitor):
+      """A visitor to link ExternalTransforms in the copied pipeline.
+      """
+      def __init__(self, memo):
+        self._memo = memo
+
+      def enter_composite_transform(self, transform_node):
+        self.visit_transform(transform_node)
+
+      def visit_transform(self, transform_node):
+        from apache_beam.transforms import ExternalTransform
+        if isinstance(transform_node.transform, ExternalTransform):
+          new_inputs = {
+              tag: self._memo.get(id(input_pcoll), input_pcoll)
+              for tag,
+              input_pcoll in transform_node.transform._inputs.items()
+          }
+          transform_node.transform._inputs = new_inputs
+          new_outputs = {
+              tag: self._memo.get(id(output), output)
+              for tag,
+              output in transform_node.transform._outputs.items()
+          }
+          transform_node.transform._outputs = new_outputs
+
+    external_transform_link_visitor = ExternalTransformLinkVisitor(memo)
+    p_copy.visit(external_transform_link_visitor)
+
+    return p_copy
+
   def _verify_runner_api_compatible(self):
     # type: () -> bool
     if self._options.view_as(TypeOptions).runtime_type_check:
@@ -1269,6 +1362,30 @@ class AppliedPTransform(object):
           pc.tag = None if tag == 'None' else tag
     return result
 
+  def __deepcopy__(self, memo):
+    # type: (Dict[int, Any]) -> AppliedPTransform
+
+    """For internal use only; no backwards-compatibility guarantees."""
+    if id(self) in memo:
+      return memo[id(self)]
+    # Memoize id(self) immediately, indicating a deepcopy is in progress, to
+    # avoid duplicate copy when a cyclic reference occurs during the deepcopy.
+    memo[id(self)] = id(self)
+    copied_apt = AppliedPTransform(
+        copy.deepcopy(self.parent, memo),  # Optional[AppliedPTransform]
+        copy.deepcopy(self.transform, memo),  # Optional[ptransform.PTransform]
+        copy.deepcopy(self.full_label, memo),  # str
+        copy.deepcopy(self.inputs, memo),  # pvalueish
+        copy.deepcopy(self.environment_id, memo))  # Optional[str]
+    # Memoize this deepcopy.
+    memo[id(self)] = copied_apt
+    # side_inputs is already taken care of by the constructor, coming from
+    # deep copied self.transform.
+    # outputs Dict[Union[str, int, None], pvalue.PValue]
+    copied_apt.outputs = copy.deepcopy(self.outputs, memo)
+    # parts List[AppliedPTransform]
+    copied_apt.parts = copy.deepcopy(self.parts, memo)
+    return copied_apt
 
 class PTransformOverride(with_metaclass(abc.ABCMeta,
                                         object)):  # type: ignore[misc]

@@ -32,6 +32,7 @@ from apache_beam.runners.interactive import cache_manager as cache
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import pipeline_fragment as pf
 from apache_beam.runners.interactive import background_caching_job
+from apache_beam.runners.interactive.utils import copy_pipeline
 from apache_beam.runners.interactive.utils import obfuscate
 from apache_beam.testing import test_stream
 from apache_beam.transforms.window import WindowedValue
@@ -109,17 +110,11 @@ class PipelineInstrument(object):
     # to the given pipeline is identified.
     self._cache_manager = None
 
-    # Invoke a round trip through the runner API. This makes sure the Pipeline
-    # proto is stable. The snapshot of pipeline will not be mutated within this
+    # Copy a snapshot of pipeline. It will not be mutated within this
     # module and can be used to recover original pipeline if needed.
-    self._pipeline_snap = beam.pipeline.Pipeline.from_runner_api(
-        pipeline.to_runner_api(use_fake_coders=True), pipeline.runner, options)
-    ie.current_env().add_derived_pipeline(self._pipeline, self._pipeline_snap)
+    self._pipeline_snap = copy_pipeline(pipeline, options=options)
 
-    self._background_caching_pipeline = beam.pipeline.Pipeline.from_runner_api(
-        pipeline.to_runner_api(use_fake_coders=True), pipeline.runner, options)
-    ie.current_env().add_derived_pipeline(
-        self._pipeline, self._background_caching_pipeline)
+    self._background_caching_pipeline = copy_pipeline(pipeline, options=options)
 
     # Snapshot of original pipeline information.
     (self._original_pipeline_proto,

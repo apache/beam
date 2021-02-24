@@ -488,6 +488,18 @@ class PTransform(WithTypeHints, HasDisplayData):
     transform.label = new_label
     return transform
 
+  def __deepcopy__(self, memo):
+    # type: (Dict[int, Any]) -> PTransform
+
+    """For internal use only; no backwards-compatibility guarantees."""
+    if id(self) in memo:
+      return memo[id(self)]
+    ptransform_copy = self._clone(self.label)
+    memo[id(self)] = ptransform_copy
+    if ptransform_copy.pipeline:
+      ptransform_copy.pipeline = copy.deepcopy(ptransform_copy.pipeline, memo)
+    return ptransform_copy
+
   def expand(self, input_or_inputs):
     raise NotImplementedError
 
