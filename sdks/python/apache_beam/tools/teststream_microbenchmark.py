@@ -23,12 +23,13 @@ time advances.
 This runs a series of N parallel pipelines with M parallel stages each. Each
 stage does the following:
 
-1) Put all the PCollection elements in state
-2) Set a timer for the future
-3) When the timer fires, change the key and output all the elements downstream
+1) Put all the PCollection elements in a window
+2) Wait until the watermark advances past the end of the window.
+3) When the watermark passes, change the key and output all the elements
+4) Go back to #1 until all elements in the stream have been consumed.
 
 This executes the same codepaths that are run on the Fn API (and Dataflow)
-workers, but is generally easier to run (locally) and more stable..
+workers, but is generally easier to run (locally) and more stable.
 
 Run as
 
