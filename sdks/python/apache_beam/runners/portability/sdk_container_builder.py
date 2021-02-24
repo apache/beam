@@ -96,10 +96,13 @@ class SdkContainerImageBuilder(plugin.BeamPlugin):
 
   def _prepare_dependencies(self):
     with tempfile.TemporaryDirectory() as tmp:
-      resources = Stager.create_job_resources(self._options, tmp)
+      artifacts = Stager.create_job_resources(self._options, tmp)
+      resources = Stager.extract_staging_tuple_iter(artifacts)
       # make a copy of the staged artifacts into the temp source folder.
+      file_names = []
       for path, name in resources:
         shutil.copyfile(path, os.path.join(self._temp_src_dir, name))
+        file_names.append(name)
       with open(os.path.join(self._temp_src_dir, 'Dockerfile'), 'w') as file:
         file.write(
             DOCKERFILE_TEMPLATE.format(
@@ -108,7 +111,7 @@ class SdkContainerImageBuilder(plugin.BeamPlugin):
                 manifest_file=ARTIFACTS_MANIFEST_FILE,
                 entrypoint=SDK_CONTAINER_ENTRYPOINT))
       self._generate_artifacts_manifests_json_file(
-          resources, self._temp_src_dir)
+          file_names, self._temp_src_dir)
 
   def _invoke_docker_build_and_push(self, container_image_name):
     raise NotImplementedError
@@ -118,9 +121,9 @@ class SdkContainerImageBuilder(plugin.BeamPlugin):
     return f'{cls.__module__}.{cls.__name__}'
 
   @staticmethod
-  def _generate_artifacts_manifests_json_file(resources, temp_dir):
+  def _generate_artifacts_manifests_json_file(file_names, temp_dir):
     infos = []
-    for _, name in resources:
+    for name in file_names:
       info = beam_runner_api_pb2.ArtifactInformation(
           type_urn=common_urns.StandardArtifacts.Types.FILE.urn,
           type_payload=beam_runner_api_pb2.ArtifactFilePayload(

@@ -245,7 +245,7 @@ class NexmarkLauncher(object):
         | 'deserialization' >> beam.ParDo(nexmark_util.ParseJsonEventFn()))
     return events
 
-  def run_query(self, query, query_args, query_errors):
+  def run_query(self, query, query_args, pipeline_options, query_errors):
     try:
       self.pipeline = beam.Pipeline(options=self.pipeline_options)
       nexmark_util.setup_coder()
@@ -263,7 +263,7 @@ class NexmarkLauncher(object):
         events = self.read_from_file()
 
       events = events | 'event_monitor' >> beam.ParDo(event_monitor.doFn)
-      output = query.load(events, query_args)
+      output = query.load(events, query_args, pipeline_options)
       output | 'result_monitor' >> beam.ParDo(result_monitor.doFn)  # pylint: disable=expression-not-assigned
 
       result = self.pipeline.run()
@@ -430,7 +430,11 @@ class NexmarkLauncher(object):
     query_errors = []
     for i in self.args.query:
       logging.info('Running query %d', i)
-      self.run_query(queries[i], query_args, query_errors=query_errors)
+      self.run_query(
+          queries[i],
+          query_args,
+          self.pipeline_options,
+          query_errors=query_errors)
 
     if query_errors:
       logging.error('Query failed with %s', ', '.join(query_errors))

@@ -1,0 +1,44 @@
+{{/*
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+      http://www.apache.org/licenses/LICENSE-2.0
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License. See accompanying LICENSE file.
+   */}}
+   {{ $index := .Get "number-of-data" }}
+   {{ $data := index $.Site.Data .Site.Language.Lang }}
+   <div class="icon-list beam-list">
+       {{ range $i, $array := $data.join_beam }}
+           {{ if eq ( int $index) $i }}
+               <div>
+                   {{ $count := len $array.list }}
+                   {{ range $index, $item := $array.list }}
+                   <div class="list-item">
+                       <div class="list-item-icon">
+                       <div class="cirkle">
+                               <i class="fas fa-check"></i>
+                       </div>
+                       {{ if ne $index (sub $count 1) }}
+                               {{ if modBool $index 2 }}
+                                   <img src="/images/ellipse.svg" class="desktop" alt="elipse icon">
+                                   <img src="/images/ellipse-mobile.svg" class="mobile" alt="elipse icon">
+                               {{ else }}
+                                   <img src="/images/ellipse.svg" class="reverse desktop" alt="elipse icon">
+                                   <img src="/images/ellipse-mobile.svg" class="reverse mobile" alt="elipse icon">
+                               {{ end }}
+                           {{ end }}
+                       </div>
+                       <div class="list-item-description">
+                           <p class="beam-title">{{ .title | markdownify }}</p>
+                           <p class="beam-description">{{ .description | safeHTML }}</p>
+                       </div>
+                   </div>
+                   {{ end }}
+               </div>
+           {{ end }}
+       {{ end }}
+   </div>

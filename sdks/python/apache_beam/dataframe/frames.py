@@ -61,6 +61,49 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
 
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
+  @frame_base.maybe_inplace
+  def drop(self, labels, axis, index, columns, errors, **kwargs):
+    if labels is not None:
+      if index is not None or columns is not None:
+        raise ValueError("Cannot specify both 'labels' and 'index'/'columns'")
+      if axis in (0, 'index'):
+        index = labels
+        columns = None
+      elif axis in (1, 'columns'):
+        index = None
+        columns = labels
+      else:
+        raise ValueError(
+            "axis must be one of (0, 1, 'index', 'columns'), "
+            "got '%s'" % axis)
+
+    if columns is not None:
+      # Compute the proxy based on just the columns that are dropped.
+      proxy = self._expr.proxy().drop(columns=columns, errors=errors)
+    else:
+      proxy = self._expr.proxy()
+
+    if index is not None and errors == 'raise':
+      # In order to raise an error about missing index values, we'll
+      # need to collect the entire dataframe.
+      requires = partitionings.Singleton()
+    else:
+      requires = partitionings.Nothing()
+
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'drop',
+            lambda df: df.drop(
+                axis=axis,
+                index=index,
+                columns=columns,
+                errors=errors,
+                **kwargs), [self._expr],
+            proxy=proxy,
+            requires_partition_by=requires))
+
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
   def droplevel(self, level, axis):
     return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
@@ -95,7 +138,13 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
   def ffill(self, **kwargs):
     return self.fillna(method='ffill', **kwargs)
 
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  def bfill(self, **kwargs):
+    return self.fillna(method='bfill', **kwargs)
+
   pad = ffill
+  backfill = bfill
 
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
@@ -239,6 +288,38 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       # be more surprising than a clear error.
       raise frame_base.WontImplementError('non-deferred')
 
+  def keys(self):
+    return self.index
+
+  @frame_base.args_to_kwargs(pd.Series)
+  @frame_base.populate_defaults(pd.Series)
+  def append(self, to_append, ignore_index, verify_integrity, **kwargs):
+    if not isinstance(to_append, DeferredSeries):
+      raise frame_base.WontImplementError(
+          "append() only accepts DeferredSeries instances, received " +
+          str(type(to_append)))
+    if ignore_index:
+      raise frame_base.WontImplementError(
+          "append(ignore_index=True) is order sensitive")
+
+    if verify_integrity:
+      # verifying output has a unique index requires global index.
+      # TODO(BEAM-11839): Attach an explanation to the Singleton partitioning
+      # requirement, and include it in raised errors.
+      requires = partitionings.Singleton()
+    else:
+      requires = partitionings.Nothing()
+
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'append',
+            lambda s,
+            to_append: s.append(
+                to_append, verify_integrity=verify_integrity, **kwargs),
+            [self._expr, to_append._expr],
+            requires_partition_by=requires,
+            preserves_partition_by=partitionings.Index()))
+
   @frame_base.args_to_kwargs(pd.Series)
   @frame_base.populate_defaults(pd.Series)
   def align(self, other, join, axis, level, method, **kwargs):
@@ -302,9 +383,13 @@ class DeferredSeries(DeferredDataFrameOrSeries):
 
   __matmul__ = dot
 
+  def std(self, *args, **kwargs):
+    # Compute variance (deferred scalar) with same args, then sqrt it
+    return self.var(*args, **kwargs).apply(lambda var: math.sqrt(var))
+
   @frame_base.args_to_kwargs(pd.Series)
   @frame_base.populate_defaults(pd.Series)
-  def std(self, axis, skipna, level, ddof, **kwargs):
+  def var(self, axis, skipna, level, ddof, **kwargs):
     if level is not None:
       raise NotImplementedError("per-level aggregation")
     if skipna is None or skipna:
@@ -335,7 +420,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
       if n <= ddof:
         return float('nan')
       else:
-        return math.sqrt(m / (n - ddof))
+        return m / (n - ddof)
 
     moments = expressions.ComputedExpression(
         'compute_moments',
@@ -365,6 +450,8 @@ class DeferredSeries(DeferredDataFrameOrSeries):
               lambda df,
               other: df.corr(other, method=method, min_periods=min_periods),
               [self._expr, other._expr],
+              # TODO(BEAM-11839): Attach an explanation to the Singleton
+              # partitioning requirement, and include it in raised errors.
               requires_partition_by=partitionings.Singleton()))
 
   def _corr_aligned(self, other, min_periods):
@@ -439,10 +526,11 @@ class DeferredSeries(DeferredDataFrameOrSeries):
 
   isin = frame_base._elementwise_method('isin')
 
-  isna = frame_base._elementwise_method('isna')
+  isnull = isna = frame_base._elementwise_method('isna')
   notnull = notna = frame_base._elementwise_method('notna')
 
-  to_numpy = to_string = frame_base.wont_implement_method('non-deferred value')
+  tolist = to_numpy = to_string = frame_base.wont_implement_method(
+      'non-deferred value')
 
   def aggregate(self, func, axis=0, *args, **kwargs):
     if isinstance(func, list) and len(func) > 1:
@@ -487,6 +575,8 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   max = frame_base._agg_method('max')
   prod = product = frame_base._agg_method('prod')
   sum = frame_base._agg_method('sum')
+  mean = frame_base._agg_method('mean')
+  median = frame_base._agg_method('median')
 
   cummax = cummin = cumsum = cumprod = frame_base.wont_implement_method(
       'order-sensitive')
@@ -639,6 +729,9 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
             requires_partition_by=partitionings.Nothing(),
             preserves_partition_by=partitionings.Singleton()))
 
+  def keys(self):
+    return self.columns
+
   def __getattr__(self, name):
     # Column attribute access.
     if name in self._expr.proxy().columns:
@@ -723,6 +816,30 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
 
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
+  def append(self, other, ignore_index, verify_integrity, sort, **kwargs):
+    if not isinstance(other, DeferredDataFrame):
+      raise frame_base.WontImplementError(
+          "append() only accepts DeferredDataFrame instances, received " +
+          str(type(other)))
+    if ignore_index:
+      raise frame_base.WontImplementError(
+          "append(ignore_index=True) is order sensitive")
+    if verify_integrity:
+      raise frame_base.WontImplementError(
+          "append(verify_integrity=True) produces an execution time error")
+
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'append',
+            lambda s, other: s.append(other, sort=sort, **kwargs),
+            [self._expr, other._expr],
+            requires_partition_by=partitionings.Nothing(),
+            preserves_partition_by=partitionings.Index()
+        )
+    )
+
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
   @frame_base.maybe_inplace
   def set_index(self, keys, **kwargs):
     if isinstance(keys, str):
@@ -781,43 +898,6 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
             requires_partition_by=partitionings.Nothing()))
 
 
-  @frame_base.args_to_kwargs(pd.DataFrame)
-  @frame_base.populate_defaults(pd.DataFrame)
-  @frame_base.maybe_inplace
-  def drop(self, labels, axis, index, columns, errors, **kwargs):
-    if labels is not None:
-      if index is not None or columns is not None:
-        raise ValueError("Cannot specify both 'labels' and 'index'/'columns'")
-      if axis in (0, 'index'):
-        index = labels
-        columns = None
-      elif axis in (1, 'columns'):
-        index = None
-        columns = labels
-      else:
-        raise ValueError("axis must be one of (0, 1, 'index', 'columns'), "
-                         "got '%s'" % axis)
-
-    if columns is not None:
-      # Compute the proxy based on just the columns that are dropped.
-      proxy = self._expr.proxy().drop(columns=columns, errors=errors)
-    else:
-      proxy = self._expr.proxy()
-
-    if index is not None and errors == 'raise':
-      # In order to raise an error about missing index values, we'll
-      # need to collect the entire dataframe.
-      requires = partitionings.Singleton()
-    else:
-      requires = partitionings.Nothing()
-
-    return frame_base.DeferredFrame.wrap(expressions.ComputedExpression(
-        'drop',
-        lambda df: df.drop(axis=axis, index=index, columns=columns,
-                           errors=errors, **kwargs),
-        [self._expr],
-        proxy=proxy,
-        requires_partition_by=requires))
 
   def aggregate(self, func, axis=0, *args, **kwargs):
     if axis is None:
@@ -882,9 +962,6 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
 
   memory_usage = frame_base.wont_implement_method('non-deferred value')
   info = frame_base.wont_implement_method('non-deferred value')
-
-  all = frame_base._agg_method('all')
-  any = frame_base._agg_method('any')
 
   clip = frame_base._elementwise_method(
       'clip', restrictions={'axis': lambda axis: axis in (0, 'index')})
@@ -1047,9 +1124,6 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
 
   head = tail = frame_base.wont_implement_method('order-sensitive')
 
-  max = frame_base._agg_method('max')
-  min = frame_base._agg_method('min')
-
   def mode(self, axis=0, *args, **kwargs):
     if axis == 1 or axis == 'columns':
       # Number of columns is max(number mode values for each row), so we can't
@@ -1114,7 +1188,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   def query(self, expr, inplace, **kwargs):
     return self._eval_or_query('query', expr, inplace, **kwargs)
 
-  isna = frame_base._elementwise_method('isna')
+  isnull = isna = frame_base._elementwise_method('isna')
   notnull = notna = frame_base._elementwise_method('notna')
 
   items = itertuples = iterrows = iteritems = frame_base.wont_implement_method(
@@ -1328,8 +1402,6 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
             requires_partition_by=partitionings.Nothing())
     return result
 
-  prod = product = frame_base._agg_method('prod')
-
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
   def quantile(self, axis, **kwargs):
@@ -1469,7 +1541,14 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
 
   stack = frame_base._elementwise_method('stack')
 
+  all = frame_base._agg_method('all')
+  any = frame_base._agg_method('any')
+  max = frame_base._agg_method('max')
+  min = frame_base._agg_method('min')
+  prod = product = frame_base._agg_method('prod')
   sum = frame_base._agg_method('sum')
+  mean = frame_base._agg_method('mean')
+  median = frame_base._agg_method('median')
 
   take = frame_base.wont_implement_method('deprecated')
 

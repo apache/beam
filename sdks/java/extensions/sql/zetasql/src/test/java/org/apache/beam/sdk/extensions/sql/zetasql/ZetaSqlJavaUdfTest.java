@@ -31,10 +31,12 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptPlanner.CannotPlanException;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.codehaus.commons.compiler.CompileException;
 import org.joda.time.Duration;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -48,6 +50,7 @@ import org.junit.runners.JUnit4;
  * beam.sql.udf.test.empty_jar_path</code> must be set.
  */
 @RunWith(JUnit4.class)
+@Ignore("TODO(BEAM-11747) Re-enable when BeamJavaUdfCalcRule can be re-enabled.")
 public class ZetaSqlJavaUdfTest extends ZetaSqlTestBase {
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
   @Rule public ExpectedException thrown = ExpectedException.none();
@@ -100,7 +103,7 @@ public class ZetaSqlJavaUdfTest extends ZetaSqlTestBase {
         String.format(
             "CREATE FUNCTION increment(i INT64) RETURNS INT64 LANGUAGE java "
                 + "OPTIONS (path='%s'); "
-                + "SELECT increment(Key) FROM KeyValue;",
+                + "SELECT increment(int64_col) FROM table_all_types;",
             jarPath);
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
@@ -110,8 +113,11 @@ public class ZetaSqlJavaUdfTest extends ZetaSqlTestBase {
 
     PAssert.that(stream)
         .containsInAnyOrder(
-            Row.withSchema(singleField).addValues(15L).build(),
-            Row.withSchema(singleField).addValues(16L).build());
+            Row.withSchema(singleField).addValues(0L).build(),
+            Row.withSchema(singleField).addValues(-1L).build(),
+            Row.withSchema(singleField).addValues(-2L).build(),
+            Row.withSchema(singleField).addValues(-3L).build(),
+            Row.withSchema(singleField).addValues(-4L).build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
@@ -224,15 +230,10 @@ public class ZetaSqlJavaUdfTest extends ZetaSqlTestBase {
                 + "SELECT matches(\"a\", \"a\"), 'apple'='beta'",
             jarPath);
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
-    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
-
-    Schema singleField =
-        Schema.builder().addBooleanField("field1").addBooleanField("field2").build();
-
-    PAssert.that(stream)
-        .containsInAnyOrder(Row.withSchema(singleField).addValues(true, false).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    thrown.expect(CannotPlanException.class);
+    thrown.expectMessage(
+        "There are not enough rules to produce a node with desired properties: convention=BEAM_LOGICAL.");
+    zetaSQLQueryPlanner.convertToBeamRel(sql);
   }
 
   // TODO(BEAM-11747) Add tests that mix UDFs and builtin functions that rely on the ZetaSQL C++

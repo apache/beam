@@ -49,6 +49,14 @@ func RegisterType(t reflect.Type) {
 	}
 }
 
+func init() {
+	runtime.RegisterInit(func() {
+		if EnableSchemas {
+			schema.Initialize()
+		}
+	})
+}
+
 // RegisterFunction allows function registration. It is beneficial for performance
 // and is needed for functions -- such as custom coders -- serialized during unit
 // tests, where the underlying symbol table is not available. It should be called

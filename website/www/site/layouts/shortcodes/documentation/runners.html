@@ -1,0 +1,45 @@
+{{/*
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+      http://www.apache.org/licenses/LICENSE-2.0
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License. See accompanying LICENSE file.
+   */}}
+
+   {{ $data := index $.Site.Data .Site.Language.Lang }}
+   <div class="documentation-list mobile-column">
+       {{ range first 6 ($item := $data.documentation_runners) }}
+            {{ if .icon }}
+                {{ partial "documentation/icon-row" (dict "logo" .icon  "header" .name "text" .description) }}
+            {{ else }}
+                {{ partial "documentation/icon-row" (dict "header" .name "text" .description) }}
+           {{ end }}
+       {{ end }} </div>
+       {{ if gt (len $data.documentation_runners) 6 }}
+    <div class="collapsable-list">
+      <div class="collapse" id="collapseRunners">
+        <ul>
+            {{ range last 2 ($item := $data.documentation_runners) }}
+                <li><a href={{.name.link}} >{{ .name.text}}</a> {{ .description | safeHTML }}</li>
+            {{ end }}
+        </ul>
+      </div>
+      <a data-toggle="collapse" href="#collapseRunners" role="button" aria-expanded="false" aria-controls="collapseExample" id="collapse-button" onclick="changeText()">
+        + SHOW MORE
+      </a>
+       {{ end }}
+    </div>
+
+<script>
+    function changeText(){
+       var button = document.getElementById("collapse-button");
+       if(button.innerHTML == "- SHOW LESS")
+            button.innerHTML = "+ SHOW MORE";
+        else
+            button.innerHTML = "- SHOW LESS";
+    }
+</script>

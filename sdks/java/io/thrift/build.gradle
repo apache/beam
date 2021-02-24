@@ -23,6 +23,7 @@ plugins {
 applyJavaNature(
         automaticModuleName: 'org.apache.beam.sdk.io.thrift',
         generatedClassPatterns: [
+                /^org\.apache\.beam\.sdk\.io\.thrift\.payloads.*/,
                 /^org\.apache\.beam\.sdk\.io\.thrift\.TestThriftStruct/,
                 /^org\.apache\.beam\.sdk\.io\.thrift\.TestThriftInnerStruct/,
                 /^org\.apache\.beam\.sdk\.io\.thrift\.TestThriftEnum/,

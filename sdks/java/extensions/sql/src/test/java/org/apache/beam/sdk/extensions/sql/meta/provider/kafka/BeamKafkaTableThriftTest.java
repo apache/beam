@@ -24,7 +24,7 @@ import static org.junit.Assert.assertThrows;
 import com.alibaba.fastjson.JSON;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
-import org.apache.beam.sdk.extensions.sql.meta.provider.kafka.thrift.TestThriftMessage;
+import org.apache.beam.sdk.io.thrift.payloads.TestThriftMessage;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Create;

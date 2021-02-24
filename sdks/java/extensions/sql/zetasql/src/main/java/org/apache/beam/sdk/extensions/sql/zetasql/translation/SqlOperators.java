@@ -26,6 +26,7 @@ import org.apache.beam.sdk.extensions.sql.impl.UdafImpl;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelDataTypeSystem;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamBuiltinAggregations;
 import org.apache.beam.sdk.extensions.sql.impl.transform.agg.CountIf;
+import org.apache.beam.sdk.extensions.sql.impl.udaf.ArrayAgg;
 import org.apache.beam.sdk.extensions.sql.impl.udaf.StringAgg;
 import org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils;
 import org.apache.beam.sdk.extensions.sql.zetasql.SqlAnalyzer;
@@ -83,6 +84,12 @@ public class SqlOperators {
           "string_agg",
           x -> createTypeFactory().createSqlType(SqlTypeName.VARCHAR),
           new UdafImpl<>(new StringAgg.StringAggString()));
+
+  public static final SqlOperator ARRAY_AGG_FN =
+      createUdafOperator(
+          "array_agg",
+          x -> createTypeFactory().createArrayType(x.getOperandType(0), -1),
+          new UdafImpl<>(new ArrayAgg.ArrayAggArray()));
 
   public static final SqlOperator START_WITHS =
       createUdfOperator(
