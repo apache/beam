@@ -74,6 +74,11 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.frame.DataFrame.mode': [
                 "df.mode(axis='columns', numeric_only=True)"
             ],
+            'pandas.core.frame.DataFrame.append': [
+                'df.append(df2, ignore_index=True)',
+                "for i in range(5):\n" +
+                "    df = df.append({'A': i}, ignore_index=True)",
+            ],
         },
         not_implemented_ok={
             'pandas.core.frame.DataFrame.transform': ['*'],
@@ -106,9 +111,6 @@ class DoctestTest(unittest.TestCase):
             # for axis=rows.
             # Difficult to determine proxy, need to inspect function
             'pandas.core.frame.DataFrame.apply': ['*'],
-
-            # In theory this is possible for bounded inputs?
-            'pandas.core.frame.DataFrame.append': ['*'],
 
             # Cross-join not implemented
             'pandas.core.frame.DataFrame.merge': [
@@ -259,6 +261,9 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.unstack': ['*'],
             'pandas.core.series.Series.values': ['*'],
             'pandas.core.series.Series.view': ['*'],
+            'pandas.core.series.Series.append': [
+                's1.append(s2, ignore_index=True)',
+            ],
         },
         not_implemented_ok={
             'pandas.core.series.Series.transform': ['*'],
@@ -272,9 +277,12 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.reindex': ['*'],
         },
         skip={
+            # error formatting
+            'pandas.core.series.Series.append': [
+                's1.append(s2, verify_integrity=True)',
+            ],
             # Throws NotImplementedError when modifying df
             'pandas.core.series.Series.transform': ['df'],
-            'pandas.core.series.Series.append': ['*'],
             'pandas.core.series.Series.argmax': ['*'],
             'pandas.core.series.Series.argmin': ['*'],
             'pandas.core.series.Series.autocorr': ['*'],
@@ -286,7 +294,6 @@ class DoctestTest(unittest.TestCase):
                 # Differs in LSB on jenkins.
                 "s1.cov(s2)",
             ],
-            'pandas.core.series.Series.drop': ['*'],
             'pandas.core.series.Series.drop_duplicates': ['*'],
             'pandas.core.series.Series.duplicated': ['*'],
             'pandas.core.series.Series.explode': ['*'],

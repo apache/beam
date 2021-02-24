@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" fill="none" viewBox="0 0 44 44">
+    <path stroke="#FF6D00" stroke-linejoin="round" stroke-width="2.75" d="M31 18.468C31 22.075 27.194 25 22.5 25S14 22.075 14 18.468c0-4.32 4.982-5.555 7.651-7.664.483-.381 1.216-.381 1.7-.001C26.146 13.003 31 13.68 31 18.468z"/>
+    <path stroke="#FF6D00" stroke-linecap="round" stroke-width="2.75" d="M16 7c.167.39.45 1.522.25 2.927S16.667 12.56 17 13M29 7c-.167.39-.45 1.522-.25 2.927S28.333 12.56 28 13"/>
+    <ellipse cx="22.5" cy="32" stroke="#FF6D00" stroke-width="2.75" rx="5.5" ry="7"/>
+    <path stroke="#FF6D00" stroke-width="2.75" d="M27 35c-.898-1.196-2.577-2-4.5-2s-3.602.804-4.5 2"/>
+    <ellipse cx="11.649" cy="22.93" stroke="#FF6D00" stroke-width="2.75" rx="2.54" ry="7.366" transform="rotate(-60 11.65 22.93)"/>
+    <ellipse stroke="#FF6D00" stroke-width="2.75" rx="2.54" ry="7.366" transform="scale(-1 1) rotate(-60 3.182 40.347)"/>
+    <ellipse cx="13.255" cy="28.591" stroke="#FF6D00" stroke-width="2.75" rx=".958" ry="4.032" transform="rotate(-103.17 13.255 28.591)"/>
+    <ellipse stroke="#FF6D00" stroke-width="2.75" rx=".958" ry="4.032" transform="scale(1 -1) rotate(76.83 34.263 5.84)"/>
+    <path stroke="#FF6D00" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.75" d="M38 5v6m-3-3h6-6z"/>
+    <path stroke="#FF6D00" stroke-linejoin="round" stroke-width="2.75" d="M31 18.468C31 22.075 27.194 25 22.5 25S14 22.075 14 18.468c0-4.32 4.982-5.555 7.651-7.664.483-.381 1.216-.381 1.7-.001C26.146 13.003 31 13.68 31 18.468z"/>
+    <path stroke="#FF6D00" stroke-linecap="round" stroke-width="2.75" d="M16 7c.167.39.45 1.522.25 2.927S16.667 12.56 17 13M29 7c-.167.39-.45 1.522-.25 2.927S28.333 12.56 28 13"/>
+    <ellipse cx="22.5" cy="32" stroke="#FF6D00" stroke-width="2.75" rx="5.5" ry="7"/>
+    <path stroke="#FF6D00" stroke-width="2.75" d="M27 35c-.898-1.196-2.577-2-4.5-2s-3.602.804-4.5 2"/>
+    <ellipse cx="11.649" cy="22.93" stroke="#FF6D00" stroke-width="2.75" rx="2.54" ry="7.366" transform="rotate(-60 11.65 22.93)"/>
+    <ellipse stroke="#FF6D00" stroke-width="2.75" rx="2.54" ry="7.366" transform="scale(-1 1) rotate(-60 3.182 40.347)"/>
+    <ellipse cx="13.255" cy="28.591" stroke="#FF6D00" stroke-width="2.75" rx=".958" ry="4.032" transform="rotate(-103.17 13.255 28.591)"/>
+    <ellipse stroke="#FF6D00" stroke-width="2.75" rx=".958" ry="4.032" transform="scale(1 -1) rotate(76.83 34.263 5.84)"/>
+</svg>
