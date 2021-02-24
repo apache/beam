@@ -124,6 +124,8 @@ import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
+import org.apache.beam.sdk.state.MapState;
+import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Combine.GroupedValues;
@@ -2225,20 +2227,46 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     return hasExperiment(options, "use_runner_v2") || hasExperiment(options, "use_unified_worker");
   }
 
-  static void verifyDoFnSupportedBatch(DoFn<?, ?> fn) {
-    verifyDoFnSupported(fn, false);
+  static boolean useStreamingEngine(DataflowPipelineOptions options) {
+    return hasExperiment(options, GcpOptions.STREAMING_ENGINE_EXPERIMENT)
+        || hasExperiment(options, GcpOptions.WINDMILL_SERVICE_EXPERIMENT);
   }
 
-  static void verifyDoFnSupportedStreaming(DoFn<?, ?> fn) {
-    verifyDoFnSupported(fn, true);
-  }
-
-  static void verifyDoFnSupported(DoFn<?, ?> fn, boolean streaming) {
+  static void verifyDoFnSupported(
+      DoFn<?, ?> fn, boolean streaming, boolean workerV2, boolean streamingEngine) {
     if (streaming && DoFnSignatures.requiresTimeSortedInput(fn)) {
       throw new UnsupportedOperationException(
           String.format(
               "%s does not currently support @RequiresTimeSortedInput in streaming mode.",
               DataflowRunner.class.getSimpleName()));
+    }
+    if (DoFnSignatures.usesSetState(fn)) {
+      if (workerV2) {
+        throw new UnsupportedOperationException(
+            String.format(
+                "%s does not currently support %s when using runner V2",
+                DataflowRunner.class.getSimpleName(), SetState.class.getSimpleName()));
+      }
+      if (streaming && streamingEngine) {
+        throw new UnsupportedOperationException(
+            String.format(
+                "%s does not currently support %s when using streaming engine",
+                DataflowRunner.class.getSimpleName(), SetState.class.getSimpleName()));
+      }
+    }
+    if (DoFnSignatures.usesMapState(fn)) {
+      if (workerV2) {
+        throw new UnsupportedOperationException(
+            String.format(
+                "%s does not currently support %s when using runner V2",
+                DataflowRunner.class.getSimpleName(), MapState.class.getSimpleName()));
+      }
+      if (streaming && streamingEngine) {
+        throw new UnsupportedOperationException(
+            String.format(
+                "%s does not currently support %s when using streaming engine",
+                DataflowRunner.class.getSimpleName(), MapState.class.getSimpleName()));
+      }
     }
   }
 
