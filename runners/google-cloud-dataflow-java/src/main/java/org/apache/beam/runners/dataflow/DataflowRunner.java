@@ -451,7 +451,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   }
 
   private List<PTransformOverride> getOverrides(boolean streaming) {
-    boolean fnApiEnabled = hasExperiment(options, "beam_fn_api");
+    boolean fnApiEnabled = useUnifiedWorker(options);
     ImmutableList.Builder<PTransformOverride> overridesBuilder = ImmutableList.builder();
 
     // Create is implemented in terms of a Read, so it must precede the override to Read in
@@ -915,6 +915,21 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   @Override
   public DataflowPipelineJob run(Pipeline pipeline) {
+
+    if (useUnifiedWorker(options)) {
+      List<String> experiments = options.getExperiments(); // non-null if useUnifiedWorker is true
+      if (!experiments.contains("use_runner_v2")) {
+        experiments.add("use_runner_v2");
+      }
+      if (!experiments.contains("use_unified_worker")) {
+        experiments.add("use_unified_worker");
+      }
+      if (!experiments.contains("beam_fn_api")) {
+        experiments.add("beam_fn_api");
+      }
+      options.setExperiments(experiments);
+    }
+
     logWarningIfPCollectionViewHasNonDeterministicKeyCoder(pipeline);
     if (containsUnboundedPCollection(pipeline)) {
       options.setStreaming(true);
@@ -1252,7 +1267,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     DataflowRunnerInfo runnerInfo = DataflowRunnerInfo.getDataflowRunnerInfo();
     String majorVersion;
     String jobType;
-    if (hasExperiment(options, "beam_fn_api")) {
+    if (useUnifiedWorker(options)) {
       majorVersion = runnerInfo.getFnApiEnvironmentMajorVersion();
       jobType = options.isStreaming() ? "FNAPI_STREAMING" : "FNAPI_BATCH";
     } else {
@@ -1383,12 +1398,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         hasExperiment(options, "enable_streaming_auto_sharding"),
         "Runner determined sharding not enabled in Dataflow for GroupIntoBatches."
             + " Try adding the experiment: --experiments=enable_streaming_auto_sharding.");
-    // Also reject JRH.
-    boolean useJRH = hasExperiment(options, "beam_fn_api") && !useUnifiedWorker(options);
-    checkArgument(
-        !useJRH,
-        "Runner determined sharding not available in Dataflow for GroupIntoBatches for portable"
-            + " jobs not using runner v2. Try adding the experiment --experiments=use_runner_v2.");
     pcollectionsRequiringAutoSharding.add(pcol);
   }
 
@@ -2320,7 +2329,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         (javaVersion == Environments.JavaVersion.v8) ? "java" : javaVersion.toString();
     if (!workerHarnessContainerImage.contains("IMAGE")) {
       return workerHarnessContainerImage;
-    } else if (hasExperiment(options, "beam_fn_api")) {
+    } else if (useUnifiedWorker(options)) {
       return workerHarnessContainerImage.replace("IMAGE", "java");
     } else if (options.isStreaming()) {
       return workerHarnessContainerImage.replace(
@@ -2332,7 +2341,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   }
 
   static boolean useUnifiedWorker(DataflowPipelineOptions options) {
-    return hasExperiment(options, "use_runner_v2") || hasExperiment(options, "use_unified_worker");
+    return hasExperiment(options, "beam_fn_api")
+        || hasExperiment(options, "use_runner_v2")
+        || hasExperiment(options, "use_unified_worker");
   }
 
   static void verifyDoFnSupportedBatch(DoFn<?, ?> fn) {
