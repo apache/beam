@@ -555,9 +555,9 @@ class PTransformTest(unittest.TestCase):
       assert_that(combined, equal_to([(0, 20), (1, 25)]), 'CheckCombined')
 
   def test_group_by_key_non_determanistic_coder(self):
-    with self.assertRaises(Exception) as e:
+    with self.assertRaises(Exception):
       with TestPipeline() as pipeline:
-        grouped = (
+        _ = (
             pipeline
             | beam.Create([(PickledObject(10), None)])
             | beam.GroupByKey()
