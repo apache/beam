@@ -43,6 +43,7 @@ from apache_beam.transforms.userstate import TimerSpec
 from apache_beam.transforms.userstate import on_timer
 from apache_beam.transforms.window import BoundedWindow
 from apache_beam.transforms.window import GlobalWindow
+from apache_beam.transforms.window import Sessions
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.transforms.window import WindowFn
 from apache_beam.typehints import TypeCheckError
@@ -135,7 +136,6 @@ class GeneralTriggerManagerDoFn(DoFn):
   LAST_KNOWN_WATERMARK = CombiningValueStateSpec(
       'last_known_watermark', combine_fn=max)
 
-  # TODO(pabloem) Add check for finished windows
   # TODO(pabloem) What's the coder for the elements/keys here?
   WINDOW_ELEMENT_PAIRS = BagStateSpec(
       'element_bag', TupleCoder([IntervalWindowCoder(), PickleCoder()]))
@@ -149,6 +149,8 @@ class GeneralTriggerManagerDoFn(DoFn):
 
   def __init__(self, windowing: Windowing):
     self.windowing = windowing
+    # Only session windows are merging. Other windows are non-merging.
+    self.merging_windows = isinstance(windowing.windowfn, Sessions)
 
   def process(
       self,
@@ -187,22 +189,24 @@ class GeneralTriggerManagerDoFn(DoFn):
             TimestampedValue(wv.value, wv.timestamp))
 
     # Processing merging of windows
-    old_windows = set(windows_state.read())
-    all_windows = old_windows.union(list(windows_to_elements))
-    if all_windows != old_windows:
-      merge_context = TriggerMergeContext(all_windows, context, self.windowing)
-      self.windowing.windowfn.merge(merge_context)
+    if self.merging_windows:
+      old_windows = set(windows_state.read())
+      all_windows = old_windows.union(list(windows_to_elements))
+      if all_windows != old_windows:
+        merge_context = TriggerMergeContext(
+            all_windows, context, self.windowing)
+        self.windowing.windowfn.merge(merge_context)
 
-      merged_windows_to_elements = collections.defaultdict(list)
-      for window, values in windows_to_elements.items():
-        while window in merge_context.merged_away:
-          window = merge_context.merged_away[window]
-        merged_windows_to_elements[window].extend(values)
-      windows_to_elements = merged_windows_to_elements
+        merged_windows_to_elements = collections.defaultdict(list)
+        for window, values in windows_to_elements.items():
+          while window in merge_context.merged_away:
+            window = merge_context.merged_away[window]
+          merged_windows_to_elements[window].extend(values)
+        windows_to_elements = merged_windows_to_elements
 
-    if old_windows != all_windows:
-      for w in windows_to_elements:
-        windows_state.add(w)
+      if old_windows != all_windows:
+        for w in windows_to_elements:
+          windows_state.add(w)
     # Done processing merging of windows
 
     seen_windows = set()
@@ -216,9 +220,6 @@ class GeneralTriggerManagerDoFn(DoFn):
 
     return self._trigger_fire(
         key, TimeDomain.WATERMARK, watermark, None, context, seen_windows)
-
-  def finish_bundle(self):
-    pass
 
   def _trigger_fire(
       self,
@@ -449,11 +450,10 @@ class PerWindowTriggerContext(TriggerContext):
     else:
       matches = lambda x: x == tag.tag
     all_triplets = list(self.parent.window_tag_values_bag_state.read())
-    _LOGGER.debug('Tag: %s | All triplis: %s', tag, all_triplets)
     remaining_triplets = [
         t for t in all_triplets if not (t[0] == self.window and matches(t[1]))
     ]
-    _LOGGER.debug('Remaining triplis: %s', remaining_triplets)
+    _LOGGER.debug('Tag: %s | Remaining triplets: %s', tag, remaining_triplets)
     self.parent.window_tag_values_bag_state.clear()
     for t in remaining_triplets:
       self.parent.window_tag_values_bag_state.add(t)
