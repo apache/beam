@@ -35,9 +35,11 @@ public class BeamSqlDslNestedRowsTest {
   @Rule public final TestPipeline pipeline = TestPipeline.create();
   @Rule public ExpectedException exceptions = ExpectedException.none();
 
+  /**
+   * TODO([BEAM-9378]): This is a test of the incorrect behavior that should not work but does
+   * because calcite flattens the row.
+   */
   @Test
-  @Ignore(
-      "[BEAM-9378] This is a test of the incorrect behavior that should not work but does because calcite flattens the row.")
   public void testRowConstructorKeyword() {
     Schema nestedSchema =
         Schema.builder()
@@ -153,9 +155,11 @@ public class BeamSqlDslNestedRowsTest {
     pipeline.run();
   }
 
+  /**
+   * TODO([BEAM-9378] This is a test of the incorrect behavior that should not work but does because
+   * calcite flattens the row.
+   */
   @Test
-  @Ignore(
-      "[BEAM-9378] This is a test of the incorrect behavior that should not work but does because calcite flattens the row.")
   public void testRowConstructorBraces() {
 
     Schema nestedSchema =
