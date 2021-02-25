@@ -255,8 +255,12 @@ class TestInput {
                   .addValue(Row.withSchema(STRUCT_OF_ARRAY).addArray("2", "3").build())
                   .build());
 
-  private static final Schema STRUCT_OF_STRUCT =
+  public static final Schema STRUCT_OF_STRUCT =
       Schema.builder().addRowField("row", STRUCT_SCHEMA).build();
+  public static final TestBoundedTable TABLE_WITH_STRUCT_OF_STRUCT =
+      TestBoundedTable.of(STRUCT_OF_STRUCT)
+          .addRows(Row.withSchema(STRUCT_SCHEMA).attachValues(1L, "1"))
+          .addRows(Row.withSchema(STRUCT_SCHEMA).attachValues(2L, "2"));
   public static final TestBoundedTable TABLE_WITH_ARRAY_OF_STRUCT_OF_STRUCT =
       TestBoundedTable.of(
               Schema.builder().addArrayField("array_col", FieldType.row(STRUCT_OF_STRUCT)).build())
