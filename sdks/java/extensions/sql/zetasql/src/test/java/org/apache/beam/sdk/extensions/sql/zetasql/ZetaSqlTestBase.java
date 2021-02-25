@@ -56,6 +56,7 @@ public abstract class ZetaSqlTestBase {
     testBoundedTableMap.put("table_with_array", TestInput.TABLE_WITH_ARRAY);
     testBoundedTableMap.put("table_with_array_for_unnest", TestInput.TABLE_WITH_ARRAY_FOR_UNNEST);
     testBoundedTableMap.put("table_with_array_of_struct", TestInput.TABLE_WITH_ARRAY_OF_STRUCT);
+    testBoundedTableMap.put("table_with_struct_of_struct", TestInput.TABLE_WITH_STRUCT_OF_STRUCT);
     testBoundedTableMap.put(
         "table_with_struct_of_struct_of_array", TestInput.TABLE_WITH_STRUCT_OF_STRUCT_OF_ARRAY);
     testBoundedTableMap.put(
