@@ -428,6 +428,8 @@ public class ParquetIO {
 
     abstract SerializableFunction<GenericRecord, T> getParseFn();
 
+    abstract @Nullable Coder<T> getCoder();
+
     abstract @Nullable SerializableConfiguration getConfiguration();
 
     abstract boolean isSplittable();
@@ -439,6 +441,8 @@ public class ParquetIO {
       abstract Builder<T> setFilepattern(ValueProvider<String> inputFiles);
 
       abstract Builder<T> setParseFn(SerializableFunction<GenericRecord, T> parseFn);
+
+      abstract Builder<T> setCoder(Coder<T> coder);
 
       abstract Builder<T> setConfiguration(SerializableConfiguration configuration);
 
@@ -453,6 +457,11 @@ public class ParquetIO {
 
     public Parse<T> from(String inputFiles) {
       return from(ValueProvider.StaticValueProvider.of(inputFiles));
+    }
+
+    /** Specify the output coder to use for output of the {@code ParseFn}. */
+    public Parse<T> withCoder(Coder<T> coder) {
+      return (coder == null) ? this : toBuilder().setCoder(coder).build();
     }
 
     /** Specify Hadoop configuration for ParquetReader. */
@@ -474,6 +483,7 @@ public class ParquetIO {
           .apply(
               parseFilesGenericRecords(getParseFn())
                   .toBuilder()
+                  .setCoder(getCoder())
                   .setSplittable(isSplittable())
                   .build());
     }
@@ -486,6 +496,8 @@ public class ParquetIO {
 
     abstract SerializableFunction<GenericRecord, T> getParseFn();
 
+    abstract @Nullable Coder<T> getCoder();
+
     abstract @Nullable SerializableConfiguration getConfiguration();
 
     abstract boolean isSplittable();
@@ -496,11 +508,18 @@ public class ParquetIO {
     abstract static class Builder<T> {
       abstract Builder<T> setParseFn(SerializableFunction<GenericRecord, T> parseFn);
 
+      abstract Builder<T> setCoder(Coder<T> coder);
+
       abstract Builder<T> setConfiguration(SerializableConfiguration configuration);
 
       abstract Builder<T> setSplittable(boolean split);
 
       abstract ParseFiles<T> build();
+    }
+
+    /** Specify the output coder to use for output of the {@code ParseFn}. */
+    public ParseFiles<T> withCoder(Coder<T> coder) {
+      return (coder == null) ? this : toBuilder().setCoder(coder).build();
     }
 
     /** Specify Hadoop configuration for ParquetReader. */
@@ -537,7 +556,7 @@ public class ParquetIO {
     /**
      * Identifies the {@code Coder} to be used for the output PCollection.
      *
-     * <p>Returns {@link AvroCoder} if expected output is {@link GenericRecord}.
+     * <p>throws an exception if expected output is of type {@link GenericRecord}.
      *
      * @param coderRegistry the {@link org.apache.beam.sdk.Pipeline}'s CoderRegistry to identify
      *     Coder for expected output type of {@link #getParseFn()}
@@ -547,12 +566,17 @@ public class ParquetIO {
         throw new IllegalArgumentException("Parse can't be used for reading as GenericRecord.");
       }
 
+      // Use explicitly provided coder
+      if (getCoder() != null) {
+        return getCoder();
+      }
+
       // If not GenericRecord infer it from ParseFn.
       try {
         return coderRegistry.getCoder(TypeDescriptors.outputOf(getParseFn()));
       } catch (CannotProvideCoderException e) {
         throw new IllegalArgumentException(
-            "Unable to infer coder for output of parseFn. Specify it explicitly using withCoder().",
+            "Unable to infer coder for output of parseFn. Specify it explicitly using .withCoder().",
             e);
       }
     }
