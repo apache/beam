@@ -20,14 +20,15 @@ package org.apache.beam.runners.core.metrics;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.Closeable;
+import java.util.HashSet;
 import java.util.concurrent.CancellationException;
-import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -36,8 +37,10 @@ import org.joda.time.DateTimeUtils.MillisProvider;
 /** Monitors the execution of one or more execution threads. */
 public class ExecutionStateSampler {
 
-  private final ConcurrentSkipListSet<ExecutionStateTracker> activeTrackers =
-      new ConcurrentSkipListSet<>();
+  // We use a synchronized data structure (as opposed to a concurrent one) since synchronization
+  // is necessary to prevent races between tracker removal and the sampling thread iteration.
+  @GuardedBy("this")
+  private final HashSet<ExecutionStateTracker> activeTrackers = new HashSet<>();
 
   private static final MillisProvider SYSTEM_MILLIS_PROVIDER = System::currentTimeMillis;
 
@@ -78,8 +81,6 @@ public class ExecutionStateSampler {
    * Called to start the ExecutionStateSampler. Until the returned {@link Closeable} is closed, the
    * state sampler will periodically sample the current state of all the threads it has been asked
    * to manage.
-   *
-   * <p>
    */
   public void start() {
     start(
@@ -142,19 +143,18 @@ public class ExecutionStateSampler {
     }
   }
 
-  void addTracker(ExecutionStateTracker tracker) {
+  /** Add the tracker to the sampling set. */
+  synchronized void addTracker(ExecutionStateTracker tracker) {
     this.activeTrackers.add(tracker);
   }
 
-  /**
-   * Deregister tracker after MapTask completes.
-   *
-   * <p>This method needs to be synchronized to prevent race condition with sampling thread
-   */
-  synchronized void removeTracker(ExecutionStateTracker tracker) {
-    this.activeTrackers.remove(tracker);
+  /** Remove the tracker from the sampling set. */
+  void removeTracker(ExecutionStateTracker tracker) {
+    synchronized (this) {
+      activeTrackers.remove(tracker);
+    }
 
-    // Attribute any remaining time since last sampling on deregisteration.
+    // Attribute any remaining time since the last sampling while removing the tracker.
     //
     // There is a race condition here; if sampling happens in the time between when we remove the
     // tracker from activeTrackers and read the lastSampleTicks value, the sampling time will
@@ -166,11 +166,7 @@ public class ExecutionStateSampler {
     }
   }
 
-  /**
-   * Attributing sampling time to trackers.
-   *
-   * <p>This method needs to be synchronized to prevent race condition with removing tracker
-   */
+  /** Attributing sampling time to trackers. */
   @VisibleForTesting
   public synchronized void doSampling(long millisSinceLastSample) {
     for (ExecutionStateTracker tracker : activeTrackers) {
