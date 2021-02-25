@@ -51,6 +51,7 @@ from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import TestOptions
+from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.options.pipeline_options import WorkerOptions
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
@@ -270,7 +271,7 @@ class DataflowRunner(PipelineRunner):
     return element
 
   @staticmethod
-  def group_by_key_input_visitor():
+  def group_by_key_input_visitor(deterministic_key_coders=True):
     # Imported here to avoid circular dependencies.
     from apache_beam.pipeline import PipelineVisitor
 
@@ -292,16 +293,23 @@ class DataflowRunner(PipelineRunner):
           pcoll = transform_node.inputs[0]
           pcoll.element_type = typehints.coerce_to_kv_type(
               pcoll.element_type, transform_node.full_label)
+          pcoll.requires_deterministic_key_coder = (
+              deterministic_key_coders and transform_node.full_label)
           key_type, value_type = pcoll.element_type.tuple_types
           if transform_node.outputs:
             key = DataflowRunner._only_element(transform_node.outputs.keys())
             transform_node.outputs[key].element_type = typehints.KV[
                 key_type, typehints.Iterable[value_type]]
+            transform_node.outputs[key].requires_deterministic_key_coder = (
+                deterministic_key_coders and transform_node.full_label)
 
     return GroupByKeyInputVisitor()
 
   @staticmethod
-  def side_input_visitor(use_unified_worker=False, use_fn_api=False):
+  def side_input_visitor(
+      use_unified_worker=False,
+      use_fn_api=False,
+      deterministic_key_coders=True):
     # Imported here to avoid circular dependencies.
     # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam.pipeline import PipelineVisitor
@@ -352,6 +360,8 @@ class DataflowRunner(PipelineRunner):
               # access pattern to appease Dataflow.
               side_input.pvalue.element_type = typehints.coerce_to_kv_type(
                   side_input.pvalue.element_type, transform_node.full_label)
+              side_input.pvalue.requires_deterministic_key_coder = (
+                  deterministic_key_coders and transform_node.full_label)
               new_side_input = _DataflowMultimapSideInput(side_input)
             else:
               raise ValueError(
@@ -434,7 +444,10 @@ class DataflowRunner(PipelineRunner):
   def _adjust_pipeline_for_dataflow_v2(self, pipeline):
     # Dataflow runner requires a KV type for GBK inputs, hence we enforce that
     # here.
-    pipeline.visit(self.group_by_key_input_visitor())
+    pipeline.visit(
+        self.group_by_key_input_visitor(
+            not pipeline._options.view_as(
+                TypeOptions).allow_non_deterministic_key_coders))
 
   def _check_for_unsupported_features_on_non_portable_worker(self, pipeline):
     pipeline.visit(self.combinefn_visitor())
@@ -471,7 +484,9 @@ class DataflowRunner(PipelineRunner):
     pipeline.visit(
         self.side_input_visitor(
             apiclient._use_unified_worker(options),
-            apiclient._use_fnapi(options)))
+            apiclient._use_fnapi(options),
+            deterministic_key_coders=not options.view_as(
+                TypeOptions).allow_non_deterministic_key_coders))
 
     # Performing configured PTransform overrides.  Note that this is currently
     # done before Runner API serialization, since the new proto needs to contain

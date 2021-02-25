@@ -195,6 +195,12 @@ class CodersTest(unittest.TestCase):
     coder = coders.FastPrimitivesCoder()
     self.check_coder(coder, 10**100)
 
+  def test_fake_deterministic_fast_primitives_coder(self):
+    coder = coders.FakeDeterministicFastPrimitivesCoder(coders.PickleCoder())
+    self.check_coder(coder, *self.test_values)
+    for v in self.test_values:
+      self.check_coder(coders.TupleCoder((coder, )), (v, ))
+
   def test_bytes_coder(self):
     self.check_coder(coders.BytesCoder(), b'a', b'\0', b'z' * 1000)
 
