@@ -38,6 +38,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -58,18 +59,23 @@ import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
+import org.apache.beam.sdk.transforms.windowing.IntervalWindow.IntervalWindowCoder;
+import org.apache.beam.sdk.transforms.windowing.WindowFn.AssignContext;
+import org.apache.beam.sdk.transforms.windowing.WindowFn.MergeContext;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.commons.compress.utils.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
@@ -662,6 +668,36 @@ public class WindowTest implements Serializable {
     pipeline.run();
   }
 
+  @Test
+  @Category({ValidatesRunner.class, UsesCustomWindowMerging.class})
+  public void testMergingCustomWindowsWithoutCustomWindowTypes() {
+    Instant startInstant = new Instant(0L);
+    PCollection<KV<String, Integer>> inputCollection =
+        pipeline.apply(
+            Create.timestamped(
+                TimestampedValue.of(KV.of("a", 1), startInstant.plus(Duration.standardSeconds(1))),
+                TimestampedValue.of(KV.of("a", 2), startInstant.plus(Duration.standardSeconds(2))),
+                TimestampedValue.of(KV.of("a", 3), startInstant.plus(Duration.standardSeconds(3))),
+                TimestampedValue.of(KV.of("a", 4), startInstant.plus(Duration.standardSeconds(4))),
+                TimestampedValue
+                    .of(KV.of("a", 5), startInstant.plus(Duration.standardSeconds(5)))));
+    PCollection<KV<String, Integer>> windowedCollection =
+        inputCollection.apply(Window.into(new WindowOddEvenMergingBuckets<>()));
+    PCollection<String> result =
+        windowedCollection.apply(GroupByKey.create()).apply(ParDo.of(
+            new DoFn<KV<String, Iterable<Integer>>, String>() {
+              @ProcessElement
+              public void processElement(ProcessContext c, BoundedWindow window) {
+                List<Integer> elements = Lists.newArrayList();
+                c.element().getValue().forEach(elements::add);
+                Collections.sort(elements);
+                c.output(elements.toString());
+              }
+            }));
+    PAssert.that("Wrong output collection", result).containsInAnyOrder("[2, 4]", "[1, 3, 5]");
+    pipeline.run();
+  }
+
   private static class CustomWindow extends IntervalWindow {
     private boolean isBig;
 
@@ -775,6 +811,57 @@ public class WindowTest implements Serializable {
 
     @Override
     public WindowMappingFn<CustomWindow> getDefaultWindowMappingFn() {
+      throw new UnsupportedOperationException("side inputs not supported");
+    }
+  }
+
+  private static class WindowOddEvenMergingBuckets<T> extends WindowFn<T, IntervalWindow> {
+
+    @Override
+    public Collection<IntervalWindow> assignWindows(AssignContext c) throws Exception {
+      return Collections.singleton(
+          new IntervalWindow(c.timestamp(), c.timestamp().plus(Duration.standardSeconds(30))));
+    }
+
+    @Override
+    public void mergeWindows(MergeContext c) throws Exception {
+      Set<IntervalWindow> evenWindows = new HashSet<>();
+      Set<IntervalWindow> oddWindows = new HashSet<>();
+      for (IntervalWindow window : c.windows()) {
+        if ((window.start().getMillis() / 1000) % 2 == 0) {
+          evenWindows.add(window);
+        } else {
+          oddWindows.add(window);
+        }
+      }
+      if (evenWindows.size() > 1) {
+        IntervalWindow evenMerged = new IntervalWindow(Instant.ofEpochMilli(
+            evenWindows.stream().map(t -> t.start().getMillis()).min(Long::compare).get()), Instant
+            .ofEpochMilli(
+                evenWindows.stream().map(t -> t.end().getMillis()).max(Long::compare).get()));
+        c.merge(evenWindows, evenMerged);
+      }
+      if (oddWindows.size() > 1) {
+        IntervalWindow oddMerged = new IntervalWindow(Instant.ofEpochMilli(
+            oddWindows.stream().map(t -> t.start().getMillis()).min(Long::compare).get()), Instant
+            .ofEpochMilli(
+                oddWindows.stream().map(t -> t.end().getMillis()).max(Long::compare).get()));
+        c.merge(oddWindows, oddMerged);
+      }
+    }
+
+    @Override
+    public boolean isCompatible(WindowFn<?, ?> other) {
+      return other instanceof WindowOddEvenMergingBuckets;
+    }
+
+    @Override
+    public Coder<IntervalWindow> windowCoder() {
+      return IntervalWindowCoder.of();
+    }
+
+    @Override
+    public WindowMappingFn<IntervalWindow> getDefaultWindowMappingFn() {
       throw new UnsupportedOperationException("side inputs not supported");
     }
   }
