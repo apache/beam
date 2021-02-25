@@ -1071,8 +1071,7 @@ class MergeableStateAdapter(SimpleState):
                        repr(self.raw_state).split('\n'))
 
 
-def create_trigger_driver(
-    windowing, is_batch=False, phased_combine_fn=None, clock=None):
+def create_trigger_driver(windowing, is_batch=False, clock=None):
   """Create the TriggerDriver for the given windowing and options."""
 
   # TODO(BEAM-10149): Respect closing and on-time behaviors.
@@ -1092,10 +1091,6 @@ def create_trigger_driver(
   else:
     driver = GeneralTriggerDriver(windowing, clock)
 
-  if phased_combine_fn:
-    # TODO(ccy): Refactor GeneralTriggerDriver to combine values eagerly using
-    # the known phased_combine_fn here.
-    driver = CombiningTriggerDriver(phased_combine_fn, driver)
   return driver
 
 
@@ -1208,37 +1203,6 @@ class BatchGlobalTriggerDriver(TriggerDriver):
       state,
       input_watermark=None):
     raise TypeError('Triggers never set or called for batch default windowing.')
-
-
-class CombiningTriggerDriver(TriggerDriver):
-  """Uses a phased_combine_fn to process output of wrapped TriggerDriver."""
-  def __init__(self, phased_combine_fn, underlying):
-    self.phased_combine_fn = phased_combine_fn
-    self.underlying = underlying
-
-  def process_elements(
-      self,
-      state,
-      windowed_values,
-      output_watermark,
-      input_watermark=MIN_TIMESTAMP):
-    uncombined = self.underlying.process_elements(
-        state, windowed_values, output_watermark, input_watermark)
-    for output in uncombined:
-      yield output.with_value(self.phased_combine_fn.apply(output.value))
-
-  def process_timer(
-      self,
-      window_id,
-      name,
-      time_domain,
-      timestamp,
-      state,
-      input_watermark=None):
-    uncombined = self.underlying.process_timer(
-        window_id, name, time_domain, timestamp, state, input_watermark)
-    for output in uncombined:
-      yield output.with_value(self.phased_combine_fn.apply(output.value))
 
 
 class GeneralTriggerDriver(TriggerDriver):
