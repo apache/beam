@@ -819,6 +819,39 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
+    @Category({ValidatesRunner.class, UsesSideInputs.class})
+    public void testSameSideInputReadTwice() {
+
+      List<Integer> inputs = ImmutableList.of(3, -42, 66);
+
+      PCollection<Integer> input = pipeline.apply(Create.of(inputs));
+
+      PCollectionView<Integer> sideInput =
+          pipeline
+              .apply("CreateSideInput", Create.of(11))
+              .apply("ViewSideInput", View.asSingleton());
+
+      PCollection<String> output1 =
+          input.apply(
+              "First ParDo",
+              ParDo.of(new TestDoFn(ImmutableList.of(sideInput), Arrays.asList()))
+                  .withSideInputs(sideInput));
+
+      PCollection<String> output2 =
+          input.apply(
+              "Second ParDo",
+              ParDo.of(new TestDoFn(ImmutableList.of(sideInput), Arrays.asList()))
+                  .withSideInputs(sideInput));
+
+      PAssert.that(output1)
+          .satisfies(ParDoTest.HasExpectedOutput.forInput(inputs).andSideInputs(11));
+      PAssert.that(output2)
+          .satisfies(ParDoTest.HasExpectedOutput.forInput(inputs).andSideInputs(11));
+
+      pipeline.run();
+    }
+
+    @Test
     @Category({NeedsRunner.class, UsesSideInputs.class})
     public void testSideInputAnnotationFailedValidationMissing() {
       // SideInput tag id

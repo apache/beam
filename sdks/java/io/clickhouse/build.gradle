@@ -22,6 +22,7 @@ plugins {
 }
 applyJavaNature(
   automaticModuleName: 'org.apache.beam.sdk.io.clickhouse',
+  enableStrictDependencies: true,
   generatedClassPatterns: [
     /^org\.apache\.beam\.sdk\.io\.clickhouse\.impl\.parser\..*/,
   ],
@@ -54,7 +55,10 @@ def clickhouse_jdbc_version = "0.2.4"
 dependencies {
   javacc "net.java.dev.javacc:javacc:7.0.9"
   compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile library.java.guava
   compile library.java.joda_time
+  compile library.java.slf4j_api
+  compile library.java.vendored_guava_26_0_jre
   compile "ru.yandex.clickhouse:clickhouse-jdbc:$clickhouse_jdbc_version"
   testCompile library.java.slf4j_api
   testCompile library.java.junit

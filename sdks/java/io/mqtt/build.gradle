@@ -17,7 +17,7 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.io.mqtt')
+applyJavaNature(enableStrictDependencies: true, automaticModuleName: 'org.apache.beam.sdk.io.mqtt')
 
 description = "Apache Beam :: SDKs :: Java :: IO :: MQTT"
 ext.summary = "IO to read and write to a MQTT broker."
@@ -34,8 +34,6 @@ dependencies {
   testCompile library.java.activemq_mqtt
   testCompile library.java.activemq_kahadb_store
   testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

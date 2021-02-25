@@ -18,6 +18,7 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
+  enableStrictDependencies: true,
   automaticModuleName: 'org.apache.beam.sdk.io.solr',
 )
 
@@ -30,12 +31,11 @@ dependencies {
   compile library.java.vendored_guava_26_0_jre
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile library.java.commons_compress
+  compile library.java.joda_time
+  compile library.java.slf4j_api
   compile "org.apache.solr:solr-solrj:$solrVersion"
-  compileOnly "org.apache.httpcomponents:httpclient:4.5.6"
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile project(":sdks:java:io:common")
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
   testCompile library.java.junit
   testCompile library.java.slf4j_api
   testCompile "org.apache.solr:solr-test-framework:$solrVersion"

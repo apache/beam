@@ -505,6 +505,16 @@ public class BigQueryIO {
   static final Pattern TABLE_SPEC = Pattern.compile(DATASET_TABLE_REGEXP);
 
   /**
+   * Matches table specifications in the form {@code "projects/[project_id]/datasets/[dataset_id]/tables[table_id]".
+   */
+  private static final String TABLE_URN_REGEXP =
+      String.format(
+          "projects/(?<PROJECT>%s)/datasets/(?<DATASET>%s)/tables/(?<TABLE>%s)",
+          PROJECT_ID_REGEXP, DATASET_REGEXP, TABLE_REGEXP);
+
+  static final Pattern TABLE_URN_SPEC = Pattern.compile(TABLE_URN_REGEXP);
+
+  /**
    * A formatting function that maps a TableRow to itself. This allows sending a {@code
    * PCollection<TableRow>} directly to BigQueryIO.Write.
    */
