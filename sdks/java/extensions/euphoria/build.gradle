@@ -18,6 +18,7 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
+  enableStrictDependencies: true,
   exportJavadoc: false,
   automaticModuleName: 'org.apache.beam.sdk.extensions.euphoria',
 )
@@ -26,7 +27,10 @@ description = "Apache Beam :: SDKs :: Java :: Extensions :: Euphoria Java 8 DSL"
 
 dependencies {
   compile project(path: ":sdks:java:core", configuration: "shadow")
-  testCompile library.java.mockito_core
+  compile library.java.jackson_annotations
+  compile library.java.joda_time
+  compile library.java.slf4j_api
+  compile library.java.vendored_guava_26_0_jre
   testCompile project(":sdks:java:extensions:kryo")
   testCompile library.java.slf4j_api
   testCompile library.java.hamcrest_core
