@@ -77,6 +77,73 @@ public class BeamSqlDslNestedRowsTest {
   }
 
   @Test
+  public void testRowAliasAsRow() {
+    Schema nestedSchema =
+        Schema.builder()
+            .addStringField("f_nestedString")
+            .addInt32Field("f_nestedInt")
+            .addInt32Field("f_nestedIntPlusOne")
+            .build();
+
+    Schema inputType =
+        Schema.builder().addInt32Field("f_int").addRowField("f_row", nestedSchema).build();
+    Schema outputType =
+        Schema.builder().addInt32Field("f_int").addRowField("f_row1", nestedSchema).build();
+
+    PCollection<Row> input =
+        pipeline.apply(
+            Create.of(
+                Row.withSchema(inputType)
+                    .attachValues(1, Row.withSchema(nestedSchema).attachValues("CC", 312, 313)))
+                .withRowSchema(inputType));
+
+    PCollection<Row> result =
+        input
+            .apply(
+                SqlTransform.query(
+                    "SELECT 1 as `f_int`, f_row as `f_row1` FROM PCOLLECTION")).setRowSchema(outputType);
+
+    PAssert.that(result)
+        .containsInAnyOrder(Row.withSchema(outputType).attachValues(1, Row.withSchema(nestedSchema).attachValues("CC", 312, 313)));
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testRowConstructorKeywordKeepAsRow() {
+    Schema nestedSchema =
+        Schema.builder()
+            .addStringField("f_nestedString")
+            .addInt32Field("f_nestedInt")
+            .addInt32Field("f_nestedIntPlusOne")
+            .build();
+
+    Schema inputType =
+        Schema.builder().addInt32Field("f_int").addRowField("f_row", nestedSchema).build();
+    Schema nestedOutput = Schema.builder().addInt32Field("int_field").addStringField("str_field").build();
+    Schema outputType =
+        Schema.builder().addInt32Field("f_int1").addRowField("f_row1", nestedOutput).build();
+
+    PCollection<Row> input =
+        pipeline.apply(
+            Create.of(
+                Row.withSchema(inputType)
+                    .attachValues(2, Row.withSchema(nestedSchema).attachValues("CC", 312, 313)))
+                .withRowSchema(inputType));
+
+    PCollection<Row> result =
+        input
+            .apply(
+                SqlTransform.query(
+                    "SELECT f_int as `f_int1`, (`PCOLLECTION`.`f_row`.`f_nestedInt`, `PCOLLECTION`.`f_row`.`f_nestedString`) as `f_row1` FROM PCOLLECTION")).setRowSchema(outputType);
+
+    PAssert.that(result)
+        .containsInAnyOrder(Row.withSchema(nestedSchema).attachValues(2, Row.withSchema(nestedOutput).attachValues(312, "CC")));
+
+    pipeline.run();
+  }
+
+  @Test
   public void testRowConstructorBraces() {
 
     Schema nestedSchema =

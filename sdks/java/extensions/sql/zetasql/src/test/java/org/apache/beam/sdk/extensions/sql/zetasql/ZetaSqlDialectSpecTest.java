@@ -2384,10 +2384,8 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
 
     PAssert.that(stream)
         .containsInAnyOrder(
-            Row.withSchema(TestInput.STRUCT_OF_STRUCT)
-                .attachValues(Row.withSchema(TestInput.STRUCT_SCHEMA).attachValues(1L, "1")),
-            Row.withSchema(TestInput.STRUCT_OF_STRUCT)
-                .attachValues(Row.withSchema(TestInput.STRUCT_SCHEMA).attachValues(2L, "2")));
+            Row.withSchema(TestInput.STRUCT_OF_STRUCT).attachValues(Row.withSchema(TestInput.STRUCT_SCHEMA).attachValues(1L, "1")),
+            Row.withSchema(TestInput.STRUCT_OF_STRUCT).attachValues(Row.withSchema(TestInput.STRUCT_SCHEMA).attachValues(2L, "2")));
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
@@ -2398,13 +2396,28 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
 
     PCollection<Row> stream = execute(sql);
 
-    Schema schema = Schema.builder().addRowField("not_row", TestInput.STRUCT_SCHEMA).build();
+    Schema schema =
+        Schema.builder().addRowField("not_row", TestInput.STRUCT_SCHEMA).build();
     PAssert.that(stream)
         .containsInAnyOrder(
-            Row.withSchema(schema)
-                .attachValues(Row.withSchema(TestInput.STRUCT_SCHEMA).attachValues(1L, "1")),
-            Row.withSchema(schema)
-                .attachValues(Row.withSchema(TestInput.STRUCT_SCHEMA).attachValues(2L, "2")));
+            Row.withSchema(schema).attachValues(Row.withSchema(TestInput.STRUCT_SCHEMA).attachValues(1L, "1")),
+            Row.withSchema(schema).attachValues(Row.withSchema(TestInput.STRUCT_SCHEMA).attachValues(2L, "2")));
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testStructOfStructRemap() {
+    String sql = "SELECT STRUCT(row.row_id AS int_value_remapped) AS remapped FROM table_with_struct_of_struct";
+
+    PCollection<Row> stream = execute(sql);
+
+    Schema nested = Schema.builder().addInt64Field("int_value_remapped").build();
+    Schema schema = Schema.builder().addRowField("remapped", nested).build();
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(schema).attachValues(Row.withSchema(nested).attachValues(1L)),
+            Row.withSchema(schema).attachValues(Row.withSchema(nested).attachValues(2L)));
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
