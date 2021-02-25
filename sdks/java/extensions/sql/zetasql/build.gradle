@@ -21,6 +21,7 @@ plugins {
 }
 
 applyJavaNature(
+  enableStrictDependencies: true,
   automaticModuleName: 'org.apache.beam.sdk.extensions.sql.zetasql',
 )
 
@@ -31,23 +32,30 @@ def zetasql_version = "2020.10.1"
 
 dependencies {
   compile enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
-  compile project(":sdks:java:core")
+  permitUnusedDeclared enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
+  compile project(path: ":sdks:java:core", configuration: "shadow")
   compile project(":sdks:java:extensions:sql")
+  compile project(":sdks:java:extensions:sql:udf")
   compile library.java.vendored_calcite_1_20_0
   compile library.java.guava
   compile library.java.grpc_api
+  compile library.java.joda_time
   compile library.java.protobuf_java
   compile library.java.protobuf_java_util
-  compile "com.google.api.grpc:proto-google-common-protos:1.12.0" // Interfaces with ZetaSQL use this
-  compile "com.google.api.grpc:grpc-google-common-protos:1.12.0" // Interfaces with ZetaSQL use this
-  compile "com.google.zetasql:zetasql-jni-channel:$zetasql_version"
+  permitUnusedDeclared library.java.protobuf_java_util // BEAM-11761
+  compile library.java.slf4j_api
+  compile library.java.vendored_guava_26_0_jre
+  compile library.java.proto_google_common_protos // Interfaces with ZetaSQL use this
+  permitUnusedDeclared library.java.proto_google_common_protos // BEAM-11761
+  compile library.java.grpc_google_common_protos // Interfaces with ZetaSQL use this
+  permitUnusedDeclared library.java.grpc_google_common_protos // BEAM-11761
   compile "com.google.zetasql:zetasql-client:$zetasql_version"
   compile "com.google.zetasql:zetasql-types:$zetasql_version"
+  compile "com.google.zetasql:zetasql-jni-channel:$zetasql_version"
+  permitUnusedDeclared "com.google.zetasql:zetasql-jni-channel:$zetasql_version" // BEAM-11761
   testCompile library.java.vendored_calcite_1_20_0
   testCompile library.java.vendored_guava_26_0_jre
   testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
   testCompile library.java.mockito_core
   testCompile library.java.quickcheck_core
   testCompileOnly project(":sdks:java:extensions:sql:udf-test-provider")
