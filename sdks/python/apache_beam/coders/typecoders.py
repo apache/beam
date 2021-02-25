@@ -187,7 +187,7 @@ class FirstOf(object):
     messages = []
     for coder in self._coders:
       try:
-        return coder.from_type_hint(typehint, self)
+        return coder.from_type_hint(typehint, registry)
       except Exception as e:
         msg = (
             '%s could not provide a Coder for type %s: %s' %
