@@ -19,7 +19,6 @@ package org.apache.beam.sdk.extensions.sql.zetasql;
 
 import com.google.zetasql.AnalyzerOptions;
 import com.google.zetasql.LanguageOptions;
-import com.google.zetasql.SimpleCatalog;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedQueryStmt;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
@@ -81,10 +80,7 @@ class ZetaSQLPlannerImpl {
     AnalyzerOptions options = SqlAnalyzer.getAnalyzerOptions(params, defaultTimezone);
     BeamZetaSqlCatalog catalog =
         BeamZetaSqlCatalog.create(
-            defaultSchemaPlus,
-            new SimpleCatalog(defaultSchemaPlus.getName()),
-            (JavaTypeFactory) cluster.getTypeFactory(),
-            options);
+            defaultSchemaPlus, (JavaTypeFactory) cluster.getTypeFactory(), options);
 
     // Set up table providers that need to be pre-registered
     SqlAnalyzer analyzer = new SqlAnalyzer();

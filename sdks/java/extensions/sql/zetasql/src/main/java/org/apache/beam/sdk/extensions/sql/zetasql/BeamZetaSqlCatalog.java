@@ -107,12 +107,10 @@ public class BeamZetaSqlCatalog {
 
   /** Return catalog pre-populated with builtin functions. */
   static BeamZetaSqlCatalog create(
-      SchemaPlus topLevelSchema,
-      SimpleCatalog zetaSqlCatalog,
-      JavaTypeFactory typeFactory,
-      AnalyzerOptions options) {
+      SchemaPlus calciteSchema, JavaTypeFactory typeFactory, AnalyzerOptions options) {
     BeamZetaSqlCatalog catalog =
-        new BeamZetaSqlCatalog(topLevelSchema, zetaSqlCatalog, typeFactory);
+        new BeamZetaSqlCatalog(
+            calciteSchema, new SimpleCatalog(calciteSchema.getName()), typeFactory);
     catalog.addBuiltinFunctionsToCatalog(options);
     return catalog;
   }
