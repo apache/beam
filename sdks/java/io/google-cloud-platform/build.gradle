@@ -31,6 +31,8 @@ ext.summary = "IO library to read and write Google Cloud Platform systems from B
 dependencies {
   compile enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
   permitUnusedDeclared enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
+  compile project(path: ":model:pipeline", configuration: "shadow")
+  compile project(":runners:core-java")
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile project(":sdks:java:expansion-service")
   permitUnusedDeclared project(":sdks:java:expansion-service") // BEAM-11761
@@ -99,8 +101,6 @@ dependencies {
   compile library.java.netty_tcnative_boringssl_static
   permitUnusedDeclared library.java.netty_tcnative_boringssl_static // BEAM-11761
   compile library.java.proto_google_cloud_bigquery_storage_v1
-  compile library.java.proto_google_cloud_bigquery_storage_v1beta1
-  permitUnusedDeclared library.java.proto_google_cloud_bigquery_storage_v1beta1 // BEAM-11761
   compile library.java.proto_google_cloud_bigquerybeta2_storage_v1
   permitUnusedDeclared library.java.proto_google_cloud_bigquerybeta2_storage_v1 // BEAM-11761
   compile library.java.proto_google_cloud_bigtable_admin_v2
@@ -119,9 +119,6 @@ dependencies {
   compile library.java.vendored_guava_26_0_jre
 
   compile "org.threeten:threetenbp:1.4.4"
-
-  compile project(path: ":model:pipeline", configuration: "shadow")
-  compile project(":runners:core-java")
 
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntime")
