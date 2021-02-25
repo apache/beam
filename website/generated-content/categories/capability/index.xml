@@ -65,7 +65,8 @@ What is being computed?
 &lt;th class='cap-summary color-platform format-platform' style='color:#fff'>Apache Spark&lt;/th>
 &lt;/tr>
 &lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>ParDo&lt;/th>
+&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>&lt;b>ParDo&lt;/b>
+&lt;/th>
 &lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
@@ -104,7 +105,8 @@ What is being computed?
 &lt;/td>
 &lt;/tr>
 &lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>GroupByKey&lt;/th>
+&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>&lt;b>GroupByKey&lt;/b>
+&lt;/th>
 &lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
@@ -143,7 +145,8 @@ What is being computed?
 &lt;/td>
 &lt;/tr>
 &lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>Flatten&lt;/th>
+&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>&lt;b>Flatten&lt;/b>
+&lt;/th>
 &lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
@@ -182,7 +185,8 @@ What is being computed?
 &lt;/td>
 &lt;/tr>
 &lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>Combine&lt;/th>
+&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>&lt;b>Combine&lt;/b>
+&lt;/th>
 &lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
@@ -221,7 +225,8 @@ What is being computed?
 &lt;/td>
 &lt;/tr>
 &lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>Composite Transforms&lt;/th>
+&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>&lt;b>Composite Transforms&lt;/b>
+&lt;/th>
 &lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
@@ -260,7 +265,8 @@ What is being computed?
 &lt;/td>
 &lt;/tr>
 &lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>Side Inputs&lt;/th>
+&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>&lt;b>Side Inputs&lt;/b>
+&lt;/th>
 &lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
@@ -299,7 +305,8 @@ What is being computed?
 &lt;/td>
 &lt;/tr>
 &lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>Source API&lt;/th>
+&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>&lt;b>Source API&lt;/b>
+&lt;/th>
 &lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
@@ -338,7 +345,8 @@ What is being computed?
 &lt;/td>
 &lt;/tr>
 &lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>Aggregators&lt;/th>
+&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>&lt;b>Aggregators&lt;/b>
+&lt;/th>
 &lt;td width='25%' class='cap-summary' style='background-color:#f9f9f9;border-color:#'>
 &lt;center>
 &lt;b>
@@ -377,7 +385,8 @@ What is being computed?
 &lt;/td>
 &lt;/tr>
 &lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>Keyed State&lt;/th>
+&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>&lt;b>Keyed State&lt;/b>
+&lt;/th>
 &lt;td width='25%' class='cap-summary' style='background-color:#e1e0e0;border-color:#'>
 &lt;center>
 &lt;b>
@@ -431,7 +440,8 @@ Where in event time?
 &lt;th class='cap-summary color-platform format-platform' style='color:#fff'>Apache Spark&lt;/th>
 &lt;/tr>
 &lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>Global windows&lt;/th>
+&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>&lt;b>Global windows&lt;/b>
+&lt;/th>
 &lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
@@ -470,7 +480,8 @@ Where in event time?
 &lt;/td>
 &lt;/tr>
 &lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>Fixed windows&lt;/th>
+&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>&lt;b>Fixed windows&lt;/b>
+&lt;/th>
 &lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
@@ -509,7 +520,8 @@ Where in event time?
 &lt;/td>
 &lt;/tr>
 &lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>Sliding windows&lt;/th>
+&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>&lt;b>Sliding windows&lt;/b>
+&lt;/th>
 &lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
@@ -548,7 +560,8 @@ Where in event time?
 &lt;/td>
 &lt;/tr>
 &lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>Session windows&lt;/th>
+&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>&lt;b>Session windows&lt;/b>
+&lt;/th>
 &lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
@@ -587,7 +600,8 @@ Where in event time?
 &lt;/td>
 &lt;/tr>
 &lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>Custom windows&lt;/th>
+&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>&lt;b>Custom windows&lt;/b>
+&lt;/th>
 &lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
@@ -626,7 +640,8 @@ Where in event time?
 &lt;/td>
 &lt;/tr>
 &lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>Custom merging windows&lt;/th>
+&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>&lt;b>Custom merging windows&lt;/b>
+&lt;/th>
 &lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
@@ -665,7 +680,8 @@ Where in event time?
 &lt;/td>
 &lt;/tr>
 &lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>Timestamp control&lt;/th>
+&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>&lt;b>Timestamp control&lt;/b>
+&lt;/th>
 &lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
@@ -719,7 +735,8 @@ When in processing time?
 &lt;th class='cap-summary color-platform format-platform' style='color:#fff'>Apache Spark&lt;/th>
 &lt;/tr>
 &lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>Configurable triggering&lt;/th>
+&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>&lt;b>Configurable triggering&lt;/b>
+&lt;/th>
 &lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
@@ -758,7 +775,8 @@ When in processing time?
 &lt;/td>
 &lt;/tr>
 &lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>Event-time triggers&lt;/th>
+&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>&lt;b>Event-time triggers&lt;/b>
+&lt;/th>
 &lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
@@ -797,7 +815,8 @@ When in processing time?
 &lt;/td>
 &lt;/tr>
 &lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>Processing-time triggers&lt;/th>
+&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>&lt;b>Processing-time triggers&lt;/b>
+&lt;/th>
 &lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
@@ -836,7 +855,8 @@ When in processing time?
 &lt;/td>
 &lt;/tr>
 &lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>Count triggers&lt;/th>
+&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>&lt;b>Count triggers&lt;/b>
+&lt;/th>
 &lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
@@ -875,7 +895,8 @@ When in processing time?
 &lt;/td>
 &lt;/tr>
 &lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>[Meta]data driven triggers&lt;/th>
+&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>&lt;b>[Meta]data driven triggers&lt;/b>
+&lt;/th>
 &lt;td width='25%' class='cap-summary' style='background-color:#e1e0e0;border-color:#'>
 &lt;center>
 &lt;b>
@@ -914,7 +935,8 @@ When in processing time?
 &lt;/td>
 &lt;/tr>
 &lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>Composite triggers&lt;/th>
+&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>&lt;b>Composite triggers&lt;/b>
+&lt;/th>
 &lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
@@ -953,7 +975,8 @@ When in processing time?
 &lt;/td>
 &lt;/tr>
 &lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>Allowed lateness&lt;/th>
+&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>&lt;b>Allowed lateness&lt;/b>
+&lt;/th>
 &lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
@@ -992,7 +1015,8 @@ When in processing time?
 &lt;/td>
 &lt;/tr>
 &lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>Timers&lt;/th>
+&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>&lt;b>Timers&lt;/b>
+&lt;/th>
 &lt;td width='25%' class='cap-summary' style='background-color:#e1e0e0;border-color:#'>
 &lt;center>
 &lt;b>
@@ -1046,7 +1070,8 @@ How do refinements relate?
 &lt;th class='cap-summary color-platform format-platform' style='color:#fff'>Apache Spark&lt;/th>
 &lt;/tr>
 &lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>Discarding&lt;/th>
+&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>&lt;b>Discarding&lt;/b>
+&lt;/th>
 &lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
@@ -1085,7 +1110,8 @@ How do refinements relate?
 &lt;/td>
 &lt;/tr>
 &lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>Accumulating&lt;/th>
+&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>&lt;b>Accumulating&lt;/b>
+&lt;/th>
 &lt;td width='25%' class='cap-summary' style='background-color:#fff;border-color:#'>
 &lt;center>
 &lt;b>
@@ -1124,7 +1150,8 @@ How do refinements relate?
 &lt;/td>
 &lt;/tr>
 &lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>Accumulating &amp;amp; Retracting&lt;/th>
+&lt;th class='cap-summary color-capability format-capability' style='color:#fff'>&lt;b>Accumulating &amp;amp; Retracting&lt;/b>
+&lt;/th>
 &lt;td width='25%' class='cap-summary' style='background-color:#e1e0e0;border-color:#'>
 &lt;center>
 &lt;b>
@@ -1178,7 +1205,8 @@ Bounded Splittable DoFn Support Status
 &lt;th class='cap-summary color-platform format-platform' style='color:#ec3'>Apache Spark&lt;/th>
 &lt;/tr>
 &lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#ec3'>Base&lt;/th>
+&lt;th class='cap-summary color-capability format-capability' style='color:#ec3'>&lt;b>Base&lt;/b>
+&lt;/th>
 &lt;td width='25%' class='cap-summary' style='background-color:#ec3;border-color:#ca1'>
 &lt;center>
 &lt;b>
@@ -1217,7 +1245,8 @@ Bounded Splittable DoFn Support Status
 &lt;/td>
 &lt;/tr>
 &lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#ec3'>Side Inputs&lt;/th>
+&lt;th class='cap-summary color-capability format-capability' style='color:#ec3'>&lt;b>Side Inputs&lt;/b>
+&lt;/th>
 &lt;td width='25%' class='cap-summary' style='background-color:#ec3;border-color:#ca1'>
 &lt;center>
 &lt;b>
@@ -1256,7 +1285,8 @@ Bounded Splittable DoFn Support Status
 &lt;/td>
 &lt;/tr>
 &lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#ec3'>Splittable DoFn Initiated Checkpointing&lt;/th>
+&lt;th class='cap-summary color-capability format-capability' style='color:#ec3'>&lt;b>Splittable DoFn Initiated Checkpointing&lt;/b>
+&lt;/th>
 &lt;td width='25%' class='cap-summary' style='background-color:#ec3;border-color:#ca1'>
 &lt;center>
 &lt;b>
@@ -1295,7 +1325,8 @@ Bounded Splittable DoFn Support Status
 &lt;/td>
 &lt;/tr>
 &lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#ec3'>Dynamic Splitting&lt;/th>
+&lt;th class='cap-summary color-capability format-capability' style='color:#ec3'>&lt;b>Dynamic Splitting&lt;/b>
+&lt;/th>
 &lt;td width='25%' class='cap-summary' style='background-color:#ec3;border-color:#ca1'>
 &lt;center>
 &lt;b>
@@ -1334,7 +1365,8 @@ Bounded Splittable DoFn Support Status
 &lt;/td>
 &lt;/tr>
 &lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#ec3'>Bundle Finalization&lt;/th>
+&lt;th class='cap-summary color-capability format-capability' style='color:#ec3'>&lt;b>Bundle Finalization&lt;/b>
+&lt;/th>
 &lt;td width='25%' class='cap-summary' style='background-color:#ec3;border-color:#ca1'>
 &lt;center>
 &lt;b>
@@ -1388,7 +1420,8 @@ Unbounded Splittable DoFn Support Status
 &lt;th class='cap-summary color-platform format-platform' style='color:#ec3'>Apache Spark&lt;/th>
 &lt;/tr>
 &lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#ec3'>Base&lt;/th>
+&lt;th class='cap-summary color-capability format-capability' style='color:#ec3'>&lt;b>Base&lt;/b>
+&lt;/th>
 &lt;td width='25%' class='cap-summary' style='background-color:#ec3;border-color:#ca1'>
 &lt;center>
 &lt;b>
@@ -1427,7 +1460,8 @@ Unbounded Splittable DoFn Support Status
 &lt;/td>
 &lt;/tr>
 &lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#ec3'>Side Inputs&lt;/th>
+&lt;th class='cap-summary color-capability format-capability' style='color:#ec3'>&lt;b>Side Inputs&lt;/b>
+&lt;/th>
 &lt;td width='25%' class='cap-summary' style='background-color:#ec3;border-color:#ca1'>
 &lt;center>
 &lt;b>
@@ -1466,7 +1500,8 @@ Unbounded Splittable DoFn Support Status
 &lt;/td>
 &lt;/tr>
 &lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#ec3'>Splittable DoFn Initiated Checkpointing&lt;/th>
+&lt;th class='cap-summary color-capability format-capability' style='color:#ec3'>&lt;b>Splittable DoFn Initiated Checkpointing&lt;/b>
+&lt;/th>
 &lt;td width='25%' class='cap-summary' style='background-color:#ec3;border-color:#ca1'>
 &lt;center>
 &lt;b>
@@ -1505,7 +1540,8 @@ Unbounded Splittable DoFn Support Status
 &lt;/td>
 &lt;/tr>
 &lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#ec3'>Dynamic Splitting&lt;/th>
+&lt;th class='cap-summary color-capability format-capability' style='color:#ec3'>&lt;b>Dynamic Splitting&lt;/b>
+&lt;/th>
 &lt;td width='25%' class='cap-summary' style='background-color:#ec3;border-color:#ca1'>
 &lt;center>
 &lt;b>
@@ -1544,7 +1580,8 @@ Unbounded Splittable DoFn Support Status
 &lt;/td>
 &lt;/tr>
 &lt;tr class='cap-summary'>
-&lt;th class='cap-summary color-capability format-capability' style='color:#ec3'>Bundle Finalization&lt;/th>
+&lt;th class='cap-summary color-capability format-capability' style='color:#ec3'>&lt;b>Bundle Finalization&lt;/b>
+&lt;/th>
 &lt;td width='25%' class='cap-summary' style='background-color:#ec3;border-color:#ca1'>
 &lt;center>
 &lt;b>
