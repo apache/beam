@@ -221,11 +221,21 @@ public class InstanceBuilder<T> {
           String.format(
               "Unable to find factory method %s#%s(%s)",
               factoryClass.getSimpleName(), methodName, Joiner.on(", ").join(types)));
-
-    } catch (IllegalAccessException | InvocationTargetException e) {
+    } catch (InvocationTargetException e) {
+      if (e.getTargetException() instanceof RuntimeException) {
+        // If underlying exception is unchecked re-raise it as-is
+        throw (RuntimeException) e.getTargetException();
+      } else {
+        throw new RuntimeException(
+            String.format(
+                "Encountered checked exception when constructing an instance from factory method %s#%s(%s)",
+                factoryClass.getSimpleName(), methodName, Joiner.on(", ").join(types)),
+            e.getTargetException());
+      }
+    } catch (IllegalAccessException e) {
       throw new RuntimeException(
           String.format(
-              "Failed to construct instance from factory method %s#%s(%s)",
+              "Failed to construct instance from factory method %s#%s(%s) due to access restriction",
               factoryClass.getSimpleName(), methodName, Joiner.on(", ").join(types)),
           e);
     }
