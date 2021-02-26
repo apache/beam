@@ -2024,7 +2024,7 @@ class CustomMergingWindowFn(window.WindowFn):
   def assign(self, assign_context):
     return [
         window.IntervalWindow(
-            assign_context.timestamp, assign_context.timestamp + 1)
+            assign_context.timestamp, assign_context.timestamp + 1000)
     ]
 
   def merge(self, merge_context):

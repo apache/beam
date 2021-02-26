@@ -671,10 +671,15 @@ class FnApiRunnerExecutionContext(object):
         safe_proto.window_fn.urn = GenericNonMergingWindowFn.URN
         safe_proto.window_fn.payload = (
             windowing_strategy_proto.window_coder_id.encode('utf-8'))
-      else:
+      elif (windowing_strategy_proto.merge_status ==
+            beam_runner_api_pb2.MergeStatus.NEEDS_MERGE):
         window_fn = GenericMergingWindowFn(self, windowing_strategy_proto)
         safe_proto.window_fn.urn = GenericMergingWindowFn.URN
         safe_proto.window_fn.payload = window_fn.payload()
+      else:
+        raise NotImplementedError(
+            'Unsupported merging strategy: %s' %
+            windowing_strategy_proto.merge_status)
       self.pipeline_context.windowing_strategies.put_proto(safe_id, safe_proto)
       return safe_id
 
