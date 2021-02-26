@@ -942,7 +942,7 @@ class BundleContextManager(object):
             self.execution_context.pipeline_context.windowing_strategies[
                 self.execution_context.safe_windowing_strategies[
                     self.execution_context.pipeline_components.
-                    pcollections[output_pcoll].windowing_strategy_id]])
+                    pcollections[input_pcoll].windowing_strategy_id]])
         self.execution_context.pcoll_buffers[buffer_id] = GroupingBuffer(
             pre_gbk_coder, post_gbk_coder, windowing_strategy)
     else:
