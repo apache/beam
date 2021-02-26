@@ -1679,7 +1679,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
   table_schema_to_dict = staticmethod(bigquery_tools.table_schema_to_dict)
   get_dict_table_schema = staticmethod(bigquery_tools.get_dict_table_schema)
 
-  def _compute_method(self, experiments, is_streaming_pipeline):
+  def _compute_method(self, is_streaming_pipeline):
     # If the new BQ sink is not activated for experiment flags, then we use
     # streaming inserts by default (it gets overridden in dataflow_runner.py).
     if self.method == self.Method.DEFAULT and is_streaming_pipeline:
@@ -1704,8 +1704,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
       raise ValueError(
           'with_auto_sharding is not applicable to batch pipelines.')
 
-    experiments = p.options.view_as(DebugOptions).experiments or []
-    method_to_use = self._compute_method(experiments, is_streaming_pipeline)
+    method_to_use = self._compute_method(is_streaming_pipeline)
 
     if method_to_use == WriteToBigQuery.Method.STREAMING_INSERTS:
       if self.schema == SCHEMA_AUTODETECT:
@@ -1774,6 +1773,9 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
       if self.table_reference.projectId is not None:
         tableSpec = '{}:{}'.format(self.table_reference.projectId, tableSpec)
       res['table'] = DisplayDataItem(tableSpec, label='Table')
+    method = self._compute_method(False) # TODO is there a way to get if its streaming at job launch time?
+    res['method'] = DisplayDataItem(
+        str(method), label='Write method used to write to BigQuery')
     return res
 
   def to_runner_api_parameter(self, context):
