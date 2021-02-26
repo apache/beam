@@ -225,13 +225,12 @@ public class InstanceBuilder<T> {
       if (e.getTargetException() instanceof RuntimeException) {
         // If underlying exception is unchecked re-raise it as-is
         throw (RuntimeException) e.getTargetException();
-      } else {
-        throw new RuntimeException(
-            String.format(
-                "Encountered checked exception when constructing an instance from factory method %s#%s(%s)",
-                factoryClass.getSimpleName(), methodName, Joiner.on(", ").join(types)),
-            e.getTargetException());
       }
+      throw new RuntimeException(
+          String.format(
+              "Encountered checked exception when constructing an instance from factory method %s#%s(%s)",
+              factoryClass.getSimpleName(), methodName, Joiner.on(", ").join(types)),
+          e.getTargetException());
     } catch (IllegalAccessException e) {
       throw new RuntimeException(
           String.format(
