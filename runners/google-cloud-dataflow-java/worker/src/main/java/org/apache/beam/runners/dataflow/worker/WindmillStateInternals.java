@@ -1115,7 +1115,7 @@ class WindmillStateInternals<K> implements StateInternals {
         StateTag<SetState<K>> address,
         String stateFamily,
         Coder<K> keyCoder,
-        WindmillStateCache.ForKey cache,
+        WindmillStateCache.ForKeyAndFamily cache,
         boolean isNewKey) {
       StateTag<MapState<K, Boolean>> internalMapAddress =
           StateTags.convertToMapTagInternal(address);
@@ -1134,7 +1134,8 @@ class WindmillStateInternals<K> implements StateInternals {
     }
 
     @Override
-    protected WorkItemCommitRequest persistDirectly(ForKey cache) throws IOException {
+    protected WorkItemCommitRequest persistDirectly(WindmillStateCache.ForKeyAndFamily cache)
+        throws IOException {
       return windmillMap.persistDirectly(cache);
     }
 
@@ -1260,7 +1261,8 @@ class WindmillStateInternals<K> implements StateInternals {
     }
 
     @Override
-    protected WorkItemCommitRequest persistDirectly(ForKey cache) throws IOException {
+    protected WorkItemCommitRequest persistDirectly(WindmillStateCache.ForKeyAndFamily cache)
+        throws IOException {
       if (!cleared && localAdditions.isEmpty() && localRemovals.isEmpty()) {
         // No changes, so return directly.
         return WorkItemCommitRequest.newBuilder().buildPartial();
