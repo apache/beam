@@ -62,6 +62,7 @@ from apache_beam.transforms.core import WatermarkEstimatorProvider
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.transforms.window import WindowFn
+from apache_beam.typehints import typehints
 from apache_beam.utils.counters import Counter
 from apache_beam.utils.counters import CounterName
 from apache_beam.utils.timestamp import Timestamp
@@ -1511,3 +1512,41 @@ class DoFnContext(object):
       raise AttributeError('windows not accessible in this context')
     else:
       return self.windowed_value.windows
+
+
+def group_by_key_input_visitor(deterministic_key_coders=True):
+  # Importing here to avoid a circular dependency
+  from apache_beam.pipeline import PipelineVisitor
+  from apache_beam.transforms.core import GroupByKey
+
+  class GroupByKeyInputVisitor(PipelineVisitor):
+    """A visitor that replaces `Any` element type for input `PCollection` of
+    a `GroupByKey` with a `KV` type.
+
+    TODO(BEAM-115): Once Python SDK is compatible with the new Runner API,
+    we could directly replace the coder instead of mutating the element type.
+    """
+    def __init__(self, deterministic_key_coders=True):
+      self.deterministic_key_coders = deterministic_key_coders
+
+    def enter_composite_transform(self, transform_node):
+      self.visit_transform(transform_node)
+
+    def visit_transform(self, transform_node):
+      # Imported here to avoid circular dependencies.
+      # pylint: disable=wrong-import-order, wrong-import-position
+      if isinstance(transform_node.transform, GroupByKey):
+        pcoll = transform_node.inputs[0]
+        pcoll.element_type = typehints.coerce_to_kv_type(
+            pcoll.element_type, transform_node.full_label)
+        pcoll.requires_deterministic_key_coder = (
+            self.deterministic_key_coders and transform_node.full_label)
+        key_type, value_type = pcoll.element_type.tuple_types
+        if transform_node.outputs:
+          key = next(iter(transform_node.outputs.keys()))
+          transform_node.outputs[key].element_type = typehints.KV[
+              key_type, typehints.Iterable[value_type]]
+          transform_node.outputs[key].requires_deterministic_key_coder = (
+              self.deterministic_key_coders and transform_node.full_label)
+
+  return GroupByKeyInputVisitor(deterministic_key_coders)
