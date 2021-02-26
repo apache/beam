@@ -405,12 +405,14 @@ public class ParquetIO {
                 .withSplit()
                 .withBeamSchemas(getInferBeamSchema())
                 .withAvroDataModel(getAvroDataModel())
-                .withProjection(getProjectionSchema(), getEncoderSchema()));
+                .withProjection(getProjectionSchema(), getEncoderSchema())
+                .withConfiguration(getConfiguration()));
       }
       return inputFiles.apply(
           readFiles(getSchema())
               .withBeamSchemas(getInferBeamSchema())
-              .withAvroDataModel(getAvroDataModel()));
+              .withAvroDataModel(getAvroDataModel())
+              .withConfiguration(getConfiguration()));
     }
 
     @Override
@@ -640,6 +642,10 @@ public class ParquetIO {
     /** Specify Hadoop configuration for ParquetReader. */
     public ReadFiles withConfiguration(Map<String, String> configuration) {
       return toBuilder().setConfiguration(SerializableConfiguration.fromMap(configuration)).build();
+    }
+
+    public ReadFiles withConfiguration(SerializableConfiguration configuration) {
+      return toBuilder().setConfiguration(configuration).build();
     }
 
     @Experimental(Kind.SCHEMAS)
