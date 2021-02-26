@@ -57,6 +57,7 @@ from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.pvalue import AsSideInput
 from apache_beam.runners.common import DoFnSignature
+from apache_beam.runners.common import group_by_key_input_visitor
 from apache_beam.runners.dataflow.internal import names
 from apache_beam.runners.dataflow.internal.clients import dataflow as dataflow_api
 from apache_beam.runners.dataflow.internal.names import PropertyNames
@@ -271,41 +272,6 @@ class DataflowRunner(PipelineRunner):
     return element
 
   @staticmethod
-  def group_by_key_input_visitor(deterministic_key_coders=True):
-    # Imported here to avoid circular dependencies.
-    from apache_beam.pipeline import PipelineVisitor
-
-    class GroupByKeyInputVisitor(PipelineVisitor):
-      """A visitor that replaces `Any` element type for input `PCollection` of
-      a `GroupByKey` with a `KV` type.
-
-      TODO(BEAM-115): Once Python SDk is compatible with the new Runner API,
-      we could directly replace the coder instead of mutating the element type.
-      """
-      def enter_composite_transform(self, transform_node):
-        self.visit_transform(transform_node)
-
-      def visit_transform(self, transform_node):
-        # Imported here to avoid circular dependencies.
-        # pylint: disable=wrong-import-order, wrong-import-position
-        from apache_beam.transforms.core import GroupByKey
-        if isinstance(transform_node.transform, GroupByKey):
-          pcoll = transform_node.inputs[0]
-          pcoll.element_type = typehints.coerce_to_kv_type(
-              pcoll.element_type, transform_node.full_label)
-          pcoll.requires_deterministic_key_coder = (
-              deterministic_key_coders and transform_node.full_label)
-          key_type, value_type = pcoll.element_type.tuple_types
-          if transform_node.outputs:
-            key = DataflowRunner._only_element(transform_node.outputs.keys())
-            transform_node.outputs[key].element_type = typehints.KV[
-                key_type, typehints.Iterable[value_type]]
-            transform_node.outputs[key].requires_deterministic_key_coder = (
-                deterministic_key_coders and transform_node.full_label)
-
-    return GroupByKeyInputVisitor()
-
-  @staticmethod
   def side_input_visitor(
       use_unified_worker=False,
       use_fn_api=False,
@@ -445,7 +411,7 @@ class DataflowRunner(PipelineRunner):
     # Dataflow runner requires a KV type for GBK inputs, hence we enforce that
     # here.
     pipeline.visit(
-        self.group_by_key_input_visitor(
+        group_by_key_input_visitor(
             not pipeline._options.view_as(
                 TypeOptions).allow_non_deterministic_key_coders))
 

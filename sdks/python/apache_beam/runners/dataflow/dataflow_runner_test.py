@@ -45,6 +45,7 @@ from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.pvalue import PCollection
 from apache_beam.runners import DataflowRunner
 from apache_beam.runners import TestDataflowRunner
+from apache_beam.runners import common
 from apache_beam.runners import create_runner
 from apache_beam.runners.dataflow.dataflow_runner import DataflowPipelineResult
 from apache_beam.runners.dataflow.dataflow_runner import DataflowRuntimeException
@@ -334,7 +335,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     for pcoll in [pcoll1, pcoll2, pcoll3]:
       applied = AppliedPTransform(None, beam.GroupByKey(), "label", [pcoll])
       applied.outputs[None] = PCollection(None)
-      DataflowRunner.group_by_key_input_visitor().visit_transform(applied)
+      common.group_by_key_input_visitor().visit_transform(applied)
       self.assertEqual(
           pcoll.element_type, typehints.KV[typehints.Any, typehints.Any])
 
@@ -350,7 +351,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         "Found .*")
     for pcoll in [pcoll1, pcoll2]:
       with self.assertRaisesRegex(ValueError, err_msg):
-        DataflowRunner.group_by_key_input_visitor().visit_transform(
+        common.group_by_key_input_visitor().visit_transform(
             AppliedPTransform(None, beam.GroupByKey(), "label", [pcoll]))
 
   def test_group_by_key_input_visitor_for_non_gbk_transforms(self):
@@ -358,7 +359,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     pcoll = PCollection(p)
     for transform in [beam.Flatten(), beam.Map(lambda x: x)]:
       pcoll.element_type = typehints.Any
-      DataflowRunner.group_by_key_input_visitor().visit_transform(
+      common.group_by_key_input_visitor().visit_transform(
           AppliedPTransform(None, transform, "label", [pcoll]))
       self.assertEqual(pcoll.element_type, typehints.Any)
 
@@ -398,7 +399,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     # to make sure the check below is not vacuous.
     self.assertNotIsInstance(flat.element_type, typehints.TupleConstraint)
 
-    p.visit(DataflowRunner.group_by_key_input_visitor())
+    p.visit(common.group_by_key_input_visitor())
     p.visit(DataflowRunner.flatten_input_visitor())
 
     # The dataflow runner requires gbk input to be tuples *and* flatten
