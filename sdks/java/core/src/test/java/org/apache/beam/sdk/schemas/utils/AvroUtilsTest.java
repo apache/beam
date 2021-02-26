@@ -634,4 +634,11 @@ public class AvroUtilsTest {
 
     assertEquals(row, deserializedRow);
   }
+
+  @Test
+  public void testNullSchemas() {
+    assertEquals(
+        AvroUtils.getFromRowFunction(GenericRecord.class),
+        AvroUtils.getFromRowFunction(GenericRecord.class));
+  }
 }
