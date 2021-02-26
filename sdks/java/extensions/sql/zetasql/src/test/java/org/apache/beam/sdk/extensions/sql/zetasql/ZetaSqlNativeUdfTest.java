@@ -17,8 +17,9 @@
  */
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
+import static org.hamcrest.Matchers.isA;
+
 import com.google.zetasql.SqlException;
-import org.apache.beam.sdk.extensions.sql.impl.ParseException;
 import org.apache.beam.sdk.extensions.sql.impl.SqlConversionException;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
@@ -36,9 +37,9 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Tests for user defined functions in the ZetaSQL dialect. */
+/** Tests for SQL-native user defined functions in the ZetaSQL dialect. */
 @RunWith(JUnit4.class)
-public class ZetaSqlUdfTest extends ZetaSqlTestBase {
+public class ZetaSqlNativeUdfTest extends ZetaSqlTestBase {
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
   @Rule public ExpectedException thrown = ExpectedException.none();
 
@@ -51,8 +52,9 @@ public class ZetaSqlUdfTest extends ZetaSqlTestBase {
   public void testAlreadyDefinedUDFThrowsException() {
     String sql = "CREATE FUNCTION foo() AS (0); CREATE FUNCTION foo() AS (1); SELECT foo();";
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    thrown.expect(ParseException.class);
-    thrown.expectMessage("Failed to define function foo");
+    thrown.expect(RuntimeException.class);
+    thrown.expectMessage("Failed to define function 'foo'");
+    thrown.expectCause(isA(IllegalArgumentException.class));
     zetaSQLQueryPlanner.convertToBeamRel(sql);
   }
 

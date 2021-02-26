@@ -34,7 +34,6 @@ import java.util.Map;
 import org.apache.beam.runners.dataflow.DataflowClient;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.PipelineResult.State;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -44,6 +43,8 @@ import org.slf4j.LoggerFactory;
 
 /** A helper class for monitoring jobs submitted to the service. */
 public class MonitoringUtil {
+
+  private static final Logger LOG = LoggerFactory.getLogger(MonitoringUtil.class);
 
   private static final String GCLOUD_DATAFLOW_PREFIX = "gcloud dataflow";
   private static final String ENDPOINT_OVERRIDE_ENV_VAR =
@@ -219,6 +220,14 @@ public class MonitoringUtil {
   }
 
   public static State toState(String stateName) {
-    return MoreObjects.firstNonNull(DATAFLOW_STATE_TO_JOB_STATE.get(stateName), State.UNRECOGNIZED);
+    @Nullable State recognizedState = DATAFLOW_STATE_TO_JOB_STATE.get(stateName);
+    if (recognizedState != null) {
+      return recognizedState;
+    }
+    LOG.warn(
+        "Unrecognized state from Dataflow service: {}."
+            + " This is likely due to using an older version of Beam.",
+        stateName);
+    return State.UNRECOGNIZED;
   }
 }

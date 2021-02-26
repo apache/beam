@@ -44,6 +44,7 @@ from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.internal.clients import bigquery as bigquery_api
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultStreamingMatcher
+from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.runners.dataflow.test_dataflow_runner import TestDataflowRunner
 from apache_beam.runners.runner import PipelineState
 from apache_beam.testing.pipeline_verifiers import PipelineStateMatcher
@@ -52,7 +53,9 @@ from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms import combiners
+from apache_beam.transforms.window import TimestampedValue
 from apache_beam.typehints.typehints import Tuple
+from apache_beam.utils import timestamp
 
 try:
   from apitools.base.py.exceptions import HttpError
@@ -602,6 +605,113 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
           copy_jobs | "CountCopyJobs" >> combiners.Count.Globally(),
           equal_to([6]),
           label='CheckCopyJobCount')
+
+  @parameterized.expand([
+      param(is_streaming=False, with_auto_sharding=False),
+      param(is_streaming=True, with_auto_sharding=False),
+      param(is_streaming=True, with_auto_sharding=True),
+  ])
+  def test_triggering_frequency(self, is_streaming, with_auto_sharding):
+    destination = 'project1:dataset1.table1'
+
+    job_reference = bigquery_api.JobReference()
+    job_reference.projectId = 'project1'
+    job_reference.jobId = 'job_name1'
+    result_job = bigquery_api.Job()
+    result_job.jobReference = job_reference
+
+    mock_job = mock.Mock()
+    mock_job.status.state = 'DONE'
+    mock_job.status.errorResult = None
+    mock_job.jobReference = job_reference
+
+    bq_client = mock.Mock()
+    bq_client.jobs.Get.return_value = mock_job
+    bq_client.jobs.Insert.return_value = result_job
+
+    # Insert a fake clock to work with auto-sharding which needs a processing
+    # time timer.
+    class _FakeClock(object):
+      def __init__(self, now=time.time()):
+        self._now = now
+
+      def __call__(self):
+        return self._now
+
+    start_time = timestamp.Timestamp(0)
+    bq_client.test_clock = _FakeClock(now=start_time)
+
+    triggering_frequency = 20 if is_streaming else None
+    transform = bqfl.BigQueryBatchFileLoads(
+        destination,
+        custom_gcs_temp_location=self._new_tempdir(),
+        test_client=bq_client,
+        validate=False,
+        temp_file_format=bigquery_tools.FileFormat.JSON,
+        is_streaming_pipeline=is_streaming,
+        triggering_frequency=triggering_frequency,
+        with_auto_sharding=with_auto_sharding)
+
+    # Need to test this with the DirectRunner to avoid serializing mocks
+    with TestPipeline(runner='BundleBasedDirectRunner',
+                      options=StandardOptions(streaming=is_streaming)) as p:
+      if is_streaming:
+        _SIZE = len(_ELEMENTS)
+        fisrt_batch = [
+            TimestampedValue(value, start_time + i + 1) for i,
+            value in enumerate(_ELEMENTS[:_SIZE // 2])
+        ]
+        second_batch = [
+            TimestampedValue(value, start_time + _SIZE // 2 + i + 1) for i,
+            value in enumerate(_ELEMENTS[_SIZE // 2:])
+        ]
+        # Advance processing time between batches of input elements to fire the
+        # user triggers. Intentionally advance the processing time twice for the
+        # auto-sharding case since we need to first fire the timer and then
+        # fire the trigger.
+        test_stream = (
+            TestStream().advance_watermark_to(start_time).add_elements(
+                fisrt_batch).advance_processing_time(
+                    30).advance_processing_time(30).add_elements(second_batch).
+            advance_processing_time(30).advance_processing_time(
+                30).advance_watermark_to_infinity())
+        input = p | test_stream
+      else:
+        input = p | beam.Create(_ELEMENTS)
+      outputs = input | transform
+
+      dest_files = outputs[bqfl.BigQueryBatchFileLoads.DESTINATION_FILE_PAIRS]
+      dest_job = outputs[bqfl.BigQueryBatchFileLoads.DESTINATION_JOBID_PAIRS]
+
+      files = dest_files | "GetFiles" >> beam.Map(lambda x: x[1][0])
+      destinations = (
+          dest_files
+          | "GetDests" >> beam.Map(
+              lambda x: (bigquery_tools.get_hashable_destination(x[0]), x[1]))
+          | "GetUniques" >> combiners.Count.PerKey()
+          | "GetFinalDests" >> beam.Keys())
+      jobs = dest_job | "GetJobs" >> beam.Map(lambda x: x[1])
+
+      # Check that all files exist.
+      _ = (
+          files
+          | beam.Map(lambda x: hamcrest_assert(os.path.exists(x), is_(True))))
+
+      # Expect two load jobs are generated in the streaming case due to the
+      # triggering frequency. Grouping is per trigger so we expect two entries
+      # in the output as opposed to one.
+      file_count = files | combiners.Count.Globally().without_defaults()
+      expected_file_count = [1, 1] if is_streaming else [1]
+      expected_destinations = [destination, destination
+                               ] if is_streaming else [destination]
+      expected_jobs = [job_reference, job_reference
+                       ] if is_streaming else [job_reference]
+      assert_that(file_count, equal_to(expected_file_count), label='CountFiles')
+      assert_that(
+          destinations,
+          equal_to(expected_destinations),
+          label='CheckDestinations')
+      assert_that(jobs, equal_to(expected_jobs), label='CheckJobs')
 
 
 class BigQueryFileLoadsIT(unittest.TestCase):

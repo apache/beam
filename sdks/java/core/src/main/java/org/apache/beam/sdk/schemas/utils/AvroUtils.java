@@ -517,7 +517,7 @@ public class AvroUtils {
         return false;
       }
       GenericRecordToRowFn that = (GenericRecordToRowFn) other;
-      return schema.equals(that.schema);
+      return Objects.equals(this.schema, that.schema);
     }
 
     @Override
@@ -556,7 +556,7 @@ public class AvroUtils {
         return false;
       }
       RowToGenericRecordFn that = (RowToGenericRecordFn) other;
-      return avroSchema.equals(that.avroSchema);
+      return Objects.equals(this.avroSchema, that.avroSchema);
     }
 
     @Override
