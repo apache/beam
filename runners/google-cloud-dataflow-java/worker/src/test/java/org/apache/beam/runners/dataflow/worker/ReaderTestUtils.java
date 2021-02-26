@@ -38,9 +38,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * Helpers for testing {@link NativeReader} and related classes, especially {@link
  * NativeReaderIterator#getProgress} and {@link NativeReaderIterator#requestDynamicSplit}.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class ReaderTestUtils {
   public static Position positionAtIndex(@Nullable Long index) {
     return new Position().setRecordIndex(index);

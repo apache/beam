@@ -34,9 +34,6 @@ import org.elasticsearch.client.Response;
 import org.elasticsearch.client.RestClient;
 
 /** Test utilities to use with {@link ElasticsearchIO}. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 class ElasticsearchIOTestUtils {
   static final String[] FAMOUS_SCIENTISTS = {
     "Einstein",

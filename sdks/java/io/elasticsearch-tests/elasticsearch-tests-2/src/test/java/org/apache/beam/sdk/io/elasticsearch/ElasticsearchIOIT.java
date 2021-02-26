@@ -49,9 +49,6 @@ import org.junit.Test;
  * <p>It is likely that you will need to configure <code>thread_pool.bulk.queue_size: 250</code> (or
  * higher) in the backend Elasticsearch server for this test to run.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class ElasticsearchIOIT {
   private static RestClient restClient;
   private static ElasticsearchPipelineOptions options;

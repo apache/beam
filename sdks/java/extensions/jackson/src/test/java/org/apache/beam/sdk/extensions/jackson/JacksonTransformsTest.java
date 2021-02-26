@@ -49,9 +49,6 @@ import org.junit.Rule;
 import org.junit.Test;
 
 /** Test Jackson transforms {@link ParseJsons} and {@link AsJsons}. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class JacksonTransformsTest implements Serializable {
   private static final List<String> VALID_JSONS =
       Arrays.asList("{\"myString\":\"abc\",\"myInt\":3}", "{\"myString\":\"def\",\"myInt\":4}");

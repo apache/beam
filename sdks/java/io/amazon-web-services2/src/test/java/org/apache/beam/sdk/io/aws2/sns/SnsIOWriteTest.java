@@ -40,9 +40,6 @@ import org.junit.runners.JUnit4;
 import software.amazon.awssdk.services.sns.model.PublishRequest;
 
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class SnsIOWriteTest implements Serializable {
   private static final String TOPIC = "test";
   private static final int FAILURE_STATUS_CODE = 400;

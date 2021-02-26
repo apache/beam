@@ -52,9 +52,6 @@ import org.powermock.reflect.Whitebox;
 
 /** Tests for building {@link PubsubIO} externally via the ExpansionService. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class PubsubIOExternalTest {
   @Test
   public void testConstructPubsubRead() throws Exception {

@@ -35,9 +35,6 @@ import org.junit.Ignore;
 import org.junit.Test;
 
 /** Integration test for date functions. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class BeamSqlDateFunctionsIntegrationTest
     extends BeamSqlBuiltinFunctionsIntegrationTestBase {
 

@@ -28,9 +28,6 @@ import org.junit.runners.JUnit4;
 
 /** An in-memory {@link Sink} implementation for tests. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class InMemoryMetrics implements Sink {
 
   private static WithMetricsSupport extendedMetricsRegistry;

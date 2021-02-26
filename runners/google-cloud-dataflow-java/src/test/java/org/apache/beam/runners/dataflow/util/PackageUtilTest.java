@@ -104,9 +104,6 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link PackageUtil}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class PackageUtilTest {
   @Rule public ExpectedLogs logged = ExpectedLogs.none(PackageUtil.class);
   @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();

@@ -33,9 +33,6 @@ import org.junit.Before;
 import org.junit.Test;
 
 /** Tests for conversion from Beam schema to Calcite data type. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class CalciteUtilsTest {
 
   RelDataTypeFactory dataTypeFactory;

@@ -21,9 +21,6 @@ import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingMDC;
 import org.junit.rules.ExternalResource;
 
 /** Saves, clears and restores the current thread-local logging parameters for tests. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class RestoreDataflowLoggingMDC extends ExternalResource {
   private String previousJobId;
   private String previousStageName;

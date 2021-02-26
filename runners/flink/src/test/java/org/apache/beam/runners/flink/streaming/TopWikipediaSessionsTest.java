@@ -41,9 +41,6 @@ import org.junit.Before;
 import org.junit.Test;
 
 /** Session window test. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class TopWikipediaSessionsTest extends AbstractTestBase implements Serializable {
 
   protected String resultDir;

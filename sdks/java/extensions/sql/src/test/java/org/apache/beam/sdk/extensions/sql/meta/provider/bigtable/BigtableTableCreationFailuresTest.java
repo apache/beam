@@ -29,9 +29,6 @@ import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
 import org.junit.Before;
 import org.junit.Test;
 
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class BigtableTableCreationFailuresTest {
 
   private final InMemoryMetaStore metaStore = new InMemoryMetaStore();

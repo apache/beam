@@ -95,9 +95,6 @@ import org.junit.runners.Parameterized;
 
 /** Tests for {@link TextIO.Read}. */
 @RunWith(Enclosed.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class TextIOReadTest {
   private static final int LINES_NUMBER_FOR_LARGE = 1000;
   private static final List<String> EMPTY = Collections.emptyList();
