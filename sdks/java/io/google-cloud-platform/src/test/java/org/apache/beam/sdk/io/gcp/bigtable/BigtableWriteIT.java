@@ -59,9 +59,6 @@ import org.junit.runners.JUnit4;
 
 /** End-to-end tests of BigtableWrite. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class BigtableWriteIT implements Serializable {
   /**
    * These tests requires a static instances because the writers go through a serialization step

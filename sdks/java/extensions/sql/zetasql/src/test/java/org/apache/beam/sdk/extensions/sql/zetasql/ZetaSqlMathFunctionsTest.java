@@ -35,9 +35,6 @@ import org.junit.runners.JUnit4;
 
 /** Tests for ZetaSQL Math functions (on INT64, DOUBLE, NUMERIC types). */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class ZetaSqlMathFunctionsTest extends ZetaSqlTestBase {
 
   @Rule public transient TestPipeline pipeline = TestPipeline.create();

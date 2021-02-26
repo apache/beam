@@ -45,9 +45,6 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests the {@link AfterWatermarkStateMachine} triggers. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class AfterWatermarkStateMachineTest {
 
   @Mock private TriggerStateMachine mockEarly;

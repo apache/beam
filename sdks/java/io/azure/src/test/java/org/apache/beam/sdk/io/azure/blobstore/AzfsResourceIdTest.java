@@ -42,9 +42,6 @@ import org.junit.runners.JUnit4;
 import org.junit.runners.Parameterized;
 
 @RunWith(Enclosed.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class AzfsResourceIdTest {
   @RunWith(Parameterized.class)
   public static class ResolveTest {

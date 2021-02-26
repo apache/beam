@@ -95,9 +95,6 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link BeamFnDataReadRunner}. */
 @RunWith(Enclosed.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class BeamFnDataReadRunnerTest {
   private static final Coder<String> ELEMENT_CODER = StringUtf8Coder.of();
   private static final String ELEMENT_CODER_SPEC_ID = "string-coder-id";

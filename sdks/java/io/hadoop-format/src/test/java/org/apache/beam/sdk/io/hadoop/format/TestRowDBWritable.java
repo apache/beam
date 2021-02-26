@@ -35,9 +35,6 @@ import org.apache.hadoop.mapreduce.lib.db.DBWritable;
  * org.apache.hadoop.mapreduce.lib.db.DBInputFormat}.
  */
 @DefaultCoder(AvroCoder.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 class TestRowDBWritable extends TestRow implements DBWritable, Writable {
 
   private Integer id;

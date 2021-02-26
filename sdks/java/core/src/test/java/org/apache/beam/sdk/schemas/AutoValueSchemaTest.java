@@ -45,9 +45,6 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link AutoValueSchema}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class AutoValueSchemaTest {
   static final DateTime DATE = DateTime.parse("1979-03-14");
   static final byte[] BYTE_ARRAY = "bytearray".getBytes(StandardCharsets.UTF_8);

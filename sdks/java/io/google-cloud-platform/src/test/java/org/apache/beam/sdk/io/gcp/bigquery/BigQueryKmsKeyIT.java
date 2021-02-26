@@ -49,9 +49,6 @@ import org.slf4j.LoggerFactory;
  */
 @RunWith(JUnit4.class)
 @Category(UsesKms.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class BigQueryKmsKeyIT {
 
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryKmsKeyIT.class);

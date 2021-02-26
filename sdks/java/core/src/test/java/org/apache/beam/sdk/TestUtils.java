@@ -25,9 +25,6 @@ import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeMatcher;
 
 /** Utilities for tests. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class TestUtils {
   // Do not instantiate.
   private TestUtils() {}

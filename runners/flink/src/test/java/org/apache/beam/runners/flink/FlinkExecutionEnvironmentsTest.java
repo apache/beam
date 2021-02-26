@@ -48,9 +48,6 @@ import org.powermock.reflect.Whitebox;
 import org.powermock.reflect.exceptions.FieldNotFoundException;
 
 /** Tests for {@link FlinkExecutionEnvironments}. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class FlinkExecutionEnvironmentsTest {
 
   @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();

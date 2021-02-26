@@ -30,9 +30,6 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.commons.codec.binary.Hex;
 import org.junit.Test;
 
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class JvmVerification {
 
   private static final Map<String, Java> versionMapping = new HashMap<>();

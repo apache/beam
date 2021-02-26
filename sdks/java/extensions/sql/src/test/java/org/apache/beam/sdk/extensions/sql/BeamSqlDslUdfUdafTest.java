@@ -46,9 +46,6 @@ import org.joda.time.Instant;
 import org.junit.Test;
 
 /** Tests for UDF/UDAF. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
 
   /** GROUP-BY with UDAF. */

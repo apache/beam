@@ -59,9 +59,6 @@ import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link DockerEnvironmentFactory}. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class DockerEnvironmentFactoryTest {
 
   private static final ApiServiceDescriptor SERVICE_DESCRIPTOR =

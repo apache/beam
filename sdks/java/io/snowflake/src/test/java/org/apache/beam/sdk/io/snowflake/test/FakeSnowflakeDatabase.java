@@ -26,9 +26,6 @@ import java.util.stream.Collectors;
 import net.snowflake.client.jdbc.SnowflakeSQLException;
 
 /** Fake implementation of Snowflake warehouse used in test code. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class FakeSnowflakeDatabase implements Serializable {
   private static Map<String, List<String>> tables = new HashMap<>();
 

@@ -30,9 +30,6 @@ import org.junit.Before;
 import org.junit.Test;
 
 /** Reads from a bounded source in streaming. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class ReadSourceStreamingTest extends AbstractTestBase {
 
   protected String resultDir;

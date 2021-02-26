@@ -74,7 +74,6 @@ import org.mockito.MockitoAnnotations;
 @RunWith(JUnit4.class)
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class BeamFnMapTaskExecutorTest {
 
