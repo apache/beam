@@ -451,7 +451,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   }
 
   private List<PTransformOverride> getOverrides(boolean streaming) {
-    boolean fnApiEnabled = hasExperiment(options, "beam_fn_api");
+    boolean fnApiEnabled = useUnifiedWorker(options);
     ImmutableList.Builder<PTransformOverride> overridesBuilder = ImmutableList.builder();
 
     // Create is implemented in terms of a Read, so it must precede the override to Read in
@@ -901,7 +901,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     String windmillBinary =
         options.as(DataflowPipelineDebugOptions.class).getOverrideWindmillBinary();
     String dataflowWorkerJar = options.getDataflowWorkerJar();
-    if (dataflowWorkerJar != null && !dataflowWorkerJar.isEmpty()) {
+    if (dataflowWorkerJar != null && !dataflowWorkerJar.isEmpty() && !useUnifiedWorker(options)) {
       // Put the user specified worker jar at the start of the classpath, to be consistent with the
       // built in worker order.
       pathsToStageBuilder.add("dataflow-worker.jar=" + dataflowWorkerJar);
@@ -915,6 +915,21 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   @Override
   public DataflowPipelineJob run(Pipeline pipeline) {
+
+    if (useUnifiedWorker(options)) {
+      List<String> experiments = options.getExperiments(); // non-null if useUnifiedWorker is true
+      if (!experiments.contains("use_runner_v2")) {
+        experiments.add("use_runner_v2");
+      }
+      if (!experiments.contains("use_unified_worker")) {
+        experiments.add("use_unified_worker");
+      }
+      if (!experiments.contains("beam_fn_api")) {
+        experiments.add("beam_fn_api");
+      }
+      options.setExperiments(experiments);
+    }
+
     logWarningIfPCollectionViewHasNonDeterministicKeyCoder(pipeline);
     if (containsUnboundedPCollection(pipeline)) {
       options.setStreaming(true);
@@ -977,7 +992,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         options.getStager().stageToFile(serializedProtoPipeline, PIPELINE_FILE_NAME);
     dataflowOptions.setPipelineUrl(stagedPipeline.getLocation());
 
-    if (!isNullOrEmpty(dataflowOptions.getDataflowWorkerJar())) {
+    if (!isNullOrEmpty(dataflowOptions.getDataflowWorkerJar()) && !useUnifiedWorker(options)) {
       List<String> experiments =
           dataflowOptions.getExperiments() == null
               ? new ArrayList<>()
@@ -1252,7 +1267,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     DataflowRunnerInfo runnerInfo = DataflowRunnerInfo.getDataflowRunnerInfo();
     String majorVersion;
     String jobType;
-    if (hasExperiment(options, "beam_fn_api")) {
+    if (useUnifiedWorker(options)) {
       majorVersion = runnerInfo.getFnApiEnvironmentMajorVersion();
       jobType = options.isStreaming() ? "FNAPI_STREAMING" : "FNAPI_BATCH";
     } else {
@@ -1383,12 +1398,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         hasExperiment(options, "enable_streaming_auto_sharding"),
         "Runner determined sharding not enabled in Dataflow for GroupIntoBatches."
             + " Try adding the experiment: --experiments=enable_streaming_auto_sharding.");
-    // Also reject JRH.
-    boolean useJRH = hasExperiment(options, "beam_fn_api") && !useUnifiedWorker(options);
-    checkArgument(
-        !useJRH,
-        "Runner determined sharding not available in Dataflow for GroupIntoBatches for portable"
-            + " jobs not using runner v2. Try adding the experiment --experiments=use_runner_v2.");
     pcollectionsRequiringAutoSharding.add(pcol);
   }
 
@@ -2320,7 +2329,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         (javaVersion == Environments.JavaVersion.v8) ? "java" : javaVersion.toString();
     if (!workerHarnessContainerImage.contains("IMAGE")) {
       return workerHarnessContainerImage;
-    } else if (hasExperiment(options, "beam_fn_api")) {
+    } else if (useUnifiedWorker(options)) {
       return workerHarnessContainerImage.replace("IMAGE", "java");
     } else if (options.isStreaming()) {
       return workerHarnessContainerImage.replace(
@@ -2332,37 +2341,51 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   }
 
   static boolean useUnifiedWorker(DataflowPipelineOptions options) {
-    return hasExperiment(options, "use_runner_v2") || hasExperiment(options, "use_unified_worker");
+    return hasExperiment(options, "beam_fn_api")
+        || hasExperiment(options, "use_runner_v2")
+        || hasExperiment(options, "use_unified_worker");
   }
 
-  static void verifyDoFnSupportedBatch(DoFn<?, ?> fn) {
-    verifyDoFnSupported(fn, false);
+  static boolean useStreamingEngine(DataflowPipelineOptions options) {
+    return hasExperiment(options, GcpOptions.STREAMING_ENGINE_EXPERIMENT)
+        || hasExperiment(options, GcpOptions.WINDMILL_SERVICE_EXPERIMENT);
   }
 
-  static void verifyDoFnSupportedStreaming(DoFn<?, ?> fn) {
-    verifyDoFnSupported(fn, true);
-  }
-
-  static void verifyDoFnSupported(DoFn<?, ?> fn, boolean streaming) {
-    if (DoFnSignatures.usesSetState(fn)) {
-      // https://issues.apache.org/jira/browse/BEAM-1479
-      throw new UnsupportedOperationException(
-          String.format(
-              "%s does not currently support %s",
-              DataflowRunner.class.getSimpleName(), SetState.class.getSimpleName()));
-    }
-    if (DoFnSignatures.usesMapState(fn)) {
-      // https://issues.apache.org/jira/browse/BEAM-1474
-      throw new UnsupportedOperationException(
-          String.format(
-              "%s does not currently support %s",
-              DataflowRunner.class.getSimpleName(), MapState.class.getSimpleName()));
-    }
+  static void verifyDoFnSupported(
+      DoFn<?, ?> fn, boolean streaming, boolean workerV2, boolean streamingEngine) {
     if (streaming && DoFnSignatures.requiresTimeSortedInput(fn)) {
       throw new UnsupportedOperationException(
           String.format(
               "%s does not currently support @RequiresTimeSortedInput in streaming mode.",
               DataflowRunner.class.getSimpleName()));
+    }
+    if (DoFnSignatures.usesSetState(fn)) {
+      if (workerV2) {
+        throw new UnsupportedOperationException(
+            String.format(
+                "%s does not currently support %s when using runner V2",
+                DataflowRunner.class.getSimpleName(), SetState.class.getSimpleName()));
+      }
+      if (streaming && streamingEngine) {
+        throw new UnsupportedOperationException(
+            String.format(
+                "%s does not currently support %s when using streaming engine",
+                DataflowRunner.class.getSimpleName(), SetState.class.getSimpleName()));
+      }
+    }
+    if (DoFnSignatures.usesMapState(fn)) {
+      if (workerV2) {
+        throw new UnsupportedOperationException(
+            String.format(
+                "%s does not currently support %s when using runner V2",
+                DataflowRunner.class.getSimpleName(), MapState.class.getSimpleName()));
+      }
+      if (streaming && streamingEngine) {
+        throw new UnsupportedOperationException(
+            String.format(
+                "%s does not currently support %s when using streaming engine",
+                DataflowRunner.class.getSimpleName(), MapState.class.getSimpleName()));
+      }
     }
   }
 

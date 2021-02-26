@@ -2410,6 +2410,24 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
   }
 
   @Test
+  @Ignore("[BEAM-9378] This should work, but is currently unimplemented.")
+  public void testStructOfStructRemap() {
+    String sql =
+        "SELECT STRUCT(row.row_id AS int_value_remapped) AS remapped FROM table_with_struct_of_struct";
+
+    PCollection<Row> stream = execute(sql);
+
+    Schema nested = Schema.builder().addInt64Field("int_value_remapped").build();
+    Schema schema = Schema.builder().addRowField("remapped", nested).build();
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(schema).attachValues(Row.withSchema(nested).attachValues(1L)),
+            Row.withSchema(schema).attachValues(Row.withSchema(nested).attachValues(2L)));
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
   public void testUnnestStructOfStructOfArray() {
     String sql =
         "SELECT int_col, s FROM table_with_struct_of_struct_of_array, UNNEST(struct_col.struct.arr) as s";
