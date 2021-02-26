@@ -87,6 +87,29 @@ message TagValue {
   optional string state_family = 3;
 }
 
+message TagValuePrefix {
+  optional bytes tag_prefix = 1;
+  optional string state_family = 2;
+}
+
+message TagValuePrefixRequest {
+  optional bytes tag_prefix = 1;
+  optional string state_family = 2;
+  // In request: A previously returned continuation_token from an earlier
+  // request. Indicates we wish to fetch the next page of values.
+  // In response: Copied from request.
+  optional bytes request_position = 3;
+  optional int64 fetch_max_bytes = 4 [default = 0x6400000];
+}
+
+message TagValuePrefixResponse {
+  optional bytes tag_prefix = 1;
+  optional string state_family = 2;
+  repeated TagValue tag_values = 3;
+  optional bytes continuation_position = 4;
+  optional bytes request_position = 5;
+}
+
 message TagBag {
   optional bytes tag = 1;
   // In request: All existing items in the list will be deleted.  If new values
@@ -256,6 +279,7 @@ message KeyedGetDataRequest {
   required fixed64 work_token = 2;
   optional fixed64 sharding_key = 6;
   repeated TagValue values_to_fetch = 3;
+  repeated TagValuePrefixRequest tag_value_prefixes_to_fetch = 10;
   repeated TagBag bags_to_fetch = 8;
   // Must be at most one sorted_list_to_fetch for a given state family and tag.
   repeated TagSortedListFetchRequest sorted_lists_to_fetch = 9;
@@ -286,6 +310,7 @@ message KeyedGetDataResponse {
   // The response for this key is not populated due to the fetch failing.
   optional bool failed = 2;
   repeated TagValue values = 3;
+  repeated TagValuePrefixResponse tag_value_prefixes = 9;
   repeated TagBag bags = 6;
   // There is one TagSortedListFetchResponse per state-family, tag pair.
   repeated TagSortedListFetchResponse tag_sorted_lists = 8;
@@ -351,6 +376,7 @@ message WorkItemCommitRequest {
   repeated PubSubMessageBundle pubsub_messages = 7;
   repeated Timer output_timers = 4;
   repeated TagValue value_updates = 5;
+  repeated TagValuePrefix tag_value_prefix_deletes = 25;
   repeated TagBag bag_updates = 18;
   repeated TagSortedListUpdateRequest sorted_list_updates = 24;
   repeated Counter counter_updates = 8;
