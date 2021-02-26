@@ -170,7 +170,13 @@ public class BatchStatefulParDoOverrides {
     public PCollection<OutputT> expand(PCollection<KV<K, InputT>> input) {
       DoFn<KV<K, InputT>, OutputT> fn = originalParDo.getFn();
       verifyFnIsStateful(fn);
-      DataflowRunner.verifyDoFnSupportedBatch(fn);
+      DataflowPipelineOptions options =
+          input.getPipeline().getOptions().as(DataflowPipelineOptions.class);
+      DataflowRunner.verifyDoFnSupported(
+          fn,
+          false,
+          DataflowRunner.useUnifiedWorker(options),
+          DataflowRunner.useStreamingEngine(options));
       DataflowRunner.verifyStateSupportForWindowingStrategy(input.getWindowingStrategy());
 
       if (isFnApi) {
@@ -203,7 +209,13 @@ public class BatchStatefulParDoOverrides {
     public PCollectionTuple expand(PCollection<KV<K, InputT>> input) {
       DoFn<KV<K, InputT>, OutputT> fn = originalParDo.getFn();
       verifyFnIsStateful(fn);
-      DataflowRunner.verifyDoFnSupportedBatch(fn);
+      DataflowPipelineOptions options =
+          input.getPipeline().getOptions().as(DataflowPipelineOptions.class);
+      DataflowRunner.verifyDoFnSupported(
+          fn,
+          false,
+          DataflowRunner.useUnifiedWorker(options),
+          DataflowRunner.useStreamingEngine(options));
       DataflowRunner.verifyStateSupportForWindowingStrategy(input.getWindowingStrategy());
 
       if (isFnApi) {

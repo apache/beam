@@ -1406,16 +1406,19 @@ public class DataflowRunnerTest implements Serializable {
   }
 
   @Test
-  public void testMapStateUnsupportedInBatch() throws Exception {
+  public void testMapStateUnsupportedRunnerV2() throws Exception {
     PipelineOptions options = buildPipelineOptions();
-    options.as(StreamingOptions.class).setStreaming(false);
+    ExperimentalOptions.addExperiment(options.as(ExperimentalOptions.class), "use_runner_v2");
     verifyMapStateUnsupported(options);
   }
 
   @Test
-  public void testMapStateUnsupportedInStreaming() throws Exception {
+  public void testMapStateUnsupportedStreamingEngine() throws Exception {
     PipelineOptions options = buildPipelineOptions();
-    options.as(StreamingOptions.class).setStreaming(true);
+    ExperimentalOptions.addExperiment(
+        options.as(ExperimentalOptions.class), GcpOptions.STREAMING_ENGINE_EXPERIMENT);
+    options.as(DataflowPipelineOptions.class).setStreaming(true);
+
     verifyMapStateUnsupported(options);
   }
 
@@ -1438,17 +1441,19 @@ public class DataflowRunnerTest implements Serializable {
   }
 
   @Test
-  public void testSetStateUnsupportedInBatch() throws Exception {
+  public void testSetStateUnsupportedRunnerV2() throws Exception {
     PipelineOptions options = buildPipelineOptions();
-    options.as(StreamingOptions.class).setStreaming(false);
+    ExperimentalOptions.addExperiment(options.as(ExperimentalOptions.class), "use_runner_v2");
     Pipeline.create(options);
     verifySetStateUnsupported(options);
   }
 
   @Test
-  public void testSetStateUnsupportedInStreaming() throws Exception {
+  public void testSetStateUnsupportedStreamingEngine() throws Exception {
     PipelineOptions options = buildPipelineOptions();
-    options.as(StreamingOptions.class).setStreaming(true);
+    ExperimentalOptions.addExperiment(
+        options.as(ExperimentalOptions.class), GcpOptions.STREAMING_ENGINE_EXPERIMENT);
+    options.as(DataflowPipelineOptions.class).setStreaming(true);
     verifySetStateUnsupported(options);
   }
 
