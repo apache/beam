@@ -31,11 +31,11 @@ applyJavaNature(
 
 dependencies {
     compile project(path: ":sdks:java:expansion-service")
-    permitUnusedDeclared project(path: ":sdks:java:expansion-service")
+    permitUnusedDeclared project(path: ":sdks:java:expansion-service") // BEAM-11761
     compile project(":sdks:java:io:jdbc")
-    permitUnusedDeclared project(":sdks:java:io:jdbc")
+    permitUnusedDeclared project(":sdks:java:io:jdbc") // BEAM-11761
     compile library.java.postgres
-    permitUnusedDeclared library.java.postgres
+    permitUnusedDeclared library.java.postgres // BEAM-11761
     compile project(path: ":model:pipeline", configuration: "shadow")
     compile project(path: ":sdks:java:core", configuration: "shadow")
     compile library.java.vendored_grpc_1_26_0
