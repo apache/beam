@@ -367,6 +367,7 @@ task validatesRunnerV2 {
       'org.apache.beam.sdk.transforms.windowing.WindowingTest.testNonPartitioningWindowing',
       'org.apache.beam.sdk.transforms.windowing.WindowTest.testMergingCustomWindowsKeyedCollection',
       'org.apache.beam.sdk.transforms.windowing.WindowTest.testMergingCustomWindows',
+      'org.apache.beam.sdk.transforms.windowing.WindowTest.testMergingCustomWindowsWitoutCustomWindowTypes',
 
       'org.apache.beam.sdk.transforms.ReshuffleTest.testReshuffleWithTimestampsStreaming',
 
@@ -417,6 +418,7 @@ task validatesRunnerV2Streaming {
       'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testEventTimeTimerAlignBounded',
       'org.apache.beam.sdk.transforms.windowing.WindowTest.testMergingCustomWindows',
       'org.apache.beam.sdk.transforms.windowing.WindowTest.testMergingCustomWindowsKeyedCollection',
+      'org.apache.beam.sdk.transforms.windowing.WindowTest.testMergingCustomWindowsWithougCustomWindowTypes',
       'org.apache.beam.examples.complete.TopWikipediaSessionsTest.testComputeTopUsers',
       'org.apache.beam.sdk.transforms.windowing.WindowingTest.testNonPartitioningWindowing',
 
