@@ -17,7 +17,7 @@
  */
 
 plugins {
-    id("org.apache.beam.module")
+    id("org.apache.beam.dependencies")
     id("org.apache.beam.vendor-java")
 }
 
