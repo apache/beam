@@ -505,7 +505,7 @@ public class DataflowPipelineTranslator {
       LOG.debug("Checking translation of {}", value);
       // Primitive transforms are the only ones assigned step names.
       if (producer.getTransform() instanceof CreateDataflowView
-          && !hasExperiment(options, "beam_fn_api")) {
+          && !DataflowRunner.useUnifiedWorker(options)) {
         // CreateDataflowView produces a dummy output (as it must be a primitive transform)
         // but in the Dataflow Job graph produces only the view and not the output PCollection.
         asOutputReference(
@@ -513,7 +513,7 @@ public class DataflowPipelineTranslator {
             producer.toAppliedPTransform(getPipeline()));
         return;
       } else if (producer.getTransform() instanceof View.CreatePCollectionView
-          && hasExperiment(options, "beam_fn_api")) {
+          && DataflowRunner.useUnifiedWorker(options)) {
         // View.CreatePCollectionView produces a dummy output (as it must be a primitive transform)
         // but in the Dataflow Job graph produces only the view and not the output PCollection.
         asOutputReference(
