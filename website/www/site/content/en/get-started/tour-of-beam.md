@@ -30,7 +30,7 @@ You can also [try an Apache Beam pipeline](/get-started/try-apache-beam) using t
 ### Learn the basics
 
 In this notebook we go through the basics of what is Apache Beam and how to get started.
-We learn what is a **pipeline**, a **PCollection**, a **PTransform**, as well as some basic transforms like `Map`, `FlatMap`, `Filter`, `Combine`, and `GroupByKey`.
+We learn what is a data _pipeline_, a _PCollection_, a _PTransform_, as well as some basic transforms like `Map`, `FlatMap`, `Filter`, `Combine`, and `GroupByKey`.
 
 {{< button-colab url="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/tour-of-beam/getting-started.ipynb" >}}
 
