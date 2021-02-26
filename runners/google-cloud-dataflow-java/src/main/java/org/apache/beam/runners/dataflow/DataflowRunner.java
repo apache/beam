@@ -901,7 +901,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     String windmillBinary =
         options.as(DataflowPipelineDebugOptions.class).getOverrideWindmillBinary();
     String dataflowWorkerJar = options.getDataflowWorkerJar();
-    if (dataflowWorkerJar != null && !dataflowWorkerJar.isEmpty()) {
+    if (dataflowWorkerJar != null && !dataflowWorkerJar.isEmpty() && !useUnifiedWorker(options)) {
       // Put the user specified worker jar at the start of the classpath, to be consistent with the
       // built in worker order.
       pathsToStageBuilder.add("dataflow-worker.jar=" + dataflowWorkerJar);
@@ -992,7 +992,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         options.getStager().stageToFile(serializedProtoPipeline, PIPELINE_FILE_NAME);
     dataflowOptions.setPipelineUrl(stagedPipeline.getLocation());
 
-    if (!isNullOrEmpty(dataflowOptions.getDataflowWorkerJar())) {
+    if (!isNullOrEmpty(dataflowOptions.getDataflowWorkerJar()) && !useUnifiedWorker(options)) {
       List<String> experiments =
           dataflowOptions.getExperiments() == null
               ? new ArrayList<>()
