@@ -25,7 +25,6 @@ applyJavaNature(
     'MergingActiveWindowSetTest': 'https://github.com/typetools/checker-framework/issues/3776',
     'WindowFnTestUtils': 'https://github.com/typetools/checker-framework/issues/3776',
   ],
-  checkerTooSlowOnTests: true,
   shadowClosure: {
     dependencies {
       include(dependency("org.apache.commons:.*"))
