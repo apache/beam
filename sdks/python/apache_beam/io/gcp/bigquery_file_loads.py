@@ -900,10 +900,13 @@ class BigQueryBatchFileLoads(beam.PTransform):
             beam.pvalue.AsList(destination_copy_job_ids_pc)))
 
     _ = (
-        finished_copy_jobs_pc
+        p
+        | "RemoveTempTables/Impulse" >> beam.Create([None])
         | "RemoveTempTables/PassTables" >> beam.FlatMap(
-            lambda x,
+            lambda _,
+            unused_copy_jobs,
             deleting_tables: deleting_tables,
+            pvalue.AsIter(finished_copy_jobs_pc),
             pvalue.AsIter(temp_tables_pc))
         | "RemoveTempTables/AddUselessValue" >> beam.Map(lambda x: (x, None))
         | "RemoveTempTables/DeduplicateTables" >> beam.GroupByKey()
