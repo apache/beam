@@ -95,7 +95,7 @@ class BeamModulePlugin implements Plugin<Project> {
     Map<String, String> classesTriggerCheckerBugs = [:]
 
     /** Controls whether the dependency analysis plugin is enabled. */
-    boolean enableStrictDependencies = false
+    boolean enableStrictDependencies = true
 
     /** Override the default "beam-" + `dash separated path` archivesBaseName. */
     String archivesBaseName = null
@@ -1834,6 +1834,7 @@ class BeamModulePlugin implements Plugin<Project> {
       }
 
       project.ext.applyJavaNature(
+          enableStrictDependencies: false,
           exportJavadoc: false,
           enableSpotbugs: false,
           publish: configuration.publish,

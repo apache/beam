@@ -23,7 +23,6 @@ plugins {
 }
 javaVersion="1.11"
 applyJavaNature(
-  enableStrictDependencies: true,
   exportJavadoc: false,
   publish: false,
   disableLintWarnings: ['requires-transitive-automatic', 'requires-automatic']

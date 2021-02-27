@@ -82,6 +82,7 @@ def excluded_dependencies = [
 ]
 
 applyJavaNature(
+        enableStrictDependencies: false,
         archivesBaseName: 'beam-runners-google-cloud-dataflow-java-legacy-worker',
         publish: false,
         classesTriggerCheckerBugs: [
