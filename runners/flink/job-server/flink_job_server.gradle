@@ -79,7 +79,7 @@ configurations.all {
 
 dependencies {
   compile project(flinkRunnerProject)
-  permitUnusedDeclared project(flinkRunnerProject)
+  permitUnusedDeclared project(flinkRunnerProject) // BEAM-11761
   runtime group: "org.slf4j", name: "jcl-over-slf4j", version: dependencies.create(project.library.java.slf4j_api).getVersion()
   validatesPortableRunner project(path: flinkRunnerProject, configuration: "testRuntime")
   validatesPortableRunner project(path: ":sdks:java:core", configuration: "shadowTest")
