@@ -17,7 +17,8 @@
  */
 package org.apache.beam.sdk.testing.watermarks;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.options.Default;
