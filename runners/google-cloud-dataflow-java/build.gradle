@@ -589,6 +589,7 @@ task examplesJavaRunnerV2IntegrationTest(type: Test) {
   exclude '**/AutoCompleteIT.class'
   // TODO(BEAM-11201): test times out.
   exclude '**/FhirIOReadIT.class'
+  exclude '**/MapClassIntegrationIT.class'
 
   maxParallelForks 4
   classpath = configurations.examplesJavaIntegrationTest
