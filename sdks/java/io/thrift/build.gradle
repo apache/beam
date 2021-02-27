@@ -21,7 +21,6 @@ plugins {
     // id "org.jruyi.thrift" version "0.4.1"
 }
 applyJavaNature(
-        enableStrictDependencies: true,
         automaticModuleName: 'org.apache.beam.sdk.io.thrift',
         generatedClassPatterns: [
                 /^org\.apache\.beam\.sdk\.io\.thrift\.payloads.*/,

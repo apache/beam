@@ -20,7 +20,6 @@ plugins { id 'org.apache.beam.module' }
 
 // Do not relocate guava to avoid issues with Cassandra's version.
 applyJavaNature(
-  enableStrictDependencies:true,
   automaticModuleName: 'org.apache.beam.sdk.io.cassandra',
 )
 provideIntegrationTestingDependencies()
