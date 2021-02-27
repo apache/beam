@@ -995,7 +995,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
         singleton_pc
         | "WaitForTempTableLoadJobs" >> beam.ParDo(
             WaitForBQJobs(self.test_client),
-            beam.pvalue.AsList(temp_tables_load_job_ids_pc))
+            pvalue.AsList(temp_tables_load_job_ids_pc)))
 
     schema_mod_job_ids_pc = (
         finished_temp_tables_load_jobs_pc
@@ -1011,7 +1011,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
         singleton_pc
         | "WaitForSchemaModJobs" >> beam.ParDo(
             WaitForBQJobs(self.test_client),
-            beam.pvalue.AsList(schema_mod_job_ids_pc)))
+            pvalue.AsList(schema_mod_job_ids_pc)))
 
     destination_copy_job_ids_pc = (
         finished_temp_tables_load_jobs_pc
@@ -1022,13 +1022,13 @@ class BigQueryBatchFileLoads(beam.PTransform):
                 test_client=self.test_client,
                 step_name=step_name),
             copy_job_name_pcv,
-            beam.pvalue.AsIter(finished_schema_mod_jobs_pc)))
+            pvalue.AsIter(finished_schema_mod_jobs_pc)))
 
     finished_copy_jobs_pc = (
         singleton_pc
         | "WaitForCopyJobs" >> beam.ParDo(
             WaitForBQJobs(self.test_client),
-            beam.pvalue.AsList(destination_copy_job_ids_pc)))
+            pvalue.AsList(destination_copy_job_ids_pc)))
 
     _ = (
         singleton_pc
@@ -1064,7 +1064,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
         singleton_pc
         | "WaitForDestinationLoadJobs" >> beam.ParDo(
             WaitForBQJobs(self.test_client),
-            beam.pvalue.AsList(destination_load_job_ids_pc)))
+            pvalue.AsList(destination_load_job_ids_pc)))
 
     destination_load_job_ids_pc = (
         (temp_tables_load_job_ids_pc, destination_load_job_ids_pc)
