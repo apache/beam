@@ -30,6 +30,7 @@ apply plugin: 'application'
 mainClassName = "org.apache.beam.runners.flink.FlinkJobServerDriver"
 
 applyJavaNature(
+  enableStrictDependencies: true,
   automaticModuleName: 'org.apache.beam.runners.flink.jobserver',
   archivesBaseName: project.hasProperty('archives_base_name') ? archives_base_name : archivesBaseName,
   validateShadowJar: false,
@@ -78,6 +79,7 @@ configurations.all {
 
 dependencies {
   compile project(flinkRunnerProject)
+  permitUnusedDeclared project(flinkRunnerProject)
   runtime group: "org.slf4j", name: "jcl-over-slf4j", version: dependencies.create(project.library.java.slf4j_api).getVersion()
   validatesPortableRunner project(path: flinkRunnerProject, configuration: "testRuntime")
   validatesPortableRunner project(path: ":sdks:java:core", configuration: "shadowTest")
