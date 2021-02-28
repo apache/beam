@@ -28,6 +28,9 @@ import com.google.cloud.recommendationengine.v1beta1.UserEvent;
 import com.google.cloud.recommendationengine.v1beta1.UserEventInlineSource;
 import com.google.cloud.recommendationengine.v1beta1.UserEventServiceClient;
 import com.google.protobuf.util.JsonFormat;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.concurrent.ExecutionException;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -40,10 +43,6 @@ import org.apache.beam.sdk.values.TupleTagList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.json.JSONObject;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.concurrent.ExecutionException;
 
 /**
  * A {@link PTransform} connecting to the Recommendations AI API
@@ -62,150 +61,135 @@ import java.util.concurrent.ExecutionException;
 @AutoValue
 @SuppressWarnings({"nullness"})
 public abstract class RecommendationAIImportUserEvents
-        extends PTransform<PCollection<KV<String, GenericJson>>, PCollectionTuple> {
+    extends PTransform<PCollection<KV<String, GenericJson>>, PCollectionTuple> {
 
-    public static final TupleTag<UserEvent> SUCCESS_TAG = new TupleTag<UserEvent>() {
-    };
-    public static final TupleTag<UserEvent> FAILURE_TAG = new TupleTag<UserEvent>() {
-    };
+  public static final TupleTag<UserEvent> SUCCESS_TAG = new TupleTag<UserEvent>() {};
+  public static final TupleTag<UserEvent> FAILURE_TAG = new TupleTag<UserEvent>() {};
 
-    public static Builder newBuilder() {
-        return new AutoValue_RecommendationAIImportUserEvents.Builder()
-                .setCatalogName("default_catalog")
-                .setEventStore("default_event_store");
+  public static Builder newBuilder() {
+    return new AutoValue_RecommendationAIImportUserEvents.Builder()
+        .setCatalogName("default_catalog")
+        .setEventStore("default_event_store");
+  }
+
+  /** @return ID of Google Cloud project to be used for creating user events. */
+  public abstract String projectId();
+
+  /** @return Name of the catalog where the user events will be created. */
+  public abstract @Nullable String catalogName();
+
+  /** @return Name of the event store where the user events will be created. */
+  public abstract @Nullable String eventStore();
+
+  /** @return Size of input elements batch to be sent in one request. */
+  public abstract Integer batchSize();
+
+  /**
+   * @return Time limit (in processing time) on how long an incomplete batch of elements is allowed
+   *     to be buffered.
+   */
+  public abstract Duration maxBufferingDuration();
+
+  /**
+   * The transform converts the contents of input PCollection into {@link UserEvent}s and then calls
+   * the Recommendation AI service to create the user event.
+   *
+   * @param input input PCollection
+   * @return PCollection after transformations
+   */
+  @Override
+  public PCollectionTuple expand(PCollection<KV<String, GenericJson>> input) {
+    return input
+        .apply(
+            "Batch Contents",
+            GroupIntoBatches.<String, GenericJson>ofSize(batchSize())
+                .withMaxBufferingDuration(maxBufferingDuration()))
+        .apply(
+            "Import CatalogItems",
+            ParDo.of(new ImportUserEvents(projectId(), catalogName(), eventStore()))
+                .withOutputTags(SUCCESS_TAG, TupleTagList.of(FAILURE_TAG)));
+  }
+
+  @AutoValue.Builder
+  public abstract static class Builder {
+    /** @param projectId ID of Google Cloud project to be used for creating user events. */
+    public abstract Builder setProjectId(String projectId);
+
+    /** @param catalogName Name of the catalog where the user events will be created. */
+    public abstract Builder setCatalogName(@Nullable String catalogName);
+
+    /** @param eventStore Name of the event store where the user events will be created. */
+    public abstract Builder setEventStore(@Nullable String eventStore);
+
+    /**
+     * @param batchSize Amount of input elements to be sent to Recommendation AI service in one
+     *     request.
+     */
+    public abstract Builder setBatchSize(Integer batchSize);
+
+    /**
+     * @param maxBufferingDuration Time limit (in processing time) on how long an incomplete batch
+     *     of elements is allowed to be buffered.
+     */
+    public abstract Builder setMaxBufferingDuration(Duration maxBufferingDuration);
+
+    public abstract RecommendationAIImportUserEvents build();
+  }
+
+  static class ImportUserEvents extends DoFn<KV<String, Iterable<GenericJson>>, UserEvent> {
+    private final String projectId;
+    private final String catalogName;
+    private final String eventStore;
+
+    /**
+     * @param projectId ID of GCP project to be used for creating user events.
+     * @param catalogName Catalog name for UserEvent creation.
+     * @param eventStore Event store name for UserEvent creation.
+     */
+    public ImportUserEvents(String projectId, String catalogName, String eventStore) {
+      this.projectId = projectId;
+      this.catalogName = catalogName;
+      this.eventStore = eventStore;
     }
 
-    /**
-     * @return ID of Google Cloud project to be used for creating user events.
-     */
-    public abstract String projectId();
+    @ProcessElement
+    public void processElement(ProcessContext c)
+        throws IOException, ExecutionException, InterruptedException {
+      EventStoreName parent = EventStoreName.of(projectId, "global", catalogName, eventStore);
 
-    /**
-     * @return Name of the catalog where the user events will be created.
-     */
-    public abstract @Nullable String catalogName();
+      ArrayList<UserEvent> userEvents = new ArrayList<>();
+      for (GenericJson element : c.element().getValue()) {
+        UserEvent.Builder userEventBuilder = UserEvent.newBuilder();
+        JsonFormat.parser().merge((new JSONObject(element)).toString(), userEventBuilder);
+        userEvents.add(userEventBuilder.build());
+      }
+      UserEventInlineSource userEventInlineSource =
+          UserEventInlineSource.newBuilder().addAllUserEvents(userEvents).build();
 
-    /**
-     * @return Name of the event store where the user events will be created.
-     */
-    public abstract @Nullable String eventStore();
-
-    /**
-     * @return Size of input elements batch to be sent in one request.
-     */
-    public abstract Integer batchSize();
-
-    /**
-     * @return Time limit (in processing time) on how long an incomplete batch
-     * of elements is allowed to be buffered.
-     */
-    public abstract Duration maxBufferingDuration();
-
-    /**
-     * The transform converts the contents of input PCollection into {@link UserEvent}s and then calls
-     * the Recommendation AI service to create the user event.
-     *
-     * @param input input PCollection
-     * @return PCollection after transformations
-     */
-    @Override
-    public PCollectionTuple expand(PCollection<KV<String, GenericJson>> input) {
-        return input
-                .apply("Batch Contents", GroupIntoBatches
-                        .<String, GenericJson>ofSize(batchSize())
-                        .withMaxBufferingDuration(maxBufferingDuration()))
-                .apply(
-                        "Import CatalogItems",
-                        ParDo.of(new ImportUserEvents(projectId(), catalogName(), eventStore()))
-                                .withOutputTags(SUCCESS_TAG, TupleTagList.of(FAILURE_TAG)));
-    }
-
-    @AutoValue.Builder
-    public abstract static class Builder {
-        /**
-         * @param projectId ID of Google Cloud project to be used for creating user events.
-         */
-        public abstract Builder setProjectId(String projectId);
-
-        /**
-         * @param catalogName Name of the catalog where the user events will be created.
-         */
-        public abstract Builder setCatalogName(@Nullable String catalogName);
-
-        /**
-         * @param eventStore Name of the event store where the user events will be created.
-         */
-        public abstract Builder setEventStore(@Nullable String eventStore);
-
-        /**
-         * @param batchSize Amount of input elements to be sent to Recommendation AI service in one
-         *                  request.
-         */
-        public abstract Builder setBatchSize(Integer batchSize);
-
-        /**
-         * @param maxBufferingDuration Time limit (in processing time) on how long an incomplete batch
-         *                             of elements is allowed to be buffered.
-         */
-        public abstract Builder setMaxBufferingDuration(Duration maxBufferingDuration);
-
-        public abstract RecommendationAIImportUserEvents build();
-    }
-
-    static class ImportUserEvents extends DoFn<KV<String, Iterable<GenericJson>>, UserEvent> {
-        private final String projectId;
-        private final String catalogName;
-        private final String eventStore;
-
-        /**
-         * @param projectId   ID of GCP project to be used for creating user events.
-         * @param catalogName Catalog name for UserEvent creation.
-         * @param eventStore  Event store name for UserEvent creation.
-         */
-        public ImportUserEvents(String projectId, String catalogName, String eventStore) {
-            this.projectId = projectId;
-            this.catalogName = catalogName;
-            this.eventStore = eventStore;
+      InputConfig inputConfig =
+          InputConfig.newBuilder().mergeUserEventInlineSource(userEventInlineSource).build();
+      ImportUserEventsRequest request =
+          ImportUserEventsRequest.newBuilder()
+              .setParent(parent.toString())
+              .setInputConfig(inputConfig)
+              .build();
+      try (UserEventServiceClient userEventServiceClient = UserEventServiceClient.create()) {
+        ImportUserEventsResponse response =
+            userEventServiceClient.importUserEventsAsync(request).get();
+        if (response.getErrorSamplesCount() > 0) {
+          for (UserEvent ci : userEvents) {
+            c.output(FAILURE_TAG, ci);
+          }
+        } else {
+          for (UserEvent ci : userEvents) {
+            c.output(SUCCESS_TAG, ci);
+          }
         }
-
-        @ProcessElement
-        public void processElement(ProcessContext c)
-                throws IOException, ExecutionException, InterruptedException {
-            EventStoreName parent = EventStoreName.of(projectId, "global", catalogName, eventStore);
-
-            ArrayList<UserEvent> userEvents = new ArrayList<>();
-            for (GenericJson element : c.element().getValue()) {
-                UserEvent.Builder userEventBuilder = UserEvent.newBuilder();
-                JsonFormat.parser().merge((new JSONObject(element)).toString(), userEventBuilder);
-                userEvents.add(userEventBuilder.build());
-            }
-            UserEventInlineSource userEventInlineSource =
-                    UserEventInlineSource.newBuilder().addAllUserEvents(userEvents).build();
-
-            InputConfig inputConfig =
-                    InputConfig.newBuilder().mergeUserEventInlineSource(userEventInlineSource).build();
-            ImportUserEventsRequest request =
-                    ImportUserEventsRequest.newBuilder()
-                            .setParent(parent.toString())
-                            .setInputConfig(inputConfig)
-                            .build();
-            try (UserEventServiceClient userEventServiceClient = UserEventServiceClient.create()) {
-                ImportUserEventsResponse response =
-                        userEventServiceClient.importUserEventsAsync(request).get();
-                if (response.getErrorSamplesCount() > 0) {
-                    for (UserEvent ci : userEvents) {
-                        c.output(FAILURE_TAG, ci);
-                    }
-                } else {
-                    for (UserEvent ci : userEvents) {
-                        c.output(SUCCESS_TAG, ci);
-                    }
-                }
-            } catch (ApiException e) {
-                for (UserEvent ci : userEvents) {
-                    c.output(FAILURE_TAG, ci);
-                }
-            }
+      } catch (ApiException e) {
+        for (UserEvent ci : userEvents) {
+          c.output(FAILURE_TAG, ci);
         }
+      }
     }
+  }
 }
