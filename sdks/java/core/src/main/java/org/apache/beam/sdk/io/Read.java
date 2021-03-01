@@ -62,6 +62,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.beam.sdk.values.ValueWithRecordId.StripIdsDoFn;
 import org.apache.beam.sdk.values.ValueWithRecordId.ValueWithRecordIdCoder;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.RemovalListener;
@@ -175,7 +176,8 @@ public class Read {
   public static class Unbounded<T> extends PTransform<PBegin, PCollection<T>> {
     private final UnboundedSource<T, CheckpointMark> source;
 
-    private Unbounded(@Nullable String name, UnboundedSource<T, ?> source) {
+    @VisibleForTesting
+    Unbounded(@Nullable String name, UnboundedSource<T, ?> source) {
       super(name);
       this.source =
           (UnboundedSource<T, CheckpointMark>) SerializableUtils.ensureSerializable(source);
@@ -214,10 +216,7 @@ public class Read {
               .apply(ParDo.of(new OutputSingleSource<>(source)))
               .setCoder(
                   SerializableCoder.of(new TypeDescriptor<UnboundedSource<T, CheckpointMark>>() {}))
-              .apply(
-                  ParDo.of(
-                      new UnboundedSourceAsSDFWrapperFn<>(
-                          (Coder<CheckpointMark>) source.getCheckpointMarkCoder())))
+              .apply(ParDo.of(createUnboundedSdfWrapper()))
               .setCoder(ValueWithRecordIdCoder.of(source.getOutputCoder()));
 
       if (source.requiresDeduping()) {
@@ -227,6 +226,11 @@ public class Read {
                 .withRepresentativeType(TypeDescriptor.of(byte[].class)));
       }
       return outputWithIds.apply(ParDo.of(new StripIdsDoFn<>()));
+    }
+
+    @VisibleForTesting
+    UnboundedSourceAsSDFWrapperFn<T, CheckpointMark> createUnboundedSdfWrapper() {
+      return new UnboundedSourceAsSDFWrapperFn<>(source.getCheckpointMarkCoder());
     }
 
     /** Returns the {@code UnboundedSource} used to create this {@code Read} {@code PTransform}. */
@@ -447,7 +451,8 @@ public class Read {
     private Cache<Object, UnboundedReader<OutputT>> cachedReaders;
     private Coder<UnboundedSourceRestriction<OutputT, CheckpointT>> restrictionCoder;
 
-    private UnboundedSourceAsSDFWrapperFn(Coder<CheckpointT> checkpointCoder) {
+    @VisibleForTesting
+    UnboundedSourceAsSDFWrapperFn(Coder<CheckpointT> checkpointCoder) {
       this.checkpointCoder = checkpointCoder;
     }
 
@@ -535,6 +540,7 @@ public class Read {
 
       UnboundedSourceValue<OutputT>[] out = new UnboundedSourceValue[1];
       while (tracker.tryClaim(out) && out[0] != null) {
+        watermarkEstimator.setWatermark(out[0].getWatermark());
         receiver.outputWithTimestamp(
             new ValueWithRecordId<>(out[0].getValue(), out[0].getId()), out[0].getTimestamp());
       }
@@ -542,8 +548,11 @@ public class Read {
       UnboundedSourceRestriction<OutputT, CheckpointT> currentRestriction =
           tracker.currentRestriction();
 
-      // Advance the watermark even if zero elements may have been output.
-      watermarkEstimator.setWatermark(currentRestriction.getWatermark());
+      // Advance the watermark even if zero elements may have been output, if we have not
+      // split the restriction
+      if (!currentRestriction.isSplit()) {
+        watermarkEstimator.setWatermark(currentRestriction.getWatermark());
+      }
 
       // Add the checkpoint mark to be finalized if the checkpoint mark isn't trivial and is not
       // the initial restriction. The initial restriction would have been finalized as part of
@@ -602,9 +611,11 @@ public class Read {
     @AutoValue
     abstract static class UnboundedSourceValue<T> {
 
-      public static <T> UnboundedSourceValue<T> create(byte[] id, T value, Instant timestamp) {
+      public static <T> UnboundedSourceValue<T> create(
+          byte[] id, T value, Instant timestamp, Instant watermark) {
+
         return new AutoValue_Read_UnboundedSourceAsSDFWrapperFn_UnboundedSourceValue<T>(
-            id, value, timestamp);
+            id, value, timestamp, watermark);
       }
 
       @SuppressWarnings("mutable")
@@ -613,6 +624,8 @@ public class Read {
       public abstract T getValue();
 
       public abstract Instant getTimestamp();
+
+      public abstract Instant getWatermark();
     }
 
     /**
@@ -636,6 +649,10 @@ public class Read {
       public abstract @Nullable CheckpointT getCheckpoint();
 
       public abstract Instant getWatermark();
+
+      public boolean isSplit() {
+        return getSource() instanceof EmptyUnboundedSource;
+      }
     }
 
     /** A {@link Coder} for {@link UnboundedSourceRestriction}s. */
@@ -846,7 +863,8 @@ public class Read {
               UnboundedSourceValue.create(
                   currentReader.getCurrentRecordId(),
                   currentReader.getCurrent(),
-                  currentReader.getCurrentTimestamp());
+                  currentReader.getCurrentTimestamp(),
+                  currentReader.getWatermark());
           return true;
         } catch (IOException e) {
           if (currentReader != null) {

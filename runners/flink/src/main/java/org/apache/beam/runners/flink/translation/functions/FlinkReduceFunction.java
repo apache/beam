@@ -98,7 +98,7 @@ public class FlinkReduceFunction<K, AccumT, OutputT, W extends BoundedWindow>
     if (groupedByWindow) {
       reduceRunner = new SingleWindowFlinkCombineRunner<>();
     } else {
-      if (!windowingStrategy.getWindowFn().isNonMerging()
+      if (windowingStrategy.needsMerge()
           && !windowingStrategy.getWindowFn().windowCoder().equals(IntervalWindow.getCoder())) {
         reduceRunner = new HashingFlinkCombineRunner<>();
       } else {
