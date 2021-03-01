@@ -31,6 +31,7 @@ import unittest
 from decimal import Decimal
 
 import hamcrest as hc
+import mock
 import pytz
 from future.utils import iteritems
 from nose.plugins.attrib import attr
@@ -353,6 +354,50 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
               table_id,
               write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
               temp_file_format=FileFormat.JSON))
+
+  @attr('IT')
+  @mock.patch(
+      "apache_beam.io.gcp.bigquery_file_loads._MAXIMUM_SOURCE_URIS", new=1)
+  def test_big_query_write_temp_table_append_schema_update(self):
+    """
+    Test that schema update options are respected when appending to an existing
+    table via temporary tables.
+
+    _MAXIMUM_SOURCE_URIS and max_file_size are both set to 1 to force multiple
+    load jobs and usage of temporary tables.
+    """
+    table_name = 'python_append_schema_update'
+    self.create_table(table_name)
+    table_id = '{}.{}'.format(self.dataset_id, table_name)
+
+    input_data = [{"int64": 1, "bool": True}, {"int64": 2, "bool": False}]
+
+    table_schema = {
+        "fields": [{
+            "name": "int64", "type": "INT64"
+        }, {
+            "name": "bool", "type": "BOOL"
+        }]
+    }
+
+    args = self.test_pipeline.get_full_options_as_args(
+        on_success_matcher=BigqueryFullResultMatcher(
+            project=self.project,
+            query="SELECT bytes, date, time, int64, bool FROM %s" % table_id,
+            data=[(None, None, None, 1, True), (None, None, None, 2, False)]))
+
+    with beam.Pipeline(argv=args) as p:
+      # pylint: disable=expression-not-assigned
+      (
+          p | 'create' >> beam.Create(input_data)
+          | 'write' >> beam.io.WriteToBigQuery(
+              table_id,
+              schema=table_schema,
+              write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
+              max_file_size=1,  # bytes
+              method=beam.io.WriteToBigQuery.Method.FILE_LOADS,
+              additional_bq_parameters={
+                  'schemaUpdateOptions': ['ALLOW_FIELD_ADDITION']}))
 
 
 if __name__ == '__main__':
