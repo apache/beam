@@ -197,6 +197,14 @@ public class PubsubLiteTableProviderTest {
   }
 
   @Test
+  @SuppressWarnings("argument.type.incompatible")
+  public void topicTableCannotRead() {
+    BeamSqlTable basic =
+        makeTable(FULL_WRITE_SCHEMA, example(TopicPath.class).toString(), ImmutableMap.of());
+    assertThrows(UnsupportedOperationException.class, () -> basic.buildIOReader(null));
+  }
+
+  @Test
   public void validSubscriptionTables() {
     BeamSqlTable basic =
         makeTable(FULL_READ_SCHEMA, example(SubscriptionPath.class).toString(), ImmutableMap.of());
@@ -219,5 +227,13 @@ public class PubsubLiteTableProviderTest {
             example(SubscriptionPath.class).toString(),
             ImmutableMap.of("format", "json", "deadLetterQueue", "pubsub:projects/abc/topics/def"));
     assertTrue(dlq instanceof PubsubLiteSubscriptionTable);
+  }
+
+  @Test
+  @SuppressWarnings("argument.type.incompatible")
+  public void subscriptionTableCannotWrite() {
+    BeamSqlTable basic =
+        makeTable(FULL_READ_SCHEMA, example(SubscriptionPath.class).toString(), ImmutableMap.of());
+    assertThrows(UnsupportedOperationException.class, () -> basic.buildIOWriter(null));
   }
 }
