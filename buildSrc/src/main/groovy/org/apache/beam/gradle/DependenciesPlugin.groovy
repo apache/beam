@@ -87,6 +87,7 @@ class DependenciesPlugin implements Plugin<Project> {
         antlr                                       : "org.antlr:antlr4:4.7",
         antlr_runtime                               : "org.antlr:antlr4-runtime:4.7",
         args4j                                      : "args4j:args4j:2.33",
+        auto_value_annotations                      : "com.google.auto.value:auto-value-annotations:$autovalue_version",
         avro                                        : "org.apache.avro:avro:1.8.2",
         avro_tests                                  : "org.apache.avro:avro:1.8.2:tests",
         aws_java_sdk_cloudwatch                     : "com.amazonaws:aws-java-sdk-cloudwatch:$aws_java_sdk_version",
@@ -181,6 +182,7 @@ class DependenciesPlugin implements Plugin<Project> {
         hadoop_minicluster                          : "org.apache.hadoop:hadoop-minicluster:$hadoop_version",
         hadoop_hdfs                                 : "org.apache.hadoop:hadoop-hdfs:$hadoop_version",
         hadoop_hdfs_tests                           : "org.apache.hadoop:hadoop-hdfs:$hadoop_version:tests",
+        hamcrest                                    : "org.hamcrest:hamcrest:$hamcrest_version",
         hamcrest_core                               : "org.hamcrest:hamcrest-core:$hamcrest_version",
         hamcrest_library                            : "org.hamcrest:hamcrest-library:$hamcrest_version",
         http_client                                 : "org.apache.httpcomponents:httpclient:$httpclient_version",
@@ -216,12 +218,15 @@ class DependenciesPlugin implements Plugin<Project> {
         powermock_mockito                           : "org.powermock:powermock-api-mockito2:$powermock_version",
         protobuf_java                               : "com.google.protobuf:protobuf-java:$protobuf_version",
         protobuf_java_util                          : "com.google.protobuf:protobuf-java-util:$protobuf_version",
+        proto_google_cloud_bigquery_storage_v1      : "com.google.api.grpc:proto-google-cloud-bigquerystorage-v1", // google_cloud_platform_libraries_bom sets version
         proto_google_cloud_bigquerybeta2_storage_v1 : "com.google.api.grpc:proto-google-cloud-bigquerystorage-v1beta2", // google_cloud_platform_libraries_bom sets version
+        proto_google_cloud_bigtable_admin_v2        : "com.google.api.grpc:proto-google-cloud-bigtable-admin-v2", // google_cloud_platform_libraries_bom sets version
         proto_google_cloud_bigtable_v2              : "com.google.api.grpc:proto-google-cloud-bigtable-v2", // google_cloud_platform_libraries_bom sets version
         proto_google_cloud_datacatalog_v1beta1      : "com.google.api.grpc:proto-google-cloud-datacatalog-v1beta1", // google_cloud_platform_libraries_bom sets version
         proto_google_cloud_datastore_v1             : "com.google.api.grpc:proto-google-cloud-datastore-v1", // google_cloud_platform_libraries_bom sets version
         proto_google_cloud_pubsub_v1                : "com.google.api.grpc:proto-google-cloud-pubsub-v1", // google_cloud_platform_libraries_bom sets version
         proto_google_cloud_pubsublite_v1            : "com.google.api.grpc:proto-google-cloud-pubsublite-v1:$google_cloud_pubsublite_version",
+        proto_google_cloud_spanner_v1               : "com.google.api.grpc:proto-google-cloud-spanner-v1", // google_cloud_platform_libraries_bom sets version
         proto_google_cloud_spanner_admin_database_v1: "com.google.api.grpc:proto-google-cloud-spanner-admin-database-v1", // google_cloud_platform_libraries_bom sets version
         proto_google_common_protos                  : "com.google.api.grpc:proto-google-common-protos", // google_cloud_platform_libraries_bom sets version
         slf4j_api                                   : "org.slf4j:slf4j-api:$slf4j_version",
@@ -260,6 +265,5 @@ class DependenciesPlugin implements Plugin<Project> {
         maven_surefire_plugin: "maven-plugins:maven-surefire-plugin:3.0.0-M5",
       ],
     ]
-
   }
 }

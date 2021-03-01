@@ -45,7 +45,13 @@ import org.gradle.testing.jacoco.tasks.JacocoReport
 
 import java.util.concurrent.atomic.AtomicInteger
 
-import static org.apache.beam.gradle.DependenciesPlugin.*
+import static org.apache.beam.gradle.DependenciesPlugin.autovalue_version
+import static org.apache.beam.gradle.DependenciesPlugin.checkerframework_version
+import static org.apache.beam.gradle.DependenciesPlugin.grpc_version
+import static org.apache.beam.gradle.DependenciesPlugin.jsr305_version
+import static org.apache.beam.gradle.DependenciesPlugin.protobuf_version
+import static org.apache.beam.gradle.DependenciesPlugin.spotbugs_version
+
 /**
  * This plugin adds methods to configure a module with Beam's defaults, called "natures".
  *
