@@ -33,7 +33,6 @@ dependencies {
     compile project(":sdks:java:expansion-service")
     permitUnusedDeclared project(":sdks:java:expansion-service") // BEAM-11761
     compile group: 'com.google.http-client', name: 'google-http-client', version: '1.38.0'
-    compile group: 'com.google.api-client', name: 'google-api-client', version: '1.31.1'
     compile 'com.google.cloud:google-cloud-recommendations-ai:0.3.7'
     compile 'com.google.cloud:google-cloud-video-intelligence:1.2.0'
     compile 'com.google.cloud:google-cloud-dlp:1.1.4'
@@ -44,6 +43,8 @@ dependencies {
     compile 'com.google.api.grpc:proto-google-cloud-language-v1:1.81.4'
     compile 'com.google.api.grpc:proto-google-cloud-video-intelligence-v1:1.2.0'
     compile 'com.google.api.grpc:proto-google-cloud-vision-v1:1.81.3'
+    compile 'com.google.api.grpc:proto-google-cloud-recommendations-ai-v1beta1:0.3.7'
+    compile "joda-time:joda-time:2.10.10"
     compile library.java.auto_value_annotations
     compile library.java.gax
     compile library.java.protobuf_java
