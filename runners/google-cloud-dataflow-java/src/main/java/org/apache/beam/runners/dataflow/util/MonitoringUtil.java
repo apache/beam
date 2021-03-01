@@ -223,6 +223,7 @@ public class MonitoringUtil {
       case "JOB_STATE_RUNNING":
       case "JOB_STATE_PENDING": // Job has not yet started; closest mapping is RUNNING
       case "JOB_STATE_DRAINING": // Job is still active; the closest mapping is RUNNING
+      case "JOB_STATE_CANCELLING": // Job is still active; the closest mapping is RUNNING
         return State.RUNNING;
 
       case "JOB_STATE_DONE":
