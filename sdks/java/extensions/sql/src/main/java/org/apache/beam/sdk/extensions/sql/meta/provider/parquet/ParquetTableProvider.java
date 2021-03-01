@@ -18,17 +18,14 @@
 package org.apache.beam.sdk.extensions.sql.meta.provider.parquet;
 
 import com.google.auto.service.AutoService;
-import org.apache.beam.sdk.extensions.sql.meta.provider.SchemaIOTableProviderWrapper;
+import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
+import org.apache.beam.sdk.extensions.sql.meta.Table;
+import org.apache.beam.sdk.extensions.sql.meta.provider.InMemoryMetaTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.io.parquet.ParquetIO;
-import org.apache.beam.sdk.io.parquet.ParquetSchemaIOProvider;
-import org.apache.beam.sdk.schemas.io.SchemaIOProvider;
 
 /**
  * {@link TableProvider} for {@link ParquetIO} for consumption by Beam SQL.
- *
- * <p>Passes the {@link ParquetSchemaIOProvider} to the generalized table provider wrapper, {@link
- * SchemaIOTableProviderWrapper}, for Parquet specific behavior.
  *
  * <p>A sample of parquet table is:
  *
@@ -39,19 +36,18 @@ import org.apache.beam.sdk.schemas.io.SchemaIOProvider;
  *   favorite_numbers ARRAY<INTEGER>
  * )
  * TYPE 'parquet'
- * LOCATION '/home/admin/users.parquet'
+ * LOCATION '/home/admin/orders/'
  * }</pre>
  */
 @AutoService(TableProvider.class)
-public class ParquetTableProvider extends SchemaIOTableProviderWrapper {
-  @Override
-  public SchemaIOProvider getSchemaIOProvider() {
-    return new ParquetSchemaIOProvider();
-  }
-
-  // TODO[BEAM-10516]: remove this override after TableProvider problem is fixed
+public class ParquetTableProvider extends InMemoryMetaTableProvider {
   @Override
   public String getTableType() {
     return "parquet";
+  }
+
+  @Override
+  public BeamSqlTable buildBeamSqlTable(Table table) {
+    return new ParquetTable(table);
   }
 }
