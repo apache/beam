@@ -23,7 +23,6 @@ import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.CombineFnBase;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -82,12 +81,8 @@ public class FlinkMergingNonShuffleReduceFunction<
     FlinkSideInputReader sideInputReader =
         new FlinkSideInputReader(sideInputs, getRuntimeContext());
 
-    AbstractFlinkCombineRunner<K, InputT, AccumT, OutputT, W> reduceRunner;
-    if (windowingStrategy.getWindowFn().windowCoder().equals(IntervalWindow.getCoder())) {
-      reduceRunner = new SortingFlinkCombineRunner<>();
-    } else {
-      reduceRunner = new HashingFlinkCombineRunner<>();
-    }
+    AbstractFlinkCombineRunner<K, InputT, AccumT, OutputT, W> reduceRunner =
+        new HashingFlinkCombineRunner<>();
 
     reduceRunner.combine(
         new AbstractFlinkCombineRunner.CompleteFlinkCombiner<>(combineFn),

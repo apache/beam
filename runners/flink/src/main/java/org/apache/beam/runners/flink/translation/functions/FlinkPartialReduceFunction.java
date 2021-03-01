@@ -23,7 +23,6 @@ import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.CombineFnBase;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -98,12 +97,7 @@ public class FlinkPartialReduceFunction<K, InputT, AccumT, W extends BoundedWind
     if (groupedByWindow) {
       reduceRunner = new SingleWindowFlinkCombineRunner<>();
     } else {
-      if (!windowingStrategy.getWindowFn().isNonMerging()
-          && !windowingStrategy.getWindowFn().windowCoder().equals(IntervalWindow.getCoder())) {
-        reduceRunner = new HashingFlinkCombineRunner<>();
-      } else {
-        reduceRunner = new SortingFlinkCombineRunner<>();
-      }
+      reduceRunner = new HashingFlinkCombineRunner<>();
     }
 
     reduceRunner.combine(
