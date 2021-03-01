@@ -57,6 +57,7 @@ from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_provision_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners import runner
+from apache_beam.runners.common import group_by_key_input_visitor
 from apache_beam.runners.portability import portable_metrics
 from apache_beam.runners.portability.fn_api_runner import execution
 from apache_beam.runners.portability.fn_api_runner import translations
@@ -153,10 +154,8 @@ class FnApiRunner(runner.PipelineRunner):
     # This is sometimes needed if type checking is disabled
     # to enforce that the inputs (and outputs) of GroupByKey operations
     # are known to be KVs.
-    from apache_beam.runners.dataflow.dataflow_runner import DataflowRunner
-    # TODO: Move group_by_key_input_visitor() to a non-dataflow specific file.
     pipeline.visit(
-        DataflowRunner.group_by_key_input_visitor(
+        group_by_key_input_visitor(
             not options.view_as(pipeline_options.TypeOptions).
             allow_non_deterministic_key_coders))
     self._bundle_repeat = self._bundle_repeat or options.view_as(
@@ -178,6 +177,15 @@ class FnApiRunner(runner.PipelineRunner):
                     % sys.executable
       self._default_environment = environments.SubprocessSDKEnvironment(
           command_string=command_string)
+
+    if running_mode == 'in_memory' and self._num_workers != 1:
+      _LOGGER.warning(
+          'If direct_num_workers is not equal to 1, direct_running_mode '
+          'should be `multi_processing` or `multi_threading` instead of '
+          '`in_memory` in order for it to have the desired worker parallelism '
+          'effect. direct_num_workers: %d ; running_mode: %s',
+          self._num_workers,
+          running_mode)
 
     self._profiler_factory = Profile.factory_from_options(
         options.view_as(pipeline_options.ProfilingOptions))
