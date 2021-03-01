@@ -70,7 +70,6 @@
       "steppedLine": false,
       "targets": [
         {
-          "alias": "runtime",
           "groupBy": [
             {
               "params": [
@@ -197,7 +196,7 @@
           },
           {
             "$$hashKey": "object:5348",
-            "selected": false,
+            "selected": true,
             "text": "per_element_cost_ms",
             "value": "per_element_cost_ms"
           },
