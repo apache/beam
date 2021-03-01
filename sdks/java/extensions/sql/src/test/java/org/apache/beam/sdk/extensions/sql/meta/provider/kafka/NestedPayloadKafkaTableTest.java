@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.apache.beam.sdk.extensions.sql.meta.provider.kafka.Schemas.*;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
@@ -53,17 +52,17 @@ public class NestedPayloadKafkaTableTest {
   private static final String TOPIC = "mytopic";
   private static final Schema FULL_WRITE_SCHEMA =
       Schema.builder()
-          .addByteArrayField(MESSAGE_KEY_FIELD)
-          .addField(EVENT_TIMESTAMP_FIELD, FieldType.DATETIME.withNullable(true))
-          .addArrayField(HEADERS_FIELD, FieldType.row(HEADERS_ENTRY_SCHEMA))
-          .addByteArrayField(PAYLOAD_FIELD)
+          .addByteArrayField(Schemas.MESSAGE_KEY_FIELD)
+          .addField(Schemas.EVENT_TIMESTAMP_FIELD, FieldType.DATETIME.withNullable(true))
+          .addArrayField(Schemas.HEADERS_FIELD, FieldType.row(Schemas.HEADERS_ENTRY_SCHEMA))
+          .addByteArrayField(Schemas.PAYLOAD_FIELD)
           .build();
   private static final Schema FULL_READ_SCHEMA =
       Schema.builder()
-          .addByteArrayField(MESSAGE_KEY_FIELD)
-          .addDateTimeField(EVENT_TIMESTAMP_FIELD)
-          .addArrayField(HEADERS_FIELD, FieldType.row(HEADERS_ENTRY_SCHEMA))
-          .addByteArrayField(PAYLOAD_FIELD)
+          .addByteArrayField(Schemas.MESSAGE_KEY_FIELD)
+          .addDateTimeField(Schemas.EVENT_TIMESTAMP_FIELD)
+          .addArrayField(Schemas.HEADERS_FIELD, FieldType.row(Schemas.HEADERS_ENTRY_SCHEMA))
+          .addByteArrayField(Schemas.PAYLOAD_FIELD)
           .build();
 
   @Mock public PayloadSerializer serializer;
@@ -84,15 +83,18 @@ public class NestedPayloadKafkaTableTest {
     assertThrows(
         IllegalArgumentException.class,
         () ->
-            newTable(Schema.builder().addByteArrayField(PAYLOAD_FIELD).build(), Optional.empty()));
+            newTable(
+                Schema.builder().addByteArrayField(Schemas.PAYLOAD_FIELD).build(),
+                Optional.empty()));
     // Row payload without serializer
     assertThrows(
         IllegalArgumentException.class,
         () ->
             newTable(
                 Schema.builder()
-                    .addRowField(PAYLOAD_FIELD, Schema.builder().addStringField("abc").build())
-                    .addField(HEADERS_FIELD, HEADERS_FIELD_TYPE)
+                    .addRowField(
+                        Schemas.PAYLOAD_FIELD, Schema.builder().addStringField("abc").build())
+                    .addField(Schemas.HEADERS_FIELD, Schemas.HEADERS_FIELD_TYPE)
                     .build(),
                 Optional.empty()));
     // Bytes payload with serializer
@@ -101,8 +103,8 @@ public class NestedPayloadKafkaTableTest {
         () ->
             newTable(
                 Schema.builder()
-                    .addByteArrayField(PAYLOAD_FIELD)
-                    .addField(HEADERS_FIELD, HEADERS_FIELD_TYPE)
+                    .addByteArrayField(Schemas.PAYLOAD_FIELD)
+                    .addField(Schemas.HEADERS_FIELD, Schemas.HEADERS_FIELD_TYPE)
                     .build(),
                 Optional.of(serializer)));
     // Bad field in schema
@@ -111,8 +113,8 @@ public class NestedPayloadKafkaTableTest {
         () ->
             newTable(
                 Schema.builder()
-                    .addByteArrayField(PAYLOAD_FIELD)
-                    .addField(HEADERS_FIELD, HEADERS_FIELD_TYPE)
+                    .addByteArrayField(Schemas.PAYLOAD_FIELD)
+                    .addField(Schemas.HEADERS_FIELD, Schemas.HEADERS_FIELD_TYPE)
                     .addBooleanField("bad")
                     .build(),
                 Optional.empty()));
@@ -122,9 +124,9 @@ public class NestedPayloadKafkaTableTest {
         () ->
             newTable(
                 Schema.builder()
-                    .addByteArrayField(PAYLOAD_FIELD)
-                    .addField(HEADERS_FIELD, HEADERS_FIELD_TYPE)
-                    .addBooleanField(EVENT_TIMESTAMP_FIELD)
+                    .addByteArrayField(Schemas.PAYLOAD_FIELD)
+                    .addField(Schemas.HEADERS_FIELD, Schemas.HEADERS_FIELD_TYPE)
+                    .addBooleanField(Schemas.EVENT_TIMESTAMP_FIELD)
                     .build(),
                 Optional.empty()));
   }
@@ -144,8 +146,8 @@ public class NestedPayloadKafkaTableTest {
       NestedPayloadKafkaTable table =
           newTable(
               Schema.builder()
-                  .addRowField(PAYLOAD_FIELD, payloadSchema)
-                  .addField(HEADERS_FIELD, HEADERS_FIELD_TYPE)
+                  .addRowField(Schemas.PAYLOAD_FIELD, payloadSchema)
+                  .addField(Schemas.HEADERS_FIELD, Schemas.HEADERS_FIELD_TYPE)
                   .build(),
               Optional.of(serializer));
       doThrow(new IllegalArgumentException("")).when(serializer).deserialize(any());
@@ -161,8 +163,8 @@ public class NestedPayloadKafkaTableTest {
       NestedPayloadKafkaTable table =
           newTable(
               Schema.builder()
-                  .addByteArrayField(PAYLOAD_FIELD)
-                  .addField(HEADERS_FIELD, HEADERS_FIELD_TYPE)
+                  .addByteArrayField(Schemas.PAYLOAD_FIELD)
+                  .addField(Schemas.HEADERS_FIELD, Schemas.HEADERS_FIELD_TYPE)
                   .build(),
               Optional.empty());
       assertThrows(
@@ -186,8 +188,8 @@ public class NestedPayloadKafkaTableTest {
     Schema payloadSchema = Schema.builder().addStringField("def").build();
     Schema schema =
         Schema.builder()
-            .addRowField(PAYLOAD_FIELD, payloadSchema)
-            .addField(HEADERS_FIELD, HEADERS_FIELD_TYPE.withNullable(true))
+            .addRowField(Schemas.PAYLOAD_FIELD, payloadSchema)
+            .addField(Schemas.HEADERS_FIELD, Schemas.HEADERS_FIELD_TYPE.withNullable(true))
             .build();
     NestedPayloadKafkaTable table = newTable(schema, Optional.of(serializer));
     // badRow cannot be cast to schema
@@ -199,7 +201,8 @@ public class NestedPayloadKafkaTableTest {
     Row goodRow =
         Row.withSchema(schema)
             .withFieldValue(
-                PAYLOAD_FIELD, Row.withSchema(payloadSchema).withFieldValue("def", "abc").build())
+                Schemas.PAYLOAD_FIELD,
+                Row.withSchema(payloadSchema).withFieldValue("def", "abc").build())
             .build();
     doThrow(new IllegalArgumentException("")).when(serializer).serialize(any());
     assertThrows(IllegalArgumentException.class, () -> table.transformOutput(goodRow));
@@ -209,13 +212,13 @@ public class NestedPayloadKafkaTableTest {
   public void reorderRowToRecord() {
     Schema schema =
         Schema.builder()
-            .addField(HEADERS_FIELD, HEADERS_FIELD_TYPE)
-            .addByteArrayField(PAYLOAD_FIELD)
+            .addField(Schemas.HEADERS_FIELD, Schemas.HEADERS_FIELD_TYPE)
+            .addByteArrayField(Schemas.PAYLOAD_FIELD)
             .build();
     Schema rowSchema =
         Schema.builder()
-            .addByteArrayField(PAYLOAD_FIELD)
-            .addField(HEADERS_FIELD, HEADERS_FIELD_TYPE)
+            .addByteArrayField(Schemas.PAYLOAD_FIELD)
+            .addField(Schemas.HEADERS_FIELD, Schemas.HEADERS_FIELD_TYPE)
             .build();
     NestedPayloadKafkaTable table = newTable(schema, Optional.empty());
     Row row = Row.withSchema(rowSchema).attachValues("abc".getBytes(UTF_8), ImmutableList.of());
@@ -230,17 +233,17 @@ public class NestedPayloadKafkaTableTest {
     Instant now = Instant.now();
     Row row =
         Row.withSchema(FULL_WRITE_SCHEMA)
-            .withFieldValue(MESSAGE_KEY_FIELD, "val1".getBytes(UTF_8))
-            .withFieldValue(PAYLOAD_FIELD, "val2".getBytes(UTF_8))
-            .withFieldValue(EVENT_TIMESTAMP_FIELD, now)
+            .withFieldValue(Schemas.MESSAGE_KEY_FIELD, "val1".getBytes(UTF_8))
+            .withFieldValue(Schemas.PAYLOAD_FIELD, "val2".getBytes(UTF_8))
+            .withFieldValue(Schemas.EVENT_TIMESTAMP_FIELD, now)
             .withFieldValue(
-                HEADERS_FIELD,
+                Schemas.HEADERS_FIELD,
                 ImmutableList.of(
-                    Row.withSchema(HEADERS_ENTRY_SCHEMA)
+                    Row.withSchema(Schemas.HEADERS_ENTRY_SCHEMA)
                         .attachValues(
                             "key1",
                             ImmutableList.of("attr1".getBytes(UTF_8), "attr2".getBytes(UTF_8))),
-                    Row.withSchema(HEADERS_ENTRY_SCHEMA)
+                    Row.withSchema(Schemas.HEADERS_ENTRY_SCHEMA)
                         .attachValues("key2", ImmutableList.of("attr3".getBytes(UTF_8)))))
             .build();
     ProducerRecord<byte[], byte[]> result = table.transformOutput(row);
@@ -269,17 +272,17 @@ public class NestedPayloadKafkaTableTest {
                 "key2", "attr3".getBytes(UTF_8)));
     Row expected =
         Row.withSchema(FULL_READ_SCHEMA)
-            .withFieldValue(MESSAGE_KEY_FIELD, "key".getBytes(UTF_8))
-            .withFieldValue(PAYLOAD_FIELD, "value".getBytes(UTF_8))
-            .withFieldValue(EVENT_TIMESTAMP_FIELD, event)
+            .withFieldValue(Schemas.MESSAGE_KEY_FIELD, "key".getBytes(UTF_8))
+            .withFieldValue(Schemas.PAYLOAD_FIELD, "value".getBytes(UTF_8))
+            .withFieldValue(Schemas.EVENT_TIMESTAMP_FIELD, event)
             .withFieldValue(
-                HEADERS_FIELD,
+                Schemas.HEADERS_FIELD,
                 ImmutableList.of(
-                    Row.withSchema(HEADERS_ENTRY_SCHEMA)
+                    Row.withSchema(Schemas.HEADERS_ENTRY_SCHEMA)
                         .attachValues(
                             "key1",
                             ImmutableList.of("attr1".getBytes(UTF_8), "attr2".getBytes(UTF_8))),
-                    Row.withSchema(HEADERS_ENTRY_SCHEMA)
+                    Row.withSchema(Schemas.HEADERS_ENTRY_SCHEMA)
                         .attachValues("key2", ImmutableList.of("attr3".getBytes(UTF_8)))))
             .build();
     assertEquals(expected, table.transformInput(record));

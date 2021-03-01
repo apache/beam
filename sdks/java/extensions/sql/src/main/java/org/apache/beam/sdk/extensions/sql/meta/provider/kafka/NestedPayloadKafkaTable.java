@@ -17,12 +17,10 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
-import static org.apache.beam.sdk.extensions.sql.meta.provider.kafka.Schemas.*;
 import static org.apache.beam.sdk.schemas.transforms.Cast.castRow;
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
-import avro.shaded.com.google.common.collect.ImmutableListMultimap;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -39,6 +37,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableListMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -59,13 +58,14 @@ class NestedPayloadKafkaTable extends BeamKafkaTable {
       Optional<PayloadSerializer> payloadSerializer) {
     super(beamSchema, bootstrapServers, topics);
 
-    checkArgument(isNestedSchema(schema));
-    validateNestedSchema(schema);
+    checkArgument(Schemas.isNestedSchema(schema));
+    Schemas.validateNestedSchema(schema);
     if (payloadSerializer.isPresent()) {
-      checkArgument(schema.getField(PAYLOAD_FIELD).getType().getTypeName().equals(TypeName.ROW));
+      checkArgument(
+          schema.getField(Schemas.PAYLOAD_FIELD).getType().getTypeName().equals(TypeName.ROW));
       this.payloadSerializer = payloadSerializer.get();
     } else {
-      checkArgument(schema.getField(PAYLOAD_FIELD).getType().equals(FieldType.BYTES));
+      checkArgument(schema.getField(Schemas.PAYLOAD_FIELD).getType().equals(FieldType.BYTES));
       this.payloadSerializer = null;
     }
   }
@@ -85,13 +85,14 @@ class NestedPayloadKafkaTable extends BeamKafkaTable {
   @VisibleForTesting
   Row transformInput(KafkaRecord<byte[], byte[]> record) {
     Row.FieldValueBuilder builder = Row.withSchema(getSchema()).withFieldValues(ImmutableMap.of());
-    if (schema.hasField(MESSAGE_KEY_FIELD)) {
-      builder.withFieldValue(MESSAGE_KEY_FIELD, record.getKV().getKey());
+    if (schema.hasField(Schemas.MESSAGE_KEY_FIELD)) {
+      builder.withFieldValue(Schemas.MESSAGE_KEY_FIELD, record.getKV().getKey());
     }
-    if (schema.hasField(EVENT_TIMESTAMP_FIELD)) {
-      builder.withFieldValue(EVENT_TIMESTAMP_FIELD, Instant.ofEpochMilli(record.getTimestamp()));
+    if (schema.hasField(Schemas.EVENT_TIMESTAMP_FIELD)) {
+      builder.withFieldValue(
+          Schemas.EVENT_TIMESTAMP_FIELD, Instant.ofEpochMilli(record.getTimestamp()));
     }
-    if (schema.hasField(HEADERS_FIELD)) {
+    if (schema.hasField(Schemas.HEADERS_FIELD)) {
       @Nullable Headers recordHeaders = record.getHeaders();
       if (recordHeaders != null) {
         ImmutableListMultimap.Builder<String, byte[]> headersBuilder =
@@ -104,22 +105,22 @@ class NestedPayloadKafkaTable extends BeamKafkaTable {
             .forEach(
                 (key, values) -> {
                   Row entry =
-                      Row.withSchema(HEADERS_ENTRY_SCHEMA)
-                          .withFieldValue(HEADERS_KEY_FIELD, key)
-                          .withFieldValue(HEADERS_VALUES_FIELD, values)
+                      Row.withSchema(Schemas.HEADERS_ENTRY_SCHEMA)
+                          .withFieldValue(Schemas.HEADERS_KEY_FIELD, key)
+                          .withFieldValue(Schemas.HEADERS_VALUES_FIELD, values)
                           .build();
                   listBuilder.add(entry);
                 });
-        builder.withFieldValue(HEADERS_FIELD, listBuilder.build());
+        builder.withFieldValue(Schemas.HEADERS_FIELD, listBuilder.build());
       }
     }
     if (payloadSerializer == null) {
-      builder.withFieldValue(PAYLOAD_FIELD, record.getKV().getValue());
+      builder.withFieldValue(Schemas.PAYLOAD_FIELD, record.getKV().getValue());
     } else {
       byte[] payload = record.getKV().getValue();
       if (payload != null) {
         builder.withFieldValue(
-            PAYLOAD_FIELD, payloadSerializer.deserialize(record.getKV().getValue()));
+            Schemas.PAYLOAD_FIELD, payloadSerializer.deserialize(record.getKV().getValue()));
       }
     }
     return builder.build();
@@ -148,30 +149,32 @@ class NestedPayloadKafkaTable extends BeamKafkaTable {
     byte[] payload;
     List<Header> headers = ImmutableList.of();
     Long timestampMillis = null;
-    if (schema.hasField(MESSAGE_KEY_FIELD)) {
-      key = row.getBytes(MESSAGE_KEY_FIELD);
+    if (schema.hasField(Schemas.MESSAGE_KEY_FIELD)) {
+      key = row.getBytes(Schemas.MESSAGE_KEY_FIELD);
     }
-    if (schema.hasField(EVENT_TIMESTAMP_FIELD)) {
-      ReadableDateTime time = row.getDateTime(EVENT_TIMESTAMP_FIELD);
+    if (schema.hasField(Schemas.EVENT_TIMESTAMP_FIELD)) {
+      ReadableDateTime time = row.getDateTime(Schemas.EVENT_TIMESTAMP_FIELD);
       if (time != null) {
         timestampMillis = time.getMillis();
       }
     }
-    if (schema.hasField(HEADERS_FIELD)) {
-      Collection<Row> headerRows = checkArgumentNotNull(row.getArray(HEADERS_FIELD));
+    if (schema.hasField(Schemas.HEADERS_FIELD)) {
+      Collection<Row> headerRows = checkArgumentNotNull(row.getArray(Schemas.HEADERS_FIELD));
       ImmutableList.Builder<Header> headersBuilder = ImmutableList.builder();
       headerRows.forEach(
           entry -> {
-            String headerKey = checkArgumentNotNull(entry.getString(HEADERS_KEY_FIELD));
-            Collection<byte[]> values = checkArgumentNotNull(entry.getArray(HEADERS_VALUES_FIELD));
+            String headerKey = checkArgumentNotNull(entry.getString(Schemas.HEADERS_KEY_FIELD));
+            Collection<byte[]> values =
+                checkArgumentNotNull(entry.getArray(Schemas.HEADERS_VALUES_FIELD));
             values.forEach(value -> headersBuilder.add(new RecordHeader(headerKey, value)));
           });
       headers = headersBuilder.build();
     }
     if (payloadSerializer == null) {
-      payload = row.getBytes(PAYLOAD_FIELD);
+      payload = row.getBytes(Schemas.PAYLOAD_FIELD);
     } else {
-      payload = payloadSerializer.serialize(checkArgumentNotNull(row.getRow(PAYLOAD_FIELD)));
+      payload =
+          payloadSerializer.serialize(checkArgumentNotNull(row.getRow(Schemas.PAYLOAD_FIELD)));
     }
     return new ProducerRecord<>(topic, null, timestampMillis, key, payload, headers);
   }
