@@ -31,6 +31,7 @@ NOTHING IN THIS FILE HAS BACKWARDS COMPATIBILITY GUARANTEES.
 from __future__ import absolute_import
 
 import hashlib
+import io
 import logging
 import random
 import time
@@ -410,9 +411,11 @@ class UpdateDestinationSchema(beam.DoFn):
         'Triggering schema modification job %s on %s',
         job_name,
         table_reference)
+    # Trigger potential schema modification by loading zero rows into the
+    # destination table with the temporary table schema.
     schema_update_job_reference = self._bq_wrapper.perform_load_job(
         destination=table_reference,
-        files=[],  # FIXME: Load configuration must specify at least one source URI
+        source_stream=io.BytesIO(),  # file with zero rows
         job_id=job_name,
         schema=temp_table_schema,
         write_disposition='WRITE_APPEND',
@@ -632,9 +635,9 @@ class TriggerLoadJobs(beam.DoFn):
     if not self.bq_io_metadata:
       self.bq_io_metadata = create_bigquery_io_metadata(self._step_name)
     job_reference = self.bq_wrapper.perform_load_job(
-        table_reference,
-        files,
-        job_name,
+        destination=table_reference,
+        source_uris=files,
+        job_id=job_name,
         schema=schema,
         write_disposition=self.write_disposition,
         create_disposition=create_disposition,
