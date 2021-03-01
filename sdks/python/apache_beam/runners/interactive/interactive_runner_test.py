@@ -28,6 +28,7 @@ from __future__ import print_function
 
 import sys
 import unittest
+from unittest.mock import patch
 
 import pandas as pd
 
@@ -45,13 +46,6 @@ from apache_beam.utils.timestamp import Timestamp
 from apache_beam.utils.windowed_value import PaneInfo
 from apache_beam.utils.windowed_value import PaneInfoTiming
 from apache_beam.utils.windowed_value import WindowedValue
-
-# TODO(BEAM-8288): clean up the work-around of nose tests using Python2 without
-# unittest.mock module.
-try:
-  from unittest.mock import patch
-except ImportError:
-  from mock import patch  # type: ignore[misc]
 
 
 def print_with_message(msg):

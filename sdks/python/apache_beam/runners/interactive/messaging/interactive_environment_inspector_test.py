@@ -23,6 +23,7 @@ from __future__ import absolute_import
 import json
 import sys
 import unittest
+from unittest.mock import patch
 
 import apache_beam as beam
 import apache_beam.runners.interactive.messaging.interactive_environment_inspector as inspector
@@ -31,13 +32,6 @@ from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import interactive_runner as ir
 from apache_beam.runners.interactive.testing.mock_ipython import mock_get_ipython
 from apache_beam.runners.interactive.utils import obfuscate
-
-# TODO(BEAM-8288): clean up the work-around of nose tests using Python2 without
-# unittest.mock module.
-try:
-  from unittest.mock import patch
-except ImportError:
-  from mock import patch  # type: ignore[misc]
 
 
 @unittest.skipIf(
