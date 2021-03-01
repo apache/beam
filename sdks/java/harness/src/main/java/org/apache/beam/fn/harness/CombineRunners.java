@@ -186,8 +186,8 @@ public class CombineRunners {
       pCollectionConsumerRegistry.register(
           Iterables.getOnlyElement(pTransform.getInputsMap().values()),
           pTransformId,
-          (FnDataReceiver)
-              (FnDataReceiver<WindowedValue<KV<KeyT, InputT>>>) runner::processElement);
+          (FnDataReceiver) (FnDataReceiver<WindowedValue<KV<KeyT, InputT>>>) runner::processElement,
+          inputCoder);
       finishFunctionRegistry.register(pTransformId, runner::finishBundle);
 
       return runner;
