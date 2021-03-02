@@ -84,7 +84,7 @@ func pipInstallPackage(files []string, dir, name string, force, optional bool, e
 				// avoiding reinstallation of dependencies.  Note now that if any needed
 				// dependencies were not installed, they will still be missing.
 				//
-				// Next, we run "pip install" on the package without any flags.  Since the
+				// Next, we run "pip install" on the package without these flags.  Since the
 				// installed version will match the package specified, the package itself
 				// will not be reinstalled, but its dependencies will now be resolved and
 				// installed if necessary.  This achieves our goal outlined above.
