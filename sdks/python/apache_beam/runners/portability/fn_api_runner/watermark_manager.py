@@ -37,28 +37,9 @@ class WatermarkManager(object):
   """Manages the watermarks of a pipeline's stages.
     It works by constructing an internal graph representation of the pipeline,
     and keeping track of dependencies."""
-  class WatermarkNode(object):
+  class PCollectionNode(object):
     def __init__(self, name):
       self.name = name
-
-    def set_watermark(self, wm):
-      raise NotImplementedError('Stages do not have a watermark')
-
-    def output_watermark(self) -> timestamp.Timestamp:
-      raise NotImplementedError('Node has no output watermark %s' % self)
-
-    def input_watermark(self) -> timestamp.Timestamp:
-      raise NotImplementedError('Node has no input watermark %s' % self)
-
-    def watermark(self) -> timestamp.Timestamp:
-      raise NotImplementedError('Node has no own watermark %s' % self)
-
-    def upstream_watermark(self) -> timestamp.Timestamp:
-      raise NotImplementedError('Node has no upstream watermark %s' % self)
-
-  class PCollectionNode(WatermarkNode):
-    def __init__(self, name):
-      super(WatermarkManager.PCollectionNode, self).__init__(name)
       self._watermark = timestamp.MIN_TIMESTAMP
       self.producers: Set[WatermarkManager.StageNode] = set()
 
@@ -77,14 +58,14 @@ class WatermarkManager(object):
     def watermark(self):
       return self._watermark
 
-  class StageNode(WatermarkNode):
+  class StageNode(object):
     def __init__(self, name):
-      super(WatermarkManager.StageNode, self).__init__(name)
       # We keep separate inputs and side inputs because side inputs
       # should hold back a stage's input watermark, to hold back execution
       # for that stage; but they should not be considered when calculating
       # the output watermark of the stage, because only the main input
       # can actually advance that watermark.
+      self.name = name
       self.inputs: Set[WatermarkManager.PCollectionNode] = set()
       self.side_inputs: Set[WatermarkManager.PCollectionNode] = set()
       self.outputs: Set[WatermarkManager.PCollectionNode] = set()
@@ -92,9 +73,6 @@ class WatermarkManager(object):
     def __str__(self):
       return 'StageNode<inputs=%s,side_inputs=%s' % (
           [i.name for i in self.inputs], [i.name for i in self.side_inputs])
-
-    def set_watermark(self, wm):
-      raise NotImplementedError('Stages do not have a watermark')
 
     def output_watermark(self):
       if not self.outputs:
@@ -113,29 +91,29 @@ class WatermarkManager(object):
 
   def __init__(self, stages):
     # type: (List[translations.Stage]) -> None
-    self._watermarks_by_name: Dict[Any,
-                                   Union[
-                                       WatermarkManager.StageNode,
-                                       WatermarkManager.PCollectionNode]] = {}
+    self._pcollections_by_name: Dict[Union[str,
+                                           Tuple[str,
+                                                 translations.TimerFamilyId]],
+                                     WatermarkManager.PCollectionNode] = {}
+    self._stages_by_name: Dict[str, WatermarkManager.StageNode] = {}
+
     for s in stages:
       stage_name = s.name
       stage_node = WatermarkManager.StageNode(stage_name)
-      self._watermarks_by_name[stage_name] = stage_node
+      self._stages_by_name[stage_name] = stage_node
 
       def add_pcollection(
           pcname: str, snode: WatermarkManager.StageNode
       ) -> WatermarkManager.PCollectionNode:
-        if pcname not in self._watermarks_by_name:
-          self._watermarks_by_name[pcname] = WatermarkManager.PCollectionNode(
+        if pcname not in self._pcollections_by_name:
+          self._pcollections_by_name[pcname] = WatermarkManager.PCollectionNode(
               pcname)
-        pcnode = self._watermarks_by_name[pcname]
+        pcnode = self._pcollections_by_name[pcname]
         assert isinstance(pcnode, WatermarkManager.PCollectionNode)
         snode.inputs.add(pcnode)
-        node = self._watermarks_by_name[pcname]
-        assert isinstance(node, WatermarkManager.PCollectionNode)
-        return node
+        return pcnode
 
-      # 1. Get stage inputs, create nodes for them, add to _watermarks_by_name,
+      # 1. Get stage inputs, create nodes for them, add to _stages_by_name,
       #    and add as inputs to stage node.
       for transform in s.transforms:
         if transform.spec.urn == bundle_processor.DATA_INPUT_URN:
@@ -155,45 +133,42 @@ class WatermarkManager(object):
               transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
           for timer_family_id in payload.timer_family_specs.keys():
             timer_pcoll_name = (transform.unique_name, timer_family_id)
-            self._watermarks_by_name[
+            self._pcollections_by_name[
                 timer_pcoll_name] = WatermarkManager.PCollectionNode(
                     timer_pcoll_name)
-            timer_pcoll_node = self._watermarks_by_name[timer_pcoll_name]
+            timer_pcoll_node = self._pcollections_by_name[timer_pcoll_name]
             assert isinstance(
                 timer_pcoll_node, WatermarkManager.PCollectionNode)
             stage_node.inputs.add(timer_pcoll_node)
 
-      # 3. Get stage outputs, create nodes for them, add to _watermarks_by_name,
+      # 3. Get stage outputs, create nodes for them, add to _pcollections_by_name,
       #    and add stage as their producer
       for transform in s.transforms:
         if transform.spec.urn == bundle_processor.DATA_OUTPUT_URN:
           buffer_id = transform.spec.payload
           _, pcoll_name = split_buffer_id(buffer_id)
-          if pcoll_name not in self._watermarks_by_name:
-            self._watermarks_by_name[
+          if pcoll_name not in self._pcollections_by_name:
+            self._pcollections_by_name[
                 pcoll_name] = WatermarkManager.PCollectionNode(pcoll_name)
-          pcoll_node = self._watermarks_by_name[pcoll_name]
+          pcoll_node = self._pcollections_by_name[pcoll_name]
           assert isinstance(pcoll_node, WatermarkManager.PCollectionNode)
           pcoll_node.producers.add(stage_node)
           stage_node.outputs.add(pcoll_node)
 
       # 4. Get stage side inputs, create nodes for them, add to
-      #    _watermarks_by_name, and add them as side inputs of the stage.
+      #    _pcollections_by_name, and add them as side inputs of the stage.
       for pcoll_name in s.side_inputs():
-        if pcoll_name not in self._watermarks_by_name:
+        if pcoll_name not in self._pcollections_by_name:
           self._watermarks_by_name[
               pcoll_name] = WatermarkManager.PCollectionNode(pcoll_name)
-        pcoll_node = self._watermarks_by_name[pcoll_name]
+        pcoll_node = self._pcollections_by_name[pcoll_name]
         assert isinstance(pcoll_node, WatermarkManager.PCollectionNode)
         stage_node.side_inputs.add(pcoll_node)
 
-  def get_node(self, name):
-    # type: (str) -> Union[PCollectionNode, StageNode]
-    return self._watermarks_by_name[name]
+  def get_stage_node(self, name):
+    # type: (str) -> StageNode
+    return self._stages_by_name[name]
 
-  def get_watermark(self, name) -> timestamp.Timestamp:
-    return self._watermarks_by_name[name].watermark()
-
-  def set_watermark(self, name, watermark):
-    element = self._watermarks_by_name[name]
+  def set_pcoll_watermark(self, name, watermark):
+    element = self._pcollections_by_name[name]
     element.set_watermark(watermark)

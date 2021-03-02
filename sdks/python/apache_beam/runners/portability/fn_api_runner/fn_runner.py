@@ -369,14 +369,14 @@ class FnApiRunner(runner.PipelineRunner):
               runner_execution_context, stage, self._num_workers)
 
           assert (
-              runner_execution_context.watermark_manager.get_node(
+              runner_execution_context.watermark_manager.get_stage_node(
                   bundle_context_manager.stage.name
               ).input_watermark() == timestamp.MAX_TIMESTAMP), (
               'wrong watermark for %s. Expected %s, but got %s.' % (
-                  runner_execution_context.watermark_manager.get_node(
+                  runner_execution_context.watermark_manager.get_stage_node(
                       bundle_context_manager.stage.name),
                   timestamp.MAX_TIMESTAMP,
-                  runner_execution_context.watermark_manager.get_node(
+                  runner_execution_context.watermark_manager.get_stage_node(
                       bundle_context_manager.stage.name
                   ).input_watermark()
               )
@@ -386,14 +386,14 @@ class FnApiRunner(runner.PipelineRunner):
               runner_execution_context, bundle_context_manager)
 
           assert (
-              runner_execution_context.watermark_manager.get_node(
+              runner_execution_context.watermark_manager.get_stage_node(
                   bundle_context_manager.stage.name
               ).input_watermark() == timestamp.MAX_TIMESTAMP), (
               'wrong watermark for %s. Expected %s, but got %s.' % (
-              runner_execution_context.watermark_manager.get_node(
+              runner_execution_context.watermark_manager.get_stage_node(
                   bundle_context_manager.stage.name),
               timestamp.MAX_TIMESTAMP,
-              runner_execution_context.watermark_manager.get_node(
+              runner_execution_context.watermark_manager.get_stage_node(
                   bundle_context_manager.stage.name
               ).output_watermark())
           )
@@ -432,15 +432,23 @@ class FnApiRunner(runner.PipelineRunner):
   @staticmethod
   def _collect_written_timers(
       bundle_context_manager: execution.BundleContextManager,
-      newly_set_timers: Dict[Tuple[str, str], ListBuffer],
-  ) -> Dict[Tuple[str, str], timestamp.Timestamp]:
+  ) -> Tuple[Dict[translations.TimerFamilyId, timestamp.Timestamp],
+             Dict[translations.TimerFamilyId, ListBuffer]]:
     """Review output buffers, and collect written timers.
 
     This function reviews a stage that has just been run. The stage will have
     written timers to its output buffers. The function then takes the timers,
-    and adds them to the `newly_set_timers` dictionary.
+    and adds them to the `newly_set_timers` dictionary, and the
+    timer_watermark_data dictionary.
+
+    The function then returns the following two elements in a tuple:
+    - timer_watermark_data: A dictionary mapping timer family to upcoming
+        timestamp to fire.
+    - newly_set_timers: A dictionary mapping timer family to timer buffers
+        to be passed to the SDK upon firing.
     """
     timer_watermark_data = {}
+    newly_set_timers = {}
     for (transform_id, timer_family_id) in bundle_context_manager.stage.timers:
       written_timers = bundle_context_manager.get_buffer(
           create_buffer_id(timer_family_id, kind='timers'), transform_id)
@@ -469,7 +477,7 @@ class FnApiRunner(runner.PipelineRunner):
         newly_set_timers[(transform_id, timer_family_id)].append(out.get())
         written_timers.clear()
 
-    return timer_watermark_data
+    return timer_watermark_data, newly_set_timers
 
   def _add_sdk_delayed_applications_to_deferred_inputs(
       self,
@@ -500,7 +508,7 @@ class FnApiRunner(runner.PipelineRunner):
           producer_name]
       # We take the output with tag 'out' from the producer transform. The
       # producer transform is a GRPC read, and it has a single output.
-      pcolls_with_delayed_apps.add(transform.outputs['out'])
+      pcolls_with_delayed_apps.add(only_element(transform.outputs.values()))
     return pcolls_with_delayed_apps
 
   def _add_residuals_and_channel_splits_to_deferred_inputs(
@@ -646,18 +654,18 @@ class FnApiRunner(runner.PipelineRunner):
               bundle_manager))
 
       for pc_name, watermark in watermark_updates.items():
-        runner_execution_context.watermark_manager.set_watermark(
+        runner_execution_context.watermark_manager.set_pcoll_watermark(
             pc_name, watermark)
 
       final_result = merge_results(last_result)
       if not deferred_inputs and not fired_timers:
         break
       else:
-        assert (runner_execution_context.watermark_manager.get_node(
+        assert (runner_execution_context.watermark_manager.get_stage_node(
             bundle_context_manager.stage.name).output_watermark()
                 < timestamp.MAX_TIMESTAMP), (
             'wrong timestamp for %s. '
-            % runner_execution_context.watermark_manager.get_node(
+            % runner_execution_context.watermark_manager.get_stage_node(
             bundle_context_manager.stage.name))
         data_input = deferred_inputs
         input_timers = fired_timers
@@ -683,7 +691,8 @@ class FnApiRunner(runner.PipelineRunner):
     """Builds a dictionary of PCollection (or TimerFamilyId) to timestamp.
 
     Args:
-      stage_inputs: represent the set of expected input PCollections for a stage
+      stage_inputs: represent the set of expected input PCollections for a
+        stage. These do not include timers.
       expected_timers: represent the set of TimerFamilyIds that the stage can
         expect to receive as inputs.
       pcolls_with_da: represent the set of stage input PCollections that had
@@ -706,24 +715,32 @@ class FnApiRunner(runner.PipelineRunner):
         _, pcollection_id = translations.split_buffer_id(buffer_id)
       return pcollection_id
 
+    # Any PCollections that have deferred applications should have their
+    # watermark held back.
     for pcoll in pcolls_with_da:
       updates[pcoll] = timestamp.MIN_TIMESTAMP
 
+    # Also any transforms with splits should have their input PCollection's
+    # watermark held back.
     for tr in transforms_w_splits:
       pcoll_id = get_pcoll_id(tr)
       updates[pcoll_id] = timestamp.MIN_TIMESTAMP
 
-    for timer_pcoll_id, ts in watermarks_by_transform_and_timer_family.items():
-      if timer_pcoll_id not in updates:
-        updates[timer_pcoll_id] = timestamp.MAX_TIMESTAMP
-      updates[timer_pcoll_id] = min(ts, updates[timer_pcoll_id])
-
+    # For all expected stage timers, we have two possible outcomes:
+    # 1) If the stage set a firing time for the timer, then we hold the
+    #    watermark at that time
+    # 2) If the stage did not set a firing time for the timer, then we
+    #    advance the watermark for that timer to MAX_TIMESTAMP.
     for timer_pcoll_id in expected_timers:
-      if timer_pcoll_id not in updates:
-        updates[timer_pcoll_id] = timestamp.MAX_TIMESTAMP
+      updates[timer_pcoll_id] = watermarks_by_transform_and_timer_family.get(
+          timer_pcoll_id, timestamp.MAX_TIMESTAMP)
 
-    for input in stage_inputs:
-      pcoll_id = get_pcoll_id(input)
+    # For any PCollection in the set of stage inputs, if its watermark was not
+    # held back (i.e. there weren't splits in its consumer PTransform, and there
+    # weren't delayed applications of the PCollection's elements), then the
+    # watermark should be advanced to MAX_TIMESTAMP.
+    for transform_id in stage_inputs:
+      pcoll_id = get_pcoll_id(transform_id)
       if pcoll_id not in updates:
         updates[pcoll_id] = timestamp.MAX_TIMESTAMP
     return updates
@@ -758,10 +775,9 @@ class FnApiRunner(runner.PipelineRunner):
     # - SDK-initiated deferred applications of root elements
     # - Runner-initiated deferred applications of root elements
     deferred_inputs = {}  # type: Dict[str, execution.PartitionableBuffer]
-    newly_set_timers = {}  # type: Dict[translations.TimerFamilyId, ListBuffer]
 
-    watermarks_by_transform_and_timer_family = self._collect_written_timers(
-        bundle_context_manager, newly_set_timers)
+    watermarks_by_transform_and_timer_family, newly_set_timers = (
+        self._collect_written_timers(bundle_context_manager))
 
     sdk_pcolls_with_da = self._add_sdk_delayed_applications_to_deferred_inputs(
         bundle_context_manager, result, deferred_inputs)
