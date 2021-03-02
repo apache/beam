@@ -31,19 +31,18 @@ The upgrading of the vendored dependencies should be performed in two steps:
 The [linkage tool](https://lists.apache.org/thread.html/eb5d95b9a33d7e32dc9bcd0f7d48ba8711d42bd7ed03b9cf0f1103f1%40%3Cdev.beam.apache.org%3E)
 is useful for the vendored dependency upgrades. It reports the linkage errors across multiple Apache Beam artifact ids.
 
-For example, when we upgrade the version of gRPC to 1.26.0 and the version of the vendored gRPC is 0.1-SNAPSHOT,
+For example, when we upgrade the version of gRPC to 1.36.0 and the version of the vendored gRPC is 0.1-SNAPSHOT,
 we could run the linkage tool as following:
 
 ```
-$ cd vendor/grpc-1_26_0
-$ ../../gradlew shadowJar
-$ find . -name '*.jar'
-./build/libs/beam-vendor-grpc-1_26_0-0.1.jar
+$ ./gradlew :vendor:grpc-1_36_0:shadowJar
+$ find vendor/grpc-1_36_0/build -name '*.jar'
+vendor/grpc-1_36_0/build/libs/beam-vendor-grpc-1_36_0-0.1.jar
 $ mvn install:install-file \
-      -Dfile=./build/libs/beam-vendor-grpc-1_26_0-0.1.jar \
+      -Dpackaging=jar \
       -DgroupId=org.apache.beam \
-      -DartifactId=beam-vendor-grpc-1_26_0 \
+      -DartifactId=beam-vendor-grpc-1_36_0 \
       -Dversion=0.1-SNAPSHOT \
-      -Dpackaging=jar
-$ ./gradlew -PvendoredDependenciesOnly -Ppublishing -PjavaLinkageArtifactIds=beam-vendor-grpc-1_26_0:0.1-SNAPSHOT :checkJavaLinkage
+      -Dfile=vendor/grpc-1_36_0/build/libs/beam-vendor-grpc-1_36_0-0.1.jar
+$ ./gradlew -PvendoredDependenciesOnly -Ppublishing -PjavaLinkageArtifactIds=beam-vendor-grpc-1_36_0:0.1-SNAPSHOT :checkJavaLinkage
 ```
