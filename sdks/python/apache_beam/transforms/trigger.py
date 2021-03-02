@@ -374,6 +374,12 @@ class AfterSynchronizedProcessingTime(TriggerFn):
   """A "runner's-discretion" trigger downstream of a GroupByKey
   with AfterProcessingTime trigger.
 
+  In runners that directly execute this
+  Python code, the trigger current always fires,
+  but this behavior is not guaranteed nor
+  required by runners, regardless of whether they
+  execute triggers via Python.
+
   AfterSynchronizedProcessingTime is experimental.
   No backwards compatibility guarantees.
   """

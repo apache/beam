@@ -2369,9 +2369,7 @@ class GroupByKey(PTransform):
     from apache_beam.transforms.trigger import AfterProcessingTime
     from apache_beam.transforms.trigger import AfterSynchronizedProcessingTime
     windowing = inputs[0].windowing
-    if not isinstance(windowing.triggerfn, AfterProcessingTime):
-      return windowing
-    else:
+    if isinstance(windowing.triggerfn, AfterProcessingTime):
       return Windowing(
           windowing.windowfn,
           triggerfn=AfterSynchronizedProcessingTime(),
@@ -2379,6 +2377,8 @@ class GroupByKey(PTransform):
           timestamp_combiner=windowing.timestamp_combiner,
           allowed_lateness=windowing.allowed_lateness,
           environment_id=windowing.environment_id)
+    else:
+      return windowing
 
 
 def _expr_to_callable(expr, pos):
