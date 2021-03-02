@@ -78,7 +78,7 @@ class WriteRename extends DoFn<Iterable<KV<TableDestination, String>>, Void> {
     }
   }
   // All pending copy jobs.
-  private List<PendingJobData> pendingJobs = Lists.newArrayList();
+  private final List<PendingJobData> pendingJobs = Lists.newArrayList();
 
   public WriteRename(
       BigQueryServices bqServices,
@@ -143,8 +143,7 @@ class WriteRename extends DoFn<Iterable<KV<TableDestination, String>>, Void> {
   }
 
   private PendingJobData startWriteRename(
-      TableDestination finalTableDestination, Iterable<String> tempTableNames, ProcessContext c)
-      throws Exception {
+      TableDestination finalTableDestination, Iterable<String> tempTableNames, ProcessContext c) {
     WriteDisposition writeDisposition =
         (c.pane().getIndex() == 0) ? firstPaneWriteDisposition : WriteDisposition.WRITE_APPEND;
     CreateDisposition createDisposition =
@@ -153,7 +152,6 @@ class WriteRename extends DoFn<Iterable<KV<TableDestination, String>>, Void> {
         StreamSupport.stream(tempTableNames.spliterator(), false)
             .map(table -> BigQueryHelpers.fromJsonString(table, TableReference.class))
             .collect(Collectors.toList());
-    ;
 
     // Make sure each destination table gets a unique job id.
     String jobIdPrefix =

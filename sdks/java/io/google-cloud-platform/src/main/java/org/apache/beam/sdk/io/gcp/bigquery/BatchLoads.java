@@ -238,7 +238,7 @@ class BatchLoads<DestinationT, ElementT>
   @Override
   public void validate(PipelineOptions options) {
     // We will use a BigQuery load job -- validate the temp location.
-    String tempLocation;
+    final String tempLocation;
     if (customGcsTempLocation == null) {
       tempLocation = options.getTempLocation();
     } else {
@@ -268,7 +268,7 @@ class BatchLoads<DestinationT, ElementT>
 
   // Expand the pipeline when the user has requested periodically-triggered file writes.
   private WriteResult expandTriggered(PCollection<KV<DestinationT, ElementT>> input) {
-    Pipeline p = input.getPipeline();
+    final Pipeline p = input.getPipeline();
     final PCollectionView<String> loadJobIdPrefixView = createJobIdPrefixView(p, JobType.LOAD);
     final PCollectionView<String> copyJobIdPrefixView = createJobIdPrefixView(p, JobType.COPY);
     final PCollectionView<String> tempFilePrefixView =
@@ -346,18 +346,19 @@ class BatchLoads<DestinationT, ElementT>
                             rowWriterFactory))
                     .withSideInputs(tempFilePrefixView)
                     .withOutputTags(multiPartitionsTag, TupleTagList.of(singlePartitionTag)));
-    PCollection<KV<TableDestination, String>> tempTables =
+    final PCollection<KV<TableDestination, String>> tempTables =
         writeTempTables(partitions.get(multiPartitionsTag), loadJobIdPrefixView);
 
     tempTables
         // Now that the load job has happened, we want the rename to happen immediately.
         .apply(
+            "TriggerAfterWrittenFile",
             Window.<KV<TableDestination, String>>into(new GlobalWindows())
                 .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1))))
-        .apply(WithKeys.of((Void) null))
+        .apply("AddSurrogateKey", WithKeys.of((Void) null))
         .setCoder(KvCoder.of(VoidCoder.of(), tempTables.getCoder()))
-        .apply(GroupByKey.create())
-        .apply(Values.create())
+        .apply("GroupOntoSingleton", GroupByKey.create())
+        .apply("ExtractResultValues", Values.create())
         .apply(
             "WriteRenameTriggered",
             ParDo.of(
@@ -648,7 +649,6 @@ class BatchLoads<DestinationT, ElementT>
     // If the final destination table exists already (and we're appending to it), then the temp
     // tables must exactly match schema, partitioning, etc. Wrap the DynamicDestinations object
     // with one that makes this happen.
-    @SuppressWarnings("unchecked")
     DynamicDestinations<?, DestinationT> destinations = dynamicDestinations;
     if (createDisposition.equals(CreateDisposition.CREATE_IF_NEEDED)
         || createDisposition.equals(CreateDisposition.CREATE_NEVER)) {
