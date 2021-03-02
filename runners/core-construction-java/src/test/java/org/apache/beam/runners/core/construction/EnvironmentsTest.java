@@ -194,6 +194,9 @@ public class EnvironmentsTest implements Serializable {
             BeamUrns.getUrn(
                 RunnerApi.StandardPTransforms.SplittableParDoComponents
                     .TRUNCATE_SIZED_RESTRICTION)));
+    assertThat(
+        Environments.getJavaCapabilities(),
+        hasItem(BeamUrns.getUrn(RunnerApi.StandardPTransforms.Primitives.TO_STRING)));
   }
 
   @Test
