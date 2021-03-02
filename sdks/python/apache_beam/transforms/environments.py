@@ -721,6 +721,7 @@ def _python_sdk_capabilities_iter():
   yield python_urns.PACKED_COMBINE_FN
   yield 'beam:version:sdk_base:' + DockerEnvironment.default_docker_image()
   yield common_urns.sdf_components.TRUNCATE_SIZED_RESTRICTION.urn
+  yield common_urns.primitives.TO_STRING.urn
 
 
 def python_sdk_dependencies(options, tmp_dir=None):
