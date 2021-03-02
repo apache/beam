@@ -40,13 +40,12 @@ RC_VERSION="rc${RC_NUM}"
 echo "================Confirming Release and RC version==========="
 echo "We are using ${RC_VERSION} to push docker images for ${RELEASE}."
 echo "Publishing the following images:"
-docker images --filter "reference=apache/beam_*:${RELEASE}_${RC_VERSION}" --format "{{.Repository}}" | while read IMAGE; do
-  echo "${IMAGE}"
-done
+IMAGES=$(docker images --filter "reference=apache/beam_*:${RELEASE}_${RC_VERSION}" --format "{{.Repository}}")
+echo "${IMAGES}"
 echo "Do you want to proceed? [y|N]"
 read confirmation
 if [[ $confirmation = "y" ]]; then
-  docker images --filter "reference=apache/beam_*:${RELEASE}_${RC_VERSION}" --format "{{.Repository}}" | while read IMAGE; do
+  echo "${IMAGES}" | while read IMAGE; do
     # Pull verified RC from dockerhub.
     docker pull "${IMAGE}:${RELEASE}_${RC_VERSION}"
 
