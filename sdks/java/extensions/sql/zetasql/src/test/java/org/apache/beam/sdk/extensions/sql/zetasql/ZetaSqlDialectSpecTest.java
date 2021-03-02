@@ -3844,7 +3844,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
   @Test
   public void testArrayConcatAggZetasql() {
     String sql =
-        "SELECT ARRAY_CONCAT_AGG(x) AS array_concat_agg FROM (SELECT [1, 2, 3, 4] AS x UNION ALL SELECT [5, 6] UNION ALL SELECT [7, 8, 9])";
+        "WITH aggregate_example AS (SELECT [1,2] AS numbers  UNION ALL SELECT [3,4] AS numbers UNION ALL SELECT [5, 6] AS numbers) SELECT ARRAY_CONCAT_AGG(numbers) AS count_to_six_agg FROM aggregate_example";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
@@ -3852,9 +3852,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
 
     Schema schema = Schema.builder().addArrayField("array_field", FieldType.INT64).build();
     PAssert.that(stream)
-        .containsInAnyOrder(
-            Row.withSchema(schema).addArray(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L).build());
-
+        .containsInAnyOrder(Row.withSchema(schema).addArray(1L, 2L, 3L, 4L, 5L, 6L).build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 }
