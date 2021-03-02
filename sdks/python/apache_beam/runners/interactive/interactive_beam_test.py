@@ -119,9 +119,6 @@ class InteractiveBeamTest(unittest.TestCase):
     ib.show(pcoll)
     self.assertTrue(pcoll in ie.current_env().computed_pcollections)
 
-  @unittest.skipIf(
-      sys.version_info < (3, 6),
-      'The tests require at least Python 3.6 to work.')
   @patch('apache_beam.runners.interactive.interactive_beam.visualize')
   def test_show_handles_dict_of_pcolls(self, mocked_visualize):
     p = beam.Pipeline(ir.InteractiveRunner())
@@ -135,9 +132,6 @@ class InteractiveBeamTest(unittest.TestCase):
     ib.show({'pcoll': pcoll})
     mocked_visualize.assert_called_once()
 
-  @unittest.skipIf(
-      sys.version_info < (3, 6),
-      'The tests require at least Python 3.6 to work.')
   @patch('apache_beam.runners.interactive.interactive_beam.visualize')
   def test_show_handles_iterable_of_pcolls(self, mocked_visualize):
     p = beam.Pipeline(ir.InteractiveRunner())
@@ -151,9 +145,6 @@ class InteractiveBeamTest(unittest.TestCase):
     ib.show([pcoll])
     mocked_visualize.assert_called_once()
 
-  @unittest.skipIf(
-      sys.version_info < (3, 6),
-      'The tests require at least Python 3.6 to work.')
   @patch('apache_beam.runners.interactive.interactive_beam.visualize')
   def test_show_noop_when_pcoll_container_is_invalid(self, mocked_visualize):
     class SomeRandomClass:
@@ -169,9 +160,6 @@ class InteractiveBeamTest(unittest.TestCase):
     self.assertRaises(ValueError, ib.show, SomeRandomClass(pcoll))
     mocked_visualize.assert_not_called()
 
-  @unittest.skipIf(
-      sys.version_info < (3, 6),
-      'The tests require at least Python 3.6 to work.')
   def test_recordings_describe(self):
     """Tests that getting the description works."""
 
@@ -195,9 +183,6 @@ class InteractiveBeamTest(unittest.TestCase):
     self.assertEqual(all_descriptions[p1]['pipeline_var'], 'p1')
     self.assertEqual(all_descriptions[p2]['pipeline_var'], 'p2')
 
-  @unittest.skipIf(
-      sys.version_info < (3, 6),
-      'The tests require at least Python 3.6 to work.')
   def test_recordings_clear(self):
     """Tests that clearing the pipeline is correctly forwarded."""
 
@@ -215,9 +200,6 @@ class InteractiveBeamTest(unittest.TestCase):
     ib.recordings.clear(p)
     self.assertEqual(ib.recordings.describe(p)['size'], 0)
 
-  @unittest.skipIf(
-      sys.version_info < (3, 6),
-      'The tests require at least Python 3.6 to work.')
   def test_recordings_record(self):
     """Tests that recording pipeline succeeds."""
 

@@ -21,7 +21,6 @@
 
 from __future__ import absolute_import
 
-import sys
 import unittest
 
 import apache_beam as beam
@@ -71,8 +70,6 @@ def _fake_a_running_test_stream_service(pipeline):
 @unittest.skipIf(
     not ie.current_env().is_interactive_ready,
     '[interactive] dependency is not installed.')
-@unittest.skipIf(
-    sys.version_info < (3, 6), 'The tests require at least Python 3.6 to work.')
 class CaptureControlTest(unittest.TestCase):
   def setUp(self):
     ie.new_env()

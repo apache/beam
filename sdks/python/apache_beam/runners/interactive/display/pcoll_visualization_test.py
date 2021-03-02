@@ -20,7 +20,6 @@
 
 from __future__ import absolute_import
 
-import sys
 import unittest
 
 import pytz
@@ -54,8 +53,6 @@ except ImportError:
 @unittest.skipIf(
     not ie.current_env().is_interactive_ready,
     '[interactive] dependency is not installed.')
-@unittest.skipIf(
-    sys.version_info < (3, 6), 'The tests require at least Python 3.6 to work.')
 class PCollectionVisualizationTest(unittest.TestCase):
   def setUp(self):
     ie.new_env()

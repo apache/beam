@@ -21,7 +21,6 @@
 from __future__ import absolute_import
 
 import importlib
-import sys
 import unittest
 
 import apache_beam as beam
@@ -41,8 +40,6 @@ except ImportError:
 _module_name = 'apache_beam.runners.interactive.interactive_environment_test'
 
 
-@unittest.skipIf(
-    sys.version_info < (3, 6), 'The tests require at least Python 3.6 to work.')
 class InteractiveEnvironmentTest(unittest.TestCase):
   def setUp(self):
     self._p = beam.Pipeline()

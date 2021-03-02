@@ -28,16 +28,16 @@ from __future__ import division
 import base64
 import logging
 import os
-import subprocess
-import sys
 import threading
 import time
 import traceback
-import urllib
 from builtins import hex
 from collections import defaultdict
+from subprocess import DEVNULL
 from typing import TYPE_CHECKING
 from typing import List
+from urllib.parse import quote
+from urllib.parse import unquote_to_bytes
 
 from future.utils import iteritems
 
@@ -77,13 +77,6 @@ from apache_beam.utils.plugin import BeamPlugin
 
 if TYPE_CHECKING:
   from apache_beam.pipeline import PTransformOverride
-
-if sys.version_info[0] > 2:
-  unquote_to_bytes = urllib.parse.unquote_to_bytes
-  quote = urllib.parse.quote
-else:
-  unquote_to_bytes = urllib.unquote  # pylint: disable=deprecated-urllib-function
-  quote = urllib.quote  # pylint: disable=deprecated-urllib-function
 
 __all__ = ['DataflowRunner']
 
@@ -587,8 +580,7 @@ class DataflowRunner(PipelineRunner):
     # is set. Note that use_avro is only interpreted by the Dataflow runner
     # at job submission and is not interpreted by Dataflow service or workers,
     # which by default use avro library unless use_fastavro experiment is set.
-    if sys.version_info[0] > 2 and (
-        not debug_options.lookup_experiment('use_avro')):
+    if not debug_options.lookup_experiment('use_avro'):
       debug_options.add_experiment('use_fastavro')
 
     self.job = apiclient.Job(options, self.proto_pipeline)
@@ -1485,11 +1477,6 @@ class DataflowRunner(PipelineRunner):
       return environment_region
     try:
       cmd = ['gcloud', 'config', 'get-value', 'compute/region']
-      # Use subprocess.DEVNULL in Python 3.3+.
-      if hasattr(subprocess, 'DEVNULL'):
-        DEVNULL = subprocess.DEVNULL
-      else:
-        DEVNULL = open(os.devnull, 'ab')
       raw_output = processes.check_output(cmd, stderr=DEVNULL)
       formatted_output = raw_output.decode('utf-8').strip()
       if formatted_output:
