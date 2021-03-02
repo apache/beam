@@ -1517,7 +1517,7 @@ class WriteToBigQuery(PTransform):
     Args:
       table (str, callable, ValueProvider): The ID of the table, or a callable
          that returns it. The ID must contain only letters ``a-z``, ``A-Z``,
-         numbers ``0-9``, or underscores ``_``. If dataset argument is
+         numbers ``0-9``, or connectors ``-_``. If dataset argument is
          :data:`None` then the table argument must contain the entire table
          reference specified as: ``'DATASET.TABLE'``
          or ``'PROJECT:DATASET.TABLE'``. If it's a callable, it must receive one
