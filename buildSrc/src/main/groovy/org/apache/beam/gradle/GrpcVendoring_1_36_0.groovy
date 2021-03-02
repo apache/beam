@@ -21,14 +21,17 @@ package org.apache.beam.gradle
 /**
  * Utilities for working with our vendored version of gRPC.
  */
-class GrpcVendoring_1_35_0 {
+class GrpcVendoring_1_36_0 {
 
   static def guava_version = "30.1-jre"
-  static def protobuf_version = "3.14.0"
-  static def grpc_version = "1.35.0"
+  // protobuf version from https://search.maven.org/artifact/io.grpc/grpc-protobuf/1.36.0/jar
+  static def protobuf_version = "3.12.0"
+  static def grpc_version = "1.36.0"
   static def gson_version = "2.8.6"
+  // tcnative version from https://github.com/grpc/grpc-java/blob/master/SECURITY.md#netty
   static def netty_version = "4.1.52.Final"
-  static def google_auth_version = "0.23.0"
+  // google-auth-library version from https://search.maven.org/artifact/io.grpc/grpc-auth/1.36.0/jar
+  static def google_auth_version = "0.22.2"
   static def proto_google_common_protos_version = "2.0.1"
   static def opencensus_version = "0.28.0"
   static def perfmark_version = "0.23.0"
@@ -119,7 +122,7 @@ class GrpcVendoring_1_35_0 {
     // those libraries may provide. The 'validateShadedJarDoesntLeakNonOrgApacheBeamClasses'
     // ensures that there are no classes outside of the 'org.apache.beam' namespace.
 
-    String version = "v1p35p0";
+    String version = "v1p36p0";
     String prefix = "org.apache.beam.vendor.grpc.${version}";
     List<String> packagesToRelocate = [
       // guava uses the com.google.common and com.google.thirdparty package namespaces
