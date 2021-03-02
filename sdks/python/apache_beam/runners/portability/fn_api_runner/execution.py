@@ -74,7 +74,6 @@ if TYPE_CHECKING:
   from apache_beam.runners.portability.fn_api_runner.fn_runner import OutputTimers
   from apache_beam.runners.portability.fn_api_runner.translations import DataSideInput
   from apache_beam.runners.portability.fn_api_runner.translations import TimerFamilyId
-  from apache_beam.transforms import core
   from apache_beam.transforms.window import BoundedWindow
 
 ENCODED_IMPULSE_VALUE = WindowedValueCoder(

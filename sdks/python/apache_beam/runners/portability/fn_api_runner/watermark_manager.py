@@ -19,7 +19,6 @@
 
 from __future__ import absolute_import
 
-from typing import Any
 from typing import Dict
 from typing import List
 from typing import Set
@@ -91,9 +90,7 @@ class WatermarkManager(object):
 
   def __init__(self, stages):
     # type: (List[translations.Stage]) -> None
-    self._pcollections_by_name: Dict[Union[str,
-                                           Tuple[str,
-                                                 translations.TimerFamilyId]],
+    self._pcollections_by_name: Dict[Union[str, translations.TimerFamilyId],
                                      WatermarkManager.PCollectionNode] = {}
     self._stages_by_name: Dict[str, WatermarkManager.StageNode] = {}
 
@@ -141,8 +138,8 @@ class WatermarkManager(object):
                 timer_pcoll_node, WatermarkManager.PCollectionNode)
             stage_node.inputs.add(timer_pcoll_node)
 
-      # 3. Get stage outputs, create nodes for them, add to _pcollections_by_name,
-      #    and add stage as their producer
+      # 3. Get stage outputs, create nodes for them, add to
+      # _pcollections_by_name, and add stage as their producer
       for transform in s.transforms:
         if transform.spec.urn == bundle_processor.DATA_OUTPUT_URN:
           buffer_id = transform.spec.payload
@@ -159,7 +156,7 @@ class WatermarkManager(object):
       #    _pcollections_by_name, and add them as side inputs of the stage.
       for pcoll_name in s.side_inputs():
         if pcoll_name not in self._pcollections_by_name:
-          self._watermarks_by_name[
+          self._pcollections_by_name[
               pcoll_name] = WatermarkManager.PCollectionNode(pcoll_name)
         pcoll_node = self._pcollections_by_name[pcoll_name]
         assert isinstance(pcoll_node, WatermarkManager.PCollectionNode)
