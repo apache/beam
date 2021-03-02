@@ -624,7 +624,7 @@ message TestStreamPayload {
 
     // Advances the watermark to the specified timestamp.
     message AdvanceWatermark {
-      // (Required) The watermark to advance to.
+      // (Required) The watermark in millisecond to advance to.
       int64 new_watermark = 1;
 
       // (Optional) The output watermark tag for a PCollection. If unspecified
@@ -635,7 +635,7 @@ message TestStreamPayload {
 
     // Advances the processing time clock by the specified amount.
     message AdvanceProcessingTime {
-      // (Required) The duration to advance by.
+      // (Required) The duration in millisecond to advance by.
       int64 advance_duration = 1;
     }
 
@@ -657,7 +657,7 @@ message TestStreamPayload {
     // encoding primitives.
     bytes encoded_element = 1;
 
-    // (Required) The event timestamp of this element.
+    // (Required) The event timestamp in millisecond of this element.
     int64 timestamp = 2;
   }
 }
