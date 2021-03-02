@@ -17,7 +17,9 @@
  */
 package org.apache.beam.sdk.io.aws.sqs;
 
+import static junit.framework.TestCase.assertFalse;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
@@ -28,13 +30,17 @@ import com.amazonaws.services.sqs.model.CreateQueueResult;
 import com.amazonaws.services.sqs.model.Message;
 import com.amazonaws.services.sqs.model.ReceiveMessageResult;
 import com.amazonaws.services.sqs.model.SendMessageRequest;
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
-import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
+import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
+import org.apache.beam.sdk.io.aws.options.AwsOptions;
+import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.elasticmq.rest.sqs.SQSRestServer;
 import org.elasticmq.rest.sqs.SQSRestServerBuilder;
 import org.junit.Rule;
@@ -46,25 +52,151 @@ import org.junit.runners.JUnit4;
 /** Tests on {@link SqsIO}. */
 @RunWith(JUnit4.class)
 public class SqsIOTest {
+  private static final String DATA = "testData";
 
   @Rule public TestPipeline pipeline = TestPipeline.create();
 
   @Rule public EmbeddedSqsServer embeddedSqsRestServer = new EmbeddedSqsServer();
 
-  @Test
-  public void testRead() {
+  private SqsUnboundedSource source;
+
+  private void setupOneMessage() {
     final AmazonSQS client = embeddedSqsRestServer.getClient();
     final String queueUrl = embeddedSqsRestServer.getQueueUrl();
+    client.sendMessage(queueUrl, DATA);
+    source =
+        new SqsUnboundedSource(
+            SqsIO.read().withQueueUrl(queueUrl).withMaxNumRecords(1),
+            new SqsConfiguration(pipeline.getOptions().as(AwsOptions.class)));
+  }
 
-    final PCollection<Message> output =
-        pipeline.apply(SqsIO.read().withQueueUrl(queueUrl).withMaxNumRecords(100));
+  private void setupMessages(List<String> messages) {
+    final AmazonSQS client = embeddedSqsRestServer.getClient();
+    final String queueUrl = embeddedSqsRestServer.getQueueUrl();
+    for (String message : messages) {
+      client.sendMessage(queueUrl, message);
+    }
+    source =
+        new SqsUnboundedSource(
+            SqsIO.read().withQueueUrl(queueUrl).withMaxNumRecords(1),
+            new SqsConfiguration(pipeline.getOptions().as(AwsOptions.class)));
+  }
 
-    PAssert.thatSingleton(output.apply(Count.globally())).isEqualTo(100L);
+  @Test
+  public void checkpointCoderIsSane() {
+    setupOneMessage();
+    CoderProperties.coderSerializable(source.getCheckpointMarkCoder());
+    // Since we only serialize/deserialize the 'notYetReadIds', and we don't want to make
+    // equals on checkpoints ignore those fields, we'll test serialization and deserialization
+    // of checkpoints in multipleReaders below.
+  }
+
+  @Test
+  public void readOneMessage() throws IOException {
+    setupOneMessage();
+    UnboundedReader<Message> reader = source.createReader(pipeline.getOptions(), null);
+    // Read one message.
+    assertTrue(reader.start());
+    assertEquals(DATA, reader.getCurrent().getBody());
+    assertFalse(reader.advance());
+    // ACK the message.
+    CheckpointMark checkpoint = reader.getCheckpointMark();
+    checkpoint.finalizeCheckpoint();
+    reader.close();
+  }
+
+  @Test
+  public void timeoutAckAndRereadOneMessage() throws IOException {
+    setupOneMessage();
+    UnboundedReader<Message> reader = source.createReader(pipeline.getOptions(), null);
+    AmazonSQS sqsClient = source.getSqs();
+    assertTrue(reader.start());
+    assertEquals(DATA, reader.getCurrent().getBody());
+    String receiptHandle = reader.getCurrent().getReceiptHandle();
+    // Set the message to timeout.
+    sqsClient.changeMessageVisibility(source.getRead().queueUrl(), receiptHandle, 0);
+    // We'll now receive the same message again.
+    assertTrue(reader.advance());
+    assertEquals(DATA, reader.getCurrent().getBody());
+    assertFalse(reader.advance());
+    // Now ACK the message.
+    CheckpointMark checkpoint = reader.getCheckpointMark();
+    checkpoint.finalizeCheckpoint();
+    reader.close();
+  }
+
+  @Test
+  public void multipleReaders() throws IOException {
+    List<String> incoming = new ArrayList<>();
+    for (int i = 0; i < 2; i++) {
+      incoming.add(String.format("data_%d", i));
+    }
+    setupMessages(incoming);
+    UnboundedReader<Message> reader = source.createReader(pipeline.getOptions(), null);
+    // Consume two messages, only read one.
+    assertTrue(reader.start());
+    assertEquals("data_0", reader.getCurrent().getBody());
+
+    // Grab checkpoint.
+    SqsCheckpointMark checkpoint = (SqsCheckpointMark) reader.getCheckpointMark();
+    checkpoint.finalizeCheckpoint();
+    assertEquals(1, checkpoint.notYetReadReceipts.size());
+
+    // Read second message.
+    assertTrue(reader.advance());
+    assertEquals("data_1", reader.getCurrent().getBody());
+
+    // Restore from checkpoint.
+    byte[] checkpointBytes =
+        CoderUtils.encodeToByteArray(source.getCheckpointMarkCoder(), checkpoint);
+    checkpoint = CoderUtils.decodeFromByteArray(source.getCheckpointMarkCoder(), checkpointBytes);
+    assertEquals(1, checkpoint.notYetReadReceipts.size());
+
+    // Re-read second message.
+    reader = source.createReader(pipeline.getOptions(), checkpoint);
+    assertTrue(reader.start());
+    assertEquals("data_1", reader.getCurrent().getBody());
+
+    // We are done.
+    assertFalse(reader.advance());
+
+    // ACK final message.
+    checkpoint = (SqsCheckpointMark) reader.getCheckpointMark();
+    checkpoint.finalizeCheckpoint();
+    reader.close();
+  }
+
+  @Test
+  public void testReadMany() throws IOException {
+
+    HashSet<String> messages = new HashSet<>();
+    List<String> incoming = new ArrayList<>();
+    for (int i = 0; i < 100; i++) {
+      String content = String.format("data_%d", i);
+      messages.add(content);
+      incoming.add(String.format("data_%d", i));
+    }
+    setupMessages(incoming);
+
+    SqsUnboundedReader reader =
+        (SqsUnboundedReader) source.createReader(pipeline.getOptions(), null);
 
     for (int i = 0; i < 100; i++) {
-      client.sendMessage(queueUrl, "This is a test");
+      if (i == 0) {
+        assertTrue(reader.start());
+      } else {
+        assertTrue(reader.advance());
+      }
+      String data = reader.getCurrent().getBody();
+      boolean messageNum = messages.remove(data);
+      // No duplicate messages.
+      assertTrue(messageNum);
     }
-    pipeline.run();
+    // We are done.
+    assertFalse(reader.advance());
+    // We saw each message exactly once.
+    assertTrue(messages.isEmpty());
+    reader.close();
   }
 
   @Test
@@ -94,6 +226,17 @@ public class SqsIOTest {
     for (int i = 0; i < 100; i++) {
       received.contains("This is a test " + i);
     }
+  }
+
+  /** Tests that checkpoints finalized after the reader is closed succeed. */
+  @Test
+  public void closeWithActiveCheckpoints() throws Exception {
+    setupOneMessage();
+    UnboundedReader<Message> reader = source.createReader(pipeline.getOptions(), null);
+    reader.start();
+    CheckpointMark checkpoint = reader.getCheckpointMark();
+    reader.close();
+    checkpoint.finalizeCheckpoint();
   }
 
   private static class EmbeddedSqsServer extends ExternalResource {
