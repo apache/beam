@@ -30,7 +30,11 @@ public abstract class SqsMessage implements Serializable {
 
   abstract @Nullable String getMessageId();
 
+  abstract @Nullable String getReceiptHandle();
+
   abstract @Nullable String getTimeStamp();
+
+  abstract @Nullable String getRequestTimeStamp();
 
   abstract Builder toBuilder();
 
@@ -40,20 +44,33 @@ public abstract class SqsMessage implements Serializable {
 
     abstract Builder setMessageId(String messageId);
 
+    abstract Builder setReceiptHandle(String receiptHandle);
+
     abstract Builder setTimeStamp(String timeStamp);
+
+    abstract Builder setRequestTimeStamp(String timeStamp);
 
     abstract SqsMessage build();
   }
 
-  static SqsMessage create(String body, String messageId, String timeStamp) {
+  static SqsMessage create(
+      String body,
+      String messageId,
+      String receiptHandle,
+      String timeStamp,
+      String requestTimeStamp) {
     checkArgument(body != null, "body can not be null");
     checkArgument(messageId != null, "messageId can not be null");
+    checkArgument(receiptHandle != null, "receiptHandle can not be null");
     checkArgument(timeStamp != null, "timeStamp can not be null");
+    checkArgument(requestTimeStamp != null, "requestTimeStamp can not be null");
 
     return new AutoValue_SqsMessage.Builder()
         .setBody(body)
         .setMessageId(messageId)
+        .setReceiptHandle(receiptHandle)
         .setTimeStamp(timeStamp)
+        .setRequestTimeStamp(requestTimeStamp)
         .build();
   }
 }

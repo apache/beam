@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.aws.sqs;
 import com.amazonaws.services.sqs.AmazonSQS;
 import com.amazonaws.services.sqs.AmazonSQSClientBuilder;
 import com.amazonaws.services.sqs.model.Message;
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
@@ -68,7 +69,11 @@ class SqsUnboundedSource extends UnboundedSource<Message, SqsCheckpointMark> {
   @Override
   public UnboundedReader<Message> createReader(
       PipelineOptions options, @Nullable SqsCheckpointMark checkpointMark) {
-    return new SqsUnboundedReader(this, checkpointMark);
+    try {
+      return new SqsUnboundedReader(this, checkpointMark);
+    } catch (IOException e) {
+      throw new RuntimeException("Unable to subscribe to " + read.queueUrl() + ": ", e);
+    }
   }
 
   @Override
