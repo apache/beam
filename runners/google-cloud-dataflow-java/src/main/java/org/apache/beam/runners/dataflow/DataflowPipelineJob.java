@@ -119,6 +119,8 @@ public class DataflowPipelineJob implements PipelineResult {
           .withMaxRetries(STATUS_POLLING_RETRIES)
           .withExponent(DEFAULT_BACKOFF_EXPONENT);
 
+  private @Nullable String latestStateString;
+
   /**
    * Constructs the job.
    *
@@ -480,6 +482,11 @@ public class DataflowPipelineJob implements PipelineResult {
         BackOffAdapter.toGcpBackOff(STATUS_BACKOFF_FACTORY.backoff()), Sleeper.DEFAULT);
   }
 
+  @Nullable
+  String getLatestStateString() {
+    return latestStateString;
+  }
+
   /**
    * Attempts to get the state. Uses exponential backoff on failure up to the maximum number of
    * passed in attempts.
@@ -505,7 +512,8 @@ public class DataflowPipelineJob implements PipelineResult {
       return terminalState;
     }
     Job job = getJobWithRetries(attempts, sleeper);
-    return MonitoringUtil.toState(job.getCurrentState());
+    latestStateString = job.getCurrentState();
+    return MonitoringUtil.toState(latestStateString);
   }
 
   /**

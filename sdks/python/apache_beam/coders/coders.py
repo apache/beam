@@ -165,7 +165,9 @@ class Coder(object):
     if self.is_deterministic():
       return self
     else:
-      raise ValueError(error_message or "'%s' cannot be made deterministic.")
+      raise ValueError(
+          error_message or
+          "%s cannot be made deterministic for '%s'." % (self, step_label))
 
   def estimate_size(self, value):
     """Estimates the encoded size of the given value, in bytes.
@@ -850,6 +852,16 @@ class FastPrimitivesCoder(FastCoder):
 
   def __hash__(self):
     return hash(type(self))
+
+
+class FakeDeterministicFastPrimitivesCoder(FastPrimitivesCoder):
+  """A FastPrimitivesCoder that claims to be deterministic.
+
+  This can be registered as a fallback coder to go back to the behavior before
+  deterministic encoding was enforced (BEAM-11719).
+  """
+  def is_deterministic(self):
+    return True
 
 
 class Base64PickleCoder(Coder):

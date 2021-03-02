@@ -1158,12 +1158,9 @@ message TimeDomain {
     // execution of your pipeline
     PROCESSING_TIME = 2;
 
-    // Synchronized processing time is the minimum of the
-    // processing time of all pending elements.
-    //
-    // The "processing time" of an element refers to
-    // the local processing time at which it was emitted
-    SYNCHRONIZED_PROCESSING_TIME = 3;
+    // Synchronized processing time is _not_ part of the user-facing model
+    reserved 3;
+    reserved "SYNCHRONIZED_PROCESSING_TIME";
   }
 }
 
@@ -1447,6 +1444,11 @@ message Environment {
 
   // (Optional) artifact dependency information used for executing UDFs in this environment.
   repeated ArtifactInformation dependencies = 6;
+
+  // (Optional) A mapping of resource URNs to requested values.  The encoding
+  // of the values is specified by the URN.  Resource hints are advisory;
+  // a runner is free to ignore resource hints that it does not understand.
+  map<string, bytes> resource_hints = 7;
 
   reserved 1;
 }

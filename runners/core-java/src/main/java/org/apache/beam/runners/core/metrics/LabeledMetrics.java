@@ -19,7 +19,9 @@ package org.apache.beam.runners.core.metrics;
 
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.DelegatingCounter;
+import org.apache.beam.sdk.metrics.DelegatingDistribution;
 import org.apache.beam.sdk.metrics.DelegatingHistogram;
+import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Histogram;
 import org.apache.beam.sdk.util.HistogramData;
 
@@ -38,6 +40,10 @@ public class LabeledMetrics {
 
   public static Counter counter(MonitoringInfoMetricName metricName, boolean processWideContainer) {
     return new DelegatingCounter(metricName, processWideContainer);
+  }
+
+  public static Distribution distribution(MonitoringInfoMetricName metricName) {
+    return new DelegatingDistribution(metricName);
   }
 
   public static Histogram histogram(

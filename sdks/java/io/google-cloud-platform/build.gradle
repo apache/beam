@@ -20,7 +20,7 @@ import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-
+  enableStrictDependencies: true,
   automaticModuleName: 'org.apache.beam.sdk.io.gcp',
   enableSpotbugs: false,
 )
@@ -30,18 +30,25 @@ ext.summary = "IO library to read and write Google Cloud Platform systems from B
 
 dependencies {
   compile enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
+  permitUnusedDeclared enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
+  compile project(path: ":model:pipeline", configuration: "shadow")
+  compile project(":runners:core-java")
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile project(":sdks:java:expansion-service")
+  permitUnusedDeclared project(":sdks:java:expansion-service") // BEAM-11761
   compile project(":sdks:java:extensions:google-cloud-platform-core")
   compile project(":sdks:java:extensions:protobuf")
   compile library.java.avro
   compile library.java.bigdataoss_util
+  compile library.java.error_prone_annotations
   compile library.java.gax
   compile library.java.gax_grpc
   compile library.java.google_api_client
+  compile library.java.google_api_common
   compile library.java.google_api_services_bigquery
   compile library.java.google_api_services_healthcare
   compile library.java.google_api_services_pubsub
+  compile library.java.google_api_services_storage
   compile library.java.google_auth_library_credentials
   compile library.java.google_auth_library_oauth2_http
   compile library.java.google_cloud_bigquery_storage
@@ -53,40 +60,66 @@ dependencies {
   compile(library.java.google_cloud_core_grpc) {
     exclude group: 'io.grpc', module: 'grpc-core' // Use Beam's version
   }
+  permitUnusedDeclared library.java.google_cloud_core_grpc // BEAM-11761
   compile library.java.google_cloud_datastore_v1_proto_client
   compile library.java.google_cloud_pubsublite
   // GCP PubSub client is used in TestPubSub
   compile library.java.google_cloud_pubsub
   compile library.java.google_cloud_spanner
+  compile library.java.google_code_gson
   compile library.java.google_http_client
   compile library.java.google_http_client_jackson2
   compile library.java.grpc_alts
+  permitUnusedDeclared library.java.grpc_alts // BEAM-11761
   compile library.java.grpc_api
   compile library.java.grpc_auth
   compile library.java.grpc_core
+  permitUnusedDeclared library.java.grpc_core // BEAM-11761
   compile library.java.grpc_context
+  permitUnusedDeclared library.java.grpc_context // BEAM-11761
   compile library.java.grpc_grpclb
+  permitUnusedDeclared library.java.grpc_grpclb // BEAM-11761
   compile library.java.grpc_netty
   compile library.java.grpc_netty_shaded
+  permitUnusedDeclared library.java.grpc_netty_shaded // BEAM-11761
   compile library.java.grpc_stub
+  permitUnusedDeclared library.java.grpc_stub // BEAM-11761
   compile library.java.grpc_google_cloud_pubsub_v1
   compile library.java.grpc_google_cloud_pubsublite_v1
+  permitUnusedDeclared library.java.grpc_google_cloud_pubsublite_v1 // BEAM-11761
   compile library.java.guava
+  compile library.java.hamcrest
+  compile library.java.http_client
   compile library.java.hamcrest_core
+  permitUnusedDeclared library.java.hamcrest_core // BEAM-11761
+  compile library.java.http_core
+  compile library.java.jackson_core
   compile library.java.jackson_databind
   compile library.java.joda_time
   compile library.java.junit
   compile library.java.netty_handler
   compile library.java.netty_tcnative_boringssl_static
+  permitUnusedDeclared library.java.netty_tcnative_boringssl_static // BEAM-11761
+  compile library.java.proto_google_cloud_bigquery_storage_v1
   compile library.java.proto_google_cloud_bigquerybeta2_storage_v1
+  permitUnusedDeclared library.java.proto_google_cloud_bigquerybeta2_storage_v1 // BEAM-11761
+  compile library.java.proto_google_cloud_bigtable_admin_v2
   compile library.java.proto_google_cloud_bigtable_v2
   compile library.java.proto_google_cloud_datastore_v1
   compile library.java.proto_google_cloud_pubsub_v1
   compile library.java.proto_google_cloud_pubsublite_v1
   compile library.java.proto_google_cloud_spanner_admin_database_v1
+  permitUnusedDeclared library.java.proto_google_cloud_spanner_admin_database_v1 // BEAM-11761
+  compile library.java.proto_google_cloud_spanner_v1
   compile library.java.proto_google_common_protos
   compile library.java.protobuf_java
+  compile library.java.protobuf_java_util
   compile library.java.slf4j_api
+  compile library.java.vendored_grpc_1_26_0
+  compile library.java.vendored_guava_26_0_jre
+
+  compile "org.threeten:threetenbp:1.4.4"
+
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntime")
   testCompile project(path: ":runners:direct-java", configuration: "shadow")
@@ -94,7 +127,6 @@ dependencies {
   testCompile project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
   // For testing Cross-language transforms
   testCompile project(":runners:core-construction-java")
-  testCompile library.java.hamcrest_library
   testCompile library.java.mockito_core
   testCompile library.java.powermock
   testCompile library.java.powermock_mockito

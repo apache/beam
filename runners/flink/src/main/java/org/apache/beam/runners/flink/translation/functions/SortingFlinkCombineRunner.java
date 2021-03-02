@@ -70,7 +70,7 @@ public class SortingFlinkCombineRunner<K, InputT, AccumT, OutputT, W extends Bou
     sortedInput.sort(
         Comparator.comparing(o -> Iterables.getOnlyElement(o.getWindows()).maxTimestamp()));
 
-    if (!windowingStrategy.getWindowFn().isNonMerging()) {
+    if (windowingStrategy.needsMerge()) {
       // merge windows, we have to do it in an extra pre-processing step and
       // can't do it as we go since the window of early elements would not
       // be correct when calling the CombineFn

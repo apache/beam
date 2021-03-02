@@ -154,8 +154,6 @@ def commonLegacyExcludeCategories = [
   'org.apache.beam.sdk.testing.UsesCrossLanguageTransforms',
   'org.apache.beam.sdk.testing.UsesDistributionMetrics',
   'org.apache.beam.sdk.testing.UsesGaugeMetrics',
-  'org.apache.beam.sdk.testing.UsesSetState',
-  'org.apache.beam.sdk.testing.UsesMapState',
   'org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs',
   'org.apache.beam.sdk.testing.UsesTestStream',
   'org.apache.beam.sdk.testing.UsesParDoLifecycle',
@@ -334,8 +332,9 @@ createCrossLanguageValidatesRunnerTask(
     "--project=${dataflowProject}",
     "--region=${dataflowRegion}",
     "--sdk_harness_container_image_overrides=.*java.*,${dockerImageContainer}:${dockerTag}",
-    // TODO(BEAM-11779) remove shuffle_mode=appliance with runner v2 once issue is resolved.
-    "--experiments=use_runner_v2,shuffle_mode=appliance",
+    "--experiments=use_runner_v2",
+    // TODO(BEAM-11779) remove shuffle_mode=appliance with runner v2 once issue is resolved
+    "--experiments=shuffle_mode=appliance",
   ],
   javaPipelineOptions: [
     "--runner=TestDataflowRunner",
@@ -368,6 +367,7 @@ task validatesRunnerV2 {
       'org.apache.beam.sdk.transforms.windowing.WindowingTest.testNonPartitioningWindowing',
       'org.apache.beam.sdk.transforms.windowing.WindowTest.testMergingCustomWindowsKeyedCollection',
       'org.apache.beam.sdk.transforms.windowing.WindowTest.testMergingCustomWindows',
+      'org.apache.beam.sdk.transforms.windowing.WindowTest.testMergingCustomWindowsWitoutCustomWindowTypes',
 
       'org.apache.beam.sdk.transforms.ReshuffleTest.testReshuffleWithTimestampsStreaming',
 
@@ -418,6 +418,7 @@ task validatesRunnerV2Streaming {
       'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testEventTimeTimerAlignBounded',
       'org.apache.beam.sdk.transforms.windowing.WindowTest.testMergingCustomWindows',
       'org.apache.beam.sdk.transforms.windowing.WindowTest.testMergingCustomWindowsKeyedCollection',
+      'org.apache.beam.sdk.transforms.windowing.WindowTest.testMergingCustomWindowsWithougCustomWindowTypes',
       'org.apache.beam.examples.complete.TopWikipediaSessionsTest.testComputeTopUsers',
       'org.apache.beam.sdk.transforms.windowing.WindowingTest.testNonPartitioningWindowing',
 
@@ -430,6 +431,9 @@ task validatesRunnerV2Streaming {
 
       'org.apache.beam.sdk.transforms.ParDoTest$OnWindowExpirationTests.testOnWindowExpirationSimpleBounded',
       'org.apache.beam.sdk.transforms.ParDoTest$OnWindowExpirationTests.testOnWindowExpirationSimpleUnbounded',
+
+      // TODO(BEAM-11858) reading a side input twice fails
+      'org.apache.beam.sdk.transforms.ParDoTest$MultipleInputsAndOutputTests.testSameSideInputReadTwice',
 
       'org.apache.beam.runners.dataflow.DataflowRunnerTest.testBatchGroupIntoBatchesOverride',
 
@@ -585,6 +589,7 @@ task examplesJavaRunnerV2IntegrationTest(type: Test) {
   exclude '**/AutoCompleteIT.class'
   // TODO(BEAM-11201): test times out.
   exclude '**/FhirIOReadIT.class'
+  exclude '**/MapClassIntegrationIT.class'
 
   maxParallelForks 4
   classpath = configurations.examplesJavaIntegrationTest

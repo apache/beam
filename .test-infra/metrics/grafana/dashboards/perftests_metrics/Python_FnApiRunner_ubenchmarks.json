@@ -54,6 +54,16 @@
       "pointradius": 2,
       "points": true,
       "renderer": "flot",
+      "repeat": "microbenchmarkMetric",
+      "repeatDirection": "h",
+      "scopedVars": {
+        "microbenchmarkTest": {
+          "$$hashKey": "object:5347",
+          "selected": false,
+          "text": "runtime_sec",
+          "value": "runtime_sec"
+        }
+      },
       "seriesOverrides": [],
       "spaceLength": 10,
       "stack": false,
@@ -77,7 +87,7 @@
           ],
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT mean(\"value\") FROM \"python_direct_microbenchmarks\" WHERE metric = 'fn_api_runner_microbenchmark_runtime_sec' AND $timeFilter GROUP BY time($__interval),  \"metric\"",
+          "query": "SELECT mean(\"value\") FROM \"python_direct_microbenchmarks\" WHERE (\"metric\" = 'fn_api_runner_microbenchmark_${microbenchmarkMetric}' OR \"metric\" = 'teststream_microbenchmark_${microbenchmarkMetric}') AND $timeFilter GROUP BY time($__interval),  \"metric\"",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series",
@@ -102,7 +112,7 @@
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "Python SDK Microbenchmarks - FnApiRunner microbenchmark",
+      "title": "Python DirectRunner Microbenchmarks",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -144,9 +154,6 @@
   "schemaVersion": 22,
   "style": "dark",
   "tags": ["performance tests"],
-  "templating": {
-    "list": []
-  },
   "time": {
     "from": "now-30d",
     "to": "now"
@@ -165,8 +172,51 @@
       "1d"
     ]
   },
+  "templating": {
+    "enable": true,
+    "list": [
+      {
+        "allValue": null,
+        "current": {
+          "$$hashKey": "object:5347",
+          "selected": false,
+          "text": "runtime_sec",
+          "value": "runtime_sec"
+        },
+        "hide": 0,
+        "includeAll": false,
+        "label": "Microbenchmark Metric",
+        "multi": false,
+        "name": "microbenchmarkMetric",
+        "options": [
+          {
+            "$$hashKey": "object:5347",
+            "selected": true,
+            "text": "runtime_sec",
+            "value": "runtime_sec"
+          },
+          {
+            "$$hashKey": "object:5348",
+            "selected": false,
+            "text": "per_element_cost_ms",
+            "value": "per_element_cost_ms"
+          },
+          {
+            "$$hashKey": "object:5349",
+            "selected": true,
+            "text": "fixed_cost_ms",
+            "value": "fixed_cost_ms"
+          }
+        ],
+        "query": "runtime_sec,per_element_cost_ms,fixed_cost_ms",
+        "queryValue": "",
+        "skipUrlSync": false,
+        "type": "custom"
+      }
+    ]
+  },
   "timezone": "",
-  "title": "FnApiRunner Micro-benchmarks",
+  "title": "Python DirectRunner Microbenchmarks",
   "uid": "1cnwVDkGk",
   "variables": {
     "list": []
