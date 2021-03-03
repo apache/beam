@@ -66,23 +66,6 @@ class PartitioningSession(Session):
     def is_scalar(expr):
       return not isinstance(expr.proxy(), pd.core.generic.NDFrame)
 
-    def difficulty(partitioning):
-      """Imposes an ordering on partitionings where the largest schemes are the
-      most likely to reveal an error. This order is different from the one
-      defined by is_subpartitioning_of:
-
-        Nothing() > Index() > ... > Index([i,j]) > Index([j]) > Singleton()
-      """
-      if isinstance(partitioning, partitionings.Singleton):
-        return -float('inf')
-      elif isinstance(partitioning, partitionings.Index):
-        if partitioning._levels is None:
-          return 1_000_000
-        else:
-          return len(partitioning._levels)
-      elif isinstance(partitioning, partitionings.Nothing):
-        return float('inf')
-
     if expr not in self._bindings:
       if is_scalar(expr) or not expr.args():
         result = super(PartitioningSession, self).evaluate(expr)
@@ -107,9 +90,8 @@ class PartitioningSession(Session):
                    if not is_scalar(arg)):
               results.append(session.evaluate(expr))
 
-          expected_output_partitioning = expr.preserves_partition_by(
-          ) if input_partitioning.is_subpartitioning_of(
-              expr.preserves_partition_by()) else input_partitioning
+          expected_output_partitioning = output_partitioning(
+              expr, input_partitioning)
 
           if not expected_output_partitioning.check(results):
             raise AssertionError(
@@ -131,30 +113,43 @@ class PartitioningSession(Session):
         # the expression is part of a test that relies on the random seed.
         random_state = random.getstate()
 
-        # Run with all supported partitionings in order of ascending
-        # "difficulty". This way the final result is computed with the
-        # most challenging partitioning. Avoids heisenbugs where sometimes
-        # the result is computed trivially with Singleton partitioning and
-        # passes.
+        result = None
+        # Run with all supported partitionings s.t. the smallest subpartitioning
+        # is used last. This way the final result is computed with the most
+        # challenging partitioning. Avoids heisenbugs where sometimes the result
+        # is computed trivially with Singleton partitioning and passes.
         for input_partitioning in sorted(set([expr.requires_partition_by(),
                                               partitionings.Nothing(),
                                               partitionings.Index(),
-                                              partitionings.Singleton()]),
-                                         key=difficulty):
-          if not input_partitioning.is_subpartitioning_of(
-              expr.requires_partition_by()):
+                                              partitionings.Singleton()])):
+          if not expr.requires_partition_by().is_subpartitioning_of(
+              input_partitioning):
             continue
 
           random.setstate(random_state)
 
           result = evaluate_with(input_partitioning)
 
+        assert result is not None
         self._bindings[expr] = result
     return self._bindings[expr]
 
 
 # The return type of an Expression
 T = TypeVar('T')
+
+
+def output_partitioning(expr, input_partitioning):
+  """ Return the expected output partitioning for `expr` when it's input is
+  partitioned by `input_partitioning`.
+
+  For internal use only; No backward compatibility guarantees """
+  assert expr.requires_partition_by().is_subpartitioning_of(input_partitioning)
+
+  if input_partitioning.is_subpartitioning_of(expr.preserves_partition_by()):
+    return partitionings.Nothing()
+  else:
+    return min(input_partitioning, expr.preserves_partition_by())
 
 
 class Expression(object):
