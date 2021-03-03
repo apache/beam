@@ -697,9 +697,11 @@ message WriteFilesPayload {
 message PubSubReadPayload {
 
   // Topic to read from. Exactly one of topic or subscription should be set.
+  // Topic format is: /topics/project_id/subscription_name
   string topic = 1;
 
   // Subscription to read from. Exactly one of topic or subscription should be set.
+  // Subscription format is: /subscriptions/project_id/subscription_name
   string subscription = 2;
 
   // Attribute that provides element timestamps.
@@ -710,6 +712,12 @@ message PubSubReadPayload {
 
   // If true, reads Pub/Sub payload as well as attributes. If false, reads only the payload.
   bool with_attributes = 5;
+
+  // If set, the topic that is expected to be provided during runtime.
+  string topic_runtime_overridden = 6;
+
+  // If set, the subscription that is expected to be provided during runtime.
+  string subscription_runtime_overridden = 7;
 }
 
 // Payload used by Google Cloud Pub/Sub write transform.
@@ -718,6 +726,7 @@ message PubSubReadPayload {
 message PubSubWritePayload {
 
   // Topic to write to.
+  // Topic format is: /topics/project_id/subscription_name
   string topic = 1;
 
   // Attribute that provides element timestamps.
@@ -725,6 +734,9 @@ message PubSubWritePayload {
 
   // Attribute that uniquely identify messages.
   string id_attribute = 3;
+
+  // If set, the topic that is expected to be provided during runtime.
+  string topic_runtime_overridden = 4;
 }
 
 // Payload for GroupIntoBatches composite transform.
