@@ -208,7 +208,7 @@ public class BeamRowToStorageApiProtoTest {
                   .build())
           .build();
 
-  private static byte[] BYTES = "BYTE BYTE BYTE".getBytes(StandardCharsets.UTF_8);
+  private static final byte[] BYTES = "BYTE BYTE BYTE".getBytes(StandardCharsets.UTF_8);
   private static final Row BASE_ROW =
       Row.withSchema(BASE_SCHEMA)
           .withFieldValue("byteValue", (byte) 1)
