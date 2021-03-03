@@ -22,9 +22,7 @@ import com.google.api.services.bigquery.model.JobConfigurationTableCopy;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.TableReference;
 import java.io.IOException;
-import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.PendingJobManager;
@@ -36,9 +34,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ArrayListMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,7 +45,7 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings({
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
-class WriteRename extends DoFn<Iterable<KV<TableDestination, String>>, Void> {
+class WriteRename extends DoFn<KV<TableDestination, Iterable<String>>, Void> {
   private static final Logger LOG = LoggerFactory.getLogger(WriteRename.class);
 
   private final BigQueryServices bqServices;
@@ -102,16 +98,11 @@ class WriteRename extends DoFn<Iterable<KV<TableDestination, String>>, Void> {
 
   @ProcessElement
   public void processElement(ProcessContext c) throws Exception {
-    Multimap<TableDestination, String> tempTables = ArrayListMultimap.create();
-    for (KV<TableDestination, String> entry : c.element()) {
-      tempTables.put(entry.getKey(), entry.getValue());
-    }
-    for (Map.Entry<TableDestination, Collection<String>> entry : tempTables.asMap().entrySet()) {
-      // Process each destination table.
-      // Do not copy if no temp tables are provided.
-      if (!entry.getValue().isEmpty()) {
-        pendingJobs.add(startWriteRename(entry.getKey(), entry.getValue(), c));
-      }
+    final TableDestination tableDestination = c.element().getKey();
+    final Iterable<String> files = c.element().getValue();
+    // Do not copy if no temp tables are provided.
+    if (files.iterator().hasNext()) {
+      pendingJobs.add(startWriteRename(tableDestination, files, c));
     }
   }
 

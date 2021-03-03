@@ -277,7 +277,7 @@ class BatchLoads<DestinationT, ElementT>
     final PCollectionView<String> copyJobIdPrefixView = createJobIdPrefixView(p, JobType.COPY);
     final PCollectionView<String> tempFilePrefixView =
         createTempFilePrefixView(p, loadJobIdPrefixView);
-    PCollection<WriteBundlesToFiles.Result<DestinationT>> results;
+    final PCollection<WriteBundlesToFiles.Result<DestinationT>> results;
     if (numFileShards > 0) {
       // The user-supplied triggeringFrequency is often chosen to control how many BigQuery load
       // jobs are generated, to prevent going over BigQuery's daily quota for load jobs. If this
@@ -311,7 +311,7 @@ class BatchLoads<DestinationT, ElementT>
     }
 
     // Apply the user's trigger before we start generating BigQuery load jobs.
-    results =
+    final PCollection<WriteBundlesToFiles.Result<DestinationT>> resultsWithUserTrigger =
         results.apply(
             "applyUserTrigger",
             Window.<WriteBundlesToFiles.Result<DestinationT>>into(new GlobalWindows())
@@ -330,7 +330,7 @@ class BatchLoads<DestinationT, ElementT>
     // expandUntriggered. Instead make the result list a main input. Apply a GroupByKey first for
     // determinism.
     PCollectionTuple partitions =
-        results
+        resultsWithUserTrigger
             .apply("AttachSingletonKey", WithKeys.of((Void) null))
             .setCoder(
                 KvCoder.of(VoidCoder.of(), WriteBundlesToFiles.ResultCoder.of(destinationCoder)))
@@ -350,7 +350,8 @@ class BatchLoads<DestinationT, ElementT>
                             rowWriterFactory))
                     .withSideInputs(tempFilePrefixView)
                     .withOutputTags(multiPartitionsTag, TupleTagList.of(singlePartitionTag)));
-    PCollection<KV<TableDestination, String>> tempTables =
+
+    final PCollection<KV<TableDestination, String>> tempTables =
         writeTempTables(partitions.get(multiPartitionsTag), loadJobIdPrefixView);
 
     tempTables
@@ -358,10 +359,7 @@ class BatchLoads<DestinationT, ElementT>
         .apply(
             Window.<KV<TableDestination, String>>into(new GlobalWindows())
                 .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1))))
-        .apply(WithKeys.of((Void) null))
-        .setCoder(KvCoder.of(VoidCoder.of(), tempTables.getCoder()))
-        .apply(GroupByKey.create())
-        .apply(Values.create())
+        .apply("GroupOntoTableDestination", GroupByKey.create())
         .apply(
             "WriteRenameTriggered",
             ParDo.of(
@@ -424,7 +422,7 @@ class BatchLoads<DestinationT, ElementT>
         writeTempTables(partitions.get(multiPartitionsTag), loadJobIdPrefixView);
 
     tempTables
-        .apply("ReifyRenameInput", new ReifyAsIterable<>())
+        .apply("ReifyRenameInput", new ReifyPerKey<>())
         .apply(
             "WriteRenameUntriggered",
             ParDo.of(

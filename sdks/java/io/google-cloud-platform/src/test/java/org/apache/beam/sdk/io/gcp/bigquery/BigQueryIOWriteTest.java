@@ -1848,7 +1848,6 @@ public class BigQueryIOWriteTest implements Serializable {
     Multimap<TableDestination, TableRow> expectedRowsPerTable = ArrayListMultimap.create();
     String jobIdToken = "jobIdToken";
     Multimap<TableDestination, String> tempTables = ArrayListMultimap.create();
-    List<KV<TableDestination, String>> tempTablesElement = Lists.newArrayList();
     for (int i = 0; i < numFinalTables; ++i) {
       String tableName = "project-id:dataset-id.table_" + i;
       TableDestination tableDestination = new TableDestination(tableName, "table_" + i + "_desc");
@@ -1868,7 +1867,6 @@ public class BigQueryIOWriteTest implements Serializable {
         expectedRowsPerTable.putAll(tableDestination, rows);
         String tableJson = toJsonString(tempTable);
         tempTables.put(tableDestination, tableJson);
-        tempTablesElement.add(KV.of(tableDestination, tableJson));
       }
     }
 
@@ -1884,9 +1882,11 @@ public class BigQueryIOWriteTest implements Serializable {
             3,
             "kms_key");
 
-    DoFnTester<Iterable<KV<TableDestination, String>>, Void> tester = DoFnTester.of(writeRename);
+    DoFnTester<KV<TableDestination, Iterable<String>>, Void> tester = DoFnTester.of(writeRename);
     tester.setSideInput(jobIdTokenView, GlobalWindow.INSTANCE, jobIdToken);
-    tester.processElement(tempTablesElement);
+    for (TableDestination tableDestination : tempTables.keySet()) {
+      tester.processElement(KV.of(tableDestination, tempTables.get(tableDestination)));
+    }
     tester.finishBundle();
 
     for (Map.Entry<TableDestination, Collection<String>> entry : tempTables.asMap().entrySet()) {

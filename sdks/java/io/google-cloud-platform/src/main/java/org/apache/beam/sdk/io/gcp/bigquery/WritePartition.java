@@ -47,8 +47,8 @@ class WritePartition<DestinationT>
   private final long maxSizeBytes;
   private final RowWriterFactory<?, DestinationT> rowWriterFactory;
 
-  private @Nullable TupleTag<KV<ShardedKey<DestinationT>, List<String>>> multiPartitionsTag;
-  private TupleTag<KV<ShardedKey<DestinationT>, List<String>>> singlePartitionTag;
+  private final @Nullable TupleTag<KV<ShardedKey<DestinationT>, List<String>>> multiPartitionsTag;
+  private final TupleTag<KV<ShardedKey<DestinationT>, List<String>>> singlePartitionTag;
 
   private static class PartitionData {
     private int numFiles = 0;
@@ -101,7 +101,7 @@ class WritePartition<DestinationT>
   }
 
   private static class DestinationData {
-    private List<PartitionData> partitions = Lists.newArrayList();
+    private final List<PartitionData> partitions = Lists.newArrayList();
 
     private DestinationData() {}
 
