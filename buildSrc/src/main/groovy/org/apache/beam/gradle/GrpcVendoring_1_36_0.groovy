@@ -24,8 +24,7 @@ package org.apache.beam.gradle
 class GrpcVendoring_1_36_0 {
 
   static def guava_version = "30.1-jre"
-  // protobuf version from https://search.maven.org/artifact/io.grpc/grpc-protobuf/1.36.0/jar
-  static def protobuf_version = "3.12.0"
+  static def protobuf_version = "3.15.3"
   static def grpc_version = "1.36.0"
   static def gson_version = "2.8.6"
   // tcnative version from https://github.com/grpc/grpc-java/blob/master/SECURITY.md#netty
