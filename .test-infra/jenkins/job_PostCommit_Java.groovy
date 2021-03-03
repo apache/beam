@@ -40,7 +40,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java', 'Run Java PostCommit'
       steps {
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
-          tasks(':installVendoredGrpc', ':javaPostCommit')
+          tasks(':javaPostCommit')
           commonJobProperties.setGradleSwitches(delegate)
           // Specify maven home on Jenkins, needed by Maven archetype integration tests.
           switches('-Pmaven_home=/home/jenkins/tools/maven/apache-maven-3.5.4')

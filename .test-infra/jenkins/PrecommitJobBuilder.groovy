@@ -116,7 +116,7 @@ class PrecommitJobBuilder {
       steps {
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
-          tasks(':installVendoredGrpc', gradleTask)
+          tasks(gradleTask)
           gradleSwitches.each { switches(it) }
           commonJobProperties.setGradleSwitches(delegate)
         }

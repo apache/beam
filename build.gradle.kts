@@ -336,6 +336,16 @@ task("installVendoredGrpc") {
   }
 }
 
+// Because :model:job-management:runtimeClasspath requires the vendored gRPC at configuration phase
+// (before execution phase), we cannot rely on task dependencies.
+if (!project.hasProperty("installVendoredGrpcFlag")) {
+  project.exec {
+    commandLine = listOf(
+            "./gradlew", ":installVendoredGrpc", "-PinstallVendoredGrpcFlag"
+    )
+  }
+}
+
 // Configure the release plugin to do only local work; the release manager determines what, if
 // anything, to push. On failure, the release manager can reset the branch without pushing.
 release {
