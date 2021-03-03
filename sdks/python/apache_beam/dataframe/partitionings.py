@@ -41,6 +41,12 @@ class Partitioning(object):
     """
     raise NotImplementedError
 
+  def __lt__(self, other):
+    return self != other and self <= other
+
+  def __le__(self, other):
+    return not self.is_subpartitioning_of(other)
+
   def partition_fn(self, df, num_partitions):
     # type: (Frame, int) -> Iterable[Tuple[Any, Frame]]
 
