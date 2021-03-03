@@ -63,7 +63,7 @@ class Index(Partitioning):
 
   These form a partial order, given by
 
-      Nothing() < Index([i]) < Index([i, j]) < ... < Index() < Singleton()
+      Singleton() < Index([i]) < Index([i, j]) < ... < Index() < Nothing()
 
   The ordering is implemented via the is_subpartitioning_of method, where the
   examples on the right are subpartitionings of the examples on the left above.
@@ -90,7 +90,7 @@ class Index(Partitioning):
       return hash(type(self))
 
   def is_subpartitioning_of(self, other):
-    if isinstance(other, Nothing):
+    if isinstance(other, Singleton):
       return True
     elif isinstance(other, Index):
       if self._levels is None:
@@ -99,8 +99,10 @@ class Index(Partitioning):
         return False
       else:
         return all(level in other._levels for level in self._levels)
-    else:
+    elif isinstance(other, Nothing):
       return False
+    else:
+      raise ValueError(f"Encountered unknown type {other!r}")
 
   def partition_fn(self, df, num_partitions):
     if self._levels is None:
@@ -147,7 +149,7 @@ class Singleton(Partitioning):
     return hash(type(self))
 
   def is_subpartitioning_of(self, other):
-    return True
+    return isinstance(other, Singleton)
 
   def partition_fn(self, df, num_partitions):
     yield None, df
@@ -169,7 +171,7 @@ class Nothing(Partitioning):
     return hash(type(self))
 
   def is_subpartitioning_of(self, other):
-    return isinstance(other, Nothing)
+    return True
 
   def test_partition_fn(self, df):
     num_partitions = 10
