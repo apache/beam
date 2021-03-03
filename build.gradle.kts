@@ -327,7 +327,7 @@ task("installVendoredGrpc") {
   doLast {
     project.exec {
       commandLine = listOf(
-        "mvn", "--batch-mode", "--no-transfer-progress",
+        "mvn", "--batch-mode",
         "install:install-file", "-Dpackaging=jar",
         "-DgroupId=org.apache.beam", "-DartifactId=beam-vendor-grpc-1_36_0",
         "-Dversion=0.1", "-Dfile=vendor/grpc-1_36_0/build/libs/beam-vendor-grpc-1_36_0-0.1.jar"
