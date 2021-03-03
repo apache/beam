@@ -42,7 +42,7 @@ $ mvn install:install-file \
       -Dpackaging=jar \
       -DgroupId=org.apache.beam \
       -DartifactId=beam-vendor-grpc-1_36_0 \
-      -Dversion=0.1-SNAPSHOT \
+      -Dversion=0.1 \
       -Dfile=vendor/grpc-1_36_0/build/libs/beam-vendor-grpc-1_36_0-0.1.jar
-$ ./gradlew -PvendoredDependenciesOnly -Ppublishing -PjavaLinkageArtifactIds=beam-vendor-grpc-1_36_0:0.1-SNAPSHOT :checkJavaLinkage
+$ ./gradlew -PvendoredDependenciesOnly -Ppublishing -PjavaLinkageArtifactIds=beam-vendor-grpc-1_36_0:0.1 :checkJavaLinkage
 ```
