@@ -247,6 +247,8 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
   index = property(
       _get_index, frame_base.not_implemented_method('index (setter)'))
 
+  hist = frame_base.wont_implement_method('plot')
+
 
 @populate_not_implemented(pd.Series)
 @frame_base.DeferredFrame._register_for(pd.Series)
@@ -1637,8 +1639,19 @@ class DeferredGroupBy(frame_base.DeferredFrame):
 
   aggregate = agg
 
-  first = last = head = tail = frame_base.wont_implement_method(
-      'order sensitive')
+  hist = frame_base.wont_implement_method('plot')
+  plot = frame_base.wont_implement_method('plot')
+
+  first = frame_base.wont_implement_method('order sensitive')
+  last = frame_base.wont_implement_method('order sensitive')
+  head = frame_base.wont_implement_method('order sensitive')
+  tail = frame_base.wont_implement_method('order sensitive')
+  nth = frame_base.wont_implement_method('order sensitive')
+  cumcount = frame_base.wont_implement_method('order sensitive')
+  cummax = frame_base.wont_implement_method('order sensitive')
+  cummin = frame_base.wont_implement_method('order sensitive')
+  cumsum = frame_base.wont_implement_method('order sensitive')
+  cumprod = frame_base.wont_implement_method('order sensitive')
 
   # TODO(robertwb): Consider allowing this for categorical keys.
   __len__ = frame_base.wont_implement_method('non-deferred')
