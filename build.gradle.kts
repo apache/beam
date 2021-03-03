@@ -321,6 +321,21 @@ task("pushAllDockerImages") {
   }
 }
 
+task("installVendoredGrpc") {
+  dependsOn(":vendor:grpc-1_36_0:shadowJar")
+
+  doLast {
+    project.exec {
+      commandLine = listOf(
+        "mvn", "--batch-mode", "--no-transfer-progress",
+        "install:install-file", "-Dpackaging=jar",
+        "-DgroupId=org.apache.beam", "-DartifactId=beam-vendor-grpc-1_36_0",
+        "-Dversion=0.1", "-Dfile=vendor/grpc-1_36_0/build/libs/beam-vendor-grpc-1_36_0-0.1.jar"
+      )
+    }
+  }
+}
+
 // Configure the release plugin to do only local work; the release manager determines what, if
 // anything, to push. On failure, the release manager can reset the branch without pushing.
 release {

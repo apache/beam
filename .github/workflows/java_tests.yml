@@ -70,6 +70,10 @@ jobs:
         with:
           persist-credentials: false
           submodules: recursive
+      - name: Build and install vendored gRPC
+        uses: ./.github/actions/gradle-command-action
+        with:
+          arguments: :installVendoredGrpc
       # :sdks:java:core:test
       - name: Run :sdks:java:core:test
         uses: ./.github/actions/gradle-command-action
@@ -119,6 +123,10 @@ jobs:
         with:
           persist-credentials: false
           submodules: recursive
+      - name: Build and install vendored gRPC
+        uses: ./.github/actions/gradle-command-action
+        with:
+          arguments: :installVendoredGrpc
       - name: Run WordCount Unix
         uses: ./.github/actions/gradle-command-action
         with:
