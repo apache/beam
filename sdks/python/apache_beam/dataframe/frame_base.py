@@ -272,9 +272,9 @@ def _proxy_function(
 
       return actual_func(*full_args, **full_kwargs)
 
-    if (not requires_partition_by.is_subpartitioning_of(partitionings.Index())
-        and sum(isinstance(arg.proxy(), pd.core.generic.NDFrame)
-                for arg in deferred_exprs) > 1):
+    if (requires_partition_by.is_subpartitioning_of(partitionings.Index()) and
+        sum(isinstance(arg.proxy(), pd.core.generic.NDFrame)
+            for arg in deferred_exprs) > 1):
       # Implicit join on index if there is more than one indexed input.
       actual_requires_partition_by = partitionings.Index()
     else:
