@@ -42,9 +42,6 @@ import org.mockito.MockitoAnnotations;
 
 /** Unit tests for {@link PubsubReader}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class PubsubReaderTest {
   @Mock StreamingModeExecutionContext mockContext;
 

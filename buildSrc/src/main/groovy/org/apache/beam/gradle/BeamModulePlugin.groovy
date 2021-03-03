@@ -94,12 +94,6 @@ class BeamModulePlugin implements Plugin<Project> {
     /** Classes triggering Checker failures. A map from class name to the bug filed against checkerframework. */
     Map<String, String> classesTriggerCheckerBugs = [:]
 
-    /**
-     Some module's tests take a very long time to compile with checkerframework.
-     Until that is solved, set this flag to skip checking for those tests.
-     */
-    boolean checkerTooSlowOnTests = false
-
     /** Controls whether the dependency analysis plugin is enabled. */
     boolean enableStrictDependencies = false
 
@@ -838,7 +832,12 @@ class BeamModulePlugin implements Plugin<Project> {
           'org.checkerframework.checker.nullness.NullnessChecker'
         ]
 
-        excludeTests = configuration.checkerTooSlowOnTests
+        // Always exclude checkerframework on tests. It's slow, and it often
+        // raises erroneous error because we don't have checker annotations for
+        // test libraries like junit and hamcrest. See BEAM-11436.
+        // Consider re-enabling if we can get annotations for the test libraries
+        // we use.
+        excludeTests = true
 
         extraJavacArgs = [
           "-AskipDefs=${skipDefCombinedRegex}",

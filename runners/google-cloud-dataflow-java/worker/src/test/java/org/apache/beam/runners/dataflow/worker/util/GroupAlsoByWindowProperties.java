@@ -63,9 +63,6 @@ import org.joda.time.Instant;
  * which the implementation is applicable. For example, some {@code GroupAlsoByWindows} may not
  * support merging windows.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class GroupAlsoByWindowProperties {
 
   /**

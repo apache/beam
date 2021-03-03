@@ -36,9 +36,6 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.junit.Test;
 
 /** UnitTest for {@link BeamSqlParserImpl}. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class BeamDDLTest {
 
   @Test

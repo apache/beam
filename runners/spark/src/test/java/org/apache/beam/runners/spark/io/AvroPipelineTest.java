@@ -41,9 +41,6 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 /** Avro pipeline test. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class AvroPipelineTest {
 
   private File inputFile;

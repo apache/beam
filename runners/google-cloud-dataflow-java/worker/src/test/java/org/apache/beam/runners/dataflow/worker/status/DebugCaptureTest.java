@@ -42,9 +42,6 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link DebugCapture}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class DebugCaptureTest {
   private static final String PROJECT_ID = "some-project";
   private static final String REGION = "some-region";

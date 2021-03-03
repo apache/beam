@@ -37,9 +37,6 @@ import org.junit.runners.JUnit4;
 
 /** Tests for constructs defined within {@link Coder}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class CoderTest {
   @Rule public ExpectedException expectedException = ExpectedException.none();
 

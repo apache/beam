@@ -57,9 +57,6 @@ import org.joda.time.DateTime;
 import org.junit.Rule;
 
 /** Base class for all built-in functions integration tests. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class BeamSqlBuiltinFunctionsIntegrationTestBase {
   private static final double PRECISION_DOUBLE = 1e-7;
   private static final float PRECISION_FLOAT = 1e-7f;

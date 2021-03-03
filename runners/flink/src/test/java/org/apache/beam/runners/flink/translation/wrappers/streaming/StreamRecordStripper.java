@@ -23,9 +23,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIt
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 class StreamRecordStripper {
 
   @SuppressWarnings("Guava")

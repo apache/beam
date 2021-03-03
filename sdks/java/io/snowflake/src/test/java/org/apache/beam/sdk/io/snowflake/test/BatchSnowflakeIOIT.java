@@ -78,9 +78,6 @@ import org.junit.Test;
  * -DintegrationTestRunner=dataflow
  * </pre>
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class BatchSnowflakeIOIT {
   private static final String tableName = "IOIT";
 

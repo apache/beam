@@ -55,9 +55,6 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link MapFnRunners}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class MapFnRunnersTest {
   private static final String EXPECTED_ID = "pTransformId";
   private static final RunnerApi.PTransform EXPECTED_PTRANSFORM =

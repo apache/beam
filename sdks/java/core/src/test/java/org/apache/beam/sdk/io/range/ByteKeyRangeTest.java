@@ -35,9 +35,6 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link ByteKeyRange}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class ByteKeyRangeTest {
   // A set of ranges for testing.
   private static final ByteKeyRange RANGE_1_10 = ByteKeyRange.of(ByteKey.of(1), ByteKey.of(10));

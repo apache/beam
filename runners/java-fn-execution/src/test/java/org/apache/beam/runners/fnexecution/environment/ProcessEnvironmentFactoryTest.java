@@ -49,9 +49,6 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link ProcessEnvironmentFactory}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class ProcessEnvironmentFactoryTest {
 
   private static final ApiServiceDescriptor SERVICE_DESCRIPTOR =

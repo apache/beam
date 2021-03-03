@@ -35,9 +35,6 @@ import org.junit.runners.JUnit4;
 
 /** Tests Iterable combiner whether works correctly. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class IterableCombinerTest {
 
   private static final TypeDescriptor<String> STRING_TYPE_DESCRIPTOR = TypeDescriptors.strings();

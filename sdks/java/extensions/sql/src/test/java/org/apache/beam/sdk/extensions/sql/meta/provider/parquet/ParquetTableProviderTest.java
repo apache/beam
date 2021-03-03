@@ -37,9 +37,6 @@ import org.junit.runners.JUnit4;
 
 /** Test for ParquetTable. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class ParquetTableProviderTest {
   @Rule public TestPipeline writePipeline = TestPipeline.create();
   @Rule public TestPipeline readPipeline = TestPipeline.create();

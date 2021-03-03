@@ -33,9 +33,6 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
  * List<KV>}. {@linkplain EmployeeOutputFormat} is used to test the {@linkplain HadoopFormatIO }
  * sink.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class EmployeeOutputFormat extends OutputFormat<Text, Employee> {
   private static volatile List<KV<Text, Employee>> output;
   private static OutputCommitter outputCommitter;

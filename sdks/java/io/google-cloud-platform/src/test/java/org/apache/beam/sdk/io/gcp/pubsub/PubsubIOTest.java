@@ -80,9 +80,6 @@ import org.junit.runners.model.Statement;
 
 /** Tests for PubsubIO Read and Write transforms. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class PubsubIOTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
 

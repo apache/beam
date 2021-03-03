@@ -60,9 +60,6 @@ import org.junit.Before;
 import org.junit.Test;
 
 /** Tests for {@link StateInternals}. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public abstract class StateInternalsTest {
 
   private static final BoundedWindow WINDOW_1 = new IntervalWindow(new Instant(0), new Instant(10));
