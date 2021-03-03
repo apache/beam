@@ -63,6 +63,11 @@ from apache_beam.runners.portability import portable_metrics
 from apache_beam.runners.portability.fn_api_runner import execution
 from apache_beam.runners.portability.fn_api_runner import translations
 from apache_beam.runners.portability.fn_api_runner.execution import ListBuffer
+from apache_beam.runners.portability.fn_api_runner.translations import \
+  BundleProcessResult
+from apache_beam.runners.portability.fn_api_runner.translations import DataInput
+from apache_beam.runners.portability.fn_api_runner.translations import \
+  DataOutput
 from apache_beam.runners.portability.fn_api_runner.translations import create_buffer_id
 from apache_beam.runners.portability.fn_api_runner.translations import only_element
 from apache_beam.runners.portability.fn_api_runner.worker_handlers import WorkerHandlerManager
@@ -77,17 +82,12 @@ if TYPE_CHECKING:
   from apache_beam.pipeline import Pipeline
   from apache_beam.portability.api import metrics_pb2
   from apache_beam.runners.portability.fn_api_runner.worker_handlers import WorkerHandler
+  from apache_beam.runners.portability.fn_api_runner.translations import \
+    OutputTimers
 
 _LOGGER = logging.getLogger(__name__)
 
 T = TypeVar('T')
-
-DataSideInput = Dict[Tuple[str, str],
-                     Tuple[bytes, beam_runner_api_pb2.FunctionSpec]]
-DataOutput = Dict[str, bytes]
-OutputTimers = Dict[Tuple[str, str], bytes]
-BundleProcessResult = Tuple[beam_fn_api_pb2.InstructionResponse,
-                            List[beam_fn_api_pb2.ProcessBundleSplitResponse]]
 
 # This module is experimental. No backwards-compatibility guarantees.
 
@@ -124,7 +124,7 @@ class FnApiRunner(runner.PipelineRunner):
     self._bundle_repeat = bundle_repeat
     self._num_workers = 1
     self._progress_frequency = progress_request_frequency
-    self._profiler_factory = None  # type: Optional[Callable[..., Profile]]
+    self._profiler_factory = None  # type: Optional[Callable[[...], Profile]]
     self._use_state_iterables = use_state_iterables
     self._is_drain = is_drain
     self._provision_info = provision_info or ExtendedProvisionInfo(
@@ -350,13 +350,15 @@ class FnApiRunner(runner.PipelineRunner):
         worker_handler_manager,
         stage_context.components,
         stage_context.safe_coders,
-        stage_context.data_channel_coders)
+        stage_context.data_channel_coders,
+        self._num_workers)
 
     try:
       with self.maybe_profile():
         for stage in stages:
-          bundle_context_manager = execution.BundleContextManager(
-              runner_execution_context, stage, self._num_workers)
+          bundle_context_manager = runner_execution_context.bundle_manager_for(
+              stage, self._num_workers)
+          runner_execution_context._enqueue_stage_initial_inputs(stage)
 
           assert (
               runner_execution_context.watermark_manager.get_node(
@@ -387,9 +389,9 @@ class FnApiRunner(runner.PipelineRunner):
                   bundle_context_manager.stage.name
               ).output_watermark())
           )
-
-          monitoring_infos_by_stage[stage.name] = (
-              stage_results.process_bundle.monitoring_infos)
+          if stage_results:
+            monitoring_infos_by_stage[stage.name] = (
+                stage_results.process_bundle.monitoring_infos)
     finally:
       worker_handler_manager.close_all()
     return RunnerResult(runner.PipelineState.DONE, monitoring_infos_by_stage)
@@ -400,8 +402,8 @@ class FnApiRunner(runner.PipelineRunner):
       bundle_manager,  # type: BundleManager
       data_input,  # type: Dict[str, execution.PartitionableBuffer]
       data_output,  # type: DataOutput
-      fired_timers,  # type: Mapping[Tuple[str, str], execution.PartitionableBuffer]
-      expected_output_timers,  # type: Dict[Tuple[str, str], bytes]
+      fired_timers,  # type: Mapping[translations.TimerFamilyId, execution.PartitionableBuffer]
+      expected_output_timers,  # type: Dict[translations.TimerFamilyId, bytes]
   ) -> None:
     """
     If bundle_repeat > 0, replay every bundle for profiling and debugging.
@@ -422,8 +424,8 @@ class FnApiRunner(runner.PipelineRunner):
   @staticmethod
   def _collect_written_timers(
       bundle_context_manager: execution.BundleContextManager,
-      newly_set_timers: Dict[Tuple[str, str], ListBuffer],
-  ) -> Dict[Tuple[str, str], timestamp.Timestamp]:
+      newly_set_timers: Dict[translations.TimerFamilyId, ListBuffer],
+  ) -> Dict[translations.TimerFamilyId, timestamp.Timestamp]:
     """Review output buffers, and collect written timers.
 
     This function reviews a stage that has just been run. The stage will have
@@ -581,57 +583,45 @@ class FnApiRunner(runner.PipelineRunner):
       bundle_context_manager (execution.BundleContextManager): A description of
         the stage to execute, and its context.
     """
-    data_input, data_output, expected_timer_output = (
-        bundle_context_manager.extract_bundle_inputs_and_outputs())
-    input_timers = {
-    }  # type: Mapping[Tuple[str, str], execution.PartitionableBuffer]
-
+    final_result = None  # type: Optional[beam_fn_api_pb2.InstructionResponse]
     worker_handler_manager = runner_execution_context.worker_handler_manager
+
+    # TODO(pabloem): Should move this to be done once per stage
     _LOGGER.info('Running %s', bundle_context_manager.stage.name)
     worker_handler_manager.register_process_bundle_descriptor(
         bundle_context_manager.process_bundle_descriptor)
 
-    # We create the bundle manager here, as it can be reused for bundles of the
-    # same stage, but it may have to be created by-bundle later on.
-    cache_token_generator = FnApiRunner.get_cache_token_generator(static=False)
-    if bundle_context_manager.num_workers == 1:
-      # Avoid thread/processor pools for increased performance and debugability.
-      bundle_manager_type = BundleManager
-    elif bundle_context_manager.stage.is_stateful():
-      # State is keyed, and a single key cannot be processed concurrently.
-      # Alternatively, we could arrange to partition work by key.
-      bundle_manager_type = BundleManager
-    else:
-      bundle_manager_type = ParallelBundleManager
-    bundle_manager = bundle_manager_type(
-        bundle_context_manager,
-        self._progress_frequency,
-        cache_token_generator=cache_token_generator)
+    # We create the bundle manager here, as it can be reused for bundles of
+    # the same stage, but it may have to be created by-bundle later on.
+    bundle_manager = self._get_bundle_manager(bundle_context_manager)
 
-    final_result = None  # type: Optional[beam_fn_api_pb2.InstructionResponse]
+    while len(runner_execution_context.queues.ready_inputs) > 0:
+      consuming_stage_name, bundle_input = (
+          runner_execution_context.queues.ready_inputs.deque())
+      assert consuming_stage_name == bundle_context_manager.stage.name
+      data_output = bundle_context_manager.stage_data_outputs
+      expected_timer_output = bundle_context_manager.stage_timer_outputs
 
-    def merge_results(last_result):
-      # type: (beam_fn_api_pb2.InstructionResponse) -> beam_fn_api_pb2.InstructionResponse
+      def merge_results(last_result):
+        # type: (beam_fn_api_pb2.InstructionResponse) -> beam_fn_api_pb2.InstructionResponse
 
-      """ Merge the latest result with other accumulated results. """
-      return (
-          last_result
-          if final_result is None else beam_fn_api_pb2.InstructionResponse(
-              process_bundle=beam_fn_api_pb2.ProcessBundleResponse(
-                  monitoring_infos=monitoring_infos.consolidate(
-                      itertools.chain(
-                          final_result.process_bundle.monitoring_infos,
-                          last_result.process_bundle.monitoring_infos))),
-              error=final_result.error or last_result.error))
+        """ Merge the latest result with other accumulated results. """
+        return (
+            last_result
+            if final_result is None else beam_fn_api_pb2.InstructionResponse(
+                process_bundle=beam_fn_api_pb2.ProcessBundleResponse(
+                    monitoring_infos=monitoring_infos.consolidate(
+                        itertools.chain(
+                            final_result.process_bundle.monitoring_infos,
+                            last_result.process_bundle.monitoring_infos))),
+                error=final_result.error or last_result.error))
 
-    while True:
       last_result, deferred_inputs, fired_timers, watermark_updates = (
           self._run_bundle(
               runner_execution_context,
               bundle_context_manager,
-              data_input,
+              bundle_input,
               data_output,
-              input_timers,
               expected_timer_output,
               bundle_manager))
 
@@ -649,17 +639,39 @@ class FnApiRunner(runner.PipelineRunner):
             'wrong timestamp for %s. '
             % runner_execution_context.watermark_manager.get_node(
             bundle_context_manager.stage.name))
-        data_input = deferred_inputs
-        input_timers = fired_timers
+        bundle_input = DataInput(deferred_inputs, fired_timers)
+        runner_execution_context.queues.ready_inputs.enque(
+            (consuming_stage_name, bundle_input))
 
     # Store the required downstream side inputs into state so it is accessible
     # for the worker when it runs bundles that consume this stage's output.
+    # TODO(pabloem): Store side inputs gradually as bundles get executed
+    #   (i.e. move the following code into the bundle execution loop)
     data_side_input = (
         runner_execution_context.side_input_descriptors_by_stage.get(
             bundle_context_manager.stage.name, {}))
     runner_execution_context.commit_side_inputs_to_state(data_side_input)
 
     return final_result
+
+  def _get_bundle_manager(
+      self, bundle_context_manager: execution.BundleContextManager):
+    # TODO(pabloem): Consider moving this function to the BundleContextManager
+    cache_token_generator = FnApiRunner.get_cache_token_generator(static=False)
+    if bundle_context_manager.num_workers == 1:
+      # Avoid thread/processor pools for increased performance and debugability.
+      bundle_manager_type = BundleManager
+    elif bundle_context_manager.stage.is_stateful():
+      # State is keyed, and a single key cannot be processed concurrently.
+      # Alternatively, we could arrange to partition work by key.
+      # TODO(pabloem): Arrange to partition work by key.
+      bundle_manager_type = BundleManager
+    else:
+      bundle_manager_type = ParallelBundleManager
+    return bundle_manager_type(
+        bundle_context_manager,
+        self._progress_frequency,
+        cache_token_generator=cache_token_generator)
 
   @staticmethod
   def _build_watermark_updates(
@@ -722,9 +734,8 @@ class FnApiRunner(runner.PipelineRunner):
       self,
       runner_execution_context,  # type: execution.FnApiRunnerExecutionContext
       bundle_context_manager,  # type: execution.BundleContextManager
-      data_input,  # type: Dict[str, execution.PartitionableBuffer]
-      data_output,  # type: DataOutput
-      input_timers,  # type: Mapping[Tuple[str, str], execution.PartitionableBuffer]
+      bundle_input: DataInput,
+      data_output: DataOutput,
       expected_timer_output,  # type: Dict[translations.TimerFamilyId, bytes]
       bundle_manager  # type: BundleManager
   ) -> Tuple[beam_fn_api_pb2.InstructionResponse,
@@ -732,6 +743,8 @@ class FnApiRunner(runner.PipelineRunner):
              Dict[translations.TimerFamilyId, ListBuffer],
              Dict[Union[str, translations.TimerFamilyId], timestamp.Timestamp]]:
     """Execute a bundle, and return a result object, and deferred inputs."""
+    data_input = bundle_input.data
+    input_timers = bundle_input.timers
     self._run_bundle_multiple_times_for_testing(
         runner_execution_context,
         bundle_manager,
@@ -1018,11 +1031,10 @@ class BundleManager(object):
   def process_bundle(self,
                      inputs,  # type: Mapping[str, execution.PartitionableBuffer]
                      expected_outputs,  # type: DataOutput
-                     fired_timers,  # type: Mapping[Tuple[str, str], execution.PartitionableBuffer]
+                     fired_timers,  # type: Mapping[translations.TimerFamilyId, execution.PartitionableBuffer]
                      expected_output_timers,  # type: OutputTimers
                      dry_run=False,  # type: bool
-                    ):
-    # type: (...) -> BundleProcessResult
+                    ) -> BundleProcessResult:
     # Unique id for the instruction processing this bundle.
     with BundleManager._lock:
       BundleManager._uid_counter += 1
@@ -1124,7 +1136,7 @@ class ParallelBundleManager(BundleManager):
   def process_bundle(self,
                      inputs,  # type: Mapping[str, execution.PartitionableBuffer]
                      expected_outputs,  # type: DataOutput
-                     fired_timers,  # type: Mapping[Tuple[str, str], execution.PartitionableBuffer]
+                     fired_timers,  # type: Mapping[translations.TimerFamilyId, execution.PartitionableBuffer]
                      expected_output_timers,  # type: OutputTimers
                      dry_run=False,  # type: bool
                     ):

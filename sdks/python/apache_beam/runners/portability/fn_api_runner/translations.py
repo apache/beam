@@ -28,6 +28,7 @@ import functools
 import itertools
 import logging
 from builtins import object
+from typing import TYPE_CHECKING
 from typing import Container
 from typing import DefaultDict
 from typing import Dict
@@ -35,6 +36,7 @@ from typing import FrozenSet
 from typing import Iterable
 from typing import Iterator
 from typing import List
+from typing import NamedTuple
 from typing import Optional
 from typing import Set
 from typing import Tuple
@@ -46,11 +48,15 @@ from apache_beam import coders
 from apache_beam.internal import pickler
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
+from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.worker import bundle_processor
 from apache_beam.transforms import combiners
 from apache_beam.transforms import core
 from apache_beam.utils import proto_utils
+
+if TYPE_CHECKING:
+  from apache_beam.runners.portability.fn_api_runner.execution import ListBuffer
 
 T = TypeVar('T')
 
@@ -85,8 +91,6 @@ TimerFamilyId = Tuple[str, str]
 SideInputId = Tuple[str, str]
 SideInputAccessPattern = beam_runner_api_pb2.FunctionSpec
 
-DataOutput = Dict[str, bytes]
-
 # A map from a PCollection coder ID to a Safe Coder ID
 # A safe coder is a coder that can be used on the runner-side of the FnApi.
 # A safe coder receives a byte string, and returns a type that can be
@@ -97,6 +101,17 @@ SafeCoderMapping = Dict[str, str]
 # input content, and a payload specification regarding the type of side input
 # (MultiMap / Iterable).
 DataSideInput = Dict[SideInputId, Tuple[bytes, SideInputAccessPattern]]
+
+DataOutput = Dict[str, bytes]
+OutputTimers = Dict[Tuple[str, str], bytes]
+BundleProcessResult = Tuple[beam_fn_api_pb2.InstructionResponse,
+                            List[beam_fn_api_pb2.ProcessBundleSplitResponse]]
+
+
+# TODO(pabloem): Change tha name to a more representative one
+class DataInput(NamedTuple):
+  data: Optional[Dict[str, 'ListBuffer']]
+  timers: Optional[Dict[TimerFamilyId, 'ListBuffer']]
 
 
 class Stage(object):
