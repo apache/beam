@@ -157,6 +157,51 @@ class Expression(object):
 
   An expression represents a deferred tree of operations, which can be
   evaluated at a specific bindings of root expressions to values.
+
+  requires_partition_by indicates the upper bound of a set of partitionings that
+  are acceptable inputs to this expression. The expression should be able to
+  produce the correct result when given input(s) partitioned by its
+  requires_partition_by attribute, or by any partitoning that is _not_
+  a subpartitioning of it.
+
+  preserves_partition_by indicates the upper bound of a set of partitionings
+  that can be preserved by this expression. When the input(s) to this expression
+  are partitioned by preserves_partition_by, or by any partitioning that is
+  _not_ a subpartitioning of it, this expression should produce output(s)
+  partitioned by the same partitioning.
+
+  However, if the partitioning of an expression's input is a subpartitioning of
+  the partitioning that it preserves, the output is presumed to have no
+  particular partitioning (i.e. Nothing()).
+
+  For example, let's look at an "element-wise operation", that has no
+  partitioning requirement, and preserves any partitioning given to it::
+
+    requires_partition_by = Nothing() -------------------------------+
+                                                                     |
+             +-----------+-------------+---------- ... ----+---------|
+             |           |             |                   |         |
+        Singleton() < Index([i]) < Index([i, j]) < ... < Index() < Nothing()
+             |           |             |                   |
+             +-----------+-------------+---------- ... ----|
+                                                           |
+    preserves_partition_by = Index() ----------------------+
+
+  As a more interesting example, consider this expression, which requires Index
+  partitioning, and preserves just Singleton partitioning::
+
+    requires_partition_by = Index() -----------------------+
+                                                           |
+             +-----------+-------------+---------- ... ----|
+             |           |             |                   |
+        Singleton() < Index([i]) < Index([i, j]) < ... < Index() < Nothing()
+             |
+             |
+    preserves_partition_by = Singleton()
+
+  Note that any non-Nothing partitioning is an acceptable input for this
+  expression. However, unless the inputs are Singleton-partitioned, the
+  expression makes no guarantees about the partitioning of the output.
   """
   def __init__(
       self,
@@ -238,7 +283,7 @@ class PlaceholderExpression(Expression):
     return partitionings.Nothing()
 
   def preserves_partition_by(self):
-    return partitionings.Nothing()
+    return partitionings.Index()
 
 
 class ConstantExpression(Expression):
@@ -274,7 +319,7 @@ class ConstantExpression(Expression):
     return partitionings.Nothing()
 
   def preserves_partition_by(self):
-    return partitionings.Nothing()
+    return partitionings.Index()
 
 
 class ComputedExpression(Expression):
@@ -287,7 +332,7 @@ class ComputedExpression(Expression):
       proxy=None,  # type: Optional[T]
       _id=None,  # type: Optional[str]
       requires_partition_by=partitionings.Index(),  # type: partitionings.Partitioning
-      preserves_partition_by=partitionings.Nothing(),  # type: partitionings.Partitioning
+      preserves_partition_by=partitionings.Singleton(),  # type: partitionings.Partitioning
   ):
     """Initialize a computed expression.
 
@@ -305,6 +350,11 @@ class ComputedExpression(Expression):
       requires_partition_by: The required (common) partitioning of the args.
       preserves_partition_by: The level of partitioning preserved.
     """
+    assert preserves_partition_by != partitionings.Nothing(), (
+        "Preserving Nothing() partitioning is not allowed. Any expression "
+        "can trivially preserve at least Singleton() partitioning. If you "
+        "intend to indicate this expression can preserve _any_ partioning, use "
+        "Index() instead.")
     if (not _get_allow_non_parallel() and
         requires_partition_by == partitionings.Singleton()):
       raise NonParallelOperation(
@@ -342,7 +392,7 @@ def elementwise_expression(name, func, args):
       func,
       args,
       requires_partition_by=partitionings.Nothing(),
-      preserves_partition_by=partitionings.Singleton())
+      preserves_partition_by=partitionings.Index())
 
 
 _ALLOW_NON_PARALLEL = threading.local()
