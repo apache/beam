@@ -327,7 +327,7 @@ task("installVendoredGrpc") {
   doLast {
     project.exec {
       commandLine = listOf(
-        "mvn", "--batch-mode",
+        "/home/jenkins/tools/maven/apache-maven-3.5.4/bin/mvn", "--batch-mode",
         "install:install-file", "-Dpackaging=jar",
         "-DgroupId=org.apache.beam", "-DartifactId=beam-vendor-grpc-1_36_0",
         "-Dversion=0.1", "-Dfile=vendor/grpc-1_36_0/build/libs/beam-vendor-grpc-1_36_0-0.1.jar"
@@ -341,7 +341,7 @@ task("installVendoredGrpc") {
 if (!project.hasProperty("installVendoredGrpcFlag")) {
   project.exec {
     commandLine = listOf(
-            "./gradlew", ":installVendoredGrpc", "-PinstallVendoredGrpcFlag"
+            "./gradlew", ":installVendoredGrpc", "-PinstallVendoredGrpcFlag", "--info", "--stacktrace"
     )
   }
 }
