@@ -16,8 +16,9 @@
  * limitations under the License.
  */
 
+import org.apache.beam.gradle.Dependencies.getLibrary
+
 plugins {
-    id("org.apache.beam.dependencies")
     id("org.apache.beam.vendor-java")
 }
 
@@ -26,8 +27,8 @@ description = "Apache Beam :: Vendored Dependencies :: Calcite 1.20.0"
 group = "org.apache.beam"
 version = "0.2"
 
-val calcite_version = "1.20.0"
-val avatica_version = "1.16.0"
+val calciteVersion = "1.20.0"
+val avaticaVersion = "1.16.0"
 val prefix = "org.apache.beam.vendor.calcite.v1_20_0"
 
 val packagesToRelocate = listOf(
@@ -46,16 +47,15 @@ val packagesToRelocate = listOf(
         "org.yaml"
 )
 
-val library = project.extensions.extraProperties["library"] as Map<String, Map<String, Object>>
 val vendorJava = project.extensions.extraProperties.get("vendorJava") as groovy.lang.Closure<*>
 vendorJava(
     mapOf(
         "dependencies" to listOf(
-            "org.apache.calcite:calcite-core:$calcite_version",
-            "org.apache.calcite:calcite-linq4j:$calcite_version",
-            "org.apache.calcite.avatica:avatica-core:$avatica_version",
-            library.getValue("java").getValue("protobuf_java"),
-            library.getValue("java").getValue("slf4j_api")
+            "org.apache.calcite:calcite-core:$calciteVersion",
+            "org.apache.calcite:calcite-linq4j:$calciteVersion",
+            "org.apache.calcite.avatica:avatica-core:$avaticaVersion",
+            getLibrary().getValue("java").getValue("protobuf_java"),
+            getLibrary().getValue("java").getValue("slf4j_api")
         ),
         "relocations" to (packagesToRelocate.map {
             (it) to "${prefix}.${it}"
