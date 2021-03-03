@@ -68,27 +68,7 @@ import org.junit.runners.JUnit4;
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
-
-  @Rule public transient TestPipeline pipeline = TestPipeline.create();
   @Rule public ExpectedException thrown = ExpectedException.none();
-
-  private PCollection<Row> execute(String sql, QueryParameters params) {
-    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql, params);
-    return BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
-  }
-
-  private PCollection<Row> execute(String sql) {
-    return execute(sql, QueryParameters.ofNone());
-  }
-
-  private PCollection<Row> execute(String sql, Map<String, Value> params) {
-    return execute(sql, QueryParameters.ofNamed(params));
-  }
-
-  private PCollection<Row> execute(String sql, List<Value> params) {
-    return execute(sql, QueryParameters.ofPositional(params));
-  }
 
   @Before
   public void setUp() {
@@ -119,7 +99,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
                     "string")
                 .build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   // Verify that we can set the query planner via withQueryPlannerClass
@@ -148,7 +128,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
                     "string")
                 .build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   // Verify that we can set the query planner via pipeline options
@@ -181,7 +161,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
                     "string")
                 .build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -196,7 +176,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
 
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues(byteString).build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -214,7 +194,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
 
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues(false).build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -228,7 +208,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     PAssert.that(stream)
         .containsInAnyOrder(Row.withSchema(schema).addValues("\"America/Los_Angeles\"\n").build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -242,7 +222,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
 
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues("abc\n").build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -261,7 +241,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     PAssert.that(stream)
         .containsInAnyOrder(Row.withSchema(schema).addValues((Boolean) null).build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -279,7 +259,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     final Schema schema = Schema.builder().addBooleanField("field1").build();
 
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues(false).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -298,7 +278,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
 
     PAssert.that(stream)
         .containsInAnyOrder(Row.withSchema(schema).addValues((Boolean) null).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -316,7 +296,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     final Schema schema = Schema.builder().addNullableField("field1", FieldType.BOOLEAN).build();
 
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues(true).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -327,7 +307,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     final Schema schema = Schema.builder().addNullableField("field1", FieldType.BOOLEAN).build();
 
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues(true).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -340,7 +320,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     final Schema schema = Schema.builder().addNullableField("field1", FieldType.BOOLEAN).build();
 
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues(false).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -356,7 +336,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(Schema.builder().addBooleanField("f_bool").build())
                 .addValues(true)
                 .build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -372,7 +352,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(Schema.builder().addBooleanField("f_bool").build())
                 .addValues(true)
                 .build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -386,7 +366,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     final Schema schema = Schema.builder().addNullableField("field1", FieldType.BOOLEAN).build();
 
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues(false).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -403,7 +383,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     final Schema schema = Schema.builder().addNullableField("field1", FieldType.BOOLEAN).build();
 
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues(false).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -423,7 +403,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     final Schema schema = Schema.builder().addNullableField("field1", FieldType.BOOLEAN).build();
 
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues(false).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -443,7 +423,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     final Schema schema = Schema.builder().addNullableField("field1", FieldType.INT64).build();
 
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues(1L).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -459,7 +439,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     final Schema schema = Schema.builder().addNullableField("field1", FieldType.INT64).build();
 
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues(1L).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -479,7 +459,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     final Schema schema = Schema.builder().addNullableField("field1", FieldType.STRING).build();
 
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues("yay").build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -494,7 +474,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
         Schema.builder().addNullableField("field1", FieldType.array(FieldType.INT64)).build();
 
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValue(null).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -515,7 +495,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
         Schema.builder().addNullableField("field1", FieldType.array(FieldType.INT64)).build();
 
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValue(null).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -533,7 +513,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     final Schema schema = Schema.builder().addNullableField("field1", FieldType.DOUBLE).build();
 
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValue(3.0).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -555,7 +535,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(schema)
                 .addValue(Row.withSchema(innerSchema).addValues("a", -33L).build())
                 .build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -578,7 +558,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     PAssert.that(stream)
         .containsInAnyOrder(
             Row.withSchema(schema).addValues(DateTime.parse("2019-01-01T00:00:00Z")).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -597,7 +577,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     PAssert.that(stream)
         .containsInAnyOrder(
             Row.withSchema(schema).addValue(ImmutableList.of("baz", "foo", "bar")).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -612,7 +592,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     final Schema schema = Schema.builder().addNullableField("field1", FieldType.STRING).build();
 
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValue(null).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -627,7 +607,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     final Schema schema = Schema.builder().addNullableField("field1", FieldType.STRING).build();
 
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues("foo").build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -642,7 +622,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     final Schema schema = Schema.builder().addNullableField("field1", FieldType.STRING).build();
 
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues("foo").build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -660,7 +640,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     final Schema schema = Schema.builder().addNullableField("field1", FieldType.STRING).build();
 
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues("yay").build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -679,7 +659,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
 
     PAssert.that(stream)
         .containsInAnyOrder(Row.withSchema(schema).addValue(ImmutableList.of()).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -691,7 +671,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
 
     PAssert.that(stream)
         .containsInAnyOrder(Row.withSchema(schema).addValue(ImmutableList.of()).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -706,7 +686,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     final Schema schema = Schema.builder().addNullableField("field1", FieldType.BOOLEAN).build();
 
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues(true).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -725,7 +705,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
 
     PAssert.that(stream)
         .containsInAnyOrder(Row.withSchema(schema).addValues((Object) null).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -739,7 +719,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     final Schema schema = Schema.builder().addNullableField("field1", FieldType.BOOLEAN).build();
 
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues(true).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -754,7 +734,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     final Schema schema = Schema.builder().addNullableField("field1", FieldType.BOOLEAN).build();
 
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues(true).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -772,7 +752,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     final Schema schema = Schema.builder().addNullableField("field1", FieldType.BOOLEAN).build();
 
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues(true).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -809,7 +789,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
                     new DateTime(2018, 9, 15, 12, 59, 59, ISOChronology.getInstanceUTC()),
                     "string")
                 .build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -824,7 +804,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(schema).addValues(1L).build(),
             Row.withSchema(schema).addValues(2L).build(),
             Row.withSchema(schema).addValues(3L).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -855,7 +835,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
                     new DateTime(2018, 9, 15, 12, 59, 59, ISOChronology.getInstanceUTC()),
                     "string")
                 .build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -874,7 +854,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(Schema.builder().addInt64Field("field1").build())
                 .addValues(15L)
                 .build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -889,7 +869,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(Schema.builder().addInt64Field("field1").build())
                 .addValues(15L)
                 .build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -909,7 +889,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(Schema.builder().addInt64Field("field1").build())
                 .addValues(15L)
                 .build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -963,7 +943,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
                     "BigTable235",
                     new DateTime(2018, 7, 1, 21, 26, 7, ISOChronology.getInstanceUTC()))
                 .build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -1017,7 +997,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
                     "BigTable235",
                     new DateTime(2018, 7, 1, 21, 26, 7, ISOChronology.getInstanceUTC()))
                 .build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -1090,7 +1070,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
                     null,
                     null)
                 .build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -1107,7 +1087,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
     BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -1144,7 +1124,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
                 .addValues("Spanner235", "BigTable235", "KeyValue235", 15L, 15L)
                 .build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -1168,7 +1148,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
                 .addValues(17L, "Spanner237", 17L, "Spanner237")
                 .build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -1183,7 +1163,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     PAssert.that(stream)
         .containsInAnyOrder(Row.withSchema(schema).addValues("apple", "carrot").build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
 
     Schema outputSchema = stream.getSchema();
     Assert.assertEquals(2, outputSchema.getFieldCount());
@@ -1204,7 +1184,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(schema).addValues(14L, "KeyValue234").build(),
             Row.withSchema(schema).addValues(15L, "KeyValue235").build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -1219,7 +1199,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(schema).addValues(14L, "KeyValue234").build(),
             Row.withSchema(schema).addValues(15L, "KeyValue235").build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -1227,7 +1207,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     String sql = "SELECT Key, Value FROM KeyValue LIMIT 0;";
     PCollection<Row> stream = execute(sql);
     PAssert.that(stream).containsInAnyOrder();
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -1264,7 +1244,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     PCollection<Row> stream = execute(sql);
     final Schema schema = Schema.builder().addInt64Field("field1").addInt64Field("field2").build();
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues(0L, 0L).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -1275,7 +1255,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     PCollection<Row> stream = execute(sql);
     final Schema schema = Schema.builder().addInt64Field("field1").build();
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues(2L).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   // There is really no order for a PCollection, so this query does not test
@@ -1291,7 +1271,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(schema).addValues(14L, "KeyValue234").build(),
             Row.withSchema(schema).addValues(15L, "KeyValue235").build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -1311,7 +1291,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     PCollection<Row> stream = execute(sql);
     final Schema schema = Schema.builder().addStringField("field").build();
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValue("row_one").build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -1323,7 +1303,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     PCollection<Row> stream = execute(sql);
     final Schema schema = Schema.builder().addInt64Field("field").build();
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValue(1L).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -1335,7 +1315,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     PCollection<Row> stream = execute(sql);
     final Schema schema = Schema.builder().addStringField("field").build();
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValue("1").build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -1352,7 +1332,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(schema)
                 .addValue(parseTimestampWithUTCTimeZone("2019-01-15 13:21:03"))
                 .build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -1391,7 +1371,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
         .containsInAnyOrder(
             Row.withSchema(schema).addValues(0L, 1L, 2L, 3L, 4L, 5L, 1L, 6L).build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -1405,7 +1385,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(schema).addValues(1L, 1L).build(),
             Row.withSchema(schema).addValues(2L, 1L).build(),
             Row.withSchema(schema).addValues(3L, 2L).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -1433,7 +1413,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
               return null;
             });
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -1454,7 +1434,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(schema).addValues("data1", 1L, 1L).build(),
             Row.withSchema(schema).addValues("data2", 3L, 2L).build(),
             Row.withSchema(schema).addValues("data3", 3L, 3L).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -1470,7 +1450,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
         .containsInAnyOrder(
             Row.withSchema(schema).addValue("data1").build(),
             Row.withSchema(schema).addValue("data2").build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -1486,7 +1466,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(schema).addValue(Arrays.asList("1", "2", "3")).build(),
             Row.withSchema(schema).addValue(ImmutableList.of()).build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -1517,7 +1497,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
                     new DateTime(2018, 7, 1, 21, 26, 8, ISOChronology.getInstanceUTC()))
                 .build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -1532,7 +1512,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
                 .addValues(14L, "KeyValue234")
                 .build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -1542,7 +1522,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     PCollection<Row> stream = execute(sql);
     PAssert.that(stream).containsInAnyOrder();
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -1558,7 +1538,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(schema).addValues(14L, "KeyValue234").build(),
             Row.withSchema(schema).addValues(15L, "KeyValue235").build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -1571,7 +1551,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
 
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues(2L).build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -1596,7 +1576,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(schema).addValues(14L, 1L).build(),
             Row.withSchema(schema).addValues(15L, 1L).build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -1604,7 +1584,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     String sql = "SELECT Key, COUNT(*) AS count_col FROM KeyValue GROUP BY Key";
 
     PCollection<Row> stream = execute(sql);
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
 
     Schema outputSchema = stream.getSchema();
     Assert.assertEquals(2, outputSchema.getFieldCount());
@@ -1619,7 +1599,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             + " KeyValue GROUP BY Key)";
 
     PCollection<Row> stream = execute(sql);
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
 
     Schema outputSchema = stream.getSchema();
     Assert.assertEquals(2, outputSchema.getFieldCount());
@@ -1632,7 +1612,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     String sql = "SELECT Key AS v1, Value AS v2, ts AS v3 FROM KeyValue";
 
     PCollection<Row> stream = execute(sql);
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
 
     Schema outputSchema = stream.getSchema();
     Assert.assertEquals(3, outputSchema.getFieldCount());
@@ -1646,7 +1626,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     String sql = "SELECT CAST(123 AS INT64) AS cast_col";
 
     PCollection<Row> stream = execute(sql);
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
 
     Schema outputSchema = stream.getSchema();
     Assert.assertEquals(1, outputSchema.getFieldCount());
@@ -1679,7 +1659,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(schema).addValues(2L, 3L).build(),
             Row.withSchema(schema).addValues(3L, 2L).build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -1696,7 +1676,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(schema).addValues(2L, 3L).build(),
             Row.withSchema(schema).addValues(3L, 2L).build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -1713,7 +1693,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(schema).addValues(2L, 3L).build(),
             Row.withSchema(schema).addValues(3L, 2L).build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -1737,7 +1717,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(schema).addValues(2L, 12L, 1L).build(),
             Row.withSchema(schema).addValues(3L, 13L, 2L).build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -1766,7 +1746,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(schema).addValues(2L, 12L, 5L, 5L, 5L, 5.0).build(),
             Row.withSchema(schema).addValues(3L, 13L, 7L, 6L, 13L, 13.0).build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -1793,7 +1773,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(schema).addValues(2L, 12L, 5.0, 5.0).build(),
             Row.withSchema(schema).addValues(3L, 13L, 6.5, 6.5).build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -1818,7 +1798,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(schema).addValues(1L, 11L, 6L).build(),
             Row.withSchema(schema).addValues(2L, 11L, 6L).build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -1836,7 +1816,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(schema).addValue(-3L).build(),
             Row.withSchema(schema).addValue(-4L).build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -1844,7 +1824,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     String sql = "SELECT int64_col FROM table_all_types WHERE int64_col = 1 GROUP BY int64_col;";
     PCollection<Row> stream = execute(sql);
     PAssert.that(stream).containsInAnyOrder();
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -1856,7 +1836,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
         .containsInAnyOrder(
             Row.withSchema(schema).addValue(-5L).build(),
             Row.withSchema(schema).addValue(-4L).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -1869,7 +1849,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
 
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues(2L, 3L).build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -1882,7 +1862,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
 
     PAssert.that(stream).empty();
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -1919,7 +1899,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
                     new DateTime(2018, 7, 1, 21, 26, 6, ISOChronology.getInstanceUTC()),
                     new DateTime(2018, 7, 1, 21, 26, 7, ISOChronology.getInstanceUTC()))
                 .build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   // Test nested selection
@@ -1938,7 +1918,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(schema).addValues("KeyValue234", 14L).build(),
             Row.withSchema(schema).addValues("KeyValue235", 15L).build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   // Test selection, filtering and aggregation combined query.
@@ -1966,7 +1946,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(schema).addValues(2L, 12L, 1L).build(),
             Row.withSchema(schema).addValues(3L, 13L, 2L).build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   // test selection and join combined query
@@ -1997,7 +1977,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
                     "BigTable235",
                     new DateTime(2018, 7, 1, 21, 26, 7, ISOChronology.getInstanceUTC()))
                 .build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   // Test nested select with out of order columns.
@@ -2016,7 +1996,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(schema).addValues("KeyValue234", 14L).build(),
             Row.withSchema(schema).addValues("KeyValue235", 15L).build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -2040,7 +2020,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(schema).addValues(11L).build(),
             Row.withSchema(schema).addValues(12L).build(),
             Row.withSchema(schema).addValues(13L).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -2051,7 +2031,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     Schema schema = Schema.builder().addNullableField("str_val", FieldType.DOUBLE).build();
     PAssert.that(stream)
         .containsInAnyOrder(Row.withSchema(schema).addValues((Object) null).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -2062,7 +2042,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     Schema schema = Schema.builder().addNullableField("double_val", FieldType.DOUBLE).build();
     PAssert.that(stream)
         .containsInAnyOrder(Row.withSchema(schema).addValues((Object) null).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -2073,7 +2053,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     Schema schema = Schema.builder().addNullableField("long_val", FieldType.INT64).build();
     PAssert.that(stream)
         .containsInAnyOrder(Row.withSchema(schema).addValues((Object) null).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -2087,7 +2067,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(Schema.builder().addInt64Field("field1").build())
                 .addValues(15L)
                 .build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -2105,7 +2085,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(schema).addValues(14L, 1L).build(),
             Row.withSchema(schema).addValues(15L, 1L).build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -2123,7 +2103,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(schema).addValues("KeyValue234", 14L).build(),
             Row.withSchema(schema).addValues("KeyValue235", 15L).build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -2141,7 +2121,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(schema).addValues("KeyValue234", 14L).build(),
             Row.withSchema(schema).addValues("KeyValue235", 15L).build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -2158,7 +2138,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(schema).addValues(14L, 1L).build(),
             Row.withSchema(schema).addValues(15L, 1L).build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -2195,7 +2175,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
                     new DateTime(2018, 7, 1, 21, 26, 6, ISOChronology.getInstanceUTC()),
                     new DateTime(2018, 7, 1, 21, 26, 6, ISOChronology.getInstanceUTC()))
                 .build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -2212,7 +2192,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     PAssert.that(stream)
         .containsInAnyOrder(
             Row.withSchema(Schema.builder().addInt64Field("count").build()).addValues(1L).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -2229,7 +2209,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     PAssert.that(stream)
         .containsInAnyOrder(
             Row.withSchema(Schema.builder().addInt64Field("count").build()).addValues(3L).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -2244,7 +2224,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
         .containsInAnyOrder(
             Row.withSchema(schema).addValues("foo").build(),
             Row.withSchema(schema).addValues("bar").build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -2260,7 +2240,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(schema).addValues("foo").build(),
             Row.withSchema(schema).addValues((String) null).build(),
             Row.withSchema(schema).addValues("bar").build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -2282,7 +2262,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
         .containsInAnyOrder(
             Row.withSchema(schema).addValues("foo").build(),
             Row.withSchema(schema).addValues("bar").build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -2298,7 +2278,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
         .containsInAnyOrder(
             Row.withSchema(schema).addValues("KeyValue234").build(),
             Row.withSchema(schema).addValues("KeyValue235").build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -2314,7 +2294,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
         .containsInAnyOrder(
             Row.withSchema(schema).addValues("foo", "foo").build(),
             Row.withSchema(schema).addValues("bar", "bar").build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -2342,7 +2322,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(schema).addValue(22L).build(),
             Row.withSchema(schema).addValue(24L).build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -2358,7 +2338,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(schema).addValues(20L, "2").build(),
             Row.withSchema(schema).addValues(20L, "3").build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -2373,7 +2353,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(schema).addValues(1L, "1").build(),
             Row.withSchema(schema).addValues(2L, "2").build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -2389,7 +2369,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(TestInput.STRUCT_OF_STRUCT)
                 .attachValues(Row.withSchema(TestInput.STRUCT_SCHEMA).attachValues(2L, "2")));
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -2406,7 +2386,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(schema)
                 .attachValues(Row.withSchema(TestInput.STRUCT_SCHEMA).attachValues(2L, "2")));
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -2424,7 +2404,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(schema).attachValues(Row.withSchema(nested).attachValues(1L)),
             Row.withSchema(schema).attachValues(Row.withSchema(nested).attachValues(2L)));
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -2441,7 +2421,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(schema).addValues(20L, "2").build(),
             Row.withSchema(schema).addValues(20L, "3").build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -2460,7 +2440,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
                 .addValues(Row.withSchema(TestInput.STRUCT_SCHEMA).addValues(2L, "2").build())
                 .build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -2480,7 +2460,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
                 .addValues(Row.withSchema(TestInput.STRUCT_SCHEMA).addValues(2L, "2").build())
                 .build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -2497,21 +2477,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(schema).addValues(20L, "2").build(),
             Row.withSchema(schema).addValues(20L, "3").build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
-  }
-
-  @Test
-  public void testStringAggregation() {
-    String sql =
-        "SELECT STRING_AGG(fruit) AS string_agg"
-            + " FROM UNNEST([\"apple\", \"pear\", \"banana\", \"pear\"]) AS fruit";
-    PCollection<Row> stream = execute(sql);
-
-    Schema schema = Schema.builder().addStringField("string_field").build();
-    PAssert.that(stream)
-        .containsInAnyOrder(Row.withSchema(schema).addValue("apple,pear,banana,pear").build());
-
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -2528,7 +2494,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
 
     PAssert.that(stream).containsInAnyOrder();
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -2581,7 +2547,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
                 .addValue("seems right")
                 .build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -2596,7 +2562,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
                 .addValue("seems right")
                 .build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -2613,7 +2579,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
                 .addValue("seems right")
                 .build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -2628,7 +2594,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
                 .addValue("seems right")
                 .build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -2643,7 +2609,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
                 .addValue(null)
                 .build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -2658,7 +2624,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
                 .addValue(null)
                 .build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -2687,7 +2653,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     PAssert.that(stream)
         .containsInAnyOrder(
             Row.withSchema(resultType).addValues(1L, LocalDate.parse("2018-10-18")).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -2708,7 +2674,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(resultType).addValues(2L).build(),
             Row.withSchema(resultType).addValues(2L).build(),
             Row.withSchema(resultType).addValues(3L).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -2727,7 +2693,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(resultType).addValues(1L).build(),
             Row.withSchema(resultType).addValues(2L).build(),
             Row.withSchema(resultType).addValues(3L).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -2745,7 +2711,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
         .containsInAnyOrder(
             Row.withSchema(resultType).addValues(1L).build(),
             Row.withSchema(resultType).addValues(3L).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -2756,7 +2722,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     System.err.println("SCHEMA " + stream.getSchema());
 
     PAssert.that(stream).empty();
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -2767,7 +2733,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     System.err.println("SCHEMA " + stream.getSchema());
 
     PAssert.that(stream).empty();
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -2777,7 +2743,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     PCollection<Row> stream = execute(sql);
 
     PAssert.that(stream).containsInAnyOrder(Row.nullRow(stream.getSchema()));
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -2787,7 +2753,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     PCollection<Row> stream = execute(sql);
 
     PAssert.that(stream).containsInAnyOrder(Row.nullRow(stream.getSchema()));
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -2795,7 +2761,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     String sql = "SELECT * FROM table_empty;";
     PCollection<Row> stream = execute(sql);
     PAssert.that(stream).containsInAnyOrder();
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -2805,7 +2771,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     final Schema schema = Schema.builder().addNullableField("field1", FieldType.BOOLEAN).build();
 
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues(true).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -2823,7 +2789,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
 
     PAssert.that(stream)
         .containsInAnyOrder(Row.withSchema(schema).addValues((Boolean) null).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -2841,7 +2807,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
 
     PAssert.that(stream)
         .containsInAnyOrder(Row.withSchema(schema).addValues((Boolean) null).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -2851,7 +2817,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     final Schema schema = Schema.builder().addNullableField("field1", FieldType.BOOLEAN).build();
 
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues(false).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -2869,7 +2835,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
 
     PAssert.that(stream)
         .containsInAnyOrder(Row.withSchema(schema).addValues((Boolean) null).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -2887,7 +2853,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
 
     PAssert.that(stream)
         .containsInAnyOrder(Row.withSchema(schema).addValues((Boolean) null).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -2896,7 +2862,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     PCollection<Row> stream = execute(sql);
     final Schema schema = Schema.builder().addStringField("field1").build();
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues("abc").build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -2905,7 +2871,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     PCollection<Row> stream = execute(sql);
     final Schema schema = Schema.builder().addStringField("field1").build();
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues("abcdef").build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -2914,7 +2880,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     PCollection<Row> stream = execute(sql);
     final Schema schema = Schema.builder().addStringField("field1").build();
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues("abcdefxyz").build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -2924,7 +2890,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     final Schema schema = Schema.builder().addStringField("field1").build();
     PAssert.that(stream)
         .containsInAnyOrder(Row.withSchema(schema).addValues("abcdef  xyz").build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -2934,7 +2900,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     final Schema schema = Schema.builder().addStringField("field1").build();
     PAssert.that(stream)
         .containsInAnyOrder(Row.withSchema(schema).addValues("abcdef  xyzkkk").build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -2944,7 +2910,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     final Schema schema = Schema.builder().addStringField("field1").build();
     PAssert.that(stream)
         .containsInAnyOrder(Row.withSchema(schema).addValues("abcdef  xyzkkkttt").build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -2960,7 +2926,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     final Schema schema = Schema.builder().addNullableField("field1", FieldType.STRING).build();
     PAssert.that(stream)
         .containsInAnyOrder(Row.withSchema(schema).addValues((String) null).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -2976,7 +2942,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     final Schema schema = Schema.builder().addNullableField("field1", FieldType.STRING).build();
     PAssert.that(stream)
         .containsInAnyOrder(Row.withSchema(schema).addValues((String) null).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -2987,7 +2953,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     PCollection<Row> stream = execute(sql, params);
     final Schema schema = Schema.builder().addInt64Field("field1").build();
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues(5L).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -3008,7 +2974,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
                 .addValue(ImmutableList.of(Row.withSchema(innerSchema).addValues(11L, 12L).build()))
                 .build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -3038,7 +3004,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
                 .addValue(Row.withSchema(innerSchema).addValues("foo", 1L).build())
                 .build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -3065,7 +3031,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
 
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValue("foo").build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -3077,7 +3043,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     PCollection<Row> stream = execute(sql, params);
     final Schema schema = Schema.builder().addStringField("field1").build();
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues("A").build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -3092,7 +3058,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     PCollection<Row> stream = execute(sql, params);
     final Schema schema = Schema.builder().addStringField("field1").build();
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues("abc").build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -3109,7 +3075,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     final Schema schema = Schema.builder().addStringField("field1").build();
 
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues("").build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -3126,7 +3092,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     final Schema schema = Schema.builder().addStringField("field1").build();
 
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues("abc").build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -3144,7 +3110,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
 
     PAssert.that(stream)
         .containsInAnyOrder(Row.withSchema(schema).addValues((String) null).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -3162,7 +3128,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
 
     PAssert.that(stream)
         .containsInAnyOrder(Row.withSchema(schema).addValues((String) null).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -3176,7 +3142,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     final Schema schema = Schema.builder().addStringField("field1").build();
 
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues("a b c").build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -3191,7 +3157,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     final Schema schema = Schema.builder().addStringField("field1").build();
 
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues("xyz").build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -3208,7 +3174,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
 
     PAssert.that(stream)
         .containsInAnyOrder(Row.withSchema(schema).addValues((String) null).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -3222,7 +3188,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     final Schema schema = Schema.builder().addStringField("field1").build();
 
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues("a b c   ").build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -3237,7 +3203,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     final Schema schema = Schema.builder().addStringField("field1").build();
 
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues("xyzab").build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -3254,7 +3220,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
 
     PAssert.that(stream)
         .containsInAnyOrder(Row.withSchema(schema).addValues((String) null).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -3268,7 +3234,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     final Schema schema = Schema.builder().addStringField("field1").build();
 
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues("   a b c").build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -3283,7 +3249,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     final Schema schema = Schema.builder().addStringField("field1").build();
 
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues("abxyz").build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -3300,7 +3266,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
 
     PAssert.that(stream)
         .containsInAnyOrder(Row.withSchema(schema).addValues((String) null).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -3314,7 +3280,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     final Schema schema = Schema.builder().addStringField("field1").build();
 
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues("`").build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -3325,7 +3291,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     final Schema schema = Schema.builder().addStringField("field1").build();
 
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues("b").build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -3343,7 +3309,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(schema).addValues("3").build(),
             Row.withSchema(schema).addValues("4").build(),
             Row.withSchema(schema).addValues("5").build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -3358,7 +3324,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(schema)
                 .addValues(parseTimestampWithUTCTimeZone("2019-01-15 13:21:03"))
                 .build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -3381,7 +3347,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(Schema.builder().addDateTimeField("field_1").build())
                 .addValues(parseTimestampWithUTCTimeZone("2014-12-01 05:04:56"))
                 .build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -3402,7 +3368,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
                         .build())
                 .addValues(LocalTime.of(12, 34, 56, 123456000), "12:34:56.123456")
                 .build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -3414,7 +3380,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     final Schema schema = Schema.builder().addStringField("field1").build();
 
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues("").build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -3426,7 +3392,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     final Schema schema = Schema.builder().addInt64Field("field1").build();
 
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues(123L).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -3437,7 +3403,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     final Schema schema = Schema.builder().addStringField("field1").build();
 
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues("hi").build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -3451,7 +3417,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(Schema.builder().addRowField("row_field", rowSchema).build())
                 .addValues(Row.withSchema(rowSchema).addValues(1L, "data1").build())
                 .build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -3477,7 +3443,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
 
     final Schema schema = Schema.builder().addStringField("field1").build();
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues("b").build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -3493,7 +3459,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql, params);
     BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
     thrown.expect(RuntimeException.class);
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -3509,7 +3475,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(schema).addValues(14L, "KeyValue234").build(),
             Row.withSchema(schema).addValues(15L, "KeyValue235").build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -3526,7 +3492,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(schema).addValues(2L).build(),
             Row.withSchema(schema).addValues(3L).build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -3547,7 +3513,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(schema).addValues("ByTeS".getBytes(StandardCharsets.UTF_8)).build(),
             Row.withSchema(schema).addValues("bytes".getBytes(StandardCharsets.UTF_8)).build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -3561,7 +3527,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
         .containsInAnyOrder(
             Row.withSchema(schema).addValues("ByTes".getBytes(StandardCharsets.UTF_8)).build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -3577,7 +3543,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(schema).addValues("KeyValue234").build(),
             Row.withSchema(schema).addValues("KeyValue235").build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -3602,7 +3568,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     PAssert.that(stream)
         .containsInAnyOrder(Row.withSchema(schema).addValues(5L, "widget", 200L).build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -3627,7 +3593,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(schema).addValue(9L).build(),
             Row.withSchema(schema).addValue(10L).build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -3650,7 +3616,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
 
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues("cba").build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -3661,7 +3627,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
 
     final Schema schema = Schema.builder().addInt64Field("field").build();
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues(3L).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -3676,7 +3642,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     final Schema schema = Schema.builder().addNullableField("field", FieldType.INT64).build();
     PAssert.that(stream)
         .containsInAnyOrder(Row.withSchema(schema).addValues((Object) null).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -3716,7 +3682,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
                     DateTimeUtils.parseTimestampWithUTCTimeZone("2018-07-01 21:26:07"),
                     DateTimeUtils.parseTimestampWithUTCTimeZone("2018-07-01T21:26:08"))
                 .build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -3756,7 +3722,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(schema).addValues(false, true, true, false, false, true).build(),
             Row.withSchema(schema).addValues(false, true, false, true, true, false).build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -3771,7 +3737,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(schema).addValues(3L).build(),
             Row.withSchema(schema).addValue(7L).build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -3787,7 +3753,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
             Row.withSchema(schema).addValue(1L).build(),
             Row.withSchema(schema).addValue(0L).build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -3801,7 +3767,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
         .containsInAnyOrder(
             Row.withSchema(singleField).addValues(14L).build(),
             Row.withSchema(singleField).addValues(15L).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -3814,7 +3780,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     Schema schema = Schema.builder().addInt64Field("field1").build();
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValue(4860L).build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -3828,7 +3794,7 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     final Schema schema = Schema.builder().addInt64Field("field1").build();
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValue(4L).build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -3841,6 +3807,6 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     PAssert.that(stream)
         .containsInAnyOrder(Row.withSchema(schema).addArray(1L, 2L, 3L, 4L, 5L).build());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 }

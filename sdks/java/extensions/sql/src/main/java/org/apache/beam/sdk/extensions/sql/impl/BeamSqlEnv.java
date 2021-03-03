@@ -209,7 +209,7 @@ public class BeamSqlEnv {
      * <p>See {@link CombineFn} on how to implement a UDAF.
      */
     public BeamSqlEnvBuilder addUdaf(String functionName, CombineFn combineFn) {
-      functionSet.add(new SimpleEntry<>(functionName, new UdafImpl(combineFn)));
+      functionSet.add(new SimpleEntry<>(functionName, new SingleArgUdafImpl(combineFn)));
       return this;
     }
 

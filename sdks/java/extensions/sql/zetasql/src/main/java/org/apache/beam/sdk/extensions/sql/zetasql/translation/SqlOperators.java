@@ -24,12 +24,13 @@ import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.impl.ScalarFunctionImpl;
-import org.apache.beam.sdk.extensions.sql.impl.UdafImpl;
+import org.apache.beam.sdk.extensions.sql.impl.SingleArgUdafImpl;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelDataTypeSystem;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamBuiltinAggregations;
 import org.apache.beam.sdk.extensions.sql.impl.transform.agg.CountIf;
 import org.apache.beam.sdk.extensions.sql.impl.udaf.ArrayAgg;
 import org.apache.beam.sdk.extensions.sql.impl.udaf.StringAgg;
+import org.apache.beam.sdk.extensions.sql.impl.udaf.StringAggCall;
 import org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.impl.BeamBuiltinMethods;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.impl.CastFunctionImpl;
@@ -82,15 +83,16 @@ public class SqlOperators {
 
   public static final SqlOperator STRING_AGG_STRING_FN =
       createUdafOperator(
-          "string_agg",
-          x -> createTypeFactory().createSqlType(SqlTypeName.VARCHAR),
-          new UdafImpl<>(new StringAgg.StringAggString()));
+          "STRING_AGG",
+          // STRING_AGG has the same return type as its first argument type, BYTES or STRING
+          x -> x.getOperandType(0),
+          new StringAggCall());
 
   public static final SqlOperator ARRAY_AGG_FN =
       createUdafOperator(
-          "array_agg",
+          "ARRAY_AGG",
           x -> createTypeFactory().createArrayType(x.getOperandType(0), -1),
-          new UdafImpl<>(new ArrayAgg.ArrayAggArray()));
+          new SingleArgUdafImpl<>(new ArrayAgg.ArrayAggArray()));
 
   public static final SqlOperator START_WITHS =
       createUdfOperator(
@@ -162,13 +164,13 @@ public class SqlOperators {
       createUdafOperator(
           "BIT_XOR",
           x -> createTypeFactory().createSqlType(SqlTypeName.BIGINT),
-          new UdafImpl<>(new BeamBuiltinAggregations.BitXOr<Number>()));
+          new SingleArgUdafImpl<>(new BeamBuiltinAggregations.BitXOr<Number>()));
 
   public static final SqlOperator COUNTIF =
       createUdafOperator(
           "countif",
           x -> createTypeFactory().createSqlType(SqlTypeName.BIGINT),
-          new UdafImpl<>(new CountIf.CountIfFn()));
+          new SingleArgUdafImpl<>(new CountIf.CountIfFn()));
 
   public static final SqlUserDefinedFunction CAST_OP =
       new SqlUserDefinedFunction(

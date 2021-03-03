@@ -40,7 +40,6 @@ import org.junit.runners.JUnit4;
 /** Tests for SQL-native user defined functions in the ZetaSQL dialect. */
 @RunWith(JUnit4.class)
 public class ZetaSqlNativeUdfTest extends ZetaSqlTestBase {
-  @Rule public transient TestPipeline pipeline = TestPipeline.create();
   @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Before
@@ -78,7 +77,7 @@ public class ZetaSqlNativeUdfTest extends ZetaSqlTestBase {
     PAssert.that(stream)
         .containsInAnyOrder(
             Row.withSchema(Schema.builder().addInt64Field("x").build()).addValue(0L).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -92,7 +91,7 @@ public class ZetaSqlNativeUdfTest extends ZetaSqlTestBase {
     PAssert.that(stream)
         .containsInAnyOrder(
             Row.withSchema(Schema.builder().addStringField("x").build()).addValue("uwu").build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -109,7 +108,7 @@ public class ZetaSqlNativeUdfTest extends ZetaSqlTestBase {
     PAssert.that(stream)
         .containsInAnyOrder(
             Row.withSchema(Schema.builder().addStringField("x").build()).addValue("uwu").build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -123,7 +122,7 @@ public class ZetaSqlNativeUdfTest extends ZetaSqlTestBase {
     PAssert.that(stream)
         .containsInAnyOrder(
             Row.withSchema(Schema.builder().addInt64Field("x").build()).addValue(9L).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -140,7 +139,7 @@ public class ZetaSqlNativeUdfTest extends ZetaSqlTestBase {
     PAssert.that(stream)
         .containsInAnyOrder(
             Row.withSchema(Schema.builder().addInt64Field("x").build()).addValue(9L).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -180,7 +179,7 @@ public class ZetaSqlNativeUdfTest extends ZetaSqlTestBase {
 
     Schema singleField = Schema.builder().addInt64Field("field1").build();
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(singleField).addValues(14L).build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test

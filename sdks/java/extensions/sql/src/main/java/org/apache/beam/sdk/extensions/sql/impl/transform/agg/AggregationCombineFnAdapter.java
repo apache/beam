@@ -20,7 +20,7 @@ package org.apache.beam.sdk.extensions.sql.impl.transform.agg;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
-import org.apache.beam.sdk.extensions.sql.impl.UdafImpl;
+import org.apache.beam.sdk.extensions.sql.impl.AggregateCallCombineFnFactory;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamBuiltinAggregations;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamBuiltinAnalyticFunctions;
 import org.apache.beam.sdk.schemas.Schema;
@@ -149,19 +149,11 @@ public class AggregationCombineFnAdapter<T> {
           "Does not support " + call.getAggregation().getName() + " DISTINCT");
     }
 
-    CombineFn combineFn;
     if (call.getAggregation() instanceof SqlUserDefinedAggFunction) {
-      combineFn = getUdafCombineFn(call);
-    } else {
-      combineFn = BeamBuiltinAggregations.create(functionName, field.getType());
+      return getUdafCombineFn((SqlUserDefinedAggFunction) call.getAggregation());
     }
-    if (call.getArgList().isEmpty()) {
-      return new SingleInputCombiner(combineFn);
-    } else if (call.getArgList().size() == 1) {
-      return new SingleInputCombiner(combineFn);
-    } else {
-      return new MultiInputCombiner(combineFn);
-    }
+    CombineFn combineFn = BeamBuiltinAggregations.create(functionName, field.getType());
+    return wrapBasedOnArgumentCount(combineFn, call.getArgList().size());
   }
 
   /** Creates either a UDAF or a built-in {@link CombineFn} for Analytic Functions. */
@@ -174,7 +166,7 @@ public class AggregationCombineFnAdapter<T> {
 
     CombineFn combineFn;
     if (call.getAggregation() instanceof SqlUserDefinedAggFunction) {
-      combineFn = getUdafCombineFn(call);
+      combineFn = getUdafCombineFn((SqlUserDefinedAggFunction) call.getAggregation());
     } else {
       combineFn = BeamBuiltinAnalyticFunctions.create(functionName, field.getType());
     }
@@ -185,12 +177,20 @@ public class AggregationCombineFnAdapter<T> {
     return ConstantEmpty.INSTANCE;
   }
 
-  private static CombineFn<?, ?, ?> getUdafCombineFn(AggregateCall call) {
+  private static CombineFn<?, ?, ?> getUdafCombineFn(SqlUserDefinedAggFunction call) {
     try {
-      return ((UdafImpl) ((SqlUserDefinedAggFunction) call.getAggregation()).function)
-          .getCombineFn();
+      CombineFn<?, ?, ?> userCombine = ((AggregateCallCombineFnFactory) call.function).getCombineFn();
+      return wrapBasedOnArgumentCount(userCombine, call.getParamTypes().size());
     } catch (Exception e) {
       throw new UnsupportedOperationException(e);
+    }
+  }
+
+  private static CombineFn<?, ?, ?> wrapBasedOnArgumentCount(CombineFn base, int argCount) {
+    if (argCount <= 1) {
+      return new SingleInputCombiner(base);
+    } else {
+      return new MultiInputCombiner(base);
     }
   }
 }

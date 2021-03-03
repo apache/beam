@@ -17,30 +17,59 @@
  */
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
+import com.google.zetasql.Value;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcConnection;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcDriver;
+import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
+import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
+import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.Contexts;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.ConventionTraitDef;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.FrameworkConfig;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.Frameworks;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RuleSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.joda.time.Duration;
+import org.junit.Rule;
 
 /** Common setup for ZetaSQL tests. */
 @SuppressWarnings({
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public abstract class ZetaSqlTestBase {
-  protected static final long PIPELINE_EXECUTION_WAITTIME_MINUTES = 2L;
+  @Rule public transient TestPipeline pipeline = TestPipeline.create();
+  protected static final Duration PIPELINE_EXECUTION_WAITTIME = Duration.standardMinutes(2L);
 
   protected FrameworkConfig config;
+
+  protected PCollection<Row> execute(String sql, QueryParameters params) {
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql, params);
+    return BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+  }
+
+  protected PCollection<Row> execute(String sql) {
+    return execute(sql, QueryParameters.ofNone());
+  }
+
+  protected PCollection<Row> execute(String sql, Map<String, Value> params) {
+    return execute(sql, QueryParameters.ofNamed(params));
+  }
+
+  protected PCollection<Row> execute(String sql, List<Value> params) {
+    return execute(sql, QueryParameters.ofPositional(params));
+  }
 
   private TableProvider createBeamTableProvider() {
     Map<String, BeamSqlTable> testBoundedTableMap = new HashMap<>();

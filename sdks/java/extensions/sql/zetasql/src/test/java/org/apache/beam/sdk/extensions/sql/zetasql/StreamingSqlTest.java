@@ -42,7 +42,6 @@ import org.junit.runners.JUnit4;
 /** Tests for ZetaSQL windowing functions (TUMBLE, HOP, and SESSION). */
 @RunWith(JUnit4.class)
 public class StreamingSqlTest extends ZetaSqlTestBase {
-  @Rule public transient TestPipeline pipeline = TestPipeline.create();
   @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Before
@@ -102,7 +101,7 @@ public class StreamingSqlTest extends ZetaSqlTestBase {
                     new DateTime(2018, 7, 1, 21, 26, 9, ISOChronology.getInstanceUTC()),
                     new DateTime(2018, 7, 1, 21, 26, 11, ISOChronology.getInstanceUTC()))
                 .build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -139,7 +138,7 @@ public class StreamingSqlTest extends ZetaSqlTestBase {
                     new DateTime(2018, 7, 1, 21, 26, 6, ISOChronology.getInstanceUTC()),
                     new DateTime(2018, 7, 1, 21, 26, 6, ISOChronology.getInstanceUTC()))
                 .build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -166,7 +165,7 @@ public class StreamingSqlTest extends ZetaSqlTestBase {
                     new DateTime(2018, 7, 1, 21, 26, 7, ISOChronology.getInstanceUTC()),
                     "BigTable235")
                 .build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -203,7 +202,7 @@ public class StreamingSqlTest extends ZetaSqlTestBase {
                     new DateTime(2018, 7, 1, 21, 26, 6, ISOChronology.getInstanceUTC()),
                     new DateTime(2018, 7, 1, 21, 26, 7, ISOChronology.getInstanceUTC()))
                 .build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -228,7 +227,7 @@ public class StreamingSqlTest extends ZetaSqlTestBase {
             Row.withSchema(schema)
                 .addValues(1L, new DateTime(2018, 7, 1, 21, 26, 6, ISOChronology.getInstanceUTC()))
                 .build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -281,7 +280,7 @@ public class StreamingSqlTest extends ZetaSqlTestBase {
                     new DateTime(2018, 7, 1, 21, 26, 9, ISOChronology.getInstanceUTC()),
                     new DateTime(2018, 7, 1, 21, 26, 11, ISOChronology.getInstanceUTC()))
                 .build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -544,6 +543,6 @@ public class StreamingSqlTest extends ZetaSqlTestBase {
             Row.withSchema(schema)
                 .addValue(parseTimestampWithUTCTimeZone("2019-01-15 13:21:00"))
                 .build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 }

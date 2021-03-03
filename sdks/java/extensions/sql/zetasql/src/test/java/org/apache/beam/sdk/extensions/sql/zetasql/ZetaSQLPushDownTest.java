@@ -58,7 +58,7 @@ import org.junit.runners.JUnit4;
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class ZetaSQLPushDownTest {
-  private static final Long PIPELINE_EXECUTION_WAITTIME_MINUTES = 2L;
+  private static final Duration PIPELINE_EXECUTION_WAITTIME = Duration.standardMinutes(2L);
   private static final Schema BASIC_SCHEMA =
       Schema.builder()
           .addInt64Field("unused1")
@@ -96,7 +96,7 @@ public class ZetaSQLPushDownTest {
     assertThat(calciteSqlNode, instanceOf(BeamIOSourceRel.class));
     assertEquals(calciteSqlNode.getDigest(), zetaSqlNode.getDigest());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -110,7 +110,7 @@ public class ZetaSQLPushDownTest {
     assertThat(calciteSqlNode.getInput(0), instanceOf(BeamIOSourceRel.class));
     assertEquals(calciteSqlNode.getInput(0).getDigest(), zetaSqlNode.getInput(0).getDigest());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -124,7 +124,7 @@ public class ZetaSQLPushDownTest {
     assertThat(calciteSqlNode.getInput(0), instanceOf(BeamIOSourceRel.class));
     assertEquals(calciteSqlNode.getInput(0).getDigest(), zetaSqlNode.getInput(0).getDigest());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -138,7 +138,7 @@ public class ZetaSQLPushDownTest {
     assertThat(calciteSqlNode, instanceOf(BeamIOSourceRel.class));
     assertEquals(calciteSqlNode.getDigest(), zetaSqlNode.getDigest());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -152,7 +152,7 @@ public class ZetaSQLPushDownTest {
     assertThat(calciteSqlNode, instanceOf(BeamIOSourceRel.class));
     assertEquals(calciteSqlNode.getDigest(), zetaSqlNode.getDigest());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   @Test
@@ -166,7 +166,7 @@ public class ZetaSQLPushDownTest {
     assertThat(calciteSqlNode.getInput(0), instanceOf(BeamIOSourceRel.class));
     assertEquals(calciteSqlNode.getInput(0).getDigest(), zetaSqlNode.getInput(0).getDigest());
 
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+    pipeline.run().waitUntilFinish(PIPELINE_EXECUTION_WAITTIME);
   }
 
   private static void initializeCalciteEnvironment() {
