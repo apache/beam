@@ -50,9 +50,6 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link BeamFnControlService}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class BeamFnControlServiceTest {
   @Rule
   public GrpcCleanupRule grpcCleanupRule = new GrpcCleanupRule().setTimeout(10, TimeUnit.SECONDS);

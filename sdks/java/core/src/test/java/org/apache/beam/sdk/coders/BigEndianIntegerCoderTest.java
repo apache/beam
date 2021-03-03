@@ -33,9 +33,6 @@ import org.junit.runners.JUnit4;
 
 /** Test case for {@link BigEndianIntegerCoder}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class BigEndianIntegerCoderTest {
 
   private static final Coder<Integer> TEST_CODER = BigEndianIntegerCoder.of();

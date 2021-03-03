@@ -34,9 +34,6 @@ import org.junit.runners.JUnit4;
 
 /** API surface verification for {@link org.apache.beam.sdk.io.gcp}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class GcpApiSurfaceTest {
 
   @Test

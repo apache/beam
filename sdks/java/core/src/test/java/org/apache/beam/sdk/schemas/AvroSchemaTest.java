@@ -58,9 +58,6 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
 /** Tests for AVRO schema classes. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class AvroSchemaTest {
   /** A test POJO that corresponds to our AVRO schema. */
   public static class AvroSubPojo {

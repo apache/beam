@@ -33,9 +33,6 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.Test;
 
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class BeamKafkaTableProtoTest extends BeamKafkaTableTest {
   private static final Schema TEST_SCHEMA =
       Schema.builder()

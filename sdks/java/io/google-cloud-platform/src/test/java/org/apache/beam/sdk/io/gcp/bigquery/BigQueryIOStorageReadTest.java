@@ -104,9 +104,6 @@ import org.mockito.ArgumentMatchers;
 
 /** Tests for {@link BigQueryIO#readTableRows() using {@link Method#DIRECT_READ}}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class BigQueryIOStorageReadTest {
 
   private transient PipelineOptions options;

@@ -53,9 +53,6 @@ import org.slf4j.LoggerFactory;
 
 /** Tests for coder exception handling in runners. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class PCollectionCustomCoderTest {
   private static final Logger LOG = LoggerFactory.getLogger(PCollectionCustomCoderTest.class);
   /**

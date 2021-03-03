@@ -30,9 +30,6 @@ import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** {@link OperationContext} for testing purposes. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class TestOperationContext extends DataflowOperationContext {
 
   /** ExecutionState for testing. */

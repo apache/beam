@@ -164,7 +164,6 @@ import org.junit.runners.JUnit4;
 /** Tests for ParDo. */
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class ParDoTest implements Serializable {
   // This test is Serializable, just so that it's easy to have

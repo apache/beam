@@ -49,9 +49,6 @@ import org.junit.runners.JUnit4;
  * </ul>
  */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class SplitQueryFnIT {
   /** Tests {@link SplitQueryFn} to generate expected number of splits for a large dataset. */
   @Test

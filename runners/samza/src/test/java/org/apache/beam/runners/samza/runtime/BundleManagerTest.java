@@ -43,8 +43,6 @@ import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 
 /** Unit tests for {@linkplain BundleManager}. */
-@SuppressWarnings({"nullness"})
-// TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public final class BundleManagerTest {
   private static final long MAX_BUNDLE_SIZE = 3;
   private static final long MAX_BUNDLE_TIME_MS = 2000;

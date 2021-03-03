@@ -38,9 +38,6 @@ import org.joda.time.DateTime;
 import org.joda.time.Instant;
 
 /** Various Java POJOs and associated schemas used in tests. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class TestPOJOs {
   /** A POJO containing one nullable and one non-nullable type. */
   @DefaultSchema(JavaFieldSchema.class)

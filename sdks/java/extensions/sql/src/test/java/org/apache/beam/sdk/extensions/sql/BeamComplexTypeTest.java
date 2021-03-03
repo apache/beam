@@ -44,9 +44,6 @@ import org.junit.Rule;
 import org.junit.Test;
 
 /** Unit Tests for ComplexTypes, including nested ROW etc. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class BeamComplexTypeTest {
   private static final Schema innerRowSchema =
       Schema.builder().addStringField("string_field").addInt64Field("long_field").build();

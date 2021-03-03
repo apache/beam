@@ -29,9 +29,6 @@ import org.apache.beam.sdk.io.snowflake.services.SnowflakeService;
 import org.apache.beam.sdk.io.snowflake.services.SnowflakeStreamingServiceConfig;
 
 /** Fake implementation of {@link SnowflakeService} used in tests. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class FakeSnowflakeStreamingServiceImpl
     implements SnowflakeService<SnowflakeStreamingServiceConfig> {
   private FakeSnowflakeIngestManager snowflakeIngestManager;

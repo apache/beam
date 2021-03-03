@@ -49,9 +49,6 @@ import org.joda.time.Instant;
 import org.junit.Test;
 
 /** Tests for {@link BoundedSourceSystem}. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class BoundedSourceSystemTest {
   private static final SystemStreamPartition DEFAULT_SSP =
       new SystemStreamPartition("default-system", "default-system", new Partition(0));
