@@ -1401,14 +1401,17 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   def nunique(self, **kwargs):
     if kwargs.get('axis', None) in (1, 'columns'):
       requires_partition_by = partitionings.Nothing()
+      preserves_partition_by = partitionings.Index()
     else:
+      # TODO: This could be implemented in a distributed fashion
       requires_partition_by = partitionings.Singleton()
+      preserves_partition_by = partitionings.Singleton()
     return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
             'nunique',
             lambda df: df.nunique(**kwargs),
             [self._expr],
-            preserves_partition_by=partitionings.Singleton(),
+            preserves_partition_by=preserves_partition_by,
             requires_partition_by=requires_partition_by))
 
   plot = property(frame_base.wont_implement_method('plot'))
