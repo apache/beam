@@ -1438,7 +1438,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
             'quantile',
             lambda df: df.quantile(axis=axis, **kwargs),
             [self._expr],
-            #TODO(robertwb): Approximate quantiles?
+            #TODO(robertwb): distributed approximate quantiles?
             requires_partition_by=partitionings.Singleton(),
             preserves_partition_by=partitionings.Singleton()))
 
@@ -1510,6 +1510,8 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
   @frame_base.populate_defaults(pd.DataFrame)
   @frame_base.maybe_inplace
   def reset_index(self, level=None, **kwargs):
+    # TODO: Docs should note that the index is not in the same order as it would
+    # be with pandas. Technically an order-sensitive operation
     if level is not None and not isinstance(level, (tuple, list)):
       level = [level]
     if level is None or len(level) == self._expr.proxy().index.nlevels:
