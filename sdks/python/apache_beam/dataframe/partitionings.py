@@ -110,33 +110,39 @@ class Index(Partitioning):
     else:
       raise ValueError(f"Encountered unknown type {other!r}")
 
-  def partition_fn(self, df, num_partitions):
+  def _hash_index(self, df):
     if self._levels is None:
       levels = list(range(df.index.nlevels))
     else:
       levels = self._levels
-    hashes = sum(
+    return sum(
         pd.util.hash_array(df.index.get_level_values(level))
         for level in levels)
+
+  def partition_fn(self, df, num_partitions):
+    hashes = self._hash_index(df)
     for key in range(num_partitions):
       yield key, df[hashes % num_partitions == key]
 
   def check(self, dfs):
-    # TODO(BEAM-11324): This check should be stronger, it should verify that
-    # running partition_fn on the concatenation of dfs yields the same
-    # partitions.
-    if self._levels is None:
+    if not len(dfs):
+      return True
 
-      def get_index_set(df):
-        return set(df.index)
-    else:
+    def apply_consistent_order(dfs):
+      # Apply consistent order between dataframes by using sum of the index's
+      # hash.
+      # Apply consistent order within dataframe with sort_index()
+      # Also drops any empty dataframes.
+      return sorted((df.sort_index() for df in dfs if len(df)),
+                    key=lambda df: sum(self._hash_index(df)))
 
-      def get_index_set(df):
-        return set(zip(df.index.level[level] for level in self._levels))
+    dfs = apply_consistent_order(dfs)
+    repartitioned_dfs = apply_consistent_order(
+        df for _, df in self.test_partition_fn(pd.concat(dfs)))
 
-    index_sets = [get_index_set(df) for df in dfs]
-    for i, index_set in enumerate(index_sets[:-1]):
-      if not index_set.isdisjoint(set.union(*index_sets[i + 1:])):
+    # Assert that each index is identical
+    for df, repartitioned_df in zip(dfs, repartitioned_dfs):
+      if not df.index.equals(repartitioned_df.index):
         return False
 
     return True
