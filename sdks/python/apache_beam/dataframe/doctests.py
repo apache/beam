@@ -662,6 +662,7 @@ def _run_patched(func, *args, **kwargs):
 
 def with_run_patched_docstring(target=None):
   assert target is not None
+
   def wrapper(fn):
     fn.__doc__ = f"""Run all pandas doctests in the specified {target}.
 
@@ -694,9 +695,10 @@ def with_run_patched_docstring(target=None):
         raise NotImplementedError.
 
     Returns:
-      ~doctest.TestResult: A doctest result describing the passed/failed tests.
+      ~doctest.TestResults: A doctest result describing the passed/failed tests.
     """
     return fn
+
   return wrapper
 
 
