@@ -345,8 +345,6 @@ if (!project.hasProperty("installVendoredGrpcFlag")) {
     commandLine = listOf(
             "./gradlew", ":installVendoredGrpc", "-PinstallVendoredGrpcFlag", "--info", "--stacktrace"
     )
-    // The Maven installation location of Beam's Jenkins
-    environment("PATH", "${environment["PATH"]}:${environment["MAVEN_HOME"]}/bin:/home/jenkins/tools/maven/apache-maven-3.5.4/bin")
   }
 }
 
