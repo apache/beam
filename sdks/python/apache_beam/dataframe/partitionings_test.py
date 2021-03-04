@@ -35,7 +35,7 @@ class PartitioningsTest(unittest.TestCase):
 
   def test_index_is_subpartition(self):
     ordered_list = [Singleton(), Index([3]), Index([1, 3]), Index(), Nothing()]
-    for loose, strict in zip(ordered_list[:1], ordered_list[1:]):
+    for loose, strict in zip(ordered_list[:-1], ordered_list[1:]):
       self.assertTrue(strict.is_subpartitioning_of(loose), (strict, loose))
       self.assertFalse(loose.is_subpartitioning_of(strict), (loose, strict))
     # Incomparable.
