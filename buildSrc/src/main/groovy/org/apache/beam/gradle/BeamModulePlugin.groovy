@@ -422,6 +422,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def cassandra_driver_version = "3.10.2"
     def checkerframework_version = "3.10.0"
     def classgraph_version = "4.8.65"
+    def errorprone_version = "2.3.2"
     def google_clients_version = "1.30.10"
     def google_cloud_bigdataoss_version = "2.1.6"
     def google_cloud_pubsublite_version = "0.7.0"
@@ -496,7 +497,7 @@ class BeamModulePlugin implements Plugin<Project> {
         commons_io                                  : "commons-io:commons-io:2.6",
         commons_lang3                               : "org.apache.commons:commons-lang3:3.9",
         commons_math3                               : "org.apache.commons:commons-math3:3.6.1",
-        error_prone_annotations                     : "com.google.errorprone:error_prone_annotations:2.3.1",
+        error_prone_annotations                     : "com.google.errorprone:error_prone_annotations:$errorprone_version",
         gax                                         : "com.google.api:gax", // google_cloud_platform_libraries_bom sets version
         gax_grpc                                    : "com.google.api:gax-grpc", // google_cloud_platform_libraries_bom sets version
         google_api_client                           : "com.google.api-client:google-api-client:$google_clients_version",
@@ -1027,14 +1028,14 @@ class BeamModulePlugin implements Plugin<Project> {
       project.apply plugin: 'net.ltgt.errorprone'
 
       project.dependencies {
-        errorprone("com.google.errorprone:error_prone_core:2.3.1")
+        errorprone("com.google.errorprone:error_prone_core:$errorprone_version")
         errorprone("jp.skypencil.errorprone.slf4j:errorprone-slf4j:0.1.2")
         // At least JDk 9 compiler is required, however JDK 8 still can be used but with additional errorproneJavac
         // configuration. For more details please see https://github.com/tbroyer/gradle-errorprone-plugin#jdk-8-support
         errorproneJavac("com.google.errorprone:javac:9+181-r4173-1")
       }
 
-      project.configurations.errorprone { resolutionStrategy.force 'com.google.errorprone:error_prone_core:2.3.1' }
+      project.configurations.errorprone { resolutionStrategy.force 'com.google.errorprone:error_prone_core:2.3.2' }
 
       project.tasks.withType(JavaCompile) {
         options.errorprone.disableWarningsInGeneratedCode = true
