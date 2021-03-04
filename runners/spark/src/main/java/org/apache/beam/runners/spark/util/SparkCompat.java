@@ -17,18 +17,27 @@
  */
 package org.apache.beam.runners.spark.util;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.apache.beam.runners.jobsubmission.PortablePipelineResult;
+import org.apache.beam.runners.spark.metrics.SparkBeamMetric;
 import org.apache.beam.runners.spark.translation.SparkCombineFn;
+import org.apache.beam.sdk.options.ApplicationNameOptions;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.spark.api.java.JavaPairRDD;
+import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.Function;
+import org.apache.spark.scheduler.SparkListenerApplicationStart;
 import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
+import scala.Option;
+import scala.collection.JavaConverters;
 
 /** A set of functions to provide API compatibility between Spark 2 and Spark 3. */
 @SuppressWarnings({
@@ -36,6 +45,8 @@ import org.apache.spark.streaming.api.java.JavaStreamingContext;
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class SparkCompat {
+  private SparkCompat() {}
+
   /**
    * Union of dStreams in the given StreamingContext.
    *
@@ -110,6 +121,58 @@ public class SparkCompat {
       return (JavaPairRDD<K, WindowedValue<OutputT>>) result;
     } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
       throw new RuntimeException("Error invoking Spark flatMapValues", e);
+    }
+  }
+
+  public static SparkListenerApplicationStart buildSparkListenerApplicationStart(
+      JavaSparkContext jsc, PipelineOptions options, long time, PortablePipelineResult result) {
+    String appName = options.as(ApplicationNameOptions.class).getAppName();
+    Option<String> appId = Option.apply(jsc.getConf().getAppId());
+    Option<String> appAttemptId = Option.apply("1");
+    Option<scala.collection.Map<String, String>> driverLogs =
+        Option.apply(
+            JavaConverters.mapAsScalaMapConverter(
+                    SparkBeamMetric.renderAllToString(result.metrics()))
+                .asScala());
+    try {
+      Class<?> clazz = Class.forName(SparkListenerApplicationStart.class.getName());
+      if (jsc.version().startsWith("3")) {
+        // This invokes by Reflection the equivalent of
+        // return new SparkListenerApplicationStart(
+        //     appName, appId, time, jsc.sparkUser(), appAttemptId, driverLogs, driverAttributes);
+        Class<?>[] parameterTypes = {
+          String.class,
+          Option.class,
+          Long.TYPE,
+          String.class,
+          Option.class,
+          Option.class,
+          Option.class
+        };
+        Constructor<?> cons = clazz.getConstructor(parameterTypes);
+        Option<scala.collection.Map<String, String>> driverAttributes =
+            Option.apply(new scala.collection.immutable.HashMap<>());
+        Object[] args = {
+          appName, appId, time, jsc.sparkUser(), appAttemptId, driverLogs, driverAttributes
+        };
+        return (SparkListenerApplicationStart) cons.newInstance(args);
+      } else {
+        // This invokes by Reflection the equivalent of
+        // return new SparkListenerApplicationStart(
+        //     appName, appId, time, jsc.sparkUser(), appAttemptId, driverLogs);
+        Class<?>[] parameterTypes = {
+          String.class, Option.class, Long.TYPE, String.class, Option.class, Option.class
+        };
+        Constructor<?> cons = clazz.getConstructor(parameterTypes);
+        Object[] args = {appName, appId, time, jsc.sparkUser(), appAttemptId, driverLogs};
+        return (SparkListenerApplicationStart) cons.newInstance(args);
+      }
+    } catch (ClassNotFoundException
+        | NoSuchMethodException
+        | IllegalAccessException
+        | InvocationTargetException
+        | InstantiationException e) {
+      throw new RuntimeException("Error building SparkListenerApplicationStart", e);
     }
   }
 }
