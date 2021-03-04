@@ -36,9 +36,6 @@ import org.junit.runners.JUnit4;
 
 /** Unit tests for {@link ByteArrayCoder}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class ByteArrayCoderTest {
 
   private static final ByteArrayCoder TEST_CODER = ByteArrayCoder.of();

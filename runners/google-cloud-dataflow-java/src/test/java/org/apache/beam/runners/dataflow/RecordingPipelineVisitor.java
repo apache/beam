@@ -28,9 +28,6 @@ import org.apache.beam.sdk.values.PValue;
  * Provides a simple {@link org.apache.beam.sdk.Pipeline.PipelineVisitor} that records the
  * transformation tree.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 class RecordingPipelineVisitor extends Pipeline.PipelineVisitor.Defaults {
 
   public final List<PTransform<?, ?>> transforms = new ArrayList<>();

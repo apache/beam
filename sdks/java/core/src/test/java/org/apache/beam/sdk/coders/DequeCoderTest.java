@@ -37,9 +37,6 @@ import org.junit.runners.JUnit4;
 
 /** Test case for {@link DequeCoder}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class DequeCoderTest {
 
   private static final Coder<Deque<Integer>> TEST_CODER = DequeCoder.of(VarIntCoder.of());

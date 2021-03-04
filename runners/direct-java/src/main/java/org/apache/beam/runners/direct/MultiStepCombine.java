@@ -94,7 +94,7 @@ class MultiStepCombine<
           PCollection<KV<K, InputT>> input =
               (PCollection<KV<K, InputT>>) Iterables.getOnlyElement(inputs.values());
           WindowingStrategy<?, ?> windowingStrategy = input.getWindowingStrategy();
-          boolean windowFnApplicable = windowingStrategy.getWindowFn().isNonMerging();
+          boolean windowFnApplicable = !windowingStrategy.needsMerge();
           // Triggering with count based triggers is not appropriately handled here. Disabling
           // most triggers is safe, though more broad than is technically required.
           boolean triggerApplicable = DefaultTrigger.of().equals(windowingStrategy.getTrigger());

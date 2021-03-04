@@ -66,7 +66,6 @@ import org.junit.runner.RunWith;
 @RunWith(JUnitQuickcheck.class)
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class AvroUtilsTest {
 
@@ -633,5 +632,12 @@ public class AvroUtilsTest {
     Row deserializedRow = toRowFn.apply(serializedRow);
 
     assertEquals(row, deserializedRow);
+  }
+
+  @Test
+  public void testNullSchemas() {
+    assertEquals(
+        AvroUtils.getFromRowFunction(GenericRecord.class),
+        AvroUtils.getFromRowFunction(GenericRecord.class));
   }
 }

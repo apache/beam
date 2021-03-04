@@ -58,7 +58,7 @@ class BatchGroupAlsoByWindowViaIteratorsFn<K, V, W extends BoundedWindow>
   private final WindowingStrategy<?, W> strategy;
 
   public static boolean isSupported(WindowingStrategy<?, ?> strategy) {
-    if (!strategy.getWindowFn().isNonMerging()) {
+    if (strategy.needsMerge()) {
       return false;
     }
 

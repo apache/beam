@@ -244,8 +244,12 @@ public class ZetaSqlJavaUdfTest extends ZetaSqlTestBase {
     String sql =
         "CREATE FUNCTION foo() RETURNS STRING LANGUAGE java OPTIONS (path=''); SELECT foo();";
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("No jar was provided to define function foo.");
+    thrown.expect(RuntimeException.class);
+    thrown.expectMessage("Failed to define function 'foo'");
+    thrown.expectCause(
+        allOf(
+            isA(IllegalArgumentException.class),
+            hasProperty("message", containsString("No jar was provided to define function foo."))));
     zetaSQLQueryPlanner.convertToBeamRel(sql);
   }
 
@@ -253,8 +257,12 @@ public class ZetaSqlJavaUdfTest extends ZetaSqlTestBase {
   public void testJavaUdfNoJarProvided() {
     String sql = "CREATE FUNCTION foo() RETURNS STRING LANGUAGE java; SELECT foo();";
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("No jar was provided to define function foo.");
+    thrown.expect(RuntimeException.class);
+    thrown.expectMessage("Failed to define function 'foo'");
+    thrown.expectCause(
+        allOf(
+            isA(IllegalArgumentException.class),
+            hasProperty("message", containsString("No jar was provided to define function foo."))));
     zetaSQLQueryPlanner.convertToBeamRel(sql);
   }
 
@@ -263,8 +271,14 @@ public class ZetaSqlJavaUdfTest extends ZetaSqlTestBase {
     String sql =
         "CREATE FUNCTION foo() RETURNS STRING LANGUAGE java OPTIONS (path=23); SELECT foo();";
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Option 'path' has type TYPE_INT64 (expected TYPE_STRING).");
+    thrown.expect(RuntimeException.class);
+    thrown.expectMessage("Failed to define function 'foo'");
+    thrown.expectCause(
+        allOf(
+            isA(IllegalArgumentException.class),
+            hasProperty(
+                "message",
+                containsString("Option 'path' has type TYPE_INT64 (expected TYPE_STRING)."))));
     zetaSQLQueryPlanner.convertToBeamRel(sql);
   }
 }

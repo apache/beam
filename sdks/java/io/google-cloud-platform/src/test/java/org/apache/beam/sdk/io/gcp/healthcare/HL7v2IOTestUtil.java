@@ -35,9 +35,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 class HL7v2IOTestUtil {
   public static final long HL7V2_INDEXING_TIMEOUT_MINUTES = 10L;
   /** Google Cloud Healthcare Dataset in Apache Beam integration test project. */

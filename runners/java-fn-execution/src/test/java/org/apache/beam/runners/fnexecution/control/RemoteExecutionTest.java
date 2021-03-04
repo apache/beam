@@ -159,9 +159,8 @@ import org.slf4j.LoggerFactory;
 @RunWith(JUnit4.class)
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "keyfor",
-  "nullness"
-}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "keyfor"
+})
 public class RemoteExecutionTest implements Serializable {
   @Rule public transient ResetDateTimeProvider resetDateTimeProvider = new ResetDateTimeProvider();
 

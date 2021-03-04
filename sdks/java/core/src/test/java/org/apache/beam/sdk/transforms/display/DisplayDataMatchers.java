@@ -34,9 +34,6 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /** Hamcrest matcher for making assertions on {@link DisplayData} instances. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class DisplayDataMatchers {
   /** Do not instantiate. */
   private DisplayDataMatchers() {}

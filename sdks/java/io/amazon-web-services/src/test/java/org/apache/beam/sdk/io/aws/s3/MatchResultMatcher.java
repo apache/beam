@@ -33,9 +33,6 @@ import org.hamcrest.Matcher;
  * Hamcrest {@link Matcher} to match {@link MatchResult}. Necessary because {@link
  * MatchResult#metadata()} throws an exception under normal circumstances.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 class MatchResultMatcher extends BaseMatcher<MatchResult> {
 
   private final MatchResult.Status expectedStatus;

@@ -37,9 +37,6 @@ import org.apache.thrift.protocol.TCompactProtocol;
 import org.apache.thrift.protocol.TProtocolFactory;
 import org.junit.Test;
 
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class BeamKafkaTableThriftTest extends BeamKafkaTableTest {
   private final TProtocolFactory protocolFactory = new TCompactProtocol.Factory();
 

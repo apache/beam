@@ -26,9 +26,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 
 /** Base class for rel test. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public abstract class BaseRelTest {
   private static Map<String, BeamSqlTable> tables = new HashMap<>();
   protected static BeamSqlEnv env = BeamSqlEnv.readOnly("test", tables);

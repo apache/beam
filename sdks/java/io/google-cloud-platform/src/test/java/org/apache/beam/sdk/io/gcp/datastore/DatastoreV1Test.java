@@ -108,9 +108,6 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link DatastoreV1}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class DatastoreV1Test {
   private static final String PROJECT_ID = "testProject";
   private static final String NAMESPACE = "testNamespace";

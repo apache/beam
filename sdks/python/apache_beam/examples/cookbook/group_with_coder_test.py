@@ -80,22 +80,17 @@ class GroupWithCoderTest(unittest.TestCase):
     # therefore any custom coders will not be used. The default coder (pickler)
     # will be used instead.
     temp_path = self.create_temp_file(self.SAMPLE_RECORDS)
-    group_with_coder.run([
-        '--no_pipeline_type_check',
-        '--input=%s*' % temp_path,
-        '--output=%s.result' % temp_path
-    ],
-                         save_main_session=False)
-    # Parse result file and compare.
-    results = []
-    with open_shards(temp_path + '.result-*-of-*') as result_file:
-      for line in result_file:
-        name, points = line.split(',')
-        results.append((name, int(points)))
-      logging.info('result: %s', results)
-    self.assertEqual(
-        sorted(results),
-        sorted([('ann', 15), ('fred', 9), ('joe', 60), ('mary', 8)]))
+    with self.assertRaises(Exception) as context:
+      # yapf: disable
+      group_with_coder.run(
+          [
+              '--no_pipeline_type_check',
+              '--input=%s*' % temp_path,
+              '--output=%s.result' % temp_path
+          ],
+          save_main_session=False)
+    self.assertIn('Unable to deterministically encode', str(context.exception))
+    self.assertIn('CombinePerKey(sum)/GroupByKey', str(context.exception))
 
 
 if __name__ == '__main__':

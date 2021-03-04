@@ -64,9 +64,6 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link SideInputContainer}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class SideInputContainerTest {
   private static final BoundedWindow FIRST_WINDOW =
       new BoundedWindow() {

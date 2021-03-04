@@ -148,9 +148,6 @@ import org.slf4j.LoggerFactory;
  * specific Kafka version.
  */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class KafkaIOTest {
 
   private static final Logger LOG = LoggerFactory.getLogger(KafkaIOTest.class);

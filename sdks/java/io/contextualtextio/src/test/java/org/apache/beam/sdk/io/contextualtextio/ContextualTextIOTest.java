@@ -103,9 +103,6 @@ import org.junit.runners.JUnit4;
 import org.junit.runners.Parameterized;
 
 /** Tests for {@link ContextualTextIO.Read}. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class ContextualTextIOTest {
   private static final int NUM_LINES_FOR_LARGE = 1024;
 

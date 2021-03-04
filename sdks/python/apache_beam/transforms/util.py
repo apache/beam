@@ -811,12 +811,14 @@ class GroupIntoBatches(PTransform):
     override the default sharding to do a better load balancing during the
     execution time.
     """
-    def __init__(self, batch_size, max_buffering_duration_secs=None):
+    def __init__(
+        self, batch_size, max_buffering_duration_secs=None, clock=time.time):
       """Create a new GroupIntoBatches with sharded output.
       See ``GroupIntoBatches`` transform for a description of input parameters.
       """
       self.params = _GroupIntoBatchesParams(
           batch_size, max_buffering_duration_secs)
+      self.clock = clock
 
     _shard_id_prefix = uuid.uuid4().bytes
 
@@ -836,7 +838,9 @@ class GroupIntoBatches(PTransform):
       return (
           sharded_pcoll
           | GroupIntoBatches(
-              self.params.batch_size, self.params.max_buffering_duration_secs))
+              self.params.batch_size,
+              self.params.max_buffering_duration_secs,
+              self.clock))
 
     def to_runner_api_parameter(
         self,
