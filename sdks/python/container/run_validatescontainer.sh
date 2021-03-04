@@ -79,8 +79,9 @@ docker -v
 gcloud -v
 
 # Build the container
-TAG=$(date +%Y%m%d-%H%M%S)
+TAG=$(date +%Y%m%d-%H%M%S%N)
 CONTAINER=us.gcr.io/$PROJECT/$USER/$IMAGE_NAME
+PREBUILD_SDK_CONTAINER_REGISTRY_PATH=us.gcr.io/$PROJECT/$USER/prebuild_$1_sdk
 echo "Using container $CONTAINER"
 ./gradlew :$CONTAINER_PROJECT:docker -Pdocker-repository-root=us.gcr.io/$PROJECT/$USER -Pdocker-tag=$TAG --info
 
@@ -88,13 +89,17 @@ echo "Using container $CONTAINER"
 docker images | grep $TAG
 
 # Push the container
-gcloud docker -- push $CONTAINER
+gcloud docker -- push $CONTAINER:$TAG
 
 function cleanup_container {
   # Delete the container locally and remotely
-  docker rmi $CONTAINER:$TAG || echo "Failed to remove container"
-  docker rmi $(docker images --format '{{.Repository}}:{{.Tag}}' | grep 'prebuilt_sdk') || echo "Failed to remove prebuilt sdk container"
+  docker rmi $CONTAINER:$TAG || echo "Failed to remove container image"
+  docker rmi $(docker images --format '{{.Repository}}:{{.Tag}}' | grep 'prebuilt_sdk') || echo "Failed to remove prebuilt sdk container image"
   gcloud --quiet container images delete $CONTAINER:$TAG || echo "Failed to delete container"
+  for digest in $(gcloud container images list-tags $PREBUILD_SDK_CONTAINER_REGISTRY_PATH/beam_python_prebuilt_sdk  --format="get(digest)"):
+    do gcloud container images delete $PREBUILD_SDK_CONTAINER_REGISTRY_PATH/beam_python_prebuilt_sdk@$digest --force-delete-tags --quiet || echo "Failed to remove prebuilt sdk container image"
+  done
+
   echo "Removed the container"
 }
 trap cleanup_container EXIT
@@ -133,6 +138,6 @@ python setup.py nosetests \
     --sdk_location=$SDK_LOCATION \
     --num_workers=1 \
     --prebuild_sdk_container_base_image=$CONTAINER:$TAG \
-    --docker_registry_push_url=us.gcr.io/$PROJECT/$USER"
+    --docker_registry_push_url=$PREBUILD_SDK_CONTAINER_REGISTRY_PATH"
 
 echo ">>> SUCCESS DATAFLOW RUNNER VALIDATESCONTAINER TEST"
