@@ -204,6 +204,10 @@ task("goPreCommit") {
   dependsOn(":sdks:go:container:goBuild")
 }
 
+task("goPortablePreCommit") {
+  dependsOn(":sdks:go:test:ulrXlangValidatesRunnerJenkins")
+}
+
 task("goPostCommit") {
   dependsOn(":goIntegrationTests")
 }
