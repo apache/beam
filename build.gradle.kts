@@ -192,9 +192,18 @@ task("sqlPostCommit") {
 }
 
 task("goPreCommit") {
-  dependsOn(":sdks:go:goBuild")
-  dependsOn(":sdks:go:goTest")
+  dependsOn(":goPrecommitTest")
+  dependsOn(":goPrecommitBuild")
+}
 
+task("goPrecommitTest") {
+  dependsOn(":sdks:go:goTest")
+}
+
+task("goPrecommitBuild") {
+  mustRunAfter(":goPrecommitTest")
+
+  dependsOn(":sdks:go:goBuild")
   dependsOn(":sdks:go:examples:goBuild")
   dependsOn(":sdks:go:test:goBuild")
 
