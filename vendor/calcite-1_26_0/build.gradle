@@ -36,9 +36,7 @@ List<String> packagesToRelocate = [
         "com.google.uzaygezen",
         "com.jayway",
         "com.yahoo",
-        "javax.annotation",
         "net.minidev",
-        "org.apache.avalon",
         "org.apache.calcite",
         "org.apache.commons",
         "org.apache.http",
@@ -54,14 +52,9 @@ vendorJava(
                 "org.apache.calcite:calcite-core:$calcite_version",
                 "org.apache.calcite:calcite-linq4j:$calcite_version",
                 "org.apache.calcite.avatica:avatica-core:$avatica_version",
-                library.java.protobuf_java,
-                library.java.slf4j_api
         ],
         runtimeDependencies: [
                 library.java.slf4j_api,
-                "org.apache.logging.log4j:log4j-api:2.13.3",
-                "commons-logging:commons-logging:1.2",
-                "avalon-framework:avalon-framework:4.1.5",
         ],
         relocations: packagesToRelocate.collectEntries {
             [ (it): "${prefix}.${it}" ] + [ "jdbc:calcite:": "jdbc:beam-vendor-calcite:"]
@@ -70,14 +63,33 @@ vendorJava(
                 // Code quality / Building annotations
                 "com/google/errorprone/**",
                 "com/google/j2objc/annotations/**",
+                "javax/annotation/**",
                 "org/checkerframework/**",
                 "org/jmlspecs/**",
 
-                // Logging
+                // Runtime logging interface
                 "org/slf4j/**",
                 "org/apache/log4j/**",
                 "org/apache/logging/log4j/**",
                 "META-INF/versions/9/org/apache/logging/log4j/**",
+
+                // Optional loggers
+                "org/apache/commons/logging/impl/AvalonLogger*",
+                "org/apache/commons/logging/impl/LogKitLogger*",
+
+                // Optional JSON providers
+                "com/jayway/jsonpath/spi/json/GsonJsonProvider*",
+                "com/jayway/jsonpath/spi/json/JettisonProvider*",
+                "com/jayway/jsonpath/spi/json/JsonOrgJsonProvider*",
+                "com/jayway/jsonpath/spi/json/TapestryJsonProvider*",
+                "com/jayway/jsonpath/spi/mapper/GsonMappingProvider*",
+                "com/jayway/jsonpath/spi/mapper/JsonOrgMappingProvider*",
+                "com/jayway/jsonpath/spi/mapper/TapestryMappingProvider*",
+
+                // Unused broken code
+                "org/apache/commons/dbcp2/managed/**",
+                "org/apache/commons/pool2/proxy/**",
+                "org/codehaus/janino/AntCompilerAdapter*",
 
                 "**/module-info.class",
         ],
