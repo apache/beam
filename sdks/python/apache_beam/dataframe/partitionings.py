@@ -104,7 +104,7 @@ class Index(Partitioning):
       elif other._levels is None:
         return False
       else:
-        return all(level in other._levels for level in self._levels)
+        return all(level in self._levels for level in other._levels)
     elif isinstance(other, Nothing):
       return False
     else:
