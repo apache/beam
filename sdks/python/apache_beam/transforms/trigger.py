@@ -60,7 +60,6 @@ __all__ = [
     'DefaultTrigger',
     'AfterWatermark',
     'AfterProcessingTime',
-    'AfterSynchronizedProcessingTime',
     'AfterCount',
     'Repeatedly',
     'AfterAny',
@@ -255,7 +254,7 @@ class TriggerFn(with_metaclass(ABCMeta, object)):  # type: ignore[misc]
         'after_each': AfterEach,
         'after_end_of_window': AfterWatermark,
         'after_processing_time': AfterProcessingTime,
-        'after_synchronized_processing_time': AfterSynchronizedProcessingTime,
+        'after_synchronized_processing_time': _AfterSynchronizedProcessingTime,
         'always': Always,
         'default': DefaultTrigger,
         'element_count': AfterCount,
@@ -370,7 +369,7 @@ class AfterProcessingTime(TriggerFn):
     return False
 
 
-class AfterSynchronizedProcessingTime(TriggerFn):
+class _AfterSynchronizedProcessingTime(TriggerFn):
   """A "runner's-discretion" trigger downstream of a GroupByKey
   with AfterProcessingTime trigger.
 
@@ -380,14 +379,15 @@ class AfterSynchronizedProcessingTime(TriggerFn):
   required by runners, regardless of whether they
   execute triggers via Python.
 
-  AfterSynchronizedProcessingTime is experimental.
-  No backwards compatibility guarantees.
+  _AfterSynchronizedProcessingTime is experimental
+  and internal-only. No backwards compatibility
+  guarantees.
   """
   def __init__(self):
     pass
 
   def __repr__(self):
-    return 'AfterSynchronizedProcessingTime()'
+    return '_AfterSynchronizedProcessingTime()'
 
   def __eq__(self, other):
     return type(self) == type(other)
@@ -415,7 +415,7 @@ class AfterSynchronizedProcessingTime(TriggerFn):
 
   @staticmethod
   def from_runner_api(proto, context):
-    return AfterSynchronizedProcessingTime()
+    return _AfterSynchronizedProcessingTime()
 
   def to_runner_api(self, context):
     return beam_runner_api_pb2.Trigger(
