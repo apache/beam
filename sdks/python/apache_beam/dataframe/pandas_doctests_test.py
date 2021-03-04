@@ -428,6 +428,8 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.groupby.groupby.GroupBy.sample': ['*'],
             'pandas.core.groupby.groupby.GroupBy.quantile': ['*'],
             'pandas.core.groupby.groupby.BaseGroupBy.pipe': ['*'],
+            # pipe tests are in a different location in pandas 1.1.x
+            'pandas.core.groupby.groupby._GroupBy.pipe': ['*'],
             'pandas.core.groupby.groupby.GroupBy.nth': [
                 "df.groupby('A', as_index=False).nth(1)",
             ],
