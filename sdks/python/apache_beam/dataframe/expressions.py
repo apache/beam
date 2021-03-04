@@ -146,10 +146,10 @@ def output_partitioning(expr, input_partitioning):
   For internal use only; No backward compatibility guarantees """
   assert expr.requires_partition_by().is_subpartitioning_of(input_partitioning)
 
-  if input_partitioning.is_subpartitioning_of(expr.preserves_partition_by()):
-    return partitionings.Nothing()
-  else:
+  if expr.preserves_partition_by().is_subpartitioning_of(input_partitioning):
     return min(input_partitioning, expr.preserves_partition_by())
+  else:
+    return partitionings.Nothing()
 
 
 class Expression(object):
