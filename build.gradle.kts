@@ -325,7 +325,6 @@ task("installVendoredGrpc") {
   dependsOn(":vendor:grpc-1_36_0:shadowJar")
 
   doLast {
-    val existingPath = System.getenv("PATH")
     project.exec {
       commandLine = listOf(
         "mvn", "--batch-mode",
@@ -333,8 +332,6 @@ task("installVendoredGrpc") {
         "-DgroupId=org.apache.beam", "-DartifactId=beam-vendor-grpc-1_36_0",
         "-Dversion=0.1", "-Dfile=vendor/grpc-1_36_0/build/libs/beam-vendor-grpc-1_36_0-0.1.jar"
       )
-      // The Maven installation location of Beam's Jenkins
-      environment("PATH", "$existingPath:/home/jenkins/tools/maven/apache-maven-3.5.4/bin")
     }
   }
 }
@@ -346,6 +343,8 @@ if (!project.hasProperty("installVendoredGrpcFlag")) {
     commandLine = listOf(
             "./gradlew", ":installVendoredGrpc", "-PinstallVendoredGrpcFlag", "--info", "--stacktrace"
     )
+    // The Maven installation location of Beam's Jenkins
+    environment("PATH", "${environment["PATH"]}:/home/jenkins/tools/maven/apache-maven-3.5.4/bin")
   }
 }
 
