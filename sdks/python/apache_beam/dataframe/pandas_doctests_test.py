@@ -426,7 +426,6 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.groupby.groupby.GroupBy.ngroup': ['*'],
             'pandas.core.groupby.groupby.GroupBy.resample': ['*'],
             'pandas.core.groupby.groupby.GroupBy.sample': ['*'],
-            'pandas.core.groupby.groupby.GroupBy.resample': ['*'],
             'pandas.core.groupby.groupby.GroupBy.quantile': ['*'],
             'pandas.core.groupby.groupby.BaseGroupBy.pipe': ['*'],
             'pandas.core.groupby.groupby.GroupBy.nth': [
