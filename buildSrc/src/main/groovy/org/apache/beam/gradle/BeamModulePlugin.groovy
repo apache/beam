@@ -422,7 +422,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def cassandra_driver_version = "3.10.2"
     def checkerframework_version = "3.10.0"
     def classgraph_version = "4.8.65"
-    def errorprone_version = "2.3.2"
+    def errorprone_version = "2.3.4"
     def google_clients_version = "1.30.10"
     def google_cloud_bigdataoss_version = "2.1.6"
     def google_cloud_pubsublite_version = "0.7.0"
@@ -1035,7 +1035,7 @@ class BeamModulePlugin implements Plugin<Project> {
         errorproneJavac("com.google.errorprone:javac:9+181-r4173-1")
       }
 
-      project.configurations.errorprone { resolutionStrategy.force 'com.google.errorprone:error_prone_core:2.3.2' }
+      project.configurations.errorprone { resolutionStrategy.force 'com.google.errorprone:error_prone_core:2.3.4' }
 
       project.tasks.withType(JavaCompile) {
         options.errorprone.disableWarningsInGeneratedCode = true
