@@ -38,7 +38,7 @@ ext.summary = "IO to read and write Thrift encoded data files"
 dependencies {
     compile library.java.vendored_guava_26_0_jre
     compile library.java.slf4j_api
-    compile "org.apache.thrift:libthrift:0.13.0"
+    compile "org.apache.thrift:libthrift:0.14.0"
     compile project(path: ":sdks:java:core", configuration: "shadow")
     testCompile library.java.junit
     testRuntimeOnly library.java.slf4j_jdk14
