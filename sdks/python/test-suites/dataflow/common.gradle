@@ -245,7 +245,7 @@ task validatesContainer() {
   doLast {
     exec {
       executable 'sh'
-      args '-c', "cd ${rootDir} && ${runScriptsPath} python${project.ext.pythonVersion.replace('.', '')} ${files(configurations.distTarBall.files).singleFile}"
+      args '-c', ". ${envdir}/bin/activate && cd ${rootDir} && ${runScriptsPath} python${project.ext.pythonVersion.replace('.', '')} ${files(configurations.distTarBall.files).singleFile}"
     }
   }
 }
