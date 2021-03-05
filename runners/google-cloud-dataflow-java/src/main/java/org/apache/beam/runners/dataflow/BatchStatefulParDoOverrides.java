@@ -188,7 +188,7 @@ public class BatchStatefulParDoOverrides {
               PCollection<? extends KV<K, Iterable<KV<Instant, WindowedValue<KV<K, InputT>>>>>>,
               PCollection<OutputT>>
           statefulParDo =
-              ParDo.of(new BatchStatefulDoFn<>(fn, input.getPipeline().getOptions()))
+              ParDo.of(new BatchStatefulDoFn<>(fn))
                   .withSideInputs(originalParDo.getSideInputs());
 
       return input.apply(new GbkBeforeStatefulParDo<>()).apply(statefulParDo);
@@ -228,7 +228,7 @@ public class BatchStatefulParDoOverrides {
               PCollection<? extends KV<K, Iterable<KV<Instant, WindowedValue<KV<K, InputT>>>>>>,
               PCollectionTuple>
           statefulParDo =
-              ParDo.of(new BatchStatefulDoFn<>(fn, input.getPipeline().getOptions()))
+              ParDo.of(new BatchStatefulDoFn<>(fn))
                   .withSideInputs(originalParDo.getSideInputs())
                   .withOutputTags(
                       originalParDo.getMainOutputTag(), originalParDo.getAdditionalOutputTags());
@@ -302,11 +302,9 @@ public class BatchStatefulParDoOverrides {
       extends DoFn<KV<K, Iterable<KV<Instant, WindowedValue<KV<K, V>>>>>, OutputT> {
 
     private final DoFn<KV<K, V>, OutputT> underlyingDoFn;
-    private final PipelineOptions options;
 
-    BatchStatefulDoFn(DoFn<KV<K, V>, OutputT> underlyingDoFn, PipelineOptions options) {
+    BatchStatefulDoFn(DoFn<KV<K, V>, OutputT> underlyingDoFn) {
       this.underlyingDoFn = underlyingDoFn;
-      this.options = options;
     }
 
     public DoFn<KV<K, V>, OutputT> getUnderlyingDoFn() {
@@ -314,8 +312,8 @@ public class BatchStatefulParDoOverrides {
     }
 
     @Setup
-    public void setup() {
-      DoFnInvokers.tryInvokeSetupFor(underlyingDoFn, options);
+    public void setup(final SetupContext c) {
+      DoFnInvokers.tryInvokeSetupFor(underlyingDoFn, c.getPipelineOptions());
     }
 
     @ProcessElement
