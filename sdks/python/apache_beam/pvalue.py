@@ -666,15 +666,14 @@ class Row(object):
     return dict(self.__dict__)
 
   def __iter__(self):
-    for _, value in sorted(self.__dict__.items()):
+    for _, value in self.__dict__.items():
       yield value
 
   def __repr__(self):
-    return 'Row(%s)' % ', '.join(
-        '%s=%r' % kv for kv in sorted(self.__dict__.items()))
+    return 'Row(%s)' % ', '.join('%s=%r' % kv for kv in self.__dict__.items())
 
   def __hash__(self):
-    return hash(type(sorted(self.__dict__.items())))
+    return hash(type(self.__dict__.items()))
 
   def __eq__(self, other):
     return type(self) == type(other) and self.__dict__ == other.__dict__
@@ -683,7 +682,7 @@ class Row(object):
     return not self == other
 
   def __reduce__(self):
-    return _make_Row, tuple(sorted(self.__dict__.items()))
+    return _make_Row, tuple(self.__dict__.items())
 
 
 def _make_Row(*items):
