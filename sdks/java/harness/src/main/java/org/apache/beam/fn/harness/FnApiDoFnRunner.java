@@ -469,8 +469,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             (Collection) localNameToConsumer.get(mainOutputTag.getId());
     this.doFnSchemaInformation = ParDoTranslation.getSchemaInformation(parDoPayload);
     this.sideInputMapping = ParDoTranslation.getSideInputMapping(parDoPayload);
-    this.doFnInvoker = DoFnInvokers.invokerFor(doFn);
-    this.doFnInvoker.invokeSetup();
+    this.doFnInvoker = DoFnInvokers.tryInvokeSetupFor(doFn, pipelineOptions);
 
     this.startBundleArgumentProvider = new StartBundleArgumentProvider();
     // Register the appropriate handlers.
@@ -2259,6 +2258,12 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     @Override
     public PaneInfo paneInfo(DoFn<InputT, OutputT> doFn) {
       return pane();
+    }
+
+    @Override
+    public DoFn<InputT, OutputT>.SetupContext setupContext(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          "Cannot access SetupContext outside of @Setup method.");
     }
 
     @Override

@@ -91,6 +91,16 @@ import org.joda.time.Instant;
  */
 public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nullable Object>
     implements Serializable, HasDisplayData {
+  /** Information accessible while within the {@link Setup} method. */
+  @SuppressWarnings("ClassCanBeStatic") // Converting class to static is an API change.
+  public abstract class SetupContext {
+    /**
+     * Returns the {@code PipelineOptions} specified with the {@link
+     * org.apache.beam.sdk.PipelineRunner} invoking this {@code DoFn}.
+     */
+    public abstract PipelineOptions getPipelineOptions();
+  }
+
   /** Information accessible while within the {@link StartBundle} method. */
   @SuppressWarnings("ClassCanBeStatic") // Converting class to static is an API change.
   public abstract class StartBundleContext {

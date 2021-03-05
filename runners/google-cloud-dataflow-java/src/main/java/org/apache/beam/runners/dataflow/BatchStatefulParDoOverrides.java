@@ -27,6 +27,7 @@ import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -187,7 +188,8 @@ public class BatchStatefulParDoOverrides {
               PCollection<? extends KV<K, Iterable<KV<Instant, WindowedValue<KV<K, InputT>>>>>>,
               PCollection<OutputT>>
           statefulParDo =
-              ParDo.of(new BatchStatefulDoFn<>(fn)).withSideInputs(originalParDo.getSideInputs());
+              ParDo.of(new BatchStatefulDoFn<>(fn, input.getPipeline().getOptions()))
+                  .withSideInputs(originalParDo.getSideInputs());
 
       return input.apply(new GbkBeforeStatefulParDo<>()).apply(statefulParDo);
     }
@@ -226,7 +228,7 @@ public class BatchStatefulParDoOverrides {
               PCollection<? extends KV<K, Iterable<KV<Instant, WindowedValue<KV<K, InputT>>>>>>,
               PCollectionTuple>
           statefulParDo =
-              ParDo.of(new BatchStatefulDoFn<>(fn))
+              ParDo.of(new BatchStatefulDoFn<>(fn, input.getPipeline().getOptions()))
                   .withSideInputs(originalParDo.getSideInputs())
                   .withOutputTags(
                       originalParDo.getMainOutputTag(), originalParDo.getAdditionalOutputTags());
@@ -300,9 +302,11 @@ public class BatchStatefulParDoOverrides {
       extends DoFn<KV<K, Iterable<KV<Instant, WindowedValue<KV<K, V>>>>>, OutputT> {
 
     private final DoFn<KV<K, V>, OutputT> underlyingDoFn;
+    private final PipelineOptions options;
 
-    BatchStatefulDoFn(DoFn<KV<K, V>, OutputT> underlyingDoFn) {
+    BatchStatefulDoFn(DoFn<KV<K, V>, OutputT> underlyingDoFn, PipelineOptions options) {
       this.underlyingDoFn = underlyingDoFn;
+      this.options = options;
     }
 
     public DoFn<KV<K, V>, OutputT> getUnderlyingDoFn() {
@@ -311,7 +315,7 @@ public class BatchStatefulParDoOverrides {
 
     @Setup
     public void setup() {
-      DoFnInvokers.invokerFor(underlyingDoFn).invokeSetup();
+      DoFnInvokers.tryInvokeSetupFor(underlyingDoFn, options);
     }
 
     @ProcessElement
