@@ -92,6 +92,7 @@ if TYPE_CHECKING:
   from apache_beam.runners.pipeline_context import PipelineContext
   from apache_beam.transforms.core import Windowing
   from apache_beam.portability.api import beam_runner_api_pb2
+  from google.protobuf import message
 
 __all__ = [
     'PTransform',
@@ -364,6 +365,9 @@ class PTransform(WithTypeHints, HasDisplayData):
   def default_label(self):
     # type: () -> str
     return self.__class__.__name__
+
+  def annotations(self) -> Dict[str, Union[bytes, str, message.Message]]:
+    return {}
 
   def default_type_hints(self):
     fn_type_hints = IOTypeHints.from_callable(self.expand)
