@@ -59,6 +59,7 @@ from builtins import object
 from builtins import zip
 from collections import defaultdict
 from typing import TYPE_CHECKING
+from typing import Any
 from typing import Dict
 from typing import FrozenSet
 from typing import Iterable
@@ -71,6 +72,8 @@ from typing import Type
 from typing import Union
 
 from future.utils import with_metaclass
+
+from google.protobuf import message
 
 from apache_beam import pvalue
 from apache_beam.internal import pickler
@@ -1011,6 +1014,7 @@ class AppliedPTransform(object):
       full_label,  # type: str
       inputs,  # type: Optional[Sequence[Union[pvalue.PBegin, pvalue.PCollection]]]
       environment_id=None,  # type: Optional[str]
+      annotations=None, # type: Optional[Dict[str, bytes]]
   ):
     # type: (...) -> None
     self.parent = parent
@@ -1027,6 +1031,26 @@ class AppliedPTransform(object):
     self.outputs = {}  # type: Dict[Union[str, int, None], pvalue.PValue]
     self.parts = []  # type: List[AppliedPTransform]
     self.environment_id = environment_id if environment_id else None  # type: Optional[str]
+
+    if annotations is None and transform:
+
+      def annotation_to_bytes(key, a: Any) -> bytes:
+        if isinstance(a, bytes):
+          return a
+        elif isinstance(a, str):
+          return a.encode('ascii')
+        elif isinstance(a, message.Message):
+          return a.SerializeToString()
+        else:
+          raise TypeError(
+              'Unknown annotation type %r (type %s) for %s' % (a, type(a), key))
+
+      annotations = {
+          key: annotation_to_bytes(key, a)
+          for key,
+          a in transform.annotations().items()
+      }
+    self.annotations = annotations
 
   def __repr__(self):
     # type: () -> str
@@ -1213,6 +1237,7 @@ class AppliedPTransform(object):
             out in sorted(self.named_outputs().items())
         },
         environment_id=environment_id,
+        annotations=self.annotations,
         # TODO(BEAM-366): Add display_data.
         display_data=None)
 
@@ -1254,7 +1279,8 @@ class AppliedPTransform(object):
         transform=transform,
         full_label=proto.unique_name,
         inputs=main_inputs,
-        environment_id=proto.environment_id)
+        environment_id=proto.environment_id,
+        annotations=proto.annotations)
 
     if result.transform and result.transform.side_inputs:
       for si, pcoll in zip(result.transform.side_inputs, side_inputs):
