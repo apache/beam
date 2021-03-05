@@ -39,6 +39,10 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.frame.DataFrame.cumsum': ['*'],
             'pandas.core.frame.DataFrame.cumprod': ['*'],
             'pandas.core.frame.DataFrame.diff': ['*'],
+            'pandas.core.frame.DataFrame.fillna': [
+                "df.fillna(method='ffill')",
+                'df.fillna(value=values, limit=1)',
+            ],
             'pandas.core.frame.DataFrame.items': ['*'],
             'pandas.core.frame.DataFrame.itertuples': ['*'],
             'pandas.core.frame.DataFrame.iterrows': ['*'],
@@ -55,6 +59,11 @@ class DoctestTest(unittest.TestCase):
                 "df.nsmallest(3, 'population', keep='last')",
             ],
             'pandas.core.frame.DataFrame.nunique': ['*'],
+            'pandas.core.frame.DataFrame.replace': [
+                "s.replace([1, 2], method='bfill')",
+                # Relies on method='pad'
+                "s.replace('a', None)",
+            ],
             'pandas.core.frame.DataFrame.to_records': ['*'],
             'pandas.core.frame.DataFrame.to_dict': ['*'],
             'pandas.core.frame.DataFrame.to_numpy': ['*'],
@@ -87,6 +96,10 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.frame.DataFrame.count': ['*'],
             'pandas.core.frame.DataFrame.reindex': ['*'],
             'pandas.core.frame.DataFrame.reindex_axis': ['*'],
+
+            'pandas.core.frame.DataFrame.round': [
+                'df.round(decimals)',
+            ],
 
             # We should be able to support pivot and pivot_table for categorical
             # columns
@@ -237,6 +250,10 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.diff': ['*'],
             'pandas.core.series.Series.dot': [
                 's.dot(arr)',  # non-deferred result
+            ],
+            'pandas.core.series.Series.fillna': [
+                "df.fillna(method='ffill')",
+                'df.fillna(value=values, limit=1)',
             ],
             'pandas.core.series.Series.items': ['*'],
             'pandas.core.series.Series.iteritems': ['*'],
