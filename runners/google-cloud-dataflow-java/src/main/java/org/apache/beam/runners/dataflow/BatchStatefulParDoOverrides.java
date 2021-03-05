@@ -27,7 +27,6 @@ import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -188,8 +187,7 @@ public class BatchStatefulParDoOverrides {
               PCollection<? extends KV<K, Iterable<KV<Instant, WindowedValue<KV<K, InputT>>>>>>,
               PCollection<OutputT>>
           statefulParDo =
-              ParDo.of(new BatchStatefulDoFn<>(fn))
-                  .withSideInputs(originalParDo.getSideInputs());
+              ParDo.of(new BatchStatefulDoFn<>(fn)).withSideInputs(originalParDo.getSideInputs());
 
       return input.apply(new GbkBeforeStatefulParDo<>()).apply(statefulParDo);
     }
