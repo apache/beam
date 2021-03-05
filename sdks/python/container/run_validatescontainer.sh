@@ -32,8 +32,8 @@
 
 echo "This script must be executed in the root of beam project. Please set GCS_LOCATION, PROJECT and REGION as desired."
 
-if [[ $# != 1 ]]; then
-  printf "Usage: \n$> ./sdks/python/container/run_validatescontainer.sh <python_version>"
+if [[ $# != 2 ]]; then
+  printf "Usage: \n$> ./sdks/python/container/run_validatescontainer.sh <python_version> <sdk_location>"
   printf "\n\tpython_version: [required] Python version used for container build and run tests."
   printf " Use 'python35' for Python3.5, python36 for Python3.6, python37 for Python3.7, python38 for Python3.8."
   exit 1
@@ -96,7 +96,7 @@ function cleanup_container {
   docker rmi $CONTAINER:$TAG || echo "Failed to remove container image"
   docker rmi $(docker images --format '{{.Repository}}:{{.Tag}}' | grep 'prebuilt_sdk') || echo "Failed to remove prebuilt sdk container image"
   gcloud --quiet container images delete $CONTAINER:$TAG || echo "Failed to delete container"
-  for digest in $(gcloud container images list-tags $PREBUILD_SDK_CONTAINER_REGISTRY_PATH/beam_python_prebuilt_sdk  --format="get(digest)"):
+  for digest in $(gcloud container images list-tags $PREBUILD_SDK_CONTAINER_REGISTRY_PATH/beam_python_prebuilt_sdk  --format="get(digest)")
     do gcloud container images delete $PREBUILD_SDK_CONTAINER_REGISTRY_PATH/beam_python_prebuilt_sdk@$digest --force-delete-tags --quiet || echo "Failed to remove prebuilt sdk container image"
   done
 
@@ -106,16 +106,8 @@ trap cleanup_container EXIT
 
 echo ">>> Successfully built and push container $CONTAINER"
 
-# Virtualenv for the rest of the script to run setup & e2e test
-VENV_PATH=sdks/python/container/venv/$PY_INTERPRETER
-virtualenv $VENV_PATH -p $PY_INTERPRETER
-. $VENV_PATH/bin/activate
 cd sdks/python
-pip install -e .[gcp,test]
-
-# Create a tarball
-python setup.py sdist
-SDK_LOCATION=$(find dist/apache-beam-*.tar.gz)
+SDK_LOCATION=$2
 
 # Run ValidatesRunner tests on Google Cloud Dataflow service
 echo ">>> RUNNING DATAFLOW RUNNER VALIDATESCONTAINER TEST"

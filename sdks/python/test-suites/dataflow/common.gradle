@@ -239,11 +239,13 @@ task chicagoTaxiExample {
 }
 
 task validatesContainer() {
+  dependsOn 'installGcpTest'
+  dependsOn ':sdks:python:sdist'
   def runScriptsPath = "${rootDir}/sdks/python/container/run_validatescontainer.sh"
   doLast {
     exec {
       executable 'sh'
-      args '-c', "cd ${rootDir} && ${runScriptsPath} python${project.ext.pythonVersion.replace('.', '')}"
+      args '-c', "cd ${rootDir} && ${runScriptsPath} python${project.ext.pythonVersion.replace('.', '')} ${files(configurations.distTarBall.files).singleFile}"
     }
   }
 }
