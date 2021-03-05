@@ -488,6 +488,14 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.groupby.generic.DataFrameGroupBy.diff': ['*'],
             'pandas.core.groupby.generic.SeriesGroupBy.diff': ['*'],
             'pandas.core.groupby.generic.DataFrameGroupBy.hist': ['*'],
+            'pandas.core.groupby.generic.DataFrameGroupBy.fillna': [
+                "df.fillna(method='ffill')",
+                'df.fillna(value=values, limit=1)',
+            ],
+            'pandas.core.groupby.generic.SeriesGroupBy.fillna': [
+                "df.fillna(method='ffill')",
+                'df.fillna(value=values, limit=1)',
+            ],
         },
         not_implemented_ok={
             'pandas.core.groupby.generic.DataFrameGroupBy.transform': ['*'],
