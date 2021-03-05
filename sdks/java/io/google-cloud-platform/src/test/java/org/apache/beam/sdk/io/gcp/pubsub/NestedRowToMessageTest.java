@@ -40,9 +40,9 @@ import org.mockito.junit.MockitoJUnitRunner;
 
 @RunWith(MockitoJUnitRunner.class)
 public class NestedRowToMessageTest {
-  private final PayloadSerializer SERIALIZER = mock(PayloadSerializer.class);
-  private final NestedRowToMessage TRANSFORM = new NestedRowToMessage(SERIALIZER);
-  private final Map<String, String> ATTRIBUTES = ImmutableMap.of("k1", "v1", "k2", "v2");
+  private static final PayloadSerializer SERIALIZER = mock(PayloadSerializer.class);
+  private static final NestedRowToMessage TRANSFORM = new NestedRowToMessage(SERIALIZER);
+  private static final Map<String, String> ATTRIBUTES = ImmutableMap.of("k1", "v1", "k2", "v2");
 
   @Test
   public void mapAttributesTransformed() {
