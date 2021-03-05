@@ -23,7 +23,6 @@ import static org.hamcrest.Matchers.instanceOf;
 
 import java.util.ArrayList;
 import java.util.Collection;
-
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;

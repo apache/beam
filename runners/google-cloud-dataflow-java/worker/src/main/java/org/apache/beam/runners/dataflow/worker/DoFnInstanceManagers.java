@@ -18,7 +18,6 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
-
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
