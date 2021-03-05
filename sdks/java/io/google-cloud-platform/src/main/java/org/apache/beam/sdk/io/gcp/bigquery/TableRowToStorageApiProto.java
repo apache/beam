@@ -187,7 +187,14 @@ public class TableRowToStorageApiProto {
     if (isRepeated) {
       return ((List<Object>) jsonBQValue)
           .stream()
-              .map(v -> ((Map<String, Object>) v).get("v"))
+              .map(
+                  v -> {
+                    if (fieldDescriptor.getType() == FieldDescriptor.Type.MESSAGE) {
+                      return ((Map<String, Object>) v).get("v");
+                    } else {
+                      return v;
+                    }
+                  })
               .map(v -> toProtoValue(fieldDescriptor, v, false))
               .collect(toList());
     }

@@ -64,6 +64,11 @@ public class TableRowToStorageApiProtoTest {
                   .add(new TableFieldSchema().setType("DATETIME").setName("datetimeValue"))
                   .add(new TableFieldSchema().setType("DATE").setName("dateValue"))
                   .add(new TableFieldSchema().setType("NUMERIC").setName("numericValue"))
+                  .add(
+                      new TableFieldSchema()
+                          .setType("STRING")
+                          .setMode("REPEATED")
+                          .setName("arrayValue"))
                   .build());
 
   private static final DescriptorProto BASE_TABLE_SCHEMA_PROTO =
@@ -159,6 +164,13 @@ public class TableRowToStorageApiProtoTest {
                   .setType(Type.TYPE_STRING)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
+          .addField(
+              FieldDescriptorProto.newBuilder()
+                  .setName("arrayvalue")
+                  .setNumber(14)
+                  .setType(Type.TYPE_STRING)
+                  .setLabel(Label.LABEL_REPEATED)
+                  .build())
           .build();
 
   private static final TableSchema NESTED_TABLE_SCHEMA =
@@ -253,7 +265,8 @@ public class TableRowToStorageApiProtoTest {
           .set("timeValue", "00:52:07[.123]|[.123456] UTC")
           .set("datetimeValue", "2019-08-16 00:52:07[.123]|[.123456] UTC")
           .set("dateValue", "2019-08-16")
-          .set("numericValue", "23.4");
+          .set("numericValue", "23.4")
+          .set("arrayValue", ImmutableList.of("hello", "goodbye"));
 
   private static final Map<String, Object> BASE_ROW_EXPECTED_PROTO_VALUES =
       ImmutableMap.<String, Object>builder()
@@ -270,6 +283,7 @@ public class TableRowToStorageApiProtoTest {
           .put("datetimevalue", "2019-08-16 00:52:07[.123]|[.123456] UTC")
           .put("datevalue", "2019-08-16")
           .put("numericvalue", "23.4")
+          .put("arrayvalue", ImmutableList.of("hello", "goodbye"))
           .build();
 
   private void assertBaseRecord(DynamicMessage msg) {
