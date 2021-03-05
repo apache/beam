@@ -411,6 +411,97 @@ class DoctestTest(unittest.TestCase):
         })
     self.assertEqual(result.failed, 0)
 
+  def test_groupby_tests(self):
+    result = doctests.testmod(
+        pd.core.groupby.groupby,
+        use_beam=False,
+        wont_implement_ok={
+            'pandas.core.groupby.groupby.GroupBy.head': ['*'],
+            'pandas.core.groupby.groupby.GroupBy.tail': ['*'],
+            'pandas.core.groupby.groupby.GroupBy.nth': ['*'],
+            'pandas.core.groupby.groupby.GroupBy.cumcount': ['*'],
+        },
+        not_implemented_ok={
+            'pandas.core.groupby.groupby.GroupBy.describe': ['*'],
+            'pandas.core.groupby.groupby.GroupBy.ngroup': ['*'],
+            'pandas.core.groupby.groupby.GroupBy.resample': ['*'],
+            'pandas.core.groupby.groupby.GroupBy.sample': ['*'],
+            'pandas.core.groupby.groupby.GroupBy.quantile': ['*'],
+            'pandas.core.groupby.groupby.BaseGroupBy.pipe': ['*'],
+            # pipe tests are in a different location in pandas 1.1.x
+            'pandas.core.groupby.groupby._GroupBy.pipe': ['*'],
+            'pandas.core.groupby.groupby.GroupBy.nth': [
+                "df.groupby('A', as_index=False).nth(1)",
+            ],
+        },
+        skip={
+            # Uses iloc to mutate a DataFrame
+            'pandas.core.groupby.groupby.GroupBy.resample': [
+                'df.iloc[2, 0] = 5',
+                'df',
+            ],
+            # TODO: Raise wont implement for list passed as a grouping column
+            # Currently raises unhashable type: list
+            'pandas.core.groupby.groupby.GroupBy.ngroup': [
+                'df.groupby(["A", [1,1,2,3,2,1]]).ngroup()'
+            ],
+        })
+    self.assertEqual(result.failed, 0)
+
+    result = doctests.testmod(
+        pd.core.groupby.generic,
+        use_beam=False,
+        wont_implement_ok={
+            # Returns an array by default, not a Series. WontImplement
+            # (non-deferred)
+            'pandas.core.groupby.generic.SeriesGroupBy.unique': ['*'],
+            # TODO: Is take actually deprecated?
+            'pandas.core.groupby.generic.DataFrameGroupBy.take': ['*'],
+            'pandas.core.groupby.generic.SeriesGroupBy.take': ['*'],
+            'pandas.core.groupby.generic.SeriesGroupBy.nsmallest': [
+                "s.nsmallest(3, keep='last')",
+                "s.nsmallest(3)",
+                "s.nsmallest()",
+            ],
+            'pandas.core.groupby.generic.SeriesGroupBy.nlargest': [
+                "s.nlargest(3, keep='last')",
+                "s.nlargest(3)",
+                "s.nlargest()",
+            ],
+            'pandas.core.groupby.generic.DataFrameGroupBy.diff': ['*'],
+            'pandas.core.groupby.generic.SeriesGroupBy.diff': ['*'],
+            'pandas.core.groupby.generic.DataFrameGroupBy.hist': ['*'],
+        },
+        not_implemented_ok={
+            'pandas.core.groupby.generic.DataFrameGroupBy.transform': ['*'],
+            'pandas.core.groupby.generic.DataFrameGroupBy.idxmax': ['*'],
+            'pandas.core.groupby.generic.DataFrameGroupBy.idxmin': ['*'],
+            'pandas.core.groupby.generic.DataFrameGroupBy.filter': ['*'],
+            'pandas.core.groupby.generic.DataFrameGroupBy.nunique': ['*'],
+            'pandas.core.groupby.generic.SeriesGroupBy.transform': ['*'],
+            'pandas.core.groupby.generic.SeriesGroupBy.idxmax': ['*'],
+            'pandas.core.groupby.generic.SeriesGroupBy.idxmin': ['*'],
+            'pandas.core.groupby.generic.SeriesGroupBy.filter': ['*'],
+            'pandas.core.groupby.generic.SeriesGroupBy.describe': ['*'],
+        },
+        skip={
+            'pandas.core.groupby.generic.SeriesGroupBy.cov': [
+                # Floating point comparison fails
+                's1.cov(s2)',
+            ],
+            'pandas.core.groupby.generic.DataFrameGroupBy.cov': [
+                # Mutates input DataFrame with loc
+                # TODO: Replicate in frames_test.py
+                "df.loc[df.index[:5], 'a'] = np.nan",
+                "df.loc[df.index[5:10], 'b'] = np.nan",
+                "df.cov(min_periods=12)",
+            ],
+            # These examples rely on grouping by a list
+            'pandas.core.groupby.generic.SeriesGroupBy.aggregate': ['*'],
+            'pandas.core.groupby.generic.DataFrameGroupBy.aggregate': ['*'],
+        })
+    self.assertEqual(result.failed, 0)
+
   def test_top_level(self):
     tests = {
         name: func.__doc__
