@@ -72,3 +72,9 @@ task validatesRunnerStreamingTestsV2 {
     dependsOn.add(":sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:validatesRunnerStreamingTests")
   }
 }
+
+task validatesContainerTests {
+  getVersionsAsList('dataflow_validates_container_tests').each {
+    dependsOn.add(":sdks:python:test-suites:dataflow:py${getVersionSuffix(it)}:validatesContainer")
+  }
+}

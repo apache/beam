@@ -237,3 +237,13 @@ task chicagoTaxiExample {
     }
   }
 }
+
+task validatesContainer() {
+  def runScriptsPath = "${rootDir}/sdks/python/container/run_validatescontainer.sh"
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', "cd ${rootDir} && ${runScriptsPath} python${project.ext.pythonVersion.replace('.', '')}"
+    }
+  }
+}

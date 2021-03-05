@@ -38,9 +38,7 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Py_ValCont',
       steps {
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
-          tasks(':sdks:python:test-suites:portable:py36:validatesContainer')
-          tasks(':sdks:python:test-suites:portable:py37:validatesContainer')
-          tasks(':sdks:python:test-suites:portable:py38:validatesContainer')
+          tasks(':sdks:python:test-suites:dataflow:validatesContainerTests')
           commonJobProperties.setGradleSwitches(delegate)
         }
       }
