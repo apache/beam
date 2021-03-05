@@ -22,6 +22,7 @@ import static org.junit.Assert.assertEquals;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.protobuf.ByteString;
 import com.google.protobuf.DescriptorProtos.DescriptorProto;
 import com.google.protobuf.DescriptorProtos.FieldDescriptorProto;
 import com.google.protobuf.DescriptorProtos.FieldDescriptorProto.Label;
@@ -30,11 +31,11 @@ import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.DynamicMessage;
 import java.nio.charset.StandardCharsets;
-import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Functions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.BaseEncoding;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -254,36 +255,29 @@ public class TableRowToStorageApiProtoTest {
           .set("dateValue", "2019-08-16")
           .set("numericValue", "23.4");
 
-  private void assertBaseRecord(DynamicMessage msg) {
-    Map<String, Object> baseRecordFields =
-        BASE_TABLE_SCHEMA.getFields().stream()
-            .collect(
-                Collectors.toMap(
-                    f -> f.getName().toLowerCase(),
-                    f -> {
-                      FieldDescriptor fieldDescriptor =
-                          msg.getDescriptorForType().findFieldByName(f.getName().toLowerCase());
-                      if (fieldDescriptor.isRepeated()) {
-                        Object value = BASE_TABLE_ROW.get(f.getName());
-                        List<Object> list = (List<Object>) value;
-                        return list.stream()
-                            .map(
-                                v ->
-                                    TableRowToStorageApiProto.scalarToProtoValue(
-                                        fieldDescriptor, v))
-                            .collect(Collectors.toList());
-                      } else {
-                        return TableRowToStorageApiProto.scalarToProtoValue(
-                            msg.getDescriptorForType().findFieldByName(f.getName().toLowerCase()),
-                            BASE_TABLE_ROW.get(f.getName()));
-                      }
-                    }));
+  private static final Map<String, Object> BASE_ROW_EXPECTED_PROTO_VALUES =
+      ImmutableMap.<String, Object>builder()
+          .put("stringvalue", "string")
+          .put("bytesvalue", ByteString.copyFrom("string".getBytes(StandardCharsets.UTF_8)))
+          .put("int64value", (long) 42)
+          .put("intvalue", (long) 43)
+          .put("float64value", (double) 2.8168)
+          .put("floatvalue", (double) 2.817)
+          .put("boolvalue", true)
+          .put("booleanvalue", true)
+          .put("timestampvalue", "43")
+          .put("timevalue", "00:52:07[.123]|[.123456] UTC")
+          .put("datetimevalue", "2019-08-16 00:52:07[.123]|[.123456] UTC")
+          .put("datevalue", "2019-08-16")
+          .put("numericvalue", "23.4")
+          .build();
 
+  private void assertBaseRecord(DynamicMessage msg) {
     Map<String, Object> recordFields =
         msg.getAllFields().entrySet().stream()
             .collect(
                 Collectors.toMap(entry -> entry.getKey().getName(), entry -> entry.getValue()));
-    assertEquals(baseRecordFields, recordFields);
+    assertEquals(BASE_ROW_EXPECTED_PROTO_VALUES, recordFields);
   }
 
   @Test

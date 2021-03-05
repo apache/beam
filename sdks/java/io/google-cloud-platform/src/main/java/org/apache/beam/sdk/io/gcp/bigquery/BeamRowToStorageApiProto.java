@@ -55,7 +55,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Bytes;
-import org.joda.time.Instant;
 import org.joda.time.ReadableInstant;
 
 /**
@@ -107,17 +106,10 @@ public class BeamRowToStorageApiProto {
           .put(TypeName.DOUBLE, Function.identity())
           .put(TypeName.STRING, Function.identity())
           .put(TypeName.BOOLEAN, Function.identity())
+          // A Beam DATETIME is actually a timestamp, not a DateTime.
           .put(TypeName.DATETIME, o -> ((ReadableInstant) o).getMillis() * 1000)
           .put(TypeName.BYTES, o -> ByteString.copyFrom((byte[]) o))
-          .put(
-              TypeName.DECIMAL,
-              o ->
-                  serializeBigDecimal(
-                      (BigDecimal) o,
-                      NUMERIC_SCALE,
-                      MAX_NUMERIC_VALUE,
-                      MIN_NUMERIC_VALUE,
-                      "Numeric"))
+          .put(TypeName.DECIMAL, o -> serializeBigDecimalToNumeric((BigDecimal) o))
           .build();
 
   // A map of supported logical types to their encoding functions.
@@ -135,7 +127,7 @@ public class BeamRowToStorageApiProto {
                   CivilTimeEncoder.encodePacked64DatetimeSeconds((LocalDateTime) value))
           .put(
               SqlTypes.TIMESTAMP.getIdentifier(),
-              (logicalType, value) -> ((Instant) value).getMillis() * 1000)
+              (logicalType, value) -> ((java.time.Instant) value).toEpochMilli() * 1000)
           .put(
               EnumerationType.IDENTIFIER,
               (logicalType, value) ->
@@ -178,6 +170,7 @@ public class BeamRowToStorageApiProto {
 
   @VisibleForTesting
   static DescriptorProto descriptorSchemaFromBeamSchema(Schema schema) {
+    Preconditions.checkState(schema.getFieldCount() > 0);
     DescriptorProto.Builder descriptorBuilder = DescriptorProto.newBuilder();
     // Create a unique name for the descriptor ('-' characters cannot be used).
     descriptorBuilder.setName("D" + UUID.randomUUID().toString().replace("-", "_"));
@@ -316,6 +309,10 @@ public class BeamRowToStorageApiProto {
       }
       return encoder.apply(value);
     }
+  }
+
+  static ByteString serializeBigDecimalToNumeric(BigDecimal o) {
+    return serializeBigDecimal(o, NUMERIC_SCALE, MAX_NUMERIC_VALUE, MIN_NUMERIC_VALUE, "Numeric");
   }
 
   private static ByteString serializeBigDecimal(

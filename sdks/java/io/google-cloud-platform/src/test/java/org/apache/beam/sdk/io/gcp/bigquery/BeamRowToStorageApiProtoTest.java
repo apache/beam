@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.junit.Assert.assertEquals;
 
+import com.google.protobuf.ByteString;
 import com.google.protobuf.DescriptorProtos.DescriptorProto;
 import com.google.protobuf.DescriptorProtos.FieldDescriptorProto;
 import com.google.protobuf.DescriptorProtos.FieldDescriptorProto.Label;
@@ -33,8 +34,6 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Map;
 import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -43,6 +42,7 @@ import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Functions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -74,7 +74,8 @@ public class BeamRowToStorageApiProtoTest {
           .addField("sqlDateValue", FieldType.logicalType(SqlTypes.DATE).withNullable(true))
           .addField("sqlTimeValue", FieldType.logicalType(SqlTypes.TIME).withNullable(true))
           .addField("sqlDatetimeValue", FieldType.logicalType(SqlTypes.DATETIME).withNullable(true))
-          .addField("sqlTimestampValue", FieldType.logicalType(SqlTypes.TIME).withNullable(true))
+          .addField(
+              "sqlTimestampValue", FieldType.logicalType(SqlTypes.TIMESTAMP).withNullable(true))
           .addField("enumValue", FieldType.logicalType(TEST_ENUM).withNullable(true))
           .build();
 
@@ -227,8 +228,44 @@ public class BeamRowToStorageApiProtoTest {
           .withFieldValue("sqlDateValue", LocalDate.now())
           .withFieldValue("sqlTimeValue", LocalTime.now())
           .withFieldValue("sqlDatetimeValue", LocalDateTime.now())
-          .withFieldValue("sqlTimestampValue", LocalTime.now())
+          .withFieldValue("sqlTimestampValue", java.time.Instant.now())
           .withFieldValue("enumValue", TEST_ENUM.valueOf("RED"))
+          .build();
+  private static final Map<String, Object> BASE_PROTO_EXPECTED_FIELDS =
+      ImmutableMap.<String, Object>builder()
+          .put("bytevalue", (int) 1)
+          .put("int16value", (int) 2)
+          .put("int32value", (int) 3)
+          .put("int64value", (long) 4)
+          .put(
+              "decimalvalue",
+              BeamRowToStorageApiProto.serializeBigDecimalToNumeric(BigDecimal.valueOf(5)))
+          .put("floatvalue", (float) 3.14)
+          .put("doublevalue", (double) 2.68)
+          .put("stringvalue", "I am a string. Hear me roar.")
+          .put("datetimevalue", BASE_ROW.getDateTime("datetimeValue").getMillis() * 1000)
+          .put("booleanvalue", true)
+          .put("bytesvalue", ByteString.copyFrom(BYTES))
+          .put("arrayvalue", ImmutableList.of("one", "two", "red", "blue"))
+          .put("iterablevalue", ImmutableList.of("blue", "red", "two", "one"))
+          .put(
+              "sqldatevalue",
+              (int) BASE_ROW.getLogicalTypeValue("sqlDateValue", LocalDate.class).toEpochDay())
+          .put(
+              "sqltimevalue",
+              CivilTimeEncoder.encodePacked64TimeMicros(
+                  BASE_ROW.getLogicalTypeValue("sqlTimeValue", LocalTime.class)))
+          .put(
+              "sqldatetimevalue",
+              CivilTimeEncoder.encodePacked64DatetimeSeconds(
+                  BASE_ROW.getLogicalTypeValue("sqlDatetimeValue", LocalDateTime.class)))
+          .put(
+              "sqltimestampvalue",
+              BASE_ROW
+                      .getLogicalTypeValue("sqlTimestampValue", java.time.Instant.class)
+                      .toEpochMilli()
+                  * 1000)
+          .put("enumvalue", "RED")
           .build();
 
   private static final Schema NESTED_SCHEMA =
@@ -332,37 +369,11 @@ public class BeamRowToStorageApiProtoTest {
   }
 
   private void assertBaseRecord(DynamicMessage msg) {
-    Map<String, Object> baseRecordFields =
-        BASE_SCHEMA.getFields().stream()
-            .collect(
-                Collectors.toMap(
-                    f -> f.getName().toLowerCase(),
-                    f -> {
-                      if (f.getType().getTypeName().isCollectionType()) {
-                        Object value = BASE_ROW.getValue(f.getName());
-                        Iterable<Object> iterable = (Iterable<Object>) value;
-                        @Nullable
-                        FieldType iterableElementType = f.getType().getCollectionElementType();
-                        if (iterableElementType == null) {
-                          throw new RuntimeException("Unexpected null element type!");
-                        }
-                        return StreamSupport.stream(iterable.spliterator(), false)
-                            .map(
-                                v ->
-                                    BeamRowToStorageApiProto.scalarToProtoValue(
-                                        iterableElementType, v))
-                            .collect(Collectors.toList());
-                      } else {
-                        return BeamRowToStorageApiProto.scalarToProtoValue(
-                            f.getType(), BASE_ROW.getValue(f.getName()));
-                      }
-                    }));
-
     Map<String, Object> recordFields =
         msg.getAllFields().entrySet().stream()
             .collect(
                 Collectors.toMap(entry -> entry.getKey().getName(), entry -> entry.getValue()));
-    assertEquals(baseRecordFields, recordFields);
+    assertEquals(BASE_PROTO_EXPECTED_FIELDS, recordFields);
   }
 
   @Test
