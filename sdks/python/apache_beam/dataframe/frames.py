@@ -1519,7 +1519,27 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
             preserves_partition_by=partitionings.Nothing(),
             requires_partition_by=requires_partition_by))
 
-  round = frame_base._elementwise_method('round')
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  def round(self, decimals, *args, **kwargs):
+
+    if isinstance(decimals, frame_base.DeferredFrame):
+      # Disallow passing a deferred Series in, our current partitioning model
+      # prevents us from using it correctly.
+      raise NotImplementedError("Passing a deferred series to round() is not "
+                                "supported, please use a concrete pd.Series "
+                                "instance or a dictionary")
+
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'round',
+            lambda df: df.round(decimals, *args, **kwargs),
+            [self._expr],
+            requires_partition_by=partitionings.Nothing(),
+            preserves_partition_by=partitionings.Index()
+        )
+    )
+
   select_dtypes = frame_base._elementwise_method('select_dtypes')
 
   @frame_base.args_to_kwargs(pd.DataFrame)
