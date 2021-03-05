@@ -116,13 +116,21 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
   @frame_base.maybe_inplace
-  def fillna(self, value, method, axis, **kwargs):
+  def fillna(self, value, method, axis, limit, **kwargs):
+    # Default value is None, but is overriden with index.
+    axis = axis or 'index'
     if method is not None and axis in (0, 'index'):
       raise frame_base.WontImplementError('order-sensitive')
     if isinstance(value, frame_base.DeferredBase):
       value_expr = value._expr
     else:
       value_expr = expressions.ConstantExpression(value)
+
+    if limit is not None and method is None:
+      # If method is not None (and axis is 'columns'), we can do limit in
+      # a distributed way. Else, it is order sensitive.
+      raise frame_base.WontImplementError('order-sensitive')
+
     return frame_base.DeferredFrame.wrap(
         # yapf: disable
         expressions.ComputedExpression(
