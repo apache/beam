@@ -31,14 +31,6 @@ import static org.junit.Assert.assertThrows;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
-import com.google.protobuf.ByteString;
-import com.google.protobuf.DescriptorProtos.DescriptorProto;
-import com.google.protobuf.DescriptorProtos.FieldDescriptorProto;
-import com.google.protobuf.DescriptorProtos.FieldDescriptorProto.Label;
-import com.google.protobuf.DescriptorProtos.FieldDescriptorProto.Type;
-import com.google.protobuf.Descriptors.Descriptor;
-import com.google.protobuf.Descriptors.FieldDescriptor;
-import com.google.protobuf.DynamicMessage;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.ByteBuffer;
@@ -46,13 +38,10 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.AbstractMap;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 import org.apache.avro.Conversions;
 import org.apache.avro.LogicalTypes;
 import org.apache.avro.generic.GenericData;
@@ -64,10 +53,7 @@ import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Functions;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.BaseEncoding;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
 import org.joda.time.chrono.ISOChronology;
@@ -786,251 +772,5 @@ public class BigQueryUtilsTest {
         BigQueryUtils.toBeamRow(
             record, AVRO_ARRAY_ARRAY_TYPE, BigQueryUtils.ConversionOptions.builder().build());
     assertEquals(expected, beamRow);
-  }
-
-  private static final TableSchema BASE_TABLE_SCHEMA =
-      new TableSchema()
-          .setFields(
-              ImmutableList.<TableFieldSchema>builder()
-                  .add(new TableFieldSchema().setType("STRING").setName("stringValue"))
-                  .add(new TableFieldSchema().setType("BYTES").setName("bytesValue"))
-                  .add(new TableFieldSchema().setType("INT64").setName("int64Value"))
-                  .add(new TableFieldSchema().setType("INTEGER").setName("intValue"))
-                  .add(new TableFieldSchema().setType("FLOAT64").setName("float64Value"))
-                  .add(new TableFieldSchema().setType("FLOAT").setName("floatValue"))
-                  .add(new TableFieldSchema().setType("BOOL").setName("boolValue"))
-                  .add(new TableFieldSchema().setType("BOOLEAN").setName("booleanValue"))
-                  .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampValue"))
-                  .add(new TableFieldSchema().setType("TIME").setName("timeValue"))
-                  .add(new TableFieldSchema().setType("DATETIME").setName("datetimeValue"))
-                  .add(new TableFieldSchema().setType("DATE").setName("dateValue"))
-                  .build());
-
-  private static final DescriptorProto BASE_TABLE_SCHEMA_PROTO =
-      DescriptorProto.newBuilder()
-          .addField(
-              FieldDescriptorProto.newBuilder()
-                  .setName("stringValue")
-                  .setNumber(1)
-                  .setType(Type.TYPE_STRING)
-                  .setLabel(Label.LABEL_OPTIONAL)
-                  .build())
-          .addField(
-              FieldDescriptorProto.newBuilder()
-                  .setName("bytesValue")
-                  .setNumber(2)
-                  .setType(Type.TYPE_BYTES)
-                  .setLabel(Label.LABEL_OPTIONAL)
-                  .build())
-          .addField(
-              FieldDescriptorProto.newBuilder()
-                  .setName("int64Value")
-                  .setNumber(3)
-                  .setType(Type.TYPE_INT64)
-                  .setLabel(Label.LABEL_OPTIONAL)
-                  .build())
-          .addField(
-              FieldDescriptorProto.newBuilder()
-                  .setName("intValue")
-                  .setNumber(4)
-                  .setType(Type.TYPE_INT64)
-                  .setLabel(Label.LABEL_OPTIONAL)
-                  .build())
-          .addField(
-              FieldDescriptorProto.newBuilder()
-                  .setName("float64Value")
-                  .setNumber(5)
-                  .setType(Type.TYPE_FLOAT)
-                  .setLabel(Label.LABEL_OPTIONAL)
-                  .build())
-          .addField(
-              FieldDescriptorProto.newBuilder()
-                  .setName("floatValue")
-                  .setNumber(6)
-                  .setType(Type.TYPE_FLOAT)
-                  .setLabel(Label.LABEL_OPTIONAL)
-                  .build())
-          .addField(
-              FieldDescriptorProto.newBuilder()
-                  .setName("boolValue")
-                  .setNumber(7)
-                  .setType(Type.TYPE_BOOL)
-                  .setLabel(Label.LABEL_OPTIONAL)
-                  .build())
-          .addField(
-              FieldDescriptorProto.newBuilder()
-                  .setName("booleanValue")
-                  .setNumber(8)
-                  .setType(Type.TYPE_BOOL)
-                  .setLabel(Label.LABEL_OPTIONAL)
-                  .build())
-          .addField(
-              FieldDescriptorProto.newBuilder()
-                  .setName("timestampValue")
-                  .setNumber(9)
-                  .setType(Type.TYPE_INT64)
-                  .setLabel(Label.LABEL_OPTIONAL)
-                  .build())
-          .addField(
-              FieldDescriptorProto.newBuilder()
-                  .setName("timeValue")
-                  .setNumber(10)
-                  .setType(Type.TYPE_INT64)
-                  .setLabel(Label.LABEL_OPTIONAL)
-                  .build())
-          .addField(
-              FieldDescriptorProto.newBuilder()
-                  .setName("datetimeValue")
-                  .setNumber(11)
-                  .setType(Type.TYPE_INT64)
-                  .setLabel(Label.LABEL_OPTIONAL)
-                  .build())
-          .addField(
-              FieldDescriptorProto.newBuilder()
-                  .setName("dateValue")
-                  .setNumber(12)
-                  .setType(Type.TYPE_INT32)
-                  .setLabel(Label.LABEL_OPTIONAL)
-                  .build())
-          .build();
-
-  private static final TableSchema NESTED_TABLE_SCHEMA =
-      new TableSchema()
-          .setFields(
-              ImmutableList.<TableFieldSchema>builder()
-                  .add(
-                      new TableFieldSchema()
-                          .setType("STRUCT")
-                          .setName("nestedValue1")
-                          .setFields(BASE_TABLE_SCHEMA.getFields()))
-                  .add(
-                      new TableFieldSchema()
-                          .setType("RECORD")
-                          .setName("nestedValue2")
-                          .setFields(BASE_TABLE_SCHEMA.getFields()))
-                  .build());
-
-  // For now, test that no exceptions are thrown.
-  @Test
-  public void testDescriptorFromTableSchema() {
-    DescriptorProto descriptor = BigQueryUtils.descriptorSchemaFromTableSchema(BASE_TABLE_SCHEMA);
-    Map<String, Type> types =
-        descriptor.getFieldList().stream()
-            .collect(
-                Collectors.toMap(FieldDescriptorProto::getName, FieldDescriptorProto::getType));
-    Map<String, Type> expectedTypes =
-        BASE_TABLE_SCHEMA_PROTO.getFieldList().stream()
-            .collect(
-                Collectors.toMap(FieldDescriptorProto::getName, FieldDescriptorProto::getType));
-    assertEquals(expectedTypes, types);
-  }
-
-  @Test
-  public void testNestedFromTableSchema() {
-    DescriptorProto descriptor = BigQueryUtils.descriptorSchemaFromTableSchema(NESTED_TABLE_SCHEMA);
-    Map<String, Type> expectedBaseTypes =
-        BASE_TABLE_SCHEMA_PROTO.getFieldList().stream()
-            .collect(
-                Collectors.toMap(FieldDescriptorProto::getName, FieldDescriptorProto::getType));
-
-    Map<String, Type> types =
-        descriptor.getFieldList().stream()
-            .collect(
-                Collectors.toMap(FieldDescriptorProto::getName, FieldDescriptorProto::getType));
-    Map<String, String> typeNames =
-        descriptor.getFieldList().stream()
-            .collect(
-                Collectors.toMap(FieldDescriptorProto::getName, FieldDescriptorProto::getTypeName));
-    assertEquals(2, types.size());
-
-    Map<String, DescriptorProto> nestedTypes =
-        descriptor.getNestedTypeList().stream()
-            .collect(Collectors.toMap(DescriptorProto::getName, Functions.identity()));
-    assertEquals(2, nestedTypes.size());
-    assertEquals(Type.TYPE_MESSAGE, types.get("nestedValue1"));
-    String nestedTypeName1 = typeNames.get("nestedValue1");
-    Map<String, Type> nestedTypes1 =
-        nestedTypes.get(nestedTypeName1).getFieldList().stream()
-            .collect(
-                Collectors.toMap(FieldDescriptorProto::getName, FieldDescriptorProto::getType));
-    assertEquals(expectedBaseTypes, nestedTypes1);
-
-    assertEquals(Type.TYPE_MESSAGE, types.get("nestedValue2"));
-    String nestedTypeName2 = typeNames.get("nestedValue2");
-    Map<String, Type> nestedTypes2 =
-        nestedTypes.get(nestedTypeName2).getFieldList().stream()
-            .collect(
-                Collectors.toMap(FieldDescriptorProto::getName, FieldDescriptorProto::getType));
-    assertEquals(expectedBaseTypes, nestedTypes2);
-  }
-
-  @Test
-  public void testRepeatedDescriptorFromTableSchema() {
-    BigQueryUtils.descriptorSchemaFromTableSchema(BASE_TABLE_SCHEMA);
-  }
-
-  private TableRow getBaseRecord() {
-    return new TableRow()
-        .set("stringValue", "string")
-        .set("bytesValue", BaseEncoding.base64().encode("string".getBytes(StandardCharsets.UTF_8)))
-        .set("int64Value", 42L)
-        .set("intValue", 43L)
-        .set("float64Value", (float) 2.8168)
-        .set("floatValue", (float) 2.817)
-        .set("boolValue", true)
-        .set("booleanValue", true)
-        .set("timestampValue", 1L)
-        .set("timeValue", 2L)
-        .set("datetimeValue", 3L)
-        .set("dateValue", 4);
-  }
-
-  @Test
-  public void testMessageFromTableRow() throws Exception {
-    TableRow baseRecord = getBaseRecord();
-    Map<String, Object> baseRecordFields = ImmutableMap.copyOf(baseRecord);
-
-    TableRow tableRow =
-        new TableRow().set("nestedValue1", baseRecord).set("nestedValue2", baseRecord);
-    Descriptor descriptor = BigQueryUtils.getDescriptorFromTableSchema(NESTED_TABLE_SCHEMA);
-    DynamicMessage msg = BigQueryUtils.messageFromTableRow(descriptor, tableRow);
-    assertEquals(2, msg.getAllFields().size());
-
-    Map<String, FieldDescriptor> fieldDescriptors =
-        descriptor.getFields().stream()
-            .collect(Collectors.toMap(FieldDescriptor::getName, Functions.identity()));
-    DynamicMessage nestedMsg1 = (DynamicMessage) msg.getField(fieldDescriptors.get("nestedValue1"));
-    Map<String, Object> nestedMsg1Fields =
-        nestedMsg1.getAllFields().entrySet().stream()
-            .map(
-                entry -> {
-                  if (entry.getKey().getType() == FieldDescriptor.Type.BYTES) {
-                    ByteString byteString = (ByteString) entry.getValue();
-                    return new AbstractMap.SimpleEntry<>(
-                        entry.getKey(), BaseEncoding.base64().encode(byteString.toByteArray()));
-                  } else {
-                    return entry;
-                  }
-                })
-            .collect(
-                Collectors.toMap(entry -> entry.getKey().getName(), entry -> entry.getValue()));
-    assertEquals(baseRecordFields, nestedMsg1Fields);
-
-    DynamicMessage nestedMsg2 = (DynamicMessage) msg.getField(fieldDescriptors.get("nestedValue2"));
-    Map<String, Object> nestedMsg2Fields =
-        nestedMsg2.getAllFields().entrySet().stream()
-            .map(
-                entry -> {
-                  if (entry.getKey().getType() == FieldDescriptor.Type.BYTES) {
-                    ByteString byteString = (ByteString) entry.getValue();
-                    return new AbstractMap.SimpleEntry<>(
-                        entry.getKey(), BaseEncoding.base64().encode(byteString.toByteArray()));
-                  } else {
-                    return entry;
-                  }
-                })
-            .collect(
-                Collectors.toMap(entry -> entry.getKey().getName(), entry -> entry.getValue()));
-    assertEquals(baseRecordFields, nestedMsg2Fields);
   }
 }
