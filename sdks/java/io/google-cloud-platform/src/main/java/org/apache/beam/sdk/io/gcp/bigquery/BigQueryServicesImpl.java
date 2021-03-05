@@ -28,7 +28,6 @@ import com.google.api.client.util.BackOffUtils;
 import com.google.api.client.util.ExponentialBackOff;
 import com.google.api.client.util.Sleeper;
 import com.google.api.gax.core.FixedCredentialsProvider;
-import com.google.api.gax.retrying.RetrySettings;
 import com.google.api.gax.rpc.FixedHeaderProvider;
 import com.google.api.gax.rpc.HeaderProvider;
 import com.google.api.gax.rpc.ServerStream;
@@ -1166,7 +1165,7 @@ class BigQueryServicesImpl implements BigQueryServices {
     private final BigQueryReadClient client;
 
     private StorageClientImpl(BigQueryOptions options) throws IOException {
-      BigQueryReadSettings.Builder builder =
+      BigQueryReadSettings.Builder settingsBuilder =
           BigQueryReadSettings.newBuilder()
               .setCredentialsProvider(FixedCredentialsProvider.create(options.getGcpCredential()))
               .setTransportChannelProvider(
@@ -1175,18 +1174,31 @@ class BigQueryServicesImpl implements BigQueryServices {
                       .build());
 
       UnaryCallSettings.Builder<CreateReadSessionRequest, ReadSession> createReadSessionSettings =
-          builder.getStubSettingsBuilder().createReadSessionSettings();
+          settingsBuilder.getStubSettingsBuilder().createReadSessionSettings();
 
-      RetrySettings.Builder retrySettings =
+      createReadSessionSettings.setRetrySettings(
           createReadSessionSettings
               .getRetrySettings()
               .toBuilder()
               .setInitialRpcTimeout(org.threeten.bp.Duration.ofHours(2))
               .setMaxRpcTimeout(org.threeten.bp.Duration.ofHours(2))
-              .setTotalTimeout(org.threeten.bp.Duration.ofHours(2));
+              .setTotalTimeout(org.threeten.bp.Duration.ofHours(2))
+              .build());
 
-      createReadSessionSettings.setRetrySettings(retrySettings.build());
-      this.client = BigQueryReadClient.create(builder.build());
+      UnaryCallSettings.Builder<SplitReadStreamRequest, SplitReadStreamResponse>
+          splitReadStreamSettings =
+              settingsBuilder.getStubSettingsBuilder().splitReadStreamSettings();
+
+      splitReadStreamSettings.setRetrySettings(
+          splitReadStreamSettings
+              .getRetrySettings()
+              .toBuilder()
+              .setInitialRpcTimeout(org.threeten.bp.Duration.ofSeconds(30))
+              .setMaxRpcTimeout(org.threeten.bp.Duration.ofSeconds(30))
+              .setTotalTimeout(org.threeten.bp.Duration.ofSeconds(30))
+              .build());
+
+      this.client = BigQueryReadClient.create(settingsBuilder.build());
     }
 
     @Override
