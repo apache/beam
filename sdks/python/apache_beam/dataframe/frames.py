@@ -1412,12 +1412,14 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
 
   def pop(self, item):
     result = self[item]
+
     self._expr = expressions.ComputedExpression(
             'popped',
-            lambda df: (df.pop(item), df)[-1],
+            lambda df: df.drop(columns=[item]),
             [self._expr],
             preserves_partition_by=partitionings.Singleton(),
             requires_partition_by=partitionings.Nothing())
+
     return result
 
   @frame_base.args_to_kwargs(pd.DataFrame)
