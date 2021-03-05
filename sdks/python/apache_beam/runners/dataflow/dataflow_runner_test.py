@@ -792,8 +792,6 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
   def _run_group_into_batches_and_get_step_properties(
       self, with_sharded_key, additional_properties):
     self.default_properties.append('--streaming')
-    self.default_properties.append(
-        '--experiment=enable_streaming_auto_sharding')
     for property in additional_properties:
       self.default_properties.append(property)
 
@@ -816,39 +814,42 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
 
   def test_group_into_batches_translation(self):
     properties = self._run_group_into_batches_and_get_step_properties(
-        True, ['--enable_streaming_engine', '--experiment=use_runner_v2'])
+        True, ['--enable_streaming_engine', '--experiments=use_runner_v2'])
     self.assertEqual(properties[PropertyNames.USES_KEYED_STATE], u'true')
     self.assertEqual(properties[PropertyNames.ALLOWS_SHARDABLE_STATE], u'true')
     self.assertEqual(properties[PropertyNames.PRESERVES_KEYS], u'true')
 
-  def test_group_into_batches_translation_non_se(self):
+  def test_group_into_batches_translation_non_sharded(self):
     properties = self._run_group_into_batches_and_get_step_properties(
-        True, ['--experiment=use_runner_v2'])
+        False, ['--enable_streaming_engine', '--experiments=use_runner_v2'])
     self.assertEqual(properties[PropertyNames.USES_KEYED_STATE], u'true')
     self.assertNotIn(PropertyNames.ALLOWS_SHARDABLE_STATE, properties)
     self.assertNotIn(PropertyNames.PRESERVES_KEYS, properties)
 
-  def test_group_into_batches_translation_non_sharded(self):
-    properties = self._run_group_into_batches_and_get_step_properties(
-        False, ['--enable_streaming_engine', '--experiment=use_runner_v2'])
-    self.assertEqual(properties[PropertyNames.USES_KEYED_STATE], u'true')
-    self.assertNotIn(PropertyNames.ALLOWS_SHARDABLE_STATE, properties)
-    self.assertNotIn(PropertyNames.PRESERVES_KEYS, properties)
+  def test_group_into_batches_translation_non_se(self):
+    with self.assertRaisesRegex(
+        ValueError,
+        'Runner determined sharding not available in Dataflow for '
+        'GroupIntoBatches for non-Streaming-Engine jobs'):
+      _ = self._run_group_into_batches_and_get_step_properties(
+          True, ['--experiments=use_runner_v2'])
 
   def test_group_into_batches_translation_non_unified_worker(self):
     # non-portable
-    properties = self._run_group_into_batches_and_get_step_properties(
-        True, ['--enable_streaming_engine'])
-    self.assertEqual(properties[PropertyNames.USES_KEYED_STATE], u'true')
-    self.assertNotIn(PropertyNames.ALLOWS_SHARDABLE_STATE, properties)
-    self.assertNotIn(PropertyNames.PRESERVES_KEYS, properties)
+    with self.assertRaisesRegex(
+        ValueError,
+        'Runner determined sharding not available in Dataflow for '
+        'GroupIntoBatches for jobs not using Runner V2'):
+      _ = self._run_group_into_batches_and_get_step_properties(
+          True, ['--enable_streaming_engine'])
 
     # JRH
-    properties = self._run_group_into_batches_and_get_step_properties(
-        True, ['--enable_streaming_engine', '--experiment=beam_fn_api'])
-    self.assertEqual(properties[PropertyNames.USES_KEYED_STATE], u'true')
-    self.assertNotIn(PropertyNames.ALLOWS_SHARDABLE_STATE, properties)
-    self.assertNotIn(PropertyNames.PRESERVES_KEYS, properties)
+    with self.assertRaisesRegex(
+        ValueError,
+        'Runner determined sharding not available in Dataflow for '
+        'GroupIntoBatches for jobs not using Runner V2'):
+      _ = self._run_group_into_batches_and_get_step_properties(
+          True, ['--enable_streaming_engine', '--experiments=beam_fn_api'])
 
   def _test_pack_combiners(self, pipeline_options, expect_packed):
     runner = DataflowRunner()

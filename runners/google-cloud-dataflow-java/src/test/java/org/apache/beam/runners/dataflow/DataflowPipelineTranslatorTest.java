@@ -1149,7 +1149,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     assertEquals("CollectionToSingleton", collectionToSingletonStep.getKind());
   }
 
-  private JobSpecification runGroupIntoBatchesAndGetJobSpec(
+  private JobSpecification runStreamingGroupIntoBatchesAndGetJobSpec(
       Boolean withShardedKey, List<String> experiments) throws IOException {
     DataflowPipelineOptions options = buildPipelineOptions();
     options.setExperiments(experiments);
@@ -1178,10 +1178,8 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     List<String> experiments =
         new ArrayList<>(
             ImmutableList.of(
-                "enable_streaming_auto_sharding",
-                GcpOptions.STREAMING_ENGINE_EXPERIMENT,
-                GcpOptions.WINDMILL_SERVICE_EXPERIMENT));
-    JobSpecification jobSpec = runGroupIntoBatchesAndGetJobSpec(false, experiments);
+                GcpOptions.STREAMING_ENGINE_EXPERIMENT, GcpOptions.WINDMILL_SERVICE_EXPERIMENT));
+    JobSpecification jobSpec = runStreamingGroupIntoBatchesAndGetJobSpec(false, experiments);
     List<Step> steps = jobSpec.getJob().getSteps();
     Step shardedStateStep = steps.get(steps.size() - 1);
     Map<String, Object> properties = shardedStateStep.getProperties();
@@ -1196,10 +1194,8 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     List<String> experiments =
         new ArrayList<>(
             ImmutableList.of(
-                "enable_streaming_auto_sharding",
-                GcpOptions.STREAMING_ENGINE_EXPERIMENT,
-                GcpOptions.WINDMILL_SERVICE_EXPERIMENT));
-    JobSpecification jobSpec = runGroupIntoBatchesAndGetJobSpec(true, experiments);
+                GcpOptions.STREAMING_ENGINE_EXPERIMENT, GcpOptions.WINDMILL_SERVICE_EXPERIMENT));
+    JobSpecification jobSpec = runStreamingGroupIntoBatchesAndGetJobSpec(true, experiments);
     List<Step> steps = jobSpec.getJob().getSteps();
     Step shardedStateStep = steps.get(steps.size() - 1);
     Map<String, Object> properties = shardedStateStep.getProperties();
@@ -1216,11 +1212,10 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     List<String> experiments =
         new ArrayList<>(
             ImmutableList.of(
-                "enable_streaming_auto_sharding",
                 GcpOptions.STREAMING_ENGINE_EXPERIMENT,
                 GcpOptions.WINDMILL_SERVICE_EXPERIMENT,
                 "use_runner_v2"));
-    JobSpecification jobSpec = runGroupIntoBatchesAndGetJobSpec(false, experiments);
+    JobSpecification jobSpec = runStreamingGroupIntoBatchesAndGetJobSpec(false, experiments);
     List<Step> steps = jobSpec.getJob().getSteps();
     Step shardedStateStep = steps.get(steps.size() - 1);
     Map<String, Object> properties = shardedStateStep.getProperties();
@@ -1246,11 +1241,10 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     List<String> experiments =
         new ArrayList<>(
             ImmutableList.of(
-                "enable_streaming_auto_sharding",
                 GcpOptions.STREAMING_ENGINE_EXPERIMENT,
                 GcpOptions.WINDMILL_SERVICE_EXPERIMENT,
                 "use_runner_v2"));
-    JobSpecification jobSpec = runGroupIntoBatchesAndGetJobSpec(true, experiments);
+    JobSpecification jobSpec = runStreamingGroupIntoBatchesAndGetJobSpec(true, experiments);
     List<Step> steps = jobSpec.getJob().getSteps();
     Step shardedStateStep = steps.get(steps.size() - 1);
     Map<String, Object> properties = shardedStateStep.getProperties();
@@ -1290,28 +1284,12 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
   @Test
   public void testGroupIntoBatchesWithShardedKeyNotSupported() throws IOException {
-    List<String> experiments1 =
-        new ArrayList<>(
-            ImmutableList.of(
-                "enable_streaming_auto_sharding",
-                GcpOptions.STREAMING_ENGINE_EXPERIMENT,
-                GcpOptions.WINDMILL_SERVICE_EXPERIMENT,
-                "beam_fn_api"));
+    // Not using streaming engine.
+    List<String> experiments = new ArrayList<>(ImmutableList.of("use_runner_v2"));
     thrown.expect(IllegalArgumentException.class);
-    runGroupIntoBatchesAndGetJobSpec(true, experiments1);
-
-    List<String> experiments2 = new ArrayList<>(ImmutableList.of("enable_streaming_auto_sharding"));
-    thrown.expect(IllegalArgumentException.class);
-    runGroupIntoBatchesAndGetJobSpec(true, experiments2);
-
-    List<String> experiments3 =
-        new ArrayList<>(
-            ImmutableList.of(
-                GcpOptions.STREAMING_ENGINE_EXPERIMENT,
-                GcpOptions.WINDMILL_SERVICE_EXPERIMENT,
-                "use_runner_v2"));
-    thrown.expect(IllegalArgumentException.class);
-    runGroupIntoBatchesAndGetJobSpec(true, experiments3);
+    thrown.expectMessage(
+        "Runner determined sharding not available in Dataflow for GroupIntoBatches for non-Streaming-Engine jobs");
+    runStreamingGroupIntoBatchesAndGetJobSpec(true, experiments);
   }
 
   @Test
