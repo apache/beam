@@ -655,7 +655,8 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   @frame_base.populate_defaults(pd.Series)
   @frame_base.maybe_inplace
   def replace(self, to_replace, value, limit, method, **kwargs):
-    if method is not None and not isinstance(to_replace, dict) and value is None:
+    if method is not None and not isinstance(to_replace,
+                                             dict) and value is None:
       # Can't rely on method for replacement, it's order-sensitive
       # pandas only relies on method if to_replace is not a dictionary, and
       # value is None
@@ -668,9 +669,12 @@ class DeferredSeries(DeferredDataFrameOrSeries):
     return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
             'replace',
-            lambda df: df.replace(to_replace=to_replace, value=value,
-                                  limit=limit, method=method, **kwargs),
-            [self._expr],
+            lambda df: df.replace(
+                to_replace=to_replace,
+                value=value,
+                limit=limit,
+                method=method,
+                **kwargs), [self._expr],
             preserves_partition_by=partitionings.Singleton(),
             requires_partition_by=requires_partition_by))
 
