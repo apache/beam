@@ -41,67 +41,66 @@ import org.mockito.junit.MockitoJUnitRunner;
 @RunWith(MockitoJUnitRunner.class)
 public class NestedRowToMessageTest {
   private static final PayloadSerializer SERIALIZER = mock(PayloadSerializer.class);
-  private static final NestedRowToMessage TRANSFORM = new NestedRowToMessage(SERIALIZER);
   private static final Map<String, String> ATTRIBUTES = ImmutableMap.of("k1", "v1", "k2", "v2");
 
   @Test
   public void mapAttributesTransformed() {
-    Row row =
-        Row.withSchema(
-                Schema.builder()
-                    .addByteArrayField(PAYLOAD_FIELD)
-                    .addField(ATTRIBUTES_FIELD, ATTRIBUTE_MAP_FIELD_TYPE)
-                    .build())
-            .attachValues("abc".getBytes(UTF_8), ATTRIBUTES);
+    Schema schema =
+        Schema.builder()
+            .addByteArrayField(PAYLOAD_FIELD)
+            .addField(ATTRIBUTES_FIELD, ATTRIBUTE_MAP_FIELD_TYPE)
+            .build();
+    Row row = Row.withSchema(schema).attachValues("abc".getBytes(UTF_8), ATTRIBUTES);
     PubsubMessage message = new PubsubMessage("abc".getBytes(UTF_8), ATTRIBUTES);
-    assertEquals(message, TRANSFORM.apply(row));
+    assertEquals(message, new NestedRowToMessage(SERIALIZER, schema).apply(row));
   }
 
   @Test
   public void entriesAttributesTransformed() {
+    Schema schema =
+        Schema.builder()
+            .addByteArrayField(PAYLOAD_FIELD)
+            .addField(ATTRIBUTES_FIELD, ATTRIBUTE_ARRAY_FIELD_TYPE)
+            .build();
     Row row =
-        Row.withSchema(
-                Schema.builder()
-                    .addByteArrayField(PAYLOAD_FIELD)
-                    .addField(ATTRIBUTES_FIELD, ATTRIBUTE_ARRAY_FIELD_TYPE)
-                    .build())
+        Row.withSchema(schema)
             .attachValues(
                 "abc".getBytes(UTF_8),
                 ImmutableList.of(
                     Row.withSchema(ATTRIBUTE_ARRAY_ENTRY_SCHEMA).attachValues("k1", "v1"),
                     Row.withSchema(ATTRIBUTE_ARRAY_ENTRY_SCHEMA).attachValues("k2", "v2")));
     PubsubMessage message = new PubsubMessage("abc".getBytes(UTF_8), ATTRIBUTES);
-    assertEquals(message, TRANSFORM.apply(row));
+    assertEquals(message, new NestedRowToMessage(SERIALIZER, schema).apply(row));
   }
 
   @Test
   public void rowPayloadTransformed() {
     Schema payloadSchema = Schema.builder().addStringField("fieldName").build();
     Row payload = Row.withSchema(payloadSchema).attachValues("abc");
-    Row row =
-        Row.withSchema(
-                Schema.builder()
-                    .addRowField(PAYLOAD_FIELD, payloadSchema)
-                    .addField(ATTRIBUTES_FIELD, ATTRIBUTE_MAP_FIELD_TYPE)
-                    .build())
-            .attachValues(payload, ATTRIBUTES);
+    Schema schema =
+        Schema.builder()
+            .addRowField(PAYLOAD_FIELD, payloadSchema)
+            .addField(ATTRIBUTES_FIELD, ATTRIBUTE_MAP_FIELD_TYPE)
+            .build();
+    Row row = Row.withSchema(schema).attachValues(payload, ATTRIBUTES);
     when(SERIALIZER.serialize(payload)).thenReturn("abc".getBytes(UTF_8));
     PubsubMessage message = new PubsubMessage("abc".getBytes(UTF_8), ATTRIBUTES);
-    assertEquals(message, TRANSFORM.apply(row));
+    assertEquals(message, new NestedRowToMessage(SERIALIZER, schema).apply(row));
   }
 
   @Test
   public void rowPayloadTransformFailure() {
     Schema payloadSchema = Schema.builder().addStringField("fieldName").build();
     Row payload = Row.withSchema(payloadSchema).attachValues("abc");
-    Row row =
-        Row.withSchema(
-                Schema.builder()
-                    .addRowField(PAYLOAD_FIELD, payloadSchema)
-                    .addField(ATTRIBUTES_FIELD, ATTRIBUTE_MAP_FIELD_TYPE)
-                    .build())
-            .attachValues(payload, ATTRIBUTES);
+    Schema schema =
+        Schema.builder()
+            .addRowField(PAYLOAD_FIELD, payloadSchema)
+            .addField(ATTRIBUTES_FIELD, ATTRIBUTE_MAP_FIELD_TYPE)
+            .build();
+    Row row = Row.withSchema(schema).attachValues(payload, ATTRIBUTES);
     when(SERIALIZER.serialize(payload)).thenThrow(new IllegalArgumentException());
-    assertThrows(IllegalArgumentException.class, () -> TRANSFORM.apply(row));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> new NestedRowToMessage(SERIALIZER, schema).apply(row));
   }
 }

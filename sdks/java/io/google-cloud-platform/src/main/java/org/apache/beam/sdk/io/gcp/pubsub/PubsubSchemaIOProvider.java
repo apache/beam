@@ -216,7 +216,7 @@ public class PubsubSchemaIOProvider implements SchemaIOProvider {
                   .messageSchema(dataSchema)
                   .useDlq(config.useDeadLetterQueue())
                   .useFlatSchema(useFlatSchema);
-          if (!useFlatSchema && !fieldPresent(schema(), PAYLOAD_FIELD, FieldType.BYTES)) {
+          if (useFlatSchema || !fieldPresent(schema(), PAYLOAD_FIELD, FieldType.BYTES)) {
             builder.serializerProvider(config::serializer);
           }
           PCollectionTuple rowsWithDlq =
@@ -255,7 +255,8 @@ public class PubsubSchemaIOProvider implements SchemaIOProvider {
           } else {
             transformed =
                 filtered.apply(
-                    "Transform Nested Schema", MapElements.via(new NestedRowToMessage(serializer)));
+                    "Transform Nested Schema",
+                    MapElements.via(new NestedRowToMessage(serializer, filtered.getSchema())));
           }
           return transformed.apply(createPubsubMessageWrite());
         }

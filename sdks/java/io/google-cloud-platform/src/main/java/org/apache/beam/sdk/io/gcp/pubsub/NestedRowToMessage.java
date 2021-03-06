@@ -25,11 +25,12 @@ import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.Collection;
-import javax.annotation.Nonnull;
+import java.util.Map;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializer;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -38,33 +39,53 @@ class NestedRowToMessage extends SimpleFunction<Row, PubsubMessage> {
   private static final long serialVersionUID = 65176815766314684L;
 
   private final PayloadSerializer serializer;
+  private final SerializableFunction<Row, Map<String, String>> attributesExtractor;
+  private final SerializableFunction<Row, byte[]> payloadExtractor;
 
-  NestedRowToMessage(PayloadSerializer serializer) {
+  @SuppressWarnings("methodref.receiver.bound.invalid")
+  NestedRowToMessage(PayloadSerializer serializer, Schema schema) {
     this.serializer = serializer;
+    if (schema.getField(ATTRIBUTES_FIELD).getType().equals(ATTRIBUTE_MAP_FIELD_TYPE)) {
+      attributesExtractor = NestedRowToMessage::getAttributesFromMap;
+    } else {
+      checkArgument(schema.getField(ATTRIBUTES_FIELD).getType().equals(ATTRIBUTE_ARRAY_FIELD_TYPE));
+      attributesExtractor = NestedRowToMessage::getAttributesFromArray;
+    }
+    if (schema.getField(PAYLOAD_FIELD).getType().equals(FieldType.BYTES)) {
+      payloadExtractor = NestedRowToMessage::getPayloadFromBytes;
+    } else {
+      checkArgument(schema.getField(PAYLOAD_FIELD).getType().getTypeName().equals(TypeName.ROW));
+      payloadExtractor = this::getPayloadFromNested;
+    }
+  }
+
+  private static Map<String, String> getAttributesFromMap(Row row) {
+    return ImmutableMap.<String, String>builder()
+        .putAll(checkArgumentNotNull(row.getMap(ATTRIBUTES_FIELD)))
+        .build();
+  }
+
+  private static Map<String, String> getAttributesFromArray(Row row) {
+    ImmutableMap.Builder<String, String> attributes = ImmutableMap.builder();
+    Collection<Row> attributeEntries = checkArgumentNotNull(row.getArray(ATTRIBUTES_FIELD));
+    for (Row entry : attributeEntries) {
+      attributes.put(
+          checkArgumentNotNull(entry.getString("key")),
+          checkArgumentNotNull(entry.getString("value")));
+    }
+    return attributes.build();
+  }
+
+  private static byte[] getPayloadFromBytes(Row row) {
+    return checkArgumentNotNull(row.getBytes(PAYLOAD_FIELD));
+  }
+
+  private byte[] getPayloadFromNested(Row row) {
+    return serializer.serialize(checkArgumentNotNull(row.getRow(PAYLOAD_FIELD)));
   }
 
   @Override
   public PubsubMessage apply(Row row) {
-    Schema schema = row.getSchema();
-    ImmutableMap.Builder<String, String> attributes = ImmutableMap.builder();
-    if (schema.getField(ATTRIBUTES_FIELD).getType().equals(ATTRIBUTE_MAP_FIELD_TYPE)) {
-      attributes.putAll(checkArgumentNotNull(row.getMap(ATTRIBUTES_FIELD)));
-    } else {
-      checkArgument(schema.getField(ATTRIBUTES_FIELD).getType().equals(ATTRIBUTE_ARRAY_FIELD_TYPE));
-      Collection<Row> attributeEntries = checkArgumentNotNull(row.getArray(ATTRIBUTES_FIELD));
-      for (Row entry : attributeEntries) {
-        attributes.put(
-            checkArgumentNotNull(entry.getString("key")),
-            checkArgumentNotNull(entry.getString("value")));
-      }
-    }
-    @Nonnull byte[] payload;
-    if (schema.getField(PAYLOAD_FIELD).getType().equals(FieldType.BYTES)) {
-      payload = checkArgumentNotNull(row.getBytes(PAYLOAD_FIELD));
-    } else {
-      checkArgument(schema.getField(PAYLOAD_FIELD).getType().getTypeName().equals(TypeName.ROW));
-      payload = serializer.serialize(checkArgumentNotNull(row.getRow(PAYLOAD_FIELD)));
-    }
-    return new PubsubMessage(payload, attributes.build());
+    return new PubsubMessage(payloadExtractor.apply(row), attributesExtractor.apply(row));
   }
 }
