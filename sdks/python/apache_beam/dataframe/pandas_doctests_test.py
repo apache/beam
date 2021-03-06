@@ -363,21 +363,15 @@ class DoctestTest(unittest.TestCase):
             f'{module_name}.StringMethods.repeat': [
                 's.str.repeat(repeats=[1, 2, 3])'
             ],
-            f'{module_name}.str_repeat': [
-                's.str.repeat(repeats=[1, 2, 3])'
-            ],
+            f'{module_name}.str_repeat': ['s.str.repeat(repeats=[1, 2, 3])'],
             f'{module_name}.StringMethods.get_dummies': ['*'],
             f'{module_name}.str_get_dummies': ['*'],
         },
         skip={
             # count() on Series with a NaN produces mismatched type if we
             # have a NaN-only partition.
-            f'{module_name}.StringMethods.count': [
-                "s.str.count('a')"
-            ],
-            f'{module_name}.str_count': [
-                "s.str.count('a')"
-            ],
+            f'{module_name}.StringMethods.count': ["s.str.count('a')"],
+            f'{module_name}.str_count': ["s.str.count('a')"],
 
             # Produce None instead of NaN, see
             # frames_test.py::DeferredFrameTest::test_str_split
