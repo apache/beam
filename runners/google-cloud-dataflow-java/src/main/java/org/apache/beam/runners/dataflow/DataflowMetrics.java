@@ -249,14 +249,33 @@ class DataflowMetrics extends MetricResults {
      */
     private MetricKey getMetricHashKey(MetricUpdate metricUpdate) {
       String fullStepName = metricUpdate.getName().getContext().get("step");
-      if (dataflowPipelineJob.transformStepNames == null
-          || !dataflowPipelineJob.transformStepNames.inverse().containsKey(fullStepName)) {
-        // If we can't translate internal step names to user step names, we just skip them
-        // altogether.
-        return null;
+
+      if (dataflowPipelineJob.getPipelineProto() != null
+          && dataflowPipelineJob
+              .getPipelineProto()
+              .getComponents()
+              .getTransformsMap()
+              .containsKey(fullStepName)) {
+        // Dataflow Runner v2 with portable job submission uses proto transform map
+        // IDs for step names. Hence we lookup user step names based on the proto.
+        fullStepName =
+            dataflowPipelineJob
+                .getPipelineProto()
+                .getComponents()
+                .getTransformsMap()
+                .get(fullStepName)
+                .getUniqueName();
+      } else {
+        if (dataflowPipelineJob.transformStepNames == null
+            || !dataflowPipelineJob.transformStepNames.inverse().containsKey(fullStepName)) {
+          // If we can't translate internal step names to user step names, we just skip them
+          // altogether.
+          return null;
+        }
+        fullStepName =
+            dataflowPipelineJob.transformStepNames.inverse().get(fullStepName).getFullName();
       }
-      fullStepName =
-          dataflowPipelineJob.transformStepNames.inverse().get(fullStepName).getFullName();
+
       return MetricKey.create(
           fullStepName,
           MetricName.named(

@@ -35,6 +35,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.atomic.AtomicReference;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil.JobMessagesHandler;
@@ -121,6 +122,8 @@ public class DataflowPipelineJob implements PipelineResult {
 
   private @Nullable String latestStateString;
 
+  private RunnerApi.Pipeline pipelineProto = null;
+
   /**
    * Constructs the job.
    *
@@ -140,6 +143,24 @@ public class DataflowPipelineJob implements PipelineResult {
     this.dataflowMetrics = new DataflowMetrics(this, this.dataflowClient);
   }
 
+  /**
+   * Constructs the job.
+   *
+   * @param jobId the job id
+   * @param dataflowOptions used to configure the client for the Dataflow Service
+   * @param transformStepNames a mapping from AppliedPTransforms to Step Names
+   * @param pipelineProto Runner API pipeline proto.
+   */
+  public DataflowPipelineJob(
+      DataflowClient dataflowClient,
+      String jobId,
+      DataflowPipelineOptions dataflowOptions,
+      Map<AppliedPTransform<?, ?, ?>, String> transformStepNames,
+      RunnerApi.Pipeline pipelineProto) {
+    this(dataflowClient, jobId, dataflowOptions, transformStepNames);
+    this.pipelineProto = pipelineProto;
+  }
+
   /** Get the id of this job. */
   public String getJobId() {
     return jobId;
@@ -152,6 +173,10 @@ public class DataflowPipelineJob implements PipelineResult {
 
   public DataflowPipelineOptions getDataflowOptions() {
     return dataflowOptions;
+  }
+
+  public RunnerApi.Pipeline getPipelineProto() {
+    return pipelineProto;
   }
 
   /** Get the region this job exists in. */
@@ -536,7 +561,11 @@ public class DataflowPipelineJob implements PipelineResult {
           terminalState = currentState;
           replacedByJob =
               new DataflowPipelineJob(
-                  dataflowClient, job.getReplacedByJobId(), dataflowOptions, transformStepNames);
+                  dataflowClient,
+                  job.getReplacedByJobId(),
+                  dataflowOptions,
+                  transformStepNames,
+                  pipelineProto);
         }
         return job;
       } catch (IOException exn) {
