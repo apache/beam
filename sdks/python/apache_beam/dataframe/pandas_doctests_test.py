@@ -341,29 +341,60 @@ class DoctestTest(unittest.TestCase):
     self.assertEqual(result.failed, 0)
 
   def test_string_tests(self):
+    PD_VERSION = tuple(int(v) for v in pd.__version__.split('.'))
+    if PD_VERSION < (1, 2, 0):
+      module = pd.core.strings
+    else:
+      # Definitions were moved to accessor in pandas 1.2.0
+      module = pd.core.strings.accessor
+
+    module_name = module.__name__
+
     result = doctests.testmod(
-        pd.core.strings,
+        module,
         use_beam=False,
         wont_implement_ok={
             # These methods can accept deferred series objects, but not lists
-            'pandas.core.strings.StringMethods.cat': [
+            f'{module_name}.StringMethods.cat': [
                 "s.str.cat(['A', 'B', 'C', 'D'], sep=',')",
                 "s.str.cat(['A', 'B', 'C', 'D'], sep=',', na_rep='-')",
                 "s.str.cat(['A', 'B', 'C', 'D'], na_rep='-')"
             ],
-            'pandas.core.strings.StringMethods.repeat': [
+            f'{module_name}.StringMethods.repeat': [
                 's.str.repeat(repeats=[1, 2, 3])'
             ],
-            'pandas.core.strings.str_repeat': [
+            f'{module_name}.str_repeat': [
                 's.str.repeat(repeats=[1, 2, 3])'
             ],
+            f'{module_name}.StringMethods.get_dummies': ['*'],
+            f'{module_name}.str_get_dummies': ['*'],
         },
         skip={
-            # Bad test strings
-            'pandas.core.strings.str_replace': [
+            # count() on Series with a NaN produces mismatched type if we
+            # have a NaN-only partition.
+            f'{module_name}.StringMethods.count': [
+                "s.str.count('a')"
+            ],
+            f'{module_name}.str_count': [
+                "s.str.count('a')"
+            ],
+
+            # Produce None instead of NaN, see
+            # frames_test.py::DeferredFrameTest::test_str_split
+            f'{module_name}.StringMethods.rsplit': [
+                's.str.split(expand=True)',
+                's.str.rsplit("/", n=1, expand=True)',
+            ],
+            f'{module_name}.StringMethods.split': [
+                's.str.split(expand=True)',
+                's.str.rsplit("/", n=1, expand=True)',
+            ],
+
+            # Bad test strings in pandas 1.1.x
+            f'{module_name}.str_replace': [
                 "pd.Series(['foo', 'fuz', np.nan]).str.replace('f', repr)"
             ],
-            'pandas.core.strings.StringMethods.replace': [
+            f'{module_name}.StringMethods.replace': [
                 "pd.Series(['foo', 'fuz', np.nan]).str.replace('f', repr)"
             ],
         })

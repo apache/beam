@@ -2021,6 +2021,8 @@ class _DeferredStringMethods(frame_base.DeferredBase):
       raise frame_base.WontImplementError("repeats must be an integer or a "
                                           "Series.")
 
+  get_dummies = frame_base.wont_implement_method('non-deferred column values')
+
 
 ELEMENTWISE_STRING_METHODS = [
             'capitalize',
@@ -2033,7 +2035,6 @@ ELEMENTWISE_STRING_METHODS = [
             'findall',
             'fullmatch',
             'get',
-            'get_dummies',
             'isalnum',
             'isalpha',
             'isdecimal',
@@ -2069,7 +2070,22 @@ ELEMENTWISE_STRING_METHODS = [
 
 def make_str_func(method):
   def func(df, *args, **kwargs):
-    return getattr(df.str, method)(*args, **kwargs)
+    try:
+      df_str = df.str
+    except AttributeError:
+      # If there's a non-string value in a Series passed to .str method, pandas
+      # will generally just replace it with NaN in the result. However if
+      # there are _only_ non-string values, pandas will raise:
+      #
+      #   AttributeError: Can only use .str accessor with string values!
+      #
+      # This can happen to us at execution time if we split a partition that is
+      # only non-strings. This branch just replaces all those values with NaN
+      # in that case.
+      return df.map(lambda _: np.nan)
+    else:
+      return getattr(df_str, method)(*args, **kwargs)
+
   return func
 
 for method in ELEMENTWISE_STRING_METHODS:
