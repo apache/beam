@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.zetasql;
 
 import static org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils.parseTimestampWithUTCTimeZone;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.DATETIME;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import com.google.protobuf.ByteString;
@@ -31,7 +32,9 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -50,6 +53,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.joda.time.chrono.ISOChronology;
@@ -3849,10 +3853,18 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
     PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+    PAssert.thatSingleton(stream)
+        .satisfies(
+            row -> {
+              Collection<Object> output = row.getArray("count_to_six_agg");
+              HashSet<Object> outputSet = new HashSet<Object>(output);
 
-    Schema schema = Schema.builder().addArrayField("array_field", FieldType.INT64).build();
-    PAssert.that(stream)
-        .containsInAnyOrder(Row.withSchema(schema).addArray(1L, 2L, 3L, 4L, 5L, 6L).build());
+              HashSet<Object> expectedOutputSet = Sets.newHashSet(1L, 2L, 3L, 4L, 5L, 6L);
+
+              assertThat("array_field", expectedOutputSet.equals(outputSet));
+              return (Void) null;
+            });
+
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 }
