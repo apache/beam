@@ -1046,6 +1046,20 @@ class UtilTest(unittest.TestCase):
          ('/tmp/bar2', 'bar2')],
         staging_location='gs://test-location/staging')
 
+  def test_set_service_option(self):
+    pipeline_options = PipelineOptions([
+        '--service_option',
+        'whizz=bang',
+        '--temp_location',
+        'gs://any-location/temp'
+    ])
+    env = apiclient.Environment(
+        [],  #packages
+        pipeline_options,
+        '2.0.0',  #any environment version
+        FAKE_PIPELINE_URL)
+    self.assertEqual(env.proto.serviceOptions, ['whizz=bang'])
+
 
 if __name__ == '__main__':
   unittest.main()
