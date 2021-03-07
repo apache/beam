@@ -37,10 +37,6 @@ The (novel) sequence of events when running a doctest is as follows.
      values.
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import collections
 import contextlib
 import doctest
