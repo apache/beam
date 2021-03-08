@@ -925,6 +925,8 @@ class RunnerApiTest(unittest.TestCase):
         proto.requirements)
 
   def test_annotations(self):
+    some_proto = BytesCoder().to_runner_api(None)
+
     class EmptyTransform(beam.PTransform):
       def expand(self, pcoll):
         return pcoll
@@ -937,7 +939,10 @@ class RunnerApiTest(unittest.TestCase):
         return pcoll | beam.Map(lambda x: x)
 
       def annotations(self):
-        return {'foo': b'some_bytes'}
+        return {
+            'foo': b'some_bytes',
+            'proto': some_proto,
+        }
 
     p = beam.Pipeline()
     _ = p | beam.Create([]) | EmptyTransform() | NonEmptyTransform()
@@ -951,6 +956,8 @@ class RunnerApiTest(unittest.TestCase):
       elif transform.unique_name == 'NonEmptyTransform':
         seen += 1
         self.assertEqual(transform.annotations['foo'], b'some_bytes')
+        self.assertEqual(
+            transform.annotations['proto'], some_proto.SerializeToString())
     self.assertEqual(seen, 2)
 
 

@@ -72,7 +72,6 @@ from typing import Type
 from typing import Union
 
 from future.utils import with_metaclass
-
 from google.protobuf import message
 
 from apache_beam import pvalue
