@@ -32,9 +32,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * that could be used, this class has been implemented to help represent the parameters of a test
  * oriented around reading messages published to an exchange.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 class ExchangeTestPlan {
   static final String DEFAULT_ROUTING_KEY = "someRoutingKey";
 

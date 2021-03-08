@@ -44,9 +44,6 @@ import org.junit.Before;
 import org.junit.Test;
 
 /** Tests for {@link DataflowExecutionStateTrackerTest}. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class DataflowExecutionStateTrackerTest {
 
   private PipelineOptions options;

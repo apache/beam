@@ -103,6 +103,9 @@ class CoderRegistry(object):
     default_fallback_coders = [coders.ProtoCoder, coders.FastPrimitivesCoder]
     self._fallback_coder = fallback_coder or FirstOf(default_fallback_coders)
 
+  def register_fallback_coder(self, fallback_coder):
+    self._fallback_coder = FirstOf([fallback_coder, self._fallback_coder])
+
   def _register_coder_internal(self, typehint_type, typehint_coder_class):
     # type: (Any, Type[coders.Coder]) -> None
     self._coders[typehint_type] = typehint_coder_class
@@ -184,7 +187,7 @@ class FirstOf(object):
     messages = []
     for coder in self._coders:
       try:
-        return coder.from_type_hint(typehint, self)
+        return coder.from_type_hint(typehint, registry)
       except Exception as e:
         msg = (
             '%s could not provide a Coder for type %s: %s' %

@@ -505,7 +505,7 @@ public class DataflowPipelineTranslator {
       LOG.debug("Checking translation of {}", value);
       // Primitive transforms are the only ones assigned step names.
       if (producer.getTransform() instanceof CreateDataflowView
-          && !hasExperiment(options, "beam_fn_api")) {
+          && !DataflowRunner.useUnifiedWorker(options)) {
         // CreateDataflowView produces a dummy output (as it must be a primitive transform)
         // but in the Dataflow Job graph produces only the view and not the output PCollection.
         asOutputReference(
@@ -513,7 +513,7 @@ public class DataflowPipelineTranslator {
             producer.toAppliedPTransform(getPipeline()));
         return;
       } else if (producer.getTransform() instanceof View.CreatePCollectionView
-          && hasExperiment(options, "beam_fn_api")) {
+          && DataflowRunner.useUnifiedWorker(options)) {
         // View.CreatePCollectionView produces a dummy output (as it must be a primitive transform)
         // but in the Dataflow Job graph produces only the view and not the output PCollection.
         asOutputReference(
@@ -794,8 +794,7 @@ public class DataflowPipelineTranslator {
                 byteArrayToJsonString(
                     serializeWindowingStrategy(windowingStrategy, context.getPipelineOptions())));
             stepContext.addInput(
-                PropertyNames.IS_MERGING_WINDOW_FN,
-                !windowingStrategy.getWindowFn().isNonMerging());
+                PropertyNames.IS_MERGING_WINDOW_FN, windowingStrategy.needsMerge());
             stepContext.addCollectionToSingletonOutput(
                 input, PropertyNames.OUTPUT, transform.getView());
           }
@@ -926,7 +925,7 @@ public class DataflowPipelineTranslator {
             boolean isStreaming =
                 context.getPipelineOptions().as(StreamingOptions.class).isStreaming();
             boolean allowCombinerLifting =
-                windowingStrategy.getWindowFn().isNonMerging()
+                !windowingStrategy.needsMerge()
                     && windowingStrategy.getWindowFn().assignsToOneWindow();
             if (isStreaming) {
               allowCombinerLifting &= transform.fewKeys();
@@ -1259,7 +1258,12 @@ public class DataflowPipelineTranslator {
 
     boolean isStateful = DoFnSignatures.isStateful(fn);
     if (isStateful) {
-      DataflowRunner.verifyDoFnSupported(fn, context.getPipelineOptions().isStreaming());
+      DataflowPipelineOptions options = context.getPipelineOptions();
+      DataflowRunner.verifyDoFnSupported(
+          fn,
+          options.isStreaming(),
+          DataflowRunner.useUnifiedWorker(options),
+          DataflowRunner.useStreamingEngine(options));
       DataflowRunner.verifyStateSupportForWindowingStrategy(windowingStrategy);
     }
 

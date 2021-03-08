@@ -23,7 +23,6 @@ applyJavaNature(
         mavenRepositories: [
                 [id: 'io.confluent', url: 'https://packages.confluent.io/maven/']
         ],
-        checkerTooSlowOnTests: true,
         enableSpotbugs: false,
 )
 provideIntegrationTestingDependencies()

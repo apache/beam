@@ -46,9 +46,6 @@ import org.mockito.MockitoAnnotations;
 
 /** Unit tests for {@link DataflowBatchWorkerHarness}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class DataflowBatchWorkerHarnessTest {
   @Rule public TestRule restoreSystemProperties = new RestoreSystemProperties();
   @Rule public TestRule restoreLogging = new RestoreDataflowLoggingMDC();

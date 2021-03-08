@@ -34,7 +34,7 @@ Then, we get the largest or smallest elements in different ways.
 
 We use `Top.Largest()` to get the largest elements from the *entire* `PCollection`.
 
-{{< highlight py >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py" top_largest >}}
 {{< /highlight >}}
 
@@ -46,14 +46,11 @@ Output:
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/top_test.py" largest_elements >}}
 {{< /highlight >}}
 
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py" >}}
-
 ### Example 2: Largest elements for each key
 
 We use `Top.LargestPerKey()` to get the largest elements for each unique key in a `PCollection` of key-values.
 
-{{< highlight py >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py" top_largest_per_key >}}
 {{< /highlight >}}
 
@@ -65,14 +62,11 @@ Output:
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/top_test.py" largest_elements_per_key >}}
 {{< /highlight >}}
 
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py" >}}
-
 ### Example 3: Smallest elements from a PCollection
 
 We use `Top.Smallest()` to get the smallest elements from the *entire* `PCollection`.
 
-{{< highlight py >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py" top_smallest >}}
 {{< /highlight >}}
 
@@ -84,14 +78,11 @@ Output:
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/top_test.py" smallest_elements >}}
 {{< /highlight >}}
 
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py" >}}
-
 ### Example 4: Smallest elements for each key
 
 We use `Top.SmallestPerKey()` to get the smallest elements for each unique key in a `PCollection` of key-values.
 
-{{< highlight py >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py" top_smallest_per_key >}}
 {{< /highlight >}}
 
@@ -103,9 +94,6 @@ Output:
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/top_test.py" smallest_elements_per_key >}}
 {{< /highlight >}}
 
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py" >}}
-
 ### Example 5: Custom elements from a PCollection
 
 We use `Top.Of()` to get elements with customized rules from the *entire* `PCollection`.
@@ -113,7 +101,7 @@ We use `Top.Of()` to get elements with customized rules from the *entire* `PColl
 You can change how the elements are compared with `key`.
 By default you get the largest elements, but you can get the smallest by setting `reverse=True`.
 
-{{< highlight py >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py" top_of >}}
 {{< /highlight >}}
 
@@ -125,9 +113,6 @@ Output:
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/top_test.py" shortest_elements >}}
 {{< /highlight >}}
 
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py" >}}
-
 ### Example 6: Custom elements for each key
 
 We use `Top.PerKey()` to get elements with customized rules for each unique key in a `PCollection` of key-values.
@@ -135,7 +120,7 @@ We use `Top.PerKey()` to get elements with customized rules for each unique key 
 You can change how the elements are compared with `key`.
 By default you get the largest elements, but you can get the smallest by setting `reverse=True`.
 
-{{< highlight py >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py" top_per_key >}}
 {{< /highlight >}}
 
@@ -146,9 +131,6 @@ Output:
 {{< highlight class="notebook-skip" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/top_test.py" shortest_elements_per_key >}}
 {{< /highlight >}}
-
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/top.py" >}}
 
 ## Related transforms
 

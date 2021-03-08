@@ -619,14 +619,6 @@ def teststrings(texts, report=False, **runner_kwargs):
   return runner.summary().result()
 
 
-def testfile(*args, **kwargs):
-  return _run_patched(doctest.testfile, *args, **kwargs)
-
-
-def testmod(*args, **kwargs):
-  return _run_patched(doctest.testmod, *args, **kwargs)
-
-
 def set_pandas_options():
   # See
   # https://github.com/pandas-dev/pandas/blob/a00202d12d399662b8045a8dd3fdac04f18e1e55/doc/source/conf.py#L319
@@ -666,3 +658,55 @@ def _run_patched(func, *args, **kwargs):
           *args, extraglobs=extraglobs, optionflags=optionflags, **kwargs)
   finally:
     doctest.DocTestRunner = original_doc_test_runner
+
+
+def with_run_patched_docstring(target=None):
+  assert target is not None
+
+  def wrapper(fn):
+    fn.__doc__ = f"""Run all pandas doctests in the specified {target}.
+
+    Arguments `skip`, `wont_implement_ok`, `not_implemented_ok` are all in the
+    format::
+
+      {{
+         "module.Class.method": ['*'],
+         "module.Class.other_method": [
+           'instance.other_method(bad_input)',
+           'observe_result_of_bad_input()',
+         ],
+      }}
+
+    `'*'` indicates all examples should be matched, otherwise the list is a list
+    of specific input strings that should be matched.
+
+    All arguments are kwargs.
+
+    Args:
+      optionflags (int): Passed through to doctests.
+      extraglobs (Dict[str,Any]): Passed through to doctests.
+      use_beam (bool): If true, run a Beam pipeline with partitioned input to
+        verify the examples, else use PartitioningSession to simulate
+        distributed execution.
+      skip (Dict[str,str]): A set of examples to skip entirely.
+      wont_implement_ok (Dict[str,str]): A set of examples that are allowed to
+        raise WontImplementError.
+      not_implemented_ok (Dict[str,str]): A set of examples that are allowed to
+        raise NotImplementedError.
+
+    Returns:
+      ~doctest.TestResults: A doctest result describing the passed/failed tests.
+    """
+    return fn
+
+  return wrapper
+
+
+@with_run_patched_docstring(target="file")
+def testfile(*args, **kwargs):
+  return _run_patched(doctest.testfile, *args, **kwargs)
+
+
+@with_run_patched_docstring(target="module")
+def testmod(*args, **kwargs):
+  return _run_patched(doctest.testmod, *args, **kwargs)

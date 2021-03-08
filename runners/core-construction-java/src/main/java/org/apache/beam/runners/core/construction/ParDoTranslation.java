@@ -673,7 +673,10 @@ public class ParDoTranslation {
       case PROCESSING_TIME:
         return RunnerApi.TimeDomain.Enum.PROCESSING_TIME;
       case SYNCHRONIZED_PROCESSING_TIME:
-        return RunnerApi.TimeDomain.Enum.SYNCHRONIZED_PROCESSING_TIME;
+        throw new IllegalArgumentException(
+            String.format(
+                "%s is not permitted for user timers",
+                TimeDomain.SYNCHRONIZED_PROCESSING_TIME.name()));
       default:
         throw new IllegalArgumentException("Unknown time domain");
     }

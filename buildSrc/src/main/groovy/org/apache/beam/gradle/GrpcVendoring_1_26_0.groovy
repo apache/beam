@@ -42,7 +42,7 @@ class GrpcVendoring_1_26_0 {
   static def alpn_api_version = "1.1.2.v20150522"
   static def npn_api_version = "1.1.1.v20141010"
   static def jboss_marshalling_version = "1.4.11.Final"
-  static def jboss_modules_version = "1.1.0.Beta1"
+  static def jboss_modules_version = "1.11.0.Final"
 
   /** Returns the list of compile time dependencies. */
   static List<String> dependencies() {

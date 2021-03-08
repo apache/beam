@@ -17,15 +17,16 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.extensions.joinlibrary')
+applyJavaNature(
+  enableStrictDependencies: true,
+  automaticModuleName: 'org.apache.beam.sdk.extensions.joinlibrary'
+)
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: Join library"
 
 dependencies {
   compile library.java.vendored_guava_26_0_jre
   compile project(path: ":sdks:java:core", configuration: "shadow")
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
   testCompile library.java.junit
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

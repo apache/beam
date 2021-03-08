@@ -59,7 +59,7 @@ public class GroupNonMergingWindowsFunctions {
    * @return {@code true} if group by key and window can be used
    */
   static boolean isEligibleForGroupByWindow(WindowingStrategy<?, ?> windowingStrategy) {
-    return windowingStrategy.getWindowFn().isNonMerging()
+    return !windowingStrategy.needsMerge()
         && windowingStrategy.getTimestampCombiner() == TimestampCombiner.END_OF_WINDOW
         && windowingStrategy.getWindowFn().windowCoder().consistentWithEquals();
   }

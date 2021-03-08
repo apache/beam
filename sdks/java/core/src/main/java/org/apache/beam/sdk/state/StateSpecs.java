@@ -23,6 +23,7 @@ import java.util.Objects;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.coders.BooleanCoder;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -317,6 +318,25 @@ public class StateSpecs {
       return typedSpec.asBagSpec();
     } else {
       throw new IllegalArgumentException("Unexpected StateSpec " + combiningSpec);
+    }
+  }
+
+  /**
+   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+   *
+   * <p>Convert a set state spec to a map-state spec.
+   */
+  @Internal
+  public static <KeyT> StateSpec<MapState<KeyT, Boolean>> convertToMapSpecInternal(
+      StateSpec<SetState<KeyT>> setStateSpec) {
+    if (setStateSpec instanceof SetStateSpec) {
+      // Checked above; conversion to a map spec depends on the provided spec being one of those
+      // created via the factory methods in this class.
+      @SuppressWarnings("unchecked")
+      SetStateSpec<KeyT> typedSpec = (SetStateSpec<KeyT>) setStateSpec;
+      return typedSpec.asMapSpec();
+    } else {
+      throw new IllegalArgumentException("Unexpected StateSpec " + setStateSpec);
     }
   }
 
@@ -772,6 +792,10 @@ public class StateSpecs {
     @Override
     public int hashCode() {
       return Objects.hash(getClass(), elemCoder);
+    }
+
+    private StateSpec<MapState<T, Boolean>> asMapSpec() {
+      return new MapStateSpec<>(this.elemCoder, BooleanCoder.of());
     }
   }
 

@@ -20,6 +20,7 @@ import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
+  enableStrictDependencies: true,
   automaticModuleName: 'org.apache.beam.sdk.extensions.zetasketch')
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: ZetaSketch"
@@ -29,6 +30,7 @@ evaluationDependsOn(":runners:google-cloud-dataflow-java:worker:legacy-worker")
 def zetasketch_version = "0.1.0"
 
 dependencies {
+    compile library.java.auto_value_annotations
     compile library.java.slf4j_api
     compile library.java.vendored_guava_26_0_jre
     compile project(path: ":sdks:java:core", configuration: "shadow")

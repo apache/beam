@@ -43,6 +43,8 @@ import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.parquet.ParquetIO.GenericRecordPassthroughFn;
 import org.apache.beam.sdk.io.range.OffsetRange;
+import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -50,6 +52,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.Row;
 import org.apache.parquet.hadoop.metadata.BlockMetaData;
 import org.junit.Rule;
 import org.junit.Test;
@@ -59,9 +62,6 @@ import org.junit.runners.JUnit4;
 
 /** Test on the {@link ParquetIO}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class ParquetIOTest implements Serializable {
   @Rule public transient TestPipeline mainPipeline = TestPipeline.create();
 
@@ -292,6 +292,34 @@ public class ParquetIOTest implements Serializable {
 
     assertEquals(1000, expectedJsonRecords.size());
     PAssert.that(writeThenRead).containsInAnyOrder(expectedJsonRecords);
+
+    mainPipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testReadFilesAsRowForUnknownSchemaFiles() {
+    List<GenericRecord> records = generateGenericRecords(1000);
+    List<Row> expectedRows =
+        records.stream().map(record -> AvroUtils.toBeamRowStrict(record, null)).collect(toList());
+
+    PCollection<Row> writeThenRead =
+        mainPipeline
+            .apply(Create.of(records).withCoder(AvroCoder.of(SCHEMA)))
+            .apply(
+                FileIO.<GenericRecord>write()
+                    .via(ParquetIO.sink(SCHEMA))
+                    .to(temporaryFolder.getRoot().getAbsolutePath()))
+            .getPerDestinationOutputFilenames()
+            .apply(Values.create())
+            .apply(FileIO.matchAll())
+            .apply(FileIO.readMatches())
+            .apply(
+                ParquetIO.parseFilesGenericRecords(
+                        (SerializableFunction<GenericRecord, Row>)
+                            record -> AvroUtils.toBeamRowStrict(record, null))
+                    .withCoder(SchemaCoder.of(AvroUtils.toBeamSchema(SCHEMA))));
+
+    PAssert.that(writeThenRead).containsInAnyOrder(expectedRows);
 
     mainPipeline.run().waitUntilFinish();
   }

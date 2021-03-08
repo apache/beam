@@ -36,9 +36,6 @@ import org.junit.runners.JUnit4;
 
 /** Unit tests for {@link IterableCoder}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class IterableCoderTest {
 
   private static final Coder<Iterable<Integer>> TEST_CODER = IterableCoder.of(VarIntCoder.of());

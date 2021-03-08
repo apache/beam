@@ -140,9 +140,6 @@ import org.junit.runners.model.Statement;
 
 /** Tests for {@link BigQueryIO#write}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class BigQueryIOWriteTest implements Serializable {
   private transient PipelineOptions options;
   private transient TemporaryFolder testFolder = new TemporaryFolder();

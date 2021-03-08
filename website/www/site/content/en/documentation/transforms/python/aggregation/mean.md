@@ -34,7 +34,7 @@ Then, we get the element with the average value in different ways.
 
 We use `Mean.Globally()` to get the average of the elements from the *entire* `PCollection`.
 
-{{< highlight py >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/mean.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/mean.py" mean_globally >}}
 {{< /highlight >}}
 
@@ -46,14 +46,11 @@ Output:
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/mean_test.py" mean_element >}}
 {{< /highlight >}}
 
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/mean.py" >}}
-
 ### Example 2: Mean of elements for each key
 
 We use `Mean.PerKey()` to get the average of the elements for each unique key in a `PCollection` of key-values.
 
-{{< highlight py >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/mean.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/mean.py" mean_per_key >}}
 {{< /highlight >}}
 
@@ -64,9 +61,6 @@ Output:
 {{< highlight class="notebook-skip" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/mean_test.py" elements_with_mean_value_per_key >}}
 {{< /highlight >}}
-
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/mean.py" >}}
 
 ## Related transforms
 

@@ -140,7 +140,7 @@ public class HashingFlinkCombineRunner<K, InputT, AccumT, OutputT, W extends Bou
       throws Exception {
     WindowFn<Object, W> windowFn = windowingStrategy.getWindowFn();
 
-    if (windowingStrategy.getWindowFn().isNonMerging()) {
+    if (!windowingStrategy.needsMerge()) {
       // Return an empty map, indicating that every window is not merged.
       return Collections.emptyMap();
     }

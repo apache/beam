@@ -37,9 +37,6 @@ import org.junit.Rule;
 import org.junit.Test;
 
 /** Unbounded + Unbounded Test for {@code BeamCoGBKJoinRel}. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class BeamCoGBKJoinRelUnboundedVsUnboundedTest extends BaseRelTest {
   @Rule public final TestPipeline pipeline = TestPipeline.create();
   private static final DateTime FIRST_DATE = new DateTime(1);

@@ -43,9 +43,6 @@ import org.junit.runner.RunWith;
  * <p>By default quick check runs this test 100 times.
  */
 @RunWith(JUnitQuickcheck.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class BeamDDLNestedTypesTest {
 
   @Property

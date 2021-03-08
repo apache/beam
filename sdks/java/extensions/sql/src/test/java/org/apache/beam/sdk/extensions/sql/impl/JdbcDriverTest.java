@@ -65,9 +65,6 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 /** Test for {@link JdbcDriver}. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class JdbcDriverTest {
   public static final DateTime FIRST_DATE = new DateTime(1);
 

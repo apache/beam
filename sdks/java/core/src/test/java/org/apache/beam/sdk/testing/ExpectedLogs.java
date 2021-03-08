@@ -40,9 +40,6 @@ import org.junit.rules.TestRule;
  * certain log levels. For logs generated via the SLF4J logging frontend, the JUL backend must be
  * used.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class ExpectedLogs extends ExternalResource {
   /**
    * Returns a {@link TestRule} that captures logs for the given logger name.

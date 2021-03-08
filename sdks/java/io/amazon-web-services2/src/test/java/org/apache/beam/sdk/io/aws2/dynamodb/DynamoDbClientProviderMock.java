@@ -20,9 +20,6 @@ package org.apache.beam.sdk.io.aws2.dynamodb;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 
 /** Mocking AwsClientProvider. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class DynamoDbClientProviderMock implements DynamoDbClientProvider {
 
   private static DynamoDbClientProviderMock instance = new DynamoDbClientProviderMock();

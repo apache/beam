@@ -42,9 +42,6 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 /** Tests for joins in queries. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class BeamSqlDslJoinTest {
 
   @Rule public final ExpectedException thrown = ExpectedException.none();

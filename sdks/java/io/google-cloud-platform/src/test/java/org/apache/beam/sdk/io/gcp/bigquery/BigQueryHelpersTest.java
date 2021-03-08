@@ -54,15 +54,21 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link BigQueryHelpers}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class BigQueryHelpersTest {
   @Rule public transient ExpectedException thrown = ExpectedException.none();
 
   @Test
-  public void testTableParsing() {
+  public void testTablesspecParsing() {
     TableReference ref = BigQueryHelpers.parseTableSpec("my-project:data_set.table_name");
+    assertEquals("my-project", ref.getProjectId());
+    assertEquals("data_set", ref.getDatasetId());
+    assertEquals("table_name", ref.getTableId());
+  }
+
+  @Test
+  public void testTableUrnParsing() {
+    TableReference ref =
+        BigQueryHelpers.parseTableUrn("projects/my-project/datasets/data_set/tables/table_name");
     assertEquals("my-project", ref.getProjectId());
     assertEquals("data_set", ref.getDatasetId());
     assertEquals("table_name", ref.getTableId());

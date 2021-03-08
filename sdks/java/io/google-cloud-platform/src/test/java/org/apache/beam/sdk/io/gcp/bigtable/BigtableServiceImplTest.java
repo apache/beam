@@ -59,9 +59,6 @@ import org.mockito.MockitoAnnotations;
 
 /** Unit tests of BigtableServiceImpl. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class BigtableServiceImplTest {
 
   private static final BigtableTableName TABLE_NAME =

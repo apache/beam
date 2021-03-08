@@ -29,9 +29,6 @@ import org.apache.beam.sdk.testutils.publishing.BigQueryClient;
  *
  * @see BigQueryClient
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class FakeBigQueryClient extends BigQueryClient {
 
   private Map<String, List<Map<String, ?>>> rowsPerTable;

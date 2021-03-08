@@ -70,9 +70,6 @@ import org.mockito.Spy;
 import org.mockito.stubbing.Answer;
 
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class PubsubLiteSinkTest {
   @Rule public final TestPipeline pipeline = TestPipeline.create();
 

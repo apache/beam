@@ -71,9 +71,6 @@ import org.slf4j.LoggerFactory;
  * of a given timer is run.
  */
 @RunWith(Parameterized.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class PortableTimersExecutionTest implements Serializable {
 
   private static final Logger LOG = LoggerFactory.getLogger(PortableTimersExecutionTest.class);
