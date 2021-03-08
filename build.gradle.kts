@@ -16,6 +16,9 @@
  * limitations under the License.
  */
 
+// TODO: Remove this before merging this to master
+import org.apache.tools.ant.taskdefs.condition.Os
+
 plugins {
   base
   // This plugin provides a task to determine which dependencies have updates.
@@ -341,13 +344,13 @@ task("installVendoredGrpc") {
     }
   }
 }
-
 // Because :model:job-management:runtimeClasspath requires the vendored gRPC at configuration phase
 // (before execution phase), we cannot rely on task dependencies.
 if (!project.hasProperty("installVendoredGrpcFlag")) {
+  val executable = if (Os.isFamily(Os.FAMILY_WINDOWS)) "gradlew.bat" else "./gradlew"
   project.exec {
     commandLine = listOf(
-            "./gradlew", ":installVendoredGrpc", "-PinstallVendoredGrpcFlag", "--info", "--stacktrace"
+            executable, ":installVendoredGrpc", "-PinstallVendoredGrpcFlag", "--info", "--stacktrace"
     )
   }
 }
