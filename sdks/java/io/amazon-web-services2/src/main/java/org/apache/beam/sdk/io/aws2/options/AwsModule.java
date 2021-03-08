@@ -40,6 +40,7 @@ import java.time.Duration;
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.io.aws2.s3.SSECustomerKey;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
@@ -77,6 +78,7 @@ public class AwsModule extends SimpleModule {
     setMixInAnnotation(AwsCredentialsProvider.class, AwsCredentialsProviderMixin.class);
     setMixInAnnotation(ProxyConfiguration.class, ProxyConfigurationMixin.class);
     setMixInAnnotation(AttributeMap.class, AttributeMapMixin.class);
+    setMixInAnnotation(SSECustomerKey.class, SSECustomerKeyMixin.class);
   }
 
   /** A mixin to add Jackson annotations to {@link AwsCredentialsProvider}. */
@@ -299,6 +301,23 @@ public class AwsModule extends SimpleModule {
             String.valueOf(attributeMap.get(SdkHttpConfigurationOption.READ_TIMEOUT)));
       }
       jsonGenerator.writeEndObject();
+    }
+  }
+
+  @JsonDeserialize(using = SSECustomerKeyDeserializer.class)
+  private static class SSECustomerKeyMixin {}
+
+  private static class SSECustomerKeyDeserializer extends JsonDeserializer<SSECustomerKey> {
+
+    @Override
+    public SSECustomerKey deserialize(JsonParser parser, DeserializationContext context)
+        throws IOException {
+      Map<String, String> asMap = parser.readValueAs(new TypeReference<Map<String, String>>() {});
+
+      final String key = asMap.getOrDefault("key", null);
+      final String algorithm = asMap.getOrDefault("algorithm", null);
+      final String md5 = asMap.getOrDefault("md5", null);
+      return SSECustomerKey.builder().key(key).algorithm(algorithm).md5(md5).build();
     }
   }
 }
