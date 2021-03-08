@@ -182,7 +182,7 @@ public class PubsubTableProviderIT implements Serializable {
         String.format(
             "CREATE EXTERNAL TABLE message (\n"
                 + "event_timestamp TIMESTAMP, \n"
-                + "attributes ARRAY<ROW<key VARCHAR, value VARCHAR>>, \n"
+                + "attributes ARRAY<ROW<key VARCHAR, `value` VARCHAR>>, \n"
                 + "payload ROW< \n"
                 + "             id INTEGER, \n"
                 + "             name VARCHAR \n"
@@ -244,7 +244,7 @@ public class PubsubTableProviderIT implements Serializable {
             "CREATE EXTERNAL TABLE message (\n"
                 + "event_timestamp TIMESTAMP, \n"
                 + "attributes MAP<VARCHAR, VARCHAR>, \n"
-                + "payload BYTES \n"
+                + "payload VARBINARY \n"
                 + ") \n"
                 + "TYPE '%s' \n"
                 + "LOCATION '%s' \n"
