@@ -19,11 +19,13 @@ package org.apache.beam.sdk.extensions.sql;
 
 import java.util.Arrays;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
@@ -151,6 +153,39 @@ public class BeamSqlDslNestedRowsTest {
         .containsInAnyOrder(
             Row.withSchema(nestedSchema)
                 .attachValues(2, Row.withSchema(nestedOutput).attachValues(312, "CC")));
+
+    pipeline.run();
+  }
+
+  @Test
+  @Ignore("BEAM-11937")
+  public void testSelectFieldFromRowInArray() {
+    Schema nestedSchema =
+        Schema.builder().addStringField("f_nestedString").addInt32Field("f_nestedInt").build();
+
+    Schema inputType =
+        Schema.builder()
+            .addInt32Field("f_int")
+            .addArrayField("f_array", FieldType.row(nestedSchema))
+            .build();
+    Schema outputType =
+        Schema.builder().addInt32Field("f_int").addInt32Field("f_nestedInt_extracted").build();
+
+    PCollection<Row> input =
+        pipeline.apply(
+            Create.of(
+                    Row.withSchema(inputType)
+                        .attachValues(
+                            1,
+                            ImmutableList.of(Row.withSchema(nestedSchema).attachValues("CC", 312))))
+                .withRowSchema(inputType));
+
+    PCollection<Row> result =
+        input.apply(
+            SqlTransform.query(
+                "SELECT 1 as `f_int`, f_array[0].f_nestedInt as `f_nestedInt_extracted` FROM PCOLLECTION"));
+
+    PAssert.that(result).containsInAnyOrder(Row.withSchema(outputType).attachValues(1, 312));
 
     pipeline.run();
   }
