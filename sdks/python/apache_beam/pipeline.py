@@ -747,9 +747,11 @@ class Pipeline(object):
         (not result_pcollection.element_type
          # TODO(robertwb): Ideally we'd do intersection here.
          or result_pcollection.element_type == typehints.Any)):
-      # Single-input, single-output inference.
+      # {Single, multi}-input, single-output inference.
+      input_element_types_tuple = tuple(i.element_type for i in inputs)
       input_element_type = (
-          inputs[0].element_type if len(inputs) == 1 else typehints.Any)
+          input_element_types_tuple[0]
+          if len(input_element_types_tuple) == 1
       type_hints = transform.get_type_hints()
       declared_output_type = type_hints.simple_output_type(transform.label)
       if declared_output_type:
@@ -766,7 +768,7 @@ class Pipeline(object):
         result_pcollection.element_type = transform.infer_output_type(
             input_element_type)
     elif isinstance(result_pcollection, pvalue.DoOutputsTuple):
-      # Single-input, multi-output inference.
+      # {Single, multi}-input, multi-output inference.
       # TODO(BEAM-4132): Add support for tagged type hints.
       #   https://github.com/apache/beam/pull/9810#discussion_r338765251
       for pcoll in result_pcollection:
