@@ -92,6 +92,11 @@ class ConvertTest(unittest.TestCase):
       pc_sum = convert.to_pcollection(s.sum())
       assert_that(pc_sum, equal_to([6]))
 
+  def test_convert_non_deferred(self):
+    with beam.Pipeline() as p:
+      pc_sum = convert.to_pcollection(pd.Series([1, 2, 3]), pipeline=p)
+      assert_that(pc_sum, equal_to([1, 2, 3]))
+
   def test_convert_memoization(self):
     with beam.Pipeline() as p:
       a = pd.Series([1, 2, 3])
