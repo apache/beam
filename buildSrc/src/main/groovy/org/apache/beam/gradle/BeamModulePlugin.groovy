@@ -1035,7 +1035,7 @@ class BeamModulePlugin implements Plugin<Project> {
         errorproneJavac("com.google.errorprone:javac:9+181-r4173-1")
       }
 
-      project.configurations.errorprone { resolutionStrategy.force 'com.google.errorprone:error_prone_core:2.3.4' }
+      project.configurations.errorprone { resolutionStrategy.force "com.google.errorprone:error_prone_core:$errorprone_version" }
 
       project.tasks.withType(JavaCompile) {
         options.errorprone.disableWarningsInGeneratedCode = true
