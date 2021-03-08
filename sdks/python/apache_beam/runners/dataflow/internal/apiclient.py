@@ -364,6 +364,10 @@ class Environment(object):
           dataflow.Environment.SdkPipelineOptionsValue.AdditionalProperty(
               key='display_data', value=to_json_value(items)))
 
+    if self.google_cloud_options.service_options:
+      for option in self.google_cloud_options.service_options:
+        self.proto.serviceOptions.append(option)
+
   def _get_environments_from_tranforms(self):
     if not self._proto_pipeline:
       return []
