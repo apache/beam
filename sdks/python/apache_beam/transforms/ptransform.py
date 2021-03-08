@@ -92,7 +92,6 @@ if TYPE_CHECKING:
   from apache_beam.runners.pipeline_context import PipelineContext
   from apache_beam.transforms.core import Windowing
   from apache_beam.portability.api import beam_runner_api_pb2
-  from google.protobuf import message
 
 __all__ = [
     'PTransform',
