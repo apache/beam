@@ -33,7 +33,8 @@ on:
   pull_request:
     branches: ['master', 'release-*']
     tags: 'v*'
-    paths: ['sdks/java/**', 'model/**', 'runners/**', 'examples/java/**', 'examples/kotlin/**', 'release/**']
+    paths: ['sdks/java/**', 'model/**', 'runners/**', 'examples/java/**',
+            'examples/kotlin/**', 'release/**', 'buildSrc/**']
 
 
 jobs:
