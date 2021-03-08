@@ -334,6 +334,7 @@ public class DataflowPipelineTranslator {
 
       Environment environment = new Environment();
       job.setEnvironment(environment);
+      job.getEnvironment().setServiceOptions(options.getServiceOptions());
 
       WorkerPool workerPool = new WorkerPool();
 
