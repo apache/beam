@@ -311,7 +311,22 @@ public class WriteFilesTest {
             }
             return null;
           }
-        });
+        },
+        false);
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testWithRunnerDeterminedShardingUnbounded() throws IOException {
+    runShardedWrite(
+        Arrays.asList("one", "two", "three", "four", "five", "six"),
+        Window.into(FixedWindows.of(Duration.standardSeconds(10))),
+        getBaseOutputFilename(),
+        WriteFiles.to(makeSimpleSink())
+            .withWindowedWrites()
+            .withRunnerDeterminedShardingUnboundedInternal(),
+        null,
+        true);
   }
 
   /** Test a WriteFiles transform with an empty PCollection. */
@@ -706,9 +721,9 @@ public class WriteFilesTest {
   }
 
   /**
-   * Same as {@link #runShardedWrite(List, PTransform, String, WriteFiles, BiFunction)} but without
-   * shard content check. This means content will be checked only globally, that shards together
-   * contains written input and not content per shard
+   * Same as {@link #runShardedWrite(List, PTransform, String, WriteFiles, BiFunction, boolean)} but
+   * without shard content check. This means content will be checked only globally, that shards
+   * together contains written input and not content per shard
    */
   private void runShardedWrite(
       List<String> inputs,
@@ -716,7 +731,7 @@ public class WriteFilesTest {
       String baseName,
       WriteFiles<String, ?, String> write)
       throws IOException {
-    runShardedWrite(inputs, transform, baseName, write, null);
+    runShardedWrite(inputs, transform, baseName, write, null, false);
   }
 
   /**
@@ -730,7 +745,8 @@ public class WriteFilesTest {
       PTransform<PCollection<String>, PCollection<String>> transform,
       String baseName,
       WriteFiles<String, ?, String> write,
-      BiFunction<Integer, List<String>, Void> shardContentChecker)
+      BiFunction<Integer, List<String>, Void> shardContentChecker,
+      boolean isUnbounded)
       throws IOException {
     // Flag to validate that the pipeline options are passed to the Sink
     WriteOptions options = TestPipeline.testingPipelineOptions().as(WriteOptions.class);
@@ -743,6 +759,7 @@ public class WriteFilesTest {
       timestamps.add(i + 1);
     }
     p.apply(Create.timestamped(inputs, timestamps).withCoder(StringUtf8Coder.of()))
+        .setIsBoundedInternal(isUnbounded ? IsBounded.UNBOUNDED : IsBounded.BOUNDED)
         .apply(transform)
         .apply(write)
         .getPerDestinationOutputFilenames()
