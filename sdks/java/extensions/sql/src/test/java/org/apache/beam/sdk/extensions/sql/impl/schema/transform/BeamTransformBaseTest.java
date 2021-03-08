@@ -27,9 +27,6 @@ import org.joda.time.format.DateTimeFormatter;
 import org.junit.BeforeClass;
 
 /** shared methods to test PTransforms which execute Beam SQL steps. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class BeamTransformBaseTest {
   static final DateTimeFormatter FORMAT = DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss");
 

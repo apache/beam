@@ -31,9 +31,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class DataStoreV1SchemaIOProviderTest {
   static final String DEFAULT_KEY_FIELD = "__key__";
   public static final String KEY_FIELD_PROPERTY = "keyField";

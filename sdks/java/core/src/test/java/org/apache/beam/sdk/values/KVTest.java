@@ -30,9 +30,6 @@ import org.junit.runners.JUnit4;
 
 /** Tests for KV. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class KVTest {
   private static final Integer[] TEST_VALUES = {
     null, Integer.MIN_VALUE, -1, 0, 1, Integer.MAX_VALUE

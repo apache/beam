@@ -20,7 +20,6 @@ package org.apache.beam.runners.dataflow;
 import static org.apache.beam.runners.dataflow.DataflowRunner.getContainerImageForJob;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Files.getFileExtension;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.both;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.endsWith;
@@ -28,6 +27,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasKey;
+import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.hamcrest.Matchers.not;
@@ -153,7 +153,6 @@ import org.apache.beam.sdk.values.PValues;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.InvalidProtocolBufferException;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -182,9 +181,6 @@ import org.powermock.modules.junit4.PowerMockRunner;
  * <p>Implements {@link Serializable} because it is caught in closures.
  */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class DataflowRunnerTest implements Serializable {
 
   private static final String VALID_BUCKET = "valid-bucket";
@@ -351,14 +347,9 @@ public class DataflowRunnerTest implements Serializable {
           "--credentialFactoryClass=" + NoopCredentialFactory.class.getName(),
         };
 
-    try {
-      Pipeline.create(PipelineOptionsFactory.fromArgs(args).create()).run();
-      fail();
-    } catch (RuntimeException e) {
-      assertThat(
-          Throwables.getStackTraceAsString(e),
-          containsString("DataflowRunner requires gcpTempLocation"));
-    }
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("DataflowRunner requires gcpTempLocation");
+    Pipeline.create(PipelineOptionsFactory.fromArgs(args).create()).run();
   }
 
   @Test
@@ -372,15 +363,10 @@ public class DataflowRunnerTest implements Serializable {
           "--credentialFactoryClass=" + NoopCredentialFactory.class.getName(),
         };
 
-    try {
-      Pipeline.create(PipelineOptionsFactory.fromArgs(args).create()).run();
-      fail();
-    } catch (RuntimeException e) {
-      assertThat(
-          Throwables.getStackTraceAsString(e),
-          both(containsString("gs://does/not/exist"))
-              .and(containsString("Unable to verify that GCS bucket gs://does exists")));
-    }
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("gcpTempLocation");
+    thrown.expectCause(hasProperty("message", containsString("gs://does/not/exist")));
+    Pipeline.create(PipelineOptionsFactory.fromArgs(args).create()).run();
   }
 
   @Test
@@ -1417,16 +1403,19 @@ public class DataflowRunnerTest implements Serializable {
   }
 
   @Test
-  public void testMapStateUnsupportedInBatch() throws Exception {
+  public void testMapStateUnsupportedRunnerV2() throws Exception {
     PipelineOptions options = buildPipelineOptions();
-    options.as(StreamingOptions.class).setStreaming(false);
+    ExperimentalOptions.addExperiment(options.as(ExperimentalOptions.class), "use_runner_v2");
     verifyMapStateUnsupported(options);
   }
 
   @Test
-  public void testMapStateUnsupportedInStreaming() throws Exception {
+  public void testMapStateUnsupportedStreamingEngine() throws Exception {
     PipelineOptions options = buildPipelineOptions();
-    options.as(StreamingOptions.class).setStreaming(true);
+    ExperimentalOptions.addExperiment(
+        options.as(ExperimentalOptions.class), GcpOptions.STREAMING_ENGINE_EXPERIMENT);
+    options.as(DataflowPipelineOptions.class).setStreaming(true);
+
     verifyMapStateUnsupported(options);
   }
 
@@ -1449,17 +1438,19 @@ public class DataflowRunnerTest implements Serializable {
   }
 
   @Test
-  public void testSetStateUnsupportedInBatch() throws Exception {
+  public void testSetStateUnsupportedRunnerV2() throws Exception {
     PipelineOptions options = buildPipelineOptions();
-    options.as(StreamingOptions.class).setStreaming(false);
+    ExperimentalOptions.addExperiment(options.as(ExperimentalOptions.class), "use_runner_v2");
     Pipeline.create(options);
     verifySetStateUnsupported(options);
   }
 
   @Test
-  public void testSetStateUnsupportedInStreaming() throws Exception {
+  public void testSetStateUnsupportedStreamingEngine() throws Exception {
     PipelineOptions options = buildPipelineOptions();
-    options.as(StreamingOptions.class).setStreaming(true);
+    ExperimentalOptions.addExperiment(
+        options.as(ExperimentalOptions.class), GcpOptions.STREAMING_ENGINE_EXPERIMENT);
+    options.as(DataflowPipelineOptions.class).setStreaming(true);
     verifySetStateUnsupported(options);
   }
 
@@ -1775,7 +1766,6 @@ public class DataflowRunnerTest implements Serializable {
     List<String> experiments =
         new ArrayList<>(
             ImmutableList.of(
-                "enable_streaming_auto_sharding",
                 GcpOptions.STREAMING_ENGINE_EXPERIMENT,
                 GcpOptions.WINDMILL_SERVICE_EXPERIMENT,
                 "use_runner_v2"));

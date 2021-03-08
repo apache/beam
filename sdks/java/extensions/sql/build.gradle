@@ -24,6 +24,7 @@ plugins {
   id 'ca.coglinc.javacc'
 }
 applyJavaNature(
+  enableStrictDependencies: true,
   generatedClassPatterns: [
     /^org\.apache\.beam\.sdk\.extensions\.sql\.impl\.parser\.impl.*/,
   ],
@@ -57,8 +58,9 @@ dependencies {
   fmppTask "com.googlecode.fmpp-maven-plugin:fmpp-maven-plugin:1.0"
   fmppTask "org.freemarker:freemarker:2.3.28"
   fmppTemplates library.java.vendored_calcite_1_20_0
-  compile project(":sdks:java:core")
+  compile project(path: ":sdks:java:core", configuration: "shadow")
   compile project(":sdks:java:extensions:join-library")
+  permitUnusedDeclared project(":sdks:java:extensions:join-library") // BEAM-11761
   compile project(":sdks:java:extensions:sql:udf")
   compile project(path: ":runners:direct-java", configuration: "shadow")
   compile library.java.commons_codec
@@ -69,10 +71,15 @@ dependencies {
   compile "com.alibaba:fastjson:1.2.69"
   compile "org.codehaus.janino:janino:3.0.11"
   compile "org.codehaus.janino:commons-compiler:3.0.11"
-  provided "org.checkerframework:checker-qual:3.10.0"
+  compile library.java.jackson_core
+  compile library.java.mongo_java_driver
+  compile library.java.slf4j_api
+  compile library.java.joda_time
+  compile library.java.vendored_guava_26_0_jre
   provided project(":sdks:java:io:kafka")
   provided project(":sdks:java:io:google-cloud-platform")
   compile project(":sdks:java:io:mongodb")
+  compile library.java.avro
   provided project(":sdks:java:io:parquet")
   provided library.java.jackson_dataformat_xml
   provided library.java.hadoop_client
@@ -80,9 +87,6 @@ dependencies {
   testCompile library.java.vendored_calcite_1_20_0
   testCompile library.java.vendored_guava_26_0_jre
   testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
-  testCompile library.java.mockito_core
   testCompile library.java.quickcheck_core
   testCompile library.java.testcontainers_kafka
   testCompile library.java.google_cloud_bigtable_emulator

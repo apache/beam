@@ -30,9 +30,6 @@ import org.mockito.runners.MockitoJUnitRunner;
 
 /** * */
 @RunWith(MockitoJUnitRunner.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class RecordFilterTest {
 
   @Mock private ShardCheckpoint checkpoint;

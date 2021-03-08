@@ -39,9 +39,6 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link DoFnInvokers}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class OnTimerInvokersTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
 

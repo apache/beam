@@ -77,9 +77,6 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link UserParDoFnFactory}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class UserParDoFnFactoryTest {
   static class TestDoFn extends DoFn<Integer, String> {
     enum State {

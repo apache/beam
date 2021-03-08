@@ -36,9 +36,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Embedded Kafka cluster. https://gist.github.com/fjavieralba/7930018 */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class EmbeddedKafkaCluster {
 
   private static final Logger LOG = LoggerFactory.getLogger(EmbeddedKafkaCluster.class);

@@ -54,9 +54,6 @@ import org.junit.runners.JUnit4;
 import org.mockito.Mockito;
 
 /** Tests for {@link Metrics}. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class MetricsTest implements Serializable {
 
   private static final String NS = "test";

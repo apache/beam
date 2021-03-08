@@ -44,9 +44,6 @@ import org.slf4j.LoggerFactory;
 
 /** Tests for {@link ElasticsearchIO} version 2.x. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class ElasticsearchIOTest implements Serializable {
 
   private static final Logger LOG = LoggerFactory.getLogger(ElasticsearchIOTest.class);

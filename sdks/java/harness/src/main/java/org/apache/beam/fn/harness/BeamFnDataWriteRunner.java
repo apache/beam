@@ -49,6 +49,7 @@ import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -115,7 +116,8 @@ public class BeamFnDataWriteRunner<InputT> {
       pCollectionConsumerRegistry.register(
           getOnlyElement(pTransform.getInputsMap().values()),
           pTransformId,
-          (FnDataReceiver) (FnDataReceiver<WindowedValue<InputT>>) runner::consume);
+          (FnDataReceiver) (FnDataReceiver<WindowedValue<InputT>>) runner::consume,
+          ((WindowedValueCoder<InputT>) runner.coder).getValueCoder());
 
       finishFunctionRegistry.register(pTransformId, runner::close);
       return runner;

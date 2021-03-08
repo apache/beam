@@ -31,9 +31,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.junit.Test;
 
 /** Tests for PublishResult coders. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class PublishResultCodersTest {
 
   @Test

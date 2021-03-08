@@ -38,7 +38,7 @@ We use the function
 [`sum`](https://docs.python.org/3/library/functions.html#sum)
 which takes an `iterable` of numbers and adds them together.
 
-{{< highlight py >}}
+{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey.py" combineperkey_simple >}}
 {{< /highlight >}}
 
@@ -50,14 +50,11 @@ Output:
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey_test.py" total >}}
 {{< /highlight >}}
 
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey.py" >}}
-
 ### Example 2: Combining with a function
 
 We define a function `saturated_sum` which takes an `iterable` of numbers and adds them together, up to a predefined maximum number.
 
-{{< highlight py >}}
+{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey.py" combineperkey_function >}}
 {{< /highlight >}}
 
@@ -69,14 +66,11 @@ Output:
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey_test.py" saturated_total >}}
 {{< /highlight >}}
 
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey.py" >}}
-
 ### Example 3: Combining with a lambda function
 
 We can also use lambda functions to simplify **Example 2**.
 
-{{< highlight py >}}
+{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey.py" combineperkey_lambda >}}
 {{< /highlight >}}
 
@@ -88,9 +82,6 @@ Output:
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey_test.py" saturated_total >}}
 {{< /highlight >}}
 
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey.py" >}}
-
 ### Example 4: Combining with multiple arguments
 
 You can pass functions with multiple arguments to `CombinePerKey`.
@@ -98,7 +89,7 @@ They are passed as additional positional arguments or keyword arguments to the f
 
 In this example, the lambda function takes `values` and `max_value` as arguments.
 
-{{< highlight py >}}
+{{< highlight language="py" py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey.py" combineperkey_multiple_arguments >}}
 {{< /highlight >}}
 
@@ -109,9 +100,6 @@ Output:
 {{< highlight class="notebook-skip" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey_test.py" saturated_total >}}
 {{< /highlight >}}
-
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey.py" >}}
 
 ### Example 5: Combining with a `CombineFn`
 
@@ -131,7 +119,7 @@ The more general way to combine elements, and the most flexible, is with a class
 * [`CombineFn.extract_output()`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.CombineFn.extract_output):
   It allows to do additional calculations before extracting a result.
 
-{{< highlight py >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey.py" combineperkey_combinefn >}}
 {{< /highlight >}}
 
@@ -142,9 +130,6 @@ Output:
 {{< highlight class="notebook-skip" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey_test.py" average >}}
 {{< /highlight >}}
-
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/combineperkey.py" >}}
 
 ## Related transforms
 

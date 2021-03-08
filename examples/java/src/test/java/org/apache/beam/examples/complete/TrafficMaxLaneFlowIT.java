@@ -42,9 +42,6 @@ import org.slf4j.LoggerFactory;
 
 /** End-to-end tests of TrafficMaxLaneFlowIT. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class TrafficMaxLaneFlowIT {
   private static final Logger LOG = LoggerFactory.getLogger(TrafficMaxLaneFlowIT.class);
   private TrafficMaxLaneFlowOptions options;

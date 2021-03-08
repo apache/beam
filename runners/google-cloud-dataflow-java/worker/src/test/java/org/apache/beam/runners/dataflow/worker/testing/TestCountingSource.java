@@ -43,9 +43,6 @@ import org.slf4j.LoggerFactory;
  * The reader will occasionally return false from {@code advance}, in order to simulate a source
  * where not all the data is available immediately.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class TestCountingSource
     extends UnboundedSource<KV<Integer, Integer>, TestCountingSource.CounterMark> {
   private static final Logger LOG = LoggerFactory.getLogger(TestCountingSource.class);

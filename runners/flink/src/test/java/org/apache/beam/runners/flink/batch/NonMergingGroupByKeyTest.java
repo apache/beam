@@ -34,9 +34,6 @@ import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.Test;
 
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class NonMergingGroupByKeyTest extends AbstractTestBase {
 
   private static class ReiterateDoFn<K, V> extends DoFn<KV<K, Iterable<V>>, Void> {
