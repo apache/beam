@@ -750,8 +750,8 @@ class Pipeline(object):
       # {Single, multi}-input, single-output inference.
       input_element_types_tuple = tuple(i.element_type for i in inputs)
       input_element_type = (
-          input_element_types_tuple[0]
-          if len(input_element_types_tuple) == 1
+          input_element_types_tuple[0] if len(input_element_types_tuple) == 1
+          else typehints.Union[input_element_types_tuple])
       type_hints = transform.get_type_hints()
       declared_output_type = type_hints.simple_output_type(transform.label)
       if declared_output_type:
