@@ -64,9 +64,6 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link StreamingSideInputFetcher}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class StreamingSideInputFetcherTest {
 
   private static final FixedWindows WINDOW_FN = FixedWindows.of(Duration.millis(10));

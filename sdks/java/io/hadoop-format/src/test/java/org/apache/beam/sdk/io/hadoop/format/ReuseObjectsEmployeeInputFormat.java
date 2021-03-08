@@ -49,9 +49,6 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
  * HadoopFormatIO } source returns immutable records for a scenario when RecordReader returns the
  * same key and value objects with updating values every time it reads data.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 class ReuseObjectsEmployeeInputFormat extends InputFormat<Text, Employee> {
 
   public ReuseObjectsEmployeeInputFormat() {}

@@ -34,9 +34,6 @@ import org.mockito.MockitoAnnotations;
 
 /** Unit tests for {@link TableResolution}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class TableResolutionTest {
 
   // A simple in-memory SchemaPlus would be fine

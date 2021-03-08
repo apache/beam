@@ -77,9 +77,6 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link SplittableParDoViaKeyedWorkItems.ProcessFn}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class SplittableParDoProcessFnTest {
   private static final int MAX_OUTPUTS_PER_BUNDLE = 10000;
   private static final Duration MAX_BUNDLE_DURATION = Duration.standardSeconds(5);

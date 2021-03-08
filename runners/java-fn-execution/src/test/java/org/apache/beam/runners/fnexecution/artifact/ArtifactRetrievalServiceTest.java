@@ -45,9 +45,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class ArtifactRetrievalServiceTest {
   private static final int TEST_BUFFER_SIZE = 1 << 10;
   private GrpcFnServer<ArtifactRetrievalService> retrievalServer;

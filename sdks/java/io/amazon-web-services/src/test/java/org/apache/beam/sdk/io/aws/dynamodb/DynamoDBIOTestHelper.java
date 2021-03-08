@@ -45,9 +45,6 @@ import org.testcontainers.containers.localstack.LocalStackContainer;
 import org.testcontainers.utility.DockerImageName;
 
 /** A utility to generate test table and data for {@link DynamoDBIOTest}. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 class DynamoDBIOTestHelper implements Serializable {
   private static final String LOCALSTACK_VERSION = "0.11.4";
 

@@ -42,9 +42,6 @@ import org.junit.Test;
 import org.junit.rules.TestName;
 
 /** This suite tests that various scenarios result in proper states of the pipeline. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class SparkPipelineStateTest implements Serializable {
 
   private static class MyCustomException extends RuntimeException {

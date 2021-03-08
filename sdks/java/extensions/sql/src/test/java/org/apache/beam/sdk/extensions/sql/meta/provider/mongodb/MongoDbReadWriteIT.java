@@ -77,9 +77,6 @@ import org.slf4j.LoggerFactory;
  * independent Mongo instance.
  */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class MongoDbReadWriteIT {
   private static final Logger LOG = LoggerFactory.getLogger(MongoDbReadWriteIT.class);
   private static final Schema SOURCE_SCHEMA =

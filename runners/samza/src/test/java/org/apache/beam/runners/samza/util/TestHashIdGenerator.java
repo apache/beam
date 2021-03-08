@@ -31,9 +31,6 @@ import org.junit.Assert;
 import org.junit.Test;
 
 /** Test class for {@link HashIdGenerator}. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class TestHashIdGenerator {
 
   @Test

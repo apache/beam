@@ -80,9 +80,6 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 @Category(UsesSideInputs.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class ViewTest implements Serializable {
   // This test is Serializable, just so that it's easy to have
   // anonymous inner classes inside the non-static test methods.

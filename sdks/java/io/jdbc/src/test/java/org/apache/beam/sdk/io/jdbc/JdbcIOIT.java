@@ -77,9 +77,6 @@ import org.postgresql.ds.PGSimpleDataSource;
  * performance testing framework.
  */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class JdbcIOIT {
 
   private static final String NAMESPACE = JdbcIOIT.class.getName();

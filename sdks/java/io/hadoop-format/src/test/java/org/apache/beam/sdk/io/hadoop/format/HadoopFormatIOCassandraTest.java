@@ -51,9 +51,6 @@ import org.junit.runners.JUnit4;
 
 /** Tests to validate HadoopFormatIO for embedded Cassandra instance. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class HadoopFormatIOCassandraTest implements Serializable {
   private static final long serialVersionUID = 1L;
   private static final String CASSANDRA_KEYSPACE = "beamdb";

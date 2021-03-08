@@ -31,9 +31,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.junit.Test;
 
 /** Unit tests for logical types. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class LogicalTypesTest {
   @Test
   public void testEnumeration() {

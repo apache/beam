@@ -51,9 +51,6 @@ import org.mockito.Mock;
 
 /** Unit tests for {@link PortablePipelineJarCreator}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class PortablePipelineJarCreatorTest implements Serializable {
 
   @Mock private JarFile inputJar;

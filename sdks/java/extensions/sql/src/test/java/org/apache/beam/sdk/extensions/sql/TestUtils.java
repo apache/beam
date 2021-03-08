@@ -35,9 +35,6 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Instant;
 
 /** Test utilities. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class TestUtils {
   /** A {@code DoFn} to convert a {@code BeamSqlRow} to a comparable {@code String}. */
   public static class BeamSqlRow2StringDoFn extends DoFn<Row, String> {

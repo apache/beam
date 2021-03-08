@@ -26,9 +26,6 @@ import org.apache.beam.sdk.options.PipelineOptions;
  * A BigQueryTable that keeps jobName from the pipeline options whenever row count is called. It is
  * made for {@link BigQueryRowCountIT#testPipelineOptionInjection()}
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class BigQueryTestTable extends BigQueryTable {
   private String jobName = null;
 

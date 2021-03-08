@@ -39,9 +39,6 @@ import org.junit.runners.JUnit4;
 
 /** Unit tests for {@link Latest.LatestFn}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class LatestFnTest {
   private static final Instant INSTANT = new Instant(100);
   private static final long VALUE = 100 * INSTANT.getMillis();

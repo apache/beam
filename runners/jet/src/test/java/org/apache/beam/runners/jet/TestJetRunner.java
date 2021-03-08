@@ -47,7 +47,6 @@ import org.apache.beam.sdk.values.TupleTag;
 /** Slightly altered version of the Jet based runner, used in unit-tests. */
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class TestJetRunner extends PipelineRunner<PipelineResult> {
 

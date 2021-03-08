@@ -85,9 +85,6 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link DefaultJobBundleFactory}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class DefaultJobBundleFactoryTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
   @Mock private EnvironmentFactory envFactory;

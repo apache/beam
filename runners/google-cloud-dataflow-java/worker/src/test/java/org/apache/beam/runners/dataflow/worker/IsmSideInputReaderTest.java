@@ -139,7 +139,7 @@ import org.slf4j.LoggerFactory;
  * equivalently to their numeric representation for non-negative values.
  */
 @RunWith(JUnit4.class)
-@SuppressWarnings({"keyfor", "nullness"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+@SuppressWarnings({"keyfor"})
 public class IsmSideInputReaderTest {
   private static final Logger LOG = LoggerFactory.getLogger(IsmSideInputReaderTest.class);
   private static final long BLOOM_FILTER_SIZE_LIMIT = 10_000;

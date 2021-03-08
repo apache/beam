@@ -41,9 +41,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class BeamSideInputLookupJoinRelTest extends BaseRelTest {
 
   @Rule public final TestPipeline pipeline = TestPipeline.create();

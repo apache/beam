@@ -82,7 +82,6 @@ import org.junit.runners.Parameterized.Parameters;
 @RunWith(Enclosed.class)
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class CloudObjectsTest {
   private static final Schema TEST_SCHEMA =
