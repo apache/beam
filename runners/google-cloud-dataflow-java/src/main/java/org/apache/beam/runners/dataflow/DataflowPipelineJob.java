@@ -35,7 +35,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.atomic.AtomicReference;
-import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil.JobMessagesHandler;
@@ -122,26 +122,7 @@ public class DataflowPipelineJob implements PipelineResult {
 
   private @Nullable String latestStateString;
 
-  private RunnerApi.Pipeline pipelineProto = null;
-
-  /**
-   * Constructs the job.
-   *
-   * @param jobId the job id
-   * @param dataflowOptions used to configure the client for the Dataflow Service
-   * @param transformStepNames a mapping from AppliedPTransforms to Step Names
-   */
-  public DataflowPipelineJob(
-      DataflowClient dataflowClient,
-      String jobId,
-      DataflowPipelineOptions dataflowOptions,
-      Map<AppliedPTransform<?, ?, ?>, String> transformStepNames) {
-    this.dataflowClient = dataflowClient;
-    this.jobId = jobId;
-    this.dataflowOptions = dataflowOptions;
-    this.transformStepNames = HashBiMap.create(firstNonNull(transformStepNames, ImmutableMap.of()));
-    this.dataflowMetrics = new DataflowMetrics(this, this.dataflowClient);
-  }
+  private final @Nullable Pipeline pipelineProto;
 
   /**
    * Constructs the job.
@@ -156,9 +137,28 @@ public class DataflowPipelineJob implements PipelineResult {
       String jobId,
       DataflowPipelineOptions dataflowOptions,
       Map<AppliedPTransform<?, ?, ?>, String> transformStepNames,
-      RunnerApi.Pipeline pipelineProto) {
-    this(dataflowClient, jobId, dataflowOptions, transformStepNames);
+      @Nullable Pipeline pipelineProto) {
+    this.dataflowClient = dataflowClient;
+    this.jobId = jobId;
+    this.dataflowOptions = dataflowOptions;
+    this.transformStepNames = HashBiMap.create(firstNonNull(transformStepNames, ImmutableMap.of()));
+    this.dataflowMetrics = new DataflowMetrics(this, this.dataflowClient);
     this.pipelineProto = pipelineProto;
+  }
+
+  /**
+   * Constructs the job.
+   *
+   * @param jobId the job id
+   * @param dataflowOptions used to configure the client for the Dataflow Service
+   * @param transformStepNames a mapping from AppliedPTransforms to Step Names
+   */
+  public DataflowPipelineJob(
+      DataflowClient dataflowClient,
+      String jobId,
+      DataflowPipelineOptions dataflowOptions,
+      Map<AppliedPTransform<?, ?, ?>, String> transformStepNames) {
+    this(dataflowClient, jobId, dataflowOptions, transformStepNames, null);
   }
 
   /** Get the id of this job. */
@@ -175,7 +175,8 @@ public class DataflowPipelineJob implements PipelineResult {
     return dataflowOptions;
   }
 
-  public RunnerApi.Pipeline getPipelineProto() {
+  /** Get the Runner API pipeline proto if available. */
+  public @Nullable Pipeline getPipelineProto() {
     return pipelineProto;
   }
 

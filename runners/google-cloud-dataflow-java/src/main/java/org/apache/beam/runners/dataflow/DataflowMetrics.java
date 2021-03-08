@@ -247,7 +247,7 @@ class DataflowMetrics extends MetricResults {
      *
      * @return a {@link MetricKey} that can be hashed and used to identify a metric.
      */
-    private MetricKey getMetricHashKey(MetricUpdate metricUpdate) {
+    private @Nullable MetricKey getMetricHashKey(MetricUpdate metricUpdate) {
       String fullStepName = metricUpdate.getName().getContext().get("step");
 
       if (dataflowPipelineJob.getPipelineProto() != null
