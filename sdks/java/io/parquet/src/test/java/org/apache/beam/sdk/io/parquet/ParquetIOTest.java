@@ -53,7 +53,12 @@ import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.parquet.filter2.predicate.FilterApi;
+import org.apache.parquet.filter2.predicate.FilterPredicate;
+import org.apache.parquet.hadoop.ParquetInputFormat;
 import org.apache.parquet.hadoop.metadata.BlockMetaData;
+import org.apache.parquet.io.api.Binary;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -339,7 +344,7 @@ public class ParquetIOTest implements Serializable {
   }
 
   private List<GenericRecord> generateGenericRecords(long count) {
-    ArrayList<GenericRecord> data = new ArrayList<>();
+    List<GenericRecord> data = new ArrayList<>();
     GenericRecordBuilder builder = new GenericRecordBuilder(SCHEMA);
     for (int i = 0; i < count; i++) {
       int index = i % SCIENTISTS.length;
@@ -465,6 +470,32 @@ public class ParquetIOTest implements Serializable {
                 .from(temporaryFolder.getRoot().getAbsolutePath() + "/*"));
 
     PAssert.that(readBack).containsInAnyOrder(records);
+    readPipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testWriteAndReadWithConfiguration() {
+    List<GenericRecord> records = generateGenericRecords(10);
+    List<GenericRecord> expectedRecords = generateGenericRecords(1);
+
+    mainPipeline
+        .apply(Create.of(records).withCoder(AvroCoder.of(SCHEMA)))
+        .apply(
+            FileIO.<GenericRecord>write()
+                .via(ParquetIO.sink(SCHEMA))
+                .to(temporaryFolder.getRoot().getAbsolutePath()));
+    mainPipeline.run().waitUntilFinish();
+
+    Configuration configuration = new Configuration();
+    FilterPredicate filterPredicate =
+        FilterApi.eq(FilterApi.binaryColumn("id"), Binary.fromString("0"));
+    ParquetInputFormat.setFilterPredicate(configuration, filterPredicate);
+    PCollection<GenericRecord> readBack =
+        readPipeline.apply(
+            ParquetIO.read(SCHEMA)
+                .from(temporaryFolder.getRoot().getAbsolutePath() + "/*")
+                .withConfiguration(configuration));
+    PAssert.that(readBack).containsInAnyOrder(expectedRecords);
     readPipeline.run().waitUntilFinish();
   }
 
