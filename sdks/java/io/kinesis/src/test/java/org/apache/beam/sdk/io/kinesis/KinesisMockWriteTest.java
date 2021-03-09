@@ -18,15 +18,11 @@
 package org.apache.beam.sdk.io.kinesis;
 
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
-import com.amazonaws.http.SdkHttpMetadata;
 import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
 import com.amazonaws.services.kinesis.AmazonKinesis;
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream;
-import com.amazonaws.services.kinesis.model.DescribeStreamResult;
 import com.amazonaws.services.kinesis.producer.IKinesisProducer;
 import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
 import java.nio.charset.StandardCharsets;
@@ -232,14 +228,9 @@ public class KinesisMockWriteTest {
   }
 
   private static final class FakeKinesisProvider implements AWSClientsProvider {
-    private boolean isExistingStream = true;
     private boolean isFailedFlush = false;
 
     public FakeKinesisProvider() {}
-
-    public FakeKinesisProvider(boolean isExistingStream) {
-      this.isExistingStream = isExistingStream;
-    }
 
     public FakeKinesisProvider setFailedFlush(boolean failedFlush) {
       isFailedFlush = failedFlush;
@@ -248,7 +239,7 @@ public class KinesisMockWriteTest {
 
     @Override
     public AmazonKinesis getKinesisClient() {
-      return getMockedAmazonKinesisClient();
+      return mock(AmazonKinesis.class);
     }
 
     @Override
@@ -259,20 +250,6 @@ public class KinesisMockWriteTest {
     @Override
     public IKinesisProducer createKinesisProducer(KinesisProducerConfiguration config) {
       return new KinesisProducerMock(config, isFailedFlush);
-    }
-
-    private AmazonKinesis getMockedAmazonKinesisClient() {
-      int statusCode = isExistingStream ? 200 : 404;
-      SdkHttpMetadata httpMetadata = mock(SdkHttpMetadata.class);
-      when(httpMetadata.getHttpStatusCode()).thenReturn(statusCode);
-
-      DescribeStreamResult streamResult = mock(DescribeStreamResult.class);
-      when(streamResult.getSdkHttpMetadata()).thenReturn(httpMetadata);
-
-      AmazonKinesis client = mock(AmazonKinesis.class);
-      when(client.describeStream(any(String.class))).thenReturn(streamResult);
-
-      return client;
     }
   }
 }

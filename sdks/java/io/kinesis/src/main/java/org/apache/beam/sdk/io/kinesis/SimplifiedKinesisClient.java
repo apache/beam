@@ -27,25 +27,33 @@ import com.amazonaws.services.cloudwatch.model.Dimension;
 import com.amazonaws.services.cloudwatch.model.GetMetricStatisticsRequest;
 import com.amazonaws.services.cloudwatch.model.GetMetricStatisticsResult;
 import com.amazonaws.services.kinesis.AmazonKinesis;
+import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream;
 import com.amazonaws.services.kinesis.clientlibrary.types.UserRecord;
+import com.amazonaws.services.kinesis.model.DescribeStreamSummaryRequest;
 import com.amazonaws.services.kinesis.model.ExpiredIteratorException;
 import com.amazonaws.services.kinesis.model.GetRecordsRequest;
 import com.amazonaws.services.kinesis.model.GetRecordsResult;
 import com.amazonaws.services.kinesis.model.GetShardIteratorRequest;
 import com.amazonaws.services.kinesis.model.LimitExceededException;
+import com.amazonaws.services.kinesis.model.ListShardsRequest;
+import com.amazonaws.services.kinesis.model.ListShardsResult;
 import com.amazonaws.services.kinesis.model.ProvisionedThroughputExceededException;
 import com.amazonaws.services.kinesis.model.Shard;
+import com.amazonaws.services.kinesis.model.ShardFilter;
+import com.amazonaws.services.kinesis.model.ShardFilterType;
 import com.amazonaws.services.kinesis.model.ShardIteratorType;
-import com.amazonaws.services.kinesis.model.StreamDescription;
+import com.amazonaws.services.kinesis.model.StreamDescriptionSummary;
+import java.io.IOException;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.Callable;
+import java.util.function.Supplier;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Sleeper;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.Minutes;
@@ -61,18 +69,33 @@ class SimplifiedKinesisClient {
   private static final int PERIOD_GRANULARITY_IN_SECONDS = 60;
   private static final String SUM_STATISTIC = "Sum";
   private static final String STREAM_NAME_DIMENSION = "StreamName";
-  private static final int LIST_SHARDS_DESCRIBE_STREAM_MAX_ATTEMPTS = 10;
-  private static final Duration LIST_SHARDS_DESCRIBE_STREAM_INITIAL_BACKOFF =
+  private static final int LIST_SHARDS_MAX_RESULTS = 1_000;
+  private static final Duration
+      SPACING_FOR_TIMESTAMP_LIST_SHARDS_REQUEST_TO_NOT_EXCEED_TRIM_HORIZON =
+          Duration.standardMinutes(5);
+  private static final int DESCRIBE_STREAM_SUMMARY_MAX_ATTEMPTS = 10;
+  private static final Duration DESCRIBE_STREAM_SUMMARY_INITIAL_BACKOFF =
       Duration.standardSeconds(1);
+
   private final AmazonKinesis kinesis;
   private final AmazonCloudWatch cloudWatch;
   private final Integer limit;
+  private final Supplier<Instant> currentInstantSupplier;
 
   public SimplifiedKinesisClient(
       AmazonKinesis kinesis, AmazonCloudWatch cloudWatch, Integer limit) {
+    this(kinesis, cloudWatch, limit, Instant::now);
+  }
+
+  SimplifiedKinesisClient(
+      AmazonKinesis kinesis,
+      AmazonCloudWatch cloudWatch,
+      Integer limit,
+      Supplier<Instant> currentInstantSupplier) {
     this.kinesis = checkNotNull(kinesis, "kinesis");
     this.cloudWatch = checkNotNull(cloudWatch, "cloudWatch");
     this.limit = limit;
+    this.currentInstantSupplier = currentInstantSupplier;
   }
 
   public static SimplifiedKinesisClient from(AWSClientsProvider provider, Integer limit) {
@@ -101,43 +124,116 @@ class SimplifiedKinesisClient {
                 .getShardIterator());
   }
 
-  public List<Shard> listShards(final String streamName) throws TransientKinesisException {
+  public List<Shard> listShardsAtPoint(final String streamName, final StartingPoint startingPoint)
+      throws TransientKinesisException {
+    ShardFilter shardFilter =
+        wrapExceptions(() -> buildShardFilterForStartingPoint(streamName, startingPoint));
+    return listShards(streamName, shardFilter);
+  }
+
+  private ShardFilter buildShardFilterForStartingPoint(
+      String streamName, StartingPoint startingPoint) throws IOException, InterruptedException {
+    InitialPositionInStream position = startingPoint.getPosition();
+    switch (position) {
+      case LATEST:
+        return new ShardFilter().withType(ShardFilterType.AT_LATEST);
+      case TRIM_HORIZON:
+        return new ShardFilter().withType(ShardFilterType.AT_TRIM_HORIZON);
+      case AT_TIMESTAMP:
+        return buildShardFilterForTimestamp(streamName, startingPoint.getTimestamp());
+      default:
+        throw new IllegalArgumentException(
+            String.format("Unrecognized '%s' position to create shard filter with", position));
+    }
+  }
+
+  private ShardFilter buildShardFilterForTimestamp(
+      String streamName, Instant startingPointTimestamp) throws IOException, InterruptedException {
+    StreamDescriptionSummary streamDescription = describeStreamSummary(streamName);
+
+    Instant streamCreationTimestamp = new Instant(streamDescription.getStreamCreationTimestamp());
+    if (streamCreationTimestamp.isAfter(startingPointTimestamp)) {
+      return new ShardFilter().withType(ShardFilterType.AT_TRIM_HORIZON);
+    }
+
+    Duration retentionPeriod = Duration.standardHours(streamDescription.getRetentionPeriodHours());
+
+    Instant streamTrimHorizonTimestamp =
+        currentInstantSupplier
+            .get()
+            .minus(retentionPeriod)
+            .plus(SPACING_FOR_TIMESTAMP_LIST_SHARDS_REQUEST_TO_NOT_EXCEED_TRIM_HORIZON);
+    if (startingPointTimestamp.isAfter(streamTrimHorizonTimestamp)) {
+      return new ShardFilter()
+          .withType(ShardFilterType.AT_TIMESTAMP)
+          .withTimestamp(startingPointTimestamp.toDate());
+    } else {
+      return new ShardFilter().withType(ShardFilterType.AT_TRIM_HORIZON);
+    }
+  }
+
+  private StreamDescriptionSummary describeStreamSummary(final String streamName)
+      throws IOException, InterruptedException {
+    // DescribeStreamSummary has limits that can be hit fairly easily if we are attempting
+    // to configure multiple KinesisIO inputs in the same account. Retry up to
+    // DESCRIBE_STREAM_SUMMARY_MAX_ATTEMPTS times if we end up hitting that limit.
+    //
+    // Only pass the wrapped exception up once that limit is reached. Use FluentBackoff
+    // to implement the retry policy.
+    FluentBackoff retryBackoff =
+        FluentBackoff.DEFAULT
+            .withMaxRetries(DESCRIBE_STREAM_SUMMARY_MAX_ATTEMPTS)
+            .withInitialBackoff(DESCRIBE_STREAM_SUMMARY_INITIAL_BACKOFF);
+    BackOff backoff = retryBackoff.backoff();
+    Sleeper sleeper = Sleeper.DEFAULT;
+
+    DescribeStreamSummaryRequest request = new DescribeStreamSummaryRequest();
+    request.setStreamName(streamName);
+    while (true) {
+      try {
+        return kinesis.describeStreamSummary(request).getStreamDescriptionSummary();
+      } catch (LimitExceededException exc) {
+        if (!BackOffUtils.next(sleeper, backoff)) {
+          throw exc;
+        }
+      }
+    }
+  }
+
+  public List<Shard> listShardsFollowingClosedShard(
+      final String streamName, final String exclusiveStartShardId)
+      throws TransientKinesisException {
+    ShardFilter shardFilter =
+        new ShardFilter()
+            .withType(ShardFilterType.AFTER_SHARD_ID)
+            .withShardId(exclusiveStartShardId);
+    return listShards(streamName, shardFilter);
+  }
+
+  private List<Shard> listShards(final String streamName, final ShardFilter shardFilter)
+      throws TransientKinesisException {
     return wrapExceptions(
         () -> {
-          List<Shard> shards = Lists.newArrayList();
-          String lastShardId = null;
+          ImmutableList.Builder<Shard> shardsBuilder = ImmutableList.builder();
 
-          // DescribeStream has limits that can be hit fairly easily if we are attempting
-          // to configure multiple KinesisIO inputs in the same account. Retry up to
-          // LIST_SHARDS_DESCRIBE_STREAM_MAX_ATTEMPTS times if we end up hitting that limit.
-          //
-          // Only pass the wrapped exception up once that limit is reached. Use FluentBackoff
-          // to implement the retry policy.
-          FluentBackoff retryBackoff =
-              FluentBackoff.DEFAULT
-                  .withMaxRetries(LIST_SHARDS_DESCRIBE_STREAM_MAX_ATTEMPTS)
-                  .withInitialBackoff(LIST_SHARDS_DESCRIBE_STREAM_INITIAL_BACKOFF);
-          StreamDescription description = null;
+          String currentNextToken = null;
           do {
-            BackOff backoff = retryBackoff.backoff();
-            Sleeper sleeper = Sleeper.DEFAULT;
-            while (true) {
-              try {
-                description =
-                    kinesis.describeStream(streamName, lastShardId).getStreamDescription();
-                break;
-              } catch (LimitExceededException exc) {
-                if (!BackOffUtils.next(sleeper, backoff)) {
-                  throw exc;
-                }
-              }
+            ListShardsRequest request = new ListShardsRequest();
+            request.setMaxResults(LIST_SHARDS_MAX_RESULTS);
+            if (currentNextToken != null) {
+              request.setNextToken(currentNextToken);
+            } else {
+              request.setStreamName(streamName);
             }
+            request.setShardFilter(shardFilter);
 
-            shards.addAll(description.getShards());
-            lastShardId = shards.get(shards.size() - 1).getShardId();
-          } while (description.getHasMoreShards());
+            ListShardsResult response = kinesis.listShards(request);
+            List<Shard> shards = response.getShards();
+            shardsBuilder.addAll(shards);
+            currentNextToken = response.getNextToken();
+          } while (currentNextToken != null);
 
-          return shards;
+          return shardsBuilder.build();
         });
   }
 
