@@ -38,6 +38,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -60,6 +61,7 @@ import org.apache.beam.sdk.io.gcp.pubsub.TestPubsub;
 import org.apache.beam.sdk.io.gcp.pubsub.TestPubsubSignal;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -277,17 +279,16 @@ public class PubsubTableProviderIT implements Serializable {
     PCollection<Row> queryOutput = query(sqlEnv, pipeline, queryString);
 
     // Observe the query results and send success signal after seeing the expected messages
-    Schema justBytesSchema = Schema.builder().addByteArrayField("some_bytes").build();
+    Schema justBytesSchema =
+        Schema.builder().addField("some_bytes", FieldType.BYTES.withNullable(true)).build();
+    Row expectedRow0 = row(justBytesSchema, (Object) messages.get(0).getPayload());
+    Row expectedRow1 = row(justBytesSchema, (Object) messages.get(1).getPayload());
+    Row expectedRow2 = row(justBytesSchema, (Object) messages.get(2).getPayload());
+    Set<Row> expected = ImmutableSet.of(expectedRow0, expectedRow1, expectedRow2);
     queryOutput.apply(
         "waitForSuccess",
         resultSignal.signalSuccessWhen(
-            SchemaCoder.of(justBytesSchema),
-            observedRows ->
-                observedRows.equals(
-                    ImmutableSet.of(
-                        row(justBytesSchema, (Object) messages.get(0).getPayload()),
-                        row(justBytesSchema, (Object) messages.get(1).getPayload()),
-                        row(justBytesSchema, (Object) messages.get(2).getPayload())))));
+            SchemaCoder.of(justBytesSchema), observedRows -> observedRows.equals(expected)));
 
     // Start the pipeline
     pipeline.run();
