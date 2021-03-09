@@ -19,7 +19,6 @@ from __future__ import absolute_import
 
 import json
 import logging
-import sys
 import unittest
 
 import numpy as np
@@ -135,8 +134,6 @@ class ToElementListTest(unittest.TestCase):
 @unittest.skipIf(
     not ie.current_env().is_interactive_ready,
     '[interactive] dependency is not installed.')
-@unittest.skipIf(
-    sys.version_info < (3, 6), 'The tests require at least Python 3.6 to work.')
 class IPythonLogHandlerTest(unittest.TestCase):
   def setUp(self):
     utils.register_ipython_log_handler()
@@ -191,8 +188,6 @@ class IPythonLogHandlerTest(unittest.TestCase):
 @unittest.skipIf(
     not ie.current_env().is_interactive_ready,
     '[interactive] dependency is not installed.')
-@unittest.skipIf(
-    sys.version_info < (3, 6), 'The tests require at least Python 3.6 to work.')
 class ProgressIndicatorTest(unittest.TestCase):
   def setUp(self):
     ie.new_env()
@@ -237,8 +232,6 @@ class ProgressIndicatorTest(unittest.TestCase):
 @unittest.skipIf(
     not ie.current_env().is_interactive_ready,
     '[interactive] dependency is not installed.')
-@unittest.skipIf(
-    sys.version_info < (3, 6), 'The tests require at least Python 3.6 to work.')
 class MessagingUtilTest(unittest.TestCase):
   SAMPLE_DATA = {'a': [1, 2, 3], 'b': 4, 'c': '5', 'd': {'e': 'f'}}
 

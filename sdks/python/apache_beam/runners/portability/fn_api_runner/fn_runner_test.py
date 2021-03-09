@@ -25,7 +25,6 @@ import logging
 import os
 import random
 import shutil
-import sys
 import tempfile
 import threading
 import time
@@ -38,7 +37,6 @@ from typing import Any
 from typing import Dict
 from typing import Tuple
 
-# patches unittest.TestCase to be python3 compatible
 import hamcrest  # pylint: disable=ungrouped-imports
 from hamcrest.core.matcher import Matcher
 from hamcrest.core.string_description import StringDescription
@@ -106,12 +104,7 @@ class FnApiRunnerTest(unittest.TestCase):
   def test_assert_that(self):
     # TODO: figure out a way for fn_api_runner to parse and raise the
     # underlying exception.
-    if sys.version_info < (3, 2):
-      assertRaisesRegex = self.assertRaisesRegexp
-    else:
-      assertRaisesRegex = self.assertRaisesRegex
-
-    with assertRaisesRegex(Exception, 'Failed assert'):
+    with self.assertRaisesRegex(Exception, 'Failed assert'):
       with self.create_pipeline() as p:
         assert_that(p | beam.Create(['a', 'b']), equal_to(['a']))
 
@@ -1653,11 +1646,12 @@ class FnApiRunnerSplitTest(unittest.TestCase):
 
   def run_sdf_split_half(self, is_drain=False):
     element_counter = ElementCounter()
-    is_first_bundle = [True]  # emulate nonlocal for Python 2
+    is_first_bundle = True
 
     def split_manager(num_elements):
+      nonlocal is_first_bundle
       if is_first_bundle and num_elements > 0:
-        del is_first_bundle[:]
+        is_first_bundle = False
         breakpoint = element_counter.set_breakpoint(1)
         yield
         breakpoint.wait()
@@ -1956,9 +1950,6 @@ class FnApiBasedLullLoggingTest(unittest.TestCase):
 
   def test_lull_logging(self):
 
-    # TODO(BEAM-1251): Remove this test skip after dropping Py 2 support.
-    if sys.version_info < (3, 4):
-      self.skipTest('Log-based assertions are supported after Python 3.4')
     try:
       utils.check_compiled('apache_beam.runners.worker.opcounters')
     except RuntimeError:

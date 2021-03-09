@@ -26,7 +26,6 @@ from __future__ import absolute_import
 
 import collections
 import logging
-import sys
 import threading
 from builtins import filter
 from builtins import object
@@ -1005,10 +1004,7 @@ class PGBKCVOperation(Operation):
     fn, args, kwargs = pickler.loads(self.spec.combine_fn)[:3]
     self.combine_fn = curry_combine_fn(fn, args, kwargs)
     self.combine_fn_add_input = self.combine_fn.add_input
-    base_compact = (
-        core.CombineFn.compact if sys.version_info >=
-        (3, ) else core.CombineFn.compact.__func__)
-    if self.combine_fn.compact.__func__ is base_compact:
+    if self.combine_fn.compact.__func__ is core.CombineFn.compact:
       self.combine_fn_compact = None
     else:
       self.combine_fn_compact = self.combine_fn.compact

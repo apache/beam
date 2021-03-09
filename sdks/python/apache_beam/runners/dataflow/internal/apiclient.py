@@ -1133,7 +1133,7 @@ def get_runner_harness_container_image():
 
 def get_response_encoding():
   """Encoding to use to decode HTTP response from Google APIs."""
-  return None if sys.version_info[0] < 3 else 'utf8'
+  return 'utf8'
 
 
 def _verify_interpreter_version_is_supported(pipeline_options):

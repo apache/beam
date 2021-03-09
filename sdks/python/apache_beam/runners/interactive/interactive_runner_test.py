@@ -154,9 +154,6 @@ class InteractiveRunnerTest(unittest.TestCase):
     ]
     self.assertEqual(actual_reified, expected_reified)
 
-  @unittest.skipIf(
-      sys.version_info < (3, 5, 3),
-      'The tests require at least Python 3.6 to work.')
   def test_streaming_wordcount(self):
     class WordExtractingDoFn(beam.DoFn):
       def process(self, element):
