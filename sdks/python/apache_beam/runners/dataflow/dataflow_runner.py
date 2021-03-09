@@ -54,6 +54,7 @@ from apache_beam.options.pipeline_options import TestOptions
 from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.options.pipeline_options import WorkerOptions
 from apache_beam.portability import common_urns
+from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.pvalue import AsSideInput
 from apache_beam.runners.common import DoFnSignature
@@ -394,7 +395,7 @@ class DataflowRunner(PipelineRunner):
       if (windowing_strategy.merge_status ==
           beam_runner_api_pb2.MergeStatus.NEEDS_MERGE and
           windowing_strategy.window_fn.urn not in (
-              common_urns.session_windows.urn, )):
+              common_urns.session_windows.urn, python_urns.PICKLED_WINDOWFN)):
         raise RuntimeError(
             'Unsupported merging windowing strategy: %s' %
             windowing_strategy.window_fn.urn)
