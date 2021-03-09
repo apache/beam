@@ -686,6 +686,11 @@ class EmbeddedGrpcWorkerHandler(GrpcWorkerHandler):
     self.worker_thread.join()
 
 
+# The subprocesses module is not threadsafe on Python 2.7. Use this lock to
+# prevent concurrent calls to Popen().
+SUBPROCESS_LOCK = threading.Lock()
+
+
 @WorkerHandler.register_environment(python_urns.SUBPROCESS_SDK, bytes)
 class SubprocessSdkWorkerHandler(GrpcWorkerHandler):
   def __init__(self,
@@ -745,47 +750,48 @@ class DockerSdkWorkerHandler(GrpcWorkerHandler):
 
   def start_worker(self):
     # type: () -> None
-    try:
-      _LOGGER.info('Attempting to pull image %s', self._container_image)
-      subprocess.check_call(['docker', 'pull', self._container_image])
-    except Exception:
-      _LOGGER.info(
-          'Unable to pull image %s, defaulting to local image if it exists' %
-          self._container_image)
-    self._container_id = subprocess.check_output([
-        'docker',
-        'run',
-        '-d',
-        # TODO:  credentials
-        '--network=host',
-        self._container_image,
-        '--id=%s' % self.worker_id,
-        '--logging_endpoint=%s' % self.logging_api_service_descriptor().url,
-        '--control_endpoint=%s' % self.control_address,
-        '--artifact_endpoint=%s' % self.control_address,
-        '--provision_endpoint=%s' % self.control_address,
-    ]).strip()
-    assert self._container_id is not None
-    while True:
-      status = subprocess.check_output([
-          'docker', 'inspect', '-f', '{{.State.Status}}', self._container_id
-      ]).strip()
-      _LOGGER.info(
-          'Waiting for docker to start up. Current status is %s' %
-          status.decode('utf-8'))
-      if status == b'running':
+    with SUBPROCESS_LOCK:
+      try:
+        _LOGGER.info('Attempting to pull image %s', self._container_image)
+        subprocess.check_call(['docker', 'pull', self._container_image])
+      except Exception:
         _LOGGER.info(
-            'Docker container is running. container_id = %s, '
-            'worker_id = %s',
-            self._container_id,
-            self.worker_id)
-        break
-      elif status in (b'dead', b'exited'):
-        subprocess.call(['docker', 'container', 'logs', self._container_id])
-        raise RuntimeError(
-            'SDK failed to start. Final status is %s' %
+            'Unable to pull image %s, defaulting to local image if it exists' %
+            self._container_image)
+      self._container_id = subprocess.check_output([
+          'docker',
+          'run',
+          '-d',
+          # TODO:  credentials
+          '--network=host',
+          self._container_image,
+          '--id=%s' % self.worker_id,
+          '--logging_endpoint=%s' % self.logging_api_service_descriptor().url,
+          '--control_endpoint=%s' % self.control_address,
+          '--artifact_endpoint=%s' % self.control_address,
+          '--provision_endpoint=%s' % self.control_address,
+      ]).strip()
+      assert self._container_id is not None
+      while True:
+        status = subprocess.check_output([
+            'docker', 'inspect', '-f', '{{.State.Status}}', self._container_id
+        ]).strip()
+        _LOGGER.info(
+            'Waiting for docker to start up. Current status is %s' %
             status.decode('utf-8'))
-    time.sleep(1)
+        if status == b'running':
+          _LOGGER.info(
+              'Docker container is running. container_id = %s, '
+              'worker_id = %s',
+              self._container_id,
+              self.worker_id)
+          break
+        elif status in (b'dead', b'exited'):
+          subprocess.call(['docker', 'container', 'logs', self._container_id])
+          raise RuntimeError(
+              'SDK failed to start. Final status is %s' %
+              status.decode('utf-8'))
+      time.sleep(1)
     self._done = False
     t = threading.Thread(target=self.watch_container)
     t.daemon = True
@@ -817,7 +823,8 @@ class DockerSdkWorkerHandler(GrpcWorkerHandler):
     # type: () -> None
     self._done = True
     if self._container_id:
-      subprocess.call(['docker', 'kill', self._container_id])
+      with SUBPROCESS_LOCK:
+        subprocess.call(['docker', 'kill', self._container_id])
 
 
 class WorkerHandlerManager(object):

@@ -1646,12 +1646,11 @@ class FnApiRunnerSplitTest(unittest.TestCase):
 
   def run_sdf_split_half(self, is_drain=False):
     element_counter = ElementCounter()
-    is_first_bundle = True
+    is_first_bundle = [True]  # emulate nonlocal for Python 2
 
     def split_manager(num_elements):
-      nonlocal is_first_bundle
       if is_first_bundle and num_elements > 0:
-        is_first_bundle = False
+        del is_first_bundle[:]
         breakpoint = element_counter.set_breakpoint(1)
         yield
         breakpoint.wait()
