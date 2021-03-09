@@ -6,10 +6,9 @@ from apache_beam.typehints import typehints
 K = TypeVar("K")
 V1 = TypeVar("V1")
 V2 = TypeVar("V2")
-CoGbkResult = TypeVar("CoGbkResult")
 
 class _InnerJoinDo(beam.DoFn, Generic[K, V1, V2]):
-  def process(self, element: typehints.KV[K, CoGbkResult]) -> Iterator[typehints.KV[K, typehints.KV(V1, V2)]]:
+  def process(self, element: typehints.KV[K, typehints.Dict[str, typehints.Union[V1, V2]]]) -> Iterator[typehints.KV[K, typehints.Tuple[V1, V2]]]:
     leftValuesIterable: Iterable[V1] = element[1]["v1Tuple"]
     rightValuesIterable: Iterable[V2] = element[1]["v2Tuple"]
 
@@ -45,7 +44,7 @@ class _LeftOuterJoinDo(beam.DoFn, Generic[K, V1, V2]):
     super().__init__(self)
     self.nullValue = nullValue
 
-  def process(self, element: typehints.KV[K, CoGbkResult]) -> Iterator[typehints.KV[K, typehints.Union[V1, V2]]]:
+  def process(self, element: typehints.KV[K, typehints.Dict[str, typehints.Union[V1, V2]]]) -> Iterator[typehints.KV[K, typehints.Tuple[V1, V2]]]:
     leftValuesIterable: Iterable[V1] = element[1]["v1Tuple"]
     rightValuesIterable: Iterable[V2] = element[1]["v2Tuple"]
 
@@ -88,7 +87,7 @@ class _RightOuterJoinDo(beam.DoFn, Generic[K, V1, V2]):
       super().__init__()
       self.nullValue = nullValue
 
-  def process(self, element: typehints.KV[K, CoGbkResult]) -> Iterator[typehints.KV[K, typehints.Union[V1, V2]]]:
+  def process(self, element: typehints.KV[K, typehints.Dict[str, typehints.Union[V1, V2]]]) -> Iterator[typehints.KV[K, typehints.Tuple[V1, V2]]]:
       leftValuesIterable: Iterable[V1] = element[1]["v1Tuple"]
       rightValuesIterable: Iterable[V2] = element[1]["v2Tuple"]
 
@@ -132,7 +131,7 @@ class _FullOuterJoinDo(beam.DoFn, Generic[K, V1, V2]):
       self.leftNullValue = leftNullValue
       self.rightNullValue = rightNullValue
     
-  def process(self, element: typehints.KV[K, CoGbkResult]) -> Iterator[typehints.KV[K, typehints.Union[V1, V2]]]:
+  def process(self, element: typehints.KV[K, typehints.Dict[str, typehints.Union[V1, V2]]]) -> Iterator[typehints.KV[K, typehints.Tuple[V1, V2]]]:
     leftValuesIterable: Iterable[V1] = element[1]["v1Tuple"]
     rightValuesIterable: Iterable[V2] = element[1]["v2Tuple"]
 
