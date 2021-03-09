@@ -506,20 +506,34 @@ public class PTransformMatchers {
   }
 
   public static PTransformMatcher writeWithRunnerDeterminedSharding() {
-    return application -> {
-      if (WRITE_FILES_TRANSFORM_URN.equals(
-          PTransformTranslation.urnForTransformOrNull(application.getTransform()))) {
-        try {
-          return WriteFilesTranslation.isRunnerDeterminedSharding((AppliedPTransform) application);
-        } catch (IOException exc) {
-          throw new RuntimeException(
-              String.format(
-                  "Transform with URN %s failed to parse: %s",
-                  WRITE_FILES_TRANSFORM_URN, application.getTransform()),
-              exc);
+    return new PTransformMatcher() {
+      @Override
+      public boolean matches(AppliedPTransform<?, ?, ?> application) {
+        if (WRITE_FILES_TRANSFORM_URN.equals(
+            PTransformTranslation.urnForTransformOrNull(application.getTransform()))) {
+          try {
+            return WriteFilesTranslation.isRunnerDeterminedSharding(
+                (AppliedPTransform) application);
+          } catch (IOException exc) {
+            throw new RuntimeException(
+                String.format(
+                    "Transform with URN %s failed to parse: %s",
+                    WRITE_FILES_TRANSFORM_URN, application.getTransform()),
+                exc);
+          }
         }
+        return false;
       }
-      return false;
+
+      @Override
+      public boolean matchesDuringValidation(AppliedPTransform<?, ?, ?> application) {
+        return false;
+      }
+
+      @Override
+      public String toString() {
+        return MoreObjects.toStringHelper("writeWithRunnerDeterminedShardingMatcher").toString();
+      }
     };
   }
 }

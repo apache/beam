@@ -93,7 +93,6 @@ import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.dataflow.DataflowRunner.StreamingShardedWriteFactory;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
-import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
 import org.apache.beam.runners.dataflow.options.DefaultGcpRegionFactory;
 import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.sdk.Pipeline;
@@ -1614,19 +1613,6 @@ public class DataflowRunnerTest implements Serializable {
     assertThat(getContainerImageForJob(options), equalTo("gcr.io/java/foo"));
   }
 
-  @Test
-  public void testStreamingWriteWithNoShardingReturnsNewTransform() {
-    PipelineOptions options = TestPipeline.testingPipelineOptions();
-    options.as(DataflowPipelineWorkerPoolOptions.class).setMaxNumWorkers(10);
-    testStreamingWriteOverride(options, 20);
-  }
-
-  @Test
-  public void testStreamingWriteWithNoShardingReturnsNewTransformMaxWorkersUnset() {
-    PipelineOptions options = TestPipeline.testingPipelineOptions();
-    testStreamingWriteOverride(options, StreamingShardedWriteFactory.DEFAULT_NUM_SHARDS);
-  }
-
   private void verifyMergingStatefulParDoRejected(PipelineOptions options) throws Exception {
     Pipeline p = Pipeline.create(options);
 
@@ -1780,12 +1766,14 @@ public class DataflowRunnerTest implements Serializable {
     verifyGroupIntoBatchesOverride(p, true, true);
   }
 
-  private void testStreamingWriteOverride(PipelineOptions options, int expectedNumShards) {
+  @Test
+  public void testStreamingWriteOverride() {
+    PipelineOptions options = TestPipeline.testingPipelineOptions();
     TestPipeline p = TestPipeline.fromOptions(options);
 
     StreamingShardedWriteFactory<Object, Void, Object> factory =
-        new StreamingShardedWriteFactory<>(p.getOptions());
-    WriteFiles<Object, Void, Object> original = WriteFiles.to(new TestSink(tmpFolder.toString()));
+        new StreamingShardedWriteFactory<>();
+    WriteFiles<Object, Void, Object> original = WriteFiles.to(new TestSink<>(tmpFolder.toString()));
     PCollection<Object> objs = (PCollection) p.apply(Create.empty(VoidCoder.of()));
     AppliedPTransform<PCollection<Object>, WriteFilesResult<Void>, WriteFiles<Object, Void, Object>>
         originalApplication =
@@ -1796,8 +1784,7 @@ public class DataflowRunnerTest implements Serializable {
         (WriteFiles<Object, Void, Object>)
             factory.getReplacementTransform(originalApplication).getTransform();
     assertThat(replacement, not(equalTo((Object) original)));
-    assertThat(replacement.getNumShardsProvider().get(), equalTo(expectedNumShards));
-
+    assertTrue(replacement.getWithRunnerDeterminedShardingUnbounded());
     WriteFilesResult<Void> originalResult = objs.apply(original);
     WriteFilesResult<Void> replacementResult = objs.apply(replacement);
     Map<PCollection<?>, ReplacementOutput> res =
@@ -1808,7 +1795,77 @@ public class DataflowRunnerTest implements Serializable {
         res.get(replacementResult.getPerDestinationOutputFilenames()).getOriginal().getValue());
   }
 
-  private static class TestSink extends FileBasedSink<Object, Void, Object> {
+  @Test
+  public void testStreamingWriteWithRunnerDeterminedSharding() throws IOException {
+    PipelineOptions options = buildPipelineOptions();
+    options.as(StreamingOptions.class).setStreaming(true);
+    Pipeline p = Pipeline.create(options);
+    testStreamingWriteFilesOverride(p, 0);
+  }
+
+  @Test
+  public void testStreamingWriteWithFixedSharding() throws IOException {
+    PipelineOptions options = buildPipelineOptions();
+    options.as(StreamingOptions.class).setStreaming(true);
+    Pipeline p = Pipeline.create(options);
+    testStreamingWriteFilesOverride(p, 5);
+  }
+
+  @Test
+  public void testBatchWriteWithRunnerDeterminedShardingNotOverriden() throws IOException {
+    PipelineOptions options = buildPipelineOptions();
+    Pipeline p = Pipeline.create(options);
+    testStreamingWriteFilesOverride(p, 0);
+  }
+
+  private void testStreamingWriteFilesOverride(Pipeline p, int numFileShards) {
+    List<String> testValues = Arrays.asList("A", "C", "123", "foo");
+    PCollection<String> input = p.apply(Create.of(testValues));
+    WriteFiles<String, Void, String> write = WriteFiles.to(new TestSink<>(tmpFolder.toString()));
+    boolean withRunnerDeterminedSharding = numFileShards == 0;
+    if (withRunnerDeterminedSharding) {
+      write = write.withRunnerDeterminedSharding();
+    } else {
+      write = write.withNumShards(numFileShards);
+    }
+    input.apply(write);
+    p.run();
+
+    p.traverseTopologically(
+        new PipelineVisitor.Defaults() {
+
+          @Override
+          public CompositeBehavior enterCompositeTransform(Node node) {
+            if (!(node.getTransform() instanceof WriteFiles))
+              return CompositeBehavior.ENTER_TRANSFORM;
+
+            if (p.getOptions().as(StreamingOptions.class).isStreaming()) {
+              if (withRunnerDeterminedSharding) {
+                assertThat(
+                    ((WriteFiles) node.getTransform()).getNumShardsProvider(), equalTo(null));
+                assertThat(
+                    ((WriteFiles) node.getTransform()).getWithRunnerDeterminedShardingUnbounded(),
+                    equalTo(true));
+              } else {
+                assertThat(
+                    ((WriteFiles) node.getTransform()).getNumShardsProvider().get(),
+                    equalTo(numFileShards));
+                assertThat(
+                    ((WriteFiles) node.getTransform()).getWithRunnerDeterminedShardingUnbounded(),
+                    equalTo(false));
+              }
+            }
+            if (!p.getOptions().as(StreamingOptions.class).isStreaming()) {
+              assertThat(
+                  ((WriteFiles) node.getTransform()).getWithRunnerDeterminedShardingUnbounded(),
+                  equalTo(false));
+            }
+            return CompositeBehavior.ENTER_TRANSFORM;
+          }
+        });
+  }
+
+  private static class TestSink<UserT, OutputT> extends FileBasedSink<UserT, Void, OutputT> {
 
     @Override
     public void validate(PipelineOptions options) {}
@@ -1838,10 +1895,10 @@ public class DataflowRunnerTest implements Serializable {
     }
 
     @Override
-    public WriteOperation<Void, Object> createWriteOperation() {
-      return new WriteOperation<Void, Object>(this) {
+    public WriteOperation<Void, OutputT> createWriteOperation() {
+      return new WriteOperation<Void, OutputT>(this) {
         @Override
-        public Writer<Void, Object> createWriter() {
+        public Writer<Void, OutputT> createWriter() {
           throw new UnsupportedOperationException();
         }
       };
