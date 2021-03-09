@@ -573,6 +573,7 @@ class DeferredSeries(DeferredDataFrameOrSeries):
 
   all = frame_base._agg_method('all')
   any = frame_base._agg_method('any')
+  count = frame_base._agg_method('count')
   min = frame_base._agg_method('min')
   max = frame_base._agg_method('max')
   prod = product = frame_base._agg_method('prod')
@@ -1545,6 +1546,7 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
 
   all = frame_base._agg_method('all')
   any = frame_base._agg_method('any')
+  count = frame_base._agg_method('count')
   max = frame_base._agg_method('max')
   min = frame_base._agg_method('min')
   prod = product = frame_base._agg_method('prod')
