@@ -370,7 +370,14 @@ public class ParquetIO {
 
     /** Specify Hadoop configuration for ParquetReader. */
     public Read withConfiguration(Map<String, String> configuration) {
+      checkArgument(configuration != null, "configuration can not be null");
       return toBuilder().setConfiguration(SerializableConfiguration.fromMap(configuration)).build();
+    }
+
+    /** Specify Hadoop configuration for ParquetReader. */
+    public Read withConfiguration(Configuration configuration) {
+      checkArgument(configuration != null, "configuration can not be null");
+      return toBuilder().setConfiguration(new SerializableConfiguration(configuration)).build();
     }
 
     @Experimental(Kind.SCHEMAS)
@@ -399,20 +406,19 @@ public class ParquetIO {
                   "Create filepattern", Create.ofProvider(getFilepattern(), StringUtf8Coder.of()))
               .apply(FileIO.matchAll())
               .apply(FileIO.readMatches());
-      if (isSplittable()) {
-        return inputFiles.apply(
-            readFiles(getSchema())
-                .withSplit()
-                .withBeamSchemas(getInferBeamSchema())
-                .withAvroDataModel(getAvroDataModel())
-                .withProjection(getProjectionSchema(), getEncoderSchema())
-                .withConfiguration(getConfiguration()));
-      }
-      return inputFiles.apply(
+
+      ReadFiles readFiles =
           readFiles(getSchema())
               .withBeamSchemas(getInferBeamSchema())
-              .withAvroDataModel(getAvroDataModel())
-              .withConfiguration(getConfiguration()));
+              .withAvroDataModel(getAvroDataModel());
+      if (isSplittable()) {
+        readFiles = readFiles.withSplit().withProjection(getProjectionSchema(), getEncoderSchema());
+      }
+      if (getConfiguration() != null) {
+        readFiles = readFiles.withConfiguration(getConfiguration().get());
+      }
+
+      return inputFiles.apply(readFiles);
     }
 
     @Override
@@ -468,7 +474,14 @@ public class ParquetIO {
 
     /** Specify Hadoop configuration for ParquetReader. */
     public Parse<T> withConfiguration(Map<String, String> configuration) {
+      checkArgument(configuration != null, "configuration can not be null");
       return toBuilder().setConfiguration(SerializableConfiguration.fromMap(configuration)).build();
+    }
+
+    /** Specify Hadoop configuration for ParquetReader. */
+    public Parse<T> withConfiguration(Configuration configuration) {
+      checkArgument(configuration != null, "configuration can not be null");
+      return toBuilder().setConfiguration(new SerializableConfiguration(configuration)).build();
     }
 
     public Parse<T> withSplit() {
@@ -526,7 +539,14 @@ public class ParquetIO {
 
     /** Specify Hadoop configuration for ParquetReader. */
     public ParseFiles<T> withConfiguration(Map<String, String> configuration) {
+      checkArgument(configuration != null, "configuration can not be null");
       return toBuilder().setConfiguration(SerializableConfiguration.fromMap(configuration)).build();
+    }
+
+    /** Specify Hadoop configuration for ParquetReader. */
+    public ParseFiles<T> withConfiguration(Configuration configuration) {
+      checkArgument(configuration != null, "configuration can not be null");
+      return toBuilder().setConfiguration(new SerializableConfiguration(configuration)).build();
     }
 
     public ParseFiles<T> withSplit() {
@@ -641,11 +661,14 @@ public class ParquetIO {
 
     /** Specify Hadoop configuration for ParquetReader. */
     public ReadFiles withConfiguration(Map<String, String> configuration) {
+      checkArgument(configuration != null, "configuration can not be null");
       return toBuilder().setConfiguration(SerializableConfiguration.fromMap(configuration)).build();
     }
 
-    public ReadFiles withConfiguration(SerializableConfiguration configuration) {
-      return toBuilder().setConfiguration(configuration).build();
+    /** Specify Hadoop configuration for ParquetReader. */
+    public ReadFiles withConfiguration(Configuration configuration) {
+      checkArgument(configuration != null, "configuration can not be null");
+      return toBuilder().setConfiguration(new SerializableConfiguration(configuration)).build();
     }
 
     @Experimental(Kind.SCHEMAS)
@@ -1064,7 +1087,14 @@ public class ParquetIO {
 
     /** Specifies configuration to be passed into the sink's writer. */
     public Sink withConfiguration(Map<String, String> configuration) {
+      checkArgument(configuration != null, "configuration can not be null");
       return toBuilder().setConfiguration(SerializableConfiguration.fromMap(configuration)).build();
+    }
+
+    /** Specify Hadoop configuration for ParquetReader. */
+    public Sink withConfiguration(Configuration configuration) {
+      checkArgument(configuration != null, "configuration can not be null");
+      return toBuilder().setConfiguration(new SerializableConfiguration(configuration)).build();
     }
 
     private transient @Nullable ParquetWriter<GenericRecord> writer;
