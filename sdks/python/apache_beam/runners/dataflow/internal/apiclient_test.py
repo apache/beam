@@ -541,8 +541,8 @@ class UtilTest(unittest.TestCase):
     self.assertEqual(
         env.proto.workerPools[0].workerHarnessContainerImage,
         (
-            names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
-            '/python%d%d-fnapi:%s' % (
+            names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/python%d%d-fnapi:%s' %
+            (
                 sys.version_info[0],
                 sys.version_info[1],
                 names.BEAM_FNAPI_CONTAINER_VERSION)))
