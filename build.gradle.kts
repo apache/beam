@@ -16,8 +16,9 @@
  * limitations under the License.
  */
 
-// TODO: Remove this before merging this to master
+// TODO: Remove these before merging this to master
 import org.apache.tools.ant.taskdefs.condition.Os
+import java.nio.file.Paths
 
 plugins {
   base
@@ -334,12 +335,13 @@ task("installVendoredGrpc") {
   doLast {
     val jenkinsMvn = "/home/jenkins/tools/maven/apache-maven-3.5.4/bin/mvn"
     val executable = if (file(jenkinsMvn).canExecute()) jenkinsMvn else "mvn"
+    val jar = Paths.get("vendor","grpc-1_36_0","build","libs","beam-vendor-grpc-1_36_0-0.1.jar")
     project.exec {
       commandLine = listOf(
         executable, "--batch-mode",
         "install:install-file", "-Dpackaging=jar",
         "-DgroupId=org.apache.beam", "-DartifactId=beam-vendor-grpc-1_36_0",
-        "-Dversion=0.1", "-Dfile=vendor/grpc-1_36_0/build/libs/beam-vendor-grpc-1_36_0-0.1.jar"
+        "-Dversion=0.1", "-Dfile=$jar"
       )
     }
   }
