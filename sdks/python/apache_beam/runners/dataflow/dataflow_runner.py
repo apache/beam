@@ -543,7 +543,7 @@ class DataflowRunner(PipelineRunner):
         It is recommended you only set the --enable_streaming_engine flag.""")
 
     if google_cloud_options.enable_hot_key_logging:
-      debug_options.add_experiment('enable_hot_key_logging')
+      google_cloud_options.add_service_option('enable_hot_key_logging')
 
     dataflow_worker_jar = getattr(worker_options, 'dataflow_worker_jar', None)
     if dataflow_worker_jar is not None:

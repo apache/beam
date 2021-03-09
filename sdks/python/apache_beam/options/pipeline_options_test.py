@@ -639,6 +639,17 @@ class PipelineOptionsTest(unittest.TestCase):
     options = PipelineOptions(flags=[''])
     self.assertEqual(options.get_all_options()['service_options'], None)
 
+  def test_add_service_option(self):
+    options = PipelineOptions([])
+    options.view_as(GoogleCloudOptions).add_service_option('service_option')
+    self.assertEqual(['service_option'],
+                     options.view_as(GoogleCloudOptions).service_options)
+
+  def test_add_service_option_preserves_existing_options(self):
+    options = PipelineOptions(['--service_option=existing'])
+    options.view_as(GoogleCloudOptions).add_service_option('new')
+    self.assertEqual(['existing', 'new'],
+                     options.view_as(GoogleCloudOptions).service_options)
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

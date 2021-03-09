@@ -699,6 +699,13 @@ class GoogleCloudOptions(PipelineOptions):
         'keys into Cloud Logging. Warning: this will log the literal key as a '
         'string.')
 
+  def add_service_option(self, service_option):
+    # pylint: disable=access-member-before-definition
+    if self.service_options is None:
+      self.service_options = []
+    if service_option not in self.service_options:
+      self.service_options.append(service_option)
+
   def _create_default_gcs_bucket(self):
     try:
       from apache_beam.io.gcp import gcsio
