@@ -77,11 +77,13 @@ import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.core.construction.SplittableParDoNaiveBounded;
 import org.apache.beam.runners.core.construction.UnboundedReadFromBoundedSource;
 import org.apache.beam.runners.core.construction.UnconsumedReads;
+import org.apache.beam.runners.core.construction.WriteFilesTranslation;
 import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.JobSpecification;
 import org.apache.beam.runners.dataflow.StreamingViewOverrides.StreamingCreatePCollectionViewFactory;
 import org.apache.beam.runners.dataflow.TransformTranslator.StepTranslationContext;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
+import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
 import org.apache.beam.runners.dataflow.util.DataflowTemplateJob;
 import org.apache.beam.runners.dataflow.util.DataflowTransport;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil;
@@ -100,6 +102,7 @@ import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.gcp.storage.PathValidator;
 import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
@@ -505,7 +508,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       overridesBuilder.add(
           PTransformOverride.of(
               PTransformMatchers.writeWithRunnerDeterminedSharding(),
-              new StreamingShardedWriteFactory()));
+              new StreamingShardedWriteFactory(options)));
       if (fnApiEnabled) {
         overridesBuilder.add(
             PTransformOverride.of(
@@ -2261,6 +2264,15 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           WriteFilesResult<DestinationT>,
           WriteFiles<UserT, DestinationT, OutputT>> {
 
+    // We pick 10 as a a default, as it works well with the default number of workers started
+    // by Dataflow.
+    static final int DEFAULT_NUM_SHARDS = 10;
+    DataflowPipelineWorkerPoolOptions options;
+
+    StreamingShardedWriteFactory(PipelineOptions options) {
+      this.options = options.as(DataflowPipelineWorkerPoolOptions.class);
+    }
+
     @Override
     public PTransformReplacement<PCollection<UserT>, WriteFilesResult<DestinationT>>
         getReplacementTransform(
@@ -2269,9 +2281,36 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                     WriteFilesResult<DestinationT>,
                     WriteFiles<UserT, DestinationT, OutputT>>
                 transform) {
-      return PTransformReplacement.of(
-          PTransformReplacements.getSingletonMainInput(transform),
-          transform.getTransform().withRunnerDeterminedShardingUnboundedInternal());
+      // By default, if numShards is not set WriteFiles will produce one file per bundle. In
+      // streaming, there are large numbers of small bundles, resulting in many tiny files.
+      // Instead we pick max workers * 2 to ensure full parallelism, but prevent too-many files.
+      // (current_num_workers * 2 might be a better choice, but that value is not easily available
+      // today).
+      // If the user does not set either numWorkers or maxNumWorkers, default to 10 shards.
+      int numShards;
+      if (options.getMaxNumWorkers() > 0) {
+        numShards = options.getMaxNumWorkers() * 2;
+      } else if (options.getNumWorkers() > 0) {
+        numShards = options.getNumWorkers() * 2;
+      } else {
+        numShards = DEFAULT_NUM_SHARDS;
+      }
+
+      try {
+        List<PCollectionView<?>> sideInputs =
+            WriteFilesTranslation.getDynamicDestinationSideInputs(transform);
+        FileBasedSink sink = WriteFilesTranslation.getSink(transform);
+        WriteFiles<UserT, DestinationT, OutputT> replacement =
+            WriteFiles.to(sink).withSideInputs(sideInputs);
+        if (WriteFilesTranslation.isWindowedWrites(transform)) {
+          replacement = replacement.withWindowedWrites();
+        }
+        return PTransformReplacement.of(
+            PTransformReplacements.getSingletonMainInput(transform),
+            replacement.withNumShards(numShards));
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
     }
 
     @Override
