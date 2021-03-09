@@ -35,6 +35,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn.FinishBundleContext;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
+import org.apache.beam.sdk.transforms.DoFn.SetupContext;
 import org.apache.beam.sdk.transforms.DoFn.StartBundleContext;
 import org.apache.beam.sdk.transforms.Materializations.MultimapView;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
@@ -234,6 +235,12 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             @Override
             public PipelineOptions pipelineOptions() {
               return getPipelineOptions();
+            }
+
+            @Override
+            public DoFn<InputT, OutputT>.SetupContext setupContext(DoFn<InputT, OutputT> doFn) {
+              throw new UnsupportedOperationException(
+                  "Not expected to access DoFn.SetupContext from @ProcessElement");
             }
 
             @Override
@@ -723,7 +730,29 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
                   SerializableUtils.serializeToByteArray(origFn), origFn.toString());
     }
     fnInvoker = DoFnInvokers.invokerFor(fn);
-    fnInvoker.invokeSetup();
+    fnInvoker.invokeSetup(new TestSetupContext());
+  }
+
+  private class TestSetupContext extends BaseArgumentProvider<InputT, OutputT> {
+    @Override
+    public SetupContext setupContext(DoFn doFn) {
+      return fn.new SetupContext() {
+        @Override
+        public PipelineOptions getPipelineOptions() {
+          return options;
+        }
+      };
+    }
+
+    @Override
+    public PipelineOptions pipelineOptions() {
+      return options;
+    }
+
+    @Override
+    public String getErrorContext() {
+      return "DoFnTester/Setup";
+    }
   }
 
   private Map getOutputs() {

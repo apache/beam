@@ -34,6 +34,7 @@ import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.transforms.DoFn.FinishBundleContext;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
+import org.apache.beam.sdk.transforms.DoFn.SetupContext;
 import org.apache.beam.sdk.transforms.DoFn.StartBundleContext;
 import org.apache.beam.sdk.transforms.DoFnOutputReceivers;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
@@ -208,6 +209,13 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
               public FinishBundleContext finishBundleContext(DoFn<InputT, OutputT> doFn) {
                 throw new IllegalStateException(
                     "Should not access finishBundleContext() from @"
+                        + DoFn.ProcessElement.class.getSimpleName());
+              }
+
+              @Override
+              public SetupContext setupContext(DoFn<InputT, OutputT> doFn) {
+                throw new IllegalStateException(
+                    "Should not access setupContext() from @"
                         + DoFn.ProcessElement.class.getSimpleName());
               }
             });

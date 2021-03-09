@@ -304,8 +304,8 @@ public class BatchStatefulParDoOverrides {
     }
 
     @Setup
-    public void setup() {
-      DoFnInvokers.invokerFor(underlyingDoFn).invokeSetup();
+    public void setup(final SetupContext c) {
+      DoFnInvokers.tryInvokeSetupFor(underlyingDoFn, c.getPipelineOptions());
     }
 
     @ProcessElement

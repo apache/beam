@@ -265,7 +265,9 @@ public abstract class DoFnSignature {
     public <ResultT> ResultT match(Cases<ResultT> cases) {
       // This could be done with reflection, but since the number of cases is small and known,
       // they are simply inlined.
-      if (this instanceof StartBundleContextParameter) {
+      if (this instanceof SetupContextParameter) {
+        return cases.dispatch((SetupContextParameter) this);
+      } else if (this instanceof StartBundleContextParameter) {
         return cases.dispatch((StartBundleContextParameter) this);
       } else if (this instanceof FinishBundleContextParameter) {
         return cases.dispatch((FinishBundleContextParameter) this);
@@ -323,6 +325,8 @@ public abstract class DoFnSignature {
 
     /** An interface for destructuring a {@link Parameter}. */
     public interface Cases<ResultT> {
+      ResultT dispatch(SetupContextParameter p);
+
       ResultT dispatch(StartBundleContextParameter p);
 
       ResultT dispatch(FinishBundleContextParameter p);
@@ -375,6 +379,11 @@ public abstract class DoFnSignature {
       abstract class WithDefault<ResultT> implements Cases<ResultT> {
 
         protected abstract ResultT dispatchDefault(Parameter p);
+
+        @Override
+        public ResultT dispatch(SetupContextParameter p) {
+          return dispatchDefault(p);
+        }
 
         @Override
         public ResultT dispatch(StartBundleContextParameter p) {
@@ -499,6 +508,8 @@ public abstract class DoFnSignature {
     }
 
     // These parameter descriptors are constant.
+    private static final SetupContextParameter SETUP_CONTEXT_PARAMETER =
+        new AutoValue_DoFnSignature_Parameter_SetupContextParameter();
     private static final StartBundleContextParameter START_BUNDLE_CONTEXT_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_StartBundleContextParameter();
     private static final FinishBundleContextParameter FINISH_BUNDLE_CONTEXT_PARAMETER =
@@ -527,6 +538,11 @@ public abstract class DoFnSignature {
     /** Returns a {@link ProcessContextParameter}. */
     public static ProcessContextParameter processContext() {
       return PROCESS_CONTEXT_PARAMETER;
+    }
+
+    /** Returns a {@link SetupContextParameter}. */
+    public static SetupContextParameter setupContext() {
+      return SETUP_CONTEXT_PARAMETER;
     }
 
     /** Returns a {@link StartBundleContextParameter}. */
@@ -655,6 +671,16 @@ public abstract class DoFnSignature {
     @AutoValue
     public abstract static class PipelineOptionsParameter extends Parameter {
       PipelineOptionsParameter() {}
+    }
+
+    /**
+     * Descriptor for a {@link Parameter} of type {@link DoFn.SetupContext}.
+     *
+     * <p>All such descriptors are equal.
+     */
+    @AutoValue
+    public abstract static class SetupContextParameter extends Parameter {
+      SetupContextParameter() {}
     }
 
     /**
@@ -1251,13 +1277,17 @@ public abstract class DoFnSignature {
 
   /** Describes a {@link DoFn.Setup} or {@link DoFn.Teardown} method. */
   @AutoValue
-  public abstract static class LifecycleMethod implements DoFnMethod {
+  public abstract static class LifecycleMethod implements MethodWithExtraParameters {
     /** The annotated method itself. */
     @Override
     public abstract Method targetMethod();
 
-    static LifecycleMethod create(Method targetMethod) {
-      return new AutoValue_DoFnSignature_LifecycleMethod(targetMethod);
+    /** Types of optional parameters of the annotated method, in the order they appear. */
+    @Override
+    public abstract List<Parameter> extraParameters();
+
+    static LifecycleMethod create(Method targetMethod, List<Parameter> extraParameters) {
+      return new AutoValue_DoFnSignature_LifecycleMethod(null, targetMethod, extraParameters);
     }
   }
 

@@ -93,6 +93,7 @@ import org.mockito.MockitoAnnotations;
 public class DoFnInvokersTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
 
+  @Mock private DoFn<String, String>.SetupContext mockSetupContext;
   @Mock private DoFn<String, String>.StartBundleContext mockStartBundleContext;
   @Mock private DoFn<String, String>.FinishBundleContext mockFinishBundleContext;
   @Mock private DoFn<String, String>.ProcessContext mockProcessContext;
@@ -117,6 +118,7 @@ public class DoFnInvokersTest {
     when(mockArgumentProvider.outputReceiver(Matchers.<DoFn>any())).thenReturn(mockOutputReceiver);
     when(mockArgumentProvider.taggedOutputReceiver(Matchers.<DoFn>any()))
         .thenReturn(mockMultiOutputReceiver);
+    when(mockArgumentProvider.setupContext(Matchers.<DoFn>any())).thenReturn(mockSetupContext);
     when(mockArgumentProvider.startBundleContext(Matchers.<DoFn>any()))
         .thenReturn(mockStartBundleContext);
     when(mockArgumentProvider.finishBundleContext(Matchers.<DoFn>any()))
@@ -358,6 +360,7 @@ public class DoFnInvokersTest {
 
   @Test
   public void testDoFnWithStartBundleSetupTeardown() throws Exception {
+    when(mockArgumentProvider.setupContext(any(DoFn.class))).thenReturn(mockSetupContext);
     when(mockArgumentProvider.startBundleContext(any(DoFn.class)))
         .thenReturn(mockStartBundleContext);
     when(mockArgumentProvider.finishBundleContext(any(DoFn.class)))
@@ -373,19 +376,20 @@ public class DoFnInvokersTest {
       public void finishBundle(FinishBundleContext c) {}
 
       @Setup
-      public void before() {}
+      public void before(SetupContext c) {}
 
       @Teardown
       public void after() {}
     }
 
     MockFn fn = mock(MockFn.class);
+
     DoFnInvoker<String, String> invoker = DoFnInvokers.invokerFor(fn);
-    invoker.invokeSetup();
+    invoker.invokeSetup(mockArgumentProvider);
     invoker.invokeStartBundle(mockArgumentProvider);
     invoker.invokeFinishBundle(mockArgumentProvider);
     invoker.invokeTeardown();
-    verify(fn).before();
+    verify(fn).before(mockSetupContext);
     verify(fn).startBundle(mockStartBundleContext);
     verify(fn).finishBundle(mockFinishBundleContext);
     verify(fn).after();

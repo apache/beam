@@ -506,9 +506,8 @@ public class SplittableParDo<InputT, OutputT, RestrictionT, WatermarkEstimatorSt
     }
 
     @Setup
-    public void setup() {
-      invoker = DoFnInvokers.invokerFor(fn);
-      invoker.invokeSetup();
+    public void setup(SetupContext context) {
+      invoker = DoFnInvokers.tryInvokeSetupFor(fn, context.getPipelineOptions());
     }
 
     @ProcessElement
@@ -571,9 +570,8 @@ public class SplittableParDo<InputT, OutputT, RestrictionT, WatermarkEstimatorSt
     }
 
     @Setup
-    public void setup() {
-      invoker = DoFnInvokers.invokerFor(splittableFn);
-      invoker.invokeSetup();
+    public void setup(SetupContext context) {
+      invoker = DoFnInvokers.tryInvokeSetupFor(splittableFn, context.getPipelineOptions());
     }
 
     @ProcessElement

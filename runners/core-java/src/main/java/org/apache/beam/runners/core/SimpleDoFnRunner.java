@@ -469,6 +469,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public DoFn<InputT, OutputT>.SetupContext setupContext(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException("SetupContext parameters are not supported.");
+    }
+
+    @Override
     public DoFn<InputT, OutputT>.StartBundleContext startBundleContext(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException("StartBundleContext parameters are not supported.");
     }
@@ -689,6 +694,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public PipelineOptions pipelineOptions() {
       return getPipelineOptions();
+    }
+
+    @Override
+    public DoFn<InputT, OutputT>.SetupContext setupContext(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException("SetupContext parameters are not supported.");
     }
 
     @Override
@@ -915,6 +925,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public PipelineOptions pipelineOptions() {
       return getPipelineOptions();
+    }
+
+    @Override
+    public DoFn<InputT, OutputT>.SetupContext setupContext(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException("SetupContext parameters are not supported.");
     }
 
     @Override

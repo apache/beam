@@ -54,7 +54,7 @@ import org.joda.time.Instant;
 @Internal
 public interface DoFnInvoker<InputT, OutputT> {
   /** Invoke the {@link DoFn.Setup} method on the bound {@link DoFn}. */
-  void invokeSetup();
+  void invokeSetup(ArgumentProvider<InputT, OutputT> arguments);
 
   /** Invoke the {@link DoFn.StartBundle} method on the bound {@link DoFn}. */
   void invokeStartBundle(ArgumentProvider<InputT, OutputT> arguments);
@@ -161,6 +161,9 @@ public interface DoFnInvoker<InputT, OutputT> {
 
     /** Provide {@link PipelineOptions}. */
     PipelineOptions pipelineOptions();
+
+    /** Provide a {@link DoFn.SetupContext} to use with the given {@link DoFn}. */
+    DoFn<InputT, OutputT>.SetupContext setupContext(DoFn<InputT, OutputT> doFn);
 
     /** Provide a {@link DoFn.StartBundleContext} to use with the given {@link DoFn}. */
     DoFn<InputT, OutputT>.StartBundleContext startBundleContext(DoFn<InputT, OutputT> doFn);
@@ -354,6 +357,12 @@ public interface DoFnInvoker<InputT, OutputT> {
     public PipelineOptions pipelineOptions() {
       throw new UnsupportedOperationException(
           String.format("PipelineOptions unsupported in %s", getErrorContext()));
+    }
+
+    @Override
+    public DoFn<InputT, OutputT>.SetupContext setupContext(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          String.format("SetupContext unsupported in %s", getErrorContext()));
     }
 
     @Override
