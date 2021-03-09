@@ -1,5 +1,15 @@
 
-class InnerJoin(PTransform[PCollection[KV[K, V1]], PCollection[KV[K, KV[V1, V2]]]]):
+from apache_beam.transforms.util import CoGroupByKey
+from typing import Any, Generic, Iterable, Iterator, TypeVar
+import apache_beam as beam
+from apache_beam.typehints import typehints
+
+K = TypeVar("K")
+V1 = TypeVar("V1")
+V2 = TypeVar("V2")
+CoGbkResult = TypeVar("CoGbkResult")
+
+class InnerJoin(beam.PTransform[beam.PCollection[typehints.KV[K, V1]], beam.PCollection[typehints.KV[K, typehints.KV[V1, V2]]]], Generic[K, V1, V2]):
   """
   PTransform representing an inner join of two collections of KV elements.
   
@@ -8,52 +18,38 @@ class InnerJoin(PTransform[PCollection[KV[K, V1]], PCollection[KV[K, KV[V1, V2]]
   @param <V2> Type of the values for the right collection.
   """
 
-  def __init__(self, rightCollection: PCollection[KV[K, V2]]):
+  def __init__(self, rightCollection: beam.PCollection[typehints.KV[K, V2]]):
       self._rightCollection = rightCollection
 
-  def expand(leftCollection: PCollection[KV[K, V1]]):
-      """
-      checkNotNull(leftCollection);
-      checkNotNull(rightCollection);
+  def expand(self, leftCollection: beam.PCollection[typehints.KV[K, V1]]):
+      if leftCollection is None: raise ValueError()
+      if self._rightCollection is None: raise ValueError()
 
-      final TupleTag<V1> v1Tuple = new TupleTag<>();
-      final TupleTag<V2> v2Tuple = new TupleTag<>();
+      v1Tuple = TupleTag()
+      v2Tuple = TupleTag()
 
-      PCollection<KV<K, CoGbkResult>> coGbkResultCollection =
-          KeyedPCollectionTuple.of(v1Tuple, leftCollection)
-              .and(v2Tuple, rightCollection)
-              .apply("CoGBK", CoGroupByKey.create());
+      def innerJoinDo(e: typehints.KV[K, CoGbkResult]) -> Iterator[typehints.KV[K, typehints.KV(V1, V2)]]:
+        leftValuesIterable: Iterable[V1] = e[1].getAll(v1Tuple)
+        rightValuesIterable: Iterable[V2] = e[1].getAll(v2Tuple)
 
-      return coGbkResultCollection
-          .apply(
-              "Join",
-              ParDo.of(
-                  new DoFn<KV<K, CoGbkResult>, KV<K, KV<V1, V2>>>() {
-                    @ProcessElement
-                    public void processElement(ProcessContext c) {
-                      KV<K, CoGbkResult> e = c.element();
+        for leftValue in leftValuesIterable:
+            for rightValue in rightValuesIterable:
+              yield (e[0], (leftValue, rightValue))
 
-                      Iterable<V1> leftValuesIterable = e.getValue().getAll(v1Tuple);
-                      Iterable<V2> rightValuesIterable = e.getValue().getAll(v2Tuple);
-
-                      for (V1 leftValue : leftValuesIterable) {
-                        for (V2 rightValue : rightValuesIterable) {
-                          c.output(KV.of(e.getKey(), KV.of(leftValue, rightValue)));
-                        }
-                      }
-                    }
-                  }))
-          .setCoder(
+      coGbkResultCollection: beam.PCollection[typehints.KV[K, CoGbkResult]] = KeyedPCollectionTuple.of(v1Tuple, leftCollection).and(v2Tuple, self._rightCollection).apply("CoGBK", CoGroupByKey);
+      return coGbkResultCollection.apply(
+          "Join",
+          beam.ParDo(innerJoinDo)
+      )
+      """.setCoder(
               KvCoder.of(
                   ((KvCoder) leftCollection.getCoder()).getKeyCoder(),
                   KvCoder.of(
                       ((KvCoder) leftCollection.getCoder()).getValueCoder(),
-                      ((KvCoder) rightCollection.getCoder()).getValueCoder())));
-    }
-  }
-    """
+                      ((KvCoder) rightCollection.getCoder()).getValueCoder())))
+      """
 
-class LeftOuterJoin(PTransform[PCollection[KV[K, V1]], PCollection[KV[K, KV[V1, V2]]]]):
+class LeftOuterJoin(beam.PTransform[beam.PCollection[typehints.KV[K, V1]], beam.PCollection[typehints.KV[K, typehints.KV[V1, V2]]]]):
     """
     PTransform representing a left outer join of two collections of KV elements.
     
@@ -62,46 +58,37 @@ class LeftOuterJoin(PTransform[PCollection[KV[K, V1]], PCollection[KV[K, KV[V1, 
     @param <V2> Type of the values for the right collection.
    """
 
-    def __init__(self, rightCollection: PCollection[KV[K, V2]], nullValue: V2):
-      self._rightCollection = rightCollection
-      self._nullValue = nullValue
+    def __init__(self, rightCollection: beam.PCollection[typehints.KV[K, V2]], nullValue: V2):
+        self._rightCollection = rightCollection
+        self._nullValue = nullValue
 
-    def expand(leftCollection: PCollection[KV[K, V1]]) -> PCollection[KV[K, KV[V1, V2]]]:
-        """
-      checkNotNull(leftCollection);
-      checkNotNull(rightCollection);
-      checkNotNull(nullValue);
-      final TupleTag<V1> v1Tuple = new TupleTag<>();
-      final TupleTag<V2> v2Tuple = new TupleTag<>();
+    def expand(self, leftCollection: beam.PCollection[typehints.KV[K, V1]]) -> beam.PCollection[typehints.KV[K, typehints.KV[V1, V2]]]:
+        if leftCollection is None: raise ValueError()
+        if self._rightCollection is None: raise ValueError()
+        if self._nullValue is None: raise ValueError()
+        
+        v1Tuple: TupleTag[V1] = TupleTag()
+        v2Tuple: TupleTag[V2] = TupleTag()
+        def leftOuterJoinDo(e: typehints.KV[K, CoGbkResult]) -> Iterator[typehints.KV[K, Any]]:
+          leftValuesIterable: Iterable[V1] = e[1].getAll(v1Tuple)
+          rightValuesIterable: Iterable[V2] = e[1].getAll(v2Tuple)
 
-      PCollection<KV<K, CoGbkResult>> coGbkResultCollection =
-          KeyedPCollectionTuple.of(v1Tuple, leftCollection)
-              .and(v2Tuple, rightCollection)
-              .apply("CoGBK", CoGroupByKey.create());
-
-      return coGbkResultCollection
-          .apply(
+          for leftValue in leftValuesIterable:
+            hasNext = False
+            for rightValue in rightValuesIterable:
+              hasNext = True
+              yield e[0], (leftValue, rightValue)
+            
+            if not hasNext:
+              yield e[0], (leftValue, self._nullValue)
+            
+        coGbkResultCollection: beam.PCollection[typehints.KV[K, CoGbkResult]] = KeyedPCollectionTuple.of(v1Tuple, leftCollection).and(v2Tuple, self._rightCollection).apply("CoGBK", CoGroupByKey.create())
+        coGbkResultCollection.apply(
               "Join",
-              ParDo.of(
-                  new DoFn<KV<K, CoGbkResult>, KV<K, KV<V1, V2>>>() {
-                    @ProcessElement
-                    public void processElement(ProcessContext c) {
-                      KV<K, CoGbkResult> e = c.element();
-
-                      Iterable<V1> leftValuesIterable = e.getValue().getAll(v1Tuple);
-                      Iterable<V2> rightValuesIterable = e.getValue().getAll(v2Tuple);
-
-                      for (V1 leftValue : leftValuesIterable) {
-                        if (rightValuesIterable.iterator().hasNext()) {
-                          for (V2 rightValue : rightValuesIterable) {
-                            c.output(KV.of(e.getKey(), KV.of(leftValue, rightValue)));
-                          }
-                        } else {
-                          c.output(KV.of(e.getKey(), KV.of(leftValue, nullValue)));
-                        }
-                      }
-                    }
-                  }))
+              beam.ParDo(leftOuterJoinDo)
+        )
+        """
+      return 
           .setCoder(
               KvCoder.of(
                   ((KvCoder) leftCollection.getCoder()).getKeyCoder(),
@@ -111,7 +98,7 @@ class LeftOuterJoin(PTransform[PCollection[KV[K, V1]], PCollection[KV[K, KV[V1, 
     }
         """
 
-class RightOuterJoin(PTransform[PCollection[KV[K, V1]], PCollection[KV[K, KV[V1, V2]]]]):
+class RightOuterJoin(beam.PTransform[beam.PCollection[typehints.KV[K, V1]], beam.PCollection[typehints.KV[K, typehints.KV[V1, V2]]]]):
     """
     PTransform representing a right outer join of two collections of KV elements.
 
@@ -120,47 +107,39 @@ class RightOuterJoin(PTransform[PCollection[KV[K, V1]], PCollection[KV[K, KV[V1,
     @param <V2> Type of the values for the right collection.
     """
 
-    def __init__(self, rightCollection: PCollection[KV[K, V2]], nullValue: V1):
+    def __init__(self, rightCollection: beam.PCollection[typehints.KV[K, V2]], nullValue: V1):
         self._rightCollection = rightCollection
         self._nullValue = nullValue
     
-    def expand(self, leftCollection: PCollection[KV[K, V1]]) -> PCollection[KV[K, KV[V1, V2]]]:
+    def expand(self, leftCollection: beam.PCollection[typehints.KV[K, V1]]) -> beam.PCollection[typehints.KV[K, typehints.KV[V1, V2]]]:
+        if leftCollection is None: raise ValueError()
+        if self._rightCollection is None: raise ValueError() 
+        if self._nullValue is None: raise ValueError()
+
+        v1Tuple: TupleTag[V1] = TupleTag()
+        v2Tuple: TupleTag[V2] = TupleTag()
+        def rightOuterJoinDo(e: typehints.KV[K, CoGbkResult]) -> Iterator[typehints.KV[K, Any]]:
+          leftValuesIterable: Iterable[V1] = e[1].getAll(v1Tuple)
+          rightValuesIterable: Iterable[V2] = e[1].getAll(v2Tuple)
+
+          for rightValue in rightValuesIterable:
+            hasNext = False
+            for leftValue in leftValuesIterable:
+              hasNext = True
+              yield e[0], (leftValue, rightValue)
+
+            if not hasNext:
+              yield e[0], (self._nullValue, rightValue)
+
+        coGbkResultCollection: beam.PCollection[typehints.KV[K, CoGbkResult]] = KeyedPCollectionTuple.of(v1Tuple, leftCollection).and(v2Tuple, self._rightCollection).apply("CoGBK", CoGroupByKey.create())
+        coGbkResultCollection.apply(
+          "Join",
+          beam.ParDo(rightOuterJoinDo)
+        )
         """
-        checkNotNull(leftCollection);
-      checkNotNull(rightCollection);
-      checkNotNull(nullValue);
 
-      final TupleTag<V1> v1Tuple = new TupleTag<>();
-      final TupleTag<V2> v2Tuple = new TupleTag<>();
 
-      PCollection<KV<K, CoGbkResult>> coGbkResultCollection =
-          KeyedPCollectionTuple.of(v1Tuple, leftCollection)
-              .and(v2Tuple, rightCollection)
-              .apply("CoGBK", CoGroupByKey.create());
-
-      return coGbkResultCollection
-          .apply(
-              "Join",
-              ParDo.of(
-                  new DoFn<KV<K, CoGbkResult>, KV<K, KV<V1, V2>>>() {
-                    @ProcessElement
-                    public void processElement(ProcessContext c) {
-                      KV<K, CoGbkResult> e = c.element();
-
-                      Iterable<V1> leftValuesIterable = e.getValue().getAll(v1Tuple);
-                      Iterable<V2> rightValuesIterable = e.getValue().getAll(v2Tuple);
-
-                      for (V2 rightValue : rightValuesIterable) {
-                        if (leftValuesIterable.iterator().hasNext()) {
-                          for (V1 leftValue : leftValuesIterable) {
-                            c.output(KV.of(e.getKey(), KV.of(leftValue, rightValue)));
-                          }
-                        } else {
-                          c.output(KV.of(e.getKey(), KV.of(nullValue, rightValue)));
-                        }
-                      }
-                    }
-                  }))
+      return 
           .setCoder(
               KvCoder.of(
                   ((KvCoder) leftCollection.getCoder()).getKeyCoder(),
@@ -171,7 +150,7 @@ class RightOuterJoin(PTransform[PCollection[KV[K, V1]], PCollection[KV[K, KV[V1,
         """
 
 
-class FullOuterJoin(PTransform[PCollection[KV[K, V1]], PCollection[KV[K, KV[V1, V2]]]]):
+class FullOuterJoin(beam.PTransform[beam.PCollection[typehints.KV[K, V1]], beam.PCollection[typehints.KV[K, typehints.KV[V1, V2]]]]):
     """
     PTransform representing a full outer join of two collections of KV elements.
    
@@ -180,57 +159,57 @@ class FullOuterJoin(PTransform[PCollection[KV[K, V1]], PCollection[KV[K, KV[V1, 
     @param <V2> Type of the values for the right collection.
     """
 
-    def __init__(self, rightCollection: PCollection[KV[K, V2]], leftNullValue: V1, rightNullValue: V2):
+    def __init__(self, rightCollection: beam.PCollection[typehints.KV[K, V2]], leftNullValue: V1, rightNullValue: V2):
         self._rightCollection = rightCollection
         self._leftNullValue = leftNullValue
         self._rightNullValue = rightNullValue
 
-    def expand(leftCollection: PCollection[KV[K, V1]]) -> PCollection[KV[K, KV[V1, V2]]]:
-        """
-checkNotNull(leftCollection);
-      checkNotNull(rightCollection);
-      checkNotNull(leftNullValue);
-      checkNotNull(rightNullValue);
+    def expand(self, leftCollection: beam.PCollection[typehints.KV[K, V1]]) -> beam.PCollection[typehints.KV[K, typehints.KV[V1, V2]]]:
+        if leftCollection is None: raise ValueError()
+        if self._rightCollection is None: raise ValueError()
+        if self._leftNullValue is None: raise ValueError()
+        if self._rightNullValue is None: raise ValueError()
 
-      final TupleTag<V1> v1Tuple = new TupleTag<>();
-      final TupleTag<V2> v2Tuple = new TupleTag<>();
+        v1Tuple: TupleTag[V1] = TupleTag()
+        v2Tuple: TupleTag[V2] = TupleTag()
+        def fullOuterJoinDo(e: typehints.KV[K, CoGbkResult]) -> Iterator[typehints.KV[K, Any]]:
+            leftValuesIterable: Iterable[V1] = e[1].getAll(v1Tuple)
+            rightValuesIterable: Iterable[V2] = e[1].getAll(v2Tuple)
 
-      PCollection<KV<K, CoGbkResult>> coGbkResultCollection =
-          KeyedPCollectionTuple.of(v1Tuple, leftCollection)
-              .and(v2Tuple, rightCollection)
-              .apply("CoGBK", CoGroupByKey.create());
+            leftIter = iter(leftValuesIterable)
+            try:
+              next(leftIter)
+              hasLeft = True
+            except StopIteration:
+              hasLeft = False
+            rightIter = iter(rightValuesIterable)
+            try:
+              next(rightIter)
+              hasRight = True
+            except StopIteration:
+              hasRight = False
+          
+            if hasLeft and hasRight:
+              for rightValue in rightValuesIterable:
+                  for leftValue in leftValuesIterable:
+                    yield e[0], (leftValue, rightValue)
 
-      return coGbkResultCollection
-          .apply(
+            elif hasLeft and not hasRight:
+                for leftValue in leftValuesIterable:
+                  yield e[0], (leftValue, self._rightNullValue)
+            elif not hasLeft and hasRight:
+                for rightValue in rightValuesIterable:
+                  yield e[0], (self._leftNullValue, rightValue)
+
+        coGbkResultCollection: beam.PCollection[typehints.KV[K, CoGbkResult]] = KeyedPCollectionTuple.of(v1Tuple, leftCollection).and(v2Tuple, self._rightCollection).apply("CoGBK", CoGroupByKey.create())
+        coGbkResultCollection.apply(
               "Join",
-              ParDo.of(
-                  new DoFn<KV<K, CoGbkResult>, KV<K, KV<V1, V2>>>() {
-                    @ProcessElement
-                    public void processElement(ProcessContext c) {
-                      KV<K, CoGbkResult> e = c.element();
+              beam.ParDo(fullOuterJoinDo)
+        )
+        
+        """
 
-                      Iterable<V1> leftValuesIterable = e.getValue().getAll(v1Tuple);
-                      Iterable<V2> rightValuesIterable = e.getValue().getAll(v2Tuple);
-                      if (leftValuesIterable.iterator().hasNext()
-                          && rightValuesIterable.iterator().hasNext()) {
-                        for (V2 rightValue : rightValuesIterable) {
-                          for (V1 leftValue : leftValuesIterable) {
-                            c.output(KV.of(e.getKey(), KV.of(leftValue, rightValue)));
-                          }
-                        }
-                      } else if (leftValuesIterable.iterator().hasNext()
-                          && !rightValuesIterable.iterator().hasNext()) {
-                        for (V1 leftValue : leftValuesIterable) {
-                          c.output(KV.of(e.getKey(), KV.of(leftValue, rightNullValue)));
-                        }
-                      } else if (!leftValuesIterable.iterator().hasNext()
-                          && rightValuesIterable.iterator().hasNext()) {
-                        for (V2 rightValue : rightValuesIterable) {
-                          c.output(KV.of(e.getKey(), KV.of(leftNullValue, rightValue)));
-                        }
-                      }
-                    }
-                  }))
+      return 
           .setCoder(
               KvCoder.of(
                   ((KvCoder) leftCollection.getCoder()).getKeyCoder(),
@@ -240,8 +219,8 @@ checkNotNull(leftCollection);
     }
     """
 
-def innerJoin(leftCollection: PCollection[KV[K, V1]], rightCollection: PCollection[KV[K, V2]],
-    name=None) -> PCollection[KV[K, KV[V1, V2]]]:
+def innerJoin(leftCollection: beam.PCollection[typehints.KV[K, V1]], rightCollection: beam.PCollection[typehints.KV[K, V2]],
+    name=None) -> beam.PCollection[typehints.KV[K, typehints.KV[V1, V2]]]:
     """
     Inner join of two collections of KV elements.
    
@@ -258,8 +237,8 @@ def innerJoin(leftCollection: PCollection[KV[K, V1]], rightCollection: PCollecti
     return leftCollection.apply(name, InnerJoin(rightCollection))
 
 def leftOuterJoin(
-      leftCollection: PCollection[KV[K, V1]],
-      rightCollection: PCollection[KV[K, V2]],
+      leftCollection: beam.PCollection[typehints.KV[K, V1]],
+      rightCollection: beam.PCollection[typehints.KV[K, V2]],
       nullValue: V2,
       name=None):
     """
@@ -280,10 +259,10 @@ def leftOuterJoin(
     return leftCollection.apply(name, LeftOuterJoin(rightCollection, nullValue))
 
 def rightOuterJoin(
-    leftCollection: PCollection[KV[K, V1]],
-    rightCollection: PCollection[KV[K, V2]],
+    leftCollection: beam.PCollection[typehints.KV[K, V1]],
+    rightCollection: beam.PCollection[typehints.KV[K, V2]],
     nullValue: V1,
-    name=None) -> PCollection[KV[K, KV[V1, V2]]]:
+    name=None) -> beam.PCollection[typehints.KV[K, typehints.KV[V1, V2]]]:
     """
     Right Outer Join of two collections of KV elements.
    
@@ -302,11 +281,11 @@ def rightOuterJoin(
     return leftCollection.apply(name, RightOuterJoin(rightCollection, nullValue))
 
 def fullOuterJoin(
-      leftCollection: PCollection[KV[K, V1]],
-      rightCollection: PCollection[KV[K, V2]],
+      leftCollection: beam.PCollection[typehints.KV[K, V1]],
+      rightCollection: beam.PCollection[typehints.KV[K, V2]],
       leftNullValue: V1,
       rightNullValue: V2,
-      name=None) -> PCollection[KV[K, KV[V1, V2]]]:
+      name=None) -> beam.PCollection[typehints.KV[K, typehints.KV[V1, V2]]]:
    """
    Full Outer Join of two collections of KV elements.
    
