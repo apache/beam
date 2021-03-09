@@ -44,6 +44,13 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.generic.NDFrame.tail': ['*'],
             'pandas.core.generic.NDFrame.take': ['*'],
             'pandas.core.generic.NDFrame.values': ['*'],
+            'pandas.core.generic.NDFrame.tz_localize': [
+                "s.tz_localize('CET', ambiguous='infer')",
+                # np.array is not a deferred object. This use-case is possible
+                # with a deferred Series though, which is tested in
+                # frames_test.py
+                "s.tz_localize('CET', ambiguous=np.array([True, True, False]))",
+            ],
             'pandas.core.generic.NDFrame.truncate': [
                 # These inputs rely on tail (wont implement, order
                 # sensitive) for verification
@@ -125,7 +132,6 @@ class DoctestTest(unittest.TestCase):
                 "df.replace({'a string': 'new value', True: False})  # raises"
             ],
             'pandas.core.generic.NDFrame.squeeze': ['*'],
-            'pandas.core.generic.NDFrame.tz_localize': ['*'],
 
             # NameError
             'pandas.core.generic.NDFrame.resample': ['df'],

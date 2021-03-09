@@ -241,6 +241,34 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
   astype = frame_base._elementwise_method('astype')
   copy = frame_base._elementwise_method('copy')
 
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  def tz_localize(self, ambiguous, **kwargs):
+    if isinstance(ambiguous, np.ndarray):
+      raise frame_base.WontImplementError(
+          "ambiguous=ndarray is not supported, please use a deferred Series "
+          "instead.")
+    elif isinstance(ambiguous, frame_base.DeferredFrame):
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'tz_localize',
+              lambda df,
+              ambiguous: df.tz_localize(ambiguous=ambiguous, **kwargs),
+              [self._expr, ambiguous._expr],
+              requires_partition_by=partitionings.Index(),
+              preserves_partition_by=partitionings.Singleton()))
+    elif ambiguous == 'infer':
+      # infer attempts to infer based on the order of the timestamps
+      raise frame_base.WontImplementError("order-sensitive")
+
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'tz_localize',
+            lambda df: df.tz_localize(ambiguous=ambiguous, **kwargs),
+            [self._expr],
+            requires_partition_by=partitionings.Arbitrary(),
+            preserves_partition_by=partitionings.Singleton()))
+
   @property
   def dtype(self):
     return self._expr.proxy().dtype
