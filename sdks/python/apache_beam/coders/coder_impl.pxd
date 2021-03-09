@@ -81,11 +81,13 @@ cdef set _ITERABLE_LIKE_TYPES
 cdef class FastPrimitivesCoderImpl(StreamCoderImpl):
   cdef CoderImpl fallback_coder_impl
   cdef CoderImpl iterable_coder_impl
+  cdef object requires_deterministic
   @cython.locals(dict_value=dict, int_value=libc.stdint.int64_t,
                  unicode_value=unicode)
   cpdef encode_to_stream(self, value, OutputStream stream, bint nested)
   @cython.locals(t=int)
   cpdef decode_from_stream(self, InputStream stream, bint nested)
+  cdef _encode_special_deterministic(self, value, OutputStream stream)
 
 
 cdef class BytesCoderImpl(CoderImpl):
