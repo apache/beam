@@ -828,6 +828,9 @@ class BeamModulePlugin implements Plugin<Project> {
       skipDefRegexes += configuration.classesTriggerCheckerBugs.keySet()
       String skipDefCombinedRegex = skipDefRegexes.collect({ regex -> "(${regex})"}).join("|")
 
+      // SLF4J logger handles null log message parameters
+      String skipUsesRegex = "^org\\.slf4j\\.Logger.*"
+
       project.apply plugin: 'org.checkerframework'
       project.checkerFramework {
         checkers = [
@@ -843,6 +846,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
         extraJavacArgs = [
           "-AskipDefs=${skipDefCombinedRegex}",
+          "-AskipUses=${skipUsesRegex}",
           "-AsuppressWarnings=annotation.not.completed",
         ]
 
