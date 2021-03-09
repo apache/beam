@@ -752,7 +752,7 @@ class PickleCoder(_PickleCoderBase):
         lambda x: dumps(x, protocol), pickle.loads)
 
   def as_deterministic_coder(self, step_label, error_message=None):
-    return DeterministicFastPrimitivesCoder(self, step_label)
+    return FastPrimitivesCoder(self, requires_deterministic=step_label)
 
   def to_type_hint(self):
     return Any
@@ -771,8 +771,9 @@ class DeterministicFastPrimitivesCoder(FastCoder):
     self._step_label = step_label
 
   def _create_impl(self):
-    return coder_impl.DeterministicFastPrimitivesCoderImpl(
-        self._underlying_coder.get_impl(), self._step_label)
+    return coder_impl.FastPrimitivesCoderImpl(
+        self._underlying_coder.get_impl(),
+        requires_deterministic=self._step_label)
 
   def is_deterministic(self):
     # type: () -> bool

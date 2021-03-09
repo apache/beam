@@ -25,6 +25,11 @@ from builtins import range
 from typing import Any
 from typing import List
 
+try:
+  import dataclasses
+except ImportError:
+  dataclasses = None
+
 import pytest
 
 from apache_beam.coders import proto2_coder_test_messages_pb2 as test_message
@@ -52,6 +57,19 @@ class CustomCoder(coders.Coder):
 
   def decode(self, encoded):
     return int(encoded) - 1
+
+
+if dataclasses is not None:
+
+  @dataclasses.dataclass(frozen=True)
+  class FrozenDataClass:
+    a: Any
+    b: int
+
+  @dataclasses.dataclass
+  class UnFrozenDataClass:
+    x: int
+    y: int
 
 
 # These tests need to all be run in the same process due to the asserts
@@ -175,6 +193,17 @@ class CodersTest(unittest.TestCase):
     self.check_coder(
         coders.TupleCoder((deterministic_coder, coder)), (1, dict()),
         ('a', [dict()]))
+
+    self.check_coder(deterministic_coder, test_message.MessageA(field1='value'))
+
+    if dataclasses is not None:
+      self.check_coder(deterministic_coder, FrozenDataClass(1, 2))
+
+      with self.assertRaises(TypeError):
+        self.check_coder(deterministic_coder, UnFrozenDataClass(1, 2))
+      with self.assertRaises(TypeError):
+        self.check_coder(
+            deterministic_coder, FrozenDataClass(UnFrozenDataClass(1, 2), 3))
 
   def test_dill_coder(self):
     cell_value = (lambda x: lambda: x)(0).__closure__[0]
