@@ -35,6 +35,7 @@ import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
@@ -195,7 +196,8 @@ public class PubsubTableProviderIT implements Serializable {
                 + "\"timestampAttributeKey\" : \"ts\" }'",
             tableProvider.getTableType(), eventsTopic.topicPath(), payloadFormatParam());
 
-    String queryString = "SELECT message.payload.id, attributes[0].key AS name FROM message";
+    String queryString =
+        "SELECT message.payload.id, attributes[1].key AS a1, attributes[2].key AS a2 FROM message";
 
     // Prepare messages to send later
     List<PubsubMessage> messages =
@@ -216,12 +218,18 @@ public class PubsubTableProviderIT implements Serializable {
         "waitForSuccess",
         resultSignal.signalSuccessWhen(
             SchemaCoder.of(PAYLOAD_SCHEMA),
-            observedRows ->
-                observedRows.equals(
-                    ImmutableSet.of(
-                        row(PAYLOAD_SCHEMA, 3, "foo"),
-                        row(PAYLOAD_SCHEMA, 5, "bar"),
-                        row(PAYLOAD_SCHEMA, 7, "baz")))));
+            observedRows -> {
+              Map<Integer, String> entries = new HashMap<>();
+              for (Row row : observedRows) {
+                if ("ts".equals(row.getString("a1"))) {
+                  entries.put(row.getInt32("id"), row.getString("a2"));
+                } else {
+                  entries.put(row.getInt32("id"), row.getString("a1"));
+                }
+              }
+
+              return entries.equals(ImmutableMap.of(3, "foo", 5, "bar", 7, "baz"));
+            }));
 
     // Start the pipeline
     pipeline.run();
@@ -234,7 +242,7 @@ public class PubsubTableProviderIT implements Serializable {
     eventsTopic.publish(messages);
 
     // Poll the signaling topic for success message
-    resultSignal.waitForSuccess(Duration.standardMinutes(5));
+    resultSignal.waitForSuccess(Duration.standardMinutes(1));
   }
 
   @Test
