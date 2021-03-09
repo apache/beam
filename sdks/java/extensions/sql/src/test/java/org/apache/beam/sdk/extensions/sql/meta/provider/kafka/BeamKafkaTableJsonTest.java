@@ -66,7 +66,8 @@ public class BeamKafkaTableJsonTest extends BeamKafkaTableTest {
                     .name("kafka")
                     .type("kafka")
                     .schema(TEST_SCHEMA)
-                    .properties(JSON.parseObject("{ \"topics\": [], \"format\": \"json\" }"))
+                    .properties(
+                        JSON.parseObject("{ \"topics\": [ \"mytopic\" ], \"format\": \"json\" }"))
                     .build()));
   }
 
