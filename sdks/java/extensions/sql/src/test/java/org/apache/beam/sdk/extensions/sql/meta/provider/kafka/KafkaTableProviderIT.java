@@ -66,6 +66,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.kafka.clients.producer.KafkaProducer;
@@ -105,6 +106,12 @@ public class KafkaTableProviderIT {
           .addInt64Field("f_long")
           .addInt32Field("f_int")
           .addStringField("f_string")
+          .build();
+
+  private static final Schema NESTED_TABLE_SCHEMA =
+      Schema.builder()
+          .addRowField(Schemas.PAYLOAD_FIELD, TEST_TABLE_SCHEMA)
+          .addArrayField(Schemas.HEADERS_FIELD, Schemas.HEADERS_FIELD_TYPE)
           .build();
 
   @Parameters
@@ -197,6 +204,54 @@ public class KafkaTableProviderIT {
     Assert.fail();
   }
 
+  @Test
+  public void testFakeNested() throws InterruptedException {
+    pipeline.getOptions().as(DirectOptions.class).setBlockOnRun(false);
+    String createTableString =
+        String.format(
+            "CREATE EXTERNAL TABLE kafka_table(\n"
+                + "headers ARRAY<ROW<key VARCHAR, values ARRAY<BYTES>>>,"
+                + "payload ROW<"
+                + "f_long BIGINT NOT NULL, \n"
+                + "f_int INTEGER NOT NULL, \n"
+                + "f_string VARCHAR NOT NULL \n"
+                + ">"
+                + ") \n"
+                + "TYPE 'kafka' \n"
+                + "LOCATION ''\n"
+                + "TBLPROPERTIES '%s'",
+            objectsProvider.getKafkaPropertiesString());
+    TableProvider tb = new KafkaTableProvider();
+    BeamSqlEnv env = BeamSqlEnv.inMemory(tb);
+
+    env.executeDdl(createTableString);
+
+    PCollection<Row> queryOutput =
+        BeamSqlRelUtils.toPCollection(pipeline, env.parseQuery("SELECT * FROM kafka_table"));
+
+    queryOutput
+        .apply(ParDo.of(new FakeKvPair()))
+        .setCoder(KvCoder.of(StringUtf8Coder.of(), RowCoder.of(NESTED_TABLE_SCHEMA)))
+        .apply(
+            "waitForSuccess",
+            ParDo.of(
+                new StreamAssertEqual(
+                    ImmutableSet.of(
+                        generateNestedRow(0), generateNestedRow(1), generateNestedRow(2)))));
+    queryOutput.apply(logRecords(""));
+    pipeline.run();
+    TimeUnit.SECONDS.sleep(4);
+    produceSomeRecords(3);
+
+    for (int i = 0; i < 200; i++) {
+      if (FLAG.getOrDefault(pipeline.getOptions().getOptionsId(), false)) {
+        return;
+      }
+      TimeUnit.MILLISECONDS.sleep(90);
+    }
+    Assert.fail();
+  }
+
   private static MapElements<Row, Void> logRecords(String suffix) {
     return MapElements.via(
         new SimpleFunction<Row, Void>() {
@@ -256,6 +311,12 @@ public class KafkaTableProviderIT {
 
   private static Row generateRow(int i) {
     return Row.withSchema(TEST_TABLE_SCHEMA).addValues((long) i, i % 3 + 1, "value" + i).build();
+  }
+
+  private static Row generateNestedRow(int i) {
+    return Row.withSchema(NESTED_TABLE_SCHEMA)
+        .addValues(generateRow(i), ImmutableList.of())
+        .build();
   }
 
   @SuppressWarnings("FutureReturnValueIgnored")
