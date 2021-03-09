@@ -30,7 +30,6 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializer;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -183,7 +182,8 @@ abstract class PubsubMessageToRow extends PTransform<PCollection<PubsubMessage>,
       this.messageSchema = messageSchema;
       this.useDlq = useDlq;
       if (serializerProvider == null) {
-        checkArgument(messageSchema.getField(PAYLOAD_FIELD).getType().equals(FieldType.BYTES));
+        checkArgument(
+            messageSchema.getField(PAYLOAD_FIELD).getType().getTypeName().equals(TypeName.BYTES));
         this.payloadSerializer = null;
       } else {
         checkArgument(
