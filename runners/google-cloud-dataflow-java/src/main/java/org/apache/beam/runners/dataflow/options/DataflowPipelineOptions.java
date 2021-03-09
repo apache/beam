@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.options;
 
+import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -108,6 +109,17 @@ public interface DataflowPipelineOptions
   String getTemplateLocation();
 
   void setTemplateLocation(String value);
+
+  /**
+   * Service options are set by the user and configure the service. This decouples service side
+   * feature availability from the Apache Beam release cycle.
+   */
+  @Description(
+      "Service options are set by the user and configure the service. This "
+          + "decouples service side feature availability from the Apache Beam release cycle.")
+  List<String> getServiceOptions();
+
+  void setServiceOptions(List<String> options);
 
   /** Run the job as a specific service account, instead of the default GCE robot. */
   @Hidden
