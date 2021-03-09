@@ -160,10 +160,12 @@ import org.slf4j.LoggerFactory;
  *       {@link Write#withNumShards} or {@link Write#withSharding}. The default is runner-specific,
  *       so the number of shards will vary based on runner behavior, though at least 1 shard will
  *       always be produced for every non-empty pane. Note that setting a fixed number of shards can
- *       hurt performance: it adds an additional {@link GroupByKey} to the pipeline. However, it is
- *       required to set it when writing an unbounded {@link PCollection} due to <a
- *       href="https://issues.apache.org/jira/browse/BEAM-1438">BEAM-1438</a> and similar behavior
- *       in other runners.
+ *       hurt performance: it adds an additional {@link GroupByKey} to the pipeline. However, it
+ *       could be necessary to set a fixed number of shards when writing an unbounded {@link
+ *       PCollection} due to <a>href="https://issues.apache.org/jira/browse/BEAM-1438">BEAM-1438</a>
+ *       and similar behavior in other runners. Runner-determined sharding for unbounded data may be
+ *       supported by some runners
+ *       (<a>href="https://issues.apache.org/jira/browse/BEAM-11934">BEAM-11934</a>).
  *   <li><b>How the shards are named:</b> This is controlled by a {@link Write.FileNaming}:
  *       filenames can depend on a variety of inputs, e.g. the window, the pane, total number of
  *       shards, the current file's shard index, and compression. Controlling the file naming is

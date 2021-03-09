@@ -93,6 +93,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.commons.compress.utils.Sets;
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Pair;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -317,21 +319,31 @@ public class WriteFilesTest {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testWithRunnerDeterminedShardingUnbounded() throws IOException {
-    runShardedWrite(
-        Arrays.asList("one", "two", "three", "four", "five", "six"),
-        Window.into(FixedWindows.of(Duration.standardSeconds(10))),
-        getBaseOutputFilename(),
-        WriteFiles.to(makeSimpleSink())
-            .withWindowedWrites()
-            .withRunnerDeterminedShardingUnboundedInternal(),
-        null,
-        true);
+  public void testWithRunnerDeterminedShardingTestStreamSessionWindow() throws IOException {
+    // Expect two windows and the first one is merged.
+    writeTestStreamWithWindows(
+        Window.into(Sessions.withGapDuration(Duration.standardSeconds(10))),
+        Arrays.asList(
+            new ImmutablePair<>("00:00:00.000-00:00:15.000", 1),
+            new ImmutablePair<>("00:00:25.000-00:00:35.000", 1)),
+        2);
   }
 
   @Test
   @Category(NeedsRunner.class)
-  public void testWithRunnerDeterminedShardingTestStream() throws IOException {
+  public void testWithRunnerDeterminedShardingTestStreamFixedWindow() throws IOException {
+    // Expect two windows. The empty window in between should not yield any output files.
+    writeTestStreamWithWindows(
+        Window.into(FixedWindows.of(Duration.standardSeconds(10))),
+        Arrays.asList(
+            new ImmutablePair<>("00:00:00.000-00:00:10.000", 1),
+            new ImmutablePair<>("00:00:20.000-00:00:30.000", 1)),
+        2);
+  }
+
+  private void writeTestStreamWithWindows(
+      Window<String> window, List<Pair<String, Integer>> expectedWindows, int totalNumShards)
+      throws IOException {
     List<String> elements = Lists.newArrayList();
     for (int i = 0; i < 30; ++i) {
       elements.add("number: " + i);
@@ -341,16 +353,17 @@ public class WriteFilesTest {
         TestStream.create(StringUtf8Coder.of())
             // Initialize watermark for timer to be triggered correctly.
             .advanceWatermarkTo(startInstant)
-            // Add 10 elements in the first window.
+            // Add 10 elements.
             .addElements(elements.get(0), Iterables.toArray(elements.subList(1, 10), String.class))
             .advanceProcessingTime(Duration.standardMinutes(1))
             .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(5)))
-            // Add 10 more elements in the first window.
+            // Add 10 more elements.
             .addElements(
                 elements.get(10), Iterables.toArray(elements.subList(11, 20), String.class))
             .advanceProcessingTime(Duration.standardMinutes(1))
             .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(10)))
-            // Add the remaining relements in the second window.
+            .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(25)))
+            // Add the remaining elements.
             .addElements(
                 elements.get(20), Iterables.toArray(elements.subList(21, 30), String.class))
             .advanceProcessingTime(Duration.standardMinutes(1))
@@ -361,18 +374,21 @@ public class WriteFilesTest {
     options.setTestFlag("test_value");
     Pipeline p = TestPipeline.create(options);
     WriteFiles<String, Void, String> write =
-        WriteFiles.to(makeSimpleSink())
-            .withWindowedWrites()
-            .withRunnerDeterminedShardingUnboundedInternal();
+        WriteFiles.to(makeSimpleSink()).withWindowedWrites().withRunnerDeterminedSharding();
     p.apply(testStream)
-        .apply(Window.into(FixedWindows.of(Duration.standardSeconds(10))))
+        .apply(window)
         .apply(write)
         .getPerDestinationOutputFilenames()
         .apply(new VerifyFilesExist<>());
     p.run();
 
     checkFileContents(
-        getBaseOutputFilename(), elements, Optional.absent(), !write.getWindowedWrites(), null);
+        getBaseOutputFilename(),
+        elements,
+        Optional.of(totalNumShards),
+        expectedWindows,
+        !write.getWindowedWrites(),
+        null);
   }
 
   /** Test a WriteFiles transform with an empty PCollection. */
@@ -509,21 +525,6 @@ public class WriteFilesTest {
 
     SimpleSink<Void> sink = makeSimpleSink();
     p.apply(Create.of("foo")).setIsBoundedInternal(IsBounded.UNBOUNDED).apply(WriteFiles.to(sink));
-    p.run();
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
-  public void testUnboundedWritesNeedSharding() {
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(
-        "When applying WriteFiles to an unbounded PCollection, "
-            + "must specify number of output shards explicitly");
-
-    SimpleSink<Void> sink = makeSimpleSink();
-    p.apply(Create.of("foo"))
-        .setIsBoundedInternal(IsBounded.UNBOUNDED)
-        .apply(WriteFiles.to(sink).withWindowedWrites());
     p.run();
   }
 
@@ -816,7 +817,13 @@ public class WriteFilesTest {
         (write.getNumShardsProvider() != null && !write.getWindowedWrites())
             ? Optional.of(write.getNumShardsProvider().get())
             : Optional.absent();
-    checkFileContents(baseName, inputs, numShards, !write.getWindowedWrites(), shardContentChecker);
+    checkFileContents(
+        baseName,
+        inputs,
+        numShards,
+        Collections.emptyList(),
+        !write.getWindowedWrites(),
+        shardContentChecker);
   }
 
   static void checkFileContents(
@@ -825,13 +832,20 @@ public class WriteFilesTest {
       Optional<Integer> numExpectedShards,
       boolean expectRemovedTempDirectory)
       throws IOException {
-    checkFileContents(baseName, inputs, numExpectedShards, expectRemovedTempDirectory, null);
+    checkFileContents(
+        baseName,
+        inputs,
+        numExpectedShards,
+        Collections.emptyList(),
+        expectRemovedTempDirectory,
+        null);
   }
 
   static void checkFileContents(
       String baseName,
       List<String> inputs,
       Optional<Integer> numExpectedShards,
+      List<Pair<String, Integer>> expectedShardedWindows,
       boolean expectRemovedTempDirectory,
       BiFunction<Integer, List<String>, Void> shardContentChecker)
       throws IOException {
@@ -853,14 +867,30 @@ public class WriteFilesTest {
         expectedShards.add(
             String.format("%s-of-%s", df.format(i), df.format(numExpectedShards.get())));
       }
+    }
 
-      Set<String> outputShards = Sets.newHashSet();
-      for (File file : outputFiles) {
-        Matcher matcher = shardPattern.matcher(file.getName());
-        assertTrue(matcher.find());
-        assertTrue(outputShards.add(matcher.group()));
+    if (!expectedShardedWindows.isEmpty()) {
+      for (Pair<String, Integer> windowWithShards : expectedShardedWindows) {
+        String windowStr = windowWithShards.getLeft();
+        int shards = windowWithShards.getRight();
+        Set<String> expectedShards = Sets.newHashSet();
+        DecimalFormat df = new DecimalFormat("0000");
+        for (int i = 0; i < shards; i++) {
+          expectedShards.add(
+              String.format("%s-%s-of-%s", windowStr, df.format(i), df.format(shards)));
+        }
+        Pattern windowShardPattern =
+            Pattern.compile(String.format("%s-%s", windowStr, shardPattern.pattern()));
+        Set<String> outputShards = Sets.newHashSet();
+        for (File file : outputFiles) {
+          Matcher matcher = windowShardPattern.matcher(file.getName());
+          if (matcher.find()) {
+            assertTrue(outputShards.add(matcher.group()));
+          }
+        }
+        assertEquals(shards, outputShards.size());
+        assertEquals(expectedShards, outputShards);
       }
-      assertEquals(expectedShards, outputShards);
     }
 
     List<String> actual = Lists.newArrayList();
