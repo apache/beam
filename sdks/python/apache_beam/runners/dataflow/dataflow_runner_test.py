@@ -22,14 +22,11 @@
 from __future__ import absolute_import
 
 import json
-import sys
 import unittest
 from builtins import object
 from builtins import range
 from datetime import datetime
 
-# patches unittest.TestCase to be python3 compatible
-import future.tests.base  # pylint: disable=unused-import
 import mock
 
 import apache_beam as beam
@@ -504,8 +501,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     with Pipeline(remote_runner, PipelineOptions(self.default_properties)) as p:
       p | ptransform.Create([1])  # pylint: disable=expression-not-assigned
 
-    self.assertEqual(
-        sys.version_info[0] > 2,
+    self.assertTrue(
         remote_runner.job.options.view_as(DebugOptions).lookup_experiment(
             'use_fastavro', False))
 

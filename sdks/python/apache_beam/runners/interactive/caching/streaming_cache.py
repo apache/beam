@@ -26,6 +26,10 @@ import tempfile
 import time
 import traceback
 from collections import OrderedDict
+# We don't have an explicit pathlib dependency because this code only works with
+# the interactive target installed which has an indirect dependency on pathlib
+# through ipython>=5.9.0.
+from pathlib import Path
 
 from google.protobuf.message import DecodeError
 
@@ -38,14 +42,6 @@ from apache_beam.runners.interactive.cache_manager import SafeFastPrimitivesCode
 from apache_beam.testing.test_stream import OutputFormat
 from apache_beam.testing.test_stream import ReverseTestStream
 from apache_beam.utils import timestamp
-
-# We don't have an explicit pathlib dependency because this code only works with
-# the interactive target installed which has an indirect dependency on pathlib
-# and pathlib2 through ipython>=5.9.0.
-try:
-  from pathlib import Path
-except ImportError:
-  from pathlib2 import Path  # python 2 backport
 
 _LOGGER = logging.getLogger(__name__)
 
