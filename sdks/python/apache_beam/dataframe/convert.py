@@ -108,14 +108,12 @@ def _make_unbatched_pcoll(
 
 
 def to_pcollection(
-    *dataframes,  # type: frame_base.DeferredFrame
+    *dataframes,  # type: Union[frame_base.DeferredFrame, pd.DataFrame, pd.Series]
     label=None,
     always_return_tuple=False,
     yield_elements='schemas',
     include_indexes=False,
-    pipeline=None):
-  # type: (...) -> Union[pvalue.PCollection, Tuple[pvalue.PCollection, ...]]
-
+    pipeline=None) -> Union[pvalue.PCollection, Tuple[pvalue.PCollection, ...]]:
   """Converts one or more deferred dataframe-like objects back to a PCollection.
 
   This method creates and applies the actual Beam operations that compute
@@ -124,6 +122,11 @@ def to_pcollection(
   element is one row from the output dataframes, excluding indexes. This
   behavior can be modified with the `yield_elements` and `include_indexes`
   arguments.
+
+  Also accepts non-deferred pandas dataframes, which are converted to deferred,
+  schema'd PCollections. In this case the contents of the entire dataframe are
+  serialized into the graph, so for large amounts of data it is preferable to
+  write them to disk and read them with one of the read methods.
 
   If more than one (related) result is desired, it can be more efficient to
   pass them all at the same time to this method.
