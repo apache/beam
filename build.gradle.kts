@@ -334,7 +334,9 @@ task("installVendoredGrpc") {
 
   doLast {
     val jenkinsMvn = "/home/jenkins/tools/maven/apache-maven-3.5.4/bin/mvn"
-    val executable = if (file(jenkinsMvn).canExecute()) jenkinsMvn else "mvn"
+    val executable = if (file(jenkinsMvn).canExecute()) jenkinsMvn else (
+      if (Os.isFamily(Os.FAMILY_WINDOWS)) "mvn.cmd" else "mvn"
+    )
     val jar = Paths.get("vendor","grpc-1_36_0","build","libs","beam-vendor-grpc-1_36_0-0.1.jar")
     project.exec {
       commandLine = listOf(
