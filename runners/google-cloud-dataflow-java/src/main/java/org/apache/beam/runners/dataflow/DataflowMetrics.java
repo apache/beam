@@ -243,22 +243,56 @@ class DataflowMetrics extends MetricResults {
     }
 
     /**
+     * Returns the user step name for a given internal step name.
+     *
+     * @param internalStepName internal step name used by Dataflow
+     * @return user step name used to identify the metric
+     */
+    private @Nullable String getUserStepName(String internalStepName) {
+      if (dataflowPipelineJob.getPipelineProto() != null
+          && dataflowPipelineJob
+              .getPipelineProto()
+              .getComponents()
+              .getTransformsMap()
+              .containsKey(internalStepName)) {
+        // Dataflow Runner v2 with portable job submission uses proto transform map
+        // IDs for step names. Hence we lookup user step names based on the proto.
+        return dataflowPipelineJob
+            .getPipelineProto()
+            .getComponents()
+            .getTransformsMap()
+            .get(internalStepName)
+            .getUniqueName();
+      } else {
+        if (dataflowPipelineJob.transformStepNames == null
+            || !dataflowPipelineJob.transformStepNames.inverse().containsKey(internalStepName)) {
+          // If we can't translate internal step names to user step names, we just skip them
+          // altogether.
+          return null;
+        }
+        return dataflowPipelineJob.transformStepNames.inverse().get(internalStepName).getFullName();
+      }
+    }
+
+    /**
      * Build an {@link MetricKey} that serves as a hash key for a metric update.
      *
      * @return a {@link MetricKey} that can be hashed and used to identify a metric.
      */
-    private MetricKey getMetricHashKey(MetricUpdate metricUpdate) {
-      String fullStepName = metricUpdate.getName().getContext().get("step");
-      if (dataflowPipelineJob.transformStepNames == null
-          || !dataflowPipelineJob.transformStepNames.inverse().containsKey(fullStepName)) {
+    private @Nullable MetricKey getMetricHashKey(MetricUpdate metricUpdate) {
+      String internalStepName = metricUpdate.getName().getContext().get("step");
+      String userStepName = getUserStepName(internalStepName);
+
+      if (userStepName == null
+          && (dataflowPipelineJob.transformStepNames == null
+              || !dataflowPipelineJob.transformStepNames.inverse().containsKey(internalStepName))) {
         // If we can't translate internal step names to user step names, we just skip them
         // altogether.
         return null;
       }
-      fullStepName =
-          dataflowPipelineJob.transformStepNames.inverse().get(fullStepName).getFullName();
+
       return MetricKey.create(
-          fullStepName,
+          userStepName,
           MetricName.named(
               metricUpdate.getName().getContext().get("namespace"),
               metricUpdate.getName().getName()));
