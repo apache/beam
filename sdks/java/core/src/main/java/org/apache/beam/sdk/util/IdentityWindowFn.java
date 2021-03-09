@@ -24,7 +24,6 @@ import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.IncompatibleWindowException;
 import org.apache.beam.sdk.transforms.windowing.NonMergingWindowFn;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
@@ -62,14 +61,16 @@ public class IdentityWindowFn<T> extends NonMergingWindowFn<T, BoundedWindow> {
   }
 
   @Override
-  public Collection<BoundedWindow> assignWindows(WindowFn<T, BoundedWindow>.AssignContext c)
-      throws Exception {
+  public Collection<BoundedWindow> assignWindows(WindowFn<T, BoundedWindow>.AssignContext c) {
     // The window is provided by the prior WindowFn, which also provides the coder for them
     return Collections.singleton(c.window());
   }
 
   @Override
   public boolean isCompatible(WindowFn<?, ?> other) {
+    // Only compatible with itself.
+    if (this.equals(other)) return true;
+
     throw new UnsupportedOperationException(
         String.format(
             "%s.isCompatible() should never be called."
@@ -79,7 +80,10 @@ public class IdentityWindowFn<T> extends NonMergingWindowFn<T, BoundedWindow> {
   }
 
   @Override
-  public void verifyCompatibility(WindowFn<?, ?> other) throws IncompatibleWindowException {
+  public void verifyCompatibility(WindowFn<?, ?> other) {
+    // Only compatible with itself.
+    if (this.equals(other)) return;
+
     throw new UnsupportedOperationException(
         String.format(
             "%s.verifyCompatibility() should never be called."
