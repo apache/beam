@@ -41,17 +41,18 @@ then
 fi
 echo ${RELEASE_BRANCH}
 RELEASE_COMMIT=$(git rev-parse --verify ${RELEASE_BRANCH})
-#
-#echo "================Checking Environment Variables=============="
-#echo "working on release version: ${RELEASE}"
-#echo "working on release branch: ${RELEASE_BRANCH}"
-#echo "will create release candidate: RC${RC_NUM}"
-#echo "Please review all environment variables and confirm: [y|N]"
-#read confirmation
-#if [[ $confirmation != "y" ]]; then
-#  echo "Please rerun this script and make sure you have the right inputs."
-#  exit
-#fi
+
+echo "================Checking Environment Variables=============="
+echo "working on release version: ${RELEASE}"
+echo "working on release branch: ${RELEASE_BRANCH}"
+echo "will create release candidate: RC${RC_NUM}"
+echo "Please review all environment variables and confirm: [y|N]"
+read confirmation
+if [[ $confirmation != "y" ]]; then
+  echo "Please rerun this script and make sure you have the right inputs."
+  exit
+fi
+
 #
 #echo "================Download python sources======================"
 #echo "===============Build python artifacts with rc tag============"
