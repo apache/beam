@@ -96,9 +96,7 @@ public class SqlOperators {
   public static final SqlOperator ARRAY_CONCAT_AGG_FN =
       createUdafOperator(
           "array_concat_agg",
-          x ->
-              createTypeFactory()
-                  .createArrayType(createTypeFactory().createSqlType(SqlTypeName.BIGINT), -1),
+          x -> createTypeFactory().createArrayType(x.getOperandType(0).getComponentType(), -1),
           new UdafImpl<>(new ArrayConcatAgg.ArrayAggArray()));
 
   public static final SqlOperator START_WITHS =
@@ -275,7 +273,7 @@ public class SqlOperators {
     };
   }
 
-  public static RelDataType createSqlType(SqlTypeName typeName, boolean withNullability) {
+  private static RelDataType createSqlType(SqlTypeName typeName, boolean withNullability) {
     final RelDataTypeFactory typeFactory = createTypeFactory();
     RelDataType type = typeFactory.createSqlType(typeName);
     if (withNullability) {
