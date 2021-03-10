@@ -20,6 +20,7 @@ import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
+  enableStrictDependencies: false,
   automaticModuleName: 'org.apache.beam.runners.dataflow',
   classesTriggerCheckerBugs: [
     'PrimitiveParDoSingleFactory': 'https://github.com/typetools/checker-framework/issues/3791',

@@ -18,6 +18,7 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
+    enableStrictDependencies: false,
     publish: false,
     archivesBaseName: 'beam-sdks-java-watermark-latency',
     exportJavadoc: false

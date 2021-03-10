@@ -21,7 +21,6 @@ import java.util.stream.Collectors
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-  enableStrictDependencies:true,
   automaticModuleName: 'org.apache.beam.sdk.io.hadoop.format',
 )
 provideIntegrationTestingDependencies()

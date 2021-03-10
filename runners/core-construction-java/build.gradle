@@ -18,7 +18,6 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-  enableStrictDependencies: true,
   classesTriggerCheckerBugs: [
     'WindowIntoTranslation': 'https://github.com/typetools/checker-framework/issues/3791',
     'FlattenTranslator': 'https://github.com/typetools/checker-framework/issues/3791',
