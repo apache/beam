@@ -206,6 +206,10 @@ public class PubsubSchemaIOProvider implements SchemaIOProvider {
       return dataSchema;
     }
 
+    private boolean needsSerializer() {
+      return useFlatSchema || !fieldPresent(schema(), PAYLOAD_FIELD, FieldType.BYTES);
+    }
+
     @Override
     public PTransform<PBegin, PCollection<Row>> buildReader() {
       return new PTransform<PBegin, PCollection<Row>>() {
@@ -216,7 +220,7 @@ public class PubsubSchemaIOProvider implements SchemaIOProvider {
                   .messageSchema(dataSchema)
                   .useDlq(config.useDeadLetterQueue())
                   .useFlatSchema(useFlatSchema);
-          if (useFlatSchema || !fieldPresent(schema(), PAYLOAD_FIELD, FieldType.BYTES)) {
+          if (needsSerializer()) {
             builder.serializerProvider(config::serializer);
           }
           PCollectionTuple rowsWithDlq =
@@ -236,7 +240,9 @@ public class PubsubSchemaIOProvider implements SchemaIOProvider {
 
     @Override
     public PTransform<PCollection<Row>, POutput> buildWriter() {
-      PayloadSerializer serializer = config.serializer(stripFromTimestampField(dataSchema));
+      @Nullable
+      PayloadSerializer serializer =
+          needsSerializer() ? config.serializer(stripFromTimestampField(dataSchema)) : null;
 
       return new PTransform<PCollection<Row>, POutput>() {
         @Override
