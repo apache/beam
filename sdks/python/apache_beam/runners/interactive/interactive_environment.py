@@ -171,7 +171,6 @@ class InteractiveEnvironment(object):
     self._computed_pcolls = set()
     # Always watch __main__ module.
     self.watch('__main__')
-    self._is_py_version_ready = True
     # Check if [interactive] dependencies are installed.
     try:
       import IPython  # pylint: disable=unused-import
@@ -215,11 +214,6 @@ class InteractiveEnvironment(object):
     """
     from apache_beam.runners.interactive.interactive_beam import options
     return options
-
-  @property
-  def is_py_version_ready(self):
-    """If Python version is above the minimum requirement."""
-    return self._is_py_version_ready
 
   @property
   def is_interactive_ready(self):
