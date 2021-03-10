@@ -520,17 +520,6 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
 
     self.assertFalse(debug_options.lookup_experiment('use_fastavro', False))
 
-  def test_unsupported_fnapi_features(self):
-    remote_runner = DataflowRunner()
-    self.default_properties.append('--experiment=beam_fn_api')
-    self.default_properties.append('--experiment=use_runner_v2')
-
-    with self.assertRaisesRegex(RuntimeError, 'Unsupported window coder'):
-      with Pipeline(remote_runner,
-                    options=PipelineOptions(self.default_properties)) as p:
-        # pylint: disable=expression-not-assigned
-        p | beam.Create([]) | beam.WindowInto(CustomWindowTypeWindowFn())
-
   @mock.patch('os.environ.get', return_value=None)
   @mock.patch('apache_beam.utils.processes.check_output', return_value=b'')
   def test_get_default_gcp_region_no_default_returns_none(
