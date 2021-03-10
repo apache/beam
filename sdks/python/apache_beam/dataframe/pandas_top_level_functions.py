@@ -115,7 +115,7 @@ class DeferredPandasModule(object):
     elif verify_integrity:
       required_partitioning = partitionings.Index()
     else:
-      required_partitioning = partitionings.Nothing()
+      required_partitioning = partitionings.Arbitrary()
 
     return frame_base.DeferredBase.wrap(
         expressions.ComputedExpression(

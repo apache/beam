@@ -171,7 +171,7 @@ class _DataframeExpressionsTransform(transforms.PTransform):
         if len(tabular_inputs) == 0:
           partitioned_pcoll = next(pcolls.values()).pipeline | beam.Create([{}])
 
-        elif self.stage.partitioning != partitionings.Nothing():
+        elif self.stage.partitioning != partitionings.Arbitrary():
           # Partitioning required for these operations.
           # Compute the number of partitions to use for the inputs based on
           # the estimated size of the inputs.
@@ -255,7 +255,7 @@ class _DataframeExpressionsTransform(transforms.PTransform):
       """
       def __init__(self, inputs, partitioning):
         self.inputs = set(inputs)
-        if len(self.inputs) > 1 and partitioning == partitionings.Nothing():
+        if len(self.inputs) > 1 and partitioning == partitionings.Arbitrary():
           # We have to shuffle to co-locate, might as well partition.
           self.partitioning = partitionings.Index()
         else:
@@ -400,7 +400,7 @@ class _DataframeExpressionsTransform(transforms.PTransform):
         expr_stage = expr_to_stage(expr)
         # If the stage doesn't start with a shuffle, it's not safe to fuse
         # the computation into its parent either.
-        has_shuffle = expr_stage.partitioning != partitionings.Nothing()
+        has_shuffle = expr_stage.partitioning != partitionings.Arbitrary()
         # We assume the size of an expression is the sum of the size of its
         # inputs, which may be off by quite a bit, but the goal is to get
         # within an order of magnitude or two.

@@ -56,7 +56,7 @@ class DeferredBase(object):
             'get_%d' % ix,
             lambda t: t[ix],
             [expr],
-            requires_partition_by=partitionings.Nothing(),
+            requires_partition_by=partitionings.Arbitrary(),
             preserves_partition_by=partitionings.Singleton())
 
       return tuple([cls.wrap(get(ix)) for ix in range(len(expr.proxy()))])
@@ -137,7 +137,7 @@ def _elementwise_method(func, name=None, restrictions=None, inplace=False):
       name,
       restrictions,
       inplace,
-      requires_partition_by=partitionings.Nothing(),
+      requires_partition_by=partitionings.Arbitrary(),
       preserves_partition_by=partitionings.Singleton())
 
 
@@ -147,7 +147,7 @@ def _proxy_method(
     restrictions=None,
     inplace=False,
     requires_partition_by=partitionings.Singleton(),
-    preserves_partition_by=partitionings.Nothing()):
+    preserves_partition_by=partitionings.Arbitrary()):
   if name is None:
     name, func = name_and_func(func)
   if restrictions is None:
@@ -167,7 +167,7 @@ def _elementwise_function(func, name=None, restrictions=None, inplace=False):
       name,
       restrictions,
       inplace,
-      requires_partition_by=partitionings.Nothing(),
+      requires_partition_by=partitionings.Arbitrary(),
       preserves_partition_by=partitionings.Singleton())
 
 
@@ -177,7 +177,7 @@ def _proxy_function(
       restrictions=None,  # type: Optional[Dict[str, Union[Any, List[Any], Callable[[Any], bool]]]]
       inplace=False,  # type: bool
       requires_partition_by=partitionings.Singleton(),  # type: partitionings.Partitioning
-      preserves_partition_by=partitionings.Nothing(),  # type: partitionings.Partitioning
+      preserves_partition_by=partitionings.Arbitrary(),  # type: partitionings.Partitioning
 ):
 
   if name is None:
@@ -230,7 +230,7 @@ def _proxy_function(
                 lambda ix: ix.index.to_series(),  # yapf break
                 [arg._frame._expr],
                 preserves_partition_by=partitionings.Singleton(),
-                requires_partition_by=partitionings.Nothing()))
+                requires_partition_by=partitionings.Arbitrary()))
       elif isinstance(arg, pd.core.generic.NDFrame):
         deferred_arg_indices.append(ix)
         deferred_arg_exprs.append(expressions.ConstantExpression(arg, arg[0:0]))
