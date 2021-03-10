@@ -131,7 +131,7 @@ class DeferredPandasModule(object):
                 verify_integrity=verify_integrity),  # yapf break
             exprs,
             requires_partition_by=required_partitioning,
-            preserves_partition_by=partitionings.Index()))
+            preserves_partition_by=partitionings.Arbitrary()))
 
   date_range = _defer_to_pandas('date_range')
   describe_option = _defer_to_pandas('describe_option')
