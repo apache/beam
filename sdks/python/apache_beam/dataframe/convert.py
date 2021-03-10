@@ -24,6 +24,9 @@ from typing import Dict
 from typing import Tuple
 from typing import Union
 
+import pandas as pd
+
+import apache_beam as beam
 from apache_beam import pvalue
 from apache_beam.dataframe import expressions
 from apache_beam.dataframe import frame_base
@@ -33,13 +36,12 @@ from apache_beam.dataframe import transforms
 if TYPE_CHECKING:
   # pylint: disable=ungrouped-imports
   from typing import Optional
-  import pandas
 
 
 # TODO: Or should this be called as_dataframe?
 def to_dataframe(
     pcoll,  # type: pvalue.PCollection
-    proxy=None,  # type: Optional[pandas.core.generic.NDFrame]
+    proxy=None,  # type: Optional[pd.core.generic.NDFrame]
     label=None,  # type: Optional[str]
 ):
   # type: (...) -> frame_base.DeferredFrame
@@ -106,10 +108,12 @@ def _make_unbatched_pcoll(
 
 
 def to_pcollection(
-    *dataframes,  # type: frame_base.DeferredFrame
-    **kwargs):
-  # type: (...) -> Union[pvalue.PCollection, Tuple[pvalue.PCollection, ...]]
-
+    *dataframes,  # type: Union[frame_base.DeferredFrame, pd.DataFrame, pd.Series]
+    label=None,
+    always_return_tuple=False,
+    yield_elements='schemas',
+    include_indexes=False,
+    pipeline=None) -> Union[pvalue.PCollection, Tuple[pvalue.PCollection, ...]]:
   """Converts one or more deferred dataframe-like objects back to a PCollection.
 
   This method creates and applies the actual Beam operations that compute
@@ -119,10 +123,17 @@ def to_pcollection(
   behavior can be modified with the `yield_elements` and `include_indexes`
   arguments.
 
+  Also accepts non-deferred pandas dataframes, which are converted to deferred,
+  schema'd PCollections. In this case the contents of the entire dataframe are
+  serialized into the graph, so for large amounts of data it is preferable to
+  write them to disk and read them with one of the read methods.
+
   If more than one (related) result is desired, it can be more efficient to
   pass them all at the same time to this method.
 
   Args:
+    label: (optional, default "ToPCollection(...)"") the label to use for the
+        conversion transform.
     always_return_tuple: (optional, default: False) If true, always return
         a tuple of PCollections, even if there's only one output.
     yield_elements: (optional, default: "schemas") If set to "pandas", return
@@ -136,20 +147,36 @@ def to_pcollection(
         schema for expanded DataFrames. Raises an error if any of the index
         levels are unnamed (name=None), or if any of the names are not unique
         among all column and index names.
+    pipeline: (optional, unless non-deferred dataframes are passed) Used when
+        creating a PCollection from a non-deferred dataframe.
   """
-  label = kwargs.pop('label', None)
-  always_return_tuple = kwargs.pop('always_return_tuple', False)
-  yield_elements = kwargs.pop('yield_elements', 'schemas')
   if not yield_elements in ("pandas", "schemas"):
     raise ValueError(
         "Invalid value for yield_elements argument, '%s'. "
         "Allowed values are 'pandas' and 'schemas'" % yield_elements)
-  include_indexes = kwargs.pop('include_indexes', False)
-  assert not kwargs  # TODO(BEAM-7372): Use PEP 3102
   if label is None:
     # Attempt to come up with a reasonable, stable label by retrieving the name
     # of these variables in the calling context.
     label = 'ToPCollection(%s)' % ', '.join(_var_name(e, 3) for e in dataframes)
+
+  # Support for non-deferred dataframes.
+  deferred_dataframes = []
+  for ix, df in enumerate(dataframes):
+    if isinstance(df, frame_base.DeferredBase):
+      # TODO(robertwb): Maybe extract pipeline object?
+      deferred_dataframes.append(df)
+    elif isinstance(df, (pd.Series, pd.DataFrame)):
+      if pipeline is None:
+        raise ValueError(
+            'Pipeline keyword required for non-deferred dataframe conversion.')
+      deferred = pipeline | '%s_Defer%s' % (label, ix) >> beam.Create([df])
+      deferred_dataframes.append(
+          frame_base.DeferredFrame.wrap(
+              expressions.PlaceholderExpression(df.iloc[:0], deferred)))
+    else:
+      raise TypeError(
+          'Unable to convert objects of type %s to a PCollection' % type(df))
+  dataframes = tuple(deferred_dataframes)
 
   def extract_input(placeholder):
     if not isinstance(placeholder._reference, pvalue.PCollection):
