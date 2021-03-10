@@ -321,6 +321,7 @@ ITERABLE_LIKE_TYPE = 10
 
 PROTO_TYPE = 100
 DATACLASS_TYPE = 101
+NAMED_TUPLE_TYPE = 102
 
 # Types that can be encoded as iterables, but are not literally
 # lists, etc. due to being lazy.  The actual type is not preserved
@@ -335,6 +336,7 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
     self.fallback_coder_impl = fallback_coder_impl
     self.iterable_coder_impl = IterableCoderImpl(self)
     self.requires_deterministic = requires_deterministic
+    self.decoded_types = {}
 
   @staticmethod
   def register_iterable_like_type(t):
@@ -396,7 +398,7 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
     # All deterministic encodings should be above this clause,
     # all non-deterministic ones below.
     elif self.requires_deterministic is not None:
-      self._encode_special_deterministic(value, stream)
+      self.encode_special_deterministic(value, stream)
     elif t is dict:
       dict_value = value  # for typing
       stream.write_byte(DICT_TYPE)
@@ -413,10 +415,10 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       stream.write_byte(UNKNOWN_TYPE)
       self.fallback_coder_impl.encode_to_stream(value, stream, nested)
 
-  def _encode_special_deterministic(self, value, stream):
+  def encode_special_deterministic(self, value, stream):
     if isinstance(value, Message):
       stream.write_byte(PROTO_TYPE)
-      stream.write(dill.dumps(type(value)), True)
+      self.encode_type(type(value), stream)
       stream.write(value.SerializePartialToString(deterministic=True), True)
     elif dataclasses and dataclasses.is_dataclass(value):
       stream.write_byte(DATACLASS_TYPE)
@@ -425,16 +427,30 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
             "Unable to deterministically encode non-frozen '%s' of type '%s' "
             "for the input of '%s'" %
             (value, type(value), self.requires_deterministic))
-      stream.write(dill.dumps(type(value)), True)
+      self.encode_type(type(value), stream)
       self.iterable_coder_impl.encode_to_stream(
           (getattr(value, field.name) for field in dataclasses.fields(value)),
           stream,
           True)
+    elif isinstance(value, tuple) and type(value).__base__ is tuple and hasattr(
+        type(value), '_fields'):
+      stream.write_byte(NAMED_TUPLE_TYPE)
+      self.encode_type(type(value), stream)
+      self.iterable_coder_impl.encode_to_stream(value, stream, True)
     else:
       raise TypeError(
           "Unable to deterministically encode '%s' of type '%s', "
           "please provide a type hint for the input of '%s'" %
           (value, type(value), self.requires_deterministic))
+
+  def encode_type(self, t, stream):
+    stream.write(dill.dumps(t), True)
+
+  def decode_type(self, stream):
+    bs = stream.read_all(True)
+    if bs not in self.decoded_types:
+      self.decoded_types[bs] = dill.loads(bs)
+    return self.decoded_types[bs]
 
   def decode_from_stream(self, stream, nested):
     # type: (create_InputStream, bool) -> Any
@@ -469,12 +485,12 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
     elif t == ITERABLE_LIKE_TYPE:
       return self.iterable_coder_impl.decode_from_stream(stream, nested)
     elif t == PROTO_TYPE:
-      cls = dill.loads(stream.read_all(True))
+      cls = self.decode_type(stream)
       msg = cls()
       msg.ParseFromString(stream.read_all(True))
       return msg
-    elif t == DATACLASS_TYPE:
-      cls = dill.loads(stream.read_all(True))
+    elif t == DATACLASS_TYPE or t == NAMED_TUPLE_TYPE:
+      cls = self.decode_type(stream)
       return cls(*self.iterable_coder_impl.decode_from_stream(stream, True))
     elif t == UNKNOWN_TYPE:
       return self.fallback_coder_impl.decode_from_stream(stream, nested)
