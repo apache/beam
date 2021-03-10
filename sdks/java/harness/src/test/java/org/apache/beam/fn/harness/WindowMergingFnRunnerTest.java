@@ -105,6 +105,28 @@ public class WindowMergingFnRunnerTest {
         Iterables.getOnlyElement(output.getValue().getValue());
     assertEquals(new IntervalWindow(new Instant(7L), new Instant(11L)), mergedOutput.getKey());
     assertThat(mergedOutput.getValue(), containsInAnyOrder(expectedToBeMerged));
+
+    // Process a new group of windows, make sure that previous result has been cleaned up.
+    BoundedWindow[] expectedToBeMergedGroup2 =
+        new BoundedWindow[] {
+          new IntervalWindow(new Instant(15L), new Instant(17L)),
+          new IntervalWindow(new Instant(16L), new Instant(18L))
+        };
+
+    input =
+        KV.of(
+            "abc",
+            ImmutableList.<BoundedWindow>builder()
+                .add(expectedToBeMergedGroup2)
+                .addAll(expectedToBeUnmerged)
+                .build());
+
+    output = mapFunction.apply(input);
+    assertEquals(input.getKey(), output.getKey());
+    assertEquals(expectedToBeUnmerged, output.getValue().getKey());
+    mergedOutput = Iterables.getOnlyElement(output.getValue().getValue());
+    assertEquals(new IntervalWindow(new Instant(15L), new Instant(18L)), mergedOutput.getKey());
+    assertThat(mergedOutput.getValue(), containsInAnyOrder(expectedToBeMergedGroup2));
   }
 
   private static <W extends BoundedWindow> RunnerApi.PTransform createMergeTransformForWindowFn(
