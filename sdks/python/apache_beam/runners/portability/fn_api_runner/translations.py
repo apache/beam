@@ -1060,7 +1060,7 @@ def pack_combiners(stages, context, can_pack=None):
     can_pack_names = {}  # type: Dict[str, bool]
     parents = context.parents_map()
 
-    def can_pack_fn(name : str) -> bool:
+    def can_pack_fn(name: str) -> bool:
       if name in can_pack_names:
         return can_pack_names[name]
       else:
