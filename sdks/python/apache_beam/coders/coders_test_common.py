@@ -19,16 +19,12 @@
 # pytype: skip-file
 
 import logging
+import collections
 import math
 import unittest
 from builtins import range
 from typing import Any
 from typing import List
-
-try:
-  import dataclasses
-except ImportError:
-  dataclasses = None
 
 import pytest
 
@@ -48,6 +44,13 @@ from apache_beam.utils.sharded_key import ShardedKey
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 
 from . import observable
+
+try:
+  import dataclasses
+except ImportError:
+  dataclasses = None
+
+MyNamedTuple = collections.namedtuple('A', ['x', 'y'])
 
 
 # Defined out of line for picklability.
@@ -197,13 +200,17 @@ class CodersTest(unittest.TestCase):
     self.check_coder(deterministic_coder, test_message.MessageA(field1='value'))
 
     if dataclasses is not None:
-      self.check_coder(deterministic_coder, FrozenDataClass(1, 2))
+      self.check_coder(
+          deterministic_coder, [FrozenDataClass(1, 2), MyNamedTuple(1, 2)])
 
       with self.assertRaises(TypeError):
         self.check_coder(deterministic_coder, UnFrozenDataClass(1, 2))
       with self.assertRaises(TypeError):
         self.check_coder(
             deterministic_coder, FrozenDataClass(UnFrozenDataClass(1, 2), 3))
+      with self.assertRaises(TypeError):
+        self.check_coder(
+            deterministic_coder, MyNamedTuple(UnFrozenDataClass(1, 2), 3))
 
   def test_dill_coder(self):
     cell_value = (lambda x: lambda: x)(0).__closure__[0]
