@@ -351,6 +351,9 @@ class Environment(object):
       for option in self.google_cloud_options.service_options:
         self.proto.serviceOptions.append(option)
 
+    if self.google_cloud_options.enable_hot_key_logging:
+      self.proto.debugOptions.enable_hot_key_logging = True
+
   def _get_environments_from_tranforms(self):
     if not self._proto_pipeline:
       return []
