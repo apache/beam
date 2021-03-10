@@ -1092,7 +1092,15 @@ $ wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre>&lt;code>This runner is not yet available for the Go SDK.&lt;/code>&lt;/pre>
+&lt;pre>&lt;code># Build and run the Spark job server from Beam source.
+# -PsparkMasterUrl is optional. If it is unset the job will be run inside an embedded Spark cluster.
+$ ./gradlew :runners:spark:job-server:runShadow -PsparkMasterUrl=spark://localhost:7077
+# In a separate terminal, run:
+$ go install github.com/apache/beam/sdks/go/examples/wordcount
+$ wordcount --input &amp;lt;PATH_TO_INPUT_FILE&amp;gt; \
+--output counts \
+--runner spark \
+--endpoint localhost:8099&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
 &lt;h2 id="next-steps">Next Steps&lt;/h2>
