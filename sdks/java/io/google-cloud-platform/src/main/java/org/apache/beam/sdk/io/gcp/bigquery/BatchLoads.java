@@ -116,6 +116,10 @@ class BatchLoads<DestinationT, ElementT>
   // written.
   static final int FILE_TRIGGERING_RECORD_COUNT = 500000;
 
+  // If using auto-sharding for unbounded data, we batch the records before triggering file write
+  // to avoid generating too many small files.
+  static final Duration FILE_TRIGGERING_BATCHING_DURATION = Duration.standardSeconds(1);
+
   // The maximum number of retries to poll the status of a job.
   // It sets to {@code Integer.MAX_VALUE} to block until the BigQuery job finishes.
   static final int LOAD_JOB_POLL_MAX_RETRIES = Integer.MAX_VALUE;
@@ -294,9 +298,9 @@ class BatchLoads<DestinationT, ElementT>
                   .discardingFiredPanes());
       results = writeStaticallyShardedFiles(inputInGlobalWindow, tempFilePrefixView);
     } else {
-      // In the case of dynamic sharding, however, we use a default triggering and instead apply the
-      // user supplied triggeringFrequency to the sharding transform. See
-      // writeDynamicallyShardedFilesTriggered.
+      // In the case of dynamic sharding, however, we use a default trigger since the transform
+      // performs sharding also batches elements to avoid generating too many tiny files. User
+      // trigger is applied right after writes to limit the number of load jobs.
       PCollection<KV<DestinationT, ElementT>> inputInGlobalWindow =
           input.apply(
               "rewindowIntoGlobal",
@@ -569,15 +573,15 @@ class BatchLoads<DestinationT, ElementT>
   // of filename, file byte size, and table destination.
   PCollection<WriteBundlesToFiles.Result<DestinationT>> writeDynamicallyShardedFilesTriggered(
       PCollection<KV<DestinationT, ElementT>> input, PCollectionView<String> tempFilePrefix) {
-    // In contrast to fixed sharding with triggering, here we use a global window with default
-    // trigger and apply the user supplied triggeringFrequency in the subsequent GroupIntoBatches
-    // transform. We also ensure that the files are written if a threshold number of records are
-    // ready. Dynamic sharding is achieved via the withShardedKey() option provided by
+    // In contrast to fixed sharding with user trigger, here we use a global window with default
+    // trigger and rely on GroupIntoBatches transform to group, batch and at the same time
+    // parallelize properly. We also ensure that the files are written if a threshold number of
+    // records are ready. Dynamic sharding is achieved via the withShardedKey() option provided by
     // GroupIntoBatches.
     return input
         .apply(
             GroupIntoBatches.<DestinationT, ElementT>ofSize(FILE_TRIGGERING_RECORD_COUNT)
-                .withMaxBufferingDuration(triggeringFrequency)
+                .withMaxBufferingDuration(FILE_TRIGGERING_BATCHING_DURATION)
                 .withShardedKey())
         .setCoder(
             KvCoder.of(
