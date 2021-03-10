@@ -19,6 +19,7 @@ import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
+        enableStrictDependencies: false,
         automaticModuleName: 'org.apache.beam.sdk.io.debezium',
         mavenRepositories: [
                 [id: 'io.confluent', url: 'https://packages.confluent.io/maven/']

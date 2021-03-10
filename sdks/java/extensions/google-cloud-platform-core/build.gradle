@@ -20,7 +20,6 @@ import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-  enableStrictDependencies: true,
   automaticModuleName: 'org.apache.beam.sdk.extensions.gcp')
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: Google Cloud Platform Core"
