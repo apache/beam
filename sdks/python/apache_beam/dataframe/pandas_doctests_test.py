@@ -391,6 +391,9 @@ class DoctestTest(unittest.TestCase):
             f'{module_name}.StringMethods.replace': [
                 "pd.Series(['foo', 'fuz', np.nan]).str.replace('f', repr)"
             ],
+
+            # output has incorrect formatting in 1.2.x
+            f'{module_name}.StringMethods.extractall': ['*']
         })
     self.assertEqual(result.failed, 0)
 
