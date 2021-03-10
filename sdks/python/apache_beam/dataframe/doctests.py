@@ -193,7 +193,7 @@ class _DeferrredDataframeOutputChecker(doctest.OutputChecker):
   def compute_using_session(self, to_compute):
     session = expressions.PartitioningSession(self._env._inputs)
     return {
-        name: frame._expr.evaluate_at(session)
+        name: session.evaluate(frame._expr)
         for name,
         frame in to_compute.items()
     }
@@ -237,6 +237,50 @@ class _DeferrredDataframeOutputChecker(doctest.OutputChecker):
         computed = self.compute(to_compute)
         for name, frame in computed.items():
           got = got.replace(name, repr(frame))
+
+        # If a multiindex is used, compensate for it
+        if any(isinstance(frame, pd.core.generic.NDFrame) and
+               frame.index.nlevels > 1 for frame in computed.values()):
+
+          def fill_multiindex(text):
+            """An awful hack to work around the fact that pandas omits repeated
+            elements in a multi-index.
+            For example:
+
+              Series name  Row ID
+              s1           0         a
+                           1         b
+              s2           0         c
+                           1         d
+              dtype: object
+
+            The s1 and s2 are implied for the 2nd and 4th rows. However if we
+            re-order this Series it might be printed this way:
+
+              Series name  Row ID
+              s1           0         a
+              s2           1         d
+              s2           0         c
+              s1           1         b
+              dtype: object
+
+            In our model these are equivalent, but when we sort the lines and
+            check equality they are not. This method fills in any omitted
+            multiindex values, so that we can successfully sort and compare."""
+            lines = [list(line) for line in text.split('\n')]
+            for prev, line in zip(lines[:-1], lines[1:]):
+              if all(l == ' ' for l in line):
+                continue
+
+              for i, l in enumerate(line):
+                if l != ' ':
+                  break
+                line[i] = prev[i]
+
+            return '\n'.join(''.join(line) for line in lines)
+
+          got = fill_multiindex(got)
+          want = fill_multiindex(want)
 
         def sort_and_normalize(text):
           return '\n'.join(
