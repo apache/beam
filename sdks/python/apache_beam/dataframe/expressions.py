@@ -177,15 +177,15 @@ class Expression(object):
   For example, let's look at an "element-wise operation", that has no
   partitioning requirement, and preserves any partitioning given to it::
 
-    requires_partition_by = Arbitrary() -------------------------------+
+    requires_partition_by = Arbitrary() -----------------------------+
                                                                      |
              +-----------+-------------+---------- ... ----+---------|
              |           |             |                   |         |
         Singleton() < Index([i]) < Index([i, j]) < ... < Index() < Arbitrary()
-             |           |             |                   |
-             +-----------+-------------+---------- ... ----|
-                                                           |
-    preserves_partition_by = Index() ----------------------+
+             |           |             |                   |         |
+             +-----------+-------------+---------- ... ----+---------|
+                                                                     |
+    preserves_partition_by = Arbitrary() ----------------------------+
 
   As a more interesting example, consider this expression, which requires Index
   partitioning, and preserves just Singleton partitioning::
@@ -319,7 +319,7 @@ class ConstantExpression(Expression):
     return partitionings.Arbitrary()
 
   def preserves_partition_by(self):
-    return partitionings.Index()
+    return partitionings.Arbitrary()
 
 
 class ComputedExpression(Expression):
@@ -350,11 +350,6 @@ class ComputedExpression(Expression):
       requires_partition_by: The required (common) partitioning of the args.
       preserves_partition_by: The level of partitioning preserved.
     """
-    assert preserves_partition_by != partitionings.Arbitrary(), (
-        "Preserving Arbitrary() partitioning is not allowed. Any expression "
-        "can trivially preserve at least Singleton() partitioning. If you "
-        "intend to indicate this expression can preserve _any_ partioning, use "
-        "Index() instead.")
     if (not _get_allow_non_parallel() and
         requires_partition_by == partitionings.Singleton()):
       raise NonParallelOperation(
@@ -392,7 +387,7 @@ def elementwise_expression(name, func, args):
       func,
       args,
       requires_partition_by=partitionings.Arbitrary(),
-      preserves_partition_by=partitionings.Index())
+      preserves_partition_by=partitionings.Arbitrary())
 
 
 _ALLOW_NON_PARALLEL = threading.local()
