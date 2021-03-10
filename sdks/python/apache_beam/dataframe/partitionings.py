@@ -69,7 +69,7 @@ class Index(Partitioning):
 
   These form a partial order, given by
 
-      Singleton() < Index([i]) < Index([i, j]) < ... < Index() < Nothing()
+      Singleton() < Index([i]) < Index([i, j]) < ... < Index() < Arbitrary()
 
   The ordering is implemented via the is_subpartitioning_of method, where the
   examples on the right are subpartitionings of the examples on the left above.
@@ -105,7 +105,7 @@ class Index(Partitioning):
         return False
       else:
         return all(level in self._levels for level in other._levels)
-    elif isinstance(other, Nothing):
+    elif isinstance(other, Arbitrary):
       return False
     else:
       raise ValueError(f"Encountered unknown type {other!r}")
@@ -170,7 +170,7 @@ class Singleton(Partitioning):
     return len(dfs) <= 1
 
 
-class Nothing(Partitioning):
+class Arbitrary(Partitioning):
   """A partitioning imposing no constraints on the actual partitioning.
   """
   def __eq__(self, other):

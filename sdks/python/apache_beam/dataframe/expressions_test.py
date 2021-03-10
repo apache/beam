@@ -77,7 +77,7 @@ class ExpressionTest(unittest.TestCase):
 
     for partitioning in (partitionings.Index([0]),
                          partitionings.Index(),
-                         partitionings.Nothing()):
+                         partitionings.Arbitrary()):
       self.assertEqual(
           expressions.output_partitioning(
               preserves_only_singleton, partitioning),
@@ -112,7 +112,7 @@ class ExpressionTest(unittest.TestCase):
 
     for partitioning in (partitionings.Index([0, 1, 2]),
                          partitionings.Index(),
-                         partitionings.Nothing()):
+                         partitionings.Arbitrary()):
       self.assertEqual(
           expressions.output_partitioning(
               preserves_partial_index, partitioning),

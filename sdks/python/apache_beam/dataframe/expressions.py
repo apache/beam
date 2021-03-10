@@ -119,7 +119,7 @@ class PartitioningSession(Session):
         # challenging partitioning. Avoids heisenbugs where sometimes the result
         # is computed trivially with Singleton partitioning and passes.
         for input_partitioning in sorted(set([expr.requires_partition_by(),
-                                              partitionings.Nothing(),
+                                              partitionings.Arbitrary(),
                                               partitionings.Index(),
                                               partitionings.Singleton()])):
           if not expr.requires_partition_by().is_subpartitioning_of(
@@ -149,7 +149,7 @@ def output_partitioning(expr, input_partitioning):
   if expr.preserves_partition_by().is_subpartitioning_of(input_partitioning):
     return min(input_partitioning, expr.preserves_partition_by())
   else:
-    return partitionings.Nothing()
+    return partitionings.Arbitrary()
 
 
 class Expression(object):
@@ -172,16 +172,16 @@ class Expression(object):
 
   However, if the partitioning of an expression's input is a subpartitioning of
   the partitioning that it preserves, the output is presumed to have no
-  particular partitioning (i.e. Nothing()).
+  particular partitioning (i.e. Arbitrary()).
 
   For example, let's look at an "element-wise operation", that has no
   partitioning requirement, and preserves any partitioning given to it::
 
-    requires_partition_by = Nothing() -------------------------------+
+    requires_partition_by = Arbitrary() -------------------------------+
                                                                      |
              +-----------+-------------+---------- ... ----+---------|
              |           |             |                   |         |
-        Singleton() < Index([i]) < Index([i, j]) < ... < Index() < Nothing()
+        Singleton() < Index([i]) < Index([i, j]) < ... < Index() < Arbitrary()
              |           |             |                   |
              +-----------+-------------+---------- ... ----|
                                                            |
@@ -194,12 +194,12 @@ class Expression(object):
                                                            |
              +-----------+-------------+---------- ... ----|
              |           |             |                   |
-        Singleton() < Index([i]) < Index([i, j]) < ... < Index() < Nothing()
+        Singleton() < Index([i]) < Index([i, j]) < ... < Index() < Arbitrary()
              |
              |
     preserves_partition_by = Singleton()
 
-  Note that any non-Nothing partitioning is an acceptable input for this
+  Note that any non-Arbitrary partitioning is an acceptable input for this
   expression. However, unless the inputs are Singleton-partitioned, the
   expression makes no guarantees about the partitioning of the output.
   """
@@ -240,7 +240,7 @@ class Expression(object):
   def requires_partition_by(self):  # type: () -> partitionings.Partitioning
     """Returns the partitioning, if any, require to evaluate this expression.
 
-    Returns partitioning.Nothing() to require no partitioning is required.
+    Returns partitioning.Arbitrary() to require no partitioning is required.
     """
     raise NotImplementedError(type(self))
 
@@ -280,7 +280,7 @@ class PlaceholderExpression(Expression):
     return session.lookup(self)
 
   def requires_partition_by(self):
-    return partitionings.Nothing()
+    return partitionings.Arbitrary()
 
   def preserves_partition_by(self):
     return partitionings.Index()
@@ -316,7 +316,7 @@ class ConstantExpression(Expression):
     return self._value
 
   def requires_partition_by(self):
-    return partitionings.Nothing()
+    return partitionings.Arbitrary()
 
   def preserves_partition_by(self):
     return partitionings.Index()
@@ -350,8 +350,8 @@ class ComputedExpression(Expression):
       requires_partition_by: The required (common) partitioning of the args.
       preserves_partition_by: The level of partitioning preserved.
     """
-    assert preserves_partition_by != partitionings.Nothing(), (
-        "Preserving Nothing() partitioning is not allowed. Any expression "
+    assert preserves_partition_by != partitionings.Arbitrary(), (
+        "Preserving Arbitrary() partitioning is not allowed. Any expression "
         "can trivially preserve at least Singleton() partitioning. If you "
         "intend to indicate this expression can preserve _any_ partioning, use "
         "Index() instead.")
@@ -391,7 +391,7 @@ def elementwise_expression(name, func, args):
       name,
       func,
       args,
-      requires_partition_by=partitionings.Nothing(),
+      requires_partition_by=partitionings.Arbitrary(),
       preserves_partition_by=partitionings.Index())
 
 
