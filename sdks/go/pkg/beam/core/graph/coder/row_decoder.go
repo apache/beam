@@ -322,14 +322,14 @@ func (b *RowDecoderBuilder) decoderForSingleTypeReflect(t reflect.Type) (func(re
 }
 
 func (b *RowDecoderBuilder) containerDecoderForType(t reflect.Type) (func(reflect.Value, io.Reader) error, error) {
+	dec, err := b.decoderForSingleTypeReflect(t)
+	if err != nil {
+		return nil, err
+	}
 	if t.Kind() == reflect.Ptr {
-		dec, err := b.decoderForSingleTypeReflect(t.Elem())
-		if err != nil {
-			return nil, err
-		}
 		return containerNilDecoder(dec), nil
 	}
-	return b.decoderForSingleTypeReflect(t)
+	return dec, nil
 }
 
 type typeDecoderReflect struct {

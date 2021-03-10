@@ -234,14 +234,14 @@ func (b *RowEncoderBuilder) encoderForSingleTypeReflect(t reflect.Type) (func(re
 }
 
 func (b *RowEncoderBuilder) containerEncoderForType(t reflect.Type) (func(reflect.Value, io.Writer) error, error) {
+	encf, err := b.encoderForSingleTypeReflect(t)
+	if err != nil {
+		return nil, err
+	}
 	if t.Kind() == reflect.Ptr {
-		encf, err := b.encoderForSingleTypeReflect(t.Elem())
-		if err != nil {
-			return nil, err
-		}
 		return containerNilEncoder(encf), nil
 	}
-	return b.encoderForSingleTypeReflect(t)
+	return encf, nil
 }
 
 type typeEncoderReflect struct {
