@@ -817,8 +817,8 @@ public class PubsubIO {
           getSubscriptionProvider() == null
               ? null
               : NestedValueProvider.of(getSubscriptionProvider(), new SubscriptionPathTranslator());
-      PubsubUnboundedSource source =
-          new PubsubUnboundedSource(
+      ReadPubsubPojos source =
+          new ReadPubsubPojos(
               getClock(),
               getPubsubClientFactory(),
               null /* always get project from runtime PipelineOptions */,

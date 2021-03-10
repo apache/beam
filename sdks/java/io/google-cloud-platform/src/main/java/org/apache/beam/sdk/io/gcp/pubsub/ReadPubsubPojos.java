@@ -41,6 +41,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.ListCoder;
@@ -60,8 +61,10 @@ import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
@@ -70,6 +73,8 @@ import org.apache.beam.sdk.util.BucketingFunction;
 import org.apache.beam.sdk.util.MovingFunction;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
@@ -112,8 +117,8 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings({
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
-public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<PubsubMessage>> {
-  private static final Logger LOG = LoggerFactory.getLogger(PubsubUnboundedSource.class);
+public class ReadPubsubPojos extends PTransform<PBegin, PCollection<PubsubMessage>> {
+  private static final Logger LOG = LoggerFactory.getLogger(ReadPubsubPojos.class);
 
   /** Default ACK timeout for created subscriptions. */
   private static final int DEAULT_ACK_TIMEOUT_SEC = 60;
@@ -211,7 +216,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
   static class PubsubCheckpoint implements UnboundedSource.CheckpointMark {
     /**
      * The {@link SubscriptionPath} to the subscription the reader is reading from. May be {@code
-     * null} if the {@link PubsubUnboundedSource} contains the subscription.
+     * null} if the {@link ReadPubsubPojos} contains the subscription.
      */
     @VisibleForTesting @Nullable String subscriptionPath;
 
@@ -1011,16 +1016,15 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
 
   @VisibleForTesting
   static class PubsubSource extends UnboundedSource<PubsubMessage, PubsubCheckpoint> {
-    public final PubsubUnboundedSource outer;
+    public final ReadPubsubPojos outer;
     // The subscription to read from.
     @VisibleForTesting final ValueProvider<SubscriptionPath> subscriptionPath;
 
-    public PubsubSource(PubsubUnboundedSource outer) {
+    public PubsubSource(ReadPubsubPojos outer) {
       this(outer, outer.getSubscriptionProvider());
     }
 
-    private PubsubSource(
-        PubsubUnboundedSource outer, ValueProvider<SubscriptionPath> subscriptionPath) {
+    private PubsubSource(ReadPubsubPojos outer, ValueProvider<SubscriptionPath> subscriptionPath) {
       this.outer = outer;
       this.subscriptionPath = subscriptionPath;
     }
@@ -1114,7 +1118,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
   // StatsFn
   // ================================================================================
 
-  private static class StatsFn extends DoFn<PubsubMessage, PubsubMessage> {
+  private static class StatsFn<T> extends DoFn<T, T> {
     private final Counter elementCounter = SourceMetrics.elementsRead();
 
     private final PubsubClientFactory pubsubFactory;
@@ -1152,6 +1156,26 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
           .add(DisplayData.item("transport", pubsubFactory.getKind()))
           .addIfNotNull(DisplayData.item("timestampAttribute", timestampAttribute))
           .addIfNotNull(DisplayData.item("idAttribute", idAttribute));
+    }
+  }
+
+  /**
+   * Reads either whole proto bytes or just the payload, depending on configuration.
+   */
+  @Internal
+  public class ReadPubsubBytes
+      extends PTransform<PBegin, PCollection<byte[]>> {
+    @Override
+    public PCollection<byte[]> expand(PBegin input) {
+      return input
+          .apply(Read.from(new PubsubSource(ReadPubsubPojos.this)))
+          .apply(
+              MapElements.into(TypeDescriptors.bytes()).via(PubsubMessages::pojoToProtoBytes))
+          .apply(
+              "ReadFromPubsub.Stats",
+              ParDo.of(
+                  new StatsFn<>(
+                      pubsubFactory, subscription, topic, timestampAttribute, idAttribute)));
     }
   }
 
@@ -1202,7 +1226,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
   private final boolean needsMessageId;
 
   @VisibleForTesting
-  PubsubUnboundedSource(
+  ReadPubsubPojos(
       Clock clock,
       PubsubClientFactory pubsubFactory,
       @Nullable ValueProvider<ProjectPath> project,
@@ -1227,7 +1251,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
   }
 
   /** Construct an unbounded source to consume from the Pubsub {@code subscription}. */
-  public PubsubUnboundedSource(
+  public ReadPubsubPojos(
       PubsubClientFactory pubsubFactory,
       @Nullable ValueProvider<ProjectPath> project,
       @Nullable ValueProvider<TopicPath> topic,
@@ -1248,7 +1272,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
   }
 
   /** Construct an unbounded source to consume from the Pubsub {@code subscription}. */
-  public PubsubUnboundedSource(
+  public ReadPubsubPojos(
       Clock clock,
       PubsubClientFactory pubsubFactory,
       @Nullable ValueProvider<ProjectPath> project,
@@ -1270,7 +1294,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
   }
 
   /** Construct an unbounded source to consume from the Pubsub {@code subscription}. */
-  public PubsubUnboundedSource(
+  public ReadPubsubPojos(
       PubsubClientFactory pubsubFactory,
       @Nullable ValueProvider<ProjectPath> project,
       @Nullable ValueProvider<TopicPath> topic,
@@ -1339,11 +1363,10 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     return input
         .getPipeline()
         .begin()
-        .apply(Read.from(new PubsubSource(this)))
+        .apply(new ReadPubsubBytes())
         .apply(
-            "PubsubUnboundedSource.Stats",
-            ParDo.of(
-                new StatsFn(pubsubFactory, subscription, topic, timestampAttribute, idAttribute)));
+            MapElements.into(TypeDescriptor.of(PubsubMessage.class))
+                .via(PubsubMessages::protoBytesToPojo));
   }
 
   private SubscriptionPath createRandomSubscription(PipelineOptions options) {

@@ -43,9 +43,9 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.IncomingMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubTestClient.PubsubTestClientFactory;
-import org.apache.beam.sdk.io.gcp.pubsub.PubsubUnboundedSource.PubsubCheckpoint;
-import org.apache.beam.sdk.io.gcp.pubsub.PubsubUnboundedSource.PubsubReader;
-import org.apache.beam.sdk.io.gcp.pubsub.PubsubUnboundedSource.PubsubSource;
+import org.apache.beam.sdk.io.gcp.pubsub.ReadPubsubPojos.PubsubCheckpoint;
+import org.apache.beam.sdk.io.gcp.pubsub.ReadPubsubPojos.PubsubReader;
+import org.apache.beam.sdk.io.gcp.pubsub.ReadPubsubPojos.PubsubSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
@@ -62,7 +62,7 @@ import org.junit.runners.JUnit4;
 
 /** Test PubsubUnboundedSource. */
 @RunWith(JUnit4.class)
-public class PubsubUnboundedSourceTest {
+public class ReadPubsubPojosTest {
   private static final SubscriptionPath SUBSCRIPTION =
       PubsubClient.subscriptionPathFromName("testProject", "testSubscription");
   private static final String DATA = "testData";
@@ -85,8 +85,8 @@ public class PubsubUnboundedSourceTest {
     now = new AtomicLong(REQ_TIME);
     clock = () -> now.get();
     factory = PubsubTestClient.createFactoryForPull(clock, SUBSCRIPTION, ACK_TIMEOUT_S, incoming);
-    PubsubUnboundedSource source =
-        new PubsubUnboundedSource(
+    ReadPubsubPojos source =
+        new ReadPubsubPojos(
             clock,
             factory,
             null,
@@ -352,8 +352,8 @@ public class PubsubUnboundedSourceTest {
   public void noSubscriptionSplitGeneratesSubscription() throws Exception {
     TopicPath topicPath = PubsubClient.topicPathFromName("my_project", "my_topic");
     factory = PubsubTestClient.createFactoryForCreateSubscription();
-    PubsubUnboundedSource source =
-        new PubsubUnboundedSource(
+    ReadPubsubPojos source =
+        new ReadPubsubPojos(
             factory,
             StaticValueProvider.of(PubsubClient.projectPathFromId("my_project")),
             StaticValueProvider.of(topicPath),
@@ -381,8 +381,8 @@ public class PubsubUnboundedSourceTest {
   public void noSubscriptionNoSplitGeneratesSubscription() throws Exception {
     TopicPath topicPath = PubsubClient.topicPathFromName("my_project", "my_topic");
     factory = PubsubTestClient.createFactoryForCreateSubscription();
-    PubsubUnboundedSource source =
-        new PubsubUnboundedSource(
+    ReadPubsubPojos source =
+        new ReadPubsubPojos(
             factory,
             StaticValueProvider.of(PubsubClient.projectPathFromId("my_project")),
             StaticValueProvider.of(topicPath),

@@ -114,7 +114,7 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageWithAttributesAndMessageId
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageWithAttributesCoder;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessages;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubUnboundedSink;
-import org.apache.beam.sdk.io.gcp.pubsub.PubsubUnboundedSource;
+import org.apache.beam.sdk.io.gcp.pubsub.ReadPubsubPojos;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
@@ -483,13 +483,13 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         if (useUnifiedWorker(options)) {
           overridesBuilder.add(
               PTransformOverride.of(
-                  PTransformMatchers.classEqualTo(PubsubUnboundedSource.class),
-                  new DataflowReadFromPubsubSourceForRunnerV2OverrideFactory()));
+                  PTransformMatchers.classEqualTo(ReadPubsubPojos.ReadPubsubBytes.class),
+                  new DataflowV2ReadPubsubBytesOverrideFactory()));
         } else {
           overridesBuilder.add(
               PTransformOverride.of(
-                  PTransformMatchers.classEqualTo(PubsubUnboundedSource.class),
-                  new StreamingPubsubIOReadOverrideFactory()));
+                  PTransformMatchers.classEqualTo(ReadPubsubPojos.class),
+                  new DataflowV1ReadPubsubPojosOverrideFactory()));
         }
       }
       if (!hasExperiment(options, "enable_custom_pubsub_sink")) {
@@ -1415,15 +1415,15 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   // PubsubIO translations
   // ================================================================================
 
-  private static class StreamingPubsubIOReadOverrideFactory
+  private static class DataflowV1ReadPubsubPojosOverrideFactory
       implements PTransformOverrideFactory<
-          PBegin, PCollection<PubsubMessage>, PubsubUnboundedSource> {
+          PBegin, PCollection<PubsubMessage>, ReadPubsubPojos> {
 
     @Override
     public PTransformReplacement<PBegin, PCollection<PubsubMessage>> getReplacementTransform(
-        AppliedPTransform<PBegin, PCollection<PubsubMessage>, PubsubUnboundedSource> transform) {
+        AppliedPTransform<PBegin, PCollection<PubsubMessage>, ReadPubsubPojos> transform) {
       return PTransformReplacement.of(
-          transform.getPipeline().begin(), new StreamingPubsubIORead(transform.getTransform()));
+          transform.getPipeline().begin(), new DataflowV1ReadPubsubPojos(transform.getTransform()));
     }
 
     @Override
@@ -1433,16 +1433,16 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
   }
 
-  private static class DataflowReadFromPubsubSourceForRunnerV2OverrideFactory
+  private static class DataflowV2ReadPubsubBytesOverrideFactory
       implements PTransformOverrideFactory<
-          PBegin, PCollection<PubsubMessage>, PubsubUnboundedSource> {
+          PBegin, PCollection<PubsubMessage>, ReadPubsubPojos> {
 
     @Override
     public PTransformReplacement<PBegin, PCollection<PubsubMessage>> getReplacementTransform(
-        AppliedPTransform<PBegin, PCollection<PubsubMessage>, PubsubUnboundedSource> transform) {
+        AppliedPTransform<PBegin, PCollection<PubsubMessage>, ReadPubsubPojos> transform) {
       return PTransformReplacement.of(
           transform.getPipeline().begin(),
-          new DataflowReadFromPubsubForRunnerV2(transform.getTransform()));
+          new DataflowV2ReadPubsubBytes(transform.getTransform()));
     }
 
     @Override
@@ -1453,24 +1453,24 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   }
 
   private interface PubsubUnboundedSourceOverrider {
-    PubsubUnboundedSource getOverriddenTransform();
+    ReadPubsubPojos getOverriddenTransform();
   }
 
   /**
-   * Suppress application of {@link PubsubUnboundedSource#expand} in streaming mode so that we can
+   * Suppress application of {@link ReadPubsubPojos#expand} in streaming mode so that we can
    * instead defer to Windmill's implementation.
    */
-  private static class StreamingPubsubIORead extends PTransform<PBegin, PCollection<PubsubMessage>>
+  private static class DataflowV1ReadPubsubPojos extends PTransform<PBegin, PCollection<PubsubMessage>>
       implements PubsubUnboundedSourceOverrider {
 
-    private final PubsubUnboundedSource transform;
+    private final ReadPubsubPojos transform;
 
-    public StreamingPubsubIORead(PubsubUnboundedSource transform) {
+    public DataflowV1ReadPubsubPojos(ReadPubsubPojos transform) {
       this.transform = transform;
     }
 
     @Override
-    public PubsubUnboundedSource getOverriddenTransform() {
+    public ReadPubsubPojos getOverriddenTransform() {
       return transform;
     }
 
@@ -1491,21 +1491,21 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     static {
       DataflowPipelineTranslator.registerTransformTranslator(
-          StreamingPubsubIORead.class, new StreamingPubsubIOReadTranslator());
+          DataflowV1ReadPubsubPojos.class, new StreamingPubsubIOReadTranslator());
     }
   }
 
-  private static class DataflowPubsubSourceRunnerV2 extends PTransform<PBegin, PCollection<byte[]>>
+  private static class DataflowV2ReadPubsubBytes extends PTransform<PBegin, PCollection<byte[]>>
       implements PubsubUnboundedSourceOverrider {
 
-    private final PubsubUnboundedSource transform;
+    private final ReadPubsubPojos.ReadPubsubBytes transform;
 
-    public DataflowPubsubSourceRunnerV2(PubsubUnboundedSource transform) {
+    public DataflowV2ReadPubsubBytes(ReadPubsubPojos.ReadPubsubBytes transform) {
       this.transform = transform;
     }
 
     @Override
-    public PubsubUnboundedSource getOverriddenTransform() {
+    public ReadPubsubPojos.ReadPubsubBytes getOverriddenTransform() {
       return this.transform;
     }
 
@@ -1524,31 +1524,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     static {
       DataflowPipelineTranslator.registerTransformTranslator(
-          DataflowPubsubSourceRunnerV2.class, new DataflowPubsubSourceRunnerV2Translator());
-    }
-  }
-
-  public static class DataflowReadFromPubsubForRunnerV2
-      extends PTransform<PBegin, PCollection<PubsubMessage>> {
-
-    private final PubsubUnboundedSource transform;
-
-    public DataflowReadFromPubsubForRunnerV2(PubsubUnboundedSource transform) {
-      this.transform = transform;
-    }
-
-    @Override
-    public PCollection<PubsubMessage> expand(PBegin input) {
-      if (transform.getNeedsAttributes() || transform.getNeedsMessageId()) {
-        return input
-            .apply(
-                "DataflowReadFromPubsubRunnerV2", new DataflowPubsubSourceRunnerV2(this.transform))
-            .apply(
-                "MapBytesToPubsubMessages",
-                MapElements.into(TypeDescriptor.of(PubsubMessage.class))
-                    .via(new PubsubMessages.ParsePubsubMessageProtoAsPayload()));
-      }
-      return input.apply(new StreamingPubsubIORead(transform));
+          DataflowV2ReadPubsubBytes.class, new DataflowPubsubSourceRunnerV2Translator());
     }
   }
 
@@ -1558,7 +1534,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         translationContext.getPipelineOptions().isStreaming(),
         "StreamingPubsubIORead is only for streaming pipelines.");
     checkArgument(transform instanceof PubsubUnboundedSourceOverrider);
-    PubsubUnboundedSource overriddenTransform =
+    ReadPubsubPojos overriddenTransform =
         ((PubsubUnboundedSourceOverrider) transform).getOverriddenTransform();
     StepTranslationContext stepContext = translationContext.addStep(transform, "ParallelRead");
     stepContext.addInput(PropertyNames.FORMAT, "pubsub");
@@ -1603,22 +1579,22 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     return stepContext;
   }
 
-  /** Rewrite {@link StreamingPubsubIORead} to the appropriate internal node. */
+  /** Rewrite {@link DataflowV1ReadPubsubPojos} to the appropriate internal node. */
   private static class StreamingPubsubIOReadTranslator
-      implements TransformTranslator<StreamingPubsubIORead> {
+      implements TransformTranslator<DataflowV1ReadPubsubPojos> {
 
     @Override
-    public void translate(StreamingPubsubIORead transform, TranslationContext context) {
+    public void translate(DataflowV1ReadPubsubPojos transform, TranslationContext context) {
       StepTranslationContext stepContext = translateOverriddenPubsubSourceStep(transform, context);
       stepContext.addOutput(PropertyNames.OUTPUT, context.getOutput(transform));
     }
   }
 
   private static class DataflowPubsubSourceRunnerV2Translator
-      implements TransformTranslator<DataflowPubsubSourceRunnerV2> {
+      implements TransformTranslator<DataflowV2ReadPubsubBytes> {
 
     @Override
-    public void translate(DataflowPubsubSourceRunnerV2 transform, TranslationContext context) {
+    public void translate(DataflowV2ReadPubsubBytes transform, TranslationContext context) {
       StepTranslationContext stepContext = translateOverriddenPubsubSourceStep(transform, context);
       stepContext.addOutput(PropertyNames.OUTPUT, context.getOutput(transform));
     }
