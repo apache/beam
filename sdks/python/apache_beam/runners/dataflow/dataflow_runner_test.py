@@ -35,7 +35,6 @@ import mock
 import apache_beam as beam
 import apache_beam.transforms as ptransform
 from apache_beam.coders import BytesCoder
-from apache_beam.coders import coders
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.pipeline import AppliedPTransform
@@ -866,14 +865,6 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     self.default_properties.append('--experiment=pre_optimize=all')
     self._test_pack_combiners(
         PipelineOptions(self.default_properties), expect_packed=True)
-
-
-class CustomWindowTypeWindowFn(window.NonMergingWindowFn):
-  def assign(self, assign_context):
-    return []
-
-  def get_window_coder(self):
-    return coders.BytesCoder()
 
 
 if __name__ == '__main__':
