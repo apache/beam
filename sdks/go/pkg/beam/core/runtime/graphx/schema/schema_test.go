@@ -66,12 +66,27 @@ type exportedFunc struct {
 	F func()
 }
 
+type Exported struct {
+	G myInt
+}
+
+type hasEmbedded struct {
+	Exported
+}
+
+type hasEmbeddedPtr struct {
+	*Exported
+}
+
 func (*exportedFunc) hidden() {}
 
 var (
-	unexType    = reflect.TypeOf((*unexportedFields)(nil)).Elem()
-	exFuncType  = reflect.TypeOf((*exportedFunc)(nil))
-	anotherType = reflect.TypeOf((*anotherStruct)(nil)).Elem()
+	unexType           = reflect.TypeOf((*unexportedFields)(nil)).Elem()
+	exFuncType         = reflect.TypeOf((*exportedFunc)(nil))
+	anotherType        = reflect.TypeOf((*anotherStruct)(nil)).Elem()
+	exportedType       = reflect.TypeOf((*Exported)(nil)).Elem()
+	hasEmbeddedType    = reflect.TypeOf((*hasEmbedded)(nil)).Elem()
+	hasEmbeddedPtrType = reflect.TypeOf((*hasEmbeddedPtr)(nil)).Elem()
 )
 
 func TestSchemaConversion(t *testing.T) {
@@ -495,6 +510,91 @@ func TestSchemaConversion(t *testing.T) {
 				},
 			},
 			rt: anotherType,
+		}, {
+			st: &pipepb.Schema{
+				Fields: []*pipepb.Field{
+					{
+						Name:    "Exported",
+						Options: []*pipepb.Option{&pipepb.Option{Name: optGoEmbedded}},
+						Type: &pipepb.FieldType{
+							TypeInfo: &pipepb.FieldType_RowType{
+								RowType: &pipepb.RowType{
+									Schema: &pipepb.Schema{
+										Fields: []*pipepb.Field{
+											{
+												Name: "G",
+												Type: &pipepb.FieldType{
+													TypeInfo: &pipepb.FieldType_LogicalType{
+														LogicalType: &pipepb.LogicalType{
+															Urn: "schema.myInt",
+															Representation: &pipepb.FieldType{
+																TypeInfo: &pipepb.FieldType_LogicalType{
+																	LogicalType: &pipepb.LogicalType{
+																		Urn: "int",
+																		Representation: &pipepb.FieldType{
+																			TypeInfo: &pipepb.FieldType_AtomicType{
+																				AtomicType: pipepb.AtomicType_INT64,
+																			},
+																		},
+																	},
+																},
+															},
+														},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			rt: hasEmbeddedType,
+		}, {
+			st: &pipepb.Schema{
+				Fields: []*pipepb.Field{
+					{
+						Name:    "Exported",
+						Options: []*pipepb.Option{&pipepb.Option{Name: optGoEmbedded}},
+						Type: &pipepb.FieldType{
+							Nullable: true,
+							TypeInfo: &pipepb.FieldType_RowType{
+								RowType: &pipepb.RowType{
+									Schema: &pipepb.Schema{
+										Fields: []*pipepb.Field{
+											{
+												Name: "G",
+												Type: &pipepb.FieldType{
+													TypeInfo: &pipepb.FieldType_LogicalType{
+														LogicalType: &pipepb.LogicalType{
+															Urn: "schema.myInt",
+															Representation: &pipepb.FieldType{
+																TypeInfo: &pipepb.FieldType_LogicalType{
+																	LogicalType: &pipepb.LogicalType{
+																		Urn: "int",
+																		Representation: &pipepb.FieldType{
+																			TypeInfo: &pipepb.FieldType_AtomicType{
+																				AtomicType: pipepb.AtomicType_INT64,
+																			},
+																		},
+																	},
+																},
+															},
+														},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			rt: hasEmbeddedPtrType,
 		},
 	}
 
@@ -516,13 +616,19 @@ func TestSchemaConversion(t *testing.T) {
 			reg.RegisterType(unexType)
 			reg.RegisterType(exFuncType)
 			reg.RegisterType(anotherType)
+			reg.RegisterType(exportedType)
+			reg.RegisterType(hasEmbeddedType)
+			reg.RegisterType(hasEmbeddedPtrType)
 
 			{
 				got, err := reg.ToType(test.st)
 				if err != nil {
 					t.Fatalf("error ToType(%v) = %v", test.st, err)
 				}
-				if !test.rt.AssignableTo(got) {
+				// We can't validate that synthetic types from Schemas with embedded fields are
+				// assignable, as the anonymous struct field won't be equivalent to the
+				// real embedded type.
+				if !hasEmbeddedField(test.rt) && !test.rt.AssignableTo(got) {
 					t.Errorf("%v not assignable to %v", test.rt, got)
 					if d := cmp.Diff(reflect.New(test.rt).Elem().Interface(), reflect.New(got).Elem().Interface()); d != "" {
 						t.Errorf("diff (-want, +got): %v", d)
@@ -544,4 +650,19 @@ func TestSchemaConversion(t *testing.T) {
 			}
 		})
 	}
+}
+
+func hasEmbeddedField(t reflect.Type) bool {
+	if t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+	if t.Kind() != reflect.Struct {
+		return false
+	}
+	for i := 0; i < t.NumField(); i++ {
+		if t.Field(i).Anonymous {
+			return true
+		}
+	}
+	return false
 }
