@@ -127,7 +127,6 @@ def should_skip():
   """Whether a screen diff test should be skipped."""
   return not (
       platform.system() in _SUPPORTED_PLATFORMS and
-      ie.current_env().is_py_version_ready and
       ie.current_env().is_interactive_ready and _interactive_integration_ready)
 
 
