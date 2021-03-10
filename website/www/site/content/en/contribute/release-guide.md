@@ -21,16 +21,11 @@ limitations under the License.
 
 ## Introduction
 
-The Apache Beam project periodically declares and publishes releases.
-A release is one or more packages of the project artifact(s) that are approved for general public distribution and use.
-They may come with various degrees of caveat regarding their perceived quality and potential for change, such as “alpha”, “beta”, “incubating”, “stable”, etc.
+The Apache Beam project periodically declares and publishes releases. A release is one or more packages of the project artifact(s) approved for general public distribution and use. They may come with various degrees of caveat regarding their perceived quality and potential for change, such as “alpha,” “beta,” “incubating,” or “stable.”
 
-The Beam community treats releases with great importance.
-They are a public face of the project and most users interact with the project only through the releases. Releases are signed off by the entire Beam community in a public vote.
+The Beam community treats releases with great importance. They are a public face of the project, and most users interact with the project only through the releases. The entire Beam community sign off releases in a public vote.
 
-Each release is executed by a *Release Manager*, who is selected among the Beam committers.
-This document describes the process that the Release Manager follows to perform a release.
-Any changes to this process should be discussed and adopted on the [dev@ mailing list](/get-started/support/).
+A Release Manager executes each release, who is selected among the Beam committers. This document describes the process that the Release Manager follows to perform a release. Any changes to this process should be discussed and adopted on the [dev@ mailing list](/get-started/support/).
 
 Please remember that publishing software has legal consequences.
 This guide complements the foundation-wide [Product Release Policy](http://www.apache.org/dev/release.html) and [Release Distribution Policy](http://www.apache.org/dev/release-distribution).
@@ -46,10 +41,10 @@ The release process consists of several steps:
 1. Investigate performance regressions
 1. Create a release branch
 1. Verify release branch
+1. Triage release-blocking issues in JIRA
 1. Build a release candidate
-1. Vote on the release candidate
-1. During vote process, run validation tests
-1. If necessary, fix any issues and go back to step 3.
+1. Prepare documents
+1. Vote and validate release candidate
 1. Finalize the release
 1. Promote the release
 
