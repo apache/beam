@@ -564,8 +564,9 @@ class DataflowApplicationClient(object):
   def _get_sdk_image_overrides(self, pipeline_options):
     worker_options = pipeline_options.view_as(WorkerOptions)
     sdk_overrides = worker_options.sdk_harness_container_image_overrides
-    return dict(override_str.split(',', 1)
-                for override_str in sdk_overrides) if sdk_overrides else dict()
+    return (dict(s.split(',', 1) for s in sdk_overrides)
+            if sdk_overrides
+            else dict())
 
   # TODO(silviuc): Refactor so that retry logic can be applied.
   @retry.no_retries  # Using no_retries marks this as an integration point.
@@ -689,6 +690,8 @@ class DataflowApplicationClient(object):
 
   @staticmethod
   def _update_container_image_for_dataflow(beam_container_image_url):
+    # By default Dataflow pipelines use containers hosted in Dataflow GCR
+    # instead of Docker Hub.
     image_suffix = beam_container_image_url.rsplit('/', 1)[1]
     return names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/' + image_suffix
 
