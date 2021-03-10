@@ -348,6 +348,7 @@ task("installVendoredGrpc") {
     }
   }
 }
+
 // Because :model:job-management:runtimeClasspath requires the vendored gRPC at configuration phase
 // (before execution phase), we cannot rely on task dependencies.
 if (!project.hasProperty("installVendoredGrpcFlag")) {
