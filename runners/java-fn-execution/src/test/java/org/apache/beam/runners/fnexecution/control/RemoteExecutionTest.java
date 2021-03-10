@@ -214,6 +214,7 @@ public class RemoteExecutionTest implements Serializable {
                     PipelineOptionsFactory.create(),
                     loggingServer.getApiServiceDescriptor(),
                     controlServer.getApiServiceDescriptor(),
+                    null,
                     InProcessManagedChannelFactory.create(),
                     OutboundObserverFactory.clientDirect());
               } catch (Exception e) {

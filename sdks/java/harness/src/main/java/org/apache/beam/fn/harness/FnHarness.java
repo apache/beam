@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import javax.annotation.Nullable;
 import org.apache.beam.fn.harness.control.AddHarnessIdInterceptor;
 import org.apache.beam.fn.harness.control.BeamFnControlClient;
 import org.apache.beam.fn.harness.control.FinalizeBundleHandler;
@@ -29,6 +30,7 @@ import org.apache.beam.fn.harness.control.ProcessBundleHandler;
 import org.apache.beam.fn.harness.data.BeamFnDataGrpcClient;
 import org.apache.beam.fn.harness.logging.BeamFnLoggingClient;
 import org.apache.beam.fn.harness.state.BeamFnStateGrpcClientCache;
+import org.apache.beam.fn.harness.status.BeamFnStatusClient;
 import org.apache.beam.fn.harness.stream.HarnessStreamObserverFactories;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
@@ -81,6 +83,7 @@ public class FnHarness {
   private static final String HARNESS_ID = "HARNESS_ID";
   private static final String CONTROL_API_SERVICE_DESCRIPTOR = "CONTROL_API_SERVICE_DESCRIPTOR";
   private static final String LOGGING_API_SERVICE_DESCRIPTOR = "LOGGING_API_SERVICE_DESCRIPTOR";
+  private static final String STATUS_API_SERVICE_DESCRIPTOR = "STATUS_API_SERVICE_DESCRIPTOR";
   private static final String PIPELINE_OPTIONS = "PIPELINE_OPTIONS";
   private static final Logger LOG = LoggerFactory.getLogger(FnHarness.class);
 
@@ -105,6 +108,8 @@ public class FnHarness {
         "Logging location %s%n", environmentVarGetter.apply(LOGGING_API_SERVICE_DESCRIPTOR));
     System.out.format(
         "Control location %s%n", environmentVarGetter.apply(CONTROL_API_SERVICE_DESCRIPTOR));
+    System.out.format(
+        "Status location %s%n", environmentVarGetter.apply(STATUS_API_SERVICE_DESCRIPTOR));
     System.out.format("Pipeline options %s%n", environmentVarGetter.apply(PIPELINE_OPTIONS));
 
     String id = environmentVarGetter.apply(HARNESS_ID);
@@ -117,7 +122,16 @@ public class FnHarness {
     Endpoints.ApiServiceDescriptor controlApiServiceDescriptor =
         getApiServiceDescriptor(environmentVarGetter.apply(CONTROL_API_SERVICE_DESCRIPTOR));
 
-    main(id, options, loggingApiServiceDescriptor, controlApiServiceDescriptor);
+    Endpoints.ApiServiceDescriptor statusApiServiceDescriptor =
+        environmentVarGetter.apply(STATUS_API_SERVICE_DESCRIPTOR) == null
+            ? null
+            : getApiServiceDescriptor(environmentVarGetter.apply(STATUS_API_SERVICE_DESCRIPTOR));
+    main(
+        id,
+        options,
+        loggingApiServiceDescriptor,
+        controlApiServiceDescriptor,
+        statusApiServiceDescriptor);
   }
 
   /**
@@ -128,13 +142,15 @@ public class FnHarness {
    * @param options The options for this pipeline
    * @param loggingApiServiceDescriptor
    * @param controlApiServiceDescriptor
+   * @param statusApiServiceDescriptor
    * @throws Exception
    */
   public static void main(
       String id,
       PipelineOptions options,
       Endpoints.ApiServiceDescriptor loggingApiServiceDescriptor,
-      Endpoints.ApiServiceDescriptor controlApiServiceDescriptor)
+      Endpoints.ApiServiceDescriptor controlApiServiceDescriptor,
+      @Nullable Endpoints.ApiServiceDescriptor statusApiServiceDescriptor)
       throws Exception {
     ManagedChannelFactory channelFactory;
     List<String> experiments = options.as(ExperimentalOptions.class).getExperiments();
@@ -152,6 +168,7 @@ public class FnHarness {
         options,
         loggingApiServiceDescriptor,
         controlApiServiceDescriptor,
+        statusApiServiceDescriptor,
         channelFactory,
         outboundObserverFactory);
   }
@@ -164,6 +181,7 @@ public class FnHarness {
    * @param options The options for this pipeline
    * @param loggingApiServiceDescriptor
    * @param controlApiServiceDescriptor
+   * @param statusApiServiceDescriptor
    * @param channelFactory
    * @param outboundObserverFactory
    * @throws Exception
@@ -173,6 +191,7 @@ public class FnHarness {
       PipelineOptions options,
       Endpoints.ApiServiceDescriptor loggingApiServiceDescriptor,
       Endpoints.ApiServiceDescriptor controlApiServiceDescriptor,
+      Endpoints.ApiServiceDescriptor statusApiServiceDescriptor,
       ManagedChannelFactory channelFactory,
       OutboundObserverFactory outboundObserverFactory)
       throws Exception {
@@ -229,6 +248,15 @@ public class FnHarness {
               beamFnDataMultiplexer,
               beamFnStateGrpcClientCache,
               finalizeBundleHandler);
+
+      if (statusApiServiceDescriptor != null) {
+        new BeamFnStatusClient(
+            statusApiServiceDescriptor,
+            channelFactory::forDescriptor,
+            processBundleHandler.getBundleProcessorCache(),
+            options);
+      }
+
       // TODO(BEAM-9729): Remove once runners no longer send this instruction.
       handlers.put(
           BeamFnApi.InstructionRequest.RequestCase.REGISTER,
