@@ -62,6 +62,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactoryTest.TestPipelineOption
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.UsesUnboundedPCollections;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -89,10 +90,12 @@ import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.commons.compress.utils.Sets;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.ISODateTimeFormat;
 import org.junit.Rule;
@@ -327,6 +330,52 @@ public class WriteFilesTest {
             .withRunnerDeterminedShardingUnboundedInternal(),
         null,
         true);
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testWithRunnerDeterminedShardingTestStream() throws IOException {
+    List<String> elements = Lists.newArrayList();
+    for (int i = 0; i < 30; ++i) {
+      elements.add("number: " + i);
+    }
+    Instant startInstant = new Instant(0L);
+    TestStream<String> testStream =
+        TestStream.create(StringUtf8Coder.of())
+            // Initialize watermark for timer to be triggered correctly.
+            .advanceWatermarkTo(startInstant)
+            // Add 10 elements in the first window.
+            .addElements(elements.get(0), Iterables.toArray(elements.subList(1, 10), String.class))
+            .advanceProcessingTime(Duration.standardMinutes(1))
+            .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(5)))
+            // Add 10 more elements in the first window.
+            .addElements(
+                elements.get(10), Iterables.toArray(elements.subList(11, 20), String.class))
+            .advanceProcessingTime(Duration.standardMinutes(1))
+            .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(10)))
+            // Add the remaining relements in the second window.
+            .addElements(
+                elements.get(20), Iterables.toArray(elements.subList(21, 30), String.class))
+            .advanceProcessingTime(Duration.standardMinutes(1))
+            .advanceWatermarkToInfinity();
+
+    // Flag to validate that the pipeline options are passed to the Sink
+    WriteOptions options = TestPipeline.testingPipelineOptions().as(WriteOptions.class);
+    options.setTestFlag("test_value");
+    Pipeline p = TestPipeline.create(options);
+    WriteFiles<String, Void, String> write =
+        WriteFiles.to(makeSimpleSink())
+            .withWindowedWrites()
+            .withRunnerDeterminedShardingUnboundedInternal();
+    p.apply(testStream)
+        .apply(Window.into(FixedWindows.of(Duration.standardSeconds(10))))
+        .apply(write)
+        .getPerDestinationOutputFilenames()
+        .apply(new VerifyFilesExist<>());
+    p.run();
+
+    checkFileContents(
+        getBaseOutputFilename(), elements, Optional.absent(), !write.getWindowedWrites(), null);
   }
 
   /** Test a WriteFiles transform with an empty PCollection. */
