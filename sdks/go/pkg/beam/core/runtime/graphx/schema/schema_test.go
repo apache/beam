@@ -66,6 +66,8 @@ type exportedFunc struct {
 	F func()
 }
 
+func (*exportedFunc) hidden() {}
+
 type Exported struct {
 	G myInt
 }
@@ -78,15 +80,23 @@ type hasEmbeddedPtr struct {
 	*Exported
 }
 
-func (*exportedFunc) hidden() {}
+type hasMap struct {
+	Cypher map[bool]float32 `beam:"cypher"`
+}
+
+type nonRegisteredLogical struct {
+	k int32
+}
 
 var (
-	unexType           = reflect.TypeOf((*unexportedFields)(nil)).Elem()
-	exFuncType         = reflect.TypeOf((*exportedFunc)(nil))
-	anotherType        = reflect.TypeOf((*anotherStruct)(nil)).Elem()
-	exportedType       = reflect.TypeOf((*Exported)(nil)).Elem()
-	hasEmbeddedType    = reflect.TypeOf((*hasEmbedded)(nil)).Elem()
-	hasEmbeddedPtrType = reflect.TypeOf((*hasEmbeddedPtr)(nil)).Elem()
+	unexportedFieldsType     = reflect.TypeOf((*unexportedFields)(nil)).Elem()
+	exportedFuncType         = reflect.TypeOf((*exportedFunc)(nil))
+	anotherType              = reflect.TypeOf((*anotherStruct)(nil)).Elem()
+	exportedType             = reflect.TypeOf((*Exported)(nil)).Elem()
+	hasEmbeddedType          = reflect.TypeOf((*hasEmbedded)(nil)).Elem()
+	hasEmbeddedPtrType       = reflect.TypeOf((*hasEmbeddedPtr)(nil)).Elem()
+	hasMapType               = reflect.TypeOf((*hasMap)(nil)).Elem()
+	nonRegisteredLogicalType = reflect.TypeOf((*nonRegisteredLogical)(nil)).Elem()
 )
 
 func TestSchemaConversion(t *testing.T) {
@@ -160,9 +170,7 @@ func TestSchemaConversion(t *testing.T) {
 					},
 				},
 			},
-			rt: reflect.TypeOf(struct {
-				Cypher map[bool]float32 `beam:"cypher"`
-			}{}),
+			rt: hasMapType,
 		}, {
 			st: &pipepb.Schema{
 				Fields: []*pipepb.Field{
@@ -405,6 +413,9 @@ func TestSchemaConversion(t *testing.T) {
 			}{}),
 		}, {
 			st: &pipepb.Schema{
+				Options: []*pipepb.Option{
+					logicalOption("schema.unexportedFields"),
+				},
 				Fields: []*pipepb.Field{
 					{
 						Name: "D",
@@ -423,7 +434,7 @@ func TestSchemaConversion(t *testing.T) {
 					},
 				},
 			},
-			rt: unexType,
+			rt: unexportedFieldsType,
 		}, {
 			st: &pipepb.Schema{
 				Fields: []*pipepb.Field{
@@ -521,9 +532,9 @@ func TestSchemaConversion(t *testing.T) {
 				},
 				Options: []*pipepb.Option{{
 					Name: optGoNillable,
-				}},
+				}, logicalOption("*schema.exportedFunc")},
 			},
-			rt: exFuncType,
+			rt: exportedFuncType,
 		}, {
 			st: &pipepb.Schema{
 				Fields: []*pipepb.Field{
@@ -637,6 +648,116 @@ func TestSchemaConversion(t *testing.T) {
 				},
 			},
 			rt: hasEmbeddedPtrType,
+		}, {
+			st: &pipepb.Schema{
+				Fields: []*pipepb.Field{
+					{
+						Name: "T",
+						Type: &pipepb.FieldType{
+							TypeInfo: &pipepb.FieldType_AtomicType{
+								AtomicType: pipepb.AtomicType_STRING,
+							},
+						},
+					},
+				},
+				Options: []*pipepb.Option{{
+					Name: optGoNillable,
+				}},
+			},
+			rt: reflect.TypeOf(&struct {
+				myInt
+				T string
+				i int
+			}{}),
+		}, {
+			st: &pipepb.Schema{
+				Options: []*pipepb.Option{
+					logicalOption("schema.exportedFunc"),
+				},
+				Fields: []*pipepb.Field{
+					{
+						Name: "V",
+						Type: &pipepb.FieldType{
+							TypeInfo: &pipepb.FieldType_AtomicType{
+								AtomicType: pipepb.AtomicType_INT16,
+							},
+						},
+					},
+				},
+			},
+			rt: reflect.TypeOf(exportedFunc{}),
+		}, {
+			st: &pipepb.Schema{
+				Fields: []*pipepb.Field{
+					{
+						Name: "U",
+						Type: &pipepb.FieldType{
+							TypeInfo: &pipepb.FieldType_LogicalType{
+								LogicalType: &pipepb.LogicalType{
+									Urn: "schema.exportedFunc",
+									Representation: &pipepb.FieldType{
+										TypeInfo: &pipepb.FieldType_RowType{
+											RowType: &pipepb.RowType{
+												Schema: &pipepb.Schema{
+													Fields: []*pipepb.Field{
+														{
+															Name: "V",
+															Type: &pipepb.FieldType{
+																TypeInfo: &pipepb.FieldType_AtomicType{
+																	AtomicType: pipepb.AtomicType_INT16,
+																},
+															},
+														},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			rt: reflect.TypeOf(struct {
+				U exportedFunc
+			}{}),
+		}, {
+			st: &pipepb.Schema{
+				Fields: []*pipepb.Field{
+					{
+						Name: "U",
+						Type: &pipepb.FieldType{
+							TypeInfo: &pipepb.FieldType_LogicalType{
+								LogicalType: &pipepb.LogicalType{
+									Urn: "schema.nonRegisteredLogical",
+									Representation: &pipepb.FieldType{
+										TypeInfo: &pipepb.FieldType_RowType{
+											RowType: &pipepb.RowType{
+												Schema: &pipepb.Schema{
+													Fields: []*pipepb.Field{
+														{
+															Name: "K",
+															Type: &pipepb.FieldType{
+																TypeInfo: &pipepb.FieldType_AtomicType{
+																	AtomicType: pipepb.AtomicType_INT32,
+																},
+															},
+														},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			rt: reflect.TypeOf(struct {
+				U nonRegisteredLogical
+			}{}),
 		},
 	}
 
@@ -645,22 +766,25 @@ func TestSchemaConversion(t *testing.T) {
 		t.Run(fmt.Sprintf("%v", test.rt), func(t *testing.T) {
 			reg := NewRegistry()
 			preRegLogicalTypes(reg)
+			reg.RegisterLogicalType(ToLogicalType(exportedFuncType.Elem().String(), exportedFuncType.Elem(), reflect.TypeOf(struct{ V int16 }{})))
+			reg.RegisterLogicalType(ToLogicalType(nonRegisteredLogicalType.String(), nonRegisteredLogicalType, reflect.TypeOf(struct{ K int32 }{})))
 			reg.RegisterType(reflect.TypeOf((*sRegisteredType)(nil)))
 			reg.RegisterLogicalTypeProvider(reflect.TypeOf((*testInterface)(nil)).Elem(), func(t reflect.Type) (reflect.Type, error) {
 				switch t {
-				case unexType:
+				case unexportedFieldsType:
 					return reflect.TypeOf(struct{ D uint64 }{}), nil
-				case exFuncType:
+				case exportedFuncType:
 					return reflect.TypeOf(struct{ E int16 }{}), nil
 				}
 				return nil, nil
 			})
-			reg.RegisterType(unexType)
-			reg.RegisterType(exFuncType)
+			reg.RegisterType(unexportedFieldsType)
+			reg.RegisterType(exportedFuncType)
 			reg.RegisterType(anotherType)
 			reg.RegisterType(exportedType)
 			reg.RegisterType(hasEmbeddedType)
 			reg.RegisterType(hasEmbeddedPtrType)
+			reg.RegisterType(hasMapType)
 
 			{
 				got, err := reg.ToType(test.st)

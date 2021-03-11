@@ -140,6 +140,44 @@ func implements(ut, ifacet reflect.Type) bool {
 	return false
 }
 
+func ignoreField(t reflect.Type, sf reflect.StructField) (ignore, isAnon bool, err error) {
+	isUnexported := sf.PkgPath != ""
+	if sf.Anonymous {
+		ft := sf.Type
+		if ft.Kind() == reflect.Ptr {
+			// If a struct embeds a pointer to an unexported type,
+			// it is not possible to set a newly allocated value
+			// since the field is unexported.
+			//
+			// See https://golang.org/issue/21357
+			//
+			// Since the values are created by the decoder reflectively,
+			// fail early here.
+			if isUnexported {
+				return false, false, errors.Errorf("cannot make schema for type %v as it has an embedded field of a pointer to an unexported type %v. See https://golang.org/issue/21357", t, ft.Elem())
+			}
+			ft = ft.Elem()
+		}
+		if isUnexported && ft.Kind() != reflect.Struct {
+			// Ignore embedded fields of unexported non-struct types.
+			return true, true, nil
+		}
+		// Do not ignore embedded fields of unexported struct types
+		// since they may have exported fields.
+		return false, true, nil
+	}
+	if isUnexported {
+		// Schemas can't handle unexported fields at all.
+		return true, false, nil
+	}
+	if implements(sf.Type, sdfRtrackerType) {
+		// ignoring sdf.Rtracker interface
+		return true, false, nil
+	}
+
+	return false, false, nil
+}
+
 func (r *Registry) registerType(ut reflect.Type, seen map[reflect.Type]struct{}) error {
 	// Ignore rtrackers.
 	if implements(ut, sdfRtrackerType) {
@@ -212,35 +250,11 @@ func (r *Registry) registerType(ut reflect.Type, seen map[reflect.Type]struct{})
 
 	for i := 0; i < t.NumField(); i++ {
 		sf := ut.Field(i)
-		isUnexported := sf.PkgPath != ""
-		if sf.Anonymous {
-			ft := sf.Type
-			if ft.Kind() == reflect.Ptr {
-				// If a struct embeds a pointer to an unexported type,
-				// it is not possible to set a newly allocated value
-				// since the field is unexported.
-				//
-				// See https://golang.org/issue/21357
-				//
-				// Since the values are created by the decoder reflectively,
-				// fail early here.
-				if isUnexported {
-					return errors.Errorf("cannot make schema for type %v as it has an embedded field of a pointer to an unexported type %v. See https://golang.org/issue/21357", t, ft.Elem())
-				}
-				ft = ft.Elem()
-			}
-			if isUnexported && ft.Kind() != reflect.Struct {
-				// Ignore embedded fields of unexported non-struct types.
-				continue
-			}
-			// Do not ignore embedded fields of unexported struct types
-			// since they may have exported fields.
-		} else if isUnexported {
-			// Schemas can't handle unexported fields at all.
-			continue
+		ignore, _, err := ignoreField(t, sf)
+		if err != nil {
+			return err
 		}
-		if implements(sf.Type, sdfRtrackerType) {
-			// ignoring sdf.Rtracker interface.
+		if ignore {
 			continue
 		}
 		if err := r.registerType(sf.Type, seen); err != nil {
@@ -299,7 +313,6 @@ func (r *Registry) logicalTypeToFieldType(t reflect.Type) (*pipepb.FieldType, st
 		return ftype, lID, nil
 	}
 	for _, lti := range r.logicalTypeInterfaces {
-		fmt.Println("logicalTypeToField checking:", t, lti)
 		if !t.Implements(lti) {
 			continue
 		}
@@ -324,7 +337,7 @@ func (r *Registry) fromType(ot reflect.Type) (*pipepb.Schema, error) {
 	if schm, ok := r.typeToSchema[ot]; ok {
 		return schm, nil
 	}
-	ftype, _, err := r.logicalTypeToFieldType(ot)
+	ftype, lID, err := r.logicalTypeToFieldType(ot)
 	if err != nil {
 		return nil, err
 	}
@@ -335,6 +348,9 @@ func (r *Registry) fromType(ot reflect.Type) (*pipepb.Schema, error) {
 			schm.Options = append(schm.Options, &pipepb.Option{
 				Name: optGoNillable,
 			})
+		}
+		if lID != "" {
+			schm.Options = append(schm.Options, logicalOption(lID))
 		}
 		schm.Id = r.getNextID()
 		r.typeToSchema[ot] = schm
@@ -449,33 +465,12 @@ func (r *Registry) structToSchema(t reflect.Type) (*pipepb.Schema, error) {
 	fields := make([]*pipepb.Field, 0, t.NumField())
 	for i := 0; i < t.NumField(); i++ {
 		sf := t.Field(i)
-		isUnexported := sf.PkgPath != ""
-		var isAnon bool
-		if sf.Anonymous {
-			ft := sf.Type
-			if ft.Kind() == reflect.Ptr {
-				// If a struct embeds a pointer to an unexported type,
-				// it is not possible to set a newly allocated value
-				// since the field is unexported.
-				//
-				// See https://golang.org/issue/21357
-				//
-				// Since the values are created by the decoder reflectively,
-				// fail early here.
-				if isUnexported {
-					return nil, errors.Errorf("cannot make schema for type %v as it has an embedded field of a pointer to an unexported type %v. See https://golang.org/issue/21357", t, ft.Elem())
-				}
-				ft = ft.Elem()
-			}
-			if isUnexported && ft.Kind() != reflect.Struct {
-				// Ignore embedded fields of unexported non-struct types.
-				continue
-			}
-			// Do not ignore embedded fields of unexported struct types
-			// since they may have exported fields.
-			isAnon = true
-		} else if isUnexported {
-			continue // ignore unexported fields here.
+		ignore, isAnon, err := ignoreField(t, sf)
+		if err != nil {
+			return nil, err
+		}
+		if ignore {
+			continue
 		}
 		f, err := r.structFieldToField(sf)
 		if err != nil {
