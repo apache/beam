@@ -155,7 +155,6 @@ class GrpcVendoring_1_36_0 {
       "com/google/errorprone/**",
       "com/google/instrumentation/**",
       "com/google/j2objc/annotations/**",
-      "io/grpc/testing/**",
       "io/netty/handler/codec/marshalling/**",
       "io/netty/handler/codec/spdy/**",
       "io/netty/handler/codec/compression/JZlib*",
