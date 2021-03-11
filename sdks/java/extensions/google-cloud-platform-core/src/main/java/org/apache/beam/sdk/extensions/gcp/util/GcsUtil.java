@@ -25,7 +25,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import com.google.api.client.googleapis.batch.BatchRequest;
 import com.google.api.client.googleapis.batch.json.JsonBatchCallback;
 import com.google.api.client.googleapis.json.GoogleJsonError;
-import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.http.HttpHeaders;
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.util.BackOff;
@@ -51,7 +50,6 @@ import java.io.IOException;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.AccessDeniedException;
-import java.nio.file.FileAlreadyExistsException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
@@ -194,7 +192,7 @@ public class GcsUtil {
     this.numRewriteTokensUsed = null;
     this.shouldUseGrpc = shouldUseGrpc;
     googleCloudStorageOptions =
-        GoogleCloudStorageOptions.newBuilder()
+        GoogleCloudStorageOptions.builder()
             .setAppName("Beam")
             .setGrpcEnabled(shouldUseGrpc)
             .build();
@@ -288,20 +286,9 @@ public class GcsUtil {
         storageClient.objects().get(gcsPath.getBucket(), gcsPath.getObject());
     try {
       return ResilientOperation.retry(
-          ResilientOperation.getGoogleRequestCallable(getObject),
-          backoff,
-          RetryDeterminer.SOCKET_ERRORS,
-          IOException.class,
-          sleeper);
-    } catch (IOException | InterruptedException e) {
-      if (e instanceof InterruptedException) {
-        Thread.currentThread().interrupt();
-      }
-      if (e instanceof IOException && errorExtractor.itemNotFound((IOException) e)) {
-        throw new FileNotFoundException(gcsPath.toString());
-      }
-      throw new IOException(
-          String.format("Unable to get the file object for path %s.", gcsPath), e);
+          getObject::execute, backoff, RetryDeterminer.SOCKET_ERRORS, IOException.class, sleeper);
+    } catch (InterruptedException e) {
+      throw new IOException("Could nog get object", e);
     }
   }
 
@@ -344,10 +331,7 @@ public class GcsUtil {
 
     try {
       return ResilientOperation.retry(
-          ResilientOperation.getGoogleRequestCallable(listObject),
-          createBackOff(),
-          RetryDeterminer.SOCKET_ERRORS,
-          IOException.class);
+          listObject::execute, createBackOff(), RetryDeterminer.SOCKET_ERRORS, IOException.class);
     } catch (Exception e) {
       throw new IOException(
           String.format("Unable to match files in bucket %s, prefix %s.", bucket, prefix), e);
@@ -440,9 +424,13 @@ public class GcsUtil {
             .build();
     GoogleCloudStorage gcpStorage =
         new GoogleCloudStorageImpl(newGoogleCloudStorageOptions, this.storageClient);
+
     return gcpStorage.create(
         new StorageResourceId(path.getBucket(), path.getObject()),
-        new CreateObjectOptions(true, type, CreateObjectOptions.EMPTY_METADATA));
+        CreateObjectOptions.builder()
+            .setContentType(type)
+            .setEnsureEmptyObjectsMetadataMatch(true)
+            .build());
   }
 
   /** Returns whether the GCS bucket exists and is accessible. */
@@ -487,33 +475,18 @@ public class GcsUtil {
 
     try {
       return ResilientOperation.retry(
-          ResilientOperation.getGoogleRequestCallable(getBucket),
+          getBucket::execute,
           backoff,
-          new RetryDeterminer<IOException>() {
-            @Override
-            public boolean shouldRetry(IOException e) {
-              if (errorExtractor.itemNotFound(e) || errorExtractor.accessDenied(e)) {
-                return false;
-              }
-              return RetryDeterminer.SOCKET_ERRORS.shouldRetry(e);
+          e -> {
+            if (errorExtractor.itemNotFound(e) || errorExtractor.accessDenied(e)) {
+              return false;
             }
+            return RetryDeterminer.SOCKET_ERRORS.shouldRetry(e);
           },
           IOException.class,
           sleeper);
-    } catch (GoogleJsonResponseException e) {
-      if (errorExtractor.accessDenied(e)) {
-        throw new AccessDeniedException(path.toString(), null, e.getMessage());
-      }
-      if (errorExtractor.itemNotFound(e)) {
-        throw new FileNotFoundException(e.getMessage());
-      }
-      throw e;
     } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      throw new IOException(
-          String.format(
-              "Error while attempting to verify existence of bucket gs://%s", path.getBucket()),
-          e);
+      throw new IOException("Could nog get bucket", e);
     }
   }
 
@@ -526,35 +499,18 @@ public class GcsUtil {
 
     try {
       ResilientOperation.retry(
-          ResilientOperation.getGoogleRequestCallable(insertBucket),
+          insertBucket::execute,
           backoff,
-          new RetryDeterminer<IOException>() {
-            @Override
-            public boolean shouldRetry(IOException e) {
-              if (errorExtractor.itemAlreadyExists(e) || errorExtractor.accessDenied(e)) {
-                return false;
-              }
-              return RetryDeterminer.SOCKET_ERRORS.shouldRetry(e);
+          e -> {
+            if (errorExtractor.itemAlreadyExists(e) || errorExtractor.accessDenied(e)) {
+              return false;
             }
+            return RetryDeterminer.SOCKET_ERRORS.shouldRetry(e);
           },
           IOException.class,
           sleeper);
-      return;
-    } catch (GoogleJsonResponseException e) {
-      if (errorExtractor.accessDenied(e)) {
-        throw new AccessDeniedException(bucket.getName(), null, e.getMessage());
-      }
-      if (errorExtractor.itemAlreadyExists(e)) {
-        throw new FileAlreadyExistsException(bucket.getName(), null, e.getMessage());
-      }
-      throw e;
     } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      throw new IOException(
-          String.format(
-              "Error while attempting to create bucket gs://%s for rproject %s",
-              bucket.getName(), projectId),
-          e);
+      throw new IOException("Could not create bucket", e);
     }
   }
 
@@ -570,7 +526,7 @@ public class GcsUtil {
 
     List<CompletionStage<Void>> futures = new ArrayList<>();
     for (final BatchRequest batch : batches) {
-      futures.add(MoreFutures.runAsync(() -> batch.execute(), executor));
+      futures.add(MoreFutures.runAsync(batch::execute, executor));
     }
 
     try {
@@ -618,8 +574,8 @@ public class GcsUtil {
    * round of enqueue() and execute is required. Repeat until getReadyToEnqueue() returns false.
    */
   class RewriteOp extends JsonBatchCallback<RewriteResponse> {
-    private GcsPath from;
-    private GcsPath to;
+    private final GcsPath from;
+    private final GcsPath to;
     private boolean readyToEnqueue;
     @VisibleForTesting Storage.Objects.Rewrite rewriteRequest;
 
@@ -755,15 +711,15 @@ public class GcsUtil {
         batch,
         new JsonBatchCallback<StorageObject>() {
           @Override
-          public void onSuccess(StorageObject response, HttpHeaders httpHeaders)
-              throws IOException {
+          public void onSuccess(StorageObject response, HttpHeaders httpHeaders) {
             ret[0] = StorageObjectOrIOException.create(response);
           }
 
           @Override
-          public void onFailure(GoogleJsonError e, HttpHeaders httpHeaders) throws IOException {
+          public void onFailure(GoogleJsonError e, HttpHeaders httpHeaders) {
             IOException ioException;
-            if (errorExtractor.itemNotFound(e)) {
+            if (e.getCode() == 404) {
+              // We could not find the object
               ioException = new FileNotFoundException(path.toString());
             } else {
               ioException = new IOException(String.format("Error trying to get %s: %s", path, e));

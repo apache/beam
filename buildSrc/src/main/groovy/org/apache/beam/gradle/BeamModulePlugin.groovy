@@ -351,7 +351,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.29.0'
+    project.version = '2.30.0'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
@@ -424,7 +424,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def classgraph_version = "4.8.65"
     def errorprone_version = "2.3.4"
     def google_clients_version = "1.31.0"
-    def google_cloud_bigdataoss_version = "2.1.6"
+    def google_cloud_bigdataoss_version = "2.2.1-SNAPSHOT"
     def google_cloud_pubsublite_version = "0.7.0"
     def google_code_gson_version = "2.8.6"
     def google_oauth_clients_version = "1.31.0"
@@ -501,7 +501,7 @@ class BeamModulePlugin implements Plugin<Project> {
         error_prone_annotations                     : "com.google.errorprone:error_prone_annotations:$errorprone_version",
         gax                                         : "com.google.api:gax", // google_cloud_platform_libraries_bom sets version
         gax_grpc                                    : "com.google.api:gax-grpc", // google_cloud_platform_libraries_bom sets version
-        google_api_client                           : "com.google.api-client:google-api-client:1.31.1", // 1.31.1 is required to run 1.31.0 of google_clients_version below.
+        google_api_client                           : "com.google.api-client:google-api-client:1.31.3", // 1.31.1 is required to run 1.31.0 of google_clients_version below.
         google_api_client_jackson2                  : "com.google.api-client:google-api-client-jackson2:$google_clients_version",
         google_api_client_java6                     : "com.google.api-client:google-api-client-java6:$google_clients_version",
         google_api_common                           : "com.google.api:api-common", // google_cloud_platform_libraries_bom sets version
