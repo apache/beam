@@ -131,9 +131,9 @@ REQUIRED_PACKAGES = [
     # Avro 1.9.2 for python3 was broken. The issue was fixed in version 1.9.2.1
     'avro-python3>=1.8.1,!=1.9.2,<1.10.0',
     'crcmod>=1.7,<2.0',
-    # dataclasses backport for Python 3.6. No version boundary so that Python
-    # picks the correct one based on its version. For more details, see
-    # https://pypi.org/project/dataclasses/
+    # dataclasses backport for python_version<3.7. No version bound because this
+    # is Python standard since Python 3.7 and each Python version is compatible
+    # with a specific dataclasses version.
     'dataclasses',
     # Dill doesn't have forwards-compatibility guarantees within minor version.
     # Pickles created with a new version of dill may not unpickle using older
