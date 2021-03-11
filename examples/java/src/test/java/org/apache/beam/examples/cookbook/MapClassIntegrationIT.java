@@ -31,6 +31,7 @@ import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.joda.time.Duration;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -58,6 +59,7 @@ public class MapClassIntegrationIT {
   }
 
   @Test
+  @Ignore("https://issues.apache.org/jira/browse/BEAM-11962")
   public void testDataflowMapState() {
     PipelineOptions options = TestPipeline.testingPipelineOptions();
     Pipeline p = Pipeline.create(options);
