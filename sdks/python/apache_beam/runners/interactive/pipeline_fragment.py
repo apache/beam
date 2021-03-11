@@ -19,8 +19,6 @@
 
 For internal use only; no backwards-compatibility guarantees.
 """
-from __future__ import absolute_import
-
 import apache_beam as beam
 from apache_beam.pipeline import PipelineVisitor
 from apache_beam.runners.interactive import interactive_environment as ie

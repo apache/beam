@@ -16,8 +16,6 @@
 #
 
 """Tests for apache_beam.runners.interactive.pipeline_fragment."""
-from __future__ import absolute_import
-
 import unittest
 from unittest.mock import patch
 

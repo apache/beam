@@ -19,12 +19,8 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import json
 import unittest
-from builtins import object
-from builtins import range
 from datetime import datetime
 
 import mock
