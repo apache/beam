@@ -268,6 +268,7 @@ setuptools.setup(
         '*/*.pyx', '*/*/*.pyx', '*/*.pxd', '*/*/*.pxd', '*/*.h', '*/*/*.h',
         'testing/data/*.yaml', 'portability/api/*.yaml']},
     ext_modules=cythonize([
+        # Make sure to use language_level=3 cython directive in files below.
         'apache_beam/**/*.pyx',
         'apache_beam/coders/coder_impl.py',
         'apache_beam/metrics/cells.py',
