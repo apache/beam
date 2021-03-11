@@ -32,6 +32,7 @@ import org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly.GroupByKeyOnly;
 import org.apache.beam.runners.core.ReduceFnContextFactory.StateStyle;
 import org.apache.beam.runners.core.StateNamespaces.WindowNamespace;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
+import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.triggers.ExecutableTriggerStateMachine;
 import org.apache.beam.runners.core.triggers.TriggerStateMachineContextFactory;
 import org.apache.beam.runners.core.triggers.TriggerStateMachineRunner;
@@ -58,6 +59,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Manages the execution of a {@link ReduceFn} after a {@link GroupByKeyOnly} has partitioned the
@@ -90,6 +93,7 @@ import org.joda.time.Instant;
 }) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
 
+  private static final Logger LOG = LoggerFactory.getLogger(ReduceFnRunner.class);
   /**
    * The {@link ReduceFnRunner} depends on most aspects of the {@link WindowingStrategy}.
    *
@@ -382,6 +386,22 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
   }
 
   public void persist() {
+    if (activeWindows instanceof MergingActiveWindowSet) {
+      // li_trunk only LISAMZA-20208
+      boolean hasNewWindow = false;
+
+      for (W window : activeWindows.getActiveAndNewWindows()) {
+        if (!activeWindows.isActive(window)) {
+          hasNewWindow = true;
+          LOG.warn("Found empty state address window set for ACTIVE window {}", window);
+        }
+      }
+
+      if (hasNewWindow) {
+        activeWindows.cleanupTemporaryWindows();
+      }
+    }
+
     activeWindows.persist();
   }
 

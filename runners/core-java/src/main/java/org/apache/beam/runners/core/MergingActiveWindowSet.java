@@ -38,10 +38,13 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** An {@link ActiveWindowSet} for merging {@link WindowFn} implementations. */
 @SuppressWarnings({"nullness", "keyfor"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class MergingActiveWindowSet<W extends BoundedWindow> implements ActiveWindowSet<W> {
+  private static final Logger LOG = LoggerFactory.getLogger(MergingActiveWindowSet.class);
   private final WindowFn<Object, W> windowFn;
 
   /**
@@ -393,6 +396,7 @@ public class MergingActiveWindowSet<W extends BoundedWindow> implements ActiveWi
     } else {
       for (Map.Entry<W, Set<W>> entry : multimap.entrySet()) {
         if (entry.getValue() == null) {
+          LOG.warn("Found null state address window set for ACTIVE window {}", entry.getKey());
           entry.setValue(new LinkedHashSet<>());
         }
       }
