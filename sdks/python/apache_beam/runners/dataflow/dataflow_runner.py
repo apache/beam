@@ -381,25 +381,6 @@ class DataflowRunner(PipelineRunner):
 
     return CombineFnVisitor()
 
-  def _check_for_unsupported_fnapi_features(self, pipeline_proto):
-    components = pipeline_proto.components
-    for windowing_strategy in components.windowing_strategies.values():
-      if (windowing_strategy.merge_status ==
-          beam_runner_api_pb2.MergeStatus.NEEDS_MERGE and
-          windowing_strategy.window_fn.urn not in (
-              common_urns.session_windows.urn, )):
-        raise RuntimeError(
-            'Unsupported merging windowing strategy: %s' %
-            windowing_strategy.window_fn.urn)
-      elif components.coders[
-          windowing_strategy.window_coder_id].spec.urn not in (
-              common_urns.coders.GLOBAL_WINDOW.urn,
-              common_urns.coders.INTERVAL_WINDOW.urn):
-        raise RuntimeError(
-            'Unsupported window coder %s for window fn %s' % (
-                components.coders[windowing_strategy.window_coder_id].spec.urn,
-                windowing_strategy.window_fn.urn))
-
   def _adjust_pipeline_for_dataflow_v2(self, pipeline):
     # Dataflow runner requires a KV type for GBK inputs, hence we enforce that
     # here.
@@ -518,9 +499,7 @@ class DataflowRunner(PipelineRunner):
             known_runner_urns=frozenset(),
             partial=True)
 
-    if use_fnapi:
-      self._check_for_unsupported_fnapi_features(self.proto_pipeline)
-    else:
+    if not use_fnapi:
       # Performing configured PTransform overrides which should not be reflected
       # in the proto representation of the graph.
       pipeline.replace_all(DataflowRunner._NON_PORTABLE_PTRANSFORM_OVERRIDES)

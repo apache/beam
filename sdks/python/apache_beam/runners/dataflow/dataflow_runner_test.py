@@ -32,7 +32,6 @@ import mock
 import apache_beam as beam
 import apache_beam.transforms as ptransform
 from apache_beam.coders import BytesCoder
-from apache_beam.coders import coders
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.pipeline import AppliedPTransform
@@ -516,23 +515,6 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
 
     self.assertFalse(debug_options.lookup_experiment('use_fastavro', False))
 
-  def test_unsupported_fnapi_features(self):
-    remote_runner = DataflowRunner()
-    self.default_properties.append('--experiment=beam_fn_api')
-    self.default_properties.append('--experiment=use_runner_v2')
-
-    with self.assertRaisesRegex(RuntimeError, 'Unsupported merging'):
-      with Pipeline(remote_runner,
-                    options=PipelineOptions(self.default_properties)) as p:
-        # pylint: disable=expression-not-assigned
-        p | beam.Create([]) | beam.WindowInto(CustomMergingWindowFn())
-
-    with self.assertRaisesRegex(RuntimeError, 'Unsupported window coder'):
-      with Pipeline(remote_runner,
-                    options=PipelineOptions(self.default_properties)) as p:
-        # pylint: disable=expression-not-assigned
-        p | beam.Create([]) | beam.WindowInto(CustomWindowTypeWindowFn())
-
   @mock.patch('os.environ.get', return_value=None)
   @mock.patch('apache_beam.utils.processes.check_output', return_value=b'')
   def test_get_default_gcp_region_no_default_returns_none(
@@ -880,25 +862,6 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     self.default_properties.append('--experiment=pre_optimize=all')
     self._test_pack_combiners(
         PipelineOptions(self.default_properties), expect_packed=True)
-
-
-class CustomMergingWindowFn(window.WindowFn):
-  def assign(self, assign_context):
-    return []
-
-  def merge(self, merge_context):
-    pass
-
-  def get_window_coder(self):
-    return coders.IntervalWindowCoder()
-
-
-class CustomWindowTypeWindowFn(window.NonMergingWindowFn):
-  def assign(self, assign_context):
-    return []
-
-  def get_window_coder(self):
-    return coders.BytesCoder()
 
 
 if __name__ == '__main__':
