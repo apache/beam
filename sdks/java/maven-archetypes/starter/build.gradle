@@ -31,10 +31,3 @@ processResources {
     'maven-exec-plugin.version': dependencies.create(project.library.maven.maven_exec_plugin).getVersion(),
   ]
 }
-
-dependencies {
-  compile project(path: ":runners:direct-java", configuration: "shadow")
-  permitUnusedDeclared project(":runners:direct-java") // BEAM-11761
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  permitUnusedDeclared project(":sdks:java:core") // BEAM-11761
-}
