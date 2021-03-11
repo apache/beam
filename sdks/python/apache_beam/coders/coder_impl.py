@@ -34,12 +34,14 @@ For internal use only; no backwards-compatibility guarantees.
 # pytype: skip-file
 
 import json
+import pickle
 from builtins import chr
 from builtins import object
 from io import BytesIO
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
+from typing import Dict
 from typing import Iterable
 from typing import Iterator
 from typing import List
@@ -48,11 +50,6 @@ from typing import Sequence
 from typing import Set
 from typing import Tuple
 from typing import Type
-
-try:
-  import dataclasses
-except ImportError:
-  dataclasses = None
 
 import dill
 from fastavro import parse_schema
@@ -67,6 +64,11 @@ from apache_beam.utils.sharded_key import ShardedKey
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.timestamp import Timestamp
+
+try:
+  import dataclasses
+except ImportError:
+  dataclasses = None  # type: ignore
 
 if TYPE_CHECKING:
   from apache_beam.transforms import userstate
@@ -332,11 +334,11 @@ _ITERABLE_LIKE_TYPES = set()  # type: Set[Type]
 
 class FastPrimitivesCoderImpl(StreamCoderImpl):
   """For internal use only; no backwards-compatibility guarantees."""
-  def __init__(self, fallback_coder_impl, requires_deterministic=None):
+  def __init__(
+      self, fallback_coder_impl, requires_deterministic_step_label=None):
     self.fallback_coder_impl = fallback_coder_impl
     self.iterable_coder_impl = IterableCoderImpl(self)
-    self.requires_deterministic = requires_deterministic
-    self.decoded_types = {}
+    self.requires_deterministic_step_label = requires_deterministic_step_label
 
   @staticmethod
   def register_iterable_like_type(t):
@@ -397,7 +399,7 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       self.iterable_coder_impl.encode_to_stream(value, stream, nested)
     # All deterministic encodings should be above this clause,
     # all non-deterministic ones below.
-    elif self.requires_deterministic is not None:
+    elif self.requires_deterministic_step_label is not None:
       self.encode_special_deterministic(value, stream)
     elif t is dict:
       dict_value = value  # for typing
@@ -426,10 +428,10 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
         raise TypeError(
             "Unable to deterministically encode non-frozen '%s' of type '%s' "
             "for the input of '%s'" %
-            (value, type(value), self.requires_deterministic))
+            (value, type(value), self.requires_deterministic_step_label))
       self.encode_type(type(value), stream)
       self.iterable_coder_impl.encode_to_stream(
-          (getattr(value, field.name) for field in dataclasses.fields(value)),
+          [getattr(value, field.name) for field in dataclasses.fields(value)],
           stream,
           True)
     elif isinstance(value, tuple) and type(value).__base__ is tuple and hasattr(
@@ -441,16 +443,13 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       raise TypeError(
           "Unable to deterministically encode '%s' of type '%s', "
           "please provide a type hint for the input of '%s'" %
-          (value, type(value), self.requires_deterministic))
+          (value, type(value), self.requires_deterministic_step_label))
 
   def encode_type(self, t, stream):
     stream.write(dill.dumps(t), True)
 
   def decode_type(self, stream):
-    bs = stream.read_all(True)
-    if bs not in self.decoded_types:
-      self.decoded_types[bs] = dill.loads(bs)
-    return self.decoded_types[bs]
+    return _unpickle_type(stream.read_all(True))
 
   def decode_from_stream(self, stream, nested):
     # type: (create_InputStream, bool) -> Any
@@ -496,6 +495,26 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       return self.fallback_coder_impl.decode_from_stream(stream, nested)
     else:
       raise ValueError('Unknown type tag %x' % t)
+
+
+_unpickled_types = {}  # type: Dict[bytes, type]
+
+
+def _unpickle_type(bs):
+  t = _unpickled_types.get(bs, None)
+  if t is None:
+    t = _unpickled_types[bs] = dill.loads(bs)
+    # Fix unpicklable anonymous named tuples for Python 3.6.
+    if t.__base__ is tuple and hasattr(t, '_fields'):
+      try:
+        pickle.loads(pickle.dumps(t))
+      except pickle.PicklingError:
+        t.__reduce__ = lambda self: (_unpickle_named_tuple, (bs, tuple(self)))
+  return t
+
+
+def _unpickle_named_tuple(bs, items):
+  return _unpickle_type(bs)(*items)
 
 
 class BytesCoderImpl(CoderImpl):

@@ -65,12 +65,6 @@ cdef class CallbackCoderImpl(CoderImpl):
   cdef object _size_estimator
 
 
-cdef class DeterministicFastPrimitivesCoderImpl(CoderImpl):
-  cdef CoderImpl _underlying_coder
-  cdef object _step_label
-  cdef bint _check_safe(self, value) except -1
-
-
 cdef object NoneType
 cdef unsigned char UNKNOWN_TYPE, NONE_TYPE, INT_TYPE, FLOAT_TYPE, BOOL_TYPE
 cdef unsigned char BYTES_TYPE, UNICODE_TYPE, LIST_TYPE, TUPLE_TYPE, DICT_TYPE
@@ -83,8 +77,7 @@ cdef set _ITERABLE_LIKE_TYPES
 cdef class FastPrimitivesCoderImpl(StreamCoderImpl):
   cdef CoderImpl fallback_coder_impl
   cdef CoderImpl iterable_coder_impl
-  cdef object requires_deterministic
-  cdef dict decoded_types
+  cdef object requires_deterministic_step_label
 
   @cython.locals(dict_value=dict, int_value=libc.stdint.int64_t,
                  unicode_value=unicode)
@@ -95,6 +88,7 @@ cdef class FastPrimitivesCoderImpl(StreamCoderImpl):
   cdef encode_type(self, t, OutputStream stream)
   cdef decode_type(self, InputStream stream)
 
+cdef dict _unpickled_types
 
 cdef class BytesCoderImpl(CoderImpl):
   pass

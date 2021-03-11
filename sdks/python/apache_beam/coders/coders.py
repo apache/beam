@@ -773,7 +773,7 @@ class DeterministicFastPrimitivesCoder(FastCoder):
   def _create_impl(self):
     return coder_impl.FastPrimitivesCoderImpl(
         self._underlying_coder.get_impl(),
-        requires_deterministic=self._step_label)
+        requires_deterministic_step_label=self._step_label)
 
   def is_deterministic(self):
     # type: () -> bool

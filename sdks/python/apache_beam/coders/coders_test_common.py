@@ -18,8 +18,10 @@
 """Tests common to all coder implementations."""
 # pytype: skip-file
 
-import logging
+from __future__ import absolute_import
+
 import collections
+import logging
 import math
 import unittest
 from builtins import range
@@ -48,7 +50,7 @@ from . import observable
 try:
   import dataclasses
 except ImportError:
-  dataclasses = None
+  dataclasses = None  # type: ignore
 
 MyNamedTuple = collections.namedtuple('A', ['x', 'y'])
 
