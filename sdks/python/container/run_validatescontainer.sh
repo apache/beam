@@ -24,11 +24,14 @@
 # REGION       -> Region name to use for Dataflow
 #
 # Execute from the root of the repository:
-#     test Python2 container: ./sdks/python/container/run_validatescontainer.sh python2
-#     test Python3 container: ./sdks/python/container/run_validatescontainer.sh python35
-#     test Python3 container: ./sdks/python/container/run_validatescontainer.sh python36
-#     test Python3 container: ./sdks/python/container/run_validatescontainer.sh python37
-#     test Python3 container: ./sdks/python/container/run_validatescontainer.sh python38
+#     test Python3.6 container:
+#         ./gradlew :sdks:python:test-suites:dataflow:py36:validatesContainer
+#     test Python3.7 container:
+#         ./gradlew :sdks:python:test-suites:dataflow:py37:validatesContainer
+#     test Python3.8 container:
+#         ./gradlew :sdks:python:test-suites:dataflow:py38:validatesContainer
+#     or test all supported python versions together:
+#         ./gradlew :sdks:python:test-suites:dataflow:validatesContainer
 
 echo "This script must be executed in the root of beam project. Please set GCS_LOCATION, PROJECT and REGION as desired."
 
@@ -49,6 +52,7 @@ GCS_LOCATION=${GCS_LOCATION:-gs://temp-storage-for-end-to-end-tests}
 PROJECT=${PROJECT:-apache-beam-testing}
 REGION=${REGION:-us-central1}
 IMAGE_PREFIX="$(grep 'docker_image_default_repo_prefix' gradle.properties | cut -d'=' -f2)"
+SDK_VERSION="$(grep 'sdk_version' gradle.properties | cut -d'=' -f2)"
 
 # Other variables branched by Python version.
 if [[ $1 == "python36" ]]; then
@@ -78,23 +82,26 @@ command -v gcloud
 docker -v
 gcloud -v
 
-# Build the container
+# Verify docker image has been built.
+docker images | grep "apache/$IMAGE_NAME" | grep "$SDK_VERSION"
+
 TAG=$(date +%Y%m%d-%H%M%S%N)
 CONTAINER=us.gcr.io/$PROJECT/$USER/$IMAGE_NAME
 PREBUILD_SDK_CONTAINER_REGISTRY_PATH=us.gcr.io/$PROJECT/$USER/prebuild_$1_sdk
 echo "Using container $CONTAINER"
-./gradlew :$CONTAINER_PROJECT:docker -Pdocker-repository-root=us.gcr.io/$PROJECT/$USER -Pdocker-tag=$TAG --info
 
-# Verify it exists
-docker images | grep $TAG
+# Tag the docker container.
+docker tag "apache/$IMAGE_NAME:$SDK_VERSION" "$CONTAINER:$TAG"
 
-# Push the container
+# Push the container.
 gcloud docker -- push $CONTAINER:$TAG
 
 function cleanup_container {
   # Delete the container locally and remotely
   docker rmi $CONTAINER:$TAG || echo "Failed to remove container image"
-  docker rmi $(docker images --format '{{.Repository}}:{{.Tag}}' | grep 'prebuilt_sdk') || echo "Failed to remove prebuilt sdk container image"
+  for image in $(docker images --format '{{.Repository}}:{{.Tag}}' | grep $PREBUILD_SDK_CONTAINER_REGISTRY_PATH)
+    do docker rmi $image || echo "Failed to remove prebuilt sdk container image"
+  done
   gcloud --quiet container images delete $CONTAINER:$TAG || echo "Failed to delete container"
   for digest in $(gcloud container images list-tags $PREBUILD_SDK_CONTAINER_REGISTRY_PATH/beam_python_prebuilt_sdk  --format="get(digest)")
     do gcloud container images delete $PREBUILD_SDK_CONTAINER_REGISTRY_PATH/beam_python_prebuilt_sdk@$digest --force-delete-tags --quiet || echo "Failed to remove prebuilt sdk container image"
