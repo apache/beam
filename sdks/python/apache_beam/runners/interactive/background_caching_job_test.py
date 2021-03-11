@@ -21,6 +21,7 @@
 from __future__ import absolute_import
 
 import unittest
+from unittest.mock import patch
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -36,13 +37,6 @@ from apache_beam.runners.interactive.testing.test_cache_manager import FileRecor
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.test_stream_service import TestStreamServiceController
 from apache_beam.transforms.window import TimestampedValue
-
-# TODO(BEAM-8288): clean up the work-around of nose tests using Python2 without
-# unittest.mock module.
-try:
-  from unittest.mock import patch
-except ImportError:
-  from mock import patch  # type: ignore[misc]
 
 _FOO_PUBSUB_SUB = 'projects/test-project/subscriptions/foo'
 _BAR_PUBSUB_SUB = 'projects/test-project/subscriptions/bar'

@@ -19,6 +19,7 @@ from __future__ import absolute_import
 
 import time
 import unittest
+from unittest.mock import MagicMock
 
 import apache_beam as beam
 from apache_beam import coders
@@ -41,13 +42,6 @@ from apache_beam.testing.test_stream import WindowedValueHolder
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.windowed_value import WindowedValue
-
-# TODO(BEAM-8288): clean up the work-around of nose tests using Python2 without
-# unittest.mock module.
-try:
-  from unittest.mock import MagicMock
-except ImportError:
-  from mock import MagicMock  # type: ignore[misc]
 
 
 class MockPipelineResult(beam.runners.runner.PipelineResult):

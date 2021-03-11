@@ -24,6 +24,7 @@ import importlib
 import sys
 import time
 import unittest
+from unittest.mock import patch
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -33,13 +34,6 @@ from apache_beam.runners.interactive import interactive_runner as ir
 from apache_beam.runners.interactive.options.capture_limiters import Limiter
 from apache_beam.runners.runner import PipelineState
 from apache_beam.testing.test_stream import TestStream
-
-# TODO(BEAM-8288): clean up the work-around of nose tests using Python2 without
-# unittest.mock module.
-try:
-  from unittest.mock import patch
-except ImportError:
-  from mock import patch
 
 # The module name is also a variable in module.
 _module_name = 'apache_beam.runners.interactive.interactive_beam_test'
