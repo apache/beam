@@ -210,7 +210,7 @@ public class KafkaTableProviderIT {
     String createTableString =
         String.format(
             "CREATE EXTERNAL TABLE kafka_table(\n"
-                + "headers ARRAY<ROW<key VARCHAR, values ARRAY<BYTES>>>,"
+                + "headers ARRAY<ROW<key VARCHAR, `values` ARRAY<VARBINARY>>>,"
                 + "payload ROW<"
                 + "f_long BIGINT NOT NULL, \n"
                 + "f_int INTEGER NOT NULL, \n"
