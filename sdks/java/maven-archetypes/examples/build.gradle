@@ -75,8 +75,3 @@ sourceSets {
   output.dir('src', builtBy: 'generateSources')
  }
 }
-
-dependencies {
-  compile project(":examples:java")
-  permitUnusedDeclared project(":examples:java") // BEAM-11761
-}
