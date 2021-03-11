@@ -302,19 +302,26 @@ func (r *Registry) FromType(ot reflect.Type) (*pipepb.Schema, error) {
 }
 
 func (r *Registry) fromType(ot reflect.Type) (*pipepb.Schema, error) {
-	if reflectx.SkipPtr(ot).Kind() != reflect.Struct {
-		return nil, errors.Errorf("cannot convert %v to schema. FromType only converts structs to schemas", ot)
+	if schm, ok := r.typeToSchema[ot]; ok {
+		return schm, nil
 	}
-	schm, err := r.structToSchema(ot)
+	t := reflectx.SkipPtr(ot)
+	schm, err := r.structToSchema(t)
 	if err != nil {
 		return nil, err
 	}
-	if ot.Kind() == reflect.Ptr {
-		schm.Options = append(schm.Options, &pipepb.Option{
-			Name: optGoNillable,
-		})
-	}
-	return schm, nil
+	// Cache the pointer type here with it's own id.
+	pt := reflect.PtrTo(t)
+	schm = proto.Clone(schm).(*pipepb.Schema)
+	schm.Id = r.getNextID()
+	schm.Options = append(schm.Options, &pipepb.Option{
+		Name: optGoNillable,
+	})
+	r.idToType[schm.GetId()] = pt
+	r.typeToSchema[pt] = schm
+
+	// Return whatever the original type was.
+	return r.typeToSchema[ot], nil
 }
 
 // Schema Option urns.
