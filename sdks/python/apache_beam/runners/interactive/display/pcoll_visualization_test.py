@@ -21,6 +21,9 @@
 from __future__ import absolute_import
 
 import unittest
+from unittest.mock import ANY
+from unittest.mock import PropertyMock
+from unittest.mock import patch
 
 import pytz
 
@@ -36,13 +39,6 @@ from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import IntervalWindow
 from apache_beam.utils.windowed_value import PaneInfo
 from apache_beam.utils.windowed_value import PaneInfoTiming
-
-# TODO(BEAM-8288): clean up the work-around of nose tests using Python2 without
-# unittest.mock module.
-try:
-  from unittest.mock import patch, ANY, PropertyMock
-except ImportError:
-  from mock import patch, ANY, PropertyMock  # type: ignore[misc]
 
 try:
   import timeloop

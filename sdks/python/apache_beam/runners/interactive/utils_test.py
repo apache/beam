@@ -20,6 +20,7 @@ from __future__ import absolute_import
 import json
 import logging
 import unittest
+from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
@@ -31,13 +32,6 @@ from apache_beam.runners.interactive import utils
 from apache_beam.testing.test_stream import WindowedValueHolder
 from apache_beam.utils.timestamp import Timestamp
 from apache_beam.utils.windowed_value import WindowedValue
-
-# TODO(BEAM-8288): clean up the work-around of nose tests using Python2 without
-# unittest.mock module.
-try:
-  from unittest.mock import patch
-except ImportError:
-  from mock import patch
 
 
 class ParseToDataframeTest(unittest.TestCase):

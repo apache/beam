@@ -22,6 +22,7 @@
 from __future__ import absolute_import
 
 import unittest
+from unittest.mock import patch
 
 import apache_beam as beam
 from apache_beam import coders
@@ -36,13 +37,6 @@ from apache_beam.runners.interactive.caching.streaming_cache import StreamingCac
 from apache_beam.runners.interactive.options import capture_control
 from apache_beam.runners.interactive.options import capture_limiters
 from apache_beam.testing.test_stream_service import TestStreamServiceController
-
-# TODO(BEAM-8288): clean up the work-around of nose tests using Python2 without
-# unittest.mock module.
-try:
-  from unittest.mock import patch
-except ImportError:
-  from mock import patch  # type: ignore[misc]
 
 
 def _build_an_empty_streaming_pipeline():

@@ -885,9 +885,7 @@ def cacheables(pcolls_to_pcoll_id):
   cacheable_var_by_pcoll_id = {}
   for watching in ie.current_env().watching():
     for key, val in watching:
-      # TODO(BEAM-8288): cleanup the attribute check when py2 is not supported.
-      if hasattr(val, '__class__') and isinstance(val, beam.pvalue.PCollection):
-        cacheable = {}
+      if isinstance(val, beam.pvalue.PCollection):
 
         pcoll_id = pcolls_to_pcoll_id.get(str(val), None)
         # It's highly possible that PCollection str is not unique across
