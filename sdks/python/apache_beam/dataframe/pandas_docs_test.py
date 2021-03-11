@@ -20,9 +20,6 @@ dataframe implementation.
 Run as python -m apache_beam.dataframe.pandas_docs_test [getting_started ...]
 """
 
-from __future__ import absolute_import
-from __future__ import print_function
-
 import argparse
 import contextlib
 import io
