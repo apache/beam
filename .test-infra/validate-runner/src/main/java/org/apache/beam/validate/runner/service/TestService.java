@@ -25,6 +25,7 @@ import net.sf.json.JSONObject;
 import org.apache.beam.validate.runner.model.CaseResult;
 import org.apache.beam.validate.runner.model.Configuration;
 import org.apache.beam.validate.runner.model.TestResult;
+import org.apache.beam.validate.runner.util.CategoryRetriever;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -43,7 +44,11 @@ public interface TestService {
      */
     default Set<CaseResult> getAllTests(TestResult testResult) {
         Set<CaseResult> caseResults = new HashSet<>();
-        Optional.ofNullable(testResult.getSuites()).ifPresent(suites -> suites.forEach(item -> caseResults.addAll(item.getCases())));
+        Optional.ofNullable(testResult.getSuites()).ifPresent(suites -> suites.forEach(item -> item.getCases()
+                        .forEach(caseResult -> {
+                            caseResult.setCategories(CategoryRetriever.getCategories(caseResult.getClassName(), caseResult.getName()));
+                            caseResults.add(caseResult);
+                        })));
         return caseResults;
     }
 
@@ -96,7 +101,7 @@ public interface TestService {
                 if(found) {
                     found = false;
                 } else {
-                    caseResults.add(new CaseResult(pair.getValue(), "NOT RUN", pair.getKey()));
+                    caseResults.add(new CaseResult(pair.getValue(), "NOT RUN", pair.getKey(), new ArrayList<>()));
                 }
             }
         });

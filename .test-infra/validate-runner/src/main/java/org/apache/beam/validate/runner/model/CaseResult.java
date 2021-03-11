@@ -19,18 +19,21 @@ package org.apache.beam.validate.runner.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
+import java.util.List;
 import java.util.Objects;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class CaseResult {
     private String className;
     private String name;
-    private  String status;
+    private String status;
+    private List<String> categories;
 
-    public CaseResult(String className, String name, String status) {
+    public CaseResult(String className, String name, String status, List<String> categories) {
         this.className = className;
         this.name = name;
         this.status = status;
+        this.categories = categories;
     }
 
     public CaseResult() {
@@ -59,6 +62,14 @@ public class CaseResult {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public List<String> getCategories() {
+        return categories;
+    }
+
+    public void setCategories(List<String> categories) {
+        this.categories = categories;
     }
 
     @Override
