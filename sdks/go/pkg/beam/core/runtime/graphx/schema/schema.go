@@ -155,46 +155,27 @@ func (r *Registry) registerType(ut reflect.Type, seen map[reflect.Type]struct{})
 
 	// Lets do some recursion to register fundamental type parts.
 	t := ut
-
 	if lID, ok := r.logicalTypeIdentifiers[t]; ok {
 		lt := r.logicalTypes[lID]
 		r.addToMaps(lt.StorageType(), t)
 		return nil
 	}
 
-	useProvider := func(t, lti reflect.Type) (bool, error) {
+	for _, lti := range r.logicalTypeInterfaces {
+		if !t.Implements(lti) {
+			continue
+		}
 		p := r.logicalTypeProviders[lti]
 		st, err := p(t)
 		if err != nil {
-			return false, errors.Wrapf(err, "unable to convert LogicalType[%v] using provider for %v", t, lti)
+			return errors.Wrapf(err, "unable to convert LogicalType[%v] using provider for %v", t, lti)
 		}
 		if st == nil {
-			return false, nil
+			continue
 		}
 		r.RegisterLogicalType(ToLogicalType(t.String(), t, st))
 		r.addToMaps(st, t)
-		return true, nil
-	}
-
-	for _, lti := range r.logicalTypeInterfaces {
-		if t.Implements(lti) {
-			ok, err := useProvider(t, lti)
-			if err != nil {
-				return err
-			}
-			if ok {
-				return nil
-			}
-		}
-		if t := reflect.PtrTo(t); t.Implements(lti) {
-			ok, err := useProvider(t, lti)
-			if err != nil {
-				return err
-			}
-			if ok {
-				return nil
-			}
-		}
+		return nil
 	}
 
 	switch t.Kind() {
@@ -220,7 +201,7 @@ func (r *Registry) registerType(ut reflect.Type, seen map[reflect.Type]struct{})
 		if !ok {
 			// Kind is not listed, meaning it's an unlisted somehow, which means either the map
 			// is missing something, or the above switch cases are missing something.
-			return errors.Errorf("Unlisted kind %v for type %v reached.", t.Kind(), t)
+			return errors.Errorf("unlisted kind %v for type %v reached.", t.Kind(), t)
 		}
 		if t != rt {
 			// It's only a logical type if it's not a built in primitive type, which is returned by the map.
@@ -234,7 +215,7 @@ func (r *Registry) registerType(ut reflect.Type, seen map[reflect.Type]struct{})
 		isUnexported := sf.PkgPath != ""
 		if sf.Anonymous {
 			ft := sf.Type
-			if t.Kind() == reflect.Ptr {
+			if ft.Kind() == reflect.Ptr {
 				// If a struct embeds a pointer to an unexported type,
 				// it is not possible to set a newly allocated value
 				// since the field is unexported.
@@ -260,7 +241,7 @@ func (r *Registry) registerType(ut reflect.Type, seen map[reflect.Type]struct{})
 		}
 		if implements(sf.Type, sdfRtrackerType) {
 			// ignoring sdf.Rtracker interface.
-			return nil
+			continue
 		}
 		if err := r.registerType(sf.Type, seen); err != nil {
 			return errors.Wrapf(err, "registering type for field %v in %v", sf.Name, ut)
@@ -283,10 +264,15 @@ func (r *Registry) registerType(ut reflect.Type, seen map[reflect.Type]struct{})
 func (r *Registry) addToMaps(synth, ut reflect.Type) {
 	synth = reflectx.SkipPtr(synth)
 	ut = reflectx.SkipPtr(ut)
-	r.syntheticToUser[synth] = ut
-	r.syntheticToUser[reflect.PtrTo(synth)] = reflect.PtrTo(ut)
-	r.syntheticToUser[ut] = ut
-	r.syntheticToUser[reflect.PtrTo(ut)] = reflect.PtrTo(ut)
+	// empty types have no value for lookups.
+	if synth != emptyStructType {
+		r.syntheticToUser[synth] = ut
+		r.syntheticToUser[reflect.PtrTo(synth)] = reflect.PtrTo(ut)
+	}
+	if ut != emptyStructType {
+		r.syntheticToUser[ut] = ut
+		r.syntheticToUser[reflect.PtrTo(ut)] = reflect.PtrTo(ut)
+	}
 }
 
 // FromType returns a Beam Schema of the passed in type.
@@ -301,11 +287,63 @@ func (r *Registry) FromType(ot reflect.Type) (*pipepb.Schema, error) {
 	return r.fromType(ot)
 }
 
+func (r *Registry) logicalTypeToFieldType(t reflect.Type) (*pipepb.FieldType, string, error) {
+	// Check if a logical type was registered that matches this struct type directly
+	// and if so, extract the schema from it for use.
+	if lID, ok := r.logicalTypeIdentifiers[t]; ok {
+		lt := r.logicalTypes[lID]
+		ftype, err := r.reflectTypeToFieldType(lt.StorageType())
+		if err != nil {
+			return nil, "", errors.Wrapf(err, "unable to convert LogicalType[%v]'s storage type %v for Go type of %v to a schema", lID, lt.StorageType(), lt.GoType())
+		}
+		return ftype, lID, nil
+	}
+	for _, lti := range r.logicalTypeInterfaces {
+		fmt.Println("logicalTypeToField checking:", t, lti)
+		if !t.Implements(lti) {
+			continue
+		}
+		p := r.logicalTypeProviders[lti]
+		st, err := p(t)
+		if err != nil {
+			return nil, "", errors.Wrapf(err, "unable to convert LogicalType[%v] using provider for %v schema field", t, lti)
+		}
+		if st == nil {
+			continue
+		}
+		ftype, err := r.reflectTypeToFieldType(st)
+		if err != nil {
+			return nil, "", errors.Wrapf(err, "unable to convert LogicalType[%v]'s storage type %v for Go type of %v to a schema", "interface", st, t)
+		}
+		return ftype, t.String(), nil
+	}
+	return nil, "", nil
+}
+
 func (r *Registry) fromType(ot reflect.Type) (*pipepb.Schema, error) {
 	if schm, ok := r.typeToSchema[ot]; ok {
 		return schm, nil
 	}
+	ftype, _, err := r.logicalTypeToFieldType(ot)
+	if err != nil {
+		return nil, err
+	}
+	if ftype != nil {
+		schm := ftype.GetRowType().GetSchema()
+		schm = proto.Clone(schm).(*pipepb.Schema)
+		if ot.Kind() == reflect.Ptr {
+			schm.Options = append(schm.Options, &pipepb.Option{
+				Name: optGoNillable,
+			})
+		}
+		schm.Id = r.getNextID()
+		r.typeToSchema[ot] = schm
+		r.idToType[schm.GetId()] = ot
+		return schm, nil
+	}
+
 	t := reflectx.SkipPtr(ot)
+
 	schm, err := r.structToSchema(t)
 	if err != nil {
 		return nil, err
@@ -329,17 +367,11 @@ const (
 	// optGoNillable indicates that this top level schema should be returned as a pointer type.
 	optGoNillable = "beam:schema:go:nillable:v1"
 	// optGoEmbedded indicates that this field is an embedded type.
-	optGoEmbedded = "beam:schema:go:embedded:v1"
+	optGoEmbedded = "beam:schema:go:embedded_field:v1"
+	// optGoLogical indicates that this top level schema has a logical type equivalent that need to be looked up.
+	// It has a value type of String representing the URN for the logical type to look up.
+	optGoLogical = "beam:schema:go:logical:v1"
 )
-
-// nillableFromOptions converts the passed in type to it's pointer version
-// if the option is present. This permits go types to be pointers.
-func nillableFromOptions(opts []*pipepb.Option, t reflect.Type) reflect.Type {
-	if checkOptions(opts, optGoNillable) != nil {
-		return reflect.PtrTo(t)
-	}
-	return nil
-}
 
 func checkOptions(opts []*pipepb.Option, urn string) *pipepb.Option {
 	for _, opt := range opts {
@@ -350,24 +382,70 @@ func checkOptions(opts []*pipepb.Option, urn string) *pipepb.Option {
 	return nil
 }
 
-func (r *Registry) structToSchema(ot reflect.Type) (*pipepb.Schema, error) {
-	if schm, ok := r.typeToSchema[ot]; ok {
+// nillableFromOptions converts the passed in type to it's pointer version
+// if the option is present. This permits go types to be pointers.
+func nillableFromOptions(opts []*pipepb.Option, t reflect.Type) reflect.Type {
+	if checkOptions(opts, optGoNillable) != nil {
+		return reflect.PtrTo(t)
+	}
+	return nil
+}
+
+var optGoLogicalType = &pipepb.FieldType{
+	TypeInfo: &pipepb.FieldType_AtomicType{
+		AtomicType: pipepb.AtomicType_STRING,
+	},
+}
+
+func logicalOption(lID string) *pipepb.Option {
+	return &pipepb.Option{
+		Name: optGoLogical,
+		Type: optGoLogicalType,
+		Value: &pipepb.FieldValue{
+			FieldValue: &pipepb.FieldValue_AtomicValue{
+				AtomicValue: &pipepb.AtomicTypeValue{
+					Value: &pipepb.AtomicTypeValue_String_{
+						String_: lID,
+					},
+				},
+			},
+		},
+	}
+}
+
+// fromLogicalOption returns the logical type id of this top
+// level type if this schema has a logical equivalent.
+func fromLogicalOption(opts []*pipepb.Option) (string, bool) {
+	o := checkOptions(opts, optGoLogical)
+	if o == nil {
+		return "", false
+	}
+	lID := o.GetValue().GetAtomicValue().GetString_()
+	return lID, true
+}
+
+func (r *Registry) structToSchema(t reflect.Type) (*pipepb.Schema, error) {
+	if t.Kind() != reflect.Struct {
+		return nil, errors.Errorf("non struct type received in structToSchema: %v is kind %v", t, t.Kind())
+	}
+	if schm, ok := r.typeToSchema[t]; ok {
 		return schm, nil
 	}
 
-	t := reflectx.SkipPtr(ot)
-	// Check if a logical type was registered that matches this struct type directly
-	// and if so, extract the schema from it for use.
-	if lID, ok := r.logicalTypeIdentifiers[ot]; ok {
-		lt := r.logicalTypes[lID]
-		ftype, err := r.reflectTypeToFieldType(lt.StorageType())
-		if err != nil {
-			return nil, errors.Wrapf(err, "unable to convert LogicalType[%v]'s storage type %v for Go type of %v to a schema", lID, lt.StorageType(), lt.GoType())
-		}
+	ftype, lID, err := r.logicalTypeToFieldType(t)
+	if err != nil {
+		return nil, err
+	}
+	if ftype != nil {
 		schm := ftype.GetRowType().GetSchema()
-		r.typeToSchema[ot] = schm
+		schm = proto.Clone(schm).(*pipepb.Schema)
+		schm.Options = append(schm.Options, logicalOption(lID))
+		schm.Id = r.getNextID()
+		r.typeToSchema[t] = schm
+		r.idToType[schm.GetId()] = t
 		return schm, nil
 	}
+
 	fields := make([]*pipepb.Field, 0, t.NumField())
 	for i := 0; i < t.NumField(); i++ {
 		sf := t.Field(i)
@@ -375,7 +453,7 @@ func (r *Registry) structToSchema(ot reflect.Type) (*pipepb.Schema, error) {
 		var isAnon bool
 		if sf.Anonymous {
 			ft := sf.Type
-			if t.Kind() == reflect.Ptr {
+			if ft.Kind() == reflect.Ptr {
 				// If a struct embeds a pointer to an unexported type,
 				// it is not possible to set a newly allocated value
 				// since the field is unexported.
@@ -435,42 +513,15 @@ func (r *Registry) structFieldToField(sf reflect.StructField) (*pipepb.Field, er
 }
 
 func (r *Registry) reflectTypeToFieldType(ot reflect.Type) (*pipepb.FieldType, error) {
-	if lID, ok := r.logicalTypeIdentifiers[ot]; ok {
-		lt := r.logicalTypes[lID]
-		ftype, err := r.reflectTypeToFieldType(lt.StorageType())
-		if err != nil {
-			return nil, errors.Wrapf(err, "unable to convert LogicalType[%v]'s storage type %v for Go type of %v to a schema field", lID, lt.StorageType(), lt.GoType())
-		}
+	ftype, lID, err := r.logicalTypeToFieldType(ot)
+	if err != nil {
+		return nil, err
+	}
+	if ftype != nil {
 		return &pipepb.FieldType{
 			TypeInfo: &pipepb.FieldType_LogicalType{
 				LogicalType: &pipepb.LogicalType{
 					Urn:            lID,
-					Representation: ftype,
-					// TODO(BEAM-9615): Handle type Arguments.
-				},
-			},
-		}, nil
-	}
-	for _, lti := range r.logicalTypeInterfaces {
-		if !ot.Implements(lti) {
-			continue
-		}
-		p := r.logicalTypeProviders[lti]
-		st, err := p(ot)
-		if err != nil {
-			return nil, errors.Wrapf(err, "unable to convert LogicalType[%v] using provider for %v schema field", ot, lti)
-		}
-		if st == nil {
-			continue
-		}
-		ftype, err := r.reflectTypeToFieldType(st)
-		if err != nil {
-			return nil, errors.Wrapf(err, "unable to convert LogicalType[%v]'s storage type %v for Go type of %v to a schema field", lti, st, ot)
-		}
-		return &pipepb.FieldType{
-			TypeInfo: &pipepb.FieldType_LogicalType{
-				LogicalType: &pipepb.LogicalType{
-					Urn:            ot.String(),
 					Representation: ftype,
 					// TODO(BEAM-9615): Handle type Arguments.
 				},
@@ -536,7 +587,7 @@ func (r *Registry) reflectTypeToFieldType(ot reflect.Type) (*pipepb.FieldType, e
 				},
 			},
 		}, nil
-	case reflect.Interface, reflect.Chan, reflect.UnsafePointer, reflect.Complex128, reflect.Complex64:
+	case reflect.Interface, reflect.Func, reflect.Chan, reflect.UnsafePointer, reflect.Complex128, reflect.Complex64, reflect.Invalid:
 		return nil, errors.Errorf("unable to convert unsupported type %v to schema", ot)
 	default: // must be an atomic type
 		if enum, ok := reflectTypeToAtomicTypeMap[t.Kind()]; ok {
@@ -593,6 +644,11 @@ func (r *Registry) ToType(s *pipepb.Schema) (reflect.Type, error) {
 func (r *Registry) toType(s *pipepb.Schema) (reflect.Type, error) {
 	if t, ok := r.idToType[s.GetId()]; ok {
 		return t, nil
+	}
+	if lID, ok := fromLogicalOption(s.GetOptions()); ok {
+		if lt, ok := r.logicalTypes[lID]; ok {
+			return lt.GoType(), nil
+		}
 	}
 
 	fields := make([]reflect.StructField, 0, len(s.GetFields()))

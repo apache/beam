@@ -469,6 +469,48 @@ func TestSchemaConversion(t *testing.T) {
 			st: &pipepb.Schema{
 				Fields: []*pipepb.Field{
 					{
+						Name: "H",
+						Type: &pipepb.FieldType{
+							Nullable: true,
+							TypeInfo: &pipepb.FieldType_LogicalType{
+								LogicalType: &pipepb.LogicalType{
+									Urn: "schema.unexportedFields",
+									Representation: &pipepb.FieldType{
+										TypeInfo: &pipepb.FieldType_RowType{
+											RowType: &pipepb.RowType{
+												Schema: &pipepb.Schema{
+													Fields: []*pipepb.Field{
+														{
+															Name: "D",
+															Type: &pipepb.FieldType{
+																TypeInfo: &pipepb.FieldType_LogicalType{
+																	LogicalType: &pipepb.LogicalType{
+																		Urn: "uint64",
+																		Representation: &pipepb.FieldType{
+																			TypeInfo: &pipepb.FieldType_AtomicType{
+																				AtomicType: pipepb.AtomicType_INT64,
+																			},
+																		},
+																	},
+																},
+															},
+														},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			rt: reflect.TypeOf(struct{ H *unexportedFields }{}),
+		}, {
+			st: &pipepb.Schema{
+				Fields: []*pipepb.Field{
+					{
 						Name: "E",
 						Type: &pipepb.FieldType{
 							TypeInfo: &pipepb.FieldType_AtomicType{
