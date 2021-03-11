@@ -28,6 +28,12 @@ import (
 	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/direct"
 )
 
+var (
+	// expansionAddr is the endpoint for an expansion service for cross-language
+	// transforms.
+	ExpansionAddr = flag.String("expansion_addr", "", "Address of Expansion Service")
+)
+
 // TODO(herohde) 7/10/2017: add hooks to verify counters, logs, etc.
 
 // Create creates a pipeline and a PCollection with the given values.
@@ -67,19 +73,35 @@ var (
 	defaultRunner = "direct"
 )
 
+func DefaultRunner() string {
+	return defaultRunner
+}
+
 // Run runs a pipeline for testing. The semantics of the pipeline is expected
 // to be verified through passert.
 func Run(p *beam.Pipeline) error {
 	if *Runner == "" {
 		*Runner = defaultRunner
 	}
-	return beam.Run(context.Background(), *Runner, p)
+	_, err := beam.Run(context.Background(), *Runner, p)
+	return err
+}
+
+// RunAndValidate runs a pipeline for testing and validates the result, failing
+// the test if the pipeline fails.
+func RunAndValidate(t *testing.T, p *beam.Pipeline) {
+	if err := Run(p); err != nil {
+		t.Fatalf("Failed to execute job: %v", err)
+	}
 }
 
 // Main is an implementation of testing's TestMain to permit testing
 // pipelines on runners other than the direct runner.
 //
-// To enable this behavior, _ import the desired runner, and set the flag accordingly.
+// To enable this behavior, _ import the desired runner, and set the flag
+// accordingly. For example:
+//
+//	import _ "github.com/apache/beam/sdks/go/pkg/runners/flink"
 //
 //	func TestMain(m *testing.M) {
 //		ptest.Main(m)

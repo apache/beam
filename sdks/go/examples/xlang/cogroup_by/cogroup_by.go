@@ -30,9 +30,8 @@ import (
 	"reflect"
 	"sort"
 
+	"github.com/apache/beam/sdks/go/examples/xlang"
 	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
 
@@ -93,10 +92,7 @@ func main() {
 	// Using the cross-language transform
 	col1 := beam.ParDo(s, getKV, beam.Create(s, KV{X: 0, Y: "1"}, KV{X: 0, Y: "2"}, KV{X: 1, Y: "3"}))
 	col2 := beam.ParDo(s, getKV, beam.Create(s, KV{X: 0, Y: "4"}, KV{X: 1, Y: "5"}, KV{X: 1, Y: "6"}))
-	namedInputs := map[string]beam.PCollection{"col1": col1, "col2": col2}
-	outputType := typex.NewCoGBK(typex.New(reflectx.Int64), typex.New(reflectx.String))
-	c := beam.CrossLanguageWithSink(s, "beam:transforms:xlang:test:cgbk", nil, *expansionAddr, namedInputs, outputType)
-
+	c := xlang.CoGroupByKey(s, *expansionAddr, col1, col2)
 	sums := beam.ParDo(s, sumCounts, c)
 	formatted := beam.ParDo(s, formatFn, sums)
 	passert.Equals(s, formatted, "0:[1 2 4]", "1:[3 5 6]")

@@ -276,11 +276,21 @@ class _TestStream(PTransform):
         output_ids=[str(tag) for tag in output_tags])
 
     event_stream = stub.Events(event_request)
-    for e in event_stream:
-      channel.put(_TestStream.test_stream_payload_to_events(e, coder))
-      if not is_alive():
+    try:
+      for e in event_stream:
+        channel.put(_TestStream.test_stream_payload_to_events(e, coder))
+        if not is_alive():
+          return
+    except grpc.RpcError as e:
+      # Do not raise an exception in the non-error status codes. These can occur
+      # when the Python interpreter shuts down or when in a notebook environment
+      # when the kernel is interrupted.
+      if e.code() in (grpc.StatusCode.CANCELLED, grpc.StatusCode.UNAVAILABLE):
         return
-    channel.put(_EndOfStream())
+      raise e
+    finally:
+      # Gracefully stop the job if there is an exception.
+      channel.put(_EndOfStream())
 
   @staticmethod
   def events_from_rpc(endpoint, output_tags, coder, evaluation_context):

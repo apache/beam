@@ -28,6 +28,7 @@ from apache_beam.metrics.cells import DistributionCell
 from apache_beam.metrics.cells import DistributionData
 from apache_beam.metrics.cells import GaugeCell
 from apache_beam.metrics.cells import GaugeData
+from apache_beam.metrics.metricbase import MetricName
 
 
 class TestCounterCell(unittest.TestCase):
@@ -68,6 +69,14 @@ class TestCounterCell(unittest.TestCase):
 
     c.inc()
     self.assertEqual(c.get_cumulative(), -8)
+
+  def test_start_time_set(self):
+    c = CounterCell()
+    c.inc(2)
+
+    name = MetricName('namespace', 'name1')
+    mi = c.to_runner_api_monitoring_info(name, 'transform_id')
+    self.assertGreater(mi.start_time.seconds, 0)
 
 
 class TestDistributionCell(unittest.TestCase):
@@ -119,6 +128,14 @@ class TestDistributionCell(unittest.TestCase):
     d.update(3.3)
     self.assertEqual(d.get_cumulative(), DistributionData(9, 3, 3, 3))
 
+  def test_start_time_set(self):
+    d = DistributionCell()
+    d.update(3.1)
+
+    name = MetricName('namespace', 'name1')
+    mi = d.to_runner_api_monitoring_info(name, 'transform_id')
+    self.assertGreater(mi.start_time.seconds, 0)
+
 
 class TestGaugeCell(unittest.TestCase):
   def test_basic_operations(self):
@@ -145,6 +162,14 @@ class TestGaugeCell(unittest.TestCase):
     # the final result.
     result = g2.combine(g1)
     self.assertEqual(result.data.value, 1)
+
+  def test_start_time_set(self):
+    g1 = GaugeCell()
+    g1.set(3)
+
+    name = MetricName('namespace', 'name1')
+    mi = g1.to_runner_api_monitoring_info(name, 'transform_id')
+    self.assertGreater(mi.start_time.seconds, 0)
 
 
 if __name__ == '__main__':

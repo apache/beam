@@ -28,9 +28,8 @@ import (
 	"flag"
 	"log"
 
+	"github.com/apache/beam/sdks/go/examples/xlang"
 	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
 
@@ -58,15 +57,12 @@ func main() {
 	main1 := beam.CreateList(s, []string{"a", "bb"})
 	main2 := beam.CreateList(s, []string{"x", "yy", "zzz"})
 	side := beam.CreateList(s, []string{"s"})
-	namedInputs := map[string]beam.PCollection{"main1": main1, "main2": main2, "side": side}
 
 	// Using the cross-language transform
-	outputType := typex.New(reflectx.String)
-	namedOutputs := map[string]typex.FullType{"main": outputType, "side": outputType}
-	multi := beam.CrossLanguage(s, "beam:transforms:xlang:test:multi", nil, *expansionAddr, namedInputs, namedOutputs)
+	mainOut, sideOut := xlang.Multi(s, *expansionAddr, main1, main2, side)
 
-	passert.Equals(s, multi["main"], "as", "bbs", "xs", "yys", "zzzs")
-	passert.Equals(s, multi["side"], "ss")
+	passert.Equals(s, mainOut, "as", "bbs", "xs", "yys", "zzzs")
+	passert.Equals(s, sideOut, "ss")
 
 	if err := beamx.Run(context.Background(), p); err != nil {
 		log.Fatalf("Failed to execute job: %v", err)

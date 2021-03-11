@@ -139,7 +139,7 @@ def streamingLoadTestJob = {scope, triggeringContext ->
 CronJobBuilder.cronJob('beam_LoadTests_Java_Combine_Dataflow_Batch', 'H 12 * * *', this) {
   additionalPipelineArgs = [
     influxDatabase: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
-    influxHost: InfluxDBCredentialsHelper.InfluxDBHostname,
+    influxHost: InfluxDBCredentialsHelper.InfluxDBHostUrl,
   ]
   batchLoadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT)
 }
@@ -147,7 +147,7 @@ CronJobBuilder.cronJob('beam_LoadTests_Java_Combine_Dataflow_Batch', 'H 12 * * *
 CronJobBuilder.cronJob('beam_LoadTests_Java_Combine_Dataflow_Streaming', 'H 12 * * *', this) {
   additionalPipelineArgs = [
     influxDatabase: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
-    influxHost: InfluxDBCredentialsHelper.InfluxDBHostname,
+    influxHost: InfluxDBCredentialsHelper.InfluxDBHostUrl,
   ]
   streamingLoadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT)
 }

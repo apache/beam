@@ -32,6 +32,9 @@ import org.slf4j.LoggerFactory;
  *
  * @param <HllT> type of the HLL++ sketch to be merged
  */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 class HllCountMergePartialFn<HllT>
     extends Combine.CombineFn<byte @Nullable [], @Nullable HyperLogLogPlusPlus<HllT>, byte[]> {
 

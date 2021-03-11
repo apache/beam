@@ -28,6 +28,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** BatchingShuffleEntryReader provides a mechanism for reading entries from a shuffle dataset. */
 @NotThreadSafe
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public final class BatchingShuffleEntryReader implements ShuffleEntryReader {
   private final ShuffleBatchReader batchReader;
 

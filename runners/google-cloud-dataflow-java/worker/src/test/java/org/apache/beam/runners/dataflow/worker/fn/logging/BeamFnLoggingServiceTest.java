@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.worker.fn.logging;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.junit.Assert.assertThat;
 
 import java.net.InetAddress;
 import java.net.ServerSocket;

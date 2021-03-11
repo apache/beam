@@ -77,6 +77,9 @@ import org.joda.time.format.DateTimeFormatter;
  * <p>The example will try to cancel the pipelines on the signal to terminate the process (CTRL-C)
  * and then exits.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class TrafficRoutes {
 
   // Instantiate some small predefined San Diego routes to analyze

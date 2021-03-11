@@ -74,6 +74,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.NetworkBui
  * A {@link Pipeline} which has additional methods to relate nodes in the graph relative to each
  * other.
  */
+@SuppressWarnings({"nullness", "keyfor"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class QueryablePipeline {
   // TODO: Is it better to have the signatures here require nodes in almost all contexts, or should
   // they all take strings? Nodes gives some degree of type signalling that names might not, but
@@ -386,7 +387,11 @@ public class QueryablePipeline {
   }
 
   private Set<String> getLocalSideInputNames(PTransform transform) {
-    if (PAR_DO_TRANSFORM_URN.equals(transform.getSpec().getUrn())) {
+    if (PAR_DO_TRANSFORM_URN.equals(transform.getSpec().getUrn())
+        || SPLITTABLE_PAIR_WITH_RESTRICTION_URN.equals(transform.getSpec().getUrn())
+        || SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN.equals(transform.getSpec().getUrn())
+        || SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN.equals(
+            transform.getSpec().getUrn())) {
       try {
         return ParDoPayload.parseFrom(transform.getSpec().getPayload()).getSideInputsMap().keySet();
       } catch (InvalidProtocolBufferException e) {

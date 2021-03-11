@@ -36,6 +36,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** An (abstract) helper class for talking to Pubsub via an underlying transport. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public abstract class PubsubClient implements Closeable {
   /** Factory for creating clients. */
   public interface PubsubClientFactory extends Serializable {
@@ -199,7 +202,7 @@ public abstract class PubsubClient implements Closeable {
       return subscriptionName;
     }
 
-    public String getV1Beta1Path() {
+    public String getFullPath() {
       return String.format("/subscriptions/%s/%s", projectId, subscriptionName);
     }
 
@@ -256,7 +259,7 @@ public abstract class PubsubClient implements Closeable {
       return splits.get(3);
     }
 
-    public String getV1Beta1Path() {
+    public String getFullPath() {
       List<String> splits = Splitter.on('/').splitToList(path);
       checkState(splits.size() == 4, "Malformed topic path %s", path);
       return String.format("/topics/%s/%s", splits.get(1), splits.get(3));

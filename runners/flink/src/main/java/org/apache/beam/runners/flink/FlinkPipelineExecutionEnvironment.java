@@ -39,6 +39,9 @@ import org.slf4j.LoggerFactory;
  * FlinkStreamingPipelineTranslator}) to transform the Beam job into a Flink one, and executes the
  * (translated) job.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class FlinkPipelineExecutionEnvironment {
 
   private static final Logger LOG =

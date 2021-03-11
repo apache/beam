@@ -148,7 +148,7 @@ When running via Gradle, the following two parameters control the execution:
     -P nexmark.runner
 	The Gradle project name of the runner, such as ":runners:direct-java" or
 	":runners:flink:1.10. The project names can be found in the root
-        `settings.gradle`.
+        `settings.gradle.kts`.
 
 Test data is deterministically synthesized on demand. The test
 data may be synthesized in the same pipeline as the query itself,

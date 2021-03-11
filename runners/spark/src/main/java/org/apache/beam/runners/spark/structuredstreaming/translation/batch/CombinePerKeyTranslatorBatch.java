@@ -38,6 +38,9 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.KeyValueGroupedDataset;
 import scala.Tuple2;
 
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 class CombinePerKeyTranslatorBatch<K, InputT, AccumT, OutputT>
     implements TransformTranslator<
         PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>>> {

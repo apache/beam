@@ -26,7 +26,6 @@ from __future__ import absolute_import
 
 import collections
 import logging
-import sys
 import threading
 from builtins import filter
 from builtins import object
@@ -37,9 +36,11 @@ from typing import DefaultDict
 from typing import Dict
 from typing import FrozenSet
 from typing import Hashable
+from typing import Iterable
 from typing import Iterator
 from typing import List
-from typing import MutableMapping
+from typing import Mapping
+from typing import NamedTuple
 from typing import Optional
 from typing import Tuple
 from typing import Union
@@ -71,6 +72,7 @@ if TYPE_CHECKING:
   from apache_beam.runners.sdf_utils import SplitResultResidual
   from apache_beam.runners.worker.bundle_processor import ExecutionContext
   from apache_beam.runners.worker.statesampler import StateSampler
+  from apache_beam.transforms.userstate import TimerSpec
 
 # Allow some "pure mode" declarations.
 try:
@@ -406,6 +408,8 @@ class Operation(object):
     return all_monitoring_infos
 
   def user_monitoring_infos(self, transform_id):
+    # type: (str) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]
+
     """Returns the user MonitoringInfos collected by this operation."""
     return self.metrics_container.to_runner_api_monitoring_infos(transform_id)
 
@@ -504,8 +508,8 @@ class ImpulseReadOperation(Operation):
       name_context,  # type: Union[str, common.NameContext]
       counter_factory,
       state_sampler,  # type: StateSampler
-      consumers,
-      source,
+      consumers,  # type: Mapping[Any, List[Operation]]
+      source,  # type: iobase.BoundedSource
       output_coder):
     super(ImpulseReadOperation,
           self).__init__(name_context, None, counter_factory, state_sampler)
@@ -565,6 +569,16 @@ class _TaggedReceivers(dict):
     return total
 
 
+OpInputInfo = NamedTuple(
+    'OpInputInfo',
+    [
+        ('transform_id', str),
+        ('main_input_tag', str),
+        ('main_input_coder', coders.WindowedValueCoder),
+        ('outputs', Iterable[str]),
+    ])
+
+
 class DoOperation(Operation):
   """A Do operation that will execute a custom DoFn for each input element."""
 
@@ -581,7 +595,7 @@ class DoOperation(Operation):
     self.user_state_context = user_state_context
     self.tagged_receivers = None  # type: Optional[_TaggedReceivers]
     # A mapping of timer tags to the input "PCollections" they come in on.
-    self.input_info = None  # type: Optional[Tuple[str, str, coders.WindowedValueCoder, MutableMapping[str, str]]]
+    self.input_info = None  # type: Optional[OpInputInfo]
 
   def _read_side_inputs(self, tags_and_types):
     # type: (...) -> Iterator[apache_sideinputs.SideInputMap]
@@ -671,7 +685,7 @@ class DoOperation(Operation):
         self.timer_specs = {
             spec.name: spec
             for spec in userstate.get_dofn_specs(fn)[1]
-        }
+        }  # type: Dict[str, TimerSpec]
 
       if self.side_input_maps is None:
         if tags_and_types:
@@ -704,8 +718,10 @@ class DoOperation(Operation):
       delayed_application = self.dofn_runner.process(o)
       if delayed_application:
         assert self.execution_context is not None
+        # TODO(BEAM-77746): there's disagreement between subclasses
+        #  of DoFnRunner over the return type annotations of process().
         self.execution_context.delayed_applications.append(
-            (self, delayed_application))
+            (self, delayed_application))  # type: ignore[arg-type]
 
   def finalize_bundle(self):
     # type: () -> None
@@ -725,7 +741,8 @@ class DoOperation(Operation):
         timer_data.user_key,
         timer_data.windows[0],
         timer_data.fire_timestamp,
-        timer_data.paneinfo)
+        timer_data.paneinfo,
+        timer_data.dynamic_timer_tag)
 
   def finish(self):
     # type: () -> None
@@ -738,6 +755,8 @@ class DoOperation(Operation):
     # type: () -> None
     with self.scoped_finish_state:
       self.dofn_runner.teardown()
+    if self.user_state_context:
+      self.user_state_context.reset()
 
   def reset(self):
     # type: () -> None
@@ -895,6 +914,13 @@ class CombineOperation(Operation):
     self.phased_combine_fn = (
         PhasedCombineFnExecutor(self.spec.phase, fn, args, kwargs))
 
+  def setup(self):
+    # type: () -> None
+    with self.scoped_start_state:
+      _LOGGER.debug('Setup called for %s', self)
+      super(CombineOperation, self).setup()
+      self.phased_combine_fn.combine_fn.setup()
+
   def process(self, o):
     # type: (WindowedValue) -> None
     with self.scoped_process_state:
@@ -906,6 +932,13 @@ class CombineOperation(Operation):
   def finish(self):
     # type: () -> None
     _LOGGER.debug('Finishing %s', self)
+
+  def teardown(self):
+    # type: () -> None
+    with self.scoped_finish_state:
+      _LOGGER.debug('Teardown called for %s', self)
+      super(CombineOperation, self).teardown()
+      self.phased_combine_fn.combine_fn.teardown()
 
 
 def create_pgbk_op(step_name, spec, counter_factory, state_sampler):
@@ -971,10 +1004,7 @@ class PGBKCVOperation(Operation):
     fn, args, kwargs = pickler.loads(self.spec.combine_fn)[:3]
     self.combine_fn = curry_combine_fn(fn, args, kwargs)
     self.combine_fn_add_input = self.combine_fn.add_input
-    base_compact = (
-        core.CombineFn.compact if sys.version_info >=
-        (3, ) else core.CombineFn.compact.__func__)
-    if self.combine_fn.compact.__func__ is base_compact:
+    if self.combine_fn.compact.__func__ is core.CombineFn.compact:
       self.combine_fn_compact = None
     else:
       self.combine_fn_compact = self.combine_fn.compact
@@ -1000,6 +1030,13 @@ class PGBKCVOperation(Operation):
             fn._fn in (min, max, sum)) else 100 * 1000)  # pylint: disable=protected-access
     self.key_count = 0
     self.table = {}
+
+  def setup(self):
+    # type: () -> None
+    with self.scoped_start_state:
+      _LOGGER.debug('Setup called for %s', self)
+      super(PGBKCVOperation, self).setup()
+      self.combine_fn.setup()
 
   def process(self, wkv):
     # type: (WindowedValue) -> None
@@ -1042,6 +1079,13 @@ class PGBKCVOperation(Operation):
       self.output_key(wkey, value[0], value[1])
     self.table = {}
     self.key_count = 0
+
+  def teardown(self):
+    # type: () -> None
+    with self.scoped_finish_state:
+      _LOGGER.debug('Teardown called for %s', self)
+      super(PGBKCVOperation, self).teardown()
+      self.combine_fn.teardown()
 
   def output_key(self, wkey, accumulator, timestamp):
     if self.combine_fn_compact is None:

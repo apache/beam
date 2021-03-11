@@ -58,6 +58,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** {@link FileSystem} implementation for Google Cloud Storage. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class GcsFileSystem extends FileSystem<GcsResourceId> {
   private static final Logger LOG = LoggerFactory.getLogger(GcsFileSystem.class);
 
@@ -272,6 +275,9 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
         Metadata.builder()
             .setIsReadSeekEfficient(true)
             .setResourceId(GcsResourceId.fromGcsPath(GcsPath.fromObject(storageObject)));
+    if (storageObject.getMd5Hash() != null) {
+      ret.setChecksum(storageObject.getMd5Hash());
+    }
     BigInteger size = firstNonNull(storageObject.getSize(), BigInteger.ZERO);
     ret.setSizeBytes(size.longValue());
     DateTime lastModified = firstNonNull(storageObject.getUpdated(), new DateTime(0L));

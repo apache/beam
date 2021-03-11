@@ -28,6 +28,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /** An implementation of {@link TimerInternals} where all relevant data exists in memory. */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 class DirectTimerInternals implements TimerInternals {
   private final Clock processingTimeClock;
   private final TransformWatermarks watermarks;

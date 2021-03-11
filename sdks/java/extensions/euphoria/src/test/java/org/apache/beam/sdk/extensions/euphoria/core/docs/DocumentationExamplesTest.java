@@ -85,6 +85,9 @@ import org.junit.runners.JUnit4;
  * documentation needs to change too.
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class DocumentationExamplesTest {
   private List<String> textLineByLine =
       Arrays.asList(

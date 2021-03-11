@@ -18,9 +18,9 @@
 package org.apache.beam.sdk.transforms;
 
 import static org.apache.beam.sdk.values.TypeDescriptors.integers;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.empty;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 
 import java.io.Serializable;
 import org.apache.beam.sdk.testing.NeedsRunner;

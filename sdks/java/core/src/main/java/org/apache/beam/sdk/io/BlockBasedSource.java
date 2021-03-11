@@ -61,6 +61,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * @param <T> The type of records to be read from the source.
  */
 @Experimental(Kind.SOURCE_SINK)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public abstract class BlockBasedSource<T> extends FileBasedSource<T> {
   /**
    * Creates a {@code BlockBasedSource} based on a file name or pattern. Subclasses must call this

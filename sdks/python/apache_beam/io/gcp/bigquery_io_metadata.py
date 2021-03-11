@@ -28,6 +28,11 @@ from apache_beam.io.gcp import gce_metadata_util
 _VALID_CLOUD_LABEL_PATTERN = re.compile(r'^[a-z0-9\_\-]{1,63}$')
 
 
+def _sanitize_value(value):
+  """Sanitizes a value into a valid BigQuery label value."""
+  return re.sub(r'[^\w-]+', '', value.lower().replace('/', '-'))[0:63]
+
+
 def _is_valid_cloud_label_value(label_value):
   """Returns true if label_value is a valid cloud label string.
 
@@ -49,7 +54,7 @@ def _is_valid_cloud_label_value(label_value):
   return _VALID_CLOUD_LABEL_PATTERN.match(label_value)
 
 
-def create_bigquery_io_metadata():
+def create_bigquery_io_metadata(step_name=None):
   """Creates a BigQueryIOMetadata.
 
   This will request metadata properly based on which runner is being used.
@@ -64,6 +69,10 @@ def create_bigquery_io_metadata():
     # As we do not want a bad label to fail the BQ job.
     if _is_valid_cloud_label_value(dataflow_job_id):
       kwargs['beam_job_id'] = dataflow_job_id
+  if step_name:
+    step_name = _sanitize_value(step_name)
+    if _is_valid_cloud_label_value(step_name):
+      kwargs['step_name'] = step_name
   return BigQueryIOMetadata(**kwargs)
 
 
@@ -73,11 +82,14 @@ class BigQueryIOMetadata(object):
   Do not construct directly, use the create_bigquery_io_metadata factory.
   Which will request metadata properly based on which runner is being used.
   """
-  def __init__(self, beam_job_id=None):
+  def __init__(self, beam_job_id=None, step_name=None):
     self.beam_job_id = beam_job_id
+    self.step_name = step_name
 
   def add_additional_bq_job_labels(self, job_labels=None):
     job_labels = job_labels or {}
     if self.beam_job_id and 'beam_job_id' not in job_labels:
       job_labels['beam_job_id'] = self.beam_job_id
+    if self.step_name and 'step_name' not in job_labels:
+      job_labels['step_name'] = self.step_name
     return job_labels

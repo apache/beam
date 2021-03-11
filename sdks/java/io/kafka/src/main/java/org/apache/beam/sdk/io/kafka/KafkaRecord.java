@@ -27,6 +27,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * KafkaRecord contains key and value of the record as well as metadata for the record (topic name,
  * partition id, and offset).
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class KafkaRecord<K, V> {
   // This is based on {@link ConsumerRecord} received from Kafka Consumer.
   // The primary difference is that this contains deserialized key and value, and runtime
@@ -35,7 +38,7 @@ public class KafkaRecord<K, V> {
   private final String topic;
   private final int partition;
   private final long offset;
-  private final Headers headers;
+  private final @Nullable Headers headers;
   private final KV<K, V> kv;
   private final long timestamp;
   private final KafkaTimestampType timestampType;
@@ -81,7 +84,7 @@ public class KafkaRecord<K, V> {
     return offset;
   }
 
-  public Headers getHeaders() {
+  public @Nullable Headers getHeaders() {
     if (!ConsumerSpEL.hasHeaders()) {
       throw new RuntimeException(
           "The version kafka-clients does not support record headers, "

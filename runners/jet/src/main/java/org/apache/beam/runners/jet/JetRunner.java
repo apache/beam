@@ -27,10 +27,13 @@ import com.hazelcast.map.IMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
+import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems;
+import org.apache.beam.runners.core.construction.PTransformMatchers;
+import org.apache.beam.runners.core.construction.SplittableParDo;
+import org.apache.beam.runners.core.construction.SplittableParDoNaiveBounded;
 import org.apache.beam.runners.core.construction.UnconsumedReads;
 import org.apache.beam.runners.core.metrics.MetricUpdates;
 import org.apache.beam.runners.jet.metrics.JetMetricsContainer;
@@ -186,7 +189,15 @@ public class JetRunner extends PipelineRunner<PipelineResult> {
   }
 
   private static List<PTransformOverride> getDefaultOverrides() {
-    return Collections.emptyList();
+    return Arrays.asList(
+        PTransformOverride.of(
+            PTransformMatchers.splittableParDo(), new SplittableParDo.OverrideFactory<>()),
+        PTransformOverride.of(
+            PTransformMatchers.splittableProcessKeyedBounded(),
+            new SplittableParDoNaiveBounded.OverrideFactory<>()),
+        PTransformOverride.of(
+            PTransformMatchers.splittableProcessKeyedUnbounded(),
+            new SplittableParDoViaKeyedWorkItems.OverrideFactory<>()));
   }
 
   private static JetPipelineOptions validate(JetPipelineOptions options) {

@@ -109,6 +109,7 @@ class PValue(object):
     self.is_bounded = is_bounded
     if windowing:
       self._windowing = windowing
+    self.requires_deterministic_key_coder = None
 
   def __str__(self):
     return self._str_internal()
@@ -187,7 +188,8 @@ class PCollection(PValue, Generic[T]):
     # type: (PipelineContext) -> beam_runner_api_pb2.PCollection
     return beam_runner_api_pb2.PCollection(
         unique_name=self._unique_name(),
-        coder_id=context.coder_id_from_element_type(self.element_type),
+        coder_id=context.coder_id_from_element_type(
+            self.element_type, self.requires_deterministic_key_coder),
         is_bounded=beam_runner_api_pb2.IsBounded.BOUNDED
         if self.is_bounded else beam_runner_api_pb2.IsBounded.UNBOUNDED,
         windowing_strategy_id=context.windowing_strategies.get_id(
@@ -659,6 +661,9 @@ class Row(object):
   """
   def __init__(self, **kwargs):
     self.__dict__.update(kwargs)
+
+  def as_dict(self):
+    return dict(self.__dict__)
 
   def __iter__(self):
     for _, value in sorted(self.__dict__.items()):

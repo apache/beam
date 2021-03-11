@@ -52,6 +52,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * PCollection}, or the largest (or smallest) set of values associated with each key in a {@code
  * PCollection} of {@code KV}s.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class Top {
 
   private Top() {

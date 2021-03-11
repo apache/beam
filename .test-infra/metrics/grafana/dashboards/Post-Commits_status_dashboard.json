@@ -49,7 +49,7 @@
           "dateFormat": "YYYY-MM-DD HH:mm:ss",
           "decimals": 2,
           "mappingType": 1,
-          "pattern": "/job_d*/",
+          "pattern": "/job_\\d/",
           "preserveFormat": false,
           "thresholds": [
             "0.5",

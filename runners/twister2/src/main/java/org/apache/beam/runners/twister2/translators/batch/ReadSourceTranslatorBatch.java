@@ -20,19 +20,21 @@ package org.apache.beam.runners.twister2.translators.batch;
 import edu.iu.dsc.tws.tset.env.BatchTSetEnvironment;
 import edu.iu.dsc.tws.tset.env.TSetEnvironment;
 import edu.iu.dsc.tws.tset.sets.batch.SourceTSet;
+import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.twister2.Twister2BatchTranslationContext;
 import org.apache.beam.runners.twister2.translation.wrappers.Twister2BoundedSource;
 import org.apache.beam.runners.twister2.translators.BatchTransformTranslator;
 import org.apache.beam.sdk.io.BoundedSource;
-import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 
 /** Source translator. */
-public class ReadSourceTranslatorBatch<T> implements BatchTransformTranslator<Read.Bounded<T>> {
+public class ReadSourceTranslatorBatch<T>
+    implements BatchTransformTranslator<SplittableParDo.PrimitiveBoundedRead<T>> {
 
   @Override
-  public void translateNode(Read.Bounded<T> transform, Twister2BatchTranslationContext context) {
+  public void translateNode(
+      SplittableParDo.PrimitiveBoundedRead<T> transform, Twister2BatchTranslationContext context) {
     BoundedSource<T> boundedSource = transform.getSource();
     Twister2BoundedSource<T> twister2BoundedSource =
         new Twister2BoundedSource<T>(boundedSource, context, context.getOptions());

@@ -42,6 +42,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * A Reader that receives input data from a Windmill server, and returns a singleton iterable
  * containing the work item.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class WindowingWindmillReader<K, T> extends NativeReader<WindowedValue<KeyedWorkItem<K, T>>> {
 
   private final Coder<K> keyCoder;
@@ -91,7 +95,10 @@ class WindowingWindmillReader<K, T> extends NativeReader<WindowedValue<KeyedWork
         DataflowOperationContext operationContext)
         throws Exception {
       coder = checkArgumentNotNull(coder);
-      @SuppressWarnings({"rawtypes", "unchecked"})
+      @SuppressWarnings({
+        "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+        "unchecked"
+      })
       Coder<WindowedValue<KeyedWorkItem<Object, Object>>> typedCoder =
           (Coder<WindowedValue<KeyedWorkItem<Object, Object>>>) coder;
       return WindowingWindmillReader.create(typedCoder, (StreamingModeExecutionContext) context);

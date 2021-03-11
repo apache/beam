@@ -65,6 +65,9 @@ import org.junit.runners.model.Statement;
  *
  * <p>Deletes the table on test shutdown.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class TestBigQuery implements TestRule {
   private static final DateTimeFormatter DATETIME_FORMAT =
       DateTimeFormat.forPattern("YYYY_MM_dd_HH_mm_ss_SSS");
@@ -214,6 +217,7 @@ public class TestBigQuery implements TestRule {
             pipelineOptions.getTargetDataset(),
             table.getTableReference().getTableId(),
             new TableDataInsertAllRequest().setRows(bqRows))
+        .setPrettyPrint(false)
         .execute();
   }
 
@@ -281,6 +285,7 @@ public class TestBigQuery implements TestRule {
               pipelineOptions.getProject(),
               pipelineOptions.getTargetDataset(),
               table.getTableReference().getTableId())
+          .setPrettyPrint(false)
           .execute()
           .getSchema();
     } catch (IOException e) {
@@ -295,6 +300,7 @@ public class TestBigQuery implements TestRule {
               pipelineOptions.getProject(),
               pipelineOptions.getTargetDataset(),
               table.getTableReference().getTableId())
+          .setPrettyPrint(false)
           .execute()
           .getRows();
     } catch (IOException e) {

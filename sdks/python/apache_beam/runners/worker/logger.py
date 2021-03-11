@@ -20,15 +20,19 @@
 """Python worker logging."""
 
 # pytype: skip-file
+# mypy: disallow-untyped-defs
 
 from __future__ import absolute_import
 
+import contextlib
 import json
 import logging
 import threading
 import traceback
 from typing import Any
 from typing import Dict
+from typing import Iterator
+from typing import List
 
 from apache_beam.runners.worker import statesampler
 
@@ -40,12 +44,14 @@ from apache_beam.runners.worker import statesampler
 # work_item_id, step_name, stage_name.
 class _PerThreadWorkerData(threading.local):
   def __init__(self):
+    # type: () -> None
     super(_PerThreadWorkerData, self).__init__()
     # in the list, as going up and down all the way to zero incurs several
     # reallocations.
-    self.stack = []
+    self.stack = []  # type: List[Dict[str, Any]]
 
   def get_data(self):
+    # type: () -> Dict[str, Any]
     all_data = {}
     for datum in self.stack:
       all_data.update(datum)
@@ -55,33 +61,28 @@ class _PerThreadWorkerData(threading.local):
 per_thread_worker_data = _PerThreadWorkerData()
 
 
-class PerThreadLoggingContext(object):
+@contextlib.contextmanager
+def PerThreadLoggingContext(**kwargs):
+  # type: (**Any) -> Iterator[None]
+
   """A context manager to add per thread attributes."""
-  def __init__(self, **kwargs):
-    self.kwargs = kwargs
-    self.stack = per_thread_worker_data.stack
-
-  def __enter__(self):
-    self.enter()
-
-  def enter(self):
-    self.stack.append(self.kwargs)
-
-  def __exit__(self, exn_type, exn_value, exn_traceback):
-    self.exit()
-
-  def exit(self):
-    self.stack.pop()
+  stack = per_thread_worker_data.stack
+  stack.append(kwargs)
+  yield
+  stack.pop()
 
 
 class JsonLogFormatter(logging.Formatter):
   """A JSON formatter class as expected by the logging standard module."""
   def __init__(self, job_id, worker_id):
+    # type: (str, str) -> None
     super(JsonLogFormatter, self).__init__()
     self.job_id = job_id
     self.worker_id = worker_id
 
   def format(self, record):
+    # type: (logging.LogRecord) -> str
+
     """Returns a JSON string based on a LogRecord instance.
 
     Args:
@@ -172,6 +173,8 @@ class JsonLogFormatter(logging.Formatter):
 
 
 def initialize(job_id, worker_id, log_path):
+  # type: (str, str, str) -> None
+
   """Initialize root logger so that we log JSON to a file and text to stdout."""
 
   file_handler = logging.FileHandler(log_path)

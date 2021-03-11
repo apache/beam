@@ -20,13 +20,14 @@ package org.apache.beam.sdk.io.kafka;
 import static org.apache.beam.sdk.io.kafka.ConfluentSchemaRegistryDeserializerProviderTest.mockDeserializerProvider;
 import static org.apache.beam.sdk.metrics.MetricResultsMatchers.attemptedMetricsResult;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
 import static org.junit.internal.matchers.ThrowableCauseMatcher.hasCause;
@@ -39,8 +40,10 @@ import io.confluent.kafka.serializers.KafkaAvroSerializer;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -114,8 +117,12 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.header.Header;
+import org.apache.kafka.common.header.Headers;
+import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
+import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.IntegerDeserializer;
 import org.apache.kafka.common.serialization.IntegerSerializer;
 import org.apache.kafka.common.serialization.LongDeserializer;
@@ -492,6 +499,67 @@ public class KafkaIOTest {
     PCollection<KV<Integer, AvroGeneratedUser>> input = p.apply(reader.withoutMetadata());
 
     PAssert.that(input).containsInAnyOrder(inputs);
+    p.run();
+  }
+
+  public static class IntegerDeserializerWithHeadersAssertor extends IntegerDeserializer
+      implements Deserializer<Integer> {
+
+    @Override
+    public Integer deserialize(String topic, byte[] data) {
+      assertEquals(false, ConsumerSpEL.deserializerSupportsHeaders());
+      return super.deserialize(topic, data);
+    }
+
+    @Override
+    public Integer deserialize(String topic, Headers headers, byte[] data) {
+      // Overriding the default should trigger header evaluation and this to be called.
+      assertEquals(true, ConsumerSpEL.deserializerSupportsHeaders());
+      return super.deserialize(topic, data);
+    }
+  }
+
+  public static class LongDeserializerWithHeadersAssertor extends LongDeserializer
+      implements Deserializer<Long> {
+
+    @Override
+    public Long deserialize(String topic, byte[] data) {
+      assertEquals(false, ConsumerSpEL.deserializerSupportsHeaders());
+      return super.deserialize(topic, data);
+    }
+
+    @Override
+    public Long deserialize(String topic, Headers headers, byte[] data) {
+      // Overriding the default should trigger header evaluation and this to be called.
+      assertEquals(true, ConsumerSpEL.deserializerSupportsHeaders());
+      return super.deserialize(topic, data);
+    }
+  }
+
+  @Test
+  public void testDeserializationWithHeaders() throws Exception {
+    // To assert that we continue to prefer the Deserializer API with headers in Kafka API 2.1.0
+    // onwards
+    int numElements = 1000;
+    String topic = "my_topic";
+
+    KafkaIO.Read<Integer, Long> reader =
+        KafkaIO.<Integer, Long>read()
+            .withBootstrapServers("none")
+            .withTopic("my_topic")
+            .withConsumerFactoryFn(
+                new ConsumerFactoryFn(
+                    ImmutableList.of(topic), 10, numElements, OffsetResetStrategy.EARLIEST))
+            .withMaxNumRecords(numElements)
+            .withKeyDeserializerAndCoder(
+                KafkaIOTest.IntegerDeserializerWithHeadersAssertor.class,
+                BigEndianIntegerCoder.of())
+            .withValueDeserializerAndCoder(
+                KafkaIOTest.LongDeserializerWithHeadersAssertor.class, BigEndianLongCoder.of());
+
+    PCollection<Long> input = p.apply(reader.withoutMetadata()).apply(Values.create());
+
+    addCountingAsserts(input, numElements);
     p.run();
   }
 
@@ -1276,6 +1344,51 @@ public class KafkaIOTest {
         assertEquals(i, record.key().intValue());
         assertEquals(i, record.value().longValue());
         assertEquals(i, record.timestamp().intValue());
+        assertEquals(0, record.headers().toArray().length);
+      }
+    }
+  }
+
+  @Test
+  public void testKafkaWriteHeaders() throws Exception {
+    // Set different output topic names
+    int numElements = 1;
+    SimpleEntry<String, String> header = new SimpleEntry<>("header_key", "header_value");
+    try (MockProducerWrapper producerWrapper = new MockProducerWrapper()) {
+
+      ProducerSendCompletionThread completionThread =
+          new ProducerSendCompletionThread(producerWrapper.mockProducer).start();
+
+      String defaultTopic = "test";
+      p.apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn()).withoutMetadata())
+          .apply(
+              ParDo.of(
+                  new KV2ProducerRecord(defaultTopic, true, System.currentTimeMillis(), header)))
+          .setCoder(ProducerRecordCoder.of(VarIntCoder.of(), VarLongCoder.of()))
+          .apply(
+              KafkaIO.<Integer, Long>writeRecords()
+                  .withBootstrapServers("none")
+                  .withKeySerializer(IntegerSerializer.class)
+                  .withValueSerializer(LongSerializer.class)
+                  .withInputTimestamp()
+                  .withProducerFactoryFn(new ProducerFactoryFn(producerWrapper.producerKey)));
+
+      p.run();
+
+      completionThread.shutdown();
+
+      // Verify that appropriate header is written with producer record
+      List<ProducerRecord<Integer, Long>> sent = producerWrapper.mockProducer.history();
+
+      for (int i = 0; i < numElements; i++) {
+        ProducerRecord<Integer, Long> record = sent.get(i);
+        Headers headers = record.headers();
+        assertNotNull(headers);
+        Header[] headersArray = headers.toArray();
+        assertEquals(1, headersArray.length);
+        assertEquals(header.getKey(), headersArray[0].key());
+        assertEquals(
+            header.getValue(), new String(headersArray[0].value(), StandardCharsets.UTF_8));
       }
     }
   }
@@ -1319,14 +1432,59 @@ public class KafkaIOTest {
     }
   }
 
+  @Test
+  public void testSinkProducerRecordsWithCustomPartition() throws Exception {
+    int numElements = 1000;
+
+    try (MockProducerWrapper producerWrapper = new MockProducerWrapper()) {
+
+      ProducerSendCompletionThread completionThread =
+          new ProducerSendCompletionThread(producerWrapper.mockProducer).start();
+
+      final String defaultTopic = "test";
+      final Integer partition = 1;
+
+      p.apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn()).withoutMetadata())
+          .apply(ParDo.of(new KV2ProducerRecord(defaultTopic, partition)))
+          .setCoder(ProducerRecordCoder.of(VarIntCoder.of(), VarLongCoder.of()))
+          .apply(
+              KafkaIO.<Integer, Long>writeRecords()
+                  .withBootstrapServers("none")
+                  .withKeySerializer(IntegerSerializer.class)
+                  .withValueSerializer(LongSerializer.class)
+                  .withProducerFactoryFn(new ProducerFactoryFn(producerWrapper.producerKey)));
+
+      p.run();
+
+      completionThread.shutdown();
+
+      // Verify that messages are written with user-defined timestamp
+      List<ProducerRecord<Integer, Long>> sent = producerWrapper.mockProducer.history();
+
+      for (int i = 0; i < numElements; i++) {
+        ProducerRecord<Integer, Long> record = sent.get(i);
+        assertEquals(defaultTopic, record.topic());
+        assertEquals(partition, record.partition());
+        assertEquals(i, record.key().intValue());
+        assertEquals(i, record.value().longValue());
+      }
+    }
+  }
+
   private static class KV2ProducerRecord
       extends DoFn<KV<Integer, Long>, ProducerRecord<Integer, Long>> {
     final String topic;
+    final Integer partition;
     final boolean isSingleTopic;
     final Long ts;
+    final SimpleEntry<String, String> header;
 
     KV2ProducerRecord(String topic) {
       this(topic, true);
+    }
+
+    KV2ProducerRecord(String topic, Integer partition) {
+      this(topic, true, null, null, partition);
     }
 
     KV2ProducerRecord(String topic, Long ts) {
@@ -1338,21 +1496,48 @@ public class KafkaIOTest {
     }
 
     KV2ProducerRecord(String topic, boolean isSingleTopic, Long ts) {
+      this(topic, isSingleTopic, ts, null, null);
+    }
+
+    KV2ProducerRecord(
+        String topic, boolean isSingleTopic, Long ts, SimpleEntry<String, String> header) {
+      this(topic, isSingleTopic, ts, header, null);
+    }
+
+    KV2ProducerRecord(
+        String topic,
+        boolean isSingleTopic,
+        Long ts,
+        SimpleEntry<String, String> header,
+        Integer partition) {
       this.topic = topic;
+      this.partition = partition;
       this.isSingleTopic = isSingleTopic;
       this.ts = ts;
+      this.header = header;
     }
 
     @ProcessElement
     public void processElement(ProcessContext ctx) {
       KV<Integer, Long> kv = ctx.element();
+      List<Header> headers = null;
+      if (header != null) {
+        headers =
+            Arrays.asList(
+                new RecordHeader(
+                    header.getKey(), header.getValue().getBytes(StandardCharsets.UTF_8)));
+      }
       if (isSingleTopic) {
-        ctx.output(new ProducerRecord<>(topic, null, ts, kv.getKey(), kv.getValue()));
+        ctx.output(new ProducerRecord<>(topic, partition, ts, kv.getKey(), kv.getValue(), headers));
       } else {
         if (kv.getKey() % 2 == 0) {
-          ctx.output(new ProducerRecord<>(topic + "_2", null, ts, kv.getKey(), kv.getValue()));
+          ctx.output(
+              new ProducerRecord<>(
+                  topic + "_2", partition, ts, kv.getKey(), kv.getValue(), headers));
         } else {
-          ctx.output(new ProducerRecord<>(topic + "_1", null, ts, kv.getKey(), kv.getValue()));
+          ctx.output(
+              new ProducerRecord<>(
+                  topic + "_1", partition, ts, kv.getKey(), kv.getValue(), headers));
         }
       }
     }
@@ -1448,7 +1633,7 @@ public class KafkaIOTest {
   @Test
   public void testUnboundedSourceStartReadTime() {
 
-    assumeTrue(new ConsumerSpEL().hasOffsetsForTimes());
+    assumeTrue(ConsumerSpEL.hasOffsetsForTimes());
 
     int numElements = 1000;
     // In this MockConsumer, we let the elements of the time and offset equal and there are 20
@@ -1472,7 +1657,7 @@ public class KafkaIOTest {
   @Test
   public void testUnboundedSourceStartReadTimeException() {
 
-    assumeTrue(new ConsumerSpEL().hasOffsetsForTimes());
+    assumeTrue(ConsumerSpEL.hasOffsetsForTimes());
 
     noMessagesException.expect(RuntimeException.class);
 

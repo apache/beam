@@ -31,6 +31,11 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
  * A {@link Server gRPC Server} which manages a single {@link FnService}. The lifetime of the
  * service is bound to the {@link GrpcFnServer}.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness",
+  "keyfor"
+}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class GrpcFnServer<ServiceT extends FnService> implements AutoCloseable {
   /**
    * Create a {@link GrpcFnServer} for the provided {@link FnService} running on an arbitrary port.

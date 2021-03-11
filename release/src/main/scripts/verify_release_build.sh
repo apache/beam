@@ -27,9 +27,9 @@
 #      Instructions: https://help.github.com/en/articles/creating-a-personal-access-token-for-the-command-line
 #   2. Please set RELEASE_BUILD_CONFIGS in script.config before running this
 #      script.
-#   3. Please manually comment trigger phrases to created PR to start Gradle
-#      release build and all PostCommit jobs. Phrases are listed in
-#      JOB_TRIGGER_PHRASES below.
+#   3. Please manually comment trigger phrases to the created PR to start
+#      Gradle release build and all PostCommit jobs, or run mass_comment.py
+#      to do so. Phrases are listed in COMMENTS_TO_ADD in mass_comment.py.
 
 
 . script.config

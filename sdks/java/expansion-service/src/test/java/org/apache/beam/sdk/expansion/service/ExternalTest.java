@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.expansion.service;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
 
 import com.google.auto.service.AutoService;
 import java.io.IOException;
@@ -58,6 +58,9 @@ import org.junit.runners.JUnit4;
 
 /** Test External transforms. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class ExternalTest implements Serializable {
   @Rule public transient TestPipeline testPipeline = TestPipeline.create();
   private @MonotonicNonNull PipelineResult pipelineResult = null;

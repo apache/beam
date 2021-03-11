@@ -47,7 +47,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.values.ValueInSingleWindow;
+import org.apache.beam.sdk.values.FailsafeValueInSingleWindow;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -102,9 +102,13 @@ public class BigQueryUtilTest {
       responses.add(response);
     }
 
+    Bigquery.Tabledata.InsertAll mockInsertAll = mock(Bigquery.Tabledata.InsertAll.class);
+    when(mockTabledata.insertAll(
+            anyString(), anyString(), anyString(), any(TableDataInsertAllRequest.class)))
+        .thenReturn(mockInsertAll);
+
     doAnswer(
             invocation -> {
-              Bigquery.Tabledata.InsertAll mockInsertAll = mock(Bigquery.Tabledata.InsertAll.class);
               when(mockInsertAll.execute())
                   .thenReturn(
                       responses.get(0),
@@ -113,8 +117,8 @@ public class BigQueryUtilTest {
                           .toArray(new TableDataInsertAllResponse[responses.size() - 1]));
               return mockInsertAll;
             })
-        .when(mockTabledata)
-        .insertAll(anyString(), anyString(), anyString(), any(TableDataInsertAllRequest.class));
+        .when(mockInsertAll)
+        .setPrettyPrint(false);
   }
 
   private void verifyInsertAll(int expectedRetries) throws IOException {
@@ -126,18 +130,21 @@ public class BigQueryUtilTest {
   private void onTableGet(Table table) throws IOException {
     when(mockClient.tables()).thenReturn(mockTables);
     when(mockTables.get(anyString(), anyString(), anyString())).thenReturn(mockTablesGet);
+    when(mockTablesGet.setPrettyPrint(false)).thenReturn(mockTablesGet);
     when(mockTablesGet.execute()).thenReturn(table);
   }
 
   private void verifyTableGet() throws IOException {
     verify(mockClient).tables();
     verify(mockTables).get("project", "dataset", "table");
+    verify(mockTablesGet, atLeastOnce()).setPrettyPrint(false);
     verify(mockTablesGet, atLeastOnce()).execute();
   }
 
   private void onTableList(TableDataList result) throws IOException {
     when(mockClient.tabledata()).thenReturn(mockTabledata);
     when(mockTabledata.list(anyString(), anyString(), anyString())).thenReturn(mockTabledataList);
+    when(mockTabledataList.setPrettyPrint(false)).thenReturn(mockTabledataList);
     when(mockTabledataList.execute()).thenReturn(result);
   }
 
@@ -189,15 +196,16 @@ public class BigQueryUtilTest {
     TableReference ref = BigQueryHelpers.parseTableSpec("project:dataset.table");
     DatasetServiceImpl datasetService = new DatasetServiceImpl(mockClient, options, 5);
 
-    List<ValueInSingleWindow<TableRow>> rows = new ArrayList<>();
+    List<FailsafeValueInSingleWindow<TableRow, TableRow>> rows = new ArrayList<>();
     List<String> ids = new ArrayList<>();
     for (int i = 0; i < 25; ++i) {
       rows.add(
-          ValueInSingleWindow.of(
+          FailsafeValueInSingleWindow.of(
               rawRow("foo", 1234),
               GlobalWindow.TIMESTAMP_MAX_VALUE,
               GlobalWindow.INSTANCE,
-              PaneInfo.ON_TIME_AND_ONLY_FIRING));
+              PaneInfo.ON_TIME_AND_ONLY_FIRING,
+              rawRow("foo", 1234)));
       ids.add("");
     }
 

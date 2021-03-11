@@ -55,6 +55,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 
 /** A class that handles streaming side inputs in a {@link DoFnRunner}. */
+@SuppressWarnings({"keyfor", "nullness"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class StreamingSideInputFetcher<InputT, W extends BoundedWindow> {
   private StreamingModeExecutionContext.StreamingModeStepContext stepContext;
   private Map<String, PCollectionView<?>> sideInputViews;

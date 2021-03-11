@@ -33,6 +33,7 @@ from __future__ import absolute_import
 import hashlib
 import logging
 import random
+import time
 import uuid
 
 from future.utils import iteritems
@@ -46,6 +47,7 @@ from apache_beam.options import value_provider as vp
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.transforms import trigger
 from apache_beam.transforms.display import DisplayDataItem
+from apache_beam.transforms.util import GroupIntoBatches
 from apache_beam.transforms.window import GlobalWindows
 
 _LOGGER = logging.getLogger(__name__)
@@ -67,10 +69,17 @@ _MAXIMUM_SOURCE_URIS = 10 * 1000
 # this many records are written.
 _FILE_TRIGGERING_RECORD_COUNT = 500000
 
+# If using auto-sharding for unbounded data, we batch the records before
+# triggering file write to avoid generating too many small files.
+_FILE_TRIGGERING_BATCHING_DURATION_SECS = 1
+
 
 def _generate_job_name(job_name, job_type, step_name):
   return bigquery_tools.generate_bq_job_name(
-      job_name, step_name, job_type, random.randint(0, 1000))
+      job_name=job_name,
+      step_id=step_name,
+      job_type=job_type,
+      random=random.randint(0, 1000))
 
 
 def file_prefix_generator(
@@ -250,7 +259,7 @@ class WriteRecordsToFile(beam.DoFn):
       self._destination_to_file_writer.pop(destination)
       yield pvalue.TaggedOutput(
           WriteRecordsToFile.WRITTEN_FILE_TAG,
-          (element[0], (file_path, file_size)))
+          (destination, (file_path, file_size)))
 
   def finish_bundle(self):
     for destination, file_path_writer in \
@@ -281,7 +290,7 @@ class WriteGroupedRecordsToFile(beam.DoFn):
     self.file_format = file_format or bigquery_tools.FileFormat.JSON
 
   def process(self, element, file_prefix, *schema_side_inputs):
-    destination = element[0]
+    destination = bigquery_tools.get_hashable_destination(element[0])
     rows = element[1]
 
     file_path, writer = None, None
@@ -322,12 +331,17 @@ class TriggerCopyJobs(beam.DoFn):
     See: https://issues.apache.org/jira/browse/BEAM-7822
   """
   def __init__(
-      self, create_disposition=None, write_disposition=None, test_client=None):
+      self,
+      create_disposition=None,
+      write_disposition=None,
+      test_client=None,
+      step_name=None):
     self.create_disposition = create_disposition
     self.write_disposition = write_disposition
     self.test_client = test_client
     self._observed_tables = set()
     self.bq_io_metadata = None
+    self._step_name = step_name
 
   def display_data(self):
     return {
@@ -339,7 +353,7 @@ class TriggerCopyJobs(beam.DoFn):
     self._observed_tables = set()
     self.bq_wrapper = bigquery_tools.BigQueryWrapper(client=self.test_client)
     if not self.bq_io_metadata:
-      self.bq_io_metadata = create_bigquery_io_metadata()
+      self.bq_io_metadata = create_bigquery_io_metadata(self._step_name)
 
   def process(self, element, job_name_prefix=None):
     destination = element[0]
@@ -360,9 +374,9 @@ class TriggerCopyJobs(beam.DoFn):
         job_name_prefix,
         _bq_uuid(
             '%s:%s.%s' % (
-                copy_to_reference.projectId,
-                copy_to_reference.datasetId,
-                copy_to_reference.tableId)))
+                copy_from_reference.projectId,
+                copy_from_reference.datasetId,
+                copy_from_reference.tableId)))
 
     _LOGGER.info(
         "Triggering copy job from %s to %s",
@@ -385,7 +399,7 @@ class TriggerCopyJobs(beam.DoFn):
       write_disposition = 'WRITE_APPEND'
 
     if not self.bq_io_metadata:
-      self.bq_io_metadata = create_bigquery_io_metadata()
+      self.bq_io_metadata = create_bigquery_io_metadata(self._step_name)
     job_reference = self.bq_wrapper._insert_copy_job(
         copy_to_reference.projectId,
         copy_job_name,
@@ -417,13 +431,15 @@ class TriggerLoadJobs(beam.DoFn):
       test_client=None,
       temporary_tables=False,
       additional_bq_parameters=None,
-      source_format=None):
+      source_format=None,
+      step_name=None):
     self.schema = schema
     self.test_client = test_client
     self.temporary_tables = temporary_tables
     self.additional_bq_parameters = additional_bq_parameters or {}
     self.source_format = source_format
     self.bq_io_metadata = None
+    self._step_name = step_name
     if self.temporary_tables:
       # If we are loading into temporary tables, we rely on the default create
       # and write dispositions, which mean that a new table will be created.
@@ -437,16 +453,17 @@ class TriggerLoadJobs(beam.DoFn):
     result = {
         'create_disposition': str(self.create_disposition),
         'write_disposition': str(self.write_disposition),
+        'additional_bq_params': str(self.additional_bq_parameters),
+        'schema': str(self.schema),
+        'launchesBigQueryJobs': DisplayDataItem(
+            True, label="This Dataflow job launches bigquery jobs.")
     }
-    result['schema'] = str(self.schema)
-    result['launchesBigQueryJobs'] = DisplayDataItem(
-        True, label="This Dataflow job launches bigquery jobs.")
     return result
 
   def start_bundle(self):
     self.bq_wrapper = bigquery_tools.BigQueryWrapper(client=self.test_client)
     if not self.bq_io_metadata:
-      self.bq_io_metadata = create_bigquery_io_metadata()
+      self.bq_io_metadata = create_bigquery_io_metadata(self._step_name)
 
   def process(self, element, load_job_name_prefix, *schema_side_inputs):
     # Each load job is assumed to have files respecting these constraints:
@@ -495,7 +512,9 @@ class TriggerLoadJobs(beam.DoFn):
       create_disposition = 'CREATE_IF_NEEDED'
       # For temporary tables, we create a new table with the name with JobId.
       table_reference.tableId = job_name
-      yield pvalue.TaggedOutput(TriggerLoadJobs.TEMP_TABLES, table_reference)
+      yield pvalue.TaggedOutput(
+          TriggerLoadJobs.TEMP_TABLES,
+          bigquery_tools.get_hashable_destination(table_reference))
 
     _LOGGER.info(
         'Triggering job %s to load data to BigQuery table %s.'
@@ -505,7 +524,7 @@ class TriggerLoadJobs(beam.DoFn):
         schema,
         additional_parameters)
     if not self.bq_io_metadata:
-      self.bq_io_metadata = create_bigquery_io_metadata()
+      self.bq_io_metadata = create_bigquery_io_metadata(self._step_name)
     job_reference = self.bq_wrapper.perform_load_job(
         table_reference,
         files,
@@ -620,6 +639,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
   DESTINATION_JOBID_PAIRS = 'destination_load_jobid_pairs'
   DESTINATION_FILE_PAIRS = 'destination_file_pairs'
   DESTINATION_COPY_JOBID_PAIRS = 'destination_copy_jobid_pairs'
+  COUNT = 0
 
   def __init__(
       self,
@@ -629,6 +649,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
       create_disposition=None,
       write_disposition=None,
       triggering_frequency=None,
+      with_auto_sharding=False,
       temp_file_format=None,
       max_file_size=None,
       max_files_per_bundle=None,
@@ -644,6 +665,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
     self.create_disposition = create_disposition
     self.write_disposition = write_disposition
     self.triggering_frequency = triggering_frequency
+    self.with_auto_sharding = with_auto_sharding
     self.max_file_size = max_file_size or _DEFAULT_MAX_FILE_SIZE
     self.max_files_per_bundle = (
         max_files_per_bundle or _DEFAULT_MAX_WRITERS_PER_BUNDLE)
@@ -696,6 +718,9 @@ class BigQueryBatchFileLoads(beam.PTransform):
       raise ValueError(
           'triggering_frequency can only be used with file'
           'loads in streaming')
+    if not self.is_streaming_pipeline and self.with_auto_sharding:
+      return ValueError(
+          'with_auto_sharding can only be used with file loads in streaming.')
 
   def _window_fn(self):
     """Set the correct WindowInto PTransform"""
@@ -707,7 +732,12 @@ class BigQueryBatchFileLoads(beam.PTransform):
     # that the files are written if a threshold number of records are ready.
     # We use only the user-supplied trigger on the actual BigQuery load.
     # This allows us to offload the data to the filesystem.
-    if self.is_streaming_pipeline:
+    #
+    # In the case of dynamic sharding, however, we use a default trigger since
+    # the transform performs sharding also batches elements to avoid generating
+    # too many tiny files. User trigger is applied right after writes to limit
+    # the number of load jobs.
+    if self.is_streaming_pipeline and not self.with_auto_sharding:
       return beam.WindowInto(beam.window.GlobalWindows(),
                              trigger=trigger.Repeatedly(
                                  trigger.AfterAny(
@@ -719,6 +749,21 @@ class BigQueryBatchFileLoads(beam.PTransform):
                                  .DISCARDING)
     else:
       return beam.WindowInto(beam.window.GlobalWindows())
+
+  def _maybe_apply_user_trigger(self, destination_file_kv_pc):
+    if self.is_streaming_pipeline:
+      # Apply the user's trigger back before we start triggering load jobs
+      return (
+          destination_file_kv_pc
+          | "ApplyUserTrigger" >> beam.WindowInto(
+              beam.window.GlobalWindows(),
+              trigger=trigger.Repeatedly(
+                  trigger.AfterAll(
+                      trigger.AfterProcessingTime(self.triggering_frequency),
+                      trigger.AfterCount(1))),
+              accumulation_mode=trigger.AccumulationMode.DISCARDING))
+    else:
+      return destination_file_kv_pc
 
   def _write_files(self, destination_data_kv_pc, file_prefix_pcv):
     outputs = (
@@ -762,19 +807,38 @@ class BigQueryBatchFileLoads(beam.PTransform):
         (destination_files_kv_pc, more_destination_files_kv_pc)
         | "DestinationFilesUnion" >> beam.Flatten()
         | "IdentityWorkaround" >> beam.Map(lambda x: x))
+    return self._maybe_apply_user_trigger(all_destination_file_pairs_pc)
 
-    if self.is_streaming_pipeline:
-      # Apply the user's trigger back before we start triggering load jobs
-      all_destination_file_pairs_pc = (
-          all_destination_file_pairs_pc
-          | "ApplyUserTrigger" >> beam.WindowInto(
-              beam.window.GlobalWindows(),
-              trigger=trigger.Repeatedly(
-                  trigger.AfterAll(
-                      trigger.AfterProcessingTime(self.triggering_frequency),
-                      trigger.AfterCount(1))),
-              accumulation_mode=trigger.AccumulationMode.DISCARDING))
-    return all_destination_file_pairs_pc
+  def _write_files_with_auto_sharding(
+      self, destination_data_kv_pc, file_prefix_pcv):
+    clock = self.test_client.test_clock if self.test_client else time.time
+
+    # Auto-sharding is achieved via GroupIntoBatches.WithShardedKey
+    # transform which shards, groups and at the same time batches the table rows
+    # to be inserted to BigQuery.
+
+    # Firstly, the keys of tagged_data (table references) are converted to a
+    # hashable format. This is needed to work with the keyed states used by.
+    # GroupIntoBatches. After grouping and batching is done, table references
+    # are restored.
+    destination_files_kv_pc = (
+        destination_data_kv_pc
+        | 'ToHashableTableRef' >> beam.Map(
+            lambda kv: (bigquery_tools.get_hashable_destination(kv[0]), kv[1]))
+        | 'WithAutoSharding' >> GroupIntoBatches.WithShardedKey(
+            batch_size=_FILE_TRIGGERING_RECORD_COUNT,
+            max_buffering_duration_secs=_FILE_TRIGGERING_BATCHING_DURATION_SECS,
+            clock=clock)
+        | 'FromHashableTableRefAndDropShard' >> beam.Map(
+            lambda kvs:
+            (bigquery_tools.parse_table_reference(kvs[0].key), kvs[1]))
+        | beam.ParDo(
+            WriteGroupedRecordsToFile(
+                schema=self.schema, file_format=self._temp_file_format),
+            file_prefix_pcv,
+            *self.schema_side_inputs))
+
+    return self._maybe_apply_user_trigger(destination_files_kv_pc)
 
   def _load_data(
       self,
@@ -782,7 +846,8 @@ class BigQueryBatchFileLoads(beam.PTransform):
       partitions_direct_to_destination,
       load_job_name_pcv,
       copy_job_name_pcv,
-      singleton_pc):
+      p,
+      step_name):
     """Load data to BigQuery
 
     Data is loaded into BigQuery in the following two ways:
@@ -809,7 +874,8 @@ class BigQueryBatchFileLoads(beam.PTransform):
                 test_client=self.test_client,
                 temporary_tables=True,
                 additional_bq_parameters=self.additional_bq_parameters,
-                source_format=self._temp_file_format),
+                source_format=self._temp_file_format,
+                step_name=step_name),
             load_job_name_pcv,
             *self.schema_side_inputs).with_outputs(
                 TriggerLoadJobs.TEMP_TABLES, main='main'))
@@ -818,7 +884,8 @@ class BigQueryBatchFileLoads(beam.PTransform):
     temp_tables_pc = trigger_loads_outputs[TriggerLoadJobs.TEMP_TABLES]
 
     destination_copy_job_ids_pc = (
-        singleton_pc
+        p
+        | "ImpulseMonitorLoadJobs" >> beam.Create([None])
         | "WaitForTempTableLoadJobs" >> beam.ParDo(
             WaitForBQJobs(self.test_client),
             beam.pvalue.AsList(temp_tables_load_job_ids_pc))
@@ -826,11 +893,13 @@ class BigQueryBatchFileLoads(beam.PTransform):
             TriggerCopyJobs(
                 create_disposition=self.create_disposition,
                 write_disposition=self.write_disposition,
-                test_client=self.test_client),
+                test_client=self.test_client,
+                step_name=step_name),
             copy_job_name_pcv))
 
     finished_copy_jobs_pc = (
-        singleton_pc
+        p
+        | "ImpulseMonitorCopyJobs" >> beam.Create([None])
         | "WaitForCopyJobs" >> beam.ParDo(
             WaitForBQJobs(self.test_client),
             beam.pvalue.AsList(destination_copy_job_ids_pc)))
@@ -843,7 +912,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
             pvalue.AsIter(temp_tables_pc))
         | "RemoveTempTables/AddUselessValue" >> beam.Map(lambda x: (x, None))
         | "RemoveTempTables/DeduplicateTables" >> beam.GroupByKey()
-        | "RemoveTempTables/GetTableNames" >> beam.Map(lambda elm: elm[0])
+        | "RemoveTempTables/GetTableNames" >> beam.Keys()
         | "RemoveTempTables/Delete" >> beam.ParDo(
             DeleteTablesFn(self.test_client)))
 
@@ -858,12 +927,14 @@ class BigQueryBatchFileLoads(beam.PTransform):
                 test_client=self.test_client,
                 temporary_tables=False,
                 additional_bq_parameters=self.additional_bq_parameters,
-                source_format=self._temp_file_format),
+                source_format=self._temp_file_format,
+                step_name=step_name),
             load_job_name_pcv,
             *self.schema_side_inputs))
 
     _ = (
-        singleton_pc
+        p
+        | "ImpulseMonitorDestLoadJobs" >> beam.Create([None])
         | "WaitForDestinationLoadJobs" >> beam.ParDo(
             WaitForBQJobs(self.test_client),
             beam.pvalue.AsList(destination_load_job_ids_pc)))
@@ -876,6 +947,11 @@ class BigQueryBatchFileLoads(beam.PTransform):
 
   def expand(self, pcoll):
     p = pcoll.pipeline
+    try:
+      step_name = self.label
+    except AttributeError:
+      step_name = 'BigQueryBatchFileLoads_%d' % BigQueryBatchFileLoads.COUNT
+      BigQueryBatchFileLoads.COUNT += 1
 
     temp_location = p.options.view_as(GoogleCloudOptions).temp_location
     job_name = (
@@ -888,17 +964,13 @@ class BigQueryBatchFileLoads(beam.PTransform):
         singleton_pc
         | "LoadJobNamePrefix" >> beam.Map(
             lambda _: _generate_job_name(
-                job_name,
-                bigquery_tools.BigQueryJobTypes.LOAD,
-                'LOAD_NAME_STEP')))
+                job_name, bigquery_tools.BigQueryJobTypes.LOAD, 'LOAD_STEP')))
 
     copy_job_name_pcv = pvalue.AsSingleton(
         singleton_pc
         | "CopyJobNamePrefix" >> beam.Map(
             lambda _: _generate_job_name(
-                job_name,
-                bigquery_tools.BigQueryJobTypes.COPY,
-                'COPY_NAME_STEP')))
+                job_name, bigquery_tools.BigQueryJobTypes.COPY, 'COPY_STEP')))
 
     file_prefix_pcv = pvalue.AsSingleton(
         singleton_pc
@@ -913,8 +985,12 @@ class BigQueryBatchFileLoads(beam.PTransform):
             bigquery_tools.AppendDestinationsFn(self.destination),
             *self.table_side_inputs))
 
-    all_destination_file_pairs_pc = self._write_files(
-        destination_data_kv_pc, file_prefix_pcv)
+    if not self.with_auto_sharding:
+      all_destination_file_pairs_pc = self._write_files(
+          destination_data_kv_pc, file_prefix_pcv)
+    else:
+      all_destination_file_pairs_pc = self._write_files_with_auto_sharding(
+          destination_data_kv_pc, file_prefix_pcv)
 
     grouped_files_pc = (
         all_destination_file_pairs_pc
@@ -947,12 +1023,16 @@ class BigQueryBatchFileLoads(beam.PTransform):
                           empty_pc,
                           load_job_name_pcv,
                           copy_job_name_pcv,
-                          singleton_pc))
+                          p,
+                          step_name))
     else:
       destination_load_job_ids_pc, destination_copy_job_ids_pc = (
           self._load_data(multiple_partitions_per_destination_pc,
-                         single_partition_per_destination_pc,
-                         load_job_name_pcv, copy_job_name_pcv, singleton_pc))
+                          single_partition_per_destination_pc,
+                          load_job_name_pcv,
+                          copy_job_name_pcv,
+                          p,
+                          step_name))
 
     return {
         self.DESTINATION_JOBID_PAIRS: destination_load_job_ids_pc,

@@ -178,6 +178,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
  * Its API is subject to change in future versions of Beam.
  */
 @Experimental
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public final class SketchFrequencies {
 
   /**

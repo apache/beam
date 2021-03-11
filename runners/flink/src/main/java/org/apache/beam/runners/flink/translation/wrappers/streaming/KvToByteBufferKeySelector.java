@@ -18,6 +18,7 @@
 package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
 import java.nio.ByteBuffer;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -35,9 +36,11 @@ public class KvToByteBufferKeySelector<K, V>
     implements KeySelector<WindowedValue<KV<K, V>>, ByteBuffer>, ResultTypeQueryable<ByteBuffer> {
 
   private final Coder<K> keyCoder;
+  private final SerializablePipelineOptions pipelineOptions;
 
-  public KvToByteBufferKeySelector(Coder<K> keyCoder) {
+  public KvToByteBufferKeySelector(Coder<K> keyCoder, SerializablePipelineOptions pipelineOptions) {
     this.keyCoder = keyCoder;
+    this.pipelineOptions = pipelineOptions;
   }
 
   @Override
@@ -48,6 +51,6 @@ public class KvToByteBufferKeySelector<K, V>
 
   @Override
   public TypeInformation<ByteBuffer> getProducedType() {
-    return new CoderTypeInformation<>(FlinkKeyUtils.ByteBufferCoder.of());
+    return new CoderTypeInformation<>(FlinkKeyUtils.ByteBufferCoder.of(), pipelineOptions.get());
   }
 }

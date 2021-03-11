@@ -18,11 +18,11 @@
 package org.apache.beam.fn.harness;
 
 import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyDouble;
@@ -156,7 +156,8 @@ public class BeamFnDataReadRunnerTest {
       consumers.register(
           localOutputId,
           pTransformId,
-          (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) outputValues::add);
+          (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) outputValues::add,
+          StringUtf8Coder.of());
       PTransformFunctionRegistry startFunctionRegistry =
           new PTransformFunctionRegistry(
               mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "start");
@@ -722,7 +723,7 @@ public class BeamFnDataReadRunnerTest {
         new PCollectionConsumerRegistry(
             metricsContainerRegistry, mock(ExecutionStateTracker.class));
     String localOutputId = "outputPC";
-    consumers.register(localOutputId, pTransformId, consumer);
+    consumers.register(localOutputId, pTransformId, consumer, StringUtf8Coder.of());
     PTransformFunctionRegistry startFunctionRegistry =
         new PTransformFunctionRegistry(
             mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "start");

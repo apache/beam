@@ -20,6 +20,7 @@ package org.apache.beam.runners.core.construction;
 import java.util.Map;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 
@@ -33,8 +34,8 @@ public abstract class SingleInputOutputOverrideFactory<
         TransformT extends PTransform<InputT, OutputT>>
     implements PTransformOverrideFactory<InputT, OutputT, TransformT> {
   @Override
-  public final Map<PValue, ReplacementOutput> mapOutputs(
-      Map<TupleTag<?>, PValue> outputs, OutputT newOutput) {
+  public final Map<PCollection<?>, ReplacementOutput> mapOutputs(
+      Map<TupleTag<?>, PCollection<?>> outputs, OutputT newOutput) {
     return ReplacementOutputs.singleton(outputs, newOutput);
   }
 }

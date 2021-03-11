@@ -61,6 +61,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Wrapper for executing {@link UnboundedSource UnboundedSources} as a Flink Source. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSource.CheckpointMark>
     extends RichParallelSourceFunction<WindowedValue<ValueWithRecordId<OutputT>>>
     implements ProcessingTimeCallback,
@@ -429,7 +433,9 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
     OperatorStateStore stateStore = context.getOperatorStateStore();
     @SuppressWarnings("unchecked")
     CoderTypeInformation<KV<? extends UnboundedSource<OutputT, CheckpointMarkT>, CheckpointMarkT>>
-        typeInformation = (CoderTypeInformation) new CoderTypeInformation<>(checkpointCoder);
+        typeInformation =
+            (CoderTypeInformation)
+                new CoderTypeInformation<>(checkpointCoder, serializedOptions.get());
     stateForCheckpoint =
         stateStore.getListState(
             new ListStateDescriptor<>(

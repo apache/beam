@@ -31,6 +31,9 @@ import org.apache.beam.sdk.transforms.windowing.Window.Assign;
 /**
  * Utility methods for translating a {@link Assign} to and from {@link RunnerApi} representations.
  */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class FlattenTranslator implements TransformPayloadTranslator<Flatten.PCollections<?>> {
 
   public static TransformPayloadTranslator create() {

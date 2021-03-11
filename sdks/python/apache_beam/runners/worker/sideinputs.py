@@ -33,6 +33,7 @@ from apache_beam.coders import observable
 from apache_beam.io import iobase
 from apache_beam.runners.worker import opcounters
 from apache_beam.transforms import window
+from apache_beam.utils.sentinel import Sentinel
 
 # This module is experimental. No backwards-compatibility guarantees.
 
@@ -48,7 +49,7 @@ MAX_SOURCE_READER_THREADS = 15
 ELEMENT_QUEUE_SIZE = 10
 
 # Special element value sentinel for signaling reader state.
-READER_THREAD_IS_DONE_SENTINEL = object()
+READER_THREAD_IS_DONE_SENTINEL = Sentinel.sentinel
 
 # Used to efficiently window the values of non-windowed side inputs.
 _globally_windowed = window.GlobalWindows.windowed_value(None).with_value

@@ -77,6 +77,10 @@ import org.slf4j.LoggerFactory;
  * <p>Provides a bridge between the high-level {@code Source} API and the low-level {@code
  * CloudSource} class.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class WorkerCustomSources {
   private static final String SERIALIZED_SOURCE = "serialized_source";
   @VisibleForTesting static final String SERIALIZED_SOURCE_SPLITS = "serialized_source_splits";
@@ -632,9 +636,8 @@ public class WorkerCustomSources {
       reader.close();
     }
 
-    @Nullable
     @VisibleForTesting
-    static ReportedParallelism longToParallelism(long value) {
+    static @Nullable ReportedParallelism longToParallelism(long value) {
       if (value >= 0) {
         return new ReportedParallelism().setValue(Double.valueOf(value));
       } else {

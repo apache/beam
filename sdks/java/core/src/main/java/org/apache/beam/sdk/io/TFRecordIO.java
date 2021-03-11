@@ -58,6 +58,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * to write windowed data or writing to multiple destinations) use {@link #sink} in combination with
  * {@link FileIO#write} or {@link FileIO#writeDynamic}.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class TFRecordIO {
   /** The default coder, which returns each record of the input file as a byte array. */
   public static final Coder<byte[]> DEFAULT_BYTE_ARRAY_CODER = ByteArrayCoder.of();

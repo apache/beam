@@ -17,15 +17,12 @@
  */
 package org.apache.beam.sdk.transforms.splittabledofn;
 
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.DoFn;
 
 /**
  * Interface for watermark estimator state for which a default implementation of {@link
  * DoFn.NewWatermarkEstimator} is available, depending only on the watermark estimator state itself.
  */
-@Experimental(Kind.SPLITTABLE_DO_FN)
 public interface HasDefaultWatermarkEstimator<
     WatermarkEstimatorStateT,
     WatermarkEstimatorT extends WatermarkEstimator<WatermarkEstimatorStateT>> {

@@ -29,11 +29,12 @@ golang {
     // of pkg. Go build refuses to follow symlinks. Drop for now. The files
     // are built when tested anyway.
 
+    targetPlatform = ['linux-amd64']
     // Build debugging utilities
-    go 'build -o ./build/bin/beamctl github.com/apache/beam/sdks/go/cmd/beamctl'
+    go 'build -o ./build/bin/linux-amd64/beamctl github.com/apache/beam/sdks/go/cmd/beamctl'
 
     // Build integration test driver
-    go 'build -o ./build/bin/integration github.com/apache/beam/sdks/go/test/integration'
+    go 'build -o ./build/bin/linux-amd64/integration/driver github.com/apache/beam/sdks/go/test/integration/driver'
   }
 
   // Ignore spurious vet errors during check for [BEAM-4831].

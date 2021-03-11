@@ -91,9 +91,9 @@ def alter_label_if_ipython(transform, pvalueish):
 
 def _extract_pipeline_of_pvalueish(pvalueish):
   """Extracts the pipeline that the given pvalueish belongs to."""
-  if isinstance(pvalueish, tuple):
+  if isinstance(pvalueish, tuple) and len(pvalueish) > 0:
     pvalue = pvalueish[0]
-  elif isinstance(pvalueish, dict):
+  elif isinstance(pvalueish, dict) and len(pvalueish) > 0:
     pvalue = next(iter(pvalueish.values()))
   else:
     pvalue = pvalueish

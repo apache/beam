@@ -32,6 +32,7 @@ import java.io.Serializable;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers;
@@ -41,6 +42,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.InsertRetryPolicy;
 import org.apache.beam.sdk.io.gcp.bigquery.InsertRetryPolicy.Context;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.values.FailsafeValueInSingleWindow;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashBasedTable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
@@ -49,6 +51,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A fake dataset service that can be serialized, for use in testReadFromTable. */
 @Internal
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class FakeDatasetService implements DatasetService, Serializable {
   // Table information must be static, as each ParDo will get a separate instance of
   // FakeDatasetServices, and they must all modify the same storage.
@@ -58,13 +63,20 @@ public class FakeDatasetService implements DatasetService, Serializable {
 
   Map<String, List<String>> insertErrors = Maps.newHashMap();
 
+  // The counter for the number of insertions performed.
+  static AtomicInteger insertCount;
+
   public static void setUp() {
     tables = HashBasedTable.create();
+    insertCount = new AtomicInteger(0);
     FakeJobService.setUp();
   }
 
   @Override
   public Table getTable(TableReference tableRef) throws InterruptedException, IOException {
+    if (tableRef.getProjectId() == null) {
+      throw new NullPointerException(String.format("tableRef is missing projectId: %s", tableRef));
+    }
     return getTable(tableRef, null);
   }
 
@@ -210,17 +222,22 @@ public class FakeDatasetService implements DatasetService, Serializable {
     }
   }
 
+  public int getInsertCount() {
+    return insertCount.get();
+  }
+
   public long insertAll(
       TableReference ref, List<TableRow> rowList, @Nullable List<String> insertIdList)
       throws IOException, InterruptedException {
-    List<ValueInSingleWindow<TableRow>> windowedRows = Lists.newArrayList();
+    List<FailsafeValueInSingleWindow<TableRow, TableRow>> windowedRows = Lists.newArrayList();
     for (TableRow row : rowList) {
       windowedRows.add(
-          ValueInSingleWindow.of(
+          FailsafeValueInSingleWindow.of(
               row,
               GlobalWindow.TIMESTAMP_MAX_VALUE,
               GlobalWindow.INSTANCE,
-              PaneInfo.ON_TIME_AND_ONLY_FIRING));
+              PaneInfo.ON_TIME_AND_ONLY_FIRING,
+              row));
     }
     return insertAll(
         ref,
@@ -237,7 +254,7 @@ public class FakeDatasetService implements DatasetService, Serializable {
   @Override
   public <T> long insertAll(
       TableReference ref,
-      List<ValueInSingleWindow<TableRow>> rowList,
+      List<FailsafeValueInSingleWindow<TableRow, TableRow>> rowList,
       @Nullable List<String> insertIdList,
       InsertRetryPolicy retryPolicy,
       List<ValueInSingleWindow<T>> failedInserts,
@@ -284,6 +301,7 @@ public class FakeDatasetService implements DatasetService, Serializable {
               failedInserts, allErrors.get(allErrors.size() - 1), ref, rowList.get(i));
         }
       }
+      insertCount.addAndGet(1);
       return dataSize;
     }
   }

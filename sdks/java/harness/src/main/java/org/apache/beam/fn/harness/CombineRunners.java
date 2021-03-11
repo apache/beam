@@ -51,6 +51,11 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 
 /** Executes different components of Combine PTransforms. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness",
+  "keyfor"
+}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class CombineRunners {
 
   /** A registrar which provides a factory to handle combine component PTransforms. */
@@ -181,8 +186,8 @@ public class CombineRunners {
       pCollectionConsumerRegistry.register(
           Iterables.getOnlyElement(pTransform.getInputsMap().values()),
           pTransformId,
-          (FnDataReceiver)
-              (FnDataReceiver<WindowedValue<KV<KeyT, InputT>>>) runner::processElement);
+          (FnDataReceiver) (FnDataReceiver<WindowedValue<KV<KeyT, InputT>>>) runner::processElement,
+          inputCoder);
       finishFunctionRegistry.register(pTransformId, runner::finishBundle);
 
       return runner;

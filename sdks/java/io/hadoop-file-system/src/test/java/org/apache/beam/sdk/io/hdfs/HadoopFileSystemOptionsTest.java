@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.io.hdfs;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
@@ -173,6 +173,26 @@ public class HadoopFileSystemOptionsTest {
     Map<String, String> environment = Maps.newHashMap();
     environment.put("YARN_CONF_DIR", tmpFolder.getRoot().getAbsolutePath());
     environment.put("HADOOP_CONF_DIR", tmpFolder.getRoot().getAbsolutePath());
+    when(configurationLocator.getEnvironment()).thenReturn(environment);
+
+    List<Configuration> configurationList =
+        configurationLocator.create(PipelineOptionsFactory.create());
+    assertEquals(1, configurationList.size());
+    assertThat(configurationList.get(0).get("propertyA"), Matchers.equalTo("A"));
+    assertThat(configurationList.get(0).get("propertyB"), Matchers.equalTo("B"));
+  }
+
+  @Test
+  public void testDefaultSetYarnConfDirAndHadoopConfDirAndSameDir() throws IOException {
+    Files.write(
+        createPropertyData("A"), tmpFolder.newFile("core-site.xml"), StandardCharsets.UTF_8);
+    Files.write(
+        createPropertyData("B"), tmpFolder.newFile("hdfs-site.xml"), StandardCharsets.UTF_8);
+    HadoopFileSystemOptions.ConfigurationLocator configurationLocator =
+        spy(new HadoopFileSystemOptions.ConfigurationLocator());
+    Map<String, String> environment = Maps.newHashMap();
+    environment.put("HADOOP_CONF_DIR", tmpFolder.getRoot().getAbsolutePath());
+    environment.put("YARN_CONF_DIR", tmpFolder.getRoot().getAbsolutePath() + "/");
     when(configurationLocator.getEnvironment()).thenReturn(environment);
 
     List<Configuration> configurationList =

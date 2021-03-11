@@ -34,8 +34,11 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
+import org.apache.beam.runners.fnexecution.control.BundleCheckpointHandler;
+import org.apache.beam.runners.fnexecution.control.BundleFinalizationHandler;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
 import org.apache.beam.runners.fnexecution.control.ExecutableStageContext;
+import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors;
 import org.apache.beam.runners.fnexecution.control.RemoteBundle;
@@ -67,6 +70,9 @@ import org.powermock.reflect.Whitebox;
 
 /** Tests for {@link FlinkExecutableStageFunction}. */
 @RunWith(Parameterized.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class FlinkExecutableStageFunctionTest {
 
   @Parameterized.Parameters
@@ -113,7 +119,19 @@ public class FlinkExecutableStageFunctionTest {
     when(runtimeContext.getDistributedCache()).thenReturn(distributedCache);
     when(stageContext.getStageBundleFactory(any())).thenReturn(stageBundleFactory);
     RemoteBundle remoteBundle = Mockito.mock(RemoteBundle.class);
-    when(stageBundleFactory.getBundle(any(), any(), any())).thenReturn(remoteBundle);
+    when(stageBundleFactory.getBundle(
+            any(),
+            any(StateRequestHandler.class),
+            any(BundleProgressHandler.class),
+            any(BundleFinalizationHandler.class),
+            any(BundleCheckpointHandler.class)))
+        .thenReturn(remoteBundle);
+    when(stageBundleFactory.getBundle(
+            any(),
+            any(TimerReceiverFactory.class),
+            any(StateRequestHandler.class),
+            any(BundleProgressHandler.class)))
+        .thenReturn(remoteBundle);
     ImmutableMap input =
         ImmutableMap.builder().put("input", Mockito.mock(FnDataReceiver.class)).build();
     when(remoteBundle.getInputReceivers()).thenReturn(input);
@@ -127,7 +145,13 @@ public class FlinkExecutableStageFunctionTest {
 
     @SuppressWarnings("unchecked")
     RemoteBundle bundle = Mockito.mock(RemoteBundle.class);
-    when(stageBundleFactory.getBundle(any(), any(), any())).thenReturn(bundle);
+    when(stageBundleFactory.getBundle(
+            any(),
+            any(StateRequestHandler.class),
+            any(BundleProgressHandler.class),
+            any(BundleFinalizationHandler.class),
+            any(BundleCheckpointHandler.class)))
+        .thenReturn(bundle);
 
     @SuppressWarnings("unchecked")
     FnDataReceiver<WindowedValue<?>> receiver = Mockito.mock(FnDataReceiver.class);
@@ -146,7 +170,13 @@ public class FlinkExecutableStageFunctionTest {
 
     @SuppressWarnings("unchecked")
     RemoteBundle bundle = Mockito.mock(RemoteBundle.class);
-    when(stageBundleFactory.getBundle(any(), any(), any())).thenReturn(bundle);
+    when(stageBundleFactory.getBundle(
+            any(),
+            any(StateRequestHandler.class),
+            any(BundleProgressHandler.class),
+            any(BundleFinalizationHandler.class),
+            any(BundleCheckpointHandler.class)))
+        .thenReturn(bundle);
 
     @SuppressWarnings("unchecked")
     FnDataReceiver<WindowedValue<?>> receiver = Mockito.mock(FnDataReceiver.class);
@@ -185,7 +215,9 @@ public class FlinkExecutableStageFunctionTest {
               OutputReceiverFactory receiverFactory,
               TimerReceiverFactory timerReceiverFactory,
               StateRequestHandler stateRequestHandler,
-              BundleProgressHandler progressHandler) {
+              BundleProgressHandler progressHandler,
+              BundleFinalizationHandler finalizationHandler,
+              BundleCheckpointHandler checkpointHandler) {
             return new RemoteBundle() {
               @Override
               public String getId() {
@@ -234,6 +266,11 @@ public class FlinkExecutableStageFunctionTest {
           public ProcessBundleDescriptors.ExecutableProcessBundleDescriptor
               getProcessBundleDescriptor() {
             return processBundleDescriptor;
+          }
+
+          @Override
+          public InstructionRequestHandler getInstructionRequestHandler() {
+            return null;
           }
 
           @Override
@@ -300,6 +337,7 @@ public class FlinkExecutableStageFunctionTest {
             jobInfo,
             outputMap,
             contextFactory,
+            null,
             null);
     function.setRuntimeContext(runtimeContext);
     Whitebox.setInternalState(function, "stateRequestHandler", stateRequestHandler);

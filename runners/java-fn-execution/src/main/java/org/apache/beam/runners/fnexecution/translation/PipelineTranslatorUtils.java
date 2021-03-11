@@ -52,6 +52,10 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.joda.time.Instant;
 
 /** Utilities for pipeline translation. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public final class PipelineTranslatorUtils {
   private PipelineTranslatorUtils() {}
 
@@ -147,13 +151,13 @@ public final class PipelineTranslatorUtils {
     Timer<?> timerValue =
         Timer.of(
             currentTimerKey,
-            "",
+            timer.getTimerId(),
             Collections.singletonList(window),
             timestamp,
             outputTimestamp,
             PaneInfo.NO_FIRING);
     KV<String, String> transformAndTimerId =
-        TimerReceiverFactory.decodeTimerDataTimerId(timer.getTimerId());
+        TimerReceiverFactory.decodeTimerDataTimerId(timer.getTimerFamilyId());
     FnDataReceiver<Timer> fnTimerReceiver = timerReceivers.get(transformAndTimerId);
     Preconditions.checkNotNull(
         fnTimerReceiver, "No FnDataReceiver found for %s", transformAndTimerId);

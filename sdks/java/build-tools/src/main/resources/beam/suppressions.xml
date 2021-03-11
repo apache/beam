@@ -86,8 +86,7 @@
   <suppress id="ForbidNonVendoredGuava" files=".*sql.*BeamEnumerableConverterTest\.java" />
   <suppress id="ForbidNonVendoredGuava" files=".*zetasql.*TableScanConverter\.java" />
   <suppress id="ForbidNonVendoredGuava" files=".*zetasql.*ExpressionConverter\.java" />
-  <suppress id="ForbidNonVendoredGuava" files=".*zetasql.*ZetaSQLPlannerImpl\.java" />
-  <suppress id="ForbidNonVendoredGuava" files=".*zetasql.*SqlAnalyzer\.java" />
+  <suppress id="ForbidNonVendoredGuava" files=".*zetasql.*BeamZetaSqlCatalog\.java" />
   <suppress id="ForbidNonVendoredGuava" files=".*pubsublite.*BufferingPullSubscriberTest\.java" />
 
   <!-- gRPC/protobuf exceptions -->
@@ -98,6 +97,9 @@
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*google.*cloud.*spanner.*FakeBatchTransactionId\.java" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*google.*cloud.*spanner.*FakePartitionFactory\.java" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*extensions.*sql.*datastore.*" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*extensions.*sql.*pubsublite.RowHandler.*" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*extensions.*sql.*ProtoPayloadSerializerProvider.*" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*datacatalog.*DataCatalogTableProvider\.java" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*zetasql.*DateTimeUtils\.java" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*zetasql.*ZetaSqlBeamTranslationUtils\.java" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*zetasql.*ZetaSqlDialectSpecTest\.java" />
@@ -118,5 +120,8 @@
   <!-- ThriftIO -->
   <!-- Suppress Checkstyle for Thrift generated test files. -->
   <suppress files="org.apache.beam.sdk.io.thrift.TestThriftStruct.java" checks="[a-zA-Z0-9]*"/>
+  <suppress files="org.apache.beam.sdk.io.thrift.TestThriftInnerStruct.java" checks="[a-zA-Z0-9]*"/>
+  <suppress files="org.apache.beam.sdk.io.thrift.TestThriftUnion.java" checks="[a-zA-Z0-9]*"/>
+  <suppress files="org.apache.beam.sdk.io.thrift.payloads.*" checks="[a-zA-Z0-9]*"/>
 
 </suppressions>

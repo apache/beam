@@ -37,6 +37,7 @@ public class FakeBatchTransactionId extends BatchTransactionId {
   }
 
   @Override
+  @SuppressWarnings("dereference.of.nullable")
   public boolean equals(@Nullable Object o) {
     if (this == o) {
       return true;

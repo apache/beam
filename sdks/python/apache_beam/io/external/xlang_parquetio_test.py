@@ -49,7 +49,7 @@ PARQUET_WRITE_URN = "beam:transforms:xlang:test:parquet_write"
 class XlangParquetIOTest(unittest.TestCase):
   # TODO: add verification for the file written by external transform
   #  after fixing BEAM-7612
-  def test_write(self):
+  def test_xlang_parquetio_write(self):
     expansion_jar = os.environ.get('EXPANSION_JAR')
     port = os.environ.get('EXPANSION_PORT')
     address = 'localhost:%s' % port

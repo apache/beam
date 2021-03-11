@@ -17,9 +17,12 @@
  */
 package org.apache.beam.sdk.schemas.transforms;
 
+import static java.util.stream.Collectors.toList;
 import static org.junit.Assert.assertEquals;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.IntStream;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.testing.NeedsRunner;
@@ -57,6 +60,19 @@ public class DropFieldsTest {
   private static Row nestedArray(Row... elements) {
     return Row.withSchema(NESTED_ARRAY_SCHEMA).addArray((Object[]) elements).build();
   }
+
+  private static Row multipleIntRow(Schema schema, int value) {
+    return Row.withSchema(schema).attachValues(Collections.nCopies(schema.getFieldCount(), value));
+  }
+
+  private static List<Schema.Field> intFieldsRange(int startInclusive, int endExclusive) {
+    return IntStream.range(startInclusive, endExclusive)
+        .mapToObj(i -> Schema.Field.of("field" + i, Schema.FieldType.INT32))
+        .collect(toList());
+  }
+
+  private static final Schema MULTIPLE_INT_SCHEMA =
+      Schema.builder().addFields(intFieldsRange(0, 100)).build();
 
   @Test
   @Category(NeedsRunner.class)
@@ -155,6 +171,33 @@ public class DropFieldsTest {
             Row.withSchema(expectedSchema).addArray("one1", "one2").build(),
             Row.withSchema(expectedSchema).addArray("two1", "two2").build(),
             Row.withSchema(expectedSchema).addArray("three1", "three2").build());
+    PAssert.that(result).containsInAnyOrder(expectedRows);
+    pipeline.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testMaintainsOriginalSchemaOrder() {
+    Schema expectedSchema =
+        Schema.builder()
+            .addFields(intFieldsRange(1, 10))
+            .addFields(intFieldsRange(11, 19))
+            .addFields(intFieldsRange(21, 55))
+            .addFields(intFieldsRange(56, 100))
+            .build();
+
+    PCollection<Row> result =
+        pipeline
+            .apply(
+                Create.of(
+                        multipleIntRow(MULTIPLE_INT_SCHEMA, 1),
+                        multipleIntRow(MULTIPLE_INT_SCHEMA, 2))
+                    .withRowSchema(MULTIPLE_INT_SCHEMA))
+            .apply(DropFields.fields("field0", "field10", "field19", "field20", "field55"));
+    assertEquals(expectedSchema, result.getSchema());
+
+    List<Row> expectedRows =
+        Lists.newArrayList(multipleIntRow(expectedSchema, 1), multipleIntRow(expectedSchema, 2));
     PAssert.that(result).containsInAnyOrder(expectedRows);
     pipeline.run();
   }

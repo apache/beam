@@ -13,28 +13,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package primitives contains tests on basic well-known Beam transforms, such
+// as ParDo, Flatten, etc.
 package primitives
 
 import (
 	"testing"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
+	"github.com/apache/beam/sdks/go/test/integration"
 )
 
 func TestCoGBK(t *testing.T) {
-	if err := ptest.Run(CoGBK()); err != nil {
-		t.Error(err)
-	}
+	integration.CheckFilters(t)
+	ptest.RunAndValidate(t, CoGBK())
 }
 
 func TestReshuffle(t *testing.T) {
-	if err := ptest.Run(Reshuffle()); err != nil {
-		t.Error(err)
-	}
+	integration.CheckFilters(t)
+	ptest.RunAndValidate(t, Reshuffle())
 }
 
 func TestReshuffleKV(t *testing.T) {
-	if err := ptest.Run(ReshuffleKV()); err != nil {
-		t.Error(err)
-	}
+	integration.CheckFilters(t)
+	ptest.RunAndValidate(t, ReshuffleKV())
 }

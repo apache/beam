@@ -24,6 +24,7 @@ import java.io.Serializable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
+import org.apache.beam.model.pipeline.v1.RunnerApi.MergeStatus;
 import org.apache.beam.model.pipeline.v1.RunnerApi.OutputTime;
 import org.apache.beam.model.pipeline.v1.StandardWindowFns.FixedWindowsPayload;
 import org.apache.beam.model.pipeline.v1.StandardWindowFns.GlobalWindowsPayload;
@@ -281,7 +282,9 @@ public class WindowingStrategyTranslation implements Serializable {
    */
   public static RunnerApi.WindowingStrategy toProto(
       WindowingStrategy<?, ?> windowingStrategy, SdkComponents components) throws IOException {
-    FunctionSpec windowFnSpec = toProto(windowingStrategy.getWindowFn(), components);
+    WindowFn<?, ?> windowFn = windowingStrategy.getWindowFn();
+
+    FunctionSpec windowFnSpec = toProto(windowFn, components);
     String environmentId =
         Strings.isNullOrEmpty(windowingStrategy.getEnvironmentId())
             ? components.getOnlyEnvironmentId()
@@ -295,10 +298,15 @@ public class WindowingStrategyTranslation implements Serializable {
             .setAllowedLateness(windowingStrategy.getAllowedLateness().getMillis())
             .setTrigger(TriggerTranslation.toProto(windowingStrategy.getTrigger()))
             .setWindowFn(windowFnSpec)
-            .setAssignsToOneWindow(windowingStrategy.getWindowFn().assignsToOneWindow())
+            .setAssignsToOneWindow(windowFn.assignsToOneWindow())
+            .setMergeStatus(
+                windowFn.isNonMerging()
+                    ? MergeStatus.Enum.NON_MERGING
+                    : (windowingStrategy.isAlreadyMerged()
+                        ? MergeStatus.Enum.ALREADY_MERGED
+                        : MergeStatus.Enum.NEEDS_MERGE))
             .setOnTimeBehavior(toProto(windowingStrategy.getOnTimeBehavior()))
-            .setWindowCoderId(
-                components.registerCoder(windowingStrategy.getWindowFn().windowCoder()))
+            .setWindowCoderId(components.registerCoder(windowFn.windowCoder()))
             .setEnvironmentId(environmentId);
 
     return windowingStrategyProto.build();

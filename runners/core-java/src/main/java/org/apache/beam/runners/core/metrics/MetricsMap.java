@@ -30,6 +30,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * A map from {@code K} to {@code T} that supports getting or creating values associated with a key
  * in a thread-safe manner.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class MetricsMap<K, T> implements Serializable {
 
   /** Interface for creating instances to populate the {@link MetricsMap}. */

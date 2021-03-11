@@ -62,6 +62,7 @@ from apache_beam.transforms.core import WatermarkEstimatorProvider
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.transforms.window import WindowFn
+from apache_beam.typehints import typehints
 from apache_beam.utils.counters import Counter
 from apache_beam.utils.counters import CounterName
 from apache_beam.utils.timestamp import Timestamp
@@ -198,6 +199,7 @@ class MethodWrapper(object):
     self.restriction_provider_arg_name = None
     self.watermark_estimator_provider = None
     self.watermark_estimator_provider_arg_name = None
+    self.dynamic_timer_tag_arg_name = None
 
     if hasattr(self.method_value, 'unbounded_per_element'):
       self.unbounded_per_element = True
@@ -218,11 +220,14 @@ class MethodWrapper(object):
       elif core.DoFn.KeyParam == v:
         self.key_arg_name = kw
       elif isinstance(v, core.DoFn.RestrictionParam):
-        self.restriction_provider = v.restriction_provider
+        self.restriction_provider = v.restriction_provider or obj_to_invoke
         self.restriction_provider_arg_name = kw
       elif isinstance(v, core.DoFn.WatermarkEstimatorParam):
-        self.watermark_estimator_provider = v.watermark_estimator_provider
+        self.watermark_estimator_provider = (
+            v.watermark_estimator_provider or obj_to_invoke)
         self.watermark_estimator_provider_arg_name = kw
+      elif core.DoFn.DynamicTimerTagParam == v:
+        self.dynamic_timer_tag_arg_name = kw
 
     # Create NoOpWatermarkEstimatorProvider if there is no
     # WatermarkEstimatorParam provided.
@@ -230,7 +235,13 @@ class MethodWrapper(object):
       self.watermark_estimator_provider = NoOpWatermarkEstimatorProvider()
 
   def invoke_timer_callback(
-      self, user_state_context, key, window, timestamp, pane_info):
+      self,
+      user_state_context,
+      key,
+      window,
+      timestamp,
+      pane_info,
+      dynamic_timer_tag):
     # TODO(ccy): support side inputs.
     kwargs = {}
     if self.has_userstate_arguments:
@@ -246,6 +257,8 @@ class MethodWrapper(object):
       kwargs[self.window_arg_name] = window
     if self.key_arg_name:
       kwargs[self.key_arg_name] = key
+    if self.dynamic_timer_tag_arg_name:
+      kwargs[self.dynamic_timer_tag_arg_name] = dynamic_timer_tag
 
     if kwargs:
       return self.method_value(**kwargs)
@@ -526,12 +539,18 @@ class DoFnInvoker(object):
     """
     self.signature.teardown_lifecycle_method.method_value()
 
-  def invoke_user_timer(self, timer_spec, key, window, timestamp, pane_info):
+  def invoke_user_timer(
+      self, timer_spec, key, window, timestamp, pane_info, dynamic_timer_tag):
     # self.output_processor is Optional, but in practice it won't be None here
     self.output_processor.process_outputs(
         WindowedValue(None, timestamp, (window, )),
         self.signature.timer_methods[timer_spec].invoke_timer_callback(
-            self.user_state_context, key, window, timestamp, pane_info))
+            self.user_state_context,
+            key,
+            window,
+            timestamp,
+            pane_info,
+            dynamic_timer_tag))
 
   def invoke_create_watermark_estimator(self, estimator_state):
     return self.signature.create_watermark_estimator_method.method_value(
@@ -699,6 +718,14 @@ class PerWindowInvoker(DoFnInvoker):
 
     residuals = []
     if self.is_splittable:
+      if restriction is None:
+        # This may be a SDF invoked as an ordinary DoFn on runners that don't
+        # understand SDF.  See, e.g. BEAM-11472.
+        # In this case, processing the element is simply processing it against
+        # the entire initial restriction.
+        restriction = self.signature.initial_restriction_method.method_value(
+            windowed_value.value)
+
       with self.splitting_lock:
         self.current_windowed_value = windowed_value
         self.restriction = restriction
@@ -1233,10 +1260,11 @@ class DoFnRunner:
     assert isinstance(self.do_fn_invoker, PerWindowInvoker)
     return self.do_fn_invoker.current_element_progress()
 
-  def process_user_timer(self, timer_spec, key, window, timestamp, pane_info):
+  def process_user_timer(
+      self, timer_spec, key, window, timestamp, pane_info, dynamic_timer_tag):
     try:
       self.do_fn_invoker.invoke_user_timer(
-          timer_spec, key, window, timestamp, pane_info)
+          timer_spec, key, window, timestamp, pane_info, dynamic_timer_tag)
     except BaseException as exn:
       self._reraise_augmented(exn)
 
@@ -1484,3 +1512,41 @@ class DoFnContext(object):
       raise AttributeError('windows not accessible in this context')
     else:
       return self.windowed_value.windows
+
+
+def group_by_key_input_visitor(deterministic_key_coders=True):
+  # Importing here to avoid a circular dependency
+  from apache_beam.pipeline import PipelineVisitor
+  from apache_beam.transforms.core import GroupByKey
+
+  class GroupByKeyInputVisitor(PipelineVisitor):
+    """A visitor that replaces `Any` element type for input `PCollection` of
+    a `GroupByKey` with a `KV` type.
+
+    TODO(BEAM-115): Once Python SDK is compatible with the new Runner API,
+    we could directly replace the coder instead of mutating the element type.
+    """
+    def __init__(self, deterministic_key_coders=True):
+      self.deterministic_key_coders = deterministic_key_coders
+
+    def enter_composite_transform(self, transform_node):
+      self.visit_transform(transform_node)
+
+    def visit_transform(self, transform_node):
+      # Imported here to avoid circular dependencies.
+      # pylint: disable=wrong-import-order, wrong-import-position
+      if isinstance(transform_node.transform, GroupByKey):
+        pcoll = transform_node.inputs[0]
+        pcoll.element_type = typehints.coerce_to_kv_type(
+            pcoll.element_type, transform_node.full_label)
+        pcoll.requires_deterministic_key_coder = (
+            self.deterministic_key_coders and transform_node.full_label)
+        key_type, value_type = pcoll.element_type.tuple_types
+        if transform_node.outputs:
+          key = next(iter(transform_node.outputs.keys()))
+          transform_node.outputs[key].element_type = typehints.KV[
+              key_type, typehints.Iterable[value_type]]
+          transform_node.outputs[key].requires_deterministic_key_coder = (
+              self.deterministic_key_coders and transform_node.full_label)
+
+  return GroupByKeyInputVisitor(deterministic_key_coders)

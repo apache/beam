@@ -338,10 +338,13 @@ class TestReadFromTFRecord(unittest.TestCase):
 
 
 class TestReadAllFromTFRecord(unittest.TestCase):
-  def _write_glob(self, temp_dir, suffix):
+  def _write_glob(self, temp_dir, suffix, include_empty=False):
     for _ in range(3):
       path = temp_dir.create_temp_file(suffix)
       _write_file(path, FOO_BAR_RECORD_BASE64)
+    if include_empty:
+      path = temp_dir.create_temp_file(suffix)
+      _write_file(path, '')
 
   def test_process_single(self):
     with TempDir() as temp_dir:
@@ -372,6 +375,19 @@ class TestReadAllFromTFRecord(unittest.TestCase):
   def test_process_glob(self):
     with TempDir() as temp_dir:
       self._write_glob(temp_dir, 'result')
+      glob = temp_dir.get_path() + os.path.sep + '*result'
+      with TestPipeline() as p:
+        result = (
+            p
+            | Create([glob])
+            | ReadAllFromTFRecord(
+                coder=coders.BytesCoder(),
+                compression_type=CompressionTypes.AUTO))
+        assert_that(result, equal_to([b'foo', b'bar'] * 3))
+
+  def test_process_glob_with_empty_file(self):
+    with TempDir() as temp_dir:
+      self._write_glob(temp_dir, 'result', include_empty=True)
       glob = temp_dir.get_path() + os.path.sep + '*result'
       with TestPipeline() as p:
         result = (

@@ -44,6 +44,9 @@ import org.joda.time.Instant;
  * Utility methods for translating a {@link TestStream} to and from {@link RunnerApi}
  * representations.
  */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class TestStreamTranslation {
 
   public static TestStream<?> testStreamFromProtoPayload(

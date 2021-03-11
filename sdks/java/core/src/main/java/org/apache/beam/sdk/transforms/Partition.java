@@ -77,6 +77,9 @@ import org.apache.beam.sdk.values.TupleTagList;
  *
  * @param <T> the type of the elements of the input and output {@code PCollection}s
  */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class Partition<T> extends PTransform<PCollection<T>, PCollectionList<T>> {
 
   /**

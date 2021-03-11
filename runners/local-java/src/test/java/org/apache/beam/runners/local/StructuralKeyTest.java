@@ -17,13 +17,13 @@
  */
 package org.apache.beam.runners.local;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertArrayEquals;
 
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.hamcrest.Matchers;
-import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -33,8 +33,8 @@ import org.junit.runners.JUnit4;
 public class StructuralKeyTest {
   @Test
   public void getKeyEqualToOldKey() {
-    Assert.assertThat(StructuralKey.of(1234, VarIntCoder.of()).getKey(), Matchers.equalTo(1234));
-    Assert.assertThat(
+    assertThat(StructuralKey.of(1234, VarIntCoder.of()).getKey(), Matchers.equalTo(1234));
+    assertThat(
         StructuralKey.of("foobar", StringUtf8Coder.of()).getKey(), Matchers.equalTo("foobar"));
     assertArrayEquals(
         StructuralKey.of(new byte[] {2, 9, -22}, ByteArrayCoder.of()).getKey(),
@@ -46,21 +46,21 @@ public class StructuralKeyTest {
     byte[] original = new byte[] {1, 4, 9, 127, -22};
     StructuralKey<byte[]> key = StructuralKey.of(original, ByteArrayCoder.of());
 
-    Assert.assertThat(key.getKey(), Matchers.not(Matchers.theInstance(original)));
+    assertThat(key.getKey(), Matchers.not(Matchers.theInstance(original)));
   }
 
   @Test
   public void emptyKeysNotEqual() {
     StructuralKey<?> empty = StructuralKey.empty();
 
-    Assert.assertThat(empty, Matchers.not(Matchers.equalTo(StructuralKey.empty())));
-    Assert.assertThat(empty, Matchers.equalTo(empty));
+    assertThat(empty, Matchers.not(Matchers.equalTo(StructuralKey.empty())));
+    assertThat(empty, Matchers.equalTo(empty));
   }
 
   @Test
   public void objectEqualsTrueKeyEquals() {
     StructuralKey<Integer> original = StructuralKey.of(1234, VarIntCoder.of());
-    Assert.assertThat(StructuralKey.of(1234, VarIntCoder.of()), Matchers.equalTo(original));
+    assertThat(StructuralKey.of(1234, VarIntCoder.of()), Matchers.equalTo(original));
   }
 
   @Test
@@ -70,7 +70,7 @@ public class StructuralKeyTest {
 
     StructuralKey<byte[]> otherKey =
         StructuralKey.of(new byte[] {1, 4, 9, 127, -22}, ByteArrayCoder.of());
-    Assert.assertThat(key, Matchers.equalTo(otherKey));
+    assertThat(key, Matchers.equalTo(otherKey));
   }
 
   @Test
@@ -80,6 +80,6 @@ public class StructuralKeyTest {
 
     StructuralKey<byte[]> otherKey =
         StructuralKey.of(new byte[] {9, -128, 22}, ByteArrayCoder.of());
-    Assert.assertThat(key, Matchers.not(Matchers.equalTo(otherKey)));
+    assertThat(key, Matchers.not(Matchers.equalTo(otherKey)));
   }
 }

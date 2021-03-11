@@ -75,6 +75,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * </ul>
  */
 @Experimental
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class Wait {
   /** Waits on the given signal collections. */
   public static <T> OnSignal<T> on(PCollection<?>... signals) {

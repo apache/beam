@@ -57,11 +57,8 @@ public abstract class ExternalSorter implements Sorter {
      * 2048.
      */
     public Options setMemoryMB(int memoryMB) {
-      checkArgument(memoryMB > 0, "memoryMB must be greater than zero");
-      // Hadoop's external sort stores the number of available memory bytes in an int, this prevents
-      // integer overflow
-      checkArgument(memoryMB < 2048, "memoryMB must be less than 2048");
       this.memoryMB = memoryMB;
+      checkMemoryMB();
       return this;
     }
 
@@ -73,12 +70,22 @@ public abstract class ExternalSorter implements Sorter {
     /** Sets the sorter type. */
     public Options setSorterType(SorterType sorterType) {
       this.sorterType = sorterType;
+      checkMemoryMB();
       return this;
     }
 
     /** Returns the sorter type. */
     public SorterType getSorterType() {
       return sorterType;
+    }
+
+    private void checkMemoryMB() {
+      checkArgument(memoryMB > 0, "memoryMB must be greater than zero");
+      if (getSorterType() == SorterType.HADOOP) {
+        // Hadoop's external sort stores the number of available memory bytes in an int, this
+        // prevents overflow
+        checkArgument(memoryMB < 2048, "memoryMB must be less than 2048 for Hadoop sorter");
+      }
     }
   }
 

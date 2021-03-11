@@ -112,7 +112,8 @@ class IOTypeHintsTest(unittest.TestCase):
 
     self._test_strip_iterable_fail(typehints.Union[str, int])
     self._test_strip_iterable_fail(typehints.Optional[str])
-    self._test_strip_iterable_fail(typehints.WindowedValue[str])  # type: ignore[misc]
+    self._test_strip_iterable_fail(
+        typehints.WindowedValue[str])  # type: ignore[misc]
     self._test_strip_iterable_fail(typehints.Dict[str, int])
 
   def test_make_traceback(self):

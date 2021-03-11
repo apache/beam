@@ -30,6 +30,9 @@ import org.junit.runners.JUnit4;
 
 /** Collection of standard tests for Protobuf Schema support. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class ProtoSchemaTranslatorTest {
   @Test
   public void testPrimitiveSchema() {

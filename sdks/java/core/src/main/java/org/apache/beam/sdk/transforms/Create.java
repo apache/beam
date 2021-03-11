@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Deque;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -38,6 +39,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.CollectionCoder;
+import org.apache.beam.sdk.coders.DequeCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ListCoder;
@@ -101,7 +103,10 @@ import org.joda.time.Instant;
  *
  * @param <T> the type of the elements of the resulting {@code PCollection}
  */
-@SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+@SuppressWarnings({
+  "OptionalUsedAsFieldOrParameterType",
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class Create<T> {
   /**
    * Returns a new {@code Create.Values} transform that produces a {@link PCollection} containing
@@ -791,6 +796,8 @@ public class Create<T> {
       return ListCoder.of(inferCoderFromObjects(coderRegistry, schemaRegistry, (Iterable) o));
     } else if (o instanceof Set) {
       return SetCoder.of(inferCoderFromObjects(coderRegistry, schemaRegistry, (Iterable) o));
+    } else if (o instanceof Deque) {
+      return DequeCoder.of(inferCoderFromObjects(coderRegistry, schemaRegistry, (Iterable) o));
     } else if (o instanceof Collection) {
       return CollectionCoder.of(inferCoderFromObjects(coderRegistry, schemaRegistry, (Iterable) o));
     } else if (o instanceof Iterable) {

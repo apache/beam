@@ -48,6 +48,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** This is the builder used by {@link Group} to build up a composed {@link CombineFn}. */
 @Experimental(Kind.SCHEMAS)
+@SuppressWarnings({
+  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes"
+})
 class SchemaAggregateFn {
   static Inner create() {
     return new AutoValue_SchemaAggregateFn_Inner.Builder()
@@ -201,11 +205,12 @@ class SchemaAggregateFn {
                       fieldAggregation.combineTag);
         } else {
           composedCombineFn =
-              composedCombineFn.with(
-                  extractFunction,
-                  extractOutputCoder,
-                  fieldAggregation.fn,
-                  fieldAggregation.combineTag);
+              ((ComposedCombineFn) composedCombineFn)
+                  .with(
+                      extractFunction,
+                      extractOutputCoder,
+                      fieldAggregation.fn,
+                      fieldAggregation.combineTag);
         }
       }
 

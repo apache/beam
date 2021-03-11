@@ -25,10 +25,6 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import java.io.Serializable;
 import java.util.List;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
-import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
-import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
-import org.apache.beam.sdk.extensions.sql.meta.provider.bigquery.BigQueryTableProvider;
-import org.apache.beam.sdk.extensions.sql.meta.provider.pubsub.PubsubJsonTableProvider;
 import org.apache.beam.sdk.io.gcp.bigquery.TestBigQuery;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.TestPubsub;
@@ -56,10 +52,7 @@ public class PubsubToBigqueryIT implements Serializable {
 
   @Test
   public void testSimpleInsert() throws Exception {
-    BeamSqlEnv sqlEnv =
-        BeamSqlEnv.inMemory(new PubsubJsonTableProvider(), new BigQueryTableProvider());
-
-    String createTableString =
+    String pubsubTableString =
         "CREATE EXTERNAL TABLE pubsub_topic (\n"
             + "event_timestamp TIMESTAMP, \n"
             + "attributes MAP<VARCHAR, VARCHAR>, \n"
@@ -73,9 +66,7 @@ public class PubsubToBigqueryIT implements Serializable {
             + pubsub.topicPath()
             + "' \n"
             + "TBLPROPERTIES '{ \"timestampAttributeKey\" : \"ts\" }'";
-    sqlEnv.executeDdl(createTableString);
-
-    String createTableStatement =
+    String bqTableString =
         "CREATE EXTERNAL TABLE bq_table( \n"
             + "   id BIGINT, \n"
             + "   name VARCHAR \n "
@@ -84,17 +75,16 @@ public class PubsubToBigqueryIT implements Serializable {
             + "LOCATION '"
             + bigQuery.tableSpec()
             + "'";
-    sqlEnv.executeDdl(createTableStatement);
-
     String insertStatement =
         "INSERT INTO bq_table \n"
             + "SELECT \n"
             + "  pubsub_topic.payload.id, \n"
             + "  pubsub_topic.payload.name \n"
             + "FROM pubsub_topic";
-
-    BeamSqlRelUtils.toPCollection(pipeline, sqlEnv.parseQuery(insertStatement));
-
+    pipeline.apply(
+        SqlTransform.query(insertStatement)
+            .withDdlString(pubsubTableString)
+            .withDdlString(bqTableString));
     pipeline.run();
 
     // Block until a subscription for this topic exists
@@ -118,10 +108,7 @@ public class PubsubToBigqueryIT implements Serializable {
 
   @Test
   public void testSimpleInsertFlat() throws Exception {
-    BeamSqlEnv sqlEnv =
-        BeamSqlEnv.inMemory(new PubsubJsonTableProvider(), new BigQueryTableProvider());
-
-    String createTableString =
+    String pubsubTableString =
         "CREATE EXTERNAL TABLE pubsub_topic (\n"
             + "event_timestamp TIMESTAMP, \n"
             + "id INTEGER, \n"
@@ -132,9 +119,7 @@ public class PubsubToBigqueryIT implements Serializable {
             + pubsub.topicPath()
             + "' \n"
             + "TBLPROPERTIES '{ \"timestampAttributeKey\" : \"ts\" }'";
-    sqlEnv.executeDdl(createTableString);
-
-    String createTableStatement =
+    String bqTableString =
         "CREATE EXTERNAL TABLE bq_table( \n"
             + "   id BIGINT, \n"
             + "   name VARCHAR \n "
@@ -143,13 +128,13 @@ public class PubsubToBigqueryIT implements Serializable {
             + "LOCATION '"
             + bigQuery.tableSpec()
             + "'";
-    sqlEnv.executeDdl(createTableStatement);
-
     String insertStatement =
         "INSERT INTO bq_table \n" + "SELECT \n" + "  id, \n" + "  name \n" + "FROM pubsub_topic";
 
-    BeamSqlRelUtils.toPCollection(pipeline, sqlEnv.parseQuery(insertStatement));
-
+    pipeline.apply(
+        SqlTransform.query(insertStatement)
+            .withDdlString(pubsubTableString)
+            .withDdlString(bqTableString));
     pipeline.run();
 
     // Block until a subscription for this topic exists

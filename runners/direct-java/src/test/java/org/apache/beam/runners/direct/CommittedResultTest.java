@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.direct;
 
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.io.Serializable;
 import java.util.Collections;
@@ -34,6 +34,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.PValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.hamcrest.Matchers;
@@ -54,8 +55,8 @@ public class CommittedResultTest implements Serializable {
   private transient AppliedPTransform<?, ?, ?> transform =
       AppliedPTransform.<PBegin, PDone, PTransform<PBegin, PDone>>of(
           "foo",
-          p.begin().expand(),
-          PDone.in(p).expand(),
+          PValues.expandInput(p.begin()),
+          PValues.expandOutput(PDone.in(p)),
           new PTransform<PBegin, PDone>() {
             @Override
             public PDone expand(PBegin begin) {

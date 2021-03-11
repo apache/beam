@@ -27,6 +27,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * Class representing a Pub/Sub message. Each message contains a single message payload, a map of
  * attached attributes, and a message id.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class PubsubMessage {
 
   private byte[] message;

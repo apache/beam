@@ -64,7 +64,7 @@ task checkLastCommitId {
   doLast {
     assert grgit : 'Cannot use outside of git repository'
 
-    def git = grgit.open()
+    def git = grgit.open(currentDir: project.rootDir)
     def lastCommit = git.log(paths: ['.test-infra/metrics'], maxCommits: 1)[0]
     project.ext.lastCommitId = lastCommit.abbreviatedId
   }

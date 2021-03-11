@@ -25,7 +25,7 @@ syntax = "proto3";
 
 package org.apache.beam.model.job_management.v1;
 
-option go_package = "jobmanagement_v1";
+option go_package = "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1;jobmanagement_v1";
 option java_package = "org.apache.beam.model.jobmanagement.v1";
 option java_outer_classname = "JobApi";
 

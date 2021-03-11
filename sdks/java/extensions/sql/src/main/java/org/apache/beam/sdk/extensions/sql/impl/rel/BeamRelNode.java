@@ -30,6 +30,9 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
 
 /** A {@link RelNode} that can also give a {@link PTransform} that implements the expression. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public interface BeamRelNode extends RelNode {
 
   /**

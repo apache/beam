@@ -34,6 +34,7 @@ import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.transforms.windowing.WindowFn.MergeContext;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 
 /**
@@ -53,6 +54,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
  * can only be part of one output set. The nonce is used by a runner to associate each input with
  * its output. The nonce is represented as an opaque set of bytes.
  */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public abstract class WindowMergingFnRunner<T, W extends BoundedWindow> {
   static final String URN = PTransformTranslation.MERGE_WINDOWS_TRANSFORM_URN;
 
@@ -151,7 +155,13 @@ public abstract class WindowMergingFnRunner<T, W extends BoundedWindow> {
       for (KV<W, Collection<W>> mergedWindow : mergedWindows) {
         currentWindows.removeAll(mergedWindow.getValue());
       }
-      return KV.of(windowsToMerge.getKey(), KV.of(currentWindows, (Iterable) mergedWindows));
+      KV<T, KV<Iterable<W>, Iterable<KV<W, Iterable<W>>>>> result =
+          KV.of(
+              windowsToMerge.getKey(),
+              KV.of(Sets.newHashSet(currentWindows), (Iterable) Lists.newArrayList(mergedWindows)));
+      currentWindows.clear();
+      mergedWindows.clear();
+      return result;
     }
   }
 }

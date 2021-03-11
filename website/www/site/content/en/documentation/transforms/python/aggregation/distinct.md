@@ -29,7 +29,7 @@ In the following example, we create a pipeline with two `PCollection`s of produc
 
 We use `Distinct` to get rid of duplicate elements, which outputs a `PCollection` of all the unique elements.
 
-{{< highlight py >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/distinct.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/distinct.py" distinct >}}
 {{< /highlight >}}
 
@@ -40,9 +40,6 @@ Output:
 {{< highlight class="notebook-skip" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/distinct_test.py" unique_elements >}}
 {{< /highlight >}}
-
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/distinct.py" >}}
 
 ## Related transforms
 

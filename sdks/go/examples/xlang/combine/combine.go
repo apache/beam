@@ -29,9 +29,8 @@ import (
 	"log"
 	"reflect"
 
+	"github.com/apache/beam/sdks/go/examples/xlang"
 	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
 
@@ -89,8 +88,7 @@ func main() {
 	// Using the cross-language transform
 	kvs := beam.Create(s, KV{X: "a", Y: 1}, KV{X: "a", Y: 2}, KV{X: "b", Y: 3})
 	ins := beam.ParDo(s, getKV, kvs)
-	outputType := typex.NewKV(typex.New(reflectx.String), typex.New(reflectx.Int64))
-	c := beam.CrossLanguageWithSingleInputOutput(s, "beam:transforms:xlang:test:compk", nil, *expansionAddr, ins, outputType)
+	c := xlang.CombinePerKey(s, *expansionAddr, ins)
 
 	formatted := beam.ParDo(s, formatFn, c)
 	passert.Equals(s, formatted, "a:3", "b:3")

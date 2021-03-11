@@ -25,18 +25,24 @@ import java.io.Serializable;
  */
 public class Quantifier implements Serializable {
 
-  public static final Quantifier NONE = new Quantifier("");
-  public static final Quantifier PLUS = new Quantifier("+");
-  public static final Quantifier QMARK = new Quantifier("?");
-  public static final Quantifier ASTERISK = new Quantifier("*");
-  public static final Quantifier PLUS_RELUCTANT = new Quantifier("+?");
-  public static final Quantifier ASTERISK_RELUCTANT = new Quantifier("*?");
-  public static final Quantifier QMARK_RELUCTANT = new Quantifier("??");
+  public static final Quantifier NONE = new Quantifier("", -1, -1, false);
+  public static final Quantifier PLUS = new Quantifier("+", 1, -1, false);
+  public static final Quantifier QMARK = new Quantifier("?", 0, 1, false);
+  public static final Quantifier ASTERISK = new Quantifier("*", 0, -1, false);
+  public static final Quantifier PLUS_RELUCTANT = new Quantifier("+?", 1, -1, true);
+  public static final Quantifier ASTERISK_RELUCTANT = new Quantifier("*?", 0, -1, true);
+  public static final Quantifier QMARK_RELUCTANT = new Quantifier("??", 0, 1, true);
 
   private final String repr;
+  private final int start;
+  private final int end;
+  private final boolean isReluctant;
 
-  Quantifier(String repr) {
+  Quantifier(String repr, int start, int end, boolean isReluctant) {
     this.repr = repr;
+    this.start = start;
+    this.end = end;
+    this.isReluctant = isReluctant;
   }
 
   @Override

@@ -59,6 +59,9 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link DataflowMetrics}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class DataflowMetricsTest {
   private static final String PROJECT_ID = "some-project";
   private static final String JOB_ID = "1234";

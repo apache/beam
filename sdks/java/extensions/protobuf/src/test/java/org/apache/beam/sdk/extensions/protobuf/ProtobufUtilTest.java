@@ -20,8 +20,8 @@ package org.apache.beam.sdk.extensions.protobuf;
 import static org.apache.beam.sdk.extensions.protobuf.ProtobufUtil.checkProto2Syntax;
 import static org.apache.beam.sdk.extensions.protobuf.ProtobufUtil.getRecursiveDescriptorsForClass;
 import static org.apache.beam.sdk.extensions.protobuf.ProtobufUtil.verifyDeterministic;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
 
 import com.google.protobuf.Any;
 import com.google.protobuf.Descriptors.GenericDescriptor;

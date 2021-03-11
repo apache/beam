@@ -16,121 +16,20 @@
 package harness
 
 import (
-	"bytes"
 	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/metrics"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/metricsx"
 	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 )
 
-type mUrn uint32
-
-// TODO: Pull these from the protos.
-var sUrns = [...]string{
-	"beam:metric:user:sum_int64:v1",
-	"beam:metric:user:sum_double:v1",
-	"beam:metric:user:distribution_int64:v1",
-	"beam:metric:user:distribution_double:v1",
-	"beam:metric:user:latest_int64:v1",
-	"beam:metric:user:latest_double:v1",
-	"beam:metric:user:top_n_int64:v1",
-	"beam:metric:user:top_n_double:v1",
-	"beam:metric:user:bottom_n_int64:v1",
-	"beam:metric:user:bottom_n_double:v1",
-
-	"beam:metric:element_count:v1",
-	"beam:metric:sampled_byte_size:v1",
-
-	"beam:metric:pardo_execution_time:start_bundle_msecs:v1",
-	"beam:metric:pardo_execution_time:process_bundle_msecs:v1",
-	"beam:metric:pardo_execution_time:finish_bundle_msecs:v1",
-	"beam:metric:ptransform_execution_time:total_msecs:v1",
-
-	"beam:metric:ptransform_progress:remaining:v1",
-	"beam:metric:ptransform_progress:completed:v1",
-	"beam:metric:data_channel:read_index:v1",
-
-	"TestingSentinelUrn", // Must remain last.
-}
-
-const (
-	urnUserSumInt64 mUrn = iota
-	urnUserSumFloat64
-	urnUserDistInt64
-	urnUserDistFloat64
-	urnUserLatestMsInt64
-	urnUserLatestMsFloat64
-	urnUserTopNInt64
-	urnUserTopNFloat64
-	urnUserBottomNInt64
-	urnUserBottomNFloat64
-
-	urnElementCount
-	urnSampledByteSize
-
-	urnStartBundle
-	urnProcessBundle
-	urnFinishBundle
-	urnTransformTotalTime
-
-	urnProgressRemaining
-	urnProgressCompleted
-	urnDataChannelReadIndex
-
-	urnTestSentinel // Must remain last.
-)
-
-// urnToType maps the urn to it's encoding type.
-// This function is written to be inlinable by the compiler.
-func urnToType(u mUrn) string {
-	switch u {
-	case urnUserSumInt64, urnElementCount, urnStartBundle, urnProcessBundle, urnFinishBundle, urnTransformTotalTime:
-		return "beam:metrics:sum_int64:v1"
-	case urnUserSumFloat64:
-		return "beam:metrics:sum_double:v1"
-	case urnUserDistInt64, urnSampledByteSize:
-		return "beam:metrics:distribution_int64:v1"
-	case urnUserDistFloat64:
-		return "beam:metrics:distribution_double:v1"
-	case urnUserLatestMsInt64:
-		return "beam:metrics:latest_int64:v1"
-	case urnUserLatestMsFloat64:
-		return "beam:metrics:latest_double:v1"
-	case urnUserTopNInt64:
-		return "beam:metrics:top_n_int64:v1"
-	case urnUserTopNFloat64:
-		return "beam:metrics:top_n_double:v1"
-	case urnUserBottomNInt64:
-		return "beam:metrics:bottom_n_int64:v1"
-	case urnUserBottomNFloat64:
-		return "beam:metrics:bottom_n_double:v1"
-
-	case urnProgressRemaining, urnProgressCompleted:
-		return "beam:metrics:progress:v1"
-	case urnDataChannelReadIndex:
-		return "beam:metrics:sum_int64:v1"
-
-	// Monitoring Table isn't currently in the protos.
-	// case ???:
-	//	return "beam:metrics:monitoring_table:v1"
-
-	case urnTestSentinel:
-		return "TestingSentinelType"
-
-	default:
-		panic("metric urn without specified type" + sUrns[u])
-	}
-}
-
 type shortKey struct {
 	metrics.Labels
-	Urn mUrn // Urns fully specify their type.
+	Urn metricsx.Urn // Urns fully specify their type.
 }
 
 // shortIDCache retains lookup caches for short ids to the full monitoring
@@ -162,7 +61,7 @@ func (c *shortIDCache) getNextShortID() string {
 // getShortID returns the short id for the given metric, and if
 // it doesn't exist yet, stores the metadata.
 // Assumes c.mu lock is held.
-func (c *shortIDCache) getShortID(l metrics.Labels, urn mUrn) string {
+func (c *shortIDCache) getShortID(l metrics.Labels, urn metricsx.Urn) string {
 	k := shortKey{l, urn}
 	s, ok := c.labels2ShortIds[k]
 	if ok {
@@ -171,8 +70,8 @@ func (c *shortIDCache) getShortID(l metrics.Labels, urn mUrn) string {
 	s = c.getNextShortID()
 	c.labels2ShortIds[k] = s
 	c.shortIds2Infos[s] = &pipepb.MonitoringInfo{
-		Urn:    sUrns[urn],
-		Type:   urnToType(urn),
+		Urn:    metricsx.UrnToString(urn),
+		Type:   metricsx.UrnToType(urn),
 		Labels: userLabels(l),
 	}
 	return s
@@ -195,7 +94,7 @@ func init() {
 	defaultShortIDCache = newShortIDCache()
 }
 
-func getShortID(l metrics.Labels, urn mUrn) string {
+func getShortID(l metrics.Labels, urn metricsx.Urn) string {
 	return defaultShortIDCache.getShortID(l, urn)
 }
 
@@ -216,46 +115,46 @@ func monitoring(p *exec.Plan) ([]*pipepb.MonitoringInfo, map[string][]byte) {
 	payloads := make(map[string][]byte)
 	metrics.Extractor{
 		SumInt64: func(l metrics.Labels, v int64) {
-			payload, err := int64Counter(v)
+			payload, err := metricsx.Int64Counter(v)
 			if err != nil {
 				panic(err)
 			}
-			payloads[getShortID(l, urnUserSumInt64)] = payload
+			payloads[getShortID(l, metricsx.UrnUserSumInt64)] = payload
 
 			monitoringInfo = append(monitoringInfo,
 				&pipepb.MonitoringInfo{
-					Urn:     sUrns[urnUserSumInt64],
-					Type:    urnToType(urnUserSumInt64),
+					Urn:     metricsx.UrnToString(metricsx.UrnUserSumInt64),
+					Type:    metricsx.UrnToType(metricsx.UrnUserSumInt64),
 					Labels:  userLabels(l),
 					Payload: payload,
 				})
 		},
 		DistributionInt64: func(l metrics.Labels, count, sum, min, max int64) {
-			payload, err := int64Distribution(count, sum, min, max)
+			payload, err := metricsx.Int64Distribution(count, sum, min, max)
 			if err != nil {
 				panic(err)
 			}
-			payloads[getShortID(l, urnUserDistInt64)] = payload
+			payloads[getShortID(l, metricsx.UrnUserDistInt64)] = payload
 
 			monitoringInfo = append(monitoringInfo,
 				&pipepb.MonitoringInfo{
-					Urn:     sUrns[urnUserDistInt64],
-					Type:    urnToType(urnUserDistInt64),
+					Urn:     metricsx.UrnToString(metricsx.UrnUserDistInt64),
+					Type:    metricsx.UrnToType(metricsx.UrnUserDistInt64),
 					Labels:  userLabels(l),
 					Payload: payload,
 				})
 		},
 		GaugeInt64: func(l metrics.Labels, v int64, t time.Time) {
-			payload, err := int64Latest(t, v)
+			payload, err := metricsx.Int64Latest(t, v)
 			if err != nil {
 				panic(err)
 			}
-			payloads[getShortID(l, urnUserLatestMsInt64)] = payload
+			payloads[getShortID(l, metricsx.UrnUserLatestMsInt64)] = payload
 
 			monitoringInfo = append(monitoringInfo,
 				&pipepb.MonitoringInfo{
-					Urn:     sUrns[urnUserLatestMsInt64],
-					Type:    urnToType(urnUserLatestMsInt64),
+					Urn:     metricsx.UrnToString(metricsx.UrnUserLatestMsInt64),
+					Type:    metricsx.UrnToType(metricsx.UrnUserLatestMsInt64),
 					Labels:  userLabels(l),
 					Payload: payload,
 				})
@@ -265,28 +164,28 @@ func monitoring(p *exec.Plan) ([]*pipepb.MonitoringInfo, map[string][]byte) {
 
 	// Get the execution monitoring information from the bundle plan.
 	if snapshot, ok := p.Progress(); ok {
-		payload, err := int64Counter(snapshot.Count)
+		payload, err := metricsx.Int64Counter(snapshot.Count)
 		if err != nil {
 			panic(err)
 		}
 
 		// TODO(BEAM-9934): This metric should account for elements in multiple windows.
-		payloads[getShortID(metrics.PCollectionLabels(snapshot.PID), urnElementCount)] = payload
+		payloads[getShortID(metrics.PCollectionLabels(snapshot.PID), metricsx.UrnElementCount)] = payload
 		monitoringInfo = append(monitoringInfo,
 			&pipepb.MonitoringInfo{
-				Urn:  sUrns[urnElementCount],
-				Type: urnToType(urnElementCount),
+				Urn:  metricsx.UrnToString(metricsx.UrnElementCount),
+				Type: metricsx.UrnToType(metricsx.UrnElementCount),
 				Labels: map[string]string{
 					"PCOLLECTION": snapshot.PID,
 				},
 				Payload: payload,
 			})
 
-		payloads[getShortID(metrics.PTransformLabels(snapshot.ID), urnDataChannelReadIndex)] = payload
+		payloads[getShortID(metrics.PTransformLabels(snapshot.ID), metricsx.UrnDataChannelReadIndex)] = payload
 		monitoringInfo = append(monitoringInfo,
 			&pipepb.MonitoringInfo{
-				Urn:  sUrns[urnDataChannelReadIndex],
-				Type: urnToType(urnDataChannelReadIndex),
+				Urn:  metricsx.UrnToString(metricsx.UrnDataChannelReadIndex),
+				Type: metricsx.UrnToType(metricsx.UrnDataChannelReadIndex),
 				Labels: map[string]string{
 					"PTRANSFORM": snapshot.ID,
 				},
@@ -304,40 +203,4 @@ func userLabels(l metrics.Labels) map[string]string {
 		"NAMESPACE":  l.Namespace(),
 		"NAME":       l.Name(),
 	}
-}
-
-func int64Counter(v int64) ([]byte, error) {
-	var buf bytes.Buffer
-	if err := coder.EncodeVarInt(v, &buf); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
-}
-
-func int64Latest(t time.Time, v int64) ([]byte, error) {
-	var buf bytes.Buffer
-	if err := coder.EncodeVarInt(mtime.FromTime(t).Milliseconds(), &buf); err != nil {
-		return nil, err
-	}
-	if err := coder.EncodeVarInt(v, &buf); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
-}
-
-func int64Distribution(count, sum, min, max int64) ([]byte, error) {
-	var buf bytes.Buffer
-	if err := coder.EncodeVarInt(count, &buf); err != nil {
-		return nil, err
-	}
-	if err := coder.EncodeVarInt(sum, &buf); err != nil {
-		return nil, err
-	}
-	if err := coder.EncodeVarInt(min, &buf); err != nil {
-		return nil, err
-	}
-	if err := coder.EncodeVarInt(max, &buf); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
 }

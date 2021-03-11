@@ -18,13 +18,14 @@
 package org.apache.beam.fn.harness;
 
 import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.mock;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -33,8 +34,10 @@ import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
+import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.function.ThrowingFunction;
 import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -59,6 +62,17 @@ public class MapFnRunnersTest {
           .putInputs("input", "inputPC")
           .putOutputs("output", "outputPC")
           .build();
+  private static final RunnerApi.PCollection INPUT_PCOLLECTION =
+      RunnerApi.PCollection.newBuilder().setUniqueName("inputPC").setCoderId("coder-id").build();
+  private static RunnerApi.Coder valueCoder;
+
+  static {
+    try {
+      valueCoder = CoderTranslation.toProto(StringUtf8Coder.of()).getCoder();
+    } catch (IOException e) {
+      throw new ExceptionInInitializerError(e);
+    }
+  }
 
   @Test
   public void testValueOnlyMapping() throws Exception {
@@ -67,7 +81,7 @@ public class MapFnRunnersTest {
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
             metricsContainerRegistry, mock(ExecutionStateTracker.class));
-    consumers.register("outputPC", EXPECTED_ID, outputConsumer::add);
+    consumers.register("outputPC", EXPECTED_ID, outputConsumer::add, StringUtf8Coder.of());
 
     PTransformFunctionRegistry startFunctionRegistry =
         new PTransformFunctionRegistry(
@@ -87,8 +101,8 @@ public class MapFnRunnersTest {
             EXPECTED_ID,
             EXPECTED_PTRANSFORM,
             Suppliers.ofInstance("57L")::get,
-            Collections.emptyMap(),
-            Collections.emptyMap(),
+            Collections.singletonMap("inputPC", INPUT_PCOLLECTION),
+            Collections.singletonMap("coder-id", valueCoder),
             Collections.emptyMap(),
             consumers,
             startFunctionRegistry,
@@ -117,7 +131,7 @@ public class MapFnRunnersTest {
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
             metricsContainerRegistry, mock(ExecutionStateTracker.class));
-    consumers.register("outputPC", EXPECTED_ID, outputConsumer::add);
+    consumers.register("outputPC", EXPECTED_ID, outputConsumer::add, StringUtf8Coder.of());
 
     PTransformFunctionRegistry startFunctionRegistry =
         new PTransformFunctionRegistry(
@@ -136,8 +150,8 @@ public class MapFnRunnersTest {
             EXPECTED_ID,
             EXPECTED_PTRANSFORM,
             Suppliers.ofInstance("57L")::get,
-            Collections.emptyMap(),
-            Collections.emptyMap(),
+            Collections.singletonMap("inputPC", INPUT_PCOLLECTION),
+            Collections.singletonMap("coder-id", valueCoder),
             Collections.emptyMap(),
             consumers,
             startFunctionRegistry,
@@ -165,7 +179,7 @@ public class MapFnRunnersTest {
     PCollectionConsumerRegistry consumers =
         new PCollectionConsumerRegistry(
             mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class));
-    consumers.register("outputPC", "pTransformId", outputConsumer::add);
+    consumers.register("outputPC", "pTransformId", outputConsumer::add, StringUtf8Coder.of());
 
     PTransformFunctionRegistry startFunctionRegistry =
         new PTransformFunctionRegistry(
@@ -184,8 +198,8 @@ public class MapFnRunnersTest {
             EXPECTED_ID,
             EXPECTED_PTRANSFORM,
             Suppliers.ofInstance("57L")::get,
-            Collections.emptyMap(),
-            Collections.emptyMap(),
+            Collections.singletonMap("inputPC", INPUT_PCOLLECTION),
+            Collections.singletonMap("coder-id", valueCoder),
             Collections.emptyMap(),
             consumers,
             startFunctionRegistry,

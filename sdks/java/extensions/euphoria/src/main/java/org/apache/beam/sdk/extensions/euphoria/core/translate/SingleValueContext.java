@@ -31,6 +31,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * will free the value as soon as {@code getAndResetValue()} is called.
  */
 @Audience(Audience.Type.EXECUTOR)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SingleValueContext<T> implements Context, Collector<T> {
 
   private final @Nullable Context wrap;

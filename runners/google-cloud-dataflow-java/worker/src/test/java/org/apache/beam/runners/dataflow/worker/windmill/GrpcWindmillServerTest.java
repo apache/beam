@@ -80,8 +80,11 @@ import org.slf4j.LoggerFactory;
 
 /** Unit tests for {@link GrpcWindmillServer}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class GrpcWindmillServerTest {
-  private static final Logger LOG = LoggerFactory.getLogger(GrpcWindmillServer.class);
+  private static final Logger LOG = LoggerFactory.getLogger(GrpcWindmillServerTest.class);
 
   private final MutableHandlerRegistry serviceRegistry = new MutableHandlerRegistry();
   @Rule public ErrorCollector errorCollector = new ErrorCollector();

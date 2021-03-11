@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="112" height="113" fill="none" viewBox="0 0 112 113">
+    <path fill="#FFE5D9" d="M56 112.909c30.928 0 56-25.072 56-56s-25.072-56-56-56-56 25.072-56 56 25.072 56 56 56z"/>
+    <path fill="#FF570B" fill-rule="evenodd" d="M66.616 56.598c-5.523 0-10 4.477-10 10v3.097c0 5.523 4.477 10 10 10h1.108l3.387 5.267c.397.618 1.303.61 1.69-.014l3.258-5.253h.666c5.523 0 10-4.477 10-10v-3.097c0-5.523-4.477-10-10-10H66.616z" clip-rule="evenodd"/>
+    <path fill="#fff" fill-rule="evenodd" d="M40.98 42.206c-8.677 0-15.71 7.034-15.71 15.71 0 8.473 6.707 15.38 15.102 15.699l4.923 7.657c.398.618 1.304.61 1.691-.014l4.762-7.679c8.102-.628 14.48-7.4 14.48-15.663 0-8.676-7.034-15.71-15.71-15.71H40.98z" clip-rule="evenodd"/>
+    <path fill="#FBC23E" fill-rule="evenodd" d="M66.234 56.605c-5.346.201-9.618 4.598-9.618 9.993v3.097c0 .877.113 1.727.325 2.537 5.486-2.536 9.293-8.089 9.293-14.53v-1.097z" clip-rule="evenodd"/>
+    <path stroke="#000" stroke-linecap="round" stroke-width="3" d="M60.3 35.304l1.137-6.496M67.843 41.23l6.568-.582M65.453 36.783l5.833-6.053"/>
+    <path fill="#FF570B" d="M40.806 49.695c.333-.844 1.528-.844 1.861 0l.643 1.632c.102.258.306.462.564.563l1.631.644c.845.333.845 1.528 0 1.86l-1.631.644c-.258.102-.462.306-.564.563l-.643 1.632c-.333.844-1.528.844-1.86 0l-.644-1.632c-.102-.257-.306-.461-.563-.563l-1.632-.643c-.844-.333-.844-1.528 0-1.861l1.631-.644c.258-.101.462-.305.564-.563l.643-1.632zM47.021 60.07c.302-.766 1.386-.766 1.688 0 .092.233.277.418.511.51.766.303.766 1.386 0 1.688-.234.092-.419.277-.511.511-.302.766-1.386.766-1.688 0-.092-.234-.277-.419-.51-.51-.766-.303-.766-1.386 0-1.688.233-.093.418-.278.51-.512z"/>
+    <path fill="#fff" d="M71.397 67.058c.302-.766 1.385-.766 1.687 0 .093.234.278.419.511.511.766.302.766 1.386 0 1.688-.233.092-.418.277-.51.51-.303.767-1.386.767-1.688 0-.093-.233-.278-.418-.511-.51-.766-.302-.766-1.386 0-1.688.233-.092.418-.277.51-.51z"/>
+</svg>

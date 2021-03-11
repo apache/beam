@@ -33,6 +33,9 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
 
 /** Utilities for {@code BeamRelNode}. */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class BeamSqlRelUtils {
 
   public static PCollection<Row> toPCollection(Pipeline pipeline, BeamRelNode node) {

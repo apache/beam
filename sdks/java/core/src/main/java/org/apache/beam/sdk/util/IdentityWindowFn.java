@@ -25,26 +25,19 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.IncompatibleWindowException;
-import org.apache.beam.sdk.transforms.windowing.InvalidWindows;
 import org.apache.beam.sdk.transforms.windowing.NonMergingWindowFn;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Instant;
 
 /**
  * A {@link WindowFn} that leaves all associations between elements and windows unchanged.
  *
  * <p>This {@link WindowFn} is applied when elements must be passed through a {@link GroupByKey},
- * but should maintain their existing {@link Window} assignments. Because windows may have been
- * merged, the earlier {@link WindowFn} may not appropriately maintain the existing window
- * assignments. For example, if the earlier {@link WindowFn} merges windows, after a {@link
- * GroupByKey} the {@link WindowingStrategy} uses {@link InvalidWindows}, and no further {@link
- * GroupByKey} can be applied without applying a new {@link WindowFn}. This {@link WindowFn} allows
- * existing window assignments to be maintained across a single group by key, at which point the
- * earlier {@link WindowingStrategy} should be restored.
+ * but should maintain their existing {@link Window} assignments. This will prevent merging if the
+ * underlying {@link WindowFn} would otherwise do so.
  *
  * <p>This {@link WindowFn} is an internal implementation detail of sdk-provided utilities, and
  * should not be used by {@link Pipeline} writers.

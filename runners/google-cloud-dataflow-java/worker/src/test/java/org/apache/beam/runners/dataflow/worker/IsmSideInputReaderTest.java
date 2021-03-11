@@ -21,6 +21,7 @@ import static org.apache.beam.runners.dataflow.util.Structs.getString;
 import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables.concat;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasItem;
@@ -28,7 +29,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -70,7 +70,6 @@ import org.apache.beam.runners.dataflow.util.CloudObjects;
 import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.runners.dataflow.util.RandomAccessData;
 import org.apache.beam.runners.dataflow.worker.DataflowOperationContext.DataflowExecutionState;
-import org.apache.beam.runners.dataflow.worker.ExperimentContext.Experiment;
 import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Kind;
 import org.apache.beam.runners.dataflow.worker.counters.Counter;
 import org.apache.beam.runners.dataflow.worker.counters.CounterName;
@@ -114,7 +113,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ListMultimap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Ordering;
@@ -141,6 +139,7 @@ import org.slf4j.LoggerFactory;
  * equivalently to their numeric representation for non-negative values.
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings({"keyfor"})
 public class IsmSideInputReaderTest {
   private static final Logger LOG = LoggerFactory.getLogger(IsmSideInputReaderTest.class);
   private static final long BLOOM_FILTER_SIZE_LIMIT = 10_000;
@@ -168,9 +167,7 @@ public class IsmSideInputReaderTest {
 
   @Before
   public void setUp() {
-    pipelineOptions
-        .as(DataflowPipelineDebugOptions.class)
-        .setExperiments(Lists.newArrayList(Experiment.SideInputIOMetrics.getName()));
+    pipelineOptions.as(DataflowPipelineDebugOptions.class);
     setupCloser = Closer.create();
     setupCloser.register(executionContext.getExecutionStateTracker().activate());
     setupCloser.register(operationContext.enterProcess());

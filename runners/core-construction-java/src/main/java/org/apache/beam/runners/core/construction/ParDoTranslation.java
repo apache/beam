@@ -84,6 +84,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 
 /** Utilities for interacting with {@link ParDo} instances and {@link ParDoPayload} protos. */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class ParDoTranslation {
   /**
    * This requirement indicates the state_spec and time_spec fields of ParDo transform payloads must
@@ -670,7 +673,10 @@ public class ParDoTranslation {
       case PROCESSING_TIME:
         return RunnerApi.TimeDomain.Enum.PROCESSING_TIME;
       case SYNCHRONIZED_PROCESSING_TIME:
-        return RunnerApi.TimeDomain.Enum.SYNCHRONIZED_PROCESSING_TIME;
+        throw new IllegalArgumentException(
+            String.format(
+                "%s is not permitted for user timers",
+                TimeDomain.SYNCHRONIZED_PROCESSING_TIME.name()));
       default:
         throw new IllegalArgumentException("Unknown time domain");
     }

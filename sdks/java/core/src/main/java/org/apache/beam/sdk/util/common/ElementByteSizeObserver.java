@@ -23,6 +23,9 @@ import org.apache.beam.sdk.annotations.Internal;
 
 /** An observer that gets notified when additional bytes are read and/or used. */
 @Internal
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public abstract class ElementByteSizeObserver implements Observer {
   private boolean isLazy = false;
   private long totalSize = 0;

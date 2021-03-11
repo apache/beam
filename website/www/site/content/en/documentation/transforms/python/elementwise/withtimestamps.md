@@ -33,7 +33,8 @@ The elements themselves often already contain a timestamp field.
 [Unix timestamp](https://en.wikipedia.org/wiki/Unix_time)
 in the form of seconds.
 
-{{< highlight py >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/withtimestamps" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py" withtimestamps_event_time >}}
 {{< /highlight >}}
 
@@ -44,10 +45,6 @@ Output:
 {{< highlight class="notebook-skip" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps_test.py" plant_timestamps >}}
 {{< /highlight >}}
-
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/withtimestamps" >}}
 
 To convert from a
 [`time.struct_time`](https://docs.python.org/3/library/time.html#time.struct_time)
@@ -75,7 +72,8 @@ If each element has a chronological number, these numbers can be used as a
 [logical clock](https://en.wikipedia.org/wiki/Logical_clock).
 These numbers have to be converted to a *"seconds"* equivalent, which can be especially important depending on your windowing and late data rules.
 
-{{< highlight py >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/withtimestamps" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py" withtimestamps_logical_clock >}}
 {{< /highlight >}}
 
@@ -87,10 +85,6 @@ Output:
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps_test.py" plant_events >}}
 {{< /highlight >}}
 
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/withtimestamps" >}}
-
 ### Example 3: Timestamp by processing time
 
 If the elements do not have any time data available, you can also use the current processing time for each element.
@@ -99,7 +93,8 @@ Workers might have time deltas, so using this method is not a reliable way to do
 
 By using processing time, there is no way of knowing if data is arriving late because the timestamp is attached when the element *enters* into the pipeline.
 
-{{< highlight py >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/withtimestamps" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py" withtimestamps_processing_time >}}
 {{< /highlight >}}
 
@@ -110,10 +105,6 @@ Output:
 {{< highlight class="notebook-skip" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps_test.py" plant_processing_times >}}
 {{< /highlight >}}
-
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/withtimestamps" >}}
 
 ## Related transforms
 

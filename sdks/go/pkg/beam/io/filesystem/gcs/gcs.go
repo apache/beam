@@ -124,3 +124,18 @@ func (f *fs) OpenWrite(ctx context.Context, filename string) (io.WriteCloser, er
 
 	return f.client.Bucket(bucket).Object(object).NewWriter(ctx), nil
 }
+
+func (f *fs) Size(ctx context.Context, filename string) (int64, error) {
+	bucket, object, err := gcsx.ParseObject(filename)
+	if err != nil {
+		return -1, err
+	}
+
+	obj := f.client.Bucket(bucket).Object(object)
+	attrs, err := obj.Attrs(ctx)
+	if err != nil {
+		return -1, err
+	}
+
+	return attrs.Size, nil
+}

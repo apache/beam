@@ -34,10 +34,11 @@ import (
 
 func init() {
 	beam.RegisterRunner("direct", Execute)
+	beam.RegisterRunner("DirectRunner", Execute)
 }
 
 // Execute runs the pipeline in-process.
-func Execute(ctx context.Context, p *beam.Pipeline) error {
+func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error) {
 	log.Info(ctx, "Executing pipeline with the direct runner.")
 
 	if !beam.Initialized() {
@@ -49,33 +50,33 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 
 	if *jobopts.Strict {
 		log.Info(ctx, "Strict mode enabled, applying additional validation.")
-		if err := vet.Execute(ctx, p); err != nil {
-			return errors.Wrap(err, "strictness check failed")
+		if _, err := vet.Execute(ctx, p); err != nil {
+			return nil, errors.Wrap(err, "strictness check failed")
 		}
 		log.Info(ctx, "Strict mode validation passed.")
 	}
 
 	edges, _, err := p.Build()
 	if err != nil {
-		return errors.Wrap(err, "invalid pipeline")
+		return nil, errors.Wrap(err, "invalid pipeline")
 	}
 	plan, err := Compile(edges)
 	if err != nil {
-		return errors.Wrap(err, "translation failed")
+		return nil, errors.Wrap(err, "translation failed")
 	}
 	log.Info(ctx, plan)
 
 	if err = plan.Execute(ctx, "", exec.DataContext{}); err != nil {
 		plan.Down(ctx) // ignore any teardown errors
-		return err
+		return nil, err
 	}
 	if err = plan.Down(ctx); err != nil {
-		return err
+		return nil, err
 	}
 	// TODO(lostluck) 2020/01/24: What's the right way to expose the
 	// metrics store for the direct runner?
 	metrics.DumpToLogFromStore(ctx, plan.Store())
-	return nil
+	return nil, nil
 }
 
 // Compile translates a pipeline to a multi-bundle execution plan.

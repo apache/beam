@@ -455,6 +455,9 @@ import org.slf4j.LoggerFactory;
  * <p>Please see <a href="https://cloud.google.com/bigquery/access-control">BigQuery Access Control
  * </a> for security and permission related information specific to BigQuery.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BigQueryIO {
 
   /**
@@ -500,6 +503,16 @@ public class BigQueryIO {
           PROJECT_ID_REGEXP, DATASET_REGEXP, TABLE_REGEXP);
 
   static final Pattern TABLE_SPEC = Pattern.compile(DATASET_TABLE_REGEXP);
+
+  /**
+   * Matches table specifications in the form {@code "projects/[project_id]/datasets/[dataset_id]/tables[table_id]".
+   */
+  private static final String TABLE_URN_REGEXP =
+      String.format(
+          "projects/(?<PROJECT>%s)/datasets/(?<DATASET>%s)/tables/(?<TABLE>%s)",
+          PROJECT_ID_REGEXP, DATASET_REGEXP, TABLE_REGEXP);
+
+  static final Pattern TABLE_URN_SPEC = Pattern.compile(TABLE_URN_REGEXP);
 
   /**
    * A formatting function that maps a TableRow to itself. This allows sending a {@code
@@ -623,7 +636,7 @@ public class BigQueryIO {
       return this.inner.getQuery();
     }
 
-    Read withTestServices(BigQueryServices testServices) {
+    public Read withTestServices(BigQueryServices testServices) {
       return new Read(this.inner.withTestServices(testServices));
     }
 
@@ -823,17 +836,14 @@ public class BigQueryIO {
 
     abstract @Nullable String getKmsKey();
 
-    @Nullable
     @Experimental(Kind.SCHEMAS)
-    abstract TypeDescriptor<T> getTypeDescriptor();
+    abstract @Nullable TypeDescriptor<T> getTypeDescriptor();
 
-    @Nullable
     @Experimental(Kind.SCHEMAS)
-    abstract ToBeamRowFunction<T> getToBeamRowFn();
+    abstract @Nullable ToBeamRowFunction<T> getToBeamRowFn();
 
-    @Nullable
     @Experimental(Kind.SCHEMAS)
-    abstract FromBeamRowFunction<T> getFromBeamRowFn();
+    abstract @Nullable FromBeamRowFunction<T> getFromBeamRowFn();
 
     abstract Boolean getUseAvroLogicalTypes();
 
@@ -1572,7 +1582,7 @@ public class BigQueryIO {
     }
 
     @VisibleForTesting
-    TypedRead<T> withTestServices(BigQueryServices testServices) {
+    public TypedRead<T> withTestServices(BigQueryServices testServices) {
       return toBuilder().setBigQueryServices(testServices).build();
     }
 
@@ -1664,6 +1674,7 @@ public class BigQueryIO {
         .setMaxBytesPerPartition(BatchLoads.DEFAULT_MAX_BYTES_PER_PARTITION)
         .setOptimizeWrites(false)
         .setUseBeamSchema(false)
+        .setAutoSharding(false)
         .build();
   }
 
@@ -1722,6 +1733,8 @@ public class BigQueryIO {
         getTableFunction();
 
     abstract @Nullable SerializableFunction<T, TableRow> getFormatFunction();
+
+    abstract @Nullable SerializableFunction<T, TableRow> getFormatRecordOnFailureFunction();
 
     abstract RowWriterFactory.@Nullable AvroRowWriterFactory<T, ?, ?> getAvroRowWriterFactory();
 
@@ -1787,6 +1800,9 @@ public class BigQueryIO {
     @Experimental(Kind.SCHEMAS)
     abstract Boolean getUseBeamSchema();
 
+    @Experimental
+    abstract Boolean getAutoSharding();
+
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
@@ -1797,6 +1813,9 @@ public class BigQueryIO {
           SerializableFunction<ValueInSingleWindow<T>, TableDestination> tableFunction);
 
       abstract Builder<T> setFormatFunction(SerializableFunction<T, TableRow> formatFunction);
+
+      abstract Builder<T> setFormatRecordOnFailureFunction(
+          SerializableFunction<T, TableRow> formatFunction);
 
       abstract Builder<T> setAvroRowWriterFactory(
           RowWriterFactory.AvroRowWriterFactory<T, ?, ?> avroRowWriterFactory);
@@ -1862,6 +1881,9 @@ public class BigQueryIO {
 
       @Experimental(Kind.SCHEMAS)
       abstract Builder<T> setUseBeamSchema(Boolean useBeamSchema);
+
+      @Experimental
+      abstract Builder<T> setAutoSharding(Boolean autoSharding);
 
       abstract Write<T> build();
     }
@@ -1930,6 +1952,8 @@ public class BigQueryIO {
 
     /**
      * An enumeration type for the BigQuery schema update options strings.
+     *
+     * <p>Not supported for {@link Method#STREAMING_INSERTS}.
      *
      * <p>Note from the BigQuery API doc -- Schema update options are supported in two cases: when
      * writeDisposition is WRITE_APPEND; when writeDisposition is WRITE_TRUNCATE and the destination
@@ -2000,6 +2024,16 @@ public class BigQueryIO {
     /** Formats the user's type into a {@link TableRow} to be written to BigQuery. */
     public Write<T> withFormatFunction(SerializableFunction<T, TableRow> formatFunction) {
       return toBuilder().setFormatFunction(formatFunction).build();
+    }
+
+    /**
+     * If an insert failure occurs, this function is applied to the originally supplied row T. The
+     * resulting {@link TableRow} will be accessed via {@link
+     * WriteResult#getFailedInsertsWithErr()}.
+     */
+    public Write<T> withFormatRecordOnFailureFunction(
+        SerializableFunction<T, TableRow> formatFunction) {
+      return toBuilder().setFormatRecordOnFailureFunction(formatFunction).build();
     }
 
     /**
@@ -2165,7 +2199,12 @@ public class BigQueryIO {
       return toBuilder().setWriteDisposition(writeDisposition).build();
     }
 
-    /** Allows the schema of the destination table to be updated as a side effect of the write. */
+    /**
+     * Allows the schema of the destination table to be updated as a side effect of the write.
+     *
+     * <p>This configuration applies only when writing to BigQuery with {@link Method#FILE_LOADS} as
+     * method.
+     */
     public Write<T> withSchemaUpdateOptions(Set<SchemaUpdateOption> schemaUpdateOptions) {
       checkArgument(schemaUpdateOptions != null, "schemaUpdateOptions can not be null");
       return toBuilder().setSchemaUpdateOptions(schemaUpdateOptions).build();
@@ -2238,7 +2277,8 @@ public class BigQueryIO {
 
     /**
      * Control how many file shards are written when using BigQuery load jobs. Applicable only when
-     * also setting {@link #withTriggeringFrequency}.
+     * also setting {@link #withTriggeringFrequency}. To let runner determine the sharding at
+     * runtime, set {@link #withAutoSharding()} instead.
      */
     public Write<T> withNumFileShards(int numFileShards) {
       checkArgument(numFileShards > 0, "numFileShards must be > 0, but was: %s", numFileShards);
@@ -2318,6 +2358,17 @@ public class BigQueryIO {
     @Experimental(Kind.SCHEMAS)
     public Write<T> useBeamSchema() {
       return toBuilder().setUseBeamSchema(true).build();
+    }
+
+    /**
+     * If true, enables using a dynamically determined number of shards to write to BigQuery. This
+     * can be used for both {@link Method#FILE_LOADS} and {@link Method#STREAMING_INSERTS}. Only
+     * applicable to unbounded data. If using {@link Method#FILE_LOADS}, numFileShards set via
+     * {@link #withNumFileShards} will be ignored.
+     */
+    @Experimental
+    public Write<T> withAutoSharding() {
+      return toBuilder().setAutoSharding(true).build();
     }
 
     @VisibleForTesting
@@ -2465,6 +2516,10 @@ public class BigQueryIO {
             method);
       }
 
+      if (input.isBounded() == IsBounded.BOUNDED) {
+        checkArgument(!getAutoSharding(), "Auto-sharding is only applicable to unbounded input.");
+      }
+
       if (getJsonTimePartitioning() != null) {
         checkArgument(
             getDynamicDestinations() == null,
@@ -2521,6 +2576,8 @@ public class BigQueryIO {
         PCollection<T> input, DynamicDestinations<T, DestinationT> dynamicDestinations) {
       boolean optimizeWrites = getOptimizeWrites();
       SerializableFunction<T, TableRow> formatFunction = getFormatFunction();
+      SerializableFunction<T, TableRow> formatRecordOnFailureFunction =
+          getFormatRecordOnFailureFunction();
       RowWriterFactory.AvroRowWriterFactory<T, ?, DestinationT> avroRowWriterFactory =
           (RowWriterFactory.AvroRowWriterFactory<T, ?, DestinationT>) getAvroRowWriterFactory();
 
@@ -2566,8 +2623,8 @@ public class BigQueryIO {
       }
 
       Method method = resolveMethod(input);
+      RowWriterFactory<T, DestinationT> rowWriterFactory;
       if (optimizeWrites) {
-        RowWriterFactory<T, DestinationT> rowWriterFactory;
         if (avroRowWriterFactory != null) {
           checkArgument(
               formatFunction == null,
@@ -2584,7 +2641,8 @@ public class BigQueryIO {
           }
           rowWriterFactory = avroRowWriterFactory.prepare(dynamicDestinations, avroSchemaFactory);
         } else if (formatFunction != null) {
-          rowWriterFactory = RowWriterFactory.tableRows(formatFunction);
+          rowWriterFactory =
+              RowWriterFactory.tableRows(formatFunction, formatRecordOnFailureFunction);
         } else {
           throw new IllegalArgumentException(
               "A function must be provided to convert the input type into a TableRow or "
@@ -2592,20 +2650,6 @@ public class BigQueryIO {
                   + "BigQueryIO.Write.withAvroFormatFunction to provide a formatting function. "
                   + "A format function is not required if Beam schemas are used.");
         }
-
-        PCollection<KV<DestinationT, T>> rowsWithDestination =
-            input
-                .apply(
-                    "PrepareWrite",
-                    new PrepareWrite<>(dynamicDestinations, SerializableFunctions.identity()))
-                .setCoder(KvCoder.of(destinationCoder, input.getCoder()));
-        return continueExpandTyped(
-            rowsWithDestination,
-            input.getCoder(),
-            destinationCoder,
-            dynamicDestinations,
-            rowWriterFactory,
-            method);
       } else {
         checkArgument(avroRowWriterFactory == null);
         checkArgument(
@@ -2615,22 +2659,22 @@ public class BigQueryIO {
                 + "BigQueryIO.Write.withAvroFormatFunction to provide a formatting function. "
                 + "A format function is not required if Beam schemas are used.");
 
-        PCollection<KV<DestinationT, TableRow>> rowsWithDestination =
-            input
-                .apply("PrepareWrite", new PrepareWrite<>(dynamicDestinations, formatFunction))
-                .setCoder(KvCoder.of(destinationCoder, TableRowJsonCoder.of()));
-
-        RowWriterFactory<TableRow, DestinationT> rowWriterFactory =
-            RowWriterFactory.tableRows(SerializableFunctions.identity());
-
-        return continueExpandTyped(
-            rowsWithDestination,
-            TableRowJsonCoder.of(),
-            destinationCoder,
-            dynamicDestinations,
-            rowWriterFactory,
-            method);
+        rowWriterFactory =
+            RowWriterFactory.tableRows(formatFunction, formatRecordOnFailureFunction);
       }
+      PCollection<KV<DestinationT, T>> rowsWithDestination =
+          input
+              .apply(
+                  "PrepareWrite",
+                  new PrepareWrite<>(dynamicDestinations, SerializableFunctions.identity()))
+              .setCoder(KvCoder.of(destinationCoder, input.getCoder()));
+      return continueExpandTyped(
+          rowsWithDestination,
+          input.getCoder(),
+          destinationCoder,
+          dynamicDestinations,
+          rowWriterFactory,
+          method);
     }
 
     private <DestinationT, ElementT> WriteResult continueExpandTyped(
@@ -2650,6 +2694,9 @@ public class BigQueryIO {
         checkArgument(
             rowWriterFactory.getOutputType() == RowWriterFactory.OutputType.JsonTableRow,
             "Avro output is not supported when method == STREAMING_INSERTS");
+        checkArgument(
+            getSchemaUpdateOptions() == null || getSchemaUpdateOptions().isEmpty(),
+            "SchemaUpdateOptions are not supported when method == STREAMING_INSERTS");
 
         RowWriterFactory.TableRowWriterFactory<ElementT, DestinationT> tableRowWriterFactory =
             (RowWriterFactory.TableRowWriterFactory<ElementT, DestinationT>) rowWriterFactory;
@@ -2659,13 +2706,15 @@ public class BigQueryIO {
                     getCreateDisposition(),
                     dynamicDestinations,
                     elementCoder,
-                    tableRowWriterFactory.getToRowFn())
+                    tableRowWriterFactory.getToRowFn(),
+                    tableRowWriterFactory.getToFailsafeRowFn())
                 .withInsertRetryPolicy(retryPolicy)
                 .withTestServices(getBigQueryServices())
                 .withExtendedErrorInfo(getExtendedErrorInfo())
                 .withSkipInvalidRows(getSkipInvalidRows())
                 .withIgnoreUnknownValues(getIgnoreUnknownValues())
                 .withIgnoreInsertIds(getIgnoreInsertIds())
+                .withAutoSharding(getAutoSharding())
                 .withKmsKey(getKmsKey());
         return input.apply(streamingInserts);
       } else {
@@ -2713,7 +2762,11 @@ public class BigQueryIO {
           batchLoads.setMaxRetryJobs(1000);
         }
         batchLoads.setTriggeringFrequency(getTriggeringFrequency());
-        batchLoads.setNumFileShards(getNumFileShards());
+        if (getAutoSharding()) {
+          batchLoads.setNumFileShards(0);
+        } else {
+          batchLoads.setNumFileShards(getNumFileShards());
+        }
         return input.apply(batchLoads);
       }
     }

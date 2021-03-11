@@ -39,6 +39,9 @@ import org.apache.beam.sdk.values.Row;
  */
 @Internal
 @AutoService(SchemaIOProvider.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class AvroSchemaIOProvider implements SchemaIOProvider {
   /** Returns an id that uniquely represents this IO. */
   @Override
@@ -100,20 +103,18 @@ public class AvroSchemaIOProvider implements SchemaIOProvider {
                   AvroIO.readGenericRecords(AvroUtils.toAvroSchema(dataSchema, null, null))
                       .withBeamSchemas(true)
                       .from(location))
-              .apply("GenericRecordToRow", Convert.toRows());
+              .apply("ToRows", Convert.toRows());
         }
       };
     }
 
     @Override
     public PTransform<PCollection<Row>, POutput> buildWriter() {
-      PTransform<PCollection<Row>, PCollection<GenericRecord>> writeConverter =
-          GenericRecordWriteConverter.builder().beamSchema(dataSchema).build();
       return new PTransform<PCollection<Row>, POutput>() {
         @Override
         public PDone expand(PCollection<Row> input) {
           return input
-              .apply("GenericRecordToRow", writeConverter)
+              .apply("ToGenericRecords", Convert.to(GenericRecord.class))
               .apply(
                   "AvroIOWrite",
                   AvroIO.writeGenericRecords(AvroUtils.toAvroSchema(dataSchema, null, null))

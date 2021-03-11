@@ -263,10 +263,10 @@ func (l *loggingServer) Logging(stream fnpb.BeamFnLogging_LoggingServer) error {
 }
 
 // Execute launches the supplied pipeline using a session file as the source of inputs.
-func Execute(ctx context.Context, p *beam.Pipeline) error {
+func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error) {
 	worker, err := buildLocalBinary(ctx)
 	if err != nil {
-		return errors.WithContext(err, "building worker binary")
+		return nil, errors.WithContext(err, "building worker binary")
 	}
 
 	log.Infof(ctx, "built worker binary at %s\n", worker)
@@ -307,7 +307,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	go cmd.Start()
 
 	wg.Wait()
-	return nil
+	return nil, nil
 }
 
 // buildLocalBinary is cribbed from the Dataflow runner, but doesn't force the

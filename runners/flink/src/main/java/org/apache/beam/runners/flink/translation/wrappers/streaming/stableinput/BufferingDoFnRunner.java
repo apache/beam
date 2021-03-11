@@ -23,6 +23,7 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import org.apache.beam.runners.core.DoFnRunner;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.flink.translation.types.CoderTypeSerializer;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -45,6 +46,10 @@ import org.joda.time.Instant;
  * after a checkpoint has completed. This ensures that the input is stable and we produce idempotent
  * results on failures.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT> {
 
   public static <InputT, OutputT> BufferingDoFnRunner<InputT, OutputT> create(
@@ -54,7 +59,8 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
       org.apache.beam.sdk.coders.Coder windowCoder,
       OperatorStateBackend operatorStateBackend,
       @Nullable KeyedStateBackend<Object> keyedStateBackend,
-      int maxConcurrentCheckpoints)
+      int maxConcurrentCheckpoints,
+      SerializablePipelineOptions pipelineOptions)
       throws Exception {
     return new BufferingDoFnRunner<>(
         doFnRunner,
@@ -63,7 +69,8 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
         windowCoder,
         operatorStateBackend,
         keyedStateBackend,
-        maxConcurrentCheckpoints);
+        maxConcurrentCheckpoints,
+        pipelineOptions);
   }
 
   /** The underlying DoFnRunner that any buffered data will be handed over to eventually. */
@@ -86,7 +93,8 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
       org.apache.beam.sdk.coders.Coder windowCoder,
       OperatorStateBackend operatorStateBackend,
       @Nullable KeyedStateBackend keyedStateBackend,
-      int maxConcurrentCheckpoints)
+      int maxConcurrentCheckpoints,
+      SerializablePipelineOptions pipelineOptions)
       throws Exception {
     Preconditions.checkArgument(
         maxConcurrentCheckpoints > 0 && maxConcurrentCheckpoints < Short.MAX_VALUE,
@@ -103,7 +111,7 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
               new ListStateDescriptor<>(
                   stateName + stateId,
                   new CoderTypeSerializer<>(
-                      new BufferedElements.Coder(inputCoder, windowCoder, null)));
+                      new BufferedElements.Coder(inputCoder, windowCoder, null), pipelineOptions));
           if (keyedStateBackend != null) {
             return KeyedBufferingElementsHandler.create(keyedStateBackend, stateDescriptor);
           } else {

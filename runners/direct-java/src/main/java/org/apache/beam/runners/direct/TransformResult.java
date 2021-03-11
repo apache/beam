@@ -37,6 +37,9 @@ import org.joda.time.Instant;
  * <p>Every transform evaluator has a defined input type, but {@link ParDo} has multiple outputs so
  * there is not necesssarily a defined output type.
  */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 interface TransformResult<InputT> {
   /**
    * Returns the {@link AppliedPTransform} that produced this result.

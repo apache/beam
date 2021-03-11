@@ -32,7 +32,10 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /** Utilities for tests. */
-@SuppressWarnings({"rawtypes", "unchecked"})
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "unchecked",
+})
 public class ExecutorTestUtils {
   // Do not instantiate.
   private ExecutorTestUtils() {}

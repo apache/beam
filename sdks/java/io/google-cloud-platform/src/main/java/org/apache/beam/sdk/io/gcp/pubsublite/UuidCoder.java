@@ -30,16 +30,17 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 
 /** A coder for a Uuid. */
 public class UuidCoder extends AtomicCoder<Uuid> {
-  private static Coder<Uuid> coder = DelegateCoder.of(ByteStringCoder.of(), Uuid::value, Uuid::of);
+  private static final Coder<Uuid> CODER =
+      DelegateCoder.of(ByteStringCoder.of(), Uuid::value, Uuid::of);
 
   @Override
   public void encode(Uuid value, OutputStream outStream) throws IOException {
-    coder.encode(value, outStream);
+    CODER.encode(value, outStream);
   }
 
   @Override
   public Uuid decode(InputStream inStream) throws IOException {
-    return coder.decode(inStream);
+    return CODER.decode(inStream);
   }
 
   public static CoderProvider getCoderProvider() {

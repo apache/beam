@@ -35,7 +35,11 @@ import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MoveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.snowflake.SnowflakeIO;
-import org.apache.beam.sdk.io.snowflake.credentials.SnowflakeCredentialsFactory;
+import org.apache.beam.sdk.io.snowflake.data.SnowflakeColumn;
+import org.apache.beam.sdk.io.snowflake.data.SnowflakeTableSchema;
+import org.apache.beam.sdk.io.snowflake.data.numeric.SnowflakeInteger;
+import org.apache.beam.sdk.io.snowflake.data.text.SnowflakeString;
+import org.apache.beam.sdk.io.snowflake.enums.CreateDisposition;
 import org.apache.beam.sdk.io.snowflake.enums.WriteDisposition;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -95,17 +99,13 @@ public class BatchSnowflakeIOIT {
     storageIntegrationName = options.getStorageIntegrationName();
 
     dataSourceConfiguration =
-        SnowflakeIO.DataSourceConfiguration.create(SnowflakeCredentialsFactory.of(options))
+        SnowflakeIO.DataSourceConfiguration.create()
+            .withUsernamePasswordAuth(options.getUsername(), options.getPassword())
             .withDatabase(options.getDatabase())
             .withRole(options.getRole())
             .withWarehouse(options.getWarehouse())
             .withServerName(options.getServerName())
             .withSchema(options.getSchema());
-
-    TestUtils.runConnectionWithStatement(
-        dataSourceConfiguration.buildDatasource(),
-        String.format(
-            "CREATE OR REPLACE TABLE \"%s\" (\"ID\" INTEGER, \"NAME\" STRING)", tableName));
   }
 
   @Test
@@ -143,7 +143,12 @@ public class BatchSnowflakeIOIT {
                 .withUserDataMapper(getTestRowDataMapper())
                 .to(tableName)
                 .withStagingBucketName(stagingBucketName)
-                .withStorageIntegrationName(storageIntegrationName));
+                .withStorageIntegrationName(storageIntegrationName)
+                .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
+                .withTableSchema(
+                    SnowflakeTableSchema.of(
+                        SnowflakeColumn.of("id", SnowflakeInteger.of()),
+                        SnowflakeColumn.of("name", SnowflakeString.of()))));
 
     return pipelineWrite.run();
   }

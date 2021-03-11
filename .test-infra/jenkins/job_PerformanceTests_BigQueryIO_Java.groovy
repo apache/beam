@@ -126,7 +126,7 @@ private void createPostCommitJob(jobConfig) {
     InfluxDBCredentialsHelper.useCredentials(delegate)
     additionalPipelineArgs = [
       influxDatabase: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
-      influxHost: InfluxDBCredentialsHelper.InfluxDBHostname,
+      influxHost: InfluxDBCredentialsHelper.InfluxDBHostUrl,
     ]
     jobConfig.properties.putAll(additionalPipelineArgs)
 

@@ -42,10 +42,19 @@ abstract class StubTriggerStateMachine extends TriggerStateMachine {
   public void onFire(TriggerContext context) throws Exception {}
 
   @Override
+  public void prefetchOnElement(PrefetchContext c) {}
+
+  @Override
   public void onElement(OnElementContext c) throws Exception {}
 
   @Override
+  public void prefetchOnMerge(MergingPrefetchContext c) {}
+
+  @Override
   public void onMerge(OnMergeContext c) throws Exception {}
+
+  @Override
+  public void prefetchShouldFire(PrefetchContext c) {}
 
   @Override
   public boolean shouldFire(TriggerContext context) throws Exception {

@@ -53,6 +53,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>TODO: Migrate to a runner only specific concept of a side input to be used with {@link
  * SideInputReader}s.
  */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class DataflowPortabilityPCollectionView<K, V, W extends BoundedWindow>
     implements PCollectionView<MultimapView<K, V>> {
 
@@ -70,9 +73,8 @@ public class DataflowPortabilityPCollectionView<K, V, W extends BoundedWindow>
     this.coder = coder;
   }
 
-  @Nullable
   @Override
-  public PCollection<?> getPCollection() {
+  public @Nullable PCollection<?> getPCollection() {
     throw new UnsupportedOperationException();
   }
 

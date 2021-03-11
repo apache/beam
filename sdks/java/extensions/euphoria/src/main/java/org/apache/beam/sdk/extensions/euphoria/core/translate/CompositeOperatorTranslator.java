@@ -31,6 +31,9 @@ import org.apache.beam.sdk.values.PCollectionList;
  * @param <OutputT> output type
  * @param <OperatorT> operator type
  */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class CompositeOperatorTranslator<InputT, OutputT, OperatorT extends Operator>
     implements OperatorTranslator<InputT, OutputT, OperatorT> {
 

@@ -22,9 +22,11 @@ HTML files."""
 
 from __future__ import absolute_import
 
+import html
 import os
 import shutil
 import subprocess
+from html.parser import HTMLParser
 
 from apache_beam.runners.interactive.utils import obfuscate
 
@@ -138,4 +140,26 @@ def _extract_html(output, sink):
       sink.write(data['application/javascript'])
       sink.write('</script>\n')
     if 'text/html' in data:
-      sink.write(data['text/html'])
+      parser = IFrameParser()
+      parser.feed(data['text/html'])
+      if parser.srcdocs:
+        sink.write(parser.srcdocs)
+      else:
+        sink.write(data['text/html'])
+
+
+class IFrameParser(HTMLParser):
+  """A parser to extract iframe content from given HTML."""
+  def __init__(self):
+    self._srcdocs = []
+    super(IFrameParser, self).__init__()
+
+  def handle_starttag(self, tag, attrs):
+    if tag == 'iframe':
+      for attr in attrs:
+        if 'srcdoc' in attr:
+          self._srcdocs.append(html.unescape(attr[1]))
+
+  @property
+  def srcdocs(self):
+    return '\n'.join(self._srcdocs)

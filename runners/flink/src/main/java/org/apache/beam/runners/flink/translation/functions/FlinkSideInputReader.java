@@ -39,6 +39,9 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A {@link SideInputReader} for the Flink Batch Runner. */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class FlinkSideInputReader implements SideInputReader {
   private static final Set<String> SUPPORTED_MATERIALIZATIONS =
       ImmutableSet.of(
@@ -67,9 +70,8 @@ public class FlinkSideInputReader implements SideInputReader {
     this.runtimeContext = runtimeContext;
   }
 
-  @Nullable
   @Override
-  public <T> T get(PCollectionView<T> view, BoundedWindow window) {
+  public <T> @Nullable T get(PCollectionView<T> view, BoundedWindow window) {
     checkNotNull(view, "View passed to sideInput cannot be null");
     TupleTag<?> tag = view.getTagInternal();
     checkNotNull(sideInputs.get(tag), "Side input for " + view + " not available.");

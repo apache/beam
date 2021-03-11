@@ -31,6 +31,9 @@ import org.apache.beam.sdk.transforms.Combine;
  * @param <StateT> The type of state being described.
  */
 @Experimental(Kind.STATE)
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public interface StateSpec<StateT extends State> extends Serializable {
 
   /**

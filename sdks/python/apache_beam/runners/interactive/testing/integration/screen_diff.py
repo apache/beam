@@ -25,20 +25,13 @@ import os
 import platform
 import threading
 import unittest
-from multiprocessing import Process
+from http.server import HTTPServer
+from http.server import SimpleHTTPRequestHandler
 
 import pytest
 
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive.testing.integration import notebook_executor
-
-# TODO(BEAM-8288): clean up the work-around when Python2 support is deprecated.
-try:
-  from http.server import SimpleHTTPRequestHandler
-  from http.server import HTTPServer
-except ImportError:
-  import SimpleHTTPServer as HTTPServer
-  from SimpleHTTPServer import SimpleHTTPRequestHandler
 
 try:
   import chromedriver_binary  # pylint: disable=unused-import
@@ -75,25 +68,22 @@ class ScreenDiffIntegrationTestEnvironment(object):
     self._cleanup = cleanup
     self._test_urls = {}
     self._server = None
-    self._server_daemon = None
 
   def __enter__(self):
     self._notebook_executor.execute()
-    with HTTPServer(('', 0), SimpleHTTPRequestHandler) as server:
-      self._server = server
+    self._server = HTTPServer(('', 0), SimpleHTTPRequestHandler)
 
-      def start_serving(server):
-        server.serve_forever()
+    def start_serving(server):
+      server.serve_forever()
 
-      self._server_daemon = Process(
-          target=start_serving, args=[server], daemon=True)
-      self._server_daemon.start()
+    threading.Thread(
+        target=start_serving, args=[self._server], daemon=True).start()
 
-      for test_id, output_path in\
-        self._notebook_executor.output_html_paths.items():
-        self._test_urls[test_id] = self.base_url + output_path
+    for test_id, output_path in\
+      self._notebook_executor.output_html_paths.items():
+      self._test_urls[test_id] = self.base_url + output_path
 
-      return self
+    return self
 
   def __exit__(self, exc_type, exc_value, traceback):
     if self._notebook_executor and self._cleanup:
@@ -105,8 +95,6 @@ class ScreenDiffIntegrationTestEnvironment(object):
 
       threading.Thread(
           target=stop_serving, args=[self._server], daemon=True).start()
-    if self._server_daemon:
-      self._server_daemon.terminate()
 
   @property
   def base_url(self):

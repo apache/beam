@@ -88,6 +88,9 @@ import org.joda.time.Duration;
 
 /** A fake implementation of BigQuery's job service. */
 @Internal
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class FakeJobService implements JobService, Serializable {
   private static final JsonFactory JSON_FACTORY = Transport.getJsonFactory();
   // Whenever a job is started, the first 2 calls to GetJob will report the job as pending,

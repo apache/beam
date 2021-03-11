@@ -71,6 +71,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditio
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class SelectByteBuddyHelpers {
   private static final ByteBuddy BYTE_BUDDY = new ByteBuddy();
   private static final String SELECT_SCHEMA_FIELD_NAME = "OUTPUTSCHEMA";

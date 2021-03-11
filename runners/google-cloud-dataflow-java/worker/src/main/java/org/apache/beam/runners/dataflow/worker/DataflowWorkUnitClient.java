@@ -48,11 +48,13 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditio
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
-import org.joda.time.Interval;
 import org.slf4j.Logger;
 
 /** A Dataflow WorkUnit client that fetches WorkItems from the Dataflow service. */
 @ThreadSafe
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class DataflowWorkUnitClient implements WorkUnitClient {
   private final Logger logger;
 
@@ -212,14 +214,15 @@ class DataflowWorkUnitClient implements WorkUnitClient {
         && DataflowWorkerLoggingMDC.getStageName() != null) {
       DateTime startTime = stageStartTime.get();
       if (startTime != null) {
-        // This thread should have been tagged with the stage start time during getWorkItem(),
-        Interval elapsed = new Interval(startTime, endTime);
+        // elapsed time can be negative by time correction
+        long elapsed = endTime.getMillis() - startTime.getMillis();
         int numErrors = workItemStatus.getErrors() == null ? 0 : workItemStatus.getErrors().size();
+        // This thread should have been tagged with the stage start time during getWorkItem(),
         logger.info(
             "Finished processing stage {} with {} errors in {} seconds ",
             DataflowWorkerLoggingMDC.getStageName(),
             numErrors,
-            (double) elapsed.toDurationMillis() / 1000);
+            (double) elapsed / 1000);
       }
     }
     shortIdCache.shortenIdsIfAvailable(workItemStatus.getCounterUpdates());

@@ -37,6 +37,9 @@ import org.joda.time.Instant;
  * which tables each element is written to, and format the element into a {@link TableRow} using the
  * user-supplied format function.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class PrepareWrite<InputT, DestinationT, OutputT>
     extends PTransform<PCollection<InputT>, PCollection<KV<DestinationT, OutputT>>> {
   private DynamicDestinations<InputT, DestinationT> dynamicDestinations;

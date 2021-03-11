@@ -29,6 +29,9 @@ import java.util.concurrent.Future;
  *
  * @see org.apache.beam.sdk.io.cassandra.DefaultObjectMapperFactory
  */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 class DefaultObjectMapper<T> implements Mapper<T>, Serializable {
 
   private transient com.datastax.driver.mapping.Mapper<T> mapper;

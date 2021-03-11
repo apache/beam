@@ -125,6 +125,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
  *       label is specified.
  * </ul>
  */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 class ProtoSchemaTranslator {
   public static final String SCHEMA_OPTION_META_NUMBER = "beam:option:proto:meta:number";
 

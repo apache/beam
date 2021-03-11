@@ -24,15 +24,15 @@ import (
 )
 
 var (
-	// SourceInputTag is a constant random string used when an ExternalTransform
+	// UnnamedInputTag is a constant random string used when an ExternalTransform
 	// expects a single unnamed input. xlangx and graphx use it to explicitly
 	// bypass steps in pipeline construction meant for named inputs
-	SourceInputTag string
+	UnnamedInputTag string
 
-	// SinkOutputTag is a constant random string used when an ExternalTransform
+	// UnnamedOutputTag is a constant random string used when an ExternalTransform
 	// expects a single unnamed output. xlangx and graphx use it to explicitly
 	// bypass steps in pipeline construction meant for named outputs.
-	SinkOutputTag string
+	UnnamedOutputTag string
 
 	// NewNamespace is a utility random string generator used by the xlang to
 	// scope individual ExternalTransforms by a unique namespace
@@ -41,8 +41,8 @@ var (
 
 func init() {
 	NewNamespace = NewNamespaceGenerator(10)
-	SourceInputTag = NewNamespace()
-	SinkOutputTag = NewNamespace()
+	UnnamedInputTag = NewNamespace()
+	UnnamedOutputTag = NewNamespace()
 }
 
 // ExpandedTransform stores the expansion response associated to each

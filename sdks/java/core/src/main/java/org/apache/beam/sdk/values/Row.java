@@ -86,6 +86,10 @@ import org.joda.time.ReadableInstant;
  * }</pre>
  */
 @Experimental(Kind.SCHEMAS)
+@SuppressWarnings({
+  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes"
+})
 public abstract class Row implements Serializable {
   private final Schema schema;
 
@@ -96,9 +100,8 @@ public abstract class Row implements Serializable {
   // Abstract methods to be implemented by subclasses that handle object access.
 
   /** Get value by field index, {@link ClassCastException} is thrown if schema doesn't match. */
-  @Nullable
   @SuppressWarnings("TypeParameterUnusedInFormals")
-  public abstract <T> T getValue(int fieldIdx);
+  public abstract <T> @Nullable T getValue(int fieldIdx);
 
   /** Return the size of data fields. */
   public abstract int getFieldCount();
@@ -114,9 +117,8 @@ public abstract class Row implements Serializable {
   }
 
   /** Get value by field name, {@link ClassCastException} is thrown if type doesn't match. */
-  @Nullable
   @SuppressWarnings("TypeParameterUnusedInFormals")
-  public <T> T getValue(String fieldName) {
+  public <T> @Nullable T getValue(String fieldName) {
     return getValue(getSchema().indexOf(fieldName));
   }
 

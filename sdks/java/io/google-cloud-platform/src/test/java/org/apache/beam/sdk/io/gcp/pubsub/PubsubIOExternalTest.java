@@ -26,20 +26,18 @@ import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
-import org.apache.beam.runners.core.construction.ReadTranslation;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BooleanCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.expansion.service.ExpansionService;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
-import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
@@ -99,22 +97,6 @@ public class PubsubIOExternalTest {
             "test_namespacetest/PubsubUnboundedSource", "test_namespacetest/MapElements"));
     assertThat(transform.getInputsCount(), Matchers.is(0));
     assertThat(transform.getOutputsCount(), Matchers.is(1));
-
-    RunnerApi.PTransform pubsubComposite =
-        result.getComponents().getTransformsOrThrow(transform.getSubtransforms(0));
-    RunnerApi.PTransform pubsubRead =
-        result.getComponents().getTransformsOrThrow(pubsubComposite.getSubtransforms(0));
-    RunnerApi.ReadPayload readPayload =
-        RunnerApi.ReadPayload.parseFrom(pubsubRead.getSpec().getPayload());
-    PubsubUnboundedSource.PubsubSource source =
-        (PubsubUnboundedSource.PubsubSource) ReadTranslation.unboundedSourceFromProto(readPayload);
-    PubsubUnboundedSource spec = source.outer;
-
-    assertThat(
-        spec.getTopicProvider() == null ? null : String.valueOf(spec.getTopicProvider()),
-        Matchers.is(topic));
-    assertThat(spec.getIdAttribute(), Matchers.is(idAttribute));
-    assertThat(spec.getNeedsAttributes(), Matchers.is(true));
   }
 
   @Test
@@ -135,10 +117,8 @@ public class PubsubIOExternalTest {
     // Requirements are not passed as part of the expansion service so the validation
     // fails because of how we construct the pipeline to expand the transform since it now
     // has a transform with a requirement.
-    Pipeline p =
-        Pipeline.create(
-            PipelineOptionsFactory.fromArgs("--experiments=use_deprecated_read").create());
-    p.apply("unbounded", Create.of(1, 2, 3)).setIsBoundedInternal(PCollection.IsBounded.UNBOUNDED);
+    Pipeline p = Pipeline.create();
+    p.apply("unbounded", Impulse.create()).setIsBoundedInternal(PCollection.IsBounded.UNBOUNDED);
 
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);
     String inputPCollection =

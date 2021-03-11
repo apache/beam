@@ -38,6 +38,9 @@ import org.apache.beam.sdk.values.PCollectionView;
  * WHERE bid.id = sideInput.id
  * </pre>
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BoundedSideInputJoin extends NexmarkQueryTransform<Bid> {
   private final NexmarkConfiguration configuration;
 

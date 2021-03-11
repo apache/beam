@@ -58,6 +58,10 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RuleSet;
  */
 @Internal
 @Experimental
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BeamSqlEnv {
   JdbcConnection connection;
   QueryPlanner planner;

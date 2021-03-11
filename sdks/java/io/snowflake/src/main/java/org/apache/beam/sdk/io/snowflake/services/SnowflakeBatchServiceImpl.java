@@ -20,7 +20,7 @@ package org.apache.beam.sdk.io.snowflake.services;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.math.BigInteger;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -37,6 +37,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Implemenation of {@link SnowflakeService} used in production. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SnowflakeBatchServiceImpl implements SnowflakeService<SnowflakeBatchServiceConfig> {
   private static final Logger LOG = LoggerFactory.getLogger(SnowflakeBatchServiceImpl.class);
   private static final String SNOWFLAKE_GCS_PREFIX = "gcs://";
@@ -94,7 +98,7 @@ public class SnowflakeBatchServiceImpl implements SnowflakeService<SnowflakeBatc
   }
 
   private String getASCIICharRepresentation(String input) {
-    return String.format("0x%x", new BigInteger(1, input.getBytes(Charset.defaultCharset())));
+    return String.format("0x%x", new BigInteger(1, input.getBytes(StandardCharsets.UTF_8)));
   }
 
   /**

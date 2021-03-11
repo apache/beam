@@ -115,6 +115,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>After translation the {@link ExecutionEnvironment} in the translation context will contain the
  * full not-yet-executed pipeline DAG corresponding to the input pipeline.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "keyfor",
+  "nullness"
+}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class FlinkBatchPortablePipelineTranslator
     implements FlinkPortablePipelineTranslator<
         FlinkBatchPortablePipelineTranslator.BatchTranslationContext> {
@@ -311,7 +316,8 @@ public class FlinkBatchPortablePipelineTranslator
       unionCoders.add(coder);
     }
     UnionCoder unionCoder = UnionCoder.of(unionCoders);
-    TypeInformation<RawUnionValue> typeInformation = new CoderTypeInformation<>(unionCoder);
+    TypeInformation<RawUnionValue> typeInformation =
+        new CoderTypeInformation<>(unionCoder, context.getPipelineOptions());
 
     RunnerApi.ExecutableStagePayload stagePayload;
     try {
@@ -336,7 +342,8 @@ public class FlinkBatchPortablePipelineTranslator
             context.getJobInfo(),
             outputMap,
             FlinkExecutableStageContextFactory.getInstance(),
-            getWindowingStrategy(inputPCollectionId, components).getWindowFn().windowCoder());
+            getWindowingStrategy(inputPCollectionId, components).getWindowFn().windowCoder(),
+            windowedInputCoder);
 
     final String operatorName = generateNameFromStagePayload(stagePayload);
 
@@ -422,7 +429,8 @@ public class FlinkBatchPortablePipelineTranslator
               .returns(
                   new CoderTypeInformation<>(
                       WindowedValue.getFullCoder(
-                          (Coder<T>) VoidCoder.of(), GlobalWindow.Coder.INSTANCE)));
+                          (Coder<T>) VoidCoder.of(), GlobalWindow.Coder.INSTANCE),
+                      context.getPipelineOptions()));
     } else {
       for (String pCollectionId : allInputs.values()) {
         DataSet<WindowedValue<T>> current = context.getDataSetOrThrow(pCollectionId);
@@ -496,7 +504,7 @@ public class FlinkBatchPortablePipelineTranslator
             windowingStrategy.getWindowFn().windowCoder());
 
     TypeInformation<WindowedValue<KV<K, List<V>>>> partialReduceTypeInfo =
-        new CoderTypeInformation<>(outputCoder);
+        new CoderTypeInformation<>(outputCoder, context.getPipelineOptions());
 
     Grouping<WindowedValue<KV<K, V>>> inputGrouping =
         inputDataSet.groupBy(new KvKeySelector<>(inputElementCoder.getKeyCoder()));
@@ -537,7 +545,8 @@ public class FlinkBatchPortablePipelineTranslator
       PTransformNode transform, RunnerApi.Pipeline pipeline, BatchTranslationContext context) {
     TypeInformation<WindowedValue<byte[]>> typeInformation =
         new CoderTypeInformation<>(
-            WindowedValue.getFullCoder(ByteArrayCoder.of(), GlobalWindow.Coder.INSTANCE));
+            WindowedValue.getFullCoder(ByteArrayCoder.of(), GlobalWindow.Coder.INSTANCE),
+            context.getPipelineOptions());
     DataSource<WindowedValue<byte[]>> dataSource =
         new DataSource<>(
                 context.getExecutionEnvironment(),
@@ -612,7 +621,8 @@ public class FlinkBatchPortablePipelineTranslator
       Coder<WindowedValue<?>> outputCoder,
       String transformName,
       String collectionId) {
-    TypeInformation<WindowedValue<?>> outputType = new CoderTypeInformation<>(outputCoder);
+    TypeInformation<WindowedValue<?>> outputType =
+        new CoderTypeInformation<>(outputCoder, context.getPipelineOptions());
     FlinkExecutableStagePruningFunction pruningFunction =
         new FlinkExecutableStagePruningFunction(unionTag, context.getPipelineOptions());
     FlatMapOperator<RawUnionValue, WindowedValue<?>> pruningOperator =

@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.nexmark.queries;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
-import static org.junit.Assert.assertThat;
 
 import java.util.Random;
 import org.apache.beam.sdk.PipelineResult;
@@ -51,6 +51,9 @@ import org.junit.runners.JUnit4;
 
 /** Test the various NEXMark queries yield results coherent with their models. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class SessionSideInputJoinTest {
 
   @Rule public TestPipeline p = TestPipeline.create();

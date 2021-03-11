@@ -72,3 +72,23 @@ func TestDirectWrite(t *testing.T) {
 		t.Errorf("Read(foo2) = %v, want foo", string(foo))
 	}
 }
+
+func TestSize(t *testing.T) {
+	ctx := context.Background()
+	fs := New(ctx)
+
+	names := []string{"foo", "foobar"}
+	for _, name := range names {
+		file := []byte(name)
+		if err := filesystem.Write(ctx, fs, name, file); err != nil {
+			t.Fatal(err)
+		}
+		size, err := fs.Size(ctx, name)
+		if err != nil {
+			t.Errorf("Size(%v) failed: %v", name, err)
+		}
+		if size != int64(len(name)) {
+			t.Errorf("Size(%v) incorrect: got %v, want %v", name, size, len(name))
+		}
+	}
+}

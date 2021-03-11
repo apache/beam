@@ -19,6 +19,7 @@
 A script to pull licenses for Python.
 The script is executed within Docker.
 """
+import csv
 import json
 import logging
 import os
@@ -30,6 +31,9 @@ import traceback
 import yaml
 
 from future.moves.urllib.request import urlopen
+from future.moves.urllib.parse import urlparse
+from future.moves.urllib.parse import urljoin
+
 from tenacity import retry
 from tenacity import stop_after_attempt
 from tenacity import wait_exponential
@@ -42,7 +46,7 @@ def run_bash_command(command):
 
 
 def run_pip_licenses():
-  command = 'pip-licenses --with-license-file --format=json'
+  command = 'pip-licenses --with-license-file --with-urls --from=mixed --ignore apache-beam --format=json'
   dependencies = run_bash_command(command)
   return json.loads(dependencies)
 
@@ -53,7 +57,7 @@ def copy_license_files(dep):
   if source_license_file.lower() == 'unknown':
     return False
   name = dep['Name'].lower()
-  dest_dir = '/'.join([LICENSE_DIR, name])
+  dest_dir = os.path.join(LICENSE_DIR, name)
   try:
     os.mkdir(dest_dir)
     shutil.copy(source_license_file, dest_dir + '/LICENSE')
@@ -84,7 +88,7 @@ def pull_from_url(dep, configs):
   '''
   if dep in configs:
     config = configs[dep]
-    dest_dir = '/'.join([LICENSE_DIR, dep])
+    dest_dir = os.path.join(LICENSE_DIR, dep)
     cur_temp_dir = tempfile.mkdtemp()
 
     try:
@@ -116,6 +120,43 @@ def pull_from_url(dep, configs):
       shutil.rmtree(cur_temp_dir)
 
 
+def license_url(name, project_url, dep_config):
+  '''
+  Gets the license URL for a dependency, either from the parsed yaml or,
+  if it is github, by looking for a license file in the repo.
+  '''
+  configs = dep_config['pip_dependencies']
+  if name.lower() in configs:
+    return configs[name.lower()]['license']
+  p = urlparse(project_url)
+  if p.netloc != "github.com":
+    return project_url
+  raw = "https://raw.githubusercontent.com"
+  path = p.path
+  if not path.endswith("/"):
+    path = path + "/"
+  for license in ("LICENSE", "LICENSE.txt", "LICENSE.md", "LICENSE.rst", "COPYING"):
+    try:
+      url = raw + urljoin(path,"master/"+license)
+      with urlopen(url) as a:
+        if a.getcode() == 200:
+          return url
+    except:
+      pass
+  return project_url
+
+
+def save_license_list(csv_filename, dependencies, dep_config):
+  '''
+  Save the names, URLs, and license type for python dependency licenses in a CSV file.
+  '''
+  with open(csv_filename, mode='w') as f:
+    writer = csv.writer(f)
+    for dep in dependencies:
+      url = license_url(dep['Name'], dep['URL'], dep_config)
+      writer.writerow([dep['Name'], url, dep['License']])
+
+
 if __name__ == "__main__":
   no_licenses = []
   logging.getLogger().setLevel(logging.INFO)
@@ -124,6 +165,9 @@ if __name__ == "__main__":
     dep_config = yaml.full_load(file)
 
   dependencies = run_pip_licenses()
+  csv_filename = os.path.join(LICENSE_DIR, 'python-licenses.csv')
+  save_license_list(csv_filename, dependencies, dep_config)
+
   # add licenses for pip installed packages.
   # try to pull licenses with pip-licenses tool first, if no license pulled,
   # then pull from URLs.

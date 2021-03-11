@@ -17,9 +17,7 @@
  */
 package org.apache.beam.sdk.fn.data;
 
-import java.io.InputStream;
 import java.util.function.BiConsumer;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,30 +26,24 @@ import org.slf4j.LoggerFactory;
  * Decodes individually consumed {@link ByteString}s with the provided {@link Coder} passing the
  * individual decoded elements to the provided consumer.
  */
-public class BeamFnDataInboundObserver<T>
+public class BeamFnDataInboundObserver
     implements BiConsumer<ByteString, Boolean>, InboundDataClient {
   private static final Logger LOG = LoggerFactory.getLogger(BeamFnDataInboundObserver.class);
 
-  public static <T> BeamFnDataInboundObserver<T> forConsumer(
-      LogicalEndpoint endpoint, Coder<T> coder, FnDataReceiver<T> receiver) {
-    return new BeamFnDataInboundObserver<>(
-        endpoint, coder, receiver, CompletableFutureInboundDataClient.create());
+  public static BeamFnDataInboundObserver forConsumer(
+      LogicalEndpoint endpoint, FnDataReceiver<ByteString> receiver) {
+    return new BeamFnDataInboundObserver(
+        endpoint, receiver, CompletableFutureInboundDataClient.create());
   }
 
   private final LogicalEndpoint endpoint;
-  private final FnDataReceiver<T> consumer;
-  private final Coder<T> coder;
+  private final FnDataReceiver<ByteString> consumer;
   private final InboundDataClient readFuture;
   private long byteCounter;
-  private long counter;
 
   public BeamFnDataInboundObserver(
-      LogicalEndpoint endpoint,
-      Coder<T> coder,
-      FnDataReceiver<T> consumer,
-      InboundDataClient readFuture) {
+      LogicalEndpoint endpoint, FnDataReceiver<ByteString> consumer, InboundDataClient readFuture) {
     this.endpoint = endpoint;
-    this.coder = coder;
     this.consumer = consumer;
     this.readFuture = readFuture;
   }
@@ -64,22 +56,13 @@ public class BeamFnDataInboundObserver<T>
     }
     try {
       if (isLast) {
-        LOG.debug(
-            "Closing stream for {} having consumed {} values {} bytes",
-            endpoint,
-            counter,
-            byteCounter);
+        LOG.debug("Closing stream for {} having consumed {} bytes", endpoint, byteCounter);
         readFuture.complete();
         return;
       }
 
       byteCounter += payload.size();
-      InputStream inputStream = payload.newInput();
-      while (inputStream.available() > 0) {
-        counter += 1;
-        T value = coder.decode(inputStream);
-        consumer.accept(value);
-      }
+      consumer.accept(payload);
     } catch (Exception e) {
       readFuture.fail(e);
     }

@@ -161,14 +161,14 @@ def addStreamingOptions(test) {
 
 def loadTestJob = { scope, triggeringContext, mode ->
   def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
-  loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.PYTHON_37,
+  loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.PYTHON,
       loadTestConfigurations(mode, datasetName), 'CoGBK', mode)
 }
 
 CronJobBuilder.cronJob('beam_LoadTests_Python_CoGBK_Dataflow_Batch', 'H 16 * * *', this) {
   additionalPipelineArgs = [
     influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
-    influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostname,
+    influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,
   ]
   loadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT, 'batch')
 }
@@ -186,7 +186,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
 CronJobBuilder.cronJob('beam_LoadTests_Python_CoGBK_Dataflow_Streaming', 'H 16 * * *', this) {
   additionalPipelineArgs = [
     influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
-    influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostname,
+    influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,
   ]
   loadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT, 'streaming')
 }

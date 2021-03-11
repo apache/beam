@@ -49,6 +49,7 @@ import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,6 +61,10 @@ import org.slf4j.LoggerFactory;
  * <p>Can be re-used serially across {@link BeamFnApi.ProcessBundleRequest}s. For each request, call
  * {@link #registerForOutput()} to start and call {@link #close()} to finish.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BeamFnDataWriteRunner<InputT> {
 
   private static final Logger LOG = LoggerFactory.getLogger(BeamFnDataWriteRunner.class);
@@ -111,7 +116,8 @@ public class BeamFnDataWriteRunner<InputT> {
       pCollectionConsumerRegistry.register(
           getOnlyElement(pTransform.getInputsMap().values()),
           pTransformId,
-          (FnDataReceiver) (FnDataReceiver<WindowedValue<InputT>>) runner::consume);
+          (FnDataReceiver) (FnDataReceiver<WindowedValue<InputT>>) runner::consume,
+          ((WindowedValueCoder<InputT>) runner.coder).getValueCoder());
 
       finishFunctionRegistry.register(pTransformId, runner::close);
       return runner;

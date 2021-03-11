@@ -73,6 +73,11 @@ Should be called before running the tests.
   <td>Default: <code>true</code></td>
 </tr>
 <tr>
+  <td><code>fasterCopy</code></td>
+  <td>Remove unneeded deep copy between operators. See https://issues.apache.org/jira/browse/BEAM-11146</td>
+  <td>Default: <code>false</code></td>
+</tr>
+<tr>
   <td><code>filesToStage</code></td>
   <td>Jar-Files to send to all workers and put on the classpath. The default value is all files from the classpath.</td>
   <td></td>
@@ -158,8 +163,18 @@ Should be called before running the tests.
   <td>Default: <code>-1</code></td>
 </tr>
 <tr>
+  <td><code>stateBackend</code></td>
+  <td>State backend to store Beam's state. Use 'rocksdb' or 'filesystem'.</td>
+  <td></td>
+</tr>
+<tr>
   <td><code>stateBackendFactory</code></td>
   <td>Sets the state backend factory to use in streaming mode. Defaults to the flink cluster's state.backend configuration.</td>
+  <td></td>
+</tr>
+<tr>
+  <td><code>stateBackendStoragePath</code></td>
+  <td>State backend path to persist state backend data. Used to initialize state backend.</td>
   <td></td>
 </tr>
 </table>

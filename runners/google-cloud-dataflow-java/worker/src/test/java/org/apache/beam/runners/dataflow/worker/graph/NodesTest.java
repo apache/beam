@@ -55,6 +55,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link Nodes}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class NodesTest {
   private static final String PCOLLECTION_ID = "fakeId";
 

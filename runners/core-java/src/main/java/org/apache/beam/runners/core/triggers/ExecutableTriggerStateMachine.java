@@ -30,6 +30,9 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
  * times (both in the same trigger expression and in other trigger expressions), the {@code
  * ExecutableTrigger} wrapped around them forms a tree (only one occurrence).
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ExecutableTriggerStateMachine implements Serializable {
 
   /** Store the index assigned to this trigger. */
@@ -112,12 +115,20 @@ public class ExecutableTriggerStateMachine implements Serializable {
     return previous;
   }
 
+  public void invokePrefetchOnElement(TriggerStateMachine.PrefetchContext c) {
+    trigger.prefetchOnElement(c.forTrigger(this));
+  }
+
   /**
    * Invoke the {@link TriggerStateMachine#onElement} method for this trigger, ensuring that the
    * bits are properly updated if the trigger finishes.
    */
   public void invokeOnElement(TriggerStateMachine.OnElementContext c) throws Exception {
     trigger.onElement(c.forTrigger(this));
+  }
+
+  public void invokePrefetchOnMerge(TriggerStateMachine.MergingPrefetchContext c) {
+    trigger.prefetchOnMerge(c.forTrigger(this));
   }
 
   /**
@@ -127,6 +138,10 @@ public class ExecutableTriggerStateMachine implements Serializable {
   public void invokeOnMerge(TriggerStateMachine.OnMergeContext c) throws Exception {
     TriggerStateMachine.OnMergeContext subContext = c.forTrigger(this);
     trigger.onMerge(subContext);
+  }
+
+  public void invokePrefetchShouldFire(TriggerStateMachine.PrefetchContext c) {
+    trigger.prefetchShouldFire(c.forTrigger(this));
   }
 
   public boolean invokeShouldFire(TriggerStateMachine.TriggerContext c) throws Exception {

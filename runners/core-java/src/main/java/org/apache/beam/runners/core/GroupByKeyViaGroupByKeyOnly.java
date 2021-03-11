@@ -106,7 +106,10 @@ public class GroupByKeyViaGroupByKeyOnly<K, V>
   public static class GroupByKeyOnly<K, V>
       extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Iterable<WindowedValue<V>>>>> {
 
-    @SuppressWarnings({"rawtypes", "unchecked"})
+    @SuppressWarnings({
+      "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+      "unchecked"
+    })
     @Override
     public PCollection<KV<K, Iterable<WindowedValue<V>>>> expand(PCollection<KV<K, V>> input) {
       return PCollection.createPrimitiveOutputInternal(

@@ -20,12 +20,12 @@ package org.apache.beam.fn.harness;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import org.apache.beam.fn.harness.control.AddHarnessIdInterceptor;
 import org.apache.beam.fn.harness.control.BeamFnControlClient;
 import org.apache.beam.fn.harness.control.FinalizeBundleHandler;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler;
-import org.apache.beam.fn.harness.control.RegisterHandler;
 import org.apache.beam.fn.harness.data.BeamFnDataGrpcClient;
 import org.apache.beam.fn.harness.logging.BeamFnLoggingClient;
 import org.apache.beam.fn.harness.state.BeamFnStateGrpcClientCache;
@@ -36,6 +36,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse.Builde
 import org.apache.beam.model.fnexecution.v1.BeamFnControlGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
+import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
@@ -73,6 +74,9 @@ import org.slf4j.LoggerFactory;
  *       for further details.
  * </ul>
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class FnHarness {
   private static final String HARNESS_ID = "HARNESS_ID";
   private static final String CONTROL_API_SERVICE_DESCRIPTOR = "CONTROL_API_SERVICE_DESCRIPTOR";
@@ -193,7 +197,6 @@ public class FnHarness {
       BeamFnControlGrpc.BeamFnControlBlockingStub blockingControlStub =
           BeamFnControlGrpc.newBlockingStub(channel);
 
-      RegisterHandler fnApiRegistry = new RegisterHandler();
       BeamFnDataGrpcClient beamFnDataMultiplexer =
           new BeamFnDataGrpcClient(options, channelFactory::forDescriptor, outboundObserverFactory);
 
@@ -206,18 +209,16 @@ public class FnHarness {
 
       LoadingCache<String, BeamFnApi.ProcessBundleDescriptor> processBundleDescriptors =
           CacheBuilder.newBuilder()
+              .maximumSize(1000)
+              .expireAfterAccess(10, TimeUnit.MINUTES)
               .build(
                   new CacheLoader<String, BeamFnApi.ProcessBundleDescriptor>() {
                     @Override
                     public BeamFnApi.ProcessBundleDescriptor load(String id) {
-                      try {
-                        return blockingControlStub.getProcessBundleDescriptor(
-                            BeamFnApi.GetProcessBundleDescriptorRequest.newBuilder()
-                                .setProcessBundleDescriptorId(id)
-                                .build());
-                      } catch (Throwable th) {
-                        return (BeamFnApi.ProcessBundleDescriptor) fnApiRegistry.getById(id);
-                      }
+                      return blockingControlStub.getProcessBundleDescriptor(
+                          BeamFnApi.GetProcessBundleDescriptorRequest.newBuilder()
+                              .setProcessBundleDescriptorId(id)
+                              .build());
                     }
                   });
 
@@ -228,7 +229,12 @@ public class FnHarness {
               beamFnDataMultiplexer,
               beamFnStateGrpcClientCache,
               finalizeBundleHandler);
-      handlers.put(BeamFnApi.InstructionRequest.RequestCase.REGISTER, fnApiRegistry::register);
+      // TODO(BEAM-9729): Remove once runners no longer send this instruction.
+      handlers.put(
+          BeamFnApi.InstructionRequest.RequestCase.REGISTER,
+          request ->
+              BeamFnApi.InstructionResponse.newBuilder()
+                  .setRegister(BeamFnApi.RegisterResponse.getDefaultInstance()));
       handlers.put(
           BeamFnApi.InstructionRequest.RequestCase.FINALIZE_BUNDLE,
           finalizeBundleHandler::finalizeBundle);
@@ -246,11 +252,14 @@ public class FnHarness {
 
       JvmInitializers.runBeforeProcessing(options);
 
+      ExecutionStateSampler.instance().start();
+
       LOG.info("Entering instruction processing loop");
       control.processInstructionRequests(executorService);
       processBundleHandler.shutdown();
     } finally {
       System.out.println("Shutting SDK harness down.");
+      ExecutionStateSampler.instance().stop();
       executorService.shutdown();
     }
   }

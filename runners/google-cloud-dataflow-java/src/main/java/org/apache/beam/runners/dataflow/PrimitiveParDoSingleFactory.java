@@ -19,7 +19,6 @@ package org.apache.beam.runners.dataflow;
 
 import static org.apache.beam.runners.core.construction.PTransformTranslation.PAR_DO_TRANSFORM_URN;
 import static org.apache.beam.runners.core.construction.ParDoTranslation.translateTimerFamilySpec;
-import static org.apache.beam.sdk.options.ExperimentalOptions.hasExperiment;
 import static org.apache.beam.sdk.transforms.reflect.DoFnSignatures.getStateSpecOrThrow;
 import static org.apache.beam.sdk.transforms.reflect.DoFnSignatures.getTimerFamilySpecOrThrow;
 import static org.apache.beam.sdk.transforms.reflect.DoFnSignatures.getTimerSpecOrThrow;
@@ -41,6 +40,7 @@ import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
 import org.apache.beam.runners.core.construction.TransformPayloadTranslatorRegistrar;
+import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -69,18 +69,23 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
  * ParDo.SingleOutput} instances. {@link ParDoSingle} is a primitive {@link PTransform}, to ensure
  * that {@link DisplayData} appears on all {@link ParDo ParDos} in the {@link DataflowRunner}.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class PrimitiveParDoSingleFactory<InputT, OutputT>
     extends SingleInputOutputOverrideFactory<
-        PCollection<? extends InputT>, PCollection<OutputT>, ParDo.SingleOutput<InputT, OutputT>> {
+        PCollection<? extends InputT>, PCollection<OutputT>, SingleOutput<InputT, OutputT>> {
   @Override
-  public PTransformReplacement<PCollection<? extends InputT>, PCollection<OutputT>>
+  public PTransformOverrideFactory.PTransformReplacement<
+          PCollection<? extends InputT>, PCollection<OutputT>>
       getReplacementTransform(
           AppliedPTransform<
                   PCollection<? extends InputT>,
                   PCollection<OutputT>,
                   SingleOutput<InputT, OutputT>>
               transform) {
-    return PTransformReplacement.of(
+    return PTransformOverrideFactory.PTransformReplacement.of(
         PTransformReplacements.getSingletonMainInput(transform),
         new ParDoSingle<>(
             transform.getTransform(),
@@ -170,7 +175,8 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
       final DoFn<?, ?> doFn = parDo.getFn();
       final DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
 
-      if (!hasExperiment(transform.getPipeline().getOptions(), "beam_fn_api")) {
+      if (!DataflowRunner.useUnifiedWorker(
+          transform.getPipeline().getOptions().as(DataflowPipelineOptions.class))) {
         checkArgument(
             !signature.processElement().isSplittable(),
             String.format(
@@ -195,7 +201,8 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
       if (signature.usesState() || signature.usesTimers()) {
         checkArgument(
             mainInput.getCoder() instanceof KvCoder,
-            "DoFn's that use state or timers must have an input PCollection with a KvCoder but received %s",
+            "DoFn's that use state or timers must have an input PCollection with a KvCoder but"
+                + " received %s",
             mainInput.getCoder());
         keyCoder = ((KvCoder) mainInput.getCoder()).getKeyCoder();
       } else {

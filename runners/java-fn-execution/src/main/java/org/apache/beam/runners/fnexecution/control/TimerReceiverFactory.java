@@ -45,6 +45,10 @@ import org.slf4j.LoggerFactory;
  * <p>If the incoming timer is being cleared, the {@link TimerData} sets the fire and hold
  * timestamps to {@link BoundedWindow#TIMESTAMP_MAX_VALUE}.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class TimerReceiverFactory {
   private static final Logger LOG = LoggerFactory.getLogger(TimerReceiverFactory.class);
 
@@ -85,6 +89,7 @@ public class TimerReceiverFactory {
         StateNamespace namespace = StateNamespaces.window(windowCoder, (BoundedWindow) window);
         TimerInternals.TimerData timerData =
             TimerInternals.TimerData.of(
+                timer.getDynamicTimerTag(),
                 encodeToTimerDataTimerId(timerSpec.transformId(), timerSpec.timerId()),
                 namespace,
                 timer.getClearBit() ? BoundedWindow.TIMESTAMP_MAX_VALUE : timer.getFireTimestamp(),

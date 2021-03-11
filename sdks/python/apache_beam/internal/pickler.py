@@ -39,6 +39,7 @@ import sys
 import threading
 import traceback
 import types
+import zlib
 from typing import Any
 from typing import Dict
 from typing import Tuple
@@ -54,13 +55,9 @@ class _NoOpContextManager(object):
     pass
 
 
-if sys.version_info[0] > 2:
-  # Pickling, especially unpickling, causes broken module imports on Python 3
-  # if executed concurrently, see: BEAM-8651, http://bugs.python.org/issue38884.
-  _pickle_lock_unless_py2 = threading.RLock()
-else:
-  # Avoid slow reentrant locks on Py2. See: https://bugs.python.org/issue3001.
-  _pickle_lock_unless_py2 = _NoOpContextManager()
+# Pickling, especially unpickling, causes broken module imports on Python 3
+# if executed concurrently, see: BEAM-8651, http://bugs.python.org/issue38884.
+_pickle_lock = threading.RLock()
 # Dill 0.28.0 renamed dill.dill to dill._dill:
 # https://github.com/uqfoundation/dill/commit/f0972ecc7a41d0b8acada6042d557068cac69baa
 # TODO: Remove this once Beam depends on dill >= 0.2.8
@@ -241,11 +238,11 @@ if 'save_module' in dir(dill.dill):
 logging.getLogger('dill').setLevel(logging.WARN)
 
 
-def dumps(o, enable_trace=True):
+def dumps(o, enable_trace=True, use_zlib=False):
   # type: (...) -> bytes
 
   """For internal use only; no backwards-compatibility guarantees."""
-  with _pickle_lock_unless_py2:
+  with _pickle_lock:
     try:
       s = dill.dumps(o)
     except Exception:  # pylint: disable=broad-except
@@ -260,21 +257,31 @@ def dumps(o, enable_trace=True):
   # Compress as compactly as possible (compresslevel=9) to decrease peak memory
   # usage (of multiple in-memory copies) and to avoid hitting protocol buffer
   # limits.
-  c = bz2.compress(s, compresslevel=9)
+  # WARNING: Be cautious about compressor change since it can lead to pipeline
+  # representation change, and can break streaming job update compatibility on
+  # runners such as Dataflow.
+  if use_zlib:
+    c = zlib.compress(s, 9)
+  else:
+    c = bz2.compress(s, compresslevel=9)
   del s  # Free up some possibly large and no-longer-needed memory.
 
   return base64.b64encode(c)
 
 
-def loads(encoded, enable_trace=True):
+def loads(encoded, enable_trace=True, use_zlib=False):
   """For internal use only; no backwards-compatibility guarantees."""
 
   c = base64.b64decode(encoded)
 
-  s = bz2.decompress(c)
+  if use_zlib:
+    s = zlib.decompress(c)
+  else:
+    s = bz2.decompress(c)
+
   del c  # Free up some possibly large and no-longer-needed memory.
 
-  with _pickle_lock_unless_py2:
+  with _pickle_lock:
     try:
       return dill.loads(s)
     except Exception:  # pylint: disable=broad-except
@@ -296,12 +303,12 @@ def dump_session(file_path):
   create and load the dump twice to have consistent results in the worker and
   the running session. Check: https://github.com/uqfoundation/dill/issues/195
   """
-  with _pickle_lock_unless_py2:
+  with _pickle_lock:
     dill.dump_session(file_path)
     dill.load_session(file_path)
     return dill.dump_session(file_path)
 
 
 def load_session(file_path):
-  with _pickle_lock_unless_py2:
+  with _pickle_lock:
     return dill.load_session(file_path)

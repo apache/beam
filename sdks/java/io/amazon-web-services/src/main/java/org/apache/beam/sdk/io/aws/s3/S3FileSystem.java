@@ -85,6 +85,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** {@link FileSystem} implementation for Amazon S3. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class S3FileSystem extends FileSystem<S3ResourceId> {
 
   private static final Logger LOG = LoggerFactory.getLogger(S3FileSystem.class);
@@ -223,9 +226,10 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
             exception = pathWithEncoding.getException();
             break;
           } else {
+            // TODO(BEAM-11821): Support file checksum in this method.
             metadatas.add(
                 createBeamMetadata(
-                    pathWithEncoding.getPath(), pathWithEncoding.getContentEncoding()));
+                    pathWithEncoding.getPath(), pathWithEncoding.getContentEncoding(), null));
           }
         }
 
@@ -382,21 +386,26 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
             createBeamMetadata(
                 path.withSize(s3Metadata.getContentLength())
                     .withLastModified(s3Metadata.getLastModified()),
-                Strings.nullToEmpty(s3Metadata.getContentEncoding()))));
+                Strings.nullToEmpty(s3Metadata.getContentEncoding()),
+                s3Metadata.getETag())));
   }
 
   private static MatchResult.Metadata createBeamMetadata(
-      S3ResourceId path, String contentEncoding) {
+      S3ResourceId path, String contentEncoding, String eTag) {
     checkArgument(path.getSize().isPresent(), "The resource id should have a size.");
     checkNotNull(contentEncoding, "contentEncoding");
     boolean isReadSeekEfficient = !NON_READ_SEEK_EFFICIENT_ENCODINGS.contains(contentEncoding);
 
-    return MatchResult.Metadata.builder()
-        .setIsReadSeekEfficient(isReadSeekEfficient)
-        .setResourceId(path)
-        .setSizeBytes(path.getSize().get())
-        .setLastModifiedMillis(path.getLastModified().transform(Date::getTime).or(0L))
-        .build();
+    MatchResult.Metadata.Builder ret =
+        MatchResult.Metadata.builder()
+            .setIsReadSeekEfficient(isReadSeekEfficient)
+            .setResourceId(path)
+            .setSizeBytes(path.getSize().get())
+            .setLastModifiedMillis(path.getLastModified().transform(Date::getTime).or(0L));
+    if (eTag != null) {
+      ret.setChecksum(eTag);
+    }
+    return ret.build();
   }
 
   @Override

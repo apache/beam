@@ -50,7 +50,7 @@ class WriteOneFilePerWindow(private val filenamePrefix: String, private val numS
                 .withTempDirectory(resource.currentDirectory)
                 .withWindowedWrites()
 
-        write = numShards?.let { write.withNumShards(it) }
+        write = numShards?.let { write.withNumShards(it) } ?: write
         return input.apply(write)
     }
 

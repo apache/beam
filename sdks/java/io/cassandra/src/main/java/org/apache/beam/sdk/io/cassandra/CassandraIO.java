@@ -122,6 +122,10 @@ import org.slf4j.LoggerFactory;
  * }</pre>
  */
 @Experimental(Kind.SOURCE_SINK)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class CassandraIO {
 
   private static final Logger LOG = LoggerFactory.getLogger(CassandraIO.class);
@@ -148,6 +152,8 @@ public class CassandraIO {
    * information on usage and configuration.
    */
   @AutoValue
+  @AutoValue.CopyAnnotations
+  @SuppressWarnings({"rawtypes"})
   public abstract static class Read<T> extends PTransform<PBegin, PCollection<T>> {
 
     abstract @Nullable ValueProvider<List<String>> hosts();
@@ -818,6 +824,8 @@ public class CassandraIO {
    * usage and configuration.
    */
   @AutoValue
+  @AutoValue.CopyAnnotations
+  @SuppressWarnings({"rawtypes"})
   public abstract static class Write<T> extends PTransform<PCollection<T>, PDone> {
 
     abstract @Nullable ValueProvider<List<String>> hosts();

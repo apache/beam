@@ -195,6 +195,9 @@ import org.slf4j.LoggerFactory;
  *
  * @see PipelineRunner
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DatastoreV1 {
 
   // A package-private constructor to prevent direct instantiation from outside of this package

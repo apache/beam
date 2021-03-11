@@ -24,12 +24,16 @@
 
 ###########################################################################
 # Usage check.
-if [[ $# < 1 || $# > 2 ]]; then
-  printf "Usage: \n$> ./scripts/run_tox.sh <tox_environment> [<sdk_location>]"
+if [[ $# < 1 ]]; then
+  printf "Usage: \n$> ./scripts/run_tox.sh <tox_environment> [<sdk_location> [<posargs> ...]]"
   printf "\n\ttox_environment: [required] Tox environment to run the test in.\n"
   printf "\n\tsdk_location: [optional] SDK tarball artifact location.\n"
+  printf "\n\tposarg: [optional] Any additional arguments will be passed as posargs to tox.\n"
   exit 1
 fi
+
+TOX_ENVIRONMENT="$1"
+shift
 
 # Check that the script is running in a known directory.
 if [[ $PWD != *sdks/python* ]]; then
@@ -43,22 +47,24 @@ if [[ $PWD != *sdks/python ]]; then
 fi
 
 # Used in tox.ini to isolate toxworkdir of each environment.
-export ENV_NAME=.tox-$1
+export ENV_NAME=".tox-$TOX_ENVIRONMENT"
 # Force colors in Jenkins jobs.
 if [[ "$JENKINS_HOME" != "" ]]; then
   export PY_COLORS=1
 fi
 
 if [[ ! -z $2 ]]; then
-  tox -c tox.ini --recreate -e $1 --installpkg $2
+  SDK_LOCATION="$1"
+  shift;
+  tox -c tox.ini --recreate -e "$TOX_ENVIRONMENT" --installpkg "$SDK_LOCATION" -- "$@"
 else
-  tox -c tox.ini --recreate -e $1
+  tox -c tox.ini --recreate -e "$TOX_ENVIRONMENT"
 fi
 
 exit_code=$?
 # Retry once for the specific exit code 245.
 if [[ $exit_code == 245 ]]; then
-  tox -c tox.ini --recreate -e $1
+  tox -c tox.ini --recreate -e "$TOX_ENVIRONMENT"
   exit_code=$?
 fi
 exit $exit_code

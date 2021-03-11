@@ -17,14 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.options;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
@@ -41,13 +35,14 @@ import org.apache.beam.sdk.options.Hidden;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.Validation;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Options that can be used to configure the {@link DataflowRunner}. */
 @Description("Options that configure the Dataflow pipeline.")
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public interface DataflowPipelineOptions
     extends PipelineOptions,
         GcpOptions,
@@ -114,6 +109,17 @@ public interface DataflowPipelineOptions
   String getTemplateLocation();
 
   void setTemplateLocation(String value);
+
+  /**
+   * Service options are set by the user and configure the service. This decouples service side
+   * feature availability from the Apache Beam release cycle.
+   */
+  @Description(
+      "Service options are set by the user and configure the service. This "
+          + "decouples service side feature availability from the Apache Beam release cycle.")
+  List<String> getServiceOptions();
+
+  void setServiceOptions(List<String> options);
 
   /** Run the job as a specific service account, instead of the default GCE robot. */
   @Hidden
@@ -207,59 +213,10 @@ public interface DataflowPipelineOptions
     }
   }
 
-  /**
-   * Factory for a default value for Google Cloud region according to
-   * https://cloud.google.com/compute/docs/gcloud-compute/#default-properties. If no other default
-   * can be found, returns the empty string.
-   */
-  class DefaultGcpRegionFactory implements DefaultValueFactory<String> {
-    private static final Logger LOG = LoggerFactory.getLogger(DefaultGcpRegionFactory.class);
+  /** If enabled then the literal key will be logged to Cloud Logging if a hot key is detected. */
+  @Description(
+      "If enabled then the literal key will be logged to Cloud Logging if a hot key is detected.")
+  boolean isHotKeyLoggingEnabled();
 
-    @Override
-    public String create(PipelineOptions options) {
-      String environmentRegion = getRegionFromEnvironment();
-      if (!Strings.isNullOrEmpty(environmentRegion)) {
-        LOG.info("Using default GCP region {} from $CLOUDSDK_COMPUTE_REGION", environmentRegion);
-        return environmentRegion;
-      }
-      try {
-        String gcloudRegion = getRegionFromGcloudCli();
-        if (!gcloudRegion.isEmpty()) {
-          LOG.info("Using default GCP region {} from gcloud CLI", gcloudRegion);
-          return gcloudRegion;
-        }
-      } catch (Exception e) {
-        // Ignore.
-        LOG.debug("Unable to get gcloud compute region", e);
-      }
-      return "";
-    }
-
-    @VisibleForTesting
-    static String getRegionFromEnvironment() {
-      return System.getenv("CLOUDSDK_COMPUTE_REGION");
-    }
-
-    @VisibleForTesting
-    static String getRegionFromGcloudCli() throws IOException, InterruptedException {
-      ProcessBuilder pb =
-          new ProcessBuilder(Arrays.asList("gcloud", "config", "get-value", "compute/region"));
-      Process process = pb.start();
-      try (BufferedReader reader =
-              new BufferedReader(
-                  new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8));
-          BufferedReader errorReader =
-              new BufferedReader(
-                  new InputStreamReader(process.getErrorStream(), StandardCharsets.UTF_8))) {
-        if (process.waitFor(2, TimeUnit.SECONDS) && process.exitValue() == 0) {
-          return reader.lines().collect(Collectors.joining());
-        } else {
-          String stderr = errorReader.lines().collect(Collectors.joining("\n"));
-          throw new RuntimeException(
-              String.format(
-                  "gcloud exited with exit value %d. Stderr:%n%s", process.exitValue(), stderr));
-        }
-      }
-    }
-  }
+  void setHotKeyLoggingEnabled(boolean value);
 }

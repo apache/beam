@@ -37,6 +37,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A read-only {@link FileSystem} implementation looking up resources using a ClassLoader. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ClassLoaderFileSystem extends FileSystem<ClassLoaderFileSystem.ClassLoaderResourceId> {
 
   public static final String SCHEMA = "classpath";
@@ -137,9 +140,8 @@ public class ClassLoaderFileSystem extends FileSystem<ClassLoaderFileSystem.Clas
       return SCHEMA;
     }
 
-    @Nullable
     @Override
-    public String getFilename() {
+    public @Nullable String getFilename() {
       return path;
     }
 

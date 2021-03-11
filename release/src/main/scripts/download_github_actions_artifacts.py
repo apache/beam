@@ -110,7 +110,7 @@ def get_yes_or_no_answer(question):
   elif reply == "n":
     return False
   else:
-    return get_yes_or_no_answer("Uhhhh... please enter")
+    return get_yes_or_no_answer("Please enter")
 
 
 def get_build_wheels_workflow_id(repo_url, github_token):

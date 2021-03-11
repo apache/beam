@@ -72,7 +72,7 @@ type SymbolResolver interface {
 // RegisterFunction allows function registration. It is beneficial for performance
 // and is needed for functions -- such as custom coders -- serialized during unit
 // tests, where the underlying symbol table is not available. It should be called
-// in init() only. Returns the external key for the function.
+// in `init()` only.
 func RegisterFunction(fn interface{}) {
 	if initialized {
 		panic("Init hooks have already run. Register function during init() instead.")

@@ -33,6 +33,10 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Creates a {@link ShuffleSink} from a {@link CloudObject} spec. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ShuffleSinkFactory implements SinkFactory {
 
   /** A {@link SinkFactory.Registrar} for shuffle sinks. */

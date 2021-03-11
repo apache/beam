@@ -19,10 +19,10 @@ package org.apache.beam.sdk.io.azure.blobstore;
 
 import static java.util.UUID.randomUUID;
 import static org.apache.beam.sdk.io.fs.CreateOptions.StandardCreateOptions.builder;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
@@ -62,7 +62,10 @@ import org.junit.runners.JUnit4;
 import org.mockito.Mockito;
 
 @RunWith(JUnit4.class)
-@SuppressWarnings("CannotMockFinalClass") // Mockito 2 and above can mock final classes
+@SuppressWarnings({
+  "CannotMockFinalClass",
+  "nullness"
+}) // Mockito 2 and above can mock final classes
 public class AzureBlobStoreFileSystemTest {
 
   private static AzureBlobStoreFileSystem azureBlobStoreFileSystem;

@@ -99,10 +99,9 @@ def run(argv=None):
     ignore_corpus = known_args.ignore_corpus
     ignore_word = known_args.ignore_word
 
-    pcoll_corpus = p | 'read corpus' >> beam.io.Read(
-        beam.io.BigQuerySource(query=query_corpus))
-    pcoll_word = p | 'read_words' >> beam.io.Read(
-        beam.io.BigQuerySource(query=query_word))
+    pcoll_corpus = p | 'read corpus' >> beam.io.ReadFromBigQuery(
+        query=query_corpus)
+    pcoll_word = p | 'read_words' >> beam.io.ReadFromBigQuery(query=query_word)
     pcoll_ignore_corpus = p | 'create_ignore_corpus' >> beam.Create(
         [ignore_corpus])
     pcoll_ignore_word = p | 'create_ignore_word' >> beam.Create([ignore_word])

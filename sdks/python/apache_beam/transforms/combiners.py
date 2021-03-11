@@ -66,6 +66,7 @@ TimestampType = Union[int, float, Timestamp, Duration]
 class CombinerWithoutDefaults(ptransform.PTransform):
   """Super class to inherit without_defaults to built-in Combiners."""
   def __init__(self, has_defaults=True):
+    super(CombinerWithoutDefaults, self).__init__()
     self.has_defaults = has_defaults
 
   def with_defaults(self, has_defaults=True):
@@ -700,6 +701,9 @@ class SampleCombineFn(core.CombineFn):
     # helper instead.
     self._top_combiner = TopCombineFn(n)
 
+  def setup(self):
+    self._top_combiner.setup()
+
   def create_accumulator(self):
     return self._top_combiner.create_accumulator()
 
@@ -719,6 +723,9 @@ class SampleCombineFn(core.CombineFn):
     # Here we strip off the random number keys we added in add_input.
     return [e for _, e in self._top_combiner.extract_output(heap)]
 
+  def teardown(self):
+    self._top_combiner.teardown()
+
 
 class _TupleCombineFnBase(core.CombineFn):
   def __init__(self, *combiners):
@@ -732,21 +739,34 @@ class _TupleCombineFnBase(core.CombineFn):
     ]
     return {'combiners': str(combiners)}
 
-  def create_accumulator(self):
-    return [c.create_accumulator() for c in self._combiners]
+  def setup(self, *args, **kwargs):
+    for c in self._combiners:
+      c.setup(*args, **kwargs)
 
-  def merge_accumulators(self, accumulators):
+  def create_accumulator(self, *args, **kwargs):
+    return [c.create_accumulator(*args, **kwargs) for c in self._combiners]
+
+  def merge_accumulators(self, accumulators, *args, **kwargs):
     return [
-        c.merge_accumulators(a) for c,
+        c.merge_accumulators(a, *args, **kwargs) for c,
         a in zip(self._combiners, zip(*accumulators))
     ]
 
-  def compact(self, accumulator):
-    return [c.compact(a) for c, a in zip(self._combiners, accumulator)]
+  def compact(self, accumulator, *args, **kwargs):
+    return [
+        c.compact(a, *args, **kwargs) for c,
+        a in zip(self._combiners, accumulator)
+    ]
 
-  def extract_output(self, accumulator):
-    return tuple(
-        [c.extract_output(a) for c, a in zip(self._combiners, accumulator)])
+  def extract_output(self, accumulator, *args, **kwargs):
+    return tuple([
+        c.extract_output(a, *args, **kwargs) for c,
+        a in zip(self._combiners, accumulator)
+    ])
+
+  def teardown(self, *args, **kwargs):
+    for c in reversed(self._combiners):
+      c.teardown(*args, **kwargs)
 
 
 class TupleCombineFn(_TupleCombineFnBase):
@@ -756,9 +776,9 @@ class TupleCombineFn(_TupleCombineFnBase):
   combining the k-th element of each tuple with the k-th CombineFn,
   outputting a new N-tuple of combined values.
   """
-  def add_input(self, accumulator, element):
+  def add_input(self, accumulator, element, *args, **kwargs):
     return [
-        c.add_input(a, e) for c,
+        c.add_input(a, e, *args, **kwargs) for c,
         a,
         e in zip(self._combiners, accumulator, element)
     ]
@@ -774,17 +794,15 @@ class SingleInputTupleCombineFn(_TupleCombineFnBase):
   applying each CombineFn to each input, producing an N-tuple of
   the outputs corresponding to each of the N CombineFn's outputs.
   """
-  def add_input(self, accumulator, element):
+  def add_input(self, accumulator, element, *args, **kwargs):
     return [
-        c.add_input(a, element) for c, a in zip(self._combiners, accumulator)
+        c.add_input(a, element, *args, **kwargs) for c,
+        a in zip(self._combiners, accumulator)
     ]
 
 
 class ToList(CombinerWithoutDefaults):
   """A global CombineFn that condenses a PCollection into a single list."""
-  def __init__(self, label='ToList'):  # pylint: disable=useless-super-delegation
-    super(ToList, self).__init__(label)
-
   def expand(self, pcoll):
     if self.has_defaults:
       return pcoll | self.label >> core.CombineGlobally(ToListCombineFn())
@@ -818,9 +836,6 @@ class ToDict(CombinerWithoutDefaults):
   If multiple values are associated with the same key, only one of the values
   will be present in the resulting dict.
   """
-  def __init__(self, label='ToDict'):  # pylint: disable=useless-super-delegation
-    super(ToDict, self).__init__(label)
-
   def expand(self, pcoll):
     if self.has_defaults:
       return pcoll | self.label >> core.CombineGlobally(ToDictCombineFn())
@@ -853,9 +868,6 @@ class ToDictCombineFn(core.CombineFn):
 
 class ToSet(CombinerWithoutDefaults):
   """A global CombineFn that condenses a PCollection into a set."""
-  def __init__(self, label='ToSet'):  # pylint: disable=useless-super-delegation
-    super(ToSet, self).__init__(label)
-
   def expand(self, pcoll):
     if self.has_defaults:
       return pcoll | self.label >> core.CombineGlobally(ToSetCombineFn())
@@ -889,6 +901,9 @@ class _CurriedFn(core.CombineFn):
     self.args = args
     self.kwargs = kwargs
 
+  def setup(self):
+    self.fn.setup(*self.args, **self.kwargs)
+
   def create_accumulator(self):
     return self.fn.create_accumulator(*self.args, **self.kwargs)
 
@@ -903,6 +918,9 @@ class _CurriedFn(core.CombineFn):
 
   def extract_output(self, accumulator):
     return self.fn.extract_output(accumulator, *self.args, **self.kwargs)
+
+  def teardown(self):
+    self.fn.teardown(*self.args, **self.kwargs)
 
   def apply(self, elements):
     return self.fn.apply(elements, *self.args, **self.kwargs)
@@ -968,13 +986,13 @@ class Latest(object):
         return (
             pcoll
             | core.ParDo(self.add_timestamp).with_output_types(
-                Tuple[T, TimestampType])  # type: ignore[misc]
+                Tuple[T, TimestampType])
             | core.CombineGlobally(LatestCombineFn()))
       else:
         return (
             pcoll
             | core.ParDo(self.add_timestamp).with_output_types(
-                Tuple[T, TimestampType])  # type: ignore[misc]
+                Tuple[T, TimestampType])
             | core.CombineGlobally(LatestCombineFn()).without_defaults())
 
   @with_input_types(Tuple[K, V])
@@ -991,11 +1009,11 @@ class Latest(object):
       return (
           pcoll
           | core.ParDo(self.add_timestamp).with_output_types(
-              Tuple[K, Tuple[T, TimestampType]])  # type: ignore[misc]
+              Tuple[K, Tuple[T, TimestampType]])
           | core.CombinePerKey(LatestCombineFn()))
 
 
-@with_input_types(Tuple[T, TimestampType])  # type: ignore[misc]
+@with_input_types(Tuple[T, TimestampType])
 @with_output_types(T)
 class LatestCombineFn(core.CombineFn):
   """CombineFn to get the element with the latest timestamp

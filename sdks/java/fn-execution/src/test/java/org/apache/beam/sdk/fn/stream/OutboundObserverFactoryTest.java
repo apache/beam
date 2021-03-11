@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.fn.stream;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 
 import java.util.concurrent.Executors;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.CallStreamObserver;

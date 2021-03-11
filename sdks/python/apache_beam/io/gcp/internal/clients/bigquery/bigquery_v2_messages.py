@@ -139,9 +139,9 @@ class ArimaFittingMetrics(_messages.Message):
   r"""ARIMA model fitting metrics.
 
   Fields:
-    aic: AIC
-    logLikelihood: log-likelihood
-    variance: variance.
+    aic: AIC.
+    logLikelihood: Log-likelihood.
+    variance: Variance.
   """
 
   aic = _messages.FloatField(1)
@@ -149,18 +149,96 @@ class ArimaFittingMetrics(_messages.Message):
   variance = _messages.FloatField(3)
 
 
+class ArimaForecastingMetrics(_messages.Message):
+  r"""Model evaluation metrics for ARIMA forecasting models.
+
+  Enums:
+    SeasonalPeriodsValueListEntryValuesEnum:
+
+  Fields:
+    arimaFittingMetrics: Arima model fitting metrics.
+    arimaSingleModelForecastingMetrics: Repeated as there can be many metric
+      sets (one for each model) in auto-arima and the large-scale case.
+    hasDrift: Whether Arima model fitted with drift or not. It is always false
+      when d is not 1.
+    nonSeasonalOrder: Non-seasonal order.
+    seasonalPeriods: Seasonal periods. Repeated because multiple periods are
+      supported for one time series.
+    timeSeriesId: Id to differentiate different time series for the large-
+      scale case.
+  """
+
+  class SeasonalPeriodsValueListEntryValuesEnum(_messages.Enum):
+    r"""SeasonalPeriodsValueListEntryValuesEnum enum type.
+
+    Values:
+      SEASONAL_PERIOD_TYPE_UNSPECIFIED: <no description>
+      NO_SEASONALITY: No seasonality
+      DAILY: Daily period, 24 hours.
+      WEEKLY: Weekly period, 7 days.
+      MONTHLY: Monthly period, 30 days or irregular.
+      QUARTERLY: Quarterly period, 90 days or irregular.
+      YEARLY: Yearly period, 365 days or irregular.
+    """
+    SEASONAL_PERIOD_TYPE_UNSPECIFIED = 0
+    NO_SEASONALITY = 1
+    DAILY = 2
+    WEEKLY = 3
+    MONTHLY = 4
+    QUARTERLY = 5
+    YEARLY = 6
+
+  arimaFittingMetrics = _messages.MessageField('ArimaFittingMetrics', 1, repeated=True)
+  arimaSingleModelForecastingMetrics = _messages.MessageField('ArimaSingleModelForecastingMetrics', 2, repeated=True)
+  hasDrift = _messages.BooleanField(3, repeated=True)
+  nonSeasonalOrder = _messages.MessageField('ArimaOrder', 4, repeated=True)
+  seasonalPeriods = _messages.EnumField('SeasonalPeriodsValueListEntryValuesEnum', 5, repeated=True)
+  timeSeriesId = _messages.StringField(6, repeated=True)
+
+
 class ArimaModelInfo(_messages.Message):
   r"""Arima model information.
+
+  Enums:
+    SeasonalPeriodsValueListEntryValuesEnum:
 
   Fields:
     arimaCoefficients: Arima coefficients.
     arimaFittingMetrics: Arima fitting metrics.
+    hasDrift: Whether Arima model fitted with drift or not. It is always false
+      when d is not 1.
     nonSeasonalOrder: Non-seasonal order.
+    seasonalPeriods: Seasonal periods. Repeated because multiple periods are
+      supported for one time series.
+    timeSeriesId: The id to indicate different time series.
   """
+
+  class SeasonalPeriodsValueListEntryValuesEnum(_messages.Enum):
+    r"""SeasonalPeriodsValueListEntryValuesEnum enum type.
+
+    Values:
+      SEASONAL_PERIOD_TYPE_UNSPECIFIED: <no description>
+      NO_SEASONALITY: No seasonality
+      DAILY: Daily period, 24 hours.
+      WEEKLY: Weekly period, 7 days.
+      MONTHLY: Monthly period, 30 days or irregular.
+      QUARTERLY: Quarterly period, 90 days or irregular.
+      YEARLY: Yearly period, 365 days or irregular.
+    """
+    SEASONAL_PERIOD_TYPE_UNSPECIFIED = 0
+    NO_SEASONALITY = 1
+    DAILY = 2
+    WEEKLY = 3
+    MONTHLY = 4
+    QUARTERLY = 5
+    YEARLY = 6
 
   arimaCoefficients = _messages.MessageField('ArimaCoefficients', 1)
   arimaFittingMetrics = _messages.MessageField('ArimaFittingMetrics', 2)
-  nonSeasonalOrder = _messages.MessageField('ArimaOrder', 3)
+  hasDrift = _messages.BooleanField(3)
+  nonSeasonalOrder = _messages.MessageField('ArimaOrder', 4)
+  seasonalPeriods = _messages.EnumField('SeasonalPeriodsValueListEntryValuesEnum', 5, repeated=True)
+  timeSeriesId = _messages.StringField(6)
 
 
 class ArimaOrder(_messages.Message):
@@ -196,12 +274,12 @@ class ArimaResult(_messages.Message):
 
     Values:
       SEASONAL_PERIOD_TYPE_UNSPECIFIED: <no description>
-      NO_SEASONALITY: <no description>
-      DAILY: <no description>
-      WEEKLY: <no description>
-      MONTHLY: <no description>
-      QUARTERLY: <no description>
-      YEARLY: <no description>
+      NO_SEASONALITY: No seasonality
+      DAILY: Daily period, 24 hours.
+      WEEKLY: Weekly period, 7 days.
+      MONTHLY: Monthly period, 30 days or irregular.
+      QUARTERLY: Quarterly period, 90 days or irregular.
+      YEARLY: Yearly period, 365 days or irregular.
     """
     SEASONAL_PERIOD_TYPE_UNSPECIFIED = 0
     NO_SEASONALITY = 1
@@ -213,6 +291,112 @@ class ArimaResult(_messages.Message):
 
   arimaModelInfo = _messages.MessageField('ArimaModelInfo', 1, repeated=True)
   seasonalPeriods = _messages.EnumField('SeasonalPeriodsValueListEntryValuesEnum', 2, repeated=True)
+
+
+class ArimaSingleModelForecastingMetrics(_messages.Message):
+  r"""Model evaluation metrics for a single ARIMA forecasting model.
+
+  Enums:
+    SeasonalPeriodsValueListEntryValuesEnum:
+
+  Fields:
+    arimaFittingMetrics: Arima fitting metrics.
+    hasDrift: Is arima model fitted with drift or not. It is always false when
+      d is not 1.
+    nonSeasonalOrder: Non-seasonal order.
+    seasonalPeriods: Seasonal periods. Repeated because multiple periods are
+      supported for one time series.
+    timeSeriesId: The id to indicate different time series.
+  """
+
+  class SeasonalPeriodsValueListEntryValuesEnum(_messages.Enum):
+    r"""SeasonalPeriodsValueListEntryValuesEnum enum type.
+
+    Values:
+      SEASONAL_PERIOD_TYPE_UNSPECIFIED: <no description>
+      NO_SEASONALITY: No seasonality
+      DAILY: Daily period, 24 hours.
+      WEEKLY: Weekly period, 7 days.
+      MONTHLY: Monthly period, 30 days or irregular.
+      QUARTERLY: Quarterly period, 90 days or irregular.
+      YEARLY: Yearly period, 365 days or irregular.
+    """
+    SEASONAL_PERIOD_TYPE_UNSPECIFIED = 0
+    NO_SEASONALITY = 1
+    DAILY = 2
+    WEEKLY = 3
+    MONTHLY = 4
+    QUARTERLY = 5
+    YEARLY = 6
+
+  arimaFittingMetrics = _messages.MessageField('ArimaFittingMetrics', 1)
+  hasDrift = _messages.BooleanField(2)
+  nonSeasonalOrder = _messages.MessageField('ArimaOrder', 3)
+  seasonalPeriods = _messages.EnumField('SeasonalPeriodsValueListEntryValuesEnum', 4, repeated=True)
+  timeSeriesId = _messages.StringField(5)
+
+
+class AuditConfig(_messages.Message):
+  r"""Specifies the audit configuration for a service. The configuration
+  determines which permission types are logged, and what identities, if any,
+  are exempted from logging. An AuditConfig must have one or more
+  AuditLogConfigs. If there are AuditConfigs for both `allServices` and a
+  specific service, the union of the two AuditConfigs is used for that
+  service: the log_types specified in each AuditConfig are enabled, and the
+  exempted_members in each AuditLogConfig are exempted. Example Policy with
+  multiple AuditConfigs: { "audit_configs": [ { "service": "allServices",
+  "audit_log_configs": [ { "log_type": "DATA_READ", "exempted_members": [
+  "user:jose@example.com" ] }, { "log_type": "DATA_WRITE" }, { "log_type":
+  "ADMIN_READ" } ] }, { "service": "sampleservice.googleapis.com",
+  "audit_log_configs": [ { "log_type": "DATA_READ" }, { "log_type":
+  "DATA_WRITE", "exempted_members": [ "user:aliya@example.com" ] } ] } ] } For
+  sampleservice, this policy enables DATA_READ, DATA_WRITE and ADMIN_READ
+  logging. It also exempts jose@example.com from DATA_READ logging, and
+  aliya@example.com from DATA_WRITE logging.
+
+  Fields:
+    auditLogConfigs: The configuration for logging of each type of permission.
+    service: Specifies a service that will be enabled for audit logging. For
+      example, `storage.googleapis.com`, `cloudsql.googleapis.com`.
+      `allServices` is a special value that covers all services.
+  """
+
+  auditLogConfigs = _messages.MessageField('AuditLogConfig', 1, repeated=True)
+  service = _messages.StringField(2)
+
+
+class AuditLogConfig(_messages.Message):
+  r"""Provides the configuration for logging a type of permissions. Example: {
+  "audit_log_configs": [ { "log_type": "DATA_READ", "exempted_members": [
+  "user:jose@example.com" ] }, { "log_type": "DATA_WRITE" } ] } This enables
+  'DATA_READ' and 'DATA_WRITE' logging, while exempting jose@example.com from
+  DATA_READ logging.
+
+  Enums:
+    LogTypeValueValuesEnum: The log type that this config enables.
+
+  Fields:
+    exemptedMembers: Specifies the identities that do not cause logging for
+      this type of permission. Follows the same format of Binding.members.
+    logType: The log type that this config enables.
+  """
+
+  class LogTypeValueValuesEnum(_messages.Enum):
+    r"""The log type that this config enables.
+
+    Values:
+      LOG_TYPE_UNSPECIFIED: Default case. Should never be this.
+      ADMIN_READ: Admin reads. Example: CloudIAM getIamPolicy
+      DATA_WRITE: Data writes. Example: CloudSQL Users create
+      DATA_READ: Data reads. Example: CloudSQL Users list
+    """
+    LOG_TYPE_UNSPECIFIED = 0
+    ADMIN_READ = 1
+    DATA_WRITE = 2
+    DATA_READ = 3
+
+  exemptedMembers = _messages.StringField(1, repeated=True)
+  logType = _messages.EnumField('LogTypeValueValuesEnum', 2)
 
 
 class BigQueryModelTraining(_messages.Message):
@@ -612,9 +796,8 @@ class BigqueryRoutinesListRequest(_messages.Message):
   Fields:
     datasetId: Required. Dataset ID of the routines to list
     filter: If set, then only the Routines matching this filter are returned.
-      The current supported form is either "routine_type:<RoutineType>" or
-      "routineType:<RoutineType>", where <RoutineType> is a RoutineType enum.
-      Example: "routineType:SCALAR_FUNCTION".
+      The current supported form is either "routine_type:" or "routineType:",
+      where is a RoutineType enum. Example: "routineType:SCALAR_FUNCTION".
     maxResults: The maximum number of results to return in a single response
       page. Leverage the page tokens to iterate through the entire collection.
     pageToken: Page token, returned by a previous call, to request the next
@@ -649,6 +832,26 @@ class BigqueryRoutinesUpdateRequest(_messages.Message):
   projectId = _messages.StringField(2, required=True)
   routine = _messages.MessageField('Routine', 3)
   routineId = _messages.StringField(4, required=True)
+
+
+class BigqueryRowAccessPoliciesListRequest(_messages.Message):
+  r"""A BigqueryRowAccessPoliciesListRequest object.
+
+  Fields:
+    datasetId: Required. Dataset ID of row access policies to list.
+    pageSize: The maximum number of results to return in a single response
+      page. Leverage the page tokens to iterate through the entire collection.
+    pageToken: Page token, returned by a previous call, to request the next
+      page of results.
+    projectId: Required. Project ID of the row access policies to list.
+    tableId: Required. Table ID of the table to list row access policies.
+  """
+
+  datasetId = _messages.StringField(1, required=True)
+  pageSize = _messages.IntegerField(2, variant=_messages.Variant.INT32)
+  pageToken = _messages.StringField(3)
+  projectId = _messages.StringField(4, required=True)
+  tableId = _messages.StringField(5, required=True)
 
 
 class BigqueryTabledataInsertAllRequest(_messages.Message):
@@ -708,6 +911,21 @@ class BigqueryTablesDeleteRequest(_messages.Message):
 
 class BigqueryTablesDeleteResponse(_messages.Message):
   r"""An empty BigqueryTablesDelete response."""
+
+
+class BigqueryTablesGetIamPolicyRequest(_messages.Message):
+  r"""A BigqueryTablesGetIamPolicyRequest object.
+
+  Fields:
+    getIamPolicyRequest: A GetIamPolicyRequest resource to be passed as the
+      request body.
+    resource: REQUIRED: The resource for which the policy is being requested.
+      See the operation documentation for the appropriate value for this
+      field.
+  """
+
+  getIamPolicyRequest = _messages.MessageField('GetIamPolicyRequest', 1)
+  resource = _messages.StringField(2, required=True)
 
 
 class BigqueryTablesGetRequest(_messages.Message):
@@ -772,6 +990,36 @@ class BigqueryTablesPatchRequest(_messages.Message):
   projectId = _messages.StringField(2, required=True)
   table = _messages.MessageField('Table', 3)
   tableId = _messages.StringField(4, required=True)
+
+
+class BigqueryTablesSetIamPolicyRequest(_messages.Message):
+  r"""A BigqueryTablesSetIamPolicyRequest object.
+
+  Fields:
+    resource: REQUIRED: The resource for which the policy is being specified.
+      See the operation documentation for the appropriate value for this
+      field.
+    setIamPolicyRequest: A SetIamPolicyRequest resource to be passed as the
+      request body.
+  """
+
+  resource = _messages.StringField(1, required=True)
+  setIamPolicyRequest = _messages.MessageField('SetIamPolicyRequest', 2)
+
+
+class BigqueryTablesTestIamPermissionsRequest(_messages.Message):
+  r"""A BigqueryTablesTestIamPermissionsRequest object.
+
+  Fields:
+    resource: REQUIRED: The resource for which the policy detail is being
+      requested. See the operation documentation for the appropriate value for
+      this field.
+    testIamPermissionsRequest: A TestIamPermissionsRequest resource to be
+      passed as the request body.
+  """
+
+  resource = _messages.StringField(1, required=True)
+  testIamPermissionsRequest = _messages.MessageField('TestIamPermissionsRequest', 2)
 
 
 class BigqueryTablesUpdateRequest(_messages.Message):
@@ -938,6 +1186,58 @@ class BinaryConfusionMatrix(_messages.Message):
   recall = _messages.FloatField(7)
   trueNegatives = _messages.IntegerField(8)
   truePositives = _messages.IntegerField(9)
+
+
+class Binding(_messages.Message):
+  r"""Associates `members` with a `role`.
+
+  Fields:
+    condition: The condition that is associated with this binding. If the
+      condition evaluates to `true`, then this binding applies to the current
+      request. If the condition evaluates to `false`, then this binding does
+      not apply to the current request. However, a different role binding
+      might grant the same role to one or more of the members in this binding.
+      To learn which resources support conditions in their IAM policies, see
+      the [IAM
+      documentation](https://cloud.google.com/iam/help/conditions/resource-
+      policies).
+    members: Specifies the identities requesting access for a Cloud Platform
+      resource. `members` can have the following values: * `allUsers`: A
+      special identifier that represents anyone who is on the internet; with
+      or without a Google account. * `allAuthenticatedUsers`: A special
+      identifier that represents anyone who is authenticated with a Google
+      account or a service account. * `user:{emailid}`: An email address that
+      represents a specific Google account. For example, `alice@example.com` .
+      * `serviceAccount:{emailid}`: An email address that represents a service
+      account. For example, `my-other-app@appspot.gserviceaccount.com`. *
+      `group:{emailid}`: An email address that represents a Google group. For
+      example, `admins@example.com`. *
+      `deleted:user:{emailid}?uid={uniqueid}`: An email address (plus unique
+      identifier) representing a user that has been recently deleted. For
+      example, `alice@example.com?uid=123456789012345678901`. If the user is
+      recovered, this value reverts to `user:{emailid}` and the recovered user
+      retains the role in the binding. *
+      `deleted:serviceAccount:{emailid}?uid={uniqueid}`: An email address
+      (plus unique identifier) representing a service account that has been
+      recently deleted. For example, `my-other-
+      app@appspot.gserviceaccount.com?uid=123456789012345678901`. If the
+      service account is undeleted, this value reverts to
+      `serviceAccount:{emailid}` and the undeleted service account retains the
+      role in the binding. * `deleted:group:{emailid}?uid={uniqueid}`: An
+      email address (plus unique identifier) representing a Google group that
+      has been recently deleted. For example,
+      `admins@example.com?uid=123456789012345678901`. If the group is
+      recovered, this value reverts to `group:{emailid}` and the recovered
+      group retains the role in the binding. * `domain:{domain}`: The G Suite
+      domain (primary) that represents all the users of that domain. For
+      example, `google.com` or `example.com`.
+    role: Role that is assigned to `members`. For example, `roles/viewer`,
+      `roles/editor`, or `roles/owner`.
+  """
+
+  condition = _messages.MessageField('Expr', 1)
+  members = _messages.StringField(2, repeated=True)
+  role = _messages.StringField(3)
 
 
 class BqmlIterationResult(_messages.Message):
@@ -1128,6 +1428,18 @@ class ConfusionMatrix(_messages.Message):
   rows = _messages.MessageField('Row', 2, repeated=True)
 
 
+class ConnectionProperty(_messages.Message):
+  r"""A ConnectionProperty object.
+
+  Fields:
+    key: [Required] Name of the connection property to set.
+    value: [Required] Value of the connection property.
+  """
+
+  key = _messages.StringField(1)
+  value = _messages.StringField(2)
+
+
 class CsvOptions(_messages.Message):
   r"""A CsvOptions object.
 
@@ -1175,7 +1487,7 @@ class CsvOptions(_messages.Message):
   allowQuotedNewlines = _messages.BooleanField(2)
   encoding = _messages.StringField(3)
   fieldDelimiter = _messages.StringField(4)
-  quote = _messages.StringField(5, default=u'"')
+  quote = _messages.StringField(5, default='"')
   skipLeadingRows = _messages.IntegerField(6)
 
 
@@ -1256,6 +1568,7 @@ class Dataset(_messages.Message):
     location: The geographic location where the dataset should reside. The
       default value is US. See details at
       https://cloud.google.com/bigquery/docs/locations.
+    satisfiesPZS: [Output-only] Reserved for future use.
     selfLink: [Output-only] A URL that can be used to access the resource
       again. You can use this URL in Get or Update requests to the resource.
   """
@@ -1278,6 +1591,12 @@ class Dataset(_messages.Message):
         will accept any of the above formats, but will return only the legacy
         format. For example, if you set this field to
         "roles/bigquery.dataOwner", it will be returned back as "OWNER".
+      routine: [Pick one] A routine from a different dataset to grant access
+        to. Queries executed against that routine will have read access to
+        views/tables/routines in this dataset. Only UDF is supported for now.
+        The role field is not required when this field is set. If that routine
+        is updated by any user, access to the routine needs to be granted
+        again via an update operation.
       specialGroup: [Pick one] A special group to grant access to. Possible
         values include: projectOwners: Owners of the enclosing project.
         projectReaders: Readers of the enclosing project. projectWriters:
@@ -1297,9 +1616,10 @@ class Dataset(_messages.Message):
     groupByEmail = _messages.StringField(2)
     iamMember = _messages.StringField(3)
     role = _messages.StringField(4)
-    specialGroup = _messages.StringField(5)
-    userByEmail = _messages.StringField(6)
-    view = _messages.MessageField('TableReference', 7)
+    routine = _messages.MessageField('RoutineReference', 5)
+    specialGroup = _messages.StringField(6)
+    userByEmail = _messages.StringField(7)
+    view = _messages.MessageField('TableReference', 8)
 
   @encoding.MapUnrecognizedFields('additionalProperties')
   class LabelsValue(_messages.Message):
@@ -1338,11 +1658,12 @@ class Dataset(_messages.Message):
   etag = _messages.StringField(8)
   friendlyName = _messages.StringField(9)
   id = _messages.StringField(10)
-  kind = _messages.StringField(11, default=u'bigquery#dataset')
+  kind = _messages.StringField(11, default='bigquery#dataset')
   labels = _messages.MessageField('LabelsValue', 12)
   lastModifiedTime = _messages.IntegerField(13)
   location = _messages.StringField(14)
-  selfLink = _messages.StringField(15)
+  satisfiesPZS = _messages.BooleanField(15)
+  selfLink = _messages.StringField(16)
 
 
 class DatasetList(_messages.Message):
@@ -1411,13 +1732,13 @@ class DatasetList(_messages.Message):
     datasetReference = _messages.MessageField('DatasetReference', 1)
     friendlyName = _messages.StringField(2)
     id = _messages.StringField(3)
-    kind = _messages.StringField(4, default=u'bigquery#dataset')
+    kind = _messages.StringField(4, default='bigquery#dataset')
     labels = _messages.MessageField('LabelsValue', 5)
     location = _messages.StringField(6)
 
   datasets = _messages.MessageField('DatasetsValueListEntry', 1, repeated=True)
   etag = _messages.StringField(2)
-  kind = _messages.StringField(3, default=u'bigquery#datasetList')
+  kind = _messages.StringField(3, default='bigquery#datasetList')
   nextPageToken = _messages.StringField(4)
 
 
@@ -1542,19 +1863,24 @@ class EvaluationMetrics(_messages.Message):
   training. These are not present for imported models.
 
   Fields:
+    arimaForecastingMetrics: Populated for ARIMA models.
     binaryClassificationMetrics: Populated for binary
       classification/classifier models.
     clusteringMetrics: Populated for clustering models.
     multiClassClassificationMetrics: Populated for multi-class
       classification/classifier models.
+    rankingMetrics: Populated for implicit feedback type matrix factorization
+      models.
     regressionMetrics: Populated for regression models and explicit feedback
       type matrix factorization models.
   """
 
-  binaryClassificationMetrics = _messages.MessageField('BinaryClassificationMetrics', 1)
-  clusteringMetrics = _messages.MessageField('ClusteringMetrics', 2)
-  multiClassClassificationMetrics = _messages.MessageField('MultiClassClassificationMetrics', 3)
-  regressionMetrics = _messages.MessageField('RegressionMetrics', 4)
+  arimaForecastingMetrics = _messages.MessageField('ArimaForecastingMetrics', 1)
+  binaryClassificationMetrics = _messages.MessageField('BinaryClassificationMetrics', 2)
+  clusteringMetrics = _messages.MessageField('ClusteringMetrics', 3)
+  multiClassClassificationMetrics = _messages.MessageField('MultiClassClassificationMetrics', 4)
+  rankingMetrics = _messages.MessageField('RankingMetrics', 5)
+  regressionMetrics = _messages.MessageField('RegressionMetrics', 6)
 
 
 class ExplainQueryStage(_messages.Message):
@@ -1647,6 +1973,56 @@ class ExplainQueryStep(_messages.Message):
   substeps = _messages.StringField(2, repeated=True)
 
 
+class Explanation(_messages.Message):
+  r"""Explanation for a single feature.
+
+  Fields:
+    attribution: Attribution of feature.
+    featureName: Full name of the feature. For non-numerical features, will be
+      formatted like .. Overall size of feature name will always be truncated
+      to first 120 characters.
+  """
+
+  attribution = _messages.FloatField(1)
+  featureName = _messages.StringField(2)
+
+
+class Expr(_messages.Message):
+  r"""Represents a textual expression in the Common Expression Language (CEL)
+  syntax. CEL is a C-like expression language. The syntax and semantics of CEL
+  are documented at https://github.com/google/cel-spec. Example (Comparison):
+  title: "Summary size limit" description: "Determines if a summary is less
+  than 100 chars" expression: "document.summary.size() < 100" Example
+  (Equality): title: "Requestor is owner" description: "Determines if
+  requestor is the document owner" expression: "document.owner ==
+  request.auth.claims.email" Example (Logic): title: "Public documents"
+  description: "Determine whether the document should be publicly visible"
+  expression: "document.type != 'private' && document.type != 'internal'"
+  Example (Data Manipulation): title: "Notification string" description:
+  "Create a notification string with a timestamp." expression: "'New message
+  received at ' + string(document.create_time)" The exact variables and
+  functions that may be referenced within an expression are determined by the
+  service that evaluates it. See the service documentation for additional
+  information.
+
+  Fields:
+    description: Optional. Description of the expression. This is a longer
+      text which describes the expression, e.g. when hovered over it in a UI.
+    expression: Textual representation of an expression in Common Expression
+      Language syntax.
+    location: Optional. String indicating the location of the expression for
+      error reporting, e.g. a file name and a position in the file.
+    title: Optional. Title for the expression, i.e. a short string describing
+      its purpose. This can be used e.g. in UIs which allow to enter the
+      expression.
+  """
+
+  description = _messages.StringField(1)
+  expression = _messages.StringField(2)
+  location = _messages.StringField(3)
+  title = _messages.StringField(4)
+
+
 class ExternalDataConfiguration(_messages.Message):
   r"""A ExternalDataConfiguration object.
 
@@ -1659,11 +2035,11 @@ class ExternalDataConfiguration(_messages.Message):
       values include GZIP and NONE. The default value is NONE. This setting is
       ignored for Google Cloud Bigtable, Google Cloud Datastore backups and
       Avro formats.
+    connectionId: [Optional, Trusted Tester] Connection for external data
+      source.
     csvOptions: Additional properties to set if sourceFormat is set to CSV.
     googleSheetsOptions: [Optional] Additional options if sourceFormat is set
       to GOOGLE_SHEETS.
-    hivePartitioningMode: [Optional, Trusted Tester] Deprecated, do not use.
-      Please set hivePartitioningOptions instead.
     hivePartitioningOptions: [Optional, Trusted Tester] Options to configure
       hive partitioning support.
     ignoreUnknownValues: [Optional] Indicates if BigQuery should allow extra
@@ -1702,9 +2078,9 @@ class ExternalDataConfiguration(_messages.Message):
   autodetect = _messages.BooleanField(1)
   bigtableOptions = _messages.MessageField('BigtableOptions', 2)
   compression = _messages.StringField(3)
-  csvOptions = _messages.MessageField('CsvOptions', 4)
-  googleSheetsOptions = _messages.MessageField('GoogleSheetsOptions', 5)
-  hivePartitioningMode = _messages.StringField(6)
+  connectionId = _messages.StringField(4)
+  csvOptions = _messages.MessageField('CsvOptions', 5)
+  googleSheetsOptions = _messages.MessageField('GoogleSheetsOptions', 6)
   hivePartitioningOptions = _messages.MessageField('HivePartitioningOptions', 7)
   ignoreUnknownValues = _messages.BooleanField(8)
   maxBadRecords = _messages.IntegerField(9, variant=_messages.Variant.INT32)
@@ -1726,6 +2102,34 @@ class FeatureValue(_messages.Message):
   categoricalValue = _messages.MessageField('CategoricalValue', 1)
   featureColumn = _messages.StringField(2)
   numericalValue = _messages.FloatField(3)
+
+
+class GetIamPolicyRequest(_messages.Message):
+  r"""Request message for `GetIamPolicy` method.
+
+  Fields:
+    options: OPTIONAL: A `GetPolicyOptions` object for specifying options to
+      `GetIamPolicy`.
+  """
+
+  options = _messages.MessageField('GetPolicyOptions', 1)
+
+
+class GetPolicyOptions(_messages.Message):
+  r"""Encapsulates settings provided to GetIamPolicy.
+
+  Fields:
+    requestedPolicyVersion: Optional. The policy format version to be
+      returned. Valid values are 0, 1, and 3. Requests specifying an invalid
+      value will be rejected. Requests for policies with any conditional
+      bindings must specify version 3. Policies without any conditional
+      bindings may specify any valid value or leave the field unset. To learn
+      which resources support conditions in their IAM policies, see the [IAM
+      documentation](https://cloud.google.com/iam/help/conditions/resource-
+      policies).
+  """
+
+  requestedPolicyVersion = _messages.IntegerField(1, variant=_messages.Variant.INT32)
 
 
 class GetQueryResultsResponse(_messages.Message):
@@ -1768,7 +2172,7 @@ class GetQueryResultsResponse(_messages.Message):
   etag = _messages.StringField(3)
   jobComplete = _messages.BooleanField(4)
   jobReference = _messages.MessageField('JobReference', 5)
-  kind = _messages.StringField(6, default=u'bigquery#getQueryResultsResponse')
+  kind = _messages.StringField(6, default='bigquery#getQueryResultsResponse')
   numDmlAffectedRows = _messages.IntegerField(7)
   pageToken = _messages.StringField(8)
   rows = _messages.MessageField('TableRow', 9, repeated=True)
@@ -1786,7 +2190,23 @@ class GetServiceAccountResponse(_messages.Message):
   """
 
   email = _messages.StringField(1)
-  kind = _messages.StringField(2, default=u'bigquery#getServiceAccountResponse')
+  kind = _messages.StringField(2, default='bigquery#getServiceAccountResponse')
+
+
+class GlobalExplanation(_messages.Message):
+  r"""Global explanations containing the top most important features after
+  training.
+
+  Fields:
+    classLabel: Class label for this set of global explanations. Will be
+      empty/null for binary logistic and linear regression models. Sorted
+      alphabetically in descending order.
+    explanations: A list of the top global explanations. Sorted by absolute
+      value of attribution in descending order.
+  """
+
+  classLabel = _messages.StringField(1)
+  explanations = _messages.MessageField('Explanation', 2, repeated=True)
 
 
 class GoogleSheetsOptions(_messages.Message):
@@ -1818,17 +2238,24 @@ class HivePartitioningOptions(_messages.Message):
   r"""A HivePartitioningOptions object.
 
   Fields:
-    mode: [Optional, Trusted Tester] When set, what mode of hive partitioning
-      to use when reading data. Two modes are supported. (1) AUTO:
-      automatically infer partition key name(s) and type(s). (2) STRINGS:
-      automatically infer partition key name(s). All types are interpreted as
-      strings. Not all storage formats support hive partitioning. Requesting
-      hive partitioning on an unsupported format will lead to an error.
-      Currently supported types include: AVRO, CSV, JSON, ORC and Parquet.
-    sourceUriPrefix: [Optional, Trusted Tester] When hive partition detection
-      is requested, a common prefix for all source uris should be supplied.
-      The prefix must end immediately before the partition key encoding
-      begins. For example, consider files following this data layout.
+    mode: [Optional] When set, what mode of hive partitioning to use when
+      reading data. The following modes are supported. (1) AUTO: automatically
+      infer partition key name(s) and type(s). (2) STRINGS: automatically
+      infer partition key name(s). All types are interpreted as strings. (3)
+      CUSTOM: partition key schema is encoded in the source URI prefix. Not
+      all storage formats support hive partitioning. Requesting hive
+      partitioning on an unsupported format will lead to an error. Currently
+      supported types include: AVRO, CSV, JSON, ORC and Parquet.
+    requirePartitionFilter: [Optional] If set to true, queries over this table
+      require a partition filter that can be used for partition elimination to
+      be specified. Note that this field should only be true when creating a
+      permanent external table or querying a temporary external table. Hive-
+      partitioned loads with requirePartitionFilter explicitly set to true
+      will fail.
+    sourceUriPrefix: [Optional] When hive partition detection is requested, a
+      common prefix for all source uris should be supplied. The prefix must
+      end immediately before the partition key encoding begins. For example,
+      consider files following this data layout.
       gs://bucket/path_to_table/dt=2019-01-01/country=BR/id=7/file.avro
       gs://bucket/path_to_table/dt=2018-12-31/country=CA/id=3/file.avro When
       hive partitioning is requested with either AUTO or STRINGS detection,
@@ -1837,7 +2264,8 @@ class HivePartitioningOptions(_messages.Message):
   """
 
   mode = _messages.StringField(1)
-  sourceUriPrefix = _messages.StringField(2)
+  requirePartitionFilter = _messages.BooleanField(2)
+  sourceUriPrefix = _messages.StringField(3)
 
 
 class IterationResult(_messages.Message):
@@ -1885,7 +2313,7 @@ class Job(_messages.Message):
   etag = _messages.StringField(2)
   id = _messages.StringField(3)
   jobReference = _messages.MessageField('JobReference', 4)
-  kind = _messages.StringField(5, default=u'bigquery#job')
+  kind = _messages.StringField(5, default='bigquery#job')
   selfLink = _messages.StringField(6)
   statistics = _messages.MessageField('JobStatistics', 7)
   status = _messages.MessageField('JobStatus', 8)
@@ -1901,7 +2329,7 @@ class JobCancelResponse(_messages.Message):
   """
 
   job = _messages.MessageField('Job', 1)
-  kind = _messages.StringField(2, default=u'bigquery#jobCancelResponse')
+  kind = _messages.StringField(2, default='bigquery#jobCancelResponse')
 
 
 class JobConfiguration(_messages.Message):
@@ -1981,25 +2409,29 @@ class JobConfigurationExtract(_messages.Message):
   Fields:
     compression: [Optional] The compression type to use for exported files.
       Possible values include GZIP, DEFLATE, SNAPPY, and NONE. The default
-      value is NONE. DEFLATE and SNAPPY are only supported for Avro.
+      value is NONE. DEFLATE and SNAPPY are only supported for Avro. Not
+      applicable when extracting models.
     destinationFormat: [Optional] The exported file format. Possible values
-      include CSV, NEWLINE_DELIMITED_JSON and AVRO. The default value is CSV.
-      Tables with nested or repeated fields cannot be exported as CSV.
+      include CSV, NEWLINE_DELIMITED_JSON, PARQUET or AVRO for tables and
+      ML_TF_SAVED_MODEL or ML_XGBOOST_BOOSTER for models. The default value
+      for tables is CSV. Tables with nested or repeated fields cannot be
+      exported as CSV. The default value for models is ML_TF_SAVED_MODEL.
     destinationUri: [Pick one] DEPRECATED: Use destinationUris instead,
       passing only one URI as necessary. The fully-qualified Google Cloud
       Storage URI where the extracted table should be written.
     destinationUris: [Pick one] A list of fully-qualified Google Cloud Storage
       URIs where the extracted table should be written.
     fieldDelimiter: [Optional] Delimiter to use between fields in the exported
-      data. Default is ','
+      data. Default is ','. Not applicable when extracting models.
     printHeader: [Optional] Whether to print out a header row in the results.
-      Default is true.
+      Default is true. Not applicable when extracting models.
     sourceModel: A reference to the model being exported.
     sourceTable: A reference to the table being exported.
     useAvroLogicalTypes: [Optional] If destinationFormat is set to "AVRO",
       this flag indicates whether to enable extracting applicable column types
       (such as TIMESTAMP) to their corresponding AVRO logical types
       (timestamp-micros), instead of only using their raw types (avro-long).
+      Not applicable when extracting models.
   """
 
   compression = _messages.StringField(1)
@@ -2038,6 +2470,25 @@ class JobConfigurationLoad(_messages.Message):
       returned in the job result. The default value is CREATE_IF_NEEDED.
       Creation, truncation and append actions occur as one atomic update upon
       job completion.
+    decimalTargetTypes: [Trusted Tester] Defines the list of possible SQL data
+      types to which the source decimal values are converted. This list and
+      the precision and the scale parameters of the decimal field determine
+      the target type. In the order of NUMERIC, BIGNUMERIC, and STRING, a type
+      is picked if it is in the specified list and if it supports the
+      precision and the scale. STRING supports all precision and scale values.
+      If none of the listed types supports the precision and the scale, the
+      type supporting the widest range in the specified list is picked, and if
+      a value exceeds the supported range when reading the data, an error will
+      be thrown. For example: suppose decimal_target_type = ["NUMERIC",
+      "BIGNUMERIC"]. Then if (precision,scale) is: * (38,9) -> NUMERIC; *
+      (39,9) -> BIGNUMERIC (NUMERIC cannot hold 30 integer digits); * (38,10)
+      -> BIGNUMERIC (NUMERIC cannot hold 10 fractional digits); * (76,38) ->
+      BIGNUMERIC; * (77,38) -> BIGNUMERIC (error if value exeeds supported
+      range). For duplicated types in this field, only one will be considered
+      and the rest will be ignored. The order of the types in this field is
+      ignored. For example, ["BIGNUMERIC", "NUMERIC"] is the same as
+      ["NUMERIC", "BIGNUMERIC"] and NUMERIC always takes precedence over
+      BIGNUMERIC.
     destinationEncryptionConfiguration: Custom encryption configuration (e.g.,
       Cloud KMS keys).
     destinationTable: [Required] The destination table to load the data into.
@@ -2054,8 +2505,6 @@ class JobConfigurationLoad(_messages.Message):
       first byte of the encoded string to split the data in its raw, binary
       state. BigQuery also supports the escape sequence "\t" to specify a tab
       separator. The default value is a comma (',').
-    hivePartitioningMode: [Optional, Trusted Tester] Deprecated, do not use.
-      Please set hivePartitioningOptions instead.
     hivePartitioningOptions: [Optional, Trusted Tester] Options to configure
       hive partitioning support.
     ignoreUnknownValues: [Optional] Indicates if BigQuery should allow extra
@@ -2071,7 +2520,7 @@ class JobConfigurationLoad(_messages.Message):
       valid for CSV and JSON. The default value is 0, which requires that all
       records are valid.
     nullMarker: [Optional] Specifies a string that represents a null value in
-      a CSV file. For example, if you specify "\N", BigQuery interprets "\N"
+      a CSV file. For example, if you specify "\\N", BigQuery interprets "\\N"
       as a null value when loading a CSV file. The default value is the empty
       string. If you set this property to a custom value, BigQuery throws an
       error if an empty string is present for all data types except for STRING
@@ -2150,18 +2599,18 @@ class JobConfigurationLoad(_messages.Message):
   autodetect = _messages.BooleanField(3)
   clustering = _messages.MessageField('Clustering', 4)
   createDisposition = _messages.StringField(5)
-  destinationEncryptionConfiguration = _messages.MessageField('EncryptionConfiguration', 6)
-  destinationTable = _messages.MessageField('TableReference', 7)
-  destinationTableProperties = _messages.MessageField('DestinationTableProperties', 8)
-  encoding = _messages.StringField(9)
-  fieldDelimiter = _messages.StringField(10)
-  hivePartitioningMode = _messages.StringField(11)
+  decimalTargetTypes = _messages.StringField(6, repeated=True)
+  destinationEncryptionConfiguration = _messages.MessageField('EncryptionConfiguration', 7)
+  destinationTable = _messages.MessageField('TableReference', 8)
+  destinationTableProperties = _messages.MessageField('DestinationTableProperties', 9)
+  encoding = _messages.StringField(10)
+  fieldDelimiter = _messages.StringField(11)
   hivePartitioningOptions = _messages.MessageField('HivePartitioningOptions', 12)
   ignoreUnknownValues = _messages.BooleanField(13)
   maxBadRecords = _messages.IntegerField(14, variant=_messages.Variant.INT32)
   nullMarker = _messages.StringField(15)
   projectionFields = _messages.StringField(16, repeated=True)
-  quote = _messages.StringField(17, default=u'"')
+  quote = _messages.StringField(17, default='"')
   rangePartitioning = _messages.MessageField('RangePartitioning', 18)
   schema = _messages.MessageField('TableSchema', 19)
   schemaInline = _messages.StringField(20)
@@ -2194,6 +2643,7 @@ class JobConfigurationQuery(_messages.Message):
     clustering: [Beta] Clustering specification for the destination table.
       Must be specified with time-based partitioning, data in the table will
       be first partitioned and subsequently clustered.
+    connectionProperties: Connection properties.
     createDisposition: [Optional] Specifies whether the job is allowed to
       create new tables. The following values are supported: CREATE_IF_NEEDED:
       If the table does not exist, BigQuery creates the table. CREATE_NEVER:
@@ -2306,26 +2756,27 @@ class JobConfigurationQuery(_messages.Message):
 
   allowLargeResults = _messages.BooleanField(1, default=False)
   clustering = _messages.MessageField('Clustering', 2)
-  createDisposition = _messages.StringField(3)
-  defaultDataset = _messages.MessageField('DatasetReference', 4)
-  destinationEncryptionConfiguration = _messages.MessageField('EncryptionConfiguration', 5)
-  destinationTable = _messages.MessageField('TableReference', 6)
-  flattenResults = _messages.BooleanField(7, default=True)
-  maximumBillingTier = _messages.IntegerField(8, variant=_messages.Variant.INT32, default=1)
-  maximumBytesBilled = _messages.IntegerField(9)
-  parameterMode = _messages.StringField(10)
-  preserveNulls = _messages.BooleanField(11)
-  priority = _messages.StringField(12)
-  query = _messages.StringField(13)
-  queryParameters = _messages.MessageField('QueryParameter', 14, repeated=True)
-  rangePartitioning = _messages.MessageField('RangePartitioning', 15)
-  schemaUpdateOptions = _messages.StringField(16, repeated=True)
-  tableDefinitions = _messages.MessageField('TableDefinitionsValue', 17)
-  timePartitioning = _messages.MessageField('TimePartitioning', 18)
-  useLegacySql = _messages.BooleanField(19, default=True)
-  useQueryCache = _messages.BooleanField(20, default=True)
-  userDefinedFunctionResources = _messages.MessageField('UserDefinedFunctionResource', 21, repeated=True)
-  writeDisposition = _messages.StringField(22)
+  connectionProperties = _messages.MessageField('ConnectionProperty', 3, repeated=True)
+  createDisposition = _messages.StringField(4)
+  defaultDataset = _messages.MessageField('DatasetReference', 5)
+  destinationEncryptionConfiguration = _messages.MessageField('EncryptionConfiguration', 6)
+  destinationTable = _messages.MessageField('TableReference', 7)
+  flattenResults = _messages.BooleanField(8, default=True)
+  maximumBillingTier = _messages.IntegerField(9, variant=_messages.Variant.INT32, default=1)
+  maximumBytesBilled = _messages.IntegerField(10)
+  parameterMode = _messages.StringField(11)
+  preserveNulls = _messages.BooleanField(12)
+  priority = _messages.StringField(13)
+  query = _messages.StringField(14)
+  queryParameters = _messages.MessageField('QueryParameter', 15, repeated=True)
+  rangePartitioning = _messages.MessageField('RangePartitioning', 16)
+  schemaUpdateOptions = _messages.StringField(17, repeated=True)
+  tableDefinitions = _messages.MessageField('TableDefinitionsValue', 18)
+  timePartitioning = _messages.MessageField('TimePartitioning', 19)
+  useLegacySql = _messages.BooleanField(20, default=True)
+  useQueryCache = _messages.BooleanField(21, default=True)
+  userDefinedFunctionResources = _messages.MessageField('UserDefinedFunctionResource', 22, repeated=True)
+  writeDisposition = _messages.StringField(23)
 
 
 class JobConfigurationTableCopy(_messages.Message):
@@ -2341,7 +2792,10 @@ class JobConfigurationTableCopy(_messages.Message):
       job completion.
     destinationEncryptionConfiguration: Custom encryption configuration (e.g.,
       Cloud KMS keys).
+    destinationExpirationTime: [Optional] The time when the destination table
+      expires. Expired tables will be deleted and their storage reclaimed.
     destinationTable: [Required] The destination table
+    operationType: [Optional] Supported operation types in table copy job.
     sourceTable: [Pick one] Source table to copy.
     sourceTables: [Pick one] Source tables to copy.
     writeDisposition: [Optional] Specifies the action that occurs if the
@@ -2357,10 +2811,12 @@ class JobConfigurationTableCopy(_messages.Message):
 
   createDisposition = _messages.StringField(1)
   destinationEncryptionConfiguration = _messages.MessageField('EncryptionConfiguration', 2)
-  destinationTable = _messages.MessageField('TableReference', 3)
-  sourceTable = _messages.MessageField('TableReference', 4)
-  sourceTables = _messages.MessageField('TableReference', 5, repeated=True)
-  writeDisposition = _messages.StringField(6)
+  destinationExpirationTime = _messages.MessageField('extra_types.JsonValue', 3)
+  destinationTable = _messages.MessageField('TableReference', 4)
+  operationType = _messages.StringField(5)
+  sourceTable = _messages.MessageField('TableReference', 6)
+  sourceTables = _messages.MessageField('TableReference', 7, repeated=True)
+  writeDisposition = _messages.StringField(8)
 
 
 class JobList(_messages.Message):
@@ -2399,7 +2855,7 @@ class JobList(_messages.Message):
     errorResult = _messages.MessageField('ErrorProto', 2)
     id = _messages.StringField(3)
     jobReference = _messages.MessageField('JobReference', 4)
-    kind = _messages.StringField(5, default=u'bigquery#job')
+    kind = _messages.StringField(5, default='bigquery#job')
     state = _messages.StringField(6)
     statistics = _messages.MessageField('JobStatistics', 7)
     status = _messages.MessageField('JobStatus', 8)
@@ -2407,7 +2863,7 @@ class JobList(_messages.Message):
 
   etag = _messages.StringField(1)
   jobs = _messages.MessageField('JobsValueListEntry', 2, repeated=True)
-  kind = _messages.StringField(3, default=u'bigquery#jobList')
+  kind = _messages.StringField(3, default='bigquery#jobList')
   nextPageToken = _messages.StringField(4)
 
 
@@ -2454,6 +2910,8 @@ class JobStatistics(_messages.Message):
       this job. Note that this could be different than reservations reported
       in the reservation usage field if parent reservations were used to
       execute this job.
+    rowLevelSecurityStatistics: [Output-only] [Preview] Statistics for row-
+      level security. Present only for query and extract jobs.
     scriptStatistics: [Output-only] Statistics for a child job of a script.
     startTime: [Output-only] Start time of this job, in milliseconds since the
       epoch. This field will be present when the job transitions from the
@@ -2461,6 +2919,8 @@ class JobStatistics(_messages.Message):
     totalBytesProcessed: [Output-only] [Deprecated] Use the bytes processed in
       the query statistics instead.
     totalSlotMs: [Output-only] Slot-milliseconds for the job.
+    transactionInfoTemplate: [Output-only] [Alpha] Information of the multi-
+      statement transaction if this job is part of one.
   """
 
   class ReservationUsageValueListEntry(_messages.Message):
@@ -2487,10 +2947,12 @@ class JobStatistics(_messages.Message):
   quotaDeferments = _messages.StringField(9, repeated=True)
   reservationUsage = _messages.MessageField('ReservationUsageValueListEntry', 10, repeated=True)
   reservation_id = _messages.StringField(11)
-  scriptStatistics = _messages.MessageField('ScriptStatistics', 12)
-  startTime = _messages.IntegerField(13)
-  totalBytesProcessed = _messages.IntegerField(14)
-  totalSlotMs = _messages.IntegerField(15)
+  rowLevelSecurityStatistics = _messages.MessageField('RowLevelSecurityStatistics', 12)
+  scriptStatistics = _messages.MessageField('ScriptStatistics', 13)
+  startTime = _messages.IntegerField(14)
+  totalBytesProcessed = _messages.IntegerField(15)
+  totalSlotMs = _messages.IntegerField(16)
+  transactionInfoTemplate = _messages.MessageField('TransactionInfo', 17)
 
 
 class JobStatistics2(_messages.Message):
@@ -2503,6 +2965,9 @@ class JobStatistics2(_messages.Message):
     billingTier: [Output-only] Billing tier for the job.
     cacheHit: [Output-only] Whether the query result was fetched from the
       query cache.
+    ddlAffectedRowAccessPolicyCount: [Output-only] [Preview] The number of row
+      access policies affected by a DDL statement. Present only for DROP ALL
+      ROW ACCESS POLICIES queries.
     ddlOperationPerformed: The DDL operation performed, possibly dependent on
       the pre-existence of the DDL target. Possible values (new values might
       be added in the future): "CREATE": The query created the DDL target.
@@ -2513,8 +2978,10 @@ class JobStatistics2(_messages.Message):
       table already exists. "DROP": The query deleted the DDL target.
     ddlTargetRoutine: The DDL target routine. Present only for CREATE/DROP
       FUNCTION/PROCEDURE queries.
-    ddlTargetTable: The DDL target table. Present only for CREATE/DROP
-      TABLE/VIEW queries.
+    ddlTargetRowAccessPolicy: [Output-only] [Preview] The DDL target row
+      access policy. Present only for CREATE/DROP ROW ACCESS POLICY queries.
+    ddlTargetTable: [Output-only] The DDL target table. Present only for
+      CREATE/DROP TABLE/VIEW and DROP ALL ROW ACCESS POLICIES queries.
     estimatedBytesProcessed: [Output-only] The original estimate of bytes
       processed for the job.
     modelTraining: [Output-only, Beta] Information about create model query
@@ -2535,8 +3002,9 @@ class JobStatistics2(_messages.Message):
       successful dry run of non-legacy SQL queries.
     statementType: The type of query statement, if valid. Possible values (new
       values might be added in the future): "SELECT": SELECT query. "INSERT":
-      INSERT query; see https://cloud.google.com/bigquery/docs/reference
-      /standard-sql/data-manipulation-language. "UPDATE": UPDATE query; see
+      INSERT query; see
+      https://cloud.google.com/bigquery/docs/reference/standard-sql/data-
+      manipulation-language. "UPDATE": UPDATE query; see
       https://cloud.google.com/bigquery/docs/reference/standard-sql/data-
       manipulation-language. "DELETE": DELETE query; see
       https://cloud.google.com/bigquery/docs/reference/standard-sql/data-
@@ -2582,27 +3050,29 @@ class JobStatistics2(_messages.Message):
 
   billingTier = _messages.IntegerField(1, variant=_messages.Variant.INT32)
   cacheHit = _messages.BooleanField(2)
-  ddlOperationPerformed = _messages.StringField(3)
-  ddlTargetRoutine = _messages.MessageField('RoutineReference', 4)
-  ddlTargetTable = _messages.MessageField('TableReference', 5)
-  estimatedBytesProcessed = _messages.IntegerField(6)
-  modelTraining = _messages.MessageField('BigQueryModelTraining', 7)
-  modelTrainingCurrentIteration = _messages.IntegerField(8, variant=_messages.Variant.INT32)
-  modelTrainingExpectedTotalIteration = _messages.IntegerField(9)
-  numDmlAffectedRows = _messages.IntegerField(10)
-  queryPlan = _messages.MessageField('ExplainQueryStage', 11, repeated=True)
-  referencedRoutines = _messages.MessageField('RoutineReference', 12, repeated=True)
-  referencedTables = _messages.MessageField('TableReference', 13, repeated=True)
-  reservationUsage = _messages.MessageField('ReservationUsageValueListEntry', 14, repeated=True)
-  schema = _messages.MessageField('TableSchema', 15)
-  statementType = _messages.StringField(16)
-  timeline = _messages.MessageField('QueryTimelineSample', 17, repeated=True)
-  totalBytesBilled = _messages.IntegerField(18)
-  totalBytesProcessed = _messages.IntegerField(19)
-  totalBytesProcessedAccuracy = _messages.StringField(20)
-  totalPartitionsProcessed = _messages.IntegerField(21)
-  totalSlotMs = _messages.IntegerField(22)
-  undeclaredQueryParameters = _messages.MessageField('QueryParameter', 23, repeated=True)
+  ddlAffectedRowAccessPolicyCount = _messages.IntegerField(3)
+  ddlOperationPerformed = _messages.StringField(4)
+  ddlTargetRoutine = _messages.MessageField('RoutineReference', 5)
+  ddlTargetRowAccessPolicy = _messages.MessageField('RowAccessPolicyReference', 6)
+  ddlTargetTable = _messages.MessageField('TableReference', 7)
+  estimatedBytesProcessed = _messages.IntegerField(8)
+  modelTraining = _messages.MessageField('BigQueryModelTraining', 9)
+  modelTrainingCurrentIteration = _messages.IntegerField(10, variant=_messages.Variant.INT32)
+  modelTrainingExpectedTotalIteration = _messages.IntegerField(11)
+  numDmlAffectedRows = _messages.IntegerField(12)
+  queryPlan = _messages.MessageField('ExplainQueryStage', 13, repeated=True)
+  referencedRoutines = _messages.MessageField('RoutineReference', 14, repeated=True)
+  referencedTables = _messages.MessageField('TableReference', 15, repeated=True)
+  reservationUsage = _messages.MessageField('ReservationUsageValueListEntry', 16, repeated=True)
+  schema = _messages.MessageField('TableSchema', 17)
+  statementType = _messages.StringField(18)
+  timeline = _messages.MessageField('QueryTimelineSample', 19, repeated=True)
+  totalBytesBilled = _messages.IntegerField(20)
+  totalBytesProcessed = _messages.IntegerField(21)
+  totalBytesProcessedAccuracy = _messages.StringField(22)
+  totalPartitionsProcessed = _messages.IntegerField(23)
+  totalSlotMs = _messages.IntegerField(24)
+  undeclaredQueryParameters = _messages.MessageField('QueryParameter', 25, repeated=True)
 
 
 class JobStatistics3(_messages.Message):
@@ -2720,6 +3190,18 @@ class ListRoutinesResponse(_messages.Message):
   routines = _messages.MessageField('Routine', 2, repeated=True)
 
 
+class ListRowAccessPoliciesResponse(_messages.Message):
+  r"""Response message for the ListRowAccessPolicies method.
+
+  Fields:
+    nextPageToken: A token to request the next page of results.
+    rowAccessPolicies: Row access policies on the requested table.
+  """
+
+  nextPageToken = _messages.StringField(1)
+  rowAccessPolicies = _messages.MessageField('RowAccessPolicy', 2, repeated=True)
+
+
 class LocationMetadata(_messages.Message):
   r"""BigQuery-specific metadata about a location. This will be set on
   google.cloud.location.Location.metadata in Cloud Location API responses.
@@ -2780,7 +3262,7 @@ class Model(_messages.Message):
     expirationTime: Optional. The time when this model expires, in
       milliseconds since the epoch. If not present, the model will persist
       indefinitely. Expired models will be deleted and their storage
-      reclaimed.  The defaultTableExpirationMs property of the encapsulating
+      reclaimed. The defaultTableExpirationMs property of the encapsulating
       dataset can be used to set a default expirationTime on newly created
       models.
     featureColumns: Output only. Input feature columns that were used to train
@@ -2813,13 +3295,29 @@ class Model(_messages.Message):
       LINEAR_REGRESSION: Linear regression model.
       LOGISTIC_REGRESSION: Logistic regression based classification model.
       KMEANS: K-means clustering model.
+      MATRIX_FACTORIZATION: Matrix factorization model.
+      DNN_CLASSIFIER: [Beta] DNN classifier model.
       TENSORFLOW: [Beta] An imported TensorFlow model.
+      DNN_REGRESSOR: [Beta] DNN regressor model.
+      BOOSTED_TREE_REGRESSOR: [Beta] Boosted tree regressor model.
+      BOOSTED_TREE_CLASSIFIER: [Beta] Boosted tree classifier model.
+      ARIMA: [Beta] ARIMA model.
+      AUTOML_REGRESSOR: [Beta] AutoML Tables regression model.
+      AUTOML_CLASSIFIER: [Beta] AutoML Tables classification model.
     """
     MODEL_TYPE_UNSPECIFIED = 0
     LINEAR_REGRESSION = 1
     LOGISTIC_REGRESSION = 2
     KMEANS = 3
-    TENSORFLOW = 4
+    MATRIX_FACTORIZATION = 4
+    DNN_CLASSIFIER = 5
+    TENSORFLOW = 6
+    DNN_REGRESSOR = 7
+    BOOSTED_TREE_REGRESSOR = 8
+    BOOSTED_TREE_CLASSIFIER = 9
+    ARIMA = 10
+    AUTOML_REGRESSOR = 11
+    AUTOML_CLASSIFIER = 12
 
   @encoding.MapUnrecognizedFields('additionalProperties')
   class LabelsValue(_messages.Message):
@@ -2933,6 +3431,78 @@ class MultiClassClassificationMetrics(_messages.Message):
   confusionMatrixList = _messages.MessageField('ConfusionMatrix', 2, repeated=True)
 
 
+class Policy(_messages.Message):
+  r"""An Identity and Access Management (IAM) policy, which specifies access
+  controls for Google Cloud resources. A `Policy` is a collection of
+  `bindings`. A `binding` binds one or more `members` to a single `role`.
+  Members can be user accounts, service accounts, Google groups, and domains
+  (such as G Suite). A `role` is a named list of permissions; each `role` can
+  be an IAM predefined role or a user-created custom role. For some types of
+  Google Cloud resources, a `binding` can also specify a `condition`, which is
+  a logical expression that allows access to a resource only if the expression
+  evaluates to `true`. A condition can add constraints based on attributes of
+  the request, the resource, or both. To learn which resources support
+  conditions in their IAM policies, see the [IAM
+  documentation](https://cloud.google.com/iam/help/conditions/resource-
+  policies). **JSON example:** { "bindings": [ { "role":
+  "roles/resourcemanager.organizationAdmin", "members": [
+  "user:mike@example.com", "group:admins@example.com", "domain:google.com",
+  "serviceAccount:my-project-id@appspot.gserviceaccount.com" ] }, { "role":
+  "roles/resourcemanager.organizationViewer", "members": [
+  "user:eve@example.com" ], "condition": { "title": "expirable access",
+  "description": "Does not grant access after Sep 2020", "expression":
+  "request.time < timestamp('2020-10-01T00:00:00.000Z')", } } ], "etag":
+  "BwWWja0YfJA=", "version": 3 } **YAML example:** bindings: - members: -
+  user:mike@example.com - group:admins@example.com - domain:google.com -
+  serviceAccount:my-project-id@appspot.gserviceaccount.com role:
+  roles/resourcemanager.organizationAdmin - members: - user:eve@example.com
+  role: roles/resourcemanager.organizationViewer condition: title: expirable
+  access description: Does not grant access after Sep 2020 expression:
+  request.time < timestamp('2020-10-01T00:00:00.000Z') - etag: BwWWja0YfJA= -
+  version: 3 For a description of IAM and its features, see the [IAM
+  documentation](https://cloud.google.com/iam/docs/).
+
+  Fields:
+    auditConfigs: Specifies cloud audit logging configuration for this policy.
+    bindings: Associates a list of `members` to a `role`. Optionally, may
+      specify a `condition` that determines how and when the `bindings` are
+      applied. Each of the `bindings` must contain at least one member.
+    etag: `etag` is used for optimistic concurrency control as a way to help
+      prevent simultaneous updates of a policy from overwriting each other. It
+      is strongly suggested that systems make use of the `etag` in the read-
+      modify-write cycle to perform policy updates in order to avoid race
+      conditions: An `etag` is returned in the response to `getIamPolicy`, and
+      systems are expected to put that etag in the request to `setIamPolicy`
+      to ensure that their change will be applied to the same version of the
+      policy. **Important:** If you use IAM Conditions, you must include the
+      `etag` field whenever you call `setIamPolicy`. If you omit this field,
+      then IAM allows you to overwrite a version `3` policy with a version `1`
+      policy, and all of the conditions in the version `3` policy are lost.
+    version: Specifies the format of the policy. Valid values are `0`, `1`,
+      and `3`. Requests that specify an invalid value are rejected. Any
+      operation that affects conditional role bindings must specify version
+      `3`. This requirement applies to the following operations: * Getting a
+      policy that includes a conditional role binding * Adding a conditional
+      role binding to a policy * Changing a conditional role binding in a
+      policy * Removing any role binding, with or without a condition, from a
+      policy that includes conditions **Important:** If you use IAM
+      Conditions, you must include the `etag` field whenever you call
+      `setIamPolicy`. If you omit this field, then IAM allows you to overwrite
+      a version `3` policy with a version `1` policy, and all of the
+      conditions in the version `3` policy are lost. If a policy does not
+      include any conditions, operations on that policy may specify any valid
+      version or leave the field unset. To learn which resources support
+      conditions in their IAM policies, see the [IAM
+      documentation](https://cloud.google.com/iam/help/conditions/resource-
+      policies).
+  """
+
+  auditConfigs = _messages.MessageField('AuditConfig', 1, repeated=True)
+  bindings = _messages.MessageField('Binding', 2, repeated=True)
+  etag = _messages.BytesField(3)
+  version = _messages.IntegerField(4, variant=_messages.Variant.INT32)
+
+
 class ProjectList(_messages.Message):
   r"""A ProjectList object.
 
@@ -2960,12 +3530,12 @@ class ProjectList(_messages.Message):
 
     friendlyName = _messages.StringField(1)
     id = _messages.StringField(2)
-    kind = _messages.StringField(3, default=u'bigquery#project')
+    kind = _messages.StringField(3, default='bigquery#project')
     numericId = _messages.IntegerField(4, variant=_messages.Variant.UINT64)
     projectReference = _messages.MessageField('ProjectReference', 5)
 
   etag = _messages.StringField(1)
-  kind = _messages.StringField(2, default=u'bigquery#projectList')
+  kind = _messages.StringField(2, default='bigquery#projectList')
   nextPageToken = _messages.StringField(3)
   projects = _messages.MessageField('ProjectsValueListEntry', 4, repeated=True)
   totalItems = _messages.IntegerField(5, variant=_messages.Variant.INT32)
@@ -3077,7 +3647,16 @@ class QueryParameterValue(_messages.Message):
 class QueryRequest(_messages.Message):
   r"""A QueryRequest object.
 
+  Messages:
+    LabelsValue: The labels associated with this job. You can use these to
+      organize and group your jobs. Label keys and values can be no longer
+      than 63 characters, can only contain lowercase letters, numeric
+      characters, underscores and dashes. International characters are
+      allowed. Label values are optional. Label keys must start with a letter
+      and each label in the list must have a different key.
+
   Fields:
+    connectionProperties: Connection properties.
     defaultDataset: [Optional] Specifies the default datasetId and projectId
       to assume for any unqualified table names in the query. If not set, all
       table names in the query string must be qualified in the format
@@ -3087,6 +3666,12 @@ class QueryRequest(_messages.Message):
       how many bytes would be processed. If the query is invalid, an error
       returns. The default value is false.
     kind: The resource type of the request.
+    labels: The labels associated with this job. You can use these to organize
+      and group your jobs. Label keys and values can be no longer than 63
+      characters, can only contain lowercase letters, numeric characters,
+      underscores and dashes. International characters are allowed. Label
+      values are optional. Label keys must start with a letter and each label
+      in the list must have a different key.
     location: The geographic location where the job should run. See details at
       https://cloud.google.com/bigquery/docs/locations#specifying_your_locatio
       n.
@@ -3096,6 +3681,10 @@ class QueryRequest(_messages.Message):
       result set is large. In addition to this limit, responses are also
       limited to 10 MB. By default, there is no maximum row count, and only
       the byte limit applies.
+    maximumBytesBilled: [Optional] Limits the bytes billed for this job.
+      Queries that will have bytes billed beyond this limit will fail (without
+      incurring a charge). If unspecified, this will be set to your project
+      default.
     parameterMode: Standard SQL only. Set to POSITIONAL to use positional (?)
       query parameters or to NAMED to use named (@myparam) query parameters in
       this query.
@@ -3104,6 +3693,26 @@ class QueryRequest(_messages.Message):
       the query to execute. Example: "SELECT count(f1) FROM
       [myProjectId:myDatasetId.myTableId]".
     queryParameters: Query parameters for Standard SQL queries.
+    requestId: A unique user provided identifier to ensure idempotent behavior
+      for queries. Note that this is different from the job_id. It has the
+      following properties: 1. It is case-sensitive, limited to up to 36 ASCII
+      characters. A UUID is recommended. 2. Read only queries can ignore this
+      token since they are nullipotent by definition. 3. For the purposes of
+      idempotency ensured by the request_id, a request is considered duplicate
+      of another only if they have the same request_id and are actually
+      duplicates. When determining whether a request is a duplicate of the
+      previous request, all parameters in the request that may affect the
+      behavior are considered. For example, query, connection_properties,
+      query_parameters, use_legacy_sql are parameters that affect the result
+      and are considered when determining whether a request is a duplicate,
+      but properties like timeout_ms don't affect the result and are thus not
+      considered. Dry run query requests are never considered duplicate of
+      another request. 4. When a duplicate mutating query request is detected,
+      it returns: a. the results of the mutation if it completes successfully
+      within the timeout. b. the running operation if it is still in progress
+      at the end of the timeout. 5. Its lifetime is limited to 15 minutes. In
+      other words, if two requests are sent with the same request_id, but more
+      than 15 minutes apart, idempotency is not guaranteed.
     timeoutMs: [Optional] How long to wait for the query to complete, in
       milliseconds, before the request times out and returns. Note that this
       is only a timeout for the request, not the query. If the query takes
@@ -3122,18 +3731,51 @@ class QueryRequest(_messages.Message):
       whenever tables in the query are modified. The default value is true.
   """
 
-  defaultDataset = _messages.MessageField('DatasetReference', 1)
-  dryRun = _messages.BooleanField(2)
-  kind = _messages.StringField(3, default=u'bigquery#queryRequest')
-  location = _messages.StringField(4)
-  maxResults = _messages.IntegerField(5, variant=_messages.Variant.UINT32)
-  parameterMode = _messages.StringField(6)
-  preserveNulls = _messages.BooleanField(7)
-  query = _messages.StringField(8)
-  queryParameters = _messages.MessageField('QueryParameter', 9, repeated=True)
-  timeoutMs = _messages.IntegerField(10, variant=_messages.Variant.UINT32)
-  useLegacySql = _messages.BooleanField(11, default=True)
-  useQueryCache = _messages.BooleanField(12, default=True)
+  @encoding.MapUnrecognizedFields('additionalProperties')
+  class LabelsValue(_messages.Message):
+    r"""The labels associated with this job. You can use these to organize and
+    group your jobs. Label keys and values can be no longer than 63
+    characters, can only contain lowercase letters, numeric characters,
+    underscores and dashes. International characters are allowed. Label values
+    are optional. Label keys must start with a letter and each label in the
+    list must have a different key.
+
+    Messages:
+      AdditionalProperty: An additional property for a LabelsValue object.
+
+    Fields:
+      additionalProperties: Additional properties of type LabelsValue
+    """
+
+    class AdditionalProperty(_messages.Message):
+      r"""An additional property for a LabelsValue object.
+
+      Fields:
+        key: Name of the additional property.
+        value: A string attribute.
+      """
+
+      key = _messages.StringField(1)
+      value = _messages.StringField(2)
+
+    additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
+
+  connectionProperties = _messages.MessageField('ConnectionProperty', 1, repeated=True)
+  defaultDataset = _messages.MessageField('DatasetReference', 2)
+  dryRun = _messages.BooleanField(3)
+  kind = _messages.StringField(4, default='bigquery#queryRequest')
+  labels = _messages.MessageField('LabelsValue', 5)
+  location = _messages.StringField(6)
+  maxResults = _messages.IntegerField(7, variant=_messages.Variant.UINT32)
+  maximumBytesBilled = _messages.IntegerField(8)
+  parameterMode = _messages.StringField(9)
+  preserveNulls = _messages.BooleanField(10)
+  query = _messages.StringField(11)
+  queryParameters = _messages.MessageField('QueryParameter', 12, repeated=True)
+  requestId = _messages.StringField(13)
+  timeoutMs = _messages.IntegerField(14, variant=_messages.Variant.UINT32)
+  useLegacySql = _messages.BooleanField(15, default=True)
+  useQueryCache = _messages.BooleanField(16, default=True)
 
 
 class QueryResponse(_messages.Message):
@@ -3175,7 +3817,7 @@ class QueryResponse(_messages.Message):
   errors = _messages.MessageField('ErrorProto', 2, repeated=True)
   jobComplete = _messages.BooleanField(3)
   jobReference = _messages.MessageField('JobReference', 4)
-  kind = _messages.StringField(5, default=u'bigquery#queryResponse')
+  kind = _messages.StringField(5, default='bigquery#queryResponse')
   numDmlAffectedRows = _messages.IntegerField(6)
   pageToken = _messages.StringField(7)
   rows = _messages.MessageField('TableRow', 8, repeated=True)
@@ -3239,6 +3881,31 @@ class RangePartitioning(_messages.Message):
   range = _messages.MessageField('RangeValue', 2)
 
 
+class RankingMetrics(_messages.Message):
+  r"""Evaluation metrics used by weighted-ALS models specified by
+  feedback_type=implicit.
+
+  Fields:
+    averageRank: Determines the goodness of a ranking by computing the
+      percentile rank from the predicted confidence and dividing it by the
+      original rank.
+    meanAveragePrecision: Calculates a precision per user for all the items by
+      ranking them and then averages all the precisions across all the users.
+    meanSquaredError: Similar to the mean squared error computed in regression
+      and explicit recommendation models except instead of computing the
+      rating directly, the output from evaluate is computed against a
+      preference which is 1 or 0 depending on if the rating exists or not.
+    normalizedDiscountedCumulativeGain: A metric to determine the goodness of
+      a ranking calculated from the predicted confidence by comparing it to an
+      ideal rank measured by the original ratings.
+  """
+
+  averageRank = _messages.FloatField(1)
+  meanAveragePrecision = _messages.FloatField(2)
+  meanSquaredError = _messages.FloatField(3)
+  normalizedDiscountedCumulativeGain = _messages.FloatField(4)
+
+
 class RegressionMetrics(_messages.Message):
   r"""Evaluation metrics for regression and explicit feedback type matrix
   factorization models.
@@ -3262,6 +3929,8 @@ class Routine(_messages.Message):
   r"""A user-defined function or a stored procedure.
 
   Enums:
+    DeterminismLevelValueValuesEnum: Optional. [Experimental] The determinism
+      level of the JavaScript UDF if defined.
     LanguageValueValuesEnum: Optional. Defaults to "SQL".
     RoutineTypeValueValuesEnum: Required. The type of routine.
 
@@ -3269,42 +3938,60 @@ class Routine(_messages.Message):
     arguments: Optional.
     creationTime: Output only. The time when this routine was created, in
       milliseconds since the epoch.
-    definitionBody: Required. The body of the routine.  For functions, this is
-      the expression in the AS clause.  If language=SQL, it is the substring
+    definitionBody: Required. The body of the routine. For functions, this is
+      the expression in the AS clause. If language=SQL, it is the substring
       inside (but excluding) the parentheses. For example, for the function
-      created with the following statement:  `CREATE FUNCTION JoinLines(x
-      string, y string) as (concat(x, "\n", y))`  The definition_body is
-      `concat(x, "\n", y)` (\n is not replaced with linebreak).  If
+      created with the following statement: `CREATE FUNCTION JoinLines(x
+      string, y string) as (concat(x, "\n", y))` The definition_body is
+      `concat(x, "\n", y)` (\n is not replaced with linebreak). If
       language=JAVASCRIPT, it is the evaluated string in the AS clause. For
-      example, for the function created with the following statement:  `CREATE
-      FUNCTION f() RETURNS STRING LANGUAGE js AS 'return "\n";\n'`  The
-      definition_body is  `return "\n";\n`  Note that both \n are replaced
-      with linebreaks.
+      example, for the function created with the following statement: `CREATE
+      FUNCTION f() RETURNS STRING LANGUAGE js AS 'return "\n";\n'` The
+      definition_body is `return "\n";\n` Note that both \n are replaced with
+      linebreaks.
     description: Optional. [Experimental] The description of the routine if
       defined.
+    determinismLevel: Optional. [Experimental] The determinism level of the
+      JavaScript UDF if defined.
     etag: Output only. A hash of this resource.
     importedLibraries: Optional. If language = "JAVASCRIPT", this field stores
       the path of the imported JAVASCRIPT libraries.
     language: Optional. Defaults to "SQL".
     lastModifiedTime: Output only. The time when this routine was last
       modified, in milliseconds since the epoch.
-    returnType: Optional if language = "SQL"; required otherwise.  If absent,
+    returnType: Optional if language = "SQL"; required otherwise. If absent,
       the return type is inferred from definition_body at query time in each
       query that references this routine. If present, then the evaluated
-      result will be cast to the specified returned type at query time.  For
-      example, for the functions created with the following statements:  *
+      result will be cast to the specified returned type at query time. For
+      example, for the functions created with the following statements: *
       `CREATE FUNCTION Add(x FLOAT64, y FLOAT64) RETURNS FLOAT64 AS (x + y);`
-      * `CREATE FUNCTION Increment(x FLOAT64) AS (Add(x, 1));`  * `CREATE
-      FUNCTION Decrement(x FLOAT64) RETURNS FLOAT64 AS (Add(x, -1));`  The
+      * `CREATE FUNCTION Increment(x FLOAT64) AS (Add(x, 1));` * `CREATE
+      FUNCTION Decrement(x FLOAT64) RETURNS FLOAT64 AS (Add(x, -1));` The
       return_type is `{type_kind: "FLOAT64"}` for `Add` and `Decrement`, and
-      is absent for `Increment` (inferred as FLOAT64 at query time).  Suppose
-      the function `Add` is replaced by   `CREATE OR REPLACE FUNCTION Add(x
-      INT64, y INT64) AS (x + y);`  Then the inferred return type of
+      is absent for `Increment` (inferred as FLOAT64 at query time). Suppose
+      the function `Add` is replaced by `CREATE OR REPLACE FUNCTION Add(x
+      INT64, y INT64) AS (x + y);` Then the inferred return type of
       `Increment` is automatically changed to INT64 at query time, while the
       return type of `Decrement` remains FLOAT64.
     routineReference: Required. Reference describing the ID of this routine.
     routineType: Required. The type of routine.
   """
+
+  class DeterminismLevelValueValuesEnum(_messages.Enum):
+    r"""Optional. [Experimental] The determinism level of the JavaScript UDF
+    if defined.
+
+    Values:
+      DETERMINISM_LEVEL_UNSPECIFIED: The determinism of the UDF is
+        unspecified.
+      DETERMINISTIC: The UDF is deterministic, meaning that 2 function calls
+        with the same inputs always produce the same result, even across 2
+        query runs.
+      NOT_DETERMINISTIC: The UDF is not deterministic.
+    """
+    DETERMINISM_LEVEL_UNSPECIFIED = 0
+    DETERMINISTIC = 1
+    NOT_DETERMINISTIC = 2
 
   class LanguageValueValuesEnum(_messages.Enum):
     r"""Optional. Defaults to "SQL".
@@ -3334,13 +4021,14 @@ class Routine(_messages.Message):
   creationTime = _messages.IntegerField(2)
   definitionBody = _messages.StringField(3)
   description = _messages.StringField(4)
-  etag = _messages.StringField(5)
-  importedLibraries = _messages.StringField(6, repeated=True)
-  language = _messages.EnumField('LanguageValueValuesEnum', 7)
-  lastModifiedTime = _messages.IntegerField(8)
-  returnType = _messages.MessageField('StandardSqlDataType', 9)
-  routineReference = _messages.MessageField('RoutineReference', 10)
-  routineType = _messages.EnumField('RoutineTypeValueValuesEnum', 11)
+  determinismLevel = _messages.EnumField('DeterminismLevelValueValuesEnum', 5)
+  etag = _messages.StringField(6)
+  importedLibraries = _messages.StringField(7, repeated=True)
+  language = _messages.EnumField('LanguageValueValuesEnum', 8)
+  lastModifiedTime = _messages.IntegerField(9)
+  returnType = _messages.MessageField('StandardSqlDataType', 10)
+  routineReference = _messages.MessageField('RoutineReference', 11)
+  routineType = _messages.EnumField('RoutineTypeValueValuesEnum', 12)
 
 
 class RoutineReference(_messages.Message):
@@ -3369,6 +4057,65 @@ class Row(_messages.Message):
 
   actualLabel = _messages.StringField(1)
   entries = _messages.MessageField('Entry', 2, repeated=True)
+
+
+class RowAccessPolicy(_messages.Message):
+  r"""Represents access on a subset of rows on the specified table, defined by
+  its filter predicate. Access to the subset of rows is controlled by its IAM
+  policy.
+
+  Fields:
+    creationTime: Output only. The time when this row access policy was
+      created, in milliseconds since the epoch.
+    etag: Output only. A hash of this resource.
+    filterPredicate: Required. A SQL boolean expression that represents the
+      rows defined by this row access policy, similar to the boolean
+      expression in a WHERE clause of a SELECT query on a table. References to
+      other tables, routines, and temporary functions are not supported.
+      Examples: region="EU" date_field = CAST('2019-9-27' as DATE)
+      nullable_field is not NULL numeric_field BETWEEN 1.0 AND 5.0
+    lastModifiedTime: Output only. The time when this row access policy was
+      last modified, in milliseconds since the epoch.
+    rowAccessPolicyReference: Required. Reference describing the ID of this
+      row access policy.
+  """
+
+  creationTime = _messages.StringField(1)
+  etag = _messages.StringField(2)
+  filterPredicate = _messages.StringField(3)
+  lastModifiedTime = _messages.StringField(4)
+  rowAccessPolicyReference = _messages.MessageField('RowAccessPolicyReference', 5)
+
+
+class RowAccessPolicyReference(_messages.Message):
+  r"""A RowAccessPolicyReference object.
+
+  Fields:
+    datasetId: [Required] The ID of the dataset containing this row access
+      policy.
+    policyId: [Required] The ID of the row access policy. The ID must contain
+      only letters (a-z, A-Z), numbers (0-9), or underscores (_). The maximum
+      length is 256 characters.
+    projectId: [Required] The ID of the project containing this row access
+      policy.
+    tableId: [Required] The ID of the table containing this row access policy.
+  """
+
+  datasetId = _messages.StringField(1)
+  policyId = _messages.StringField(2)
+  projectId = _messages.StringField(3)
+  tableId = _messages.StringField(4)
+
+
+class RowLevelSecurityStatistics(_messages.Message):
+  r"""A RowLevelSecurityStatistics object.
+
+  Fields:
+    rowLevelSecurityApplied: [Output-only] [Preview] Whether any accessed data
+      was protected by row access policies.
+  """
+
+  rowLevelSecurityApplied = _messages.BooleanField(1)
 
 
 class ScriptStackFrame(_messages.Message):
@@ -3407,6 +4154,36 @@ class ScriptStatistics(_messages.Message):
   stackFrames = _messages.MessageField('ScriptStackFrame', 2, repeated=True)
 
 
+class SetIamPolicyRequest(_messages.Message):
+  r"""Request message for `SetIamPolicy` method.
+
+  Fields:
+    policy: REQUIRED: The complete policy to be applied to the `resource`. The
+      size of the policy is limited to a few 10s of KB. An empty policy is a
+      valid policy but certain Cloud Platform services (such as Projects)
+      might reject them.
+    updateMask: OPTIONAL: A FieldMask specifying which fields of the policy to
+      modify. Only the fields in the mask will be modified. If no mask is
+      provided, the following default mask is used: `paths: "bindings, etag"`
+  """
+
+  policy = _messages.MessageField('Policy', 1)
+  updateMask = _messages.StringField(2)
+
+
+class SnapshotDefinition(_messages.Message):
+  r"""A SnapshotDefinition object.
+
+  Fields:
+    baseTableReference: [Required] Reference describing the ID of the table
+      that is snapshotted.
+    snapshotTime: [Required] The time at which the base table was snapshot.
+  """
+
+  baseTableReference = _messages.MessageField('TableReference', 1)
+  snapshotTime = _message_types.DateTimeField(2)
+
+
 class StandardQueryParameters(_messages.Message):
   r"""Query parameters accepted by all methods.
 
@@ -3436,7 +4213,7 @@ class StandardQueryParameters(_messages.Message):
     """
     json = 0
 
-  alt = _messages.EnumField('AltValueValuesEnum', 1, default=u'json')
+  alt = _messages.EnumField('AltValueValuesEnum', 1, default='json')
   fields = _messages.StringField(2)
   key = _messages.StringField(3)
   oauth_token = _messages.StringField(4)
@@ -3448,11 +4225,10 @@ class StandardQueryParameters(_messages.Message):
 
 class StandardSqlDataType(_messages.Message):
   r"""The type of a variable, e.g., a function argument. Examples: INT64:
-  {type_kind="INT64"} ARRAY<STRING>: {type_kind="ARRAY",
-  array_element_type="STRING"} STRUCT<x STRING, y ARRAY<DATE>>:
-  {type_kind="STRUCT",    struct_type={fields=[      {name="x",
-  type={type_kind="STRING"}},      {name="y", type={type_kind="ARRAY",
-  array_element_type="DATE"}}    ]}}
+  {type_kind="INT64"} ARRAY: {type_kind="ARRAY", array_element_type="STRING"}
+  STRUCT>: {type_kind="STRUCT", struct_type={fields=[ {name="x",
+  type={type_kind="STRING"}}, {name="y", type={type_kind="ARRAY",
+  array_element_type="DATE"}} ]}}
 
   Enums:
     TypeKindValueValuesEnum: Required. The top level type of this field. Can
@@ -3486,6 +4262,7 @@ class StandardSqlDataType(_messages.Message):
         1985-04-12T23:20:50.52
       GEOGRAPHY: Encoded as WKT
       NUMERIC: Encoded as a decimal string.
+      BIGNUMERIC: Encoded as a decimal string.
       ARRAY: Encoded as a list with types matching Type.array_type.
       STRUCT: Encoded as a list with fields of type Type.struct_type[i]. List
         is used because a JSON object cannot have duplicate field names.
@@ -3502,8 +4279,9 @@ class StandardSqlDataType(_messages.Message):
     DATETIME = 9
     GEOGRAPHY = 10
     NUMERIC = 11
-    ARRAY = 12
-    STRUCT = 13
+    BIGNUMERIC = 12
+    ARRAY = 13
+    STRUCT = 14
 
   arrayElementType = _messages.MessageField('StandardSqlDataType', 1)
   structType = _messages.MessageField('StandardSqlStructType', 2)
@@ -3621,6 +4399,7 @@ class Table(_messages.Message):
     schema: [Optional] Describes the schema of this table.
     selfLink: [Output-only] A URL that can be used to access this resource
       again.
+    snapshotDefinition: [Output-only] Snapshot definition.
     streamingBuffer: [Output-only] Contains information regarding this table's
       streaming buffer, if one is present. This field will be absent if the
       table is not being streamed to or if there is no data in the streaming
@@ -3630,7 +4409,8 @@ class Table(_messages.Message):
       Only one of timePartitioning and rangePartitioning should be specified.
     type: [Output-only] Describes the table type. The following values are
       supported: TABLE: A normal BigQuery table. VIEW: A virtual table defined
-      by a SQL query. [TrustedTester] MATERIALIZED_VIEW: SQL query whose
+      by a SQL query. SNAPSHOT: An immutable, read-only table that is a copy
+      of another table. [TrustedTester] MATERIALIZED_VIEW: SQL query whose
       result is persisted. EXTERNAL: A table that references data stored in an
       external storage system, such as Google Cloud Storage. The default value
       is TABLE.
@@ -3675,7 +4455,7 @@ class Table(_messages.Message):
   externalDataConfiguration = _messages.MessageField('ExternalDataConfiguration', 7)
   friendlyName = _messages.StringField(8)
   id = _messages.StringField(9)
-  kind = _messages.StringField(10, default=u'bigquery#table')
+  kind = _messages.StringField(10, default='bigquery#table')
   labels = _messages.MessageField('LabelsValue', 11)
   lastModifiedTime = _messages.IntegerField(12, variant=_messages.Variant.UINT64)
   location = _messages.StringField(13)
@@ -3689,11 +4469,12 @@ class Table(_messages.Message):
   requirePartitionFilter = _messages.BooleanField(21, default=False)
   schema = _messages.MessageField('TableSchema', 22)
   selfLink = _messages.StringField(23)
-  streamingBuffer = _messages.MessageField('Streamingbuffer', 24)
-  tableReference = _messages.MessageField('TableReference', 25)
-  timePartitioning = _messages.MessageField('TimePartitioning', 26)
-  type = _messages.StringField(27)
-  view = _messages.MessageField('ViewDefinition', 28)
+  snapshotDefinition = _messages.MessageField('SnapshotDefinition', 24)
+  streamingBuffer = _messages.MessageField('Streamingbuffer', 25)
+  tableReference = _messages.MessageField('TableReference', 26)
+  timePartitioning = _messages.MessageField('TimePartitioning', 27)
+  type = _messages.StringField(28)
+  view = _messages.MessageField('ViewDefinition', 29)
 
 
 class TableCell(_messages.Message):
@@ -3744,7 +4525,7 @@ class TableDataInsertAllRequest(_messages.Message):
     json = _messages.MessageField('JsonObject', 2)
 
   ignoreUnknownValues = _messages.BooleanField(1)
-  kind = _messages.StringField(2, default=u'bigquery#tableDataInsertAllRequest')
+  kind = _messages.StringField(2, default='bigquery#tableDataInsertAllRequest')
   rows = _messages.MessageField('RowsValueListEntry', 3, repeated=True)
   skipInvalidRows = _messages.BooleanField(4)
   templateSuffix = _messages.StringField(5)
@@ -3773,7 +4554,7 @@ class TableDataInsertAllResponse(_messages.Message):
     index = _messages.IntegerField(2, variant=_messages.Variant.UINT32)
 
   insertErrors = _messages.MessageField('InsertErrorsValueListEntry', 1, repeated=True)
-  kind = _messages.StringField(2, default=u'bigquery#tableDataInsertAllResponse')
+  kind = _messages.StringField(2, default='bigquery#tableDataInsertAllResponse')
 
 
 class TableDataList(_messages.Message):
@@ -3790,7 +4571,7 @@ class TableDataList(_messages.Message):
   """
 
   etag = _messages.StringField(1)
-  kind = _messages.StringField(2, default=u'bigquery#tableDataList')
+  kind = _messages.StringField(2, default='bigquery#tableDataList')
   pageToken = _messages.StringField(3)
   rows = _messages.MessageField('TableRow', 4, repeated=True)
   totalRows = _messages.IntegerField(5)
@@ -3941,7 +4722,7 @@ class TableList(_messages.Message):
     expirationTime = _messages.IntegerField(3)
     friendlyName = _messages.StringField(4)
     id = _messages.StringField(5)
-    kind = _messages.StringField(6, default=u'bigquery#table')
+    kind = _messages.StringField(6, default='bigquery#table')
     labels = _messages.MessageField('LabelsValue', 7)
     rangePartitioning = _messages.MessageField('RangePartitioning', 8)
     tableReference = _messages.MessageField('TableReference', 9)
@@ -3950,7 +4731,7 @@ class TableList(_messages.Message):
     view = _messages.MessageField('ViewValue', 12)
 
   etag = _messages.StringField(1)
-  kind = _messages.StringField(2, default=u'bigquery#tableList')
+  kind = _messages.StringField(2, default='bigquery#tableList')
   nextPageToken = _messages.StringField(3)
   tables = _messages.MessageField('TablesValueListEntry', 4, repeated=True)
   totalItems = _messages.IntegerField(5, variant=_messages.Variant.INT32)
@@ -3993,6 +4774,30 @@ class TableSchema(_messages.Message):
   fields = _messages.MessageField('TableFieldSchema', 1, repeated=True)
 
 
+class TestIamPermissionsRequest(_messages.Message):
+  r"""Request message for `TestIamPermissions` method.
+
+  Fields:
+    permissions: The set of permissions to check for the `resource`.
+      Permissions with wildcards (such as '*' or 'storage.*') are not allowed.
+      For more information see [IAM
+      Overview](https://cloud.google.com/iam/docs/overview#permissions).
+  """
+
+  permissions = _messages.StringField(1, repeated=True)
+
+
+class TestIamPermissionsResponse(_messages.Message):
+  r"""Response message for `TestIamPermissions` method.
+
+  Fields:
+    permissions: A subset of `TestPermissionsRequest.permissions` that the
+      caller is allowed.
+  """
+
+  permissions = _messages.StringField(1, repeated=True)
+
+
 class TimePartitioning(_messages.Message):
   r"""A TimePartitioning object.
 
@@ -4006,8 +4811,10 @@ class TimePartitioning(_messages.Message):
       instead partitioned by this field. The field must be a top-level
       TIMESTAMP or DATE field. Its mode must be NULLABLE or REQUIRED.
     requirePartitionFilter: A boolean attribute.
-    type: [Required] The only type supported is DAY, which will generate one
-      partition per day.
+    type: [Required] The supported types are DAY, HOUR, MONTH, and YEAR, which
+      will generate one partition per day, hour, month, and year,
+      respectively. When the type is not specified, the default behavior is
+      DAY.
   """
 
   expirationMs = _messages.IntegerField(1)
@@ -4020,9 +4827,15 @@ class TrainingOptions(_messages.Message):
   r"""A TrainingOptions object.
 
   Enums:
+    DataFrequencyValueValuesEnum: The data frequency of a time series.
     DataSplitMethodValueValuesEnum: The data split type for training and
       evaluation, e.g. RANDOM.
     DistanceTypeValueValuesEnum: Distance type for clustering models.
+    FeedbackTypeValueValuesEnum: Feedback type that specifies which algorithm
+      to run for matrix factorization.
+    HolidayRegionValueValuesEnum: The geographical region based on which the
+      holidays are considered in time series modeling. If a valid value is
+      specified, then holiday effects modeling is enabled.
     KmeansInitializationMethodValueValuesEnum: The method used to initialize
       the centroids for kmeans algorithm.
     LearnRateStrategyValueValuesEnum: The strategy to determine learn rate for
@@ -4037,6 +4850,10 @@ class TrainingOptions(_messages.Message):
       models.
 
   Fields:
+    autoArima: Whether to enable auto ARIMA or not.
+    autoArimaMaxOrder: The max value of non-seasonal p and q.
+    batchSize: Batch size for dnn models.
+    dataFrequency: The data frequency of a time series.
     dataSplitColumn: The column to split data with. This column won't be used
       as a feature. 1. When data_split_method is CUSTOM, the corresponding
       column should be boolean. The rows with true value tag are eval data,
@@ -4044,20 +4861,30 @@ class TrainingOptions(_messages.Message):
       first DATA_SPLIT_EVAL_FRACTION rows (from smallest to largest) in the
       corresponding column are used as training data, and the rest are eval
       data. It respects the order in Orderable data types:
-      https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types
-      #data-type-properties
+      https://cloud.google.com/bigquery/docs/reference/standard-sql/data-
+      types#data-type-properties
     dataSplitEvalFraction: The fraction of evaluation data over the whole
       input data. The rest of data will be used as training data. The format
       should be double. Accurate to two decimal places. Default value is 0.2.
     dataSplitMethod: The data split type for training and evaluation, e.g.
       RANDOM.
     distanceType: Distance type for clustering models.
+    dropout: Dropout probability for dnn models.
     earlyStop: Whether to stop early when the loss doesn't improve
       significantly any more (compared to min_relative_progress). Used only
       for iterative training algorithms.
+    feedbackType: Feedback type that specifies which algorithm to run for
+      matrix factorization.
+    hiddenUnits: Hidden units for dnn models.
+    holidayRegion: The geographical region based on which the holidays are
+      considered in time series modeling. If a valid value is specified, then
+      holiday effects modeling is enabled.
+    horizon: The number of periods ahead that need to be forecasted.
+    includeDrift: Include drift when fitting an ARIMA model.
     initialLearnRate: Specifies the initial learning rate for the line search
       learn rate strategy.
     inputLabelColumns: Name of input label columns in training data.
+    itemColumn: Item column specified for matrix factorization models.
     kmeansInitializationColumn: The column used to provide the initial
       centroids for kmeans algorithm when kmeans_initialization_method is
       CUSTOM.
@@ -4075,16 +4902,59 @@ class TrainingOptions(_messages.Message):
     lossType: Type of loss function used during training run.
     maxIterations: The maximum number of iterations in training. Used only for
       iterative training algorithms.
+    maxTreeDepth: Maximum depth of a tree for boosted tree models.
     minRelativeProgress: When early_stop is true, stops training when accuracy
       improvement is less than 'min_relative_progress'. Used only for
       iterative training algorithms.
+    minSplitLoss: Minimum split loss for boosted tree models.
     modelUri: [Beta] Google Cloud Storage URI from which the model was
       imported. Only applicable for imported models.
+    nonSeasonalOrder: A specification of the non-seasonal part of the ARIMA
+      model: the three components (p, d, q) are the AR order, the degree of
+      differencing, and the MA order.
     numClusters: Number of clusters for clustering models.
+    numFactors: Num factors specified for matrix factorization models.
     optimizationStrategy: Optimization strategy for training linear regression
       models.
+    preserveInputStructs: Whether to preserve the input structs in output
+      feature names. Suppose there is a struct A with field b. When false
+      (default), the output feature name is A_b. When true, the output feature
+      name is A.b.
+    subsample: Subsample fraction of the training data to grow tree to prevent
+      overfitting for boosted tree models.
+    timeSeriesDataColumn: Column to be designated as time series data for
+      ARIMA model.
+    timeSeriesIdColumn: The id column that will be used to indicate different
+      time series to forecast in parallel.
+    timeSeriesTimestampColumn: Column to be designated as time series
+      timestamp for ARIMA model.
+    userColumn: User column specified for matrix factorization models.
+    walsAlpha: Hyperparameter for matrix factoration when implicit feedback
+      type is specified.
     warmStart: Whether to train a model from the last checkpoint.
   """
+
+  class DataFrequencyValueValuesEnum(_messages.Enum):
+    r"""The data frequency of a time series.
+
+    Values:
+      DATA_FREQUENCY_UNSPECIFIED: <no description>
+      AUTO_FREQUENCY: Automatically inferred from timestamps.
+      YEARLY: Yearly data.
+      QUARTERLY: Quarterly data.
+      MONTHLY: Monthly data.
+      WEEKLY: Weekly data.
+      DAILY: Daily data.
+      HOURLY: Hourly data.
+    """
+    DATA_FREQUENCY_UNSPECIFIED = 0
+    AUTO_FREQUENCY = 1
+    YEARLY = 2
+    QUARTERLY = 3
+    MONTHLY = 4
+    WEEKLY = 5
+    DAILY = 6
+    HOURLY = 7
 
   class DataSplitMethodValueValuesEnum(_messages.Enum):
     r"""The data split type for training and evaluation, e.g. RANDOM.
@@ -4116,6 +4986,166 @@ class TrainingOptions(_messages.Message):
     DISTANCE_TYPE_UNSPECIFIED = 0
     EUCLIDEAN = 1
     COSINE = 2
+
+  class FeedbackTypeValueValuesEnum(_messages.Enum):
+    r"""Feedback type that specifies which algorithm to run for matrix
+    factorization.
+
+    Values:
+      FEEDBACK_TYPE_UNSPECIFIED: <no description>
+      IMPLICIT: Use weighted-als for implicit feedback problems.
+      EXPLICIT: Use nonweighted-als for explicit feedback problems.
+    """
+    FEEDBACK_TYPE_UNSPECIFIED = 0
+    IMPLICIT = 1
+    EXPLICIT = 2
+
+  class HolidayRegionValueValuesEnum(_messages.Enum):
+    r"""The geographical region based on which the holidays are considered in
+    time series modeling. If a valid value is specified, then holiday effects
+    modeling is enabled.
+
+    Values:
+      HOLIDAY_REGION_UNSPECIFIED: Holiday region unspecified.
+      GLOBAL: Global.
+      NA: North America.
+      JAPAC: Japan and Asia Pacific: Korea, Greater China, India, Australia,
+        and New Zealand.
+      EMEA: Europe, the Middle East and Africa.
+      LAC: Latin America and the Caribbean.
+      AE: United Arab Emirates
+      AR: Argentina
+      AT: Austria
+      AU: Australia
+      BE: Belgium
+      BR: Brazil
+      CA: Canada
+      CH: Switzerland
+      CL: Chile
+      CN: China
+      CO: Colombia
+      CS: Czechoslovakia
+      CZ: Czech Republic
+      DE: Germany
+      DK: Denmark
+      DZ: Algeria
+      EC: Ecuador
+      EE: Estonia
+      EG: Egypt
+      ES: Spain
+      FI: Finland
+      FR: France
+      GB: Great Britain (United Kingdom)
+      GR: Greece
+      HK: Hong Kong
+      HU: Hungary
+      ID: Indonesia
+      IE: Ireland
+      IL: Israel
+      IN: India
+      IR: Iran
+      IT: Italy
+      JP: Japan
+      KR: Korea (South)
+      LV: Latvia
+      MA: Morocco
+      MX: Mexico
+      MY: Malaysia
+      NG: Nigeria
+      NL: Netherlands
+      NO: Norway
+      NZ: New Zealand
+      PE: Peru
+      PH: Philippines
+      PK: Pakistan
+      PL: Poland
+      PT: Portugal
+      RO: Romania
+      RS: Serbia
+      RU: Russian Federation
+      SA: Saudi Arabia
+      SE: Sweden
+      SG: Singapore
+      SI: Slovenia
+      SK: Slovakia
+      TH: Thailand
+      TR: Turkey
+      TW: Taiwan
+      UA: Ukraine
+      US: United States
+      VE: Venezuela
+      VN: Viet Nam
+      ZA: South Africa
+    """
+    HOLIDAY_REGION_UNSPECIFIED = 0
+    GLOBAL = 1
+    NA = 2
+    JAPAC = 3
+    EMEA = 4
+    LAC = 5
+    AE = 6
+    AR = 7
+    AT = 8
+    AU = 9
+    BE = 10
+    BR = 11
+    CA = 12
+    CH = 13
+    CL = 14
+    CN = 15
+    CO = 16
+    CS = 17
+    CZ = 18
+    DE = 19
+    DK = 20
+    DZ = 21
+    EC = 22
+    EE = 23
+    EG = 24
+    ES = 25
+    FI = 26
+    FR = 27
+    GB = 28
+    GR = 29
+    HK = 30
+    HU = 31
+    ID = 32
+    IE = 33
+    IL = 34
+    IN = 35
+    IR = 36
+    IT = 37
+    JP = 38
+    KR = 39
+    LV = 40
+    MA = 41
+    MX = 42
+    MY = 43
+    NG = 44
+    NL = 45
+    NO = 46
+    NZ = 47
+    PE = 48
+    PH = 49
+    PK = 50
+    PL = 51
+    PT = 52
+    RO = 53
+    RS = 54
+    RU = 55
+    SA = 56
+    SE = 57
+    SG = 58
+    SI = 59
+    SK = 60
+    TH = 61
+    TR = 62
+    TW = 63
+    UA = 64
+    US = 65
+    VE = 66
+    VN = 67
+    ZA = 68
 
   class KmeansInitializationMethodValueValuesEnum(_messages.Enum):
     r"""The method used to initialize the centroids for kmeans algorithm.
@@ -4197,27 +5227,49 @@ class TrainingOptions(_messages.Message):
 
     additionalProperties = _messages.MessageField('AdditionalProperty', 1, repeated=True)
 
-  dataSplitColumn = _messages.StringField(1)
-  dataSplitEvalFraction = _messages.FloatField(2)
-  dataSplitMethod = _messages.EnumField('DataSplitMethodValueValuesEnum', 3)
-  distanceType = _messages.EnumField('DistanceTypeValueValuesEnum', 4)
-  earlyStop = _messages.BooleanField(5)
-  initialLearnRate = _messages.FloatField(6)
-  inputLabelColumns = _messages.StringField(7, repeated=True)
-  kmeansInitializationColumn = _messages.StringField(8)
-  kmeansInitializationMethod = _messages.EnumField('KmeansInitializationMethodValueValuesEnum', 9)
-  l1Regularization = _messages.FloatField(10)
-  l2Regularization = _messages.FloatField(11)
-  labelClassWeights = _messages.MessageField('LabelClassWeightsValue', 12)
-  learnRate = _messages.FloatField(13)
-  learnRateStrategy = _messages.EnumField('LearnRateStrategyValueValuesEnum', 14)
-  lossType = _messages.EnumField('LossTypeValueValuesEnum', 15)
-  maxIterations = _messages.IntegerField(16)
-  minRelativeProgress = _messages.FloatField(17)
-  modelUri = _messages.StringField(18)
-  numClusters = _messages.IntegerField(19)
-  optimizationStrategy = _messages.EnumField('OptimizationStrategyValueValuesEnum', 20)
-  warmStart = _messages.BooleanField(21)
+  autoArima = _messages.BooleanField(1)
+  autoArimaMaxOrder = _messages.IntegerField(2)
+  batchSize = _messages.IntegerField(3)
+  dataFrequency = _messages.EnumField('DataFrequencyValueValuesEnum', 4)
+  dataSplitColumn = _messages.StringField(5)
+  dataSplitEvalFraction = _messages.FloatField(6)
+  dataSplitMethod = _messages.EnumField('DataSplitMethodValueValuesEnum', 7)
+  distanceType = _messages.EnumField('DistanceTypeValueValuesEnum', 8)
+  dropout = _messages.FloatField(9)
+  earlyStop = _messages.BooleanField(10)
+  feedbackType = _messages.EnumField('FeedbackTypeValueValuesEnum', 11)
+  hiddenUnits = _messages.IntegerField(12, repeated=True)
+  holidayRegion = _messages.EnumField('HolidayRegionValueValuesEnum', 13)
+  horizon = _messages.IntegerField(14)
+  includeDrift = _messages.BooleanField(15)
+  initialLearnRate = _messages.FloatField(16)
+  inputLabelColumns = _messages.StringField(17, repeated=True)
+  itemColumn = _messages.StringField(18)
+  kmeansInitializationColumn = _messages.StringField(19)
+  kmeansInitializationMethod = _messages.EnumField('KmeansInitializationMethodValueValuesEnum', 20)
+  l1Regularization = _messages.FloatField(21)
+  l2Regularization = _messages.FloatField(22)
+  labelClassWeights = _messages.MessageField('LabelClassWeightsValue', 23)
+  learnRate = _messages.FloatField(24)
+  learnRateStrategy = _messages.EnumField('LearnRateStrategyValueValuesEnum', 25)
+  lossType = _messages.EnumField('LossTypeValueValuesEnum', 26)
+  maxIterations = _messages.IntegerField(27)
+  maxTreeDepth = _messages.IntegerField(28)
+  minRelativeProgress = _messages.FloatField(29)
+  minSplitLoss = _messages.FloatField(30)
+  modelUri = _messages.StringField(31)
+  nonSeasonalOrder = _messages.MessageField('ArimaOrder', 32)
+  numClusters = _messages.IntegerField(33)
+  numFactors = _messages.IntegerField(34)
+  optimizationStrategy = _messages.EnumField('OptimizationStrategyValueValuesEnum', 35)
+  preserveInputStructs = _messages.BooleanField(36)
+  subsample = _messages.FloatField(37)
+  timeSeriesDataColumn = _messages.StringField(38)
+  timeSeriesIdColumn = _messages.StringField(39)
+  timeSeriesTimestampColumn = _messages.StringField(40)
+  userColumn = _messages.StringField(41)
+  walsAlpha = _messages.FloatField(42)
+  warmStart = _messages.BooleanField(43)
 
 
 class TrainingRun(_messages.Message):
@@ -4228,6 +5280,9 @@ class TrainingRun(_messages.Message):
       input data is actually split.
     evaluationMetrics: The evaluation metrics over training/eval data that
       were computed at the end of training.
+    globalExplanations: Global explanations for important features of the
+      model. For multi-class models, there is one entry for each label class.
+      For other models, there is only one entry in the list.
     results: Output of each iteration run, results.size() <= max_iterations.
     startTime: The start time of this training run.
     trainingOptions: Options that were used for this training run, includes
@@ -4236,13 +5291,29 @@ class TrainingRun(_messages.Message):
 
   dataSplitResult = _messages.MessageField('DataSplitResult', 1)
   evaluationMetrics = _messages.MessageField('EvaluationMetrics', 2)
-  results = _messages.MessageField('IterationResult', 3, repeated=True)
-  startTime = _messages.StringField(4)
-  trainingOptions = _messages.MessageField('TrainingOptions', 5)
+  globalExplanations = _messages.MessageField('GlobalExplanation', 3, repeated=True)
+  results = _messages.MessageField('IterationResult', 4, repeated=True)
+  startTime = _messages.StringField(5)
+  trainingOptions = _messages.MessageField('TrainingOptions', 6)
+
+
+class TransactionInfo(_messages.Message):
+  r"""A TransactionInfo object.
+
+  Fields:
+    transactionId: [Output-only] // [Alpha] Id of the transaction.
+  """
+
+  transactionId = _messages.StringField(1)
 
 
 class UserDefinedFunctionResource(_messages.Message):
-  r"""A UserDefinedFunctionResource object.
+  r"""This is used for defining User Defined Function (UDF) resources only
+  when using legacy SQL. Users of Standard SQL should leverage either DDL
+  (e.g. CREATE [TEMPORARY] FUNCTION ... ) or the Routines API to define UDF
+  resources. For additional information on migrating, see:
+  https://cloud.google.com/bigquery/docs/reference/standard-sql/migrating-
+  from-legacy-sql#differences_in_user-defined_javascript_functions
 
   Fields:
     inlineCode: [Pick one] An inline resource that contains code for a user-

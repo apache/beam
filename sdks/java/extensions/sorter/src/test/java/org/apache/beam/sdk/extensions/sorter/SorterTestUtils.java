@@ -29,6 +29,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Unsig
 import org.junit.rules.ExpectedException;
 
 /** A set of basic tests for {@link Sorter}s. */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 class SorterTestUtils {
 
   public static void testEmpty(Sorter sorter) throws Exception {

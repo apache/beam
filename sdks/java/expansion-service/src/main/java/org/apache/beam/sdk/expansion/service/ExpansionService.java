@@ -79,6 +79,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** A service that allows pipeline expand transforms from a remote SDK. */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplBase
     implements AutoCloseable {
 

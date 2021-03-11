@@ -16,13 +16,27 @@
 
 set -e
 
-ROOT=$(pwd)
-SCRIPT_DIR="${ROOT}/sdks/java/container/license_scripts"
-ENV_DIR="${ROOT}/sdks/java/container/build/virtualenv"
-LICENSE_DIR="${ROOT}/sdks/java/container/build/target/third_party_licenses"
+SCRIPT_DIR="${PWD}/license_scripts"
+ENV_DIR="${PWD}/build/virtualenv"
 
-# reports are generated at ~/beam/java_third_party_licenses
-./gradlew generateLicenseReport --rerun-tasks
+# This file must already exist before this helper script is run.
+# It is created by :sdks:java:container:generateLicenseReport
+INDEX_FILE="${PWD}/build/reports/dependency-license/index.json"
+
+# The licenses already pulled by generateDependencyReport are alongside index.json.
+# The script first copies those over.
+EXISTING_LICENSE_DIR="${PWD}/build/reports/dependency-license"
+
+# The python will download Java licenses here
+DOWNLOAD_DIR="${PWD}/build/target/java_third_party_licenses"
+
+# All licenses will be put here by this script
+DEST_DIR="${PWD}/build/target/third_party_licenses"
+
+echo "Copying already-fetched licenses from ${EXISTING_LICENSE_DIR} to ${DOWNLOAD_DIR}"
+if [ -d "$DOWNLOAD_DIR" ]; then rm -rf "$DOWNLOAD_DIR" ; fi
+mkdir -p "$DOWNLOAD_DIR"
+cp -r "${EXISTING_LICENSE_DIR}"/*.jar "${DOWNLOAD_DIR}"
 
 # activate virtualenv
 virtualenv --python=python3 ${ENV_DIR} && . ${ENV_DIR}/bin/activate
@@ -31,18 +45,20 @@ virtualenv --python=python3 ${ENV_DIR} && . ${ENV_DIR}/bin/activate
 ${ENV_DIR}/bin/pip install -r ${SCRIPT_DIR}/requirement.txt
 
 # pull licenses, notices and source code
-FLAGS="--license_dir=${ROOT}/java_third_party_licenses \
+FLAGS="--license_index=${INDEX_FILE} \
+       --output_dir=${DOWNLOAD_DIR} \
        --dep_url_yaml=${SCRIPT_DIR}/dep_urls_java.yaml "
 
 echo "Executing ${ENV_DIR}/bin/python ${SCRIPT_DIR}/pull_licenses_java.py $FLAGS"
-${ENV_DIR}/bin/python ${SCRIPT_DIR}/pull_licenses_java.py $FLAGS
+"${ENV_DIR}/bin/python" "${SCRIPT_DIR}/pull_licenses_java.py" $FLAGS
 
-if [ -d "$LICENSE_DIR" ]; then rm -rf $LICENSE_DIR; fi
-mkdir -p ${LICENSE_DIR}
-echo "Copy licenses to ${LICENSE_DIR}."
-cp -r ${ROOT}/java_third_party_licenses/*.jar ${LICENSE_DIR}/
-cp -r ${ROOT}/java_third_party_licenses/*.csv ${LICENSE_DIR}/
-gzip -r ${LICENSE_DIR}/*
+# If this script is running, it is assumed that outputs are out of date and should be cleared and rewritten
+if [ -d "$DEST_DIR" ]; then rm -rf "$DEST_DIR"; fi
+mkdir -p "$DEST_DIR"
 
-rm -rf ${ROOT}/java_third_party_licenses
+echo "Copying licenses from ${DOWNLOAD_DIR} to ${DEST_DIR}."
+cp -r "$DOWNLOAD_DIR"/*.jar "$DEST_DIR"/
+cp -r "$DOWNLOAD_DIR"/*.csv "$DEST_DIR"/
+gzip -r "$DEST_DIR"/*
+
 echo "Finished license_scripts.sh"

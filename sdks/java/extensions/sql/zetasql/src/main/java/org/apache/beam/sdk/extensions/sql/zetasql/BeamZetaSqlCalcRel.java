@@ -17,11 +17,17 @@
  */
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
+import com.google.auto.value.AutoValue;
 import com.google.zetasql.AnalyzerOptions;
 import com.google.zetasql.PreparedExpression;
 import com.google.zetasql.Value;
+import java.util.ArrayDeque;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Queue;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.function.IntFunction;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlPipelineOptions;
@@ -34,6 +40,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
@@ -51,15 +58,23 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Duration;
+import org.joda.time.Instant;
 
 /**
  * BeamRelNode to replace {@code Project} and {@code Filter} node based on the {@code ZetaSQL}
  * expression evaluator.
  */
 @Internal
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
 
   private static final SqlDialect DIALECT = BeamBigQuerySqlDialect.DEFAULT;
+  private static final int MAX_PENDING_WINDOW = 32;
   private final BeamSqlUnparseContext context;
 
   private static String columnName(int i) {
@@ -81,6 +96,17 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
   @Override
   public PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform() {
     return new Transform();
+  }
+
+  @AutoValue
+  abstract static class TimestampedFuture {
+    private static TimestampedFuture create(Instant t, Future<Value> f) {
+      return new AutoValue_BeamZetaSqlCalcRel_TimestampedFuture(t, f);
+    }
+
+    abstract Instant timestamp();
+
+    abstract Future<Value> future();
   }
 
   private class Transform extends PTransform<PCollectionList<Row>, PCollection<Row>> {
@@ -144,6 +170,11 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
     private final String defaultTimezone;
     private final boolean verifyRowValues;
     private transient PreparedExpression exp;
+    private transient List<Integer> referencedColumns;
+    private transient PreparedExpression.Stream stream;
+    private transient Map<BoundedWindow, Queue<TimestampedFuture>> pending;
+    private transient @Nullable Row previousRow;
+    private transient @Nullable Future<Value> previousFuture;
 
     CalcFn(
         String sql,
@@ -172,28 +203,113 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
 
       exp = new PreparedExpression(sql);
       exp.prepare(options);
+
+      ImmutableList.Builder<Integer> columns = new ImmutableList.Builder<>();
+      for (String c : exp.getReferencedColumns()) {
+        columns.add(Integer.parseInt(c.substring(1)));
+      }
+      referencedColumns = columns.build();
+
+      stream = exp.stream();
+    }
+
+    @StartBundle
+    public void startBundle() {
+      pending = new HashMap<>();
+      previousRow = null;
+      previousFuture = null;
+    }
+
+    @Override
+    public Duration getAllowedTimestampSkew() {
+      return Duration.millis(Long.MAX_VALUE);
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c) {
-      Map<String, Value> columns = new HashMap<>();
-      Row row = c.element();
-      for (int i = 0; i < inputSchema.getFieldCount(); i++) {
-        columns.put(
-            columnName(i),
-            ZetaSqlBeamTranslationUtils.toZetaSqlValue(
-                row.getBaseValue(i, Object.class), inputSchema.getField(i).getType()));
+    public void processElement(
+        @Element Row row, @Timestamp Instant t, BoundedWindow w, OutputReceiver<Row> r)
+        throws InterruptedException {
+      final Future<Value> valueFuture;
+
+      if (row.equals(previousRow)) {
+        valueFuture = previousFuture;
+      } else {
+        Map<String, Value> columns = new HashMap<>();
+        for (int i : referencedColumns) {
+          columns.put(
+              columnName(i),
+              ZetaSqlBeamTranslationUtils.toZetaSqlValue(
+                  row.getBaseValue(i, Object.class), inputSchema.getField(i).getType()));
+        }
+
+        valueFuture = stream.execute(columns, nullParams);
+      }
+      previousRow = row;
+
+      @Nullable Queue<TimestampedFuture> pendingWindow = pending.get(w);
+      if (pendingWindow == null) {
+        pendingWindow = new ArrayDeque<>();
+        pending.put(w, pendingWindow);
+      }
+      pendingWindow.add(TimestampedFuture.create(t, valueFuture));
+
+      while ((!pendingWindow.isEmpty() && pendingWindow.element().future().isDone())
+          || pendingWindow.size() > MAX_PENDING_WINDOW) {
+        outputRow(pendingWindow.remove(), r);
+      }
+    }
+
+    @FinishBundle
+    public void finishBundle(FinishBundleContext c) throws InterruptedException {
+      stream.flush();
+      for (Map.Entry<BoundedWindow, Queue<TimestampedFuture>> pendingWindow : pending.entrySet()) {
+        OutputReceiver<Row> rowOutputReciever =
+            new OutputReceiverForFinishBundle(c, pendingWindow.getKey());
+        for (TimestampedFuture timestampedFuture : pendingWindow.getValue()) {
+          outputRow(timestampedFuture, rowOutputReciever);
+        }
+      }
+    }
+
+    // TODO(BEAM-1287): Remove this when FinishBundle has added support for an {@link
+    // OutputReceiver}
+    private static class OutputReceiverForFinishBundle implements OutputReceiver<Row> {
+
+      private final FinishBundleContext c;
+      private final BoundedWindow w;
+
+      private OutputReceiverForFinishBundle(FinishBundleContext c, BoundedWindow w) {
+        this.c = c;
+        this.w = w;
       }
 
-      Value v = exp.execute(columns, nullParams);
+      @Override
+      public void output(Row output) {
+        throw new RuntimeException("Unsupported");
+      }
+
+      @Override
+      public void outputWithTimestamp(Row output, Instant timestamp) {
+        c.output(output, timestamp, w);
+      }
+    }
+
+    private void outputRow(TimestampedFuture c, OutputReceiver<Row> r) throws InterruptedException {
+      final Value v;
+      try {
+        v = c.future().get();
+      } catch (ExecutionException e) {
+        throw (RuntimeException) e.getCause();
+      }
       if (!v.isNull()) {
-        Row outputRow = ZetaSqlBeamTranslationUtils.toBeamRow(v, outputSchema, verifyRowValues);
-        c.output(outputRow);
+        Row row = ZetaSqlBeamTranslationUtils.toBeamRow(v, outputSchema, verifyRowValues);
+        r.outputWithTimestamp(row, c.timestamp());
       }
     }
 
     @Teardown
     public void teardown() {
+      stream.close();
       exp.close();
     }
   }

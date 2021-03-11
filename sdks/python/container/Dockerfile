@@ -45,7 +45,8 @@ RUN \
     # Check that the fast implementation of protobuf is used.
     python -c "from google.protobuf.internal import api_implementation; assert api_implementation._default_implementation_type == 'cpp'; print ('Verified fast protobuf used.')" && \
     # Remove pip cache.
-    rm -rf /root/.cache/pip
+    rm -rf /root/.cache/pip && \
+    rm -rf /tmp/base_image_requirements.txt
 
 # Configure ccache prior to installing the SDK.
 RUN ln -s /usr/bin/ccache /usr/local/bin/gcc
@@ -75,6 +76,9 @@ RUN if [ "$pull_licenses" = "true" ] ; then \
     # Remove above golang license and dir if pull licenses false
     rm -rf /opt/apache/beam/third_party_licenses ; \
    fi
+
+# Remove license scripts
+RUN rm -rf /tmp/license_scripts
 
 # Log complete list of what exact packages and versions are installed.
 RUN pip freeze --all

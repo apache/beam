@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.direct;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -47,6 +47,10 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link TestStreamEvaluatorFactory}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "keyfor",
+})
 public class TestStreamEvaluatorFactoryTest {
   private TestStreamEvaluatorFactory factory;
   private BundleFactory bundleFactory;

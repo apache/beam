@@ -38,6 +38,9 @@ import org.junit.runners.JUnit4;
 
 /** Test behavior of operator {@code ReduceWindow}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class ReduceWindowTest {
 
   @Test

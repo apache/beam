@@ -30,8 +30,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.StreamSupport;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.SerializerProvider;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializers;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -49,6 +51,8 @@ import org.junit.Test;
 
 /** Unit tests for {@link PubsubMessageToRow}. */
 public class PubsubMessageToRowTest implements Serializable {
+  private static final SerializerProvider JSON_SERIALIZER_PROVIDER =
+      schema -> PayloadSerializers.getSerializer("json", schema, ImmutableMap.of());
 
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
 
@@ -83,6 +87,7 @@ public class PubsubMessageToRowTest implements Serializable {
                     .messageSchema(messageSchema)
                     .useDlq(false)
                     .useFlatSchema(false)
+                    .serializerProvider(JSON_SERIALIZER_PROVIDER)
                     .build());
 
     PAssert.that(rows.get(MAIN_TAG))
@@ -132,6 +137,7 @@ public class PubsubMessageToRowTest implements Serializable {
                     .messageSchema(messageSchema)
                     .useDlq(true)
                     .useFlatSchema(false)
+                    .serializerProvider(JSON_SERIALIZER_PROVIDER)
                     .build());
 
     PCollection<Row> rows = outputs.get(MAIN_TAG);
@@ -143,7 +149,7 @@ public class PubsubMessageToRowTest implements Serializable {
               assertEquals(2, size(messages));
               assertEquals(
                   ImmutableSet.of(map("attr1", "val1"), map("attr2", "val2")),
-                  convertToSet(messages, m -> m.getAttributeMap()));
+                  convertToSet(messages, PubsubMessage::getAttributeMap));
 
               assertEquals(
                   ImmutableSet.of("{ \"invalid1\" : \"sdfsd\" }", "{ \"invalid2"),
@@ -188,6 +194,7 @@ public class PubsubMessageToRowTest implements Serializable {
                     .messageSchema(messageSchema)
                     .useDlq(false)
                     .useFlatSchema(true)
+                    .serializerProvider(JSON_SERIALIZER_PROVIDER)
                     .build());
 
     PAssert.that(rows.get(MAIN_TAG))
@@ -235,6 +242,7 @@ public class PubsubMessageToRowTest implements Serializable {
                     .messageSchema(messageSchema)
                     .useDlq(true)
                     .useFlatSchema(true)
+                    .serializerProvider(JSON_SERIALIZER_PROVIDER)
                     .build());
 
     PCollection<Row> rows = outputs.get(MAIN_TAG);
@@ -246,7 +254,7 @@ public class PubsubMessageToRowTest implements Serializable {
               assertEquals(2, size(messages));
               assertEquals(
                   ImmutableSet.of(map("attr1", "val1"), map("attr2", "val2")),
-                  convertToSet(messages, m -> m.getAttributeMap()));
+                  convertToSet(messages, PubsubMessage::getAttributeMap));
 
               assertEquals(
                   ImmutableSet.of("{ \"invalid1\" : \"sdfsd\" }", "{ \"invalid2"),
@@ -287,10 +295,12 @@ public class PubsubMessageToRowTest implements Serializable {
                 .messageSchema(messageSchema)
                 .useDlq(false)
                 .useFlatSchema(true)
+                .serializerProvider(JSON_SERIALIZER_PROVIDER)
                 .build());
 
     Exception exception = Assert.assertThrows(RuntimeException.class, () -> pipeline.run());
-    Assert.assertTrue(exception.getMessage().contains("Error parsing message"));
+    Assert.assertTrue(
+        exception.toString(), exception.getMessage().contains("Non-nullable field 'id'"));
   }
 
   @Test
@@ -316,10 +326,12 @@ public class PubsubMessageToRowTest implements Serializable {
                 .messageSchema(messageSchema)
                 .useDlq(false)
                 .useFlatSchema(false)
+                .serializerProvider(JSON_SERIALIZER_PROVIDER)
                 .build());
 
     Exception exception = Assert.assertThrows(RuntimeException.class, () -> pipeline.run());
-    Assert.assertTrue(exception.getMessage().contains("Error parsing message"));
+    Assert.assertTrue(
+        exception.toString(), exception.getMessage().contains("Non-nullable field 'id'"));
   }
 
   private Row row(Schema schema, Object... objects) {

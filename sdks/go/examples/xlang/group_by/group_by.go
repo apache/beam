@@ -30,9 +30,8 @@ import (
 	"reflect"
 	"sort"
 
+	"github.com/apache/beam/sdks/go/examples/xlang"
 	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
 
@@ -91,11 +90,10 @@ func main() {
 
 	// Using the cross-language transform
 	kvs := beam.Create(s, KV{X: "0", Y: 1}, KV{X: "0", Y: 2}, KV{X: "1", Y: 3})
-	ins := beam.ParDo(s, getKV, kvs)
-	outputType := typex.NewCoGBK(typex.New(reflectx.String), typex.New(reflectx.Int64))
-	outs := beam.CrossLanguageWithSingleInputOutput(s, "beam:transforms:xlang:test:gbk", nil, *expansionAddr, ins, outputType)
+	in := beam.ParDo(s, getKV, kvs)
+	out := xlang.GroupByKey(s, *expansionAddr, in)
 
-	vals := beam.ParDo(s, collectValues, outs)
+	vals := beam.ParDo(s, collectValues, out)
 	formatted := beam.ParDo(s, formatFn, vals)
 	passert.Equals(s, formatted, "0:[1 2]", "1:[3]")
 

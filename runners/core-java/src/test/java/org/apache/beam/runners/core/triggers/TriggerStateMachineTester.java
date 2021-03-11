@@ -299,7 +299,9 @@ public class TriggerStateMachineTester<InputT, W extends BoundedWindow> {
             new TestTimers(windowNamespace(window)),
             executableTrigger,
             getFinishedSet(window));
-    executableTrigger.getSpec().prefetchShouldFire(context.state());
+    executableTrigger
+        .getSpec()
+        .prefetchShouldFire(contextFactory.createPrefetchContext(window, executableTrigger));
     return executableTrigger.invokeShouldFire(context);
   }
 
@@ -311,9 +313,10 @@ public class TriggerStateMachineTester<InputT, W extends BoundedWindow> {
             executableTrigger,
             getFinishedSet(window));
 
-    executableTrigger.getSpec().prefetchShouldFire(context.state());
+    executableTrigger
+        .getSpec()
+        .prefetchShouldFire(contextFactory.createPrefetchContext(window, executableTrigger));
     if (executableTrigger.invokeShouldFire(context)) {
-      executableTrigger.getSpec().prefetchOnFire(context.state());
       executableTrigger.invokeOnFire(context);
       if (context.trigger().isFinished()) {
         activeWindows.remove(window);

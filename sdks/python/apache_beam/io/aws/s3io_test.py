@@ -29,6 +29,7 @@ import unittest
 from apache_beam.io.aws import s3io
 from apache_beam.io.aws.clients.s3 import fake_client
 from apache_beam.io.aws.clients.s3 import messages
+from apache_beam.options import pipeline_options
 
 
 class TestS3PathParser(unittest.TestCase):
@@ -99,7 +100,7 @@ class TestS3IO(unittest.TestCase):
       self.aws = s3io.S3IO(self.client)
 
     else:
-      self.aws = s3io.S3IO()
+      self.aws = s3io.S3IO(options=pipeline_options.S3Options())
       self.client = self.aws.client
 
   def test_size(self):

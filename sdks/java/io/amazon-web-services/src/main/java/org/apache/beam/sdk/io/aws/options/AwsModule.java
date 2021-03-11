@@ -34,9 +34,7 @@ import com.amazonaws.services.s3.model.SSECustomerKey;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.core.type.WritableTypeId;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonSerializer;
@@ -61,6 +59,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  * SSEAwsKeyManagementParams}.
  */
 @AutoService(Module.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class AwsModule extends SimpleModule {
 
   private static final String AWS_ACCESS_KEY_ID = "awsAccessKeyId";
@@ -174,9 +175,9 @@ public class AwsModule extends SimpleModule {
         SerializerProvider serializers,
         TypeSerializer typeSerializer)
         throws IOException {
-      WritableTypeId typeId =
-          typeSerializer.writeTypePrefix(
-              jsonGenerator, typeSerializer.typeId(credentialsProvider, JsonToken.START_OBJECT));
+      // BEAM-11958 Use deprecated Jackson APIs to be compatible with older versions of jackson
+      typeSerializer.writeTypePrefixForObject(credentialsProvider, jsonGenerator);
+
       if (credentialsProvider.getClass().equals(AWSStaticCredentialsProvider.class)) {
         jsonGenerator.writeStringField(
             AWS_ACCESS_KEY_ID, credentialsProvider.getCredentials().getAWSAccessKeyId());
@@ -236,7 +237,8 @@ public class AwsModule extends SimpleModule {
         throw new IllegalArgumentException(
             "Unsupported AWS credentials provider type " + credentialsProvider.getClass());
       }
-      typeSerializer.writeTypeSuffix(jsonGenerator, typeId);
+      // BEAM-11958 Use deprecated Jackson APIs to be compatible with older versions of jackson
+      typeSerializer.writeTypeSuffixForObject(credentialsProvider, jsonGenerator);
     }
   }
 

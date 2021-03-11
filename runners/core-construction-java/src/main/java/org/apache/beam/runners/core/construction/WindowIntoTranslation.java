@@ -39,6 +39,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * Utility methods for translating a {@link Window.Assign} to and from {@link RunnerApi}
  * representations.
  */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class WindowIntoTranslation {
 
   static class WindowAssignTranslator implements TransformPayloadTranslator<Window.Assign<?>> {

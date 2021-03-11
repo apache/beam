@@ -21,8 +21,10 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.beam.sdk.extensions.sql.jdbc.BeamSqlLineTestingUtils.buildArgs;
 import static org.apache.beam.sdk.extensions.sql.jdbc.BeamSqlLineTestingUtils.toLines;
 import static org.hamcrest.CoreMatchers.everyItem;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.ByteArrayOutputStream;
 import java.io.Serializable;
 import java.text.ParseException;
@@ -41,8 +43,6 @@ import org.apache.beam.sdk.io.gcp.pubsub.TestPubsub;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.codehaus.jackson.map.ObjectMapper;
-import org.codehaus.jackson.node.ObjectNode;
 import org.hamcrest.collection.IsIn;
 import org.joda.time.Duration;
 import org.junit.After;
@@ -57,11 +57,13 @@ public class BeamSqlLineIT implements Serializable {
 
   @Rule public transient TestPubsub eventsTopic = TestPubsub.create();
 
-  private static String project;
-  private static String createPubsubTableStatement;
-  private static String setProject;
+  private static String project = "";
+  private static String createPubsubTableStatement = "";
+  private static String setProject = "";
   private static final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
+  // Suppressing initialization warning as it is being initialized while setting up the test
+  @SuppressWarnings("initialization.fields.uninitialized")
   private ExecutorService pool;
 
   @BeforeClass
@@ -198,6 +200,8 @@ public class BeamSqlLineIT implements Serializable {
     return objectNode.toString();
   }
 
+  /** Suppressing this due to https://github.com/typetools/checker-framework/issues/979. */
+  @SuppressWarnings("return.type.incompatible")
   private Future<List<List<String>>> runQueryInBackground(String[] args) {
     return pool.submit(
         (Callable)

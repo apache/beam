@@ -51,6 +51,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Function;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
@@ -59,6 +60,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Predicates;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ArrayListMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Collections2;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashMultimap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.SetMultimap;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -118,6 +120,9 @@ import org.slf4j.LoggerFactory;
  *
  * }</pre>
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class Pipeline {
   private static final Logger LOG = LoggerFactory.getLogger(Pipeline.class);
   /**
@@ -562,16 +567,26 @@ public class Pipeline {
       return;
     }
     InputT originalInput = replacement.getInput();
+    Map<TupleTag<?>, PCollection<?>> originalOutputs = original.getOutputs();
 
     LOG.debug("Replacing {} with {}", original, replacement);
     transforms.replaceNode(original, originalInput, replacement.getTransform());
     try {
       OutputT newOutput = replacement.getTransform().expand(originalInput);
-      Map<PValue, ReplacementOutput> originalToReplacement =
+      Map<PCollection<?>, ReplacementOutput> originalToReplacement =
           replacementFactory.mapOutputs(original.getOutputs(), newOutput);
       // Ensure the internal TransformHierarchy data structures are consistent.
       transforms.setOutput(newOutput);
       transforms.replaceOutputs(originalToReplacement);
+      checkState(
+          ImmutableSet.copyOf(originalOutputs.values())
+              .equals(ImmutableSet.copyOf(transforms.getCurrent().getOutputs().values())),
+          "After replacing %s with %s, outputs were not rewired correctly:"
+              + " Original outputs %s became %s.",
+          original,
+          transforms.getCurrent(),
+          originalOutputs,
+          transforms.getCurrent().getOutputs());
     } finally {
       transforms.popNode();
     }
@@ -594,8 +609,8 @@ public class Pipeline {
         case ERROR: // be very verbose here since it will just fail the execution
           throw new IllegalStateException(
               String.format(
-                      "Pipeline update will not be possible"
-                          + " because the following transforms do not have stable unique names: %s.",
+                      "Pipeline update will not be possible because the following transforms do"
+                          + " not have stable unique names: %s.",
                       Joiner.on(", ").join(transform(errors, new KeysExtractor())))
                   + "\n\n"
                   + "Conflicting instances:\n"

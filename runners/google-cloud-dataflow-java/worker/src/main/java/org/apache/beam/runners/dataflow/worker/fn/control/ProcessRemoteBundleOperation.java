@@ -48,6 +48,7 @@ import org.slf4j.LoggerFactory;
  * requests a {@link org.apache.beam.runners.fnexecution.control.RemoteBundle}, sends elements to
  * SDK and receive processed results from SDK, passing these elements downstream.
  */
+@SuppressWarnings({"keyfor", "nullness"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class ProcessRemoteBundleOperation<InputT> extends ReceivingOperation {
   private static final Logger LOG = LoggerFactory.getLogger(ProcessRemoteBundleOperation.class);
   private final StageBundleFactory stageBundleFactory;

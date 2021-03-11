@@ -34,6 +34,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * querying it by parts of the name separately.
  */
 @Experimental
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public abstract class FullNameTableProvider implements TableProvider, CustomTableResolver {
 
   private List<TableName> knownTables;
@@ -132,9 +135,8 @@ public abstract class FullNameTableProvider implements TableProvider, CustomTabl
       return "google.cloud.datacatalog.subprovider";
     }
 
-    @Nullable
     @Override
-    public Table getTable(String name) {
+    public @Nullable Table getTable(String name) {
 
       // This is called only after getSubProvider() returned null,
       // and since we are tracking the actual parsed table names, this should

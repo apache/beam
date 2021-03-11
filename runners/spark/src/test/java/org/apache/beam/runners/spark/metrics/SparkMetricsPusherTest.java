@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.spark.metrics;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
 
 import org.apache.beam.runners.core.metrics.TestMetricsSink;
 import org.apache.beam.runners.spark.ReuseSparkContextRule;

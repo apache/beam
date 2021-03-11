@@ -109,6 +109,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /** Dynamically generates a {@link DoFnInvoker} instances for invoking a {@link DoFn}. */
+@SuppressWarnings({
+  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes"
+})
 class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
 
   public static final String START_BUNDLE_CONTEXT_PARAMETER_METHOD = "startBundleContext";

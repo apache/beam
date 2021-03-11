@@ -24,6 +24,9 @@ import org.apache.beam.sdk.io.azure.options.BlobstoreOptions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 
 /** Construct BlobServiceClientBuilder with given values of Azure client properties. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DefaultBlobstoreClientBuilderFactory implements BlobstoreClientBuilderFactory {
 
   @Override
@@ -34,12 +37,8 @@ public class DefaultBlobstoreClientBuilderFactory implements BlobstoreClientBuil
       builder = builder.connectionString(blobstoreOptions.getAzureConnectionString());
     }
 
-    if (blobstoreOptions.getSharedKeyCredential() != null) {
-      builder = builder.credential(blobstoreOptions.getSharedKeyCredential());
-    }
-
-    if (blobstoreOptions.getTokenCredential() != null) {
-      builder = builder.credential(blobstoreOptions.getTokenCredential());
+    if (blobstoreOptions.getAzureCredentialsProvider() != null) {
+      builder = builder.credential(blobstoreOptions.getAzureCredentialsProvider());
     }
 
     if (!Strings.isNullOrEmpty(blobstoreOptions.getSasToken())) {

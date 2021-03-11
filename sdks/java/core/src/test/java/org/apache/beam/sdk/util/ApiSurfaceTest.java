@@ -18,9 +18,9 @@
 package org.apache.beam.sdk.util;
 
 import static org.apache.beam.sdk.util.ApiSurface.containsOnlyClassesMatching;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.emptyIterable;
-import static org.junit.Assert.assertThat;
 
 import java.util.List;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIterable;
@@ -37,7 +37,10 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class ApiSurfaceTest {
 
-  @SuppressWarnings({"rawtypes", "unchecked"})
+  @SuppressWarnings({
+    "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+    "unchecked"
+  })
   private void assertExposed(final Class classToExamine, final Class... exposedClasses) {
 
     final ApiSurface apiSurface = ApiSurface.ofClass(classToExamine).pruningPrefix("java");

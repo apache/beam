@@ -23,6 +23,7 @@ import unittest
 from apache_beam.io.aws import s3io
 from apache_beam.io.aws.clients.s3 import fake_client
 from apache_beam.io.aws.clients.s3 import messages
+from apache_beam.options import pipeline_options
 
 
 class ClientErrorTest(unittest.TestCase):
@@ -46,7 +47,7 @@ class ClientErrorTest(unittest.TestCase):
       self.client.known_buckets.add(test_data_bucket)
       self.aws = s3io.S3IO(self.client)
     else:
-      self.aws = s3io.S3IO()
+      self.aws = s3io.S3IO(options=pipeline_options.S3Options())
 
   def test_get_object_metadata(self):
 

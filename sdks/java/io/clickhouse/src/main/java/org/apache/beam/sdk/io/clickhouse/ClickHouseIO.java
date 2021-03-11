@@ -118,6 +118,9 @@ import ru.yandex.clickhouse.settings.ClickHouseQueryParam;
  * done using {@link org.apache.beam.sdk.schemas.transforms.Cast} before {@link ClickHouseIO}.
  */
 @Experimental(Kind.SOURCE_SINK)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ClickHouseIO {
 
   public static final long DEFAULT_MAX_INSERT_BLOCK_SIZE = 1000000;
@@ -157,6 +160,8 @@ public class ClickHouseIO {
 
     public abstract Duration initialBackoff();
 
+    public abstract @Nullable TableSchema tableSchema();
+
     public abstract @Nullable Boolean insertDistributedSync();
 
     public abstract @Nullable Long insertQuorum();
@@ -167,7 +172,11 @@ public class ClickHouseIO {
 
     @Override
     public PDone expand(PCollection<T> input) {
-      TableSchema tableSchema = getTableSchema(jdbcUrl(), table());
+      TableSchema tableSchema = tableSchema();
+      if (tableSchema == null) {
+        tableSchema = getTableSchema(jdbcUrl(), table());
+      }
+
       Properties properties = properties();
 
       set(properties, ClickHouseQueryParam.MAX_INSERT_BLOCK_SIZE, maxInsertBlockSize());
@@ -280,6 +289,16 @@ public class ClickHouseIO {
       return toBuilder().initialBackoff(value).build();
     }
 
+    /**
+     * Set TableSchema. If not set, then TableSchema will be fetched from clickhouse server itself
+     *
+     * @param tableSchema schema of Table in which rows are going to be inserted
+     * @return a {@link PTransform} writing data to ClickHouse
+     */
+    public Write<T> withTableSchema(@Nullable TableSchema tableSchema) {
+      return toBuilder().tableSchema(tableSchema).build();
+    }
+
     /** Builder for {@link Write}. */
     @AutoValue.Builder
     abstract static class Builder<T> {
@@ -289,6 +308,8 @@ public class ClickHouseIO {
       public abstract Builder<T> table(String table);
 
       public abstract Builder<T> maxInsertBlockSize(long maxInsertBlockSize);
+
+      public abstract Builder<T> tableSchema(TableSchema tableSchema);
 
       public abstract Builder<T> insertDistributedSync(Boolean insertDistributedSync);
 

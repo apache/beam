@@ -136,7 +136,10 @@ import org.joda.time.Instant;
  * Watermark_PCollection = Watermark_Out_ProducingPTransform
  * </pre>
  */
-public class WatermarkManager<ExecutableT, CollectionT> {
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
+class WatermarkManager<ExecutableT, CollectionT> {
   // The number of updates to apply in #tryApplyPendingUpdates
   private static final int MAX_INCREMENTAL_UPDATES = 10;
 

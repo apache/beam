@@ -60,7 +60,7 @@ public class DeduplicatedFlattenFactory<T>
    *
    * <p>The input {@link PCollectionList} that is constructed will have the same values in the same
    */
-  private PCollectionList<T> getInput(Map<TupleTag<?>, PValue> inputs, Pipeline p) {
+  private PCollectionList<T> getInput(Map<TupleTag<?>, PCollection<?>> inputs, Pipeline p) {
     PCollectionList<T> pCollections = PCollectionList.empty(p);
     for (PValue input : inputs.values()) {
       PCollection<T> pcollection = (PCollection<T>) input;
@@ -70,8 +70,8 @@ public class DeduplicatedFlattenFactory<T>
   }
 
   @Override
-  public Map<PValue, ReplacementOutput> mapOutputs(
-      Map<TupleTag<?>, PValue> outputs, PCollection<T> newOutput) {
+  public Map<PCollection<?>, ReplacementOutput> mapOutputs(
+      Map<TupleTag<?>, PCollection<?>> outputs, PCollection<T> newOutput) {
     return ReplacementOutputs.singleton(outputs, newOutput);
   }
 
