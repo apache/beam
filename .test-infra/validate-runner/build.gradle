@@ -23,23 +23,38 @@ description = "Apache Beam :: Validate :: Runner"
 
 repositories {
     mavenCentral()
-    maven {
-        url "https://repo.spring.io/libs-release/"
-    }
+//    maven {
+//        url "https://repo.spring.io/libs-release/"
+//    }
     maven {
         url "https://repo.jenkins-ci.org/releases/"
+    }
+    maven {
+        url "https://jcenter.bintray.com/"
     }
 }
 
 dependencies {
-    compile group: 'com.cdancy', name: 'jenkins-rest', version: '0.0.20'
+    compile group: 'com.cdancy', name: 'jenkins-rest', version: '0.0.22'
     compile 'com.offbytwo.jenkins:jenkins-client:0.3.8'
     compile group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.0.1'
     compile group: 'org.jenkins-ci.plugins', name: 'junit', version: '1.34'
     compile group: 'org.yaml', name: 'snakeyaml', version: '1.8'
     compile group: 'com.fasterxml.jackson.dataformat', name: 'jackson-dataformat-yaml', version: '2.11.3'
     compile 'org.slf4j:slf4j-simple:1.7.9'
+    compile group: 'junit', name: 'junit', version: '4.12'
+    compile group: 'org.apache.beam', name: 'beam-sdks-java-core', version: '2.26.0'
+    compile group: 'org.apache.beam', name: 'beam-sdks-java-core', version: '2.26.0', classifier: 'tests'
+    compile group: 'org.apache.beam', name: 'beam-runners-flink_2.11', version: '2.16.0'
+    compile group: 'org.apache.beam', name: 'beam-runners-flink_2.11', version: '2.16.0', classifier: 'tests'
+    compile group: 'org.apache.beam', name: 'beam-runners-spark', version: '2.28.0'
+    compile group: 'org.apache.beam', name: 'beam-runners-spark', version: '2.28.0', classifier: 'tests'
+    compile group: 'org.apache.beam', name: 'beam-runners-core-java', version: '2.26.0'
+    compile group: 'org.apache.beam', name: 'beam-runners-core-java', version: '2.26.0', classifier: 'tests'
 }
+
+
+
 ext.javaMainClass = "org.apache.beam.validate.runner.Main"
 if (project.hasProperty("args")) {
     ext.cmdargs = project.getProperty("args")
