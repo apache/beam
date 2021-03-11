@@ -21,7 +21,6 @@ plugins {
 }
 
 applyJavaNature(
-  enableStrictDependencies: true,
   automaticModuleName: 'org.apache.beam.sdk.extensions.sql.zetasql',
 )
 

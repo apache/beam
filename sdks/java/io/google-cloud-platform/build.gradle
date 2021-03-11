@@ -20,9 +20,12 @@ import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-  enableStrictDependencies: true,
   automaticModuleName: 'org.apache.beam.sdk.io.gcp',
   enableSpotbugs: false,
+  classesTriggerCheckerBugs: [
+    'RunnerImplementedSourceTranslation': 'https://github.com/typetools/checker-framework/issues/3791',
+    'RunnerImplementedSinkTranslation': 'https://github.com/typetools/checker-framework/issues/3791',
+  ],
 )
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Google Cloud Platform"
@@ -38,6 +41,7 @@ dependencies {
   permitUnusedDeclared project(":sdks:java:expansion-service") // BEAM-11761
   compile project(":sdks:java:extensions:google-cloud-platform-core")
   compile project(":sdks:java:extensions:protobuf")
+  compile project(":runners:core-construction-java")
   compile library.java.avro
   compile library.java.bigdataoss_util
   compile library.java.error_prone_annotations
@@ -125,8 +129,6 @@ dependencies {
   testCompile project(path: ":runners:direct-java", configuration: "shadow")
   testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
   testCompile project(path: ":sdks:java:testing:test-utils", configuration: "testRuntime")
-  // For testing Cross-language transforms
-  testCompile project(":runners:core-construction-java")
   testCompile library.java.mockito_core
   testCompile library.java.powermock
   testCompile library.java.powermock_mockito

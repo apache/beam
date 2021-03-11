@@ -713,7 +713,7 @@ message PubSubReadPayload {
   // If true, reads Pub/Sub payload as well as attributes. If false, reads only the payload.
   bool with_attributes = 5;
 
-  // If set, the topic that is expected to be provided during runtime.
+  // If set, the topic is expected to be provided during runtime.
   string topic_runtime_overridden = 6;
 
   // If set, the subscription that is expected to be provided during runtime.
@@ -735,7 +735,7 @@ message PubSubWritePayload {
   // Attribute that uniquely identify messages.
   string id_attribute = 3;
 
-  // If set, the topic that is expected to be provided during runtime.
+  // If set, the topic is expected to be provided during runtime.
   string topic_runtime_overridden = 4;
 }
 

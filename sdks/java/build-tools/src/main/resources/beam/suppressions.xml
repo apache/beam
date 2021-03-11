@@ -97,6 +97,7 @@
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*google.*cloud.*spanner.*FakeBatchTransactionId\.java" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*google.*cloud.*spanner.*FakePartitionFactory\.java" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*extensions.*sql.*datastore.*" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*extensions.*sql.*pubsublite.RowHandler.*" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*extensions.*sql.*ProtoPayloadSerializerProvider.*" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*datacatalog.*DataCatalogTableProvider\.java" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*zetasql.*DateTimeUtils\.java" />

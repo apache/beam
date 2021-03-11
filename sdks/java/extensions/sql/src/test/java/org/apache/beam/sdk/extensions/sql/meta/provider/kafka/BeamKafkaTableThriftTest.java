@@ -23,11 +23,15 @@ import static org.junit.Assert.assertThrows;
 
 import com.alibaba.fastjson.JSON;
 import java.util.List;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
+import org.apache.beam.sdk.io.kafka.KafkaRecordCoder;
+import org.apache.beam.sdk.io.kafka.ProducerRecordCoder;
 import org.apache.beam.sdk.io.thrift.payloads.TestThriftMessage;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -66,6 +70,9 @@ public class BeamKafkaTableThriftTest extends BeamKafkaTableTest {
         pipeline
             .apply(Create.of(shuffledRow(1), shuffledRow(2)))
             .apply(kafkaTable.getPTransformForOutput())
+            .setCoder(ProducerRecordCoder.of(ByteArrayCoder.of(), ByteArrayCoder.of()))
+            .apply(MapElements.via(new ProducerToRecord()))
+            .setCoder(KafkaRecordCoder.of(ByteArrayCoder.of(), ByteArrayCoder.of()))
             .apply(kafkaTable.getPTransformForInput());
     PAssert.that(result).containsInAnyOrder(shuffledRow(1), shuffledRow(2));
     pipeline.run();
@@ -93,7 +100,7 @@ public class BeamKafkaTableThriftTest extends BeamKafkaTableTest {
                     .schema(schema)
                     .properties(
                         JSON.parseObject(
-                            "{ \"topics\": [], \"format\": \"thrift\", \"thriftClass\": \""
+                            "{ \"topics\": [ \"mytopic\" ], \"format\": \"thrift\", \"thriftClass\": \""
                                 + TestThriftMessage.class.getName()
                                 + "\", \"thriftProtocolFactoryClass\": \""
                                 + TCompactProtocol.Factory.class.getName()

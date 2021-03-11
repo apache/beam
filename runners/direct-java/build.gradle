@@ -30,7 +30,6 @@ def dependOnProjects = [":runners:core-construction-java",
                         ]
 
 applyJavaNature(
-        enableStrictDependencies:true,
         automaticModuleName: 'org.apache.beam.runners.direct',
         classesTriggerCheckerBugs: [
           'ImpulseEvaluatorFactory': 'https://github.com/typetools/checker-framework/issues/3791',
@@ -130,6 +129,7 @@ task needsRunnerTests(type: Test) {
     // MetricsPusher isn't implemented in direct runner
     excludeCategories "org.apache.beam.sdk.testing.UsesMetricsPusher"
     excludeCategories "org.apache.beam.sdk.testing.UsesCrossLanguageTransforms"
+    excludeCategories "org.apache.beam.sdk.testing.UsesPythonExpansionService"
     excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
   }
   testLogging {
@@ -159,6 +159,7 @@ task validatesRunner(type: Test) {
     excludeCategories "org.apache.beam.sdk.testing.LargeKeys\$Above100MB"
     excludeCategories 'org.apache.beam.sdk.testing.UsesMetricsPusher'
     excludeCategories "org.apache.beam.sdk.testing.UsesCrossLanguageTransforms"
+    excludeCategories "org.apache.beam.sdk.testing.UsesPythonExpansionService"
   }
 }
 

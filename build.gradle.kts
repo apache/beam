@@ -196,9 +196,21 @@ task("sqlPostCommit") {
 }
 
 task("goPreCommit") {
-  dependsOn(":sdks:go:goBuild")
-  dependsOn(":sdks:go:goTest")
+  // Ensure the Precommit builds run after the tests, in order to avoid the
+  // flake described in BEAM-11918. This is done by splitting them into two
+  // tasks and using "mustRunAfter" to enforce ordering.
+  dependsOn(":goPrecommitTest")
+  dependsOn(":goPrecommitBuild")
+}
 
+task("goPrecommitTest") {
+  dependsOn(":sdks:go:goTest")
+}
+
+task("goPrecommitBuild") {
+  mustRunAfter(":goPrecommitTest")
+
+  dependsOn(":sdks:go:goBuild")
   dependsOn(":sdks:go:examples:goBuild")
   dependsOn(":sdks:go:test:goBuild")
 

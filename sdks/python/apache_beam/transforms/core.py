@@ -2871,10 +2871,7 @@ class Flatten(PTransform):
     for pcoll in pcolls:
       self._check_pcollection(pcoll)
     is_bounded = all(pcoll.is_bounded for pcoll in pcolls)
-    result = pvalue.PCollection(self.pipeline, is_bounded=is_bounded)
-    result.element_type = typehints.Union[tuple(
-        pcoll.element_type for pcoll in pcolls)]
-    return result
+    return pvalue.PCollection(self.pipeline, is_bounded=is_bounded)
 
   def get_windowing(self, inputs):
     # type: (typing.Any) -> Windowing
@@ -2882,6 +2879,9 @@ class Flatten(PTransform):
       # TODO(robertwb): Return something compatible with every windowing?
       return Windowing(GlobalWindows())
     return super(Flatten, self).get_windowing(inputs)
+
+  def infer_output_type(self, input_type):
+    return input_type
 
   def to_runner_api_parameter(self, context):
     # type: (PipelineContext) -> typing.Tuple[str, None]

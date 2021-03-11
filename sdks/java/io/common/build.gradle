@@ -17,7 +17,7 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(enableStrictDependencies:true,exportJavadoc: false, automaticModuleName: 'org.apache.beam.sdk.io.common')
+applyJavaNature(exportJavadoc: false, automaticModuleName: 'org.apache.beam.sdk.io.common')
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Common"
 ext.summary = "Code used by all Beam IOs"

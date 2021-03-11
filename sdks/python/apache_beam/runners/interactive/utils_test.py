@@ -19,8 +19,8 @@ from __future__ import absolute_import
 
 import json
 import logging
-import sys
 import unittest
+from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
@@ -32,13 +32,6 @@ from apache_beam.runners.interactive import utils
 from apache_beam.testing.test_stream import WindowedValueHolder
 from apache_beam.utils.timestamp import Timestamp
 from apache_beam.utils.windowed_value import WindowedValue
-
-# TODO(BEAM-8288): clean up the work-around of nose tests using Python2 without
-# unittest.mock module.
-try:
-  from unittest.mock import patch
-except ImportError:
-  from mock import patch
 
 
 class ParseToDataframeTest(unittest.TestCase):
@@ -135,8 +128,6 @@ class ToElementListTest(unittest.TestCase):
 @unittest.skipIf(
     not ie.current_env().is_interactive_ready,
     '[interactive] dependency is not installed.')
-@unittest.skipIf(
-    sys.version_info < (3, 6), 'The tests require at least Python 3.6 to work.')
 class IPythonLogHandlerTest(unittest.TestCase):
   def setUp(self):
     utils.register_ipython_log_handler()
@@ -191,8 +182,6 @@ class IPythonLogHandlerTest(unittest.TestCase):
 @unittest.skipIf(
     not ie.current_env().is_interactive_ready,
     '[interactive] dependency is not installed.')
-@unittest.skipIf(
-    sys.version_info < (3, 6), 'The tests require at least Python 3.6 to work.')
 class ProgressIndicatorTest(unittest.TestCase):
   def setUp(self):
     ie.new_env()
@@ -237,8 +226,6 @@ class ProgressIndicatorTest(unittest.TestCase):
 @unittest.skipIf(
     not ie.current_env().is_interactive_ready,
     '[interactive] dependency is not installed.')
-@unittest.skipIf(
-    sys.version_info < (3, 6), 'The tests require at least Python 3.6 to work.')
 class MessagingUtilTest(unittest.TestCase):
   SAMPLE_DATA = {'a': [1, 2, 3], 'b': 4, 'c': '5', 'd': {'e': 'f'}}
 

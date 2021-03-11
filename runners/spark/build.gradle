@@ -21,7 +21,6 @@ import java.util.stream.Collectors
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-  enableStrictDependencies: true,
   automaticModuleName: 'org.apache.beam.runners.spark',
   classesTriggerCheckerBugs: [
     'SparkAssignWindowFn': 'https://github.com/typetools/checker-framework/issues/3793',
@@ -185,6 +184,7 @@ task validatesRunnerBatch(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
     // Portability
     excludeCategories 'org.apache.beam.sdk.testing.UsesCrossLanguageTransforms'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesPythonExpansionService'
     excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
   }
   jvmArgs '-Xmx3g'
@@ -255,6 +255,7 @@ task validatesStructuredStreamingRunnerBatch(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
     // Portability
     excludeCategories 'org.apache.beam.sdk.testing.UsesCrossLanguageTransforms'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesPythonExpansionService'
     excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
   }
   filter {

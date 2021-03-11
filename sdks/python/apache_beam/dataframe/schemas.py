@@ -57,8 +57,6 @@ types may be given special consideration.
 #TODO: Mapping for date/time types
 #https://pandas.pydata.org/docs/user_guide/timeseries.html#overview
 
-from __future__ import absolute_import
-
 from typing import Any
 from typing import NamedTuple
 from typing import Optional

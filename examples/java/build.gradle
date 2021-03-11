@@ -25,7 +25,6 @@ plugins {
 }
 
 applyJavaNature(
-  enableStrictDependencies: true,
   exportJavadoc: false,
   automaticModuleName: 'org.apache.beam.examples',
 )
