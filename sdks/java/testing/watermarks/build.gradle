@@ -61,23 +61,16 @@ configurations {
 
 dependencies {
   compile library.java.joda_time
-  compile library.java.kafka_clients
-  permitUnusedDeclared library.java.kafka_clients // BEAM-11761
+  runtimeOnly library.java.kafka_clients
   compile library.java.slf4j_api
 
   compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile project(path: ":runners:direct-java", configuration: "shadow")
-  permitUnusedDeclared project(":runners:direct-java") // BEAM-11761
-  compile project(":sdks:java:io:synthetic")
-  permitUnusedDeclared project(":sdks:java:io:synthetic") // BEAM-11761
-  compile project(":sdks:java:testing:test-utils")
-  permitUnusedDeclared project(":sdks:java:testing:test-utils") // BEAM-11761
-  compile project(":sdks:java:io:google-cloud-platform")
-  permitUnusedDeclared project(":sdks:java:io:google-cloud-platform") // BEAM-11761
-  compile project(":sdks:java:io:kafka")
-  permitUnusedDeclared project(":sdks:java:io:kafka") // BEAM-11761
-  compile project(":sdks:java:io:kinesis")
-  permitUnusedDeclared project(":sdks:java:io:kinesis") // BEAM-11761
+  runtimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+  runtimeOnly project(":sdks:java:io:synthetic")
+  runtimeOnly project(":sdks:java:testing:test-utils")
+  runtimeOnly project(":sdks:java:io:google-cloud-platform")
+  runtimeOnly project(":sdks:java:io:kafka")
+  runtimeOnly project(":sdks:java:io:kinesis")
 
   gradleRun project(project.path)
   gradleRun project(path: runnerDependency, configuration: runnerConfiguration)
