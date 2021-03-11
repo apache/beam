@@ -35,11 +35,11 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Py_ValCont',
       }
 
       // Execute shell command to test Python SDK.
-      // TODO: Parallel the script run with Jenkins DSL or Gradle.
       steps {
-        VALIDATES_CONTAINER_DATAFLOW_PYTHON_VERSIONS.each {
-          pythonVersion = it.replace('.', '')
-          shell('cd ' + commonJobProperties.checkoutDir + " && bash sdks/python/container/run_validatescontainer.sh python${pythonVersion}")
+        gradle {
+          rootBuildScriptDir(commonJobProperties.checkoutDir)
+          tasks(':sdks:python:test-suites:dataflow:validatesContainerTests')
+          commonJobProperties.setGradleSwitches(delegate)
         }
       }
     }
