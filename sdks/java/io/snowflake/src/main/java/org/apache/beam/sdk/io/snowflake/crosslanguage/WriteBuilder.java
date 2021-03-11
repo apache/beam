@@ -23,8 +23,6 @@ import net.snowflake.client.jdbc.internal.fasterxml.jackson.databind.ObjectMappe
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.snowflake.SnowflakeIO;
-import org.apache.beam.sdk.io.snowflake.credentials.SnowflakeCredentials;
-import org.apache.beam.sdk.io.snowflake.credentials.SnowflakeCredentialsFactory;
 import org.apache.beam.sdk.io.snowflake.data.SnowflakeTableSchema;
 import org.apache.beam.sdk.io.snowflake.enums.CreateDisposition;
 import org.apache.beam.sdk.io.snowflake.enums.WriteDisposition;
@@ -34,6 +32,9 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 
 @Experimental(Kind.PORTABILITY)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class WriteBuilder
     implements ExternalTransformBuilder<WriteBuilder.Configuration, PCollection<byte[]>, PDone> {
 
@@ -76,18 +77,8 @@ public class WriteBuilder
 
   @Override
   public PTransform<PCollection<byte[]>, PDone> buildExternal(Configuration c) {
-    SnowflakeCredentials credentials = SnowflakeCredentialsFactory.of(c);
-
-    SnowflakeIO.DataSourceConfiguration dataSourceConfiguration =
-        SnowflakeIO.DataSourceConfiguration.create(credentials)
-            .withServerName(c.getServerName())
-            .withDatabase(c.getDatabase())
-            .withSchema(c.getSchema())
-            .withRole(c.getRole())
-            .withWarehouse(c.getWarehouse());
-
     return SnowflakeIO.<byte[]>write()
-        .withDataSourceConfiguration(dataSourceConfiguration)
+        .withDataSourceConfiguration(c.getDataSourceConfiguration())
         .withStorageIntegrationName(c.getStorageIntegrationName())
         .withStagingBucketName(c.getStagingBucketName())
         .withTableSchema(c.getTableSchema())

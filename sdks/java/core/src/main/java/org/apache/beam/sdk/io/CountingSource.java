@@ -54,6 +54,9 @@ import org.joda.time.Instant;
  * <p>To produce a bounded source, use {@link #createSourceForSubrange(long, long)}. To produce an
  * unbounded source, use {@link #createUnboundedFrom(long)}.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class CountingSource {
   /**
    * Creates a {@link BoundedSource} that will produce the specified number of elements, from {@code
@@ -432,7 +435,8 @@ public class CountingSource {
     }
 
     private long expectedValue() {
-      if (source.period.getMillis() == 0L) {
+      // Within the SDF unbounded wrapper, we will query the initial size before we start to read.
+      if (source.period.getMillis() == 0L || firstStarted == null) {
         return Long.MAX_VALUE;
       }
       double periodsElapsed =

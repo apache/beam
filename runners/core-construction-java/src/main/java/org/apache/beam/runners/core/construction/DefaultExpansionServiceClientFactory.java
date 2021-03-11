@@ -30,10 +30,15 @@ public class DefaultExpansionServiceClientFactory implements ExpansionServiceCli
   private Map<Endpoints.ApiServiceDescriptor, ExpansionServiceClient> expansionServiceMap;
   private Function<Endpoints.ApiServiceDescriptor, ManagedChannel> channelFactory;
 
-  DefaultExpansionServiceClientFactory(
+  private DefaultExpansionServiceClientFactory(
       Function<Endpoints.ApiServiceDescriptor, ManagedChannel> channelFactory) {
     this.expansionServiceMap = new ConcurrentHashMap<>();
     this.channelFactory = channelFactory;
+  }
+
+  public static DefaultExpansionServiceClientFactory create(
+      Function<Endpoints.ApiServiceDescriptor, ManagedChannel> channelFactory) {
+    return new DefaultExpansionServiceClientFactory(channelFactory);
   }
 
   @Override

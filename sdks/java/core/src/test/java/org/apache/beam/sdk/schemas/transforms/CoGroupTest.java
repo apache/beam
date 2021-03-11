@@ -19,8 +19,8 @@ package org.apache.beam.sdk.schemas.transforms;
 
 import static junit.framework.TestCase.assertEquals;
 import static org.hamcrest.CoreMatchers.allOf;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
-import static org.junit.Assert.assertThat;
 
 import java.util.List;
 import java.util.Objects;
@@ -52,6 +52,9 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link CoGroup}. */
 @RunWith(JUnit4.class)
 @Category(UsesSchema.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class CoGroupTest {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
   @Rule public transient ExpectedException thrown = ExpectedException.none();

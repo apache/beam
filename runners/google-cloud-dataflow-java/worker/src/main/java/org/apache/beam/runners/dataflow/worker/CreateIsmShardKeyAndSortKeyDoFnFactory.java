@@ -47,6 +47,10 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  * <p>This {@link ParDoFnFactory} is part of an expansion of steps required to materialize ISM
  * files. See <a href="go/dataflow-side-inputs">go/dataflow-side-inputs</a> for further details.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class CreateIsmShardKeyAndSortKeyDoFnFactory implements ParDoFnFactory {
 
   @Override

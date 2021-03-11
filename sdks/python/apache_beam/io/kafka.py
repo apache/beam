@@ -92,15 +92,12 @@ from apache_beam.transforms.external import NamedTupleBasedPayloadBuilder
 
 ReadFromKafkaSchema = typing.NamedTuple(
     'ReadFromKafkaSchema',
-    [
-        ('consumer_config', typing.Mapping[unicode, unicode]),
-        ('topics', typing.List[unicode]),
-        ('key_deserializer', unicode),
-        ('value_deserializer', unicode),
-        ('start_read_time', typing.Optional[int]),
-        ('max_num_records', typing.Optional[int]),
-        ('max_read_time', typing.Optional[int]),
-    ])
+    [('consumer_config', typing.Mapping[unicode, unicode]),
+     ('topics', typing.List[unicode]), ('key_deserializer', unicode),
+     ('value_deserializer', unicode), ('start_read_time', typing.Optional[int]),
+     ('max_num_records', typing.Optional[int]),
+     ('max_read_time', typing.Optional[int]),
+     ('commit_offset_in_finalize', bool), ('timestamp_policy', str)])
 
 
 def default_io_expansion_service():
@@ -120,6 +117,10 @@ class ReadFromKafka(ExternalTransform):
   byte_array_deserializer = (
       'org.apache.kafka.common.serialization.ByteArrayDeserializer')
 
+  processing_time_policy = 'ProcessingTime'
+  create_time_policy = 'CreateTime'
+  log_append_time = 'LogAppendTime'
+
   URN = 'beam:external:java:kafka:read:v1'
 
   def __init__(
@@ -131,6 +132,8 @@ class ReadFromKafka(ExternalTransform):
       start_read_time=None,
       max_num_records=None,
       max_read_time=None,
+      commit_offset_in_finalize=False,
+      timestamp_policy=processing_time_policy,
       expansion_service=None,
   ):
     """
@@ -152,8 +155,18 @@ class ReadFromKafka(ExternalTransform):
         for tests and demo applications.
     :param max_read_time: Maximum amount of time in seconds the transform
         executes. Mainly used for tests and demo applications.
+    :param commit_offset_in_finalize: Whether to commit offsets when finalizing.
+    :param timestamp_policy: The built-in timestamp policy which is used for
+        extracting timestamp from KafkaRecord.
     :param expansion_service: The address (host:port) of the ExpansionService.
     """
+    if timestamp_policy not in [ReadFromKafka.processing_time_policy,
+                                ReadFromKafka.create_time_policy,
+                                ReadFromKafka.log_append_time]:
+      raise ValueError(
+          'timestamp_policy should be one of '
+          '[ProcessingTime, CreateTime, LogAppendTime]')
+
     super(ReadFromKafka, self).__init__(
         self.URN,
         NamedTupleBasedPayloadBuilder(
@@ -165,7 +178,8 @@ class ReadFromKafka(ExternalTransform):
                 max_num_records=max_num_records,
                 max_read_time=max_read_time,
                 start_read_time=start_read_time,
-            )),
+                commit_offset_in_finalize=commit_offset_in_finalize,
+                timestamp_policy=timestamp_policy)),
         expansion_service or default_io_expansion_service())
 
 

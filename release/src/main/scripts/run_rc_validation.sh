@@ -66,7 +66,7 @@ HUB_VERSION=2.12.0
 HUB_ARTIFACTS_NAME=hub-linux-amd64-${HUB_VERSION}
 BACKUP_BASHRC=.bashrc_backup_$(date +"%Y%m%d%H%M%S")
 BACKUP_M2=settings_backup_$(date +"%Y%m%d%H%M%S").xml
-declare -a PYTHON_VERSIONS_TO_VALIDATE=("python2.7" "python3.5")
+declare -a PYTHON_VERSIONS_TO_VALIDATE=("python3.6" "python3.8")
 
 echo ""
 echo "====================Checking Environment & Variables================="
@@ -231,6 +231,18 @@ else
   echo "* Skip Java quickstart with Dataflow runner. Google Cloud SDK is required."
 fi
 
+echo "[Current task] Java quickstart with Twister2 local runner"
+if [[ "$java_quickstart_twister2_local" = true ]]; then
+  echo "*************************************************************"
+  echo "* Running Java Quickstart with Twister2 local runner"
+  echo "*************************************************************"
+  ./gradlew :runners:twister2:runQuickstartJavaTwister2 \
+  -Prepourl=${REPO_URL} \
+  -Pver=${RELEASE_VER}
+else
+  echo "* Skip Java quickstart with Twister2 local runner"
+fi
+
 echo ""
 echo "====================Starting Java Mobile Game====================="
 if [[ ("$java_mobile_game_direct" = true || "$java_mobile_game_dataflow" = true) \
@@ -267,6 +279,17 @@ if [[ ("$java_mobile_game_direct" = true || "$java_mobile_game_dataflow" = true)
     echo "* Java mobile game on DataflowRunner: UserScore, HourlyTeamScore, Leaderboard"
     echo "**************************************************************************"
     ./gradlew :runners:google-cloud-dataflow-java:runMobileGamingJavaDataflow \
+    -Prepourl=${REPO_URL} \
+    -Pver=${RELEASE_VER} \
+    -PgcpProject=${USER_GCP_PROJECT} \
+    -PbqDataset=${MOBILE_GAME_DATASET} \
+    -PpubsubTopic=${MOBILE_GAME_PUBSUB_TOPIC} \
+    -PgcsBucket=${USER_GCS_BUCKET:5}  # skip 'gs://' prefix
+
+    echo "**************************************************************************"
+    echo "* Java mobile game on DataflowRunner using Beam GCP BOM: UserScore, HourlyTeamScore, Leaderboard"
+    echo "**************************************************************************"
+    ./gradlew :runners:google-cloud-dataflow-java:runMobileGamingJavaDataflowBom \
     -Prepourl=${REPO_URL} \
     -Pver=${RELEASE_VER} \
     -PgcpProject=${USER_GCP_PROJECT} \

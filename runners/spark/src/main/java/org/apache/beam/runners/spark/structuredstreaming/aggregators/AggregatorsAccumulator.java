@@ -29,6 +29,9 @@ import org.slf4j.LoggerFactory;
  * @see <a
  *     href="https://spark.apache.org/docs/latest/api/java/org/apache/spark/util/AccumulatorV2.html">accumulatorsV2</a>
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class AggregatorsAccumulator {
   private static final Logger LOG = LoggerFactory.getLogger(AggregatorsAccumulator.class);
 

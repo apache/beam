@@ -16,7 +16,7 @@
 package beam
 
 //go:generate go install github.com/apache/beam/sdks/go/cmd/starcgen
-//go:generate starcgen --package=beam --identifiers=addFixedKeyFn,dropKeyFn,dropValueFn,swapKVFn,explodeFn,jsonDec,jsonEnc,protoEnc,protoDec,makePartitionFn,createFn
+//go:generate starcgen --package=beam --identifiers=addFixedKeyFn,dropKeyFn,dropValueFn,swapKVFn,explodeFn,jsonDec,jsonEnc,protoEnc,protoDec,schemaEnc,schemaDec,makePartitionFn,createFn
 //go:generate go fmt
 
 // We have some freedom to create various utilities, users can use depending on
@@ -104,6 +104,14 @@ func MustN(list []PCollection, err error) []PCollection {
 		panic(err)
 	}
 	return list
+}
+
+// MustTaggedN returns the input, but panics if err != nil.
+func MustTaggedN(ret map[string]PCollection, err error) map[string]PCollection {
+	if err != nil {
+		panic(err)
+	}
+	return ret
 }
 
 // Must returns the input, but panics if err != nil.

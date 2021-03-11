@@ -46,6 +46,7 @@ class SqlOperatorMappingTable {
           .put("$less", SqlStdOperatorTable.LESS_THAN)
           .put("$less_or_equal", SqlStdOperatorTable.LESS_THAN_OR_EQUAL)
           .put("$like", SqlOperators.LIKE)
+          .put("$in", SqlStdOperatorTable.IN)
           .put("$is_null", SqlStdOperatorTable.IS_NULL)
           .put("$is_true", SqlStdOperatorTable.IS_TRUE)
           .put("$is_false", SqlStdOperatorTable.IS_FALSE)
@@ -74,7 +75,9 @@ class SqlOperatorMappingTable {
           // .put("bit_and", SqlStdOperatorTable.BIT_AND) //JIRA link:
           // https://issues.apache.org/jira/browse/BEAM-10379
           .put("string_agg", SqlOperators.STRING_AGG_STRING_FN) // NULL values not supported
+          .put("array_agg", SqlOperators.ARRAY_AGG_FN)
           .put("bit_or", SqlStdOperatorTable.BIT_OR)
+          .put("bit_xor", SqlOperators.BIT_XOR)
           .put("ceil", SqlStdOperatorTable.CEIL)
           .put("floor", SqlStdOperatorTable.FLOOR)
           .put("mod", SqlStdOperatorTable.MOD)
@@ -92,6 +95,7 @@ class SqlOperatorMappingTable {
           .put("coalesce", SqlStdOperatorTable.CASE)
           .put("ifnull", SqlStdOperatorTable.CASE)
           .put("nullif", SqlStdOperatorTable.CASE)
+          .put("countif", SqlOperators.COUNTIF)
           .build();
 
   static final Map<String, SqlOperatorRewriter> ZETASQL_FUNCTION_TO_CALCITE_SQL_OPERATOR_REWRITER =

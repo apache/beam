@@ -20,6 +20,7 @@ package org.apache.beam.fn.harness.control;
 import com.google.auto.value.AutoValue;
 import java.io.Closeable;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -74,11 +75,13 @@ import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Message;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.TextFormat;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheLoader;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.LoadingCache;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.SetMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.joda.time.Instant;
@@ -101,6 +104,11 @@ import org.slf4j.LoggerFactory;
  * perform a split request. See <a href="https://s.apache.org/beam-breaking-fusion">breaking the
  * fusion barrier</a> for further details.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness",
+  "keyfor"
+}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class ProcessBundleHandler {
 
   // TODO: What should the initial set of URNs be?
@@ -288,55 +296,60 @@ public class ProcessBundleHandler {
     ExecutionStateTracker stateTracker = bundleProcessor.getStateTracker();
     QueueingBeamFnDataClient queueingClient = bundleProcessor.getQueueingClient();
 
-    try (HandleStateCallsForBundle beamFnStateClient = bundleProcessor.getBeamFnStateClient()) {
-      try (Closeable closeTracker = stateTracker.activate()) {
-        // Already in reverse topological order so we don't need to do anything.
-        for (ThrowingRunnable startFunction : startFunctionRegistry.getFunctions()) {
-          LOG.debug("Starting function {}", startFunction);
-          startFunction.run();
+    try {
+      try (HandleStateCallsForBundle beamFnStateClient = bundleProcessor.getBeamFnStateClient()) {
+        try (Closeable closeTracker = stateTracker.activate()) {
+          // Already in reverse topological order so we don't need to do anything.
+          for (ThrowingRunnable startFunction : startFunctionRegistry.getFunctions()) {
+            LOG.debug("Starting function {}", startFunction);
+            startFunction.run();
+          }
+
+          queueingClient.drainAndBlock();
+
+          // Need to reverse this since we want to call finish in topological order.
+          for (ThrowingRunnable finishFunction :
+              Lists.reverse(finishFunctionRegistry.getFunctions())) {
+            LOG.debug("Finishing function {}", finishFunction);
+            finishFunction.run();
+          }
         }
 
-        queueingClient.drainAndBlock();
+        // Add all checkpointed residuals to the response.
+        response.addAllResidualRoots(bundleProcessor.getSplitListener().getResidualRoots());
 
-        // Need to reverse this since we want to call finish in topological order.
-        for (ThrowingRunnable finishFunction :
-            Lists.reverse(finishFunctionRegistry.getFunctions())) {
-          LOG.debug("Finishing function {}", finishFunction);
-          finishFunction.run();
+        // TODO(BEAM-6597): This should be reporting monitoring infos using the short id system.
+        // Get start bundle Execution Time Metrics.
+        response.addAllMonitoringInfos(
+            bundleProcessor.getStartFunctionRegistry().getExecutionTimeMonitoringInfos());
+        // Get process bundle Execution Time Metrics.
+        response.addAllMonitoringInfos(
+            bundleProcessor.getpCollectionConsumerRegistry().getExecutionTimeMonitoringInfos());
+        // Get finish bundle Execution Time Metrics.
+        response.addAllMonitoringInfos(
+            bundleProcessor.getFinishFunctionRegistry().getExecutionTimeMonitoringInfos());
+        // Extract MonitoringInfos that come from the metrics container registry.
+        response.addAllMonitoringInfos(
+            bundleProcessor.getMetricsContainerRegistry().getMonitoringInfos());
+        // Add any additional monitoring infos that the "runners" report explicitly.
+        for (ProgressRequestCallback progressRequestCallback :
+            bundleProcessor.getProgressRequestCallbacks()) {
+          response.addAllMonitoringInfos(progressRequestCallback.getMonitoringInfos());
+        }
+
+        if (!bundleProcessor.getBundleFinalizationCallbackRegistrations().isEmpty()) {
+          finalizeBundleHandler.registerCallbacks(
+              bundleProcessor.getInstructionId(),
+              ImmutableList.copyOf(bundleProcessor.getBundleFinalizationCallbackRegistrations()));
+          response.setRequiresFinalization(true);
         }
       }
-
-      // Add all checkpointed residuals to the response.
-      response.addAllResidualRoots(bundleProcessor.getSplitListener().getResidualRoots());
-
-      // TODO(BEAM-6597): This should be reporting monitoring infos using the short id system.
-      // Get start bundle Execution Time Metrics.
-      response.addAllMonitoringInfos(
-          bundleProcessor.getStartFunctionRegistry().getExecutionTimeMonitoringInfos());
-      // Get process bundle Execution Time Metrics.
-      response.addAllMonitoringInfos(
-          bundleProcessor.getpCollectionConsumerRegistry().getExecutionTimeMonitoringInfos());
-      // Get finish bundle Execution Time Metrics.
-      response.addAllMonitoringInfos(
-          bundleProcessor.getFinishFunctionRegistry().getExecutionTimeMonitoringInfos());
-      // Extract MonitoringInfos that come from the metrics container registry.
-      response.addAllMonitoringInfos(
-          bundleProcessor.getMetricsContainerRegistry().getMonitoringInfos());
-      // Add any additional monitoring infos that the "runners" report explicitly.
-      for (ProgressRequestCallback progressRequestCallback :
-          bundleProcessor.getProgressRequestCallbacks()) {
-        response.addAllMonitoringInfos(progressRequestCallback.getMonitoringInfos());
-      }
-
-      if (!bundleProcessor.getBundleFinalizationCallbackRegistrations().isEmpty()) {
-        finalizeBundleHandler.registerCallbacks(
-            bundleProcessor.getInstructionId(),
-            ImmutableList.copyOf(bundleProcessor.getBundleFinalizationCallbackRegistrations()));
-        response.setRequiresFinalization(true);
-      }
-
       bundleProcessorCache.release(
           request.getProcessBundle().getProcessBundleDescriptorId(), bundleProcessor);
+    } catch (Exception e) {
+      bundleProcessorCache.release(
+          request.getProcessBundle().getProcessBundleDescriptorId(), bundleProcessor);
+      throw e;
     }
     return BeamFnApi.InstructionResponse.newBuilder().setProcessBundle(response);
   }
@@ -528,7 +541,8 @@ public class ProcessBundleHandler {
   /** A cache for {@link BundleProcessor}s. */
   public static class BundleProcessorCache {
 
-    private final Map<String, ConcurrentLinkedQueue<BundleProcessor>> cachedBundleProcessors;
+    private final LoadingCache<String, ConcurrentLinkedQueue<BundleProcessor>>
+        cachedBundleProcessors;
     private final Map<String, BundleProcessor> activeBundleProcessors;
 
     @Override
@@ -537,14 +551,32 @@ public class ProcessBundleHandler {
     }
 
     BundleProcessorCache() {
-      this.cachedBundleProcessors = Maps.newConcurrentMap();
+      this.cachedBundleProcessors =
+          CacheBuilder.newBuilder()
+              .expireAfterAccess(Duration.ofMinutes(1L))
+              .removalListener(
+                  removalNotification -> {
+                    ((ConcurrentLinkedQueue<BundleProcessor>) removalNotification.getValue())
+                        .forEach(
+                            bundleProcessor -> {
+                              bundleProcessor.shutdown();
+                            });
+                  })
+              .build(
+                  new CacheLoader<String, ConcurrentLinkedQueue<BundleProcessor>>() {
+                    @Override
+                    public ConcurrentLinkedQueue<BundleProcessor> load(String s) throws Exception {
+                      return new ConcurrentLinkedQueue<>();
+                    }
+                  });
       // We specifically use a weak hash map so that references will automatically go out of scope
       // and not need to be freed explicitly from the cache.
       this.activeBundleProcessors = Collections.synchronizedMap(new WeakHashMap<>());
     }
 
+    @VisibleForTesting
     Map<String, ConcurrentLinkedQueue<BundleProcessor>> getCachedBundleProcessors() {
-      return cachedBundleProcessors;
+      return ImmutableMap.copyOf(cachedBundleProcessors.asMap());
     }
 
     /**
@@ -560,8 +592,7 @@ public class ProcessBundleHandler {
         String instructionId,
         Supplier<BundleProcessor> bundleProcessorSupplier) {
       ConcurrentLinkedQueue<BundleProcessor> bundleProcessors =
-          cachedBundleProcessors.computeIfAbsent(
-              bundleDescriptorId, descriptorId -> new ConcurrentLinkedQueue<>());
+          cachedBundleProcessors.getUnchecked(bundleDescriptorId);
       BundleProcessor bundleProcessor = bundleProcessors.poll();
       if (bundleProcessor == null) {
         bundleProcessor = bundleProcessorSupplier.get();
@@ -599,21 +630,14 @@ public class ProcessBundleHandler {
 
     /** Shutdown all the cached {@link BundleProcessor}s, running the tearDown() functions. */
     void shutdown() throws Exception {
-      for (ConcurrentLinkedQueue<BundleProcessor> bundleProcessors :
-          cachedBundleProcessors.values()) {
-        for (BundleProcessor bundleProcessor : bundleProcessors) {
-          for (ThrowingRunnable tearDownFunction : bundleProcessor.getTearDownFunctions()) {
-            LOG.debug("Tearing down function {}", tearDownFunction);
-            tearDownFunction.run();
-          }
-        }
-      }
-      cachedBundleProcessors.clear();
+      cachedBundleProcessors.invalidateAll();
     }
   }
 
   /** A container for the reusable information used to process a bundle. */
   @AutoValue
+  @AutoValue.CopyAnnotations
+  @SuppressWarnings({"rawtypes"})
   public abstract static class BundleProcessor {
     public static BundleProcessor create(
         PTransformFunctionRegistry startFunctionRegistry,
@@ -687,10 +711,23 @@ public class ProcessBundleHandler {
       getpCollectionConsumerRegistry().reset();
       getMetricsContainerRegistry().reset();
       getStateTracker().reset();
-      ExecutionStateSampler.instance().reset();
       getBundleFinalizationCallbackRegistrations().clear();
       for (ThrowingRunnable resetFunction : getResetFunctions()) {
         resetFunction.run();
+      }
+    }
+
+    void shutdown() {
+      for (ThrowingRunnable tearDownFunction : getTearDownFunctions()) {
+        LOG.debug("Tearing down function {}", tearDownFunction);
+        try {
+          tearDownFunction.run();
+        } catch (Exception e) {
+          LOG.error(
+              "Exceptions are thrown from DoFn.teardown method. Note that it will not fail the"
+                  + " pipeline execution,",
+              e);
+        }
       }
     }
   }

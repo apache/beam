@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.runners.dataflow.util.Structs.addLong;
 import static org.apache.beam.runners.dataflow.util.Structs.addStringList;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 import com.google.api.services.dataflow.model.Source;
 import java.util.Arrays;
@@ -73,7 +74,7 @@ public class InMemoryReaderFactoryTest {
                 PipelineOptionsFactory.create(),
                 BatchModeExecutionContext.forTesting(PipelineOptionsFactory.create(), "testStage"),
                 TestOperationContext.create());
-    Assert.assertThat(reader, new IsInstanceOf(InMemoryReader.class));
+    assertThat(reader, new IsInstanceOf(InMemoryReader.class));
     InMemoryReader<?> inMemoryReader = (InMemoryReader<?>) reader;
     Assert.assertEquals(
         InMemoryReaderTest.encodedElements(elements, coder), inMemoryReader.encodedElements);

@@ -56,6 +56,9 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link GroupingShuffleEntryIterator}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class GroupingShuffleEntryIteratorTest {
   private static final ByteArrayShufflePosition START_POSITION =
       ByteArrayShufflePosition.of("aaa".getBytes(StandardCharsets.UTF_8));

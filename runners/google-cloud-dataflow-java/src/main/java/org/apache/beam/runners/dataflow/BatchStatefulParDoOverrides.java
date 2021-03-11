@@ -19,7 +19,6 @@ package org.apache.beam.runners.dataflow;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
-import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
@@ -45,7 +44,6 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
-import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -74,7 +72,7 @@ public class BatchStatefulParDoOverrides {
               PCollection<OutputT>,
               ParDo.SingleOutput<KV<K, InputT>, OutputT>>
           singleOutputOverrideFactory(DataflowPipelineOptions options) {
-    return new SingleOutputOverrideFactory<>(isFnApi(options));
+    return new SingleOutputOverrideFactory<>(DataflowRunner.useUnifiedWorker(options));
   }
 
   /**
@@ -87,12 +85,7 @@ public class BatchStatefulParDoOverrides {
               PCollectionTuple,
               ParDo.MultiOutput<KV<K, InputT>, OutputT>>
           multiOutputOverrideFactory(DataflowPipelineOptions options) {
-    return new MultiOutputOverrideFactory<>(isFnApi(options));
-  }
-
-  private static boolean isFnApi(DataflowPipelineOptions options) {
-    List<String> experiments = options.getExperiments();
-    return experiments != null && experiments.contains("beam_fn_api");
+    return new MultiOutputOverrideFactory<>(DataflowRunner.useUnifiedWorker(options));
   }
 
   private static class SingleOutputOverrideFactory<K, InputT, OutputT>
@@ -121,8 +114,8 @@ public class BatchStatefulParDoOverrides {
     }
 
     @Override
-    public Map<PValue, ReplacementOutput> mapOutputs(
-        Map<TupleTag<?>, PValue> outputs, PCollection<OutputT> newOutput) {
+    public Map<PCollection<?>, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PCollection<?>> outputs, PCollection<OutputT> newOutput) {
       return ReplacementOutputs.singleton(outputs, newOutput);
     }
   }
@@ -151,8 +144,8 @@ public class BatchStatefulParDoOverrides {
     }
 
     @Override
-    public Map<PValue, ReplacementOutput> mapOutputs(
-        Map<TupleTag<?>, PValue> outputs, PCollectionTuple newOutput) {
+    public Map<PCollection<?>, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PCollection<?>> outputs, PCollectionTuple newOutput) {
       return ReplacementOutputs.tagged(outputs, newOutput);
     }
   }
@@ -177,7 +170,13 @@ public class BatchStatefulParDoOverrides {
     public PCollection<OutputT> expand(PCollection<KV<K, InputT>> input) {
       DoFn<KV<K, InputT>, OutputT> fn = originalParDo.getFn();
       verifyFnIsStateful(fn);
-      DataflowRunner.verifyDoFnSupportedBatch(fn);
+      DataflowPipelineOptions options =
+          input.getPipeline().getOptions().as(DataflowPipelineOptions.class);
+      DataflowRunner.verifyDoFnSupported(
+          fn,
+          false,
+          DataflowRunner.useUnifiedWorker(options),
+          DataflowRunner.useStreamingEngine(options));
       DataflowRunner.verifyStateSupportForWindowingStrategy(input.getWindowingStrategy());
 
       if (isFnApi) {
@@ -210,7 +209,13 @@ public class BatchStatefulParDoOverrides {
     public PCollectionTuple expand(PCollection<KV<K, InputT>> input) {
       DoFn<KV<K, InputT>, OutputT> fn = originalParDo.getFn();
       verifyFnIsStateful(fn);
-      DataflowRunner.verifyDoFnSupportedBatch(fn);
+      DataflowPipelineOptions options =
+          input.getPipeline().getOptions().as(DataflowPipelineOptions.class);
+      DataflowRunner.verifyDoFnSupported(
+          fn,
+          false,
+          DataflowRunner.useUnifiedWorker(options),
+          DataflowRunner.useStreamingEngine(options));
       DataflowRunner.verifyStateSupportForWindowingStrategy(input.getWindowingStrategy());
 
       if (isFnApi) {

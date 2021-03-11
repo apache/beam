@@ -18,16 +18,15 @@
 package org.apache.beam.sdk.io.gcp.pubsub;
 
 import com.google.auto.service.AutoService;
-import com.google.protobuf.InvalidProtocolBufferException;
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO.PubsubTopic;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessages.ParsePubsubMessageProtoAsPayload;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -36,6 +35,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /** Exposes {@link PubsubIO.Write} as an external transform for cross-language usage. */
 @Experimental
 @AutoService(ExternalTransformRegistrar.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public final class ExternalWrite implements ExternalTransformRegistrar {
   public ExternalWrite() {}
 
@@ -71,7 +73,8 @@ public final class ExternalWrite implements ExternalTransformRegistrar {
 
     @Override
     public PTransform<PCollection<byte[]>, PDone> buildExternal(Configuration config) {
-      PubsubIO.Write.Builder<byte[]> writeBuilder = PubsubIO.Write.newBuilder(new FormatFn());
+      PubsubIO.Write.Builder<byte[]> writeBuilder =
+          PubsubIO.Write.newBuilder(new ParsePubsubMessageProtoAsPayload());
       if (config.topic != null) {
         StaticValueProvider<String> topic = StaticValueProvider.of(config.topic);
         writeBuilder.setTopicProvider(NestedValueProvider.of(topic, PubsubTopic::fromPath));
@@ -83,19 +86,6 @@ public final class ExternalWrite implements ExternalTransformRegistrar {
         writeBuilder.setTimestampAttribute(config.timestampAttribute);
       }
       return writeBuilder.build();
-    }
-  }
-
-  private static class FormatFn implements SerializableFunction<byte[], PubsubMessage> {
-    @Override
-    public PubsubMessage apply(byte[] input) {
-      try {
-        com.google.pubsub.v1.PubsubMessage message =
-            com.google.pubsub.v1.PubsubMessage.parseFrom(input);
-        return new PubsubMessage(message.getData().toByteArray(), message.getAttributesMap());
-      } catch (InvalidProtocolBufferException e) {
-        throw new RuntimeException("Could not decode Pubsub message", e);
-      }
     }
   }
 }

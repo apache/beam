@@ -56,7 +56,6 @@ import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.CloudObjects;
 import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.runners.dataflow.util.RandomAccessData;
-import org.apache.beam.runners.dataflow.worker.ExperimentContext.Experiment;
 import org.apache.beam.runners.dataflow.worker.util.WorkerPropertyNames;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
 import org.apache.beam.sdk.coders.Coder;
@@ -94,6 +93,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * {@link #getSingletonForWindow} for singleton views, {@link #getListForWindow} for iterable and
  * list views, and {@link #getMapForWindow} for map and multimap views.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "keyfor",
+  "nullness"
+}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class IsmSideInputReader implements SideInputReader {
   private static final String SINGLETON_KIND = "singleton";
   private static final String COLLECTION_KIND = "collection";
@@ -213,14 +217,8 @@ public class IsmSideInputReader implements SideInputReader {
       throw new Exception("unexpected kind of side input: " + sideInputKind);
     }
 
-    SideInputReadCounter sideInputReadCounter;
-    ExperimentContext ec = ExperimentContext.parseFrom(options);
-    if (ec.isEnabled(Experiment.SideInputIOMetrics)) {
-      sideInputReadCounter =
-          new DataflowSideInputReadCounter(executionContext, operationContext, sideInputIndex);
-    } else {
-      sideInputReadCounter = new NoopSideInputReadCounter();
-    }
+    SideInputReadCounter sideInputReadCounter =
+        new DataflowSideInputReadCounter(executionContext, operationContext, sideInputIndex);
 
     ImmutableList.Builder<IsmReader<?>> builder = ImmutableList.builder();
     for (Source source : sideInputInfo.getSources()) {
@@ -378,7 +376,10 @@ public class IsmSideInputReader implements SideInputReader {
    */
   private <T, W extends BoundedWindow> T getSingletonForWindow(
       TupleTag<?> viewTag, SingletonViewFn<T> viewFn, W window) throws IOException {
-    @SuppressWarnings({"rawtypes", "unchecked"})
+    @SuppressWarnings({
+      "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+      "unchecked"
+    })
     List<IsmReader<WindowedValue<T>>> readers = (List) tagToIsmReaderMap.get(viewTag);
     List<IsmReader<WindowedValue<T>>.IsmPrefixReaderIterator> readerIterators =
         findAndStartReaders(readers, ImmutableList.of(window));
@@ -401,7 +402,10 @@ public class IsmSideInputReader implements SideInputReader {
   @SuppressWarnings("TypeParameterUnusedInFormals")
   private <T, W extends BoundedWindow> T getMapSingletonForViewAndWindow(
       TupleTag<?> viewTag, W window) throws IOException {
-    @SuppressWarnings({"rawtypes", "unchecked"})
+    @SuppressWarnings({
+      "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+      "unchecked"
+    })
     List<IsmReader<WindowedValue<T>>> readers = (List) tagToIsmReaderMap.get(viewTag);
     List<IsmReader<WindowedValue<T>>.IsmPrefixReaderIterator> readerIterators =
         findAndStartReaders(readers, ImmutableList.of(window));

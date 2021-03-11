@@ -41,10 +41,19 @@ public final class NeverStateMachine extends TriggerStateMachine {
   }
 
   @Override
+  public void prefetchOnElement(PrefetchContext c) {}
+
+  @Override
   public void onElement(OnElementContext c) {}
 
   @Override
+  public void prefetchOnMerge(MergingPrefetchContext c) {}
+
+  @Override
   public void onMerge(OnMergeContext c) {}
+
+  @Override
+  public void prefetchShouldFire(PrefetchContext c) {}
 
   @Override
   public boolean shouldFire(TriggerStateMachine.TriggerContext context) {

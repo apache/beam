@@ -45,6 +45,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Internal representation of a Job which has been invoked (prepared and run) by a client. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class JobInvocation {
 
   private static final Logger LOG = LoggerFactory.getLogger(JobInvocation.class);

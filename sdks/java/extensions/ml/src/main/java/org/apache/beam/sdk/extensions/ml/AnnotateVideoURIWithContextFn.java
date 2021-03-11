@@ -30,6 +30,9 @@ import org.apache.beam.sdk.values.KV;
  * GCS URIs, values - VideoContext objects.
  */
 @Experimental
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class AnnotateVideoURIWithContextFn extends AnnotateVideoFn<KV<String, VideoContext>> {
 
   public AnnotateVideoURIWithContextFn(List<Feature> featureList) {

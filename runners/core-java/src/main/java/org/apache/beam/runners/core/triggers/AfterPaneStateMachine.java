@@ -18,8 +18,6 @@
 package org.apache.beam.runners.core.triggers;
 
 import java.util.Objects;
-import org.apache.beam.runners.core.MergingStateAccessor;
-import org.apache.beam.runners.core.StateAccessor;
 import org.apache.beam.runners.core.StateMerging;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.StateTags;
@@ -55,14 +53,21 @@ public class AfterPaneStateMachine extends TriggerStateMachine {
   }
 
   @Override
+  public void prefetchOnElement(PrefetchContext c) {
+    // This is not directly read by onElement since we are using a combiner.
+    // However if a read is performed for another reason we might as well
+    // read also so that the state can be compacted.
+    c.state().access(ELEMENTS_IN_PANE_TAG).readLater();
+  }
+
+  @Override
   public void onElement(OnElementContext c) throws Exception {
     c.state().access(ELEMENTS_IN_PANE_TAG).add(1L);
   }
 
   @Override
-  public void prefetchOnMerge(MergingStateAccessor<?, ?> state) {
-    super.prefetchOnMerge(state);
-    StateMerging.prefetchCombiningValues(state, ELEMENTS_IN_PANE_TAG);
+  public void prefetchOnMerge(MergingPrefetchContext context) {
+    StateMerging.prefetchCombiningValues(context.state(), ELEMENTS_IN_PANE_TAG);
   }
 
   @Override
@@ -80,8 +85,8 @@ public class AfterPaneStateMachine extends TriggerStateMachine {
   }
 
   @Override
-  public void prefetchShouldFire(StateAccessor<?> state) {
-    state.access(ELEMENTS_IN_PANE_TAG).readLater();
+  public void prefetchShouldFire(PrefetchContext context) {
+    context.state().access(ELEMENTS_IN_PANE_TAG).readLater();
   }
 
   @Override

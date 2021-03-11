@@ -26,6 +26,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** The Spark context factory. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public final class SparkContextFactory {
   private static final Logger LOG = LoggerFactory.getLogger(SparkContextFactory.class);
 

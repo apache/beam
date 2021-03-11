@@ -34,6 +34,9 @@ import org.mockito.Mockito;
 import org.powermock.reflect.Whitebox;
 
 /** Tests for {@link FlinkStatefulDoFnFunction}. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class FlinkStatefulDoFnFunctionTest {
 
   @Test

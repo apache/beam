@@ -464,6 +464,29 @@ class TestProtoSchemas {
                   .withNullable(true))
           .setOptions(withTypeName("proto3_schema_messages.WktMessage"))
           .build();
+
+  static final Schema WKT_MESSAGE_SHUFFLED_SCHEMA =
+      Schema.builder()
+          .addField(withFieldNumber("int64", FieldType.INT64, 4).withNullable(true))
+          .addField(withFieldNumber("int32", FieldType.INT32, 3).withNullable(true))
+          .addField(withFieldNumber("double", FieldType.DOUBLE, 1).withNullable(true))
+          .addField(
+              withFieldNumber("uint32", FieldType.logicalType(new UInt32()), 5).withNullable(true))
+          .addField(withFieldNumber("float", FieldType.FLOAT, 2).withNullable(true))
+          .addField(
+              withFieldNumber("uint64", FieldType.logicalType(new UInt64()), 6).withNullable(true))
+          .addField(withFieldNumber("bytes", FieldType.BYTES, 15).withNullable(true))
+          .addField(withFieldNumber("string", FieldType.STRING, 14).withNullable(true))
+          .addField(withFieldNumber("bool", FieldType.BOOLEAN, 13).withNullable(true))
+          .addField(
+              withFieldNumber("timestamp", FieldType.logicalType(new NanosInstant()), 16)
+                  .withNullable(true))
+          .addField(
+              withFieldNumber("duration", FieldType.logicalType(new NanosDuration()), 17)
+                  .withNullable(true))
+          .setOptions(withTypeName("proto3_schema_messages.WktMessage"))
+          .build();
+
   // A sample instance of the  row.
   static final Instant JAVA_NOW = Instant.now();
   static final Timestamp PROTO_NOW =
@@ -482,6 +505,11 @@ class TestProtoSchemas {
       Row.withSchema(WKT_MESSAGE_SCHEMA)
           .addValues(
               1.1, 2.2F, 32, 64L, 33, 65L, true, "horsey", BYTE_ARRAY, JAVA_NOW, JAVA_DURATION)
+          .build();
+  static final Row WKT_MESSAGE_SHUFFLED_ROW =
+      Row.withSchema(WKT_MESSAGE_SHUFFLED_SCHEMA)
+          .addValues(
+              64L, 32, 1.1, 33, 2.2F, 65L, BYTE_ARRAY, "horsey", true, JAVA_NOW, JAVA_DURATION)
           .build();
 
   // A sample instance of the proto.

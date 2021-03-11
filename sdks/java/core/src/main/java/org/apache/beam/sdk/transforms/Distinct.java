@@ -61,6 +61,9 @@ import org.joda.time.Duration;
  *
  * @param <T> the type of the elements of the input and output {@code PCollection}s
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class Distinct<T> extends PTransform<PCollection<T>, PCollection<T>> {
 
   /**
@@ -85,7 +88,7 @@ public class Distinct<T> extends PTransform<PCollection<T>, PCollection<T>> {
 
   private static <T, W extends BoundedWindow> void validateWindowStrategy(
       WindowingStrategy<T, W> strategy) {
-    if (!strategy.getWindowFn().isNonMerging()
+    if (strategy.needsMerge()
         && (!strategy.getTrigger().getClass().equals(DefaultTrigger.class)
             || strategy.getAllowedLateness().isLongerThan(Duration.ZERO))) {
       throw new UnsupportedOperationException(

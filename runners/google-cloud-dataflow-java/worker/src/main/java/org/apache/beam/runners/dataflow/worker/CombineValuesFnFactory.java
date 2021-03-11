@@ -52,6 +52,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * A {@link ParDoFnFactory} to create instances of user {@link CombineFn} according to
  * specifications from the Dataflow service.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class CombineValuesFnFactory implements ParDoFnFactory {
 
   @Override

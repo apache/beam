@@ -12,8 +12,6 @@
 
 capability-matrix:
   columns:
-    - class: model
-      name: Beam Model
     - class: dataflow
       name: Google Cloud Dataflow
     - class: flink
@@ -22,10 +20,6 @@ capability-matrix:
       name: Apache Spark (RDD/DStream based)
     - class: spark-dataset
       name: Apache Spark Structured Streaming (Dataset based)
-    - class: mapreduce
-      name: Apache Hadoop MapReduce
-    - class: jstorm
-      name: JStorm
     - class: ibmstreams
       name: IBM Streams
     - class: samza
@@ -34,21 +28,26 @@ capability-matrix:
       name: Apache Nemo
     - class: jet
       name: Hazelcast Jet
+    - class: twister2
+      name: Twister2
+    - class: python direct
+      name: Python Direct FnRunner
+    - class: go direct
+      name: Go Direct Runner
 
   categories:
     - description: What is being computed?
       anchor: what
-      color-b: "ca1"
-      color-y: "ec3"
-      color-p: "fe5"
-      color-n: "ddd"
+      color-y: "fff"
+      color-yb: "f6f6f6"
+      color-p: "f9f9f9"
+      color-pb: "d8d8d8"
+      color-n: "e1e0e0"
+      color-nb: "bcbcbc"
       rows:
         - name: ParDo
+          description: Element-wise transformation parameterized by a chunk of user code. Elements are processed in bundles, with initialization and termination hooks. Bundle size is chosen by the runner and cannot be controlled by user code. ParDo processes a main input PCollection one element at a time, but provides side input access to additional PCollections.
           values:
-            - class: model
-              l1: "Yes"
-              l2: element-wise processing
-              l3: Element-wise transformation parameterized by a chunk of user code. Elements are processed in bundles, with initialization and termination hooks. Bundle size is chosen by the runner and cannot be controlled by user code. ParDo processes a main input PCollection one element at a time, but provides side input access to additional PCollections.
             - class: dataflow
               l1: "Yes"
               l2: fully supported
@@ -65,14 +64,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: ParDo applies per-element transformations as Spark FlatMapFunction.
-            - class: mapreduce
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
-            - class: jstorm
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: ibmstreams
               l1: "Yes"
               l2: fully supported
@@ -89,12 +80,21 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: ""
-        - name: GroupByKey
-          values:
-            - class: model
+            - class: twister2
               l1: "Yes"
-              l2: key grouping
-              l3: Grouping of key-value pairs per key, window, and pane. (See also other tabs.)
+              l2: fully supported
+              l3: ""
+            - class: python direct
+              l1: ""
+              l2:
+              l3: ""
+            - class: go direct
+              l1: ""
+              l2:
+              l3: ""
+        - name: GroupByKey
+          description: Grouping of key-value pairs per key, window, and pane. (See also other tabs.)
+          values:
             - class: dataflow
               l1: "Yes"
               l2: fully supported
@@ -111,14 +111,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: "Using Spark's <tt>groupByKey</tt>."
-            - class: mapreduce
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
-            - class: jstorm
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: ibmstreams
               l1: "Yes"
               l2: fully supported
@@ -135,12 +127,21 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: ""
-        - name: Flatten
-          values:
-            - class: model
+            - class: twister2
               l1: "Yes"
-              l2: collection concatenation
-              l3: Concatenates multiple homogenously typed collections together.
+              l2: fully supported
+              l3: ""
+            - class: python direct
+              l1: ""
+              l2:
+              l3: ""
+            - class: go direct
+              l1: ""
+              l2:
+              l3: ""
+        - name: Flatten
+          description: Concatenates multiple homogenously typed collections together.
+          values:
             - class: dataflow
               l1: "Yes"
               l2: fully supported
@@ -157,14 +158,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: Some corner cases like flatten on empty collections are not yet supported.
-            - class: mapreduce
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
-            - class: jstorm
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: ibmstreams
               l1: "Yes"
               l2: fully supported
@@ -181,12 +174,21 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: ""
-        - name: Combine
-          values:
-            - class: model
+            - class: twister2
               l1: "Yes"
-              l2: associative &amp; commutative aggregation
-              l3: 'Application of an associative, commutative operation over all values ("globally") or over all values associated with each key ("per key"). Can be implemented using ParDo, but often more efficient implementations exist.'
+              l2: fully supported
+              l3: ""
+            - class: python direct
+              l1: ""
+              l2:
+              l3: ""
+            - class: go direct
+              l1: ""
+              l2:
+              l3: ""
+        - name: Combine
+          description: 'Application of an associative, commutative operation over all values ("globally") or over all values associated with each key ("per key"). Can be implemented using ParDo, but often more efficient implementations exist.'
+          values:
             - class: dataflow
               l1: "Yes"
               l2: "efficient execution"
@@ -203,14 +205,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: "Using Spark's <tt>Aggregator</tt> and agg function"
-            - class: mapreduce
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
-            - class: jstorm
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: ibmstreams
               l1: "Yes"
               l2: fully supported
@@ -227,12 +221,21 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: "Batch mode uses pre-aggregation"
-        - name: Composite Transforms
-          values:
-            - class: model
+            - class: twister2
               l1: "Yes"
-              l2: user-defined transformation subgraphs
-              l3: Allows easy extensibility for library writers.  In the near future, we expect there to be more information provided at this level -- customized metadata hooks for monitoring, additional runtime/environment hooks, etc.
+              l2: fully supported
+              l3: ""
+            - class: python direct
+              l1: ""
+              l2:
+              l3: ""
+            - class: go direct
+              l1: ""
+              l2:
+              l3: ""
+        - name: Composite Transforms
+          description: Allows easy extensibility for library writers.  In the near future, we expect there to be more information provided at this level -- customized metadata hooks for monitoring, additional runtime/environment hooks, etc.
+          values:
             - class: dataflow
               l1: "Partially"
               l2: supported via inlining
@@ -249,14 +252,6 @@ capability-matrix:
               l1: "Partially"
               l2: supported via inlining only in batch mode
               l3: ""
-            - class: mapreduce
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
-            - class: jstorm
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: ibmstreams
               l1: "Partially"
               l2: supported via inlining
@@ -273,12 +268,21 @@ capability-matrix:
               l1: "Partially"
               l2: supported via inlining
               l3: ""
+            - class: twister2
+              l1: "Partially"
+              l2: supported via inlining
+              l3: ""
+            - class: python direct
+              l1: ""
+              l2:
+              l3: ""
+            - class: go direct
+              l1: ""
+              l2:
+              l3: ""
         - name: Side Inputs
+          description: Side inputs are additional <tt>PCollections</tt> whose contents are computed during pipeline execution and then made accessible to DoFn code. The exact shape of the side input depends both on the <tt>PCollectionView</tt> used to describe the access pattern (interable, map, singleton) and the window of the element from the main input that is currently being processed.
           values:
-            - class: model
-              l1: "Yes"
-              l2: additional elements available during DoFn execution
-              l3: Side inputs are additional <tt>PCollections</tt> whose contents are computed during pipeline execution and then made accessible to DoFn code. The exact shape of the side input depends both on the <tt>PCollectionView</tt> used to describe the access pattern (interable, map, singleton) and the window of the element from the main input that is currently being processed.
             - class: dataflow
               l1: "Yes"
               l2: some size restrictions in streaming
@@ -295,14 +299,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: "Using Spark's broadcast variables."
-            - class: mapreduce
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
-            - class: jstorm
-              l1: "Yes"
-              l2: some size restrictions
-              l3: ""
             - class: ibmstreams
               l1: "Yes"
               l2: fully supported
@@ -319,12 +315,21 @@ capability-matrix:
               l1: "Partially"
               l2: with restrictions
               l3: Supported only when the side input source is bounded and windowing uses global window
-        - name: Source API
-          values:
-            - class: model
+            - class: twister2
               l1: "Yes"
-              l2: user-defined sources
-              l3: Allows users to provide additional input sources. Supports both bounded and unbounded data. Includes hooks necessary to provide efficient parallelization (size estimation, progress information, dynamic splitting, etc).
+              l2: fully supported
+              l3: ""
+            - class: python direct
+              l1: ""
+              l2:
+              l3: ""
+            - class: go direct
+              l1: ""
+              l2:
+              l3: ""
+        - name: Source API
+          description: Allows users to provide additional input sources. Supports both bounded and unbounded data. Includes hooks necessary to provide efficient parallelization (size estimation, progress information, dynamic splitting, etc).
+          values:
             - class: dataflow
               l1: "Yes"
               l2: fully supported
@@ -341,14 +346,6 @@ capability-matrix:
               l1: "Partially"
               l2: bounded source only
               l3: "Using Spark's DatasourceV2 API in microbatch mode (Continuous streaming mode is tagged experimental in spark and does not support aggregation)."
-            - class: mapreduce
-              l1: "Partially"
-              l2: bounded source only
-              l3: ""
-            - class: jstorm
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: ibmstreams
               l1: "Yes"
               l2: fully supported
@@ -365,58 +362,21 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: ""
-        - name: Splittable DoFn (SDF)
-          values:
-            - class: model
-              l1: "Partially"
-              l2: DoFn where processing of each element can be split for parallelism, or suspended and resumed
-              l3: Allows users to develop DoFn's that process a single element in portions ("restrictions"), executed in parallel or sequentially. This supersedes the unbounded and bounded `Source` APIs by supporting all of their features on a per-element basis. See http://s.apache.org/splittable-do-fn. Design is in progress on achieving parity with Source API regarding progress signals.
-            - class: dataflow
+            - class: twister2
               l1: "Yes"
-              l2:
-              l3: Does not yet support autotuning features of the Source API.
-            - class: flink
-              l1: "Yes"
-              l2:
-              l3:
-            - class: spark-rdd
-              l1: "Partially"
-              l2: supports bounded-per-element SDFs
-              l3:
-            - class: spark-dataset
-              l1: "No"
-              l2: not implemented
-              l3:
-            - class: mapreduce
-              l1: "No"
-              l2: not implemented
-              l3:
-            - class: jstorm
-              l1: "No"
-              l2: not implemented
-              l3:
-            - class: ibmstreams
-              l1: "No"
-              l2: not implemented
-              l3:
-            - class: samza
-              l1: "Partially"
-              l2: supports bounded-per-element SDFs
-              l3:
-            - class: nemo
-              l1: "No"
-              l2: not implemented
+              l2: fully supported
               l3: ""
-            - class: jet
-              l1: "No"
-              l2: not implemented
+            - class: python direct
+              l1: ""
+              l2:
+              l3: ""
+            - class: go direct
+              l1: ""
+              l2:
               l3: ""
         - name: Metrics
+          description: Allow transforms to gather simple metrics across bundles in a <tt>PTransform</tt>. Provide a mechanism to obtain both committed and attempted metrics. Semantically similar to using an additional output, but support partial results as the transform executes, and support both committed and attempted values. Will likely want to augment <tt>Metrics</tt> to be more useful for processing unbounded data by making them windowed.
           values:
-            - class: model
-              l1: "Partially"
-              l2: user-provided metrics
-              l3: Allow transforms to gather simple metrics across bundles in a <tt>PTransform</tt>. Provide a mechanism to obtain both committed and attempted metrics. Semantically similar to using an additional output, but support partial results as the transform executes, and support both committed and attempted values. Will likely want to augment <tt>Metrics</tt> to be more useful for processing unbounded data by making them windowed.
             - class: dataflow
               l1: "Partially"
               l2: ""
@@ -433,14 +393,6 @@ capability-matrix:
               l1: "Partially"
               l2: All metric types are supported in batch mode.
               l3: Only attempted values are supported. No committed values for metrics.
-            - class: mapreduce
-              l1: "Partially"
-              l2: Only attempted counters are supported
-              l3: ""
-            - class: jstorm
-              l1: "Partially"
-              l2: Metrics are only supported in local mode.
-              l3: ""
             - class: ibmstreams
               l1: "Partially"
               l2: All metrics types are supported.
@@ -457,12 +409,21 @@ capability-matrix:
               l1: "Partially"
               l2: All metrics types supported, both in batching and streaming mode.
               l3: Doesn't differentiate between committed and attempted values.
+            - class: twister2
+              l1: "No"
+              l2: not implemented
+              l3: ""
+            - class: python direct
+              l1: ""
+              l2:
+              l3: ""
+            - class: go direct
+              l1: ""
+              l2:
+              l3: ""
         - name: Stateful Processing
+          description: Allows fine-grained access to per-key, per-window persistent state. Necessary for certain use cases (e.g. high-volume windows which store large amounts of data, but typically only access small portions of it; complex state machines; etc.) that are not easily or efficiently addressed via <tt>Combine</tt> or <tt>GroupByKey</tt>+<tt>ParDo</tt>.
           values:
-            - class: model
-              l1: "Yes"
-              l2: storage per key, per window
-              l3: Allows fine-grained access to per-key, per-window persistent state. Necessary for certain use cases (e.g. high-volume windows which store large amounts of data, but typically only access small portions of it; complex state machines; etc.) that are not easily or efficiently addressed via <tt>Combine</tt> or <tt>GroupByKey</tt>+<tt>ParDo</tt>.
             - class: dataflow
               l1: "Partially"
               l2: non-merging windows
@@ -479,14 +440,6 @@ capability-matrix:
               l1: "No"
               l2: not implemented
               l3:
-            - class: mapreduce
-              l1: "Partially"
-              l2: non-merging windows
-              l3: ""
-            - class: jstorm
-              l1: "Partially"
-              l2: non-merging windows
-              l3: ""
             - class: ibmstreams
               l1: "Partially"
               l2: non-merging windows
@@ -503,19 +456,518 @@ capability-matrix:
               l1: "Partially"
               l2: non-merging windows
               l3: ""
+            - class: twister2
+              l1: "No"
+              l2: not implemented
+              l3: ""
+            - class: python direct
+              l1: ""
+              l2:
+              l3: ""
+            - class: go direct
+              l1: ""
+              l2:
+              l3: ""
+    - description: Bounded Splittable DoFn Support Status
+      anchor: what
+      color-y: "fff"
+      color-yb: "f6f6f6"
+      color-p: "f9f9f9"
+      color-pb: "d8d8d8"
+      color-n: "e1e0e0"
+      color-nb: "bcbcbc"
+      rows:
+        - name: Base
+          description: ""
+          values:
+            - class: dataflow
+              l1: "Partially"
+              l2: Only Dataflow Runner V2 supports this.
+              l3: ""
+            - class: flink
+              l1: "Partially"
+              l2: Only portable Flink Runner supports this.
+              l3: ""
+            - class: spark-rdd
+              l1:
+              l2:
+              l3: ""
+            - class: spark-dataset
+              l1:
+              l2:
+              l3: ""
+            - class: ibmstreams
+              l1:
+              l2:
+              l3: ""
+            - class: samza
+              l1:
+              l2:
+              l3: ""
+            - class: nemo
+              l1:
+              l2:
+              l3: ""
+            - class: jet
+              l1:
+              l2:
+              l3: ""
+            - class: twister2
+              l1:
+              l2:
+              l3: ""
+            - class: python direct
+              l1: "Yes"
+              l2:
+              l3:
+            - class: go direct
+              l1: "Yes"
+              l2:
+              l3:
+        - name: Side Inputs
+          description: ""
+          values:
+            - class: dataflow
+              l1: "Partially"
+              l2: Only Dataflow Runner V2 supports this.
+              l3: ""
+            - class: flink
+              l1: "Partially"
+              l2: Only portable Flink Runner supports this.
+              l3: ""
+            - class: spark-rdd
+              l1:
+              l2:
+              l3: ""
+            - class: spark-dataset
+              l1:
+              l2:
+              l3: ""
+            - class: ibmstreams
+              l1:
+              l2:
+              l3: ""
+            - class: samza
+              l1:
+              l2:
+              l3: ""
+            - class: nemo
+              l1:
+              l2:
+              l3: ""
+            - class: jet
+              l1:
+              l2:
+              l3: ""
+            - class: twister2
+              l1:
+              l2:
+              l3: ""
+            - class: python direct
+              l1:
+              l2:
+              l3:
+            - class: go direct
+              l1: "Yes"
+              l2:
+              l3:
+        - name: Splittable DoFn Initiated Checkpointing
+          description: ""
+          values:
+            - class: dataflow
+              l1: "Partially"
+              l2: Only Dataflow Runner v2 supports this.
+              l3: ""
+            - class: flink
+              l1: "Partially"
+              l2: Only portable Flink Runner supports this.
+              l3: ""
+            - class: spark-rdd
+              l1:
+              l2:
+              l3: ""
+            - class: spark-dataset
+              l1:
+              l2:
+              l3: ""
+            - class: ibmstreams
+              l1:
+              l2:
+              l3: ""
+            - class: samza
+              l1:
+              l2:
+              l3: ""
+            - class: nemo
+              l1:
+              l2:
+              l3: ""
+            - class: jet
+              l1:
+              l2:
+              l3: ""
+            - class: twister2
+              l1:
+              l2:
+              l3: ""
+            - class: python direct
+              l1: "Yes"
+              l2:
+              l3:
+            - class: go direct
+              l1: "No"
+              l2:
+              l3:
+        - name: Dynamic Splitting
+          description: ""
+          values:
+            - class: dataflow
+              l1: "Partially"
+              l2: Only Dataflow Runner V2 supports this.
+              l3: ""
+            - class: flink
+              l1: "No"
+              l2:
+              l3: ""
+            - class: spark-rdd
+              l1:
+              l2:
+              l3: ""
+            - class: spark-dataset
+              l1:
+              l2:
+              l3: ""
+            - class: ibmstreams
+              l1:
+              l2:
+              l3: ""
+            - class: samza
+              l1:
+              l2:
+              l3: ""
+            - class: nemo
+              l1:
+              l2:
+              l3: ""
+            - class: jet
+              l1:
+              l2:
+              l3: ""
+            - class: twister2
+              l1:
+              l2:
+              l3: ""
+            - class: python direct
+              l1: "Yes"
+              l2: Only with Python SDK
+              l3:
+            - class: go direct
+              l1: "No"
+              l2:
+              l3:
+        - name: Bundle Finalization
+          description: ""
+          values:
+            - class: dataflow
+              l1: "Partially"
+              l2: Only Dataflow Runner V2 supports this.
+              l3: ""
+            - class: flink
+              l1: "No"
+              l2:
+              l3: ""
+            - class: spark-rdd
+              l1:
+              l2:
+              l3: ""
+            - class: spark-dataset
+              l1:
+              l2:
+              l3: ""
+            - class: ibmstreams
+              l1:
+              l2:
+              l3: ""
+            - class: samza
+              l1:
+              l2:
+              l3: ""
+            - class: nemo
+              l1:
+              l2:
+              l3: ""
+            - class: jet
+              l1:
+              l2:
+              l3: ""
+            - class: twister2
+              l1:
+              l2:
+              l3: ""
+            - class: python direct
+              l1: "Yes"
+              l2:
+              l3:
+            - class: go direct
+              l1: "No"
+              l2:
+              l3:
+    - description: Unbounded Splittable DoFn Support Status
+      anchor: what
+      color-y: "fff"
+      color-yb: "f6f6f6"
+      color-p: "f9f9f9"
+      color-pb: "d8d8d8"
+      color-n: "e1e0e0"
+      color-nb: "bcbcbc"
+      rows:
+        - name: Base
+          description: ""
+          values:
+            - class: dataflow
+              l1: "Yes"
+              l2:
+              l3: ""
+            - class: flink
+              l1: "Yes"
+              l2:
+              l3: ""
+            - class: spark-rdd
+              l1:
+              l2:
+              l3: ""
+            - class: spark-dataset
+              l1:
+              l2:
+              l3: ""
+            - class: ibmstreams
+              l1:
+              l2:
+              l3: ""
+            - class: samza
+              l1:
+              l2:
+              l3: ""
+            - class: nemo
+              l1:
+              l2:
+              l3: ""
+            - class: jet
+              l1:
+              l2:
+              l3: ""
+            - class: twister2
+              l1:
+              l2:
+              l3: ""
+            - class: python direct
+              l1: "Yes"
+              l2:
+              l3:
+            - class: go direct
+              l1: "No"
+              l2:
+              l3:
+        - name: Side Inputs
+          description: ""
+          values:
+            - class: dataflow
+              l1: "Partially"
+              l2: Only Dataflow Runner V2 supports this.
+              l3: ""
+            - class: flink
+              l1: "Partially"
+              l2: Only portable Flink Runner supports this.
+              l3: ""
+            - class: spark-rdd
+              l1:
+              l2:
+              l3: ""
+            - class: spark-dataset
+              l1:
+              l2:
+              l3: ""
+            - class: ibmstreams
+              l1:
+              l2:
+              l3: ""
+            - class: samza
+              l1:
+              l2:
+              l3: ""
+            - class: nemo
+              l1:
+              l2:
+              l3: ""
+            - class: jet
+              l1:
+              l2:
+              l3: ""
+            - class: twister2
+              l1:
+              l2:
+              l3: ""
+            - class: python direct
+              l1:
+              l2:
+              l3:
+            - class: go direct
+              l1: "Yes"
+              l2:
+              l3:
+        - name: Splittable DoFn Initiated Checkpointing
+          description: ""
+          values:
+            - class: dataflow
+              l1: "Yes"
+              l2:
+              l3: ""
+            - class: flink
+              l1: "Yes"
+              l2:
+              l3: ""
+            - class: spark-rdd
+              l1:
+              l2:
+              l3: ""
+            - class: spark-dataset
+              l1:
+              l2:
+              l3: ""
+            - class: ibmstreams
+              l1:
+              l2:
+              l3: ""
+            - class: samza
+              l1:
+              l2:
+              l3: ""
+            - class: nemo
+              l1:
+              l2:
+              l3: ""
+            - class: jet
+              l1:
+              l2:
+              l3: ""
+            - class: twister2
+              l1:
+              l2:
+              l3: ""
+            - class: python direct
+              l1: "Yes"
+              l2:
+              l3:
+            - class: go direct
+              l1: "No"
+              l2:
+              l3:
+        - name: Dynamic Splitting
+          description: ""
+          values:
+            - class: dataflow
+              l1: "No"
+              l2:
+              l3: ""
+            - class: flink
+              l1: "No"
+              l2:
+              l3: ""
+            - class: spark-rdd
+              l1:
+              l2:
+              l3: ""
+            - class: spark-dataset
+              l1:
+              l2:
+              l3: ""
+            - class: ibmstreams
+              l1:
+              l2:
+              l3: ""
+            - class: samza
+              l1:
+              l2:
+              l3: ""
+            - class: nemo
+              l1:
+              l2:
+              l3: ""
+            - class: jet
+              l1:
+              l2:
+              l3: ""
+            - class: twister2
+              l1:
+              l2:
+              l3: ""
+            - class: python direct
+              l1: "No"
+              l2:
+              l3:
+            - class: go direct
+              l1: "No"
+              l2:
+              l3:
+        - name: Bundle Finalization
+          description: ""
+          values:
+            - class: dataflow
+              l1: "Partially"
+              l2: Only Dataflow Runner V2 supports this.
+              l3: ""
+            - class: flink
+              l1: "Partially"
+              l2: Only portable Flink Runner supports this with checkpointing enabled.
+              l3: ""
+            - class: spark-rdd
+              l1:
+              l2:
+              l3: ""
+            - class: spark-dataset
+              l1:
+              l2:
+              l3: ""
+            - class: ibmstreams
+              l1:
+              l2:
+              l3: ""
+            - class: samza
+              l1:
+              l2:
+              l3: ""
+            - class: nemo
+              l1:
+              l2:
+              l3: ""
+            - class: jet
+              l1:
+              l2:
+              l3: ""
+            - class: twister2
+              l1:
+              l2:
+              l3: ""
+            - class: python direct
+              l1: "Yes"
+              l2:
+              l3:
+            - class: go direct
+              l1: "No"
+              l2:
+              l3:
     - description: Where in event time?
       anchor: where
-      color-b: "37d"
-      color-y: "59f"
-      color-p: "8cf"
-      color-n: "ddd"
+      color-y: "fff"
+      color-yb: "f6f6f6"
+      color-p: "f9f9f9"
+      color-pb: "d8d8d8"
+      color-n: "e1e0e0"
+      color-nb: "bcbcbc"
       rows:
         - name: Global windows
+          description: The default window which covers all of time. (Basically how traditional batch cases fit in the model.)
           values:
-            - class: model
-              l1: "Yes"
-              l2: all time
-              l3: The default window which covers all of time. (Basically how traditional batch cases fit in the model.)
             - class: dataflow
               l1: "Yes"
               l2: default
@@ -532,14 +984,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: ""
-            - class: mapreduce
-              l1: "Yes"
-              l2: supported
-              l3: ""
-            - class: jstorm
-              l1: "Yes"
-              l2: supported
-              l3: ""
             - class: ibmstreams
               l1: "Yes"
               l2: supported
@@ -553,15 +997,16 @@ capability-matrix:
               l2: supported
               l3: ""
             - class: jet
+              l1: "Yes"
+              l2: supported
+              l3: ""
+            - class: twister2
               l1: "Yes"
               l2: supported
               l3: ""
         - name: Fixed windows
+          description: Fixed-size, timestamp-based windows. (Hourly, Daily, etc)
           values:
-            - class: model
-              l1: "Yes"
-              l2: periodic, non-overlapping
-              l3: Fixed-size, timestamp-based windows. (Hourly, Daily, etc)
             - class: dataflow
               l1: "Yes"
               l2: built-in
@@ -578,14 +1023,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: ""
-            - class: mapreduce
-              l1: "Yes"
-              l2: supported
-              l3: ""
-            - class: jstorm
-              l1: "Yes"
-              l2: supported
-              l3: ""
             - class: ibmstreams
               l1: "Yes"
               l2: supported
@@ -599,15 +1036,16 @@ capability-matrix:
               l2: supported
               l3: ""
             - class: jet
+              l1: "Yes"
+              l2: supported
+              l3: ""
+            - class: twister2
               l1: "Yes"
               l2: supported
               l3: ""
         - name: Sliding windows
+          description: Possibly overlapping fixed-size timestamp-based windows (Every minute, use the last ten minutes of data.)
           values:
-            - class: model
-              l1: "Yes"
-              l2: periodic, overlapping
-              l3: Possibly overlapping fixed-size timestamp-based windows (Every minute, use the last ten minutes of data.)
             - class: dataflow
               l1: "Yes"
               l2: built-in
@@ -624,14 +1062,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: ""
-            - class: mapreduce
-              l1: "Yes"
-              l2: supported
-              l3: ""
-            - class: jstorm
-              l1: "Yes"
-              l2: supported
-              l3: ""
             - class: ibmstreams
               l1: "Yes"
               l2: supported
@@ -645,15 +1075,16 @@ capability-matrix:
               l2: supported
               l3: ""
             - class: jet
+              l1: "Yes"
+              l2: supported
+              l3: ""
+            - class: twister2
               l1: "Yes"
               l2: supported
               l3: ""
         - name: Session windows
+          description: Based on bursts of activity separated by a gap size. Different per key.
           values:
-            - class: model
-              l1: "Yes"
-              l2: activity-based
-              l3: Based on bursts of activity separated by a gap size. Different per key.
             - class: dataflow
               l1: "Yes"
               l2: built-in
@@ -670,14 +1101,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: ""
-            - class: mapreduce
-              l1: "Yes"
-              l2: supported
-              l3: ""
-            - class: jstorm
-              l1: "Yes"
-              l2: supported
-              l3: ""
             - class: ibmstreams
               l1: "Yes"
               l2: supported
@@ -691,15 +1114,16 @@ capability-matrix:
               l2: supported
               l3: ""
             - class: jet
+              l1: "Yes"
+              l2: supported
+              l3: ""
+            - class: twister2
               l1: "Yes"
               l2: supported
               l3: ""
         - name: Custom windows
+          description: All windows must implement <tt>BoundedWindow</tt>, which specifies a max timestamp. Each <tt>WindowFn</tt> assigns elements to an associated window.
           values:
-            - class: model
-              l1: "Yes"
-              l2: user-defined windows
-              l3: All windows must implement <tt>BoundedWindow</tt>, which specifies a max timestamp. Each <tt>WindowFn</tt> assigns elements to an associated window.
             - class: dataflow
               l1: "Yes"
               l2: supported
@@ -716,14 +1140,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: ""
-            - class: mapreduce
-              l1: "Yes"
-              l2: supported
-              l3: ""
-            - class: jstorm
-              l1: "Yes"
-              l2: supported
-              l3: ""
             - class: ibmstreams
               l1: "Yes"
               l2: supported
@@ -737,15 +1153,16 @@ capability-matrix:
               l2: supported
               l3: ""
             - class: jet
+              l1: "Yes"
+              l2: supported
+              l3: ""
+            - class: twister2
               l1: "Yes"
               l2: supported
               l3: ""
         - name: Custom merging windows
+          description: A custom <tt>WindowFn</tt> additionally specifies whether and how to merge windows.
           values:
-            - class: model
-              l1: "Yes"
-              l2: user-defined merging windows
-              l3: A custom <tt>WindowFn</tt> additionally specifies whether and how to merge windows.
             - class: dataflow
               l1: "Yes"
               l2: supported
@@ -762,14 +1179,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: ""
-            - class: mapreduce
-              l1: "Yes"
-              l2: supported
-              l3: ""
-            - class: jstorm
-              l1: "Yes"
-              l2: supported
-              l3: ""
             - class: ibmstreams
               l1: "Yes"
               l2: supported
@@ -783,15 +1192,16 @@ capability-matrix:
               l2: supported
               l3: ""
             - class: jet
+              l1: "Yes"
+              l2: supported
+              l3: ""
+            - class: twister2
               l1: "Yes"
               l2: supported
               l3: ""
         - name: Timestamp control
+          description: For a grouping transform, such as GBK or Combine, an OutputTimeFn specifies (1) how to combine input timestamps within a window and (2) how to merge aggregated timestamps when windows merge.
           values:
-            - class: model
-              l1: "Yes"
-              l2: output timestamp for window panes
-              l3: For a grouping transform, such as GBK or Combine, an OutputTimeFn specifies (1) how to combine input timestamps within a window and (2) how to merge aggregated timestamps when windows merge.
             - class: dataflow
               l1: "Yes"
               l2: supported
@@ -808,14 +1218,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: ""
-            - class: mapreduce
-              l1: "Yes"
-              l2: supported
-              l3: ""
-            - class: jstorm
-              l1: "Yes"
-              l2: supported
-              l3: ""
             - class: ibmstreams
               l1: "Yes"
               l2: supported
@@ -829,23 +1231,26 @@ capability-matrix:
               l2: supported
               l3: ""
             - class: jet
+              l1: "Yes"
+              l2: supported
+              l3: ""
+            - class: twister2
               l1: "Yes"
               l2: supported
               l3: ""
 
     - description: When in processing time?
       anchor: when
-      color-b: "6a4"
-      color-y: "8c6"
-      color-p: "ae8"
-      color-n: "ddd"
+      color-y: "fff"
+      color-yb: "f6f6f6"
+      color-p: "f9f9f9"
+      color-pb: "d8d8d8"
+      color-n: "e1e0e0"
+      color-nb: "bcbcbc"
       rows:
         - name: Configurable triggering
+          description: Triggering may be specified by the user (instead of simply driven by hardcoded defaults).
           values:
-            - class: model
-              l1: "Yes"
-              l2: user customizable
-              l3: Triggering may be specified by the user (instead of simply driven by hardcoded defaults).
             - class: dataflow
               l1: "Yes"
               l2: fully supported
@@ -862,14 +1267,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: ""
-            - class: mapreduce
-              l1: "No"
-              l2: batch-only runner
-              l3: ""
-            - class: jstorm
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: ibmstreams
               l1: "Yes"
               l2: fully supported
@@ -886,13 +1283,14 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: ""
+            - class: twister2
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
 
         - name: Event-time triggers
+          description: Triggers that fire in response to event-time completeness signals, such as watermarks progressing.
           values:
-            - class: model
-              l1: "Yes"
-              l2: relative to event time
-              l3: Triggers that fire in response to event-time completeness signals, such as watermarks progressing.
             - class: dataflow
               l1: "Yes"
               l2: yes in streaming, fixed granularity in batch
@@ -909,14 +1307,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: ""
-            - class: mapreduce
-              l1: "No"
-              l2: ""
-              l3: ""
-            - class: jstorm
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: ibmstreams
               l1: "Yes"
               l2: fully supported
@@ -933,13 +1323,14 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: ""
+            - class: twister2
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
 
         - name: Processing-time triggers
+          description: Triggers that fire in response to processing-time advancing.
           values:
-            - class: model
-              l1: "Yes"
-              l2: relative to processing time
-              l3: Triggers that fire in response to processing-time advancing.
             - class: dataflow
               l1: "Yes"
               l2: yes in streaming, fixed granularity in batch
@@ -956,14 +1347,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3:
-            - class: mapreduce
-              l1: "No"
-              l2: ""
-              l3: ""
-            - class: jstorm
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: ibmstreams
               l1: "Yes"
               l2: fully supported
@@ -980,13 +1363,14 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: ""
+            - class: twister2
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
 
         - name: Count triggers
+          description: Triggers that fire after seeing at least N elements.
           values:
-            - class: model
-              l1: "Yes"
-              l2: every N elements
-              l3: Triggers that fire after seeing at least N elements.
             - class: dataflow
               l1: "Yes"
               l2: fully supported
@@ -1003,14 +1387,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: ""
-            - class: mapreduce
-              l1: "No"
-              l2: ""
-              l3: ""
-            - class: jstorm
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: ibmstreams
               l1: "Yes"
               l2: fully supported
@@ -1027,61 +1403,14 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: ""
-
-        - name: "[Meta]data driven triggers"
-          values:
-            - class: model
-              jira: BEAM-101
-              l1: "No"
-              l2: in response to data
-              l3: Triggers that fire in response to attributes of the data being processed.
-            - class: dataflow
-              l1: "No"
-              l2: pending model support
-              l3:
-            - class: flink
-              l1: "No"
-              l2: pending model support
-              l3:
-            - class: spark-rdd
-              l1: "No"
-              l2: pending model support
-              l3:
-            - class: spark-dataset
-              l1: "No"
-              l2: pending model support
-              l3:
-            - class: mapreduce
-              l1: "No"
-              l2: ""
-              l3:
-            - class: jstorm
-              l1: "No"
-              l2: pending model support
-              l3:
-            - class: ibmstreams
-              l1: "No"
-              l2: pending model support
-              l3:
-            - class: samza
-              l1: "No"
-              l2: pending model support
-              l3:
-            - class: nemo
-              l1: "No"
-              l2: pending model support
-              l3: ""
-            - class: jet
-              l1: "No"
-              l2: pending model support
+            - class: twister2
+              l1: "Yes"
+              l2: fully supported
               l3: ""
 
         - name: Composite triggers
+          description: Triggers which compose other triggers in more complex structures, such as logical AND, logical OR, early/on-time/late, etc.
           values:
-            - class: model
-              l1: "Yes"
-              l2: compositions of one or more sub-triggers
-              l3: Triggers which compose other triggers in more complex structures, such as logical AND, logical OR, early/on-time/late, etc.
             - class: dataflow
               l1: "Yes"
               l2: fully supported
@@ -1098,14 +1427,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: ""
-            - class: mapreduce
-              l1: "No"
-              l2: ""
-              l3: ""
-            - class: jstorm
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: ibmstreams
               l1: "Yes"
               l2: fully supported
@@ -1122,13 +1443,14 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: ""
+            - class: twister2
+              l1: "Partially"
+              l2:
+              l3: ""
 
         - name: Allowed lateness
+          description: A way to bound the useful lifetime of a window (in event time), after which any unemitted results may be materialized, the window contents may be garbage collected, and any addtional late data that arrive for the window may be discarded.
           values:
-            - class: model
-              l1: "Yes"
-              l2: event-time bound on window lifetimes
-              l3: A way to bound the useful lifetime of a window (in event time), after which any unemitted results may be materialized, the window contents may be garbage collected, and any addtional late data that arrive for the window may be discarded.
             - class: dataflow
               l1: "Yes"
               l2: fully supported
@@ -1145,14 +1467,6 @@ capability-matrix:
               l1: "No"
               l2: no streaming support in the runner
               l3: ""
-            - class: mapreduce
-              l1: "No"
-              l2: ""
-              l3: ""
-            - class: jstorm
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: ibmstreams
               l1: "Yes"
               l2: fully supported
@@ -1169,13 +1483,14 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: ""
+            - class: twister2
+              l1: "Partially"
+              l2:
+              l3: ""
 
         - name: Timers
+          description: A fine-grained mechanism for performing work at some point in the future, in either the event-time or processing-time domain. Useful for orchestrating delayed events, timeouts, etc in complex state per-key, per-window state machines.
           values:
-            - class: model
-              l1: "Yes"
-              l2: delayed processing callbacks
-              l3: A fine-grained mechanism for performing work at some point in the future, in either the event-time or processing-time domain. Useful for orchestrating delayed events, timeouts, etc in complex state per-key, per-window state machines.
             - class: dataflow
               l1: "Partially"
               l2: non-merging windows
@@ -1191,14 +1506,6 @@ capability-matrix:
             - class: spark-dataset
               l1: "No"
               l2: not implemented
-              l3: ""
-            - class: mapreduce
-              l1: "No"
-              l2: ""
-              l3: ""
-            - class: jstorm
-              l1: "Partially"
-              l2: non-merging windows
               l3: ""
             - class: ibmstreams
               l1: "Partially"
@@ -1216,20 +1523,23 @@ capability-matrix:
               l1: "Partially"
               l2: non-merging windows
               l3: ""
+            - class: twister2
+              l1: "Partially"
+              l2:
+              l3: ""
 
     - description: How do refinements relate?
       anchor: how
-      color-b: "b55"
-      color-y: "d77"
-      color-p: "faa"
-      color-n: "ddd"
+      color-y: "fff"
+      color-yb: "f6f6f6"
+      color-p: "f9f9f9"
+      color-pb: "d8d8d8"
+      color-n: "e1e0e0"
+      color-nb: "bcbcbc"
       rows:
         - name: Discarding
+          description: Elements are discarded from accumulated state as their pane is fired.
           values:
-            - class: model
-              l1: "Yes"
-              l2: panes discard elements when fired
-              l3: Elements are discarded from accumulated state as their pane is fired.
             - class: dataflow
               l1: "Yes"
               l2: fully supported
@@ -1246,14 +1556,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: ""
-            - class: mapreduce
-              l1: "No"
-              l2: batch-only runner
-              l3: ""
-            - class: jstorm
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: ibmstreams
               l1: "Yes"
               l2: fully supported
@@ -1270,13 +1572,14 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: ""
+            - class: twister2
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
 
         - name: Accumulating
+          description: Elements are accumulated in state across multiple pane firings for the same window.
           values:
-            - class: model
-              l1: "Yes"
-              l2: panes accumulate elements across firings
-              l3: Elements are accumulated in state across multiple pane firings for the same window.
             - class: dataflow
               l1: "Yes"
               l2: fully supported
@@ -1293,14 +1596,6 @@ capability-matrix:
               l1: "No"
               l2: ""
               l3: ""
-            - class: mapreduce
-              l1: "No"
-              l2: ""
-              l3: ""
-            - class: jstorm
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: ibmstreams
               l1: "Yes"
               l2: fully supported
@@ -1314,70 +1609,26 @@ capability-matrix:
               l2: fully supported
               l3: ""
             - class: jet
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
+            - class: twister2
               l1: "Yes"
               l2: fully supported
               l3: ""
 
-        - name: "Accumulating & Retracting"
-          values:
-            - class: model
-              jira: BEAM-91
-              l1: "No"
-              l2: accumulation plus retraction of old panes
-              l3: Elements are accumulated across multiple pane firings and old emitted values are retracted. Also known as "backsies" ;-D
-            - class: dataflow
-              l1: "No"
-              l2: pending model support
-              l3: ""
-            - class: flink
-              l1: "No"
-              l2: pending model support
-              l3: ""
-            - class: spark-rdd
-              l1: "No"
-              l2: pending model support
-              l3: ""
-            - class: spark-dataset
-              l1: "No"
-              l2: pending model support
-              l3: ""
-            - class: mapreduce
-              l1: "No"
-              l2: ""
-              l3: ""
-            - class: jstorm
-              l1: "No"
-              l2: pending model support
-              l3: ""
-            - class: ibmstreams
-              l1: "No"
-              l2: pending model support
-              l3: ""
-            - class: samza
-              l1: "No"
-              l2: pending model support
-              l3: ""
-            - class: nemo
-              l1: "No"
-              l2: pending model support
-              l3: ""
-            - class: jet
-              l1: "No"
-              l2: pending model support
-              l3: ""
     - description: Additional common features not yet part of the Beam model
       anchor: misc
-      color-b: "aaa"
-      color-y: "bbb"
-      color-p: "ccc"
-      color-n: "ddd"
+      color-y: "fff"
+      color-yb: "f6f6f6"
+      color-p: "f9f9f9"
+      color-pb: "d8d8d8"
+      color-n: "e1e0e0"
+      color-nb: "bcbcbc"
       rows:
         - name: Drain
+          description: APIs and semantics for draining a pipeline are under discussion. This would cause incomplete aggregations to be emitted regardless of trigger and tagged with metadata indicating it is incompleted.
           values:
-            - class: model
-              l1: "Partially"
-              l2:
-              l3: APIs and semantics for draining a pipeline are under discussion. This would cause incomplete aggregations to be emitted regardless of trigger and tagged with metadata indicating it is incompleted.
             - class: dataflow
               l1: "Partially"
               l2:
@@ -1394,14 +1645,6 @@ capability-matrix:
               l1:
               l2:
               l3:
-            - class: mapreduce
-              l1:
-              l2:
-              l3:
-            - class: jstorm
-              l1:
-              l2:
-              l3:
             - class: ibmstreams
               l1:
               l2:
@@ -1414,12 +1657,17 @@ capability-matrix:
               l1:
               l2:
               l3:
-        - name: Checkpoint
-          values:
-            - class: model
-              l1: "Partially"
+            - class: jet
+              l1:
               l2:
-              l3: APIs and semantics for saving a pipeline checkpoint are under discussion. This would be a runner-specific materialization of the pipeline state required to resume or duplicate the pipeline.
+              l3:
+            - class: twister2
+              l1:
+              l2:
+              l3:
+        - name: Checkpoint
+          description: APIs and semantics for saving a pipeline checkpoint are under discussion. This would be a runner-specific materialization of the pipeline state required to resume or duplicate the pipeline.
+          values:
             - class: dataflow
               l1: "No"
               l2:
@@ -1436,14 +1684,6 @@ capability-matrix:
               l1: "No"
               l2:
               l3: not implemented
-            - class: mapreduce
-              l1:
-              l2:
-              l3:
-            - class: jstorm
-              l1:
-              l2:
-              l3:
             - class: ibmstreams
               l1:
               l2:
@@ -1457,6 +1697,10 @@ capability-matrix:
               l2:
               l3:
             - class: jet
+              l1:
+              l2:
+              l3:
+            - class: twister2
               l1:
               l2:
               l3:

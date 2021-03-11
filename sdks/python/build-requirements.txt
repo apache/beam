@@ -17,3 +17,6 @@
 grpcio-tools==1.30.0
 future==0.18.2
 mypy-protobuf==1.18
+
+# Avoid https://github.com/pypa/virtualenv/issues/2006
+distlib==0.3.1

@@ -74,7 +74,7 @@ func Example_gettingStarted() {
 	// pipeline can be executed by a PipelineRunner.  The direct runner executes the
 	// transforms directly, sequentially, in this one process, which is useful for
 	// unit tests and simple experiments:
-	if err := direct.Execute(context.Background(), p); err != nil {
+	if _, err := direct.Execute(context.Background(), p); err != nil {
 		fmt.Printf("Pipeline failed: %v", err)
 	}
 }

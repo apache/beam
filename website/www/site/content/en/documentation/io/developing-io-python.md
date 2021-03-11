@@ -19,6 +19,9 @@ limitations under the License.
 -->
 # Developing I/O connectors for Python
 
+**IMPORTANT:** Please use ``Splittable DoFn`` to develop your new I/O. For more details, please read
+the [new I/O connector overview](/documentation/io/developing-io-overview/).
+
 To connect to a data store that isn’t supported by Beam’s existing I/O
 connectors, you must create a custom I/O connector that usually consist of a
 source and a sink. All Beam sources and sinks are composite transforms; however,

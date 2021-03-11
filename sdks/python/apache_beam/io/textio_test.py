@@ -52,6 +52,14 @@ from apache_beam.testing.util import equal_to
 from apache_beam.transforms.core import Create
 
 
+class DummyCoder(coders.Coder):
+  def encode(self, x):
+    raise ValueError
+
+  def decode(self, x):
+    return (x * 2).decode('utf-8')
+
+
 class EOL(object):
   LF = 1
   CRLF = 2
@@ -537,12 +545,6 @@ class TextSourceTest(unittest.TestCase):
       assert_that(pcoll, equal_to(expected_data))
 
   def test_read_from_text_single_file_with_coder(self):
-    class DummyCoder(coders.Coder):
-      def encode(self, x):
-        raise ValueError
-
-      def decode(self, x):
-        return (x * 2).decode('utf-8')
 
     file_name, expected_data = write_data(5)
     assert len(expected_data) == 5
@@ -1125,6 +1127,14 @@ class TextSinkTest(unittest.TestCase):
     with open(self.path, 'rb') as f:
       self.assertEqual(f.read().splitlines(), header.splitlines() + self.lines)
 
+  def test_write_text_file_with_footer(self):
+    footer = b'footer1\nfooter2'
+    sink = TextSink(self.path, footer=footer)
+    self._write_lines(sink, self.lines)
+
+    with open(self.path, 'rb') as f:
+      self.assertEqual(f.read().splitlines(), self.lines + footer.splitlines())
+
   def test_write_text_file_empty_with_header(self):
     header = b'header1\nheader2'
     sink = TextSink(self.path, header=header)
@@ -1202,6 +1212,22 @@ class TextSinkTest(unittest.TestCase):
     # header_text is automatically encoded in WriteToText
     self.assertEqual(read_result[0], header_text.encode('utf-8'))
     self.assertEqual(sorted(read_result[1:]), sorted(self.lines))
+
+  def test_write_pipeline_footer(self):
+    with TestPipeline() as pipeline:
+      footer_text = 'footer'
+      pcoll = pipeline | beam.core.Create(self.lines)
+      pcoll | 'Write' >> WriteToText(   # pylint: disable=expression-not-assigned
+        self.path,
+        footer=footer_text)
+
+    read_result = []
+    for file_name in glob.glob(self.path + '*'):
+      with open(file_name, 'rb') as f:
+        read_result.extend(f.read().splitlines())
+
+    self.assertEqual(sorted(read_result[:-1]), sorted(self.lines))
+    self.assertEqual(read_result[-1], footer_text.encode('utf-8'))
 
 
 if __name__ == '__main__':

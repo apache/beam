@@ -17,9 +17,9 @@
  */
 package org.apache.beam.fn.harness.control;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.empty;
-import static org.junit.Assert.assertThat;
 
 import java.util.Collections;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleApplication;

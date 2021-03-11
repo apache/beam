@@ -95,6 +95,9 @@ import org.joda.time.Duration;
  * <p>This will update the Cloud Datastore every 10 seconds based on the last 30 minutes of data
  * received.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class AutoComplete {
 
   /**

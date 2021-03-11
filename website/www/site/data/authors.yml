@@ -165,3 +165,52 @@ saavannanavati:
   name: Saavan Nanavati
   email: saavan.nanavati@utexas.edu
   twitter:
+bhulette:
+  name: Brian Hulette
+  email: bhulette@apache.org
+  twitter: BrianHulette
+lostluck:
+  name: Robert Burke
+  email: lostluck@apache.org
+  twitter: lostluck
+tvalentyn:
+  name: Valentyn Tymofieiev
+  email: tvalentyn@apache.org
+  twitter:
+apilloud:
+  name: Andrew Pilloud
+  email: apilloud@apache.org
+  twitter:
+ibzib:
+  name: Kyle Weaver
+  email: ibzib@apache.org
+  twitter:
+danoliveira:
+  name: Daniel Oliviera
+  email: danoliveira@apache.org
+  twitter:
+robinyq:
+  name: Robin Qiu
+  email: robinyq@apache.org
+  twitter:
+markzeng:
+  name: Mark Zeng
+  email:
+  twitter:
+yifanzou:
+  name: Yifan Zou
+  email: yifanzou@apache.org
+  twitter:
+
+arturkhanin:
+  name: Artur Khanin
+  email: artur.khanin@akvelon.com
+  twitter:
+ilyakozyrev:
+  name: Ilya Kozyrev
+  email: ilya.kozyrev@akvelon.com
+  twitter:
+alexkosolapov:
+  name: Alex Kosolapov
+  email: alex.kosolapov@akvelon.com
+  twitter:

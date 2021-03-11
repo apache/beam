@@ -40,6 +40,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.MutableNet
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.Network;
 
 /** Static utility methods for {@link Network} instances that are directed. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class Networks {
   /**
    * An abstract class that can be extended to apply a function in a type safe manner.

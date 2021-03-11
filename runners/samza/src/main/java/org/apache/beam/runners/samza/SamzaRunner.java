@@ -23,6 +23,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.ServiceLoader;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.core.construction.renderer.PipelineDotRenderer;
 import org.apache.beam.runners.jobsubmission.PortablePipelineResult;
 import org.apache.beam.runners.samza.translation.ConfigBuilder;
@@ -53,6 +54,9 @@ import org.slf4j.LoggerFactory;
  * A {@link PipelineRunner} that executes the operations in the {@link Pipeline} into an equivalent
  * Samza plan.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
   private static final Logger LOG = LoggerFactory.getLogger(SamzaRunner.class);
   private static final String BEAM_DOT_GRAPH = "beamDotGraph";
@@ -106,6 +110,7 @@ public class SamzaRunner extends PipelineRunner<SamzaPipelineResult> {
 
   @Override
   public SamzaPipelineResult run(Pipeline pipeline) {
+    SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReadsIfNecessary(pipeline);
     MetricsEnvironment.setMetricsSupported(true);
 
     if (LOG.isDebugEnabled()) {

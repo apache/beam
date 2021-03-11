@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.kafka;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertNotNull;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -30,7 +31,6 @@ import org.apache.beam.model.pipeline.v1.ExternalTransforms.ExternalConfiguratio
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
-import org.apache.beam.runners.core.construction.ReadTranslation;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -61,6 +61,9 @@ import org.powermock.reflect.Whitebox;
 
 /** Tests for building {@link KafkaIO} externally via the ExpansionService. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class KafkaIOExternalTest {
   @Test
   public void testConstructKafkaRead() throws Exception {
@@ -85,12 +88,16 @@ public class KafkaIOExternalTest {
                             "consumer_config", FieldType.map(FieldType.STRING, FieldType.STRING)),
                         Field.of("key_deserializer", FieldType.STRING),
                         Field.of("value_deserializer", FieldType.STRING),
-                        Field.of("start_read_time", FieldType.INT64)))
+                        Field.of("start_read_time", FieldType.INT64),
+                        Field.of("commit_offset_in_finalize", FieldType.BOOLEAN),
+                        Field.of("timestamp_policy", FieldType.STRING)))
                 .withFieldValue("topics", topics)
                 .withFieldValue("consumer_config", consumerConfig)
                 .withFieldValue("key_deserializer", keyDeserializer)
                 .withFieldValue("value_deserializer", valueDeserializer)
                 .withFieldValue("start_read_time", startReadTime)
+                .withFieldValue("commit_offset_in_finalize", false)
+                .withFieldValue("timestamp_policy", "ProcessingTime")
                 .build());
 
     RunnerApi.Components defaultInstance = RunnerApi.Components.getDefaultInstance();
@@ -120,28 +127,17 @@ public class KafkaIOExternalTest {
 
     RunnerApi.PTransform kafkaComposite =
         result.getComponents().getTransformsOrThrow(transform.getSubtransforms(0));
-    RunnerApi.PTransform kafkaRead =
-        result.getComponents().getTransformsOrThrow(kafkaComposite.getSubtransforms(0));
-    RunnerApi.ReadPayload readPayload =
-        RunnerApi.ReadPayload.parseFrom(kafkaRead.getSpec().getPayload());
-    KafkaUnboundedSource source =
-        (KafkaUnboundedSource) ReadTranslation.unboundedSourceFromProto(readPayload);
-    KafkaIO.Read spec = source.getSpec();
-
-    assertThat(spec.getConsumerConfig(), Matchers.is(consumerConfig));
-    assertThat(spec.getTopics(), Matchers.is(topics));
     assertThat(
-        spec.getKeyDeserializerProvider()
-            .getDeserializer(spec.getConsumerConfig(), true)
-            .getClass()
-            .getName(),
-        Matchers.is(keyDeserializer));
-    assertThat(
-        spec.getValueDeserializerProvider()
-            .getDeserializer(spec.getConsumerConfig(), false)
-            .getClass()
-            .getName(),
-        Matchers.is(valueDeserializer));
+        kafkaComposite.getSubtransformsList(),
+        Matchers.contains(
+            "test_namespacetest/KafkaIO.Read/Impulse",
+            "test_namespacetest/KafkaIO.Read/ParDo(GenerateKafkaSourceDescriptor)",
+            "test_namespacetest/KafkaIO.Read/KafkaIO.ReadSourceDescriptors"));
+    RunnerApi.PTransform kafkaSdfParDo =
+        result.getComponents().getTransformsOrThrow(kafkaComposite.getSubtransforms(2));
+    RunnerApi.ParDoPayload parDoPayload =
+        RunnerApi.ParDoPayload.parseFrom(kafkaSdfParDo.getSpec().getPayload());
+    assertNotNull(parDoPayload.getRestrictionCoderId());
   }
 
   @Test

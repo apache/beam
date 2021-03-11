@@ -36,6 +36,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * @param <T> the type of the elements read from the source
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class UngroupedShuffleReader<T> extends NativeReader<T> {
   final byte[] shuffleReaderConfig;
   final String startShufflePosition;

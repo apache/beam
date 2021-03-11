@@ -26,6 +26,7 @@
     "src/*",
     "src/common/*",
     "src/kernel/*",
+    "src/inspector/*",
     "src/__tests__/**/*"
   ]
 }

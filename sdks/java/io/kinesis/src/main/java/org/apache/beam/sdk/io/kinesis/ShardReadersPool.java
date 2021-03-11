@@ -45,6 +45,9 @@ import org.slf4j.LoggerFactory;
  * Internal shard iterators pool. It maintains the thread pool for reading Kinesis shards in
  * separate threads. Read records are stored in a blocking queue of limited capacity.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class ShardReadersPool {
 
   private static final Logger LOG = LoggerFactory.getLogger(ShardReadersPool.class);

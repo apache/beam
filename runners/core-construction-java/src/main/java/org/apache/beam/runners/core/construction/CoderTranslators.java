@@ -32,6 +32,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.InstanceBuilder;
+import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.InvalidProtocolBufferException;
@@ -170,6 +171,20 @@ class CoderTranslators {
           throw new RuntimeException("Unable to parse schema for RowCoder: ", e);
         }
         return RowCoder.of(schema);
+      }
+    };
+  }
+
+  static CoderTranslator<ShardedKey.Coder<?>> shardedKey() {
+    return new SimpleStructuredCoderTranslator<ShardedKey.Coder<?>>() {
+      @Override
+      public List<? extends Coder<?>> getComponents(ShardedKey.Coder<?> from) {
+        return Collections.singletonList(from.getKeyCoder());
+      }
+
+      @Override
+      public ShardedKey.Coder<?> fromComponents(List<Coder<?>> components) {
+        return ShardedKey.Coder.of(components.get(0));
       }
     };
   }

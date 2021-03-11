@@ -35,6 +35,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * @param <T> type type of object returned by this instance builder
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class InstanceBuilder<T> {
 
   /**
@@ -218,11 +221,20 @@ public class InstanceBuilder<T> {
           String.format(
               "Unable to find factory method %s#%s(%s)",
               factoryClass.getSimpleName(), methodName, Joiner.on(", ").join(types)));
-
-    } catch (IllegalAccessException | InvocationTargetException e) {
+    } catch (InvocationTargetException e) {
+      if (e.getTargetException() instanceof RuntimeException) {
+        // If underlying exception is unchecked re-raise it as-is
+        throw (RuntimeException) e.getTargetException();
+      }
       throw new RuntimeException(
           String.format(
-              "Failed to construct instance from factory method %s#%s(%s)",
+              "Encountered checked exception when constructing an instance from factory method %s#%s(%s)",
+              factoryClass.getSimpleName(), methodName, Joiner.on(", ").join(types)),
+          e.getTargetException());
+    } catch (IllegalAccessException e) {
+      throw new RuntimeException(
+          String.format(
+              "Failed to construct instance from factory method %s#%s(%s) due to access restriction",
               factoryClass.getSimpleName(), methodName, Joiner.on(", ").join(types)),
           e);
     }

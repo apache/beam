@@ -202,6 +202,9 @@ class TypeCheckCombineFn(core.CombineFn):
     self._output_type_hint = type_hints.simple_output_type(label)
     self._label = label
 
+  def setup(self, *args, **kwargs):
+    self._combinefn.setup(*args, **kwargs)
+
   def create_accumulator(self, *args, **kwargs):
     return self._combinefn.create_accumulator(*args, **kwargs)
 
@@ -238,6 +241,9 @@ class TypeCheckCombineFn(core.CombineFn):
             '%s' % (self._label, e))
         raise_with_traceback(TypeCheckError(error_msg))
     return result
+
+  def teardown(self, *args, **kwargs):
+    self._combinefn.teardown(*args, **kwargs)
 
 
 class TypeCheckVisitor(pipeline.PipelineVisitor):

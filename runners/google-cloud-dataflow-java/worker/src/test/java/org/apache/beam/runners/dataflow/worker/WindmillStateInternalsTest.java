@@ -19,42 +19,63 @@ package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.runners.dataflow.worker.DataflowMatchers.ByteStringMatcher.byteStringEq;
 import static org.apache.beam.sdk.testing.SystemNanoTimeSleeper.sleepMillis;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
 
+import com.google.common.base.Charsets;
+import com.google.common.collect.Iterables;
 import java.io.Closeable;
+import java.io.IOException;
+import java.util.AbstractMap;
+import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaceForTest;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
+import org.apache.beam.runners.dataflow.worker.WindmillStateInternals.IdTracker;
+import org.apache.beam.runners.dataflow.worker.WindmillStateInternals.WindmillOrderedList;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.TagBag;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.TagSortedListUpdateRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.TagValue;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.GroupingState;
+import org.apache.beam.sdk.state.MapState;
+import org.apache.beam.sdk.state.OrderedListState;
 import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Range;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.RangeSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Futures;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.SettableFuture;
 import org.hamcrest.Matchers;
@@ -71,6 +92,9 @@ import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link WindmillStateInternals}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class WindmillStateInternalsTest {
 
   private static final StateNamespace NAMESPACE = new StateNamespaceForTest("ns");
@@ -120,7 +144,8 @@ public class WindmillStateInternalsTest {
             cache
                 .forComputation("comp")
                 .forKey(
-                    WindmillComputationKey.create("comp", ByteString.EMPTY, 123),
+                    WindmillComputationKey.create(
+                        "comp", ByteString.copyFrom("dummyKey", Charsets.UTF_8), 123),
                     STATE_FAMILY,
                     17L,
                     workToken),
@@ -134,7 +159,8 @@ public class WindmillStateInternalsTest {
             cache
                 .forComputation("comp")
                 .forKey(
-                    WindmillComputationKey.create("comp", ByteString.EMPTY, 123),
+                    WindmillComputationKey.create(
+                        "comp", ByteString.copyFrom("dummyNewKey", Charsets.UTF_8), 123),
                     STATE_FAMILY,
                     17L,
                     workToken),
@@ -169,6 +195,726 @@ public class WindmillStateInternalsTest {
     }
     return result;
   }
+
+  private <K> ByteString protoKeyFromUserKey(@Nullable K tag, Coder<K> keyCoder)
+      throws IOException {
+    ByteString.Output keyStream = ByteString.newOutput();
+    key(NAMESPACE, "map").writeTo(keyStream);
+    if (tag != null) {
+      keyCoder.encode(tag, keyStream, Context.OUTER);
+    }
+    return keyStream.toByteString();
+  }
+
+  private <K> K userKeyFromProtoKey(ByteString tag, Coder<K> keyCoder) throws IOException {
+    ByteString keyBytes = tag.substring(key(NAMESPACE, "map").size());
+    return keyCoder.decode(keyBytes.newInput(), Context.OUTER);
+  }
+
+  @Test
+  public void testMapAddBeforeGet() throws Exception {
+    StateTag<MapState<String, Integer>> addr =
+        StateTags.map("map", StringUtf8Coder.of(), VarIntCoder.of());
+    MapState<String, Integer> mapState = underTest.state(NAMESPACE, addr);
+
+    final String tag = "tag";
+    SettableFuture<Integer> future = SettableFuture.create();
+    when(mockReader.valueFuture(
+            protoKeyFromUserKey(tag, StringUtf8Coder.of()), STATE_FAMILY, VarIntCoder.of()))
+        .thenReturn(future);
+
+    ReadableState<Integer> result = mapState.get("tag");
+    result = result.readLater();
+    waitAndSet(future, 1, 200);
+    assertEquals(1, (int) result.read());
+    mapState.put("tag", 2);
+    assertEquals(2, (int) result.read());
+  }
+
+  @Test
+  public void testMapAddClearBeforeGet() throws Exception {
+    StateTag<MapState<String, Integer>> addr =
+        StateTags.map("map", StringUtf8Coder.of(), VarIntCoder.of());
+    MapState<String, Integer> mapState = underTest.state(NAMESPACE, addr);
+
+    final String tag = "tag";
+
+    SettableFuture<Iterable<Map.Entry<ByteString, Integer>>> prefixFuture = SettableFuture.create();
+    when(mockReader.valuePrefixFuture(
+            protoKeyFromUserKey(null, StringUtf8Coder.of()), STATE_FAMILY, VarIntCoder.of()))
+        .thenReturn(prefixFuture);
+
+    ReadableState<Integer> result = mapState.get("tag");
+    result = result.readLater();
+    waitAndSet(
+        prefixFuture,
+        ImmutableList.of(
+            new AbstractMap.SimpleEntry<>(protoKeyFromUserKey(tag, StringUtf8Coder.of()), 1)),
+        50);
+    assertFalse(mapState.isEmpty().read());
+    mapState.clear();
+    assertTrue(mapState.isEmpty().read());
+    assertNull(mapState.get("tag").read());
+    mapState.put("tag", 2);
+    assertFalse(mapState.isEmpty().read());
+    assertEquals(2, (int) result.read());
+  }
+
+  @Test
+  public void testMapLocalAddOverridesStorage() throws Exception {
+    StateTag<MapState<String, Integer>> addr =
+        StateTags.map("map", StringUtf8Coder.of(), VarIntCoder.of());
+    MapState<String, Integer> mapState = underTest.state(NAMESPACE, addr);
+
+    final String tag = "tag";
+
+    SettableFuture<Integer> future = SettableFuture.create();
+    when(mockReader.valueFuture(
+            protoKeyFromUserKey(tag, StringUtf8Coder.of()), STATE_FAMILY, VarIntCoder.of()))
+        .thenReturn(future);
+    SettableFuture<Iterable<Map.Entry<ByteString, Integer>>> prefixFuture = SettableFuture.create();
+    when(mockReader.valuePrefixFuture(
+            protoKeyFromUserKey(null, StringUtf8Coder.of()), STATE_FAMILY, VarIntCoder.of()))
+        .thenReturn(prefixFuture);
+
+    waitAndSet(future, 1, 50);
+    waitAndSet(
+        prefixFuture,
+        ImmutableList.of(
+            new AbstractMap.SimpleEntry<>(protoKeyFromUserKey(tag, StringUtf8Coder.of()), 1)),
+        50);
+    mapState.put(tag, 42);
+    assertEquals(42, (int) mapState.get(tag).read());
+    assertThat(
+        mapState.entries().read(),
+        Matchers.containsInAnyOrder(new AbstractMap.SimpleEntry<>(tag, 42)));
+  }
+
+  @Test
+  public void testMapLocalRemoveOverridesStorage() throws Exception {
+    StateTag<MapState<String, Integer>> addr =
+        StateTags.map("map", StringUtf8Coder.of(), VarIntCoder.of());
+    MapState<String, Integer> mapState = underTest.state(NAMESPACE, addr);
+
+    final String tag1 = "tag1";
+    final String tag2 = "tag2";
+
+    SettableFuture<Integer> future = SettableFuture.create();
+    when(mockReader.valueFuture(
+            protoKeyFromUserKey(tag1, StringUtf8Coder.of()), STATE_FAMILY, VarIntCoder.of()))
+        .thenReturn(future);
+    SettableFuture<Iterable<Map.Entry<ByteString, Integer>>> prefixFuture = SettableFuture.create();
+    when(mockReader.valuePrefixFuture(
+            protoKeyFromUserKey(null, StringUtf8Coder.of()), STATE_FAMILY, VarIntCoder.of()))
+        .thenReturn(prefixFuture);
+
+    waitAndSet(future, 1, 50);
+    waitAndSet(
+        prefixFuture,
+        ImmutableList.of(
+            new AbstractMap.SimpleEntry<>(protoKeyFromUserKey(tag1, StringUtf8Coder.of()), 1),
+            new AbstractMap.SimpleEntry<>(protoKeyFromUserKey(tag2, StringUtf8Coder.of()), 2)),
+        50);
+    mapState.remove(tag1);
+    assertNull(mapState.get(tag1).read());
+    assertThat(
+        mapState.entries().read(),
+        Matchers.containsInAnyOrder(new AbstractMap.SimpleEntry<>(tag2, 2)));
+
+    mapState.remove(tag2);
+    assertTrue(mapState.isEmpty().read());
+  }
+
+  @Test
+  public void testMapLocalClearOverridesStorage() throws Exception {
+    StateTag<MapState<String, Integer>> addr =
+        StateTags.map("map", StringUtf8Coder.of(), VarIntCoder.of());
+    MapState<String, Integer> mapState = underTest.state(NAMESPACE, addr);
+
+    final String tag1 = "tag1";
+    final String tag2 = "tag2";
+
+    SettableFuture<Integer> future1 = SettableFuture.create();
+    SettableFuture<Integer> future2 = SettableFuture.create();
+
+    when(mockReader.valueFuture(
+            protoKeyFromUserKey(tag1, StringUtf8Coder.of()), STATE_FAMILY, VarIntCoder.of()))
+        .thenReturn(future1);
+    when(mockReader.valueFuture(
+            protoKeyFromUserKey(tag2, StringUtf8Coder.of()), STATE_FAMILY, VarIntCoder.of()))
+        .thenReturn(future2);
+    SettableFuture<Iterable<Map.Entry<ByteString, Integer>>> prefixFuture = SettableFuture.create();
+    when(mockReader.valuePrefixFuture(
+            protoKeyFromUserKey(null, StringUtf8Coder.of()), STATE_FAMILY, VarIntCoder.of()))
+        .thenReturn(prefixFuture);
+
+    waitAndSet(future1, 1, 50);
+    waitAndSet(future2, 2, 50);
+    waitAndSet(
+        prefixFuture,
+        ImmutableList.of(
+            new AbstractMap.SimpleEntry<>(protoKeyFromUserKey(tag1, StringUtf8Coder.of()), 1),
+            new AbstractMap.SimpleEntry<>(protoKeyFromUserKey(tag2, StringUtf8Coder.of()), 2)),
+        50);
+    mapState.clear();
+    assertNull(mapState.get(tag1).read());
+    assertNull(mapState.get(tag2).read());
+    assertThat(mapState.entries().read(), Matchers.emptyIterable());
+    assertTrue(mapState.isEmpty().read());
+  }
+
+  @Test
+  public void testMapAddBeforeRead() throws Exception {
+    StateTag<MapState<String, Integer>> addr =
+        StateTags.map("map", StringUtf8Coder.of(), VarIntCoder.of());
+    MapState<String, Integer> mapState = underTest.state(NAMESPACE, addr);
+
+    final String tag1 = "tag1";
+    final String tag2 = "tag2";
+    final String tag3 = "tag3";
+    SettableFuture<Iterable<Map.Entry<ByteString, Integer>>> prefixFuture = SettableFuture.create();
+    when(mockReader.valuePrefixFuture(
+            protoKeyFromUserKey(null, StringUtf8Coder.of()), STATE_FAMILY, VarIntCoder.of()))
+        .thenReturn(prefixFuture);
+
+    ReadableState<Iterable<Map.Entry<String, Integer>>> result = mapState.entries();
+    result = result.readLater();
+
+    mapState.put(tag1, 1);
+    waitAndSet(
+        prefixFuture,
+        ImmutableList.of(
+            new AbstractMap.SimpleEntry<>(protoKeyFromUserKey(tag2, StringUtf8Coder.of()), 2)),
+        200);
+    Iterable<Map.Entry<String, Integer>> readData = result.read();
+    assertThat(
+        readData,
+        Matchers.containsInAnyOrder(
+            new AbstractMap.SimpleEntry<>(tag1, 1), new AbstractMap.SimpleEntry<>(tag2, 2)));
+
+    mapState.put(tag3, 3);
+    assertThat(
+        result.read(),
+        Matchers.containsInAnyOrder(
+            new AbstractMap.SimpleEntry<>(tag1, 1),
+            new AbstractMap.SimpleEntry<>(tag2, 2),
+            new AbstractMap.SimpleEntry<>(tag3, 3)));
+  }
+
+  @Test
+  public void testMapPutIfAbsentSucceeds() throws Exception {
+    StateTag<MapState<String, Integer>> addr =
+        StateTags.map("map", StringUtf8Coder.of(), VarIntCoder.of());
+    MapState<String, Integer> mapState = underTest.state(NAMESPACE, addr);
+
+    final String tag1 = "tag1";
+    SettableFuture<Integer> future = SettableFuture.create();
+    when(mockReader.valueFuture(
+            protoKeyFromUserKey(tag1, StringUtf8Coder.of()), STATE_FAMILY, VarIntCoder.of()))
+        .thenReturn(future);
+    waitAndSet(future, null, 50);
+
+    assertNull(mapState.putIfAbsent(tag1, 42).read());
+    assertEquals(42, (int) mapState.get(tag1).read());
+  }
+
+  @Test
+  public void testMapPutIfAbsentFails() throws Exception {
+    StateTag<MapState<String, Integer>> addr =
+        StateTags.map("map", StringUtf8Coder.of(), VarIntCoder.of());
+    MapState<String, Integer> mapState = underTest.state(NAMESPACE, addr);
+
+    final String tag1 = "tag1";
+    mapState.put(tag1, 1);
+    assertEquals(1, (int) mapState.putIfAbsent(tag1, 42).read());
+    assertEquals(1, (int) mapState.get(tag1).read());
+
+    final String tag2 = "tag2";
+    SettableFuture<Integer> future = SettableFuture.create();
+    when(mockReader.valueFuture(
+            protoKeyFromUserKey(tag2, StringUtf8Coder.of()), STATE_FAMILY, VarIntCoder.of()))
+        .thenReturn(future);
+    waitAndSet(future, 2, 50);
+    assertEquals(2, (int) mapState.putIfAbsent(tag2, 42).read());
+    assertEquals(2, (int) mapState.get(tag2).read());
+  }
+
+  @Test
+  public void testMapNegativeCache() throws Exception {
+    StateTag<MapState<String, Integer>> addr =
+        StateTags.map("map", StringUtf8Coder.of(), VarIntCoder.of());
+    MapState<String, Integer> mapState = underTest.state(NAMESPACE, addr);
+
+    final String tag = "tag";
+    SettableFuture<Integer> future = SettableFuture.create();
+    when(mockReader.valueFuture(
+            protoKeyFromUserKey(tag, StringUtf8Coder.of()), STATE_FAMILY, VarIntCoder.of()))
+        .thenReturn(future);
+    waitAndSet(future, null, 200);
+    assertNull(mapState.get(tag).read());
+    future.set(42);
+    assertNull(mapState.get(tag).read());
+  }
+
+  private <K, V> Map.Entry<K, V> fromTagValue(
+      TagValue tagValue, Coder<K> keyCoder, Coder<V> valueCoder) {
+    try {
+      V value =
+          !tagValue.getValue().getData().isEmpty()
+              ? valueCoder.decode(tagValue.getValue().getData().newInput())
+              : null;
+      return new AbstractMap.SimpleEntry<>(userKeyFromProtoKey(tagValue.getTag(), keyCoder), value);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  @Test
+  public void testMapAddPersist() throws Exception {
+    StateTag<MapState<String, Integer>> addr =
+        StateTags.map("map", StringUtf8Coder.of(), VarIntCoder.of());
+    MapState<String, Integer> mapState = underTest.state(NAMESPACE, addr);
+
+    final String tag1 = "tag1";
+    final String tag2 = "tag2";
+    mapState.put(tag1, 1);
+    mapState.put(tag2, 2);
+
+    Windmill.WorkItemCommitRequest.Builder commitBuilder =
+        Windmill.WorkItemCommitRequest.newBuilder();
+    underTest.persist(commitBuilder);
+
+    assertEquals(2, commitBuilder.getValueUpdatesCount());
+    assertThat(
+        commitBuilder.getValueUpdatesList().stream()
+            .map(tv -> fromTagValue(tv, StringUtf8Coder.of(), VarIntCoder.of()))
+            .collect(Collectors.toList()),
+        Matchers.containsInAnyOrder(new SimpleEntry<>(tag1, 1), new SimpleEntry<>(tag2, 2)));
+  }
+
+  @Test
+  public void testMapRemovePersist() throws Exception {
+    StateTag<MapState<String, Integer>> addr =
+        StateTags.map("map", StringUtf8Coder.of(), VarIntCoder.of());
+    MapState<String, Integer> mapState = underTest.state(NAMESPACE, addr);
+
+    final String tag1 = "tag1";
+    final String tag2 = "tag2";
+    mapState.remove(tag1);
+    mapState.remove(tag2);
+
+    Windmill.WorkItemCommitRequest.Builder commitBuilder =
+        Windmill.WorkItemCommitRequest.newBuilder();
+    underTest.persist(commitBuilder);
+
+    assertEquals(2, commitBuilder.getValueUpdatesCount());
+    assertThat(
+        commitBuilder.getValueUpdatesList().stream()
+            .map(tv -> fromTagValue(tv, StringUtf8Coder.of(), VarIntCoder.of()))
+            .collect(Collectors.toList()),
+        Matchers.containsInAnyOrder(new SimpleEntry<>(tag1, null), new SimpleEntry<>(tag2, null)));
+  }
+
+  @Test
+  public void testMapClearPersist() throws Exception {
+    StateTag<MapState<String, Integer>> addr =
+        StateTags.map("map", StringUtf8Coder.of(), VarIntCoder.of());
+    MapState<String, Integer> mapState = underTest.state(NAMESPACE, addr);
+
+    final String tag1 = "tag1";
+    final String tag2 = "tag2";
+    mapState.put(tag1, 1);
+    mapState.put(tag2, 2);
+    mapState.clear();
+
+    Windmill.WorkItemCommitRequest.Builder commitBuilder =
+        Windmill.WorkItemCommitRequest.newBuilder();
+    underTest.persist(commitBuilder);
+
+    assertEquals(0, commitBuilder.getValueUpdatesCount());
+    assertEquals(1, commitBuilder.getTagValuePrefixDeletesCount());
+    System.err.println(commitBuilder);
+    assertEquals(STATE_FAMILY, commitBuilder.getTagValuePrefixDeletes(0).getStateFamily());
+    assertEquals(
+        protoKeyFromUserKey(null, StringUtf8Coder.of()),
+        commitBuilder.getTagValuePrefixDeletes(0).getTagPrefix());
+  }
+
+  @Test
+  public void testMapComplexPersist() throws Exception {
+    StateTag<MapState<String, Integer>> addr =
+        StateTags.map("map", StringUtf8Coder.of(), VarIntCoder.of());
+    MapState<String, Integer> mapState = underTest.state(NAMESPACE, addr);
+
+    final String tag1 = "tag1";
+    final String tag2 = "tag2";
+    final String tag3 = "tag3";
+    final String tag4 = "tag4";
+
+    mapState.put(tag1, 1);
+    mapState.clear();
+    mapState.put(tag2, 2);
+    mapState.put(tag3, 3);
+    mapState.remove(tag2);
+    mapState.remove(tag4);
+
+    Windmill.WorkItemCommitRequest.Builder commitBuilder =
+        Windmill.WorkItemCommitRequest.newBuilder();
+    underTest.persist(commitBuilder);
+    assertEquals(1, commitBuilder.getTagValuePrefixDeletesCount());
+    assertEquals(STATE_FAMILY, commitBuilder.getTagValuePrefixDeletes(0).getStateFamily());
+    assertEquals(
+        protoKeyFromUserKey(null, StringUtf8Coder.of()),
+        commitBuilder.getTagValuePrefixDeletes(0).getTagPrefix());
+    assertThat(
+        commitBuilder.getValueUpdatesList().stream()
+            .map(tv -> fromTagValue(tv, StringUtf8Coder.of(), VarIntCoder.of()))
+            .collect(Collectors.toList()),
+        Matchers.containsInAnyOrder(
+            new SimpleEntry<>(tag3, 3),
+            new SimpleEntry<>(tag2, null),
+            new SimpleEntry<>(tag4, null)));
+
+    // Once persist has been called, calling persist again should be a noop.
+    commitBuilder = Windmill.WorkItemCommitRequest.newBuilder();
+    assertEquals(0, commitBuilder.getTagValuePrefixDeletesCount());
+    assertEquals(0, commitBuilder.getValueUpdatesCount());
+  }
+
+  public static final Range<Long> FULL_ORDERED_LIST_RANGE =
+      Range.closedOpen(WindmillOrderedList.MIN_TS_MICROS, WindmillOrderedList.MAX_TS_MICROS);
+
+  @Test
+  public void testOrderedListAddBeforeRead() throws Exception {
+    StateTag<OrderedListState<String>> addr =
+        StateTags.orderedList("orderedList", StringUtf8Coder.of());
+    OrderedListState<String> orderedList = underTest.state(NAMESPACE, addr);
+
+    SettableFuture<Iterable<TimestampedValue<String>>> future = SettableFuture.create();
+    when(mockReader.orderedListFuture(
+            FULL_ORDERED_LIST_RANGE,
+            key(NAMESPACE, "orderedList"),
+            STATE_FAMILY,
+            StringUtf8Coder.of()))
+        .thenReturn(future);
+
+    orderedList.readLater();
+
+    final TimestampedValue<String> helloValue =
+        TimestampedValue.of("hello", Instant.ofEpochMilli(100));
+    final TimestampedValue<String> worldValue =
+        TimestampedValue.of("world", Instant.ofEpochMilli(75));
+    final TimestampedValue<String> goodbyeValue =
+        TimestampedValue.of("goodbye", Instant.ofEpochMilli(50));
+
+    orderedList.add(helloValue);
+    waitAndSet(future, Arrays.asList(worldValue), 200);
+    assertThat(orderedList.read(), Matchers.contains(worldValue, helloValue));
+
+    orderedList.add(goodbyeValue);
+    assertThat(orderedList.read(), Matchers.contains(goodbyeValue, worldValue, helloValue));
+  }
+
+  @Test
+  public void testOrderedListClearBeforeRead() throws Exception {
+    StateTag<OrderedListState<String>> addr =
+        StateTags.orderedList("orderedList", StringUtf8Coder.of());
+    OrderedListState<String> orderedListState = underTest.state(NAMESPACE, addr);
+
+    final TimestampedValue<String> helloElement = TimestampedValue.of("hello", Instant.EPOCH);
+    orderedListState.clear();
+    orderedListState.add(helloElement);
+    assertThat(orderedListState.read(), Matchers.containsInAnyOrder(helloElement));
+
+    // Shouldn't need to read from windmill for this.
+    Mockito.verifyZeroInteractions(mockReader);
+  }
+
+  @Test
+  public void testOrderedListIsEmptyFalse() throws Exception {
+    StateTag<OrderedListState<String>> addr =
+        StateTags.orderedList("orderedList", StringUtf8Coder.of());
+    OrderedListState<String> orderedList = underTest.state(NAMESPACE, addr);
+
+    SettableFuture<Iterable<TimestampedValue<String>>> future = SettableFuture.create();
+    when(mockReader.orderedListFuture(
+            FULL_ORDERED_LIST_RANGE,
+            key(NAMESPACE, "orderedList"),
+            STATE_FAMILY,
+            StringUtf8Coder.of()))
+        .thenReturn(future);
+    ReadableState<Boolean> result = orderedList.isEmpty().readLater();
+    Mockito.verify(mockReader)
+        .orderedListFuture(
+            FULL_ORDERED_LIST_RANGE,
+            key(NAMESPACE, "orderedList"),
+            STATE_FAMILY,
+            StringUtf8Coder.of());
+
+    waitAndSet(future, Arrays.asList(TimestampedValue.of("world", Instant.EPOCH)), 200);
+    assertThat(result.read(), Matchers.is(false));
+  }
+
+  @Test
+  public void testOrderedListIsEmptyTrue() throws Exception {
+    StateTag<OrderedListState<String>> addr =
+        StateTags.orderedList("orderedList", StringUtf8Coder.of());
+    OrderedListState<String> orderedList = underTest.state(NAMESPACE, addr);
+
+    SettableFuture<Iterable<TimestampedValue<String>>> future = SettableFuture.create();
+    when(mockReader.orderedListFuture(
+            FULL_ORDERED_LIST_RANGE,
+            key(NAMESPACE, "orderedList"),
+            STATE_FAMILY,
+            StringUtf8Coder.of()))
+        .thenReturn(future);
+    ReadableState<Boolean> result = orderedList.isEmpty().readLater();
+    Mockito.verify(mockReader)
+        .orderedListFuture(
+            FULL_ORDERED_LIST_RANGE,
+            key(NAMESPACE, "orderedList"),
+            STATE_FAMILY,
+            StringUtf8Coder.of());
+
+    waitAndSet(future, Collections.emptyList(), 200);
+    assertThat(result.read(), Matchers.is(true));
+  }
+
+  @Test
+  public void testOrderedListIsEmptyAfterClear() throws Exception {
+    StateTag<OrderedListState<String>> addr =
+        StateTags.orderedList("orderedList", StringUtf8Coder.of());
+    OrderedListState<String> orderedList = underTest.state(NAMESPACE, addr);
+
+    orderedList.clear();
+    ReadableState<Boolean> result = orderedList.isEmpty();
+    Mockito.verify(mockReader, never())
+        .orderedListFuture(
+            FULL_ORDERED_LIST_RANGE,
+            key(NAMESPACE, "orderedList"),
+            STATE_FAMILY,
+            StringUtf8Coder.of());
+    assertThat(result.read(), Matchers.is(true));
+
+    orderedList.add(TimestampedValue.of("hello", Instant.EPOCH));
+    assertThat(result.read(), Matchers.is(false));
+  }
+
+  @Test
+  public void testOrderedListAddPersist() throws Exception {
+    StateTag<OrderedListState<String>> addr =
+        StateTags.orderedList("orderedList", StringUtf8Coder.of());
+    OrderedListState<String> orderedList = underTest.state(NAMESPACE, addr);
+
+    SettableFuture<Map<Range<Instant>, RangeSet<Long>>> orderedListFuture = SettableFuture.create();
+    orderedListFuture.set(null);
+    SettableFuture<Map<Range<Instant>, RangeSet<Instant>>> deletionsFuture =
+        SettableFuture.create();
+    deletionsFuture.set(null);
+    when(mockReader.valueFuture(
+            systemKey(NAMESPACE, "orderedList" + IdTracker.IDS_AVAILABLE_STR),
+            STATE_FAMILY,
+            IdTracker.IDS_AVAILABLE_CODER))
+        .thenReturn(orderedListFuture);
+    when(mockReader.valueFuture(
+            systemKey(NAMESPACE, "orderedList" + IdTracker.DELETIONS_STR),
+            STATE_FAMILY,
+            IdTracker.SUBRANGE_DELETIONS_CODER))
+        .thenReturn(deletionsFuture);
+
+    orderedList.add(TimestampedValue.of("hello", Instant.ofEpochMilli(1)));
+
+    Windmill.WorkItemCommitRequest.Builder commitBuilder =
+        Windmill.WorkItemCommitRequest.newBuilder();
+    underTest.persist(commitBuilder);
+
+    assertEquals(1, commitBuilder.getSortedListUpdatesCount());
+    TagSortedListUpdateRequest updates = commitBuilder.getSortedListUpdates(0);
+    assertEquals(key(NAMESPACE, "orderedList"), updates.getTag());
+    assertEquals(1, updates.getInsertsCount());
+    assertEquals(1, updates.getInserts(0).getEntriesCount());
+
+    assertEquals("hello", updates.getInserts(0).getEntries(0).getValue().toStringUtf8());
+    assertEquals(1000, updates.getInserts(0).getEntries(0).getSortKey());
+    assertEquals(IdTracker.MIN_ID, updates.getInserts(0).getEntries(0).getId());
+  }
+
+  @Test
+  public void testOrderedListClearPersist() throws Exception {
+    StateTag<OrderedListState<String>> addr =
+        StateTags.orderedList("orderedList", StringUtf8Coder.of());
+    OrderedListState<String> orderedListState = underTest.state(NAMESPACE, addr);
+
+    orderedListState.add(TimestampedValue.of("hello", Instant.ofEpochMilli(1)));
+    orderedListState.clear();
+    orderedListState.add(TimestampedValue.of("world", Instant.ofEpochMilli(2)));
+    orderedListState.add(TimestampedValue.of("world", Instant.ofEpochMilli(2)));
+
+    Windmill.WorkItemCommitRequest.Builder commitBuilder =
+        Windmill.WorkItemCommitRequest.newBuilder();
+    underTest.persist(commitBuilder);
+
+    assertEquals(1, commitBuilder.getSortedListUpdatesCount());
+    TagSortedListUpdateRequest updates = commitBuilder.getSortedListUpdates(0);
+    assertEquals(STATE_FAMILY, updates.getStateFamily());
+    assertEquals(key(NAMESPACE, "orderedList"), updates.getTag());
+    assertEquals(1, updates.getInsertsCount());
+    assertEquals(2, updates.getInserts(0).getEntriesCount());
+
+    assertEquals("world", updates.getInserts(0).getEntries(0).getValue().toStringUtf8());
+    assertEquals("world", updates.getInserts(0).getEntries(1).getValue().toStringUtf8());
+    assertEquals(2000, updates.getInserts(0).getEntries(0).getSortKey());
+    assertEquals(2000, updates.getInserts(0).getEntries(1).getSortKey());
+    assertEquals(IdTracker.MIN_ID, updates.getInserts(0).getEntries(0).getId());
+    assertEquals(IdTracker.MIN_ID + 1, updates.getInserts(0).getEntries(1).getId());
+    Mockito.verifyNoMoreInteractions(mockReader);
+  }
+
+  @Test
+  public void testOrderedListDeleteRangePersist() {
+    SettableFuture<Map<Range<Instant>, RangeSet<Long>>> orderedListFuture = SettableFuture.create();
+    orderedListFuture.set(null);
+    SettableFuture<Map<Range<Instant>, RangeSet<Instant>>> deletionsFuture =
+        SettableFuture.create();
+    deletionsFuture.set(null);
+    when(mockReader.valueFuture(
+            systemKey(NAMESPACE, "orderedList" + IdTracker.IDS_AVAILABLE_STR),
+            STATE_FAMILY,
+            IdTracker.IDS_AVAILABLE_CODER))
+        .thenReturn(orderedListFuture);
+    when(mockReader.valueFuture(
+            systemKey(NAMESPACE, "orderedList" + IdTracker.DELETIONS_STR),
+            STATE_FAMILY,
+            IdTracker.SUBRANGE_DELETIONS_CODER))
+        .thenReturn(deletionsFuture);
+
+    StateTag<OrderedListState<String>> addr =
+        StateTags.orderedList("orderedList", StringUtf8Coder.of());
+    OrderedListState<String> orderedListState = underTest.state(NAMESPACE, addr);
+
+    orderedListState.add(TimestampedValue.of("hello", Instant.ofEpochMilli(1)));
+    orderedListState.add(TimestampedValue.of("hello", Instant.ofEpochMilli(2)));
+    orderedListState.add(TimestampedValue.of("hello", Instant.ofEpochMilli(2)));
+    orderedListState.add(TimestampedValue.of("world", Instant.ofEpochMilli(3)));
+    orderedListState.add(TimestampedValue.of("world", Instant.ofEpochMilli(4)));
+    orderedListState.clearRange(Instant.ofEpochMilli(2), Instant.ofEpochMilli(4));
+    Windmill.WorkItemCommitRequest.Builder commitBuilder =
+        Windmill.WorkItemCommitRequest.newBuilder();
+    underTest.persist(commitBuilder);
+
+    assertEquals(1, commitBuilder.getSortedListUpdatesCount());
+    TagSortedListUpdateRequest updates = commitBuilder.getSortedListUpdates(0);
+    assertEquals(STATE_FAMILY, updates.getStateFamily());
+    assertEquals(key(NAMESPACE, "orderedList"), updates.getTag());
+    assertEquals(1, updates.getInsertsCount());
+    assertEquals(2, updates.getInserts(0).getEntriesCount());
+
+    assertEquals("hello", updates.getInserts(0).getEntries(0).getValue().toStringUtf8());
+    assertEquals("world", updates.getInserts(0).getEntries(1).getValue().toStringUtf8());
+    assertEquals(1000, updates.getInserts(0).getEntries(0).getSortKey());
+    assertEquals(4000, updates.getInserts(0).getEntries(1).getSortKey());
+    assertEquals(IdTracker.MIN_ID, updates.getInserts(0).getEntries(0).getId());
+    assertEquals(IdTracker.MIN_ID + 1, updates.getInserts(0).getEntries(1).getId());
+  }
+
+  @Test
+  public void testOrderedListMergePendingAdds() {
+    SettableFuture<Map<Range<Instant>, RangeSet<Long>>> orderedListFuture = SettableFuture.create();
+    orderedListFuture.set(null);
+    SettableFuture<Map<Range<Instant>, RangeSet<Instant>>> deletionsFuture =
+        SettableFuture.create();
+    deletionsFuture.set(null);
+    when(mockReader.valueFuture(
+            systemKey(NAMESPACE, "orderedList" + IdTracker.IDS_AVAILABLE_STR),
+            STATE_FAMILY,
+            IdTracker.IDS_AVAILABLE_CODER))
+        .thenReturn(orderedListFuture);
+    when(mockReader.valueFuture(
+            systemKey(NAMESPACE, "orderedList" + IdTracker.DELETIONS_STR),
+            STATE_FAMILY,
+            IdTracker.SUBRANGE_DELETIONS_CODER))
+        .thenReturn(deletionsFuture);
+
+    SettableFuture<Iterable<TimestampedValue<String>>> fromStorage = SettableFuture.create();
+    when(mockReader.orderedListFuture(
+            FULL_ORDERED_LIST_RANGE,
+            key(NAMESPACE, "orderedList"),
+            STATE_FAMILY,
+            StringUtf8Coder.of()))
+        .thenReturn(fromStorage);
+
+    StateTag<OrderedListState<String>> addr =
+        StateTags.orderedList("orderedList", StringUtf8Coder.of());
+    OrderedListState<String> orderedListState = underTest.state(NAMESPACE, addr);
+
+    orderedListState.add(TimestampedValue.of("second", Instant.ofEpochMilli(1)));
+    orderedListState.add(TimestampedValue.of("third", Instant.ofEpochMilli(2)));
+    orderedListState.add(TimestampedValue.of("fourth", Instant.ofEpochMilli(2)));
+    orderedListState.add(TimestampedValue.of("eighth", Instant.ofEpochMilli(10)));
+    orderedListState.add(TimestampedValue.of("ninth", Instant.ofEpochMilli(15)));
+
+    fromStorage.set(
+        ImmutableList.of(
+            TimestampedValue.of("first", Instant.ofEpochMilli(-1)),
+            TimestampedValue.of("fifth", Instant.ofEpochMilli(5)),
+            TimestampedValue.of("sixth", Instant.ofEpochMilli(5)),
+            TimestampedValue.of("seventh", Instant.ofEpochMilli(5)),
+            TimestampedValue.of("tenth", Instant.ofEpochMilli(20))));
+
+    TimestampedValue[] expected =
+        Iterables.toArray(
+            ImmutableList.of(
+                TimestampedValue.of("first", Instant.ofEpochMilli(-1)),
+                TimestampedValue.of("second", Instant.ofEpochMilli(1)),
+                TimestampedValue.of("third", Instant.ofEpochMilli(2)),
+                TimestampedValue.of("fourth", Instant.ofEpochMilli(2)),
+                TimestampedValue.of("fifth", Instant.ofEpochMilli(5)),
+                TimestampedValue.of("sixth", Instant.ofEpochMilli(5)),
+                TimestampedValue.of("seventh", Instant.ofEpochMilli(5)),
+                TimestampedValue.of("eighth", Instant.ofEpochMilli(10)),
+                TimestampedValue.of("ninth", Instant.ofEpochMilli(15)),
+                TimestampedValue.of("tenth", Instant.ofEpochMilli(20))),
+            TimestampedValue.class);
+
+    TimestampedValue[] read = Iterables.toArray(orderedListState.read(), TimestampedValue.class);
+    assertArrayEquals(expected, read);
+  }
+
+  @Test
+  public void testOrderedListPersistEmpty() throws Exception {
+    StateTag<OrderedListState<String>> addr =
+        StateTags.orderedList("orderedList", StringUtf8Coder.of());
+    OrderedListState<String> orderedListState = underTest.state(NAMESPACE, addr);
+
+    orderedListState.clear();
+
+    Windmill.WorkItemCommitRequest.Builder commitBuilder =
+        Windmill.WorkItemCommitRequest.newBuilder();
+    underTest.persist(commitBuilder);
+
+    // 1 bag update = the clear
+    assertEquals(1, commitBuilder.getSortedListUpdatesCount());
+    TagSortedListUpdateRequest updates = commitBuilder.getSortedListUpdates(0);
+    assertEquals(1, updates.getDeletesCount());
+    assertEquals(WindmillOrderedList.MIN_TS_MICROS, updates.getDeletes(0).getRange().getStart());
+    assertEquals(WindmillOrderedList.MAX_TS_MICROS, updates.getDeletes(0).getRange().getLimit());
+  }
+
+  @Test
+  public void testNewOrderedListNoFetch() throws Exception {
+    StateTag<OrderedListState<String>> addr =
+        StateTags.orderedList("orderedList", StringUtf8Coder.of());
+    OrderedListState<String> orderedList = underTestNewKey.state(NAMESPACE, addr);
+
+    assertThat(orderedList.read(), Matchers.emptyIterable());
+
+    // Shouldn't need to read from windmill for this.
+    Mockito.verifyZeroInteractions(mockReader);
+  }
+
+  // test ordered list cleared before read
+  // test fetch + add + read
+  // test ids
 
   @Test
   public void testBagAddBeforeRead() throws Exception {
@@ -872,7 +1618,7 @@ public class WindmillStateInternalsTest {
     value.write("Hi");
     underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
 
-    assertEquals(126, cache.getWeight());
+    assertEquals(132, cache.getWeight());
 
     resetUnderTest();
     value = underTest.state(NAMESPACE, addr);
@@ -880,7 +1626,7 @@ public class WindmillStateInternalsTest {
     value.clear();
     underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
 
-    assertEquals(124, cache.getWeight());
+    assertEquals(130, cache.getWeight());
 
     resetUnderTest();
     value = underTest.state(NAMESPACE, addr);
@@ -912,7 +1658,7 @@ public class WindmillStateInternalsTest {
 
     underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
 
-    assertEquals(134, cache.getWeight());
+    assertEquals(140, cache.getWeight());
 
     resetUnderTest();
     bag = underTest.state(NAMESPACE, addr);
@@ -932,7 +1678,7 @@ public class WindmillStateInternalsTest {
 
     underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
 
-    assertEquals(127, cache.getWeight());
+    assertEquals(133, cache.getWeight());
 
     resetUnderTest();
     bag = underTest.state(NAMESPACE, addr);
@@ -943,7 +1689,7 @@ public class WindmillStateInternalsTest {
 
     underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
 
-    assertEquals(128, cache.getWeight());
+    assertEquals(134, cache.getWeight());
 
     resetUnderTest();
     bag = underTest.state(NAMESPACE, addr);
@@ -974,7 +1720,7 @@ public class WindmillStateInternalsTest {
 
     underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
 
-    assertEquals(132, cache.getWeight());
+    assertEquals(138, cache.getWeight());
 
     resetUnderTest();
     hold = underTest.state(NAMESPACE, addr);
@@ -983,7 +1729,7 @@ public class WindmillStateInternalsTest {
 
     underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
 
-    assertEquals(132, cache.getWeight());
+    assertEquals(138, cache.getWeight());
 
     resetUnderTest();
     hold = underTest.state(NAMESPACE, addr);
@@ -1014,7 +1760,7 @@ public class WindmillStateInternalsTest {
 
     underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
 
-    assertEquals(125, cache.getWeight());
+    assertEquals(131, cache.getWeight());
 
     resetUnderTest();
     value = underTest.state(NAMESPACE, COMBINING_ADDR);
@@ -1025,7 +1771,7 @@ public class WindmillStateInternalsTest {
 
     underTest.persist(Windmill.WorkItemCommitRequest.newBuilder());
 
-    assertEquals(124, cache.getWeight());
+    assertEquals(130, cache.getWeight());
 
     resetUnderTest();
     value = underTest.state(NAMESPACE, COMBINING_ADDR);

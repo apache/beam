@@ -23,6 +23,7 @@ import java.util.Objects;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.coders.BooleanCoder;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -36,6 +37,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Static methods for working with {@link StateSpec StateSpecs}. */
 @Experimental(Kind.STATE)
+@SuppressWarnings({
+  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes"
+})
 public class StateSpecs {
 
   private static final CoderRegistry STANDARD_REGISTRY = CoderRegistry.createDefault();
@@ -317,6 +322,25 @@ public class StateSpecs {
   }
 
   /**
+   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+   *
+   * <p>Convert a set state spec to a map-state spec.
+   */
+  @Internal
+  public static <KeyT> StateSpec<MapState<KeyT, Boolean>> convertToMapSpecInternal(
+      StateSpec<SetState<KeyT>> setStateSpec) {
+    if (setStateSpec instanceof SetStateSpec) {
+      // Checked above; conversion to a map spec depends on the provided spec being one of those
+      // created via the factory methods in this class.
+      @SuppressWarnings("unchecked")
+      SetStateSpec<KeyT> typedSpec = (SetStateSpec<KeyT>) setStateSpec;
+      return typedSpec.asMapSpec();
+    } else {
+      throw new IllegalArgumentException("Unexpected StateSpec " + setStateSpec);
+    }
+  }
+
+  /**
    * A specification for a state cell holding a settable value of type {@code T}.
    *
    * <p>Includes the coder for {@code T}.
@@ -591,7 +615,7 @@ public class StateSpecs {
 
   private static class OrderedListStateSpec<T> implements StateSpec<OrderedListState<T>> {
 
-    @Nullable private Coder<T> elemCoder;
+    private @Nullable Coder<T> elemCoder;
 
     private OrderedListStateSpec(@Nullable Coder<T> elemCoder) {
       this.elemCoder = elemCoder;
@@ -768,6 +792,10 @@ public class StateSpecs {
     @Override
     public int hashCode() {
       return Objects.hash(getClass(), elemCoder);
+    }
+
+    private StateSpec<MapState<T, Boolean>> asMapSpec() {
+      return new MapStateSpec<>(this.elemCoder, BooleanCoder.of());
     }
   }
 

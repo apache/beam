@@ -18,14 +18,17 @@
 """Pipeline transformations for the FnApiRunner.
 """
 # pytype: skip-file
+# mypy: check-untyped-defs
 
 from __future__ import absolute_import
 from __future__ import print_function
 
 import collections
 import functools
+import itertools
 import logging
 from builtins import object
+from typing import Callable
 from typing import Container
 from typing import DefaultDict
 from typing import Dict
@@ -55,7 +58,6 @@ T = TypeVar('T')
 # This module is experimental. No backwards-compatibility guarantees.
 
 _LOGGER = logging.getLogger(__name__)
-
 
 KNOWN_COMPOSITES = frozenset([
     common_urns.primitives.GROUP_BY_KEY.urn,
@@ -91,15 +93,15 @@ DataSideInput = Dict[SideInputId, Tuple[bytes, SideInputAccessPattern]]
 
 class Stage(object):
   """A set of Transforms that can be sent to the worker for processing."""
-  def __init__(self,
-               name,  # type: str
-               transforms,  # type: List[beam_runner_api_pb2.PTransform]
-               downstream_side_inputs=None,  # type: Optional[FrozenSet[str]]
-               must_follow=frozenset(),  # type: FrozenSet[Stage]
-               parent=None,  # type: Optional[Stage]
-               environment=None,  # type: Optional[str]
-               forced_root=False
-              ):
+  def __init__(
+      self,
+      name,  # type: str
+      transforms,  # type: List[beam_runner_api_pb2.PTransform]
+      downstream_side_inputs=None,  # type: Optional[FrozenSet[str]]
+      must_follow=frozenset(),  # type: FrozenSet[Stage]
+      parent=None,  # type: Optional[str]
+      environment=None,  # type: Optional[str]
+      forced_root=False):
     self.name = name
     self.transforms = transforms
     self.downstream_side_inputs = downstream_side_inputs
@@ -164,8 +166,8 @@ class Stage(object):
         self.is_all_sdk_urns(context) and consumer.is_all_sdk_urns(context) and
         no_overlap(self.downstream_side_inputs, consumer.side_inputs()))
 
-  def fuse(self, other):
-    # type: (Stage) -> Stage
+  def fuse(self, other, context):
+    # type: (Stage, TransformContext) -> Stage
     return Stage(
         "(%s)+(%s)" % (self.name, other.name),
         self.transforms + other.transforms,
@@ -173,7 +175,7 @@ class Stage(object):
         union(self.must_follow, other.must_follow),
         environment=self._merge_environments(
             self.environment, other.environment),
-        parent=self.parent if self.parent == other.parent else None,
+        parent=_parent_for_fused_stages([self, other], context),
         forced_root=self.forced_root or other.forced_root)
 
   def is_runner_urn(self, context):
@@ -192,6 +194,15 @@ class Stage(object):
         return transform.spec.urn not in context.runner_only_urns
 
     return all(is_sdk_transform(transform) for transform in self.transforms)
+
+  def is_stateful(self):
+    for transform in self.transforms:
+      if transform.spec.urn in PAR_DO_URNS:
+        payload = proto_utils.parse_Bytes(
+            transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
+        if payload.state_specs or payload.timer_family_specs:
+          return True
+    return False
 
   def side_inputs(self):
     # type: () -> Iterator[str]
@@ -227,11 +238,12 @@ class Stage(object):
       new_transforms.append(transform)
     self.transforms = new_transforms
 
-  def executable_stage_transform(self,
-                                 known_runner_urns,  # type: FrozenSet[str]
-                                 all_consumers,
-                                 components  # type: beam_runner_api_pb2.Components
-                                ):
+  def executable_stage_transform(
+      self,
+      known_runner_urns,  # type: FrozenSet[str]
+      all_consumers,
+      components  # type: beam_runner_api_pb2.Components
+  ):
     # type: (...) -> beam_runner_api_pb2.PTransform
     if (len(self.transforms) == 1 and
         self.transforms[0].spec.urn in known_runner_urns):
@@ -251,12 +263,11 @@ class Stage(object):
       stage_components = beam_runner_api_pb2.Components()
       stage_components.CopyFrom(components)
 
-      # Only keep the referenced PCollections.
-      # Make pcollectionKey snapshot to avoid "Map modified during iteration"
-      # in py3
-      for pcoll_id in list(stage_components.pcollections.keys()):
-        if pcoll_id not in all_inputs and pcoll_id not in all_outputs:
-          del stage_components.pcollections[pcoll_id]
+      # Only keep the PCollections referenced in this stage.
+      stage_components.pcollections.clear()
+      for pcoll_id in all_inputs.union(all_outputs):
+        stage_components.pcollections[pcoll_id].CopyFrom(
+            components.pcollections[pcoll_id])
 
       # Only keep the transforms in this stage.
       # Also gather up payload data as we iterate over the transforms.
@@ -297,6 +308,9 @@ class Stage(object):
           for side in side_inputs
       },
                           main_input=main_input_id)
+      # at this point we should have resolved an environment, as the key of
+      # components.environments cannot be None.
+      assert self.environment is not None
       exec_payload = beam_runner_api_pb2.ExecutableStagePayload(
           environment=components.environments[self.environment],
           input=main_input_id,
@@ -341,15 +355,17 @@ def memoize_on_instance(f):
 class TransformContext(object):
 
   _KNOWN_CODER_URNS = set(
-      value.urn for key,
-      value in common_urns.coders.__dict__.items() if not key.startswith('_'))
+      value.urn for (key, value) in common_urns.coders.__dict__.items()
+      if not key.startswith('_')
+      # Length prefix Rows rather than re-coding them.
+  ) - set([common_urns.coders.ROW.urn])
 
-  def __init__(self,
-               components,  # type: beam_runner_api_pb2.Components
-               known_runner_urns,  # type: FrozenSet[str]
-               use_state_iterables=False,
-               is_drain=False
-              ):
+  def __init__(
+      self,
+      components,  # type: beam_runner_api_pb2.Components
+      known_runner_urns,  # type: FrozenSet[str]
+      use_state_iterables=False,
+      is_drain=False):
     self.components = components
     self.known_runner_urns = known_runner_urns
     self.runner_only_urns = known_runner_urns - frozenset(
@@ -361,12 +377,12 @@ class TransformContext(object):
         None)  # type: ignore[arg-type]
     self.bytes_coder_id = self.add_or_get_coder_id(coder_proto, 'bytes_coder')
     self.safe_coders = {self.bytes_coder_id: self.bytes_coder_id}
-    self.data_channel_coders = {}
+    self.data_channel_coders = {}  # type: Dict[str, str]
 
-  def add_or_get_coder_id(self,
-                          coder_proto,  # type: beam_runner_api_pb2.Coder
-                          coder_prefix='coder'
-                         ):
+  def add_or_get_coder_id(
+      self,
+      coder_proto,  # type: beam_runner_api_pb2.Coder
+      coder_prefix='coder'):
     # type: (...) -> str
     for coder_id, coder in self.components.coders.items():
       if coder == coder_proto:
@@ -469,9 +485,21 @@ class TransformContext(object):
         self.maybe_length_prefixed_coder(
             self.components.pcollections[pcoll_id].coder_id))
 
+  @memoize_on_instance
+  def parents_map(self):
+    return {
+        child: parent
+        for (parent, transform) in self.components.transforms.items()
+        for child in transform.subtransforms
+    }
+
 
 def leaf_transform_stages(
-    root_ids, components, parent=None, known_composites=KNOWN_COMPOSITES):
+    root_ids,  # type: Iterable[str]
+    components,  # type: beam_runner_api_pb2.Components
+    parent=None,  # type: Optional[str]
+    known_composites=KNOWN_COMPOSITES  # type: FrozenSet[str]
+):
   # type: (...) -> Iterator[Stage]
   for root_id in root_ids:
     root = components.transforms[root_id]
@@ -489,11 +517,12 @@ def leaf_transform_stages(
         yield stage
 
 
-def pipeline_from_stages(pipeline_proto,  # type: beam_runner_api_pb2.Pipeline
-                         stages,  # type: Iterable[Stage]
-                         known_runner_urns,  # type: FrozenSet[str]
-                         partial  # type: bool
-                        ):
+def pipeline_from_stages(
+    pipeline_proto,  # type: beam_runner_api_pb2.Pipeline
+    stages,  # type: Iterable[Stage]
+    known_runner_urns,  # type: FrozenSet[str]
+    partial  # type: bool
+):
   # type: (...) -> beam_runner_api_pb2.Pipeline
 
   # In case it was a generator that mutates components as it
@@ -504,6 +533,7 @@ def pipeline_from_stages(pipeline_proto,  # type: beam_runner_api_pb2.Pipeline
   new_proto.CopyFrom(pipeline_proto)
   components = new_proto.components
   components.transforms.clear()
+  components.pcollections.clear()
 
   roots = set()
   parents = {
@@ -513,19 +543,39 @@ def pipeline_from_stages(pipeline_proto,  # type: beam_runner_api_pb2.Pipeline
       for child in proto.subtransforms
   }
 
+  def copy_output_pcollections(transform):
+    for pcoll_id in transform.outputs.values():
+      components.pcollections[pcoll_id].CopyFrom(
+          pipeline_proto.components.pcollections[pcoll_id])
+
   def add_parent(child, parent):
     if parent is None:
       roots.add(child)
     else:
-      if isinstance(parent, Stage):
-        parent = parent.name
       if (parent not in components.transforms and
           parent in pipeline_proto.components.transforms):
         components.transforms[parent].CopyFrom(
             pipeline_proto.components.transforms[parent])
+        copy_output_pcollections(components.transforms[parent])
         del components.transforms[parent].subtransforms[:]
-        add_parent(parent, parents.get(parent))
+      # Ensure that child is the last item in the parent's subtransforms.
+      # If the stages were previously sorted into topological order using
+      # sort_stages, this ensures that the parent transforms are also
+      # added in topological order.
+      if child in components.transforms[parent].subtransforms:
+        components.transforms[parent].subtransforms.remove(child)
       components.transforms[parent].subtransforms.append(child)
+      add_parent(parent, parents.get(parent))
+
+  def copy_subtransforms(transform):
+    for subtransform_id in transform.subtransforms:
+      if subtransform_id not in pipeline_proto.components.transforms:
+        raise RuntimeError(
+            'Could not find subtransform to copy: ' + subtransform_id)
+      subtransform = pipeline_proto.components.transforms[subtransform_id]
+      components.transforms[subtransform_id].CopyFrom(subtransform)
+      copy_output_pcollections(components.transforms[subtransform_id])
+      copy_subtransforms(subtransform)
 
   all_consumers = collections.defaultdict(
       set)  # type: DefaultDict[str, Set[int]]
@@ -537,11 +587,13 @@ def pipeline_from_stages(pipeline_proto,  # type: beam_runner_api_pb2.Pipeline
   for stage in stages:
     if partial:
       transform = only_element(stage.transforms)
+      copy_subtransforms(transform)
     else:
       transform = stage.executable_stage_transform(
-          known_runner_urns, all_consumers, components)
+          known_runner_urns, all_consumers, pipeline_proto.components)
     transform_id = unique_name(components.transforms, stage.name)
     components.transforms[transform_id].CopyFrom(transform)
+    copy_output_pcollections(transform)
     add_parent(transform_id, stage.parent)
 
   del new_proto.root_transform_ids[:]
@@ -550,12 +602,12 @@ def pipeline_from_stages(pipeline_proto,  # type: beam_runner_api_pb2.Pipeline
   return new_proto
 
 
-def create_and_optimize_stages(pipeline_proto,  # type: beam_runner_api_pb2.Pipeline
-                               phases,
-                               known_runner_urns,  # type: FrozenSet[str]
-                               use_state_iterables=False,
-    is_drain=False
-                              ):
+def create_and_optimize_stages(
+    pipeline_proto,  # type: beam_runner_api_pb2.Pipeline
+    phases,
+    known_runner_urns,  # type: FrozenSet[str]
+    use_state_iterables=False,
+    is_drain=False):
   # type: (...) -> Tuple[TransformContext, List[Stage]]
 
   """Create a set of stages given a pipeline proto, and set of optimizations.
@@ -693,8 +745,121 @@ def fix_side_input_pcoll_coders(stages, pipeline_context):
   return stages
 
 
-def pack_combiners(stages, context):
-  # type: (Iterable[Stage], TransformContext) -> Iterator[Stage]
+def _group_stages_by_key(stages, get_stage_key):
+  grouped_stages = collections.defaultdict(list)
+  stages_with_none_key = []
+  for stage in stages:
+    stage_key = get_stage_key(stage)
+    if stage_key is None:
+      stages_with_none_key.append(stage)
+    else:
+      grouped_stages[stage_key].append(stage)
+  return (grouped_stages, stages_with_none_key)
+
+
+def _remap_input_pcolls(transform, pcoll_id_remap):
+  for input_key in list(transform.inputs.keys()):
+    if transform.inputs[input_key] in pcoll_id_remap:
+      transform.inputs[input_key] = pcoll_id_remap[transform.inputs[input_key]]
+
+
+def _make_pack_name(names):
+  """Return the packed Transform or Stage name.
+
+  The output name will contain the input names' common prefix, the infix
+  '/Packed', and the input names' suffixes in square brackets.
+  For example, if the input names are 'a/b/c1/d1' and 'a/b/c2/d2, then
+  the output name is 'a/b/Packed[c1_d1, c2_d2]'.
+  """
+  assert names
+  tokens_in_names = [name.split('/') for name in names]
+  common_prefix_tokens = []
+
+  # Find the longest common prefix of tokens.
+  while True:
+    first_token_in_names = set()
+    for tokens in tokens_in_names:
+      if not tokens:
+        break
+      first_token_in_names.add(tokens[0])
+    if len(first_token_in_names) != 1:
+      break
+    common_prefix_tokens.append(next(iter(first_token_in_names)))
+    for tokens in tokens_in_names:
+      tokens.pop(0)
+
+  common_prefix_tokens.append('Packed')
+  common_prefix = '/'.join(common_prefix_tokens)
+  suffixes = ['_'.join(tokens) for tokens in tokens_in_names]
+  return '%s[%s]' % (common_prefix, ', '.join(suffixes))
+
+
+def _eliminate_common_key_with_none(stages, context, can_pack=lambda s: True):
+  # type: (Iterable[Stage], TransformContext, Callable[[str], bool]) -> Iterable[Stage]
+
+  """Runs common subexpression elimination for sibling KeyWithNone stages.
+
+  If multiple KeyWithNone stages share a common input, then all but one stages
+  will be eliminated along with their output PCollections. Transforms that
+  originally read input from the output PCollection of the eliminated
+  KeyWithNone stages will be remapped to read input from the output PCollection
+  of the remaining KeyWithNone stage.
+  """
+
+  # Partition stages by whether they are eligible for common KeyWithNone
+  # elimination, and group eligible KeyWithNone stages by parent and
+  # environment.
+  def get_stage_key(stage):
+    if len(stage.transforms) == 1 and can_pack(stage.name):
+      transform = only_transform(stage.transforms)
+      if (transform.spec.urn == common_urns.primitives.PAR_DO.urn and
+          len(transform.inputs) == 1 and len(transform.outputs) == 1):
+        pardo_payload = proto_utils.parse_Bytes(
+            transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
+        if pardo_payload.do_fn.urn == python_urns.KEY_WITH_NONE_DOFN:
+          return (only_element(transform.inputs.values()), stage.environment)
+    return None
+
+  grouped_eligible_stages, ineligible_stages = _group_stages_by_key(
+      stages, get_stage_key)
+
+  # Eliminate stages and build the PCollection remapping dictionary.
+  pcoll_id_remap = {}
+  remaining_stages = []
+  for sibling_stages in grouped_eligible_stages.values():
+    if len(sibling_stages) > 1:
+      output_pcoll_ids = [
+          only_element(stage.transforms[0].outputs.values())
+          for stage in sibling_stages
+      ]
+      parent = _parent_for_fused_stages(sibling_stages, context)
+      for to_delete_pcoll_id in output_pcoll_ids[1:]:
+        pcoll_id_remap[to_delete_pcoll_id] = output_pcoll_ids[0]
+        del context.components.pcollections[to_delete_pcoll_id]
+      sibling_stages[0].parent = parent
+      sibling_stages[0].name = _make_pack_name(
+          stage.name for stage in sibling_stages)
+      only_transform(
+          sibling_stages[0].transforms).unique_name = _make_pack_name(
+              only_transform(stage.transforms).unique_name
+              for stage in sibling_stages)
+
+    remaining_stages.append(sibling_stages[0])
+
+  # Remap all transforms in components.
+  for transform in context.components.transforms.values():
+    _remap_input_pcolls(transform, pcoll_id_remap)
+
+  # Yield stages while remapping input PCollections if needed.
+  stages_to_yield = itertools.chain(ineligible_stages, remaining_stages)
+  for stage in stages_to_yield:
+    transform = only_transform(stage.transforms)
+    _remap_input_pcolls(transform, pcoll_id_remap)
+    yield stage
+
+
+def pack_per_key_combiners(stages, context, can_pack=lambda s: True):
+  # type: (Iterable[Stage], TransformContext, Callable[[str], bool]) -> Iterator[Stage]
 
   """Packs sibling CombinePerKey stages into a single CombinePerKey.
 
@@ -724,7 +889,8 @@ def pack_combiners(stages, context):
 
   def _get_fallback_coder_id():
     return context.add_or_get_coder_id(
-        coders.registry.get_coder(object).to_runner_api(None))
+        # passing None works here because there are no component coders
+        coders.registry.get_coder(object).to_runner_api(None))  # type: ignore[arg-type]
 
   def _get_component_coder_id_from_kv_coder(coder, index):
     assert index < 2
@@ -741,34 +907,31 @@ def pack_combiners(stages, context):
 
   def _try_fuse_stages(a, b):
     if a.can_fuse(b, context):
-      return a.fuse(b)
+      return a.fuse(b, context)
     else:
       raise ValueError
 
-  # Group stages by parent and environment, yielding ineligible stages.
-  combine_stages_by_input_pcoll_id = collections.defaultdict(list)
-  for stage in stages:
-    is_packable_combine = False
-
-    if (len(stage.transforms) == 1 and stage.environment is not None and
-        python_urns.PACKED_COMBINE_FN in context.components.environments[
-            stage.environment].capabilities):
+  # Partition stages by whether they are eligible for CombinePerKey packing
+  # and group eligible CombinePerKey stages by parent and environment.
+  def get_stage_key(stage):
+    if (len(stage.transforms) == 1 and can_pack(stage.name) and
+        stage.environment is not None and python_urns.PACKED_COMBINE_FN in
+        context.components.environments[stage.environment].capabilities):
       transform = only_transform(stage.transforms)
       if (transform.spec.urn == common_urns.composites.COMBINE_PER_KEY.urn and
           len(transform.inputs) == 1 and len(transform.outputs) == 1):
         combine_payload = proto_utils.parse_Bytes(
             transform.spec.payload, beam_runner_api_pb2.CombinePayload)
         if combine_payload.combine_fn.urn == python_urns.PICKLED_COMBINE_FN:
-          is_packable_combine = True
+          return (only_element(transform.inputs.values()), stage.environment)
+    return None
 
-    if is_packable_combine:
-      input_pcoll_id = only_element(transform.inputs.values())
-      stage_key = (input_pcoll_id, stage.environment)
-      combine_stages_by_input_pcoll_id[stage_key].append(stage)
-    else:
-      yield stage
+  grouped_eligible_stages, ineligible_stages = _group_stages_by_key(
+      stages, get_stage_key)
+  for stage in ineligible_stages:
+    yield stage
 
-  for stage_key, packable_stages in combine_stages_by_input_pcoll_id.items():
+  for stage_key, packable_stages in grouped_eligible_stages.items():
     input_pcoll_id, _ = stage_key
     try:
       if not len(packable_stages) > 1:
@@ -825,25 +988,31 @@ def pack_combiners(stages, context):
         component_coder_ids=[key_coder_id, pack_output_value_coder_id])
     pack_output_kv_coder_id = context.add_or_get_coder_id(pack_output_kv_coder)
 
-    # Set up packed PCollection
-    pack_combine_name = fused_stage.name
+    pack_stage_name = _make_pack_name([stage.name for stage in packable_stages])
+    pack_transform_name = _make_pack_name([
+        only_transform(stage.transforms).unique_name
+        for stage in packable_stages
+    ])
     pack_pcoll_id = unique_name(context.components.pcollections, 'pcollection')
     input_pcoll = context.components.pcollections[input_pcoll_id]
     context.components.pcollections[pack_pcoll_id].CopyFrom(
         beam_runner_api_pb2.PCollection(
-            unique_name=pack_combine_name + '.out',
+            unique_name=pack_transform_name + '/Pack.out',
             coder_id=pack_output_kv_coder_id,
             windowing_strategy_id=input_pcoll.windowing_strategy_id,
             is_bounded=input_pcoll.is_bounded))
 
     # Set up Pack stage.
+    # TODO(BEAM-7746): classes that inherit from RunnerApiFn are expected to
+    #  accept a PipelineContext for from_runner_api/to_runner_api.  Determine
+    #  how to accomodate this.
     pack_combine_fn = combiners.SingleInputTupleCombineFn(
         *[
-            core.CombineFn.from_runner_api(combine_payload.combine_fn, context)
+            core.CombineFn.from_runner_api(combine_payload.combine_fn, context)  # type: ignore[arg-type]
             for combine_payload in combine_payloads
-        ]).to_runner_api(context)
+        ]).to_runner_api(context)  # type: ignore[arg-type]
     pack_transform = beam_runner_api_pb2.PTransform(
-        unique_name=pack_combine_name + '/Pack',
+        unique_name=pack_transform_name + '/Pack',
         spec=beam_runner_api_pb2.FunctionSpec(
             urn=common_urns.composites.COMBINE_PER_KEY.urn,
             payload=beam_runner_api_pb2.CombinePayload(
@@ -851,13 +1020,14 @@ def pack_combiners(stages, context):
                 accumulator_coder_id=tuple_accumulator_coder_id).
             SerializeToString()),
         inputs={'in': input_pcoll_id},
-        outputs={'out': pack_pcoll_id},
+        # 'None' single output key follows convention for CombinePerKey.
+        outputs={'None': pack_pcoll_id},
         environment_id=fused_stage.environment)
     pack_stage = Stage(
-        pack_combine_name + '/Pack', [pack_transform],
+        pack_stage_name + '/Pack', [pack_transform],
         downstream_side_inputs=fused_stage.downstream_side_inputs,
         must_follow=fused_stage.must_follow,
-        parent=fused_stage,
+        parent=fused_stage.parent,
         environment=fused_stage.environment)
     yield pack_stage
 
@@ -865,7 +1035,7 @@ def pack_combiners(stages, context):
     tags = [str(i) for i in range(len(output_pcoll_ids))]
     pickled_do_fn_data = pickler.dumps((_UnpackFn(tags), (), {}, [], None))
     unpack_transform = beam_runner_api_pb2.PTransform(
-        unique_name=pack_combine_name + '/Unpack',
+        unique_name=pack_transform_name + '/Unpack',
         spec=beam_runner_api_pb2.FunctionSpec(
             urn=common_urns.primitives.PAR_DO.urn,
             payload=beam_runner_api_pb2.ParDoPayload(
@@ -876,12 +1046,44 @@ def pack_combiners(stages, context):
         outputs=dict(zip(tags, output_pcoll_ids)),
         environment_id=fused_stage.environment)
     unpack_stage = Stage(
-        pack_combine_name + '/Unpack', [unpack_transform],
+        pack_stage_name + '/Unpack', [unpack_transform],
         downstream_side_inputs=fused_stage.downstream_side_inputs,
         must_follow=fused_stage.must_follow,
-        parent=fused_stage,
+        parent=fused_stage.parent,
         environment=fused_stage.environment)
     yield unpack_stage
+
+
+def pack_combiners(stages, context, can_pack=None):
+  # type: (Iterable[Stage], TransformContext, Optional[Callable[[str], bool]]) -> Iterator[Stage]
+  if can_pack is None:
+    can_pack_names = {}  # type: Dict[str, bool]
+    parents = context.parents_map()
+
+    def can_pack_fn(name: str) -> bool:
+      if name in can_pack_names:
+        return can_pack_names[name]
+      else:
+        transform = context.components.transforms[name]
+        if python_urns.APPLY_COMBINER_PACKING in transform.annotations:
+          result = True
+        elif name in parents:
+          result = can_pack_fn(parents[name])
+        else:
+          result = False
+        can_pack_names[name] = result
+        return result
+
+    can_pack = can_pack_fn
+
+  yield from pack_per_key_combiners(
+      _eliminate_common_key_with_none(stages, context, can_pack),
+      context,
+      can_pack)
+
+
+def pack_all_combiners(stages, context):
+  yield from pack_combiners(stages, context, lambda name: True)
 
 
 def lift_combiners(stages, context):
@@ -941,7 +1143,7 @@ def lift_combiners(stages, context):
         transform.unique_name, [transform],
         downstream_side_inputs=base_stage.downstream_side_inputs,
         must_follow=base_stage.must_follow,
-        parent=base_stage,
+        parent=base_stage.name,
         environment=base_stage.environment)
 
   def lifted_stages(stage):
@@ -1065,6 +1267,60 @@ def lift_combiners(stages, context):
       yield stage
 
 
+def _lowest_common_ancestor(a, b, parents):
+  # type: (str, str, Dict[str, str]) -> Optional[str]
+
+  '''Returns the name of the lowest common ancestor of the two named stages.
+
+  The map of stage names to their parents' stage names should be provided
+  in parents. Note that stages are considered to be ancestors of themselves.
+  '''
+  assert a != b
+
+  def get_ancestors(name):
+    ancestor = name
+    while ancestor is not None:
+      yield ancestor
+      ancestor = parents.get(ancestor)
+
+  a_ancestors = set(get_ancestors(a))
+  for b_ancestor in get_ancestors(b):
+    if b_ancestor in a_ancestors:
+      return b_ancestor
+  return None
+
+
+def _parent_for_fused_stages(stages, context):
+  # type: (Iterable[Stage], TransformContext) -> Optional[str]
+
+  '''Returns the name of the new parent for the fused stages.
+
+  The new parent is the lowest common ancestor of the fused stages that is not
+  contained in the set of stages to be fused. The provided context is used to
+  compute ancestors of stages.
+  '''
+
+  parents = context.parents_map()
+  # If any of the input stages were produced by fusion or an optimizer phase,
+  # or had its parent modified by an optimizer phase, its parent will not be
+  # be reflected in the PipelineContext yet, so we need to add it to the
+  # parents map.
+  for stage in stages:
+    parents[stage.name] = stage.parent
+
+  def reduce_fn(a, b):
+    # type: (Optional[str], Optional[str]) -> Optional[str]
+    if a is None or b is None:
+      return None
+    return _lowest_common_ancestor(a, b, parents)
+
+  stage_names = [stage.name for stage in stages]  # type: List[Optional[str]]
+  result = functools.reduce(reduce_fn, stage_names)
+  if result in stage_names:
+    result = parents.get(result)
+  return result
+
+
 def expand_sdf(stages, context):
   # type: (Iterable[Stage], TransformContext) -> Iterator[Stage]
 
@@ -1114,7 +1370,7 @@ def expand_sdf(stages, context):
               transform.unique_name, [transform],
               base_stage.downstream_side_inputs,
               union(base_stage.must_follow, frozenset(extra_must_follow)),
-              parent=base_stage,
+              parent=base_stage.name,
               environment=base_stage.environment)
 
         main_input_tag = only_element(
@@ -1395,14 +1651,17 @@ def sink_flattens(stages, pipeline_context):
 
 
 def greedily_fuse(stages, pipeline_context):
+  # type: (Iterable[Stage], TransformContext) -> FrozenSet[Stage]
+
   """Places transforms sharing an edge in the same stage, whenever possible.
   """
-  producers_by_pcoll = {}
-  consumers_by_pcoll = collections.defaultdict(list)
+  producers_by_pcoll = {}  # type: Dict[str, Stage]
+  consumers_by_pcoll = collections.defaultdict(
+      list)  # type: DefaultDict[str, List[Stage]]
 
   # Used to always reference the correct stage as the producer and
   # consumer maps are not updated when stages are fused away.
-  replacements = {}
+  replacements = {}  # type: Dict[Stage, Stage]
 
   def replacement(s):
     old_ss = []
@@ -1414,7 +1673,7 @@ def greedily_fuse(stages, pipeline_context):
     return s
 
   def fuse(producer, consumer):
-    fused = producer.fuse(consumer)
+    fused = producer.fuse(consumer, pipeline_context)
     replacements[producer] = fused
     replacements[consumer] = fused
 
@@ -1598,6 +1857,12 @@ def sort_stages(stages, pipeline_context):
   seen = set()  # type: Set[Stage]
   ordered = []
 
+  producers = {
+      pcoll: stage
+      for stage in all_stages for t in stage.transforms
+      for pcoll in t.outputs.values()
+  }
+
   def process(stage):
     if stage not in seen:
       seen.add(stage)
@@ -1605,6 +1870,13 @@ def sort_stages(stages, pipeline_context):
         return
       for prev in stage.must_follow:
         process(prev)
+      stage_outputs = set(
+          pcoll for transform in stage.transforms
+          for pcoll in transform.outputs.values())
+      for transform in stage.transforms:
+        for pcoll in transform.inputs.values():
+          if pcoll not in stage_outputs:
+            process(producers[pcoll])
       ordered.append(stage)
 
   for stage in stages:

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" fill="none" viewBox="0 0 34 34" id="about-twitter-icon">
+    <g>
+        <path fill="#1DA1F2" d="M17.486 33.027c9.12 0 16.514-7.393 16.514-16.514C34 7.394 26.606 0 17.486 0S.973 7.393.973 16.514c0 9.12 7.393 16.513 16.513 16.513z"/>
+        <path fill="#fff" d="M14.464 25.224c7.324 0 11.328-6.068 11.328-11.328 0-.173 0-.347-.008-.512.776-.561 1.453-1.263 1.99-2.064-.71.314-1.478.529-2.287.628.826-.496 1.453-1.272 1.75-2.205-.767.454-1.618.784-2.526.966-.727-.776-1.759-1.255-2.907-1.255-2.196 0-3.98 1.784-3.98 3.98 0 .314.034.62.108.908-3.311-.165-6.242-1.75-8.207-4.161-.339.586-.537 1.271-.537 1.998 0 1.379.702 2.6 1.775 3.31-.652-.016-1.263-.197-1.8-.495v.05c0 1.932 1.37 3.534 3.196 3.905-.33.091-.686.14-1.049.14-.256 0-.504-.024-.751-.074.503 1.586 1.973 2.733 3.715 2.766-1.362 1.066-3.08 1.701-4.946 1.701-.322 0-.635-.016-.95-.058 1.743 1.14 3.84 1.8 6.086 1.8z"/>
+    </g>
+    <defs>
+        <clipPath id="clip0">
+            <path fill="#fff" d="M0 0H33.027V33.027H0z" transform="translate(.973)"/>
+        </clipPath>
+    </defs>
+</svg>

@@ -117,7 +117,7 @@ def batchLoadTestJob = { scope, triggeringContext ->
 CronJobBuilder.cronJob('beam_LoadTests_Java_Combine_SparkStructuredStreaming_Batch', 'H 12 * * *', this) {
   additionalPipelineArgs = [
     influxDatabase: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
-    influxHost: InfluxDBCredentialsHelper.InfluxDBHostname,
+    influxHost: InfluxDBCredentialsHelper.InfluxDBHostUrl,
   ]
   batchLoadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT)
 }

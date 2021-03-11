@@ -334,17 +334,15 @@ public class WatchTest implements Serializable {
             outputs -> {
               Function<TimestampedValue<Integer>, Integer> extractValueFn =
                   new Function<TimestampedValue<Integer>, Integer>() {
-                    @Nullable
                     @Override
-                    public Integer apply(@Nullable TimestampedValue<Integer> input) {
+                    public @Nullable Integer apply(@Nullable TimestampedValue<Integer> input) {
                       return input.getValue();
                     }
                   };
               Function<TimestampedValue<Integer>, Instant> extractTimestampFn =
                   new Function<TimestampedValue<Integer>, Instant>() {
-                    @Nullable
                     @Override
-                    public Instant apply(@Nullable TimestampedValue<Integer> input) {
+                    public @Nullable Instant apply(@Nullable TimestampedValue<Integer> input) {
                       return input.getTimestamp();
                     }
                   };

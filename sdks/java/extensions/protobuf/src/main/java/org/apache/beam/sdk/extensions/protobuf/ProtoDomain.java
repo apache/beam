@@ -56,6 +56,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>ProtoDomains aren't assumed to be used on with normal Message descriptors, only with
  * DynamicMessage descriptors.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public final class ProtoDomain implements Serializable {
   public static final long serialVersionUID = 1L;
   private transient DescriptorProtos.FileDescriptorSet fileDescriptorSet;

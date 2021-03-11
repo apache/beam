@@ -47,7 +47,7 @@ job(jobName) {
     bigQueryTable       : 'mongodbioit_results',
     influxMeasurement   : 'mongodbioit_results',
     influxDatabase      : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
-    influxHost          : InfluxDBCredentialsHelper.InfluxDBHostname,
+    influxHost          : InfluxDBCredentialsHelper.InfluxDBHostUrl,
     mongoDBDatabaseName : 'beam',
     mongoDBHostName     : "\$${mongoHostName}",
     mongoDBPort         : 27017,

@@ -42,12 +42,6 @@ from apache_beam.testing.test_stream import TestStream
 
 
 class PipelineInstrumentTest(unittest.TestCase):
-  def setUp(self):
-    ie.new_env()
-
-  def cleanUp(self):
-    ie.current_env().cleanup()
-
   def cache_key_of(self, name, pcoll):
     return repr(
         instr.CacheKey(
@@ -134,8 +128,18 @@ class PipelineInstrumentTest(unittest.TestCase):
     ib.watch(locals())
 
     pipeline_instrument = instr.build_pipeline_instrument(p)
+
+    # TODO(BEAM-7760): The PipelineInstrument cacheables maintains a global list
+    # of cacheable PCollections across all pipelines. Here we take the subset of
+    # cacheables that only pertain to this test's pipeline.
+    cacheables = {
+        k: c
+        for k,
+        c in pipeline_instrument.cacheables.items() if c.pcoll.pipeline is p
+    }
+
     self.assertEqual(
-        pipeline_instrument.cacheables,
+        cacheables,
         {
             pipeline_instrument._cacheable_key(init_pcoll): instr.Cacheable(
                 var='init_pcoll',
@@ -274,8 +278,7 @@ class PipelineInstrumentTest(unittest.TestCase):
     second_pcoll_cache_key = self.cache_key_of('second_pcoll', second_pcoll)
     self._mock_write_cache(p_origin, [b'1', b'4', b'9'], second_pcoll_cache_key)
     # Mark the completeness of PCollections from the original(user) pipeline.
-    ie.current_env().mark_pcollection_computed(
-        (p_origin, init_pcoll, second_pcoll))
+    ie.current_env().mark_pcollection_computed((init_pcoll, second_pcoll))
     instr.build_pipeline_instrument(p_copy)
 
     cached_init_pcoll = (

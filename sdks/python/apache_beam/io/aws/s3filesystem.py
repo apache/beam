@@ -40,6 +40,15 @@ class S3FileSystem(FileSystem):
   CHUNK_SIZE = s3io.MAX_BATCH_OPERATION_SIZE
   S3_PREFIX = 's3://'
 
+  def __init__(self, pipeline_options):
+    """Initializes a connection to S3.
+
+    Connection configuration is done by passing pipeline options.
+    See :class:`~apache_beam.options.pipeline_options.S3Options`.
+    """
+    super(S3FileSystem, self).__init__(pipeline_options)
+    self._options = pipeline_options
+
   @classmethod
   def scheme(cls):
     """URI scheme for the FileSystem
@@ -123,7 +132,8 @@ class S3FileSystem(FileSystem):
       ``BeamIOError``: if listing fails, but not if no files were found.
     """
     try:
-      for path, size in iteritems(s3io.S3IO().list_prefix(dir_or_prefix)):
+      for path, size in iteritems(
+          s3io.S3IO(options=self._options).list_prefix(dir_or_prefix)):
         yield FileMetadata(path, size)
     except Exception as e:  # pylint: disable=broad-except
       raise BeamIOError("List operation failed", {dir_or_prefix: e})
@@ -138,7 +148,8 @@ class S3FileSystem(FileSystem):
     """
     compression_type = FileSystem._get_compression_type(path, compression_type)
     mime_type = CompressionTypes.mime_type(compression_type, mime_type)
-    raw_file = s3io.S3IO().open(path, mode, mime_type=mime_type)
+    raw_file = s3io.S3IO(options=self._options).open(
+        path, mode, mime_type=mime_type)
     if compression_type == CompressionTypes.UNCOMPRESSED:
       return raw_file
     return CompressedFile(raw_file, compression_type=compression_type)
@@ -189,7 +200,7 @@ class S3FileSystem(FileSystem):
       message = 'Unable to copy unequal number of sources and destinations'
       raise BeamIOError(message)
     src_dest_pairs = list(zip(source_file_names, destination_file_names))
-    return s3io.S3IO().copy_paths(src_dest_pairs)
+    return s3io.S3IO(options=self._options).copy_paths(src_dest_pairs)
 
   def rename(self, source_file_names, destination_file_names):
     """Rename the files at the source list to the destination list.
@@ -206,7 +217,7 @@ class S3FileSystem(FileSystem):
       message = 'Unable to rename unequal number of sources and destinations'
       raise BeamIOError(message)
     src_dest_pairs = list(zip(source_file_names, destination_file_names))
-    results = s3io.S3IO().rename_files(src_dest_pairs)
+    results = s3io.S3IO(options=self._options).rename_files(src_dest_pairs)
     exceptions = {(src, dest): error
                   for (src, dest, error) in results if error is not None}
     if exceptions:
@@ -221,7 +232,7 @@ class S3FileSystem(FileSystem):
     Returns: boolean flag indicating if path exists
     """
     try:
-      return s3io.S3IO().exists(path)
+      return s3io.S3IO(options=self._options).exists(path)
     except Exception as e:  # pylint: disable=broad-except
       raise BeamIOError("exists() operation failed", {path: e})
 
@@ -237,7 +248,7 @@ class S3FileSystem(FileSystem):
       ``BeamIOError``: if path doesn't exist.
     """
     try:
-      return s3io.S3IO().size(path)
+      return s3io.S3IO(options=self._options).size(path)
     except Exception as e:  # pylint: disable=broad-except
       raise BeamIOError("size() operation failed", {path: e})
 
@@ -253,7 +264,7 @@ class S3FileSystem(FileSystem):
       ``BeamIOError``: if path doesn't exist.
     """
     try:
-      return s3io.S3IO().last_updated(path)
+      return s3io.S3IO(options=self._options).last_updated(path)
     except Exception as e:  # pylint: disable=broad-except
       raise BeamIOError("last_updated operation failed", {path: e})
 
@@ -270,7 +281,7 @@ class S3FileSystem(FileSystem):
       ``BeamIOError``: if path isn't a file or doesn't exist.
     """
     try:
-      return s3io.S3IO().checksum(path)
+      return s3io.S3IO(options=self._options).checksum(path)
     except Exception as e:  # pylint: disable=broad-except
       raise BeamIOError("Checksum operation failed", {path: e})
 
@@ -281,7 +292,7 @@ class S3FileSystem(FileSystem):
     Args:
       paths: list of paths that give the file objects to be deleted
     """
-    results = s3io.S3IO().delete_paths(paths)
+    results = s3io.S3IO(options=self._options).delete_paths(paths)
     exceptions = {
         path: error
         for (path, error) in results.items() if error is not None

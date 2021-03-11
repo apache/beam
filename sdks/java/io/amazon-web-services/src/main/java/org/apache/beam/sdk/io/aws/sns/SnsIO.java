@@ -87,6 +87,10 @@ import org.slf4j.LoggerFactory;
  * can call {@link Write#withFullPublishResultWithoutHeaders}.
  */
 @Experimental(Kind.SOURCE_SINK)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public final class SnsIO {
 
   // Write data tp SNS
@@ -104,6 +108,8 @@ public final class SnsIO {
    * </ul>
    */
   @AutoValue
+  @AutoValue.CopyAnnotations
+  @SuppressWarnings({"rawtypes"})
   public abstract static class RetryConfiguration implements Serializable {
     @VisibleForTesting
     static final RetryPredicate DEFAULT_RETRY_PREDICATE = new DefaultRetryPredicate();
@@ -163,6 +169,8 @@ public final class SnsIO {
 
   /** Implementation of {@link #write}. */
   @AutoValue
+  @AutoValue.CopyAnnotations
+  @SuppressWarnings({"rawtypes"})
   public abstract static class Write
       extends PTransform<PCollection<PublishRequest>, PCollectionTuple> {
 
@@ -353,7 +361,7 @@ public final class SnsIO {
             if (spec.getRetryConfiguration() == null
                 || !spec.getRetryConfiguration().getRetryPredicate().test(ex)) {
               SNS_WRITE_FAILURES.inc();
-              LOG.info("Unable to publish message {} due to {} ", request.getMessage(), ex);
+              LOG.info("Unable to publish message {}.", request.getMessage(), ex);
               throw new IOException("Error writing to SNS (no attempt made to retry)", ex);
             }
 

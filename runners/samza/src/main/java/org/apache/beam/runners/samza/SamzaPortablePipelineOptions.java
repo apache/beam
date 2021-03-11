@@ -33,4 +33,17 @@ public interface SamzaPortablePipelineOptions extends SamzaPipelineOptions {
   int getControlPort();
 
   void setControlPort(int port);
+
+  @Description("The expansion service port. (Default: 11442) ")
+  @Default.Integer(11442)
+  int getExpansionPort();
+
+  void setExpansionPort(int port);
+
+  @Description(
+      "The file path for the local file system token. If not set (by default), then the runner would"
+          + " not use secure server factory.")
+  String getFsTokenPath();
+
+  void setFsTokenPath(String path);
 }

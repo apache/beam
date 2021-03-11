@@ -28,6 +28,9 @@ import javax.annotation.Nonnull;
  * is useful as a performance optimization when locking is not necessary but the code paths have to
  * be shared between the locking and the non-locking variant.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class NoopLock implements Lock, Serializable {
 
   private static NoopLock instance;

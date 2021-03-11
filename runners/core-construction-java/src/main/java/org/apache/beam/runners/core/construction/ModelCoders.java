@@ -63,6 +63,8 @@ public class ModelCoders {
   public static final String STATE_BACKED_ITERABLE_CODER_URN =
       "beam:coder:state_backed_iterable:v1";
 
+  public static final String SHARDED_KEY_CODER_URN = getUrn(StandardCoders.Enum.SHARDED_KEY);
+
   static {
     checkState(
         STATE_BACKED_ITERABLE_CODER_URN.equals(getUrn(StandardCoders.Enum.STATE_BACKED_ITERABLE)));
@@ -84,7 +86,8 @@ public class ModelCoders {
           DOUBLE_CODER_URN,
           ROW_CODER_URN,
           PARAM_WINDOWED_VALUE_CODER_URN,
-          STATE_BACKED_ITERABLE_CODER_URN);
+          STATE_BACKED_ITERABLE_CODER_URN,
+          SHARDED_KEY_CODER_URN);
 
   public static Set<String> urns() {
     return MODEL_CODER_URNS;

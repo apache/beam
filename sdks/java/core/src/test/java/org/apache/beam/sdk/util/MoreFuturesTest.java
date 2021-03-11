@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.util;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.isA;
-import static org.junit.Assert.assertThat;
 
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;

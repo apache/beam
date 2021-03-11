@@ -29,6 +29,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 @Experimental
 @Hidden
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public interface ExperimentalOptions extends PipelineOptions {
 
   String STATE_CACHE_SIZE = "state_cache_size";

@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.NavigableMap;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.StateTag.StateBinder;
@@ -55,12 +56,19 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
+import org.checkerframework.checker.initialization.qual.Initialized;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 import org.joda.time.Instant;
 
 /**
  * In-memory implementation of {@link StateInternals}. Used in {@code BatchModeExecutionContext} and
  * for running tests that need state.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class InMemoryStateInternals<K> implements StateInternals {
 
   public static <K> InMemoryStateInternals<K> forKey(@Nullable K key) {
@@ -637,7 +645,23 @@ public class InMemoryStateInternals<K> implements StateInternals {
 
     @Override
     public ReadableState<V> get(K key) {
-      return ReadableStates.immediate(contents.get(key));
+      return getOrDefault(key, null);
+    }
+
+    @Override
+    public @UnknownKeyFor @NonNull @Initialized ReadableState<V> getOrDefault(
+        K key, @Nullable V defaultValue) {
+      return new ReadableState<V>() {
+        @Override
+        public @org.checkerframework.checker.nullness.qual.Nullable V read() {
+          return contents.getOrDefault(key, defaultValue);
+        }
+
+        @Override
+        public @UnknownKeyFor @NonNull @Initialized ReadableState<V> readLater() {
+          return this;
+        }
+      };
     }
 
     @Override
@@ -646,10 +670,11 @@ public class InMemoryStateInternals<K> implements StateInternals {
     }
 
     @Override
-    public ReadableState<V> putIfAbsent(K key, V value) {
+    public ReadableState<V> computeIfAbsent(
+        K key, Function<? super K, ? extends V> mappingFunction) {
       V v = contents.get(key);
       if (v == null) {
-        v = contents.put(key, value);
+        v = contents.put(key, mappingFunction.apply(key));
       }
 
       return ReadableStates.immediate(v);
@@ -695,6 +720,23 @@ public class InMemoryStateInternals<K> implements StateInternals {
     @Override
     public ReadableState<Iterable<Map.Entry<K, V>>> entries() {
       return CollectionViewState.of(contents.entrySet());
+    }
+
+    @Override
+    public @UnknownKeyFor @NonNull @Initialized ReadableState<
+            @UnknownKeyFor @NonNull @Initialized Boolean>
+        isEmpty() {
+      return new ReadableState<Boolean>() {
+        @Override
+        public @org.checkerframework.checker.nullness.qual.Nullable Boolean read() {
+          return contents.isEmpty();
+        }
+
+        @Override
+        public @UnknownKeyFor @NonNull @Initialized ReadableState<Boolean> readLater() {
+          return this;
+        }
+      };
     }
 
     @Override

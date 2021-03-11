@@ -33,7 +33,9 @@ import org.junit.runners.model.Statement;
 
 /** Tests for {@link TestExecutors}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings("FutureReturnValueIgnored")
+@SuppressWarnings({
+  "FutureReturnValueIgnored",
+})
 public class TestExecutorsTest {
   @Test
   public void testSuccessfulTermination() throws Throwable {

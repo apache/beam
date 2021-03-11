@@ -18,20 +18,23 @@
 package org.apache.beam.fn.harness;
 
 import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.core.IsEqual.equalTo;
-import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.mock;
 
 import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Deque;
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.construction.ModelCoders;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
@@ -131,8 +134,8 @@ public class CombineRunnersTest {
     consumers.register(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
         TEST_COMBINE_ID,
-        (FnDataReceiver)
-            (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add);
+        (FnDataReceiver) (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add,
+        KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of()));
 
     PTransformFunctionRegistry startFunctionRegistry =
         new PTransformFunctionRegistry(
@@ -210,15 +213,39 @@ public class CombineRunnersTest {
     consumers.register(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
         TEST_COMBINE_ID,
-        (FnDataReceiver)
-            (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add);
-
+        (FnDataReceiver) (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add,
+        KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of()));
     PTransformFunctionRegistry startFunctionRegistry =
         new PTransformFunctionRegistry(
             mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "start");
     PTransformFunctionRegistry finishFunctionRegistry =
         new PTransformFunctionRegistry(
             mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "finish");
+
+    // Create coder map for size estimation
+    RunnerApi.PCollection pCollection =
+        RunnerApi.PCollection.newBuilder()
+            .setUniqueName(inputPCollectionId)
+            .setCoderId("coder-id")
+            .build();
+    Map<String, RunnerApi.PCollection> pCollectionMap =
+        new HashMap<>(pProto.getComponents().getPcollectionsMap());
+    pCollectionMap.put(inputPCollectionId, pCollection);
+    Map<String, RunnerApi.Coder> coderMap = new HashMap<>(pProto.getComponents().getCodersMap());
+    coderMap.put(
+        "coder-id",
+        RunnerApi.Coder.newBuilder()
+            .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn(ModelCoders.KV_CODER_URN).build())
+            .addComponentCoderIds("StringUtf8Coder")
+            .addComponentCoderIds("coder-id-iterable")
+            .build());
+    coderMap.put(
+        "coder-id-iterable",
+        RunnerApi.Coder.newBuilder()
+            .setSpec(
+                RunnerApi.FunctionSpec.newBuilder().setUrn(ModelCoders.ITERABLE_CODER_URN).build())
+            .addComponentCoderIds("BigEndianIntegerCoder")
+            .build());
 
     // Create runner.
     MapFnRunners.forValueMapFnFactory(CombineRunners::createMergeAccumulatorsMapFunction)
@@ -230,8 +257,8 @@ public class CombineRunnersTest {
             TEST_COMBINE_ID,
             pTransform,
             null,
-            Collections.emptyMap(),
-            Collections.emptyMap(),
+            pCollectionMap,
+            coderMap,
             Collections.emptyMap(),
             consumers,
             startFunctionRegistry,
@@ -277,8 +304,8 @@ public class CombineRunnersTest {
     consumers.register(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
         TEST_COMBINE_ID,
-        (FnDataReceiver)
-            (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add);
+        (FnDataReceiver) (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add,
+        KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of()));
 
     PTransformFunctionRegistry startFunctionRegistry =
         new PTransformFunctionRegistry(
@@ -286,6 +313,24 @@ public class CombineRunnersTest {
     PTransformFunctionRegistry finishFunctionRegistry =
         new PTransformFunctionRegistry(
             mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "finish");
+
+    // Create coder map for size estimation
+    RunnerApi.PCollection pCollection =
+        RunnerApi.PCollection.newBuilder()
+            .setUniqueName(inputPCollectionId)
+            .setCoderId("coder-id")
+            .build();
+    Map<String, RunnerApi.PCollection> pCollectionMap =
+        new HashMap<>(pProto.getComponents().getPcollectionsMap());
+    pCollectionMap.put(inputPCollectionId, pCollection);
+    Map<String, RunnerApi.Coder> coderMap = new HashMap<>(pProto.getComponents().getCodersMap());
+    coderMap.put(
+        "coder-id",
+        RunnerApi.Coder.newBuilder()
+            .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn(ModelCoders.KV_CODER_URN).build())
+            .addComponentCoderIds("StringUtf8Coder")
+            .addComponentCoderIds("BigEndianIntegerCoder")
+            .build());
 
     // Create runner.
     MapFnRunners.forValueMapFnFactory(CombineRunners::createExtractOutputsMapFunction)
@@ -297,8 +342,8 @@ public class CombineRunnersTest {
             TEST_COMBINE_ID,
             pTransform,
             null,
-            Collections.emptyMap(),
-            Collections.emptyMap(),
+            pCollectionMap,
+            coderMap,
             Collections.emptyMap(),
             consumers,
             startFunctionRegistry,
@@ -344,8 +389,8 @@ public class CombineRunnersTest {
     consumers.register(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
         TEST_COMBINE_ID,
-        (FnDataReceiver)
-            (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add);
+        (FnDataReceiver) (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add,
+        KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of()));
 
     PTransformFunctionRegistry startFunctionRegistry =
         new PTransformFunctionRegistry(
@@ -364,8 +409,8 @@ public class CombineRunnersTest {
             TEST_COMBINE_ID,
             pTransform,
             null,
-            Collections.emptyMap(),
-            Collections.emptyMap(),
+            pProto.getComponents().getPcollectionsMap(),
+            pProto.getComponents().getCodersMap(),
             Collections.emptyMap(),
             consumers,
             startFunctionRegistry,
@@ -410,8 +455,8 @@ public class CombineRunnersTest {
     consumers.register(
         Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
         TEST_COMBINE_ID,
-        (FnDataReceiver)
-            (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add);
+        (FnDataReceiver) (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add,
+        KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of()));
 
     PTransformFunctionRegistry startFunctionRegistry =
         new PTransformFunctionRegistry(
@@ -419,6 +464,31 @@ public class CombineRunnersTest {
     PTransformFunctionRegistry finishFunctionRegistry =
         new PTransformFunctionRegistry(
             mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "finish");
+
+    // Create coder map for size estimation
+    RunnerApi.PCollection pCollection =
+        RunnerApi.PCollection.newBuilder()
+            .setUniqueName(inputPCollectionId)
+            .setCoderId("coder-id")
+            .build();
+    Map<String, RunnerApi.PCollection> pCollectionMap =
+        new HashMap<>(pProto.getComponents().getPcollectionsMap());
+    pCollectionMap.put(inputPCollectionId, pCollection);
+    Map<String, RunnerApi.Coder> coderMap = new HashMap<>(pProto.getComponents().getCodersMap());
+    coderMap.put(
+        "coder-id",
+        RunnerApi.Coder.newBuilder()
+            .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn(ModelCoders.KV_CODER_URN).build())
+            .addComponentCoderIds("StringUtf8Coder")
+            .addComponentCoderIds("coder-id-iterable")
+            .build());
+    coderMap.put(
+        "coder-id-iterable",
+        RunnerApi.Coder.newBuilder()
+            .setSpec(
+                RunnerApi.FunctionSpec.newBuilder().setUrn(ModelCoders.ITERABLE_CODER_URN).build())
+            .addComponentCoderIds("StringUtf8Coder")
+            .build());
 
     // Create runner.
     MapFnRunners.forValueMapFnFactory(CombineRunners::createCombineGroupedValuesMapFunction)
@@ -430,8 +500,8 @@ public class CombineRunnersTest {
             TEST_COMBINE_ID,
             pTransform,
             null,
-            Collections.emptyMap(),
-            Collections.emptyMap(),
+            pCollectionMap,
+            coderMap,
             Collections.emptyMap(),
             consumers,
             startFunctionRegistry,

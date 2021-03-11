@@ -74,6 +74,8 @@ _FNAPI_ENVIRONMENT_MAJOR_VERSION = '8'
 
 _LOGGER = logging.getLogger(__name__)
 
+_PYTHON_VERSIONS_SUPPORTED_BY_DATAFLOW = ['3.6', '3.7', '3.8']
+
 
 class Step(object):
   """Wrapper for a dataflow Step protobuf."""
@@ -277,11 +279,8 @@ class Environment(object):
 
     # Setting worker pool sdk_harness_container_images option for supported
     # Dataflow workers.
-    # TODO: change the condition to just _use_unified_worker(options)
-    # when corresponding API change for Dataflow is
-    # rollback-safe.
     environments_to_use = self._get_environments_from_tranforms()
-    if _use_unified_worker(options) and len(environments_to_use) > 1:
+    if _use_unified_worker(options):
       # Adding a SDK container image for the pipeline SDKs
       container_image = dataflow.SdkHarnessContainerImage()
       pipeline_sdk_container_image = get_container_image_from_options(options)
@@ -364,6 +363,10 @@ class Environment(object):
       self.proto.sdkPipelineOptions.additionalProperties.append(
           dataflow.Environment.SdkPipelineOptionsValue.AdditionalProperty(
               key='display_data', value=to_json_value(items)))
+
+    if self.google_cloud_options.service_options:
+      for option in self.google_cloud_options.service_options:
+        self.proto.serviceOptions.append(option)
 
   def _get_environments_from_tranforms(self):
     if not self._proto_pipeline:
@@ -561,8 +564,9 @@ class DataflowApplicationClient(object):
   def _get_sdk_image_overrides(self, pipeline_options):
     worker_options = pipeline_options.view_as(WorkerOptions)
     sdk_overrides = worker_options.sdk_harness_container_image_overrides
-    if sdk_overrides:
-      return dict(override_str.split(',', 1) for override_str in sdk_overrides)
+    return (
+        dict(s.split(',', 1)
+             for s in sdk_overrides) if sdk_overrides else dict())
 
   # TODO(silviuc): Refactor so that retry logic can be applied.
   @retry.no_retries  # Using no_retries marks this as an integration point.
@@ -685,17 +689,42 @@ class DataflowApplicationClient(object):
     return None
 
   @staticmethod
+  def _update_container_image_for_dataflow(beam_container_image_url):
+    # By default Dataflow pipelines use containers hosted in Dataflow GCR
+    # instead of Docker Hub.
+    image_suffix = beam_container_image_url.rsplit('/', 1)[1]
+    return names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/' + image_suffix
+
+  @staticmethod
   def _apply_sdk_environment_overrides(proto_pipeline, sdk_overrides):
-    # Update environments based on user provided overrides
-    if sdk_overrides:
-      for environment in proto_pipeline.components.environments.values():
-        docker_payload = proto_utils.parse_Bytes(
-            environment.payload, beam_runner_api_pb2.DockerPayload)
-        for pattern, override in sdk_overrides.items():
-          new_payload = copy(docker_payload)
-          new_payload.container_image = re.sub(
-              pattern, override, docker_payload.container_image)
-          environment.payload = new_payload.SerializeToString()
+    # Updates container image URLs for Dataflow.
+    # For a given container image URL
+    # * If a matching override has been provided that will be used.
+    # * If not, container image URL will be updated to use the correct base
+    #   repository (GRC) for Dataflow.
+    for environment in proto_pipeline.components.environments.values():
+      docker_payload = proto_utils.parse_Bytes(
+          environment.payload, beam_runner_api_pb2.DockerPayload)
+      overridden = False
+      new_container_image = None
+      for pattern, override in sdk_overrides.items():
+        new_container_image = re.sub(
+            pattern, override, docker_payload.container_image)
+        if new_container_image != docker_payload.container_image:
+          overridden = True
+
+      if not overridden:
+        new_container_image = (
+            DataflowApplicationClient._update_container_image_for_dataflow(
+                docker_payload.container_image))
+
+      if not new_container_image:
+        raise ValueError(
+            'SDK Docker container image has to be a non-empty string')
+
+      new_payload = copy(docker_payload)
+      new_payload.container_image = new_container_image
+      environment.payload = new_payload.SerializeToString()
 
   def create_job_description(self, job):
     """Creates a job described by the workflow proto."""
@@ -923,8 +952,10 @@ class DataflowApplicationClient(object):
           pageToken=token)
       response = self._client.projects_locations_jobs.List(request)
       for job in response.jobs:
-        if (job.name == job_name and job.currentState ==
-            dataflow.Job.CurrentStateValueValuesEnum.JOB_STATE_RUNNING):
+        if (job.name == job_name and job.currentState in [
+            dataflow.Job.CurrentStateValueValuesEnum.JOB_STATE_RUNNING,
+            dataflow.Job.CurrentStateValueValuesEnum.JOB_STATE_DRAINING
+        ]):
           return job.id
       token = response.nextPageToken
       if token is None:
@@ -1072,21 +1103,6 @@ def get_container_image_from_options(pipeline_options):
   if worker_options.worker_harness_container_image:
     return worker_options.worker_harness_container_image
 
-  if sys.version_info[0] == 2:
-    version_suffix = ''
-  elif sys.version_info[0:2] == (3, 5):
-    version_suffix = '3'
-  elif sys.version_info[0:2] == (3, 6):
-    version_suffix = '36'
-  elif sys.version_info[0:2] == (3, 7):
-    version_suffix = '37'
-  elif sys.version_info[0:2] == (3, 8):
-    version_suffix = '38'
-  else:
-    raise Exception(
-        'Dataflow only supports Python versions 2 and 3.5+, got: %s' %
-        str(sys.version_info[0:2]))
-
   use_fnapi = _use_fnapi(pipeline_options)
   # TODO(tvalentyn): Use enumerated type instead of strings for job types.
   if use_fnapi:
@@ -1094,6 +1110,7 @@ def get_container_image_from_options(pipeline_options):
   else:
     fnapi_suffix = ''
 
+  version_suffix = '%s%s' % (sys.version_info[0:2])
   image_name = '{repository}/python{version_suffix}{fnapi_suffix}'.format(
       repository=names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY,
       version_suffix=version_suffix,
@@ -1142,23 +1159,29 @@ def get_runner_harness_container_image():
 
 def get_response_encoding():
   """Encoding to use to decode HTTP response from Google APIs."""
-  return None if sys.version_info[0] < 3 else 'utf8'
+  return 'utf8'
 
 
 def _verify_interpreter_version_is_supported(pipeline_options):
-  if sys.version_info[0:2] in [(2, 7), (3, 5), (3, 6), (3, 7), (3, 8)]:
+  if ('%s.%s' %
+      (sys.version_info[0],
+       sys.version_info[1]) in _PYTHON_VERSIONS_SUPPORTED_BY_DATAFLOW):
+    return
+
+  if 'dev' in beam_version.__version__:
     return
 
   debug_options = pipeline_options.view_as(DebugOptions)
   if (debug_options.experiments and
-      'ignore_py3_minor_version' in debug_options.experiments):
+      'use_unsupported_python_version' in debug_options.experiments):
     return
 
   raise Exception(
-      'Dataflow runner currently supports Python versions '
-      '2.7, 3.5, 3.6, 3.7 and 3.8. To ignore this requirement and start a job '
-      'using a different version of Python 3 interpreter, pass '
-      '--experiment ignore_py3_minor_version pipeline option.')
+      'Dataflow runner currently supports Python versions %s, got %s.\n'
+      'To ignore this requirement and start a job '
+      'using an unsupported version of Python interpreter, pass '
+      '--experiment use_unsupported_python_version pipeline option.' %
+      (_PYTHON_VERSIONS_SUPPORTED_BY_DATAFLOW, sys.version))
 
 
 # To enable a counter on the service, add it to this dictionary.

@@ -39,6 +39,9 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.WindowingStrategy;
 
 /** GroupByKey translator. */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class GroupByKeyTranslatorBatch<K, V> implements BatchTransformTranslator<GroupByKey<K, V>> {
 
   @Override

@@ -46,6 +46,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * Creates an {@link IsmReader} from a {@link CloudObject} spec. Note that it is invalid to use a
  * non {@link IsmRecordCoder} with this reader factory.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class IsmReaderFactory implements ReaderFactory {
 
   /** A {@link ReaderFactory.Registrar} for ISM sources. */

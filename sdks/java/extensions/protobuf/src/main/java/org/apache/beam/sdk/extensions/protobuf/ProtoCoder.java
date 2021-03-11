@@ -105,6 +105,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * @param <T> the Protocol Buffers {@link Message} handled by this {@link Coder}.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ProtoCoder<T extends Message> extends CustomCoder<T> {
 
   public static final long serialVersionUID = -5043999806040629525L;

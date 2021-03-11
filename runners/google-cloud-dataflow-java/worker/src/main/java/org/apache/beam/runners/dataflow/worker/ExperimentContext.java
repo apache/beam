@@ -32,6 +32,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
  * <p>To determine if an experiment is enabled, instantiate an {@link ExperimentContext} with the
  * {@link PipelineOptions} and call {@link #isEnabled} to test if it is enabled.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class ExperimentContext {
 
   /** Enumeration of all known experiments. */
@@ -41,8 +44,7 @@ public class ExperimentContext {
      * operations for some IO connectors.
      */
     EnableConscryptSecurityProvider("enable_conscrypt_security_provider"),
-    IntertransformIO("intertransform_io"), // Intertransform metrics for Shuffle IO (insights)
-    SideInputIOMetrics("sideinput_io_metrics"); // Intertransform metrics for Side Input IO
+    IntertransformIO("intertransform_io"); // Intertransform metrics for Shuffle IO (insights)
 
     private final String name;
 

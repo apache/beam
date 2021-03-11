@@ -69,6 +69,9 @@ var (
 	// Flag to retain docker containers created by the runner. If false, then
 	// containers are deleted once the job ends, even if it failed.
 	RetainDockerContainers = flag.Bool("retain_docker_containers", false, "Retain Docker containers created by the runner.")
+
+	// Flag to set the degree of parallelism. If not set, the configured Flink default is used, or 1 if none can be found.
+	Parallelism = flag.Int("parallelism", -1, "The degree of parallelism to be used when distributing operations onto Flink workers.")
 )
 
 // GetEndpoint returns the endpoint, if non empty and exits otherwise. Runners

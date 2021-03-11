@@ -26,6 +26,9 @@ import org.slf4j.LoggerFactory;
 
 /** Static methods for creating and working with {@link MutationDetector}. */
 @Internal
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class MutationDetectors {
   private static final Logger LOG = LoggerFactory.getLogger(MutationDetectors.class);
 

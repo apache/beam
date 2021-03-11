@@ -202,7 +202,7 @@ s.close()
 fi
 
 echo ">>> RUNNING $RUNNER INTEGRATION TESTS"
-./sdks/go/build/bin/integration \
+./sdks/go/build/bin/linux-amd64/integration/driver \
     --runner=$RUNNER \
     --project=$DATAFLOW_PROJECT \
     --region=$REGION \

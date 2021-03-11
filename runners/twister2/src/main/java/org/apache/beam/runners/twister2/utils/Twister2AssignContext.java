@@ -24,6 +24,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
 import org.joda.time.Instant;
 
 /** doc. */
+@SuppressWarnings({"keyfor", "nullness"}) // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 public class Twister2AssignContext<T, W extends BoundedWindow>
     extends WindowFn<T, W>.AssignContext {
 

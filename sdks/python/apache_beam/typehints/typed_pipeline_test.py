@@ -206,6 +206,64 @@ class MainInputTest(unittest.TestCase):
       assert_that(res_even, equal_to([2]), label='even_check')
       assert_that(res_odd, equal_to([1, 3]), label='odd_check')
 
+  def test_typed_ptransform_fn_pre_hints(self):
+    # Test that type hints are propagated to the created PTransform.
+    # Decorator appears before type hints. This is the more common style.
+    @beam.ptransform_fn
+    @typehints.with_input_types(int)
+    def MyMap(pcoll):
+      return pcoll | beam.ParDo(lambda x: [x])
+
+    self.assertListEqual([1, 2, 3], [1, 2, 3] | MyMap())
+    with self.assertRaises(typehints.TypeCheckError):
+      _ = ['a'] | MyMap()
+
+  def test_typed_ptransform_fn_post_hints(self):
+    # Test that type hints are propagated to the created PTransform.
+    # Decorator appears after type hints. This style is required for Cython
+    # functions, since they don't accept assigning attributes to them.
+    @typehints.with_input_types(int)
+    @beam.ptransform_fn
+    def MyMap(pcoll):
+      return pcoll | beam.ParDo(lambda x: [x])
+
+    self.assertListEqual([1, 2, 3], [1, 2, 3] | MyMap())
+    with self.assertRaises(typehints.TypeCheckError):
+      _ = ['a'] | MyMap()
+
+  def test_typed_ptransform_fn_multi_input_types_pos(self):
+    @beam.ptransform_fn
+    @beam.typehints.with_input_types(str, int)
+    def multi_input(pcoll_tuple, additional_arg):
+      _, _ = pcoll_tuple
+      assert additional_arg == 'additional_arg'
+
+    with TestPipeline() as p:
+      pcoll1 = p | 'c1' >> beam.Create(['a'])
+      pcoll2 = p | 'c2' >> beam.Create([1])
+      _ = (pcoll1, pcoll2) | multi_input('additional_arg')
+      with self.assertRaises(typehints.TypeCheckError):
+        _ = (pcoll2, pcoll1) | 'fails' >> multi_input('additional_arg')
+
+  def test_typed_ptransform_fn_multi_input_types_kw(self):
+    @beam.ptransform_fn
+    @beam.typehints.with_input_types(strings=str, integers=int)
+    def multi_input(pcoll_dict, additional_arg):
+      _ = pcoll_dict['strings']
+      _ = pcoll_dict['integers']
+      assert additional_arg == 'additional_arg'
+
+    with TestPipeline() as p:
+      pcoll1 = p | 'c1' >> beam.Create(['a'])
+      pcoll2 = p | 'c2' >> beam.Create([1])
+      _ = {
+          'strings': pcoll1, 'integers': pcoll2
+      } | multi_input('additional_arg')
+      with self.assertRaises(typehints.TypeCheckError):
+        _ = {
+            'strings': pcoll2, 'integers': pcoll1
+        } | 'fails' >> multi_input('additional_arg')
+
 
 class NativeTypesTest(unittest.TestCase):
   def test_good_main_input(self):

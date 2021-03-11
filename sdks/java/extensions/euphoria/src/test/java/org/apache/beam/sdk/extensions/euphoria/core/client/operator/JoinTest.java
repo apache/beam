@@ -44,6 +44,9 @@ import org.junit.runners.JUnit4;
 
 /** Test operator Join. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class JoinTest {
 
   @Rule public TestPipeline pipeline = TestPipeline.create();

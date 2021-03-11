@@ -48,6 +48,10 @@ import org.joda.time.Duration;
  */
 @Audience(Audience.Type.CLIENT)
 @Derived(state = StateComplexity.ZERO, repartitions = 0)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class AssignEventTime<InputT> extends Operator<InputT>
     implements CompositeOperator<InputT, InputT> {
 

@@ -178,8 +178,10 @@ public class ExternalSorterTest {
 
   @Test
   public void testMemoryTooLarge() {
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("memoryMB must be less than 2048");
+    if (sorterType == SorterType.HADOOP) {
+      thrown.expect(IllegalArgumentException.class);
+      thrown.expectMessage("memoryMB must be less than 2048");
+    }
     ExternalSorter.Options options = new ExternalSorter.Options().setSorterType(sorterType);
     options.setMemoryMB(2048);
   }

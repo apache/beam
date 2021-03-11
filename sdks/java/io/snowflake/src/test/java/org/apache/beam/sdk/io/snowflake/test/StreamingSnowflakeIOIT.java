@@ -35,7 +35,6 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.common.TestRow;
 import org.apache.beam.sdk.io.snowflake.SnowflakeIO;
-import org.apache.beam.sdk.io.snowflake.credentials.SnowflakeCredentialsFactory;
 import org.apache.beam.sdk.io.snowflake.enums.StreamingLogLevel;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -91,7 +90,11 @@ public class StreamingSnowflakeIOIT {
     options = TestPipeline.testingPipelineOptions().as(SnowflakeIOITPipelineOptions.class);
 
     dc =
-        SnowflakeIO.DataSourceConfiguration.create(SnowflakeCredentialsFactory.of(options))
+        SnowflakeIO.DataSourceConfiguration.create()
+            .withKeyPairPathAuth(
+                options.getUsername(),
+                options.getPrivateKeyPath(),
+                options.getPrivateKeyPassphrase())
             .withServerName(options.getServerName())
             .withDatabase(options.getDatabase())
             .withRole(options.getRole())

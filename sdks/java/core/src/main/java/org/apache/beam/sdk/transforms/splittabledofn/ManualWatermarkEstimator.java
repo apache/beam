@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.transforms.splittabledofn;
 
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.joda.time.Instant;
 
@@ -27,7 +25,6 @@ import org.joda.time.Instant;
  * DoFn} must invoke {@link #setWatermark} to advance the watermark. See {@link
  * WatermarkEstimators.Manual} for a concrete implementation.
  */
-@Experimental(Kind.SPLITTABLE_DO_FN)
 public interface ManualWatermarkEstimator<WatermarkEstimatorStateT>
     extends WatermarkEstimator<WatermarkEstimatorStateT> {
 

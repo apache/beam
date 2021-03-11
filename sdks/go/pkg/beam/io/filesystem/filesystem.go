@@ -61,6 +61,8 @@ type Interface interface {
 	// OpenRead opens a file for writing. If the file already exist, it will be
 	// overwritten.
 	OpenWrite(ctx context.Context, filename string) (io.WriteCloser, error)
+	// Size returns the size of a file in bytes.
+	Size(ctx context.Context, filename string) (int64, error)
 }
 
 func getScheme(path string) string {

@@ -34,9 +34,8 @@ public class RowWithStorage extends Row {
   }
 
   @Override
-  @Nullable
   @SuppressWarnings("TypeParameterUnusedInFormals")
-  public <T> T getValue(int fieldIdx) {
+  public <T> @Nullable T getValue(int fieldIdx) {
     if (values.size() > fieldIdx) {
       return (T) values.get(fieldIdx);
     } else {

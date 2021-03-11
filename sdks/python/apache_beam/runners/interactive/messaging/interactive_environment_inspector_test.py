@@ -23,6 +23,7 @@ from __future__ import absolute_import
 import json
 import sys
 import unittest
+from unittest.mock import patch
 
 import apache_beam as beam
 import apache_beam.runners.interactive.messaging.interactive_environment_inspector as inspector
@@ -31,13 +32,6 @@ from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import interactive_runner as ir
 from apache_beam.runners.interactive.testing.mock_ipython import mock_get_ipython
 from apache_beam.runners.interactive.utils import obfuscate
-
-# TODO(BEAM-8288): clean up the work-around of nose tests using Python2 without
-# unittest.mock module.
-try:
-  from unittest.mock import patch
-except ImportError:
-  from mock import patch  # type: ignore[misc]
 
 
 @unittest.skipIf(
@@ -176,21 +170,23 @@ class InteractiveEnvironmentInspectorTest(unittest.TestCase):
   def test_get_pcoll_data(self):
     pipeline = beam.Pipeline(ir.InteractiveRunner())
     # pylint: disable=range-builtin-not-iterating
-    pcoll = pipeline | 'Create' >> beam.Create(range(10))
+    pcoll = pipeline | 'Create' >> beam.Create(list(range(10)))
     counts = pcoll | beam.combiners.Count.PerElement()
 
     ib.watch(locals())
+    ie.current_env().track_user_pipelines()
     counts_identifier = obfuscate(inspector.meta('counts', counts))
     ins = inspector.InteractiveEnvironmentInspector()
     _ = ins.list_inspectables()
 
     actual_counts_pcoll_data = ins.get_pcoll_data(counts_identifier)
-    expected_counts_pcoll_data = ib.collect(counts).to_json(orient='table')
+    expected_counts_pcoll_data = ib.collect(
+        counts, n=10).to_json(orient='table')
     self.assertEqual(actual_counts_pcoll_data, expected_counts_pcoll_data)
 
     actual_counts_with_window_info = ins.get_pcoll_data(counts_identifier, True)
-    expected_counts_with_window_info = ib.collect(counts,
-                                                  True).to_json(orient='table')
+    expected_counts_with_window_info = ib.collect(
+        counts, include_window_info=True).to_json(orient='table')
     self.assertEqual(
         actual_counts_with_window_info, expected_counts_with_window_info)
 

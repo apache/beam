@@ -16,8 +16,6 @@
 #
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import base64
 import logging
 import unittest
@@ -81,6 +79,7 @@ class ProtoCoderTest(unittest.TestCase):
     self.assertEqual(expected_coder, real_coder)
     self.assertEqual(real_coder.encode(ma), expected_coder.encode(ma))
     self.assertEqual(ma, real_coder.decode(real_coder.encode(ma)))
+    self.assertEqual(ma.__class__, real_coder.to_type_hint())
 
 
 class DeterministicProtoCoderTest(unittest.TestCase):

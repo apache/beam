@@ -202,6 +202,38 @@ class MainInputTest(unittest.TestCase):
     result = [1, 2] | beam.ParDo(do_fn)
     self.assertEqual([['1', '1'], ['2', '2']], sorted(result))
 
+  def test_typed_ptransform_fn(self):
+    # Test that type hints are propagated to the created PTransform.
+    @beam.ptransform_fn
+    @typehints.with_input_types(int)
+    def MyMap(pcoll):
+      def fn(element: int):
+        yield element
+
+      return pcoll | beam.ParDo(fn)
+
+    self.assertListEqual([1, 2, 3], [1, 2, 3] | MyMap())
+    with self.assertRaisesRegex(typehints.TypeCheckError, r'int.*got.*str'):
+      _ = ['a'] | MyMap()
+
+  def test_typed_ptransform_fn_conflicting_hints(self):
+    # In this case, both MyMap and its contained ParDo have separate type
+    # checks (that disagree with each other).
+    @beam.ptransform_fn
+    @typehints.with_input_types(int)
+    def MyMap(pcoll):
+      def fn(element: float):
+        yield element
+
+      return pcoll | beam.ParDo(fn)
+
+    with self.assertRaisesRegex(typehints.TypeCheckError,
+                                r'ParDo.*requires.*float.*got.*int'):
+      _ = [1, 2, 3] | MyMap()
+    with self.assertRaisesRegex(typehints.TypeCheckError,
+                                r'MyMap.*expected.*int.*got.*str'):
+      _ = ['a'] | MyMap()
+
   def test_typed_dofn_string_literals(self):
     class MyDoFn(beam.DoFn):
       def process(self, element: 'int') -> 'typehints.List[str]':

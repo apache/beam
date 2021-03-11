@@ -24,6 +24,9 @@ import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 
 /** Provider for UDF and UDAF. */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public interface UdfUdafProvider {
   /** For UDFs implement {@link BeamSqlUdf}. */
   default Map<String, Class<? extends BeamSqlUdf>> getBeamSqlUdfs() {

@@ -40,6 +40,10 @@ import org.slf4j.LoggerFactory;
  * fine because the total number of unique counters is expected to be small and limited by the
  * backend.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class CounterShortIdCache {
   private static final Logger LOG = LoggerFactory.getLogger(CounterShortIdCache.class);
   private Cache cache = new Cache();

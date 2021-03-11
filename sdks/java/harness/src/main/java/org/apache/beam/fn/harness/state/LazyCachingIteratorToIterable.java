@@ -28,6 +28,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * Converts an iterator to an iterable lazily loading values from the underlying iterator and
  * caching them to support reiteration.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class LazyCachingIteratorToIterable<T> implements Iterable<T> {
   private final List<T> cachedElements;
   private final Iterator<T> iterator;

@@ -21,7 +21,7 @@ buildscript {
     beamVersion = '2.19.0'
     guavaVersion = '28.1-jre'
     jodaTimeVersion = '2.10.4'
-    slf4jVersion = '1.7.28'
+    slf4jVersion = '1.7.30'
     log4jSlf4jImpl = '2.12.1'
     kotlinVersion = '1.3.72'
 

@@ -63,6 +63,9 @@ import org.joda.time.Instant;
  * A {@link ParDoFnFactory} to create instances of user {@link ProcessFn} according to
  * specifications from the Dataflow service.
  */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 class SplittableProcessFnFactory {
   static final ParDoFnFactory createDefault() {
     return new UserParDoFnFactory(new ProcessFnExtractor(), new SplittableDoFnRunnerFactory());

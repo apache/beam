@@ -20,6 +20,9 @@ package org.apache.beam.sdk.schemas;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 
 /** A set of utility functions for schemas. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class SchemaUtils {
   /**
    * Given two schema that have matching types, return a nullable-widened schema.

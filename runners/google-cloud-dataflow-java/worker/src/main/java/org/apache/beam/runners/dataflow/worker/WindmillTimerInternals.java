@@ -22,8 +22,6 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.TimerInternals;
@@ -48,6 +46,9 @@ import org.joda.time.Instant;
  *
  * <p>Includes parsing / assembly of timer tags and some extra methods.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class WindmillTimerInternals implements TimerInternals {
 
   private static final String TIMER_HOLD_PREFIX = "/h";
@@ -227,29 +228,6 @@ class WindmillTimerInternals implements TimerInternals {
     timers.clear();
   }
 
-  public boolean hasTimerBefore(Instant time) {
-    for (Cell<String, StateNamespace, Boolean> cell : timerStillPresent.cellSet()) {
-      TimerData timerData = timers.get(cell.getRowKey(), cell.getColumnKey());
-      if (cell.getValue()) {
-        if (timerData.getTimestamp().isBefore(time)) {
-          return true;
-        }
-      }
-    }
-    return false;
-  }
-
-  public List<TimerData> getCurrentTimers() {
-    List<TimerData> timerDataList = new ArrayList<>();
-    for (Cell<String, StateNamespace, Boolean> cell : timerStillPresent.cellSet()) {
-      TimerData timerData = timers.get(cell.getRowKey(), cell.getColumnKey());
-      if (cell.getValue()) {
-        timerDataList.add(timerData);
-      }
-    }
-    return timerDataList;
-  }
-
   private boolean needsWatermarkHold(TimerData timerData) {
     // If it is a user timer or a system timer with outputTimestamp different than timestamp
     return WindmillNamespacePrefix.USER_NAMESPACE_PREFIX.equals(prefix)
@@ -351,12 +329,10 @@ class WindmillTimerInternals implements TimerInternals {
             ? tag.substring(timerFamilyStart, timerFamilyEnd).toStringUtf8()
             : "";
 
-    // Parse the output timestamp.
+    // Parse the output timestamp. Not using '+' as a terminator because the output timestamp is the
+    // last segment in the tag and the timestamp encoding itself may contain '+'.
     int outputTimestampStart = timerFamilyEnd + 1;
-    int outputTimestampEnd = outputTimestampStart;
-    while (outputTimestampEnd < tag.size() && tag.byteAt(outputTimestampEnd) != '+') {
-      outputTimestampEnd++;
-    }
+    int outputTimestampEnd = tag.size();
 
     // For backwards compatibility, handle the case were the output timestamp isn't present.
     Instant outputTimestamp = timestamp;
@@ -408,7 +384,10 @@ class WindmillTimerInternals implements TimerInternals {
                 .append(timerData.getTimerFamilyId())
                 .toString();
         out.write(tagString.getBytes(StandardCharsets.UTF_8));
-        // Only encode the extra 9 bytes if the output timestamp is different than the timestamp;
+        // Only encode the extra 9 bytes if the output timestamp is different than the timestamp.
+        // NOTE: If we are going to add more information after the output timestamp in the tag, we
+        // should avoid using '+' as a separator since the timestamp may contain '+' in the
+        // encoding.
         if (!timerData.getOutputTimestamp().equals(timerData.getTimestamp())) {
           out.write('+');
           VarInt.encode(timerData.getOutputTimestamp().getMillis(), out);

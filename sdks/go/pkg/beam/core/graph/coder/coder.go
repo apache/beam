@@ -162,14 +162,21 @@ type Kind string
 // Tags for the various Beam encoding strategies. https://beam.apache.org/documentation/programming-guide/#coders
 // documents the usage of coders in the Beam environment.
 const (
-	Custom        Kind = "Custom" // Implicitly length-prefixed
-	Bytes         Kind = "bytes"  // Implicitly length-prefixed as part of the encoding
-	String        Kind = "string" // Implicitly length-prefixed as part of the encoding.
-	Bool          Kind = "bool"
-	VarInt        Kind = "varint"
-	Double        Kind = "double"
-	WindowedValue Kind = "W"
-	KV            Kind = "KV"
+	Custom             Kind = "Custom" // Implicitly length-prefixed
+	Bytes              Kind = "bytes"  // Implicitly length-prefixed as part of the encoding
+	String             Kind = "string" // Implicitly length-prefixed as part of the encoding.
+	Bool               Kind = "bool"
+	VarInt             Kind = "varint"
+	Double             Kind = "double"
+	Row                Kind = "R"
+	Timer              Kind = "T"
+	WindowedValue      Kind = "W"
+	ParamWindowedValue Kind = "PW"
+	Iterable           Kind = "I"
+	KV                 Kind = "KV"
+	LP                 Kind = "LP" // Explicitly length prefixed, likely at the runner's direction.
+
+	Window Kind = "window" // A debug wrapper around a window coder.
 
 	// CoGBK is currently equivalent to either
 	//
@@ -250,9 +257,9 @@ func (c *Coder) String() string {
 		ret += fmt.Sprintf("<%v>", strings.Join(args, ","))
 	}
 	switch c.Kind {
-	case WindowedValue:
+	case WindowedValue, ParamWindowedValue, Window, Timer:
 		ret += fmt.Sprintf("!%v", c.Window)
-	case KV, CoGBK, Bytes, Bool, VarInt, Double: // No additional info.
+	case KV, CoGBK, Bytes, Bool, VarInt, Double, String, LP: // No additional info.
 	default:
 		ret += fmt.Sprintf("[%v]", c.T)
 	}
@@ -304,6 +311,65 @@ func NewW(c *Coder, w *WindowCoder) *Coder {
 		T:          typex.NewW(c.T),
 		Window:     w,
 		Components: []*Coder{c},
+	}
+}
+
+// NewPW returns a ParamWindowedValue coder for the window of elements.
+func NewPW(c *Coder, w *WindowCoder) *Coder {
+	if c == nil {
+		panic("coder must not be nil")
+	}
+	if w == nil {
+		panic("window must not be nil")
+	}
+
+	return &Coder{
+		Kind:       ParamWindowedValue,
+		T:          typex.NewW(c.T),
+		Window:     w,
+		Components: []*Coder{c},
+	}
+}
+
+// NewT returns a timer coder for the window of elements.
+func NewT(c *Coder, w *WindowCoder) *Coder {
+	if c == nil {
+		panic("coder must not be nil")
+	}
+	if w == nil {
+		panic("window must not be nil")
+	}
+
+	// TODO(BEAM-10660): Implement proper timer support.
+	return &Coder{
+		Kind: Timer,
+		T: typex.New(reflect.TypeOf((*struct {
+			Key                          []byte // elm type.
+			Tag                          string
+			Windows                      []byte // []typex.Window
+			Clear                        bool
+			FireTimestamp, HoldTimestamp int64
+			Span                         int
+		})(nil)).Elem()),
+		Window:     w,
+		Components: []*Coder{c},
+	}
+}
+
+// NewI returns an iterable coder in the form of a slice.
+func NewI(c *Coder) *Coder {
+	if c == nil {
+		panic("coder must not be nil")
+	}
+	t := typex.New(reflect.SliceOf(c.T.Type()), c.T)
+	return &Coder{Kind: Iterable, T: t, Components: []*Coder{c}}
+}
+
+// NewR returns a schema row coder for the type.
+func NewR(t typex.FullType) *Coder {
+	return &Coder{
+		Kind: Row,
+		T:    t,
 	}
 }
 

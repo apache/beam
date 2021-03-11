@@ -48,6 +48,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
  *     {@code InProcessJobBundleFactory} and inline the creation of the environment if appropriate.
  */
 @Deprecated
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class SingleEnvironmentInstanceJobBundleFactory implements JobBundleFactory {
   public static JobBundleFactory create(
       EnvironmentFactory environmentFactory,
@@ -117,7 +120,7 @@ public class SingleEnvironmentInstanceJobBundleFactory implements JobBundleFacto
             descriptor.getProcessBundleDescriptor(),
             descriptor.getRemoteInputDestinations(),
             stateService.getService());
-    return new BundleProcessorStageBundleFactory(descriptor, bundleProcessor);
+    return new BundleProcessorStageBundleFactory(descriptor, bundleProcessor, sdkHarnessClient);
   }
 
   @Override
@@ -141,12 +144,16 @@ public class SingleEnvironmentInstanceJobBundleFactory implements JobBundleFacto
 
   private static class BundleProcessorStageBundleFactory implements StageBundleFactory {
     private final ExecutableProcessBundleDescriptor descriptor;
+    private final SdkHarnessClient client;
     private final SdkHarnessClient.BundleProcessor processor;
 
     private BundleProcessorStageBundleFactory(
-        ExecutableProcessBundleDescriptor descriptor, SdkHarnessClient.BundleProcessor processor) {
+        ExecutableProcessBundleDescriptor descriptor,
+        SdkHarnessClient.BundleProcessor processor,
+        SdkHarnessClient client) {
       this.descriptor = descriptor;
       this.processor = processor;
+      this.client = client;
     }
 
     @Override
@@ -154,7 +161,9 @@ public class SingleEnvironmentInstanceJobBundleFactory implements JobBundleFacto
         OutputReceiverFactory outputReceiverFactory,
         TimerReceiverFactory timerReceiverFactory,
         StateRequestHandler stateRequestHandler,
-        BundleProgressHandler progressHandler) {
+        BundleProgressHandler progressHandler,
+        BundleFinalizationHandler finalizationHandler,
+        BundleCheckpointHandler checkpointHandler) {
       Map<String, RemoteOutputReceiver<?>> outputReceivers = new HashMap<>();
       for (Map.Entry<String, Coder> remoteOutputCoder :
           descriptor.getRemoteOutputCoders().entrySet()) {
@@ -183,12 +192,22 @@ public class SingleEnvironmentInstanceJobBundleFactory implements JobBundleFacto
         }
       }
       return processor.newBundle(
-          outputReceivers, timerReceivers, stateRequestHandler, progressHandler);
+          outputReceivers,
+          timerReceivers,
+          stateRequestHandler,
+          progressHandler,
+          finalizationHandler,
+          checkpointHandler);
     }
 
     @Override
     public ExecutableProcessBundleDescriptor getProcessBundleDescriptor() {
       return descriptor;
+    }
+
+    @Override
+    public InstructionRequestHandler getInstructionRequestHandler() {
+      return client.getInstructionRequestHandler();
     }
 
     @Override

@@ -175,6 +175,15 @@ public abstract class NativeReader<T> extends Observable {
       // By default, just close
       close();
     }
+
+    /*
+     * Called if the reader must be notified that it ought to abort. Overrides must ensure thread
+     * safety as this method may not be called from the same thread, or serialized with, calls to
+     * the rest of the API.
+     */
+    public void asyncAbort() {
+      // By default, do nothing.
+    }
   }
 
   /**

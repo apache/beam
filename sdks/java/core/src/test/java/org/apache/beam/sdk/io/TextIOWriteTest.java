@@ -22,9 +22,9 @@ import static org.apache.beam.sdk.TestUtils.LINES_ARRAY;
 import static org.apache.beam.sdk.TestUtils.NO_LINES_ARRAY;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects.firstNonNull;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeFalse;
 
@@ -122,9 +122,8 @@ public class TextIOWriteTest {
       return "";
     }
 
-    @Nullable
     @Override
-    public Coder<String> getDestinationCoder() {
+    public @Nullable Coder<String> getDestinationCoder() {
       return StringUtf8Coder.of();
     }
 
@@ -466,9 +465,8 @@ public class TextIOWriteTest {
   private static Function<List<String>, List<String>> removeHeaderAndFooter(
       final String header, final String footer) {
     return new Function<List<String>, List<String>>() {
-      @Nullable
       @Override
-      public List<String> apply(List<String> lines) {
+      public @Nullable List<String> apply(List<String> lines) {
         ArrayList<String> newLines = Lists.newArrayList(lines);
         if (header != null) {
           newLines.remove(0);

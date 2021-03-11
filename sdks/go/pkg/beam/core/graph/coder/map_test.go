@@ -22,15 +22,16 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 	"github.com/google/go-cmp/cmp"
 )
 
 func TestEncodeDecodeMap(t *testing.T) {
-	byteEnc := containerEncoderForType(reflectx.Uint8)
-	byteDec := containerDecoderForType(reflectx.Uint8)
-	bytePtrEnc := containerEncoderForType(reflect.PtrTo(reflectx.Uint8))
-	bytePtrDec := containerDecoderForType(reflect.PtrTo(reflectx.Uint8))
+	byteEnc := func(v reflect.Value, w io.Writer) error {
+		return EncodeByte(byte(v.Uint()), w)
+	}
+	byteDec := reflectDecodeByte
+	bytePtrEnc := containerNilEncoder(byteEnc)
+	bytePtrDec := containerNilDecoder(byteDec)
 
 	ptrByte := byte(42)
 

@@ -58,10 +58,10 @@ func (p disabledResolver) Sym2Addr(name string) (uintptr, error) {
 }
 
 // Execute evaluates the pipeline on whether it can run without reflection.
-func Execute(ctx context.Context, p *beam.Pipeline) error {
+func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error) {
 	e, err := Evaluate(ctx, p)
 	if err != nil {
-		return errors.WithContext(err, "validating pipeline with vet runner")
+		return nil, errors.WithContext(err, "validating pipeline with vet runner")
 	}
 	if !e.Performant() {
 		e.summary()
@@ -69,10 +69,10 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		e.diag("*/\n")
 		err := errors.Errorf("pipeline is not performant, see diagnostic summary:\n%s\n%s", string(e.d.Bytes()), string(e.Bytes()))
 		err = errors.WithContext(err, "validating pipeline with vet runner")
-		return errors.SetTopLevelMsg(err, "pipeline is not performant")
+		return nil, errors.SetTopLevelMsg(err, "pipeline is not performant")
 	}
 	// Pipeline nas no further tasks.
-	return nil
+	return nil, nil
 }
 
 // Evaluate returns an object that can generate necessary shims and inits.

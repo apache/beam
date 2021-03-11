@@ -375,9 +375,13 @@ class _ReadRange(DoFn):
     source = self._source_from_file(metadata.path)
     # Following split() operation has to be performed to create a proper
     # _SingleFileSource. Otherwise what we have is a ConcatSource that contains
-    # a single _SingleFileSource. ConcatSource.read() expects a RangeTraker for
+    # a single _SingleFileSource. ConcatSource.read() expects a RangeTracker for
     # sub-source range and reads full sub-sources (not byte ranges).
-    source = list(source.split(float('inf')))[0].source
+    source_list = list(source.split(float('inf')))
+    # Handle the case of an empty source.
+    if not source_list:
+      return
+    source = source_list[0].source
     for record in source.read(range.new_tracker()):
       yield record
 

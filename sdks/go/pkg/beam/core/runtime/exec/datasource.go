@@ -354,12 +354,12 @@ func (n *DataSource) Split(splits []int64, frac float64, bufSize int64) (SplitRe
 		return SplitResult{PI: s - 1, RI: s}, nil
 	}
 	// Otherwise, perform a sub-element split.
-	p, r, err := su.Split(fr)
+	ps, rs, err := su.Split(fr)
 	if err != nil {
 		return SplitResult{}, err
 	}
 
-	if p == nil || r == nil { // Unsuccessful split.
+	if len(ps) == 0 || len(rs) == 0 { // Unsuccessful split.
 		// Fallback to channel split, so split at next elm, not current.
 		n.splitIdx = s + 1
 		return SplitResult{PI: s, RI: s + 1}, nil
@@ -369,11 +369,23 @@ func (n *DataSource) Split(splits []int64, frac float64, bufSize int64) (SplitRe
 	// unit's input coder instead of the DataSource's coder.
 	wc := MakeWindowEncoder(n.Coder.Window)
 	ec := MakeElementEncoder(coder.SkipW(n.Coder))
-	pEnc, err := encodeElm(p, wc, ec)
+	encodeElms := func(fvs []*FullValue) ([][]byte, error) {
+		encElms := make([][]byte, len(fvs))
+		for i, fv := range fvs {
+			enc, err := encodeElm(fv, wc, ec)
+			if err != nil {
+				return nil, err
+			}
+			encElms[i] = enc
+		}
+		return encElms, nil
+	}
+
+	psEnc, err := encodeElms(ps)
 	if err != nil {
 		return SplitResult{}, err
 	}
-	rEnc, err := encodeElm(r, wc, ec)
+	rsEnc, err := encodeElms(rs)
 	if err != nil {
 		return SplitResult{}, err
 	}
@@ -381,8 +393,8 @@ func (n *DataSource) Split(splits []int64, frac float64, bufSize int64) (SplitRe
 	res := SplitResult{
 		PI:   s - 1,
 		RI:   s + 1,
-		PS:   pEnc,
-		RS:   rEnc,
+		PS:   psEnc,
+		RS:   rsEnc,
 		TId:  su.GetTransformId(),
 		InId: su.GetInputId(),
 	}

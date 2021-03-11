@@ -41,18 +41,10 @@ Dependencies for your Beam SDK version are listed in `setup.py` in the Beam repo
 
 You can also retrieve the dependency list from the command line using the following process:
 
-1.  Create a clean virtual environment on your local machine.
-
-    Python 3:
+1.  Create a clean virtual environment on your local machine using a supported python version.
 
     ```
-    $ python3 -m venv env && source env/bin/activate
-    ```
-
-    Python 2:
-
-    ```
-    $ pip install virtualenv && virtualenv env && source env/bin/activate
+    $ python -m venv env && source env/bin/activate
     ```
 
 2. [Install the Beam Python SDK](/get-started/quickstart-py/#download-and-install).

@@ -31,6 +31,9 @@ import org.apache.beam.sdk.transforms.PTransform;
 /**
  * Utility methods for translating a {@link Impulse} to and from {@link RunnerApi} representations.
  */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class ImpulseTranslation {
   private static class ImpulseTranslator implements TransformPayloadTranslator<Impulse> {
     @Override

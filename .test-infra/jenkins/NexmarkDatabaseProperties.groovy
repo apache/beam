@@ -32,7 +32,7 @@ class NexmarkDatabaseProperties {
 
   static Map<String, Object> nexmarkInfluxDBArgs = [
     'influxDatabase'         : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
-    'influxHost'             : InfluxDBCredentialsHelper.InfluxDBHostname,
+    'influxHost'             : InfluxDBCredentialsHelper.InfluxDBHostUrl,
     'baseInfluxMeasurement'  : 'nexmark',
     'exportSummaryToInfluxDB': true,
     'influxRetentionPolicy'  : 'forever',

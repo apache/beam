@@ -30,6 +30,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 
 /** Encapsulates Cloud Spanner Schema. */
 @AutoValue
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 abstract class SpannerSchema implements Serializable {
   abstract ImmutableList<String> tables();
 
@@ -168,6 +171,9 @@ abstract class SpannerSchema implements Serializable {
       }
       if ("DATE".equals(spannerType)) {
         return Type.date();
+      }
+      if ("NUMERIC".equals(spannerType)) {
+        return Type.numeric();
       }
 
       if (spannerType.startsWith("ARRAY")) {

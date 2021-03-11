@@ -41,10 +41,8 @@ COMMENTS_TO_ADD = [
     "Run Python Spark ValidatesRunner",
     "Run Python Dataflow ValidatesContainer",
     "Run Python Dataflow ValidatesRunner",
-    "Run Python 3.5 Flink ValidatesRunner",
+    "Run Python Flink ValidatesRunner",
     "Run Twister2 ValidatesRunner",
-    "Run Python 2 PostCommit",
-    "Run Python 3.5 PostCommit",
     "Run Python 3.6 PostCommit",
     "Run Python 3.7 PostCommit",
     "Run Python 3.8 PostCommit",
@@ -56,7 +54,10 @@ COMMENTS_TO_ADD = [
     "Run Portable_Python PreCommit",
     "Run PythonLint PreCommit",
     "Run Python PreCommit",
-    "Run Python DockerBuild PreCommit"
+    "Run Python DockerBuild PreCommit",
+    "Run XVR_Direct PostCommit",
+    "Run XVR_Flink PostCommit",
+    "Run XVR_Spark PostCommit",
 ]
 
 

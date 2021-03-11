@@ -26,7 +26,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -43,21 +43,24 @@ import javax.sql.DataSource;
 import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
 import org.apache.beam.sdk.io.common.TestRow;
 import org.apache.beam.sdk.io.snowflake.SnowflakeIO;
-import org.apache.beam.sdk.io.snowflake.SnowflakePipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class TestUtils {
 
   private static final Logger LOG = LoggerFactory.getLogger(TestUtils.class);
 
-  private static final String PRIVATE_KEY_FILE_NAME = "test_rsa_key.p8";
+  private static final String VALID_PRIVATE_KEY_FILE_NAME = "valid_test_rsa_key.p8";
+  private static final String INVALID_PRIVATE_KEY_FILE_NAME = "invalid_test_rsa_key.p8";
   private static final String PRIVATE_KEY_PASSPHRASE = "snowflake";
 
   public interface SnowflakeIOITPipelineOptions
-      extends IOTestPipelineOptions, SnowflakePipelineOptions {}
+      extends IOTestPipelineOptions, TestSnowflakePipelineOptions {}
 
   public static ResultSet runConnectionWithStatement(DataSource dataSource, String query)
       throws SQLException {
@@ -74,16 +77,6 @@ public class TestUtils {
       statement.close();
       connection.close();
     }
-  }
-
-  public static String getPrivateKeyPath(Class klass) {
-    ClassLoader classLoader = klass.getClassLoader();
-    File file = new File(classLoader.getResource(PRIVATE_KEY_FILE_NAME).getFile());
-    return file.getAbsolutePath();
-  }
-
-  public static String getPrivateKeyPassphrase() {
-    return PRIVATE_KEY_PASSPHRASE;
   }
 
   public static void removeTempDir(String dir) {
@@ -158,7 +151,7 @@ public class TestUtils {
     List<String> lines = new ArrayList<>();
     try {
       GZIPInputStream gzip = new GZIPInputStream(new FileInputStream(file));
-      BufferedReader br = new BufferedReader(new InputStreamReader(gzip, Charset.defaultCharset()));
+      BufferedReader br = new BufferedReader(new InputStreamReader(gzip, StandardCharsets.UTF_8));
 
       String line;
       while ((line = br.readLine()) != null) {
@@ -169,6 +162,29 @@ public class TestUtils {
     }
 
     return lines;
+  }
+
+  public static String getInvalidPrivateKeyPath(Class c) {
+    return getPrivateKeyPath(c, INVALID_PRIVATE_KEY_FILE_NAME);
+  }
+
+  public static String getValidPrivateKeyPath(Class c) {
+    return getPrivateKeyPath(c, VALID_PRIVATE_KEY_FILE_NAME);
+  }
+
+  public static String getRawValidPrivateKey(Class c) throws IOException {
+    byte[] keyBytes = Files.readAllBytes(Paths.get(getValidPrivateKeyPath(c)));
+    return new String(keyBytes, StandardCharsets.UTF_8);
+  }
+
+  public static String getPrivateKeyPassphrase() {
+    return PRIVATE_KEY_PASSPHRASE;
+  }
+
+  private static String getPrivateKeyPath(Class c, String path) {
+    ClassLoader classLoader = c.getClassLoader();
+    File file = new File(classLoader.getResource(path).getFile());
+    return file.getAbsolutePath();
   }
 
   public static void clearStagingBucket(String stagingBucketName, String directory) {

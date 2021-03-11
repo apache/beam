@@ -22,14 +22,16 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
+import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.GetDataStream;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.SettableFuture;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 /**
@@ -37,11 +39,12 @@ import org.joda.time.Duration;
  * requests and throttles requests when memory pressure is high.
  *
  * <p>External API: individual worker threads request state for their computation via {@link
- * #getStateData}. However, we want to batch requests to WMS rather than calling for each thread, so
- * calls actually just enqueue a state request in the local queue, which will be handled by up to
- * {@link #NUM_THREADS} polling that queue and making requests to WMS in batches of size {@link
- * #MAX_READS_PER_BATCH}.
+ * #getStateData}. However, requests are either issued using a pool of streaming rpcs or possibly
+ * batched requests.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class MetricTrackingWindmillServerStub {
 
   private final AtomicInteger activeSideInputs = new AtomicInteger();
@@ -51,14 +54,21 @@ public class MetricTrackingWindmillServerStub {
   private final MemoryMonitor gcThrashingMonitor;
   private final boolean useStreamingRequests;
 
-  private final ArrayBlockingQueue<QueueEntry> readQueue;
-  private final List<Thread> readPool;
+  private static final class ReadBatch {
+    ArrayList<QueueEntry> reads = new ArrayList<>();
+    SettableFuture<Boolean> startRead = SettableFuture.create();
+  }
+
+  @GuardedBy("this")
+  private final List<ReadBatch> pendingReadBatches;
+
+  @GuardedBy("this")
+  private int activeReadThreads = 0;
 
   private WindmillServerStub.StreamPool<GetDataStream> streamPool;
 
   private static final int MAX_READS_PER_BATCH = 60;
-  private static final int QUEUE_SIZE = 1000;
-  private static final int NUM_THREADS = 10;
+  private static final int MAX_ACTIVE_READS = 10;
   private static final int NUM_STREAMS = 1;
   private static final Duration STREAM_TIMEOUT = Duration.standardSeconds(30);
 
@@ -82,8 +92,8 @@ public class MetricTrackingWindmillServerStub {
       WindmillServerStub server, MemoryMonitor gcThrashingMonitor, boolean useStreamingRequests) {
     this.server = server;
     this.gcThrashingMonitor = gcThrashingMonitor;
-    this.readQueue = new ArrayBlockingQueue<>(QUEUE_SIZE);
-    this.readPool = new ArrayList<>(NUM_THREADS);
+    // This is used as a queue but is expected to be less than 10 batches.
+    this.pendingReadBatches = new ArrayList<>();
     this.useStreamingRequests = useStreamingRequests;
   }
 
@@ -92,57 +102,79 @@ public class MetricTrackingWindmillServerStub {
       streamPool =
           new WindmillServerStub.StreamPool<>(
               NUM_STREAMS, STREAM_TIMEOUT, this.server::getDataStream);
-    } else {
-      for (int i = 0; i < NUM_THREADS; i++) {
-        readPool.add(
-            new Thread("GetDataThread" + i) {
-              @Override
-              public void run() {
-                getDataLoop();
-              }
-            });
-        readPool.get(i).start();
-      }
     }
   }
 
-  private void getDataLoop() {
-    while (true) {
-      // First, block until the readQueue has data, then pull up to MAX_READS_PER_BATCH or until the
-      // queue is empty.
-      QueueEntry entry;
-      try {
-        entry = readQueue.take();
-      } catch (InterruptedException e) {
-        continue;
+  // Adds the entry to a read batch for sending to the windmill server. If a non-null batch is
+  // returned, this thread will be responsible for sending the batch and should wait for the batch
+  // startRead to be notified.
+  // If null is returned, the entry was added to a read batch that will be issued by another thread.
+  private @Nullable ReadBatch addToReadBatch(QueueEntry entry) {
+    synchronized (this) {
+      ReadBatch batch;
+      if (activeReadThreads < MAX_ACTIVE_READS) {
+        assert (pendingReadBatches.isEmpty());
+        activeReadThreads += 1;
+        // fall through to below synchronized block
+      } else if (pendingReadBatches.isEmpty()
+          || pendingReadBatches.get(pendingReadBatches.size() - 1).reads.size()
+              >= MAX_READS_PER_BATCH) {
+        // This is the first read of a batch, it will be responsible for sending the batch.
+        batch = new ReadBatch();
+        pendingReadBatches.add(batch);
+        batch.reads.add(entry);
+        return batch;
+      } else {
+        // This fits within an existing batch, it will be sent by the first blocking thread in the
+        // batch.
+        pendingReadBatches.get(pendingReadBatches.size() - 1).reads.add(entry);
+        return null;
       }
-      int numReads = 1;
-      Map<WindmillComputationKey, SettableFuture<Windmill.KeyedGetDataResponse>> pendingResponses =
-          new HashMap<>();
-      Map<String, Windmill.ComputationGetDataRequest.Builder> computationBuilders = new HashMap<>();
-      do {
-        Windmill.ComputationGetDataRequest.Builder computationBuilder =
-            computationBuilders.get(entry.computation);
-        if (computationBuilder == null) {
-          computationBuilder =
-              Windmill.ComputationGetDataRequest.newBuilder().setComputationId(entry.computation);
-          computationBuilders.put(entry.computation, computationBuilder);
-        }
+    }
+    ReadBatch batch = new ReadBatch();
+    batch.reads.add(entry);
+    batch.startRead.set(true);
+    return batch;
+  }
 
-        computationBuilder.addRequests(entry.request);
-        pendingResponses.put(
-            WindmillComputationKey.create(
-                entry.computation, entry.request.getKey(), entry.request.getShardingKey()),
-            entry.response);
-      } while (numReads++ < MAX_READS_PER_BATCH && (entry = readQueue.poll()) != null);
+  private void issueReadBatch(ReadBatch batch) {
+    try {
+      boolean read = batch.startRead.get();
+      assert (read);
+    } catch (InterruptedException e) {
+      // We don't expect this thread to be interrupted. To simplify handling, we just fall through
+      // to issuing
+      // the call.
+      assert (false);
+      Thread.currentThread().interrupt();
+    } catch (ExecutionException e) {
+      // startRead is a SettableFuture so this should never occur.
+      throw new AssertionError("Should not have exception on startRead", e);
+    }
+    Map<WindmillComputationKey, SettableFuture<Windmill.KeyedGetDataResponse>> pendingResponses =
+        new HashMap<>(batch.reads.size());
+    Map<String, Windmill.ComputationGetDataRequest.Builder> computationBuilders = new HashMap<>();
+    for (QueueEntry entry : batch.reads) {
+      Windmill.ComputationGetDataRequest.Builder computationBuilder =
+          computationBuilders.computeIfAbsent(
+              entry.computation,
+              k -> Windmill.ComputationGetDataRequest.newBuilder().setComputationId(k));
 
-      // Build the full GetDataRequest from the KeyedGetDataRequests pulled from the queue.
-      Windmill.GetDataRequest.Builder builder = Windmill.GetDataRequest.newBuilder();
-      for (Windmill.ComputationGetDataRequest.Builder computationBuilder :
-          computationBuilders.values()) {
-        builder.addRequests(computationBuilder.build());
-      }
+      computationBuilder.addRequests(entry.request);
+      pendingResponses.put(
+          WindmillComputationKey.create(
+              entry.computation, entry.request.getKey(), entry.request.getShardingKey()),
+          entry.response);
+    }
 
+    // Build the full GetDataRequest from the KeyedGetDataRequests pulled from the queue.
+    Windmill.GetDataRequest.Builder builder = Windmill.GetDataRequest.newBuilder();
+    for (Windmill.ComputationGetDataRequest.Builder computationBuilder :
+        computationBuilders.values()) {
+      builder.addRequests(computationBuilder);
+    }
+
+    try {
       Windmill.GetDataResponse response = server.getData(builder.build());
 
       // Dispatch the per-key responses back to the waiting threads.
@@ -155,6 +187,22 @@ public class MetricTrackingWindmillServerStub {
                       keyResponse.getKey(),
                       keyResponse.getShardingKey()))
               .set(keyResponse);
+        }
+      }
+    } catch (RuntimeException e) {
+      // Fan the exception out to the reads.
+      for (QueueEntry entry : batch.reads) {
+        entry.response.setException(e);
+      }
+    } finally {
+      synchronized (this) {
+        assert (activeReadThreads >= 1);
+        if (pendingReadBatches.isEmpty()) {
+          activeReadThreads--;
+        } else {
+          // Notify the thread responsible for issuing the next batch read.
+          ReadBatch startBatch = pendingReadBatches.remove(0);
+          startBatch.startRead.set(true);
         }
       }
     }
@@ -175,7 +223,10 @@ public class MetricTrackingWindmillServerStub {
         }
       } else {
         SettableFuture<Windmill.KeyedGetDataResponse> response = SettableFuture.create();
-        readQueue.add(new QueueEntry(computation, request, response));
+        ReadBatch batch = addToReadBatch(new QueueEntry(computation, request, response));
+        if (batch != null) {
+          issueReadBatch(batch);
+        }
         return response.get();
       }
     } catch (Exception e) {
@@ -241,6 +292,12 @@ public class MetricTrackingWindmillServerStub {
     writer.println("Active Fetches:");
     writer.println("  Side Inputs: " + activeSideInputs.get());
     writer.println("  State Reads: " + activeStateReads.get());
+    if (!useStreamingRequests) {
+      synchronized (this) {
+        writer.println("  Read threads: " + activeReadThreads);
+        writer.println("  Pending read batches: " + pendingReadBatches.size());
+      }
+    }
     writer.println("Heartbeat Keys Active: " + activeHeartbeats.get());
   }
 }

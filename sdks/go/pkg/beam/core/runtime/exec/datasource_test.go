@@ -597,11 +597,11 @@ type TestSplittableUnit struct {
 
 // Split checks the input fraction for correctness, but otherwise always returns
 // a successful split. The split elements are just copies of the original.
-func (n *TestSplittableUnit) Split(f float64) (*FullValue, *FullValue, error) {
+func (n *TestSplittableUnit) Split(f float64) ([]*FullValue, []*FullValue, error) {
 	if f > 1.0 || f < 0.0 {
 		return nil, nil, errors.Errorf("Error")
 	}
-	return &FullValue{Elm: n.elm}, &FullValue{Elm: n.elm}, nil
+	return []*FullValue{{Elm: n.elm}}, []*FullValue{{Elm: n.elm}}, nil
 }
 
 // GetProgress always returns 0, to keep tests consistent.

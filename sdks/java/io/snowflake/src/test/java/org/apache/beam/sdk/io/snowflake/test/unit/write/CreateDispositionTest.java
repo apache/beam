@@ -25,7 +25,6 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 import org.apache.beam.sdk.io.snowflake.SnowflakeIO;
-import org.apache.beam.sdk.io.snowflake.SnowflakePipelineOptions;
 import org.apache.beam.sdk.io.snowflake.data.SnowflakeColumn;
 import org.apache.beam.sdk.io.snowflake.data.SnowflakeTableSchema;
 import org.apache.beam.sdk.io.snowflake.data.text.SnowflakeVarchar;
@@ -34,6 +33,7 @@ import org.apache.beam.sdk.io.snowflake.services.SnowflakeService;
 import org.apache.beam.sdk.io.snowflake.test.FakeSnowflakeBasicDataSource;
 import org.apache.beam.sdk.io.snowflake.test.FakeSnowflakeBatchServiceImpl;
 import org.apache.beam.sdk.io.snowflake.test.FakeSnowflakeDatabase;
+import org.apache.beam.sdk.io.snowflake.test.TestSnowflakePipelineOptions;
 import org.apache.beam.sdk.io.snowflake.test.TestUtils;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -48,6 +48,9 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class CreateDispositionTest {
   private static final String FAKE_TABLE = "FAKE_TABLE";
   private static final String BUCKET_NAME = "bucket/";
@@ -55,7 +58,7 @@ public class CreateDispositionTest {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
   @Rule public ExpectedException exceptionRule = ExpectedException.none();
 
-  private static SnowflakePipelineOptions options;
+  private static TestSnowflakePipelineOptions options;
   private static SnowflakeIO.DataSourceConfiguration dc;
   private static String stagingBucketName;
   private static String storageIntegrationName;
@@ -65,8 +68,8 @@ public class CreateDispositionTest {
 
   @BeforeClass
   public static void setupAll() {
-    PipelineOptionsFactory.register(SnowflakePipelineOptions.class);
-    options = TestPipeline.testingPipelineOptions().as(SnowflakePipelineOptions.class);
+    PipelineOptionsFactory.register(TestSnowflakePipelineOptions.class);
+    options = TestPipeline.testingPipelineOptions().as(TestSnowflakePipelineOptions.class);
     options.setStagingBucketName(BUCKET_NAME);
     options.setServerName("NULL.snowflakecomputing.com");
 

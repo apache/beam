@@ -64,6 +64,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** {@link FileSystem} implementation for Azure Blob Storage. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class AzureBlobStoreFileSystem extends FileSystem<AzfsResourceId> {
 
   private static final Logger LOG = LoggerFactory.getLogger(AzureBlobStoreFileSystem.class);
@@ -195,24 +198,30 @@ class AzureBlobStoreFileSystem extends FileSystem<AzfsResourceId> {
                     .withSize(properties.getBlobSize())
                     .withLastModified(Date.from(properties.getLastModified().toInstant()));
 
-            results.add(toMetadata(rid, properties.getContentEncoding()));
+            results.add(toMetadata(rid, properties.getContentEncoding(), properties.getETag()));
           }
         });
 
     return MatchResult.create(MatchResult.Status.OK, results);
   }
 
-  private MatchResult.Metadata toMetadata(AzfsResourceId path, String contentEncoding) {
+  private MatchResult.Metadata toMetadata(
+      AzfsResourceId path, String contentEncoding, String eTag) {
 
     checkArgument(path.getSize() != null, "The resource id should have a size.");
     boolean isReadSeekEfficient = !NON_READ_SEEK_EFFICIENT_ENCODINGS.contains(contentEncoding);
 
-    return MatchResult.Metadata.builder()
-        .setIsReadSeekEfficient(isReadSeekEfficient)
-        .setResourceId(path)
-        .setSizeBytes(path.getSize())
-        .setLastModifiedMillis(path.getLastModified().transform(Date::getTime).or(0L))
-        .build();
+    MatchResult.Metadata.Builder ret =
+        MatchResult.Metadata.builder()
+            .setIsReadSeekEfficient(isReadSeekEfficient)
+            .setResourceId(path)
+            .setSizeBytes(path.getSize())
+            .setLastModifiedMillis(path.getLastModified().transform(Date::getTime).or(0L));
+
+    if (eTag != null) {
+      ret.setChecksum(eTag);
+    }
+    return ret.build();
   }
 
   /**
@@ -250,7 +259,8 @@ class AzureBlobStoreFileSystem extends FileSystem<AzfsResourceId> {
             toMetadata(
                 path.withSize(blobProperties.getBlobSize())
                     .withLastModified(Date.from(blobProperties.getLastModified().toInstant())),
-                blobProperties.getContentEncoding())));
+                blobProperties.getContentEncoding(),
+                blobProperties.getETag())));
   }
 
   @Override

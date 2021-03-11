@@ -32,6 +32,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Shared code for starting and serving an {@link InMemoryJobService}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public abstract class JobServerDriver implements Runnable {
 
   private static final Logger LOG = LoggerFactory.getLogger(JobServerDriver.class);

@@ -35,6 +35,9 @@ import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Wrapper around the generated {@link Dataflow} client to provide common functionality. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DataflowClient {
 
   public static DataflowClient create(DataflowPipelineOptions options) {

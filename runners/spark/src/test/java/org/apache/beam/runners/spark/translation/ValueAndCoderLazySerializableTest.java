@@ -37,6 +37,9 @@ import org.joda.time.Instant;
 import org.junit.Test;
 
 /** Unit tests of {@link ValueAndCoderLazySerializable}. */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class ValueAndCoderLazySerializableTest {
 
   @Test

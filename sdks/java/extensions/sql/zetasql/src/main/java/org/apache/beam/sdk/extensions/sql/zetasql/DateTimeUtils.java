@@ -33,6 +33,9 @@ import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
 /** DateTimeUtils. */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class DateTimeUtils {
   public static final Long MILLIS_PER_DAY = 86400000L;
   private static final Long MICROS_PER_MILLI = 1000L;

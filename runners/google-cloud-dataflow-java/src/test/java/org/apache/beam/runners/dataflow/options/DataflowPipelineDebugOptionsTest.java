@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.dataflow.options;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.Test;

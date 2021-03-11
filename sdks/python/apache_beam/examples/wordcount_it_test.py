@@ -56,6 +56,20 @@ class WordCountIT(unittest.TestCase):
   def test_wordcount_fnapi_it(self):
     self._run_wordcount_it(wordcount.run, experiment='beam_fn_api')
 
+  @attr('ValidatesContainer')
+  def test_wordcount_it_with_prebuilt_sdk_container_local_docker(self):
+    self._run_wordcount_it(
+        wordcount.run,
+        experiment='beam_fn_api',
+        prebuild_sdk_container_engine='local_docker')
+
+  @attr('ValidatesContainer')
+  def test_wordcount_it_with_prebuilt_sdk_container_cloud_build(self):
+    self._run_wordcount_it(
+        wordcount.run,
+        experiment='beam_fn_api',
+        prebuild_sdk_container_engine='cloud_build')
+
   def _run_wordcount_it(self, run_wordcount, **opts):
     test_pipeline = TestPipeline(is_integration_test=True)
     extra_opts = {}

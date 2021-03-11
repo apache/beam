@@ -25,12 +25,12 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 import org.apache.beam.sdk.io.snowflake.SnowflakeIO;
-import org.apache.beam.sdk.io.snowflake.SnowflakePipelineOptions;
 import org.apache.beam.sdk.io.snowflake.enums.WriteDisposition;
 import org.apache.beam.sdk.io.snowflake.services.SnowflakeService;
 import org.apache.beam.sdk.io.snowflake.test.FakeSnowflakeBasicDataSource;
 import org.apache.beam.sdk.io.snowflake.test.FakeSnowflakeBatchServiceImpl;
 import org.apache.beam.sdk.io.snowflake.test.FakeSnowflakeDatabase;
+import org.apache.beam.sdk.io.snowflake.test.TestSnowflakePipelineOptions;
 import org.apache.beam.sdk.io.snowflake.test.TestUtils;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -45,6 +45,9 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class QueryDispositionLocationTest {
   private static final String FAKE_TABLE = "FAKE_TABLE";
   private static final String BUCKET_NAME = "BUCKET/";
@@ -52,7 +55,7 @@ public class QueryDispositionLocationTest {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
   @Rule public ExpectedException exceptionRule = ExpectedException.none();
 
-  private static SnowflakePipelineOptions options;
+  private static TestSnowflakePipelineOptions options;
   private static SnowflakeIO.DataSourceConfiguration dc;
 
   private static SnowflakeService snowflakeService;
@@ -60,8 +63,8 @@ public class QueryDispositionLocationTest {
 
   @BeforeClass
   public static void setupAll() {
-    PipelineOptionsFactory.register(SnowflakePipelineOptions.class);
-    options = TestPipeline.testingPipelineOptions().as(SnowflakePipelineOptions.class);
+    PipelineOptionsFactory.register(TestSnowflakePipelineOptions.class);
+    options = TestPipeline.testingPipelineOptions().as(TestSnowflakePipelineOptions.class);
 
     snowflakeService = new FakeSnowflakeBatchServiceImpl();
     testData = LongStream.range(0, 100).boxed().collect(Collectors.toList());

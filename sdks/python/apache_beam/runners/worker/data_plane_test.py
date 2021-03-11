@@ -25,6 +25,7 @@ from __future__ import print_function
 
 import itertools
 import logging
+import time
 import unittest
 
 import grpc
@@ -88,17 +89,14 @@ class DataChannelTest(unittest.TestCase):
 
   def _data_channel_test_one_direction(
       self, from_channel, to_channel, time_based_flush):
-    def send(instruction_id, transform_id, data):
-      stream = from_channel.output_stream(instruction_id, transform_id)
-      stream.write(data)
-      if not time_based_flush:
-        stream.close()
-
     transform_1 = '1'
     transform_2 = '2'
 
     # Single write.
-    send('0', transform_1, b'abc')
+    stream01 = from_channel.output_stream('0', transform_1)
+    stream01.write(b'abc')
+    if not time_based_flush:
+      stream01.close()
     self.assertEqual(
         list(
             itertools.islice(to_channel.input_elements('0', [transform_1]), 1)),
@@ -108,8 +106,12 @@ class DataChannelTest(unittest.TestCase):
         ])
 
     # Multiple interleaved writes to multiple instructions.
-    send('1', transform_1, b'abc')
-    send('2', transform_1, b'def')
+    stream11 = from_channel.output_stream('1', transform_1)
+    stream11.write(b'abc')
+    stream21 = from_channel.output_stream('2', transform_1)
+    stream21.write(b'def')
+    if not time_based_flush:
+      stream11.close()
     self.assertEqual(
         list(
             itertools.islice(to_channel.input_elements('1', [transform_1]), 1)),
@@ -117,7 +119,18 @@ class DataChannelTest(unittest.TestCase):
             beam_fn_api_pb2.Elements.Data(
                 instruction_id='1', transform_id=transform_1, data=b'abc')
         ])
-    send('2', transform_2, b'ghi')
+    if time_based_flush:
+      # Wait to ensure stream21 is flushed before stream22.
+      # Because the flush callback is invoked periodically starting from when a
+      # stream is constructed, there is no guarantee that one stream's callback
+      # is called before the other.
+      time.sleep(0.1)
+    else:
+      stream21.close()
+    stream22 = from_channel.output_stream('2', transform_2)
+    stream22.write(b'ghi')
+    if not time_based_flush:
+      stream22.close()
     self.assertEqual(
         list(
             itertools.islice(

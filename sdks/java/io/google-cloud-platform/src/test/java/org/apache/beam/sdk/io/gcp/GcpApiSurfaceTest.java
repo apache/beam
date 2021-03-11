@@ -48,6 +48,7 @@ public class GcpApiSurfaceTest {
             .pruningPattern(BigqueryClient.class.getName())
             .pruningPattern("org[.]apache[.]beam[.].*Test.*")
             .pruningPattern("org[.]apache[.]beam[.].*IT")
+            .pruningPattern("org[.]checkerframework[.].*[.]qual[.].*")
             .pruningPattern("java[.]lang.*")
             .pruningPattern("java[.]util.*");
 
@@ -70,6 +71,7 @@ public class GcpApiSurfaceTest {
             classesInPackage("com.google.cloud.pubsublite"),
             Matchers.equalTo(com.google.api.gax.rpc.ApiException.class),
             Matchers.<Class<?>>equalTo(com.google.api.gax.rpc.StatusCode.class),
+            Matchers.<Class<?>>equalTo(com.google.common.base.Function.class),
             Matchers.<Class<?>>equalTo(com.google.api.gax.rpc.StatusCode.Code.class),
             Matchers.<Class<?>>equalTo(com.google.cloud.bigtable.grpc.BigtableClusterName.class),
             Matchers.<Class<?>>equalTo(com.google.cloud.bigtable.grpc.BigtableInstanceName.class),
@@ -98,7 +100,8 @@ public class GcpApiSurfaceTest {
             classesInPackage("org.apache.beam"),
             classesInPackage("org.apache.commons.logging"),
             classesInPackage("org.codehaus.jackson"),
-            classesInPackage("org.joda.time"));
+            classesInPackage("org.joda.time"),
+            classesInPackage("com.google.gson"));
 
     assertThat(apiSurface, containsOnlyClassesMatching(allowedClasses));
   }

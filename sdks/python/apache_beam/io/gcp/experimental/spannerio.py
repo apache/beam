@@ -127,7 +127,7 @@ For example:::
 
   mutations = [
                 WriteMutation.insert(table='user', columns=('name', 'email'),
-                values=[('sara'. 'sara@dev.com')])
+                values=[('sara', 'sara@dev.com')])
               ]
   _ = (p
        | beam.Create(mutations)

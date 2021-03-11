@@ -350,7 +350,8 @@ class _TextSink(filebasedsink.FileBasedSink):
                shard_name_template=None,
                coder=coders.ToBytesCoder(),  # type: coders.Coder
                compression_type=CompressionTypes.AUTO,
-               header=None):
+               header=None,
+               footer=None):
     """Initialize a _TextSink.
 
     Args:
@@ -382,6 +383,8 @@ class _TextSink(filebasedsink.FileBasedSink):
         compression.
       header: String to write at beginning of file as a header. If not None and
         append_trailing_newlines is set, '\n' will be added.
+      footer: String to write at the end of file as a footer. If not None and
+        append_trailing_newlines is set, '\n' will be added.
 
     Returns:
       A _TextSink object usable for writing.
@@ -396,6 +399,7 @@ class _TextSink(filebasedsink.FileBasedSink):
         compression_type=compression_type)
     self._append_trailing_newlines = append_trailing_newlines
     self._header = header
+    self._footer = footer
 
   def open(self, temp_path):
     file_handle = super(_TextSink, self).open(temp_path)
@@ -404,6 +408,13 @@ class _TextSink(filebasedsink.FileBasedSink):
       if self._append_trailing_newlines:
         file_handle.write(b'\n')
     return file_handle
+
+  def close(self, file_handle):
+    if self._footer is not None:
+      file_handle.write(coders.ToBytesCoder().encode(self._footer))
+      if self._append_trailing_newlines:
+        file_handle.write(b'\n')
+    super(_TextSink, self).close(file_handle)
 
   def display_data(self):
     dd_parent = super(_TextSink, self).display_data()
@@ -588,7 +599,8 @@ class WriteToText(PTransform):
       shard_name_template=None,  # type: Optional[str]
       coder=coders.ToBytesCoder(),  # type: coders.Coder
       compression_type=CompressionTypes.AUTO,
-      header=None):
+      header=None,
+      footer=None):
     r"""Initialize a :class:`WriteToText` transform.
 
     Args:
@@ -624,6 +636,9 @@ class WriteToText(PTransform):
       header (str): String to write at beginning of file as a header.
         If not :data:`None` and **append_trailing_newlines** is set, ``\n`` will
         be added.
+      footer (str): String to write at the end of file as a footer.
+        If not :data:`None` and **append_trailing_newlines** is set, ``\n`` will
+        be added.
     """
 
     self._sink = _TextSink(
@@ -634,7 +649,8 @@ class WriteToText(PTransform):
         shard_name_template,
         coder,
         compression_type,
-        header)
+        header,
+        footer)
 
   def expand(self, pcoll):
     return pcoll | Write(self._sink)

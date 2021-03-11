@@ -20,7 +20,6 @@ cimport libc.stdint
 
 from apache_beam.metrics.cells cimport MetricCell
 
-
 cdef object get_current_tracker
 
 
@@ -36,10 +35,12 @@ cdef object _DEFAULT
 
 cdef class MetricUpdater(object):
   cdef _TypedMetricName typed_metric_name
-  cdef object default
+  cdef object default_value
+  cdef bint process_wide  # bint is used to represent C++ bool.
 
 
 cdef class MetricsContainer(object):
   cdef object step_name
+  cdef object lock
   cdef public dict metrics
   cpdef MetricCell get_metric_cell(self, metric_key)

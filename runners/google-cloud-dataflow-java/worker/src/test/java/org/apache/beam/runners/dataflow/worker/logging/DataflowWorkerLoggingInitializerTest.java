@@ -23,12 +23,12 @@ import static org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLogg
 import static org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingInitializer.SDK_FILEPATH_PROPERTY;
 import static org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingInitializer.getLoggingHandler;
 import static org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingInitializer.getSdkLoggingHandler;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;

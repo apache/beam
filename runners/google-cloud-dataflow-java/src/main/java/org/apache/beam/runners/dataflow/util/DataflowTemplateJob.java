@@ -25,6 +25,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 /** A {@link DataflowPipelineJob} that is returned when {@code --templateRunner} is set. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DataflowTemplateJob extends DataflowPipelineJob {
   private static final String ERROR = "The result of template creation should not be used.";
 
@@ -47,8 +50,8 @@ public class DataflowTemplateJob extends DataflowPipelineJob {
     throw new UnsupportedOperationException(ERROR);
   }
 
-  @Nullable
   @VisibleForTesting
+  @Nullable
   State waitUntilFinish(
       Duration duration,
       MonitoringUtil.JobMessagesHandler messageHandler,

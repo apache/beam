@@ -24,6 +24,9 @@ import org.apache.beam.sdk.util.DoFnInfo;
 import org.apache.beam.sdk.util.SerializableUtils;
 
 /** Common {@link DoFnInstanceManager} implementations. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class DoFnInstanceManagers {
   /**
    * Returns a {@link DoFnInstanceManager} that returns {@link DoFnInfo} instances obtained by

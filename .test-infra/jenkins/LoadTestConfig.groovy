@@ -105,7 +105,7 @@ class LoadTestConfig implements SerializableOption<Map<String, Serializable>> {
    *     test         [String]
    *     [dataflow(), portable()] -- runner
    *     pipelineOptions {
-   *         [python(), python37(), java()] -- sdk
+   *         [python(), java()] -- sdk
    *         jobName                  [String]
    *         appName                  [String]
    *         project                  [String]
@@ -340,7 +340,6 @@ class LoadTestConfig implements SerializableOption<Map<String, Serializable>> {
 
     //sdk -- snake_case vs camelCase
     void python() { i_sdk = SDK.PYTHON }
-    void python37() { i_sdk = SDK.PYTHON_37 }
     void java() { i_sdk = SDK.JAVA }
 
 
@@ -388,7 +387,6 @@ class LoadTestConfig implements SerializableOption<Map<String, Serializable>> {
       verifyCommonRequired(map)
       switch (i_sdk) {
         case SDK.PYTHON:
-        case SDK.PYTHON_37:
           verifyPythonRequired(map)
           break
         case SDK.JAVA:
@@ -630,7 +628,6 @@ class LoadTestConfig implements SerializableOption<Map<String, Serializable>> {
     private static String modifyKey(final String key, final SDK sdk) {
       final def result = key.startsWith('_') ? key.substring(1) : key
       switch (sdk) {
-        case SDK.PYTHON_37:
         case SDK.PYTHON:
           return toSnakeCase(result)
         case SDK.JAVA:

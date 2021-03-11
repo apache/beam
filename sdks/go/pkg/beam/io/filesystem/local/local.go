@@ -32,7 +32,7 @@ func init() {
 type fs struct{}
 
 // New creates a new local filesystem.
-func New(ctx context.Context) filesystem.Interface {
+func New(_ context.Context) filesystem.Interface {
 	return &fs{}
 }
 
@@ -40,17 +40,29 @@ func (f *fs) Close() error {
 	return nil
 }
 
-func (f *fs) List(ctx context.Context, glob string) ([]string, error) {
+func (f *fs) List(_ context.Context, glob string) ([]string, error) {
 	return filepath.Glob(glob)
 }
 
-func (f *fs) OpenRead(ctx context.Context, filename string) (io.ReadCloser, error) {
+func (f *fs) OpenRead(_ context.Context, filename string) (io.ReadCloser, error) {
 	return os.Open(filename)
 }
 
-func (f *fs) OpenWrite(ctx context.Context, filename string) (io.WriteCloser, error) {
+func (f *fs) OpenWrite(_ context.Context, filename string) (io.WriteCloser, error) {
 	if err := os.MkdirAll(filepath.Dir(filename), 0755); err != nil {
 		return nil, err
 	}
 	return os.OpenFile(filename, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+}
+
+func (f *fs) Size(_ context.Context, filename string) (int64, error) {
+	file, err := os.Open(filename)
+	if err != nil {
+		return -1, err
+	}
+	info, err := file.Stat()
+	if err != nil {
+		return -1, err
+	}
+	return info.Size(), nil
 }

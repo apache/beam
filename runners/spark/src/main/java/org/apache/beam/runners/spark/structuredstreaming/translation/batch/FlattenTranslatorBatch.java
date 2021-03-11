@@ -29,13 +29,16 @@ import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.spark.sql.Dataset;
 
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class FlattenTranslatorBatch<T>
     implements TransformTranslator<PTransform<PCollectionList<T>, PCollection<T>>> {
 
   @Override
   public void translateTransform(
       PTransform<PCollectionList<T>, PCollection<T>> transform, TranslationContext context) {
-    Collection<PValue> pcollectionList = context.getInputs().values();
+    Collection<PCollection<?>> pcollectionList = context.getInputs().values();
     Dataset<WindowedValue<T>> result = null;
     if (pcollectionList.isEmpty()) {
       result = context.emptyDataset();

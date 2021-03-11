@@ -21,6 +21,9 @@ import org.apache.beam.runners.twister2.Twister2StreamTranslationContext;
 import org.apache.beam.sdk.transforms.PTransform;
 
 /** Stream TransformTranslator interface. */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public interface StreamTransformTranslator<TransformT extends PTransform> {
   void translateNode(TransformT transform, Twister2StreamTranslationContext context);
 }

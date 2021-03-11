@@ -68,6 +68,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A set of utilities to generate getter and setter classes for POJOs. */
 @Experimental(Kind.SCHEMAS)
+@SuppressWarnings({
+  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class POJOUtils {
   public static Schema schemaFromPojoClass(
       Class<?> clazz, FieldValueTypeSupplier fieldValueTypeSupplier) {
@@ -158,10 +162,13 @@ public class POJOUtils {
           .newInstance();
     } catch (InstantiationException
         | IllegalAccessException
+        | IllegalStateException
         | NoSuchMethodException
         | InvocationTargetException e) {
       throw new RuntimeException(
-          "Unable to generate a creator for " + clazz + " with schema " + schema);
+          String.format(
+              "Unable to generate a creator for POJO '%s' with inferred schema: %s%nNote POJOs must have a zero-argument constructor, or a constructor annotated with @SchemaCreate.",
+              clazz, schema));
     }
   }
 

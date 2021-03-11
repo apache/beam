@@ -58,6 +58,9 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RelBuilde
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.Pair;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BeamIOPushDownRule extends RelOptRule {
   // ~ Static fields/initializers ---------------------------------------------
 

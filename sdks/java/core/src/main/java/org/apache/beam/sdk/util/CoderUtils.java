@@ -31,6 +31,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.BaseEncoding;
 
 /** Utilities for working with Coders. */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public final class CoderUtils {
   private CoderUtils() {} // Non-instantiable
 
@@ -164,7 +167,10 @@ public final class CoderUtils {
    * If {@code coderType} is a subclass of {@code Coder<T>} for a specific type {@code T}, returns
    * {@code T.class}.
    */
-  @SuppressWarnings({"rawtypes", "unchecked"})
+  @SuppressWarnings({
+    "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+    "unchecked"
+  })
   public static TypeDescriptor getCodedType(TypeDescriptor coderDescriptor) {
     ParameterizedType coderType =
         (ParameterizedType) coderDescriptor.getSupertype(Coder.class).getType();

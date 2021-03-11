@@ -30,6 +30,9 @@ import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ServerInterceptor;
  * A HeaderAccessorProvider which intercept the header in a GRPC request and expose the relevant
  * fields.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class GrpcContextHeaderAccessorProvider {
 
   private static final Key<String> WORKER_ID_KEY =

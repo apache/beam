@@ -67,6 +67,7 @@ type RawOptionsWrapper struct {
 	AppName      string     `json:"beam:option:app_name:v1"`
 	Experiments  []string   `json:"beam:option:experiments:v1"`
 	RetainDocker bool       `json:"beam:option:retain_docker_containers:v1"`
+	Parallelism  int        `json:"beam:option:parallelism:v1"`
 }
 
 // Import imports the options from previously exported data and makes the

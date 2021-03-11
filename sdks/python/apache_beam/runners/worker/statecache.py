@@ -17,23 +17,34 @@
 
 """A module for caching state reads/writes in Beam applications."""
 # pytype: skip-file
+# mypy: disallow-untyped-defs
 
 from __future__ import absolute_import
 
 import collections
 import logging
 import threading
+from typing import TYPE_CHECKING
+from typing import Any
 from typing import Callable
-from typing import DefaultDict
+from typing import Generic
 from typing import Hashable
+from typing import List
+from typing import Optional
 from typing import Set
+from typing import Tuple
 from typing import TypeVar
 
 from apache_beam.metrics import monitoring_infos
 
+if TYPE_CHECKING:
+  from apache_beam.portability.api import metrics_pb2
+
 _LOGGER = logging.getLogger(__name__)
 
 CallableT = TypeVar('CallableT', bound='Callable')
+KT = TypeVar('KT')
+VT = TypeVar('VT')
 
 
 class Metrics(object):
@@ -44,15 +55,17 @@ class Metrics(object):
   PREFIX = "beam:metric:statecache:"
 
   def __init__(self):
+    # type: () -> None
     self._context = threading.local()
 
   def initialize(self):
+    # type: () -> None
+
     """Needs to be called once per thread to initialize the local metrics cache.
     """
     if hasattr(self._context, 'metrics'):
       return  # Already initialized
-    self._context.metrics = collections.defaultdict(
-        int)  # type: DefaultDict[Hashable, int]
+    self._context.metrics = collections.defaultdict(int)
 
   def count(self, name):
     # type: (str) -> None
@@ -64,6 +77,8 @@ class Metrics(object):
     self._context.metrics[hit_miss_name] += 1
 
   def get_monitoring_infos(self, cache_size, cache_capacity):
+    # type: (int, int) -> List[metrics_pb2.MonitoringInfo]
+
     """Returns the metrics scoped to the current bundle."""
     metrics = self._context.metrics
     if len(metrics) == 0:
@@ -101,7 +116,9 @@ class Metrics(object):
     Metrics.ALL_METRICS.update([total_name, hit_name, miss_name])
 
     def decorator(function):
+      # type: (CallableT) -> CallableT
       def reporter(self, *args, **kwargs):
+        # type: (StateCache, Any, Any) -> Any
         value = function(self, *args, **kwargs)
         if value is None:
           self._metrics.hit_miss(total_name, miss_name)
@@ -109,7 +126,7 @@ class Metrics(object):
           self._metrics.hit_miss(total_name, hit_name)
         return value
 
-      return reporter
+      return reporter  # type: ignore[return-value]
 
     return decorator
 
@@ -121,11 +138,13 @@ class Metrics(object):
     Metrics.ALL_METRICS.add(metric_name)
 
     def decorator(function):
+      # type: (CallableT) -> CallableT
       def reporter(self, *args, **kwargs):
+        # type: (StateCache, Any, Any) -> Any
         self._metrics.count(metric_name)
         return function(self, *args, **kwargs)
 
-      return reporter
+      return reporter  # type: ignore[return-value]
 
     return decorator
 
@@ -151,78 +170,97 @@ class StateCache(object):
   TODO Memory-based caching: https://issues.apache.org/jira/browse/BEAM-8297
   """
   def __init__(self, max_entries):
+    # type: (int) -> None
     _LOGGER.info('Creating state cache with size %s', max_entries)
     self._missing = None
-    self._cache = self.LRUCache(max_entries, self._missing)
+    self._cache = self.LRUCache[Tuple[bytes, Optional[bytes]],
+                                Any](max_entries, self._missing)
     self._lock = threading.RLock()
     self._metrics = Metrics()
 
   @Metrics.counter_hit_miss("get", "hit", "miss")
   def get(self, state_key, cache_token):
+    # type: (bytes, Optional[bytes]) -> Any
     assert cache_token and self.is_cache_enabled()
     with self._lock:
       return self._cache.get((state_key, cache_token))
 
   @Metrics.counter("put")
   def put(self, state_key, cache_token, value):
+    # type: (bytes, Optional[bytes], Any) -> None
     assert cache_token and self.is_cache_enabled()
     with self._lock:
       return self._cache.put((state_key, cache_token), value)
 
   @Metrics.counter("clear")
   def clear(self, state_key, cache_token):
+    # type: (bytes, Optional[bytes]) -> None
     assert cache_token and self.is_cache_enabled()
     with self._lock:
       self._cache.put((state_key, cache_token), [])
 
   @Metrics.counter("evict")
   def evict(self, state_key, cache_token):
+    # type: (bytes, Optional[bytes]) -> None
     assert self.is_cache_enabled()
     with self._lock:
       self._cache.evict((state_key, cache_token))
 
   def evict_all(self):
+    # type: () -> None
     with self._lock:
       self._cache.evict_all()
 
   def initialize_metrics(self):
+    # type: () -> None
     self._metrics.initialize()
 
   def is_cache_enabled(self):
+    # type: () -> bool
     return self._cache._max_entries > 0
 
   def size(self):
+    # type: () -> int
     return len(self._cache)
 
   def get_monitoring_infos(self):
+    # type: () -> List[metrics_pb2.MonitoringInfo]
+
     """Retrieves the monitoring infos and resets the counters."""
     with self._lock:
       size = len(self._cache)
     capacity = self._cache._max_entries
     return self._metrics.get_monitoring_infos(size, capacity)
 
-  class LRUCache(object):
+  class LRUCache(Generic[KT, VT]):
     def __init__(self, max_entries, default_entry):
+      # type: (int, VT) -> None
       self._max_entries = max_entries
       self._default_entry = default_entry
-      self._cache = collections.OrderedDict()
+      self._cache = collections.OrderedDict(
+      )  # type: collections.OrderedDict[KT, VT]
 
     def get(self, key):
+      # type: (KT) -> VT
       value = self._cache.pop(key, self._default_entry)
       if value != self._default_entry:
         self._cache[key] = value
       return value
 
     def put(self, key, value):
+      # type: (KT, VT) -> None
       self._cache[key] = value
       while len(self._cache) > self._max_entries:
         self._cache.popitem(last=False)
 
     def evict(self, key):
+      # type: (KT) -> None
       self._cache.pop(key, self._default_entry)
 
     def evict_all(self):
+      # type: () -> None
       self._cache.clear()
 
     def __len__(self):
+      # type: () -> int
       return len(self._cache)

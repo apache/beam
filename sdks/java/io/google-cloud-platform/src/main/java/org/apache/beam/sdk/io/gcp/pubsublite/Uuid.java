@@ -27,6 +27,9 @@ import org.apache.beam.sdk.coders.DefaultCoder;
 /** A Uuid storable in a Pub/Sub Lite attribute. */
 @DefaultCoder(UuidCoder.class)
 @AutoValue
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public abstract class Uuid {
   public static final String DEFAULT_ATTRIBUTE = "x-goog-pubsublite-dataflow-uuid";
 

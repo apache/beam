@@ -32,6 +32,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
  * the latest offset consumed so far.
  */
 @DefaultCoder(AvroCoder.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class KafkaCheckpointMark implements UnboundedSource.CheckpointMark {
 
   private List<PartitionMark> partitions;

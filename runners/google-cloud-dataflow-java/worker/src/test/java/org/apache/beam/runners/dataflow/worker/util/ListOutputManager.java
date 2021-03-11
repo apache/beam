@@ -36,12 +36,18 @@ public class ListOutputManager implements OutputManager {
 
   @Override
   public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
-    @SuppressWarnings({"rawtypes", "unchecked"})
+    @SuppressWarnings({
+      "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+      "unchecked"
+    })
     List<WindowedValue<T>> outputList = (List) outputLists.get(tag);
 
     if (outputList == null) {
       outputList = Lists.newArrayList();
-      @SuppressWarnings({"rawtypes", "unchecked"})
+      @SuppressWarnings({
+        "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+        "unchecked"
+      })
       List<WindowedValue<?>> untypedList = (List) outputList;
       outputLists.put(tag, untypedList);
     }
@@ -51,7 +57,10 @@ public class ListOutputManager implements OutputManager {
 
   public <T> List<WindowedValue<T>> getOutput(TupleTag<T> tag) {
     // Safe cast by design, inexpressible in Java without rawtypes
-    @SuppressWarnings({"rawtypes", "unchecked"})
+    @SuppressWarnings({
+      "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+      "unchecked"
+    })
     List<WindowedValue<T>> outputList = (List) outputLists.get(tag);
     return (outputList != null) ? outputList : Collections.<WindowedValue<T>>emptyList();
   }

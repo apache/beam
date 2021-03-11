@@ -20,7 +20,10 @@ package org.apache.beam.sdk.nexmark;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Known "Nexmark" queries, some of which are of our own devising but use the same data set. */
-@SuppressWarnings("ImmutableEnumChecker")
+@SuppressWarnings({
+  "ImmutableEnumChecker",
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public enum NexmarkQueryName {
   // A baseline
   PASSTHROUGH(0),

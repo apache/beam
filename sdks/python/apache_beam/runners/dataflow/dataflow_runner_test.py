@@ -22,20 +22,16 @@
 from __future__ import absolute_import
 
 import json
-import sys
 import unittest
 from builtins import object
 from builtins import range
 from datetime import datetime
 
-# patches unittest.TestCase to be python3 compatible
-import future.tests.base  # pylint: disable=unused-import
 import mock
 
 import apache_beam as beam
 import apache_beam.transforms as ptransform
 from apache_beam.coders import BytesCoder
-from apache_beam.coders import coders
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.pipeline import AppliedPTransform
@@ -45,13 +41,16 @@ from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.pvalue import PCollection
 from apache_beam.runners import DataflowRunner
 from apache_beam.runners import TestDataflowRunner
+from apache_beam.runners import common
 from apache_beam.runners import create_runner
 from apache_beam.runners.dataflow.dataflow_runner import DataflowPipelineResult
 from apache_beam.runners.dataflow.dataflow_runner import DataflowRuntimeException
+from apache_beam.runners.dataflow.dataflow_runner import PropertyNames
 from apache_beam.runners.dataflow.internal.clients import dataflow as dataflow_api
 from apache_beam.runners.runner import PipelineState
 from apache_beam.testing.extra_assertions import ExtraAssertionsMixin
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.transforms import combiners
 from apache_beam.transforms import environments
 from apache_beam.transforms import window
 from apache_beam.transforms.core import Windowing
@@ -250,15 +249,6 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     self.assertEqual(job_dict[u'steps'][1][u'kind'], u'ParallelDo')
     self.assertEqual(job_dict[u'steps'][2][u'kind'], u'ParallelDo')
 
-  def test_bigquery_read_streaming_fail(self):
-    remote_runner = DataflowRunner()
-    self.default_properties.append("--streaming")
-    with self.assertRaisesRegex(ValueError,
-                                r'source is not currently available'):
-      with Pipeline(remote_runner,
-                    PipelineOptions(self.default_properties)) as p:
-        _ = p | beam.io.Read(beam.io.BigQuerySource('some.table'))
-
   def test_biqquery_read_fn_api_fail(self):
     remote_runner = DataflowRunner()
     for flag in ['beam_fn_api', 'use_unified_worker', 'use_runner_v2']:
@@ -269,7 +259,9 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
           'apache_beam.io.gcp.bigquery.ReadFromBigQuery.*'):
         with Pipeline(remote_runner,
                       PipelineOptions(self.default_properties)) as p:
-          _ = p | beam.io.Read(beam.io.BigQuerySource('some.table'))
+          _ = p | beam.io.Read(
+              beam.io.BigQuerySource(
+                  'some.table', use_dataflow_native_source=True))
 
   def test_remote_runner_display_data(self):
     remote_runner = DataflowRunner()
@@ -323,7 +315,9 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
                          options=PipelineOptions(self.default_properties)) as p:
         # pylint: disable=expression-not-assigned
         p | beam.io.Read(
-            beam.io.BigQuerySource('dataset.faketable')) | beam.GroupByKey()
+            beam.io.BigQuerySource(
+                'dataset.faketable',
+                use_dataflow_native_source=True)) | beam.GroupByKey()
 
   def test_group_by_key_input_visitor_with_valid_inputs(self):
     p = TestPipeline()
@@ -337,7 +331,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     for pcoll in [pcoll1, pcoll2, pcoll3]:
       applied = AppliedPTransform(None, beam.GroupByKey(), "label", [pcoll])
       applied.outputs[None] = PCollection(None)
-      DataflowRunner.group_by_key_input_visitor().visit_transform(applied)
+      common.group_by_key_input_visitor().visit_transform(applied)
       self.assertEqual(
           pcoll.element_type, typehints.KV[typehints.Any, typehints.Any])
 
@@ -353,7 +347,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         "Found .*")
     for pcoll in [pcoll1, pcoll2]:
       with self.assertRaisesRegex(ValueError, err_msg):
-        DataflowRunner.group_by_key_input_visitor().visit_transform(
+        common.group_by_key_input_visitor().visit_transform(
             AppliedPTransform(None, beam.GroupByKey(), "label", [pcoll]))
 
   def test_group_by_key_input_visitor_for_non_gbk_transforms(self):
@@ -361,7 +355,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     pcoll = PCollection(p)
     for transform in [beam.Flatten(), beam.Map(lambda x: x)]:
       pcoll.element_type = typehints.Any
-      DataflowRunner.group_by_key_input_visitor().visit_transform(
+      common.group_by_key_input_visitor().visit_transform(
           AppliedPTransform(None, transform, "label", [pcoll]))
       self.assertEqual(pcoll.element_type, typehints.Any)
 
@@ -401,7 +395,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     # to make sure the check below is not vacuous.
     self.assertNotIsInstance(flat.element_type, typehints.TupleConstraint)
 
-    p.visit(DataflowRunner.group_by_key_input_visitor())
+    p.visit(common.group_by_key_input_visitor())
     p.visit(DataflowRunner.flatten_input_visitor())
 
     # The dataflow runner requires gbk input to be tuples *and* flatten
@@ -506,8 +500,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     with Pipeline(remote_runner, PipelineOptions(self.default_properties)) as p:
       p | ptransform.Create([1])  # pylint: disable=expression-not-assigned
 
-    self.assertEqual(
-        sys.version_info[0] > 2,
+    self.assertTrue(
         remote_runner.job.options.view_as(DebugOptions).lookup_experiment(
             'use_fastavro', False))
 
@@ -521,23 +514,6 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     debug_options = remote_runner.job.options.view_as(DebugOptions)
 
     self.assertFalse(debug_options.lookup_experiment('use_fastavro', False))
-
-  def test_unsupported_fnapi_features(self):
-    remote_runner = DataflowRunner()
-    self.default_properties.append('--experiment=beam_fn_api')
-    self.default_properties.append('--experiment=use_runner_v2')
-
-    with self.assertRaisesRegex(RuntimeError, 'Unsupported merging'):
-      with Pipeline(remote_runner,
-                    options=PipelineOptions(self.default_properties)) as p:
-        # pylint: disable=expression-not-assigned
-        p | beam.Create([]) | beam.WindowInto(CustomMergingWindowFn())
-
-    with self.assertRaisesRegex(RuntimeError, 'Unsupported window coder'):
-      with Pipeline(remote_runner,
-                    options=PipelineOptions(self.default_properties)) as p:
-        # pylint: disable=expression-not-assigned
-        p | beam.Create([]) | beam.WindowInto(CustomWindowTypeWindowFn())
 
   @mock.patch('os.environ.get', return_value=None)
   @mock.patch('apache_beam.utils.processes.check_output', return_value=b'')
@@ -641,7 +617,10 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     with beam.Pipeline(runner=runner,
                        options=PipelineOptions(self.default_properties)) as p:
       # pylint: disable=expression-not-assigned
-      p | beam.io.Read(beam.io.BigQuerySource('some.table', coder=BytesCoder()))
+      p | beam.io.Read(
+          beam.io.BigQuerySource(
+              'some.table', coder=BytesCoder(),
+              use_dataflow_native_source=True))
 
     self.expect_correct_override(runner.job, u'Read', u'ParallelRead')
 
@@ -758,24 +737,131 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         out = p | beam.Create([1]) | beam.io.WriteToBigQuery('some.table')
         out['destination_file_pairs'] | 'MyTransform' >> beam.Map(lambda _: _)
 
+  @unittest.skip('BEAM-3736: enable once CombineFnVisitor is fixed')
+  def test_unsupported_combinefn_detection(self):
+    class CombinerWithNonDefaultSetupTeardown(combiners.CountCombineFn):
+      def setup(self, *args, **kwargs):
+        pass
 
-class CustomMergingWindowFn(window.WindowFn):
-  def assign(self, assign_context):
-    return []
+      def teardown(self, *args, **kwargs):
+        pass
 
-  def merge(self, merge_context):
-    pass
+    runner = DataflowRunner()
+    with self.assertRaisesRegex(ValueError,
+                                'CombineFn.setup and CombineFn.'
+                                'teardown are not supported'):
+      with beam.Pipeline(runner=runner,
+                         options=PipelineOptions(self.default_properties)) as p:
+        _ = (
+            p | beam.Create([1])
+            | beam.CombineGlobally(CombinerWithNonDefaultSetupTeardown()))
 
-  def get_window_coder(self):
-    return coders.IntervalWindowCoder()
+    try:
+      with beam.Pipeline(runner=runner,
+                         options=PipelineOptions(self.default_properties)) as p:
+        _ = (
+            p | beam.Create([1])
+            | beam.CombineGlobally(
+                combiners.SingleInputTupleCombineFn(
+                    combiners.CountCombineFn(), combiners.CountCombineFn())))
+    except ValueError:
+      self.fail('ValueError raised unexpectedly')
 
+  def _run_group_into_batches_and_get_step_properties(
+      self, with_sharded_key, additional_properties):
+    self.default_properties.append('--streaming')
+    for property in additional_properties:
+      self.default_properties.append(property)
 
-class CustomWindowTypeWindowFn(window.NonMergingWindowFn):
-  def assign(self, assign_context):
-    return []
+    runner = DataflowRunner()
+    with beam.Pipeline(runner=runner,
+                       options=PipelineOptions(self.default_properties)) as p:
+      # pylint: disable=expression-not-assigned
+      input = p | beam.Create([('a', 1), ('a', 1), ('b', 3), ('b', 4)])
+      if with_sharded_key:
+        (
+            input | beam.GroupIntoBatches.WithShardedKey(2)
+            | beam.Map(lambda key_values: (key_values[0].key, key_values[1])))
+        step_name = (
+            u'WithShardedKey/GroupIntoBatches/ParDo(_GroupIntoBatchesDoFn)')
+      else:
+        input | beam.GroupIntoBatches(2)
+        step_name = u'GroupIntoBatches/ParDo(_GroupIntoBatchesDoFn)'
 
-  def get_window_coder(self):
-    return coders.BytesCoder()
+    return self._find_step(runner.job, step_name)['properties']
+
+  def test_group_into_batches_translation(self):
+    properties = self._run_group_into_batches_and_get_step_properties(
+        True, ['--enable_streaming_engine', '--experiments=use_runner_v2'])
+    self.assertEqual(properties[PropertyNames.USES_KEYED_STATE], u'true')
+    self.assertEqual(properties[PropertyNames.ALLOWS_SHARDABLE_STATE], u'true')
+    self.assertEqual(properties[PropertyNames.PRESERVES_KEYS], u'true')
+
+  def test_group_into_batches_translation_non_sharded(self):
+    properties = self._run_group_into_batches_and_get_step_properties(
+        False, ['--enable_streaming_engine', '--experiments=use_runner_v2'])
+    self.assertEqual(properties[PropertyNames.USES_KEYED_STATE], u'true')
+    self.assertNotIn(PropertyNames.ALLOWS_SHARDABLE_STATE, properties)
+    self.assertNotIn(PropertyNames.PRESERVES_KEYS, properties)
+
+  def test_group_into_batches_translation_non_se(self):
+    with self.assertRaisesRegex(
+        ValueError,
+        'Runner determined sharding not available in Dataflow for '
+        'GroupIntoBatches for non-Streaming-Engine jobs'):
+      _ = self._run_group_into_batches_and_get_step_properties(
+          True, ['--experiments=use_runner_v2'])
+
+  def test_group_into_batches_translation_non_unified_worker(self):
+    # non-portable
+    with self.assertRaisesRegex(
+        ValueError,
+        'Runner determined sharding not available in Dataflow for '
+        'GroupIntoBatches for jobs not using Runner V2'):
+      _ = self._run_group_into_batches_and_get_step_properties(
+          True, ['--enable_streaming_engine'])
+
+    # JRH
+    with self.assertRaisesRegex(
+        ValueError,
+        'Runner determined sharding not available in Dataflow for '
+        'GroupIntoBatches for jobs not using Runner V2'):
+      _ = self._run_group_into_batches_and_get_step_properties(
+          True, ['--enable_streaming_engine', '--experiments=beam_fn_api'])
+
+  def _test_pack_combiners(self, pipeline_options, expect_packed):
+    runner = DataflowRunner()
+
+    with beam.Pipeline(runner=runner, options=pipeline_options) as p:
+      data = p | beam.Create([10, 20, 30])
+      _ = data | 'PackableMin' >> beam.CombineGlobally(min)
+      _ = data | 'PackableMax' >> beam.CombineGlobally(max)
+
+    unpacked_minimum_step_name = 'PackableMin/CombinePerKey/Combine'
+    unpacked_maximum_step_name = 'PackableMax/CombinePerKey/Combine'
+    packed_step_name = (
+        'Packed[PackableMin/CombinePerKey, PackableMax/CombinePerKey]/Pack/'
+        'CombinePerKey(SingleInputTupleCombineFn)/Combine')
+    job_dict = json.loads(str(runner.job))
+    step_names = set(s[u'properties'][u'user_name'] for s in job_dict[u'steps'])
+    if expect_packed:
+      self.assertNotIn(unpacked_minimum_step_name, step_names)
+      self.assertNotIn(unpacked_maximum_step_name, step_names)
+      self.assertIn(packed_step_name, step_names)
+    else:
+      self.assertIn(unpacked_minimum_step_name, step_names)
+      self.assertIn(unpacked_maximum_step_name, step_names)
+      self.assertNotIn(packed_step_name, step_names)
+
+  def test_pack_combiners_disabled_by_default(self):
+    self._test_pack_combiners(
+        PipelineOptions(self.default_properties), expect_packed=False)
+
+  @unittest.skip("BEAM-11694")
+  def test_pack_combiners_enabled_by_experiment(self):
+    self.default_properties.append('--experiment=pre_optimize=all')
+    self._test_pack_combiners(
+        PipelineOptions(self.default_properties), expect_packed=True)
 
 
 if __name__ == '__main__':

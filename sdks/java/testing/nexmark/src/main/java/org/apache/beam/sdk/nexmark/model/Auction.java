@@ -38,6 +38,9 @@ import org.joda.time.Instant;
 
 /** An auction submitted by a person. */
 @DefaultSchema(JavaFieldSchema.class)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class Auction implements KnownSize, Serializable {
   private static final Coder<Instant> INSTANT_CODER = InstantCoder.of();
   private static final Coder<Long> LONG_CODER = VarLongCoder.of();

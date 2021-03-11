@@ -37,6 +37,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** This {@link LogicalType} represent an enumeration over a fixed set of values. */
 @Experimental(Kind.SCHEMAS)
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class EnumerationType implements LogicalType<Value, Integer> {
   public static final String IDENTIFIER = "Enum";
   final BiMap<String, Integer> enumValues = HashBiMap.create();

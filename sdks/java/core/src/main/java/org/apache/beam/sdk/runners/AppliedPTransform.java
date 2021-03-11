@@ -23,9 +23,10 @@ import java.util.stream.Collectors;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
-import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.PValues;
 import org.apache.beam.sdk.values.TupleTag;
 
 /**
@@ -55,8 +56,8 @@ public abstract class AppliedPTransform<
           TransformT extends PTransform<? super InputT, OutputT>>
       AppliedPTransform<InputT, OutputT, TransformT> of(
           String fullName,
-          Map<TupleTag<?>, PValue> input,
-          Map<TupleTag<?>, PValue> output,
+          Map<TupleTag<?>, PCollection<?>> input,
+          Map<TupleTag<?>, PCollection<?>> output,
           TransformT transform,
           Pipeline p) {
     return new AutoValue_AppliedPTransform<>(fullName, input, output, transform, p);
@@ -64,17 +65,18 @@ public abstract class AppliedPTransform<
 
   public abstract String getFullName();
 
-  public abstract Map<TupleTag<?>, PValue> getInputs();
+  public abstract Map<TupleTag<?>, PCollection<?>> getInputs();
 
-  public abstract Map<TupleTag<?>, PValue> getOutputs();
+  public abstract Map<TupleTag<?>, PCollection<?>> getOutputs();
 
   public abstract TransformT getTransform();
 
   public abstract Pipeline getPipeline();
 
   /** @return map of {@link TupleTag TupleTags} which are not side inputs. */
-  public Map<TupleTag<?>, PValue> getMainInputs() {
-    Map<TupleTag<?>, PValue> sideInputs = getTransform().getAdditionalInputs();
+  public Map<TupleTag<?>, PCollection<?>> getMainInputs() {
+    Map<TupleTag<?>, PCollection<?>> sideInputs =
+        PValues.fullyExpand(getTransform().getAdditionalInputs());
     return getInputs().entrySet().stream()
         .filter(e -> !sideInputs.containsKey(e.getKey()))
         .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));

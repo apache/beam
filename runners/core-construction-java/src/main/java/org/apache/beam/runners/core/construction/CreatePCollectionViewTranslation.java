@@ -44,6 +44,9 @@ import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
  *     dedicated runners-core-construction auxiliary class
  */
 @Deprecated
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class CreatePCollectionViewTranslation {
 
   /**

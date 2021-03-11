@@ -22,6 +22,9 @@ import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.sdk.coders.AvroCoder;
 
 /** A {@link CloudObjectTranslator} for {@link AvroCoder}. */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 class AvroCoderCloudObjectTranslator implements CloudObjectTranslator<AvroCoder> {
   private static final String TYPE_FIELD = "type";
   private static final String SCHEMA_FIELD = "schema";

@@ -33,6 +33,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /** Elements which can be buffered as part of a checkpoint for @RequiresStableInput. */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 class BufferedElements {
 
   static final class Element implements BufferedElement {

@@ -20,9 +20,8 @@ plugins { id 'org.apache.beam.module' }
 
 // Do not relocate guava to avoid issues with Cassandra's version.
 applyJavaNature(
-  enableChecker: false,
-  ignoreRawtypeErrors: true,
-  automaticModuleName: 'org.apache.beam.sdk.io.cassandra')
+  automaticModuleName: 'org.apache.beam.sdk.io.cassandra',
+)
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 
@@ -50,4 +49,11 @@ dependencies {
   testCompile library.java.jackson_jaxb_annotations
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+}
+
+// Cassandra dependencies require old version of Guava (BEAM-11626)
+configurations.all {
+  resolutionStrategy {
+    force 'com.google.guava:guava:25.1-jre'
+  }
 }

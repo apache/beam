@@ -100,6 +100,9 @@ import org.mockito.MockitoAnnotations;
 
 /** Unit tests for {@link SdkHarnessClient}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class SdkHarnessClientTest {
 
   @Mock public FnApiControlClient fnApiControlClient;

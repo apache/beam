@@ -42,6 +42,9 @@ import org.apache.beam.vendor.grpc.v1p26p0.io.netty.util.internal.ThreadLocalRan
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.net.HostAndPort;
 
 /** A {@link Server gRPC server} factory. */
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public abstract class ServerFactory {
 
   private static final int KEEP_ALIVE_TIME_SEC = 20;

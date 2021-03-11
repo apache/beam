@@ -81,6 +81,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * href="https://beam.apache.org/documentation/programming-guide/#transforms-combine">documentation</a>
  * for how to use the operations in this class.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class Combine {
   private Combine() {
     // do not instantiate

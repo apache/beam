@@ -86,13 +86,14 @@ def addStreamingOptions(test) {
     // Use the new Dataflow runner, which offers improved efficiency of Dataflow jobs.
     // See https://cloud.google.com/dataflow/docs/guides/deploying-a-pipeline#dataflow-runner-v2
     // for more details.
-    experiments: 'use_runner_v2',
+    // TODO(BEAM-11779) remove shuffle_mode=appliance with runner v2 once issue is resolved.
+    experiments: 'use_runner_v2, shuffle_mode=appliance',
   ]
 }
 
 def loadTestJob = { scope, triggeringContext, mode ->
   def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
-  loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.PYTHON_37,
+  loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.PYTHON,
       loadTestConfigurations(mode, datasetName), 'GBK reiterate', mode)
 }
 
@@ -100,7 +101,7 @@ CronJobBuilder.cronJob('beam_LoadTests_Python_GBK_reiterate_Dataflow_Batch',
     'H 14 * * *', this) {
       additionalPipelineArgs = [
         influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
-        influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostname,
+        influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,
       ]
       loadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT, 'batch')
     }
@@ -119,7 +120,7 @@ CronJobBuilder.cronJob('beam_LoadTests_Python_GBK_reiterate_Dataflow_Streaming',
     'H 14 * * *', this) {
       additionalPipelineArgs = [
         influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
-        influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostname,
+        influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,
       ]
       loadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT, 'streaming')
     }

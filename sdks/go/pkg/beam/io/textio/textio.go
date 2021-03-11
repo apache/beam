@@ -104,7 +104,7 @@ func readFn(ctx context.Context, filename string, emit func(string)) error {
 			break
 		}
 		if err != nil {
-			return (err)
+			return err
 		}
 		emit(strings.TrimSuffix(line, "\n"))
 	}

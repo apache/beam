@@ -37,6 +37,9 @@ import org.mockito.Mockito;
 
 /** Tests for {@link BeamFnMapTaskExecutor.SingularProcessBundleProgressTracker}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class SingularProcessBundleProgressTrackerTest {
 
   private static class TestProgress implements Progress {

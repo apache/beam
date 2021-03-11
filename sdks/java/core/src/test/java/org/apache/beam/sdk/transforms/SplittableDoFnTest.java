@@ -83,6 +83,9 @@ import org.junit.runners.JUnit4;
  * Tests for <a href="https://s.apache.org/splittable-do-fn">splittable</a> {@link DoFn} behavior.
  */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class SplittableDoFnTest implements Serializable {
 
   static class PairStringWithIndexToLengthBase extends DoFn<String, KV<String, Integer>> {

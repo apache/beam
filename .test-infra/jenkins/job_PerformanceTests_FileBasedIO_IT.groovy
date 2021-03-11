@@ -291,7 +291,7 @@ private void createGCSFileBasedIOITTestJob(testJob) {
     InfluxDBCredentialsHelper.useCredentials(delegate)
     additionalPipelineArgs = [
       influxDatabase: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
-      influxHost: InfluxDBCredentialsHelper.InfluxDBHostname,
+      influxHost: InfluxDBCredentialsHelper.InfluxDBHostUrl,
     ]
     testJob.pipelineOptions.putAll(additionalPipelineArgs)
 
@@ -344,7 +344,7 @@ private void createHDFSFileBasedIOITTestJob(testJob) {
     InfluxDBCredentialsHelper.useCredentials(delegate)
     additionalPipelineArgs = [
       influxDatabase: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
-      influxHost: InfluxDBCredentialsHelper.InfluxDBHostname,
+      influxHost: InfluxDBCredentialsHelper.InfluxDBHostUrl,
     ]
     testJob.pipelineOptions.putAll(additionalPipelineArgs)
 

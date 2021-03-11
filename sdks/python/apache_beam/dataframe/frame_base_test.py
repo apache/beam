@@ -14,8 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import absolute_import
-
 import unittest
 
 import pandas as pd
@@ -40,6 +38,22 @@ class FrameBaseTest(unittest.TestCase):
     self.assertTrue(sub(1, x)._expr.evaluate_at(session).equals(1 - a))
     self.assertTrue(sub(x, b)._expr.evaluate_at(session).equals(a - b))
     self.assertTrue(sub(a, y)._expr.evaluate_at(session).equals(a - b))
+
+  def test_elementwise_func_kwarg(self):
+    a = pd.Series([1, 2, 3])
+    b = pd.Series([100, 200, 300])
+    empty_proxy = a[:0]
+    x = frames.DeferredSeries(expressions.PlaceholderExpression(empty_proxy))
+    y = frames.DeferredSeries(expressions.PlaceholderExpression(empty_proxy))
+    sub = frame_base._elementwise_function(lambda x, y=1: x - y)
+
+    session = expressions.Session({x._expr: a, y._expr: b})
+    self.assertTrue(sub(x, y=y)._expr.evaluate_at(session).equals(a - b))
+    self.assertTrue(sub(x)._expr.evaluate_at(session).equals(a - 1))
+    self.assertTrue(sub(1, y=x)._expr.evaluate_at(session).equals(1 - a))
+    self.assertTrue(sub(x, y=b)._expr.evaluate_at(session).equals(a - b))
+    self.assertTrue(sub(a, y=y)._expr.evaluate_at(session).equals(a - b))
+    self.assertTrue(sub(x, y)._expr.evaluate_at(session).equals(a - b))
 
   def test_maybe_inplace(self):
     @frame_base.maybe_inplace

@@ -16,7 +16,6 @@
     specific language governing permissions and limitations
     under the License.
 -->
-
 <!-- Template -->
 <!--
 # [2.XX.X] - Unreleased
@@ -47,29 +46,28 @@
 * Fixed X (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 -->
 
-# [2.25.0] - Unreleased
+# [2.29.0] - Unreleased
 
 ## Highlights
 
-* Splittable DoFn is opt-out for Java based runners (Direct, Twister2) using `--experiments=use_deprecated_read`. For all other runners, users can opt-in using `--experiments=use_sdf_read`. (Java) ([BEAM-10670](https://issues.apache.org/jira/browse/BEAM-10135))
 * New highly anticipated feature X added to Python SDK ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 * New highly anticipated feature Y added to Java SDK ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-Y)).
 
 ## I/Os
 
 * Support for X source added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* Added support for S3 filesystem on AWS SDK V2 (Java) ([BEAM-7637](https://issues.apache.org/jira/browse/BEAM-7637))
 
 ## New Features / Improvements
 
-* Support for repeatable fields in JSON decoder for `ReadFromBigQuery` added. (Python) ([BEAM-10524](https://issues.apache.org/jira/browse/BEAM-10524))
-* Added an opt-in, performance-driven runtime type checking system for the Python SDK ([BEAM-10549](https://issues.apache.org/jira/browse/BEAM-10549)).
-    More details will be in an upcoming [blog post](https://beam.apache.org/blog/python-performance-runtime-type-checking/index.html).
-* Added support for Python 3 type annotations on PTransforms using typed PCollections ([BEAM-10258](https://issues.apache.org/jira/browse/BEAM-10258)).
-    More details will be in an upcoming [blog post](https://beam.apache.org/blog/python-improved-annotations/index.html).
 * X feature added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 
 ## Breaking Changes
 
+* Deterministic coding enforced for GroupByKey and Stateful DoFns.  Previously non-deterministic coding was allowed, resulting in keys not properly being grouped in some cases. ([BEAM-11719](https://issues.apache.org/jira/browse/BEAM-11719))
+  To restore the old behavior, one can register `FakeDeterministicFastPrimitivesCoder` with
+  `beam.coders.registry.register_fallback_coder(beam.coders.coders.FakeDeterministicFastPrimitivesCoder())`
+  or use the `allow_non_deterministic_key_coders` pipeline option.
 * X behavior was changed ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 
 ## Deprecations
@@ -80,7 +78,158 @@
 
 * Fixed X (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 
-# [2.24.0] - Unreleased
+
+# [2.28.0] - 2021-02-22
+
+## Highlights
+* Many improvements related to Parquet support ([BEAM-11460](https://issues.apache.org/jira/browse/BEAM-11460), [BEAM-8202](https://issues.apache.org/jira/browse/BEAM-8202), and [BEAM-11526](https://issues.apache.org/jira/browse/BEAM-11526))
+* Hash Functions in BeamSQL ([BEAM-10074](https://issues.apache.org/jira/browse/BEAM-10074))
+* Hash functions in ZetaSQL ([BEAM-11624](https://issues.apache.org/jira/browse/BEAM-11624))
+* Create ApproximateDistinct using HLL Impl ([BEAM-10324](https://issues.apache.org/jira/browse/BEAM-10324))
+
+## I/Os
+
+* SpannerIO supports using BigDecimal for Numeric fields ([BEAM-11643](https://issues.apache.org/jira/browse/BEAM-11643))
+* Add Beam schema support to ParquetIO ([BEAM-11526](https://issues.apache.org/jira/browse/BEAM-11526))
+* Support ParquetTable Writer ([BEAM-8202](https://issues.apache.org/jira/browse/BEAM-8202))
+* GCP BigQuery sink (streaming inserts) uses runner determined sharding ([BEAM-11408](https://issues.apache.org/jira/browse/BEAM-11408))
+* PubSub support types: TIMESTAMP, DATE, TIME, DATETIME ([BEAM-11533](https://issues.apache.org/jira/browse/BEAM-11533))
+
+## New Features / Improvements
+
+* ParquetIO add methods _readGenericRecords_ and _readFilesGenericRecords_ can read files with an unknown schema. See [PR-13554](https://github.com/apache/beam/pull/13554) and ([BEAM-11460](https://issues.apache.org/jira/browse/BEAM-11460))
+* Added support for thrift in KafkaTableProvider ([BEAM-11482](https://issues.apache.org/jira/browse/BEAM-11482))
+* Added support for HadoopFormatIO to skip key/value clone ([BEAM-11457](https://issues.apache.org/jira/browse/BEAM-11457))
+* Support Conversion to GenericRecords in Convert.to transform ([BEAM-11571](https://issues.apache.org/jira/browse/BEAM-11571)).
+* Support writes for Parquet Tables in Beam SQL ([BEAM-8202](https://issues.apache.org/jira/browse/BEAM-8202)).
+* Support reading Parquet files with unknown schema ([BEAM-11460](https://issues.apache.org/jira/browse/BEAM-11460))
+* Support user configurable Hadoop Configuration flags for ParquetIO ([BEAM-11527](https://issues.apache.org/jira/browse/BEAM-11527))
+* Expose commit_offset_in_finalize and timestamp_policy to ReadFromKafka ([BEAM-11677](https://issues.apache.org/jira/browse/BEAM-11677))
+* S3 options does not provided to boto3 client while using FlinkRunner and Beam worker pool container ([BEAM-11799](https://issues.apache.org/jira/browse/BEAM-11799))
+* HDFS not deduplicating identical configuration paths ([BEAM-11329](https://issues.apache.org/jira/browse/BEAM-11329))
+* Hash Functions in BeamSQL ([BEAM-10074](https://issues.apache.org/jira/browse/BEAM-10074))
+* Create ApproximateDistinct using HLL Impl ([BEAM-10324](https://issues.apache.org/jira/browse/BEAM-10324))
+* Add Beam schema support to ParquetIO ([BEAM-11526](https://issues.apache.org/jira/browse/BEAM-11526))
+* Add a Deque Encoder ([BEAM-11538](https://issues.apache.org/jira/browse/BEAM-11538))
+* Hash functions in ZetaSQL ([BEAM-11624](https://issues.apache.org/jira/browse/BEAM-11624))
+* Refactor ParquetTableProvider ([](https://issues.apache.org/jira/browse/))
+* Add JVM properties to JavaJobServer ([BEAM-8344](https://issues.apache.org/jira/browse/BEAM-8344))
+* Single source of truth for supported Flink versions ([](https://issues.apache.org/jira/browse/))
+* Use metric for Python BigQuery streaming insert API latency logging ([BEAM-11018](https://issues.apache.org/jira/browse/BEAM-11018))
+* Use metric for Java BigQuery streaming insert API latency logging ([BEAM-11032](https://issues.apache.org/jira/browse/BEAM-11032))
+* Upgrade Flink runner to Flink versions 1.12.1 and 1.11.3 ([BEAM-11697](https://issues.apache.org/jira/browse/BEAM-11697))
+* Upgrade Beam base image to use Tensorflow 2.4.1 ([BEAM-11762](https://issues.apache.org/jira/browse/BEAM-11762))
+* Create Beam GCP BOM ([BEAM-11665](https://issues.apache.org/jira/browse/BEAM-11665))
+
+## Breaking Changes
+
+* The Java artifacts "beam-sdks-java-io-kinesis", "beam-sdks-java-io-google-cloud-platform", and
+  "beam-sdks-java-extensions-sql-zetasql" declare Guava 30.1-jre dependency (It was 25.1-jre in Beam 2.27.0).
+  This new Guava version may introduce dependency conflicts if your project or dependencies rely
+  on removed APIs. If affected, ensure to use an appropriate Guava version via `dependencyManagement` in Maven and
+  `force` in Gradle.
+
+
+# [2.27.0] - 2021-01-08
+
+## I/Os
+* ReadFromMongoDB can now be used with MongoDB Atlas (Python) ([BEAM-11266](https://issues.apache.org/jira/browse/BEAM-11266).)
+* ReadFromMongoDB/WriteToMongoDB will mask password in display_data (Python) ([BEAM-11444](https://issues.apache.org/jira/browse/BEAM-11444).)
+* Support for X source added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* There is a new transform `ReadAllFromBigQuery` that can receive multiple requests to read data from BigQuery at pipeline runtime. See [PR 13170](https://github.com/apache/beam/pull/13170), and [BEAM-9650](https://issues.apache.org/jira/browse/BEAM-9650).
+
+## New Features / Improvements
+
+* Beam modules that depend on Hadoop are now tested for compatibility with Hadoop 3 ([BEAM-8569](https://issues.apache.org/jira/browse/BEAM-8569)). (Hive/HCatalog pending)
+* Publishing Java 11 SDK container images now supported as part of Apache Beam release process. ([BEAM-8106](https://issues.apache.org/jira/browse/BEAM-8106))
+* Added Cloud Bigtable Provider extension to Beam SQL ([BEAM-11173](https://issues.apache.org/jira/browse/BEAM-11173), [BEAM-11373](https://issues.apache.org/jira/browse/BEAM-11373))
+* Added a schema provider for thrift data ([BEAM-11338](https://issues.apache.org/jira/browse/BEAM-11338))
+* Added combiner packing pipeline optimization to Dataflow runner. ([BEAM-10641](https://issues.apache.org/jira/browse/BEAM-10641))
+* Support for the Deque structure by adding a coder ([BEAM-11538](https://issues.apache.org/jira/browse/BEAM-11538))
+
+## Breaking Changes
+
+* HBaseIO hbase-shaded-client dependency should be now provided by the users ([BEAM-9278](https://issues.apache.org/jira/browse/BEAM-9278)).
+* `--region` flag in amazon-web-services2 was replaced by `--awsRegion` ([BEAM-11331](https://issues.apache.org/jira/projects/BEAM/issues/BEAM-11331)).
+
+# [2.26.0] - 2020-12-11
+
+## Highlights
+
+* Splittable DoFn is now the default for executing the Read transform for Java based runners (Spark with bounded pipelines) in addition to existing runners from the 2.25.0 release (Direct, Flink, Jet, Samza, Twister2). The expected output of the Read transform is unchanged. Users can opt-out using `--experiments=use_deprecated_read`. The Apache Beam community is looking for feedback for this change as the community is planning to make this change permanent with no opt-out. If you run into an issue requiring the opt-out, please send an e-mail to [user@beam.apache.org](mailto:user@beam.apache.org) specifically referencing BEAM-10670 in the subject line and why you needed to opt-out. (Java) ([BEAM-10670](https://issues.apache.org/jira/browse/BEAM-10670))
+
+## I/Os
+
+* Java BigQuery streaming inserts now have timeouts enabled by default. Pass `--HTTPWriteTimeout=0` to revert to the old behavior. ([BEAM-6103](https://issues.apache.org/jira/browse/BEAM-6103))
+* Added support for Contextual Text IO (Java), a version of text IO that provides metadata about the records ([BEAM-10124](https://issues.apache.org/jira/browse/BEAM-10124)). Support for this IO is currently experimental. Specifically, **there are no update-compatibility guarantees** for streaming jobs with this IO between current future verisons of Apache Beam SDK.
+
+## New Features / Improvements
+* Added support for avro payload format in Beam SQL Kafka Table ([BEAM-10885](https://issues.apache.org/jira/browse/BEAM-10885))
+* Added support for json payload format in Beam SQL Kafka Table ([BEAM-10893](https://issues.apache.org/jira/browse/BEAM-10893))
+* Added support for protobuf payload format in Beam SQL Kafka Table ([BEAM-10892](https://issues.apache.org/jira/browse/BEAM-10892))
+* Added support for avro payload format in Beam SQL Pubsub Table ([BEAM-5504](https://issues.apache.org/jira/browse/BEAM-5504))
+* Added option to disable unnecessary copying between operators in Flink Runner (Java) ([BEAM-11146](https://issues.apache.org/jira/browse/BEAM-11146))
+* Added CombineFn.setup and CombineFn.teardown to Python SDK. These methods let you initialize the CombineFn's state before any of the other methods of the CombineFn is executed and clean that state up later on. If you are using Dataflow, you need to enable Dataflow Runner V2 by passing `--experiments=use_runner_v2` before using this feature. ([BEAM-3736](https://issues.apache.org/jira/browse/BEAM-3736))
+* Added support for NestedValueProvider for the Python SDK ([BEAM-10856](https://issues.apache.org/jira/browse/BEAM-10856)).
+
+## Breaking Changes
+
+* BigQuery's DATETIME type now maps to Beam logical type org.apache.beam.sdk.schemas.logicaltypes.SqlTypes.DATETIME
+* Pandas 1.x is now required for dataframe operations.
+
+## Known Issues
+
+* Non-idempotent combiners built via `CombineFn.from_callable()` or `CombineFn.maybe_from_callable()` can lead to incorrect behavior. ([BEAM-11522](https://issues.apache.org/jira/browse/BEAM-11522)).
+
+
+# [2.25.0] - 2020-10-23
+
+## Highlights
+
+* Splittable DoFn is now the default for executing the Read transform for Java based runners (Direct, Flink, Jet, Samza, Twister2). The expected output of the Read transform is unchanged. Users can opt-out using `--experiments=use_deprecated_read`. The Apache Beam community is looking for feedback for this change as the community is planning to make this change permanent with no opt-out. If you run into an issue requiring the opt-out, please send an e-mail to [user@beam.apache.org](mailto:user@beam.apache.org) specifically referencing BEAM-10670 in the subject line and why you needed to opt-out. (Java) ([BEAM-10670](https://issues.apache.org/jira/browse/BEAM-10670))
+
+## I/Os
+
+* Added cross-language support to Java's KinesisIO, now available in the Python module `apache_beam.io.kinesis` ([BEAM-10138](https://issues.apache.org/jira/browse/BEAM-10138), [BEAM-10137](https://issues.apache.org/jira/browse/BEAM-10137)).
+* Update Snowflake JDBC dependency for SnowflakeIO ([BEAM-10864](https://issues.apache.org/jira/browse/BEAM-10864))
+* Added cross-language support to Java's SnowflakeIO.Write, now available in the Python module `apache_beam.io.snowflake` ([BEAM-9898](https://issues.apache.org/jira/browse/BEAM-9898)).
+* Added delete function to Java's `ElasticsearchIO#Write`. Now, Java's ElasticsearchIO can be used to selectively delete documents using `withIsDeleteFn` function ([BEAM-5757](https://issues.apache.org/jira/browse/BEAM-5757)).
+* Java SDK: Added new IO connector for InfluxDB - InfluxDbIO ([BEAM-2546](https://issues.apache.org/jira/browse/BEAM-2546)).
+* Config options added for Python's S3IO ([BEAM-9094](https://issues.apache.org/jira/browse/BEAM-9094))
+
+## New Features / Improvements
+
+* Support for repeatable fields in JSON decoder for `ReadFromBigQuery` added. (Python) ([BEAM-10524](https://issues.apache.org/jira/browse/BEAM-10524))
+* Added an opt-in, performance-driven runtime type checking system for the Python SDK ([BEAM-10549](https://issues.apache.org/jira/browse/BEAM-10549)).
+    More details will be in an upcoming [blog post](https://beam.apache.org/blog/python-performance-runtime-type-checking/index.html).
+* Added support for Python 3 type annotations on PTransforms using typed PCollections ([BEAM-10258](https://issues.apache.org/jira/browse/BEAM-10258)).
+    More details will be in an upcoming [blog post](https://beam.apache.org/blog/python-improved-annotations/index.html).
+* Improved the Interactive Beam API where recording streaming jobs now start a long running background recording job. Running ib.show() or ib.collect() samples from the recording ([BEAM-10603](https://issues.apache.org/jira/browse/BEAM-10603)).
+* In Interactive Beam, ib.show() and ib.collect() now have "n" and "duration" as parameters. These mean read only up to "n" elements and up to "duration" seconds of data read from the recording ([BEAM-10603](https://issues.apache.org/jira/browse/BEAM-10603)).
+* Initial preview of [Dataframes](https://s.apache.org/simpler-python-pipelines-2020#slide=id.g905ac9257b_1_21) support.
+    See also example at apache_beam/examples/wordcount_dataframe.py
+* Fixed support for type hints on `@ptransform_fn` decorators in the Python SDK.
+  ([BEAM-4091](https://issues.apache.org/jira/browse/BEAM-4091))
+  This has not enabled by default to preserve backwards compatibility; use the
+  `--type_check_additional=ptransform_fn` flag to enable. It may be enabled by
+  default in future versions of Beam.
+
+## Breaking Changes
+
+* Python 2 and Python 3.5 support dropped ([BEAM-10644](https://issues.apache.org/jira/browse/BEAM-10644), [BEAM-9372](https://issues.apache.org/jira/browse/BEAM-9372)).
+* Pandas 1.x allowed.  Older version of Pandas may still be used, but may not be as well tested.
+
+## Deprecations
+
+* Python transform ReadFromSnowflake has been moved from `apache_beam.io.external.snowflake` to `apache_beam.io.snowflake`. The previous path will be removed in the future versions.
+
+## Known Issues
+
+* Dataflow streaming timers once against not strictly time ordered when set earlier mid-bundle, as the fix for  [BEAM-8543](https://issues.apache.org/jira/browse/BEAM-8543) introduced more severe bugs and has been rolled back.
+* Default compressor change breaks dataflow python streaming job update compatibility. Please use python SDK version <= 2.23.0 or > 2.25.0 if job update is critical.([BEAM-11113](https://issues.apache.org/jira/browse/BEAM-11113))
+
+
+# [2.24.0] - 2020-09-18
 
 ## Highlights
 
@@ -94,31 +243,31 @@
 * The WriteToBigQuery transform (Python) in Dataflow Batch no longer relies on BigQuerySink by default. It relies on
   a new, fully-featured transform based on file loads into BigQuery. To revert the behavior to the old implementation,
   you may use `--experiments=use_legacy_bq_sink`.
-* Add cross-language support to Java's JdbcIO, now available in the Python module `apache_beam.io.external.jdbc` ([BEAM-10135](https://issues.apache.org/jira/browse/BEAM-10135), [BEAM-10136](https://issues.apache.org/jira/browse/BEAM-10136)).
+* Add cross-language support to Java's JdbcIO, now available in the Python module `apache_beam.io.jdbc` ([BEAM-10135](https://issues.apache.org/jira/browse/BEAM-10135), [BEAM-10136](https://issues.apache.org/jira/browse/BEAM-10136)).
 * Add support of AWS SDK v2 for KinesisIO.Read (Java) ([BEAM-9702](https://issues.apache.org/jira/browse/BEAM-9702)).
-* Support for X source added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
-* Add streaming support to SnowflakeIO in Java SDK ([BEAM-9896](https://issues.apache.org/jira/browse/BEAM-9896  ))
+* Add streaming support to SnowflakeIO in Java SDK ([BEAM-9896](https://issues.apache.org/jira/browse/BEAM-9896))
 * Support reading and writing to Google Healthcare DICOM APIs in Python SDK ([BEAM-10601](https://issues.apache.org/jira/browse/BEAM-10601))
+* Add dispositions for SnowflakeIO.write ([BEAM-10343](https://issues.apache.org/jira/browse/BEAM-10343))
+* Add cross-language support to SnowflakeIO.Read now available in the Python module `apache_beam.io.external.snowflake` ([BEAM-9897](https://issues.apache.org/jira/browse/BEAM-9897)).
 
 ## New Features / Improvements
 
-* Shared library for simplifying management of large shared objects added to Python SDK. Example use case is sharing a large TF model object across threads ([BEAM-10417](https://issues.apache.org/jira/browse/BEAM-10417)).
-* X feature added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* Shared library for simplifying management of large shared objects added to Python SDK. An example use case is sharing a large TF model object across threads ([BEAM-10417](https://issues.apache.org/jira/browse/BEAM-10417)).
 * Dataflow streaming timers are not strictly time ordered when set earlier mid-bundle ([BEAM-8543](https://issues.apache.org/jira/browse/BEAM-8543)).
 * OnTimerContext should not create a new one when processing each element/timer in FnApiDoFnRunner ([BEAM-9839](https://issues.apache.org/jira/browse/BEAM-9839))
 * Key should be available in @OnTimer methods (Spark Runner) ([BEAM-9850](https://issues.apache.org/jira/browse/BEAM-9850))
 
 ## Breaking Changes
 
-* X behavior was changed ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* WriteToBigQuery transforms now require a GCS location to be provided through either
+  custom_gcs_temp_location in the constructor of WriteToBigQuery or the fallback option
+  --temp_location, or pass method="STREAMING_INSERTS" to WriteToBigQuery ([BEAM-6928](https://issues.apache.org/jira/browse/BEAM-6928)).
+* Python SDK now understands `typing.FrozenSet` type hints, which are not interchangeable with `typing.Set`. You may need to update your pipelines if type checking fails. ([BEAM-10197](https://issues.apache.org/jira/browse/BEAM-10197))
 
-## Deprecations
+## Known issues
 
-* X behavior is deprecated and will be removed in X versions ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
-
-## Known Issues
-
-* Fixed X (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* When a timer fires but is reset prior to being executed, a watermark hold may be leaked, causing a stuck pipeline [BEAM-10991](https://issues.apache.org/jira/browse/BEAM-10991).
+* Default compressor change breaks dataflow python streaming job update compatibility. Please use python SDK version <= 2.23.0 or > 2.25.0 if job update is critical.([BEAM-11113](https://issues.apache.org/jira/browse/BEAM-11113))
 
 # [2.23.0] - 2020-06-29
 
@@ -136,8 +285,6 @@
   is experimental. It reads data from BigQuery by exporting data to Avro files, and reading those files. It also supports
   reading data by exporting to JSON files. This has small differences in behavior for Time and Date-related fields. See
   Pydoc for more information.
-* Add dispositions for SnowflakeIO.write ([BEAM-10343](https://issues.apache.org/jira/browse/BEAM-10343))
-* Add cross-language support to SnowflakeIO.Read([BEAM-9897](https://issues.apache.org/jira/browse/BEAM-9897)).
 
 ## New Features / Improvements
 
@@ -229,7 +376,7 @@ for example usage.
     and an upcoming
     [blog post](https://beam.apache.org/blog/python-typing/index.html).
 
-* Java SDK: Introducing the concept of options in Beam Schema’s. These options add extra
+* Java SDK: Introducing the concept of options in Beam Schemas. These options add extra
 context to fields and schemas. This replaces the current Beam metadata that is present
 in a FieldType only, options are available in fields and row schemas. Schema options are
 fully typed and can contain complex rows. *Remark: Schema aware is still experimental.*

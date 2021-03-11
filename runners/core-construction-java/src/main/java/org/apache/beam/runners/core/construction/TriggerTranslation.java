@@ -47,6 +47,10 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /** Utilities for working with {@link TriggerTranslation Triggers}. */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class TriggerTranslation implements Serializable {
 
   @VisibleForTesting static final ProtoConverter CONVERTER = new ProtoConverter();
@@ -127,10 +131,9 @@ public class TriggerTranslation implements Serializable {
           return RunnerApi.TimeDomain.Enum.EVENT_TIME;
         case PROCESSING_TIME:
           return RunnerApi.TimeDomain.Enum.PROCESSING_TIME;
-        case SYNCHRONIZED_PROCESSING_TIME:
-          return RunnerApi.TimeDomain.Enum.SYNCHRONIZED_PROCESSING_TIME;
         default:
-          throw new IllegalArgumentException(String.format("Unknown time domain: %s", timeDomain));
+          throw new IllegalArgumentException(
+              String.format("Unknown or unsupported time domain: %s", timeDomain));
       }
     }
 

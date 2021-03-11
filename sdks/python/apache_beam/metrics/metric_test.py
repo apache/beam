@@ -137,6 +137,22 @@ class MetricsTest(unittest.TestCase):
     with self.assertRaises(ValueError):
       Metrics.distribution("", "names")
 
+  # Do not change the behaviour of str(), do tno update/delete this test case
+  # if the behaviour of str() is changed. Doing so will
+  # break end user beam code which depends on the str() behaviour.
+  def test_user_metric_name_str(self):
+    mn = MetricName("my_namespace", "my_name")
+    expected_str = 'MetricName(namespace=my_namespace, name=my_name)'
+    self.assertEqual(str(mn), expected_str)
+
+  def test_general_urn_metric_name_str(self):
+    mn = MetricName(
+        "my_namespace", "my_name", urn='my_urn', labels={'key': 'value'})
+    expected_str = (
+        "MetricName(namespace=my_namespace, name=my_name, "
+        "urn=my_urn, labels={'key': 'value'})")
+    self.assertEqual(str(mn), expected_str)
+
   @attr('ValidatesRunner')
   def test_user_counter_using_pardo(self):
     class SomeDoFn(beam.DoFn):

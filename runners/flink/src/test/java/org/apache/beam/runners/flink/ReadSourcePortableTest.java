@@ -51,7 +51,7 @@ import org.slf4j.LoggerFactory;
 @RunWith(Parameterized.class)
 public class ReadSourcePortableTest implements Serializable {
 
-  private static final Logger LOG = LoggerFactory.getLogger(PortableExecutionTest.class);
+  private static final Logger LOG = LoggerFactory.getLogger(ReadSourcePortableTest.class);
 
   @Parameters(name = "streaming: {0}")
   public static Object[] data() {

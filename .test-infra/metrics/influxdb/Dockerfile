@@ -16,7 +16,7 @@
 # limitations under the License.
 ################################################################################
 
-FROM python:3-slim
+FROM python:3.8-slim
 
 RUN pip install --no-cache-dir gsutil
 
@@ -28,7 +28,7 @@ tar xzf influxdb-backup.tar.gz
 
 FROM influxdb:1.8.0
 
-ADD https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh /wait-for-it.sh
+ADD https://raw.githubusercontent.com/vishnubob/wait-for-it/81b1373f17855a4dc21156cfe1694c31d7d1792e/wait-for-it.sh /wait-for-it.sh
 
 RUN chmod +x /wait-for-it.sh
 

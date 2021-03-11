@@ -32,7 +32,7 @@ In the following example, we create a pipeline with a `PCollection` of produce k
 
 We use `GroupByKey` to group all the produce for each season.
 
-{{< highlight py >}}
+{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupbykey.py" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupbykey.py" groupbykey >}}
 {{< /highlight >}}
 
@@ -44,12 +44,10 @@ Output:
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupbykey_test.py" produce_counts >}}
 {{< /highlight >}}
 
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupbykey.py" >}}
-
 ## Related transforms
 
-* [CombineGlobally](/documentation/transforms/python/aggregation/combineglobally) for combining all values associated with a key to a single result.
+* [GroupBy](/documentation/transforms/python/aggregation/groupby) for grouping by arbitrary properties of the elements.
+* [CombinePerKey](/documentation/transforms/python/aggregation/combineperkey) for combining all values associated with a key to a single result.
 * [CoGroupByKey](/documentation/transforms/python/aggregation/cogroupbykey) for multiple input collections.
 
 {{< button-pydoc path="apache_beam.transforms.core" class="GroupByKey" >}}

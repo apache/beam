@@ -17,10 +17,10 @@
  */
 package org.apache.beam.sdk.extensions.sorter;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
 
 import java.util.Arrays;
 import org.apache.beam.sdk.testing.PAssert;

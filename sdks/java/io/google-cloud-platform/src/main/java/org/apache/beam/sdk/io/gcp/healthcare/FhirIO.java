@@ -19,19 +19,25 @@ package org.apache.beam.sdk.io.gcp.healthcare;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.api.services.healthcare.v1beta1.model.DeidentifyConfig;
 import com.google.api.services.healthcare.v1beta1.model.HttpBody;
 import com.google.api.services.healthcare.v1beta1.model.Operation;
 import com.google.auto.value.AutoValue;
+import com.google.gson.Gson;
+import com.google.gson.JsonArray;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
@@ -55,6 +61,7 @@ import org.apache.beam.sdk.io.fs.ResourceIdCoder;
 import org.apache.beam.sdk.io.gcp.healthcare.HttpHealthcareApiClient.HealthcareHttpException;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
@@ -77,12 +84,12 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.codehaus.jackson.JsonProcessingException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -122,12 +129,30 @@ import org.slf4j.LoggerFactory;
  * store) This requires each resource to contain a client provided ID. It is important that when
  * using import you give the appropriate permissions to the Google Cloud Healthcare Service Agent.
  *
+ * <p>Export This is to export FHIR resources from a FHIR store to Google Cloud Storage. The output
+ * resources are in ndjson (newline delimited json) of FHIR resources. It is important that when
+ * using export you give the appropriate permissions to the Google Cloud Healthcare Service Agent.
+ *
+ * <p>Deidentify This is to de-identify FHIR resources from a source FHIR store and write the result
+ * to a destination FHIR store. It is important that the destination store must already exist.
+ *
+ * <p>Search This is to search FHIR resources within a given FHIR store. The inputs are individual
+ * FHIR Search queries, represented by the FhirSearchParameter class. The outputs are results of
+ * each Search, represented as a Json array of FHIR resources in string form, with pagination
+ * handled, and an optional input key.
+ *
  * @see <a
  *     href=>https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.fhirStores.fhir/executeBundle></a>
  * @see <a
  *     href=>https://cloud.google.com/healthcare/docs/how-tos/permissions-healthcare-api-gcp-products#fhir_store_cloud_storage_permissions></a>
  * @see <a
  *     href=>https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.fhirStores/import></a>
+ * @see <a
+ *     href=>https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.fhirStores/export></a>
+ * @see <a
+ *     href=>https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.fhirStores/deidentify></a>
+ * @see <a
+ *     href=>https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.fhirStores/search></a>
  *     A {@link PCollection} of {@link String} can be ingested into an Fhir store using {@link
  *     FhirIO.Write#fhirStoresImport(String, String, String, FhirIO.Import.ContentStructure)} This
  *     will return a {@link FhirIO.Write.Result} on which you can call {@link
@@ -170,10 +195,52 @@ import org.slf4j.LoggerFactory;
  * // Alternatively you could use import for high throughput to a new store.
  * FhirIO.Write.Result writeResult =
  *     output.apply("Import FHIR Resources", FhirIO.executeBundles(options.getNewFhirStore()));
- * }***
+ *
+ * // Export FHIR resources to Google Cloud Storage.
+ * String fhirStoreName = ...;
+ * String exportGcsUriPrefix = ...;
+ * PCollection<String> resources =
+ *     pipeline.apply(FhirIO.exportResourcesToGcs(fhirStoreName, exportGcsUriPrefix));
+ *
+ * // De-identify FHIR resources.
+ * String sourceFhirStoreName = ...;
+ * String destinationFhirStoreName = ...;
+ * DeidentifyConfig deidConfig = new DeidentifyConfig(); // use default DeidentifyConfig
+ * pipeline.apply(FhirIO.deidentify(fhirStoreName, destinationFhirStoreName, deidConfig));
+ *
+ * // Search FHIR resources using a simple query.
+ * Map<String, String> queries = new HashMap<>();
+ * queries.put("name", "Alice");
+ * FhirSearchParameter<String> searchParameter = FhirSearchParameter.of("Patient", queries);
+ * PCollection<FhirSearchParameter<String>> searchQueries =
+ * pipeline.apply(
+ *      Create.of(searchParameter)
+ *            .withCoder(FhirSearchParameterCoder.of(StringUtf8Coder.of())));
+ * FhirIO.Search.Result searchResult =
+ *      searchQueries.apply(FhirIO.searchResources(options.getFhirStore()));
+ * PCollection<JsonArray> resources = searchResult.getResources(); // JsonArray of results
+ *
+ * // Search FHIR resources using an "OR" query.
+ * Map<String, List<String>> listQueries = new HashMap<>();
+ * listQueries.put("name", Arrays.asList("Alice", "Bob"));
+ * FhirSearchParameter<List<String>> listSearchParameter =
+ *      FhirSearchParameter.of("Patient", "Alice-Bob-Search", listQueries);
+ * PCollection<FhirSearchParameter<List<String>>> listSearchQueries =
+ * pipeline.apply(
+ *      Create.of(listSearchParameter)
+ *            .withCoder(FhirSearchParameterCoder.of(ListCoder.of(StringUtf8Coder.of()))));
+ * FhirIO.Search.Result listSearchResult =
+ *      searchQueries.apply(FhirIO.searchResources(options.getFhirStore()));
+ * PCollection<KV<String, JsonArray>> listResource =
+ *      listSearchResult.getKeyedResources(); // KV<"Alice-Bob-Search", JsonArray of results>
+ *
  * </pre>
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class FhirIO {
+  private static final String BASE_METRIC_PREFIX = "fhirio/";
 
   /**
    * Read resources from a PCollection of resource IDs (e.g. when subscribing the pubsub
@@ -184,6 +251,26 @@ public class FhirIO {
    */
   public static Read readResources() {
     return new Read();
+  }
+
+  /**
+   * Search resources from a Fhir store with String parameter values.
+   *
+   * @return the search
+   * @see Search
+   */
+  public static Search<String> searchResources(String fhirStore) {
+    return new Search<String>(fhirStore);
+  }
+
+  /**
+   * Search resources from a Fhir store with any type of parameter values.
+   *
+   * @return the search
+   * @see Search
+   */
+  public static Search<? extends Object> searchResourcesWithGenericParameters(String fhirStore) {
+    return new Search<>(fhirStore);
   }
 
   /**
@@ -230,10 +317,10 @@ public class FhirIO {
    * @param exportGcsUriPrefix the destination GCS dir, in the format:
    *     gs://YOUR_BUCKET_NAME/path/to/a/dir
    * @return the export
-   * @see ExportGcs
+   * @see Export
    */
-  public static ExportGcs exportResourcesToGcs(String fhirStore, String exportGcsUriPrefix) {
-    return new ExportGcs(
+  public static Export exportResourcesToGcs(String fhirStore, String exportGcsUriPrefix) {
+    return new Export(
         StaticValueProvider.of(fhirStore), StaticValueProvider.of(exportGcsUriPrefix));
   }
 
@@ -245,11 +332,50 @@ public class FhirIO {
    * @param exportGcsUriPrefix the destination GCS dir, in the format:
    *     gs://YOUR_BUCKET_NAME/path/to/a/dir
    * @return the export
-   * @see ExportGcs
+   * @see Export
    */
-  public static ExportGcs exportResourcesToGcs(
+  public static Export exportResourcesToGcs(
       ValueProvider<String> fhirStore, ValueProvider<String> exportGcsUriPrefix) {
-    return new ExportGcs(fhirStore, exportGcsUriPrefix);
+    return new Export(fhirStore, exportGcsUriPrefix);
+  }
+
+  /**
+   * Deidentify FHIR resources. Intended for use on non-empty FHIR stores
+   *
+   * @param sourceFhirStore the source fhir store, in the format:
+   *     projects/project_id/locations/location_id/datasets/dataset_id/fhirStores/fhir_store_id
+   * @param destinationFhirStore the destination fhir store to write de-identified resources, in the
+   *     format:
+   *     projects/project_id/locations/location_id/datasets/dataset_id/fhirStores/fhir_store_id
+   * @param deidConfig the DeidentifyConfig
+   * @return the deidentify
+   * @see Deidentify
+   */
+  public static Deidentify deidentify(
+      String sourceFhirStore, String destinationFhirStore, DeidentifyConfig deidConfig) {
+    return new Deidentify(
+        StaticValueProvider.of(sourceFhirStore),
+        StaticValueProvider.of(destinationFhirStore),
+        StaticValueProvider.of(deidConfig));
+  }
+
+  /**
+   * Deidentify FHIR resources. Intended for use on non-empty FHIR stores
+   *
+   * @param sourceFhirStore the source fhir store, in the format:
+   *     projects/project_id/locations/location_id/datasets/dataset_id/fhirStores/fhir_store_id
+   * @param destinationFhirStore the destination fhir store to write de-identified resources, in the
+   *     format:
+   *     projects/project_id/locations/location_id/datasets/dataset_id/fhirStores/fhir_store_id
+   * @param deidConfig the DeidentifyConfig
+   * @return the deidentify
+   * @see Deidentify
+   */
+  public static Deidentify deidentify(
+      ValueProvider<String> sourceFhirStore,
+      ValueProvider<String> destinationFhirStore,
+      ValueProvider<DeidentifyConfig> deidConfig) {
+    return new Deidentify(sourceFhirStore, destinationFhirStore, deidConfig);
   }
 
   /** The type Read. */
@@ -275,9 +401,7 @@ public class FhirIO {
        * @throws IllegalArgumentException the illegal argument exception
        */
       static FhirIO.Read.Result of(PCollectionTuple pct) throws IllegalArgumentException {
-        if (pct.getAll()
-            .keySet()
-            .containsAll((Collection<?>) TupleTagList.of(OUT).and(DEAD_LETTER))) {
+        if (pct.has(OUT) && pct.has(DEAD_LETTER)) {
           return new FhirIO.Read.Result(pct);
         } else {
           throw new IllegalArgumentException(
@@ -372,11 +496,16 @@ public class FhirIO {
       /** DoFn for fetching messages from the Fhir store with error handling. */
       static class ReadResourceFn extends DoFn<String, String> {
 
-        private Counter failedMessageGets =
-            Metrics.counter(ReadResourceFn.class, "failed-message-reads");
         private static final Logger LOG = LoggerFactory.getLogger(ReadResourceFn.class);
-        private final Counter successfulStringGets =
-            Metrics.counter(ReadResourceFn.class, "successful-hl7v2-message-gets");
+        private static final Counter READ_RESOURCE_ERRORS =
+            Metrics.counter(ReadResourceFn.class, BASE_METRIC_PREFIX + "read_resource_error_count");
+        private static final Counter READ_RESOURCE_SUCCESS =
+            Metrics.counter(
+                ReadResourceFn.class, BASE_METRIC_PREFIX + "read_resource_success_count");
+        private static final Distribution READ_RESOURCE_LATENCY_MS =
+            Metrics.distribution(
+                ReadResourceFn.class, BASE_METRIC_PREFIX + "read_resource_latency_ms");
+
         private HealthcareApiClient client;
         private ObjectMapper mapper;
 
@@ -405,7 +534,7 @@ public class FhirIO {
           try {
             context.output(fetchResource(this.client, resourceId));
           } catch (Exception e) {
-            failedMessageGets.inc();
+            READ_RESOURCE_ERRORS.inc();
             LOG.warn(
                 String.format(
                     "Error fetching Fhir message with ID %s writing to Dead Letter "
@@ -417,14 +546,15 @@ public class FhirIO {
 
         private String fetchResource(HealthcareApiClient client, String resourceId)
             throws IOException, IllegalArgumentException {
-          long startTime = System.currentTimeMillis();
+          long startTime = Instant.now().toEpochMilli();
 
           HttpBody resource = client.readFhirResource(resourceId);
+          READ_RESOURCE_LATENCY_MS.update(Instant.now().toEpochMilli() - startTime);
 
           if (resource == null) {
             throw new IOException(String.format("GET request for %s returned null", resourceId));
           }
-          this.successfulStringGets.inc();
+          READ_RESOURCE_SUCCESS.inc();
           return mapper.writeValueAsString(resource);
         }
       }
@@ -435,13 +565,15 @@ public class FhirIO {
   @AutoValue
   public abstract static class Write extends PTransform<PCollection<String>, Write.Result> {
 
-    /** The tag for the failed writes to FHIR store`. */
+    /** The tag for successful writes to FHIR store. */
+    public static final TupleTag<String> SUCCESSFUL_BODY = new TupleTag<String>() {};
+    /** The tag for the failed writes to FHIR store. */
     public static final TupleTag<HealthcareIOError<String>> FAILED_BODY =
         new TupleTag<HealthcareIOError<String>>() {};
-    /** The tag for the files that failed to FHIR store`. */
+    /** The tag for the files that failed to FHIR store. */
     public static final TupleTag<HealthcareIOError<String>> FAILED_FILES =
         new TupleTag<HealthcareIOError<String>>() {};
-    /** The tag for temp files for import to FHIR store`. */
+    /** The tag for temp files for import to FHIR store. */
     public static final TupleTag<ResourceId> TEMP_FILES = new TupleTag<ResourceId>() {};
 
     /** The enum Write method. */
@@ -462,25 +594,41 @@ public class FhirIO {
     /** The type Result. */
     public static class Result implements POutput {
       private final Pipeline pipeline;
+      private final PCollection<String> successfulBodies;
       private final PCollection<HealthcareIOError<String>> failedBodies;
       private final PCollection<HealthcareIOError<String>> failedFiles;
 
       /**
-       * Creates a {@link FhirIO.Write.Result} in the given {@link Pipeline}. @param pipeline the
-       * pipeline
+       * Creates a {@link FhirIO.Write.Result} in the given {@link Pipeline}.
        *
-       * @param failedBodies the failed inserts
+       * @param pipeline the pipeline
+       * @param bodies the successful and failing bodies results.
        * @return the result
        */
-      static Result in(Pipeline pipeline, PCollection<HealthcareIOError<String>> failedBodies) {
-        return new Result(pipeline, failedBodies, null);
+      static Result in(Pipeline pipeline, PCollectionTuple bodies) throws IllegalArgumentException {
+        if (bodies.has(SUCCESSFUL_BODY) && bodies.has(FAILED_BODY)) {
+          return new Result(pipeline, bodies.get(SUCCESSFUL_BODY), bodies.get(FAILED_BODY), null);
+        } else {
+          throw new IllegalArgumentException(
+              "The PCollection tuple bodies must have the FhirIO.Write.SUCCESSFUL_BODY "
+                  + "and FhirIO.Write.FAILED_BODY tuple tags.");
+        }
       }
 
       static Result in(
           Pipeline pipeline,
           PCollection<HealthcareIOError<String>> failedBodies,
           PCollection<HealthcareIOError<String>> failedFiles) {
-        return new Result(pipeline, failedBodies, failedFiles);
+        return new Result(pipeline, null, failedBodies, failedFiles);
+      }
+
+      /**
+       * Gets successful bodies from Write.
+       *
+       * @return the entries that were inserted
+       */
+      public PCollection<String> getSuccessfulBodies() {
+        return this.successfulBodies;
       }
 
       /**
@@ -508,7 +656,13 @@ public class FhirIO {
 
       @Override
       public Map<TupleTag<?>, PValue> expand() {
-        return ImmutableMap.of(Write.FAILED_BODY, failedBodies, Write.FAILED_FILES, failedFiles);
+        return ImmutableMap.of(
+            SUCCESSFUL_BODY,
+            successfulBodies,
+            FAILED_BODY,
+            failedBodies,
+            Write.FAILED_FILES,
+            failedFiles);
       }
 
       @Override
@@ -517,9 +671,15 @@ public class FhirIO {
 
       private Result(
           Pipeline pipeline,
+          @Nullable PCollection<String> successfulBodies,
           PCollection<HealthcareIOError<String>> failedBodies,
           @Nullable PCollection<HealthcareIOError<String>> failedFiles) {
         this.pipeline = pipeline;
+        if (successfulBodies == null) {
+          successfulBodies =
+              (PCollection<String>) pipeline.apply(Create.empty(StringUtf8Coder.of()));
+        }
+        this.successfulBodies = successfulBodies;
         this.failedBodies = failedBodies;
         if (failedFiles == null) {
           failedFiles =
@@ -675,7 +835,7 @@ public class FhirIO {
      * Execute Bundle Method executes a batch of requests as a single transaction @see <a
      * href=https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.fhirStores.fhir/executeBundle></a>.
      *
-     * @param fhirStore the hl 7 v 2 store
+     * @param fhirStore the fhir store
      * @return the write
      */
     public static Write executeBundles(String fhirStore) {
@@ -702,8 +862,7 @@ public class FhirIO {
 
     @Override
     public Result expand(PCollection<String> input) {
-      PCollection<HealthcareIOError<String>> failedBundles;
-      PCollection<HealthcareIOError<String>> failedImports;
+      PCollectionTuple bundles;
       switch (this.getWriteMethod()) {
         case IMPORT:
           LOG.warn(
@@ -721,14 +880,15 @@ public class FhirIO {
           return input.apply(new Import(getFhirStore(), tempPath, deadPath, contentStructure));
         case EXECUTE_BUNDLE:
         default:
-          failedBundles =
-              input
-                  .apply(
-                      "Execute FHIR Bundles",
-                      ParDo.of(new ExecuteBundles.ExecuteBundlesFn(this.getFhirStore())))
-                  .setCoder(HealthcareIOErrorCoder.of(StringUtf8Coder.of()));
+          bundles =
+              input.apply(
+                  "Execute FHIR Bundles",
+                  ParDo.of(new ExecuteBundles.ExecuteBundlesFn(this.getFhirStore()))
+                      .withOutputTags(SUCCESSFUL_BODY, TupleTagList.of(FAILED_BODY)));
+          bundles.get(SUCCESSFUL_BODY).setCoder(StringUtf8Coder.of());
+          bundles.get(FAILED_BODY).setCoder(HealthcareIOErrorCoder.of(StringUtf8Coder.of()));
       }
-      return Result.in(input.getPipeline(), failedBundles);
+      return Result.in(input.getPipeline(), bundles);
     }
   }
 
@@ -777,6 +937,7 @@ public class FhirIO {
         @Nullable ContentStructure contentStructure) {
       this(fhirStore, null, deadLetterGcsPath, contentStructure);
     }
+
     /**
      * Instantiates a new Import.
      *
@@ -829,7 +990,7 @@ public class FhirIO {
     public Write.Result expand(PCollection<String> input) {
       checkState(
           input.isBounded() == IsBounded.BOUNDED,
-          "FhirIO.Import should only be used on unbounded PCollections as it is"
+          "FhirIO.Import should only be used on bounded PCollections as it is"
               + "intended for batch use only.");
 
       // fall back on pipeline's temp location.
@@ -883,13 +1044,11 @@ public class FhirIO {
                     @ProcessElement
                     public void delete(@Element Metadata path, ProcessContext context) {
                       // Wait til window closes for failedBodies and failedFiles to ensure we are
-                      // done processing
-                      // anything under tempGcsPath because it has been successfully imported to
-                      // FHIR store or
-                      // copies have been moved to the dead letter path.
+                      // done processing anything under tempGcsPath because it has been
+                      // successfully imported to FHIR store or copies have been moved to the
+                      // dead letter path.
                       // Clean up all of tempGcsPath. This will handle removing phantom temporary
-                      // objects from
-                      // failed / rescheduled ImportFn::importBatch.
+                      // objects from failed / rescheduled ImportFn::importBatch.
                       try {
                         FileSystems.delete(
                             Collections.singleton(path.resourceId()),
@@ -1153,17 +1312,28 @@ public class FhirIO {
 
     @Override
     public FhirIO.Write.Result expand(PCollection<String> input) {
-      return Write.Result.in(
-          input.getPipeline(),
-          input
-              .apply(ParDo.of(new ExecuteBundlesFn(fhirStore)))
-              .setCoder(HealthcareIOErrorCoder.of(StringUtf8Coder.of())));
+      PCollectionTuple bodies =
+          input.apply(
+              ParDo.of(new ExecuteBundlesFn(fhirStore))
+                  .withOutputTags(Write.SUCCESSFUL_BODY, TupleTagList.of(Write.FAILED_BODY)));
+      bodies.get(Write.SUCCESSFUL_BODY).setCoder(StringUtf8Coder.of());
+      bodies.get(Write.FAILED_BODY).setCoder(HealthcareIOErrorCoder.of(StringUtf8Coder.of()));
+      return Write.Result.in(input.getPipeline(), bodies);
     }
 
     /** The type Write Fhir fn. */
-    static class ExecuteBundlesFn extends DoFn<String, HealthcareIOError<String>> {
+    static class ExecuteBundlesFn extends DoFn<String, String> {
 
-      private Counter failedBundles = Metrics.counter(ExecuteBundlesFn.class, "failed-bundles");
+      private static final Counter EXECUTE_BUNDLE_ERRORS =
+          Metrics.counter(
+              ExecuteBundlesFn.class, BASE_METRIC_PREFIX + "execute_bundle_error_count");
+      private static final Counter EXECUTE_BUNDLE_SUCCESS =
+          Metrics.counter(
+              ExecuteBundlesFn.class, BASE_METRIC_PREFIX + "execute_bundle_success_count");
+      private static final Distribution EXECUTE_BUNDLE_LATENCY_MS =
+          Metrics.distribution(
+              ExecuteBundlesFn.class, BASE_METRIC_PREFIX + "execute_bundle_latency_ms");
+
       private transient HealthcareApiClient client;
       private final ObjectMapper mapper = new ObjectMapper();
       /** The Fhir store. */
@@ -1181,95 +1351,56 @@ public class FhirIO {
       /**
        * Initialize healthcare client.
        *
-       * @throws IOException the io exception
+       * @throws IOException If the Healthcare client cannot be created.
        */
       @Setup
       public void initClient() throws IOException {
         this.client = new HttpHealthcareApiClient();
       }
 
-      /**
-       * Execute Bundles.
-       *
-       * @param context the context
-       */
       @ProcessElement
       public void executeBundles(ProcessContext context) {
         String body = context.element();
         try {
+          long startTime = Instant.now().toEpochMilli();
           // Validate that data was set to valid JSON.
           mapper.readTree(body);
           client.executeFhirBundle(fhirStore.get(), body);
+          EXECUTE_BUNDLE_LATENCY_MS.update(Instant.now().toEpochMilli() - startTime);
+          EXECUTE_BUNDLE_SUCCESS.inc();
+          context.output(Write.SUCCESSFUL_BODY, body);
         } catch (IOException | HealthcareHttpException e) {
-          failedBundles.inc();
-          context.output(HealthcareIOError.of(body, e));
+          EXECUTE_BUNDLE_ERRORS.inc();
+          context.output(Write.FAILED_BODY, HealthcareIOError.of(body, e));
         }
       }
     }
   }
 
   /** Export FHIR resources from a FHIR store to new line delimited json files on GCS. */
-  public static class ExportGcs extends PTransform<PBegin, ExportGcs.Result> {
-    public static final TupleTag<String> OUT = new TupleTag<String>() {};
-
-    /**
-     * Represents the result of an export, including both the successful parsed messages, and
-     * invalid ones.
-     */
-    public static class Result implements POutput, PInput {
-      private PCollection<String> resources;
-
-      public static Result of(PCollection<String> resources) {
-        return new Result(resources);
-      }
-
-      private Result(PCollection<String> resources) {
-        this.resources = resources;
-      }
-
-      public PCollection<String> getResources() {
-        return resources;
-      }
-
-      @Override
-      public Pipeline getPipeline() {
-        return this.resources.getPipeline();
-      }
-
-      @Override
-      public Map<TupleTag<?>, PValue> expand() {
-        return ImmutableMap.of(OUT, resources);
-      }
-
-      @Override
-      public void finishSpecifyingOutput(
-          String transformName, PInput input, PTransform<?, ?> transform) {}
-    }
-
+  public static class Export extends PTransform<PBegin, PCollection<String>> {
     private final ValueProvider<String> fhirStore;
     private final ValueProvider<String> exportGcsUriPrefix;
 
-    public ExportGcs(ValueProvider<String> fhirStore, ValueProvider<String> exportGcsUriPrefix) {
+    public Export(ValueProvider<String> fhirStore, ValueProvider<String> exportGcsUriPrefix) {
       this.fhirStore = fhirStore;
       this.exportGcsUriPrefix = exportGcsUriPrefix;
     }
 
     @Override
-    public ExportGcs.Result expand(PBegin input) {
-      return ExportGcs.Result.of(
-          input
-              .apply(Create.ofProvider(fhirStore, StringUtf8Coder.of()))
-              .apply(
-                  "ScheduleExportOperations",
-                  ParDo.of(new ExportResourcesToGcsFn(this.exportGcsUriPrefix)))
-              .apply(FileIO.matchAll())
-              .apply(FileIO.readMatches())
-              .apply("ReadResourcesFromFiles", TextIO.readFiles()));
+    public PCollection<String> expand(PBegin input) {
+      return input
+          .apply(Create.ofProvider(fhirStore, StringUtf8Coder.of()))
+          .apply(
+              "ScheduleExportOperations",
+              ParDo.of(new ExportResourcesToGcsFn(this.exportGcsUriPrefix)))
+          .apply(FileIO.matchAll())
+          .apply(FileIO.readMatches())
+          .apply("ReadResourcesFromFiles", TextIO.readFiles());
     }
 
     /** A function that schedules an export operation and monitors the status. */
     public static class ExportResourcesToGcsFn extends DoFn<String, String> {
-
       private HealthcareApiClient client;
       private final ValueProvider<String> exportGcsUriPrefix;
 
@@ -1294,6 +1425,299 @@ public class FhirIO {
               String.format("Export operation (%s) failed.", operation.getName()));
         }
         context.output(String.format("%s/*", gcsPrefix.replaceAll("/+$", "")));
+      }
+    }
+  }
+
+  /** Deidentify FHIR resources from a FHIR store to a destination FHIR store. */
+  public static class Deidentify extends PTransform<PBegin, PCollection<String>> {
+    private final ValueProvider<String> sourceFhirStore;
+    private final ValueProvider<String> destinationFhirStore;
+    private final ValueProvider<DeidentifyConfig> deidConfig;
+
+    public Deidentify(
+        ValueProvider<String> sourceFhirStore,
+        ValueProvider<String> destinationFhirStore,
+        ValueProvider<DeidentifyConfig> deidConfig) {
+      this.sourceFhirStore = sourceFhirStore;
+      this.destinationFhirStore = destinationFhirStore;
+      this.deidConfig = deidConfig;
+    }
+
+    @Override
+    public PCollection<String> expand(PBegin input) {
+      return input
+          .getPipeline()
+          .apply(Create.ofProvider(sourceFhirStore, StringUtf8Coder.of()))
+          .apply(
+              "ScheduleDeidentifyFhirStoreOperations",
+              ParDo.of(new DeidentifyFn(destinationFhirStore, deidConfig)));
+    }
+
+    /** A function that schedules a deidentify operation and monitors the status. */
+    public static class DeidentifyFn extends DoFn<String, String> {
+      private HealthcareApiClient client;
+      private final ValueProvider<String> destinationFhirStore;
+      private static final Gson gson = new Gson();
+      private final String deidConfigJson;
+
+      public DeidentifyFn(
+          ValueProvider<String> destinationFhirStore, ValueProvider<DeidentifyConfig> deidConfig) {
+        this.destinationFhirStore = destinationFhirStore;
+        this.deidConfigJson = gson.toJson(deidConfig.get());
+      }
+
+      @Setup
+      public void initClient() throws IOException {
+        this.client = new HttpHealthcareApiClient();
+      }
+
+      @ProcessElement
+      public void deidentify(ProcessContext context)
+          throws IOException, InterruptedException, HealthcareHttpException {
+        String sourceFhirStore = context.element();
+        String destinationFhirStore = this.destinationFhirStore.get();
+        DeidentifyConfig deidConfig = gson.fromJson(this.deidConfigJson, DeidentifyConfig.class);
+        Operation operation =
+            client.deidentifyFhirStore(sourceFhirStore, destinationFhirStore, deidConfig);
+        operation = client.pollOperation(operation, 1000L);
+        if (operation.getError() != null) {
+          throw new IOException(
+              String.format("DeidentifyFhirStore operation (%s) failed.", operation.getName()));
+        }
+        context.output(destinationFhirStore);
+      }
+    }
+  }
+
+  /** The type Search. */
+  public static class Search<T>
+      extends PTransform<PCollection<FhirSearchParameter<T>>, FhirIO.Search.Result> {
+    private static final Logger LOG = LoggerFactory.getLogger(Search.class);
+
+    private final ValueProvider<String> fhirStore;
+
+    Search(ValueProvider<String> fhirStore) {
+      this.fhirStore = fhirStore;
+    }
+
+    Search(String fhirStore) {
+      this.fhirStore = StaticValueProvider.of(fhirStore);
+    }
+
+    public static class Result implements POutput, PInput {
+      private PCollection<KV<String, JsonArray>> keyedResources;
+      private PCollection<JsonArray> resources;
+
+      private PCollection<HealthcareIOError<String>> failedSearches;
+      PCollectionTuple pct;
+
+      /**
+       * Create FhirIO.Search.Result form PCollectionTuple with OUT and DEAD_LETTER tags.
+       *
+       * @param pct the pct
+       * @return the search result
+       * @throws IllegalArgumentException the illegal argument exception
+       */
+      static FhirIO.Search.Result of(PCollectionTuple pct) throws IllegalArgumentException {
+        if (pct.has(OUT) && pct.has(DEAD_LETTER)) {
+          return new FhirIO.Search.Result(pct);
+        } else {
+          throw new IllegalArgumentException(
+              "The PCollection tuple must have the FhirIO.Search.OUT "
+                  + "and FhirIO.Search.DEAD_LETTER tuple tags");
+        }
+      }
+
+      private Result(PCollectionTuple pct) {
+        this.pct = pct;
+        this.keyedResources =
+            pct.get(OUT).setCoder(KvCoder.of(StringUtf8Coder.of(), JsonArrayCoder.of()));
+        this.resources =
+            this.keyedResources
+                .apply(
+                    "Extract Values",
+                    MapElements.into(TypeDescriptor.of(JsonArray.class))
+                        .via((KV<String, JsonArray> in) -> in.getValue()))
+                .setCoder(JsonArrayCoder.of());
+        this.failedSearches =
+            pct.get(DEAD_LETTER).setCoder(HealthcareIOErrorCoder.of(StringUtf8Coder.of()));
+      }
+
+      /**
+       * Gets failed searches.
+       *
+       * @return the failed searches
+       */
+      public PCollection<HealthcareIOError<String>> getFailedSearches() {
+        return failedSearches;
+      }
+
+      /**
+       * Gets resources.
+       *
+       * @return the resources
+       */
+      public PCollection<JsonArray> getResources() {
+        return resources;
+      }
+
+      /**
+       * Gets resources with input SearchParameter key.
+       *
+       * @return the resources with input SearchParameter key.
+       */
+      public PCollection<KV<String, JsonArray>> getKeyedResources() {
+        return keyedResources;
+      }
+
+      @Override
+      public Pipeline getPipeline() {
+        return this.pct.getPipeline();
+      }
+
+      @Override
+      public Map<TupleTag<?>, PValue> expand() {
+        return ImmutableMap.of(OUT, keyedResources);
+      }
+
+      @Override
+      public void finishSpecifyingOutput(
+          String transformName, PInput input, PTransform<?, ?> transform) {}
+    }
+
+    /** The tag for the main output of Fhir Messages. */
+    public static final TupleTag<KV<String, JsonArray>> OUT =
+        new TupleTag<KV<String, JsonArray>>() {};
+    /** The tag for the deadletter output of Fhir Messages. */
+    public static final TupleTag<HealthcareIOError<String>> DEAD_LETTER =
+        new TupleTag<HealthcareIOError<String>>() {};
+
+    @Override
+    public FhirIO.Search.Result expand(PCollection<FhirSearchParameter<T>> input) {
+      return input.apply("Fetch Fhir messages", new SearchResourcesJsonString(this.fhirStore));
+    }
+
+    /**
+     * DoFn to fetch resources from an Google Cloud Healthcare FHIR store based on search request
+     *
+     * <p>This DoFn consumes a {@link PCollection} of search requests consisting of resource type
+     * and search parameters, and fetches all matching resources based on the search criteria and
+     * will output a {@link PCollectionTuple} which contains the output and dead-letter {@link
+     * PCollection}*.
+     *
+     * <p>The {@link PCollectionTuple} output will contain the following {@link PCollection}:
+     *
+     * <ul>
+     *   <li>{@link FhirIO.Search#OUT} - Contains all {@link PCollection} records successfully
+     *       search from the Fhir store.
+     *   <li>{@link FhirIO.Search#DEAD_LETTER} - Contains all {@link PCollection} of {@link
+     *       HealthcareIOError}* of failed searches from the Fhir store, with error message and
+     *       stacktrace.
+     * </ul>
+     */
+    class SearchResourcesJsonString
+        extends PTransform<PCollection<FhirSearchParameter<T>>, FhirIO.Search.Result> {
+
+      private final ValueProvider<String> fhirStore;
+
+      public SearchResourcesJsonString(ValueProvider<String> fhirStore) {
+        this.fhirStore = fhirStore;
+      }
+
+      @Override
+      public FhirIO.Search.Result expand(PCollection<FhirSearchParameter<T>> resourceIds) {
+        return new FhirIO.Search.Result(
+            resourceIds.apply(
+                ParDo.of(new SearchResourcesFn(this.fhirStore))
+                    .withOutputTags(
+                        FhirIO.Search.OUT, TupleTagList.of(FhirIO.Search.DEAD_LETTER))));
+      }
+
+      /** DoFn for searching messages from the Fhir store with error handling. */
+      class SearchResourcesFn extends DoFn<FhirSearchParameter<T>, KV<String, JsonArray>> {
+
+        private final Counter searchResourceErrors =
+            Metrics.counter(
+                SearchResourcesFn.class, BASE_METRIC_PREFIX + "search_resource_error_count");
+        private final Counter searchResourceSuccess =
+            Metrics.counter(
+                SearchResourcesFn.class, BASE_METRIC_PREFIX + "search_resource_success_count");
+        private final Distribution searchResourceLatencyMs =
+            Metrics.distribution(
+                SearchResourcesFn.class, BASE_METRIC_PREFIX + "search_resource_latency_ms");
+
+        private final Logger log = LoggerFactory.getLogger(SearchResourcesFn.class);
+        private HealthcareApiClient client;
+        private final ValueProvider<String> fhirStore;
+
+        /** Instantiates a new Fhir resources search fn. */
+        SearchResourcesFn(ValueProvider<String> fhirStore) {
+          this.fhirStore = fhirStore;
+        }
+
+        /**
+         * Instantiate healthcare client.
+         *
+         * @throws IOException the io exception
+         */
+        @Setup
+        public void instantiateHealthcareClient() throws IOException {
+          this.client = new HttpHealthcareApiClient();
+        }
+
+        /**
+         * Process element.
+         *
+         * @param context the context
+         */
+        @ProcessElement
+        public void processElement(ProcessContext context) {
+          FhirSearchParameter<T> fhirSearchParameters = context.element();
+          try {
+            context.output(
+                KV.of(
+                    fhirSearchParameters.getKey(),
+                    searchResources(
+                        this.client,
+                        this.fhirStore.toString(),
+                        fhirSearchParameters.getResourceType(),
+                        fhirSearchParameters.getQueries())));
+          } catch (IllegalArgumentException | NoSuchElementException e) {
+            searchResourceErrors.inc();
+            log.warn(
+                String.format(
+                    "Error search FHIR messages writing to Dead Letter "
+                        + "Queue. Cause: %s Stack Trace: %s",
+                    e.getMessage(), Throwables.getStackTraceAsString(e)));
+            context.output(
+                FhirIO.Search.DEAD_LETTER, HealthcareIOError.of(this.fhirStore.toString(), e));
+          }
+        }
+
+        private JsonArray searchResources(
+            HealthcareApiClient client,
+            String fhirStore,
+            String resourceType,
+            @Nullable Map<String, T> parameters)
+            throws NoSuchElementException {
+          long start = Instant.now().toEpochMilli();
+
+          HashMap<String, Object> parameterObjects = new HashMap<>();
+          if (parameters != null) {
+            parameters.forEach(parameterObjects::put);
+          }
+          HttpHealthcareApiClient.FhirResourcePages.FhirResourcePagesIterator iter =
+              new HttpHealthcareApiClient.FhirResourcePages.FhirResourcePagesIterator(
+                  client, fhirStore, resourceType, parameterObjects);
+          JsonArray result = new JsonArray();
+          while (iter.hasNext()) {
+            result.addAll(iter.next());
+          }
+          searchResourceLatencyMs.update(java.time.Instant.now().toEpochMilli() - start);
+          searchResourceSuccess.inc();
+          return result;
+        }
       }
     }
   }

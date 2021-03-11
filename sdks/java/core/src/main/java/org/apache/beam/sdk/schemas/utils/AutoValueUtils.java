@@ -69,6 +69,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Utilities for managing AutoValue schemas. */
 @Experimental(Kind.SCHEMAS)
+@SuppressWarnings({
+  "nullness", // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "rawtypes"
+})
 public class AutoValueUtils {
   public static Class getBaseAutoValueClass(Class<?> clazz) {
     int lastDot = clazz.getName().lastIndexOf('.');
@@ -139,11 +143,15 @@ public class AutoValueUtils {
                 Collectors.toMap(
                     f -> ReflectUtils.stripGetterPrefix(f.getMethod().getName()),
                     Function.identity()));
-    for (FieldValueTypeInformation type : getterTypes) {
-      if (typeMap.get(type.getName()) == null) {
+
+    // Verify that constructor parameters match (name and type) the inferred schema.
+    for (Parameter parameter : constructor.getParameters()) {
+      FieldValueTypeInformation type = typeMap.getOrDefault(parameter.getName(), null);
+      if (type == null || type.getRawType() != parameter.getType()) {
         return false;
       }
     }
+
     return true;
   }
 

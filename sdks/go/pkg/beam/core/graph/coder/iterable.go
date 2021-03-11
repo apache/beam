@@ -24,6 +24,42 @@ import (
 
 // TODO(lostluck): 2020.06.29 export these for use for others?
 
+// EncoderForSlice returns an encoding function that encodes a struct type
+// or a pointer to a struct type using the beam row encoding.
+//
+// Returns an error if the given type is invalid or not encodable to a beam
+// schema row.
+func EncoderForSlice(rt reflect.Type) (func(interface{}, io.Writer) error, error) {
+	var bld RowEncoderBuilder
+	eEnc, err := bld.encoderForSingleTypeReflect(rt.Elem())
+	if err != nil {
+		return nil, err
+	}
+	enc := iterableEncoder(rt, eEnc)
+	return func(v interface{}, w io.Writer) error {
+		return enc(reflect.ValueOf(v), w)
+	}, nil
+}
+
+// DecoderForSlice returns a decoding function that decodes the beam row encoding
+// into the given type.
+//
+// Returns an error if the given type is invalid or not decodable from a beam
+// schema row.
+func DecoderForSlice(rt reflect.Type) (func(io.Reader) (interface{}, error), error) {
+	var bld RowDecoderBuilder
+	eDec, err := bld.decoderForSingleTypeReflect(rt.Elem())
+	if err != nil {
+		return nil, err
+	}
+	dec := iterableDecoderForSlice(rt, eDec)
+	return func(r io.Reader) (interface{}, error) {
+		rv := reflect.New(rt)
+		err := dec(rv.Elem(), r)
+		return rv.Elem().Interface(), err
+	}, nil
+}
+
 // iterableEncoder reflectively encodes a slice or array type using
 // the beam fixed length iterable encoding.
 func iterableEncoder(rt reflect.Type, encode func(reflect.Value, io.Writer) error) func(reflect.Value, io.Writer) error {

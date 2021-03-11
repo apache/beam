@@ -75,6 +75,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  * Injector <project-name> none <filename>
  * }</pre>
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class Injector {
   private static Pubsub pubsub;
   private static Random random = new Random();

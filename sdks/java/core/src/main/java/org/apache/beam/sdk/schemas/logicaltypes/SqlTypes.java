@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.schemas.logicaltypes;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -36,4 +37,7 @@ public class SqlTypes {
 
   /** Beam LogicalType corresponding to ZetaSQL DATETIME type. */
   public static final LogicalType<LocalDateTime, Row> DATETIME = new DateTime();
+
+  /** Beam LogicalType corresponding to ZetaSQL TIMESTAMP type. */
+  public static final LogicalType<Instant, Row> TIMESTAMP = new MicrosInstant();
 }

@@ -21,18 +21,26 @@ import com.google.zetasql.resolvedast.ResolvedNode;
 import com.google.zetasql.resolvedast.ResolvedNodes;
 import java.util.Collections;
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.zetasql.unnest.ZetaSqlUnnest;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.CorrelationId;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.JoinRelType;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Uncollect;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.LogicalCorrelate;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.LogicalProject;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexBuilder;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexInputRef;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.ImmutableBitSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
-/** Converts array scan that represents a reference to array column literal to uncollect. */
+/**
+ * Converts array scan that represents a reference to an array column, or an (possibly nested) array
+ * field of an struct column to uncollect.
+ */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class ArrayScanColumnRefToUncollect extends RelConverter<ResolvedNodes.ResolvedArrayScan> {
   ArrayScanColumnRefToUncollect(ConversionContext context) {
     super(context);
@@ -41,7 +49,7 @@ class ArrayScanColumnRefToUncollect extends RelConverter<ResolvedNodes.ResolvedA
   @Override
   public boolean canConvert(ResolvedNodes.ResolvedArrayScan zetaNode) {
     return zetaNode.getInputScan() != null
-        && zetaNode.getArrayExpr() instanceof ResolvedNodes.ResolvedColumnRef
+        && getColumnRef(zetaNode.getArrayExpr()) != null
         && zetaNode.getJoinExpr() == null;
   }
 
@@ -58,29 +66,34 @@ class ArrayScanColumnRefToUncollect extends RelConverter<ResolvedNodes.ResolvedA
         (RexInputRef)
             getExpressionConverter()
                 .convertRexNodeFromResolvedExpr(
-                    zetaNode.getArrayExpr(),
+                    getColumnRef(zetaNode.getArrayExpr()),
                     zetaNode.getInputScan().getColumnList(),
                     input.getRowType().getFieldList(),
                     ImmutableMap.of());
+
+    CorrelationId correlationId = new CorrelationId(0);
+    RexNode convertedColumnRef =
+        getCluster()
+            .getRexBuilder()
+            .makeFieldAccess(
+                getCluster().getRexBuilder().makeCorrel(input.getRowType(), correlationId),
+                columnRef.getIndex());
 
     String fieldName =
         String.format(
             "%s%s",
             zetaNode.getElementColumn().getTableName(), zetaNode.getElementColumn().getName());
-    CorrelationId correlationId = new CorrelationId(0);
+
     RelNode projectNode =
         LogicalProject.create(
             createOneRow(getCluster()),
             Collections.singletonList(
-                getCluster()
-                    .getRexBuilder()
-                    .makeFieldAccess(
-                        getCluster().getRexBuilder().makeCorrel(input.getRowType(), correlationId),
-                        columnRef.getIndex())),
+                convertArrayExpr(
+                    zetaNode.getArrayExpr(), getCluster().getRexBuilder(), convertedColumnRef)),
             ImmutableList.of(fieldName));
 
     boolean ordinality = (zetaNode.getArrayOffsetColumn() != null);
-    RelNode uncollect = Uncollect.create(projectNode.getTraitSet(), projectNode, ordinality);
+    RelNode uncollect = ZetaSqlUnnest.create(projectNode.getTraitSet(), projectNode, ordinality);
 
     return LogicalCorrelate.create(
         input,
@@ -88,5 +101,26 @@ class ArrayScanColumnRefToUncollect extends RelConverter<ResolvedNodes.ResolvedA
         correlationId,
         ImmutableBitSet.of(columnRef.getIndex()),
         JoinRelType.INNER);
+  }
+
+  private static ResolvedNodes.ResolvedColumnRef getColumnRef(ResolvedNode arrayExpr) {
+    while (arrayExpr instanceof ResolvedNodes.ResolvedGetStructField) {
+      arrayExpr = ((ResolvedNodes.ResolvedGetStructField) arrayExpr).getExpr();
+    }
+    return arrayExpr instanceof ResolvedNodes.ResolvedColumnRef
+        ? (ResolvedNodes.ResolvedColumnRef) arrayExpr
+        : null;
+  }
+
+  private static RexNode convertArrayExpr(
+      ResolvedNodes.ResolvedExpr expr, RexBuilder builder, RexNode convertedColumnRef) {
+    if (expr instanceof ResolvedNodes.ResolvedColumnRef) {
+      return convertedColumnRef;
+    }
+    ResolvedNodes.ResolvedGetStructField getStructField =
+        (ResolvedNodes.ResolvedGetStructField) expr;
+    return builder.makeFieldAccess(
+        convertArrayExpr(getStructField.getExpr(), builder, convertedColumnRef),
+        (int) getStructField.getFieldIdx());
   }
 }

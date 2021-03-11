@@ -18,7 +18,6 @@
 plugins { id 'org.apache.beam.module' }
 
 applyJavaNature(
-  ignoreRawtypeErrors: true,
   automaticModuleName: 'org.apache.beam.sdks.extensions.sql.expansion',
   validateShadowJar: false,
   shadowClosure: {
@@ -33,9 +32,12 @@ ext.summary = """Contains code to run a SQL Expansion Service."""
 
 
 dependencies {
+  compile project(path: ":sdks:java:core", configuration: "shadow")
+  compile project(path: ":sdks:java:expansion-service")
+  permitUnusedDeclared project(path: ":sdks:java:expansion-service") // BEAM-11761
   compile project(path: ":sdks:java:extensions:sql")
   compile project(path: ":sdks:java:extensions:sql:zetasql")
-  compile project(path: ":sdks:java:expansion-service")
+  compile library.java.vendored_guava_26_0_jre
 }
 
 task runExpansionService (type: JavaExec) {

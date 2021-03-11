@@ -33,6 +33,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  *   ELSE expression
  *   END</pre></code>
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class SqlNullIfOperatorRewriter implements SqlOperatorRewriter {
   @Override
   public RexNode apply(RexBuilder rexBuilder, List<RexNode> operands) {

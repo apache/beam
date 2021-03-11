@@ -35,6 +35,7 @@ import threading
 import time
 import traceback
 from builtins import object
+from itertools import islice
 
 from apache_beam.internal.http_client import get_new_http
 from apache_beam.io.filesystemio import Downloader
@@ -257,26 +258,32 @@ class GcsIO(object):
     """
     if not paths:
       return []
-    batch_request = BatchApiRequest(
-        batch_url=GCS_BATCH_ENDPOINT,
-        retryable_codes=retry.SERVER_ERROR_OR_TIMEOUT_CODES,
-        response_encoding='utf-8')
-    for path in paths:
-      bucket, object_path = parse_gcs_path(path)
-      request = storage.StorageObjectsDeleteRequest(
-          bucket=bucket, object=object_path)
-      batch_request.Add(self.client.objects, 'Delete', request)
-    api_calls = batch_request.Execute(self.client._http)  # pylint: disable=protected-access
+
+    paths = iter(paths)
     result_statuses = []
-    for i, api_call in enumerate(api_calls):
-      path = paths[i]
-      exception = None
-      if api_call.is_error:
-        exception = api_call.exception
-        # Return success when the file doesn't exist anymore for idempotency.
-        if isinstance(exception, HttpError) and exception.status_code == 404:
-          exception = None
-      result_statuses.append((path, exception))
+    while True:
+      paths_chunk = list(islice(paths, MAX_BATCH_OPERATION_SIZE))
+      if not paths_chunk:
+        return result_statuses
+      batch_request = BatchApiRequest(
+          batch_url=GCS_BATCH_ENDPOINT,
+          retryable_codes=retry.SERVER_ERROR_OR_TIMEOUT_CODES,
+          response_encoding='utf-8')
+      for path in paths_chunk:
+        bucket, object_path = parse_gcs_path(path)
+        request = storage.StorageObjectsDeleteRequest(
+            bucket=bucket, object=object_path)
+        batch_request.Add(self.client.objects, 'Delete', request)
+      api_calls = batch_request.Execute(self.client._http)  # pylint: disable=protected-access
+      for i, api_call in enumerate(api_calls):
+        path = paths_chunk[i]
+        exception = None
+        if api_call.is_error:
+          exception = api_call.exception
+          # Return success when the file doesn't exist anymore for idempotency.
+          if isinstance(exception, HttpError) and exception.status_code == 404:
+            exception = None
+        result_statuses.append((path, exception))
     return result_statuses
 
   @retry.with_exponential_backoff(

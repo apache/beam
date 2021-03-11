@@ -57,8 +57,11 @@ import org.slf4j.LoggerFactory;
  * An implementation of {@link BigtableService} that actually communicates with the Cloud Bigtable
  * service.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 class BigtableServiceImpl implements BigtableService {
-  private static final Logger LOG = LoggerFactory.getLogger(BigtableService.class);
+  private static final Logger LOG = LoggerFactory.getLogger(BigtableServiceImpl.class);
 
   public BigtableServiceImpl(BigtableOptions options) {
     this.options = options;

@@ -20,6 +20,7 @@ package org.apache.beam.sdk.metrics;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
@@ -54,6 +55,9 @@ public class MetricsEnvironment {
   private static final ThreadLocal<@Nullable MetricsContainer> CONTAINER_FOR_THREAD =
       new ThreadLocal<>();
 
+  private static final AtomicReference<@Nullable MetricsContainer> PROCESS_WIDE_METRICS_CONTAINER =
+      new AtomicReference<>();
+
   /**
    * Set the {@link MetricsContainer} for the current thread.
    *
@@ -68,6 +72,16 @@ public class MetricsEnvironment {
       CONTAINER_FOR_THREAD.set(container);
     }
     return previous;
+  }
+
+  /**
+   * Set the {@link MetricsContainer} for the current process.
+   *
+   * @return The previous container for the current process.
+   */
+  public static @Nullable MetricsContainer setProcessWideContainer(
+      @Nullable MetricsContainer container) {
+    return PROCESS_WIDE_METRICS_CONTAINER.getAndSet(container);
   }
 
   /** Called by the run to indicate whether metrics reporting is supported. */
@@ -123,5 +137,10 @@ public class MetricsEnvironment {
       }
     }
     return container;
+  }
+
+  /** Return the {@link MetricsContainer} for the current process. */
+  public static @Nullable MetricsContainer getProcessWideContainer() {
+    return PROCESS_WIDE_METRICS_CONTAINER.get();
   }
 }

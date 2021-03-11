@@ -40,6 +40,9 @@ import org.joda.time.Instant;
  * Jet {@link com.hazelcast.jet.core.Processor} implementation for Beam's {@link TestStream}
  * transform.
  */
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class TestStreamP extends AbstractProcessor {
 
   private final Traverser traverser;

@@ -27,13 +27,14 @@ import static org.apache.beam.runners.dataflow.worker.SourceTranslationUtils.clo
 import static org.apache.beam.runners.dataflow.worker.SourceTranslationUtils.cloudProgressToReaderProgress;
 import static org.apache.beam.runners.dataflow.worker.SourceTranslationUtils.splitRequestToApproximateSplitRequest;
 import static org.apache.beam.runners.dataflow.worker.counters.CounterName.named;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.arrayWithSize;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
@@ -482,5 +483,27 @@ public class MapTaskExecutorTest {
       assertThat(e.getSuppressed(), arrayWithSize(1));
       assertThat(e.getSuppressed()[0].getMessage(), equalTo("suppressed in abort"));
     }
+  }
+
+  @Test
+  public void testAbort() throws Exception {
+    // Operation must be an instance of ReadOperation or ReceivingOperation per preconditions
+    // in MapTaskExecutor.
+    ReadOperation o1 = Mockito.mock(ReadOperation.class);
+    ReadOperation o2 = Mockito.mock(ReadOperation.class);
+
+    ExecutionStateTracker stateTracker = ExecutionStateTracker.newForTest();
+    MapTaskExecutor executor =
+        new MapTaskExecutor(Arrays.<Operation>asList(o1, o2), counterSet, stateTracker);
+    Mockito.doAnswer(
+            invocation -> {
+              executor.abort();
+              return null;
+            })
+        .when(o1)
+        .finish();
+    executor.execute();
+    Mockito.verify(o1, atLeastOnce()).abortReadLoop();
+    Mockito.verify(o2, atLeastOnce()).abortReadLoop();
   }
 }

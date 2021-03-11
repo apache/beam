@@ -32,6 +32,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * PValue}.
  */
 @Internal
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public abstract class PValueBase implements PValue {
 
   private final transient @Nullable Pipeline pipeline;
@@ -105,7 +108,12 @@ public abstract class PValueBase implements PValue {
 
   @Override
   public String toString() {
-    return (name == null ? "<unnamed>" : getName()) + " [" + getKindString() + "]";
+    return (name == null ? "<unnamed>" : getName())
+        + " ["
+        + getKindString()
+        + "@"
+        + hashCode()
+        + "]";
   }
 
   /**

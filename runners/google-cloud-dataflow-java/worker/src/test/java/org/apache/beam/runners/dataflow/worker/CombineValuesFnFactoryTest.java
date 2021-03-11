@@ -66,6 +66,9 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link CombineValuesFnFactory}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes" // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class CombineValuesFnFactoryTest {
   /** Example AccumulatingCombineFn. */
   public static class MeanInts extends Combine.AccumulatingCombineFn<Integer, CountSum, String> {

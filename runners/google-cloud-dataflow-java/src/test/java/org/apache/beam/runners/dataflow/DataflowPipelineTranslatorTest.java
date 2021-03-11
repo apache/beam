@@ -19,15 +19,16 @@ package org.apache.beam.runners.dataflow;
 
 import static org.apache.beam.runners.dataflow.util.Structs.getString;
 import static org.apache.beam.sdk.util.StringUtils.jsonStringToByteArray;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.argThat;
@@ -50,6 +51,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ArtifactInformation;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
@@ -57,6 +60,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.DockerPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.runners.core.construction.Environments;
+import org.apache.beam.runners.core.construction.ModelCoders;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
@@ -77,6 +81,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.gcp.util.GcsUtil;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.FileSystems;
@@ -91,6 +96,7 @@ import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -128,7 +134,11 @@ import org.mockito.ArgumentMatcher;
 
 /** Tests for DataflowPipelineTranslator. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class DataflowPipelineTranslatorTest implements Serializable {
+
   @Rule public transient ExpectedException thrown = ExpectedException.none();
 
   private SdkComponents createSdkComponents(PipelineOptions options) {
@@ -146,6 +156,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
   // A Custom Mockito matcher for an initial Job that checks that all
   // expected fields are set.
   private static class IsValidCreateRequest implements ArgumentMatcher<Job> {
+
     @Override
     public boolean matches(Job o) {
       Job job = (Job) o;
@@ -346,6 +357,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
     DataflowPipelineOptions options = buildPipelineOptions();
     options.setAutoscalingAlgorithm(noScaling);
+    options.setNumWorkers(42);
 
     Pipeline p = buildPipeline(options);
     p.traverseTopologically(new RecordingPipelineVisitor());
@@ -365,6 +377,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     assertEquals(
         "AUTOSCALING_ALGORITHM_NONE",
         job.getEnvironment().getWorkerPools().get(0).getAutoscalingSettings().getAlgorithm());
+    assertEquals(42, job.getEnvironment().getWorkerPools().get(0).getNumWorkers().intValue());
     assertEquals(
         0,
         job.getEnvironment()
@@ -407,6 +420,29 @@ public class DataflowPipelineTranslatorTest implements Serializable {
             .getAutoscalingSettings()
             .getMaxNumWorkers()
             .intValue());
+  }
+
+  @Test
+  public void testNumWorkersCannotExceedMaxNumWorkers() throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.setNumWorkers(43);
+    options.setMaxNumWorkers(42);
+
+    Pipeline p = buildPipeline(options);
+    p.traverseTopologically(new RecordingPipelineVisitor());
+    SdkComponents sdkComponents = createSdkComponents(options);
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p, sdkComponents, true);
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("numWorkers (43) cannot exceed maxNumWorkers (42).");
+    DataflowPipelineTranslator.fromOptions(options)
+        .translate(
+            p,
+            pipelineProto,
+            sdkComponents,
+            DataflowRunner.fromOptions(options),
+            Collections.emptyList())
+        .getJob();
   }
 
   @Test
@@ -593,6 +629,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
   }
 
   private static class TestValueProvider implements ValueProvider<String>, Serializable {
+
     @Override
     public boolean isAccessible() {
       return false;
@@ -1114,6 +1151,149 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     assertEquals("CollectionToSingleton", collectionToSingletonStep.getKind());
   }
 
+  private JobSpecification runStreamingGroupIntoBatchesAndGetJobSpec(
+      Boolean withShardedKey, List<String> experiments) throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.setExperiments(experiments);
+    options.setStreaming(true);
+    DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
+
+    Pipeline pipeline = Pipeline.create(options);
+    PCollection<KV<Integer, String>> input =
+        pipeline.apply(Create.of(Arrays.asList(KV.of(1, "1"), KV.of(2, "2"), KV.of(3, "3"))));
+    if (withShardedKey) {
+      input.apply(GroupIntoBatches.<Integer, String>ofSize(3).withShardedKey());
+    } else {
+      input.apply(GroupIntoBatches.ofSize(3));
+    }
+
+    DataflowRunner runner = DataflowRunner.fromOptions(options);
+    runner.replaceTransforms(pipeline);
+    SdkComponents sdkComponents = createSdkComponents(options);
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents, true);
+    return translator.translate(
+        pipeline, pipelineProto, sdkComponents, runner, Collections.emptyList());
+  }
+
+  @Test
+  public void testStreamingGroupIntoBatchesTranslation() throws Exception {
+    List<String> experiments =
+        new ArrayList<>(
+            ImmutableList.of(
+                GcpOptions.STREAMING_ENGINE_EXPERIMENT, GcpOptions.WINDMILL_SERVICE_EXPERIMENT));
+    JobSpecification jobSpec = runStreamingGroupIntoBatchesAndGetJobSpec(false, experiments);
+    List<Step> steps = jobSpec.getJob().getSteps();
+    Step shardedStateStep = steps.get(steps.size() - 1);
+    Map<String, Object> properties = shardedStateStep.getProperties();
+    assertTrue(properties.containsKey(PropertyNames.USES_KEYED_STATE));
+    assertEquals("true", getString(properties, PropertyNames.USES_KEYED_STATE));
+    assertFalse(properties.containsKey(PropertyNames.ALLOWS_SHARDABLE_STATE));
+    assertFalse(properties.containsKey(PropertyNames.PRESERVES_KEYS));
+  }
+
+  @Test
+  public void testStreamingGroupIntoBatchesWithShardedKeyTranslation() throws Exception {
+    List<String> experiments =
+        new ArrayList<>(
+            ImmutableList.of(
+                GcpOptions.STREAMING_ENGINE_EXPERIMENT, GcpOptions.WINDMILL_SERVICE_EXPERIMENT));
+    JobSpecification jobSpec = runStreamingGroupIntoBatchesAndGetJobSpec(true, experiments);
+    List<Step> steps = jobSpec.getJob().getSteps();
+    Step shardedStateStep = steps.get(steps.size() - 1);
+    Map<String, Object> properties = shardedStateStep.getProperties();
+    assertTrue(properties.containsKey(PropertyNames.USES_KEYED_STATE));
+    assertEquals("true", getString(properties, PropertyNames.USES_KEYED_STATE));
+    assertTrue(properties.containsKey(PropertyNames.ALLOWS_SHARDABLE_STATE));
+    assertEquals("true", getString(properties, PropertyNames.ALLOWS_SHARDABLE_STATE));
+    assertTrue(properties.containsKey(PropertyNames.PRESERVES_KEYS));
+    assertEquals("true", getString(properties, PropertyNames.PRESERVES_KEYS));
+  }
+
+  @Test
+  public void testStreamingGroupIntoBatchesTranslationUnifiedWorker() throws Exception {
+    List<String> experiments =
+        new ArrayList<>(
+            ImmutableList.of(
+                GcpOptions.STREAMING_ENGINE_EXPERIMENT,
+                GcpOptions.WINDMILL_SERVICE_EXPERIMENT,
+                "use_runner_v2"));
+    JobSpecification jobSpec = runStreamingGroupIntoBatchesAndGetJobSpec(false, experiments);
+    List<Step> steps = jobSpec.getJob().getSteps();
+    Step shardedStateStep = steps.get(steps.size() - 1);
+    Map<String, Object> properties = shardedStateStep.getProperties();
+    assertTrue(properties.containsKey(PropertyNames.USES_KEYED_STATE));
+    assertFalse(properties.containsKey(PropertyNames.ALLOWS_SHARDABLE_STATE));
+    assertFalse(properties.containsKey(PropertyNames.PRESERVES_KEYS));
+
+    // Also checks runner proto is correctly populated.
+    Map<String, RunnerApi.PTransform> transformMap =
+        jobSpec.getPipelineProto().getComponents().getTransformsMap();
+    boolean transformFound = false;
+    for (Map.Entry<String, RunnerApi.PTransform> transform : transformMap.entrySet()) {
+      RunnerApi.FunctionSpec spec = transform.getValue().getSpec();
+      if (spec.getUrn().equals(PTransformTranslation.GROUP_INTO_BATCHES_URN)) {
+        transformFound = true;
+      }
+    }
+    assertTrue(transformFound);
+  }
+
+  @Test
+  public void testGroupIntoBatchesWithShardedKeyTranslationUnifiedWorker() throws Exception {
+    List<String> experiments =
+        new ArrayList<>(
+            ImmutableList.of(
+                GcpOptions.STREAMING_ENGINE_EXPERIMENT,
+                GcpOptions.WINDMILL_SERVICE_EXPERIMENT,
+                "use_runner_v2"));
+    JobSpecification jobSpec = runStreamingGroupIntoBatchesAndGetJobSpec(true, experiments);
+    List<Step> steps = jobSpec.getJob().getSteps();
+    Step shardedStateStep = steps.get(steps.size() - 1);
+    Map<String, Object> properties = shardedStateStep.getProperties();
+    assertTrue(properties.containsKey(PropertyNames.USES_KEYED_STATE));
+    assertTrue(properties.containsKey(PropertyNames.ALLOWS_SHARDABLE_STATE));
+    assertEquals("true", getString(properties, PropertyNames.ALLOWS_SHARDABLE_STATE));
+    assertTrue(properties.containsKey(PropertyNames.PRESERVES_KEYS));
+    assertEquals("true", getString(properties, PropertyNames.PRESERVES_KEYS));
+
+    // Also checks the runner proto is correctly populated.
+    Map<String, RunnerApi.PTransform> transformMap =
+        jobSpec.getPipelineProto().getComponents().getTransformsMap();
+    boolean transformFound = false;
+    for (Map.Entry<String, RunnerApi.PTransform> transform : transformMap.entrySet()) {
+      RunnerApi.FunctionSpec spec = transform.getValue().getSpec();
+      if (spec.getUrn().equals(PTransformTranslation.GROUP_INTO_BATCHES_WITH_SHARDED_KEY_URN)) {
+        for (String subtransform : transform.getValue().getSubtransformsList()) {
+          RunnerApi.PTransform ptransform = transformMap.get(subtransform);
+          if (ptransform.getSpec().getUrn().equals(PTransformTranslation.GROUP_INTO_BATCHES_URN)) {
+            transformFound = true;
+          }
+        }
+      }
+    }
+    assertTrue(transformFound);
+
+    boolean coderFound = false;
+    Map<String, RunnerApi.Coder> coderMap =
+        jobSpec.getPipelineProto().getComponents().getCodersMap();
+    for (Map.Entry<String, RunnerApi.Coder> coder : coderMap.entrySet()) {
+      if (coder.getValue().getSpec().getUrn().equals(ModelCoders.SHARDED_KEY_CODER_URN)) {
+        coderFound = true;
+      }
+    }
+    assertTrue(coderFound);
+  }
+
+  @Test
+  public void testGroupIntoBatchesWithShardedKeyNotSupported() throws IOException {
+    // Not using streaming engine.
+    List<String> experiments = new ArrayList<>(ImmutableList.of("use_runner_v2"));
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(
+        "Runner determined sharding not available in Dataflow for GroupIntoBatches for non-Streaming-Engine jobs");
+    runStreamingGroupIntoBatchesAndGetJobSpec(true, experiments);
+  }
+
   @Test
   public void testStepDisplayData() throws Exception {
     DataflowPipelineOptions options = buildPipelineOptions();
@@ -1259,6 +1439,31 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     assertEquals(DataflowRunner.getContainerImageForJob(options), payload.getContainerImage());
   }
 
+  @Test
+  public void testServiceOptionsSet() throws IOException {
+    final List<String> serviceOptions =
+        Stream.of("whizz=bang", "foo=bar").collect(Collectors.toList());
+
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.setServiceOptions(serviceOptions);
+
+    Pipeline p = buildPipeline(options);
+    p.traverseTopologically(new RecordingPipelineVisitor());
+    SdkComponents sdkComponents = createSdkComponents(options);
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p, sdkComponents, true);
+    Job job =
+        DataflowPipelineTranslator.fromOptions(options)
+            .translate(
+                p,
+                pipelineProto,
+                sdkComponents,
+                DataflowRunner.fromOptions(options),
+                Collections.emptyList())
+            .getJob();
+
+    assertEquals(serviceOptions, job.getEnvironment().getServiceOptions());
+  }
+
   private static void assertAllStepOutputsHaveUniqueIds(Job job) throws Exception {
     List<String> outputIds = new ArrayList<>();
     for (Step step : job.getSteps()) {
@@ -1276,6 +1481,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
   }
 
   private static class TestSplittableFn extends DoFn<String, Integer> {
+
     @ProcessElement
     public void process(ProcessContext c, RestrictionTracker<OffsetRange, Long> tracker) {
       // noop

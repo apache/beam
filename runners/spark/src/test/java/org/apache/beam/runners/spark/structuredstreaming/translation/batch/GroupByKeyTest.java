@@ -18,7 +18,7 @@
 package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
 import static org.apache.beam.sdk.testing.SerializableMatchers.containsInAnyOrder;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.io.Serializable;
 import java.util.ArrayList;

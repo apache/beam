@@ -17,11 +17,13 @@
  */
 package org.apache.beam.runners.flink.streaming;
 
+import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamSource;
+import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.OperatorChain;
@@ -29,6 +31,17 @@ import org.apache.flink.streaming.runtime.tasks.StreamTask;
 
 /** {@link StreamSource} utilities, that bridge incompatibilities between Flink releases. */
 public class StreamSources {
+
+  /**
+   * Backward compatibility helper for {@link OneInputTransformation} `getInput` method, that has
+   * been removed in Flink 1.12.
+   *
+   * @param source Source to get single input from.
+   * @return Input transformation.
+   */
+  public static Transformation<?> getOnlyInput(OneInputTransformation<?, ?> source) {
+    return source.getInput();
+  }
 
   public static <OutT, SrcT extends SourceFunction<OutT>> void run(
       StreamSource<OutT, SrcT> streamSource,

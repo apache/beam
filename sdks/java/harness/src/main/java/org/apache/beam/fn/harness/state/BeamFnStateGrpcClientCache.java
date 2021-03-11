@@ -23,7 +23,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.Function;
-import org.apache.beam.fn.harness.data.BeamFnDataGrpcClient;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnStateGrpc;
@@ -41,8 +40,11 @@ import org.slf4j.LoggerFactory;
  *
  * <p>TODO: Add the ability to close which cancels any pending and stops any future requests.
  */
+@SuppressWarnings({
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+})
 public class BeamFnStateGrpcClientCache {
-  private static final Logger LOG = LoggerFactory.getLogger(BeamFnDataGrpcClient.class);
+  private static final Logger LOG = LoggerFactory.getLogger(BeamFnStateGrpcClientCache.class);
 
   private final ConcurrentMap<ApiServiceDescriptor, BeamFnStateClient> cache;
   private final Function<ApiServiceDescriptor, ManagedChannel> channelFactory;

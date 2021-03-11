@@ -31,6 +31,9 @@ import org.junit.runners.JUnit4;
 
 /** {@link SingleValueCollector} unit tests. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class SingleValueCollectorTest {
 
   private static final String TEST_COUNTER_NAME = "test-counter";

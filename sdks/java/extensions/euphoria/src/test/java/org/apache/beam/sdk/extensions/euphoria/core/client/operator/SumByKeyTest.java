@@ -37,6 +37,9 @@ import org.junit.runners.JUnit4;
 
 /** Test behavior of operator {@code SumByKey}. */
 @RunWith(JUnit4.class)
+@SuppressWarnings({
+  "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+})
 public class SumByKeyTest {
 
   @Test
