@@ -494,10 +494,7 @@ class DataflowRunner(PipelineRunner):
       if pre_optimize == 'none' or pre_optimize == 'default':
         phases = []
       elif pre_optimize == 'all':
-        phases = [
-            translations.pack_combiners,
-            translations.sort_stages
-        ]
+        phases = [translations.pack_combiners, translations.sort_stages]
       else:
         phases = []
         for phase_name in pre_optimize.split(','):
