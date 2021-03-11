@@ -72,7 +72,6 @@ import org.junit.runners.Parameterized.Parameters;
 @RunWith(Parameterized.class)
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class PipelineTranslationTest {
   @Parameter(0)

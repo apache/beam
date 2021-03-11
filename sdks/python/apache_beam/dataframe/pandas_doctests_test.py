@@ -14,8 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import absolute_import
-
 import sys
 import unittest
 
@@ -39,6 +37,10 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.frame.DataFrame.cumsum': ['*'],
             'pandas.core.frame.DataFrame.cumprod': ['*'],
             'pandas.core.frame.DataFrame.diff': ['*'],
+            'pandas.core.frame.DataFrame.fillna': [
+                "df.fillna(method='ffill')",
+                'df.fillna(value=values, limit=1)',
+            ],
             'pandas.core.frame.DataFrame.items': ['*'],
             'pandas.core.frame.DataFrame.itertuples': ['*'],
             'pandas.core.frame.DataFrame.iterrows': ['*'],
@@ -55,6 +57,11 @@ class DoctestTest(unittest.TestCase):
                 "df.nsmallest(3, 'population', keep='last')",
             ],
             'pandas.core.frame.DataFrame.nunique': ['*'],
+            'pandas.core.frame.DataFrame.replace': [
+                "s.replace([1, 2], method='bfill')",
+                # Relies on method='pad'
+                "s.replace('a', None)",
+            ],
             'pandas.core.frame.DataFrame.to_records': ['*'],
             'pandas.core.frame.DataFrame.to_dict': ['*'],
             'pandas.core.frame.DataFrame.to_numpy': ['*'],
@@ -87,6 +94,10 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.frame.DataFrame.count': ['*'],
             'pandas.core.frame.DataFrame.reindex': ['*'],
             'pandas.core.frame.DataFrame.reindex_axis': ['*'],
+
+            'pandas.core.frame.DataFrame.round': [
+                'df.round(decimals)',
+            ],
 
             # We should be able to support pivot and pivot_table for categorical
             # columns
@@ -238,6 +249,10 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.dot': [
                 's.dot(arr)',  # non-deferred result
             ],
+            'pandas.core.series.Series.fillna': [
+                "df.fillna(method='ffill')",
+                'df.fillna(value=values, limit=1)',
+            ],
             'pandas.core.series.Series.items': ['*'],
             'pandas.core.series.Series.iteritems': ['*'],
             # default keep is 'first'
@@ -324,31 +339,59 @@ class DoctestTest(unittest.TestCase):
     self.assertEqual(result.failed, 0)
 
   def test_string_tests(self):
+    PD_VERSION = tuple(int(v) for v in pd.__version__.split('.'))
+    if PD_VERSION < (1, 2, 0):
+      module = pd.core.strings
+    else:
+      # Definitions were moved to accessor in pandas 1.2.0
+      module = pd.core.strings.accessor
+
+    module_name = module.__name__
+
     result = doctests.testmod(
-        pd.core.strings,
+        module,
         use_beam=False,
         wont_implement_ok={
             # These methods can accept deferred series objects, but not lists
-            'pandas.core.strings.StringMethods.cat': [
+            f'{module_name}.StringMethods.cat': [
                 "s.str.cat(['A', 'B', 'C', 'D'], sep=',')",
                 "s.str.cat(['A', 'B', 'C', 'D'], sep=',', na_rep='-')",
                 "s.str.cat(['A', 'B', 'C', 'D'], na_rep='-')"
             ],
-            'pandas.core.strings.StringMethods.repeat': [
+            f'{module_name}.StringMethods.repeat': [
                 's.str.repeat(repeats=[1, 2, 3])'
             ],
-            'pandas.core.strings.str_repeat': [
-                's.str.repeat(repeats=[1, 2, 3])'
-            ],
+            f'{module_name}.str_repeat': ['s.str.repeat(repeats=[1, 2, 3])'],
+            f'{module_name}.StringMethods.get_dummies': ['*'],
+            f'{module_name}.str_get_dummies': ['*'],
         },
         skip={
-            # Bad test strings
-            'pandas.core.strings.str_replace': [
+            # count() on Series with a NaN produces mismatched type if we
+            # have a NaN-only partition.
+            f'{module_name}.StringMethods.count': ["s.str.count('a')"],
+            f'{module_name}.str_count': ["s.str.count('a')"],
+
+            # Produce None instead of NaN, see
+            # frames_test.py::DeferredFrameTest::test_str_split
+            f'{module_name}.StringMethods.rsplit': [
+                's.str.split(expand=True)',
+                's.str.rsplit("/", n=1, expand=True)',
+            ],
+            f'{module_name}.StringMethods.split': [
+                's.str.split(expand=True)',
+                's.str.rsplit("/", n=1, expand=True)',
+            ],
+
+            # Bad test strings in pandas 1.1.x
+            f'{module_name}.str_replace': [
                 "pd.Series(['foo', 'fuz', np.nan]).str.replace('f', repr)"
             ],
-            'pandas.core.strings.StringMethods.replace': [
+            f'{module_name}.StringMethods.replace': [
                 "pd.Series(['foo', 'fuz', np.nan]).str.replace('f', repr)"
             ],
+
+            # output has incorrect formatting in 1.2.x
+            f'{module_name}.StringMethods.extractall': ['*']
         })
     self.assertEqual(result.failed, 0)
 
@@ -408,6 +451,105 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.indexing._LocIndexer': ['*'],
             'pandas.core.indexing._iAtIndexer': ['*'],
             'pandas.core.indexing._iLocIndexer': ['*'],
+        })
+    self.assertEqual(result.failed, 0)
+
+  def test_groupby_tests(self):
+    result = doctests.testmod(
+        pd.core.groupby.groupby,
+        use_beam=False,
+        wont_implement_ok={
+            'pandas.core.groupby.groupby.GroupBy.head': ['*'],
+            'pandas.core.groupby.groupby.GroupBy.tail': ['*'],
+            'pandas.core.groupby.groupby.GroupBy.nth': ['*'],
+            'pandas.core.groupby.groupby.GroupBy.cumcount': ['*'],
+        },
+        not_implemented_ok={
+            'pandas.core.groupby.groupby.GroupBy.describe': ['*'],
+            'pandas.core.groupby.groupby.GroupBy.ngroup': ['*'],
+            'pandas.core.groupby.groupby.GroupBy.resample': ['*'],
+            'pandas.core.groupby.groupby.GroupBy.sample': ['*'],
+            'pandas.core.groupby.groupby.GroupBy.quantile': ['*'],
+            'pandas.core.groupby.groupby.BaseGroupBy.pipe': ['*'],
+            # pipe tests are in a different location in pandas 1.1.x
+            'pandas.core.groupby.groupby._GroupBy.pipe': ['*'],
+            'pandas.core.groupby.groupby.GroupBy.nth': [
+                "df.groupby('A', as_index=False).nth(1)",
+            ],
+        },
+        skip={
+            # Uses iloc to mutate a DataFrame
+            'pandas.core.groupby.groupby.GroupBy.resample': [
+                'df.iloc[2, 0] = 5',
+                'df',
+            ],
+            # TODO: Raise wont implement for list passed as a grouping column
+            # Currently raises unhashable type: list
+            'pandas.core.groupby.groupby.GroupBy.ngroup': [
+                'df.groupby(["A", [1,1,2,3,2,1]]).ngroup()'
+            ],
+        })
+    self.assertEqual(result.failed, 0)
+
+    result = doctests.testmod(
+        pd.core.groupby.generic,
+        use_beam=False,
+        wont_implement_ok={
+            # Returns an array by default, not a Series. WontImplement
+            # (non-deferred)
+            'pandas.core.groupby.generic.SeriesGroupBy.unique': ['*'],
+            # TODO: Is take actually deprecated?
+            'pandas.core.groupby.generic.DataFrameGroupBy.take': ['*'],
+            'pandas.core.groupby.generic.SeriesGroupBy.take': ['*'],
+            'pandas.core.groupby.generic.SeriesGroupBy.nsmallest': [
+                "s.nsmallest(3, keep='last')",
+                "s.nsmallest(3)",
+                "s.nsmallest()",
+            ],
+            'pandas.core.groupby.generic.SeriesGroupBy.nlargest': [
+                "s.nlargest(3, keep='last')",
+                "s.nlargest(3)",
+                "s.nlargest()",
+            ],
+            'pandas.core.groupby.generic.DataFrameGroupBy.diff': ['*'],
+            'pandas.core.groupby.generic.SeriesGroupBy.diff': ['*'],
+            'pandas.core.groupby.generic.DataFrameGroupBy.hist': ['*'],
+            'pandas.core.groupby.generic.DataFrameGroupBy.fillna': [
+                "df.fillna(method='ffill')",
+                'df.fillna(value=values, limit=1)',
+            ],
+            'pandas.core.groupby.generic.SeriesGroupBy.fillna': [
+                "df.fillna(method='ffill')",
+                'df.fillna(value=values, limit=1)',
+            ],
+        },
+        not_implemented_ok={
+            'pandas.core.groupby.generic.DataFrameGroupBy.transform': ['*'],
+            'pandas.core.groupby.generic.DataFrameGroupBy.idxmax': ['*'],
+            'pandas.core.groupby.generic.DataFrameGroupBy.idxmin': ['*'],
+            'pandas.core.groupby.generic.DataFrameGroupBy.filter': ['*'],
+            'pandas.core.groupby.generic.DataFrameGroupBy.nunique': ['*'],
+            'pandas.core.groupby.generic.SeriesGroupBy.transform': ['*'],
+            'pandas.core.groupby.generic.SeriesGroupBy.idxmax': ['*'],
+            'pandas.core.groupby.generic.SeriesGroupBy.idxmin': ['*'],
+            'pandas.core.groupby.generic.SeriesGroupBy.filter': ['*'],
+            'pandas.core.groupby.generic.SeriesGroupBy.describe': ['*'],
+        },
+        skip={
+            'pandas.core.groupby.generic.SeriesGroupBy.cov': [
+                # Floating point comparison fails
+                's1.cov(s2)',
+            ],
+            'pandas.core.groupby.generic.DataFrameGroupBy.cov': [
+                # Mutates input DataFrame with loc
+                # TODO: Replicate in frames_test.py
+                "df.loc[df.index[:5], 'a'] = np.nan",
+                "df.loc[df.index[5:10], 'b'] = np.nan",
+                "df.cov(min_periods=12)",
+            ],
+            # These examples rely on grouping by a list
+            'pandas.core.groupby.generic.SeriesGroupBy.aggregate': ['*'],
+            'pandas.core.groupby.generic.DataFrameGroupBy.aggregate': ['*'],
         })
     self.assertEqual(result.failed, 0)
 

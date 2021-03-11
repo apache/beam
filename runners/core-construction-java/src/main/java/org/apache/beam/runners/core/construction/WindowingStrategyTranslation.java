@@ -302,7 +302,9 @@ public class WindowingStrategyTranslation implements Serializable {
             .setMergeStatus(
                 windowFn.isNonMerging()
                     ? MergeStatus.Enum.NON_MERGING
-                    : MergeStatus.Enum.NEEDS_MERGE)
+                    : (windowingStrategy.isAlreadyMerged()
+                        ? MergeStatus.Enum.ALREADY_MERGED
+                        : MergeStatus.Enum.NEEDS_MERGE))
             .setOnTimeBehavior(toProto(windowingStrategy.getOnTimeBehavior()))
             .setWindowCoderId(components.registerCoder(windowFn.windowCoder()))
             .setEnvironmentId(environmentId);

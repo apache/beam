@@ -50,9 +50,6 @@ import org.junit.Rule;
 import org.junit.Test;
 
 /** Unit tests for {@link PubsubMessageToRow}. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class PubsubMessageToRowTest implements Serializable {
   private static final SerializerProvider JSON_SERIALIZER_PROVIDER =
       schema -> PayloadSerializers.getSerializer("json", schema, ImmutableMap.of());

@@ -365,6 +365,9 @@ class PTransform(WithTypeHints, HasDisplayData):
     # type: () -> str
     return self.__class__.__name__
 
+  def annotations(self) -> Dict[str, Union[bytes, str, message.Message]]:
+    return {}
+
   def default_type_hints(self):
     fn_type_hints = IOTypeHints.from_callable(self.expand)
     if fn_type_hints is not None:

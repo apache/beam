@@ -18,7 +18,7 @@
 """PTransforms for supporting Jdbc in Python pipelines.
 
   These transforms are currently supported by Beam portable
-  Flink and Spark runners.
+  Flink, Spark, and Dataflow v2 runners.
 
   **Setup**
 

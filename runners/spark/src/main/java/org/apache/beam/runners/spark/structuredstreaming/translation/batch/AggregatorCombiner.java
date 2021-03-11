@@ -238,7 +238,7 @@ class AggregatorCombiner<K, InputT, AccumT, OutputT, W extends BoundedWindow>
       throws Exception {
     WindowFn<InputT, W> windowFn = windowingStrategy.getWindowFn();
 
-    if (windowingStrategy.getWindowFn().isNonMerging()) {
+    if (!windowingStrategy.needsMerge()) {
       // Return an empty map, indicating that every window is not merged.
       return Collections.emptyMap();
     }

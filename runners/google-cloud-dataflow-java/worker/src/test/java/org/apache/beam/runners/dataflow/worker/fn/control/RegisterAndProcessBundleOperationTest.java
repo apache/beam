@@ -99,7 +99,6 @@ import org.mockito.stubbing.Answer;
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
   "FutureReturnValueIgnored",
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class RegisterAndProcessBundleOperationTest {
   private static final BeamFnApi.RegisterRequest REGISTER_REQUEST =

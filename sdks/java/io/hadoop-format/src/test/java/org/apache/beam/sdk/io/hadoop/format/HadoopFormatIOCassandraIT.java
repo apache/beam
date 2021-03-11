@@ -63,9 +63,6 @@ import org.junit.runners.JUnit4;
  * invocation pipeline options.
  */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class HadoopFormatIOCassandraIT implements Serializable {
 
   private static final String CASSANDRA_KEYSPACE = "ycsb";

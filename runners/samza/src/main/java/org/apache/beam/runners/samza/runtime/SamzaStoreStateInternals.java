@@ -32,6 +32,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
 import javax.annotation.Nonnull;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateInternalsFactory;
@@ -73,7 +74,10 @@ import org.apache.samza.serializers.SerdeFactory;
 import org.apache.samza.storage.kv.Entry;
 import org.apache.samza.storage.kv.KeyValueIterator;
 import org.apache.samza.storage.kv.KeyValueStore;
+import org.checkerframework.checker.initialization.qual.Initialized;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 import org.joda.time.Instant;
 
 /** {@link StateInternals} that uses Samza local {@link KeyValueStore} to manage state. */
@@ -620,11 +624,12 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
     }
 
     @Override
-    public @Nullable ReadableState<ValueT> putIfAbsent(KeyT key, ValueT value) {
+    public @Nullable ReadableState<ValueT> computeIfAbsent(
+        KeyT key, Function<? super KeyT, ? extends ValueT> mappingFunction) {
       final ByteArray encodedKey = encodeKey(key);
       final ValueT current = decodeValue(store.get(encodedKey));
       if (current == null) {
-        put(key, value);
+        put(key, mappingFunction.apply(key));
       }
 
       return current == null ? null : ReadableStates.immediate(current);
@@ -637,8 +642,24 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
 
     @Override
     public ReadableState<ValueT> get(KeyT key) {
-      ValueT value = decodeValue(store.get(encodeKey(key)));
-      return ReadableStates.immediate(value);
+      return getOrDefault(key, null);
+    }
+
+    @Override
+    public @UnknownKeyFor @NonNull @Initialized ReadableState<ValueT> getOrDefault(
+        KeyT key, @Nullable ValueT defaultValue) {
+      return new ReadableState<ValueT>() {
+        @Override
+        public @Nullable ValueT read() {
+          ValueT value = decodeValue(store.get(encodeKey(key)));
+          return value != null ? value : defaultValue;
+        }
+
+        @Override
+        public @UnknownKeyFor @NonNull @Initialized ReadableState<ValueT> readLater() {
+          return this;
+        }
+      };
     }
 
     @Override
@@ -684,6 +705,25 @@ public class SamzaStoreStateInternals<K> implements StateInternals {
 
         @Override
         public ReadableState<Iterable<Map.Entry<KeyT, ValueT>>> readLater() {
+          return this;
+        }
+      };
+    }
+
+    @Override
+    public @UnknownKeyFor @NonNull @Initialized ReadableState<
+            @UnknownKeyFor @NonNull @Initialized Boolean>
+        isEmpty() {
+      ReadableState<Iterable<KeyT>> keys = this.keys();
+      return new ReadableState<Boolean>() {
+        @Override
+        public @Nullable Boolean read() {
+          return Iterables.isEmpty(keys.read());
+        }
+
+        @Override
+        public @UnknownKeyFor @NonNull @Initialized ReadableState<Boolean> readLater() {
+          keys.readLater();
           return this;
         }
       };

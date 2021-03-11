@@ -33,9 +33,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class CloudVisionIT {
   @Rule public TestPipeline testPipeline = TestPipeline.create();
   private static final String TEST_IMAGE_URI = "gs://cloud-samples-data/vision/label/setagaya.jpeg";

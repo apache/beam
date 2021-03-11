@@ -28,6 +28,7 @@ import functools
 import itertools
 import logging
 from builtins import object
+from typing import Callable
 from typing import Container
 from typing import DefaultDict
 from typing import Dict
@@ -793,8 +794,8 @@ def _make_pack_name(names):
   return '%s[%s]' % (common_prefix, ', '.join(suffixes))
 
 
-def _eliminate_common_key_with_none(stages, context):
-  # type: (Iterable[Stage], TransformContext) -> Iterable[Stage]
+def _eliminate_common_key_with_none(stages, context, can_pack=lambda s: True):
+  # type: (Iterable[Stage], TransformContext, Callable[[str], bool]) -> Iterable[Stage]
 
   """Runs common subexpression elimination for sibling KeyWithNone stages.
 
@@ -809,7 +810,7 @@ def _eliminate_common_key_with_none(stages, context):
   # elimination, and group eligible KeyWithNone stages by parent and
   # environment.
   def get_stage_key(stage):
-    if len(stage.transforms) == 1:
+    if len(stage.transforms) == 1 and can_pack(stage.name):
       transform = only_transform(stage.transforms)
       if (transform.spec.urn == common_urns.primitives.PAR_DO.urn and
           len(transform.inputs) == 1 and len(transform.outputs) == 1):
@@ -857,8 +858,8 @@ def _eliminate_common_key_with_none(stages, context):
     yield stage
 
 
-def pack_per_key_combiners(stages, context):
-  # type: (Iterable[Stage], TransformContext) -> Iterator[Stage]
+def pack_per_key_combiners(stages, context, can_pack=lambda s: True):
+  # type: (Iterable[Stage], TransformContext, Callable[[str], bool]) -> Iterator[Stage]
 
   """Packs sibling CombinePerKey stages into a single CombinePerKey.
 
@@ -913,9 +914,9 @@ def pack_per_key_combiners(stages, context):
   # Partition stages by whether they are eligible for CombinePerKey packing
   # and group eligible CombinePerKey stages by parent and environment.
   def get_stage_key(stage):
-    if (len(stage.transforms) == 1 and stage.environment is not None and
-        python_urns.PACKED_COMBINE_FN in context.components.environments[
-            stage.environment].capabilities):
+    if (len(stage.transforms) == 1 and can_pack(stage.name) and
+        stage.environment is not None and python_urns.PACKED_COMBINE_FN in
+        context.components.environments[stage.environment].capabilities):
       transform = only_transform(stage.transforms)
       if (transform.spec.urn == common_urns.composites.COMBINE_PER_KEY.urn and
           len(transform.inputs) == 1 and len(transform.outputs) == 1):
@@ -1053,10 +1054,36 @@ def pack_per_key_combiners(stages, context):
     yield unpack_stage
 
 
-def pack_combiners(stages, context):
-  # type: (Iterable[Stage], TransformContext) -> Iterator[Stage]
+def pack_combiners(stages, context, can_pack=None):
+  # type: (Iterable[Stage], TransformContext, Optional[Callable[[str], bool]]) -> Iterator[Stage]
+  if can_pack is None:
+    can_pack_names = {}  # type: Dict[str, bool]
+    parents = context.parents_map()
+
+    def can_pack_fn(name: str) -> bool:
+      if name in can_pack_names:
+        return can_pack_names[name]
+      else:
+        transform = context.components.transforms[name]
+        if python_urns.APPLY_COMBINER_PACKING in transform.annotations:
+          result = True
+        elif name in parents:
+          result = can_pack_fn(parents[name])
+        else:
+          result = False
+        can_pack_names[name] = result
+        return result
+
+    can_pack = can_pack_fn
+
   yield from pack_per_key_combiners(
-      _eliminate_common_key_with_none(stages, context), context)
+      _eliminate_common_key_with_none(stages, context, can_pack),
+      context,
+      can_pack)
+
+
+def pack_all_combiners(stages, context):
+  yield from pack_combiners(stages, context, lambda name: True)
 
 
 def lift_combiners(stages, context):

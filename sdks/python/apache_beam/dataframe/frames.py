@@ -14,8 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import absolute_import
-
 import collections
 import inspect
 import math
@@ -116,13 +114,21 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
   @frame_base.args_to_kwargs(pd.DataFrame)
   @frame_base.populate_defaults(pd.DataFrame)
   @frame_base.maybe_inplace
-  def fillna(self, value, method, axis, **kwargs):
+  def fillna(self, value, method, axis, limit, **kwargs):
+    # Default value is None, but is overriden with index.
+    axis = axis or 'index'
     if method is not None and axis in (0, 'index'):
       raise frame_base.WontImplementError('order-sensitive')
     if isinstance(value, frame_base.DeferredBase):
       value_expr = value._expr
     else:
       value_expr = expressions.ConstantExpression(value)
+
+    if limit is not None and method is None:
+      # If method is not None (and axis is 'columns'), we can do limit in
+      # a distributed way. Else, it is order sensitive.
+      raise frame_base.WontImplementError('order-sensitive')
+
     return frame_base.DeferredFrame.wrap(
         # yapf: disable
         expressions.ComputedExpression(
@@ -246,6 +252,8 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
 
   index = property(
       _get_index, frame_base.not_implemented_method('index (setter)'))
+
+  hist = frame_base.wont_implement_method('plot')
 
 
 @populate_not_implemented(pd.Series)
@@ -644,7 +652,14 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   @frame_base.args_to_kwargs(pd.Series)
   @frame_base.populate_defaults(pd.Series)
   @frame_base.maybe_inplace
-  def replace(self, limit, **kwargs):
+  def replace(self, to_replace, value, limit, method, **kwargs):
+    if method is not None and not isinstance(to_replace,
+                                             dict) and value is None:
+      # Can't rely on method for replacement, it's order-sensitive
+      # pandas only relies on method if to_replace is not a dictionary, and
+      # value is None
+      raise frame_base.WontImplementError("order-sensitive")
+
     if limit is None:
       requires_partition_by = partitionings.Nothing()
     else:
@@ -652,7 +667,12 @@ class DeferredSeries(DeferredDataFrameOrSeries):
     return frame_base.DeferredFrame.wrap(
         expressions.ComputedExpression(
             'replace',
-            lambda df: df.replace(limit=limit, **kwargs), [self._expr],
+            lambda df: df.replace(
+                to_replace=to_replace,
+                value=value,
+                limit=limit,
+                method=method,
+                **kwargs), [self._expr],
             preserves_partition_by=partitionings.Singleton(),
             requires_partition_by=requires_partition_by))
 
@@ -1394,12 +1414,14 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
 
   def pop(self, item):
     result = self[item]
+
     self._expr = expressions.ComputedExpression(
             'popped',
-            lambda df: (df.pop(item), df)[-1],
+            lambda df: df.drop(columns=[item]),
             [self._expr],
             preserves_partition_by=partitionings.Singleton(),
             requires_partition_by=partitionings.Nothing())
+
     return result
 
   @frame_base.args_to_kwargs(pd.DataFrame)
@@ -1499,7 +1521,27 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
             preserves_partition_by=partitionings.Nothing(),
             requires_partition_by=requires_partition_by))
 
-  round = frame_base._elementwise_method('round')
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  def round(self, decimals, *args, **kwargs):
+
+    if isinstance(decimals, frame_base.DeferredFrame):
+      # Disallow passing a deferred Series in, our current partitioning model
+      # prevents us from using it correctly.
+      raise NotImplementedError("Passing a deferred series to round() is not "
+                                "supported, please use a concrete pd.Series "
+                                "instance or a dictionary")
+
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'round',
+            lambda df: df.round(decimals, *args, **kwargs),
+            [self._expr],
+            requires_partition_by=partitionings.Nothing(),
+            preserves_partition_by=partitionings.Index()
+        )
+    )
+
   select_dtypes = frame_base._elementwise_method('select_dtypes')
 
   @frame_base.args_to_kwargs(pd.DataFrame)
@@ -1637,8 +1679,19 @@ class DeferredGroupBy(frame_base.DeferredFrame):
 
   aggregate = agg
 
-  first = last = head = tail = frame_base.wont_implement_method(
-      'order sensitive')
+  hist = frame_base.wont_implement_method('plot')
+  plot = frame_base.wont_implement_method('plot')
+
+  first = frame_base.wont_implement_method('order sensitive')
+  last = frame_base.wont_implement_method('order sensitive')
+  head = frame_base.wont_implement_method('order sensitive')
+  tail = frame_base.wont_implement_method('order sensitive')
+  nth = frame_base.wont_implement_method('order sensitive')
+  cumcount = frame_base.wont_implement_method('order sensitive')
+  cummax = frame_base.wont_implement_method('order sensitive')
+  cummin = frame_base.wont_implement_method('order sensitive')
+  cumsum = frame_base.wont_implement_method('order sensitive')
+  cumprod = frame_base.wont_implement_method('order sensitive')
 
   # TODO(robertwb): Consider allowing this for categorical keys.
   __len__ = frame_base.wont_implement_method('non-deferred')
@@ -1966,6 +2019,8 @@ class _DeferredStringMethods(frame_base.DeferredBase):
       raise frame_base.WontImplementError("repeats must be an integer or a "
                                           "Series.")
 
+  get_dummies = frame_base.wont_implement_method('non-deferred column values')
+
 
 ELEMENTWISE_STRING_METHODS = [
             'capitalize',
@@ -1978,7 +2033,6 @@ ELEMENTWISE_STRING_METHODS = [
             'findall',
             'fullmatch',
             'get',
-            'get_dummies',
             'isalnum',
             'isalpha',
             'isdecimal',
@@ -2014,7 +2068,22 @@ ELEMENTWISE_STRING_METHODS = [
 
 def make_str_func(method):
   def func(df, *args, **kwargs):
-    return getattr(df.str, method)(*args, **kwargs)
+    try:
+      df_str = df.str
+    except AttributeError:
+      # If there's a non-string value in a Series passed to .str method, pandas
+      # will generally just replace it with NaN in the result. However if
+      # there are _only_ non-string values, pandas will raise:
+      #
+      #   AttributeError: Can only use .str accessor with string values!
+      #
+      # This can happen to us at execution time if we split a partition that is
+      # only non-strings. This branch just replaces all those values with NaN
+      # in that case.
+      return df.map(lambda _: np.nan)
+    else:
+      return getattr(df_str, method)(*args, **kwargs)
+
   return func
 
 for method in ELEMENTWISE_STRING_METHODS:

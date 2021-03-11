@@ -24,7 +24,6 @@ plugins {
   id 'ca.coglinc.javacc'
 }
 applyJavaNature(
-  enableStrictDependencies: true,
   generatedClassPatterns: [
     /^org\.apache\.beam\.sdk\.extensions\.sql\.impl\.parser\.impl.*/,
   ],
@@ -79,6 +78,7 @@ dependencies {
   provided project(":sdks:java:io:kafka")
   provided project(":sdks:java:io:google-cloud-platform")
   compile project(":sdks:java:io:mongodb")
+  compile library.java.avro
   provided project(":sdks:java:io:parquet")
   provided library.java.jackson_dataformat_xml
   provided library.java.hadoop_client

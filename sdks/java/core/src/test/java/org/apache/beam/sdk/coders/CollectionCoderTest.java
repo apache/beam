@@ -38,9 +38,6 @@ import org.junit.runners.JUnit4;
 
 /** Test case for {@link CollectionCoder}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class CollectionCoderTest {
 
   private static final Coder<Collection<Integer>> TEST_CODER = CollectionCoder.of(VarIntCoder.of());

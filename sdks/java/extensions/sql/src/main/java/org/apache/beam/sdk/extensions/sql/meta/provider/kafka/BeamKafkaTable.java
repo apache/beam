@@ -31,10 +31,11 @@ import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
 import org.apache.beam.sdk.extensions.sql.meta.SchemaBaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.meta.provider.InvalidTableException;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
+import org.apache.beam.sdk.io.kafka.KafkaRecord;
+import org.apache.beam.sdk.io.kafka.ProducerRecordCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.POutput;
@@ -43,6 +44,7 @@ import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
@@ -94,16 +96,16 @@ public abstract class BeamKafkaTable extends SchemaBaseBeamTable {
     return PCollection.IsBounded.UNBOUNDED;
   }
 
-  protected abstract PTransform<PCollection<KV<byte[], byte[]>>, PCollection<Row>>
+  protected abstract PTransform<PCollection<KafkaRecord<byte[], byte[]>>, PCollection<Row>>
       getPTransformForInput();
 
-  protected abstract PTransform<PCollection<Row>, PCollection<KV<byte[], byte[]>>>
+  protected abstract PTransform<PCollection<Row>, PCollection<ProducerRecord<byte[], byte[]>>>
       getPTransformForOutput();
 
   @Override
   public PCollection<Row> buildIOReader(PBegin begin) {
     return begin
-        .apply("read", createKafkaRead().withoutMetadata())
+        .apply("read", createKafkaRead())
         .apply("in_format", getPTransformForInput())
         .setRowSchema(getSchema());
   }
@@ -139,11 +141,12 @@ public abstract class BeamKafkaTable extends SchemaBaseBeamTable {
 
     return input
         .apply("out_reformat", getPTransformForOutput())
+        .setCoder(ProducerRecordCoder.of(ByteArrayCoder.of(), ByteArrayCoder.of()))
         .apply("persistent", createKafkaWrite());
   }
 
-  private KafkaIO.Write<byte[], byte[]> createKafkaWrite() {
-    return KafkaIO.<byte[], byte[]>write()
+  private KafkaIO.WriteRecords<byte[], byte[]> createKafkaWrite() {
+    return KafkaIO.<byte[], byte[]>writeRecords()
         .withBootstrapServers(bootstrapServers)
         .withTopic(topics.get(0))
         .withKeySerializer(ByteArraySerializer.class)

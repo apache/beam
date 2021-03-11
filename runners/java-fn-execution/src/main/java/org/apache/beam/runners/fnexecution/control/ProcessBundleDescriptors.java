@@ -353,12 +353,10 @@ public class ProcessBundleDescriptors {
         case PROCESSING_TIME:
           spec = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
           break;
-        case SYNCHRONIZED_PROCESSING_TIME:
-          spec = TimerSpecs.timer(TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
-          break;
         default:
           throw new IllegalArgumentException(
-              String.format("Unknown time domain %s", timerFamilySpec.getTimeDomain()));
+              String.format(
+                  "Unknown or unsupported time domain %s", timerFamilySpec.getTimeDomain()));
       }
 
       for (WireCoderSetting wireCoderSetting : stage.getWireCoderSettings()) {

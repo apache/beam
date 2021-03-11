@@ -20,7 +20,6 @@ import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-  enableStrictDependencies:true,
   automaticModuleName: 'org.apache.beam.sdk.io.aws2',
 )
 provideIntegrationTestingDependencies()
@@ -42,6 +41,7 @@ dependencies {
   compile library.java.aws_java_sdk2_sdk_core
   compile library.java.aws_java_sdk2_sns
   compile library.java.aws_java_sdk2_sqs
+  compile library.java.aws_java_sdk2_s3
   compile library.java.jackson_core
   compile library.java.jackson_annotations
   compile library.java.jackson_databind
@@ -54,9 +54,11 @@ dependencies {
   compile "software.amazon.awssdk:http-client-spi:$aws_sdk_version"
   compile "software.amazon.awssdk:regions:$aws_sdk_version"
   compile "software.amazon.awssdk:utils:$aws_sdk_version"
+  compile library.java.commons_codec
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")
   testCompile project(path: ":sdks:java:io:kinesis", configuration: "testRuntime")
+  testCompile "io.findify:s3mock_2.12:0.2.6"
   testCompile library.java.mockito_core
   testCompile library.java.guava_testlib
   testCompile library.java.junit

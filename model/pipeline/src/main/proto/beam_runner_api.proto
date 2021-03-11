@@ -624,7 +624,7 @@ message TestStreamPayload {
 
     // Advances the watermark to the specified timestamp.
     message AdvanceWatermark {
-      // (Required) The watermark to advance to.
+      // (Required) The watermark in millisecond to advance to.
       int64 new_watermark = 1;
 
       // (Optional) The output watermark tag for a PCollection. If unspecified
@@ -635,7 +635,7 @@ message TestStreamPayload {
 
     // Advances the processing time clock by the specified amount.
     message AdvanceProcessingTime {
-      // (Required) The duration to advance by.
+      // (Required) The duration in millisecond to advance by.
       int64 advance_duration = 1;
     }
 
@@ -657,7 +657,7 @@ message TestStreamPayload {
     // encoding primitives.
     bytes encoded_element = 1;
 
-    // (Required) The event timestamp of this element.
+    // (Required) The event timestamp in millisecond of this element.
     int64 timestamp = 2;
   }
 }
@@ -697,9 +697,11 @@ message WriteFilesPayload {
 message PubSubReadPayload {
 
   // Topic to read from. Exactly one of topic or subscription should be set.
+  // Topic format is: /topics/project_id/subscription_name
   string topic = 1;
 
   // Subscription to read from. Exactly one of topic or subscription should be set.
+  // Subscription format is: /subscriptions/project_id/subscription_name
   string subscription = 2;
 
   // Attribute that provides element timestamps.
@@ -710,6 +712,12 @@ message PubSubReadPayload {
 
   // If true, reads Pub/Sub payload as well as attributes. If false, reads only the payload.
   bool with_attributes = 5;
+
+  // If set, the topic is expected to be provided during runtime.
+  string topic_runtime_overridden = 6;
+
+  // If set, the subscription that is expected to be provided during runtime.
+  string subscription_runtime_overridden = 7;
 }
 
 // Payload used by Google Cloud Pub/Sub write transform.
@@ -718,6 +726,7 @@ message PubSubReadPayload {
 message PubSubWritePayload {
 
   // Topic to write to.
+  // Topic format is: /topics/project_id/subscription_name
   string topic = 1;
 
   // Attribute that provides element timestamps.
@@ -725,6 +734,9 @@ message PubSubWritePayload {
 
   // Attribute that uniquely identify messages.
   string id_attribute = 3;
+
+  // If set, the topic is expected to be provided during runtime.
+  string topic_runtime_overridden = 4;
 }
 
 // Payload for GroupIntoBatches composite transform.
@@ -1158,12 +1170,9 @@ message TimeDomain {
     // execution of your pipeline
     PROCESSING_TIME = 2;
 
-    // Synchronized processing time is the minimum of the
-    // processing time of all pending elements.
-    //
-    // The "processing time" of an element refers to
-    // the local processing time at which it was emitted
-    SYNCHRONIZED_PROCESSING_TIME = 3;
+    // Synchronized processing time is _not_ part of the user-facing model
+    reserved 3;
+    reserved "SYNCHRONIZED_PROCESSING_TIME";
   }
 }
 

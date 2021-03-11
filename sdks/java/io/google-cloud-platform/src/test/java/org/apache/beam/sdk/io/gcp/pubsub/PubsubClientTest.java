@@ -173,13 +173,13 @@ public class PubsubClientTest {
   public void subscriptionPathFromNameWellFormed() {
     SubscriptionPath path = PubsubClient.subscriptionPathFromName("test", "something");
     assertEquals("projects/test/subscriptions/something", path.getPath());
-    assertEquals("/subscriptions/test/something", path.getV1Beta1Path());
+    assertEquals("/subscriptions/test/something", path.getFullPath());
   }
 
   @Test
   public void topicPathFromNameWellFormed() {
     TopicPath path = PubsubClient.topicPathFromName("test", "something");
     assertEquals("projects/test/topics/something", path.getPath());
-    assertEquals("/topics/test/something", path.getV1Beta1Path());
+    assertEquals("/topics/test/something", path.getFullPath());
   }
 }

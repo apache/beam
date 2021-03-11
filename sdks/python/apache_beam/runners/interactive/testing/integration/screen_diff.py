@@ -25,19 +25,13 @@ import os
 import platform
 import threading
 import unittest
+from http.server import HTTPServer
+from http.server import SimpleHTTPRequestHandler
 
 import pytest
 
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive.testing.integration import notebook_executor
-
-# TODO(BEAM-8288): clean up the work-around when Python2 support is deprecated.
-try:
-  from http.server import SimpleHTTPRequestHandler
-  from http.server import HTTPServer
-except ImportError:
-  import SimpleHTTPServer as HTTPServer
-  from SimpleHTTPServer import SimpleHTTPRequestHandler
 
 try:
   import chromedriver_binary  # pylint: disable=unused-import

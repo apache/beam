@@ -82,7 +82,6 @@ import org.junit.runners.Parameterized.Parameters;
 @RunWith(Parameterized.class)
 @SuppressWarnings({
   "keyfor",
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class PubsubTableProviderIT implements Serializable {
 

@@ -63,9 +63,6 @@ import org.junit.runners.JUnit4;
 
 /** Test operator {@code ReduceByKey}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class ReduceByKeyTest extends AbstractOperatorTest {
 
   /** Validates the output type upon a `.reduceBy` operation on global window. */

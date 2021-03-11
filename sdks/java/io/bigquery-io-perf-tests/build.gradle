@@ -17,7 +17,7 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(enableStrictDependencies: true, exportJavadoc: false, publish: false)
+applyJavaNature(exportJavadoc: false, publish: false)
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 

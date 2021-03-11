@@ -23,12 +23,14 @@ import com.google.common.collect.Iterables;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -38,13 +40,16 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.dataflow.worker.WindmillStateReader.StateTag.Kind;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.SortedListEntry;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.SortedListRange;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.TagBag;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.TagSortedListFetchRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.TagValue;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.TagValuePrefixRequest;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.Weighted;
 import org.apache.beam.sdk.values.TimestampedValue;
@@ -87,6 +92,12 @@ class WindmillStateReader {
   public static final long MAX_ORDERED_LIST_BYTES = 8L << 20; // 8MB
 
   /**
+   * Ideal maximum bytes in a tag-value prefix response. However, Windmill will always return at
+   * least one value if possible irrespective of this limit.
+   */
+  public static final long MAX_TAG_VALUE_PREFIX_BYTES = 8L << 20; // 8MB
+
+  /**
    * Ideal maximum bytes in a KeyedGetDataResponse. However, Windmill will always return at least
    * one value if possible irrespective of this limit.
    */
@@ -102,7 +113,8 @@ class WindmillStateReader {
       VALUE,
       BAG,
       WATERMARK,
-      ORDERED_LIST
+      ORDERED_LIST,
+      VALUE_PREFIX
     }
 
     abstract Kind getKind();
@@ -112,9 +124,9 @@ class WindmillStateReader {
     abstract String getStateFamily();
 
     /**
-     * For {@link Kind#BAG, Kind#ORDERED_LIST} kinds: A previous 'continuation_position' returned by
-     * Windmill to signal the resulting bag was incomplete. Sending that position will request the
-     * next page of values. Null for first request.
+     * For {@link Kind#BAG, Kind#ORDERED_LIST, Kind#VALUE_PREFIX} kinds: A previous
+     * 'continuation_position' returned by Windmill to signal the resulting bag was incomplete.
+     * Sending that position will request the next page of values. Null for first request.
      *
      * <p>Null for other kinds.
      */
@@ -197,11 +209,11 @@ class WindmillStateReader {
     this.workToken = workToken;
   }
 
-  private static final class CoderAndFuture<ElemT, FutureT> {
-    private Coder<ElemT> coder;
+  private static final class CoderAndFuture<FutureT> {
+    private Coder<?> coder = null;
     private final SettableFuture<FutureT> future;
 
-    private CoderAndFuture(Coder<ElemT> coder, SettableFuture<FutureT> future) {
+    private CoderAndFuture(Coder<?> coder, SettableFuture<FutureT> future) {
       this.coder = coder;
       this.future = future;
     }
@@ -217,11 +229,14 @@ class WindmillStateReader {
       return future;
     }
 
-    private Coder<ElemT> getAndClearCoder() {
+    private <ElemT> Coder<ElemT> getAndClearCoder() {
       if (coder == null) {
         throw new IllegalStateException("Coder has already been cleared from cache");
       }
-      Coder<ElemT> result = coder;
+      Coder<ElemT> result = (Coder<ElemT>) coder;
+      if (result == null) {
+        throw new IllegalStateException("Coder has already been cleared from cache");
+      }
       coder = null;
       return result;
     }
@@ -236,13 +251,11 @@ class WindmillStateReader {
   @VisibleForTesting
   ConcurrentLinkedQueue<StateTag<?>> pendingLookups = new ConcurrentLinkedQueue<>();
 
-  private ConcurrentHashMap<StateTag<?>, CoderAndFuture<?, ?>> waiting = new ConcurrentHashMap<>();
+  private ConcurrentHashMap<StateTag<?>, CoderAndFuture<?>> waiting = new ConcurrentHashMap<>();
 
-  private <ElemT, FutureT> Future<FutureT> stateFuture(
-      StateTag<?> stateTag, @Nullable Coder<ElemT> coder) {
-    CoderAndFuture<ElemT, FutureT> coderAndFuture =
-        new CoderAndFuture<>(coder, SettableFuture.create());
-    CoderAndFuture<?, ?> existingCoderAndFutureWildcard =
+  private <FutureT> Future<FutureT> stateFuture(StateTag<?> stateTag, @Nullable Coder<?> coder) {
+    CoderAndFuture<FutureT> coderAndFuture = new CoderAndFuture<>(coder, SettableFuture.create());
+    CoderAndFuture<?> existingCoderAndFutureWildcard =
         waiting.putIfAbsent(stateTag, coderAndFuture);
     if (existingCoderAndFutureWildcard == null) {
       // Schedule a new request. It's response is guaranteed to find the future and coder.
@@ -250,17 +263,16 @@ class WindmillStateReader {
     } else {
       // Piggy-back on the pending or already answered request.
       @SuppressWarnings("unchecked")
-      CoderAndFuture<ElemT, FutureT> existingCoderAndFuture =
-          (CoderAndFuture<ElemT, FutureT>) existingCoderAndFutureWildcard;
+      CoderAndFuture<FutureT> existingCoderAndFuture =
+          (CoderAndFuture<FutureT>) existingCoderAndFutureWildcard;
       coderAndFuture = existingCoderAndFuture;
     }
 
     return wrappedFuture(coderAndFuture.getFuture());
   }
 
-  private <ElemT, FutureT> CoderAndFuture<ElemT, FutureT> getWaiting(
-      StateTag<?> stateTag, boolean shouldRemove) {
-    CoderAndFuture<?, ?> coderAndFutureWildcard;
+  private <FutureT> CoderAndFuture<FutureT> getWaiting(StateTag<?> stateTag, boolean shouldRemove) {
+    CoderAndFuture<?> coderAndFutureWildcard;
     if (shouldRemove) {
       coderAndFutureWildcard = waiting.remove(stateTag);
     } else {
@@ -270,8 +282,7 @@ class WindmillStateReader {
       throw new IllegalStateException("Missing future for " + stateTag);
     }
     @SuppressWarnings("unchecked")
-    CoderAndFuture<ElemT, FutureT> coderAndFuture =
-        (CoderAndFuture<ElemT, FutureT>) coderAndFutureWildcard;
+    CoderAndFuture<FutureT> coderAndFuture = (CoderAndFuture<FutureT>) coderAndFutureWildcard;
     return coderAndFuture;
   }
 
@@ -303,18 +314,27 @@ class WindmillStateReader {
         valuesToPagingIterableFuture(stateTag, elemCoder, this.stateFuture(stateTag, elemCoder)));
   }
 
+  public <V> Future<Iterable<Map.Entry<ByteString, V>>> valuePrefixFuture(
+      ByteString prefix, String stateFamily, Coder<V> valueCoder) {
+    // First request has no continuation position.
+    StateTag<ByteString> stateTag =
+        StateTag.<ByteString>of(Kind.VALUE_PREFIX, prefix, stateFamily).toBuilder().build();
+    return Preconditions.checkNotNull(
+        valuesToPagingIterableFuture(stateTag, valueCoder, this.stateFuture(stateTag, valueCoder)));
+  }
+
   /**
    * Internal request to fetch the next 'page' of values. Return null if no continuation position is
    * in {@code contStateTag}, which signals there are no more pages.
    */
-  private @Nullable <ElemT, ContinuationT, ResultT>
+  private @Nullable <ContinuationT, ResultT>
       Future<ValuesAndContPosition<ResultT, ContinuationT>> continuationFuture(
-          StateTag<ContinuationT> contStateTag, Coder<ElemT> elemCoder) {
+          StateTag<ContinuationT> contStateTag, Coder<?> coder) {
     if (contStateTag.getRequestPosition() == null) {
       // We're done.
       return null;
     }
-    return stateFuture(contStateTag, elemCoder);
+    return stateFuture(contStateTag, coder);
   }
 
   /**
@@ -367,7 +387,7 @@ class WindmillStateReader {
   }
 
   /** Function to extract an {@link Iterable} from the continuation-supporting page read future. */
-  private static class ToIterableFunction<ElemT, ContinuationT, ResultT>
+  private static class ToIterableFunction<ContinuationT, ResultT>
       implements Function<ValuesAndContPosition<ResultT, ContinuationT>, Iterable<ResultT>> {
     /**
      * Reader to request continuation pages from, or {@literal null} if no continuation pages
@@ -376,13 +396,13 @@ class WindmillStateReader {
     private @Nullable WindmillStateReader reader;
 
     private final StateTag<ContinuationT> stateTag;
-    private final Coder<ElemT> elemCoder;
+    private final Coder<?> coder;
 
     public ToIterableFunction(
-        WindmillStateReader reader, StateTag<ContinuationT> stateTag, Coder<ElemT> elemCoder) {
+        WindmillStateReader reader, StateTag<ContinuationT> stateTag, Coder<?> coder) {
       this.reader = reader;
       this.stateTag = stateTag;
-      this.elemCoder = elemCoder;
+      this.coder = coder;
     }
 
     @SuppressFBWarnings(
@@ -407,8 +427,8 @@ class WindmillStateReader {
           contStateTag =
               contStateTag.toBuilder().setSortedListRange(stateTag.getSortedListRange()).build();
         }
-        return new PagingIterable<ElemT, ContinuationT, ResultT>(
-            reader, valuesAndContPosition.values, contStateTag, elemCoder);
+        return new PagingIterable<ContinuationT, ResultT>(
+            reader, valuesAndContPosition.values, contStateTag, coder);
       }
     }
   }
@@ -417,12 +437,12 @@ class WindmillStateReader {
    * Return future which transforms a {@code ValuesAndContPosition<T>} result into the initial
    * Iterable<T> result expected from the external caller.
    */
-  private <ElemT, ResultT, ContinuationT> Future<Iterable<ResultT>> valuesToPagingIterableFuture(
+  private <ResultT, ContinuationT> Future<Iterable<ResultT>> valuesToPagingIterableFuture(
       final StateTag<ContinuationT> stateTag,
-      final Coder<ElemT> elemCoder,
+      final Coder<?> coder,
       final Future<ValuesAndContPosition<ResultT, ContinuationT>> future) {
     Function<ValuesAndContPosition<ResultT, ContinuationT>, Iterable<ResultT>> toIterable =
-        new ToIterableFunction<>(this, stateTag, elemCoder);
+        new ToIterableFunction<>(this, stateTag, coder);
     return Futures.lazyTransform(future, toIterable);
   }
 
@@ -498,6 +518,18 @@ class WindmillStateReader {
               .addValuesToFetchBuilder()
               .setTag(stateTag.getTag())
               .setStateFamily(stateTag.getStateFamily());
+          break;
+
+        case VALUE_PREFIX:
+          TagValuePrefixRequest.Builder prefixFetchBuilder =
+              keyedDataBuilder
+                  .addTagValuePrefixesToFetchBuilder()
+                  .setTagPrefix(stateTag.getTag())
+                  .setStateFamily(stateTag.getStateFamily())
+                  .setFetchMaxBytes(MAX_TAG_VALUE_PREFIX_BYTES);
+          if (stateTag.getRequestPosition() != null) {
+            prefixFetchBuilder.setRequestPosition((ByteString) stateTag.getRequestPosition());
+          }
           break;
 
         default:
@@ -582,6 +614,19 @@ class WindmillStateReader {
             "Received response for unrequested tag " + stateTag + ". Pending tags: " + toFetch);
       }
       consumeTagValue(value, stateTag);
+    }
+    for (Windmill.TagValuePrefixResponse prefix_response : response.getTagValuePrefixesList()) {
+      StateTag<ByteString> stateTag =
+          StateTag.of(
+              Kind.VALUE_PREFIX,
+              prefix_response.getTagPrefix(),
+              prefix_response.getStateFamily(),
+              prefix_response.hasRequestPosition() ? prefix_response.getRequestPosition() : null);
+      if (!toFetch.remove(stateTag)) {
+        throw new IllegalStateException(
+            "Received response for unrequested tag " + stateTag + ". Pending tags: " + toFetch);
+      }
+      consumeTagPrefixResponse(prefix_response, stateTag);
     }
     for (Windmill.TagSortedListFetchResponse sorted_list : response.getTagSortedListsList()) {
       SortedListRange sortedListRange = Iterables.getOnlyElement(sorted_list.getFetchRangesList());
@@ -680,6 +725,28 @@ class WindmillStateReader {
     return entryList;
   }
 
+  private <V> List<Map.Entry<ByteString, V>> tagPrefixPageTagValues(
+      Windmill.TagValuePrefixResponse tagValuePrefixResponse, Coder<V> valueCoder) {
+    if (tagValuePrefixResponse.getTagValuesCount() == 0) {
+      return new WeightedList<>(Collections.emptyList());
+    }
+
+    WeightedList<Map.Entry<ByteString, V>> entryList =
+        new WeightedList<Map.Entry<ByteString, V>>(
+            new ArrayList<>(tagValuePrefixResponse.getTagValuesCount()));
+    for (TagValue entry : tagValuePrefixResponse.getTagValuesList()) {
+      try {
+        V value = valueCoder.decode(entry.getValue().getData().newInput(), Context.OUTER);
+        entryList.addWeighted(
+            new AbstractMap.SimpleEntry<>(entry.getTag(), value),
+            entry.getTag().size() + entry.getValue().getData().size());
+      } catch (IOException e) {
+        throw new IllegalStateException("Unable to decode tag value " + e);
+      }
+    }
+    return entryList;
+  }
+
   private <T> void consumeBag(TagBag bag, StateTag<Long> stateTag) {
     boolean shouldRemove;
     if (stateTag.getRequestPosition() == null) {
@@ -693,11 +760,11 @@ class WindmillStateReader {
       // continuation positions.
       shouldRemove = true;
     }
-    CoderAndFuture<T, ValuesAndContPosition<T, Long>> coderAndFuture =
+    CoderAndFuture<ValuesAndContPosition<T, Long>> coderAndFuture =
         getWaiting(stateTag, shouldRemove);
     SettableFuture<ValuesAndContPosition<T, Long>> future =
         coderAndFuture.getNonDoneFuture(stateTag);
-    Coder<T> coder = coderAndFuture.getAndClearCoder();
+    Coder<T> coder = coderAndFuture.<T>getAndClearCoder();
     List<T> values = this.bagPageValues(bag, coder);
     future.set(
         new ValuesAndContPosition<>(
@@ -705,7 +772,7 @@ class WindmillStateReader {
   }
 
   private void consumeWatermark(Windmill.WatermarkHold watermarkHold, StateTag<Long> stateTag) {
-    CoderAndFuture<Void, Instant> coderAndFuture = getWaiting(stateTag, false);
+    CoderAndFuture<Instant> coderAndFuture = getWaiting(stateTag, false);
     SettableFuture<Instant> future = coderAndFuture.getNonDoneFuture(stateTag);
     // No coders for watermarks
     coderAndFuture.checkNoCoder();
@@ -725,7 +792,7 @@ class WindmillStateReader {
   }
 
   private <T> void consumeTagValue(TagValue tagValue, StateTag<Long> stateTag) {
-    CoderAndFuture<T, T> coderAndFuture = getWaiting(stateTag, false);
+    CoderAndFuture<T> coderAndFuture = getWaiting(stateTag, false);
     SettableFuture<T> future = coderAndFuture.getNonDoneFuture(stateTag);
     Coder<T> coder = coderAndFuture.getAndClearCoder();
 
@@ -744,6 +811,36 @@ class WindmillStateReader {
     }
   }
 
+  private <V> void consumeTagPrefixResponse(
+      Windmill.TagValuePrefixResponse tagValuePrefixResponse, StateTag<ByteString> stateTag) {
+    boolean shouldRemove;
+    if (stateTag.getRequestPosition() == null) {
+      // This is the response for the first page.// Leave the future in the cache so subsequent
+      // requests for the first page
+      // can return immediately.
+      shouldRemove = false;
+    } else {
+      // This is a response for a subsequent page.
+      // Don't cache the future since we may need to make multiple requests with different
+      // continuation positions.
+      shouldRemove = true;
+    }
+
+    CoderAndFuture<ValuesAndContPosition<Map.Entry<ByteString, V>, ByteString>> coderAndFuture =
+        getWaiting(stateTag, shouldRemove);
+    SettableFuture<ValuesAndContPosition<Map.Entry<ByteString, V>, ByteString>> future =
+        coderAndFuture.getNonDoneFuture(stateTag);
+    Coder<V> valueCoder = coderAndFuture.getAndClearCoder();
+    List<Map.Entry<ByteString, V>> values =
+        this.tagPrefixPageTagValues(tagValuePrefixResponse, valueCoder);
+    future.set(
+        new ValuesAndContPosition<>(
+            values,
+            tagValuePrefixResponse.hasContinuationPosition()
+                ? tagValuePrefixResponse.getContinuationPosition()
+                : null));
+  }
+
   private <T> void consumeSortedList(
       Windmill.TagSortedListFetchResponse sortedListFetchResponse, StateTag<ByteString> stateTag) {
     boolean shouldRemove;
@@ -759,7 +856,7 @@ class WindmillStateReader {
       shouldRemove = true;
     }
 
-    CoderAndFuture<T, ValuesAndContPosition<TimestampedValue<T>, ByteString>> coderAndFuture =
+    CoderAndFuture<ValuesAndContPosition<TimestampedValue<T>, ByteString>> coderAndFuture =
         getWaiting(stateTag, shouldRemove);
     SettableFuture<ValuesAndContPosition<TimestampedValue<T>, ByteString>> future =
         coderAndFuture.getNonDoneFuture(stateTag);
@@ -772,7 +869,6 @@ class WindmillStateReader {
                 ? sortedListFetchResponse.getContinuationPosition()
                 : null));
   }
-
   /**
    * An iterable over elements backed by paginated GetData requests to Windmill. The iterable may be
    * iterated over an arbitrary number of times and multiple iterators may be active simultaneously.
@@ -789,7 +885,7 @@ class WindmillStateReader {
    *       call to iterator.
    * </ol>
    */
-  private static class PagingIterable<ElemT, ContinuationT, ResultT> implements Iterable<ResultT> {
+  private static class PagingIterable<ContinuationT, ResultT> implements Iterable<ResultT> {
     /**
      * The reader we will use for scheduling continuation pages.
      *
@@ -804,17 +900,17 @@ class WindmillStateReader {
     private final StateTag<ContinuationT> secondPagePos;
 
     /** Coder for elements. */
-    private final Coder<ElemT> elemCoder;
+    private final Coder<?> coder;
 
     private PagingIterable(
         WindmillStateReader reader,
         List<ResultT> firstPage,
         StateTag<ContinuationT> secondPagePos,
-        Coder<ElemT> elemCoder) {
+        Coder<?> coder) {
       this.reader = reader;
       this.firstPage = firstPage;
       this.secondPagePos = secondPagePos;
-      this.elemCoder = elemCoder;
+      this.coder = coder;
     }
 
     @Override
@@ -824,7 +920,7 @@ class WindmillStateReader {
         private StateTag<ContinuationT> nextPagePos = secondPagePos;
         private Future<ValuesAndContPosition<ResultT, ContinuationT>> pendingNextPage =
             // NOTE: The results of continuation page reads are never cached.
-            reader.continuationFuture(nextPagePos, elemCoder);
+            reader.continuationFuture(nextPagePos, coder);
 
         @Override
         protected ResultT computeNext() {
@@ -854,7 +950,7 @@ class WindmillStateReader {
                     valuesAndContPosition.continuationPosition);
             pendingNextPage =
                 // NOTE: The results of continuation page reads are never cached.
-                reader.continuationFuture(nextPagePos, elemCoder);
+                reader.continuationFuture(nextPagePos, coder);
           }
         }
       };

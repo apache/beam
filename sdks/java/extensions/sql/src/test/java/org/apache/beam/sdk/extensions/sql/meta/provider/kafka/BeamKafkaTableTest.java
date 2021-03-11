@@ -17,6 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
+import org.apache.beam.sdk.coders.ByteArrayCoder;
+import org.apache.beam.sdk.io.kafka.KafkaRecord;
+import org.apache.beam.sdk.io.kafka.KafkaRecordCoder;
+import org.apache.beam.sdk.io.kafka.KafkaTimestampType;
+import org.apache.beam.sdk.io.kafka.ProducerRecordCoder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -25,6 +30,8 @@ import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.header.internals.RecordHeaders;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -48,7 +55,8 @@ public abstract class BeamKafkaTableTest {
     PCollection<Row> result =
         pipeline
             .apply(Create.of(generateEncodedPayload(1), generateEncodedPayload(2)))
-            .apply(MapElements.via(new ToKV()))
+            .apply(MapElements.via(new BytesToRecord()))
+            .setCoder(KafkaRecordCoder.of(ByteArrayCoder.of(), ByteArrayCoder.of()))
             .apply(kafkaTable.getPTransformForInput());
 
     PAssert.that(result).containsInAnyOrder(generateRow(1), generateRow(2));
@@ -62,15 +70,41 @@ public abstract class BeamKafkaTableTest {
         pipeline
             .apply(Create.of(generateRow(1), generateRow(2)))
             .apply(kafkaTable.getPTransformForOutput())
+            .setCoder(ProducerRecordCoder.of(ByteArrayCoder.of(), ByteArrayCoder.of()))
+            .apply(MapElements.via(new ProducerToRecord()))
+            .setCoder(KafkaRecordCoder.of(ByteArrayCoder.of(), ByteArrayCoder.of()))
             .apply(kafkaTable.getPTransformForInput());
     PAssert.that(result).containsInAnyOrder(generateRow(1), generateRow(2));
     pipeline.run();
   }
 
-  private static class ToKV extends SimpleFunction<byte[], KV<byte[], byte[]>> {
+  private static class BytesToRecord extends SimpleFunction<byte[], KafkaRecord<byte[], byte[]>> {
     @Override
-    public KV<byte[], byte[]> apply(byte[] bytes) {
-      return KV.of(new byte[] {}, bytes);
+    public KafkaRecord<byte[], byte[]> apply(byte[] bytes) {
+      return new KafkaRecord<>(
+          "abc",
+          0,
+          0,
+          0,
+          KafkaTimestampType.LOG_APPEND_TIME,
+          new RecordHeaders(),
+          KV.of(new byte[] {}, bytes));
+    }
+  }
+
+  static class ProducerToRecord
+      extends SimpleFunction<ProducerRecord<byte[], byte[]>, KafkaRecord<byte[], byte[]>> {
+    @Override
+    public KafkaRecord<byte[], byte[]> apply(ProducerRecord<byte[], byte[]> record) {
+      return new KafkaRecord<>(
+          record.topic(),
+          record.partition() != null ? record.partition() : 0,
+          0,
+          0,
+          KafkaTimestampType.LOG_APPEND_TIME,
+          record.headers(),
+          record.key(),
+          record.value());
     }
   }
 }

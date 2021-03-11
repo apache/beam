@@ -42,6 +42,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashBiMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
@@ -948,6 +949,40 @@ public class Schema implements Serializable {
             getRowSchema(),
             getMetadata()
           });
+    }
+
+    @Override
+    public String toString() {
+      StringBuilder builder = new StringBuilder();
+      switch (getTypeName()) {
+        case ROW:
+          builder.append("ROW<");
+          ImmutableList.Builder<String> fieldEntries = ImmutableList.builder();
+          for (Field field : getRowSchema().getFields()) {
+            fieldEntries.add(field.getName() + " " + field.getType().toString());
+          }
+          builder.append(String.join(", ", fieldEntries.build()));
+          builder.append(">");
+          break;
+        case ARRAY:
+          builder.append("ARRAY<");
+          builder.append(getCollectionElementType().toString());
+          builder.append(">");
+          break;
+        case MAP:
+          builder.append("MAP<");
+          builder.append(getMapKeyType().toString());
+          builder.append(", ");
+          builder.append(getMapValueType().toString());
+          builder.append(">");
+          break;
+        default:
+          builder.append(getTypeName().toString());
+      }
+      if (!getNullable()) {
+        builder.append(" NOT NULL");
+      }
+      return builder.toString();
     }
   }
 

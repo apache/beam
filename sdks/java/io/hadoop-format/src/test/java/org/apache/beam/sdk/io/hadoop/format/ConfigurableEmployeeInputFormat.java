@@ -37,9 +37,6 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
  * Configurable. This validates if setConf() method is called before getSplits(). Known InputFormats
  * which implement Configurable are DBInputFormat, TableInputFormat etc.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 class ConfigurableEmployeeInputFormat extends InputFormat<Text, Employee> implements Configurable {
   public boolean isConfSet = false;
 

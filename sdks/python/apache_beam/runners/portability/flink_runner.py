@@ -25,7 +25,6 @@ from __future__ import print_function
 import logging
 import os
 import re
-import sys
 import urllib
 
 from apache_beam.options import pipeline_options
@@ -54,10 +53,6 @@ class FlinkRunner(portable_runner.PortableRunner):
     flink_options.flink_master = flink_master
     if (flink_options.flink_submit_uber_jar and
         flink_master not in MAGIC_HOST_NAMES):
-      if sys.version_info < (3, 6):
-        raise ValueError(
-            'flink_submit_uber_jar requires Python 3.6+, current version %s' %
-            sys.version)
       # This has to be changed [auto], otherwise we will attempt to submit a
       # the pipeline remotely on the Flink JobMaster which will _fail_.
       # DO NOT CHANGE the following line, unless you have tested this.

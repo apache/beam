@@ -43,9 +43,6 @@ import org.joda.time.Instant;
  *
  * @param <T> element type
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class TestUnboundedSource<T> extends UnboundedSource<T, TestCheckpointMark> {
   // each list of events is a split
   private final List<List<Event<T>>> events;

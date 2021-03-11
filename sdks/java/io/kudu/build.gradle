@@ -18,7 +18,6 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-  enableStrictDependencies:true,
   classesTriggerCheckerBugs: [
     'KuduTestUtils': 'TODO: file a bug report',
     'KuduIOIT': 'TODO: file a bug report',
