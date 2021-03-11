@@ -33,13 +33,6 @@ class GrpcVendoring_1_36_0 {
   static def google_auth_version = "0.22.2"
   static def proto_google_common_protos_version = "2.0.1"
   static def opencensus_version = "0.28.0"
-  static def perfmark_version = "0.23.0"
-  static def lzma_java_version = "1.3"
-  static def protobuf_javanano_version = "3.0.0-alpha-5"
-  static def jzlib_version = "1.1.3"
-  static def compress_lzf_version = "1.0.3"
-  static def lz4_version = "1.3.0"
-  static def bouncycastle_version = "1.54"
   static def conscrypt_version = "2.5.1"
 
   /** Returns the list of compile time dependencies. */
@@ -161,11 +154,7 @@ class GrpcVendoring_1_36_0 {
       "io/netty/handler/codec/compression/Lz4*",
       "io/netty/handler/codec/compression/Lzf*",
       "io/netty/handler/codec/compression/Lzma*",
-      "io/netty/handler/codec/compression/Zlib*",
       "io/netty/handler/codec/protobuf/Protobuf*Nano.class",
-      "io/netty/handler/ssl/ConscryptAlpnSslEngine*",
-      "io/netty/handler/ssl/JettyAlpnSslEngine*",
-      "io/netty/handler/ssl/JettyNpnSslEngine*",
       "io/netty/util/internal/logging/CommonsLogger*",
       "io/netty/util/internal/logging/LocationAwareSlf4JLogger*",
       "io/netty/util/internal/logging/Log4JLogger*",

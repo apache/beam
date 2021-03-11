@@ -60,6 +60,7 @@ class GrpcVendoring_1_26_0 {
       "io.netty:netty-transport-native-epoll:$netty_version",
       // tcnative version from https://github.com/grpc/grpc-java/blob/master/SECURITY.md#netty
       "io.netty:netty-tcnative-boringssl-static:2.0.33.Final",
+      "io.grpc:grpc-api:$grpc_version",
       "com.google.auth:google-auth-library-credentials:$google_auth_version",
       "io.grpc:grpc-testing:$grpc_version",
       "com.google.api.grpc:proto-google-common-protos:$proto_google_common_protos_version",
