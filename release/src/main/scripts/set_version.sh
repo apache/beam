@@ -25,10 +25,11 @@
 set -e
 
 function usage() {
-  echo 'Usage: set_version.sh <version> [--release] [--debug]'
+  echo 'Usage: set_version.sh <version> [--release] [--debug] [--git-add]'
 }
 
 IS_SNAPSHOT_VERSION=yes
+GIT_ADD=no
 
 while [[ $# -gt 0 ]] ; do
   arg="$1"
@@ -41,6 +42,11 @@ while [[ $# -gt 0 ]] ; do
 
       --debug)
       set -x
+      shift
+      ;;
+
+      --git-add)
+      GIT_ADD=yes
       shift
       ;;
 
@@ -85,3 +91,10 @@ else
   sed -i -e "s/SdkVersion = .*/SdkVersion = \"${TARGET_VERSION}.dev\"/" sdks/go/pkg/beam/core/core.go
 fi
 
+if [[ "$GIT_ADD" == yes ]] ; then
+  git add gradle.properties
+  git add buildSrc/src/main/groovy/org/apache/beam/gradle/BeamModulePlugin.groovy
+  git add sdks/python/apache_beam/version.py
+  git add sdks/go/pkg/beam/core/core.go
+  git add runners/google-cloud-dataflow-java/build.gradle
+fi
