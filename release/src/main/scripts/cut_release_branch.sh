@@ -78,7 +78,7 @@ if [[ -d ${LOCAL_CLONE_DIR} ]]; then
 fi
 mkdir ${LOCAL_CLONE_DIR}
 cd ${LOCAL_CLONE_DIR}
-git clone ${GITHUB_REPO_URL}
+git clone --depth=1 ${GITHUB_REPO_URL}
 cd ${BEAM_ROOT_DIR}
 
 # Create local release branch

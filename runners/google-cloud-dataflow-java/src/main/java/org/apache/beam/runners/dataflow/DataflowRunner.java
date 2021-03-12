@@ -931,39 +931,68 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       if (!experiments.contains("beam_fn_api")) {
         experiments.add("beam_fn_api");
       }
-      options.setExperiments(experiments);
+      if (!experiments.contains("use_portable_job_submission")) {
+        experiments.add("use_portable_job_submission");
+      }
+      options.setExperiments(ImmutableList.copyOf(experiments));
     }
 
     logWarningIfPCollectionViewHasNonDeterministicKeyCoder(pipeline);
     if (containsUnboundedPCollection(pipeline)) {
       options.setStreaming(true);
     }
-    replaceTransforms(pipeline);
 
     LOG.info(
         "Executing pipeline on the Dataflow Service, which will have billing implications "
             + "related to Google Compute Engine usage and other Google Cloud Services.");
 
-    // Capture the sdkComponents for look up during step translations
-    SdkComponents sdkComponents = SdkComponents.create();
-
     DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
     String workerHarnessContainerImageURL = DataflowRunner.getContainerImageForJob(dataflowOptions);
+
+    // This incorrectly puns the worker harness container image (which implements v1beta3 API)
+    // with the SDK harness image (which implements Fn API).
+    //
+    // The same Environment is used in different and contradictory ways, depending on whether
+    // it is a v1 or v2 job submission.
     RunnerApi.Environment defaultEnvironmentForDataflow =
         Environments.createDockerEnvironment(workerHarnessContainerImageURL);
 
-    sdkComponents.registerEnvironment(
+    // The SdkComponents for portable an non-portable job submission must be kept distinct. Both
+    // need the default environment.
+    SdkComponents portableComponents = SdkComponents.create();
+    portableComponents.registerEnvironment(
         defaultEnvironmentForDataflow
             .toBuilder()
             .addAllDependencies(getDefaultArtifacts())
             .addAllCapabilities(Environments.getJavaCapabilities())
             .build());
 
-    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents, true);
+    RunnerApi.Pipeline portablePipelineProto =
+        PipelineTranslation.toProto(pipeline, portableComponents, false);
+    LOG.debug("Portable pipeline proto:\n{}", TextFormat.printToString(portablePipelineProto));
+    // Stage the portable pipeline proto, retrieving the staged pipeline path, then update
+    // the options on the new job
+    // TODO: add an explicit `pipeline` parameter to the submission instead of pipeline options
+    LOG.info("Staging portable pipeline proto to {}", options.getStagingLocation());
+    byte[] serializedProtoPipeline = portablePipelineProto.toByteArray();
 
-    LOG.debug("Portable pipeline proto:\n{}", TextFormat.printToString(pipelineProto));
-
-    List<DataflowPackage> packages = stageArtifacts(pipelineProto);
+    DataflowPackage stagedPipeline =
+        options.getStager().stageToFile(serializedProtoPipeline, PIPELINE_FILE_NAME);
+    dataflowOptions.setPipelineUrl(stagedPipeline.getLocation());
+    // Now rewrite things to be as needed for v1 (mutates the pipeline)
+    replaceTransforms(pipeline);
+    // Capture the SdkComponents for look up during step translations
+    SdkComponents dataflowV1Components = SdkComponents.create();
+    dataflowV1Components.registerEnvironment(
+        defaultEnvironmentForDataflow
+            .toBuilder()
+            .addAllDependencies(getDefaultArtifacts())
+            .addAllCapabilities(Environments.getJavaCapabilities())
+            .build());
+    RunnerApi.Pipeline dataflowV1PipelineProto =
+        PipelineTranslation.toProto(pipeline, dataflowV1Components, true);
+    LOG.debug("Dataflow v1 pipeline proto:\n{}", TextFormat.printToString(dataflowV1PipelineProto));
+    List<DataflowPackage> packages = stageArtifacts(dataflowV1PipelineProto);
 
     // Set a unique client_request_id in the CreateJob request.
     // This is used to ensure idempotence of job creation across retried
@@ -985,24 +1014,19 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     maybeRegisterDebuggee(dataflowOptions, requestId);
 
     JobSpecification jobSpecification =
-        translator.translate(pipeline, pipelineProto, sdkComponents, this, packages);
-
-    // Stage the pipeline, retrieving the staged pipeline path, then update
-    // the options on the new job
-    // TODO: add an explicit `pipeline` parameter to the submission instead of pipeline options
-    LOG.info("Staging pipeline description to {}", options.getStagingLocation());
-    byte[] serializedProtoPipeline = jobSpecification.getPipelineProto().toByteArray();
-    DataflowPackage stagedPipeline =
-        options.getStager().stageToFile(serializedProtoPipeline, PIPELINE_FILE_NAME);
-    dataflowOptions.setPipelineUrl(stagedPipeline.getLocation());
+        translator.translate(
+            pipeline, dataflowV1PipelineProto, dataflowV1Components, this, packages);
 
     if (!isNullOrEmpty(dataflowOptions.getDataflowWorkerJar()) && !useUnifiedWorker(options)) {
       List<String> experiments =
-          dataflowOptions.getExperiments() == null
-              ? new ArrayList<>()
-              : new ArrayList<>(dataflowOptions.getExperiments());
-      experiments.add("use_staged_dataflow_worker_jar");
-      dataflowOptions.setExperiments(experiments);
+          firstNonNull(dataflowOptions.getExperiments(), Collections.emptyList());
+      if (!experiments.contains("use_staged_dataflow_worker_jar")) {
+        dataflowOptions.setExperiments(
+            ImmutableList.<String>builder()
+                .addAll(experiments)
+                .add("use_staged_dataflow_worker_jar")
+                .build());
+      }
     }
 
     Job newJob = jobSpecification.getJob();
@@ -1051,9 +1075,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     // Represent the minCpuPlatform pipeline option as an experiment, if not already present.
-    List<String> experiments =
-        firstNonNull(dataflowOptions.getExperiments(), new ArrayList<String>());
     if (!isNullOrEmpty(dataflowOptions.getMinCpuPlatform())) {
+      List<String> experiments =
+          firstNonNull(dataflowOptions.getExperiments(), Collections.emptyList());
 
       List<String> minCpuFlags =
           experiments.stream()
@@ -1061,7 +1085,11 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               .collect(Collectors.toList());
 
       if (minCpuFlags.isEmpty()) {
-        experiments.add("min_cpu_platform=" + dataflowOptions.getMinCpuPlatform());
+        dataflowOptions.setExperiments(
+            ImmutableList.<String>builder()
+                .addAll(experiments)
+                .add("min_cpu_platform=" + dataflowOptions.getMinCpuPlatform())
+                .build());
       } else {
         LOG.warn(
             "Flag min_cpu_platform is defined in both top level PipelineOption, "
@@ -1070,7 +1098,11 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       }
     }
 
-    newJob.getEnvironment().setExperiments(experiments);
+    newJob
+        .getEnvironment()
+        .setExperiments(
+            ImmutableList.copyOf(
+                firstNonNull(dataflowOptions.getExperiments(), Collections.emptyList())));
 
     // Set the Docker container image that executes Dataflow worker harness, residing in Google
     // Container Registry. Translator is guaranteed to create a worker pool prior to this point.
@@ -1079,7 +1111,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       workerPool.setWorkerHarnessContainerImage(workerHarnessContainerImage);
     }
 
-    configureSdkHarnessContainerImages(options, pipelineProto, newJob, workerHarnessContainerImage);
+    configureSdkHarnessContainerImages(
+        options, portablePipelineProto, newJob, workerHarnessContainerImage);
 
     newJob.getEnvironment().setVersion(getEnvironmentVersion(options));
 
@@ -1177,7 +1210,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             jobResult.getId(),
             options,
             jobSpecification.getStepNames(),
-            pipelineProto);
+            portablePipelineProto);
 
     // If the service returned client request id, the SDK needs to compare it
     // with the original id generated in the request, if they are not the same

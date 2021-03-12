@@ -165,7 +165,6 @@ def commonLegacyExcludeCategories = [
 ]
 
 def commonRunnerV2ExcludeCategories = [
-        'org.apache.beam.sdk.testing.UsesCommittedMetrics',
         'org.apache.beam.sdk.testing.UsesGaugeMetrics',
         'org.apache.beam.sdk.testing.UsesSetState',
         'org.apache.beam.sdk.testing.UsesMapState',
@@ -363,6 +362,9 @@ task validatesRunnerV2 {
   dependsOn(createRunnerV2ValidatesRunnerTest(
     name: 'validatesRunnerV2Test',
     excludedCategories: [
+      'org.apache.beam.sdk.testing.UsesOnWindowExpiration',
+      'org.apache.beam.sdk.testing.UsesStatefulParDo',
+      'org.apache.beam.sdk.testing.UsesTimersInParDo',
       'org.apache.beam.sdk.testing.UsesUnboundedPCollections',
       'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo',
     ],
@@ -373,20 +375,6 @@ task validatesRunnerV2 {
       'org.apache.beam.sdk.transforms.windowing.WindowTest.testMergingCustomWindowsWithoutCustomWindowTypes',
 
       'org.apache.beam.sdk.transforms.ReshuffleTest.testReshuffleWithTimestampsStreaming',
-
-      'org.apache.beam.sdk.transforms.ParDoTest$OnWindowExpirationTests.testOnWindowExpirationSimpleBounded',
-      'org.apache.beam.sdk.transforms.ParDoTest$OnWindowExpirationTests.testOnWindowExpirationSimpleUnbounded',
-      'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testValueStateTaggedOutput',
-      'org.apache.beam.sdk.transforms.ParDoTest$TimerFamilyTests.testTimerFamilyProcessingTime',
-      'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.duplicateTimerSetting',
-      'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testEventTimeTimerCanBeReset',
-      'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testEventTimeTimerOrdering',
-      'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testEventTimeTimerOrderingWithCreate',
-      'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testOutputTimestamp',
-      'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testOutputTimestampWithProcessingTime',
-      'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testProcessingTimeTimerCanBeReset',
-      'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testTwoTimersSettingEachOther',
-      'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testTwoTimersSettingEachOtherWithCreateAsInput',
 
       'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testFnCallSequenceStateful',
       'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInFinishBundle',
@@ -414,11 +402,12 @@ task validatesRunnerV2Streaming {
     name: 'validatesRunnerV2TestStreaming',
     pipelineOptions: runnerV2PipelineOptions + ['--streaming=true'],
     excludedCategories: [
-      'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo',
       'org.apache.beam.sdk.testing.LargeKeys$Above10KB',
+      'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo',
+      'org.apache.beam.sdk.testing.UsesAttemptedMetrics',
+      'org.apache.beam.sdk.testing.UsesTestStream',
     ],
     excludedTests: [
-      'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testEventTimeTimerAlignBounded',
       'org.apache.beam.sdk.transforms.windowing.WindowTest.testMergingCustomWindows',
       'org.apache.beam.sdk.transforms.windowing.WindowTest.testMergingCustomWindowsKeyedCollection',
       'org.apache.beam.sdk.transforms.windowing.WindowTest.testMergingCustomWindowsWithoutCustomWindowTypes',
@@ -430,13 +419,17 @@ task validatesRunnerV2Streaming {
       'org.apache.beam.sdk.extensions.sql.BeamSqlDslAggregationTest.testTriggeredTumble',
       'org.apache.beam.sdk.transforms.ReshuffleTest.testReshuffleWithTimestampsStreaming',
 
-      'org.apache.beam.sdk.testing.TestStreamTest.testProcessingTimeTrigger',
-
       'org.apache.beam.sdk.transforms.ParDoTest$OnWindowExpirationTests.testOnWindowExpirationSimpleBounded',
       'org.apache.beam.sdk.transforms.ParDoTest$OnWindowExpirationTests.testOnWindowExpirationSimpleUnbounded',
 
       // TODO(BEAM-11858) reading a side input twice fails
       'org.apache.beam.sdk.transforms.ParDoTest$MultipleInputsAndOutputTests.testSameSideInputReadTwice',
+      'org.apache.beam.sdk.transforms.CombineFnsTest.testComposedCombineWithContext',
+      'org.apache.beam.sdk.transforms.CombineTest$CombineWithContextTests.testSimpleCombineWithContextEmpty',
+      'org.apache.beam.sdk.transforms.CombineTest$CombineWithContextTests.testSimpleCombineWithContext',
+      'org.apache.beam.sdk.transforms.CombineTest$WindowingTests.testFixedWindowsCombineWithContext',
+      'org.apache.beam.sdk.transforms.CombineTest$WindowingTests.testSessionsCombineWithContext',
+      'org.apache.beam.sdk.transforms.CombineTest$WindowingTests.testSlidingWindowsCombineWithContext',
 
       'org.apache.beam.runners.dataflow.DataflowRunnerTest.testBatchGroupIntoBatchesOverride',
 
@@ -456,7 +449,6 @@ task validatesRunnerV2Streaming {
 
       'org.apache.beam.sdk.metrics.MetricsTest$CommittedMetricTests.testCommittedCounterMetrics',
 
-      'org.apache.beam.sdk.testing.TestStreamTest.testMultipleStreams',
       'org.apache.beam.sdk.transforms.WaitTest.testWaitWithSameFixedWindows',
       'org.apache.beam.sdk.transforms.WaitTest.testWaitWithDifferentFixedWindows',
       'org.apache.beam.sdk.transforms.WaitTest.testWaitWithSignalInSlidingWindows',
@@ -473,6 +465,11 @@ task validatesRunnerV2Streaming {
       'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInSetupStateful',
       'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInStartBundle',
       'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInStartBundleStateful',
+
+      // TODO(BEAM-11917) Empty flatten fails in streaming
+      "org.apache.beam.sdk.transforms.FlattenTest.testEmptyFlattenAsSideInput",
+      "org.apache.beam.sdk.transforms.FlattenTest.testFlattenPCollectionsEmptyThenParDo",
+      "org.apache.beam.sdk.transforms.FlattenTest.testFlattenPCollectionsEmpty",
 
       'org.apache.beam.sdk.io.CountingSourceTest.testBoundedSourceSplits',
     ]
