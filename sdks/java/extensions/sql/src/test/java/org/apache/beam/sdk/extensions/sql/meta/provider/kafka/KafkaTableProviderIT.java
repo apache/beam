@@ -221,7 +221,7 @@ public class KafkaTableProviderIT {
 
     PCollection<Row> queryOutput =
         BeamSqlRelUtils.toPCollection(
-            pipeline, env.parseQuery("SELECT `t`.`payload`.* FROM kafka_table AS `t`"));
+            pipeline, env.parseQuery("SELECT t.payload.* FROM kafka_table AS t"));
 
     queryOutput
         .apply(ParDo.of(new FakeKvPair()))
