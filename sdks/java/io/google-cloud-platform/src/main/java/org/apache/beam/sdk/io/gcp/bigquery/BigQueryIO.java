@@ -2479,7 +2479,7 @@ public class BigQueryIO {
                   allToArgs.stream()
                       .filter(Predicates.notNull()::apply)
                       .collect(Collectors.toList())),
-          "Exactly one of jsonTableRef, tableFunction, or " + "dynamicDestinations must be set");
+          "Exactly one of jsonTableRef, tableFunction, or dynamicDestinations must be set");
 
       List<?> allSchemaArgs =
           Lists.newArrayList(getJsonSchema(), getSchemaFromView(), getDynamicDestinations());
@@ -2489,7 +2489,7 @@ public class BigQueryIO {
                   allSchemaArgs.stream()
                       .filter(Predicates.notNull()::apply)
                       .collect(Collectors.toList())),
-          "No more than one of jsonSchema, schemaFromView, or dynamicDestinations may " + "be set");
+          "No more than one of jsonSchema, schemaFromView, or dynamicDestinations may be set");
 
       Method method = resolveMethod(input);
       if (input.isBounded() == IsBounded.UNBOUNDED && method == Method.FILE_LOADS) {
@@ -2587,7 +2587,7 @@ public class BigQueryIO {
               || getSchemaFromView() != null;
 
       if (getUseBeamSchema()) {
-        checkArgument(input.hasSchema());
+        checkArgument(input.hasSchema(), "The input doesn't has a schema");
         optimizeWrites = true;
 
         checkArgument(
@@ -2651,7 +2651,9 @@ public class BigQueryIO {
                   + "A format function is not required if Beam schemas are used.");
         }
       } else {
-        checkArgument(avroRowWriterFactory == null);
+        checkArgument(
+            avroRowWriterFactory == null,
+            "When using a formatFunction, the AvroRowWriterFactory should be null");
         checkArgument(
             formatFunction != null,
             "A function must be provided to convert the input type into a TableRow or "
@@ -2687,7 +2689,7 @@ public class BigQueryIO {
       if (method == Method.STREAMING_INSERTS) {
         checkArgument(
             getWriteDisposition() != WriteDisposition.WRITE_TRUNCATE,
-            "WriteDisposition.WRITE_TRUNCATE is not supported for an unbounded" + " PCollection.");
+            "WriteDisposition.WRITE_TRUNCATE is not supported for an unbounded PCollection.");
         InsertRetryPolicy retryPolicy =
             MoreObjects.firstNonNull(getFailedInsertRetryPolicy(), InsertRetryPolicy.alwaysRetry());
 
