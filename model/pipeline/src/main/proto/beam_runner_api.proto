@@ -694,6 +694,8 @@ message WriteFilesPayload {
 // Payload used by Google Cloud Pub/Sub read transform.
 // This can be used by runners that wish to override Beam Pub/Sub read transform
 // with a native implementation.
+// The SDK should guarantee that only one of topic, subscription,
+// topic_runtime_overridden and subscription_runtime_overridden is set.
 message PubSubReadPayload {
 
   // Topic to read from. Exactly one of topic or subscription should be set.
@@ -723,6 +725,8 @@ message PubSubReadPayload {
 // Payload used by Google Cloud Pub/Sub write transform.
 // This can be used by runners that wish to override Beam Pub/Sub write transform
 // with a native implementation.
+// The SDK should guarantee that only one of topic and topic_runtime_overridden
+// is set.
 message PubSubWritePayload {
 
   // Topic to write to.
