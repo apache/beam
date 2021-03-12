@@ -186,41 +186,37 @@ class ProgressIndicatorTest(unittest.TestCase):
   def setUp(self):
     ie.new_env()
 
-  @patch('IPython.core.display.display')
-  def test_progress_in_plain_text_when_not_in_notebook(self, mocked_display):
+  def test_progress_in_plain_text_when_not_in_notebook(self):
     ie.current_env()._is_in_notebook = False
-    mocked_display.assert_not_called()
 
-    @utils.progress_indicated
-    def progress_indicated_dummy():
-      mocked_display.assert_called_with('Processing...')
+    with patch('IPython.core.display.display') as mocked_display:
 
-    progress_indicated_dummy()
-    mocked_display.assert_called_with('Done.')
+      @utils.progress_indicated
+      def progress_indicated_dummy():
+        mocked_display.assert_called_with('Processing...')
 
-  @patch('IPython.core.display.HTML')
-  @patch('IPython.core.display.Javascript')
-  @patch('IPython.core.display.display')
-  @patch('IPython.core.display.display_javascript')
-  def test_progress_in_HTML_JS_when_in_notebook(
-      self,
-      mocked_display_javascript,
-      mocked_display,
-      mocked_javascript,
-      mocked_html):
+      progress_indicated_dummy()
+      mocked_display.assert_called_with('Done.')
 
+  def test_progress_in_HTML_JS_when_in_notebook(self):
     ie.current_env()._is_in_notebook = True
-    mocked_display.assert_not_called()
-    mocked_display_javascript.assert_not_called()
 
-    @utils.progress_indicated
-    def progress_indicated_dummy():
-      mocked_display.assert_called_once()
-      mocked_html.assert_called_once()
+    pi_path = 'apache_beam.runners.interactive.utils.ProgressIndicator'
+    with patch('IPython.core.display.HTML') as mocked_html, \
+      patch('IPython.core.display.Javascript') as mocked_javascript, \
+      patch(pi_path + '.spinner_template') as enter_template, \
+      patch(pi_path + '.spinner_removal_template') as exit_template:
 
-    progress_indicated_dummy()
-    mocked_display_javascript.assert_called_once()
-    mocked_javascript.assert_called_once()
+      enter_template.format.return_value = 'enter'
+      exit_template.format.return_value = 'exit'
+
+      @utils.progress_indicated
+      def progress_indicated_dummy():
+        mocked_html.assert_called_with('enter')
+
+      progress_indicated_dummy()
+      mocked_javascript.assert_called_with(
+          ie._JQUERY_WITH_DATATABLE_TEMPLATE.format(customized_script='exit'))
 
 
 @unittest.skipIf(
