@@ -17,7 +17,7 @@
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(enableStrictDependencies: false, exportJavadoc: false, automaticModuleName: 'org.apache.beam.maven.archetypes.gcp.bom.examples')
+applyJavaNature(exportJavadoc: false, automaticModuleName: 'org.apache.beam.maven.archetypes.gcp.bom.examples')
 
 // Based off of :sdks:java:maven-archetypes:examples project
 description = "Apache Beam :: SDKs :: Java :: Maven Archetypes :: Google Cloud Platform BOM Examples"
@@ -74,8 +74,4 @@ sourceSets {
     main {
         output.dir('src', builtBy: 'generateSources')
     }
-}
-
-dependencies {
-    compile project(":examples:java")
 }
