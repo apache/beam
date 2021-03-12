@@ -36,6 +36,7 @@ else
   exit 1
 fi
 
+SCRIPT_DIR=$(dirname $0)
 LOCAL_CLONE_DIR=build_release_candidate
 LOCAL_JAVA_STAGING_DIR=java_staging_dir
 LOCAL_PYTHON_STAGING_DIR=python_staging_dir
@@ -89,6 +90,14 @@ if [[ $confirmation != "y" ]]; then
   echo "Please rerun this script and make sure you have the right inputs."
   exit
 fi
+
+RC_TAG="v${RELEASE}-RC${RC_NUM}"
+echo "Pushing tagged commit for RC${RC_NUM}"
+sh $SCRIPT_DIR/set_version.sh ${RELEASE} --release"
+git add -u
+git commit -m "Set version for ${RELEASE} RC${RC_NUM}"
+git tag -s "$RC_TAG" HEAD
+git push --follow-tags origin "$RC_TAG"
 
 echo "[Current Step]: Build and stage java artifacts"
 echo "Do you want to proceed? [y|N]"
