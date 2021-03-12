@@ -116,15 +116,6 @@ class GrpcVendoring_1_36_0 {
       "io.grpc",
       "io.netty",
       "io.opencensus",
-      "io.perfmark",
-      "com.google.protobuf.nano",
-      "com.jcraft",
-      "com.ning",
-      "com.sun",
-      "lzma",
-      "net.jpountz",
-      "org.bouncycastle",
-      "org.cservenak.streams",
     ]
 
     return packagesToRelocate.collectEntries {
