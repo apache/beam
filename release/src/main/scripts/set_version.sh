@@ -16,10 +16,11 @@
 #    limitations under the License.
 #
 
-# This script will update apache beam master branch with next release version
-# and cut release branch for current development version.
-
-# Parse parameters passing into the script
+# This script will update the current checked out branch to be the
+# specified version, either for release or development.
+#
+# This script should be the source of truth for all the locations in
+# the codebase that require update.
 
 set -e
 
