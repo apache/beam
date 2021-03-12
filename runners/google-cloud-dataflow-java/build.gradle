@@ -164,7 +164,6 @@ def commonLegacyExcludeCategories = [
 ]
 
 def commonRunnerV2ExcludeCategories = [
-        'org.apache.beam.sdk.testing.UsesCommittedMetrics',
         'org.apache.beam.sdk.testing.UsesGaugeMetrics',
         'org.apache.beam.sdk.testing.UsesSetState',
         'org.apache.beam.sdk.testing.UsesMapState',
@@ -362,8 +361,6 @@ task validatesRunnerV2 {
   dependsOn(createRunnerV2ValidatesRunnerTest(
     name: 'validatesRunnerV2Test',
     excludedCategories: [
-      'org.apache.beam.sdk.testing.UsesAttemptedMetrics',
-      'org.apache.beam.sdk.testing.UsesCommittedMetrics',
       'org.apache.beam.sdk.testing.UsesOnWindowExpiration',
       'org.apache.beam.sdk.testing.UsesStatefulParDo',
       'org.apache.beam.sdk.testing.UsesTimersInParDo',
@@ -407,7 +404,6 @@ task validatesRunnerV2Streaming {
       'org.apache.beam.sdk.testing.LargeKeys$Above10KB',
       'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo',
       'org.apache.beam.sdk.testing.UsesAttemptedMetrics',
-      'org.apache.beam.sdk.testing.UsesCommittedMetrics',
       'org.apache.beam.sdk.testing.UsesTestStream',
     ],
     excludedTests: [
