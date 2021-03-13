@@ -75,6 +75,7 @@ import org.apache.thrift.protocol.TBinaryProtocol;
 import org.apache.thrift.protocol.TProtocolFactory;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Assert;
+import org.junit.Assume;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -199,6 +200,7 @@ public class KafkaTableProviderIT {
 
   @Test
   public void testFakeNested() throws InterruptedException {
+    Assume.assumeFalse(topic.equals("csv_topic"));
     pipeline.getOptions().as(DirectOptions.class).setBlockOnRun(false);
     String createTableString =
         String.format(
