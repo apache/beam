@@ -158,6 +158,7 @@ script which is part of the Beam repo:
        $ mkdir -p ~/go/src/github.com/apache
        $ cd ~/go/src/github.com/apache
        $ git clone https://github.com/apache/beam
+       $ cd beam
 
 1. Familiarize yourself with gradle and the project structure. At the root of the git repository, run:
 
