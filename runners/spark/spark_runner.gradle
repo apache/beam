@@ -19,7 +19,7 @@
 import groovy.json.JsonOutput
 import java.util.stream.Collectors
 
-plugins { id 'org.apache.beam.module' }
+apply plugin: 'org.apache.beam.module'
 applyJavaNature(
   automaticModuleName: 'org.apache.beam.runners.spark',
   classesTriggerCheckerBugs: [
@@ -29,7 +29,7 @@ applyJavaNature(
   ],
 )
 
-description = "Apache Beam :: Runners :: Spark"
+description = "Apache Beam :: Runners :: Spark $spark_version"
 
 /*
  * We need to rely on manually specifying these evaluationDependsOn to ensure that
@@ -53,6 +53,63 @@ def hadoopVersions = [
 
 hadoopVersions.each {kv -> configurations.create("hadoopVersion$kv.key")}
 
+/*
+ * Copy & merge source overrides into build directory.
+ */
+def sourceOverridesBase = "${project.buildDir}/source-overrides/src"
+
+def copySourceOverrides = tasks.register('copySourceOverrides', Copy) {
+  it.from main_source_overrides
+  it.into "${sourceOverridesBase}/main/java"
+  it.duplicatesStrategy DuplicatesStrategy.INCLUDE
+}
+compileJava.dependsOn copySourceOverrides
+
+def copyResourcesOverrides = tasks.register('copyResourcesOverrides', Copy) {
+  it.from main_resources_overrides
+  it.into "${sourceOverridesBase}/main/resources"
+  it.duplicatesStrategy DuplicatesStrategy.INCLUDE
+}
+compileJava.dependsOn copyResourcesOverrides
+
+def copyTestSourceOverrides = tasks.register('copyTestSourceOverrides', Copy) {
+  it.from test_source_overrides
+  it.into "${sourceOverridesBase}/test/java"
+  it.duplicatesStrategy DuplicatesStrategy.INCLUDE
+}
+compileTestJava.dependsOn copyTestSourceOverrides
+
+def copyTestResourcesOverrides = tasks.register('copyTestResourcesOverrides', Copy) {
+  it.from test_resources_overrides
+  it.into "${sourceOverridesBase}/test/resources"
+  it.duplicatesStrategy DuplicatesStrategy.INCLUDE
+}
+compileJava.dependsOn copyTestResourcesOverrides
+
+/*
+ * We have to explicitly set all directories here to make sure each
+ * version of Spark has the correct overrides set.
+ */
+def sourceBase = "${project.projectDir}/../src"
+sourceSets {
+  main {
+    java {
+      srcDirs = ["${sourceBase}/main/java", "${sourceOverridesBase}/main/java"]
+    }
+    resources {
+      srcDirs = ["${sourceBase}/main/resources", "${sourceOverridesBase}/main/resources"]
+    }
+  }
+  test {
+    java {
+      srcDirs = ["${sourceBase}/test/java", "${sourceOverridesBase}/test/java"]
+    }
+    resources {
+      srcDirs = ["${sourceBase}/test/resources", "${sourceOverridesBase}/test/resources"]
+    }
+  }
+}
+
 test {
   systemProperty "beam.spark.test.reuseSparkContext", "true"
   systemProperty "spark.sql.shuffle.partitions", "4"
@@ -63,12 +120,26 @@ test {
                     "--streaming=false",
                     "--enableSparkMetricSinks=true"
                   ]"""
+  systemProperty "log4j.configuration", "log4j-test.properties"
+  // Change log level to debug:
+  // systemProperty "org.slf4j.simpleLogger.defaultLogLevel", "debug"
+  // Change log level to debug only for the package and nested packages:
+  // systemProperty "org.slf4j.simpleLogger.log.org.apache.beam.runners.spark.stateful", "debug"
+  jvmArgs "-XX:-UseGCOverheadLimit"
+  if (System.getProperty("beamSurefireArgline")) {
+    jvmArgs System.getProperty("beamSurefireArgline")
+  }
+
   // Only one SparkContext may be running in a JVM (SPARK-2243)
   forkEvery 1
   maxParallelForks 4
   useJUnit {
     excludeCategories "org.apache.beam.runners.spark.StreamingTest"
     excludeCategories "org.apache.beam.runners.spark.UsesCheckpointRecovery"
+  }
+  filter {
+    // BEAM-11653 MetricsSinkTest is failing with Spark 3
+    excludeTestsMatching 'org.apache.beam.runners.spark.aggregators.metrics.sink.SparkMetricsSinkTest'
   }
 }
 
@@ -89,24 +160,25 @@ dependencies {
   compile project(":sdks:java:fn-execution")
   compile library.java.vendored_grpc_1_26_0
   compile library.java.vendored_guava_26_0_jre
-  provided library.java.spark_core
-  provided library.java.spark_sql
-  provided library.java.spark_streaming
-  provided library.java.spark_network_common
+  provided "org.apache.spark:spark-core_$spark_scala_version:$spark_version"
+  provided "org.apache.spark:spark-network-common_$spark_scala_version:$spark_version"
+  provided "org.apache.spark:spark-sql_$spark_scala_version:$spark_version"
+  provided "org.apache.spark:spark-streaming_$spark_scala_version:$spark_version"
+  runtimeOnly "com.fasterxml.jackson.module:jackson-module-scala_$spark_scala_version:2.10.2"
+  // Force paranamer 2.8 to avoid issues when using Scala 2.12
+  runtimeOnly "com.thoughtworks.paranamer:paranamer:2.8"
   provided library.java.hadoop_common
   provided library.java.commons_io
   provided library.java.hamcrest_core
   provided library.java.hamcrest_library
   provided "com.esotericsoftware.kryo:kryo:2.21"
-  runtimeOnly library.java.jackson_module_scala
-  runtimeOnly "org.scala-lang:scala-library:2.11.8"
   testCompile project(":sdks:java:io:kafka")
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   // SparkStateInternalsTest extends abstract StateInternalsTest
   testCompile project(path: ":runners:core-java", configuration: "testRuntime")
   testCompile project(":sdks:java:harness")
   testCompile library.java.avro
-  testCompile library.java.kafka
+  testCompile "org.apache.kafka:kafka_$spark_scala_version:2.4.1"
   testCompile library.java.kafka_clients
   testCompile library.java.junit
   testCompile library.java.mockito_core
@@ -208,6 +280,10 @@ task validatesRunnerStreaming(type: Test) {
   useJUnit {
     includeCategories 'org.apache.beam.runners.spark.StreamingTest'
   }
+  filter {
+    // BEAM-11653 MetricsSinkTest is failing with Spark 3
+    excludeTestsMatching 'org.apache.beam.runners.spark.aggregators.metrics.sink.SparkMetricsSinkTest'
+  }
 }
 
 task validatesStructuredStreamingRunnerBatch(type: Test) {
@@ -283,7 +359,7 @@ task validatesRunner {
   //dependsOn validatesStructuredStreamingRunnerBatch
 }
 
-// Generates :runners:spark:runQuickstartJavaSpark
+// Generates :runners:spark:*:runQuickstartJavaSpark task
 createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner: 'Spark')
 
 task hadoopVersionsTest(group: "Verification") {

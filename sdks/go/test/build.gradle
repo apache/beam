@@ -97,12 +97,12 @@ task flinkXlangValidatesRunner {
 // TODO(BEAM-11415): Merge this into existing ValidatesRunner gradle rules.
 task sparkXlangValidatesRunner {
   dependsOn ":sdks:go:test:goBuild"
-  dependsOn ":runners:spark:job-server:shadowJar"
+  dependsOn ":runners:spark:2:job-server:shadowJar"
   dependsOn ":sdks:java:testing:expansion-service:buildTestExpansionServiceJar"
   doLast {
     def options = [
             "--runner spark",
-            "--spark_job_server_jar ${project(":runners:spark:job-server").shadowJar.archivePath}",
+            "--spark_job_server_jar ${project(":runners:spark:2:job-server").shadowJar.archivePath}",
             "--expansion_service_jar ${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
     ]
     exec {
@@ -182,12 +182,12 @@ task flinkValidatesRunner {
 
 task sparkValidatesRunner {
   dependsOn ":sdks:go:test:goBuild"
-  dependsOn ":runners:spark:job-server:shadowJar"
+  dependsOn ":runners:spark:2:job-server:shadowJar"
   doLast {
     def options = [
             "--runner spark",
             "--parallel 1", // prevent memory overuse
-            "--spark_job_server_jar ${project(":runners:spark:job-server").shadowJar.archivePath}",
+            "--spark_job_server_jar ${project(":runners:spark:2:job-server").shadowJar.archivePath}",
     ]
     exec {
       executable "sh"
