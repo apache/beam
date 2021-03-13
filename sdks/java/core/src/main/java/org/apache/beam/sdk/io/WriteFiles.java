@@ -393,7 +393,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
     PCollection<FileResult<DestinationT>> tempFileResults =
         (getComputeNumShards() == null && getNumShardsProvider() == null)
-            ? input.isBounded() == IsBounded.BOUNDED
+            ? !getWithRunnerDeterminedShardingUnbounded()
                 ? input.apply(
                     "WriteUnshardedBundlesToTempFiles",
                     new WriteUnshardedBundlesToTempFiles(destinationCoder, fileResultCoder))
