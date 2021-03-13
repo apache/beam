@@ -1231,7 +1231,7 @@ In case of script failure, you can still run all of them manually.&lt;/p>
 -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \
 -Pver=${RELEASE_VERSION}
 &lt;/code>&lt;/pre>&lt;p>&lt;strong>Spark Local Runner&lt;/strong>&lt;/p>
-&lt;pre>&lt;code>./gradlew :runners:spark:runQuickstartJavaSpark \
+&lt;pre>&lt;code>./gradlew :runners:spark:2:runQuickstartJavaSpark \
 -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \
 -Pver=${RELEASE_VERSION}
 &lt;/code>&lt;/pre>&lt;p>&lt;strong>Dataflow Runner&lt;/strong>&lt;/p>

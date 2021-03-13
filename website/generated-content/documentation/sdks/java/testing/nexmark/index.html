@@ -125,7 +125,7 @@ SMOKE suite can make sure there is nothing broken in the Nexmark suite.</p><p>Ba
 </code></pre><h3 id=running-smoke-suite-on-the-sparkrunner-local>Running SMOKE suite on the SparkRunner (local)</h3><p>The SparkRunner is special-cased in the Nexmark gradle launch. The task will
 provide the version of Spark that the SparkRunner is built against, and
 configure logging.</p><p>Batch Mode:</p><pre><code>./gradlew :sdks:java:testing:nexmark:run \
-    -Pnexmark.runner=&quot;:runners:spark&quot; \
+    -Pnexmark.runner=&quot;:runners:spark:2&quot; \
     -Pnexmark.args=&quot;
         --runner=SparkRunner
         --suite=SMOKE
@@ -134,7 +134,7 @@ configure logging.</p><p>Batch Mode:</p><pre><code>./gradlew :sdks:java:testing:
         --manageResources=false
         --monitorJobs=true&quot;
 </code></pre><p>Streaming Mode:</p><pre><code>./gradlew :sdks:java:testing:nexmark:run \
-    -Pnexmark.runner=&quot;:runners:spark&quot; \
+    -Pnexmark.runner=&quot;:runners:spark:2&quot; \
     -Pnexmark.args=&quot;
         --runner=SparkRunner
         --suite=SMOKE
