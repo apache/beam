@@ -171,11 +171,7 @@ script which is part of the Beam repo:
 
 1. Make sure you can build and run tests
 
-    Run the entire set of tests with:
-
-       $ ./gradlew check
-
-   You can limit testing to a particular module. Gradle will build just the necessary things to run those tests. For example:
+   Since Beam is a large project, usually, you will want to limit testing to the particular module you are working on. Gradle will build just the necessary things to run those tests. For example:
 
        $ ./gradlew -p sdks/go check
        $ ./gradlew -p sdks/java/io/cassandra check
