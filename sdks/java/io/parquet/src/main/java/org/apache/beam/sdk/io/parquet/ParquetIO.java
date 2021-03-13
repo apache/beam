@@ -1054,6 +1054,7 @@ public class ParquetIO {
     return new AutoValue_ParquetIO_Sink.Builder()
         .setJsonSchema(schema.toString())
         .setCompressionCodec(CompressionCodecName.SNAPPY)
+        .setRowGroupSize(0)
         .build();
   }
 
@@ -1067,6 +1068,8 @@ public class ParquetIO {
 
     abstract @Nullable SerializableConfiguration getConfiguration();
 
+    abstract int getRowGroupSize();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -1076,6 +1079,8 @@ public class ParquetIO {
       abstract Builder setCompressionCodec(CompressionCodecName compressionCodec);
 
       abstract Builder setConfiguration(SerializableConfiguration configuration);
+
+      abstract Builder setRowGroupSize(int rowGroupSize);
 
       abstract Sink build();
     }
@@ -1097,6 +1102,12 @@ public class ParquetIO {
       return toBuilder().setConfiguration(new SerializableConfiguration(configuration)).build();
     }
 
+    /** Specify row-group size; if not set, a default will be used by the underlying writer. */
+    public Sink withRowGroupSize(int rowGroupSize) {
+      checkArgument(rowGroupSize > 0, "rowGroupSize should be positive");
+      return toBuilder().setRowGroupSize(rowGroupSize).build();
+    }
+
     private transient @Nullable ParquetWriter<GenericRecord> writer;
 
     @Override
@@ -1108,13 +1119,16 @@ public class ParquetIO {
       BeamParquetOutputFile beamParquetOutputFile =
           new BeamParquetOutputFile(Channels.newOutputStream(channel));
 
-      this.writer =
+      AvroParquetWriter.Builder<GenericRecord> builder =
           AvroParquetWriter.<GenericRecord>builder(beamParquetOutputFile)
               .withSchema(schema)
               .withCompressionCodec(getCompressionCodec())
               .withWriteMode(OVERWRITE)
-              .withConf(SerializableConfiguration.newConfiguration(getConfiguration()))
-              .build();
+              .withConf(SerializableConfiguration.newConfiguration(getConfiguration()));
+      if (getRowGroupSize() > 0) {
+        builder = builder.withRowGroupSize(getRowGroupSize());
+      }
+      this.writer = builder.build();
     }
 
     @Override
