@@ -38,6 +38,8 @@ if [[ $# -eq 1 && $1 = "-h" ]]; then
 	echo "There are two params required:"
 	echo "--release=\${CURRENT_RELEASE_VERSION}"
 	echo "--next_release=\${NEXT_RELEASE_VERSION}"
+	echo "There is one optional parameter:"
+	echo "--rc_num\${RC_NUM}"
 	exit
 else
 	for param in "$@"
@@ -47,6 +49,9 @@ else
 		fi
 		if [[ $param =~ --next_release\=([0-9]\.[0-9]*\.[0-9]) ]]; then
 			NEXT_VERSION_IN_BASE_BRANCH=${BASH_REMATCH[1]}
+		fi
+		if [[ $param =~ --rc_num\=([0-9]) ]]; then
+		  RC_NUM=${BASH_REMATCH[1]}
 		fi
 	done
 fi
@@ -69,6 +74,8 @@ echo "next_release: ${NEXT_VERSION_IN_BASE_BRANCH}"
 echo "working master branch: ${MASTER_BRANCH}"
 echo "working release branch: ${RELEASE_BRANCH}"
 echo "local repo dir: ~/${LOCAL_CLONE_DIR}/${BEAM_ROOT_DIR}"
+if [ -n "${RC_NUM}" ]; then echo "release control version: ${RC_NUM}"
+fi
 echo "==============================================================="
 
 cd ~
@@ -128,7 +135,10 @@ echo ${RELEASE_BRANCH}
 echo "==============================================================="
 
 sed -i -e "s/${DEV}/${RELEASE}/g" gradle.properties
-sed -i -e "s/${DEV}/${RELEASE}/g" sdks/python/apache_beam/version.py
+if [ -z "${RC_NUM}" ]
+ then sed -i -e "s/${DEV}/${RELEASE}/g" sdks/python/apache_beam/version.py;
+ else sed -i -e "s/${DEV}/${RELEASE}-rc${RC_NUM}/g" sdks/python/apache_beam/version.py;
+fi
 sed -i -e "s/${DEV}/${RELEASE}/g" sdks/go/pkg/beam/core/core.go
 # TODO: [BEAM-4767]
 sed -i -e "s/'beam-master-.*'/'beam-${RELEASE}'/g" runners/google-cloud-dataflow-java/build.gradle
