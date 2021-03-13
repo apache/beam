@@ -578,7 +578,6 @@ class BeamModulePlugin implements Plugin<Project> {
         jackson_dataformat_xml                      : "com.fasterxml.jackson.dataformat:jackson-dataformat-xml:$jackson_version",
         jackson_dataformat_yaml                     : "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:$jackson_version",
         jackson_datatype_joda                       : "com.fasterxml.jackson.datatype:jackson-datatype-joda:$jackson_version",
-        jackson_module_scala                        : "com.fasterxml.jackson.module:jackson-module-scala_2.11:$jackson_version",
         jaxb_api                                    : "jakarta.xml.bind:jakarta.xml.bind-api:$jaxb_api_version",
         jaxb_impl                                   : "com.sun.xml.bind:jaxb-impl:$jaxb_api_version",
         joda_time                                   : "joda-time:joda-time:2.10.10",
@@ -1632,7 +1631,7 @@ class BeamModulePlugin implements Plugin<Project> {
         }
 
         if (runner?.equalsIgnoreCase('spark')) {
-          testRuntime it.project(path: ":runners:spark", configuration: 'testRuntime')
+          testRuntime it.project(path: ":runners:spark:2", configuration: 'testRuntime')
           testRuntime project.library.java.spark_core
           testRuntime project.library.java.spark_streaming
 
@@ -2338,7 +2337,7 @@ class BeamModulePlugin implements Plugin<Project> {
           dependsOn = ['installGcpTest']
           mustRunAfter = [
             ":runners:flink:${project.ext.latestFlinkVersion}:job-server:shadowJar",
-            ':runners:spark:job-server:shadowJar',
+            ':runners:spark:2:job-server:shadowJar',
             ':sdks:python:container:py36:docker',
             ':sdks:python:container:py37:docker',
             ':sdks:python:container:py38:docker',
@@ -2353,7 +2352,7 @@ class BeamModulePlugin implements Plugin<Project> {
               "--parallelism=2",
               "--sdk_worker_parallelism=1",
               "--flink_job_server_jar=${project.project(flinkJobServerProject).shadowJar.archivePath}",
-              "--spark_job_server_jar=${project.project(':runners:spark:job-server').shadowJar.archivePath}",
+              "--spark_job_server_jar=${project.project(':runners:spark:2:job-server').shadowJar.archivePath}",
             ]
             if (isStreaming)
               options += [
