@@ -223,7 +223,7 @@ public class KafkaTableProviderIT {
         BeamSqlRelUtils.toPCollection(
             pipeline,
             env.parseQuery(
-                "SELECT payload.f_long, payload.f_int, payload.f_string FROM kafka_table"));
+                "SELECT kafka_table.payload.f_long, kafka_table.payload.f_int, kafka_table.payload.f_string FROM kafka_table"));
 
     queryOutput
         .apply(ParDo.of(new FakeKvPair()))
