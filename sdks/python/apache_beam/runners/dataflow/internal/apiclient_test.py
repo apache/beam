@@ -187,8 +187,6 @@ class UtilTest(unittest.TestCase):
     proto_pipeline, _ = pipeline.to_runner_api(
         return_context=True, default_environment=test_environment)
 
-    # We have to manually add environments since Dataflow only sets
-    # 'sdkHarnessContainerImages' when there are at least two environments.
     dummy_env = beam_runner_api_pb2.Environment(
         urn=common_urns.environments.DOCKER.urn,
         payload=(
@@ -229,9 +227,17 @@ class UtilTest(unittest.TestCase):
     proto_pipeline, _ = Pipeline().to_runner_api(
       return_context=True, default_environment=test_environment)
 
+    pipeline_options = PipelineOptions([
+        '--experiments=beam_fn_api',
+        '--experiments=use_unified_worker',
+        '--temp_location',
+        'gs://any-location/temp'
+    ])
+
     # Accessing non-public method for testing.
     apiclient.DataflowApplicationClient._apply_sdk_environment_overrides(
-        proto_pipeline, {'.*dummy.*': 'new_dummy_container_image'})
+        proto_pipeline, {'.*dummy.*': 'new_dummy_container_image'},
+        pipeline_options)
 
     self.assertIsNotNone(1, len(proto_pipeline.components.environments))
     env = list(proto_pipeline.components.environments.values())[0]
@@ -245,26 +251,134 @@ class UtilTest(unittest.TestCase):
         docker_payload.container_image, 'new_dummy_container_image')
 
   def test_dataflow_container_image_override(self):
-    test_environment = DockerEnvironment(
-        container_image='apache/beam_java11_sdk:x.yz.0')
-    proto_pipeline, _ = Pipeline().to_runner_api(
-        return_context=True, default_environment=test_environment)
+    pipeline_options = PipelineOptions([
+        '--experiments=beam_fn_api',
+        '--experiments=use_unified_worker',
+        '--temp_location',
+        'gs://any-location/temp'
+    ])
+
+    pipeline = Pipeline(options=pipeline_options)
+    pipeline | Create([1, 2, 3]) | ParDo(DoFn())  # pylint:disable=expression-not-assigned
+
+    proto_pipeline, _ = pipeline.to_runner_api(return_context=True)
+
+    dummy_env = beam_runner_api_pb2.Environment(
+        urn=common_urns.environments.DOCKER.urn,
+        payload=(
+            beam_runner_api_pb2.DockerPayload(
+                container_image='apache/beam_dummy_name:dummy_tag')
+        ).SerializeToString())
+    proto_pipeline.components.environments['dummy_env_id'].CopyFrom(dummy_env)
+
+    dummy_transform = beam_runner_api_pb2.PTransform(
+        environment_id='dummy_env_id')
+    proto_pipeline.components.transforms['dummy_transform_id'].CopyFrom(
+        dummy_transform)
 
     # Accessing non-public method for testing.
     apiclient.DataflowApplicationClient._apply_sdk_environment_overrides(
-        proto_pipeline, dict())
+        proto_pipeline, dict(), pipeline_options)
 
-    self.assertIsNotNone(1, len(proto_pipeline.components.environments))
-    env = list(proto_pipeline.components.environments.values())[0]
+    self.assertIsNotNone(2, len(proto_pipeline.components.environments))
 
     from apache_beam.utils import proto_utils
-    docker_payload = proto_utils.parse_Bytes(
-        env.payload, beam_runner_api_pb2.DockerPayload)
+    found_override = False
+    for env in proto_pipeline.components.environments.values():
+      docker_payload = proto_utils.parse_Bytes(
+          env.payload, beam_runner_api_pb2.DockerPayload)
+      if docker_payload.container_image.startswith(
+          names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY):
+        found_override = True
 
-    # Container image should be overridden by a the given override.
-    self.assertTrue(
-        docker_payload.container_image.startswith(
-            names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY))
+    self.assertTrue(found_override)
+
+  def test_non_apache_container_not_overridden(self):
+    pipeline_options = PipelineOptions([
+        '--experiments=beam_fn_api',
+        '--experiments=use_unified_worker',
+        '--temp_location',
+        'gs://any-location/temp'
+    ])
+
+    pipeline = Pipeline(options=pipeline_options)
+    pipeline | Create([1, 2, 3]) | ParDo(DoFn())  # pylint:disable=expression-not-assigned
+
+    proto_pipeline, _ = pipeline.to_runner_api(return_context=True)
+
+    dummy_env = beam_runner_api_pb2.Environment(
+        urn=common_urns.environments.DOCKER.urn,
+        payload=(
+            beam_runner_api_pb2.DockerPayload(
+                container_image='other_org/dummy_name:dummy_tag')
+        ).SerializeToString())
+    proto_pipeline.components.environments['dummy_env_id'].CopyFrom(dummy_env)
+
+    dummy_transform = beam_runner_api_pb2.PTransform(
+        environment_id='dummy_env_id')
+    proto_pipeline.components.transforms['dummy_transform_id'].CopyFrom(
+        dummy_transform)
+
+    # Accessing non-public method for testing.
+    apiclient.DataflowApplicationClient._apply_sdk_environment_overrides(
+        proto_pipeline, dict(), pipeline_options)
+
+    self.assertIsNotNone(2, len(proto_pipeline.components.environments))
+
+    from apache_beam.utils import proto_utils
+    found_override = False
+    for env in proto_pipeline.components.environments.values():
+      docker_payload = proto_utils.parse_Bytes(
+          env.payload, beam_runner_api_pb2.DockerPayload)
+      if docker_payload.container_image.startswith(
+          names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY):
+        found_override = True
+
+    self.assertFalse(found_override)
+
+  def test_pipeline_sdk_not_overridden(self):
+    pipeline_options = PipelineOptions([
+        '--experiments=beam_fn_api',
+        '--experiments=use_unified_worker',
+        '--temp_location',
+        'gs://any-location/temp',
+        '--worker_harness_container_image=dummy_prefix/dummy_name:dummy_tag'
+    ])
+
+    pipeline = Pipeline(options=pipeline_options)
+    pipeline | Create([1, 2, 3]) | ParDo(DoFn())  # pylint:disable=expression-not-assigned
+
+    proto_pipeline, _ = pipeline.to_runner_api(return_context=True)
+
+    dummy_env = beam_runner_api_pb2.Environment(
+        urn=common_urns.environments.DOCKER.urn,
+        payload=(
+            beam_runner_api_pb2.DockerPayload(
+                container_image='dummy_prefix/dummy_name:dummy_tag')
+        ).SerializeToString())
+    proto_pipeline.components.environments['dummy_env_id'].CopyFrom(dummy_env)
+
+    dummy_transform = beam_runner_api_pb2.PTransform(
+        environment_id='dummy_env_id')
+    proto_pipeline.components.transforms['dummy_transform_id'].CopyFrom(
+        dummy_transform)
+
+    # Accessing non-public method for testing.
+    apiclient.DataflowApplicationClient._apply_sdk_environment_overrides(
+        proto_pipeline, dict(), pipeline_options)
+
+    self.assertIsNotNone(2, len(proto_pipeline.components.environments))
+
+    from apache_beam.utils import proto_utils
+    found_override = False
+    for env in proto_pipeline.components.environments.values():
+      docker_payload = proto_utils.parse_Bytes(
+          env.payload, beam_runner_api_pb2.DockerPayload)
+      if docker_payload.container_image.startswith(
+          names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY):
+        found_override = True
+
+    self.assertFalse(found_override)
 
   def test_invalid_default_job_name(self):
     # Regexp for job names in dataflow.
