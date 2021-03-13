@@ -86,6 +86,14 @@ def looks_like_json(s):
   return re.match(r'\s*\{.*\}\s*$', s)
 
 
+APACHE_BEAM_DOCKER_IMAGE_PREFIX = 'apache/beam'
+
+
+def is_apache_beam_container(container_image):
+  return container_image and container_image.startswith(
+      APACHE_BEAM_DOCKER_IMAGE_PREFIX)
+
+
 class Environment(object):
   """Abstract base class for environments.
 
@@ -313,7 +321,8 @@ class DockerEnvironment(Environment):
         (sys.version_info[0], sys.version_info[1]))
 
     image = (
-        'apache/beam_python{version_suffix}_sdk:{tag}'.format(
+        APACHE_BEAM_DOCKER_IMAGE_PREFIX +
+        '_python{version_suffix}_sdk:{tag}'.format(
             version_suffix=version_suffix, tag=sdk_version))
     logging.info('Default Python SDK image for environment is %s' % (image))
     return image
