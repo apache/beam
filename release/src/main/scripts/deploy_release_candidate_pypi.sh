@@ -42,7 +42,7 @@ then
   echo "Which release version are you working on: "
   read RELEASE
 fi
-RELEASE_BRANCH="BEAM-9185" #release-${RELEASE} #Change after tests
+RELEASE_BRANCH="release-${RELEASE}"
 if [[ -z "${RC_NUM}" ]]
 then
   echo "Which release candidate number(e.g. 1) are you going to create: "
