@@ -20,7 +20,7 @@ def basePath = '..'
 /* All properties required for loading the Spark build script */
 project.ext {
   // Set the version of all Spark-related dependencies here.
-  spark_version = '3.0.1'
+  spark_version = '3.1.1'
   spark_scala_version = '2.12'
 
   // Version specific code overrides.
@@ -28,7 +28,7 @@ project.ext {
   test_source_overrides = ['./src/test/java']
   main_resources_overrides = []
   test_resources_overrides = []
-  archives_base_name = 'beam-runners-spark3'
+  archives_base_name = 'beam-runners-spark-3'
 }
 
 // Load the main build script which contains all build logic.
