@@ -24,7 +24,7 @@ project.ext {
   test_source_dirs = ["$basePath/src/test/java"]
   main_resources_dirs = ["$basePath/src/main/resources"]
   test_resources_dirs = ["$basePath/src/test/resources"]
-  archives_base_name = 'beam-runners-spark3-job-server'
+  archives_base_name = 'beam-runners-spark-3-job-server'
 }
 
 // Load the main build script which contains all build logic.
