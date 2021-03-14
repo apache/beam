@@ -29,6 +29,7 @@ mainClassName = "org.apache.beam.runners.spark.SparkJobServerDriver"
 
 applyJavaNature(
   automaticModuleName: 'org.apache.beam.runners.spark.jobserver',
+  archivesBaseName: project.hasProperty('archives_base_name') ? archives_base_name : archivesBaseName,
   validateShadowJar: false,
   exportJavadoc: false,
   shadowClosure: {
