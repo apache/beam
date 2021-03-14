@@ -122,7 +122,7 @@ task createProcessWorker {
 def createSparkRunnerTestTask(String workerType) {
   def taskName = "sparkCompatibilityMatrix${workerType}"
   // `project(':runners:spark:2:job-server').shadowJar.archivePath` is not resolvable until runtime, so hard-code it here.
-  def jobServerJar = "${rootDir}/runners/spark/2/job-server/build/libs/beam-runners-spark-2-job-server-${version}.jar"
+  def jobServerJar = "${rootDir}/runners/spark/2/job-server/build/libs/beam-runners-spark-job-server-${version}.jar"
   def options = "--spark_job_server_jar=${jobServerJar} --environment_type=${workerType}"
   if (workerType == 'PROCESS') {
     options += " --environment_options=process_command=${buildDir.absolutePath}/sdk_worker.sh"
