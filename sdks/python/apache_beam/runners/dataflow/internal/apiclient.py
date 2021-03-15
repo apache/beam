@@ -63,6 +63,7 @@ from apache_beam.runners.portability.stager import Stager
 from apache_beam.transforms import DataflowDistributionCounter
 from apache_beam.transforms import cy_combiners
 from apache_beam.transforms.display import DisplayData
+from apache_beam.transforms.environments import is_apache_beam_container
 from apache_beam.utils import retry
 from apache_beam.utils import proto_utils
 
@@ -696,24 +697,34 @@ class DataflowApplicationClient(object):
     return names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/' + image_suffix
 
   @staticmethod
-  def _apply_sdk_environment_overrides(proto_pipeline, sdk_overrides):
+  def _apply_sdk_environment_overrides(
+      proto_pipeline, sdk_overrides, pipeline_options):
     # Updates container image URLs for Dataflow.
     # For a given container image URL
     # * If a matching override has been provided that will be used.
-    # * If not, container image URL will be updated to use the correct base
-    #   repository (GRC) for Dataflow.
+    # * For improved performance, External Apache Beam container images that are
+    #   not explicitly overridden will be
+    #   updated to use GCR copies instead of directly downloading from the
+    #   Docker Hub.
+
+    current_sdk_container_image = get_container_image_from_options(
+        pipeline_options)
+
     for environment in proto_pipeline.components.environments.values():
       docker_payload = proto_utils.parse_Bytes(
           environment.payload, beam_runner_api_pb2.DockerPayload)
       overridden = False
-      new_container_image = None
+      new_container_image = docker_payload.container_image
       for pattern, override in sdk_overrides.items():
         new_container_image = re.sub(
             pattern, override, docker_payload.container_image)
         if new_container_image != docker_payload.container_image:
           overridden = True
 
-      if not overridden:
+      # Container of the current (Python) SDK is overridden separately, hence
+      # not updated here.
+      if (is_apache_beam_container(new_container_image) and not overridden and
+          new_container_image != current_sdk_container_image):
         new_container_image = (
             DataflowApplicationClient._update_container_image_for_dataflow(
                 docker_payload.container_image))
@@ -729,7 +740,7 @@ class DataflowApplicationClient(object):
   def create_job_description(self, job):
     """Creates a job described by the workflow proto."""
     DataflowApplicationClient._apply_sdk_environment_overrides(
-        job.proto_pipeline, self._sdk_image_overrides)
+        job.proto_pipeline, self._sdk_image_overrides, job.options)
 
     # Stage proto pipeline.
     self.stage_file(
