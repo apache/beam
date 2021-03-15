@@ -2463,11 +2463,23 @@ class GroupBy(PTransform):
       key_exprs = [expr for _, expr in self._key_fields]
       return lambda element: key_type(*(expr(element) for expr in key_exprs))
 
+  def _key_type_hint(self):
+    if not self._force_tuple_keys and len(self._key_fields) == 1:
+      return typing.Any
+    else:
+      return _dynamic_named_tuple(
+          'Key', tuple(name for name, _ in self._key_fields))
+
   def default_label(self):
     return 'GroupBy(%s)' % ', '.join(name for name, _ in self._key_fields)
 
   def expand(self, pcoll):
-    return pcoll | Map(lambda x: (self._key_func()(x), x)) | GroupByKey()
+    input_type = pcoll.element_type or typing.Any
+    return (
+        pcoll
+        | Map(lambda x: (self._key_func()(x), x)).with_output_types(
+            typehints.Tuple[self._key_type_hint(), input_type])
+        | GroupByKey())
 
 
 _dynamic_named_tuple_cache = {
@@ -2517,10 +2529,12 @@ class _GroupAndAggregate(PTransform):
     result_fields = tuple(name
                           for name, _ in self._grouping._key_fields) + tuple(
                               dest for _, __, dest in self._aggregations)
+    key_type_hint = self._grouping.force_tuple_keys(True)._key_type_hint()
 
     return (
         pcoll
-        | Map(lambda x: (key_func(x), value_func(x)))
+        | Map(lambda x: (key_func(x), value_func(x))).with_output_types(
+            typehints.Tuple[key_type_hint, typing.Any])
         | CombinePerKey(
             TupleCombineFn(
                 *[combine_fn for _, combine_fn, __ in self._aggregations]))
@@ -2871,10 +2885,7 @@ class Flatten(PTransform):
     for pcoll in pcolls:
       self._check_pcollection(pcoll)
     is_bounded = all(pcoll.is_bounded for pcoll in pcolls)
-    result = pvalue.PCollection(self.pipeline, is_bounded=is_bounded)
-    result.element_type = typehints.Union[tuple(
-        pcoll.element_type for pcoll in pcolls)]
-    return result
+    return pvalue.PCollection(self.pipeline, is_bounded=is_bounded)
 
   def get_windowing(self, inputs):
     # type: (typing.Any) -> Windowing
@@ -2882,6 +2893,9 @@ class Flatten(PTransform):
       # TODO(robertwb): Return something compatible with every windowing?
       return Windowing(GlobalWindows())
     return super(Flatten, self).get_windowing(inputs)
+
+  def infer_output_type(self, input_type):
+    return input_type
 
   def to_runner_api_parameter(self, context):
     # type: (PipelineContext) -> typing.Tuple[str, None]

@@ -21,7 +21,6 @@ apply plugin: 'application'
 mainClassName = "org.apache.beam.sdk.expansion.service.ExpansionService"
 
 applyJavaNature(
-    enableStrictDependencies: true,
     automaticModuleName: 'org.apache.beam.sdk.io.kinesis.expansion.service',
     exportJavadoc: false,
     validateShadowJar: false,

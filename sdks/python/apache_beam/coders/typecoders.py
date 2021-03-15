@@ -66,8 +66,6 @@ See apache_beam.typehints.decorators module for more details.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 from builtins import object
 from typing import Any
 from typing import Dict

@@ -14,8 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import absolute_import
-
 import functools
 from inspect import getfullargspec
 from inspect import unwrap
@@ -110,6 +108,16 @@ class _DeferredScalar(DeferredBase):
               name,
               func, [self._expr] + [arg._expr for arg in args],
               requires_partition_by=partitionings.Singleton()))
+
+  def __repr__(self):
+    return f"DeferredScalar[type={type(self._expr.proxy())}]"
+
+  def __bool__(self):
+    # TODO(BEAM-11951): Link to documentation
+    raise TypeError(
+        "Testing the truth value of a deferred scalar is not "
+        "allowed. It's not possible to branch on the result of "
+        "deferred operations.")
 
 
 DeferredBase._pandas_type_map[None] = _DeferredScalar

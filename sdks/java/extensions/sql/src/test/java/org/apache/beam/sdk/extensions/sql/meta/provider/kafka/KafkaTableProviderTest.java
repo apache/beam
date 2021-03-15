@@ -17,14 +17,12 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
-import static org.apache.beam.sdk.schemas.Schema.toSchema;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
-import java.util.stream.Stream;
 import org.apache.beam.sdk.extensions.protobuf.PayloadMessages;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
@@ -95,31 +93,70 @@ public class KafkaTableProviderTest {
   }
 
   @Test
+  public void testBuildBeamSqlNestedBytesTable() {
+    Table table = mockNestedBytesTable("hello");
+    BeamSqlTable sqlTable = provider.buildBeamSqlTable(table);
+
+    assertNotNull(sqlTable);
+    assertTrue(sqlTable instanceof NestedPayloadKafkaTable);
+
+    BeamKafkaTable thriftTable = (BeamKafkaTable) sqlTable;
+    assertEquals("localhost:9092", thriftTable.getBootstrapServers());
+    assertEquals(ImmutableList.of("topic1", "topic2"), thriftTable.getTopics());
+  }
+
+  @Test
+  public void testBuildBeamSqlNestedThriftTable() {
+    Table table =
+        mockNestedThriftTable("hello", SimpleThriftMessage.class, TCompactProtocol.Factory.class);
+    BeamSqlTable sqlTable = provider.buildBeamSqlTable(table);
+
+    assertNotNull(sqlTable);
+    assertTrue(sqlTable instanceof NestedPayloadKafkaTable);
+
+    BeamKafkaTable thriftTable = (BeamKafkaTable) sqlTable;
+    assertEquals("localhost:9092", thriftTable.getBootstrapServers());
+    assertEquals(ImmutableList.of("topic1", "topic2"), thriftTable.getTopics());
+  }
+
+  @Test
   public void testGetTableType() {
     assertEquals("kafka", provider.getTableType());
   }
 
   private static Table mockTable(String name) {
-    return mockTable(name, null, null, null, null);
+    return mockTable(name, false, null, null, null, null);
   }
 
   private static Table mockTable(String name, String payloadFormat) {
-    return mockTable(name, payloadFormat, null, null, null);
+    return mockTable(name, false, payloadFormat, null, null, null);
   }
 
   private static Table mockProtoTable(String name, Class<?> protoClass) {
-    return mockTable(name, "proto", protoClass, null, null);
+    return mockTable(name, false, "proto", protoClass, null, null);
   }
 
   private static Table mockThriftTable(
       String name,
       Class<? extends TBase<?, ?>> thriftClass,
       Class<? extends TProtocolFactory> thriftProtocolFactoryClass) {
-    return mockTable(name, "thrift", null, thriftClass, thriftProtocolFactoryClass);
+    return mockTable(name, false, "thrift", null, thriftClass, thriftProtocolFactoryClass);
+  }
+
+  private static Table mockNestedBytesTable(String name) {
+    return mockTable(name, true, null, null, null, null);
+  }
+
+  private static Table mockNestedThriftTable(
+      String name,
+      Class<? extends TBase<?, ?>> thriftClass,
+      Class<? extends TProtocolFactory> thriftProtocolFactoryClass) {
+    return mockTable(name, true, "thrift", null, thriftClass, thriftProtocolFactoryClass);
   }
 
   private static Table mockTable(
       String name,
+      boolean isNested,
       @Nullable String payloadFormat,
       @Nullable Class<?> protoClass,
       @Nullable Class<? extends TBase<?, ?>> thriftClass,
@@ -142,16 +179,26 @@ public class KafkaTableProviderTest {
     if (thriftProtocolFactoryClass != null) {
       properties.put("thriftProtocolFactoryClass", thriftProtocolFactoryClass.getName());
     }
+    Schema payloadSchema = Schema.builder().addInt32Field("id").addStringField("name").build();
+    Schema schema;
+    if (isNested) {
+      Schema.Builder schemaBuilder = Schema.builder();
+      schemaBuilder.addField(Schemas.HEADERS_FIELD, Schemas.HEADERS_FIELD_TYPE);
+      if (payloadFormat == null) {
+        schemaBuilder.addByteArrayField(Schemas.PAYLOAD_FIELD);
+      } else {
+        schemaBuilder.addRowField(Schemas.PAYLOAD_FIELD, payloadSchema);
+      }
+      schema = schemaBuilder.build();
+    } else {
+      schema = payloadSchema;
+    }
 
     return Table.builder()
         .name(name)
         .comment(name + " table")
         .location("kafka://localhost:2181/brokers?topic=test")
-        .schema(
-            Stream.of(
-                    Schema.Field.of("id", Schema.FieldType.INT32),
-                    Schema.Field.of("name", Schema.FieldType.STRING))
-                .collect(toSchema()))
+        .schema(schema)
         .type("kafka")
         .properties(properties)
         .build();

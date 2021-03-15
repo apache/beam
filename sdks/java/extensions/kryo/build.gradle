@@ -23,7 +23,6 @@ ext {
 }
 
 applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.extensions.kryo',
-    enableStrictDependencies: true,
     exportJavadoc: false,
     shadowClosure: {
     dependencies {

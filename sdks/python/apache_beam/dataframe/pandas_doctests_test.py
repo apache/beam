@@ -14,8 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import absolute_import
-
 import sys
 import unittest
 
@@ -39,6 +37,10 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.frame.DataFrame.cumsum': ['*'],
             'pandas.core.frame.DataFrame.cumprod': ['*'],
             'pandas.core.frame.DataFrame.diff': ['*'],
+            'pandas.core.frame.DataFrame.fillna': [
+                "df.fillna(method='ffill')",
+                'df.fillna(value=values, limit=1)',
+            ],
             'pandas.core.frame.DataFrame.items': ['*'],
             'pandas.core.frame.DataFrame.itertuples': ['*'],
             'pandas.core.frame.DataFrame.iterrows': ['*'],
@@ -55,6 +57,11 @@ class DoctestTest(unittest.TestCase):
                 "df.nsmallest(3, 'population', keep='last')",
             ],
             'pandas.core.frame.DataFrame.nunique': ['*'],
+            'pandas.core.frame.DataFrame.replace': [
+                "s.replace([1, 2], method='bfill')",
+                # Relies on method='pad'
+                "s.replace('a', None)",
+            ],
             'pandas.core.frame.DataFrame.to_records': ['*'],
             'pandas.core.frame.DataFrame.to_dict': ['*'],
             'pandas.core.frame.DataFrame.to_numpy': ['*'],
@@ -84,9 +91,12 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.frame.DataFrame.transform': ['*'],
             'pandas.core.frame.DataFrame.isin': ['*'],
             'pandas.core.frame.DataFrame.melt': ['*'],
-            'pandas.core.frame.DataFrame.count': ['*'],
             'pandas.core.frame.DataFrame.reindex': ['*'],
             'pandas.core.frame.DataFrame.reindex_axis': ['*'],
+
+            'pandas.core.frame.DataFrame.round': [
+                'df.round(decimals)',
+            ],
 
             # We should be able to support pivot and pivot_table for categorical
             # columns
@@ -238,6 +248,10 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.dot': [
                 's.dot(arr)',  # non-deferred result
             ],
+            'pandas.core.series.Series.fillna': [
+                "df.fillna(method='ffill')",
+                'df.fillna(value=values, limit=1)',
+            ],
             'pandas.core.series.Series.items': ['*'],
             'pandas.core.series.Series.iteritems': ['*'],
             # default keep is 'first'
@@ -289,7 +303,6 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.series.Series.combine': ['*'],
             'pandas.core.series.Series.combine_first': ['*'],
             'pandas.core.series.Series.compare': ['*'],
-            'pandas.core.series.Series.count': ['*'],
             'pandas.core.series.Series.cov': [
                 # Differs in LSB on jenkins.
                 "s1.cov(s2)",
@@ -324,31 +337,59 @@ class DoctestTest(unittest.TestCase):
     self.assertEqual(result.failed, 0)
 
   def test_string_tests(self):
+    PD_VERSION = tuple(int(v) for v in pd.__version__.split('.'))
+    if PD_VERSION < (1, 2, 0):
+      module = pd.core.strings
+    else:
+      # Definitions were moved to accessor in pandas 1.2.0
+      module = pd.core.strings.accessor
+
+    module_name = module.__name__
+
     result = doctests.testmod(
-        pd.core.strings,
+        module,
         use_beam=False,
         wont_implement_ok={
             # These methods can accept deferred series objects, but not lists
-            'pandas.core.strings.StringMethods.cat': [
+            f'{module_name}.StringMethods.cat': [
                 "s.str.cat(['A', 'B', 'C', 'D'], sep=',')",
                 "s.str.cat(['A', 'B', 'C', 'D'], sep=',', na_rep='-')",
                 "s.str.cat(['A', 'B', 'C', 'D'], na_rep='-')"
             ],
-            'pandas.core.strings.StringMethods.repeat': [
+            f'{module_name}.StringMethods.repeat': [
                 's.str.repeat(repeats=[1, 2, 3])'
             ],
-            'pandas.core.strings.str_repeat': [
-                's.str.repeat(repeats=[1, 2, 3])'
-            ],
+            f'{module_name}.str_repeat': ['s.str.repeat(repeats=[1, 2, 3])'],
+            f'{module_name}.StringMethods.get_dummies': ['*'],
+            f'{module_name}.str_get_dummies': ['*'],
         },
         skip={
-            # Bad test strings
-            'pandas.core.strings.str_replace': [
+            # count() on Series with a NaN produces mismatched type if we
+            # have a NaN-only partition.
+            f'{module_name}.StringMethods.count': ["s.str.count('a')"],
+            f'{module_name}.str_count': ["s.str.count('a')"],
+
+            # Produce None instead of NaN, see
+            # frames_test.py::DeferredFrameTest::test_str_split
+            f'{module_name}.StringMethods.rsplit': [
+                's.str.split(expand=True)',
+                's.str.rsplit("/", n=1, expand=True)',
+            ],
+            f'{module_name}.StringMethods.split': [
+                's.str.split(expand=True)',
+                's.str.rsplit("/", n=1, expand=True)',
+            ],
+
+            # Bad test strings in pandas 1.1.x
+            f'{module_name}.str_replace': [
                 "pd.Series(['foo', 'fuz', np.nan]).str.replace('f', repr)"
             ],
-            'pandas.core.strings.StringMethods.replace': [
+            f'{module_name}.StringMethods.replace': [
                 "pd.Series(['foo', 'fuz', np.nan]).str.replace('f', repr)"
             ],
+
+            # output has incorrect formatting in 1.2.x
+            f'{module_name}.StringMethods.extractall': ['*']
         })
     self.assertEqual(result.failed, 0)
 
@@ -471,6 +512,14 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.groupby.generic.DataFrameGroupBy.diff': ['*'],
             'pandas.core.groupby.generic.SeriesGroupBy.diff': ['*'],
             'pandas.core.groupby.generic.DataFrameGroupBy.hist': ['*'],
+            'pandas.core.groupby.generic.DataFrameGroupBy.fillna': [
+                "df.fillna(method='ffill')",
+                'df.fillna(value=values, limit=1)',
+            ],
+            'pandas.core.groupby.generic.SeriesGroupBy.fillna': [
+                "df.fillna(method='ffill')",
+                'df.fillna(value=values, limit=1)',
+            ],
         },
         not_implemented_ok={
             'pandas.core.groupby.generic.DataFrameGroupBy.transform': ['*'],

@@ -19,7 +19,7 @@ import groovy.json.JsonOutput
  */
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(enableStrictDependencies:true, automaticModuleName: 'org.apache.beam.runners.portability')
+applyJavaNature(automaticModuleName: 'org.apache.beam.runners.portability')
 applyPythonNature()
 
 description = "Apache Beam :: Runners :: Portability :: Java"

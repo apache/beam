@@ -677,6 +677,16 @@ class GoogleCloudOptions(PipelineOptions):
         default=None,
         choices=['COST_OPTIMIZED', 'SPEED_OPTIMIZED'],
         help='Set the Flexible Resource Scheduling mode')
+    parser.add_argument(
+        '--service_option',
+        '--service_options',
+        dest='service_options',
+        action='append',
+        default=None,
+        help=(
+            'Options to configure the Dataflow service. These '
+            'options decouple service side feature availbility '
+            'from the Apache Beam release cycle.'))
 
   def _create_default_gcs_bucket(self):
     try:

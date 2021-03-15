@@ -27,7 +27,6 @@ def dependOnProjects = [":sdks:java:fn-execution",
                         ":runners:core-java", ":runners:core-construction-java"]
 
 applyJavaNature(
-  enableStrictDependencies: true,
   classesTriggerCheckerBugs: [
     'AssignWindowsRunner': 'https://github.com/typetools/checker-framework/issues/3794',
     'WindowMergingFnRunner': 'https://github.com/typetools/checker-framework/issues/3794',

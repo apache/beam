@@ -22,17 +22,11 @@
 from __future__ import absolute_import
 
 import unittest
+from unittest.mock import patch
 
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive.testing.mock_ipython import mock_get_ipython
 from apache_beam.utils.interactive_utils import is_in_ipython
-
-# TODO(BEAM-8288): clean up the work-around of nose tests using Python2 without
-# unittest.mock module.
-try:
-  from unittest.mock import patch
-except ImportError:
-  from mock import patch  # type: ignore[misc]
 
 
 def unavailable_ipython():

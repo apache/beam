@@ -36,6 +36,7 @@ import org.apache.beam.sdk.schemas.SchemaTranslation;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesCrossLanguageTransforms;
+import org.apache.beam.sdk.testing.UsesPythonExpansionService;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -100,6 +101,7 @@ public class ValidateRunnerXlangTest implements Serializable {
   private static final String TEST_COMPK_URN = "beam:transforms:xlang:test:compk";
   private static final String TEST_FLATTEN_URN = "beam:transforms:xlang:test:flatten";
   private static final String TEST_PARTITION_URN = "beam:transforms:xlang:test:partition";
+  private static final String TEST_PYTHON_BS4_URN = "beam:transforms:xlang:test:python_bs4";
 
   private static String expansionAddr;
   private static String expansionJar;
@@ -315,6 +317,28 @@ public class ValidateRunnerXlangTest implements Serializable {
                 External.of(TEST_PARTITION_URN, new byte[] {}, expansionAddr).withMultiOutputs());
     PAssert.that(col.get("0")).containsInAnyOrder(2L, 4L, 6L);
     PAssert.that(col.get("1")).containsInAnyOrder(1L, 3L, 5L);
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesPythonExpansionService.class})
+  public void pythonDependenciesTest() {
+    String html =
+        "<html><head><title>The Dormouse's story</title></head>\n"
+            + "<body>\n"
+            + "<p class=\"title\"><b>The Dormouse's story</b></p>\n"
+            + "\n"
+            + "<p class=\"story\">Once upon a time there were three little sisters; and their names were\n"
+            + "<a href=\"http://example.com/elsie\" class=\"sister\" id=\"link1\">Elsie</a>,\n"
+            + "<a href=\"http://example.com/lacie\" class=\"sister\" id=\"link2\">Lacie</a> and\n"
+            + "<a href=\"http://example.com/tillie\" class=\"sister\" id=\"link3\">Tillie</a>;\n"
+            + "and they lived at the bottom of a well.</p>\n"
+            + "\n"
+            + "<p class=\"story\">...</p>";
+    PCollection<String> col =
+        testPipeline
+            .apply(Create.of(html))
+            .apply(External.of(TEST_PYTHON_BS4_URN, new byte[] {}, expansionAddr));
+    PAssert.that(col).containsInAnyOrder("The Dormouse's story");
   }
 
   private byte[] toStringPayloadBytes(String data) throws IOException {

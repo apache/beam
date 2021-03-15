@@ -720,9 +720,7 @@ class Stager(object):
               sdk_local_file, sdk_sources_staged_name)
       ]
       try:
-        abi_suffix = (
-            'mu' if sys.version_info[0] < 3 else
-            ('m' if sys.version_info < (3, 8) else ''))
+        abi_suffix = 'm' if sys.version_info < (3, 8) else ''
         # Stage binary distribution of the SDK, for now on a best-effort basis.
         sdk_local_file = Stager._download_pypi_sdk_package(
             temp_dir,

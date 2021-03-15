@@ -18,7 +18,6 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-    enableStrictDependencies: true,
     publish: false,
     archivesBaseName: 'beam-sdks-java-load-tests',
     exportJavadoc: false
@@ -40,7 +39,7 @@ def runnerDependency = (project.hasProperty(runnerProperty)
         ? project.getProperty(runnerProperty)
         : ":runners:direct-java")
 
-def shouldProvideSpark = ":runners:spark".equals(runnerDependency)
+def shouldProvideSpark = ":runners:spark:2".equals(runnerDependency)
 def isDataflowRunner = ":runners:google-cloud-dataflow-java".equals(runnerDependency)
 def runnerConfiguration = ":runners:direct-java".equals(runnerDependency) ? "shadow" : null
 

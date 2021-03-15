@@ -14,8 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import absolute_import
-
 import random
 from typing import Any
 from typing import Iterable
@@ -174,7 +172,7 @@ class Nothing(Partitioning):
     return isinstance(other, Nothing)
 
   def test_partition_fn(self, df):
-    num_partitions = max(min(df.size, 10), 1)
+    num_partitions = 10
 
     def shuffled(seq):
       seq = list(seq)
