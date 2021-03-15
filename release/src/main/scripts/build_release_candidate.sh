@@ -173,7 +173,7 @@ if [[ $confirmation = "y" ]]; then
   if [[ $confirmation != "y" ]]; then
     echo "Exit without staging source release on dist.apache.org."
   else
-    svn commit --no-auth-cache --non-interactive -m "Staging Java artifacts for Apache Beam ${RELEASE} RC${RC_NUM}"
+    svn commit --no-auth-cache -m "Staging Java artifacts for Apache Beam ${RELEASE} RC${RC_NUM}"
   fi
   rm -rf ~/${LOCAL_JAVA_STAGING_DIR}
 fi
@@ -239,7 +239,7 @@ if [[ $confirmation = "y" ]]; then
   if [[ $confirmation != "y" ]]; then
     echo "Exit without staging python artifacts on dist.apache.org."
   else
-    svn commit --no-auth-cache --non-interactive -m "Staging Python artifacts for Apache Beam ${RELEASE} RC${RC_NUM}"
+    svn commit --no-auth-cache -m "Staging Python artifacts for Apache Beam ${RELEASE} RC${RC_NUM}"
   fi
   rm -rf "${HOME:?}/${LOCAL_PYTHON_STAGING_DIR}"
 fi
