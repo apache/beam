@@ -1160,18 +1160,15 @@ public class KafkaIO {
           getConsumerConfig().get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG) != null,
           "withBootstrapServers() is required");
       // With dynamic read, we no longer require providing topic/partition during pipeline
-      // construction time. But dynamic read requires enabling use_sdf_kafka_read.
+      // construction time. But it requires enabling beam_fn_api.
       if (!isDynamicRead()) {
         checkArgument(
             getTopics().size() > 0 || getTopicPartitions().size() > 0,
             "Either withTopic(), withTopics() or withTopicPartitions() is required");
       } else {
         checkArgument(
-            ExperimentalOptions.hasExperiment(
-                    input.getPipeline().getOptions(), "use_sdf_kafka_read")
-                && ExperimentalOptions.hasExperiment(
-                    input.getPipeline().getOptions(), "beam_fn_api"),
-            "Kafka Dynamic Read requires enabling experiment use_sdf_kafka_read.");
+            ExperimentalOptions.hasExperiment(input.getPipeline().getOptions(), "beam_fn_api"),
+            "Kafka Dynamic Read requires enabling experiment beam_fn_api.");
       }
       checkArgument(getKeyDeserializerProvider() != null, "withKeyDeserializer() is required");
       checkArgument(getValueDeserializerProvider() != null, "withValueDeserializer() is required");
@@ -1212,13 +1209,10 @@ public class KafkaIO {
       Coder<K> keyCoder = getKeyCoder(coderRegistry);
       Coder<V> valueCoder = getValueCoder(coderRegistry);
 
-      // The Read will be expanded into SDF transform when "beam_fn_api" is enabled and
-      // "beam_fn_api_use_deprecated_read" is not enabled.
+      // The Read will be expanded into SDF transform when "beam_fn_api" is enabled.
       if (!ExperimentalOptions.hasExperiment(input.getPipeline().getOptions(), "beam_fn_api")
           || ExperimentalOptions.hasExperiment(
-              input.getPipeline().getOptions(), "beam_fn_api_use_deprecated_read")
-          || !ExperimentalOptions.hasExperiment(
-              input.getPipeline().getOptions(), "use_sdf_kafka_read")) {
+              input.getPipeline().getOptions(), "beam_fn_api_use_deprecated_read")) {
         // Handles unbounded source to bounded conversion if maxNumRecords or maxReadTime is set.
         Unbounded<KafkaRecord<K, V>> unbounded =
             org.apache.beam.sdk.io.Read.from(

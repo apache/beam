@@ -16,18 +16,20 @@
 #    limitations under the License.
 #
 
-# This script will update apache beam master branch with next release version
-# and cut release branch for current development version.
-
-# Parse parameters passing into the script
+# This script will update the current checked out branch to be the
+# specified version, either for release or development.
+#
+# This script should be the source of truth for all the locations in
+# the codebase that require update.
 
 set -e
 
 function usage() {
-  echo 'Usage: set_version.sh <version> [--release] [--debug]'
+  echo 'Usage: set_version.sh <version> [--release] [--debug] [--git-add]'
 }
 
 IS_SNAPSHOT_VERSION=yes
+GIT_ADD=no
 
 while [[ $# -gt 0 ]] ; do
   arg="$1"
@@ -40,6 +42,11 @@ while [[ $# -gt 0 ]] ; do
 
       --debug)
       set -x
+      shift
+      ;;
+
+      --git-add)
+      GIT_ADD=yes
       shift
       ;;
 
@@ -68,8 +75,9 @@ if [[ -z "$IS_SNAPSHOT_VERSION" ]] ; then
   sed -i -e "s/project.version = .*/project.version = '$TARGET_VERSION'/" buildSrc/src/main/groovy/org/apache/beam/gradle/BeamModulePlugin.groovy
   sed -i -e "s/^__version__ = .*/__version__ = '${TARGET_VERSION}'/" sdks/python/apache_beam/version.py
   sed -i -e "s/sdk_version=.*/sdk_version=$TARGET_VERSION/" gradle.properties
+  sed -i -e "s/SdkVersion = .*/SdkVersion = \"$TARGET_VERSION\"/" sdks/go/pkg/beam/core/core.go
   # TODO: [BEAM-4767]
-  sed -i -e "s/'dataflow.container_version' : .*/'dataflow.container_version' : 'beam-${RELEASE}'/" runners/google-cloud-dataflow-java/build.gradle
+  sed -i -e "s/'dataflow.container_version' : .*/'dataflow.container_version' : 'beam-${TARGET_VERSION}'/" runners/google-cloud-dataflow-java/build.gradle
 else
   # For snapshot version:
   #   Java/gradle appends -SNAPSHOT
@@ -80,6 +88,13 @@ else
   sed -i -e "s/project.version = .*/project.version = '$TARGET_VERSION'/" buildSrc/src/main/groovy/org/apache/beam/gradle/BeamModulePlugin.groovy
   sed -i -e "s/^__version__ = .*/__version__ = '${TARGET_VERSION}.dev'/" sdks/python/apache_beam/version.py
   sed -i -e "s/sdk_version=.*/sdk_version=$TARGET_VERSION.dev/" gradle.properties
-  sed -i -e "s/'dataflow.container_version' : .*/'dataflow.container_version' : 'beam-master-.*'/" runners/google-cloud-dataflow-java/build.gradle
+  sed -i -e "s/SdkVersion = .*/SdkVersion = \"${TARGET_VERSION}.dev\"/" sdks/go/pkg/beam/core/core.go
 fi
 
+if [[ "$GIT_ADD" == yes ]] ; then
+  git add gradle.properties
+  git add buildSrc/src/main/groovy/org/apache/beam/gradle/BeamModulePlugin.groovy
+  git add sdks/python/apache_beam/version.py
+  git add sdks/go/pkg/beam/core/core.go
+  git add runners/google-cloud-dataflow-java/build.gradle
+fi

@@ -14,8 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import absolute_import
-
 import sys
 import unittest
 
@@ -123,6 +121,22 @@ class DeferredFrameTest(unittest.TestCase):
         'Speed': [380., 370., 24., 26.]
     })
     self._run_test(new_column, df)
+
+  def test_str_split(self):
+    s = pd.Series([
+        "this is a regular sentence",
+        "https://docs.python.org/3/tutorial/index.html",
+        np.nan
+    ])
+
+    # TODO(BEAM-11931): pandas produces None for empty values with expand=True,
+    # while we produce NaN (from pd.concat). This replicates some doctests that
+    # verify that behavior, but with a replace call to ignore the difference.
+    self._run_test(
+        lambda s: s.str.split(expand=True).replace({None: np.nan}), s)
+    self._run_test(
+        lambda s: s.str.rsplit("/", n=1, expand=True).replace({None: np.nan}),
+        s)
 
   def test_set_column_from_index(self):
     def new_column(df):

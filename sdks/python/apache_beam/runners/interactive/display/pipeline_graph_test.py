@@ -21,6 +21,7 @@
 from __future__ import absolute_import
 
 import unittest
+from unittest.mock import patch
 
 import apache_beam as beam
 from apache_beam.runners.interactive import interactive_beam as ib
@@ -28,13 +29,6 @@ from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import interactive_runner as ir
 from apache_beam.runners.interactive.display import pipeline_graph
 from apache_beam.runners.interactive.testing.mock_ipython import mock_get_ipython
-
-# TODO(BEAM-8288): clean up the work-around of nose tests using Python2 without
-# unittest.mock module.
-try:
-  from unittest.mock import patch
-except ImportError:
-  from mock import patch  # type: ignore[misc]
 
 # pylint: disable=range-builtin-not-iterating,unused-variable,possibly-unused-variable
 # Reason:

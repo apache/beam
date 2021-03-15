@@ -33,16 +33,15 @@ For internal use only; no backwards-compatibility guarantees.
 """
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
 import json
+import pickle
 from builtins import chr
 from builtins import object
 from io import BytesIO
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
+from typing import Dict
 from typing import Iterable
 from typing import Iterator
 from typing import List
@@ -52,11 +51,11 @@ from typing import Set
 from typing import Tuple
 from typing import Type
 
+import dill
 from fastavro import parse_schema
 from fastavro import schemaless_reader
 from fastavro import schemaless_writer
-from past.builtins import unicode as past_unicode
-from past.builtins import long
+from google.protobuf.message import Message
 
 from apache_beam.coders import observable
 from apache_beam.coders.avro_record import AvroRecord
@@ -65,6 +64,11 @@ from apache_beam.utils.sharded_key import ShardedKey
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.timestamp import Timestamp
+
+try:
+  import dataclasses
+except ImportError:
+  dataclasses = None  # type: ignore
 
 if TYPE_CHECKING:
   from apache_beam.transforms import userstate
@@ -284,52 +288,6 @@ class CallbackCoderImpl(CoderImpl):
         self._encoder, self._decoder)
 
 
-class DeterministicFastPrimitivesCoderImpl(CoderImpl):
-  """For internal use only; no backwards-compatibility guarantees."""
-  def __init__(self, coder, step_label):
-    self._underlying_coder = coder
-    self._step_label = step_label
-
-  def _check_safe(self, value):
-    if isinstance(value, (bytes, past_unicode, long, int, float, bool)):
-      pass
-    elif value is None:
-      pass
-    elif isinstance(value, (tuple, list)):
-      for x in value:
-        self._check_safe(x)
-    else:
-      raise TypeError(
-          "Unable to deterministically encode '%s' of type '%s', "
-          "please provide a type hint for the input of '%s'" %
-          (value, type(value), self._step_label))
-
-  def encode_to_stream(self, value, stream, nested):
-    # type: (Any, create_OutputStream, bool) -> None
-    self._check_safe(value)
-    return self._underlying_coder.encode_to_stream(value, stream, nested)
-
-  def decode_from_stream(self, stream, nested):
-    # type: (create_InputStream, bool) -> Any
-    return self._underlying_coder.decode_from_stream(stream, nested)
-
-  def encode(self, value):
-    self._check_safe(value)
-    return self._underlying_coder.encode(value)
-
-  def decode(self, encoded):
-    return self._underlying_coder.decode(encoded)
-
-  def estimate_size(self, value, nested=False):
-    # type: (Any, bool) -> int
-    return self._underlying_coder.estimate_size(value, nested)
-
-  def get_estimated_size_and_observables(self, value, nested=False):
-    # type: (Any, bool) -> Tuple[int, Observables]
-    return self._underlying_coder.get_estimated_size_and_observables(
-        value, nested)
-
-
 class ProtoCoderImpl(SimpleCoderImpl):
   """For internal use only; no backwards-compatibility guarantees."""
   def __init__(self, proto_message_type):
@@ -363,6 +321,10 @@ DICT_TYPE = 7
 SET_TYPE = 8
 ITERABLE_LIKE_TYPE = 10
 
+PROTO_TYPE = 100
+DATACLASS_TYPE = 101
+NAMED_TUPLE_TYPE = 102
+
 # Types that can be encoded as iterables, but are not literally
 # lists, etc. due to being lazy.  The actual type is not preserved
 # through encoding, only the elements. This is particularly useful
@@ -372,9 +334,11 @@ _ITERABLE_LIKE_TYPES = set()  # type: Set[Type]
 
 class FastPrimitivesCoderImpl(StreamCoderImpl):
   """For internal use only; no backwards-compatibility guarantees."""
-  def __init__(self, fallback_coder_impl):
+  def __init__(
+      self, fallback_coder_impl, requires_deterministic_step_label=None):
     self.fallback_coder_impl = fallback_coder_impl
     self.iterable_coder_impl = IterableCoderImpl(self)
+    self.requires_deterministic_step_label = requires_deterministic_step_label
 
   @staticmethod
   def register_iterable_like_type(t):
@@ -418,16 +382,25 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
     elif t is bytes:
       stream.write_byte(BYTES_TYPE)
       stream.write(value, nested)
-    elif t is past_unicode:
+    elif t is str:
       unicode_value = value  # for typing
       stream.write_byte(UNICODE_TYPE)
       stream.write(unicode_value.encode('utf-8'), nested)
-    elif t is list or t is tuple or t is set:
-      stream.write_byte(
-          LIST_TYPE if t is list else TUPLE_TYPE if t is tuple else SET_TYPE)
+    elif t is list or t is tuple:
+      stream.write_byte(LIST_TYPE if t is list else TUPLE_TYPE)
       stream.write_var_int64(len(value))
       for e in value:
         self.encode_to_stream(e, stream, True)
+    elif t is bool:
+      stream.write_byte(BOOL_TYPE)
+      stream.write_byte(value)
+    elif t in _ITERABLE_LIKE_TYPES:
+      stream.write_byte(ITERABLE_LIKE_TYPE)
+      self.iterable_coder_impl.encode_to_stream(value, stream, nested)
+    # All deterministic encodings should be above this clause,
+    # all non-deterministic ones below.
+    elif self.requires_deterministic_step_label is not None:
+      self.encode_special_deterministic(value, stream)
     elif t is dict:
       dict_value = value  # for typing
       stream.write_byte(DICT_TYPE)
@@ -435,15 +408,48 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       for k, v in dict_value.items():
         self.encode_to_stream(k, stream, True)
         self.encode_to_stream(v, stream, True)
-    elif t is bool:
-      stream.write_byte(BOOL_TYPE)
-      stream.write_byte(value)
-    elif t in _ITERABLE_LIKE_TYPES:
-      stream.write_byte(ITERABLE_LIKE_TYPE)
-      self.iterable_coder_impl.encode_to_stream(value, stream, nested)
+    elif t is set:
+      stream.write_byte(SET_TYPE)
+      stream.write_var_int64(len(value))
+      for e in value:
+        self.encode_to_stream(e, stream, True)
     else:
       stream.write_byte(UNKNOWN_TYPE)
       self.fallback_coder_impl.encode_to_stream(value, stream, nested)
+
+  def encode_special_deterministic(self, value, stream):
+    if isinstance(value, Message):
+      stream.write_byte(PROTO_TYPE)
+      self.encode_type(type(value), stream)
+      stream.write(value.SerializePartialToString(deterministic=True), True)
+    elif dataclasses and dataclasses.is_dataclass(value):
+      stream.write_byte(DATACLASS_TYPE)
+      if not type(value).__dataclass_params__.frozen:
+        raise TypeError(
+            "Unable to deterministically encode non-frozen '%s' of type '%s' "
+            "for the input of '%s'" %
+            (value, type(value), self.requires_deterministic_step_label))
+      self.encode_type(type(value), stream)
+      self.iterable_coder_impl.encode_to_stream(
+          [getattr(value, field.name) for field in dataclasses.fields(value)],
+          stream,
+          True)
+    elif isinstance(value, tuple) and type(value).__base__ is tuple and hasattr(
+        type(value), '_fields'):
+      stream.write_byte(NAMED_TUPLE_TYPE)
+      self.encode_type(type(value), stream)
+      self.iterable_coder_impl.encode_to_stream(value, stream, True)
+    else:
+      raise TypeError(
+          "Unable to deterministically encode '%s' of type '%s', "
+          "please provide a type hint for the input of '%s'" %
+          (value, type(value), self.requires_deterministic_step_label))
+
+  def encode_type(self, t, stream):
+    stream.write(dill.dumps(t), True)
+
+  def decode_type(self, stream):
+    return _unpickle_type(stream.read_all(True))
 
   def decode_from_stream(self, stream, nested):
     # type: (create_InputStream, bool) -> Any
@@ -477,10 +483,38 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       return not not stream.read_byte()
     elif t == ITERABLE_LIKE_TYPE:
       return self.iterable_coder_impl.decode_from_stream(stream, nested)
+    elif t == PROTO_TYPE:
+      cls = self.decode_type(stream)
+      msg = cls()
+      msg.ParseFromString(stream.read_all(True))
+      return msg
+    elif t == DATACLASS_TYPE or t == NAMED_TUPLE_TYPE:
+      cls = self.decode_type(stream)
+      return cls(*self.iterable_coder_impl.decode_from_stream(stream, True))
     elif t == UNKNOWN_TYPE:
       return self.fallback_coder_impl.decode_from_stream(stream, nested)
     else:
       raise ValueError('Unknown type tag %x' % t)
+
+
+_unpickled_types = {}  # type: Dict[bytes, type]
+
+
+def _unpickle_type(bs):
+  t = _unpickled_types.get(bs, None)
+  if t is None:
+    t = _unpickled_types[bs] = dill.loads(bs)
+    # Fix unpicklable anonymous named tuples for Python 3.6.
+    if t.__base__ is tuple and hasattr(t, '_fields'):
+      try:
+        pickle.loads(pickle.dumps(t))
+      except pickle.PicklingError:
+        t.__reduce__ = lambda self: (_unpickle_named_tuple, (bs, tuple(self)))
+  return t
+
+
+def _unpickle_named_tuple(bs, items):
+  return _unpickle_type(bs)(*items)
 
 
 class BytesCoderImpl(CoderImpl):
@@ -776,7 +810,7 @@ small_ints = [chr(_).encode('latin-1') for _ in range(128)]
 class VarIntCoderImpl(StreamCoderImpl):
   """For internal use only; no backwards-compatibility guarantees.
 
-  A coder for long/int objects."""
+  A coder for int objects."""
   def encode_to_stream(self, value, out, nested):
     # type: (int, create_OutputStream, bool) -> None
     out.write_var_int64(value)

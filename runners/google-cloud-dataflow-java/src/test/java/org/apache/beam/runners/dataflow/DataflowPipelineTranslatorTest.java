@@ -51,6 +51,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ArtifactInformation;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
@@ -1435,6 +1437,31 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
     DockerPayload payload = DockerPayload.parseFrom(defaultEnvironment.getPayload());
     assertEquals(DataflowRunner.getContainerImageForJob(options), payload.getContainerImage());
+  }
+
+  @Test
+  public void testServiceOptionsSet() throws IOException {
+    final List<String> serviceOptions =
+        Stream.of("whizz=bang", "foo=bar").collect(Collectors.toList());
+
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.setServiceOptions(serviceOptions);
+
+    Pipeline p = buildPipeline(options);
+    p.traverseTopologically(new RecordingPipelineVisitor());
+    SdkComponents sdkComponents = createSdkComponents(options);
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p, sdkComponents, true);
+    Job job =
+        DataflowPipelineTranslator.fromOptions(options)
+            .translate(
+                p,
+                pipelineProto,
+                sdkComponents,
+                DataflowRunner.fromOptions(options),
+                Collections.emptyList())
+            .getJob();
+
+    assertEquals(serviceOptions, job.getEnvironment().getServiceOptions());
   }
 
   private static void assertAllStepOutputsHaveUniqueIds(Job job) throws Exception {

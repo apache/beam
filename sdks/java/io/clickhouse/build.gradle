@@ -22,7 +22,6 @@ plugins {
 }
 applyJavaNature(
   automaticModuleName: 'org.apache.beam.sdk.io.clickhouse',
-  enableStrictDependencies: true,
   generatedClassPatterns: [
     /^org\.apache\.beam\.sdk\.io\.clickhouse\.impl\.parser\..*/,
   ],

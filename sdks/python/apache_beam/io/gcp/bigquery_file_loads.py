@@ -32,7 +32,6 @@ from __future__ import absolute_import
 
 import hashlib
 import logging
-import pickle
 import random
 import time
 import uuid
@@ -69,6 +68,10 @@ _MAXIMUM_SOURCE_URIS = 10 * 1000
 # If triggering_frequency is supplied, we will trigger the file write after
 # this many records are written.
 _FILE_TRIGGERING_RECORD_COUNT = 500000
+
+# If using auto-sharding for unbounded data, we batch the records before
+# triggering file write to avoid generating too many small files.
+_FILE_TRIGGERING_BATCHING_DURATION_SECS = 1
 
 
 def _generate_job_name(job_name, job_type, step_name):
@@ -256,7 +259,7 @@ class WriteRecordsToFile(beam.DoFn):
       self._destination_to_file_writer.pop(destination)
       yield pvalue.TaggedOutput(
           WriteRecordsToFile.WRITTEN_FILE_TAG,
-          (element[0], (file_path, file_size)))
+          (destination, (file_path, file_size)))
 
   def finish_bundle(self):
     for destination, file_path_writer in \
@@ -287,7 +290,7 @@ class WriteGroupedRecordsToFile(beam.DoFn):
     self.file_format = file_format or bigquery_tools.FileFormat.JSON
 
   def process(self, element, file_prefix, *schema_side_inputs):
-    destination = element[0]
+    destination = bigquery_tools.get_hashable_destination(element[0])
     rows = element[1]
 
     file_path, writer = None, None
@@ -509,7 +512,9 @@ class TriggerLoadJobs(beam.DoFn):
       create_disposition = 'CREATE_IF_NEEDED'
       # For temporary tables, we create a new table with the name with JobId.
       table_reference.tableId = job_name
-      yield pvalue.TaggedOutput(TriggerLoadJobs.TEMP_TABLES, table_reference)
+      yield pvalue.TaggedOutput(
+          TriggerLoadJobs.TEMP_TABLES,
+          bigquery_tools.get_hashable_destination(table_reference))
 
     _LOGGER.info(
         'Triggering job %s to load data to BigQuery table %s.'
@@ -728,9 +733,10 @@ class BigQueryBatchFileLoads(beam.PTransform):
     # We use only the user-supplied trigger on the actual BigQuery load.
     # This allows us to offload the data to the filesystem.
     #
-    # In the case of auto sharding, however, we use a default triggering and
-    # instead apply the user supplied triggering_frequency to the transfrom that
-    # performs sharding.
+    # In the case of dynamic sharding, however, we use a default trigger since
+    # the transform performs sharding also batches elements to avoid generating
+    # too many tiny files. User trigger is applied right after writes to limit
+    # the number of load jobs.
     if self.is_streaming_pipeline and not self.with_auto_sharding:
       return beam.WindowInto(beam.window.GlobalWindows(),
                              trigger=trigger.Repeatedly(
@@ -821,7 +827,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
             lambda kv: (bigquery_tools.get_hashable_destination(kv[0]), kv[1]))
         | 'WithAutoSharding' >> GroupIntoBatches.WithShardedKey(
             batch_size=_FILE_TRIGGERING_RECORD_COUNT,
-            max_buffering_duration_secs=self.triggering_frequency,
+            max_buffering_duration_secs=_FILE_TRIGGERING_BATCHING_DURATION_SECS,
             clock=clock)
         | 'FromHashableTableRefAndDropShard' >> beam.Map(
             lambda kvs:
@@ -904,13 +910,9 @@ class BigQueryBatchFileLoads(beam.PTransform):
             lambda x,
             deleting_tables: deleting_tables,
             pvalue.AsIter(temp_tables_pc))
-        # TableReference has no deterministic coder, but as this de-duplication
-        # is best-effort, pickling should be good enough.
-        | "RemoveTempTables/AddUselessValue" >>
-        beam.Map(lambda x: (pickle.dumps(x), None))
+        | "RemoveTempTables/AddUselessValue" >> beam.Map(lambda x: (x, None))
         | "RemoveTempTables/DeduplicateTables" >> beam.GroupByKey()
-        | "RemoveTempTables/GetTableNames" >>
-        beam.MapTuple(lambda k, nones: pickle.loads(k))
+        | "RemoveTempTables/GetTableNames" >> beam.Keys()
         | "RemoveTempTables/Delete" >> beam.ParDo(
             DeleteTablesFn(self.test_client)))
 

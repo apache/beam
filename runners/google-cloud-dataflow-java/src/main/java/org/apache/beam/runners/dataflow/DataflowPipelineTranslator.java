@@ -229,7 +229,7 @@ public class DataflowPipelineTranslator {
   /** Renders a {@link Job} as a string. */
   public static String jobToString(Job job) {
     try {
-      return MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(job);
+      return MAPPER.writeValueAsString(job);
     } catch (JsonProcessingException exc) {
       throw new IllegalStateException("Failed to render Job as String.", exc);
     }
@@ -334,6 +334,7 @@ public class DataflowPipelineTranslator {
 
       Environment environment = new Environment();
       job.setEnvironment(environment);
+      job.getEnvironment().setServiceOptions(options.getServiceOptions());
 
       WorkerPool workerPool = new WorkerPool();
 

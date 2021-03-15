@@ -23,7 +23,6 @@ plugins {
 }
 
 applyJavaNature(
-  enableStrictDependencies:true,
   automaticModuleName: 'org.apache.beam.sdk.io.aws',
 )
 

@@ -271,7 +271,8 @@ class BeamFilesystemHandler(object):
 
   def file_writer(self, name=None):
     full_path = filesystems.FileSystems.join(self._root, name)
-    return filesystems.FileSystems.create(full_path), full_path
+    return filesystems.FileSystems.create(
+        full_path, compression_type=CompressionTypes.UNCOMPRESSED), full_path
 
 
 def resolve_artifacts(artifacts, service, dest_dir):
@@ -355,6 +356,3 @@ class _QueueIter(object):
       raise self._queue.get()
     else:
       return item
-
-  if sys.version_info < (3, ):
-    next = __next__

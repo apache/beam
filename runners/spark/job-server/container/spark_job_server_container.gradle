@@ -28,7 +28,7 @@ applyDockerNature()
 
 def sparkJobServerProject = project.parent.path
 
-description = "Apache Beam :: Runners :: Spark :: Job Server :: Container"
+description = project(sparkJobServerProject).description + " :: Container"
 
 configurations {
   dockerDependency
@@ -41,18 +41,18 @@ dependencies {
 task copyDockerfileDependencies(type: Copy) {
   // Required Jars
   from configurations.dockerDependency
-  rename 'beam-runners-spark-job-server.*.jar', 'beam-runners-spark-job-server.jar'
+  rename 'beam-runners-spark.*-job-server.*.jar', 'beam-runners-spark-job-server.jar'
   into "build"
   // Entry script
-  from "spark-job-server.sh"
+  from "../../../job-server/container/spark-job-server.sh"
   into "build"
   // Dockerfile
-  from "Dockerfile"
+  from "../../../job-server/container/Dockerfile"
   into "build"
 }
 
 docker {
-  name containerImageName(name: project.docker_image_default_repo_prefix + 'spark_job_server',
+  name containerImageName(name: project.docker_image_default_repo_prefix + spark_job_server_image,
                           root: project.rootProject.hasProperty(["docker-repository-root"]) ?
                                   project.rootProject["docker-repository-root"] :
                                   project.docker_image_default_repo_root)

@@ -104,6 +104,8 @@ public class PTransformTranslation {
   public static final String WRITE_FILES_TRANSFORM_URN = "beam:transform:write_files:v1";
   public static final String GROUP_INTO_BATCHES_WITH_SHARDED_KEY_URN =
       "beam:transform:group_into_batches_with_sharded_key:v1";
+  public static final String PUBSUB_READ = "beam:transform:pubsub_read:v1";
+  public static final String PUBSUB_WRITE = "beam:transform:pubsub_write:v1";
 
   // CombineComponents
   public static final String COMBINE_PER_KEY_PRECOMBINE_TRANSFORM_URN =
@@ -177,6 +179,8 @@ public class PTransformTranslation {
     checkState(RESHUFFLE_URN.equals(getUrn(StandardPTransforms.Composites.RESHUFFLE)));
     checkState(
         WRITE_FILES_TRANSFORM_URN.equals(getUrn(StandardPTransforms.Composites.WRITE_FILES)));
+    checkState(PUBSUB_READ.equals(getUrn(StandardPTransforms.Composites.PUBSUB_READ)));
+    checkState(PUBSUB_WRITE.equals(getUrn(StandardPTransforms.Composites.PUBSUB_WRITE)));
 
     // CombineComponents
     checkState(
