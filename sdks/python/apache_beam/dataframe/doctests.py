@@ -589,7 +589,7 @@ def parse_rst_ipython_tests(rst, name, extraglobs=None, optionflags=None):
       if output:
         # Strip the prompt.
         # TODO(robertwb): Figure out how to suppress this.
-        output = re.sub(r'^Out\[\d+\]:\s*', '', output)
+        output = re.sub(r'^Out\[\d+\]:[ \t]*\n?', '', output)
       examples.append(doctest.Example(src, output, lineno=lineno))
 
   finally:
