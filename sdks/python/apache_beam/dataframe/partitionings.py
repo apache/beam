@@ -125,6 +125,9 @@ class Index(Partitioning):
       yield key, df[hashes % num_partitions == key]
 
   def check(self, dfs):
+    # Drop empty DataFrames
+    dfs = [df for df in dfs if len(df)]
+
     if not len(dfs):
       return True
 
