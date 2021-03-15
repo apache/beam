@@ -200,6 +200,8 @@ python -m apache_beam.examples.wordcount \
 --input=/path/to/inputfile \
 --output=path/to/write/counts \
 --runner=FlinkRunner \
+# When running batch jobs locally, we need to reuse the container.
+--environment_cache_millis=10000 \
 --environment_type="DOCKER" \
 --environment_config="${IMAGE_URL}"
 {{< /highlight >}}
@@ -214,6 +216,8 @@ python -m apache_beam.examples.wordcount \
 --input=/path/to/inputfile \
 --output=path/to/write/counts \
 --runner=SparkRunner \
+# When running batch jobs locally, we need to reuse the container.
+--environment_cache_millis=10000 \
 --environment_type="DOCKER" \
 --environment_config="${IMAGE_URL}"
 {{< /highlight >}}
