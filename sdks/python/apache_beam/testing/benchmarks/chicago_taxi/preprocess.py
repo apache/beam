@@ -24,7 +24,7 @@ import tensorflow as tf
 import tensorflow_transform as transform
 import tensorflow_transform.beam as tft_beam
 from tensorflow_transform.coders import example_proto_coder
-from tensorflow_transform.tf_metadata import dataset_metadata, dataset_schema
+from tensorflow_transform.tf_metadata import dataset_metadata, schema_utils
 
 import apache_beam as beam
 from apache_beam.io.gcp.bigquery import ReadFromBigQuery
@@ -138,7 +138,7 @@ def transform_data(
         filters=MetricsFilter().with_namespace(namespace))
   schema = taxi.read_schema(schema_file)
   raw_feature_spec = taxi.get_raw_feature_spec(schema)
-  raw_schema = dataset_schema.from_feature_spec(raw_feature_spec)
+  raw_schema = schema_utils.schema_from_feature_spec(raw_feature_spec)
   raw_data_metadata = dataset_metadata.DatasetMetadata(raw_schema)
 
   pipeline = beam.Pipeline(argv=pipeline_args)
