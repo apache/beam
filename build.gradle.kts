@@ -15,6 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+// TODO: Remove these before merging this to master
+import org.apache.tools.ant.taskdefs.condition.Os
+import java.nio.file.Paths
 
 plugins {
   base
@@ -335,6 +338,38 @@ task("pushAllDockerImages") {
   dependsOn(":sdks:python:container:pushAll")
   for (version in project.ext.get("allFlinkVersions") as Array<*>) {
     dependsOn(":runners:flink:${version}:job-server-container:dockerPush")
+  }
+}
+
+// TODO: Remove this before merging this to master
+task("installVendoredGrpc") {
+  dependsOn(":vendor:grpc-1_36_0:shadowJar")
+
+  doLast {
+    val jenkinsMvn = "/home/jenkins/tools/maven/apache-maven-3.5.4/bin/mvn"
+    val executable = if (file(jenkinsMvn).canExecute()) jenkinsMvn else (
+            if (Os.isFamily(Os.FAMILY_WINDOWS)) "mvn.cmd" else "mvn"
+            )
+    val jar = Paths.get("vendor","grpc-1_36_0","build","libs","beam-vendor-grpc-1_36_0-0.1.jar")
+    project.exec {
+      commandLine = listOf(
+              executable, "--batch-mode",
+              "install:install-file", "-Dpackaging=jar",
+              "-DgroupId=org.apache.beam", "-DartifactId=beam-vendor-grpc-1_36_0",
+              "-Dversion=0.1", "-Dfile=$jar"
+      )
+    }
+  }
+}
+
+// Because :model:job-management:runtimeClasspath requires the vendored gRPC at configuration phase
+// (before execution phase), we cannot rely on task dependencies.
+if (!project.hasProperty("installVendoredGrpcFlag")) {
+  val executable = if (Os.isFamily(Os.FAMILY_WINDOWS)) "gradlew.bat" else "./gradlew"
+  project.exec {
+    commandLine = listOf(
+            executable, ":installVendoredGrpc", "-PinstallVendoredGrpcFlag", "--info", "--stacktrace"
+    )
   }
 }
 
