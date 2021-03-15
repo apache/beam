@@ -765,7 +765,7 @@ all major features and bug fixes, and all known issues.
 
 You can (optionally) also do additional verification by:
 1. Check that Python zip file contains the `README.md`, `NOTICE`, and `LICENSE` files.
-1. Check hashes (e.g. `md5sum -c *.md5` and `sha1sum -c *.sha1`)
+1. Check hashes (e.g. `md5sum -c *.md5` and `sha1sum -c *.sha1`. Note that signature/checksum files of Java artifacts may not contain filenames. Hence you might need to compare checksums/signatures manually or modify the files by appending the filenames.)
 1. Check signatures (e.g. `gpg --verify apache-beam-1.2.3-python.zip.asc apache-beam-1.2.3-python.zip`)
 1. `grep` for legal headers in each file.
 1. Run all jenkins suites and include links to passing tests in the voting email.
@@ -832,26 +832,6 @@ There’s no need to wait 72 hours.
 Proceed to the `Fix Issues` step below and address the problem.
 However, some issues don’t require cancellation.
 For example, if an issue is found in the website pull request, just correct it on the spot and the vote can continue as-is.
-
-If there are no issues, reply on the vote thread to close the voting.
-Then, tally the votes in a separate email thread.
-Here’s an email template; please adjust as you see fit.
-
-    From: Release Manager
-    To: dev@beam.apache.org
-    Subject: [RESULT] [VOTE] Release 1.2.3, release candidate #3
-
-    I'm happy to announce that we have unanimously approved this release.
-
-    There are XXX approving votes, XXX of which are binding:
-    * approver 1
-    * approver 2
-    * approver 3
-    * approver 4
-
-    There are no disapproving votes.
-
-    Thanks everyone!
 
 ### Run validation tests
 All tests listed in this [spreadsheet](https://s.apache.org/beam-release-validation)
@@ -1111,11 +1091,37 @@ Then, relevant changes should be cherry-picked into the release branch proposed 
 
 Once all issues have been resolved, you should go back and build a new release candidate with these changes.
 
+### Finalize the vote
+
+Reply on the vote thread to close the voting once following conditions are met for the current release candidate.
+* At least 72 hours has passed since the voting email.
+* No release blocking issues have been identified.
+* Voting thread has at least three approving PMC votes.
+
+Then, tally the votes in a separate email thread.
+Here’s an email template; please adjust as you see fit.
+
+    From: Release Manager
+    To: dev@beam.apache.org
+    Subject: [RESULT] [VOTE] Release 1.2.3, release candidate #3
+
+    I'm happy to announce that we have unanimously approved this release.
+
+    There are XXX approving votes, XXX of which are binding:
+    * approver 1
+    * approver 2
+    * approver 3
+    * approver 4
+
+    There are no disapproving votes.
+
+    Thanks everyone!
+
 ### Checklist to proceed to the next step
 
 1. Issues identified during vote have been resolved, with fixes committed to the release branch.
 2. All issues tagged with `Fix-Version` for the current release should be closed.
-3. Community votes to release the proposed candidate, with at least three approving PMC votes
+3. Community votes to release the proposed candidate, with at least three approving PMC votes.
 
 
 **********
@@ -1208,7 +1214,7 @@ Click `Release`, and select today’s date.
 
 #### Recordkeeping with ASF
 
-Use reporter.apache.org to seed the information about the release into future project reports.
+Use [reporter.apache.org](https://reporter.apache.org/addrelease.html?beam) to seed the information about the release into future project reports.
 
 ### Checklist to proceed to the next step
 
@@ -1238,8 +1244,7 @@ Announce on the dev@ mailing list that the release has been finished.
 Announce on the release on the user@ mailing list, listing major improvements and contributions.
 
 Announce the release on the announce@apache.org mailing list.
-__NOTE__: This can only be done from `@apache.org` email address.
-
+__NOTE__: This can only be done from `@apache.org` email address. This email has to be in plain text (no HTML tags).
 
 ### Social media
 
