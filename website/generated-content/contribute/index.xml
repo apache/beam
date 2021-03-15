@@ -363,6 +363,7 @@ limitations under the License.
 &lt;/ul>
 &lt;/li>
 &lt;li>&lt;a href="#fix-any-issues">Fix any issues&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#finalize-the-vote">Finalize the vote&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#checklist-to-proceed-to-the-next-step-2">Checklist to proceed to the next step&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;/li>
@@ -1099,7 +1100,7 @@ ${CONTRIBUTORS}
 &lt;p>You can (optionally) also do additional verification by:&lt;/p>
 &lt;ol>
 &lt;li>Check that Python zip file contains the &lt;code>README.md&lt;/code>, &lt;code>NOTICE&lt;/code>, and &lt;code>LICENSE&lt;/code> files.&lt;/li>
-&lt;li>Check hashes (e.g. &lt;code>md5sum -c *.md5&lt;/code> and &lt;code>sha1sum -c *.sha1&lt;/code>)&lt;/li>
+&lt;li>Check hashes (e.g. &lt;code>md5sum -c *.md5&lt;/code> and &lt;code>sha1sum -c *.sha1&lt;/code>. Note that signature/checksum files of Java artifacts may not contain filenames. Hence you might need to compare checksums/signatures manually or modify the files by appending the filenames.)&lt;/li>
 &lt;li>Check signatures (e.g. &lt;code>gpg --verify apache-beam-1.2.3-python.zip.asc apache-beam-1.2.3-python.zip&lt;/code>)&lt;/li>
 &lt;li>&lt;code>grep&lt;/code> for legal headers in each file.&lt;/li>
 &lt;li>Run all jenkins suites and include links to passing tests in the voting email.&lt;/li>
@@ -1151,21 +1152,6 @@ There’s no need to wait 72 hours.
 Proceed to the &lt;code>Fix Issues&lt;/code> step below and address the problem.
 However, some issues don’t require cancellation.
 For example, if an issue is found in the website pull request, just correct it on the spot and the vote can continue as-is.&lt;/p>
-&lt;p>If there are no issues, reply on the vote thread to close the voting.
-Then, tally the votes in a separate email thread.
-Here’s an email template; please adjust as you see fit.&lt;/p>
-&lt;pre>&lt;code>From: Release Manager
-To: dev@beam.apache.org
-Subject: [RESULT] [VOTE] Release 1.2.3, release candidate #3
-I'm happy to announce that we have unanimously approved this release.
-There are XXX approving votes, XXX of which are binding:
-* approver 1
-* approver 2
-* approver 3
-* approver 4
-There are no disapproving votes.
-Thanks everyone!
-&lt;/code>&lt;/pre>
 &lt;h3 id="run-validation-tests">Run validation tests&lt;/h3>
 &lt;p>All tests listed in this &lt;a href="https://s.apache.org/beam-release-validation">spreadsheet&lt;/a>&lt;/p>
 &lt;p>Since there are a bunch of tests, we recommend you running validations using automation script.
@@ -1423,11 +1409,32 @@ Additionally, any JIRA issues created from the initial branch verification shoul
 &lt;p>Code changes should be proposed as standard pull requests to the &lt;code>master&lt;/code> branch and reviewed using the normal contributing process.
 Then, relevant changes should be cherry-picked into the release branch proposed as pull requests against the release branch, again reviewed and merged using the normal contributing process.&lt;/p>
 &lt;p>Once all issues have been resolved, you should go back and build a new release candidate with these changes.&lt;/p>
+&lt;h3 id="finalize-the-vote">Finalize the vote&lt;/h3>
+&lt;p>Reply on the vote thread to close the voting once following conditions are met for the current release candidate.&lt;/p>
+&lt;ul>
+&lt;li>At least 72 hours has passed since the voting email.&lt;/li>
+&lt;li>No release blocking issues have been identified.&lt;/li>
+&lt;li>Voting thread has at least three approving PMC votes.&lt;/li>
+&lt;/ul>
+&lt;p>Then, tally the votes in a separate email thread.
+Here’s an email template; please adjust as you see fit.&lt;/p>
+&lt;pre>&lt;code>From: Release Manager
+To: dev@beam.apache.org
+Subject: [RESULT] [VOTE] Release 1.2.3, release candidate #3
+I'm happy to announce that we have unanimously approved this release.
+There are XXX approving votes, XXX of which are binding:
+* approver 1
+* approver 2
+* approver 3
+* approver 4
+There are no disapproving votes.
+Thanks everyone!
+&lt;/code>&lt;/pre>
 &lt;h3 id="checklist-to-proceed-to-the-next-step-2">Checklist to proceed to the next step&lt;/h3>
 &lt;ol>
 &lt;li>Issues identified during vote have been resolved, with fixes committed to the release branch.&lt;/li>
 &lt;li>All issues tagged with &lt;code>Fix-Version&lt;/code> for the current release should be closed.&lt;/li>
-&lt;li>Community votes to release the proposed candidate, with at least three approving PMC votes&lt;/li>
+&lt;li>Community votes to release the proposed candidate, with at least three approving PMC votes.&lt;/li>
 &lt;/ol>
 &lt;hr>
 &lt;h2 id="10-finalize-the-release">10. Finalize the release&lt;/h2>
@@ -1495,7 +1502,7 @@ The release manager should also make sure to update these links on the website (
 &lt;p>In JIRA, inside &lt;a href="https://issues.apache.org/jira/plugins/servlet/project-config/BEAM/versions">version management&lt;/a>, hover over the current release and a settings menu will appear.
 Click &lt;code>Release&lt;/code>, and select today’s date.&lt;/p>
 &lt;h4 id="recordkeeping-with-asf">Recordkeeping with ASF&lt;/h4>
-&lt;p>Use reporter.apache.org to seed the information about the release into future project reports.&lt;/p>
+&lt;p>Use &lt;a href="https://reporter.apache.org/addrelease.html?beam">reporter.apache.org&lt;/a> to seed the information about the release into future project reports.&lt;/p>
 &lt;h3 id="checklist-to-proceed-to-the-next-step-3">Checklist to proceed to the next step&lt;/h3>
 &lt;ul>
 &lt;li>Maven artifacts released and indexed in the &lt;a href="https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22">Maven Central Repository&lt;/a>&lt;/li>
@@ -1516,7 +1523,7 @@ If you end up getting permissions errors ask on the mailing list for assistance.
 &lt;p>Announce on the dev@ mailing list that the release has been finished.&lt;/p>
 &lt;p>Announce on the release on the user@ mailing list, listing major improvements and contributions.&lt;/p>
 &lt;p>Announce the release on the &lt;a href="mailto:announce@apache.org">announce@apache.org&lt;/a> mailing list.
-&lt;strong>NOTE&lt;/strong>: This can only be done from &lt;code>@apache.org&lt;/code> email address.&lt;/p>
+&lt;strong>NOTE&lt;/strong>: This can only be done from &lt;code>@apache.org&lt;/code> email address. This email has to be in plain text (no HTML tags).&lt;/p>
 &lt;h3 id="social-media">Social media&lt;/h3>
 &lt;p>Tweet, post on Facebook, LinkedIn, and other platforms.
 Ask other contributors to do the same.&lt;/p>
