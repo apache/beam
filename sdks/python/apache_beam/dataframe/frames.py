@@ -255,6 +255,9 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
 
   hist = frame_base.wont_implement_method('plot')
 
+  first = last = frame_base.wont_implement_method('order-sensitive')
+  head = tail = frame_base.wont_implement_method('order-sensitive')
+
 
 @populate_not_implemented(pd.Series)
 @frame_base.DeferredFrame._register_for(pd.Series)
@@ -590,8 +593,6 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   cummax = cummin = cumsum = cumprod = frame_base.wont_implement_method(
       'order-sensitive')
   diff = frame_base.wont_implement_method('order-sensitive')
-
-  head = tail = frame_base.wont_implement_method('order-sensitive')
 
   filter = frame_base._elementwise_method('filter')
 
@@ -1142,8 +1143,6 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
             proxy=proxy))
 
   __matmul__ = dot
-
-  head = tail = frame_base.wont_implement_method('order-sensitive')
 
   def mode(self, axis=0, *args, **kwargs):
     if axis == 1 or axis == 'columns':
