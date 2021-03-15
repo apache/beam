@@ -185,7 +185,7 @@ task("javaHadoopVersionsTest") {
   dependsOn(":sdks:java:io:hcatalog:hadoopVersionsTest")
   dependsOn(":sdks:java:io:parquet:hadoopVersionsTest")
   dependsOn(":sdks:java:extensions:sorter:hadoopVersionsTest")
-  dependsOn(":runners:spark:hadoopVersionsTest")
+  dependsOn(":runners:spark:2:hadoopVersionsTest")
 }
 
 task("sqlPostCommit") {
@@ -333,7 +333,8 @@ task("typescriptPreCommit") {
 }
 
 task("pushAllDockerImages") {
-  dependsOn(":runners:spark:job-server:container:dockerPush")
+  dependsOn(":runners:spark:2:job-server:container:dockerPush")
+  dependsOn(":runners:spark:3:job-server:container:dockerPush")
   dependsOn(":sdks:java:container:pushAll")
   dependsOn(":sdks:python:container:pushAll")
   for (version in project.ext.get("allFlinkVersions") as Array<*>) {

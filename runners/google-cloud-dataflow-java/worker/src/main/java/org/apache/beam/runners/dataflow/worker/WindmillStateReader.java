@@ -83,7 +83,9 @@ class WindmillStateReader {
    * Ideal maximum bytes in a TagBag response. However, Windmill will always return at least one
    * value if possible irrespective of this limit.
    */
-  public static final long MAX_BAG_BYTES = 8L << 20; // 8MB
+  public static final long INITIAL_MAX_BAG_BYTES = 8L << 20; // 8MB
+
+  public static final long CONTINUATION_MAX_BAG_BYTES = 32L << 20; // 32MB
 
   /**
    * Ideal maximum bytes in a TagSortedList response. However, Windmill will always return at least
@@ -102,6 +104,8 @@ class WindmillStateReader {
    * one value if possible irrespective of this limit.
    */
   public static final long MAX_KEY_BYTES = 16L << 20; // 16MB
+
+  public static final long MAX_CONTINUATION_KEY_BYTES = 72L << 20; // 72MB
 
   /**
    * When combined with a key and computationId, represents the unique address for state managed by
@@ -486,6 +490,7 @@ class WindmillStateReader {
             .setShardingKey(shardingKey)
             .setWorkToken(workToken);
 
+    boolean continuation = false;
     List<StateTag<?>> orderedListsToFetch = Lists.newArrayList();
     for (StateTag<?> stateTag : toFetch) {
       switch (stateTag.getKind()) {
@@ -494,11 +499,14 @@ class WindmillStateReader {
               keyedDataBuilder
                   .addBagsToFetchBuilder()
                   .setTag(stateTag.getTag())
-                  .setStateFamily(stateTag.getStateFamily())
-                  .setFetchMaxBytes(MAX_BAG_BYTES);
-          if (stateTag.getRequestPosition() != null) {
+                  .setStateFamily(stateTag.getStateFamily());
+          if (stateTag.getRequestPosition() == null) {
+            bag.setFetchMaxBytes(INITIAL_MAX_BAG_BYTES);
+          } else {
             // We're asking for the next page.
+            bag.setFetchMaxBytes(CONTINUATION_MAX_BAG_BYTES);
             bag.setRequestPosition((Long) stateTag.getRequestPosition());
+            continuation = true;
           }
           break;
 
@@ -557,7 +565,11 @@ class WindmillStateReader {
         sorted_list.setRequestPosition((ByteString) stateTag.getRequestPosition());
       }
     }
-    keyedDataBuilder.setMaxBytes(MAX_KEY_BYTES);
+    if (continuation) {
+      keyedDataBuilder.setMaxBytes(MAX_CONTINUATION_KEY_BYTES);
+    } else {
+      keyedDataBuilder.setMaxBytes(MAX_KEY_BYTES);
+    }
 
     return keyedDataBuilder.build();
   }

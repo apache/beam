@@ -36,7 +36,7 @@ def nexmarkProfilingProperty = "nexmark.profile"
 def nexmarkRunnerProperty = "nexmark.runner"
 def nexmarkRunnerDependency = project.findProperty(nexmarkRunnerProperty)
         ?: ":runners:direct-java"
-def shouldProvideSpark = ":runners:spark".equals(nexmarkRunnerDependency)
+def shouldProvideSpark = ":runners:spark:2".equals(nexmarkRunnerDependency)
 def isDataflowRunner = ":runners:google-cloud-dataflow-java".equals(nexmarkRunnerDependency)
 def runnerConfiguration = ":runners:direct-java".equals(nexmarkRunnerDependency) ? "shadow" : null
 
@@ -106,7 +106,7 @@ if (shouldProvideSpark) {
 //
 // Parameters:
 //   -Pnexmark.runner
-//       Specify a runner subproject, such as ":runners:spark" or ":runners:flink:1.10"
+//       Specify a runner subproject, such as ":runners:spark:2" or ":runners:flink:1.10"
 //       Defaults to ":runners:direct-java"
 //
 //   -Pnexmark.args
