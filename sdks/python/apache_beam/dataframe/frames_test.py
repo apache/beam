@@ -236,6 +236,12 @@ class DeferredFrameTest(unittest.TestCase):
     self._run_test(
         lambda df: df.groupby('bad').foo.sum(), df, expect_error=True)
 
+  def test_groupby_callable(self):
+    df = GROUPBY_DF
+
+    self._run_test(lambda df: df.groupby(lambda x: x % 2).foo.sum(), df)
+    self._run_test(lambda df: df.groupby(lambda x: x % 5).median(), df)
+
   def test_set_index(self):
     df = pd.DataFrame({
         # [19, 18, ..]
