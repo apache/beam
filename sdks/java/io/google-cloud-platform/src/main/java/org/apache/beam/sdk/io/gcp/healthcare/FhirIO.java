@@ -241,9 +241,9 @@ import org.slf4j.LoggerFactory;
 })
 public class FhirIO {
   private static final String BASE_METRIC_PREFIX = "fhirio/";
-  private static final String LRO_COUNTER_NAME = "counter";
-  private static final String LRO_SUCCESS_NAME = "success";
-  private static final String LRO_FAILURE_NAME = "failure";
+  private static final String LRO_COUNTER_KEY = "counter";
+  private static final String LRO_SUCCESS_KEY = "success";
+  private static final String LRO_FAILURE_KEY = "failure";
 
   /**
    * Read resources from a PCollection of resource IDs (e.g. when subscribing the pubsub
@@ -393,13 +393,13 @@ public class FhirIO {
   private static void incrementLroCounters(
       Operation operation, Counter successCounter, Counter failureCounter) {
     Map<String, Object> opMetadata = operation.getMetadata();
-    if (opMetadata.containsKey(LRO_COUNTER_NAME)) {
-      Map<String, String> counters = (Map<String, String>) opMetadata.get(LRO_COUNTER_NAME);
-      if (counters.containsKey(LRO_SUCCESS_NAME)) {
-        successCounter.inc(Long.parseLong(counters.get(LRO_SUCCESS_NAME)));
+    if (opMetadata.containsKey(LRO_COUNTER_KEY)) {
+      Map<String, String> counters = (Map<String, String>) opMetadata.get(LRO_COUNTER_KEY);
+      if (counters.containsKey(LRO_SUCCESS_KEY)) {
+        successCounter.inc(Long.parseLong(counters.get(LRO_SUCCESS_KEY)));
       }
-      if (counters.containsKey(LRO_FAILURE_NAME)) {
-        failureCounter.inc(Long.parseLong(counters.get(LRO_FAILURE_NAME)));
+      if (counters.containsKey(LRO_FAILURE_KEY)) {
+        failureCounter.inc(Long.parseLong(counters.get(LRO_FAILURE_KEY)));
       }
     }
   }
