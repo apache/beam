@@ -56,7 +56,6 @@ class DoctestTest(unittest.TestCase):
                 "df.nsmallest(3, ['population', 'GDP'])",
                 "df.nsmallest(3, 'population', keep='last')",
             ],
-            'pandas.core.frame.DataFrame.nunique': ['*'],
             'pandas.core.frame.DataFrame.replace': [
                 "s.replace([1, 2], method='bfill')",
                 # Relies on method='pad'

@@ -41,6 +41,12 @@ class Partitioning(object):
     """
     raise NotImplementedError
 
+  def __lt__(self, other):
+    return self != other and self <= other
+
+  def __le__(self, other):
+    return not self.is_subpartitioning_of(other)
+
   def partition_fn(self, df, num_partitions):
     # type: (Frame, int) -> Iterable[Tuple[Any, Frame]]
 
@@ -63,7 +69,7 @@ class Index(Partitioning):
 
   These form a partial order, given by
 
-      Nothing() < Index([i]) < Index([i, j]) < ... < Index() < Singleton()
+      Singleton() < Index([i]) < Index([i, j]) < ... < Index() < Arbitrary()
 
   The ordering is implemented via the is_subpartitioning_of method, where the
   examples on the right are subpartitionings of the examples on the left above.
@@ -90,7 +96,7 @@ class Index(Partitioning):
       return hash(type(self))
 
   def is_subpartitioning_of(self, other):
-    if isinstance(other, Nothing):
+    if isinstance(other, Singleton):
       return True
     elif isinstance(other, Index):
       if self._levels is None:
@@ -98,37 +104,45 @@ class Index(Partitioning):
       elif other._levels is None:
         return False
       else:
-        return all(level in other._levels for level in self._levels)
-    else:
+        return all(level in self._levels for level in other._levels)
+    elif isinstance(other, Arbitrary):
       return False
+    else:
+      raise ValueError(f"Encountered unknown type {other!r}")
 
-  def partition_fn(self, df, num_partitions):
+  def _hash_index(self, df):
     if self._levels is None:
       levels = list(range(df.index.nlevels))
     else:
       levels = self._levels
-    hashes = sum(
+    return sum(
         pd.util.hash_array(df.index.get_level_values(level))
         for level in levels)
+
+  def partition_fn(self, df, num_partitions):
+    hashes = self._hash_index(df)
     for key in range(num_partitions):
       yield key, df[hashes % num_partitions == key]
 
   def check(self, dfs):
-    # TODO(BEAM-11324): This check should be stronger, it should verify that
-    # running partition_fn on the concatenation of dfs yields the same
-    # partitions.
-    if self._levels is None:
+    if not len(dfs):
+      return True
 
-      def get_index_set(df):
-        return set(df.index)
-    else:
+    def apply_consistent_order(dfs):
+      # Apply consistent order between dataframes by using sum of the index's
+      # hash.
+      # Apply consistent order within dataframe with sort_index()
+      # Also drops any empty dataframes.
+      return sorted((df.sort_index() for df in dfs if len(df)),
+                    key=lambda df: sum(self._hash_index(df)))
 
-      def get_index_set(df):
-        return set(zip(df.index.level[level] for level in self._levels))
+    dfs = apply_consistent_order(dfs)
+    repartitioned_dfs = apply_consistent_order(
+        df for _, df in self.test_partition_fn(pd.concat(dfs)))
 
-    index_sets = [get_index_set(df) for df in dfs]
-    for i, index_set in enumerate(index_sets[:-1]):
-      if not index_set.isdisjoint(set.union(*index_sets[i + 1:])):
+    # Assert that each index is identical
+    for df, repartitioned_df in zip(dfs, repartitioned_dfs):
+      if not df.index.equals(repartitioned_df.index):
         return False
 
     return True
@@ -147,7 +161,7 @@ class Singleton(Partitioning):
     return hash(type(self))
 
   def is_subpartitioning_of(self, other):
-    return True
+    return isinstance(other, Singleton)
 
   def partition_fn(self, df, num_partitions):
     yield None, df
@@ -156,7 +170,7 @@ class Singleton(Partitioning):
     return len(dfs) <= 1
 
 
-class Nothing(Partitioning):
+class Arbitrary(Partitioning):
   """A partitioning imposing no constraints on the actual partitioning.
   """
   def __eq__(self, other):
@@ -169,7 +183,7 @@ class Nothing(Partitioning):
     return hash(type(self))
 
   def is_subpartitioning_of(self, other):
-    return isinstance(other, Nothing)
+    return True
 
   def test_partition_fn(self, df):
     num_partitions = 10
