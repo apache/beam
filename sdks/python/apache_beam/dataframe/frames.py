@@ -270,8 +270,87 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
             preserves_partition_by=partitionings.Singleton()))
 
   @property
+  def size(self):
+    sizes = expressions.ComputedExpression(
+        'get_sizes',
+        # Wrap scalar results in a Series for easier concatenation later
+        lambda df: pd.Series(df.size),
+        [self._expr],
+        requires_partition_by=partitionings.Arbitrary(),
+        preserves_partition_by=partitionings.Singleton())
+
+    with expressions.allow_non_parallel_operations(True):
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'sum_sizes',
+              lambda sizes: sizes.sum(), [sizes],
+              requires_partition_by=partitionings.Singleton(),
+              preserves_partition_by=partitionings.Singleton()))
+
+  @property
+  def empty(self):
+    empties = expressions.ComputedExpression(
+        'get_empties',
+        # Wrap scalar results in a Series for easier concatenation later
+        lambda df: pd.Series(df.empty),
+        [self._expr],
+        requires_partition_by=partitionings.Arbitrary(),
+        preserves_partition_by=partitionings.Singleton())
+
+    with expressions.allow_non_parallel_operations(True):
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'check_all_empty',
+              lambda empties: empties.all(), [empties],
+              requires_partition_by=partitionings.Singleton(),
+              preserves_partition_by=partitionings.Singleton()))
+
+  def bool(self):
+    # Will throw if any partition has >1 element
+    bools = expressions.ComputedExpression(
+        'get_bools',
+        # Wrap scalar results in a Series for easier concatenation later
+        lambda df: pd.Series([], dtype=bool)
+        if df.empty else pd.Series([df.bool()]),
+        [self._expr],
+        requires_partition_by=partitionings.Arbitrary(),
+        preserves_partition_by=partitionings.Singleton())
+
+    with expressions.allow_non_parallel_operations(True):
+      # Will throw if overall dataset has != 1 element
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'combine_all_bools',
+              lambda bools: bools.bool(), [bools],
+              proxy=bool(),
+              requires_partition_by=partitionings.Singleton(),
+              preserves_partition_by=partitionings.Singleton()))
+
+  def equals(self, other):
+    intermediate = expressions.ComputedExpression(
+        'equals_partitioned',
+        # Wrap scalar results in a Series for easier concatenation later
+        lambda df,
+        other: pd.Series(df.equals(other)),
+        [self._expr, other._expr],
+        requires_partition_by=partitionings.Index(),
+        preserves_partition_by=partitionings.Singleton())
+
+    with expressions.allow_non_parallel_operations(True):
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'aggregate_equals',
+              lambda df: df.all(), [intermediate],
+              requires_partition_by=partitionings.Singleton(),
+              preserves_partition_by=partitionings.Singleton()))
+
+  @property
   def dtype(self):
     return self._expr.proxy().dtype
+
+  @property
+  def ndim(self):
+    return self._expr.proxy().ndim
 
   dtypes = dtype
 
