@@ -10011,15 +10011,6 @@ ThriftIO
 &lt;/tr>
 &lt;tr class="language-py">
 &lt;td>
-VcfIO
-&lt;/td>
-&lt;td>A source for reading from &lt;a href="https://samtools.github.io/hts-specs/VCFv4.2.pdf">VCF files&lt;/a> (version 4.x).&lt;/td>
-&lt;td style="word-break: break-all;">
-&lt;div>&lt;a target="_blank" href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.vcfio.html">apache_beam.io.vcfio&lt;/a>&lt;/div>
-&lt;/td>
-&lt;/tr>
-&lt;tr class="language-py">
-&lt;td>
 S3IO
 &lt;/td>
 &lt;td>A source for reading from and writing to &lt;a href="https://aws.amazon.com/s3/">Amazon S3&lt;/a>.&lt;/td>
@@ -11871,6 +11862,8 @@ python -m apache_beam.examples.wordcount \
 --input=/path/to/inputfile \
 --output=path/to/write/counts \
 --runner=FlinkRunner \
+# When running batch jobs locally, we need to reuse the container.
+--environment_cache_millis=10000 \
 --environment_type=&amp;#34;DOCKER&amp;#34; \
 --environment_config=&amp;#34;${IMAGE_URL}&amp;#34;&lt;/code>&lt;/pre>
 &lt;/div>
@@ -11888,6 +11881,8 @@ python -m apache_beam.examples.wordcount \
 --input=/path/to/inputfile \
 --output=path/to/write/counts \
 --runner=SparkRunner \
+# When running batch jobs locally, we need to reuse the container.
+--environment_cache_millis=10000 \
 --environment_type=&amp;#34;DOCKER&amp;#34; \
 --environment_config=&amp;#34;${IMAGE_URL}&amp;#34;&lt;/code>&lt;/pre>
 &lt;/div>
