@@ -154,7 +154,7 @@ class _MatchAllFn(beam.DoFn):
   def __init__(self, empty_match_treatment):
     self._empty_match_treatment = empty_match_treatment
 
-  def process(self, file_pattern):
+  def process(self, file_pattern: str) -> List[FileMetadata]:
     # TODO: Should we batch the lookups?
     match_results = filesystems.FileSystems.match([file_pattern])
     match_result = match_results[0]
@@ -175,12 +175,12 @@ class MatchFiles(beam.PTransform):
   of ``FileMetadata`` objects."""
   def __init__(
       self,
-      file_pattern,
+      file_pattern: str,
       empty_match_treatment=EmptyMatchTreatment.ALLOW_IF_WILDCARD):
     self._file_pattern = file_pattern
     self._empty_match_treatment = empty_match_treatment
 
-  def expand(self, pcoll):
+  def expand(self, pcoll) -> beam.PCollection[filesystem.FileMetadata]:
     return pcoll.pipeline | beam.Create([self._file_pattern]) | MatchAll()
 
 
@@ -192,7 +192,7 @@ class MatchAll(beam.PTransform):
   def __init__(self, empty_match_treatment=EmptyMatchTreatment.ALLOW):
     self._empty_match_treatment = empty_match_treatment
 
-  def expand(self, pcoll):
+  def expand(self, pcoll: beam.PCollection) -> beam.PCollection[filesystem.FileMetadata]:
     return pcoll | beam.ParDo(_MatchAllFn(self._empty_match_treatment))
 
 
@@ -201,7 +201,7 @@ class _ReadMatchesFn(beam.DoFn):
     self._compression = compression
     self._skip_directories = skip_directories
 
-  def process(self, file_metadata):
+  def process(self, file_metadata: Union[str, filesystem.FileMetadata]) -> Iterable[ReadableFile]:
     metadata = (
         filesystem.FileMetadata(file_metadata, 0) if isinstance(
             file_metadata, (str, unicode)) else file_metadata)
@@ -246,7 +246,7 @@ class ReadMatches(beam.PTransform):
     self._compression = compression
     self._skip_directories = skip_directories
 
-  def expand(self, pcoll):
+  def expand(self, pcoll: PCollection[Union[str, filesystem.FileMetadata]]) -> beam.PCollection[ReadableFile]:
     return pcoll | beam.ParDo(
         _ReadMatchesFn(self._compression, self._skip_directories))
 
