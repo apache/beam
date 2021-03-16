@@ -1210,7 +1210,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             jobResult.getId(),
             options,
             jobSpecification.getStepNames(),
-            dataflowV1PipelineProto);
+            portablePipelineProto);
 
     // If the service returned client request id, the SDK needs to compare it
     // with the original id generated in the request, if they are not the same
