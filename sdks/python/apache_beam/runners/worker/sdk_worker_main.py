@@ -19,8 +19,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import http.server
 import json
 import logging
@@ -29,7 +27,6 @@ import re
 import sys
 import threading
 import traceback
-from builtins import object
 
 from google.protobuf import text_format  # type: ignore # not in typeshed
 

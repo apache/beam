@@ -19,10 +19,6 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import base64
 import bisect
 import collections
@@ -31,8 +27,6 @@ import json
 import logging
 import random
 import threading
-from builtins import next
-from builtins import object
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
@@ -52,7 +46,6 @@ from typing import TypeVar
 from typing import Union
 from typing import cast
 
-from future.utils import itervalues
 from google.protobuf import duration_pb2
 from google.protobuf import timestamp_pb2
 
@@ -197,7 +190,7 @@ class DataInputOperation(RunnerIOOperation):
             self.counter_factory,
             self.name_context.step_name,
             0,
-            next(iter(itervalues(consumers))),
+            next(iter(consumers.values())),
             self.windowed_coder,
             self._get_runtime_performance_hints())
     ]

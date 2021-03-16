@@ -20,10 +20,6 @@
 # pytype: skip-file
 # mypy: disallow-untyped-defs
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import abc
 import collections
 import contextlib
@@ -34,8 +30,8 @@ import sys
 import threading
 import time
 import traceback
-from builtins import object
 from concurrent import futures
+from types import TracebackType
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
@@ -54,14 +50,13 @@ from typing import TypeVar
 from typing import Union
 
 import grpc
-from future.utils import raise_
-from future.utils import with_metaclass
 
 from apache_beam.coders import coder_impl
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
+from apache_beam.portability.api import endpoints_pb2  # pylint: disable=unused-import
 from apache_beam.portability.api import metrics_pb2
 from apache_beam.runners.worker import bundle_processor
 from apache_beam.runners.worker import data_plane
@@ -73,16 +68,11 @@ from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
 from apache_beam.runners.worker.worker_status import FnApiWorkerStatusHandler
 from apache_beam.runners.worker.worker_status import thread_dump
 from apache_beam.utils import thread_pool_executor
+from apache_beam.utils.profiler import Profile  # pylint: disable=unused-import
 from apache_beam.utils.sentinel import Sentinel
 
-if TYPE_CHECKING:
-  # TODO(BEAM-9372): move this out of the TYPE_CHECKING scope when we drop
-  #  support for python < 3.5.3
-  from types import TracebackType
-  ExcInfo = Tuple[Type[BaseException], BaseException, TracebackType]
-  OptExcInfo = Union[ExcInfo, Tuple[None, None, None]]
-  from apache_beam.portability.api import endpoints_pb2
-  from apache_beam.utils.profiler import Profile
+ExcInfo = Tuple[Type[BaseException], BaseException, TracebackType]
+OptExcInfo = Union[ExcInfo, Tuple[None, None, None]]
 
 T = TypeVar('T')
 _KT = TypeVar('_KT')
@@ -802,7 +792,7 @@ class SdkWorker(object):
       yield
 
 
-class StateHandler(with_metaclass(abc.ABCMeta, object)):  # type: ignore[misc]
+class StateHandler(metaclass=abc.ABCMeta):
   """An abstract object representing a ``StateHandler``."""
   @abc.abstractmethod
   def get_raw(
@@ -828,7 +818,7 @@ class StateHandler(with_metaclass(abc.ABCMeta, object)):  # type: ignore[misc]
     raise NotImplementedError(type(self))
 
 
-class StateHandlerFactory(with_metaclass(abc.ABCMeta, object)):  # type: ignore[misc]
+class StateHandlerFactory(metaclass=abc.ABCMeta):
   """An abstract factory for creating ``DataChannel``."""
   @abc.abstractmethod
   def create_state_handler(self, api_service_descriptor):
@@ -1038,7 +1028,7 @@ class GrpcStateHandler(StateHandler):
     while not req_future.wait(timeout=1):
       if self._exc_info:
         t, v, tb = self._exc_info
-        raise_(t, v, tb)
+        raise t(v).with_traceback(tb)
       elif self._done:
         raise RuntimeError()
     response = req_future.get()

@@ -19,16 +19,11 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import contextlib
 import logging
 import threading
 import time
 import unittest
-from builtins import range
 from collections import namedtuple
 
 import grpc

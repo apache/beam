@@ -17,15 +17,10 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-from __future__ import division
-
 import logging
 import math
 import random
 import unittest
-from builtins import object
-from builtins import range
 
 from apache_beam import coders
 from apache_beam.runners.worker import opcounters
