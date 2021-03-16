@@ -202,6 +202,25 @@ class MatchAll(beam.PTransform):
     return pcoll | beam.ParDo(_MatchAllFn(self._empty_match_treatment))
 
 
+class ReadableFile(object):
+  """A utility class for accessing files."""
+  def __init__(self, metadata, compression=None):
+    self.metadata = metadata
+    self._compression = compression
+
+  def open(self, mime_type='text/plain', compression_type=None):
+    compression = (
+        compression_type or self._compression or
+        filesystems.CompressionTypes.AUTO)
+    return filesystems.FileSystems.open(
+        self.metadata.path, mime_type=mime_type, compression_type=compression)
+
+  def read(self, mime_type='application/octet-stream'):
+    return self.open(mime_type).read()
+
+  def read_utf8(self):
+    return self.open().read().decode('utf-8')
+
 class _ReadMatchesFn(beam.DoFn):
   def __init__(self, compression, skip_directories):
     self._compression = compression
@@ -225,26 +244,6 @@ class _ReadMatchesFn(beam.DoFn):
 
     # TODO: Mime type? Other arguments? Maybe arguments passed in to transform?
     yield ReadableFile(metadata, self._compression)
-
-
-class ReadableFile(object):
-  """A utility class for accessing files."""
-  def __init__(self, metadata, compression=None):
-    self.metadata = metadata
-    self._compression = compression
-
-  def open(self, mime_type='text/plain', compression_type=None):
-    compression = (
-        compression_type or self._compression or
-        filesystems.CompressionTypes.AUTO)
-    return filesystems.FileSystems.open(
-        self.metadata.path, mime_type=mime_type, compression_type=compression)
-
-  def read(self, mime_type='application/octet-stream'):
-    return self.open(mime_type).read()
-
-  def read_utf8(self):
-    return self.open().read().decode('utf-8')
 
 
 class ReadMatches(beam.PTransform):
