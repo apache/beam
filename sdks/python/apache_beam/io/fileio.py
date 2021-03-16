@@ -100,6 +100,8 @@ from typing import BinaryIO  # pylint: disable=unused-import
 from typing import Callable
 from typing import DefaultDict
 from typing import Dict
+from typing import Iterable
+from typing import List
 from typing import Tuple
 
 from past.builtins import unicode
