@@ -1102,9 +1102,9 @@ public class ParquetIO {
       return toBuilder().setConfiguration(new SerializableConfiguration(configuration)).build();
     }
 
-    /** Specify row-group size; if not set, a default will be used by the underlying writer. */
+    /** Specify row-group size; if not set or zero, a default is used by the underlying writer. */
     public Sink withRowGroupSize(int rowGroupSize) {
-      checkArgument(rowGroupSize > 0, "rowGroupSize should be positive");
+      checkArgument(rowGroupSize >= 0, "rowGroupSize must be non-negative");
       return toBuilder().setRowGroupSize(rowGroupSize).build();
     }
 
