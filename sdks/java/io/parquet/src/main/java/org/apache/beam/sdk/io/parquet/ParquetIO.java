@@ -1054,7 +1054,8 @@ public class ParquetIO {
     return new AutoValue_ParquetIO_Sink.Builder()
         .setJsonSchema(schema.toString())
         .setCompressionCodec(CompressionCodecName.SNAPPY)
-        .setRowGroupSize(0)
+        // This resembles the default value for ParquetWriter.rowGroupSize.
+        .setRowGroupSize(ParquetWriter.DEFAULT_BLOCK_SIZE)
         .build();
   }
 
@@ -1104,7 +1105,7 @@ public class ParquetIO {
 
     /** Specify row-group size; if not set or zero, a default is used by the underlying writer. */
     public Sink withRowGroupSize(int rowGroupSize) {
-      checkArgument(rowGroupSize >= 0, "rowGroupSize must be non-negative");
+      checkArgument(rowGroupSize > 0, "rowGroupSize must be positive");
       return toBuilder().setRowGroupSize(rowGroupSize).build();
     }
 
@@ -1124,10 +1125,8 @@ public class ParquetIO {
               .withSchema(schema)
               .withCompressionCodec(getCompressionCodec())
               .withWriteMode(OVERWRITE)
-              .withConf(SerializableConfiguration.newConfiguration(getConfiguration()));
-      if (getRowGroupSize() > 0) {
-        builder = builder.withRowGroupSize(getRowGroupSize());
-      }
+              .withConf(SerializableConfiguration.newConfiguration(getConfiguration()))
+              .withRowGroupSize(getRowGroupSize());
       this.writer = builder.build();
     }
 
