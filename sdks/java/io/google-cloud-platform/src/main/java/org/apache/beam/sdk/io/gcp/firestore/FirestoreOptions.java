@@ -17,13 +17,12 @@
  */
 package org.apache.beam.sdk.io.gcp.firestore;
 
-import com.google.cloud.firestore.FirestoreOptions;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 @Description("Options used to configure Cloud Firestore IO")
-public interface FirestoreIOOptions extends PipelineOptions {
+public interface FirestoreOptions extends PipelineOptions {
 
   /**
    * A host port pair to allow connecting to a Cloud Firestore emulator instead of the live service.
@@ -31,19 +30,19 @@ public interface FirestoreIOOptions extends PipelineOptions {
    * environment variable is also set.
    *
    * @return the string representation of a host and port pair to be used when constructing Cloud
-   * Firestore clients.
-   * @see FirestoreOptions.Builder#setEmulatorHost(java.lang.String)
+   *     Firestore clients.
+   * @see com.google.cloud.firestore.FirestoreOptions.Builder#setEmulatorHost(java.lang.String)
    */
   @Nullable
-  String getEmulatorHostPort();
+  String getEmulatorHost();
 
   /**
    * Define a host port pair to allow connecting to a Cloud Firestore emulator instead of the live
    * service. The value passed to this method will take precedent if the {@code
    * FIRESTORE_EMULATOR_HOST} environment variable is also set.
    *
-   * @param hostPort the emulator host and port to connect to
-   * @see FirestoreOptions.Builder#setEmulatorHost(java.lang.String)
+   * @param host the emulator host and port to connect to
+   * @see com.google.cloud.firestore.FirestoreOptions.Builder#setEmulatorHost(java.lang.String)
    */
-  void setEmulatorHostPort(String hostPort);
+  void setEmulatorHost(String host);
 }

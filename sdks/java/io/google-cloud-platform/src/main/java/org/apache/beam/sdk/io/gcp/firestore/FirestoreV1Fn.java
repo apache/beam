@@ -24,10 +24,11 @@ final class FirestoreV1Fn {
   /**
    * The base namespace used for {@link Context RpcAttempt.Context} values in {@link
    * V1FnRpcAttemptContext}. This value directly impacts the names of log appender and metrics.
-   * <p/>
-   * This names is part of the public API and must not be changed outside of a deprecation cycle.
+   *
+   * <p>This names is part of the public API and must not be changed outside of a deprecation cycle.
    */
-  private static final String CONTEXT_BASE_NAMESPACE = "org.apache.beam.sdk.io.gcp.firestore.FirestoreV1";
+  private static final String CONTEXT_BASE_NAMESPACE =
+      "org.apache.beam.sdk.io.gcp.firestore.FirestoreV1";
 
   interface HasRpcAttemptContext {
     Context getRpcAttemptContext();
@@ -36,10 +37,12 @@ final class FirestoreV1Fn {
   /**
    * A set of defined {@link Context RpcAttempt.Context} values used to determine metrics and
    * logging namespaces. Implemented as an enum to ensure a single instance.
-   * <p/>
-   * These names are part of the public API and must not be changed outside of a deprecation cycle.
+   *
+   * <p>These names are part of the public API and must not be changed outside of a deprecation
+   * cycle.
    */
   enum V1FnRpcAttemptContext implements Context {
+    BatchWrite(),
     ;
 
     private final String namespace;

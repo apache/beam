@@ -20,10 +20,8 @@ package org.apache.beam.sdk.io.gcp.firestore;
 import com.google.api.gax.grpc.GrpcStatusCode;
 import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.StatusCode;
-import com.google.common.annotations.VisibleForTesting;
 import com.google.rpc.Code;
 import java.io.IOException;
-import java.io.Serializable;
 import java.util.Iterator;
 import java.util.Optional;
 import java.util.Random;
@@ -34,13 +32,15 @@ import org.apache.beam.sdk.io.gcp.firestore.RpcQos.RpcAttempt.Context;
 import org.apache.beam.sdk.io.gcp.firestore.RpcQos.RpcWriteAttempt.Element;
 import org.apache.beam.sdk.io.gcp.firestore.RpcQos.RpcWriteAttempt.FlushBuffer;
 import org.apache.beam.sdk.metrics.Counter;
-import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.metrics.Distribution;
+import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.MovingFunction;
 import org.apache.beam.sdk.util.Sleeper;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Ints;
@@ -52,27 +52,25 @@ import org.slf4j.LoggerFactory;
 
 final class RpcQosImpl implements RpcQos {
 
-  /**
-   * Non-retryable errors. See https://cloud.google.com/apis/design/errors#handling_errors.
-   */
+  /** Non-retryable errors. See https://cloud.google.com/apis/design/errors#handling_errors. */
   private static final Set<Integer> NON_RETRYABLE_ERROR_NUMBERS =
       ImmutableSet.of(
-          Code.ALREADY_EXISTS,
-          Code.DATA_LOSS,
-          Code.FAILED_PRECONDITION,
-          Code.INVALID_ARGUMENT,
-          Code.OUT_OF_RANGE,
-          Code.NOT_FOUND,
-          Code.PERMISSION_DENIED,
-          Code.UNIMPLEMENTED
-      ).stream()
+              Code.ALREADY_EXISTS,
+              Code.DATA_LOSS,
+              Code.FAILED_PRECONDITION,
+              Code.INVALID_ARGUMENT,
+              Code.OUT_OF_RANGE,
+              Code.NOT_FOUND,
+              Code.PERMISSION_DENIED,
+              Code.UNIMPLEMENTED)
+          .stream()
           .map(Code::getNumber)
           .collect(ImmutableSet.toImmutableSet());
   /**
    * The target minimum number of requests per samplePeriodMs, even if no requests succeed. Must be
    * greater than 0, else we could throttle to zero. Because every decision is probabilistic, there
    * is no guarantee that the request rate in any given interval will not be zero. (This is the +1
-   * from the formula in https://landing.google.com/sre/book/chapters/handling-overload.html
+   * from the formula in https://landing.google.com/sre/book/chapters/handling-overload.html)
    */
   private static final double MIN_REQUESTS = 1;
 
@@ -83,48 +81,59 @@ final class RpcQosImpl implements RpcQos {
   private final WriteRampUp writeRampUp;
   private final FluentBackoff fb;
 
-  private final WeakHashMap<Context, Counters> counters;
+  private final WeakHashMap<Context, O11y> counters;
   private final Random random;
   private final Sleeper sleeper;
-  private final Function<Context, Counters> computeCounters;
+  private final Function<Context, O11y> computeCounters;
+  private final DistributionFactory distributionFactory;
 
   RpcQosImpl(
       RpcQosOptions options,
       Random random,
       Sleeper sleeper,
-      CounterFactory counterFactory
-  ) {
+      CounterFactory counterFactory,
+      DistributionFactory distributionFactory) {
     this.options = options;
     this.random = random;
     this.sleeper = sleeper;
-    at = new AdaptiveThrottler();
-    wb = new WriteBatcher();
-    writeRampUp = new WriteRampUp(
-        Math.max(1, 500 / options.getHintMaxNumWorkers())
-    );
-    fb = FluentBackoff.DEFAULT
-        .withMaxRetries(options.getMaxAttempts() - 1) // maxRetries is an inclusive value, we want exclusive since we are tracking all attempts
-        .withInitialBackoff(options.getInitialBackoff());
+    DistributionFactory filteringDistributionFactory =
+        new DiagnosticOnlyFilteringDistributionFactory(
+            !options.isShouldReportDiagnosticMetrics(), distributionFactory);
+    this.distributionFactory = filteringDistributionFactory;
+    at =
+        new AdaptiveThrottler(
+            options.getSamplePeriod(),
+            options.getSamplePeriodBucketSize(),
+            options.getThrottleDuration(),
+            options.getOverloadRatio());
+    wb =
+        new WriteBatcher(
+            options.getSamplePeriod(),
+            options.getSamplePeriodBucketSize(),
+            options.getBatchInitialCount(),
+            options.getBatchTargetLatency(),
+            filteringDistributionFactory);
+    writeRampUp =
+        new WriteRampUp(500.0 / options.getHintMaxNumWorkers(), filteringDistributionFactory);
+    // maxRetries is an inclusive value, we want exclusive since we are tracking all attempts
+    fb =
+        FluentBackoff.DEFAULT
+            .withMaxRetries(options.getMaxAttempts() - 1)
+            .withInitialBackoff(options.getInitialBackoff());
     counters = new WeakHashMap<>();
-    computeCounters = (Context c) -> Counters.getCounters(counterFactory, c);
+    computeCounters = (Context c) -> O11y.create(c, counterFactory, filteringDistributionFactory);
   }
 
   @Override
   public RpcWriteAttemptImpl newWriteAttempt(Context context) {
     return new RpcWriteAttemptImpl(
-        context,
-        counters.computeIfAbsent(context, computeCounters),
-        fb.backoff(),
-        sleeper);
+        context, counters.computeIfAbsent(context, computeCounters), fb.backoff(), sleeper);
   }
 
   @Override
   public RpcReadAttemptImpl newReadAttempt(Context context) {
     return new RpcReadAttemptImpl(
-        context,
-        counters.computeIfAbsent(context, computeCounters),
-        fb.backoff(),
-        sleeper);
+        context, counters.computeIfAbsent(context, computeCounters), fb.backoff(), sleeper);
   }
 
   @Override
@@ -138,65 +147,61 @@ final class RpcQosImpl implements RpcQos {
         sampleUpdate.getMillis(),
         1 /* numSignificantBuckets */,
         1 /* numSignificantSamples */,
-        Sum.ofLongs()
-    );
-  }
-
-  interface CounterFactory extends Serializable {
-    CounterFactory DEFAULT = Metrics::counter;
-
-    Counter getCounter(String namespace, String name);
+        Sum.ofLongs());
   }
 
   private enum AttemptState {
-    Active,
-    Active_Started,
-    Complete_Success,
-    Complete_Error;
+    PENDING,
+    STARTED,
+    COMPLETE_SUCCESS,
+    COMPLETE_ERROR;
 
     public void checkActive() {
       switch (this) {
-        case Active:
-        case Active_Started:
+        case PENDING:
+        case STARTED:
           return;
-        case Complete_Success:
-          throw new IllegalStateException("Expected state to be Active, but was Complete_Success");
-        case Complete_Error:
-          throw new IllegalStateException("Expected state to be Active, but was Complete_Error");
+        case COMPLETE_SUCCESS:
+          throw new IllegalStateException(
+              "Expected state to be PENDING or STARTED, but was COMPLETE_SUCCESS");
+        case COMPLETE_ERROR:
+          throw new IllegalStateException(
+              "Expected state to be PENDING or STARTED, but was COMPLETE_ERROR");
       }
     }
 
     public void checkStarted() {
       switch (this) {
-        case Active_Started:
+        case STARTED:
           return;
-        case Active:
-          throw new IllegalStateException("Expected state to be Active_Started, but was Active");
-        case Complete_Success:
-          throw new IllegalStateException("Expected state to be Active_Started, but was Complete_Success");
-        case Complete_Error:
-          throw new IllegalStateException("Expected state to be Active_Started, but was Complete_Error");
+        case PENDING:
+          throw new IllegalStateException("Expected state to be STARTED, but was PENDING");
+        case COMPLETE_SUCCESS:
+          throw new IllegalStateException("Expected state to be STARTED, but was COMPLETE_SUCCESS");
+        case COMPLETE_ERROR:
+          throw new IllegalStateException("Expected state to be STARTED, but was COMPLETE_ERROR");
       }
     }
   }
 
   private abstract class BaseRpcAttempt implements RpcAttempt {
     private final Logger logger;
-    protected final Counters counters;
-    protected final BackOff backoff;
-    protected final Sleeper sleeper;
+    final O11y o11y;
+    final BackOff backoff;
+    final Sleeper sleeper;
 
-    protected AttemptState state;
-    protected Instant start;
+    AttemptState state;
+    Instant start;
 
-    @SuppressWarnings("initialization.fields.uninitialized") // allow transient fields to be managed by component lifecycle
-    protected BaseRpcAttempt(
-        Context context, Counters counters, BackOff backoff, Sleeper sleeper) {
+    @SuppressWarnings(
+        "initialization.fields.uninitialized") // allow transient fields to be managed by component
+    // lifecycle
+    BaseRpcAttempt(Context context, O11y o11y, BackOff backoff, Sleeper sleeper) {
       this.logger = LoggerFactory.getLogger(String.format("%s.RpcQos", context.getNamespace()));
-      this.counters = counters;
+      this.o11y = o11y;
       this.backoff = backoff;
       this.sleeper = sleeper;
-      this.state = AttemptState.Active;
+      this.state = AttemptState.PENDING;
     }
 
     @Override
@@ -204,7 +209,8 @@ final class RpcQosImpl implements RpcQos {
       state.checkActive();
       Duration shouldThrottleRequest = at.shouldThrottleRequest(instant);
       if (shouldThrottleRequest.compareTo(Duration.ZERO) > 0) {
-        logger.info("Delaying request by {}ms", shouldThrottleRequest.getMillis());
+        long throttleRequestMillis = shouldThrottleRequest.getMillis();
+        logger.debug("Delaying request by {}ms", throttleRequestMillis);
         throttleRequest(shouldThrottleRequest);
         return false;
       }
@@ -213,8 +219,7 @@ final class RpcQosImpl implements RpcQos {
     }
 
     @Override
-    public void checkCanRetry(RuntimeException exception)
-        throws InterruptedException {
+    public void checkCanRetry(RuntimeException exception) throws InterruptedException {
       state.checkActive();
 
       Optional<ApiException> findApiException = findApiException(exception);
@@ -224,36 +229,45 @@ final class RpcQosImpl implements RpcQos {
         // order here is semi-important
         // First we always want to test if the error code is one of the codes we have deemed
         // non-retryable before delegating to the exceptions default set.
-        if (
-            maxAttemptsExhausted()
-                || getStatusCodeNumber(apiException).map(NON_RETRYABLE_ERROR_NUMBERS::contains).orElse(false)
-                || !apiException.isRetryable()
-        ) {
-          state = AttemptState.Complete_Error;
+        if (maxAttemptsExhausted()
+            || getStatusCodeNumber(apiException)
+                .map(NON_RETRYABLE_ERROR_NUMBERS::contains)
+                .orElse(false)
+            || !apiException.isRetryable()) {
+          state = AttemptState.COMPLETE_ERROR;
           throw apiException;
         }
       } else {
-        state = AttemptState.Complete_Error;
+        state = AttemptState.COMPLETE_ERROR;
         throw exception;
       }
     }
 
     @Override
-    public void recordStartRequest(Instant instantSinceEpoch) {
-      at.recordStartRequest(instantSinceEpoch);
-      start = instantSinceEpoch;
-      state = AttemptState.Active_Started;
-    }
-
-    @Override
     public void completeSuccess() {
       state.checkActive();
-      state = AttemptState.Complete_Success;
+      state = AttemptState.COMPLETE_SUCCESS;
     }
 
     @Override
     public boolean isCodeRetryable(Code code) {
       return !NON_RETRYABLE_ERROR_NUMBERS.contains(code.getNumber());
+    }
+
+    @Override
+    public void recordRequestSuccessful(Instant end) {
+      state.checkStarted();
+      o11y.rpcSuccesses.inc();
+      o11y.rpcDurationMs.update(durationMs(end));
+      at.recordSuccessfulRequest(start);
+    }
+
+    @Override
+    public void recordRequestFailed(Instant end) {
+      state.checkStarted();
+      o11y.rpcFailures.inc();
+      o11y.rpcDurationMs.update(durationMs(end));
+      at.recordFailedRequest(start);
     }
 
     private boolean maxAttemptsExhausted() throws InterruptedException {
@@ -271,13 +285,17 @@ final class RpcQosImpl implements RpcQos {
       }
     }
 
-    protected Logger getLogger() {
+    Logger getLogger() {
       return logger;
     }
 
-    protected final void throttleRequest(Duration shouldThrottleRequest) throws InterruptedException {
-      counters.throttlingMs.inc(shouldThrottleRequest.getMillis());
+    final void throttleRequest(Duration shouldThrottleRequest) throws InterruptedException {
+      o11y.throttlingMs.inc(shouldThrottleRequest.getMillis());
       sleeper.sleep(shouldThrottleRequest.getMillis());
+    }
+
+    final long durationMs(Instant end) {
+      return end.minus(start.getMillis()).getMillis();
     }
 
     private Optional<Integer> getStatusCodeNumber(ApiException apiException) {
@@ -305,37 +323,28 @@ final class RpcQosImpl implements RpcQos {
   }
 
   private final class RpcReadAttemptImpl extends BaseRpcAttempt implements RpcReadAttempt {
-    private RpcReadAttemptImpl(Context context,
-        Counters counters, BackOff backoff, Sleeper sleeper) {
-      super(context, counters, backoff, sleeper);
+    private RpcReadAttemptImpl(Context context, O11y o11y, BackOff backoff, Sleeper sleeper) {
+      super(context, o11y, backoff, sleeper);
     }
 
     @Override
-    public void recordSuccessfulRequest(Instant end) {
-      state.checkStarted();
-      counters.rpcSuccesses.inc();
-      at.recordSuccessfulRequest(start);
-    }
-
-    @Override
-    public void recordFailedRequest(Instant end) {
-      state.checkStarted();
-      counters.rpcFailures.inc();
-      at.recordFailedRequest(start);
+    public void recordRequestStart(Instant start) {
+      at.recordStartRequest(start);
+      this.start = start;
+      state = AttemptState.STARTED;
     }
 
     @Override
     public void recordStreamValue(Instant now) {
       state.checkActive();
-      counters.rpcStreamValueReceived.inc();
+      o11y.rpcStreamValueReceived.inc();
     }
   }
 
   final class RpcWriteAttemptImpl extends BaseRpcAttempt implements RpcWriteAttempt {
 
-    private RpcWriteAttemptImpl(Context context,
-        Counters counters, BackOff backoff, Sleeper sleeper) {
-      super(context, counters, backoff, sleeper);
+    private RpcWriteAttemptImpl(Context context, O11y o11y, BackOff backoff, Sleeper sleeper) {
+      super(context, o11y, backoff, sleeper);
     }
 
     @Override
@@ -344,7 +353,8 @@ final class RpcQosImpl implements RpcQos {
       Optional<Duration> shouldThrottle = writeRampUp.shouldThrottle(instant);
       if (shouldThrottle.isPresent()) {
         Duration throttleDuration = shouldThrottle.get();
-        getLogger().debug("Still ramping up, Delaying request by {}ms", throttleDuration.getMillis());
+        long throttleDurationMillis = throttleDuration.getMillis();
+        getLogger().debug("Still ramping up, Delaying request by {}ms", throttleDurationMillis);
         throttleRequest(throttleDuration);
         return false;
       } else {
@@ -353,118 +363,182 @@ final class RpcQosImpl implements RpcQos {
     }
 
     @Override
-    public <T, E extends Element<T>> FlushBufferImpl<T, E> newFlushBuffer(Instant instantSinceEpoch) {
+    public <T, ElementT extends Element<T>> FlushBufferImpl<T, ElementT> newFlushBuffer(
+        Instant instantSinceEpoch) {
       state.checkActive();
       int availableWriteCountBudget = writeRampUp.getAvailableWriteCountBudget(instantSinceEpoch);
       int nextBatchMaxCount = wb.nextBatchMaxCount(instantSinceEpoch);
-      int batchMaxCount = Ints.min(
-          Math.max(0, availableWriteCountBudget),
-          Math.max(0, nextBatchMaxCount),
-          options.getBatchMaxCount()
-      );
-      return new FlushBufferImpl<>(
-          batchMaxCount,
-          options.getBatchMaxBytes()
-      );
+      int batchMaxCount =
+          Ints.min(
+              Math.max(0, availableWriteCountBudget),
+              Math.max(0, nextBatchMaxCount),
+              options.getBatchMaxCount());
+      o11y.batchCapacityCount.update(batchMaxCount);
+      return new FlushBufferImpl<>(batchMaxCount, options.getBatchMaxBytes());
     }
 
     @Override
-    public void recordSuccessfulRequest(Instant end, int numWrites) {
-      state.checkStarted();
-      counters.rpcSuccesses.inc();
+    public void recordRequestStart(Instant start, int numWrites) {
+      at.recordStartRequest(start, numWrites);
       writeRampUp.recordWriteCount(start, numWrites);
-      at.recordSuccessfulRequest(start);
-      wb.recordRequestLatency(start, end, numWrites);
+      this.start = start;
+      state = AttemptState.STARTED;
     }
 
     @Override
-    public void recordFailedRequest(Instant end, int numWrites) {
+    public void recordWriteCounts(Instant end, int successfulWrites, int failedWrites) {
+      int totalWrites = successfulWrites + failedWrites;
       state.checkStarted();
-      counters.rpcFailures.inc();
-      writeRampUp.recordWriteCount(start, numWrites);
-      at.recordFailedRequest(start);
-      wb.recordRequestLatency(start, end, numWrites);
+      wb.recordRequestLatency(start, end, totalWrites, o11y.latencyPerDocumentMs);
+      if (successfulWrites > 0) {
+        at.recordSuccessfulRequest(start, successfulWrites);
+      }
+      if (failedWrites > 0) {
+        at.recordFailedRequest(start, failedWrites);
+      }
     }
-
   }
 
   /**
-   * Determines batch sizes for commit RPCs based on past performance.
+   * Determines batch sizes based on past performance.
    *
    * <p>It aims for a target response time per RPC: it uses the response times for previous RPCs and
-   * the number of entities contained in them, calculates a rolling average time-per-document, and
-   * chooses the number of entities for future writes to hit the target time.
+   * the number of documents contained in them, calculates a rolling average time-per-document, and
+   * chooses the number of documents for future writes to hit the target time.
    *
-   * <p>This enables us to send large batches without sending over-large requests in the case of
+   * <p>This enables us to send large batches without sending overly-large requests in the case of
    * expensive document writes that may timeout before the server can apply them all.
    */
-  private final class WriteBatcher {
+  private static final class WriteBatcher {
+    private static final Logger LOG = LoggerFactory.getLogger(WriteBatcher.class);
 
+    private final int batchInitialCount;
+    private final Duration batchTargetLatency;
     private final MovingAverage meanLatencyPerDocumentMs;
+    private final Distribution batchMaxCount;
 
-    private WriteBatcher() {
-      this.meanLatencyPerDocumentMs =
-          new MovingAverage(
-              options.getSamplePeriod(),
-              options.getSamplePeriodBucketSize()
-              /* numSignificantBuckets */
-              /* numSignificantSamples */
-          );
+    private WriteBatcher(
+        Duration samplePeriod,
+        Duration samplePeriodBucketSize,
+        int batchInitialCount,
+        Duration batchTargetLatency,
+        DistributionFactory distributionFactory) {
+      this.batchInitialCount = batchInitialCount;
+      this.batchTargetLatency = batchTargetLatency;
+      this.meanLatencyPerDocumentMs = new MovingAverage(samplePeriod, samplePeriodBucketSize);
+      this.batchMaxCount =
+          distributionFactory.get(RpcQos.class.getName(), "qos_writeBatcher_batchMaxCount");
     }
 
-    private void recordRequestLatency(Instant start, Instant end, int numWrites) {
-      Interval interval = new Interval(start, end);
-      long msPerWrite = numWrites == 0 ? 0 : interval.toDurationMillis() / numWrites;
-      meanLatencyPerDocumentMs.add(end, msPerWrite);
+    private void recordRequestLatency(
+        Instant start, Instant end, int numWrites, Distribution distribution) {
+      try {
+        Interval interval = new Interval(start, end);
+        long msPerWrite = numWrites == 0 ? 0 : interval.toDurationMillis() / numWrites;
+        distribution.update(msPerWrite);
+        meanLatencyPerDocumentMs.add(end, msPerWrite);
+      } catch (IllegalArgumentException e) {
+        LOG.warn("Invalid time interval start = {} end = {}", start, end, e);
+      }
     }
 
     private int nextBatchMaxCount(Instant instantSinceEpoch) {
       if (!meanLatencyPerDocumentMs.hasValue(instantSinceEpoch)) {
-        return options.getBatchInitialCount();
+        return batchInitialCount;
       }
       long recentMeanLatency = Math.max(meanLatencyPerDocumentMs.get(instantSinceEpoch), 1);
-      long nextBatchMaxCount =  options.getBatchTargetLatency().getMillis() /  recentMeanLatency;
-      return Math.toIntExact(nextBatchMaxCount);
+      long nextBatchMaxCount = batchTargetLatency.getMillis() / recentMeanLatency;
+      int count = Math.toIntExact(nextBatchMaxCount);
+      batchMaxCount.update(count);
+      return count;
     }
-
   }
 
   /**
    * An implementation of client-side adaptive throttling. See
-   * https://sre.google/sre-book/handling-overload/#client-side-throttling-a7sYUg
-   * for a full discussion of the use case and algorithm applied.
+   * https://sre.google/sre-book/handling-overload/#client-side-throttling-a7sYUg for a full
+   * discussion of the use case and algorithm applied.
    */
   private final class AdaptiveThrottler {
     private final MovingFunction successfulRequestsMovingFunction;
     private final MovingFunction failedRequestsMovingFunction;
     private final MovingFunction allRequestsMovingFunction;
+    private final Distribution allRequestsCountDist;
+    private final Distribution successfulRequestsCountDist;
+    private final Distribution overloadMaxCountDist;
+    private final Distribution overloadUsageDist;
+    private final Distribution throttleProbabilityDist;
+    private final Distribution throttlingMs;
+    private final LinearBackoff backoff;
+    private final double overloadRatio;
 
-    private AdaptiveThrottler() {
-      allRequestsMovingFunction = createMovingFunction(options.getSamplePeriod(), options.getSamplePeriodBucketSize());
-      successfulRequestsMovingFunction = createMovingFunction(options.getSamplePeriod(), options.getSamplePeriodBucketSize());
-      failedRequestsMovingFunction = createMovingFunction(options.getSamplePeriod(), options.getSamplePeriodBucketSize());
+    private AdaptiveThrottler(
+        Duration samplePeriod,
+        Duration samplePeriodBucketSize,
+        Duration throttleDuration,
+        double overloadRatio) {
+      allRequestsMovingFunction = createMovingFunction(samplePeriod, samplePeriodBucketSize);
+      successfulRequestsMovingFunction = createMovingFunction(samplePeriod, samplePeriodBucketSize);
+      failedRequestsMovingFunction = createMovingFunction(samplePeriod, samplePeriodBucketSize);
+      allRequestsCountDist =
+          distributionFactory.get(RpcQos.class.getName(), "qos_adaptiveThrottler_allRequestsCount");
+      successfulRequestsCountDist =
+          distributionFactory.get(
+              RpcQos.class.getName(), "qos_adaptiveThrottler_successfulRequestsCount");
+      overloadMaxCountDist =
+          distributionFactory.get(RpcQos.class.getName(), "qos_adaptiveThrottler_overloadMaxCount");
+      overloadUsageDist =
+          distributionFactory.get(RpcQos.class.getName(), "qos_adaptiveThrottler_overloadUsagePct");
+      throttleProbabilityDist =
+          distributionFactory.get(
+              RpcQos.class.getName(), "qos_adaptiveThrottler_throttleProbabilityPct");
+      throttlingMs =
+          distributionFactory.get(RpcQos.class.getName(), "qos_adaptiveThrottler_throttlingMs");
+      backoff = new LinearBackoff(throttleDuration);
+      this.overloadRatio = overloadRatio;
     }
 
     private Duration shouldThrottleRequest(Instant instantSinceEpoch) {
       double delayProbability = throttlingProbability(instantSinceEpoch);
 
-      return (random.nextDouble() < delayProbability) ? options.getThrottleDuration() : Duration.ZERO;
+      if (random.nextDouble() < delayProbability) {
+        long millis = backoff.nextBackOffMillis();
+        throttlingMs.update(millis);
+        return Duration.millis(millis);
+      } else {
+        backoff.reset();
+        return Duration.ZERO;
+      }
     }
 
     private void recordStartRequest(Instant instantSinceEpoch) {
-      allRequestsMovingFunction.add(instantSinceEpoch.getMillis(), 1);
+      recordStartRequest(instantSinceEpoch, 1);
+    }
+
+    private void recordStartRequest(Instant instantSinceEpoch, int value) {
+      allRequestsMovingFunction.add(instantSinceEpoch.getMillis(), value);
     }
 
     private void recordSuccessfulRequest(Instant instantSinceEpoch) {
-      successfulRequestsMovingFunction.add(instantSinceEpoch.getMillis(), 1);
+      recordSuccessfulRequest(instantSinceEpoch, 1);
+    }
+
+    private void recordSuccessfulRequest(Instant instantSinceEpoch, int value) {
+      successfulRequestsMovingFunction.add(instantSinceEpoch.getMillis(), value);
     }
 
     private void recordFailedRequest(Instant instantSinceEpoch) {
-      failedRequestsMovingFunction.add(instantSinceEpoch.getMillis(), 1);
+      recordFailedRequest(instantSinceEpoch, 1);
+    }
+
+    private void recordFailedRequest(Instant instantSinceEpoch, int value) {
+      failedRequestsMovingFunction.add(instantSinceEpoch.getMillis(), value);
     }
 
     /**
-     * Implementation of the formula from https://sre.google/sre-book/handling-overload/#eq2101
+     * Implementation of the formula from <a target="_blank" rel="noopener noreferrer"
+     * href="https://sre.google/sre-book/handling-overload/#eq2101">Handling Overload from SRE
+     * Book</a>.
      */
     private double throttlingProbability(Instant instantSinceEpoch) {
       if (!allRequestsMovingFunction.isSignificant()) {
@@ -474,65 +548,87 @@ final class RpcQosImpl implements RpcQos {
       long allRequestsCount = allRequestsMovingFunction.get(nowMsSinceEpoch);
       long successfulRequestsCount = successfulRequestsMovingFunction.get(nowMsSinceEpoch);
 
-      double overloadMaxCount = options.getOverloadRatio() * successfulRequestsCount;
+      double overloadMaxCount = overloadRatio * successfulRequestsCount;
       double overloadUsage = allRequestsCount - overloadMaxCount;
 
       double calcProbability = overloadUsage / (allRequestsCount + MIN_REQUESTS);
+      allRequestsCountDist.update(allRequestsCount);
+      successfulRequestsCountDist.update(successfulRequestsCount);
+      overloadMaxCountDist.update((long) overloadMaxCount);
+      overloadUsageDist.update((long) (overloadUsage * 100));
+      throttleProbabilityDist.update((long) (calcProbability * 100));
       return Math.max(0, calcProbability);
     }
   }
 
   /**
-   * An implementation providing the 500/50/5 ramp up strategy recommended by <a
+   * An implementation providing the 500/50/5 ramp up strategy recommended by <a target="_blank"
+   * rel="noopener noreferrer"
    * href="https://cloud.google.com/firestore/docs/best-practices#ramping_up_traffic">Ramping up
-   * traffic</a>
+   * traffic</a>.
    */
   @VisibleForTesting
   static final class WriteRampUp {
+
     private static final Duration RAMP_UP_INTERVAL = Duration.standardMinutes(5);
-    private final int baseMax;
+    private final double baseBatchBudget;
     private final long rampUpIntervalMinutes;
     private final MovingFunction writeCounts;
     private final LinearBackoff backoff;
+    private final Distribution throttlingMs;
+    private final Distribution availableWriteCountBudget;
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     private Optional<Instant> firstInstant = Optional.empty();
 
-    WriteRampUp(int baseMax) {
-      this.baseMax = baseMax;
+    WriteRampUp(double baseBatchBudget, DistributionFactory distributionFactory) {
+      this.baseBatchBudget = baseBatchBudget;
       this.rampUpIntervalMinutes = RAMP_UP_INTERVAL.getStandardMinutes();
-      this.writeCounts = createMovingFunction(
-          // track up to one second of budget usage.
-          //   this determines the full duration of time we want to keep track of request counts
-          Duration.standardSeconds(1),
-          // refill the budget each second
-          //   this determines the sub-granularity the full duration will be broken into. So if we
-          //   wanted budget to refill twice per second, this could be passed Duration.millis(500)
-          Duration.standardSeconds(1)
-      );
+      this.writeCounts =
+          createMovingFunction(
+              // track up to one second of budget usage.
+              //   this determines the full duration of time we want to keep track of request counts
+              Duration.standardSeconds(1),
+              // refill the budget each second
+              //   this determines the sub-granularity the full duration will be broken into. So if
+              //   we wanted budget to refill twice per second, this could be passed
+              //   Duration.millis(500)
+              Duration.standardSeconds(1));
       this.backoff = new LinearBackoff(Duration.standardSeconds(1));
+      this.throttlingMs =
+          distributionFactory.get(RpcQos.class.getName(), "qos_rampUp_throttlingMs");
+      this.availableWriteCountBudget =
+          distributionFactory.get(RpcQos.class.getName(), "qos_rampUp_availableWriteCountBudget");
     }
 
     int getAvailableWriteCountBudget(Instant instant) {
       if (!firstInstant.isPresent()) {
         firstInstant = Optional.of(instant);
-        return baseMax;
+        return (int) Math.max(1, baseBatchBudget);
       }
 
       Instant first = firstInstant.get();
-      int maxRequestBudget = calcMaxRequestBudget(instant, first);
+      double maxRequestBudget = calcMaxRequestBudget(instant, first);
       long writeCount = writeCounts.get(instant.getMillis());
-      long availableBudget = maxRequestBudget - writeCount;
-      return Math.toIntExact(availableBudget);
+      double availableBudget = maxRequestBudget - writeCount;
+      int budget = Ints.saturatedCast((long) availableBudget);
+      availableWriteCountBudget.update(budget);
+      return budget;
     }
 
-    // 500 * 1.5^max(0, (x-5)/5)
-    private int calcMaxRequestBudget(Instant instant, Instant first) {
+    /**
+     * Calculate the value relative to the growth line relative to the {@code first}.
+     *
+     * <p>For a {@code baseBatchBudget} of 500 the line would look like <a target="_blank"
+     * rel="noopener noreferrer"
+     * href="https://www.wolframalpha.com/input/?i=500+*+1.5%5Emax%280%2C+%28x-5%29%2F5%29+from+0+to+30">this</a>
+     */
+    private double calcMaxRequestBudget(Instant instant, Instant first) {
       Duration durationSinceFirst = new Duration(first, instant);
-      long calculatedGrowth = (durationSinceFirst.getStandardMinutes() - rampUpIntervalMinutes) / rampUpIntervalMinutes;
+      long calculatedGrowth =
+          (durationSinceFirst.getStandardMinutes() - rampUpIntervalMinutes) / rampUpIntervalMinutes;
       long growth = Math.max(0, calculatedGrowth);
-      double maxRequestCountBudget = baseMax * Math.pow(1.5, growth);
-      return (int) maxRequestCountBudget;
+      return baseBatchBudget * Math.pow(1.5, growth);
     }
 
     void recordWriteCount(Instant instant, int numWrites) {
@@ -544,7 +640,9 @@ final class RpcQosImpl implements RpcQos {
       if (availableWriteCountBudget <= 0) {
         long nextBackOffMillis = backoff.nextBackOffMillis();
         if (nextBackOffMillis > BackOff.STOP) {
-          return Optional.of(Duration.millis(nextBackOffMillis));
+          Duration throttleDuration = Duration.millis(nextBackOffMillis);
+          throttlingMs.update(throttleDuration.getMillis());
+          return Optional.of(throttleDuration);
         } else {
           // we've exhausted our backoff, and have moved into the next time window try again
           backoff.reset();
@@ -556,38 +654,48 @@ final class RpcQosImpl implements RpcQos {
         return Optional.empty();
       }
     }
+  }
 
-    /**
-     * For ramp up we're following a simplistic linear growth formula, when calculating backoff
-     * we're calculating the next time to check a client side budget and we don't need the
-     * randomness introduced by FluentBackoff. (Being linear also makes our test simulations easier
-     * to model and verify)
-     */
-    private static class LinearBackoff implements BackOff {
-      private static final long MAX_BACKOFF_MILLIS = 60_000;
-      private final long startBackoffMillis;
-      private long currentBackoffMillis;
+  /**
+   * For ramp up we're following a simplistic linear growth formula, when calculating backoff we're
+   * calculating the next time to check a client side budget and we don't need the randomness
+   * introduced by FluentBackoff. (Being linear also makes our test simulations easier to model and
+   * verify)
+   */
+  private static class LinearBackoff implements BackOff {
+    private static final long MAX_BACKOFF_MILLIS = 60_000;
+    private static final long MAX_CUMULATIVE_MILLIS = 60_000;
+    private final long startBackoffMillis;
+    private long currentBackoffMillis;
+    private long cumulativeMillis;
 
-      public LinearBackoff(Duration throttleDuration) {
-        startBackoffMillis = throttleDuration.getMillis();
-        currentBackoffMillis = startBackoffMillis;
-      }
+    public LinearBackoff(Duration throttleDuration) {
+      startBackoffMillis = throttleDuration.getMillis();
+      currentBackoffMillis = startBackoffMillis;
+      cumulativeMillis = 0;
+    }
 
-      @Override
-      public void reset() {
-        currentBackoffMillis = startBackoffMillis;
-      }
+    @Override
+    public void reset() {
+      currentBackoffMillis = startBackoffMillis;
+      cumulativeMillis = 0;
+    }
 
-      @Override
-      public long nextBackOffMillis() {
-        if (currentBackoffMillis > MAX_BACKOFF_MILLIS) {
+    @Override
+    public long nextBackOffMillis() {
+      if (currentBackoffMillis > MAX_BACKOFF_MILLIS) {
+        reset();
+        return MAX_BACKOFF_MILLIS;
+      } else {
+        long remainingBudget = Math.max(MAX_CUMULATIVE_MILLIS - cumulativeMillis, 0);
+        if (remainingBudget == 0) {
           reset();
-          return MAX_BACKOFF_MILLIS;
-        } else {
-          long retVal = currentBackoffMillis;
-          currentBackoffMillis = (long) (currentBackoffMillis * 1.5);
-          return retVal;
+          return STOP;
         }
+        long retVal = Math.min(currentBackoffMillis, remainingBudget);
+        currentBackoffMillis = (long) (currentBackoffMillis * 1.5);
+        cumulativeMillis += retVal;
+        return retVal;
       }
     }
   }
@@ -611,39 +719,68 @@ final class RpcQosImpl implements RpcQos {
     }
 
     private boolean hasValue(Instant instantSinceEpoch) {
-      return sum.isSignificant() && count.isSignificant() && count.get(instantSinceEpoch.getMillis()) > 0;
+      return sum.isSignificant()
+          && count.isSignificant()
+          && count.get(instantSinceEpoch.getMillis()) > 0;
     }
   }
 
-  private static final class Counters {
+  /**
+   * Observability (o11y) related metrics. Contains handles to counters and distributions related to
+   * QoS.
+   */
+  private static final class O11y {
     final Counter throttlingMs;
     final Counter rpcFailures;
     final Counter rpcSuccesses;
     final Counter rpcStreamValueReceived;
+    final Distribution rpcDurationMs;
+    final Distribution latencyPerDocumentMs;
+    final Distribution batchCapacityCount;
 
-    private Counters(Counter throttlingMs, Counter rpcFailures,
-        Counter rpcSuccesses, Counter rpcStreamValueReceived) {
+    private O11y(
+        Counter throttlingMs,
+        Counter rpcFailures,
+        Counter rpcSuccesses,
+        Counter rpcStreamValueReceived,
+        Distribution rpcDurationMs,
+        Distribution latencyPerDocumentMs,
+        Distribution batchCapacityCount) {
       this.throttlingMs = throttlingMs;
       this.rpcFailures = rpcFailures;
       this.rpcSuccesses = rpcSuccesses;
       this.rpcStreamValueReceived = rpcStreamValueReceived;
+      this.rpcDurationMs = rpcDurationMs;
+      this.latencyPerDocumentMs = latencyPerDocumentMs;
+      this.batchCapacityCount = batchCapacityCount;
     }
 
-    private static Counters getCounters(CounterFactory factory, Context context) {
-      return new Counters(
-          factory.getCounter(context.getNamespace(), "throttlingMs"),
-          factory.getCounter(context.getNamespace(), "rpcFailures"),
-          factory.getCounter(context.getNamespace(), "rpcSuccesses"),
-          factory.getCounter(context.getNamespace(), "rpcStreamValueReceived")
-      );
+    private static O11y create(
+        Context context, CounterFactory counterFactory, DistributionFactory distributionFactory) {
+      // metrics are named using '_' (underscore) instead of '/' (slash) as separators, because
+      // metric names become gcp resources and get unique URLs, so some parts of the UI will only
+      // show the value after the last '/'
+      return new O11y(
+          // throttlingMs is a special counter used by dataflow. When we are having to throttle,
+          // we signal to dataflow that fact by adding to this counter.
+          // Signaling to dataflow is important so that a bundle isn't categorised as hung.
+          counterFactory.get(context.getNamespace(), "throttlingMs"),
+          // metrics specific to each rpc
+          counterFactory.get(context.getNamespace(), "rpc_failures"),
+          counterFactory.get(context.getNamespace(), "rpc_successes"),
+          counterFactory.get(context.getNamespace(), "rpc_streamValueReceived"),
+          distributionFactory.get(context.getNamespace(), "rpc_durationMs"),
+          // qos wide metrics
+          distributionFactory.get(RpcQos.class.getName(), "qos_write_latencyPerDocumentMs"),
+          distributionFactory.get(RpcQos.class.getName(), "qos_write_batchCapacityCount"));
     }
   }
 
-  static class FlushBufferImpl<T, E extends Element<T>> implements FlushBuffer<E> {
+  static class FlushBufferImpl<T, ElementT extends Element<T>> implements FlushBuffer<ElementT> {
 
     final int nextBatchMaxCount;
     final long nextBatchMaxBytes;
-    final ImmutableList.Builder<E> elements;
+    final ImmutableList.Builder<ElementT> elements;
 
     int offersAcceptedCount = 0;
     long offersAcceptedBytes = 0;
@@ -655,7 +792,7 @@ final class RpcQosImpl implements RpcQos {
     }
 
     @Override
-    public boolean offer(E newElement) {
+    public boolean offer(ElementT newElement) {
       if (offersAcceptedCount < nextBatchMaxCount) {
         long newBytesTotal = offersAcceptedBytes + newElement.getSerializedSize();
         if (newBytesTotal <= nextBatchMaxBytes) {
@@ -672,7 +809,7 @@ final class RpcQosImpl implements RpcQos {
     }
 
     @Override
-    public Iterator<E> iterator() {
+    public Iterator<ElementT> iterator() {
       return elements.build().iterator();
     }
 
@@ -688,8 +825,89 @@ final class RpcQosImpl implements RpcQos {
 
     @Override
     public boolean isFull() {
-      return (offersAcceptedCount == nextBatchMaxCount || offersAcceptedBytes >= nextBatchMaxBytes);
+      return isNonEmpty()
+          && (offersAcceptedCount == nextBatchMaxCount || offersAcceptedBytes >= nextBatchMaxBytes);
+    }
+
+    @Override
+    public boolean isNonEmpty() {
+      return offersAcceptedCount > 0;
     }
   }
 
+  private static final class DiagnosticOnlyFilteringDistributionFactory
+      implements DistributionFactory {
+
+    private static final Set<String> DIAGNOSTIC_ONLY_METRIC_NAMES =
+        ImmutableSet.of(
+            "qos_adaptiveThrottler_allRequestsCount",
+            "qos_adaptiveThrottler_overloadMaxCount",
+            "qos_adaptiveThrottler_overloadUsagePct",
+            "qos_adaptiveThrottler_successfulRequestsCount",
+            "qos_adaptiveThrottler_throttleProbabilityPct",
+            "qos_adaptiveThrottler_throttlingMs",
+            "qos_rampUp_availableWriteCountBudget",
+            "qos_rampUp_throttlingMs",
+            "qos_writeBatcher_batchMaxCount",
+            "qos_write_latencyPerDocumentMs");
+
+    private final boolean excludeMetrics;
+    private final DistributionFactory delegate;
+
+    private DiagnosticOnlyFilteringDistributionFactory(
+        boolean excludeMetrics, DistributionFactory delegate) {
+      this.excludeMetrics = excludeMetrics;
+      this.delegate = delegate;
+    }
+
+    @Override
+    public Distribution get(String namespace, String name) {
+      if (excludeMetrics && DIAGNOSTIC_ONLY_METRIC_NAMES.contains(name)) {
+        return new NullDistribution(new SimpleMetricName(namespace, name));
+      } else {
+        return delegate.get(namespace, name);
+      }
+    }
+  }
+
+  private static final class NullDistribution implements Distribution {
+
+    private final MetricName name;
+
+    private NullDistribution(MetricName name) {
+      this.name = name;
+    }
+
+    @Override
+    public void update(long value) {}
+
+    @Override
+    public void update(long sum, long count, long min, long max) {}
+
+    @Override
+    public MetricName getName() {
+      return name;
+    }
+  }
+
+  private static class SimpleMetricName extends MetricName {
+
+    private final String namespace;
+    private final String name;
+
+    public SimpleMetricName(String namespace, String name) {
+      this.namespace = namespace;
+      this.name = name;
+    }
+
+    @Override
+    public String getNamespace() {
+      return namespace;
+    }
+
+    @Override
+    public String getName() {
+      return name;
+    }
+  }
 }

@@ -21,42 +21,41 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 import com.google.auth.Credentials;
-import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 
 @RunWith(MockitoJUnitRunner.class)
-@SuppressWarnings("initialization.fields.uninitialized") // mockito fields are initialized via the Mockito Runner
-abstract class BaseFirestoreFnTest<In, Out, Fn extends FirestoreDoFn<In, Out>> {
+@SuppressWarnings(
+    "initialization.fields.uninitialized") // mockito fields are initialized via the Mockito Runner
+abstract class BaseFirestoreFnTest<InT, OutT, FnT extends FirestoreDoFn<InT, OutT>> {
 
   protected final String projectId = "testing-project";
 
-  @Rule
-  public final Timeout timeout = new Timeout(10, TimeUnit.SECONDS);
-  @Mock
-  protected DoFn<In, Out>.StartBundleContext startBundleContext;
-  @Mock
-  protected DoFn<In, Out>.ProcessContext processContext;
+  // @Rule public final Timeout timeout = new Timeout(10, TimeUnit.SECONDS);
+  @Mock protected DoFn<InT, OutT>.StartBundleContext startBundleContext;
+  @Mock protected DoFn<InT, OutT>.ProcessContext processContext;
+
   @Mock(lenient = true)
   protected DisplayData.Builder displayDataBuilder;
+
   @Mock(lenient = true)
   protected PipelineOptions pipelineOptions;
+
   @Mock(lenient = true)
   protected GcpOptions gcpOptions;
+
   @Mock(lenient = true)
-  protected FirestoreIOOptions firestoreIOOptions;
-  @Mock
-  protected Credentials credentials;
+  protected FirestoreOptions firestoreOptions;
+
+  @Mock protected Credentials credentials;
 
   @Before
   public void stubDisplayDataBuilderChains() {
@@ -69,8 +68,8 @@ abstract class BaseFirestoreFnTest<In, Out, Fn extends FirestoreDoFn<In, Out>> {
   @Before
   public void stubPipelineOptions() {
     when(startBundleContext.getPipelineOptions()).thenReturn(pipelineOptions);
-    when(pipelineOptions.as(FirestoreIOOptions.class)).thenReturn(firestoreIOOptions);
-    when(firestoreIOOptions.getEmulatorHostPort()).thenReturn(null);
+    when(pipelineOptions.as(FirestoreOptions.class)).thenReturn(firestoreOptions);
+    when(firestoreOptions.getEmulatorHost()).thenReturn(null);
     when(pipelineOptions.as(GcpOptions.class)).thenReturn(gcpOptions);
     when(gcpOptions.getProject()).thenReturn(projectId);
     when(gcpOptions.getGcpCredential()).thenReturn(credentials);
@@ -81,19 +80,19 @@ abstract class BaseFirestoreFnTest<In, Out, Fn extends FirestoreDoFn<In, Out>> {
     SerializableUtils.ensureSerializable(getFn());
   }
 
-  protected abstract Fn getFn();
+  protected abstract FnT getFn();
 
-  protected final void runFunction(Fn fn) throws Exception {
+  protected final void runFunction(FnT fn) throws Exception {
     runFunction(fn, 1);
   }
 
-  protected final void runFunction(Fn fn, int processElementCount) throws Exception {
+  protected final void runFunction(FnT fn, int processElementCount) throws Exception {
     fn.populateDisplayData(displayDataBuilder);
     fn.setup();
     fn.startBundle(startBundleContext);
     processElementsAndFinishBundle(fn, processElementCount);
   }
 
-  protected abstract void processElementsAndFinishBundle(Fn fn, int processElementCount) throws Exception;
-
+  protected abstract void processElementsAndFinishBundle(FnT fn, int processElementCount)
+      throws Exception;
 }

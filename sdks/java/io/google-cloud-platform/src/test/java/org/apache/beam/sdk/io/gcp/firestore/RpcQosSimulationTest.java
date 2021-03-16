@@ -22,16 +22,18 @@ import static org.joda.time.Duration.millis;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.Arrays;
 import java.util.Random;
 import org.apache.beam.sdk.io.gcp.firestore.RpcQos.RpcAttempt.Context;
 import org.apache.beam.sdk.io.gcp.firestore.RpcQos.RpcWriteAttempt.Element;
-import org.apache.beam.sdk.io.gcp.firestore.RpcQosImpl.CounterFactory;
 import org.apache.beam.sdk.io.gcp.firestore.RpcQosImpl.FlushBufferImpl;
 import org.apache.beam.sdk.io.gcp.firestore.RpcQosImpl.RpcWriteAttemptImpl;
 import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.util.Sleeper;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -44,56 +46,74 @@ import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 
 @RunWith(MockitoJUnitRunner.class)
-@SuppressWarnings("initialization.fields.uninitialized") // mockito fields are initialized via the Mockito Runner
+@SuppressWarnings(
+    "initialization.fields.uninitialized") // mockito fields are initialized via the Mockito Runner
 public final class RpcQosSimulationTest {
 
   @Mock(lenient = true)
   private Sleeper sleeper;
+
   @Mock(lenient = true)
   private CounterFactory counterFactory;
 
   @Mock(lenient = true)
+  private DistributionFactory distributionFactory;
+
+  @Mock(lenient = true)
   private Counter counterThrottlingMs;
+
   @Mock(lenient = true)
   private Counter counterRpcFailures;
+
   @Mock(lenient = true)
   private Counter counterRpcSuccesses;
+
   @Mock(lenient = true)
   private Counter counterRpcStreamValueReceived;
 
-  @Rule
-  public final TestName testName = new TestName();
+  @Rule public final TestName testName = new TestName();
 
   // should not be static, important to reinitialize for each test
-  private final Random random = new Random(1234567890);  // fix the seed so we have deterministic tests
+  private final Random random =
+      new Random(1234567890); // fix the seed so we have deterministic tests
 
   private Context rpcAttemptContext;
 
   @Before
   public void setUp() {
-    rpcAttemptContext = () -> String.format("%s.%s", this.getClass().getName(), testName.getMethodName());
-    when(counterFactory.getCounter(rpcAttemptContext.getNamespace(), "throttlingMs")).thenReturn(counterThrottlingMs);
-    when(counterFactory.getCounter(rpcAttemptContext.getNamespace(), "rpcFailures")).thenReturn(counterRpcFailures);
-    when(counterFactory.getCounter(rpcAttemptContext.getNamespace(), "rpcSuccesses")).thenReturn(counterRpcSuccesses);
-    when(counterFactory.getCounter(rpcAttemptContext.getNamespace(), "rpcStreamValueReceived")).thenReturn(counterRpcStreamValueReceived);
+    rpcAttemptContext =
+        () -> String.format("%s.%s", this.getClass().getName(), testName.getMethodName());
+    when(counterFactory.get(rpcAttemptContext.getNamespace(), "throttlingMs"))
+        .thenReturn(counterThrottlingMs);
+    when(counterFactory.get(rpcAttemptContext.getNamespace(), "rpc_failures"))
+        .thenReturn(counterRpcFailures);
+    when(counterFactory.get(rpcAttemptContext.getNamespace(), "rpc_successes"))
+        .thenReturn(counterRpcSuccesses);
+    when(counterFactory.get(rpcAttemptContext.getNamespace(), "rpc_streamValueReceived"))
+        .thenReturn(counterRpcStreamValueReceived);
+    when(distributionFactory.get(any(), any()))
+        .thenAnswer(
+            invocation -> mock(Distribution.class, invocation.getArgument(1, String.class)));
   }
 
   @Test
   public void writeRampUp_shouldScaleAlongTheExpectedLine() throws InterruptedException {
-    RpcQosOptions options = RpcQosOptions.newBuilder()
-        .withHintMaxNumWorkers(1)
-        .withThrottleDuration(Duration.standardSeconds(5))
-        .withBatchInitialCount(200)
-        // in the test we're jumping ahead by 5 minutes at multiple points, so the default 2 minute
-        // history for the adaptive throttler empties and the batch count drops back to the
-        // initial value. Increase the sample period to 10 minutes to ease the amount of state
-        // tracking that needs to be taken into account for calculating the ramp up values being
-        // asserted.
-        .withSamplePeriod(Duration.standardMinutes(10))
-        .withSamplePeriodBucketSize(Duration.standardMinutes(2))
-        .build();
+    RpcQosOptions options =
+        RpcQosOptions.newBuilder()
+            .withHintMaxNumWorkers(1)
+            .withThrottleDuration(Duration.standardSeconds(5))
+            .withBatchInitialCount(200)
+            // in the test we're jumping ahead by 5 minutes at multiple points, so the default 2
+            // minute
+            // history for the adaptive throttler empties and the batch count drops back to the
+            // initial value. Increase the sample period to 10 minutes to ease the amount of state
+            // tracking that needs to be taken into account for calculating the ramp up values being
+            // asserted.
+            .withSamplePeriod(Duration.standardMinutes(10))
+            .withSamplePeriodBucketSize(Duration.standardMinutes(2))
+            .build();
 
-    RpcQosImpl qos = new RpcQosImpl(options, random, sleeper, counterFactory);
+    RpcQosImpl qos = new RpcQosImpl(options, random, sleeper, counterFactory, distributionFactory);
     /*
     Ramp up budgets for 0 -> 90 minutes
       1970-01-01T00:00:00.000Z ->     500
@@ -116,54 +136,73 @@ public final class RpcQosSimulationTest {
       1970-01-01T01:25:00.000Z -> 328,420
       1970-01-01T01:30:00.000Z -> 492,630
     */
-    // timeline values (names are of the format t'minute'_'seconds'_'millis')
-    Instant t00_00_000 = t(ZERO);
-    Instant t00_00_010 = t(millis(10));
-    Instant t00_00_020 = t(millis(20));
-    Instant t00_00_999 = t(millis(999));
+    // timeline values (names are of the format t'minute'm'seconds's'millis'ms)
+    Instant t00m00s000ms = t(ZERO);
+    Instant t00m00s010ms = t(millis(10));
+    Instant t00m00s020ms = t(millis(20));
+    Instant t00m00s999ms = t(millis(999));
 
-    Instant t00_01_000 = t(seconds(1));
-    Instant t00_01_001 = t(seconds(1), millis(1));
+    Instant t00m01s000ms = t(seconds(1));
+    Instant t00m01s001ms = t(seconds(1), millis(1));
 
-    Instant t05_00_000 = t(minutes(5));
-    Instant t05_00_001 = t(minutes(5), millis(1));
-    Instant t05_00_002 = t(minutes(5), millis(2));
+    Instant t05m00s000ms = t(minutes(5));
+    Instant t05m00s001ms = t(minutes(5), millis(1));
+    Instant t05m00s002ms = t(minutes(5), millis(2));
 
-    Instant t10_00_000 = t(minutes(10));
-    Instant t10_00_001 = t(minutes(10), millis(1));
-    Instant t10_00_002 = t(minutes(10), millis(2));
+    Instant t10m00s000ms = t(minutes(10));
+    Instant t10m00s001ms = t(minutes(10), millis(1));
+    Instant t10m00s002ms = t(minutes(10), millis(2));
 
-    Instant t15_00_000 = t(minutes(15), millis(1));
+    Instant t15m00s000ms = t(minutes(15), millis(1));
 
-    Instant t20_00_000 = t(minutes(20));
-    Instant t20_01_000 = t(minutes(20), seconds(1));
+    Instant t20m00s000ms = t(minutes(20));
+    Instant t20m01s000ms = t(minutes(20), seconds(1));
 
-    safeToProceedAndWithBudgetAndWrite(qos, t00_00_000, 200, 200, "write 200");
-    safeToProceedAndWithBudgetAndWrite(qos, t00_00_010, 300, 300, "write 300");
-    unsafeToProceed(qos, t00_00_020);
-    unsafeToProceed(qos, t00_00_999);
-    safeToProceedAndWithBudgetAndWrite(qos, t00_01_000, 500, 500, "wait 1 second for budget to refill, write 500");
-    unsafeToProceed(qos, t00_01_001);
-    safeToProceedAndWithBudgetAndWrite(qos, t05_00_000, 500, 100, "jump ahead to next ramp up interval and write 100");
-    safeToProceedAndWithBudgetAndWrite(qos, t05_00_001, 400, 400, "write another 400 exhausting budget");
-    unsafeToProceed(qos, t05_00_002);
-    safeToProceedAndWithBudgetAndWrite(qos, t10_00_000, 500, 500, "after 10 minutes the ramp up should allow 750 writes, write 500");
-    safeToProceedAndWithBudgetAndWrite(qos, t10_00_001, 250, 250, "write 250 more");
-    unsafeToProceed(qos, t10_00_002);
-    safeToProceedAndWithBudgetAndWrite(qos, t15_00_000, 500, 500, "after 15 minutes the ramp up should allow 1,125 writes, write 500");
-    safeToProceedAndWithBudgetAndWrite(qos, t15_00_000, 500, 500, "write 500 more");
-    safeToProceedAndWithBudgetAndWrite(qos, t15_00_000, 125, 125, "write 125 more");
-    unsafeToProceed(qos, t15_00_000);
-    safeToProceedAndWithBudgetAndWrite(qos, t20_00_000, 500, 500, "after 20 minutes the ramp up should allow 1,687 writes, write 500");
-    safeToProceedAndWithBudgetAndWrite(qos, t20_00_000, 500, 500, "write 500 more");
-    safeToProceedAndWithBudgetAndWrite(qos, t20_00_000, 500, 500, "write 500 more");
-    safeToProceedAndWithBudgetAndWrite(qos, t20_00_000, 187, 187, "write 125 more");
-    unsafeToProceed(qos, t20_00_000);
-    safeToProceedAndWithBudgetAndWrite(qos, t20_01_000, 500, 500, "wait 1 second for the budget to refill, write 500");
-    safeToProceedAndWithBudgetAndWrite(qos, t20_01_000, 500, 500, "write 500 more");
-    safeToProceedAndWithBudgetAndWrite(qos, t20_01_000, 500, 500, "write 500 more");
-    safeToProceedAndWithBudgetAndWrite(qos, t20_01_000, 187, 187, "write 125 more");
-    unsafeToProceed(qos, t20_01_000);
+    safeToProceedAndWithBudgetAndWrite(qos, t00m00s000ms, 200, 200, "write 200");
+    safeToProceedAndWithBudgetAndWrite(qos, t00m00s010ms, 300, 300, "write 300");
+    unsafeToProceed(qos, t00m00s020ms);
+    unsafeToProceed(qos, t00m00s999ms);
+    safeToProceedAndWithBudgetAndWrite(
+        qos, t00m01s000ms, 500, 500, "wait 1 second for budget to refill, write 500");
+    unsafeToProceed(qos, t00m01s001ms);
+    safeToProceedAndWithBudgetAndWrite(
+        qos, t05m00s000ms, 500, 100, "jump ahead to next ramp up interval and write 100");
+    safeToProceedAndWithBudgetAndWrite(
+        qos, t05m00s001ms, 400, 400, "write another 400 exhausting budget");
+    unsafeToProceed(qos, t05m00s002ms);
+    safeToProceedAndWithBudgetAndWrite(
+        qos,
+        t10m00s000ms,
+        500,
+        500,
+        "after 10 minutes the ramp up should allow 750 writes, write 500");
+    safeToProceedAndWithBudgetAndWrite(qos, t10m00s001ms, 250, 250, "write 250 more");
+    unsafeToProceed(qos, t10m00s002ms);
+    safeToProceedAndWithBudgetAndWrite(
+        qos,
+        t15m00s000ms,
+        500,
+        500,
+        "after 15 minutes the ramp up should allow 1,125 writes, write 500");
+    safeToProceedAndWithBudgetAndWrite(qos, t15m00s000ms, 500, 500, "write 500 more");
+    safeToProceedAndWithBudgetAndWrite(qos, t15m00s000ms, 125, 125, "write 125 more");
+    unsafeToProceed(qos, t15m00s000ms);
+    safeToProceedAndWithBudgetAndWrite(
+        qos,
+        t20m00s000ms,
+        500,
+        500,
+        "after 20 minutes the ramp up should allow 1,687 writes, write 500");
+    safeToProceedAndWithBudgetAndWrite(qos, t20m00s000ms, 500, 500, "write 500 more");
+    safeToProceedAndWithBudgetAndWrite(qos, t20m00s000ms, 500, 500, "write 500 more");
+    safeToProceedAndWithBudgetAndWrite(qos, t20m00s000ms, 187, 187, "write 125 more");
+    unsafeToProceed(qos, t20m00s000ms);
+    safeToProceedAndWithBudgetAndWrite(
+        qos, t20m01s000ms, 500, 500, "wait 1 second for the budget to refill, write 500");
+    safeToProceedAndWithBudgetAndWrite(qos, t20m01s000ms, 500, 500, "write 500 more");
+    safeToProceedAndWithBudgetAndWrite(qos, t20m01s000ms, 500, 500, "write 500 more");
+    safeToProceedAndWithBudgetAndWrite(qos, t20m01s000ms, 187, 187, "write 125 more");
+    unsafeToProceed(qos, t20m01s000ms);
   }
 
   private static Instant t(Duration d) {
@@ -185,23 +224,28 @@ public final class RpcQosSimulationTest {
 
   private void unsafeToProceed(RpcQosImpl qos, Instant t) throws InterruptedException {
     RpcWriteAttemptImpl attempt = qos.newWriteAttempt(rpcAttemptContext);
-    assertFalse(msg("verify budget depleted", t, "awaitSafeToProceed was true, expected false"), attempt.awaitSafeToProceed(t));
+    assertFalse(
+        msg("verify budget depleted", t, "awaitSafeToProceed was true, expected false"),
+        attempt.awaitSafeToProceed(t));
   }
 
-  private void safeToProceedAndWithBudgetAndWrite(RpcQosImpl qos, Instant t,
-      int expectedBatchMaxCount,
-      int writeCount, String description)
+  private void safeToProceedAndWithBudgetAndWrite(
+      RpcQosImpl qos, Instant t, int expectedBatchMaxCount, int writeCount, String description)
       throws InterruptedException {
     RpcWriteAttemptImpl attempt = qos.newWriteAttempt(rpcAttemptContext);
-    assertTrue(msg(description, t, "awaitSafeToProceed was false, expected true"), attempt.awaitSafeToProceed(t));
+    assertTrue(
+        msg(description, t, "awaitSafeToProceed was false, expected true"),
+        attempt.awaitSafeToProceed(t));
     FlushBufferImpl<Object, Element<Object>> buffer = attempt.newFlushBuffer(t);
-    assertEquals(msg(description, t, "unexpected batchMaxCount"), expectedBatchMaxCount, buffer.nextBatchMaxCount);
-    attempt.recordStartRequest(t);
-    attempt.recordSuccessfulRequest(t, writeCount);
+    assertEquals(
+        msg(description, t, "unexpected batchMaxCount"),
+        expectedBatchMaxCount,
+        buffer.nextBatchMaxCount);
+    attempt.recordRequestStart(t, writeCount);
+    attempt.recordWriteCounts(t, writeCount, 0);
   }
 
   private static String msg(String description, Instant t, String message) {
     return String.format("[%s @ t = %s] %s", description, t, message);
   }
-
 }

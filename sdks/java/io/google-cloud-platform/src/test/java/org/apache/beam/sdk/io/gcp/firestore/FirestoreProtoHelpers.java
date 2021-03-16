@@ -25,11 +25,9 @@ final class FirestoreProtoHelpers {
     return newWrite(1);
   }
 
-  static Write newWrite(int i) {
+  static Write newWrite(long i) {
     Write.Builder writeBuilder = Write.newBuilder();
-    writeBuilder
-        .getUpdateBuilder()
-        .setName(String.format("doc-%03d", i));
+    writeBuilder.getUpdateBuilder().setName(String.format("doc-%012d", i));
     return writeBuilder.build();
   }
 }

@@ -89,8 +89,15 @@ public class GcpApiSurfaceTest {
             Matchers.<Class<?>>equalTo(com.google.cloud.ByteArray.class),
             Matchers.<Class<?>>equalTo(com.google.cloud.Date.class),
             Matchers.<Class<?>>equalTo(com.google.cloud.Timestamp.class),
+            // BatchWrite for Firestore returns individual Status for each write attempted, in the
+            // case of a failure and using the dead letter queue the Status is returned as part of
+            // the WriteFailure
+            Matchers.<Class<?>>equalTo(com.google.rpc.Status.class),
+            Matchers.<Class<?>>equalTo(com.google.rpc.Status.Builder.class),
+            Matchers.<Class<?>>equalTo(com.google.rpc.StatusOrBuilder.class),
             classesInPackage("com.google.cloud.spanner"),
             classesInPackage("com.google.datastore.v1"),
+            classesInPackage("com.google.firestore.v1"),
             classesInPackage("com.google.protobuf"),
             classesInPackage("com.google.rpc"),
             classesInPackage("com.google.type"),
