@@ -19,34 +19,56 @@ package org.apache.beam.sdk.io.gcp.firestore.it;
 
 import static org.apache.beam.sdk.io.gcp.firestore.it.FirestoreTestingHelper.assumeEnvVarSet;
 import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assume.assumeThat;
 
+import com.google.firestore.v1.Write;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
-import org.apache.beam.sdk.io.gcp.firestore.FirestoreIOOptions;
+import org.apache.beam.sdk.io.gcp.firestore.FirestoreIO;
+import org.apache.beam.sdk.io.gcp.firestore.FirestoreOptions;
 import org.apache.beam.sdk.io.gcp.firestore.RpcQosOptions;
 import org.apache.beam.sdk.io.gcp.firestore.it.FirestoreTestingHelper.CleanupMode;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.values.PCollection;
 import org.junit.AssumptionViolatedException;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
+import org.junit.Test;
 import org.junit.rules.TestName;
 import org.junit.rules.Timeout;
 
-@SuppressWarnings({"initialization.fields.uninitialized", "initialization.static.fields.uninitialized"}) // fields are managed via #beforeClass & #setup
+@SuppressWarnings({
+  "initialization.fields.uninitialized",
+  "initialization.static.fields.uninitialized"
+}) // fields are managed via #beforeClass & #setup
 abstract class BaseFirestoreIT {
 
+  protected static final int NUM_ITEMS_TO_GENERATE =
+      768; // more than one read page and one write page
   private static final String ENV_GOOGLE_APPLICATION_CREDENTIALS = "GOOGLE_APPLICATION_CREDENTIALS";
   private static final String ENV_FIRESTORE_EMULATOR_HOST = "FIRESTORE_EMULATOR_HOST";
   private static final String ENV_GOOGLE_CLOUD_PROJECT = "GOOGLE_CLOUD_PROJECT";
 
   @Rule(order = 1)
   public final TestName testName = new TestName();
-  @Rule(order = 2)  // ensure our helper is "outer" to the timeout so we are allowed to cleanup even if a test times out
+
+  @Rule(
+      order =
+          2) // ensure our helper is "outer" to the timeout so we are allowed to cleanup even if a
+  // test times out
   public final FirestoreTestingHelper helper = new FirestoreTestingHelper(CleanupMode.ALWAYS);
+
   @Rule(order = 3)
   public final Timeout timeout = new Timeout(5, TimeUnit.MINUTES);
+
   @Rule(order = 4)
   public final TestPipeline testPipeline = TestPipeline.create();
 
@@ -62,14 +84,21 @@ abstract class BaseFirestoreIT {
       try {
         assumeEnvVarSet(ENV_FIRESTORE_EMULATOR_HOST);
       } catch (AssumptionViolatedException exception) {
-        assumeThat(String.format("Either %s or %s must be set", ENV_GOOGLE_APPLICATION_CREDENTIALS, ENV_FIRESTORE_EMULATOR_HOST), false, equalTo(true));
+        assumeThat(
+            String.format(
+                "Either %s or %s must be set",
+                ENV_GOOGLE_APPLICATION_CREDENTIALS, ENV_FIRESTORE_EMULATOR_HOST),
+            false,
+            equalTo(true));
       }
     }
     project = assumeEnvVarSet(ENV_GOOGLE_CLOUD_PROJECT);
-    rpcQosOptions = RpcQosOptions.defaultOptions().toBuilder()
-        .withMaxAttempts(1)
-        .withHintMaxNumWorkers(1)
-        .build();
+    rpcQosOptions =
+        RpcQosOptions.defaultOptions()
+            .toBuilder()
+            .withMaxAttempts(1)
+            .withHintMaxNumWorkers(1)
+            .build();
   }
 
   @Before
@@ -77,9 +106,40 @@ abstract class BaseFirestoreIT {
     options = TestPipeline.testingPipelineOptions().as(GcpOptions.class);
     String emulatorHostPort = System.getenv(ENV_FIRESTORE_EMULATOR_HOST);
     if (emulatorHostPort != null) {
-      options.as(FirestoreIOOptions.class).setEmulatorHostPort(emulatorHostPort);
+      options.as(FirestoreOptions.class).setEmulatorHost(emulatorHostPort);
     }
     options.setProject(project);
   }
 
+  @Test
+  public final void write() {
+    String collectionId = "a";
+    runWriteTest(getWritePTransform(testName.getMethodName(), collectionId), collectionId);
+  }
+
+  protected abstract PTransform<PCollection<List<String>>, PCollection<Write>> getWritePTransform(
+      String testMethodName, String collectionId);
+
+  protected final void runWriteTest(
+      PTransform<PCollection<List<String>>, PCollection<Write>> createWrite, String collectionId) {
+    List<String> documentIds =
+        IntStream.rangeClosed(1, 1_000).mapToObj(i -> helper.docId()).collect(Collectors.toList());
+
+    // Create.of unwraps the list of document ids, so wrap it in another list
+    testPipeline
+        .apply(Create.of(Collections.singletonList(documentIds)))
+        .apply(createWrite)
+        .apply(FirestoreIO.v1().write().batchWrite().withRpcQosOptions(rpcQosOptions).build());
+
+    testPipeline.run(options);
+
+    List<String> actualDocumentIds =
+        helper
+            .listDocumentsViaQuery(
+                String.format("%s/%s", helper.getBaseDocumentPath(), collectionId))
+            .map(name -> name.substring(name.lastIndexOf("/") + 1))
+            .collect(Collectors.toList());
+
+    assertEquals(documentIds, actualDocumentIds);
+  }
 }

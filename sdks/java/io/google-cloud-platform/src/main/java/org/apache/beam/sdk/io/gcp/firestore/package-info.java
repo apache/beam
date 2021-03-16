@@ -15,14 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+/**
+ * Provides an API for reading from and writing to <a
+ * href="https://cloud.google.com/firestore/docs">Google Cloud Firestore</a>.
+ */
+@Experimental(Kind.SOURCE_SINK)
 package org.apache.beam.sdk.io.gcp.firestore;
 
-import java.io.Serializable;
-import org.joda.time.Instant;
-
-/** Simple clock interface to get an instant in a test friendly way. */
-interface JodaClock extends Serializable {
-  JodaClock DEFAULT = Instant::now;
-
-  Instant instant();
-}
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;

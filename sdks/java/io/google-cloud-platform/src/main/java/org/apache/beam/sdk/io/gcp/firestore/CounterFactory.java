@@ -18,11 +18,12 @@
 package org.apache.beam.sdk.io.gcp.firestore;
 
 import java.io.Serializable;
-import org.joda.time.Instant;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 
-/** Simple clock interface to get an instant in a test friendly way. */
-interface JodaClock extends Serializable {
-  JodaClock DEFAULT = Instant::now;
+interface CounterFactory extends Serializable {
 
-  Instant instant();
+  CounterFactory DEFAULT = Metrics::counter;
+
+  Counter get(String namespace, String name);
 }

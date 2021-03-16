@@ -17,12 +17,13 @@
  */
 package org.apache.beam.sdk.io.gcp.firestore;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 import com.google.api.gax.grpc.GrpcStatusCode;
 import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.ApiExceptionFactory;
-import com.google.cloud.firestore.spi.v1.FirestoreRpc;
+import com.google.cloud.firestore.v1.stub.FirestoreStub;
 import io.grpc.Status.Code;
 import java.net.SocketTimeoutException;
 import org.apache.beam.sdk.io.gcp.firestore.FirestoreV1Fn.HasRpcAttemptContext;
@@ -32,22 +33,21 @@ import org.joda.time.Instant;
 import org.junit.Test;
 import org.mockito.Mock;
 
-@SuppressWarnings("initialization.fields.uninitialized") // mockito fields are initialized via the Mockito Runner
-abstract class BaseFirestoreV1FnTest<In, Out, Fn extends FirestoreDoFn<In, Out> & HasRpcAttemptContext> extends BaseFirestoreFnTest<In, Out, Fn> {
-  protected static final ApiException RETRYABLE_ERROR = ApiExceptionFactory.createException(
-      new SocketTimeoutException("retryableError"), GrpcStatusCode.of(Code.CANCELLED), true
-  );
+@SuppressWarnings(
+    "initialization.fields.uninitialized") // mockito fields are initialized via the Mockito Runner
+abstract class BaseFirestoreV1FnTest<
+        InT, OutT, FnT extends FirestoreDoFn<InT, OutT> & HasRpcAttemptContext>
+    extends BaseFirestoreFnTest<InT, OutT, FnT> {
+  protected static final ApiException RETRYABLE_ERROR =
+      ApiExceptionFactory.createException(
+          new SocketTimeoutException("retryableError"), GrpcStatusCode.of(Code.CANCELLED), true);
 
-  protected final RpcQosOptions RPC_QOS_OPTIONS = RpcQosOptions.newBuilder()
-      .build();
+  protected final RpcQosOptions rpcQosOptions = RpcQosOptions.newBuilder().build();
 
   protected final JodaClock clock = new MonotonicJodaClock();
-  @Mock
-  protected FirestoreStatefulComponentFactory ff;
-  @Mock
-  protected FirestoreRpc rpc;
-  @Mock
-  protected RpcQos rpcQos;
+  @Mock protected FirestoreStatefulComponentFactory ff;
+  @Mock protected FirestoreStub stub;
+  @Mock protected RpcQos rpcQos;
 
   @Test
   public abstract void attemptsExhaustedForRetryableError() throws Exception;
@@ -57,11 +57,16 @@ abstract class BaseFirestoreV1FnTest<In, Out, Fn extends FirestoreDoFn<In, Out> 
 
   @Test
   public final void contextNamespaceMatchesPublicAPIDefinedValue() {
-    Fn fn = getFn();
+    FnT fn = getFn();
     Context rpcAttemptContext = fn.getRpcAttemptContext();
     if (rpcAttemptContext instanceof V1FnRpcAttemptContext) {
       V1FnRpcAttemptContext v1FnRpcAttemptContext = (V1FnRpcAttemptContext) rpcAttemptContext;
       switch (v1FnRpcAttemptContext) {
+        case BatchWrite:
+          assertEquals(
+              "org.apache.beam.sdk.io.gcp.firestore.FirestoreV1.BatchWrite",
+              v1FnRpcAttemptContext.getNamespace());
+          break;
         default:
           fail("Unverified V1FnRpcAttemptContext value");
       }

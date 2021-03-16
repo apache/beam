@@ -33,8 +33,6 @@ import com.google.cloud.firestore.WriteResult;
 import com.google.cloud.firestore.spi.v1.FirestoreRpc;
 import com.google.cloud.firestore.v1.FirestoreClient.ListCollectionIdsPagedResponse;
 import com.google.cloud.firestore.v1.FirestoreClient.ListDocumentsPagedResponse;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
 import com.google.firestore.v1.BatchWriteRequest;
 import com.google.firestore.v1.Document;
 import com.google.firestore.v1.ListCollectionIdsRequest;
@@ -69,6 +67,8 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Streams;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.junit.rules.TestRule;
@@ -78,13 +78,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 final class FirestoreTestingHelper implements TestRule {
-  private static final Logger LOGGER = LoggerFactory.getLogger(FirestoreTestingHelper.class);
+  private static final Logger LOG = LoggerFactory.getLogger(FirestoreTestingHelper.class);
 
   static final String BASE_COLLECTION_ID;
+
   static {
     Instant now = Clock.systemUTC().instant();
-    DateTimeFormatter formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME
-        .withZone(ZoneId.from(ZoneOffset.UTC));
+    DateTimeFormatter formatter =
+        DateTimeFormatter.ISO_LOCAL_DATE_TIME.withZone(ZoneId.from(ZoneOffset.UTC));
     BASE_COLLECTION_ID = formatter.format(now);
   }
 
@@ -120,7 +121,8 @@ final class FirestoreTestingHelper implements TestRule {
 
   private boolean testSuccess = false;
 
-  @SuppressWarnings("initialization.fields.uninitialized") // testClass and testName are managed via #apply
+  @SuppressWarnings(
+      "initialization.fields.uninitialized") // testClass and testName are managed via #apply
   public FirestoreTestingHelper(CleanupMode cleanupMode) {
     this.cleanupMode = cleanupMode;
   }
@@ -147,13 +149,12 @@ final class FirestoreTestingHelper implements TestRule {
             try {
               cleanUp(getBaseDocumentPath());
             } catch (Exception e) {
-              if (LOGGER.isDebugEnabled() || LOGGER.isTraceEnabled()) {
-                LOGGER.debug("Error while running cleanup", e);
+              if (LOG.isDebugEnabled() || LOG.isTraceEnabled()) {
+                LOG.debug("Error while running cleanup", e);
               } else {
-                LOGGER.info(
+                LOG.info(
                     "Error while running cleanup: {} (set log level higher for stacktrace)",
-                    e.getMessage() == null ? e.getClass().getName() : e.getMessage()
-                );
+                    e.getMessage() == null ? e.getClass().getName() : e.getMessage());
               }
             }
           }
@@ -169,9 +170,7 @@ final class FirestoreTestingHelper implements TestRule {
   String getDatabase() {
     return String.format(
         "projects/%s/databases/%s",
-        FIRESTORE_OPTIONS.getProjectId(),
-        FIRESTORE_OPTIONS.getDatabaseId()
-    );
+        FIRESTORE_OPTIONS.getProjectId(), FIRESTORE_OPTIONS.getDatabaseId());
   }
 
   String getDocumentRoot() {
@@ -203,9 +202,7 @@ final class FirestoreTestingHelper implements TestRule {
   }
 
   Stream<String> listCollectionIds(String parent) {
-    ListCollectionIdsRequest lcir = ListCollectionIdsRequest.newBuilder()
-        .setParent(parent)
-        .build();
+    ListCollectionIdsRequest lcir = ListCollectionIdsRequest.newBuilder().setParent(parent).build();
     // LOGGER.debug("lcir = {}", lcir);
 
     ListCollectionIdsPagedResponse response = rpc.listCollectionIdsPagedCallable().call(lcir);
@@ -218,11 +215,12 @@ final class FirestoreTestingHelper implements TestRule {
     int index = collectionPath.lastIndexOf('/');
     String parent = collectionPath.substring(0, index);
     String collectionId = collectionPath.substring(index + 1);
-    ListDocumentsRequest ldr = ListDocumentsRequest.newBuilder()
-        .setParent(parent)
-        .setCollectionId(collectionId)
-        .setShowMissing(true)
-        .build();
+    ListDocumentsRequest ldr =
+        ListDocumentsRequest.newBuilder()
+            .setParent(parent)
+            .setCollectionId(collectionId)
+            .setShowMissing(true)
+            .build();
     // LOGGER.debug("ldr = {}", ldr);
 
     ListDocumentsPagedResponse response = rpc.listDocumentsPagedCallable().call(ldr);
@@ -237,24 +235,19 @@ final class FirestoreTestingHelper implements TestRule {
     String parent = collectionPath.substring(0, index);
     String collectionId = collectionPath.substring(index + 1);
     FieldReference nameField = FieldReference.newBuilder().setFieldPath("__name__").build();
-    RunQueryRequest rqr = RunQueryRequest.newBuilder()
-        .setParent(parent)
-        .setStructuredQuery(
-            StructuredQuery.newBuilder()
-                .addFrom(CollectionSelector.newBuilder().setCollectionId(collectionId))
-                .addOrderBy(
-                    Order.newBuilder()
-                        .setField(nameField)
-                        .setDirection(Direction.ASCENDING)
-                        .build()
-                )
-                .setSelect(
-                    Projection.newBuilder()
-                        .addFields(nameField)
-                        .build()
-                )
-        )
-        .build();
+    RunQueryRequest rqr =
+        RunQueryRequest.newBuilder()
+            .setParent(parent)
+            .setStructuredQuery(
+                StructuredQuery.newBuilder()
+                    .addFrom(CollectionSelector.newBuilder().setCollectionId(collectionId))
+                    .addOrderBy(
+                        Order.newBuilder()
+                            .setField(nameField)
+                            .setDirection(Direction.ASCENDING)
+                            .build())
+                    .setSelect(Projection.newBuilder().addFields(nameField).build()))
+            .build();
     // LOGGER.debug("rqr = {}", rqr);
 
     return StreamSupport.stream(rpc.runQueryCallable().call(rqr).spliterator(), false)
@@ -264,11 +257,11 @@ final class FirestoreTestingHelper implements TestRule {
   }
 
   private void cleanUp(String baseDocument) {
-    LOGGER.debug("Running cleanup...");
+    LOG.debug("Running cleanup...");
     Batcher batcher = new Batcher();
     walkDoc(batcher, baseDocument);
     batcher.flush();
-    LOGGER.debug("Running cleanup complete");
+    LOG.debug("Running cleanup complete");
   }
 
   private void walkDoc(Batcher batcher, String baseDocument) {
@@ -290,9 +283,12 @@ final class FirestoreTestingHelper implements TestRule {
   }
 
   static DocumentReference getBaseDocument(Firestore fs, Class<?> testClass, String testName) {
-    return fs.collection("beam").document("IT")
-        .collection(BASE_COLLECTION_ID).document(testClass.getSimpleName())
-        .collection("test").document(testName);
+    return fs.collection("beam")
+        .document("IT")
+        .collection(BASE_COLLECTION_ID)
+        .document(testClass.getSimpleName())
+        .collection("test")
+        .document(testName);
   }
 
   static <T> Stream<List<T>> chunkUpDocIds(List<T> things) {
@@ -311,14 +307,14 @@ final class FirestoreTestingHelper implements TestRule {
 
   @SuppressWarnings("nullness")
   static String assumeEnvVarSet(@NonNull String name) {
-    LOGGER.debug(">>> assumeEnvVarSet(name : {})", name);
+    LOG.debug(">>> assumeEnvVarSet(name : {})", name);
     try {
       String value = System.getenv(name);
-      LOGGER.debug("value = {}", value);
+      LOG.debug("value = {}", value);
       assumeThat(name + " not set", value, is(notNullValue()));
       return value;
     } finally {
-      LOGGER.debug("<<< assumeEnvVarSet(name : {})", name);
+      LOG.debug("<<< assumeEnvVarSet(name : {})", name);
     }
   }
 
@@ -333,11 +329,9 @@ final class FirestoreTestingHelper implements TestRule {
     private final boolean addBazDoc;
 
     private DocumentGenerator(int to, String collectionId, boolean addBazDoc) {
-      this.documentIds = Collections.unmodifiableList(
-          IntStream.rangeClosed(1, to)
-              .mapToObj(i -> docId())
-              .collect(Collectors.toList())
-      );
+      this.documentIds =
+          Collections.unmodifiableList(
+              IntStream.rangeClosed(1, to).mapToObj(i -> docId()).collect(Collectors.toList()));
       this.collectionId = collectionId;
       this.addBazDoc = addBazDoc;
     }
@@ -348,29 +342,29 @@ final class FirestoreTestingHelper implements TestRule {
 
       List<ApiFuture<List<WriteResult>>> futures =
           Streams.concat(
-              chunkUpDocIds(documentIds)
-                  .map(chunk -> {
-                    WriteBatch batch = fs.batch();
-                    chunk.stream()
-                        .map(baseCollection::document)
-                        .forEach(ref -> batch.set(ref, ImmutableMap.of("foo", "bar")));
-                    return batch.commit();
-                  }),
-              Stream.of(Optional.of(addBazDoc))
-                  .filter(o -> o.filter(b -> b).isPresent())
-                  .map(x -> {
-                    WriteBatch batch = fs.batch();
-                    batch.set(baseCollection.document(), ImmutableMap.of("foo", "baz"));
-                    return batch.commit();
-                  })
-          )
+                  chunkUpDocIds(documentIds)
+                      .map(
+                          chunk -> {
+                            WriteBatch batch = fs.batch();
+                            chunk.stream()
+                                .map(baseCollection::document)
+                                .forEach(ref -> batch.set(ref, ImmutableMap.of("foo", "bar")));
+                            return batch.commit();
+                          }),
+                  Stream.of(Optional.of(addBazDoc))
+                      .filter(o -> o.filter(b -> b).isPresent())
+                      .map(
+                          x -> {
+                            WriteBatch batch = fs.batch();
+                            batch.set(baseCollection.document(), ImmutableMap.of("foo", "baz"));
+                            return batch.commit();
+                          }))
               .collect(Collectors.toList());
 
       return ApiFutures.transform(
           ApiFutures.allAsList(futures),
           FirestoreTestingHelper.flattenListList(),
-          MoreExecutors.directExecutor()
-      );
+          MoreExecutors.directExecutor());
     }
 
     List<String> getDocumentIds() {
@@ -379,14 +373,19 @@ final class FirestoreTestingHelper implements TestRule {
 
     List<String> expectedDocumentPaths() {
       return documentIds.stream()
-          .map(id -> String.format("%s/%s/%s", getDocumentRoot(), getBaseDocument().collection(
-              collectionId).getPath(), id))
+          .map(
+              id ->
+                  String.format(
+                      "%s/%s/%s",
+                      getDocumentRoot(), getBaseDocument().collection(collectionId).getPath(), id))
           .collect(Collectors.toList());
     }
-
   }
 
-  @SuppressWarnings({"nullness", "initialization.fields.uninitialized"}) // batch is managed as part of use
+  @SuppressWarnings({
+    "nullness",
+    "initialization.fields.uninitialized"
+  }) // batch is managed as part of use
   private final class Batcher {
     private static final int MAX_BATCH_SIZE = 500;
 
@@ -394,8 +393,7 @@ final class FirestoreTestingHelper implements TestRule {
     private boolean failed;
 
     public Batcher() {
-      batch = BatchWriteRequest.newBuilder()
-          .setDatabase(getDatabase());
+      batch = BatchWriteRequest.newBuilder().setDatabase(getDatabase());
       this.failed = false;
     }
 
@@ -427,9 +425,9 @@ final class FirestoreTestingHelper implements TestRule {
         return;
       }
       try {
-        LOGGER.trace("Flushing {} elements...", batch.getWritesCount());
+        LOG.trace("Flushing {} elements...", batch.getWritesCount());
         rpc.batchWriteCallable().futureCall(batch.build()).get(30, TimeUnit.SECONDS);
-        LOGGER.trace("Flushing {} elements complete", batch.getWritesCount());
+        LOG.trace("Flushing {} elements complete", batch.getWritesCount());
         batch.clearWrites();
       } catch (InterruptedException | ExecutionException | TimeoutException e) {
         failed = true;
@@ -437,5 +435,4 @@ final class FirestoreTestingHelper implements TestRule {
       }
     }
   }
-
 }

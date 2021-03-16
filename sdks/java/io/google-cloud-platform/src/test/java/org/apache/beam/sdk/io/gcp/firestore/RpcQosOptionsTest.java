@@ -39,7 +39,7 @@ import org.junit.runners.model.MultipleFailureException;
 import org.mockito.ArgumentCaptor;
 
 @SuppressWarnings({
-    "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
+  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public final class RpcQosOptionsTest {
 
@@ -52,8 +52,7 @@ public final class RpcQosOptionsTest {
   public void builderBuildBuilder() {
     RpcQosOptions rpcQosOptions = RpcQosOptions.defaultOptions();
     int newMaxAttempts = rpcQosOptions.getMaxAttempts() - 1;
-    RpcQosOptions.Builder builder = rpcQosOptions.toBuilder()
-        .withMaxAttempts(newMaxAttempts);
+    RpcQosOptions.Builder builder = rpcQosOptions.toBuilder().withMaxAttempts(newMaxAttempts);
     RpcQosOptions build = builder.build();
 
     assertNotEquals(rpcQosOptions, build);
@@ -70,24 +69,23 @@ public final class RpcQosOptionsTest {
     RpcQosOptions rpcQosOptions = RpcQosOptions.defaultOptions();
     rpcQosOptions.populateDisplayData(builder);
 
-    List<String> actualKeys = captor.getAllValues().stream()
-        .map(ItemSpec::getKey)
-        .sorted()
-        .collect(Collectors.toList());
+    List<String> actualKeys =
+        captor.getAllValues().stream().map(ItemSpec::getKey).sorted().collect(Collectors.toList());
 
-    List<String> expectedKeys = newArrayList(
-        "batchInitialCount",
-        "batchMaxBytes",
-        "batchMaxCount",
-        "batchTargetLatency",
-        "hintMaxNumWorkers",
-        "initialBackoff",
-        "maxAttempts",
-        "overloadRatio",
-        "samplePeriod",
-        "samplePeriodBucketSize",
-        "throttleDuration"
-    );
+    List<String> expectedKeys =
+        newArrayList(
+            "batchInitialCount",
+            "batchMaxBytes",
+            "batchMaxCount",
+            "batchTargetLatency",
+            "hintMaxNumWorkers",
+            "initialBackoff",
+            "maxAttempts",
+            "overloadRatio",
+            "samplePeriod",
+            "samplePeriodBucketSize",
+            "shouldReportDiagnosticMetrics",
+            "throttleDuration");
 
     assertEquals(expectedKeys, actualKeys);
   }
@@ -99,28 +97,32 @@ public final class RpcQosOptionsTest {
 
   @Test
   public void argumentValidation_maxAttempts() throws Exception {
-    BiFunction<RpcQosOptions.Builder, Integer, RpcQosOptions.Builder> f = RpcQosOptions.Builder::withMaxAttempts;
+    BiFunction<RpcQosOptions.Builder, Integer, RpcQosOptions.Builder> f =
+        RpcQosOptions.Builder::withMaxAttempts;
     testNullability(f);
     testIntRange(f, 1, 5);
   }
 
   @Test
   public void argumentValidation_withInitialBackoff() throws Exception {
-    BiFunction<RpcQosOptions.Builder, Duration, RpcQosOptions.Builder> f = RpcQosOptions.Builder::withInitialBackoff;
+    BiFunction<RpcQosOptions.Builder, Duration, RpcQosOptions.Builder> f =
+        RpcQosOptions.Builder::withInitialBackoff;
     testNullability(f);
     testDurationRange(f, Duration.standardSeconds(5), Duration.standardMinutes(2));
   }
 
   @Test
   public void argumentValidation_withSamplePeriod() throws Exception {
-    BiFunction<RpcQosOptions.Builder, Duration, RpcQosOptions.Builder> f = RpcQosOptions.Builder::withSamplePeriod;
+    BiFunction<RpcQosOptions.Builder, Duration, RpcQosOptions.Builder> f =
+        RpcQosOptions.Builder::withSamplePeriod;
     testNullability(f);
     testDurationRange(f, Duration.standardMinutes(2), Duration.standardMinutes(20));
   }
 
   @Test
   public void argumentValidation_withSampleUpdateFrequency() throws Exception {
-    BiFunction<RpcQosOptions.Builder, Duration, RpcQosOptions.Builder> f = RpcQosOptions.Builder::withSamplePeriodBucketSize;
+    BiFunction<RpcQosOptions.Builder, Duration, RpcQosOptions.Builder> f =
+        RpcQosOptions.Builder::withSamplePeriodBucketSize;
     testNullability(f);
     testDurationRange(f, Duration.standardSeconds(10), Duration.standardMinutes(20));
   }
@@ -144,47 +146,54 @@ public final class RpcQosOptionsTest {
 
   @Test
   public void argumentValidation_withOverloadRatio() throws Exception {
-    BiFunction<RpcQosOptions.Builder, Double, RpcQosOptions.Builder> f = RpcQosOptions.Builder::withOverloadRatio;
+    BiFunction<RpcQosOptions.Builder, Double, RpcQosOptions.Builder> f =
+        RpcQosOptions.Builder::withOverloadRatio;
     testNullability(f);
-    testRange(0.0001, Double::sum, (a, b) -> a - b, f, 1.0, 2.0);
+    testRange(0.0001, Double::sum, (a, b) -> a - b, f, 1.0, 1.5);
   }
 
   @Test
   public void argumentValidation_withThrottleDuration() throws Exception {
-    BiFunction<RpcQosOptions.Builder, Duration, RpcQosOptions.Builder> f = RpcQosOptions.Builder::withThrottleDuration;
+    BiFunction<RpcQosOptions.Builder, Duration, RpcQosOptions.Builder> f =
+        RpcQosOptions.Builder::withThrottleDuration;
     testNullability(f);
-    testDurationRange(f, Duration.standardSeconds(5), Duration.standardMinutes(2));
+    testDurationRange(f, Duration.standardSeconds(5), Duration.standardMinutes(1));
   }
 
   @Test
   public void argumentValidation_withBatchInitialCount() throws Exception {
-    BiFunction<RpcQosOptions.Builder, Integer, RpcQosOptions.Builder> f = RpcQosOptions.Builder::withBatchInitialCount;
+    BiFunction<RpcQosOptions.Builder, Integer, RpcQosOptions.Builder> f =
+        RpcQosOptions.Builder::withBatchInitialCount;
     testNullability(f);
     testIntRange(f, 1, 500);
   }
 
   @Test
   public void argumentValidation_withBatchMaxCount() throws Exception {
-    BiFunction<RpcQosOptions.Builder, Integer, RpcQosOptions.Builder> f = RpcQosOptions.Builder::withBatchMaxCount;
+    BiFunction<RpcQosOptions.Builder, Integer, RpcQosOptions.Builder> f =
+        RpcQosOptions.Builder::withBatchMaxCount;
     testNullability(f);
     testIntRange(f, 1, 500);
   }
 
   @Test
   public void argumentValidation_withBatchMaxBytes() throws Exception {
-    BiFunction<RpcQosOptions.Builder, Long, RpcQosOptions.Builder> f = RpcQosOptions.Builder::withBatchMaxBytes;
+    BiFunction<RpcQosOptions.Builder, Long, RpcQosOptions.Builder> f =
+        RpcQosOptions.Builder::withBatchMaxBytes;
     testNullability(f);
     testRange(1L, Math::addExact, Math::subtractExact, f, 1L, (long) (9.5 * 1024 * 1024));
   }
 
   @Test
   public void argumentValidation_withBatchTargetLatency() throws Exception {
-    BiFunction<RpcQosOptions.Builder, Duration, RpcQosOptions.Builder> f = RpcQosOptions.Builder::withBatchTargetLatency;
+    BiFunction<RpcQosOptions.Builder, Duration, RpcQosOptions.Builder> f =
+        RpcQosOptions.Builder::withBatchTargetLatency;
     testNullability(f);
     testDurationRange(f, Duration.standardSeconds(5), Duration.standardMinutes(2));
   }
 
-  private static <T> void testNullability(BiFunction<RpcQosOptions.Builder, T, RpcQosOptions.Builder> f) {
+  private static <T> void testNullability(
+      BiFunction<RpcQosOptions.Builder, T, RpcQosOptions.Builder> f) {
     try {
       f.apply(RpcQosOptions.newBuilder(), null).build();
       fail("expected NullPointerException");
@@ -193,12 +202,16 @@ public final class RpcQosOptionsTest {
     }
   }
 
-  private static void testIntRange(BiFunction<RpcQosOptions.Builder, Integer, RpcQosOptions.Builder> f, int min, int max)
+  private static void testIntRange(
+      BiFunction<RpcQosOptions.Builder, Integer, RpcQosOptions.Builder> f, int min, int max)
       throws Exception {
     testRange(1, Math::addExact, Math::subtractExact, f, min, max);
   }
 
-  private static void testDurationRange(BiFunction<RpcQosOptions.Builder, Duration, RpcQosOptions.Builder> f, Duration min, Duration max)
+  private static void testDurationRange(
+      BiFunction<RpcQosOptions.Builder, Duration, RpcQosOptions.Builder> f,
+      Duration min,
+      Duration max)
       throws Exception {
     testRange(Duration.millis(1), Duration::plus, Duration::minus, f, min, max);
   }
@@ -209,15 +222,19 @@ public final class RpcQosOptionsTest {
       BiFunction<T, T, T> minus,
       BiFunction<RpcQosOptions.Builder, T, RpcQosOptions.Builder> f,
       T min,
-      T max) throws Exception {
+      T max)
+      throws Exception {
     List<Throwable> errors = new ArrayList<>();
     errors.addAll(testMinBoundary(epsilon, plus, minus, f, min));
     errors.addAll(testMaxBoundary(epsilon, plus, minus, f, max));
     MultipleFailureException.assertEmpty(errors);
   }
 
-  private static <T> List<Throwable> testMaxBoundary(T epsilon, BiFunction<T, T, T> plus,
-      BiFunction<T, T, T> minus, BiFunction<RpcQosOptions.Builder, T, RpcQosOptions.Builder> f,
+  private static <T> List<Throwable> testMaxBoundary(
+      T epsilon,
+      BiFunction<T, T, T> plus,
+      BiFunction<T, T, T> minus,
+      BiFunction<RpcQosOptions.Builder, T, RpcQosOptions.Builder> f,
       T max) {
     List<Throwable> errors = new ArrayList<>();
     try {
@@ -243,8 +260,11 @@ public final class RpcQosOptionsTest {
     return errors;
   }
 
-  private static <T> List<Throwable> testMinBoundary(T epsilon, BiFunction<T, T, T> plus,
-      BiFunction<T, T, T> minus, BiFunction<RpcQosOptions.Builder, T, RpcQosOptions.Builder> f,
+  private static <T> List<Throwable> testMinBoundary(
+      T epsilon,
+      BiFunction<T, T, T> plus,
+      BiFunction<T, T, T> minus,
+      BiFunction<RpcQosOptions.Builder, T, RpcQosOptions.Builder> f,
       T min) {
     List<Throwable> errors = new ArrayList<>();
     try {
@@ -274,5 +294,4 @@ public final class RpcQosOptionsTest {
     return new AssertionError(
         String.format("error while testing boundary condition (%s)", conditionDescription), t);
   }
-
 }

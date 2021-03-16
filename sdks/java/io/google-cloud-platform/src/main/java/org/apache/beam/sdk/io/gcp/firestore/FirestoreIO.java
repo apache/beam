@@ -17,12 +17,17 @@
  */
 package org.apache.beam.sdk.io.gcp.firestore;
 
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
+
 /**
- * {@link FirestoreIO} provides an API for reading from and writing to <a
- * href="https://cloud.google.com/firestore/docs">Google Cloud Firestore</a>.
+ * {@link FirestoreIO} provides an API for reading from and writing to <a target="_blank"
+ * rel="noopener noreferrer" href="https://cloud.google.com/firestore/docs">Google Cloud
+ * Firestore</a>.
  *
  * <p>For documentation see {@link FirestoreV1}.
  */
+@Experimental(Kind.SOURCE_SINK)
 public final class FirestoreIO {
 
   private FirestoreIO() {}
@@ -30,5 +35,4 @@ public final class FirestoreIO {
   public static FirestoreV1 v1() {
     return FirestoreV1.INSTANCE;
   }
-
 }

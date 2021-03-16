@@ -17,101 +17,94 @@
  */
 package org.apache.beam.sdk.io.gcp.firestore;
 
+import com.google.api.gax.core.FixedCredentialsProvider;
+import com.google.api.gax.grpc.InstantiatingGrpcChannelProvider;
+import com.google.api.gax.rpc.ClientContext;
 import com.google.api.gax.rpc.FixedHeaderProvider;
-import com.google.auth.Credentials;
-import com.google.cloud.firestore.FirestoreOptions;
 import com.google.cloud.firestore.FirestoreOptions.EmulatorCredentials;
-import com.google.cloud.firestore.spi.v1.FirestoreRpc;
-import com.google.common.collect.ImmutableMap;
+import com.google.cloud.firestore.v1.FirestoreSettings;
+import com.google.cloud.firestore.v1.stub.FirestoreStub;
+import com.google.cloud.firestore.v1.stub.GrpcFirestoreStub;
+import java.io.IOException;
 import java.io.Serializable;
 import java.security.SecureRandom;
 import java.util.Map;
 import javax.annotation.concurrent.Immutable;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
-import org.apache.beam.sdk.io.gcp.firestore.RpcQosImpl.CounterFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.Sleeper;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.NonNull;
 
 /**
  * Factory class for all stateful components used in the Firestore Connector.
- * <p/>
- * None of the components returned by any of these factory methods are serializable, this factory
+ *
+ * <p>None of the components returned by any of these factory methods are serializable, this factory
  * functions to give a serialization friendly handle to create instances of these components.
- * <p/>
- * This class is stateless.
+ *
+ * <p>This class is stateless.
  */
 @Immutable
 class FirestoreStatefulComponentFactory implements Serializable {
 
   static final FirestoreStatefulComponentFactory INSTANCE = new FirestoreStatefulComponentFactory();
 
-  private FirestoreStatefulComponentFactory() {
-  }
+  private FirestoreStatefulComponentFactory() {}
 
   /**
-   * Given a {@link PipelineOptions}, return a pre-configured {@link FirestoreOptions.Builder} with
-   * values set based on those options.
-   * <p/>
-   * The provided {@link PipelineOptions} is expected to provide {@link FirestoreIOOptions} and
-   * {@link org.apache.beam.sdk.extensions.gcp.options.GcpOptions GcpOptions} if connecting to live
-   * Firestore (i.e. not an emulator).
-   * <p/>
-   * The instance returned by this method is expected to bind to the lifecycle of a bundle.
-   *
-   * @param options The instance of options to read from
-   * @return a new {@link FirestoreOptions.Builder} pre-configured with values from the provided
-   * options
-   */
-  FirestoreOptions.Builder getFirestoreOptionsBuilder(PipelineOptions options) {
-    FirestoreOptions.Builder builder = FirestoreOptions.getDefaultInstance().toBuilder()
-        .setProjectId(options.as(GcpOptions.class).getProject())
-        .setHeaderProvider(new FixedHeaderProvider() {
-          @Override
-          public Map<@NonNull String, @NonNull String> getHeaders() {
-            String version = "x.y.z";  // TODO: How does beam manage version detection in project?
-            return ImmutableMap.of("User-Agent", String.format("beam-sdk/%s", version));
-          }
-        });
-
-    FirestoreIOOptions ioOptions = options.as(FirestoreIOOptions.class);
-    String emulatorHostPort = ioOptions.getEmulatorHostPort();
-    if (emulatorHostPort != null) {
-      builder.setEmulatorHost(emulatorHostPort)
-          .setCredentials(new EmulatorCredentials());
-    } else {
-      Credentials credential = options.as(GcpOptions.class).getGcpCredential();
-      builder
-          .setCredentials(credential)
-          .setHost("batch-firestore.googleapis.com");
-    }
-    return builder;
-  }
-
-  /**
-   * Given a {@link PipelineOptions}, return a pre-configured {@link FirestoreRpc} with values set
+   * Given a {@link PipelineOptions}, return a pre-configured {@link FirestoreStub} with values set
    * based on those options.
-   * <p/>
-   * The provided {@link PipelineOptions} is expected to provide {@link FirestoreIOOptions} and
-   * {@link org.apache.beam.sdk.extensions.gcp.options.GcpOptions GcpOptions} if connecting to live
-   * Firestore (i.e. not an emulator).
-   * <p/>
-   * The instance returned by this method is expected to bind to the lifecycle of a bundle.
+   *
+   * <p>The provided {@link PipelineOptions} is expected to provide {@link FirestoreOptions} and
+   * {@link org.apache.beam.sdk.extensions.gcp.options.GcpOptions GcpOptions} for access to {@link
+   * GcpOptions#getProject()}
+   *
+   * <p>The instance returned by this method is expected to bind to the lifecycle of a bundle.
    *
    * @param options The instance of options to read from
-   * @return a new {@link FirestoreRpc} pre-configured with values from the provided options
-   * @see #getFirestoreOptionsBuilder(PipelineOptions)
+   * @return a new {@link FirestoreStub} pre-configured with values from the provided options
    */
-  FirestoreRpc getFirestoreRpc(PipelineOptions options) {
-    return (FirestoreRpc) getFirestoreOptionsBuilder(options)
-        .build()
-        .getRpc();
+  FirestoreStub getFirestoreStub(PipelineOptions options) {
+    try {
+      FirestoreSettings.Builder builder =
+          FirestoreSettings.newBuilder()
+              .setHeaderProvider(
+                  new FixedHeaderProvider() {
+                    @Override
+                    public Map<@NonNull String, @NonNull String> getHeaders() {
+                      return ImmutableMap.of("User-Agent", options.getUserAgent());
+                    }
+                  });
+
+      FirestoreOptions firestoreOptions = options.as(FirestoreOptions.class);
+      String emulatorHostPort = firestoreOptions.getEmulatorHost();
+      if (emulatorHostPort != null) {
+        builder
+            .setCredentialsProvider(FixedCredentialsProvider.create(new EmulatorCredentials()))
+            .setEndpoint(emulatorHostPort)
+            .setTransportChannelProvider(
+                InstantiatingGrpcChannelProvider.newBuilder()
+                    .setEndpoint(emulatorHostPort)
+                    .setChannelConfigurator(c -> c.usePlaintext())
+                    .build());
+      } else {
+        GcpOptions gcpOptions = options.as(GcpOptions.class);
+        builder
+            .setCredentialsProvider(FixedCredentialsProvider.create(gcpOptions.getGcpCredential()))
+            .setEndpoint("batch-firestore.googleapis.com:443");
+      }
+
+      ClientContext clientContext = ClientContext.create(builder.build());
+      return GrpcFirestoreStub.create(clientContext);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   /**
    * Given a {@link RpcQosOptions}, return a new instance of {@link RpcQos}
-   * <p/>
-   * The instance returned by this method is expected to bind to the lifecycle of a worker, and
+   *
+   * <p>The instance returned by this method is expected to bind to the lifecycle of a worker, and
    * specifically live longer than a single bundle.
    *
    * @param options The instance of options to read from
@@ -122,8 +115,7 @@ class FirestoreStatefulComponentFactory implements Serializable {
         options,
         new SecureRandom(),
         Sleeper.DEFAULT,
-        CounterFactory.DEFAULT
-    );
+        CounterFactory.DEFAULT,
+        DistributionFactory.DEFAULT);
   }
-
 }
