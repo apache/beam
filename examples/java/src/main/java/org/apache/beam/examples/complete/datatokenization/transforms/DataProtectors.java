@@ -18,7 +18,6 @@
 package org.apache.beam.examples.complete.datatokenization.transforms;
 
 import static org.apache.beam.sdk.util.RowJsonUtils.rowToJson;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects.firstNonNull;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.api.services.bigquery.model.TableRow;
@@ -37,18 +36,10 @@ import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
-import org.apache.beam.sdk.state.BagState;
-import org.apache.beam.sdk.state.StateSpec;
-import org.apache.beam.sdk.state.StateSpecs;
-import org.apache.beam.sdk.state.TimeDomain;
-import org.apache.beam.sdk.state.Timer;
-import org.apache.beam.sdk.state.TimerSpec;
-import org.apache.beam.sdk.state.TimerSpecs;
-import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.RowJson;
 import org.apache.beam.sdk.util.RowJsonUtils;
 import org.apache.beam.sdk.values.KV;
@@ -69,6 +60,7 @@ import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.entity.ContentType;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
+import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -84,6 +76,7 @@ public class DataProtectors {
   private static final Logger LOG = LoggerFactory.getLogger(DataProtectors.class);
 
   public static final String ID_FIELD_NAME = "ID";
+  public static final Integer MAX_BUFFERING = 100;
 
   /**
    * The {@link RowToTokenizedRow} transform converts {@link Row} to {@link TableRow} objects. The
@@ -112,11 +105,18 @@ public class DataProtectors {
     public PCollectionTuple expand(PCollection<KV<Integer, Row>> inputRows) {
       FailsafeElementCoder<Row, Row> coder =
           FailsafeElementCoder.of(RowCoder.of(schema()), RowCoder.of(schema()));
+
+      Duration maxBuffering = Duration.millis(MAX_BUFFERING);
       PCollectionTuple pCollectionTuple =
-          inputRows.apply(
-              "Tokenize",
-              ParDo.of(new TokenizationFn(schema(), batchSize(), rpcURI(), failureTag()))
-                  .withOutputTags(successTag(), TupleTagList.of(failureTag())));
+          inputRows
+              .apply(
+                  GroupIntoBatches.<Integer, Row>ofSize(batchSize())
+                      .withMaxBufferingDuration(maxBuffering))
+              .apply(
+                  "Tokenize",
+                  ParDo.of(new TokenizationFn(schema(), rpcURI(), failureTag()))
+                      .withOutputTags(successTag(), TupleTagList.of(failureTag())));
+
       return PCollectionTuple.of(
               successTag(), pCollectionTuple.get(successTag()).setRowSchema(schema()))
           .and(failureTag(), pCollectionTuple.get(failureTag()).setCoder(coder));
@@ -142,7 +142,7 @@ public class DataProtectors {
 
   /** Class implements stateful doFn for data tokenization using remote RPC. */
   @SuppressWarnings("initialization.static.fields.uninitialized")
-  public static class TokenizationFn extends DoFn<KV<Integer, Row>, Row> {
+  public static class TokenizationFn extends DoFn<KV<Integer, Iterable<Row>>, Row> {
 
     private static Schema schemaToRpc;
     private static CloseableHttpClient httpclient;
@@ -150,30 +150,15 @@ public class DataProtectors {
     private static ObjectMapper objectMapperDeserializerForSchema;
 
     private final Schema schema;
-    private final int batchSize;
     private final String rpcURI;
     private final TupleTag<FailsafeElement<Row, Row>> failureTag;
-
-    @StateId("buffer")
-    private final StateSpec<BagState<Row>> bufferedEvents;
-
-    @StateId("count")
-    private final StateSpec<ValueState<Integer>> countState = StateSpecs.value();
-
-    @TimerId("expiry")
-    private final TimerSpec expirySpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
     private Map<String, Row> inputRowsWithIds;
 
     public TokenizationFn(
-        Schema schema,
-        int batchSize,
-        String rpcURI,
-        TupleTag<FailsafeElement<Row, Row>> failureTag) {
+        Schema schema, String rpcURI, TupleTag<FailsafeElement<Row, Row>> failureTag) {
       this.schema = schema;
-      this.batchSize = batchSize;
       this.rpcURI = rpcURI;
-      bufferedEvents = StateSpecs.bag(RowCoder.of(schema));
       this.failureTag = failureTag;
       this.inputRowsWithIds = new HashMap<>();
     }
@@ -206,39 +191,10 @@ public class DataProtectors {
       }
     }
 
-    @OnTimer("expiry")
-    public void onExpiry(OnTimerContext context, @StateId("buffer") BagState<Row> bufferState) {
-      boolean isEmpty = firstNonNull(bufferState.isEmpty().read(), true);
-      if (!isEmpty) {
-        processBufferedRows(bufferState.read(), context);
-        bufferState.clear();
-      }
-    }
-
     @ProcessElement
-    public void process(
-        ProcessContext context,
-        BoundedWindow window,
-        @StateId("buffer") BagState<Row> bufferState,
-        @StateId("count") ValueState<Integer> countState,
-        @TimerId("expiry") Timer expiryTimer) {
-
-      expiryTimer.set(window.maxTimestamp());
-
-      int count = firstNonNull(countState.read(), 0);
-      count++;
-      countState.write(count);
-      bufferState.add(context.element().getValue());
-
-      if (count >= batchSize) {
-        processBufferedRows(bufferState.read(), context);
-        bufferState.clear();
-        countState.clear();
-      }
-    }
-
     @SuppressWarnings("argument.type.incompatible")
-    private void processBufferedRows(Iterable<Row> rows, WindowedContext context) {
+    public void process(@Element KV<Integer, Iterable<Row>> element, ProcessContext context) {
+      Iterable<Row> rows = element.getValue();
 
       try {
         for (Row outputRow : getTokenizedRow(rows)) {
@@ -247,10 +203,10 @@ public class DataProtectors {
       } catch (Exception e) {
         for (Row outputRow : rows) {
           context.output(
-              failureTag,
-              FailsafeElement.of(outputRow, outputRow)
-                  .setErrorMessage(e.getMessage())
-                  .setStacktrace(Throwables.getStackTraceAsString(e)));
+                  failureTag,
+                  FailsafeElement.of(outputRow, outputRow)
+                          .setErrorMessage(e.getMessage())
+                          .setStacktrace(Throwables.getStackTraceAsString(e)));
         }
       }
     }
