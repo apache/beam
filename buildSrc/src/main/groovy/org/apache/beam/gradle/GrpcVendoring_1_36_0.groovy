@@ -116,6 +116,7 @@ class GrpcVendoring_1_36_0 {
       "io.grpc",
       "io.netty",
       "io.opencensus",
+      "io.perfmark",
     ]
 
     return packagesToRelocate.collectEntries {
