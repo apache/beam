@@ -153,7 +153,14 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
     for (ReadStream readStream : readSession.getStreamsList()) {
       sources.add(
           BigQueryStorageStreamSource.create(
-              readSession, readStream, trimmedSchema, parseFn, outputCoder, bqServices));
+              0L,
+              Long.MAX_VALUE,
+              readSession,
+              readStream,
+              trimmedSchema,
+              parseFn,
+              outputCoder,
+              bqServices));
     }
 
     return ImmutableList.copyOf(sources);

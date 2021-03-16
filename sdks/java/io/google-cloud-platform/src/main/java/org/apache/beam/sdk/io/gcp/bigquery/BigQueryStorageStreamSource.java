@@ -40,7 +40,7 @@ import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.DatumReader;
 import org.apache.avro.io.DecoderFactory;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.io.OffsetBasedSource;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.BigQueryServerStream;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.StorageClient;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -56,11 +56,13 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings({
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
-public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
+public class BigQueryStorageStreamSource<T> extends OffsetBasedSource<T> {
 
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryStorageStreamSource.class);
 
   public static <T> BigQueryStorageStreamSource<T> create(
+      long startOffset,
+      long endOffset,
       ReadSession readSession,
       ReadStream readStream,
       TableSchema tableSchema,
@@ -68,6 +70,8 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
       Coder<T> outputCoder,
       BigQueryServices bqServices) {
     return new BigQueryStorageStreamSource<>(
+        startOffset,
+        endOffset,
         readSession,
         readStream,
         toJsonString(checkNotNull(tableSchema, "tableSchema")),
@@ -82,9 +86,18 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
    */
   public BigQueryStorageStreamSource<T> fromExisting(ReadStream newReadStream) {
     return new BigQueryStorageStreamSource<>(
-        readSession, newReadStream, jsonTableSchema, parseFn, outputCoder, bqServices);
+        startOffset,
+        endOffset,
+        readSession,
+        newReadStream,
+        jsonTableSchema,
+        parseFn,
+        outputCoder,
+        bqServices);
   }
 
+  private final long startOffset;
+  private final long endOffset;
   private final ReadSession readSession;
   private final ReadStream readStream;
   private final String jsonTableSchema;
@@ -93,12 +106,17 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
   private final BigQueryServices bqServices;
 
   private BigQueryStorageStreamSource(
+      long startOffset,
+      long endOffset,
       ReadSession readSession,
       ReadStream readStream,
       String jsonTableSchema,
       SerializableFunction<SchemaAndRecord, T> parseFn,
       Coder<T> outputCoder,
       BigQueryServices bqServices) {
+    super(startOffset, endOffset, 1L);
+    this.startOffset = checkNotNull(startOffset, "startOffset");
+    this.endOffset = checkNotNull(endOffset, "endOffset");
     this.readSession = checkNotNull(readSession, "readSession");
     this.readStream = checkNotNull(readStream, "stream");
     this.jsonTableSchema = checkNotNull(jsonTableSchema, "jsonTableSchema");
@@ -129,7 +147,7 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
   }
 
   @Override
-  public List<? extends BoundedSource<T>> split(
+  public List<? extends OffsetBasedSource<T>> split(
       long desiredBundleSizeBytes, PipelineOptions options) {
     // A stream source can't be split without reading from it due to server-side liquid sharding.
     // TODO: Implement dynamic work rebalancing.
@@ -146,8 +164,19 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
     return readStream.toString();
   }
 
+  @Override
+  public long getMaxEndOffset(PipelineOptions options) throws Exception {
+    return getEndOffset();
+  }
+
+  @Override
+  public OffsetBasedSource<T> createSourceForSubrange(long start, long end) {
+    return this;
+  }
+
   /** A {@link org.apache.beam.sdk.io.Source.Reader} which reads records from a stream. */
-  public static class BigQueryStorageStreamReader<T> extends BoundedSource.BoundedReader<T> {
+  public static class BigQueryStorageStreamReader<T>
+      extends OffsetBasedSource.OffsetBasedReader<T> {
 
     private final DatumReader<GenericRecord> datumReader;
     private final SerializableFunction<SchemaAndRecord, T> parseFn;
@@ -172,6 +201,7 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
 
     private BigQueryStorageStreamReader(
         BigQueryStorageStreamSource<T> source, BigQueryOptions options) throws IOException {
+      super(source);
       this.source = source;
       this.datumReader =
           new GenericDatumReader<>(
@@ -187,7 +217,12 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
     }
 
     @Override
-    public synchronized boolean start() throws IOException {
+    protected long getCurrentOffset() throws NoSuchElementException {
+      return currentOffset;
+    }
+
+    @Override
+    public synchronized boolean startImpl() throws IOException {
       BigQueryStorageStreamSource<T> source = getCurrentSource();
 
       ReadRowsRequest request =
@@ -203,7 +238,7 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
     }
 
     @Override
-    public synchronized boolean advance() throws IOException {
+    public synchronized boolean advanceImpl() throws IOException {
       currentOffset++;
       return readNextRecord();
     }
@@ -277,7 +312,7 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
     }
 
     @Override
-    public BoundedSource<T> splitAtFraction(double fraction) {
+    public synchronized OffsetBasedSource<T> splitAtFraction(double fraction) {
       Metrics.counter(BigQueryStorageStreamReader.class, "split-at-fraction-calls").inc();
       LOG.debug(
           "Received BigQuery Storage API split request for stream {} at fraction {}.",

@@ -337,7 +337,7 @@ public abstract class OffsetBasedSource<T> extends BoundedSource<T> {
     }
 
     @Override
-    public final synchronized OffsetBasedSource<T> splitAtFraction(double fraction) {
+    public synchronized OffsetBasedSource<T> splitAtFraction(double fraction) {
       if (!allowsDynamicSplitting()) {
         return null;
       }
