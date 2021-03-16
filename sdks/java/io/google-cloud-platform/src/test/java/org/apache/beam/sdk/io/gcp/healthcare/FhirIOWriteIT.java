@@ -117,7 +117,7 @@ public class FhirIOWriteIT {
   }
 
   @Test
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-11733")
+  // @Ignore("https://issues.apache.org/jira/browse/BEAM-11733")
   public void testFhirIO_Import() {
     Pipeline pipeline = Pipeline.create(options);
     if (options.getTempLocation() == null) {

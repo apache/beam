@@ -89,7 +89,7 @@ public class FhirIOLROIT {
   }
 
   @Test
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-11733")
+  // @Ignore("https://issues.apache.org/jira/browse/BEAM-11733")
   public void test_FhirIO_exportFhirResourcesGcs() {
     String fhirStoreName = healthcareDataset + "/fhirStores/" + fhirStoreId;
     String exportGcsUriPrefix =

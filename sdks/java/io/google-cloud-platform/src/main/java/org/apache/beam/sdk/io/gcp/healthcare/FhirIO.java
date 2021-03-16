@@ -244,6 +244,7 @@ public class FhirIO {
   private static final String LRO_COUNTER_KEY = "counter";
   private static final String LRO_SUCCESS_KEY = "success";
   private static final String LRO_FAILURE_KEY = "failure";
+  private static final Logger LOG = LoggerFactory.getLogger(FhirIO.class);
 
   /**
    * Read resources from a PCollection of resource IDs (e.g. when subscribing the pubsub
@@ -394,12 +395,20 @@ public class FhirIO {
       Operation operation, Counter successCounter, Counter failureCounter) {
     Map<String, Object> opMetadata = operation.getMetadata();
     if (opMetadata.containsKey(LRO_COUNTER_KEY)) {
-      Map<String, String> counters = (Map<String, String>) opMetadata.get(LRO_COUNTER_KEY);
-      if (counters.containsKey(LRO_SUCCESS_KEY)) {
-        successCounter.inc(Long.parseLong(counters.get(LRO_SUCCESS_KEY)));
-      }
-      if (counters.containsKey(LRO_FAILURE_KEY)) {
-        failureCounter.inc(Long.parseLong(counters.get(LRO_FAILURE_KEY)));
+      try {
+        Map<String, String> counters = (Map<String, String>) opMetadata.get(LRO_COUNTER_KEY);
+        if (counters.containsKey(LRO_SUCCESS_KEY)) {
+          successCounter.inc(Long.parseLong(counters.get(LRO_SUCCESS_KEY)));
+        }
+        if (counters.containsKey(LRO_FAILURE_KEY)) {
+          Long numFailures = Long.parseLong(counters.get(LRO_FAILURE_KEY));
+          failureCounter.inc(numFailures);
+          if (numFailures > 0) {
+            LOG.error("LRO: " + operation.getName() + " had " + numFailures + " errors.");
+          }
+        }
+      } catch (Exception e) {
+        LOG.error("failed to increment LRO counters, error message: " + e.getMessage());
       }
     }
   }
