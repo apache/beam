@@ -658,6 +658,9 @@ class Row(object):
 
   when applied to a PCollection of ints will produce a PCollection with schema
   `(x=int, y=float)`.
+
+  Note that in Beam 2.30.0 and later, Row objects are sensitive to field order.
+  So `Row(x=3, y=4)` is not considered equal to `Row(y=4, x=3)`.
   """
   def __init__(self, **kwargs):
     self.__dict__.update(kwargs)
