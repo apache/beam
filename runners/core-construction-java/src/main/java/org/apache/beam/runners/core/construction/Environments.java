@@ -387,7 +387,6 @@ public class Environments {
     capabilities.add("beam:version:sdk_base:" + JAVA_SDK_HARNESS_CONTAINER_URL);
     capabilities.add(BeamUrns.getUrn(SplittableParDoComponents.TRUNCATE_SIZED_RESTRICTION));
     capabilities.add(BeamUrns.getUrn(Primitives.TO_STRING));
-    capabilities.add(BeamUrns.getUrn(Primitives.TO_STRING));
     return capabilities.build();
   }
 

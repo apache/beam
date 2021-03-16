@@ -23,6 +23,7 @@ import org.apache.beam.model.pipeline.v1.MetricsApi;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.util.HistogramData;
+import org.apache.commons.lang3.NotImplementedException;
 
 /**
  * Holds the metrics for a single step. Each of the methods should return an implementation of the
@@ -58,5 +59,7 @@ public interface MetricsContainer extends Serializable {
   }
 
   /** Return the cumulative values for any metrics in this container as MonitoringInfos. */
-  Iterable<MetricsApi.MonitoringInfo> getMonitoringInfos();
+  default Iterable<MetricsApi.MonitoringInfo> getMonitoringInfos() {
+    throw new NotImplementedException("getMonitoringInfos is not impemented on this MetricsContainer.");
+  }
 }
