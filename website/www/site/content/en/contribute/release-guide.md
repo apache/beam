@@ -21,16 +21,12 @@ limitations under the License.
 
 ## Introduction
 
-The Apache Beam project periodically declares and publishes releases.
-A release is one or more packages of the project artifact(s) that are approved for general public distribution and use.
-They may come with various degrees of caveat regarding their perceived quality and potential for change, such as “alpha”, “beta”, “incubating”, “stable”, etc.
+The Apache Beam project periodically declares and publishes releases. A release is one or more packages of the project artifact(s) approved for general public distribution and use.
+They may come with various degrees of caveat regarding their perceived quality and potential for change, such as “alpha,” “beta,” “incubating,” or “stable.”
 
-The Beam community treats releases with great importance.
-They are a public face of the project and most users interact with the project only through the releases. Releases are signed off by the entire Beam community in a public vote.
+The Beam community treats releases with great importance. They are a public face of the project, and most users interact with the project only through the releases. The entire Beam community signs off releases in a public vote.
 
-Each release is executed by a *Release Manager*, who is selected among the Beam committers.
-This document describes the process that the Release Manager follows to perform a release.
-Any changes to this process should be discussed and adopted on the [dev@ mailing list](/get-started/support/).
+A Release Manager executes each release, who is selected among the Beam committers. This document describes the process that the Release Manager follows to perform a release. Any changes to this process should be discussed and adopted on the [dev@ mailing list](/get-started/support/).
 
 Please remember that publishing software has legal consequences.
 This guide complements the foundation-wide [Product Release Policy](http://www.apache.org/dev/release.html) and [Release Distribution Policy](http://www.apache.org/dev/release-distribution).
@@ -38,6 +34,7 @@ This guide complements the foundation-wide [Product Release Policy](http://www.a
 ### Overview
 
 <img src="/images/release-guide-1.png" alt="Alt text" width="100%">
+**Figure 1.** Overview of the Release process.
 
 The release process consists of several steps:
 
@@ -46,10 +43,10 @@ The release process consists of several steps:
 1. Investigate performance regressions
 1. Create a release branch
 1. Verify release branch
+1. Triage release-blocking issues in JIRA
 1. Build a release candidate
-1. Vote on the release candidate
-1. During vote process, run validation tests
-1. If necessary, fix any issues and go back to step 3.
+1. Prepare documents
+1. Vote and validate release candidate
 1. Finalize the release
 1. Promote the release
 
@@ -249,14 +246,16 @@ The mailing list should be informed to allow fixing the regressions in the cours
 
 ## 4. Create a release branch in apache/beam repository
 
-Attention: Only committer has permission to create release branch in apache/beam.
+Attention: Only the committer has permission to create a release branch in apache/beam.
 
 Release candidates are built from a release branch.
 As a final step in preparation for the release, you should create the release branch, push it to the Apache code repository, and update version information on the original branch.
 
-There are 2 ways to cut a release branch: either running automation script(recommended), or running all commands manually.
+There are 2 ways to cut a release branch:
+* [By running automation script **cut_release_branch.sh** (recommended)](#use-cut_release_branchsh-to-cut-a-release-branch)
+* [By running all commands manually](#alternative-run-all-steps-manually)
 
-After following one of these processes you should manually update `CHANGES.md` on `master` by adding a new section for the next release.
+After following one of the previous processes, you should manually update `CHANGES.md` on `master` by adding a new section for the next release.
 
 #### Use cut_release_branch.sh to cut a release branch
 * **Script:** [cut_release_branch.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/cut_release_branch.sh)
@@ -267,6 +266,7 @@ After following one of these processes you should manually update `CHANGES.md` o
   ./beam/release/src/main/scripts/cut_release_branch.sh \
   --release=${RELEASE_VERSION} \
   --next_release=${NEXT_VERSION}
+  --rc_num=${RC_NUM}
 
   # Show help page
   ./beam/release/src/main/scripts/cut_release_branch.sh -h
@@ -283,6 +283,8 @@ After following one of these processes you should manually update `CHANGES.md` o
      [version.py](https://github.com/apache/beam/blob/release-2.6.0/sdks/python/apache_beam/version.py#L21),
      [build.gradle](https://github.com/apache/beam/blob/release-2.6.0/runners/google-cloud-dataflow-java/build.gradle#L39),
      [gradle.properties](https://github.com/apache/beam/blob/release-2.16.0/gradle.properties#L27)
+     
+**ATTENTION:** The Release Candidate Number ``rc_num`` is an optional parameter to add the version of the release candidate.
 
 #### (Alternative) Run all steps manually
 * **Checkout working branch**
@@ -304,11 +306,13 @@ After following one of these processes you should manually update `CHANGES.md` o
       RELEASE=2.5.0
       NEXT_VERSION_IN_BASE_BRANCH=2.6.0
       BRANCH=release-${RELEASE}
+      RC_NUM=1
 
   Version represents the release currently underway, while next version specifies the anticipated next version to be released from that branch.
   Normally, 1.2.0 is followed by 1.3.0, while 1.2.3 is followed by 1.2.4.
 
-  **NOTE**: Only if you are doing an incremental/hotfix release (e.g. 2.5.1), please check out the previous release tag, before running the following instructions:
+ **NOTE**: Only if you are doing an incremental/hotfix release (e.g. 2.5.1), please check out the previous release tag, before running the following instructions:
+**ATTENTION:** The Release Candidate Number ``RC_NUM`` is an optional environment variable to add the number of prerelease.
 
       BASE_RELEASE=2.5.0
       RELEASE=2.5.1
@@ -335,11 +339,15 @@ After following one of these processes you should manually update `CHANGES.md` o
       git checkout ${BRANCH}
 
 * **Update version files in release branch**
+  Add the version name within the tag `rc` in **version.py**. 
 
-      DEV=${RELEASE}.dev
-      sed -i -e "s/${DEV}/${RELEASE}/g" sdks/python/apache_beam/version.py
       sed -i -e "s/${DEV}/${RELEASE}/g" gradle.properties
+      if [ -z "${RC_NUM}" ]
+        then sed -i -e "s/${DEV}/${RELEASE}/g" sdks/python/apache_beam/version.py;
+        else sed -i -e "s/${DEV}/${RELEASE}-rc${RC_NUM}/g" sdks/python/apache_beam/version.py;
+      fi
       sed -i -e "s/'beam-master-.*'/'beam-${RELEASE}'/g" runners/google-cloud-dataflow-java/build.gradle
+
 
 
 ### Start a snapshot build
@@ -583,7 +591,7 @@ For this step, we recommend you using automation script to create a RC, but you 
 
 * **Script:** [build_release_candidate.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/build_release_candidate.sh)
 
-* **Usage**
+* **Usage:**
 
       ./beam/release/src/main/scripts/build_release_candidate.sh
 
@@ -627,6 +635,19 @@ For this step, we recommend you using automation script to create a RC, but you 
          They should contain all relevant parts for each module, including `pom.xml`, jar, test jar, javadoc, etc.
          Artifact names should follow [the existing format](https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22) in which artifact name mirrors directory structure, e.g., `beam-sdks-java-io-kafka`.
          Carefully review any new artifacts.
+
+### Upload release candidate to PyPI
+
+* **Script:** [deploy_release_candidate_pypi.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/deploy_release_candidate_pypi.sh)
+* **Usage:**
+```     
+     ./beam/release/src/main/scripts/deploy_release_candidate_pypi.sh
+```
+* **The script will:**
+  1. Download source distribution and wheels tagged as `rc`.
+  1. Deploy release candidate to PyPI
+
+**ATTENTION**: Verify that the [Download files](https://pypi.org/project/apache-beam/#files) are correct. All wheels should be published, in addition to the zip of the release source. (Signatures and hashes do not need to be uploaded.) There should be a pre-release version with the `rc` tag.
 
 **********
 
