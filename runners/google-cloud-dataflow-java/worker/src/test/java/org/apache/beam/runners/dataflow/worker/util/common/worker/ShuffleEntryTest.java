@@ -29,9 +29,6 @@ import org.junit.runners.JUnit4;
 
 /** Unit tests for {@link ShuffleEntry}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class ShuffleEntryTest {
   private static final byte[] KEY = {0xA};
   private static final byte[] SKEY = {0xB};

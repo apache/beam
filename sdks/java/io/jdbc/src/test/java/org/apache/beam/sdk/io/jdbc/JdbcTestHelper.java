@@ -26,9 +26,6 @@ import org.apache.beam.sdk.io.common.TestRow;
  * Contains Test helper methods used by both Integration and Unit Tests in {@link
  * org.apache.beam.sdk.io.jdbc.JdbcIO}.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 class JdbcTestHelper {
 
   static class CreateTestRowOfNameAndId implements JdbcIO.RowMapper<TestRow> {

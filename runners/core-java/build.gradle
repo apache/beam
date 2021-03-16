@@ -18,7 +18,6 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-  enableStrictDependencies: true,
   classesTriggerCheckerBugs: [
     'InMemoryStateInternals': 'https://github.com/typetools/checker-framework/issues/3792',
     'MergingActiveWindowSetTest': 'https://github.com/typetools/checker-framework/issues/3792',

@@ -50,9 +50,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Tests for {@link MetricsContainerStepMap}. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class MetricsContainerStepMapTest {
   private static final Logger LOG = LoggerFactory.getLogger(MetricsContainerStepMapTest.class);
 

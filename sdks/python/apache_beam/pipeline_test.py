@@ -636,7 +636,7 @@ class PipelineTest(unittest.TestCase):
     pcoll2 = pcoll1 | 'do1' >> FlatMap(lambda x: [x + 1])
     pcoll3 = pcoll2 | 'do2' >> FlatMap(lambda x: [x + 1])
     self.assertIs(pcoll1.is_bounded, False)
-    self.assertIs(pcoll1.is_bounded, False)
+    self.assertIs(pcoll2.is_bounded, False)
     self.assertIs(pcoll3.is_bounded, False)
 
   def test_track_pcoll_bounded(self):
@@ -923,6 +923,42 @@ class RunnerApiTest(unittest.TestCase):
     self.assertTrue(
         common_urns.requirements.REQUIRES_BUNDLE_FINALIZATION.urn,
         proto.requirements)
+
+  def test_annotations(self):
+    some_proto = BytesCoder().to_runner_api(None)
+
+    class EmptyTransform(beam.PTransform):
+      def expand(self, pcoll):
+        return pcoll
+
+      def annotations(self):
+        return {'foo': 'some_string'}
+
+    class NonEmptyTransform(beam.PTransform):
+      def expand(self, pcoll):
+        return pcoll | beam.Map(lambda x: x)
+
+      def annotations(self):
+        return {
+            'foo': b'some_bytes',
+            'proto': some_proto,
+        }
+
+    p = beam.Pipeline()
+    _ = p | beam.Create([]) | EmptyTransform() | NonEmptyTransform()
+    proto = p.to_runner_api()
+
+    seen = 0
+    for transform in proto.components.transforms.values():
+      if transform.unique_name == 'EmptyTransform':
+        seen += 1
+        self.assertEqual(transform.annotations['foo'], b'some_string')
+      elif transform.unique_name == 'NonEmptyTransform':
+        seen += 1
+        self.assertEqual(transform.annotations['foo'], b'some_bytes')
+        self.assertEqual(
+            transform.annotations['proto'], some_proto.SerializeToString())
+    self.assertEqual(seen, 2)
 
 
 if __name__ == '__main__':

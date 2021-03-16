@@ -19,8 +19,8 @@ from __future__ import absolute_import
 
 import json
 import logging
-import sys
 import unittest
+from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
@@ -32,13 +32,6 @@ from apache_beam.runners.interactive import utils
 from apache_beam.testing.test_stream import WindowedValueHolder
 from apache_beam.utils.timestamp import Timestamp
 from apache_beam.utils.windowed_value import WindowedValue
-
-# TODO(BEAM-8288): clean up the work-around of nose tests using Python2 without
-# unittest.mock module.
-try:
-  from unittest.mock import patch
-except ImportError:
-  from mock import patch
 
 
 class ParseToDataframeTest(unittest.TestCase):
@@ -135,8 +128,6 @@ class ToElementListTest(unittest.TestCase):
 @unittest.skipIf(
     not ie.current_env().is_interactive_ready,
     '[interactive] dependency is not installed.')
-@unittest.skipIf(
-    sys.version_info < (3, 6), 'The tests require at least Python 3.6 to work.')
 class IPythonLogHandlerTest(unittest.TestCase):
   def setUp(self):
     utils.register_ipython_log_handler()
@@ -191,54 +182,46 @@ class IPythonLogHandlerTest(unittest.TestCase):
 @unittest.skipIf(
     not ie.current_env().is_interactive_ready,
     '[interactive] dependency is not installed.')
-@unittest.skipIf(
-    sys.version_info < (3, 6), 'The tests require at least Python 3.6 to work.')
 class ProgressIndicatorTest(unittest.TestCase):
   def setUp(self):
     ie.new_env()
 
-  @patch('IPython.core.display.display')
-  def test_progress_in_plain_text_when_not_in_notebook(self, mocked_display):
+  def test_progress_in_plain_text_when_not_in_notebook(self):
     ie.current_env()._is_in_notebook = False
-    mocked_display.assert_not_called()
 
-    @utils.progress_indicated
-    def progress_indicated_dummy():
-      mocked_display.assert_called_with('Processing...')
+    with patch('IPython.core.display.display') as mocked_display:
 
-    progress_indicated_dummy()
-    mocked_display.assert_called_with('Done.')
+      @utils.progress_indicated
+      def progress_indicated_dummy():
+        mocked_display.assert_called_with('Processing...')
 
-  @patch('IPython.core.display.HTML')
-  @patch('IPython.core.display.Javascript')
-  @patch('IPython.core.display.display')
-  @patch('IPython.core.display.display_javascript')
-  def test_progress_in_HTML_JS_when_in_notebook(
-      self,
-      mocked_display_javascript,
-      mocked_display,
-      mocked_javascript,
-      mocked_html):
+      progress_indicated_dummy()
+      mocked_display.assert_called_with('Done.')
 
+  def test_progress_in_HTML_JS_when_in_notebook(self):
     ie.current_env()._is_in_notebook = True
-    mocked_display.assert_not_called()
-    mocked_display_javascript.assert_not_called()
 
-    @utils.progress_indicated
-    def progress_indicated_dummy():
-      mocked_display.assert_called_once()
-      mocked_html.assert_called_once()
+    pi_path = 'apache_beam.runners.interactive.utils.ProgressIndicator'
+    with patch('IPython.core.display.HTML') as mocked_html, \
+      patch('IPython.core.display.Javascript') as mocked_javascript, \
+      patch(pi_path + '.spinner_template') as enter_template, \
+      patch(pi_path + '.spinner_removal_template') as exit_template:
 
-    progress_indicated_dummy()
-    mocked_display_javascript.assert_called_once()
-    mocked_javascript.assert_called_once()
+      enter_template.format.return_value = 'enter'
+      exit_template.format.return_value = 'exit'
+
+      @utils.progress_indicated
+      def progress_indicated_dummy():
+        mocked_html.assert_called_with('enter')
+
+      progress_indicated_dummy()
+      mocked_javascript.assert_called_with(
+          ie._JQUERY_WITH_DATATABLE_TEMPLATE.format(customized_script='exit'))
 
 
 @unittest.skipIf(
     not ie.current_env().is_interactive_ready,
     '[interactive] dependency is not installed.')
-@unittest.skipIf(
-    sys.version_info < (3, 6), 'The tests require at least Python 3.6 to work.')
 class MessagingUtilTest(unittest.TestCase):
   SAMPLE_DATA = {'a': [1, 2, 3], 'b': 4, 'c': '5', 'd': {'e': 'f'}}
 

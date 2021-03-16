@@ -36,6 +36,7 @@ from typing import Iterator
 from typing import List
 from typing import Mapping
 from typing import Optional
+from typing import Set
 from typing import Tuple
 from typing import Type
 from typing import TypeVar
@@ -66,7 +67,7 @@ __all__ = [
     'EmbeddedPythonEnvironment',
     'EmbeddedPythonGrpcEnvironment',
     'SubprocessSDKEnvironment',
-    'RunnerAPIEnvironmentHolder'
+    'PyPIArtifactRegistry'
 ]
 
 T = TypeVar('T')
@@ -83,6 +84,14 @@ ConstructorFn = Callable[[
 def looks_like_json(s):
   import re
   return re.match(r'\s*\{.*\}\s*$', s)
+
+
+APACHE_BEAM_DOCKER_IMAGE_PREFIX = 'apache/beam'
+
+
+def is_apache_beam_container(container_image):
+  return container_image and container_image.startswith(
+      APACHE_BEAM_DOCKER_IMAGE_PREFIX)
 
 
 class Environment(object):
@@ -312,7 +321,8 @@ class DockerEnvironment(Environment):
         (sys.version_info[0], sys.version_info[1]))
 
     image = (
-        'apache/beam_python{version_suffix}_sdk:{tag}'.format(
+        APACHE_BEAM_DOCKER_IMAGE_PREFIX +
+        '_python{version_suffix}_sdk:{tag}'.format(
             version_suffix=version_suffix, tag=sdk_version))
     logging.info('Default Python SDK image for environment is %s' % (image))
     return image
@@ -680,29 +690,17 @@ class SubprocessSDKEnvironment(Environment):
         artifacts=python_sdk_dependencies(options))
 
 
-class RunnerAPIEnvironmentHolder(Environment):
-  def __init__(self, proto):
-    # type: (beam_runner_api_pb2.Environment) -> None
-    self.proto = proto
+class PyPIArtifactRegistry(object):
+  _registered_artifacts = set()  # type: Set[Tuple[str, str]]
 
-  def to_runner_api(self, context):
-    # type: (PipelineContext) -> beam_runner_api_pb2.Environment
-    return self.proto
+  @classmethod
+  def register_artifact(cls, name, version):
+    cls._registered_artifacts.add((name, version))
 
-  def capabilities(self):
-    # type: () -> Iterable[str]
-    return self.proto.capabilities
-
-  def __eq__(self, other):
-    return self.__class__ == other.__class__ and self.proto == other.proto
-
-  def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
-
-  def __hash__(self):
-    # type: () -> int
-    return hash((self.__class__, self.proto))
+  @classmethod
+  def get_artifacts(cls):
+    for artifact in cls._registered_artifacts:
+      yield artifact
 
 
 def python_sdk_capabilities():
@@ -721,6 +719,7 @@ def _python_sdk_capabilities_iter():
   yield python_urns.PACKED_COMBINE_FN
   yield 'beam:version:sdk_base:' + DockerEnvironment.default_docker_image()
   yield common_urns.sdf_components.TRUNCATE_SIZED_RESTRICTION.urn
+  yield common_urns.primitives.TO_STRING.urn
 
 
 def python_sdk_dependencies(options, tmp_dir=None):
@@ -728,15 +727,11 @@ def python_sdk_dependencies(options, tmp_dir=None):
     tmp_dir = tempfile.mkdtemp()
   skip_prestaged_dependencies = options.view_as(
       SetupOptions).prebuild_sdk_container_engine is not None
-  return tuple(
-      beam_runner_api_pb2.ArtifactInformation(
-          type_urn=common_urns.artifact_types.FILE.urn,
-          type_payload=beam_runner_api_pb2.ArtifactFilePayload(
-              path=local_path).SerializeToString(),
-          role_urn=common_urns.artifact_roles.STAGING_TO.urn,
-          role_payload=beam_runner_api_pb2.ArtifactStagingToRolePayload(
-              staged_name=staged_name).SerializeToString()) for local_path,
-      staged_name in stager.Stager.create_job_resources(
-          options,
-          tmp_dir,
-          skip_prestaged_dependencies=skip_prestaged_dependencies))
+  return stager.Stager.create_job_resources(
+      options,
+      tmp_dir,
+      pypi_requirements=[
+          artifact[0] + artifact[1]
+          for artifact in PyPIArtifactRegistry.get_artifacts()
+      ],
+      skip_prestaged_dependencies=skip_prestaged_dependencies)

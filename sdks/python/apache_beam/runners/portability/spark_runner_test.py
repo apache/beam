@@ -87,7 +87,7 @@ class SparkRunnerTest(portable_runner_test.PortableRunnerTest):
     self.set_spark_job_server_jar(
         known_args.spark_job_server_jar or
         job_server.JavaJarJobServer.path_to_beam_jar(
-            ':runners:spark:job-server:shadowJar'))
+            ':runners:spark:2:job-server:shadowJar'))
     self.environment_type = known_args.environment_type
     self.environment_options = known_args.environment_options
 
@@ -180,6 +180,9 @@ class SparkRunnerTest(portable_runner_test.PortableRunnerTest):
     # https://jira.apache.org/jira/browse/BEAM-7236
     super(SparkRunnerTest,
           self).test_flattened_side_input(with_transcoding=False)
+
+  def test_custom_merging_window(self):
+    raise unittest.SkipTest("BEAM-11004")
 
   # Inherits all other tests from PortableRunnerTest.
 

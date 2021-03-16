@@ -28,9 +28,6 @@ import org.junit.Before;
 import org.junit.Ignore;
 
 /** UnitTest for Explain Plan. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class BeamSqlExplainTest {
   private InMemoryMetaStore metaStore;
   private BeamSqlCli cli;

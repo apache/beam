@@ -42,7 +42,7 @@ class GrpcVendoring_1_26_0 {
   static def alpn_api_version = "1.1.2.v20150522"
   static def npn_api_version = "1.1.1.v20141010"
   static def jboss_marshalling_version = "1.4.11.Final"
-  static def jboss_modules_version = "1.1.0.Beta1"
+  static def jboss_modules_version = "1.11.0.Final"
 
   /** Returns the list of compile time dependencies. */
   static List<String> dependencies() {
@@ -60,6 +60,7 @@ class GrpcVendoring_1_26_0 {
       "io.netty:netty-transport-native-epoll:$netty_version",
       // tcnative version from https://github.com/grpc/grpc-java/blob/master/SECURITY.md#netty
       "io.netty:netty-tcnative-boringssl-static:2.0.33.Final",
+      "io.grpc:grpc-api:$grpc_version",
       "com.google.auth:google-auth-library-credentials:$google_auth_version",
       "io.grpc:grpc-testing:$grpc_version",
       "com.google.api.grpc:proto-google-common-protos:$proto_google_common_protos_version",

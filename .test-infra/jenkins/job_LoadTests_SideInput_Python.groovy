@@ -39,7 +39,8 @@ def fromTemplate = { mode, name, id, datasetName, testSpecificOptions ->
       influx_measurement   : "python_${mode}_sideinput_${id}",
       num_workers          : 10,
       autoscaling_algorithm: 'NONE',
-      experiments          : 'use_runner_v2',
+      // TODO(BEAM-11779) remove shuffle_mode=appliance with runner v2 once issue is resolved.
+      experiments          : 'use_runner_v2, shuffle_mode=appliance',
     ] << testSpecificOptions
   ]
 }

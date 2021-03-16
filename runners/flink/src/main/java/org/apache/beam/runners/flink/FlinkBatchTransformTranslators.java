@@ -264,7 +264,7 @@ class FlinkBatchTransformTranslators {
         FlinkBatchTranslationContext context) {
       final WindowingStrategy<?, ?> windowingStrategy =
           context.getInput(transform).getWindowingStrategy();
-      return windowingStrategy.getWindowFn().isNonMerging()
+      return !windowingStrategy.needsMerge()
           && windowingStrategy.getTimestampCombiner() == TimestampCombiner.END_OF_WINDOW
           && windowingStrategy.getWindowFn().windowCoder().consistentWithEquals();
     }
@@ -538,7 +538,7 @@ class FlinkBatchTransformTranslators {
         sideInputStrategies.put(sideInput, sideInput.getWindowingStrategyInternal());
       }
 
-      if (windowingStrategy.getWindowFn().isNonMerging()) {
+      if (!windowingStrategy.needsMerge()) {
         final FlinkPartialReduceFunction<K, InputT, AccumT, ?> partialReduceFunction =
             new FlinkPartialReduceFunction<>(
                 combineFn,

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="154" height="154" fill="none" viewBox="0 0 154 154">
+    <path fill="#FFE5D9" d="M77.492 153.223c42.25 0 76.5-34.251 76.5-76.5 0-42.25-34.25-76.5-76.5-76.5s-76.5 34.25-76.5 76.5c0 42.249 34.25 76.5 76.5 76.5z"/>
+    <rect width="43.969" height="20.815" x="64.629" y="55.203" fill="#FF570B" rx="2"/>
+    <path fill="#FBC23E" d="M57.945 55.203c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3z"/>
+    <rect width="52.395" height="40.83" x="48.016" y="61.41" fill="#fff" rx="2"/>
+    <rect width="34.617" height="5.543" x="53.5" y="65.023" fill="#FBC23E" rx="2.771"/>
+    <rect width="17.942" height="13.66" x="93.027" y="79.625" fill="#FBC23E" rx="2"/>
+    <path stroke="#333" stroke-linecap="round" stroke-width="3" d="M74.215 90.34h12.399M55.402 90.34h12.4M74.215 95.674h12.399M55.402 95.674h12.4"/>
+    <path fill="#FF570B" d="M60.945 85.168c3.061 0 5.543-2.482 5.543-5.543s-2.482-5.543-5.543-5.543-5.543 2.482-5.543 5.543 2.482 5.543 5.543 5.543zM79.758 85.168c3.06 0 5.543-2.482 5.543-5.543s-2.482-5.543-5.543-5.543-5.543 2.482-5.543 5.543 2.481 5.543 5.543 5.543zM93.865 70.566c1.53 0 2.772-1.24 2.772-2.771 0-1.53-1.241-2.772-2.772-2.772-1.53 0-2.771 1.241-2.771 2.772 0 1.53 1.24 2.771 2.771 2.771z"/>
+</svg>

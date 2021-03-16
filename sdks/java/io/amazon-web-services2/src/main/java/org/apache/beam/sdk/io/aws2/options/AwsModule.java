@@ -20,9 +20,7 @@ package org.apache.beam.sdk.io.aws2.options;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.core.type.WritableTypeId;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonSerializer;
@@ -40,6 +38,7 @@ import java.time.Duration;
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.io.aws2.s3.SSECustomerKey;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
@@ -77,6 +76,7 @@ public class AwsModule extends SimpleModule {
     setMixInAnnotation(AwsCredentialsProvider.class, AwsCredentialsProviderMixin.class);
     setMixInAnnotation(ProxyConfiguration.class, ProxyConfigurationMixin.class);
     setMixInAnnotation(AttributeMap.class, AttributeMapMixin.class);
+    setMixInAnnotation(SSECustomerKey.class, SSECustomerKeyMixin.class);
   }
 
   /** A mixin to add Jackson annotations to {@link AwsCredentialsProvider}. */
@@ -155,9 +155,8 @@ public class AwsModule extends SimpleModule {
         SerializerProvider serializer,
         TypeSerializer typeSerializer)
         throws IOException {
-      WritableTypeId typeId =
-          typeSerializer.writeTypePrefix(
-              jsonGenerator, typeSerializer.typeId(credentialsProvider, JsonToken.START_OBJECT));
+      // BEAM-11958 Use deprecated Jackson APIs to be compatible with older versions of jackson
+      typeSerializer.writeTypePrefixForObject(credentialsProvider, jsonGenerator);
       if (credentialsProvider.getClass().equals(StaticCredentialsProvider.class)) {
         jsonGenerator.writeStringField(
             ACCESS_KEY_ID, credentialsProvider.resolveCredentials().accessKeyId());
@@ -167,7 +166,8 @@ public class AwsModule extends SimpleModule {
         throw new IllegalArgumentException(
             "Unsupported AWS credentials provider type " + credentialsProvider.getClass());
       }
-      typeSerializer.writeTypeSuffix(jsonGenerator, typeId);
+      // BEAM-11958 Use deprecated Jackson APIs to be compatible with older versions of jackson
+      typeSerializer.writeTypeSuffixForObject(credentialsProvider, jsonGenerator);
     }
   }
 
@@ -299,6 +299,23 @@ public class AwsModule extends SimpleModule {
             String.valueOf(attributeMap.get(SdkHttpConfigurationOption.READ_TIMEOUT)));
       }
       jsonGenerator.writeEndObject();
+    }
+  }
+
+  @JsonDeserialize(using = SSECustomerKeyDeserializer.class)
+  private static class SSECustomerKeyMixin {}
+
+  private static class SSECustomerKeyDeserializer extends JsonDeserializer<SSECustomerKey> {
+
+    @Override
+    public SSECustomerKey deserialize(JsonParser parser, DeserializationContext context)
+        throws IOException {
+      Map<String, String> asMap = parser.readValueAs(new TypeReference<Map<String, String>>() {});
+
+      final String key = asMap.getOrDefault("key", null);
+      final String algorithm = asMap.getOrDefault("algorithm", null);
+      final String md5 = asMap.getOrDefault("md5", null);
+      return SSECustomerKey.builder().key(key).algorithm(algorithm).md5(md5).build();
     }
   }
 }

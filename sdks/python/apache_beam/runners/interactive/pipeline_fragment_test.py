@@ -19,6 +19,7 @@
 from __future__ import absolute_import
 
 import unittest
+from unittest.mock import patch
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import StandardOptions
@@ -30,13 +31,6 @@ from apache_beam.runners.interactive.testing.mock_ipython import mock_get_ipytho
 from apache_beam.runners.interactive.testing.pipeline_assertion import assert_pipeline_equal
 from apache_beam.runners.interactive.testing.pipeline_assertion import assert_pipeline_proto_equal
 from apache_beam.testing.test_stream import TestStream
-
-# TODO(BEAM-8288): clean up the work-around of nose tests using Python2 without
-# unittest.mock module.
-try:
-  from unittest.mock import patch
-except ImportError:
-  from mock import patch  # type: ignore[misc]
 
 
 @unittest.skipIf(

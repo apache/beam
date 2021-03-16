@@ -71,6 +71,7 @@ from apache_beam.runners.worker.sdk_worker import _Future
 from apache_beam.runners.worker.statecache import StateCache
 from apache_beam.utils import proto_utils
 from apache_beam.utils import thread_pool_executor
+from apache_beam.utils.interactive_utils import is_in_notebook
 from apache_beam.utils.sentinel import Sentinel
 
 if TYPE_CHECKING:
@@ -707,7 +708,10 @@ class SubprocessSdkWorkerHandler(GrpcWorkerHandler):
     # type: () -> None
     from apache_beam.runners.portability import local_job_service
     self.worker = local_job_service.SubprocessSdkWorker(
-        self._worker_command_line, self.control_address, self.worker_id)
+        self._worker_command_line,
+        self.control_address,
+        self.provision_info,
+        self.worker_id)
     self.worker_thread = threading.Thread(
         name='run_worker', target=self.worker.run)
     self.worker_thread.start()
@@ -734,11 +738,15 @@ class DockerSdkWorkerHandler(GrpcWorkerHandler):
 
   def host_from_worker(self):
     # type: () -> str
-    if sys.platform == "darwin":
+    if sys.platform == 'darwin':
       # See https://docs.docker.com/docker-for-mac/networking/
       return 'host.docker.internal'
-    else:
-      return super(DockerSdkWorkerHandler, self).host_from_worker()
+    if sys.platform == 'linux' and is_in_notebook():
+      import socket
+      # Gets ipv4 address of current host. Note the host is not guaranteed to
+      # be localhost because the python SDK could be running within a container.
+      return socket.gethostbyname(socket.getfqdn())
+    return super(DockerSdkWorkerHandler, self).host_from_worker()
 
   def start_worker(self):
     # type: () -> None

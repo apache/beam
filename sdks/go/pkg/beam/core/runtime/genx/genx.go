@@ -28,7 +28,6 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/schema"
 )
 
 // RegisterDoFn is a convenience function for registering DoFns.
@@ -47,7 +46,6 @@ func RegisterDoFn(dofn interface{}) {
 	}
 	for _, t := range ts {
 		runtime.RegisterType(t)
-		schema.RegisterType(t)
 	}
 }
 

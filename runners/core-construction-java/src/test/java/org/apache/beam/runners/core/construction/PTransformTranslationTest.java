@@ -62,9 +62,6 @@ import org.junit.runners.Parameterized.Parameters;
 
 /** Tests for {@link PTransformTranslation}. */
 @RunWith(Parameterized.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class PTransformTranslationTest {
 
   @Parameters(name = "{index}: {0}")

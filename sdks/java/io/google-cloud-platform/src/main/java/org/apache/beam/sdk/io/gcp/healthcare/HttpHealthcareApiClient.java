@@ -35,8 +35,8 @@ import com.google.api.services.healthcare.v1beta1.model.DicomStore;
 import com.google.api.services.healthcare.v1beta1.model.Empty;
 import com.google.api.services.healthcare.v1beta1.model.ExportResourcesRequest;
 import com.google.api.services.healthcare.v1beta1.model.FhirStore;
-import com.google.api.services.healthcare.v1beta1.model.GoogleCloudHealthcareV1beta1FhirRestGcsDestination;
-import com.google.api.services.healthcare.v1beta1.model.GoogleCloudHealthcareV1beta1FhirRestGcsSource;
+import com.google.api.services.healthcare.v1beta1.model.GoogleCloudHealthcareV1beta1FhirGcsDestination;
+import com.google.api.services.healthcare.v1beta1.model.GoogleCloudHealthcareV1beta1FhirGcsSource;
 import com.google.api.services.healthcare.v1beta1.model.Hl7V2Store;
 import com.google.api.services.healthcare.v1beta1.model.HttpBody;
 import com.google.api.services.healthcare.v1beta1.model.ImportResourcesRequest;
@@ -491,8 +491,8 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
   public Operation importFhirResource(
       String fhirStore, String gcsSourcePath, @Nullable String contentStructure)
       throws IOException {
-    GoogleCloudHealthcareV1beta1FhirRestGcsSource gcsSrc =
-        new GoogleCloudHealthcareV1beta1FhirRestGcsSource();
+    GoogleCloudHealthcareV1beta1FhirGcsSource gcsSrc =
+        new GoogleCloudHealthcareV1beta1FhirGcsSource();
 
     gcsSrc.setUri(gcsSourcePath);
     ImportResourcesRequest importRequest = new ImportResourcesRequest();
@@ -509,9 +509,8 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
   @Override
   public Operation exportFhirResourceToGcs(String fhirStore, String gcsDestinationPrefix)
       throws IOException {
-    GoogleCloudHealthcareV1beta1FhirRestGcsDestination gcsDst =
-        new GoogleCloudHealthcareV1beta1FhirRestGcsDestination();
-
+    GoogleCloudHealthcareV1beta1FhirGcsDestination gcsDst =
+        new GoogleCloudHealthcareV1beta1FhirGcsDestination();
     gcsDst.setUriPrefix(gcsDestinationPrefix);
     ExportResourcesRequest exportRequest = new ExportResourcesRequest();
     exportRequest.setGcsDestination(gcsDst);
@@ -961,7 +960,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
           JsonObject jsonResponse =
               JsonParser.parseString(mapper.writeValueAsString(response)).getAsJsonObject();
           JsonArray resources = jsonResponse.getAsJsonArray("entry");
-          return resources.size() != 0;
+          return resources != null && resources.size() != 0;
         } catch (IOException e) {
           throw new NoSuchElementException(
               String.format(

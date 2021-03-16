@@ -62,9 +62,6 @@ import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 class V1TestUtil {
   private static final Logger LOG = LoggerFactory.getLogger(V1TestUtil.class);
 

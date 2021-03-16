@@ -79,7 +79,6 @@ import org.junit.Test;
 /** Tests for SamzaStoreStateInternals. */
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class SamzaStoreStateInternalsTest implements Serializable {
   @Rule

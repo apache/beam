@@ -14,16 +14,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import absolute_import
-from __future__ import print_function
-
 import glob
 import importlib
 import math
 import os
 import platform
 import shutil
-import sys
 import tempfile
 import unittest
 from io import BytesIO
@@ -31,6 +27,7 @@ from io import StringIO
 
 import pandas as pd
 import pandas.testing
+import pytest
 from pandas.testing import assert_frame_equal
 from parameterized import parameterized
 
@@ -66,7 +63,6 @@ class IOTest(unittest.TestCase):
         for line in fin:
           yield line.rstrip('\n')
 
-  @unittest.skipIf(sys.version_info[0] < 3, 'unicode issues')
   def test_read_write_csv(self):
     input = self.temp_dir({'1.csv': 'a,b\n1,2\n', '2.csv': 'a,b\n3,4\n'})
     output = self.temp_dir()
@@ -76,6 +72,11 @@ class IOTest(unittest.TestCase):
       df.to_csv(output + 'out.csv', index=False)
     self.assertCountEqual(['a,b,c', '1,2,3', '3,4,7'],
                           set(self.read_all_lines(output + 'out.csv*')))
+
+  @pytest.mark.uses_pyarrow
+  def test_read_write_parquet(self):
+    self._run_read_write_test(
+        'parquet', {}, {}, dict(check_index=False), ['pyarrow'])
 
   @parameterized.expand([
       ('csv', dict(index_col=0)),
@@ -100,7 +101,6 @@ class IOTest(unittest.TestCase):
           dict(check_index=False)),
       ('html', dict(index_col=0), {}, {}, ['lxml']),
       ('excel', dict(index_col=0), {}, {}, ['openpyxl', 'xlrd']),
-      ('parquet', {}, {}, dict(check_index=False), ['pyarrow']),
   ])
   # pylint: disable=dangerous-default-value
   def test_read_write(
@@ -110,6 +110,18 @@ class IOTest(unittest.TestCase):
       write_kwargs={},
       check_options={},
       requires=()):
+    self._run_read_write_test(
+        format, read_kwargs, write_kwargs, check_options, requires)
+
+  # pylint: disable=dangerous-default-value
+  def _run_read_write_test(
+      self,
+      format,
+      read_kwargs={},
+      write_kwargs={},
+      check_options={},
+      requires=()):
+
     for module in requires:
       try:
         importlib.import_module(module)

@@ -42,9 +42,6 @@ import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
 /** Tests for {@link PipelineOptionsTranslation}. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class PipelineOptionsTranslationTest {
   /** Tests that translations can round-trip through the proto format. */
   @RunWith(Parameterized.class)

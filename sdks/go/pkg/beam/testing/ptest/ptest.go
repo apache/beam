@@ -25,10 +25,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam"
 
 	// ptest uses the direct runner to execute pipelines by default.
-	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/dataflow"
 	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/direct"
-	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/flink"
-	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/spark"
 )
 
 var (
@@ -101,7 +98,10 @@ func RunAndValidate(t *testing.T, p *beam.Pipeline) {
 // Main is an implementation of testing's TestMain to permit testing
 // pipelines on runners other than the direct runner.
 //
-// To enable this behavior, _ import the desired runner, and set the flag accordingly.
+// To enable this behavior, _ import the desired runner, and set the flag
+// accordingly. For example:
+//
+//	import _ "github.com/apache/beam/sdks/go/pkg/runners/flink"
 //
 //	func TestMain(m *testing.M) {
 //		ptest.Main(m)

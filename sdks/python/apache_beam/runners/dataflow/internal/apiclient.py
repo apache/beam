@@ -63,6 +63,7 @@ from apache_beam.runners.portability.stager import Stager
 from apache_beam.transforms import DataflowDistributionCounter
 from apache_beam.transforms import cy_combiners
 from apache_beam.transforms.display import DisplayData
+from apache_beam.transforms.environments import is_apache_beam_container
 from apache_beam.utils import retry
 from apache_beam.utils import proto_utils
 
@@ -364,6 +365,10 @@ class Environment(object):
           dataflow.Environment.SdkPipelineOptionsValue.AdditionalProperty(
               key='display_data', value=to_json_value(items)))
 
+    if self.google_cloud_options.service_options:
+      for option in self.google_cloud_options.service_options:
+        self.proto.serviceOptions.append(option)
+
   def _get_environments_from_tranforms(self):
     if not self._proto_pipeline:
       return []
@@ -560,8 +565,9 @@ class DataflowApplicationClient(object):
   def _get_sdk_image_overrides(self, pipeline_options):
     worker_options = pipeline_options.view_as(WorkerOptions)
     sdk_overrides = worker_options.sdk_harness_container_image_overrides
-    if sdk_overrides:
-      return dict(override_str.split(',', 1) for override_str in sdk_overrides)
+    return (
+        dict(s.split(',', 1)
+             for s in sdk_overrides) if sdk_overrides else dict())
 
   # TODO(silviuc): Refactor so that retry logic can be applied.
   @retry.no_retries  # Using no_retries marks this as an integration point.
@@ -684,22 +690,57 @@ class DataflowApplicationClient(object):
     return None
 
   @staticmethod
-  def _apply_sdk_environment_overrides(proto_pipeline, sdk_overrides):
-    # Update environments based on user provided overrides
-    if sdk_overrides:
-      for environment in proto_pipeline.components.environments.values():
-        docker_payload = proto_utils.parse_Bytes(
-            environment.payload, beam_runner_api_pb2.DockerPayload)
-        for pattern, override in sdk_overrides.items():
-          new_payload = copy(docker_payload)
-          new_payload.container_image = re.sub(
-              pattern, override, docker_payload.container_image)
-          environment.payload = new_payload.SerializeToString()
+  def _update_container_image_for_dataflow(beam_container_image_url):
+    # By default Dataflow pipelines use containers hosted in Dataflow GCR
+    # instead of Docker Hub.
+    image_suffix = beam_container_image_url.rsplit('/', 1)[1]
+    return names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/' + image_suffix
+
+  @staticmethod
+  def _apply_sdk_environment_overrides(
+      proto_pipeline, sdk_overrides, pipeline_options):
+    # Updates container image URLs for Dataflow.
+    # For a given container image URL
+    # * If a matching override has been provided that will be used.
+    # * For improved performance, External Apache Beam container images that are
+    #   not explicitly overridden will be
+    #   updated to use GCR copies instead of directly downloading from the
+    #   Docker Hub.
+
+    current_sdk_container_image = get_container_image_from_options(
+        pipeline_options)
+
+    for environment in proto_pipeline.components.environments.values():
+      docker_payload = proto_utils.parse_Bytes(
+          environment.payload, beam_runner_api_pb2.DockerPayload)
+      overridden = False
+      new_container_image = docker_payload.container_image
+      for pattern, override in sdk_overrides.items():
+        new_container_image = re.sub(
+            pattern, override, docker_payload.container_image)
+        if new_container_image != docker_payload.container_image:
+          overridden = True
+
+      # Container of the current (Python) SDK is overridden separately, hence
+      # not updated here.
+      if (is_apache_beam_container(new_container_image) and not overridden and
+          new_container_image != current_sdk_container_image):
+        new_container_image = (
+            DataflowApplicationClient._update_container_image_for_dataflow(
+                docker_payload.container_image))
+
+      if not new_container_image:
+        raise ValueError(
+            'SDK Docker container image has to be a non-empty string')
+
+      new_payload = copy(docker_payload)
+      new_payload.container_image = new_container_image
+      environment.payload = new_payload.SerializeToString()
 
   def create_job_description(self, job):
     """Creates a job described by the workflow proto."""
     DataflowApplicationClient._apply_sdk_environment_overrides(
-        job.proto_pipeline, self._sdk_image_overrides)
+        job.proto_pipeline, self._sdk_image_overrides, job.options)
 
     # Stage proto pipeline.
     self.stage_file(
@@ -1129,7 +1170,7 @@ def get_runner_harness_container_image():
 
 def get_response_encoding():
   """Encoding to use to decode HTTP response from Google APIs."""
-  return None if sys.version_info[0] < 3 else 'utf8'
+  return 'utf8'
 
 
 def _verify_interpreter_version_is_supported(pipeline_options):

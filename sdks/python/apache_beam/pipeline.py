@@ -59,6 +59,7 @@ from builtins import object
 from builtins import zip
 from collections import defaultdict
 from typing import TYPE_CHECKING
+from typing import Any
 from typing import Dict
 from typing import FrozenSet
 from typing import Iterable
@@ -71,6 +72,7 @@ from typing import Type
 from typing import Union
 
 from future.utils import with_metaclass
+from google.protobuf import message
 
 from apache_beam import pvalue
 from apache_beam.internal import pickler
@@ -747,9 +749,11 @@ class Pipeline(object):
         (not result_pcollection.element_type
          # TODO(robertwb): Ideally we'd do intersection here.
          or result_pcollection.element_type == typehints.Any)):
-      # Single-input, single-output inference.
+      # {Single, multi}-input, single-output inference.
+      input_element_types_tuple = tuple(i.element_type for i in inputs)
       input_element_type = (
-          inputs[0].element_type if len(inputs) == 1 else typehints.Any)
+          input_element_types_tuple[0] if len(input_element_types_tuple) == 1
+          else typehints.Union[input_element_types_tuple])
       type_hints = transform.get_type_hints()
       declared_output_type = type_hints.simple_output_type(transform.label)
       if declared_output_type:
@@ -766,7 +770,7 @@ class Pipeline(object):
         result_pcollection.element_type = transform.infer_output_type(
             input_element_type)
     elif isinstance(result_pcollection, pvalue.DoOutputsTuple):
-      # Single-input, multi-output inference.
+      # {Single, multi}-input, multi-output inference.
       # TODO(BEAM-4132): Add support for tagged type hints.
       #   https://github.com/apache/beam/pull/9810#discussion_r338765251
       for pcoll in result_pcollection:
@@ -841,6 +845,10 @@ class Pipeline(object):
     # general shapes, potential conflicts will have to be resolved.
     # We also only handle single-input, and (for fixing the output) single
     # output, which is sufficient.
+    # Also marks such values as requiring deterministic key coders.
+    deterministic_key_coders = not self._options.view_as(
+        TypeOptions).allow_non_deterministic_key_coders
+
     class ForceKvInputTypes(PipelineVisitor):
       def enter_composite_transform(self, transform_node):
         # type: (AppliedPTransform) -> None
@@ -854,18 +862,27 @@ class Pipeline(object):
           pcoll = transform_node.inputs[0]
           pcoll.element_type = typehints.coerce_to_kv_type(
               pcoll.element_type, transform_node.full_label)
+          pcoll.requires_deterministic_key_coder = (
+              deterministic_key_coders and transform_node.full_label)
           if len(transform_node.outputs) == 1:
             # The runner often has expectations about the output types as well.
             output, = transform_node.outputs.values()
             if not output.element_type:
               output.element_type = transform_node.transform.infer_output_type(
                   pcoll.element_type)
+            if (isinstance(output.element_type,
+                           typehints.TupleHint.TupleConstraint) and
+                len(output.element_type.tuple_types) == 2):
+              output.requires_deterministic_key_coder = (
+                  deterministic_key_coders and transform_node.full_label)
         for side_input in transform_node.transform.side_inputs:
           if side_input.requires_keyed_input():
             side_input.pvalue.element_type = typehints.coerce_to_kv_type(
                 side_input.pvalue.element_type,
                 transform_node.full_label,
                 side_input_producer=side_input.pvalue.producer.full_label)
+            side_input.pvalue.requires_deterministic_key_coder = (
+                deterministic_key_coders and transform_node.full_label)
 
     self.visit(ForceKvInputTypes())
 
@@ -998,6 +1015,7 @@ class AppliedPTransform(object):
       full_label,  # type: str
       inputs,  # type: Optional[Sequence[Union[pvalue.PBegin, pvalue.PCollection]]]
       environment_id=None,  # type: Optional[str]
+      annotations=None, # type: Optional[Dict[str, bytes]]
   ):
     # type: (...) -> None
     self.parent = parent
@@ -1014,6 +1032,26 @@ class AppliedPTransform(object):
     self.outputs = {}  # type: Dict[Union[str, int, None], pvalue.PValue]
     self.parts = []  # type: List[AppliedPTransform]
     self.environment_id = environment_id if environment_id else None  # type: Optional[str]
+
+    if annotations is None and transform:
+
+      def annotation_to_bytes(key, a: Any) -> bytes:
+        if isinstance(a, bytes):
+          return a
+        elif isinstance(a, str):
+          return a.encode('ascii')
+        elif isinstance(a, message.Message):
+          return a.SerializeToString()
+        else:
+          raise TypeError(
+              'Unknown annotation type %r (type %s) for %s' % (a, type(a), key))
+
+      annotations = {
+          key: annotation_to_bytes(key, a)
+          for key,
+          a in transform.annotations().items()
+      }
+    self.annotations = annotations
 
   def __repr__(self):
     # type: () -> str
@@ -1200,6 +1238,7 @@ class AppliedPTransform(object):
             out in sorted(self.named_outputs().items())
         },
         environment_id=environment_id,
+        annotations=self.annotations,
         # TODO(BEAM-366): Add display_data.
         display_data=None)
 
@@ -1241,7 +1280,8 @@ class AppliedPTransform(object):
         transform=transform,
         full_label=proto.unique_name,
         inputs=main_inputs,
-        environment_id=proto.environment_id)
+        environment_id=proto.environment_id,
+        annotations=proto.annotations)
 
     if result.transform and result.transform.side_inputs:
       for si, pcoll in zip(result.transform.side_inputs, side_inputs):

@@ -21,7 +21,6 @@ import java.util.stream.Collectors
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-  enableStrictDependencies:true,
   automaticModuleName: 'org.apache.beam.sdk.io.hadoop.format',
 )
 provideIntegrationTestingDependencies()
@@ -104,7 +103,7 @@ dependencies {
   delegate.add("sparkRunner", project(path: ":sdks:java:io:hadoop-format", configuration: "testRuntime"))
 
   sparkRunner project(path: ":examples:java", configuration: "testRuntime")
-  sparkRunner project(":runners:spark")
+  sparkRunner project(":runners:spark:2")
   sparkRunner project(":sdks:java:io:hadoop-file-system")
   sparkRunner library.java.spark_streaming
   sparkRunner library.java.spark_core
@@ -126,6 +125,13 @@ hadoopVersions.each {kv ->
       // without forcing httpclient httpcore gets below 4.4.9 which has incompatible API
       force "org.apache.httpcomponents:httpclient:4.5.13"
     }
+  }
+}
+
+// Hadoop dependencies require old version of Guava (BEAM-11626)
+configurations.all {
+  resolutionStrategy {
+    force 'com.google.guava:guava:25.1-jre'
   }
 }
 

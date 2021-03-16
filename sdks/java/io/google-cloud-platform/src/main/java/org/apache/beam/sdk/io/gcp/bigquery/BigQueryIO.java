@@ -505,6 +505,16 @@ public class BigQueryIO {
   static final Pattern TABLE_SPEC = Pattern.compile(DATASET_TABLE_REGEXP);
 
   /**
+   * Matches table specifications in the form {@code "projects/[project_id]/datasets/[dataset_id]/tables[table_id]".
+   */
+  private static final String TABLE_URN_REGEXP =
+      String.format(
+          "projects/(?<PROJECT>%s)/datasets/(?<DATASET>%s)/tables/(?<TABLE>%s)",
+          PROJECT_ID_REGEXP, DATASET_REGEXP, TABLE_REGEXP);
+
+  static final Pattern TABLE_URN_SPEC = Pattern.compile(TABLE_URN_REGEXP);
+
+  /**
    * A formatting function that maps a TableRow to itself. This allows sending a {@code
    * PCollection<TableRow>} directly to BigQueryIO.Write.
    */
@@ -2267,7 +2277,8 @@ public class BigQueryIO {
 
     /**
      * Control how many file shards are written when using BigQuery load jobs. Applicable only when
-     * also setting {@link #withTriggeringFrequency}.
+     * also setting {@link #withTriggeringFrequency}. To let runner determine the sharding at
+     * runtime, set {@link #withAutoSharding()} instead.
      */
     public Write<T> withNumFileShards(int numFileShards) {
       checkArgument(numFileShards > 0, "numFileShards must be > 0, but was: %s", numFileShards);
@@ -2350,10 +2361,10 @@ public class BigQueryIO {
     }
 
     /**
-     * If true, enables dynamically determined number of shards to write to BigQuery. Only
-     * applicable to unbounded data with STREAMING_INSERTS.
-     *
-     * <p>TODO(BEAM-11408): Also integrate this option to FILE_LOADS.
+     * If true, enables using a dynamically determined number of shards to write to BigQuery. This
+     * can be used for both {@link Method#FILE_LOADS} and {@link Method#STREAMING_INSERTS}. Only
+     * applicable to unbounded data. If using {@link Method#FILE_LOADS}, numFileShards set via
+     * {@link #withNumFileShards} will be ignored.
      */
     @Experimental
     public Write<T> withAutoSharding() {
@@ -2468,7 +2479,7 @@ public class BigQueryIO {
                   allToArgs.stream()
                       .filter(Predicates.notNull()::apply)
                       .collect(Collectors.toList())),
-          "Exactly one of jsonTableRef, tableFunction, or " + "dynamicDestinations must be set");
+          "Exactly one of jsonTableRef, tableFunction, or dynamicDestinations must be set");
 
       List<?> allSchemaArgs =
           Lists.newArrayList(getJsonSchema(), getSchemaFromView(), getDynamicDestinations());
@@ -2478,7 +2489,7 @@ public class BigQueryIO {
                   allSchemaArgs.stream()
                       .filter(Predicates.notNull()::apply)
                       .collect(Collectors.toList())),
-          "No more than one of jsonSchema, schemaFromView, or dynamicDestinations may " + "be set");
+          "No more than one of jsonSchema, schemaFromView, or dynamicDestinations may be set");
 
       Method method = resolveMethod(input);
       if (input.isBounded() == IsBounded.UNBOUNDED && method == Method.FILE_LOADS) {
@@ -2576,7 +2587,7 @@ public class BigQueryIO {
               || getSchemaFromView() != null;
 
       if (getUseBeamSchema()) {
-        checkArgument(input.hasSchema());
+        checkArgument(input.hasSchema(), "The input doesn't has a schema");
         optimizeWrites = true;
 
         checkArgument(
@@ -2640,7 +2651,9 @@ public class BigQueryIO {
                   + "A format function is not required if Beam schemas are used.");
         }
       } else {
-        checkArgument(avroRowWriterFactory == null);
+        checkArgument(
+            avroRowWriterFactory == null,
+            "When using a formatFunction, the AvroRowWriterFactory should be null");
         checkArgument(
             formatFunction != null,
             "A function must be provided to convert the input type into a TableRow or "
@@ -2676,7 +2689,7 @@ public class BigQueryIO {
       if (method == Method.STREAMING_INSERTS) {
         checkArgument(
             getWriteDisposition() != WriteDisposition.WRITE_TRUNCATE,
-            "WriteDisposition.WRITE_TRUNCATE is not supported for an unbounded" + " PCollection.");
+            "WriteDisposition.WRITE_TRUNCATE is not supported for an unbounded PCollection.");
         InsertRetryPolicy retryPolicy =
             MoreObjects.firstNonNull(getFailedInsertRetryPolicy(), InsertRetryPolicy.alwaysRetry());
 
@@ -2751,7 +2764,11 @@ public class BigQueryIO {
           batchLoads.setMaxRetryJobs(1000);
         }
         batchLoads.setTriggeringFrequency(getTriggeringFrequency());
-        batchLoads.setNumFileShards(getNumFileShards());
+        if (getAutoSharding()) {
+          batchLoads.setNumFileShards(0);
+        } else {
+          batchLoads.setNumFileShards(getNumFileShards());
+        }
         return input.apply(batchLoads);
       }
     }

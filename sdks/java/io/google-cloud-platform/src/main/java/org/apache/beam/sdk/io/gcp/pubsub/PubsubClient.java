@@ -202,7 +202,7 @@ public abstract class PubsubClient implements Closeable {
       return subscriptionName;
     }
 
-    public String getV1Beta1Path() {
+    public String getFullPath() {
       return String.format("/subscriptions/%s/%s", projectId, subscriptionName);
     }
 
@@ -259,7 +259,7 @@ public abstract class PubsubClient implements Closeable {
       return splits.get(3);
     }
 
-    public String getV1Beta1Path() {
+    public String getFullPath() {
       List<String> splits = Splitter.on('/').splitToList(path);
       checkState(splits.size() == 4, "Malformed topic path %s", path);
       return String.format("/topics/%s/%s", splits.get(1), splits.get(3));

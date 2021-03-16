@@ -39,9 +39,6 @@ import org.junit.runners.JUnit4;
 
 /** Unit tests for {@link InstantCoder}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class InstantCoderTest {
 
   private static final InstantCoder TEST_CODER = InstantCoder.of();

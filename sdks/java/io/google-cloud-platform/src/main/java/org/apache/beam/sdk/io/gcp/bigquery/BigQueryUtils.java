@@ -73,7 +73,6 @@ import org.joda.time.format.DateTimeFormatterBuilder;
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class BigQueryUtils {
-
   /** Options for how to convert BigQuery data to Beam data. */
   @AutoValue
   public abstract static class ConversionOptions implements Serializable {
@@ -225,7 +224,7 @@ public class BigQueryUtils {
 
   // TODO: BigQuery code should not be relying on Calcite metadata fields. If so, this belongs
   // in the SQL package.
-  private static final Map<String, StandardSQLTypeName> BEAM_TO_BIGQUERY_LOGICAL_MAPPING =
+  static final Map<String, StandardSQLTypeName> BEAM_TO_BIGQUERY_LOGICAL_MAPPING =
       ImmutableMap.<String, StandardSQLTypeName>builder()
           .put(SqlTypes.DATE.getIdentifier(), StandardSQLTypeName.DATE)
           .put(SqlTypes.TIME.getIdentifier(), StandardSQLTypeName.TIME)
@@ -242,7 +241,7 @@ public class BigQueryUtils {
    * Get the corresponding BigQuery {@link StandardSQLTypeName} for supported Beam {@link
    * FieldType}.
    */
-  private static StandardSQLTypeName toStandardSQLTypeName(FieldType fieldType) {
+  static StandardSQLTypeName toStandardSQLTypeName(FieldType fieldType) {
     StandardSQLTypeName ret;
     if (fieldType.getTypeName().isLogicalType()) {
       ret = BEAM_TO_BIGQUERY_LOGICAL_MAPPING.get(fieldType.getLogicalType().getIdentifier());

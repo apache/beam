@@ -38,9 +38,6 @@ import org.joda.time.Instant;
 import org.junit.Test;
 
 /** Tests grouping with null values. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class GroupByWithNullValuesTest implements Serializable {
 
   @Test

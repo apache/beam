@@ -28,15 +28,13 @@ import org.apache.beam.sdk.values.PCollection;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class FhirIOLROIT {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
@@ -91,6 +89,7 @@ public class FhirIOLROIT {
   }
 
   @Test
+  @Ignore("https://issues.apache.org/jira/browse/BEAM-11733")
   public void test_FhirIO_exportFhirResourcesGcs() {
     String fhirStoreName = healthcareDataset + "/fhirStores/" + fhirStoreId;
     String exportGcsUriPrefix =

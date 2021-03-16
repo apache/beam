@@ -21,10 +21,7 @@ Only those coders listed in __all__ are part of the public API of this module.
 """
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import base64
-import sys
 from builtins import object
 from typing import TYPE_CHECKING
 from typing import Any
@@ -166,7 +163,9 @@ class Coder(object):
     if self.is_deterministic():
       return self
     else:
-      raise ValueError(error_message or "'%s' cannot be made deterministic.")
+      raise ValueError(
+          error_message or
+          "%s cannot be made deterministic for '%s'." % (self, step_label))
 
   def estimate_size(self, value):
     """Estimates the encoded size of the given value, in bytes.
@@ -426,19 +425,8 @@ Coder.register_structured_urn(common_urns.coders.STRING_UTF8.urn, StrUtf8Coder)
 
 class ToBytesCoder(Coder):
   """A default string coder used if no sink coder is specified."""
-
-  if sys.version_info.major == 2:
-
-    def encode(self, value):
-      # pylint: disable=unicode-builtin
-      return (
-          value.encode('utf-8') if isinstance(value, unicode)  # noqa: F821
-          else str(value))
-
-  else:
-
-    def encode(self, value):
-      return value if isinstance(value, bytes) else str(value).encode('utf-8')
+  def encode(self, value):
+    return value if isinstance(value, bytes) else str(value).encode('utf-8')
 
   def decode(self, _):
     raise NotImplementedError('ToBytesCoder cannot be used for decoding.')
@@ -764,7 +752,7 @@ class PickleCoder(_PickleCoderBase):
         lambda x: dumps(x, protocol), pickle.loads)
 
   def as_deterministic_coder(self, step_label, error_message=None):
-    return DeterministicFastPrimitivesCoder(self, step_label)
+    return FastPrimitivesCoder(self, requires_deterministic=step_label)
 
   def to_type_hint(self):
     return Any
@@ -783,8 +771,9 @@ class DeterministicFastPrimitivesCoder(FastCoder):
     self._step_label = step_label
 
   def _create_impl(self):
-    return coder_impl.DeterministicFastPrimitivesCoderImpl(
-        self._underlying_coder.get_impl(), self._step_label)
+    return coder_impl.FastPrimitivesCoderImpl(
+        self._underlying_coder.get_impl(),
+        requires_deterministic_step_label=self._step_label)
 
   def is_deterministic(self):
     # type: () -> bool
@@ -862,6 +851,16 @@ class FastPrimitivesCoder(FastCoder):
 
   def __hash__(self):
     return hash(type(self))
+
+
+class FakeDeterministicFastPrimitivesCoder(FastPrimitivesCoder):
+  """A FastPrimitivesCoder that claims to be deterministic.
+
+  This can be registered as a fallback coder to go back to the behavior before
+  deterministic encoding was enforced (BEAM-11719).
+  """
+  def is_deterministic(self):
+    return True
 
 
 class Base64PickleCoder(Coder):

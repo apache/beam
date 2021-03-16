@@ -94,9 +94,6 @@ import org.slf4j.LoggerFactory;
 
 /** Test on the JdbcIO. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class JdbcIOTest implements Serializable {
   private static final Logger LOG = LoggerFactory.getLogger(JdbcIOTest.class);
   private static final DataSourceConfiguration DATA_SOURCE_CONFIGURATION =

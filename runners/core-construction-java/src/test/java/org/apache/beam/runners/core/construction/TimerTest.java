@@ -34,9 +34,6 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link Timer}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class TimerTest {
   private static final Instant FIRE_TIME = new Instant(123L);
   private static final Instant HOLD_TIME = new Instant(456L);
