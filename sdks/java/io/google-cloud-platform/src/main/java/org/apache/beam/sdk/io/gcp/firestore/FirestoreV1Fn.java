@@ -42,8 +42,12 @@ final class FirestoreV1Fn {
    * cycle.
    */
   enum V1FnRpcAttemptContext implements Context {
+    BatchGetDocuments(),
     BatchWrite(),
-    ;
+    ListCollectionIds(),
+    ListDocuments(),
+    PartitionQuery(),
+    RunQuery();
 
     private final String namespace;
 

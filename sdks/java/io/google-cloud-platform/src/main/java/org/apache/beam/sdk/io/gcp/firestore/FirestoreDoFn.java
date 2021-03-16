@@ -46,6 +46,22 @@ abstract class FirestoreDoFn<InT, OutT> extends DoFn<InT, OutT> {
   @StartBundle
   public abstract void startBundle(DoFn<InT, OutT>.StartBundleContext context) throws Exception;
 
+  abstract static class NonWindowAwareDoFn<InT, OutT> extends FirestoreDoFn<InT, OutT> {
+    /**
+     * {@link ProcessContext#element() context.element()} must be non-null, otherwise a
+     * NullPointerException will be thrown.
+     *
+     * @param context Context to source element from, and output to
+     * @see org.apache.beam.sdk.transforms.DoFn.ProcessElement
+     */
+    @ProcessElement
+    public abstract void processElement(DoFn<InT, OutT>.ProcessContext context) throws Exception;
+
+    /** @see org.apache.beam.sdk.transforms.DoFn.FinishBundle */
+    @FinishBundle
+    public abstract void finishBundle() throws Exception;
+  }
+
   abstract static class WindowAwareDoFn<InT, OutT> extends FirestoreDoFn<InT, OutT> {
     /**
      * {@link ProcessContext#element() context.element()} must be non-null, otherwise a

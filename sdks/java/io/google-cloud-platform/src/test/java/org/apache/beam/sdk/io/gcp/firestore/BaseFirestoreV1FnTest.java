@@ -62,9 +62,34 @@ abstract class BaseFirestoreV1FnTest<
     if (rpcAttemptContext instanceof V1FnRpcAttemptContext) {
       V1FnRpcAttemptContext v1FnRpcAttemptContext = (V1FnRpcAttemptContext) rpcAttemptContext;
       switch (v1FnRpcAttemptContext) {
+        case BatchGetDocuments:
+          assertEquals(
+              "org.apache.beam.sdk.io.gcp.firestore.FirestoreV1.BatchGetDocuments",
+              v1FnRpcAttemptContext.getNamespace());
+          break;
         case BatchWrite:
           assertEquals(
               "org.apache.beam.sdk.io.gcp.firestore.FirestoreV1.BatchWrite",
+              v1FnRpcAttemptContext.getNamespace());
+          break;
+        case ListCollectionIds:
+          assertEquals(
+              "org.apache.beam.sdk.io.gcp.firestore.FirestoreV1.ListCollectionIds",
+              v1FnRpcAttemptContext.getNamespace());
+          break;
+        case ListDocuments:
+          assertEquals(
+              "org.apache.beam.sdk.io.gcp.firestore.FirestoreV1.ListDocuments",
+              v1FnRpcAttemptContext.getNamespace());
+          break;
+        case PartitionQuery:
+          assertEquals(
+              "org.apache.beam.sdk.io.gcp.firestore.FirestoreV1.PartitionQuery",
+              v1FnRpcAttemptContext.getNamespace());
+          break;
+        case RunQuery:
+          assertEquals(
+              "org.apache.beam.sdk.io.gcp.firestore.FirestoreV1.RunQuery",
               v1FnRpcAttemptContext.getNamespace());
           break;
         default:

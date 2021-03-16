@@ -378,7 +378,7 @@ final class FirestoreV1WriteFn {
           attempt.recordRequestFailed(end);
           attempt.recordWriteCounts(end, 0, writesCount);
           flushBuffer.forEach(writes::offer);
-          attempt.checkCanRetry(exception);
+          attempt.checkCanRetry(end, exception);
           continue;
         }
 

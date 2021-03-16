@@ -145,7 +145,11 @@ public abstract class BaseFirestoreV1WriteFnTest<
 
     when(callable.call(any())).thenThrow(RETRYABLE_ERROR, RETRYABLE_ERROR, RETRYABLE_ERROR);
     doNothing().when(attempt).recordWriteCounts(any(), anyInt(), anyInt());
-    doNothing().doNothing().doThrow(RETRYABLE_ERROR).when(attempt).checkCanRetry(RETRYABLE_ERROR);
+    doNothing()
+        .doNothing()
+        .doThrow(RETRYABLE_ERROR)
+        .when(attempt)
+        .checkCanRetry(any(), eq(RETRYABLE_ERROR));
 
     when(processContext.element()).thenReturn(write);
 
@@ -233,7 +237,7 @@ public abstract class BaseFirestoreV1WriteFnTest<
     verify(attempt, times(1)).recordRequestStart(rpcStart, 1);
     verify(attempt, times(1)).recordWriteCounts(rpcEnd, 1, 0);
     verify(attempt, never()).recordWriteCounts(any(), anyInt(), gt(0));
-    verify(attempt, never()).checkCanRetry(any());
+    verify(attempt, never()).checkCanRetry(any(), any());
   }
 
   @Test
@@ -269,9 +273,9 @@ public abstract class BaseFirestoreV1WriteFnTest<
     when(flushBuffer.iterator()).thenReturn(newArrayList(element1).iterator());
     when(flushBuffer.getBufferedElementsCount()).thenReturn(1);
     when(callable.call(any())).thenThrow(err1, err2, err3);
-    doNothing().when(attempt).checkCanRetry(err1);
-    doNothing().when(attempt).checkCanRetry(err2);
-    doThrow(err3).when(attempt).checkCanRetry(err3);
+    doNothing().when(attempt).checkCanRetry(any(), eq(err1));
+    doNothing().when(attempt).checkCanRetry(any(), eq(err2));
+    doThrow(err3).when(attempt).checkCanRetry(any(), eq(err3));
 
     try {
       FnT fn = getFn(clock, ff, rpcQosOptions, CounterFactory.DEFAULT, DistributionFactory.DEFAULT);
@@ -344,7 +348,7 @@ public abstract class BaseFirestoreV1WriteFnTest<
     verify(finishBundleAttempt, times(1)).recordRequestStart(rpc1Start, 1);
     verify(finishBundleAttempt, times(1)).recordWriteCounts(rpc1End, 1, 0);
     verify(finishBundleAttempt, times(1)).completeSuccess();
-    verify(finishBundleAttempt, never()).checkCanRetry(any());
+    verify(finishBundleAttempt, never()).checkCanRetry(any(), any());
   }
 
   @Test
@@ -682,7 +686,7 @@ public abstract class BaseFirestoreV1WriteFnTest<
 
     assertEquals(1, fn.writes.size());
     verify(attempt, never()).recordWriteCounts(any(), anyInt(), anyInt());
-    verify(attempt, never()).checkCanRetry(any());
+    verify(attempt, never()).checkCanRetry(any(), any());
     verify(attempt, never()).completeSuccess();
 
     Instant attempt2RpcStart = Instant.ofEpochMilli(2);
@@ -698,7 +702,7 @@ public abstract class BaseFirestoreV1WriteFnTest<
     verify(attempt2, times(1)).recordRequestStart(attempt2RpcStart, 1);
     verify(attempt2, times(1)).recordWriteCounts(attempt2RpcEnd, 1, 0);
     verify(attempt2, never()).recordWriteCounts(any(), anyInt(), gt(0));
-    verify(attempt2, never()).checkCanRetry(any());
+    verify(attempt2, never()).checkCanRetry(any(), any());
     verify(attempt2, times(1)).completeSuccess();
   }
 
