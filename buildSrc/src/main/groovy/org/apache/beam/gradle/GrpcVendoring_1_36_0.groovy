@@ -31,6 +31,7 @@ class GrpcVendoring_1_36_0 {
   static def netty_version = "4.1.52.Final"
   // google-auth-library version from https://search.maven.org/artifact/io.grpc/grpc-auth/1.36.0/jar
   static def google_auth_version = "0.22.2"
+  // proto-google-common-protos version from https://search.maven.org/artifact/io.grpc/grpc-protobuf/1.36.0/jar
   static def proto_google_common_protos_version = "2.0.1"
   static def opencensus_version = "0.28.0"
   static def conscrypt_version = "2.5.1"
@@ -113,9 +114,11 @@ class GrpcVendoring_1_36_0 {
       "com.google.longrunning",
       "com.google.rpc",
       "com.google.type",
+      "com.google.geo.type",
       "io.grpc",
       "io.netty",
       "io.opencensus",
+      "io.perfmark",
     ]
 
     return packagesToRelocate.collectEntries {
