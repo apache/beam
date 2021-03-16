@@ -192,8 +192,10 @@ class MatchAll(beam.PTransform):
   def __init__(self, empty_match_treatment=EmptyMatchTreatment.ALLOW):
     self._empty_match_treatment = empty_match_treatment
 
-  def expand(self, pcoll: beam.PCollection)
-    -> beam.PCollection[filesystem.FileMetadata]:
+  def expand(
+    self,
+    pcoll: beam.PCollection,
+  ) -> beam.PCollection[filesystem.FileMetadata]:
     return pcoll | beam.ParDo(_MatchAllFn(self._empty_match_treatment))
 
 
