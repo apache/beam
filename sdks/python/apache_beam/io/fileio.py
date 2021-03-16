@@ -193,8 +193,8 @@ class MatchAll(beam.PTransform):
     self._empty_match_treatment = empty_match_treatment
 
   def expand(
-    self,
-    pcoll: beam.PCollection,
+      self,
+      pcoll: beam.PCollection,
   ) -> beam.PCollection[filesystem.FileMetadata]:
     return pcoll | beam.ParDo(_MatchAllFn(self._empty_match_treatment))
 
@@ -205,8 +205,8 @@ class _ReadMatchesFn(beam.DoFn):
     self._skip_directories = skip_directories
 
   def process(
-    self,
-    file_metadata: Union[str, filesystem.FileMetadata],
+      self,
+      file_metadata: Union[str, filesystem.FileMetadata],
   ) -> Iterable[ReadableFile]:
     metadata = (
         filesystem.FileMetadata(file_metadata, 0) if isinstance(
@@ -253,8 +253,8 @@ class ReadMatches(beam.PTransform):
     self._skip_directories = skip_directories
 
   def expand(
-    self,
-    pcoll: PCollection[Union[str, filesystem.FileMetadata]]
+      self,
+      pcoll: PCollection[Union[str, filesystem.FileMetadata]],
   ) -> beam.PCollection[ReadableFile]:
     return pcoll | beam.ParDo(
         _ReadMatchesFn(self._compression, self._skip_directories))
