@@ -28,8 +28,8 @@ import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import org.apache.beam.examples.complete.datatokenization.options.DataTokenizationOptions;
-import org.apache.beam.examples.complete.datatokenization.transforms.io.FileSystemIO;
-import org.apache.beam.examples.complete.datatokenization.transforms.io.FileSystemIO.FORMAT;
+import org.apache.beam.examples.complete.datatokenization.transforms.io.TokenizationFileSystemIO;
+import org.apache.beam.examples.complete.datatokenization.transforms.io.TokenizationFileSystemIO.FORMAT;
 import org.apache.beam.examples.complete.datatokenization.utils.FailsafeElementCoder;
 import org.apache.beam.examples.complete.datatokenization.utils.RowToCsv;
 import org.apache.beam.examples.complete.datatokenization.utils.SchemasUtils;
@@ -173,7 +173,8 @@ public class DataTokenizationTest {
             RowCoder.of(testSchemaUtils.getBeamSchema()));
     coderRegistry.registerCoderForType(coder.getEncodedTypeDescriptor(), coder);
 
-    return new FileSystemIO(options).read(testPipeline, testSchemaUtils.getJsonBeamSchema());
+    return new TokenizationFileSystemIO(options)
+        .read(testPipeline, testSchemaUtils.getJsonBeamSchema());
   }
 
   private void assertField(PCollection<String> jsons) {

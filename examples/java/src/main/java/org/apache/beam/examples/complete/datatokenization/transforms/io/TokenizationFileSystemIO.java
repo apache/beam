@@ -43,8 +43,8 @@ import org.apache.beam.sdk.values.TypeDescriptors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** The {@link FileSystemIO} class to read/write data from/into File Systems. */
-public class FileSystemIO {
+/** The {@link TokenizationFileSystemIO} class to read/write data from/into File Systems. */
+public class TokenizationFileSystemIO {
 
   /** The tag for the headers of the CSV if required. */
   static final TupleTag<String> CSV_HEADERS = new TupleTag<String>() {};
@@ -61,7 +61,7 @@ public class FileSystemIO {
       new TupleTag<FailsafeElement<String, String>>() {};
 
   /* Logger for class. */
-  private static final Logger LOG = LoggerFactory.getLogger(FileSystemIO.class);
+  private static final Logger LOG = LoggerFactory.getLogger(TokenizationFileSystemIO.class);
 
   public static final String DEAD_LETTER_PREFIX = "CSV_CONVERTOR";
 
@@ -88,7 +88,7 @@ public class FileSystemIO {
 
     @Description("File format of input files. Supported formats: JSON, CSV")
     @Default.Enum("JSON")
-    FileSystemIO.FORMAT getInputFileFormat();
+    TokenizationFileSystemIO.FORMAT getInputFileFormat();
 
     void setInputFileFormat(FORMAT inputFileFormat);
 
@@ -99,7 +99,7 @@ public class FileSystemIO {
 
     @Description("File format of output files. Supported formats: JSON, CSV")
     @Default.Enum("JSON")
-    FileSystemIO.FORMAT getOutputFileFormat();
+    TokenizationFileSystemIO.FORMAT getOutputFileFormat();
 
     void setOutputFileFormat(FORMAT outputFileFormat);
 
@@ -141,7 +141,7 @@ public class FileSystemIO {
 
   private final DataTokenizationOptions options;
 
-  public FileSystemIO(DataTokenizationOptions options) {
+  public TokenizationFileSystemIO(DataTokenizationOptions options) {
     this.options = options;
   }
 

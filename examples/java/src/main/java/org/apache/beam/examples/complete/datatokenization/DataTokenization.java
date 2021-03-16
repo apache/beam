@@ -25,9 +25,9 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import org.apache.beam.examples.complete.datatokenization.options.DataTokenizationOptions;
 import org.apache.beam.examples.complete.datatokenization.transforms.DataProtectors.RowToTokenizedRow;
-import org.apache.beam.examples.complete.datatokenization.transforms.io.BigQueryIO;
-import org.apache.beam.examples.complete.datatokenization.transforms.io.BigTableIO;
-import org.apache.beam.examples.complete.datatokenization.transforms.io.FileSystemIO;
+import org.apache.beam.examples.complete.datatokenization.transforms.io.TokenizationBigQueryIO;
+import org.apache.beam.examples.complete.datatokenization.transforms.io.TokenizationBigTableIO;
+import org.apache.beam.examples.complete.datatokenization.transforms.io.TokenizationFileSystemIO;
 import org.apache.beam.examples.complete.datatokenization.utils.ErrorConverters;
 import org.apache.beam.examples.complete.datatokenization.utils.FailsafeElement;
 import org.apache.beam.examples.complete.datatokenization.utils.FailsafeElementCoder;
@@ -245,7 +245,7 @@ public class DataTokenization {
 
     PCollection<String> jsons;
     if (options.getInputFilePattern() != null) {
-      jsons = new FileSystemIO(options).read(pipeline, schema.getJsonBeamSchema());
+      jsons = new TokenizationFileSystemIO(options).read(pipeline, schema.getJsonBeamSchema());
     } else if (options.getPubsubTopic() != null) {
       jsons =
           pipeline.apply(
@@ -328,10 +328,11 @@ public class DataTokenization {
     }
 
     if (options.getOutputDirectory() != null) {
-      new FileSystemIO(options).write(tokenizedRows.get(TOKENIZATION_OUT), schema.getBeamSchema());
+      new TokenizationFileSystemIO(options)
+          .write(tokenizedRows.get(TOKENIZATION_OUT), schema.getBeamSchema());
     } else if (options.getBigQueryTableName() != null) {
       WriteResult writeResult =
-          BigQueryIO.write(
+          TokenizationBigQueryIO.write(
               tokenizedRows.get(TOKENIZATION_OUT),
               options.getBigQueryTableName(),
               schema.getBigQuerySchema());
@@ -340,7 +341,7 @@ public class DataTokenization {
           .apply(
               "WrapInsertionErrors",
               MapElements.into(FAILSAFE_ELEMENT_CODER.getEncodedTypeDescriptor())
-                  .via(BigQueryIO::wrapBigQueryInsertError))
+                  .via(TokenizationBigQueryIO::wrapBigQueryInsertError))
           .setCoder(FAILSAFE_ELEMENT_CODER)
           .apply(
               "WriteInsertionFailedRecords",
@@ -350,7 +351,8 @@ public class DataTokenization {
                   .setErrorRecordsTableSchema(DEADLETTER_SCHEMA)
                   .build());
     } else if (options.getBigTableInstanceId() != null) {
-      new BigTableIO(options).write(tokenizedRows.get(TOKENIZATION_OUT), schema.getBeamSchema());
+      new TokenizationBigTableIO(options)
+          .write(tokenizedRows.get(TOKENIZATION_OUT), schema.getBeamSchema());
     } else {
       throw new IllegalStateException(
           "No sink is provided, please configure BigQuery or BigTable.");

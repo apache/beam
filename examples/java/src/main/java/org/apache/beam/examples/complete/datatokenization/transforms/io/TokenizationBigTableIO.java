@@ -40,15 +40,15 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** The {@link BigTableIO} class for writing data from template to BigTable. */
-public class BigTableIO {
+/** The {@link TokenizationBigTableIO} class for writing data from template to BigTable. */
+public class TokenizationBigTableIO {
 
   /** Logger for class. */
-  private static final Logger LOG = LoggerFactory.getLogger(BigTableIO.class);
+  private static final Logger LOG = LoggerFactory.getLogger(TokenizationBigTableIO.class);
 
   private final DataTokenizationOptions options;
 
-  public BigTableIO(DataTokenizationOptions options) {
+  public TokenizationBigTableIO(DataTokenizationOptions options) {
     this.options = options;
   }
 

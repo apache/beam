@@ -32,11 +32,11 @@ import org.apache.beam.sdk.values.Row;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** The {@link BigQueryIO} class for writing data from template to BigTable. */
-public class BigQueryIO {
+/** The {@link TokenizationBigQueryIO} class for writing data from template to BigTable. */
+public class TokenizationBigQueryIO {
 
   /** Logger for class. */
-  private static final Logger LOG = LoggerFactory.getLogger(BigQueryIO.class);
+  private static final Logger LOG = LoggerFactory.getLogger(TokenizationBigQueryIO.class);
 
   public static WriteResult write(
       PCollection<Row> input, String bigQueryTableName, TableSchema schema) {
@@ -77,7 +77,7 @@ public class BigQueryIO {
       failsafeElement.setErrorMessage(insertError.getError().toPrettyString());
 
     } catch (IOException e) {
-      BigQueryIO.LOG.error("Failed to wrap BigQuery insert error.");
+      TokenizationBigQueryIO.LOG.error("Failed to wrap BigQuery insert error.");
       throw new RuntimeException(e);
     }
     return failsafeElement;
