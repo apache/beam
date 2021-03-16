@@ -35,7 +35,8 @@ For example, when we upgrade the version of gRPC to 1.36.0 and the version of th
 we could run the linkage tool as following:
 
 ```
-$ ./gradlew :vendor:grpc-1_36_0:shadowJar
+# The check task depends on shadowJar task
+$ ./gradlew :vendor:grpc-1_36_0:check
 $ find vendor/grpc-1_36_0/build -name '*.jar'
 vendor/grpc-1_36_0/build/libs/beam-vendor-grpc-1_36_0-0.1.jar
 $ mvn install:install-file \
