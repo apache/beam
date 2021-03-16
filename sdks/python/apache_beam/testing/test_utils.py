@@ -22,14 +22,11 @@ For internal use only; no backwards-compatibility guarantees.
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import hashlib
 import imp
 import os
 import shutil
 import tempfile
-from builtins import object
 
 from mock import Mock
 from mock import patch

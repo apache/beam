@@ -31,8 +31,6 @@ Our implementation will use a custom windowing function in order to bring bids
 and auctions together without requiring global state.
 """
 
-from __future__ import absolute_import
-
 import apache_beam as beam
 from apache_beam.coders import coder_impl
 from apache_beam.coders.coders import FastCoder
