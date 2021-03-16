@@ -673,7 +673,7 @@ class Row(object):
     return 'Row(%s)' % ', '.join('%s=%r' % kv for kv in self.__dict__.items())
 
   def __hash__(self):
-    return hash(type(self.__dict__.items()))
+    return hash(self.__dict__.items())
 
   def __eq__(self, other):
     return type(self) == type(other) and self.__dict__ == other.__dict__
