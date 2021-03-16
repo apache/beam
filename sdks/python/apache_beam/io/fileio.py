@@ -221,6 +221,7 @@ class ReadableFile(object):
   def read_utf8(self):
     return self.open().read().decode('utf-8')
 
+
 class _ReadMatchesFn(beam.DoFn):
   def __init__(self, compression, skip_directories):
     self._compression = compression
@@ -256,7 +257,7 @@ class ReadMatches(beam.PTransform):
 
   def expand(
       self,
-      pcoll: PCollection[Union[str, filesystem.FileMetadata]],
+      pcoll: beam.PCollection[Union[str, filesystem.FileMetadata]],
   ) -> beam.PCollection[ReadableFile]:
     return pcoll | beam.ParDo(
         _ReadMatchesFn(self._compression, self._skip_directories))
