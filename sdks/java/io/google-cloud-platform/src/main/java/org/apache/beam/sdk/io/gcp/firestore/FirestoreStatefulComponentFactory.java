@@ -24,10 +24,13 @@ import com.google.cloud.firestore.FirestoreOptions.EmulatorCredentials;
 import com.google.cloud.firestore.spi.v1.FirestoreRpc;
 import com.google.common.collect.ImmutableMap;
 import java.io.Serializable;
+import java.security.SecureRandom;
 import java.util.Map;
 import javax.annotation.concurrent.Immutable;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
+import org.apache.beam.sdk.io.gcp.firestore.RpcQosImpl.CounterFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.util.Sleeper;
 import org.checkerframework.checker.nullness.qual.NonNull;
 
 /**
@@ -103,6 +106,24 @@ class FirestoreStatefulComponentFactory implements Serializable {
     return (FirestoreRpc) getFirestoreOptionsBuilder(options)
         .build()
         .getRpc();
+  }
+
+  /**
+   * Given a {@link RpcQosOptions}, return a new instance of {@link RpcQos}
+   * <p/>
+   * The instance returned by this method is expected to bind to the lifecycle of a worker, and
+   * specifically live longer than a single bundle.
+   *
+   * @param options The instance of options to read from
+   * @return a new {@link RpcQos} based on the provided options
+   */
+  RpcQos getRpcQos(RpcQosOptions options) {
+    return new RpcQosImpl(
+        options,
+        new SecureRandom(),
+        Sleeper.DEFAULT,
+        CounterFactory.DEFAULT
+    );
   }
 
 }
