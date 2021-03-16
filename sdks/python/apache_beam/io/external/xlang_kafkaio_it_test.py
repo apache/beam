@@ -110,7 +110,6 @@ class CrossLanguageKafkaIO(object):
     pipeline.run(False)
 
 
-@unittest.skip('BEAM-10663')
 @unittest.skipUnless(
     os.environ.get('LOCAL_KAFKA_JAR'),
     "LOCAL_KAFKA_JAR environment var is not provided.")
