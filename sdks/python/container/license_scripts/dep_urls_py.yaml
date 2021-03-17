@@ -47,6 +47,8 @@ pip_dependencies:
     license: "https://raw.githubusercontent.com/certifi/python-certifi/master/LICENSE"
   cython:
     license: "https://raw.githubusercontent.com/cython/cython/master/LICENSE.txt"
+  dataclasses:
+    license: "https://raw.githubusercontent.com/ericvsmith/dataclasses/master/LICENSE.txt"
   enum34:
     # The original repo is down. This license taken from somebody's clone:
     # https://github.com/jamespharaoh/python-enum34/blob/master/enum/LICENSE
