@@ -182,6 +182,22 @@ class DeferredFrameTest(unittest.TestCase):
     self._run_test(lambda df: df.sort_index(axis=1, ascending=False), df)
     self._run_test(lambda df: df.sort_index(axis=1, na_position='first'), df)
 
+  def test_where_callable_args(self):
+    df = pd.DataFrame(np.arange(10).reshape(-1, 2), columns=['A', 'B'])
+
+    self._run_test(
+        lambda df: df.where(lambda df: df % 2 == 0, lambda df: df * 10), df)
+
+  def test_where_concrete_args(self):
+    df = pd.DataFrame(np.arange(10).reshape(-1, 2), columns=['A', 'B'])
+
+    self._run_test(
+        lambda df: df.where(
+            df % 2 == 0, pd.Series({
+                'A': 123, 'B': 456
+            }), axis=1),
+        df)
+
   def test_groupby(self):
     df = pd.DataFrame({
         'group': ['a' if i % 5 == 0 or i % 3 == 0 else 'b' for i in range(100)],
