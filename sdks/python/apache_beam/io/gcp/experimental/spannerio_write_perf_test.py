@@ -58,7 +58,6 @@ from apache_beam import FlatMap
 from apache_beam import Map
 from apache_beam import ParDo
 from apache_beam.io import Read
-from apache_beam.io.gcp.experimental.spannerio import WriteMutation
 from apache_beam.io.gcp.experimental.spannerio import WriteToSpanner
 from apache_beam.testing.load_tests.load_test import LoadTest
 from apache_beam.testing.load_tests.load_test_metrics_utils import CountMessages
@@ -112,9 +111,10 @@ class SpannerWritePerfTest(LoadTest):
       import base64
       return base64.b64encode(record[1])
 
-    def make_insert_mutations(element, i):
+    def make_insert_mutations(element):
       import uuid  # pylint: disable=reimported
-      ins_mutation = i.insert(
+      from apache_beam.io.gcp.experimental.spannerio import WriteMutation
+      ins_mutation = WriteMutation.insert(
           table='test',
           columns=('id', 'data'),
           values=[(str(uuid.uuid1()), element)])
@@ -126,7 +126,7 @@ class SpannerWritePerfTest(LoadTest):
             SyntheticSource(self.parse_synthetic_source_options()))
         | 'Count messages' >> ParDo(CountMessages(self.metrics_namespace))
         | 'Format' >> Map(format_record)
-        | 'Make mutations' >> FlatMap(make_insert_mutations, i=WriteMutation)
+        | 'Make mutations' >> FlatMap(make_insert_mutations)
         | 'Measure time' >> ParDo(MeasureTime(self.metrics_namespace))
         | 'Write to Spanner' >> WriteToSpanner(
           project_id=self.project,
