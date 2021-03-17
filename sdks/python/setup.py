@@ -134,7 +134,7 @@ REQUIRED_PACKAGES = [
     # dataclasses backport for python_version<3.7. No version bound because this
     # is Python standard since Python 3.7 and each Python version is compatible
     # with a specific dataclasses version.
-    'dataclasses',
+    'dataclasses;python_version<"3.7"',
     # Dill doesn't have forwards-compatibility guarantees within minor version.
     # Pickles created with a new version of dill may not unpickle using older
     # version of dill. It is best to use the same version of dill on client and
