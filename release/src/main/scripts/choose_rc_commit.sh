@@ -30,6 +30,7 @@ RC=
 COMMIT=
 PUSH_TAG=no
 CLONE=no
+OVERWRITE=no
 DEBUG=
 GIT_REPO=git@github.com:apache/beam
 
@@ -63,6 +64,11 @@ while [[ $# -gt 0 ]] ; do
 
       --push-tag)
       PUSH_TAG=yes
+      shift
+      ;;
+
+      --overwrite)
+      OVERWRITE=yes
       shift
       ;;
 
@@ -113,6 +119,16 @@ fi
   bash "$SCRIPT_DIR/set_version.sh" "${RELEASE}" --release --git-add $DEBUG
   git checkout --quiet "$COMMIT" # suppress warning about detached HEAD: we want it detached so we do not edit the branch
   git commit -m "Set version for ${RELEASE} RC${RC}"
+
+  if git rev-parse "$RC_TAG" >/dev/null 2>&1; then
+    if [[ "$OVERWRITE" == yes ]]; then
+      git push origin ":refs/tags/$RC_TAG"
+    else
+      echo "Tag $RC_TAG already exists. Either delete it manually or run with --overwrite. Do not overwrite if an RC has been built and shared!"
+      exit 1
+    fi
+  fi
+
   git tag -a -m "$RC_TAG" "$RC_TAG" HEAD
 
   if [[ "$PUSH_TAG" == yes ]] ; then
