@@ -42,6 +42,10 @@ public class PubsubMessages {
       if (messageId != null) {
         message.setMessageId(messageId);
       }
+      String orderingKey = input.getOrderingKey();
+      if (orderingKey != null) {
+        message.setOrderingKey(orderingKey);
+      }
       return message.build().toByteArray();
     }
   }
@@ -55,7 +59,10 @@ public class PubsubMessages {
         com.google.pubsub.v1.PubsubMessage message =
             com.google.pubsub.v1.PubsubMessage.parseFrom(input);
         return new PubsubMessage(
-            message.getData().toByteArray(), message.getAttributesMap(), message.getMessageId());
+            message.getData().toByteArray(),
+            message.getAttributesMap(),
+            message.getMessageId(),
+            message.getOrderingKey());
       } catch (InvalidProtocolBufferException e) {
         throw new RuntimeException("Could not decode Pubsub message", e);
       }
