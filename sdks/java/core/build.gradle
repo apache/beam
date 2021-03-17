@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
   automaticModuleName: 'org.apache.beam.sdk',
@@ -66,6 +65,10 @@ test {
   useJUnit {
     excludeCategories "org.apache.beam.sdk.testing.NeedsRunner"
   }
+  useJUnitPlatform {
+    includeEngines("junit-jupiter")
+    excludeTags 'needsRunner'
+  }
 }
 
 dependencies {
@@ -91,6 +94,7 @@ dependencies {
   shadow library.java.snappy_java
   shadow library.java.joda_time
   provided library.java.junit
+  provided library.java.junit5
   provided library.java.hamcrest_core
   provided library.java.hamcrest_library
   provided 'io.airlift:aircompressor:0.18'
@@ -105,4 +109,6 @@ dependencies {
   shadowTest library.java.avro_tests
   shadowTest library.java.zstd_jni
   testRuntimeOnly library.java.slf4j_jdk14
+  testRuntimeOnly library.java.junit5JupiterEngine
+  testRuntimeOnly library.java.junit5PlatformRunner
 }

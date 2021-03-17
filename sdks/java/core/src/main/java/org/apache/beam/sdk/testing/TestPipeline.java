@@ -23,6 +23,7 @@ import static org.hamcrest.Matchers.is;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -52,6 +53,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIt
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.experimental.categories.Category;
+import org.junit.jupiter.api.extension.AfterEachCallback;
+import org.junit.jupiter.api.extension.BeforeEachCallback;
+import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
@@ -103,7 +107,8 @@ import org.junit.runners.model.Statement;
 @SuppressWarnings({
   "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
-public class TestPipeline extends Pipeline implements TestRule {
+public class TestPipeline extends Pipeline
+    implements TestRule, BeforeEachCallback, AfterEachCallback {
 
   private final PipelineOptions options;
 
@@ -276,6 +281,50 @@ public class TestPipeline extends Pipeline implements TestRule {
   @Override
   public PipelineOptions getOptions() {
     return this.options;
+  }
+
+  @Override
+  public void afterEach(ExtensionContext context) {
+    enforcement.get().afterUserCodeFinished();
+  }
+
+  @Override
+  public void beforeEach(ExtensionContext context) {
+    String methodName = context.getTestMethod().map(Method::getName).orElse(null);
+    java.util.Optional<Class<?>> testClass = context.getTestClass();
+
+    String appName;
+    if (testClass.isPresent() && testClass.get().isMemberClass()) {
+      appName =
+          String.format(
+              "%s$%s-%s",
+              testClass.get().getEnclosingClass().getSimpleName(),
+              testClass.get().getSimpleName(),
+              methodName);
+    } else if (testClass.isPresent()) {
+      appName = String.format("%s-%s", testClass.get().getSimpleName(), methodName);
+    } else {
+      appName = String.format("[UNKNOWN CLASS]-%s", methodName);
+    }
+    options.as(ApplicationNameOptions.class).setAppName(appName);
+
+    if (!enforcement.isPresent()) {
+      final boolean annotatedWithNeedsRunner =
+          context.getTags().contains("needsRunner")
+              || context.getTags().contains("org.apache.beam.sdk.testing.NeedsRunner");
+
+      final boolean crashingRunner = CrashingRunner.class.isAssignableFrom(options.getRunner());
+
+      checkState(
+          !(annotatedWithNeedsRunner && crashingRunner),
+          "The test was annotated with a [@%s] / [@%s] while the runner "
+              + "was set to [%s]. Please re-check your configuration.",
+          NeedsRunner.class.getSimpleName(),
+          ValidatesRunner.class.getSimpleName(),
+          options.getRunner().getSimpleName());
+
+      enableAbandonedNodeEnforcement(annotatedWithNeedsRunner || !crashingRunner);
+    }
   }
 
   @Override

@@ -59,7 +59,7 @@
 
 ## New Features / Improvements
 
-* X feature added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* JUnit5 support added for `TestPipeline` ([BEAM-3415](https://issues.apache.org/jira/browse/BEAM-3415)).
 
 ## Breaking Changes
 
