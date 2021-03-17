@@ -82,6 +82,24 @@ func TestReflectionRowCoderGeneration(t *testing.T) {
 				},
 			},
 		}, {
+			// embedded struct check2
+			want: userType5{
+				unexportedUserType: unexportedUserType{
+					A: 24,
+					B: "marmalade",
+				},
+				C: 79,
+			},
+		}, {
+			// embedded struct check3
+			want: userType6{
+				UserType1: &UserType1{
+					A: "marmalade",
+					B: 24,
+				},
+				C: 81,
+			},
+		}, {
 			// All zeroes
 			want: struct {
 				V00 bool
@@ -156,7 +174,6 @@ func TestReflectionRowCoderGeneration(t *testing.T) {
 				},
 				V21: []*int{nil, &num, nil},
 			},
-			// TODO add custom types such as protocol buffers.
 		},
 	}
 	for _, test := range tests {
@@ -180,7 +197,7 @@ func TestReflectionRowCoderGeneration(t *testing.T) {
 			if err != nil {
 				t.Fatalf("RowDecoderForStruct(%v) = %v, want nil error", rt, err)
 			}
-			if d := cmp.Diff(test.want, got); d != "" {
+			if d := cmp.Diff(test.want, got, cmp.AllowUnexported(userType5{}, unexportedUserType{})); d != "" {
 				t.Fatalf("dec(enc(%v)) = %v\ndiff (-want, +got): %v", test.want, got, d)
 			}
 		})
@@ -207,6 +224,27 @@ type UserType3 struct {
 type UserType4 struct {
 	UserType1
 }
+
+type unexportedUserType struct {
+	A int
+	B string
+	c int32
+}
+
+// Embedding check with unexported type.
+type userType5 struct {
+	unexportedUserType
+	C int32
+}
+
+// Embedding check with a pointer Exported type
+type userType6 struct {
+	*UserType1
+	C int32
+}
+
+// Note: pointers to unexported types can't be handled by
+// this package. See https://golang.org/issue/21357.
 
 func ut1Enc(val interface{}, w io.Writer) error {
 	if err := WriteSimpleRowHeader(3, w); err != nil {
@@ -469,6 +507,24 @@ func BenchmarkRowCoder_RoundTrip(b *testing.B) {
 			customRT:  reflect.TypeOf(UserType1{}),
 			customEnc: ut1Enc,
 			customDec: ut1Dec,
+		}, {
+			// embedded struct check2
+			want: userType5{
+				unexportedUserType: unexportedUserType{
+					B: "marmalade",
+					A: 24,
+				},
+				C: 79,
+			},
+		}, {
+			// embedded struct check3
+			want: userType6{
+				UserType1: &UserType1{
+					A: "marmalade",
+					B: 24,
+				},
+				C: 81,
+			},
 		},
 	}
 	for _, bench := range benches {
