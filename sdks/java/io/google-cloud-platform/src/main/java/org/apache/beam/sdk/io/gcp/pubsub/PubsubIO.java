@@ -21,14 +21,12 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.api.client.util.Clock;
 import com.google.auto.value.AutoValue;
-import com.google.protobuf.ByteString;
 import com.google.protobuf.Message;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.naming.SizeLimitExceededException;
@@ -1076,7 +1074,6 @@ public class PubsubIO {
         byte[] payload;
         PubsubMessage message = getFormatFn().apply(c.element());
         payload = message.getPayload();
-        Map<String, String> attributes = message.getAttributeMap();
 
         if (payload.length > maxPublishBatchByteSize) {
           String msg =
@@ -1093,14 +1090,7 @@ public class PubsubIO {
         }
 
         // NOTE: The record id is always null.
-        output.add(
-            OutgoingMessage.of(
-                com.google.pubsub.v1.PubsubMessage.newBuilder()
-                    .setData(ByteString.copyFrom(payload))
-                    .putAllAttributes(attributes)
-                    .build(),
-                c.timestamp().getMillis(),
-                null));
+        output.add(OutgoingMessage.of(message, c.timestamp().getMillis(), null));
         currentOutputBytes += payload.length;
       }
 
