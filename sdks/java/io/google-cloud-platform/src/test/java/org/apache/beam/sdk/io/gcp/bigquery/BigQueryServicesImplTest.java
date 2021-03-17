@@ -769,9 +769,9 @@ public class BigQueryServicesImplTest {
           false,
           false);
     } finally {
-      verify(response, times(2)).getStatusCode();
-      verify(response, times(2)).getContent();
-      verify(response, times(2)).getContentType();
+      verify(response, times(1)).getStatusCode();
+      verify(response, times(1)).getContent();
+      verify(response, times(1)).getContentType();
     }
   }
 
