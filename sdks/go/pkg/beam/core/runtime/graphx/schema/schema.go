@@ -333,6 +333,10 @@ func (r *Registry) logicalTypeToFieldType(t reflect.Type) (*pipepb.FieldType, st
 	return nil, "", nil
 }
 
+// fromType handles if the initial type is a pointer or not WRT lookups against
+// registered types and then delegates to structToSchema for most of the conversion.
+// For determinism in schema IDs, regardless of whther the original type is a pointer or not,
+// both variants are cached for latter reuse.
 func (r *Registry) fromType(ot reflect.Type) (*pipepb.Schema, error) {
 	if schm, ok := r.typeToSchema[ot]; ok {
 		return schm, nil
