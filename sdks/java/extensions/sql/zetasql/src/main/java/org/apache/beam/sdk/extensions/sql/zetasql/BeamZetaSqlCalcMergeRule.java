@@ -20,26 +20,21 @@ package org.apache.beam.sdk.extensions.sql.zetasql;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRule;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRuleOperand;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.RelFactories;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.CalcMergeRule;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RelBuilderFactory;
 
 /**
  * Planner rule to merge a {@link BeamZetaSqlCalcRel} with a {@link BeamZetaSqlCalcRel}. Subset of
  * {@link CalcMergeRule}.
  */
 public class BeamZetaSqlCalcMergeRule extends RelOptRule {
-  public static final BeamZetaSqlCalcMergeRule INSTANCE =
-      new BeamZetaSqlCalcMergeRule(RelFactories.LOGICAL_BUILDER);
+  public static final BeamZetaSqlCalcMergeRule INSTANCE = new BeamZetaSqlCalcMergeRule();
 
-  public BeamZetaSqlCalcMergeRule(RelBuilderFactory relBuilderFactory) {
+  public BeamZetaSqlCalcMergeRule() {
     super(
         operand(
             BeamZetaSqlCalcRel.class,
             operand(BeamZetaSqlCalcRel.class, any()),
-            new RelOptRuleOperand[0]),
-        relBuilderFactory,
-        null);
+            new RelOptRuleOperand[0]));
   }
 
   @Override

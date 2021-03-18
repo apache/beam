@@ -20,24 +20,18 @@ package org.apache.beam.sdk.extensions.sql.impl.rule;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRule;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRuleOperand;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.RelFactories;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.LogicalCalc;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.CalcMergeRule;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RelBuilderFactory;
 
 /**
  * Planner rule to merge a {@link LogicalCalc} with a {@link LogicalCalc}. Subset of {@link
  * CalcMergeRule}.
  */
 public class LogicalCalcMergeRule extends RelOptRule {
-  public static final LogicalCalcMergeRule INSTANCE =
-      new LogicalCalcMergeRule(RelFactories.LOGICAL_BUILDER);
+  public static final LogicalCalcMergeRule INSTANCE = new LogicalCalcMergeRule();
 
-  public LogicalCalcMergeRule(RelBuilderFactory relBuilderFactory) {
-    super(
-        operand(LogicalCalc.class, operand(LogicalCalc.class, any()), new RelOptRuleOperand[0]),
-        relBuilderFactory,
-        null);
+  public LogicalCalcMergeRule() {
+    super(operand(LogicalCalc.class, operand(LogicalCalc.class, any()), new RelOptRuleOperand[0]));
   }
 
   @Override
