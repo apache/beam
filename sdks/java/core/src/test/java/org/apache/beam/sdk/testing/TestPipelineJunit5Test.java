@@ -49,7 +49,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
-/** Tests for {@link TestPipeline}. */
+/** Tests for {@link TestPipelineJunit5}. */
 public class TestPipelineJunit5Test implements Serializable {
   private static final ObjectMapper MAPPER =
       new ObjectMapper()
@@ -59,17 +59,17 @@ public class TestPipelineJunit5Test implements Serializable {
   @ExtendWith({RestoreSystemPropertiesJunit5.class})
   public static class TestPipelineCreationTest {
 
-    @RegisterExtension public transient TestPipeline pipeline = TestPipeline.create();
+    @RegisterExtension public transient TestPipelineJunit5 pipeline = TestPipelineJunit5.create();
 
     @Test
     public void testCreationUsingDefaults() {
       assertNotNull(pipeline);
-      assertNotNull(TestPipeline.create());
+      assertNotNull(TestPipelineJunit5.create());
     }
 
     @Test
     public void testCreationNotAsTestRule() {
-      assertThrows(IllegalStateException.class, () -> TestPipeline.create().run());
+      assertThrows(IllegalStateException.class, () -> TestPipelineJunit5.create().run());
     }
 
     @Test
@@ -180,7 +180,7 @@ public class TestPipelineJunit5Test implements Serializable {
     /** Tests for {@link TestPipeline}s with a non {@link CrashingRunner}. */
     public static class WithRealPipelineRunner {
 
-      private final transient TestPipeline pipeline = TestPipeline.create();
+      private final transient TestPipeline pipeline = TestPipelineJunit5.create();
 
       @Tag("needsRunner")
       @Test
@@ -279,7 +279,7 @@ public class TestPipelineJunit5Test implements Serializable {
         System.setProperty(TestPipeline.PROPERTY_USE_DEFAULT_DUMMY_RUNNER, Boolean.TRUE.toString());
       }
 
-      private final transient TestPipeline pipeline = TestPipeline.create();
+      private final transient TestPipeline pipeline = TestPipelineJunit5.create();
 
       @Test
       public void testNoTestPipelineUsed() {}
@@ -300,7 +300,7 @@ public class TestPipelineJunit5Test implements Serializable {
   /** Tests for {@link TestPipeline#newProvider}. */
   public static class NewProviderTest implements Serializable {
 
-    @RegisterExtension public transient TestPipeline pipeline = TestPipeline.create();
+    @RegisterExtension public transient TestPipeline pipeline = TestPipelineJunit5.create();
 
     @Tag("needsRunner")
     @Test

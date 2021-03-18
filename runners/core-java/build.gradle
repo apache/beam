@@ -50,7 +50,6 @@ dependencies {
   compile library.java.slf4j_api
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile library.java.junit
-  testCompile library.java.junit5
   testCompile library.java.mockito_core
   testCompile library.java.slf4j_api
   testRuntimeOnly library.java.slf4j_simple
