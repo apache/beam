@@ -21,23 +21,17 @@ import org.apache.beam.sdk.extensions.sql.impl.rel.BeamCalcRel;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRule;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptRuleOperand;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.RelFactories;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rules.CalcMergeRule;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.tools.RelBuilderFactory;
 
 /**
  * Planner rule to merge a {@link BeamCalcRel} with a {@link BeamCalcRel}. Subset of {@link
  * CalcMergeRule}.
  */
 public class BeamCalcMergeRule extends RelOptRule {
-  public static final BeamCalcMergeRule INSTANCE =
-      new BeamCalcMergeRule(RelFactories.LOGICAL_BUILDER);
+  public static final BeamCalcMergeRule INSTANCE = new BeamCalcMergeRule();
 
-  public BeamCalcMergeRule(RelBuilderFactory relBuilderFactory) {
-    super(
-        operand(BeamCalcRel.class, operand(BeamCalcRel.class, any()), new RelOptRuleOperand[0]),
-        relBuilderFactory,
-        null);
+  public BeamCalcMergeRule() {
+    super(operand(BeamCalcRel.class, operand(BeamCalcRel.class, any()), new RelOptRuleOperand[0]));
   }
 
   @Override
