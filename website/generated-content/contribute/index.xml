@@ -334,6 +334,7 @@ limitations under the License.
 &lt;li>&lt;a href="#7-build-a-release-candidate">7. Build a release candidate&lt;/a>
 &lt;ul>
 &lt;li>&lt;a href="#checklist-before-proceeding">Checklist before proceeding&lt;/a>&lt;/li>
+&lt;li>&lt;a href="#tag-a-chosen-commit-for-the-rc">Tag a chosen commit for the RC&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#run-build_release_candidatesh-to-create-a-release-candidate">Run build_release_candidate.sh to create a release candidate&lt;/a>
 &lt;ul>
 &lt;li>&lt;a href="#tasks-you-need-to-do-manually">Tasks you need to do manually&lt;/a>&lt;/li>
@@ -861,6 +862,36 @@ Consider adding known issues there for minor issues instead of accepting cherry 
 Each cycle produces one release candidate.
 The Release Manager repeats this cycle until the community approves one release candidate, which is then finalized.&lt;/p>
 &lt;p>For this step, we recommend you using automation script to create a RC, but you still can perform all steps manually if you want.&lt;/p>
+&lt;h3 id="tag-a-chosen-commit-for-the-rc">Tag a chosen commit for the RC&lt;/h3>
+&lt;p>Release candidates are built from single commits off the release branch.
+Before building, the version must be set to a non-SNAPSHOT, non-dev version.
+The final state of the repository should match this diagram:&lt;/p>
+&lt;p>&lt;img src="/images/tag-rc-commit.png" alt="Set version to non-SNAPSHOT, non-dev, on tagged RC commit" width="100%" />&lt;/p>
+&lt;ul>
+&lt;li>The release branch is unchanged.&lt;/li>
+&lt;li>There is a commit not on the release branch with the version adjusted.&lt;/li>
+&lt;li>The RC tag points to that commit.&lt;/li>
+&lt;/ul>
+&lt;ul>
+&lt;li>
+&lt;p>&lt;strong>Script:&lt;/strong> &lt;a href="https://github.com/apache/beam/blob/master/release/src/main/scripts/choose_rc_commit.sh">choose_rc_commit.sh&lt;/a>&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>Usage&lt;/strong>&lt;/p>
+&lt;pre>&lt;code>./beam/release/src/main/scripts/choose_rc_commit.sh \
+--release &amp;quot;${RELEASE_VERSION}&amp;quot; \
+--rc &amp;quot;${RC_NUM}&amp;quot; \
+--commit &amp;quot;${COMMIT_REF}&amp;quot; \
+--clone \
+--push-tag
+&lt;/code>&lt;/pre>
+&lt;/li>
+&lt;/ul>
+&lt;p>You can do a dry run by omitting the &lt;code>--push-tag&lt;/code> flag. Then it will only clone the repo,
+adjust the version, and add the tag locally. If it looks good, run it again with &lt;code>--push-tag&lt;/code>.
+If you already have a clone that includes the &lt;code>${COMMIT_REF}&lt;/code> then you can omit &lt;code>--clone&lt;/code>. This
+is perfectly safe since the script does not depend on the current working tree.&lt;/p>
+&lt;p>See the source of the script for more details, or to run commands manually in case of a problem.&lt;/p>
 &lt;h3 id="run-build_release_candidatesh-to-create-a-release-candidate">Run build_release_candidate.sh to create a release candidate&lt;/h3>
 &lt;ul>
 &lt;li>
@@ -874,7 +905,7 @@ The Release Manager repeats this cycle until the community approves one release 
 &lt;li>
 &lt;p>&lt;strong>The script will:&lt;/strong>&lt;/p>
 &lt;ol>
-&lt;li>Run gradle release to create rc tag and push source release into github repo.&lt;/li>
+&lt;li>Clone the repo at the selected RC tag.&lt;/li>
 &lt;li>Run gradle publish to push java artifacts into Maven staging repo.&lt;/li>
 &lt;li>Stage source release into dist.apache.org dev &lt;a href="https://dist.apache.org/repos/dist/dev/beam/">repo&lt;/a>.&lt;/li>
 &lt;li>Stage, sign and hash python source distribution and wheels into dist.apache.org dev repo python dir&lt;/li>
