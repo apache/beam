@@ -152,10 +152,6 @@ class PCollection(PValue, Generic[T]):
     if isinstance(other, PCollection):
       return self.tag == other.tag and self.producer == other.producer
 
-  def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
-
   def __hash__(self):
     return hash((self.tag, self.producer))
 
@@ -678,9 +674,6 @@ class Row(object):
 
   def __eq__(self, other):
     return type(self) == type(other) and self.__dict__ == other.__dict__
-
-  def __ne__(self, other):
-    return not self == other
 
   def __reduce__(self):
     return _make_Row, tuple(sorted(self.__dict__.items()))
