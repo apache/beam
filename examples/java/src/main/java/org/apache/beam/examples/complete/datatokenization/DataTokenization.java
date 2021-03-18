@@ -275,7 +275,9 @@ public class DataTokenization {
               MapElements.into(FAILSAFE_ELEMENT_CODER.getEncodedTypeDescriptor())
                   .via(
                       (Row errRow) ->
-                          FailsafeElement.of(errRow.getString("line"), errRow.getString("line"))
+                          FailsafeElement.of(
+                                  Strings.nullToEmpty(errRow.getString("line")),
+                                  Strings.nullToEmpty(errRow.getString("line")))
                               .setErrorMessage(Strings.nullToEmpty(errRow.getString("err")))))
           .apply(
               "WriteCsvConversionErrorsToFS",
