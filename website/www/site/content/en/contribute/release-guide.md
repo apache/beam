@@ -519,6 +519,36 @@ The Release Manager repeats this cycle until the community approves one release 
 
 For this step, we recommend you using automation script to create a RC, but you still can perform all steps manually if you want.
 
+### Tag a chosen commit for the RC
+
+Release candidates are built from single commits off the release branch.
+Before building, the version must be set to a non-SNAPSHOT, non-dev version.
+The final state of the repository should match this diagram:
+
+<img src="/images/tag-rc-commit.png" alt="Set version to non-SNAPSHOT, non-dev, on tagged RC commit" width="100%" />
+
+- The release branch is unchanged.
+- There is a commit not on the release branch with the version adjusted.
+- The RC tag points to that commit.
+
+* **Script:** [choose_rc_commit.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/choose_rc_commit.sh)
+
+* **Usage**
+
+      ./beam/release/src/main/scripts/choose_rc_commit.sh \
+          --release "${RELEASE_VERSION}" \
+          --rc "${RC_NUM}" \
+          --commit "${COMMIT_REF}" \
+          --clone \
+          --push-tag
+
+You can do a dry run by omitting the `--push-tag` flag. Then it will only clone the repo,
+adjust the version, and add the tag locally. If it looks good, run it again with `--push-tag`.
+If you already have a clone that includes the `${COMMIT_REF}` then you can omit `--clone`. This
+is perfectly safe since the script does not depend on the current working tree.
+
+See the source of the script for more details, or to run commands manually in case of a problem.
+
 ### Run build_release_candidate.sh to create a release candidate
 
 * **Script:** [build_release_candidate.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/build_release_candidate.sh)
@@ -528,7 +558,7 @@ For this step, we recommend you using automation script to create a RC, but you 
       ./beam/release/src/main/scripts/build_release_candidate.sh
 
 * **The script will:**
-  1. Run gradle release to create rc tag and push source release into github repo.
+  1. Clone the repo at the selected RC tag.
   1. Run gradle publish to push java artifacts into Maven staging repo.
   1. Stage source release into dist.apache.org dev [repo](https://dist.apache.org/repos/dist/dev/beam/).
   1. Stage, sign and hash python source distribution and wheels into dist.apache.org dev repo python dir
