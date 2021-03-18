@@ -177,7 +177,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     p.apply("ReadMyFile", TextIO.read().from("gs://bucket/object"))
         .apply("WriteMyFile", TextIO.write().to("gs://bucket/object"));
     DataflowRunner runner = DataflowRunner.fromOptions(options);
-    runner.replaceTransforms(p);
+    runner.replaceV1Transforms(p);
 
     return p;
   }
@@ -672,7 +672,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
     pipeline.apply("Jazzy", Create.of(3)).setName("foobizzle");
 
-    runner.replaceTransforms(pipeline);
+    runner.replaceV1Transforms(pipeline);
 
     SdkComponents sdkComponents = createSdkComponents(options);
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents, true);
@@ -728,7 +728,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     outputs.get(tag2).setName("gonzaggle");
     outputs.get(tag3).setName("froonazzle");
 
-    runner.replaceTransforms(pipeline);
+    runner.replaceV1Transforms(pipeline);
 
     SdkComponents sdkComponents = createSdkComponents(options);
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents, true);
@@ -782,7 +782,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
                     })
                 .withOutputTags(mainOutputTag, TupleTagList.empty()));
 
-    runner.replaceTransforms(pipeline);
+    runner.replaceV1Transforms(pipeline);
 
     SdkComponents sdkComponents = createSdkComponents(options);
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents, true);
@@ -832,7 +832,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
             .apply(Window.into(FixedWindows.of(Duration.standardMinutes(1))));
     windowedInput.apply(ParDo.of(new TestSplittableFn()));
 
-    runner.replaceTransforms(pipeline);
+    runner.replaceV1Transforms(pipeline);
 
     SdkComponents sdkComponents = createSdkComponents(options);
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents, true);
@@ -898,7 +898,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
                     }))
             .apply(Window.into(FixedWindows.of(Duration.standardMinutes(1))));
 
-    runner.replaceTransforms(pipeline);
+    runner.replaceV1Transforms(pipeline);
 
     File file1 = File.createTempFile("file1-", ".txt");
     file1.deleteOnExit();
@@ -945,7 +945,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     Pipeline pipeline = Pipeline.create(options);
     pipeline.apply(Create.of(1)).apply(View.asSingleton());
     DataflowRunner runner = DataflowRunner.fromOptions(options);
-    runner.replaceTransforms(pipeline);
+    runner.replaceV1Transforms(pipeline);
     SdkComponents sdkComponents = createSdkComponents(options);
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents, true);
     Job job =
@@ -981,7 +981,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     pipeline.apply(Create.of(1, 2, 3)).apply(View.asIterable());
 
     DataflowRunner runner = DataflowRunner.fromOptions(options);
-    runner.replaceTransforms(pipeline);
+    runner.replaceV1Transforms(pipeline);
     SdkComponents sdkComponents = createSdkComponents(options);
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents, true);
     Job job =
@@ -1021,7 +1021,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     }
 
     DataflowRunner runner = DataflowRunner.fromOptions(options);
-    runner.replaceTransforms(pipeline);
+    runner.replaceV1Transforms(pipeline);
     SdkComponents sdkComponents = createSdkComponents(options);
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents, true);
     return translator.translate(
@@ -1189,7 +1189,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     pipeline.apply(Create.of(1, 2, 3)).apply(parDo1).apply(parDo2);
 
     DataflowRunner runner = DataflowRunner.fromOptions(options);
-    runner.replaceTransforms(pipeline);
+    runner.replaceV1Transforms(pipeline);
     SdkComponents sdkComponents = createSdkComponents(options);
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents, true);
     Job job =

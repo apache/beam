@@ -172,11 +172,7 @@ public class BatchStatefulParDoOverrides {
       verifyFnIsStateful(fn);
       DataflowPipelineOptions options =
           input.getPipeline().getOptions().as(DataflowPipelineOptions.class);
-      DataflowRunner.verifyDoFnSupported(
-          fn,
-          false,
-          DataflowRunner.useUnifiedWorker(options),
-          DataflowRunner.useStreamingEngine(options));
+      DataflowRunner.verifyDoFnSupported(fn, false, DataflowRunner.useStreamingEngine(options));
       DataflowRunner.verifyStateSupportForWindowingStrategy(input.getWindowingStrategy());
 
       if (isFnApi) {
@@ -211,11 +207,7 @@ public class BatchStatefulParDoOverrides {
       verifyFnIsStateful(fn);
       DataflowPipelineOptions options =
           input.getPipeline().getOptions().as(DataflowPipelineOptions.class);
-      DataflowRunner.verifyDoFnSupported(
-          fn,
-          false,
-          DataflowRunner.useUnifiedWorker(options),
-          DataflowRunner.useStreamingEngine(options));
+      DataflowRunner.verifyDoFnSupported(fn, false, DataflowRunner.useStreamingEngine(options));
       DataflowRunner.verifyStateSupportForWindowingStrategy(input.getWindowingStrategy());
 
       if (isFnApi) {
