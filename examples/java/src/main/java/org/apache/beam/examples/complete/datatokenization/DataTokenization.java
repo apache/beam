@@ -55,6 +55,7 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -275,7 +276,7 @@ public class DataTokenization {
                   .via(
                       (Row errRow) ->
                           FailsafeElement.of(errRow.getString("line"), errRow.getString("line"))
-                              .setErrorMessage(errRow.getString("err"))))
+                              .setErrorMessage(Strings.nullToEmpty(errRow.getString("err")))))
           .apply(
               "WriteCsvConversionErrorsToFS",
               ErrorConverters.WriteStringMessageErrorsAsCsv.newBuilder()

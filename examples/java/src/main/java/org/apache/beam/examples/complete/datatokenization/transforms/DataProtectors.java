@@ -63,6 +63,7 @@ import org.apache.beam.vendor.grpc.v1p26p0.com.google.gson.JsonObject;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpEntity;
+import org.apache.http.HttpStatus;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.ByteArrayEntity;
@@ -290,6 +291,10 @@ public class DataProtectors {
 
       CloseableHttpResponse response =
           sendRpc(formatJsonsToRpcBatch(rowsToJsons(inputRows)).getBytes(Charset.defaultCharset()));
+
+      if (response.getStatusLine().getStatusCode() != HttpStatus.SC_OK) {
+        LOG.error("Send to RPC '{}' failed with '{}'", this.rpcURI, response.getStatusLine());
+      }
 
       String tokenizedData =
           IOUtils.toString(response.getEntity().getContent(), StandardCharsets.UTF_8);
