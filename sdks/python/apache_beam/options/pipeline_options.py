@@ -1285,7 +1285,8 @@ class SparkRunnerOptions(PipelineOptions):
     parser.add_argument(
         '--spark_rest_url',
         help='URL for the Spark REST endpoint. '
-        'Only required when using spark_submit_uber_jar.')
+        'Only required when using spark_submit_uber_jar. '
+        'For example, http://hostname:6066')
 
 
 class TestOptions(PipelineOptions):
