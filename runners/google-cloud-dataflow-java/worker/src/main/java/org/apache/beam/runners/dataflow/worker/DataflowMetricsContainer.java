@@ -65,6 +65,4 @@ public class DataflowMetricsContainer implements MetricsContainer {
   public Gauge getGauge(MetricName metricName) {
     return getCurrentContainer().getGauge(metricName);
   }
-
-
 }

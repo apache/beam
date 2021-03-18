@@ -21,23 +21,29 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.pipeline.v1.MetricsApi;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 // TODO can this be a static class?
 public class ProcessWideInstructionHandler {
+  private static final Logger LOG = LoggerFactory.getLogger(ProcessWideInstructionHandler.class);
 
   public ProcessWideInstructionHandler() { }
 
   public BeamFnApi.InstructionResponse.Builder monitoringInfoMetadata(
       BeamFnApi.InstructionRequest request) {
+    LOG.info("ajamato monitoringInfoMetadata request " + request.toString());
     BeamFnApi.MonitoringInfosMetadataResponse.Builder response =
       BeamFnApi.MonitoringInfosMetadataResponse.newBuilder();
     response.putAllMonitoringInfo(ShortIdCache.getShortIdCache().getInfos(
         request.getMonitoringInfos().getMonitoringInfoIdList()));
+    LOG.info("ajamato monitoringInfoMetadata response " + response.toString());
     return BeamFnApi.InstructionResponse.newBuilder().setMonitoringInfos(response);
   }
 
   public BeamFnApi.InstructionResponse.Builder harnessMonitoringInfos(
       BeamFnApi.InstructionRequest request) {
+    LOG.info("ajamato harnessMonitoringInfos request " + request.toString());
     BeamFnApi.HarnessMonitoringInfosResponse.Builder response =
         BeamFnApi.HarnessMonitoringInfosResponse.newBuilder();
 
@@ -48,6 +54,7 @@ public class ProcessWideInstructionHandler {
           ShortIdCache.getShortIdCache().getShortId(info), info.getPayload());
       }
     }
+    LOG.info("ajamato harnessMonitoringInfos response " + response.toString());
     return BeamFnApi.InstructionResponse.newBuilder().setHarnessMonitoringInfos(response);
   }
 }
