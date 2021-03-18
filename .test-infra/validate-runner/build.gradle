@@ -23,9 +23,6 @@ description = "Apache Beam :: Validate :: Runner"
 
 repositories {
     mavenCentral()
-//    maven {
-//        url "https://repo.spring.io/libs-release/"
-//    }
     maven {
         url "https://repo.jenkins-ci.org/releases/"
     }
