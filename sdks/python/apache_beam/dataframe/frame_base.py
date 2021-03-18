@@ -14,8 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import absolute_import
-
 import functools
 from inspect import getfullargspec
 from inspect import unwrap
@@ -58,7 +56,7 @@ class DeferredBase(object):
             'get_%d' % ix,
             lambda t: t[ix],
             [expr],
-            requires_partition_by=partitionings.Nothing(),
+            requires_partition_by=partitionings.Arbitrary(),
             preserves_partition_by=partitionings.Singleton())
 
       return tuple([cls.wrap(get(ix)) for ix in range(len(expr.proxy()))])
@@ -111,6 +109,16 @@ class _DeferredScalar(DeferredBase):
               func, [self._expr] + [arg._expr for arg in args],
               requires_partition_by=partitionings.Singleton()))
 
+  def __repr__(self):
+    return f"DeferredScalar[type={type(self._expr.proxy())}]"
+
+  def __bool__(self):
+    # TODO(BEAM-11951): Link to documentation
+    raise TypeError(
+        "Testing the truth value of a deferred scalar is not "
+        "allowed. It's not possible to branch on the result of "
+        "deferred operations.")
+
 
 DeferredBase._pandas_type_map[None] = _DeferredScalar
 
@@ -129,7 +137,7 @@ def _elementwise_method(func, name=None, restrictions=None, inplace=False):
       name,
       restrictions,
       inplace,
-      requires_partition_by=partitionings.Nothing(),
+      requires_partition_by=partitionings.Arbitrary(),
       preserves_partition_by=partitionings.Singleton())
 
 
@@ -139,7 +147,7 @@ def _proxy_method(
     restrictions=None,
     inplace=False,
     requires_partition_by=partitionings.Singleton(),
-    preserves_partition_by=partitionings.Nothing()):
+    preserves_partition_by=partitionings.Arbitrary()):
   if name is None:
     name, func = name_and_func(func)
   if restrictions is None:
@@ -159,7 +167,7 @@ def _elementwise_function(func, name=None, restrictions=None, inplace=False):
       name,
       restrictions,
       inplace,
-      requires_partition_by=partitionings.Nothing(),
+      requires_partition_by=partitionings.Arbitrary(),
       preserves_partition_by=partitionings.Singleton())
 
 
@@ -169,7 +177,7 @@ def _proxy_function(
       restrictions=None,  # type: Optional[Dict[str, Union[Any, List[Any], Callable[[Any], bool]]]]
       inplace=False,  # type: bool
       requires_partition_by=partitionings.Singleton(),  # type: partitionings.Partitioning
-      preserves_partition_by=partitionings.Nothing(),  # type: partitionings.Partitioning
+      preserves_partition_by=partitionings.Arbitrary(),  # type: partitionings.Partitioning
 ):
 
   if name is None:
@@ -222,7 +230,7 @@ def _proxy_function(
                 lambda ix: ix.index.to_series(),  # yapf break
                 [arg._frame._expr],
                 preserves_partition_by=partitionings.Singleton(),
-                requires_partition_by=partitionings.Nothing()))
+                requires_partition_by=partitionings.Arbitrary()))
       elif isinstance(arg, pd.core.generic.NDFrame):
         deferred_arg_indices.append(ix)
         deferred_arg_exprs.append(expressions.ConstantExpression(arg, arg[0:0]))
@@ -264,9 +272,9 @@ def _proxy_function(
 
       return actual_func(*full_args, **full_kwargs)
 
-    if (not requires_partition_by.is_subpartitioning_of(partitionings.Index())
-        and sum(isinstance(arg.proxy(), pd.core.generic.NDFrame)
-                for arg in deferred_exprs) > 1):
+    if (requires_partition_by.is_subpartitioning_of(partitionings.Index()) and
+        sum(isinstance(arg.proxy(), pd.core.generic.NDFrame)
+            for arg in deferred_exprs) > 1):
       # Implicit join on index if there is more than one indexed input.
       actual_requires_partition_by = partitionings.Index()
     else:

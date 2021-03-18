@@ -32,63 +32,13 @@ from apache_beam.runners.interactive import cache_manager as cache
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import pipeline_fragment as pf
 from apache_beam.runners.interactive import background_caching_job
-from apache_beam.runners.interactive.utils import obfuscate
+from apache_beam.runners.interactive.caching.cacheable import Cacheable
+from apache_beam.runners.interactive.caching.cacheable import CacheKey
 from apache_beam.testing import test_stream
 from apache_beam.transforms.window import WindowedValue
 
 READ_CACHE = "_ReadCache_"
 WRITE_CACHE = "_WriteCache_"
-
-
-# TODO: turn this into a dataclass object when we finally get off of Python2.
-class Cacheable:
-  def __init__(self, pcoll_id, var, version, pcoll, producer_version):
-    self.pcoll_id = pcoll_id
-    self.var = var
-    self.version = version
-    self.pcoll = pcoll
-    self.producer_version = producer_version
-
-  def __eq__(self, other):
-    return (
-        self.pcoll_id == other.pcoll_id and self.var == other.var and
-        self.version == other.version and self.pcoll == other.pcoll and
-        self.producer_version == other.producer_version)
-
-  def __hash__(self):
-    return hash((
-        self.pcoll_id,
-        self.var,
-        self.version,
-        self.pcoll,
-        self.producer_version))
-
-  def to_key(self):
-    return CacheKey(
-        self.var,
-        self.version,
-        self.producer_version,
-        str(id(self.pcoll.pipeline)))
-
-
-# TODO: turn this into a dataclass object when we finally get off of Python2.
-class CacheKey:
-  def __init__(self, var, version, producer_version, pipeline_id):
-    # Makes sure that the variable name is obfuscated and only first 10
-    # characters taken so that the CacheKey has a constant length.
-    self.var = obfuscate(var)[:10]
-    self.version = version
-    self.producer_version = producer_version
-    self.pipeline_id = pipeline_id
-
-  @staticmethod
-  def from_str(r):
-    split = r.split('-')
-    return CacheKey(split[0], split[1], split[2], split[3])
-
-  def __repr__(self):
-    return '-'.join(
-        [self.var, self.version, self.producer_version, self.pipeline_id])
 
 
 class PipelineInstrument(object):
@@ -103,18 +53,18 @@ class PipelineInstrument(object):
   """
   def __init__(self, pipeline, options=None):
     self._pipeline = pipeline
-    # The cache manager per user-defined pipeline is lazily initiated the first
-    # time accessed. It is owned by interactive_environment module. This
-    # shortcut reference will be initialized when the user pipeline associated
-    # to the given pipeline is identified.
-    self._cache_manager = None
 
-    # Invoke a round trip through the runner API. This makes sure the Pipeline
-    # proto is stable. The snapshot of pipeline will not be mutated within this
-    # module and can be used to recover original pipeline if needed.
-    self._pipeline_snap = beam.pipeline.Pipeline.from_runner_api(
-        pipeline.to_runner_api(use_fake_coders=True), pipeline.runner, options)
-    ie.current_env().add_derived_pipeline(self._pipeline, self._pipeline_snap)
+    self._user_pipeline = ie.current_env().user_pipeline(pipeline)
+    if not self._user_pipeline:
+      self._user_pipeline = pipeline
+    self._cache_manager = ie.current_env().get_cache_manager(
+        self._user_pipeline, create_if_absent=True)
+    # Check if the user defined pipeline contains any source to cache.
+    # If so, during the check, the cache manager is converted into a
+    # streaming cache manager, thus re-assign.
+    if background_caching_job.has_source_to_cache(self._user_pipeline):
+      self._cache_manager = ie.current_env().get_cache_manager(
+          self._user_pipeline)
 
     self._background_caching_pipeline = beam.pipeline.Pipeline.from_runner_api(
         pipeline.to_runner_api(use_fake_coders=True), pipeline.runner, options)
@@ -122,17 +72,15 @@ class PipelineInstrument(object):
         self._pipeline, self._background_caching_pipeline)
 
     # Snapshot of original pipeline information.
-    (self._original_pipeline_proto,
-     self._original_context) = self._pipeline_snap.to_runner_api(
-         return_context=True, use_fake_coders=True)
+    (self._original_pipeline_proto, context) = self._pipeline.to_runner_api(
+        return_context=True, use_fake_coders=True)
 
     # All compute-once-against-original-pipeline fields.
     self._unbounded_sources = unbounded_sources(
         self._background_caching_pipeline)
     # TODO(BEAM-7760): once cache scope changed, this is not needed to manage
     # relationships across pipelines, runners, and jobs.
-    self._pcolls_to_pcoll_id = pcolls_to_pcoll_id(
-        self._pipeline_snap, self._original_context)
+    self._pcolls_to_pcoll_id = pcolls_to_pcoll_id(self._pipeline, context)
 
     # A mapping from PCollection id to python id() value in user defined
     # pipeline instance.
@@ -148,11 +96,6 @@ class PipelineInstrument(object):
     # should create new transform and track the PCollection read from cache.
     # (Dict[str, AppliedPTransform]).
     self._cached_pcoll_read = {}
-
-    # Reference to the user defined pipeline instance based on the given
-    # pipeline. The class never mutates it.
-    # Note: the original pipeline is not the user pipeline.
-    self._user_pipeline = None
 
     # A dict from PCollections in the runner pipeline instance to their
     # corresponding PCollections in the user pipeline instance. Populated
@@ -421,14 +364,8 @@ class PipelineInstrument(object):
 
   @property
   def original_pipeline_proto(self):
-    """Returns the portable proto representation of the pipeline before
-    instrumentation."""
+    """Returns a snapshot of the pipeline proto before instrumentation."""
     return self._original_pipeline_proto
-
-  @property
-  def original_pipeline(self):
-    """Returns a snapshot of the pipeline before instrumentation."""
-    return self._pipeline_snap
 
   @property
   def user_pipeline(self):
@@ -571,29 +508,11 @@ class PipelineInstrument(object):
           cacheable_key = self._pin._cacheable_key(pcoll)
           user_pcoll = self._pin.cacheables[cacheable_key].pcoll
           if (cacheable_key in self._pin.cacheables and user_pcoll != pcoll):
-            if not self._pin._user_pipeline:
-              # Retrieve a reference to the user defined pipeline instance.
-              self._pin._user_pipeline = user_pcoll.pipeline
-              # Retrieve a reference to the cache manager for the user defined
-              # pipeline instance.
-              self._pin._cache_manager = ie.current_env().get_cache_manager(
-                  self._pin._user_pipeline, create_if_absent=True)
-              # Check if the user defined pipeline contains any source to cache.
-              # If so, during the check, the cache manager is converted into a
-              # streaming cache manager, thus re-assign the reference.
-              if background_caching_job.has_source_to_cache(
-                  self._pin._user_pipeline):
-                self._pin._cache_manager = ie.current_env().get_cache_manager(
-                    self._pin._user_pipeline)
             self._pin._runner_pcoll_to_user_pcoll[pcoll] = user_pcoll
             self._pin.cacheables[cacheable_key].pcoll = pcoll
 
     v = PreprocessVisitor(self)
     self._pipeline.visit(v)
-    if not self._user_pipeline:
-      self._user_pipeline = self._pipeline
-      self._cache_manager = ie.current_env().get_cache_manager(
-          self._user_pipeline, create_if_absent=True)
 
   def _write_cache(
       self,
@@ -679,7 +598,6 @@ class PipelineInstrument(object):
     key = self.cache_key(pcoll)
     # Can only read from cache when the cache with expected key exists and its
     # computation has been completed.
-
     is_cached = self._cache_manager.exists('full', key)
     is_computed = (
         pcoll in self._runner_pcoll_to_user_pcoll and
@@ -885,10 +803,7 @@ def cacheables(pcolls_to_pcoll_id):
   cacheable_var_by_pcoll_id = {}
   for watching in ie.current_env().watching():
     for key, val in watching:
-      # TODO(BEAM-8288): cleanup the attribute check when py2 is not supported.
-      if hasattr(val, '__class__') and isinstance(val, beam.pvalue.PCollection):
-        cacheable = {}
-
+      if isinstance(val, beam.pvalue.PCollection):
         pcoll_id = pcolls_to_pcoll_id.get(str(val), None)
         # It's highly possible that PCollection str is not unique across
         # multiple pipelines, further check during instrument is needed.

@@ -21,11 +21,12 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.stream.Collectors.toSet;
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.DLQ_TAG;
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.MAIN_TAG;
-import static org.apache.beam.sdk.io.gcp.pubsub.PubsubSchemaIOProvider.VARCHAR;
+import static org.apache.beam.sdk.io.gcp.pubsub.PubsubSchemaIOProvider.ATTRIBUTE_ARRAY_ENTRY_SCHEMA;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables.size;
 import static org.junit.Assert.assertEquals;
 
 import java.io.Serializable;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
@@ -41,6 +42,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.joda.time.DateTime;
@@ -67,7 +69,7 @@ public class PubsubMessageToRowTest implements Serializable {
     Schema messageSchema =
         Schema.builder()
             .addDateTimeField("event_timestamp")
-            .addMapField("attributes", VARCHAR, VARCHAR)
+            .addMapField("attributes", FieldType.STRING, FieldType.STRING)
             .addRowField("payload", payloadSchema)
             .build();
 
@@ -112,13 +114,57 @@ public class PubsubMessageToRowTest implements Serializable {
   }
 
   @Test
+  public void testConvertsMessagesBytesPayloadArrayAttributes() {
+    Schema messageSchema =
+        Schema.builder()
+            .addDateTimeField("event_timestamp")
+            .addArrayField("attributes", FieldType.row(ATTRIBUTE_ARRAY_ENTRY_SCHEMA))
+            .addByteArrayField("payload")
+            .build();
+
+    PCollectionTuple rows =
+        pipeline
+            .apply(
+                "create",
+                Create.timestamped(
+                    message(1, map("attr", "val"), "foo"),
+                    message(2, map("bttr", "vbl"), "baz"),
+                    message(3, map("cttr", "vcl"), "bar"),
+                    message(4, map("dttr", "vdl"), "qaz")))
+            .apply(
+                "convert",
+                PubsubMessageToRow.builder()
+                    .messageSchema(messageSchema)
+                    .useDlq(false)
+                    .useFlatSchema(false)
+                    .build());
+
+    PAssert.that(rows.get(MAIN_TAG))
+        .containsInAnyOrder(
+            Row.withSchema(messageSchema)
+                .addValues(ts(1), mapEntries("attr", "val"), "foo".getBytes(UTF_8))
+                .build(),
+            Row.withSchema(messageSchema)
+                .addValues(ts(2), mapEntries("bttr", "vbl"), "baz".getBytes(UTF_8))
+                .build(),
+            Row.withSchema(messageSchema)
+                .addValues(ts(3), mapEntries("cttr", "vcl"), "bar".getBytes(UTF_8))
+                .build(),
+            Row.withSchema(messageSchema)
+                .addValues(ts(4), mapEntries("dttr", "vdl"), "qaz".getBytes(UTF_8))
+                .build());
+
+    pipeline.run();
+  }
+
+  @Test
   public void testSendsInvalidToDLQ() {
     Schema payloadSchema = Schema.builder().addInt32Field("id").addStringField("name").build();
 
     Schema messageSchema =
         Schema.builder()
             .addDateTimeField("event_timestamp")
-            .addMapField("attributes", VARCHAR, VARCHAR)
+            .addMapField("attributes", FieldType.STRING, FieldType.STRING)
             .addRowField("payload", payloadSchema)
             .build();
 
@@ -310,7 +356,7 @@ public class PubsubMessageToRowTest implements Serializable {
     Schema messageSchema =
         Schema.builder()
             .addDateTimeField("event_timestamp")
-            .addMapField("attributes", VARCHAR, VARCHAR)
+            .addMapField("attributes", FieldType.STRING, FieldType.STRING)
             .addRowField("payload", payloadSchema)
             .build();
 
@@ -340,6 +386,10 @@ public class PubsubMessageToRowTest implements Serializable {
 
   private Map<String, String> map(String attr, String val) {
     return ImmutableMap.of(attr, val);
+  }
+
+  private List<Row> mapEntries(String attr, String val) {
+    return ImmutableList.of(Row.withSchema(ATTRIBUTE_ARRAY_ENTRY_SCHEMA).attachValues(attr, val));
   }
 
   private TimestampedValue<PubsubMessage> message(

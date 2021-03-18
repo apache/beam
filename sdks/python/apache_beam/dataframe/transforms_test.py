@@ -14,9 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import absolute_import
-from __future__ import division
-
 import typing
 import unittest
 
@@ -33,24 +30,21 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
 
-def sort_by_value_and_drop_index(df):
-  if isinstance(df, pd.DataFrame):
-    sorted_df = df.sort_values(by=list(df.columns))
-  else:
-    sorted_df = df.sort_values()
-  return sorted_df.reset_index(drop=True)
-
-
-def check_correct(expected, actual, check_index=False):
+def check_correct(expected, actual):
   if actual is None:
     raise AssertionError('Empty frame but expected: \n\n%s' % (expected))
   if isinstance(expected, pd.core.generic.NDFrame):
-    sorted_actual = sort_by_value_and_drop_index(actual)
-    sorted_expected = sort_by_value_and_drop_index(expected)
-    if not sorted_actual.equals(sorted_expected):
-      raise AssertionError(
-          'Dataframes not equal: \n\n%s\n\n%s' %
-          (sorted_actual, sorted_expected))
+    expected = expected.sort_index()
+    actual = actual.sort_index()
+
+    if isinstance(expected, pd.Series):
+      pd.testing.assert_series_equal(expected, actual)
+    elif isinstance(expected, pd.DataFrame):
+      pd.testing.assert_frame_equal(expected, actual)
+    else:
+      raise ValueError(
+          f"Expected value is a {type(expected)},"
+          "not a Series or DataFrame.")
   else:
     if actual != expected:
       raise AssertionError('Scalars not equal: %s != %s' % (actual, expected))

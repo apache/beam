@@ -49,7 +49,7 @@ public class BeamKafkaTableCSVTest extends BeamKafkaTableTest {
 
   @Override
   protected BeamKafkaTable getBeamKafkaTable() {
-    return new BeamKafkaCSVTable(TEST_SCHEMA, "", ImmutableList.of());
+    return new BeamKafkaCSVTable(TEST_SCHEMA, "", ImmutableList.of("mytopic"));
   }
 
   private String createCsv(int i) {

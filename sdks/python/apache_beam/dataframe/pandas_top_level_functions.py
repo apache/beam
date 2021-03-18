@@ -107,6 +107,16 @@ class DeferredPandasModule(object):
       objs = [objs[k] for k in keys]
     else:
       objs = list(objs)
+
+    if keys is None:
+      preserves_partitioning = partitionings.Arbitrary()
+    else:
+      # Index 0 will be a new index for keys, only partitioning by the original
+      # indexes (1 to N) will be preserved.
+      nlevels = min(o._expr.proxy().index.nlevels for o in objs)
+      preserves_partitioning = partitionings.Index(
+          [i for i in range(1, nlevels + 1)])
+
     deferred_none = expressions.ConstantExpression(None)
     exprs = [deferred_none if o is None else o._expr for o in objs]
 
@@ -115,7 +125,7 @@ class DeferredPandasModule(object):
     elif verify_integrity:
       required_partitioning = partitionings.Index()
     else:
-      required_partitioning = partitionings.Nothing()
+      required_partitioning = partitionings.Arbitrary()
 
     return frame_base.DeferredBase.wrap(
         expressions.ComputedExpression(
@@ -131,7 +141,7 @@ class DeferredPandasModule(object):
                 verify_integrity=verify_integrity),  # yapf break
             exprs,
             requires_partition_by=required_partitioning,
-            preserves_partition_by=partitionings.Index()))
+            preserves_partition_by=preserves_partitioning))
 
   date_range = _defer_to_pandas('date_range')
   describe_option = _defer_to_pandas('describe_option')

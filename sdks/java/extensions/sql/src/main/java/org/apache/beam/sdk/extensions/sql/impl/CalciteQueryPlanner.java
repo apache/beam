@@ -17,9 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl;
 
+import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.ServiceLoader;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.Factory;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters.Kind;
@@ -27,6 +29,7 @@ import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
 import org.apache.beam.sdk.extensions.sql.impl.planner.RelMdNodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
+import org.apache.beam.sdk.extensions.sql.impl.udf.BeamBuiltinFunctionProvider;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.config.CalciteConnectionConfig;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.jdbc.CalciteSchema;
@@ -92,7 +95,19 @@ public class CalciteQueryPlanner implements QueryPlanner {
         @Override
         public QueryPlanner createPlanner(
             JdbcConnection jdbcConnection, Collection<RuleSet> ruleSets) {
+          loadBuiltinFunctions(jdbcConnection);
           return new CalciteQueryPlanner(jdbcConnection, ruleSets);
+        }
+
+        private void loadBuiltinFunctions(JdbcConnection jdbcConnection) {
+          for (BeamBuiltinFunctionProvider provider :
+              ServiceLoader.load(BeamBuiltinFunctionProvider.class)) {
+            for (Map.Entry<String, List<Method>> entry : provider.getBuiltinMethods().entrySet()) {
+              for (Method method : entry.getValue()) {
+                jdbcConnection.getCurrentSchemaPlus().add(entry.getKey(), UdfImpl.create(method));
+              }
+            }
+          }
         }
       };
 

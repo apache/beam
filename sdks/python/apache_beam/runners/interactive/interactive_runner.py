@@ -190,7 +190,7 @@ class InteractiveRunner(runners.PipelineRunner):
 
     if not self._skip_display:
       a_pipeline_graph = pipeline_graph.PipelineGraph(
-          pipeline_instrument.original_pipeline,
+          pipeline_instrument.original_pipeline_proto,
           render_option=self._render_option)
       a_pipeline_graph.display_graph()
 

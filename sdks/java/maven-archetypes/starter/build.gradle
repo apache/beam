@@ -31,8 +31,3 @@ processResources {
     'maven-exec-plugin.version': dependencies.create(project.library.maven.maven_exec_plugin).getVersion(),
   ]
 }
-
-dependencies {
-  compile project(path: ":runners:direct-java", configuration: "shadow")
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-}

@@ -14,14 +14,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import absolute_import
-
 import unittest
 
 import pandas as pd
 
+from apache_beam.dataframe.partitionings import Arbitrary
 from apache_beam.dataframe.partitionings import Index
-from apache_beam.dataframe.partitionings import Nothing
 from apache_beam.dataframe.partitionings import Singleton
 
 
@@ -36,8 +34,10 @@ class PartitioningsTest(unittest.TestCase):
   }).set_index(['shape', 'color', 'size'])
 
   def test_index_is_subpartition(self):
-    ordered_list = [Nothing(), Index([3]), Index([1, 3]), Index(), Singleton()]
-    for loose, strict in zip(ordered_list[:1], ordered_list[1:]):
+    ordered_list = [
+        Singleton(), Index([3]), Index([1, 3]), Index(), Arbitrary()
+    ]
+    for loose, strict in zip(ordered_list[:-1], ordered_list[1:]):
       self.assertTrue(strict.is_subpartitioning_of(loose), (strict, loose))
       self.assertFalse(loose.is_subpartitioning_of(strict), (loose, strict))
     # Incomparable.
@@ -65,13 +65,13 @@ class PartitioningsTest(unittest.TestCase):
     self._check_partition(Index(), 7, 24)
 
   def test_nothing_subpartition(self):
-    self.assertTrue(Nothing().is_subpartitioning_of(Nothing()))
     for p in [Index([1]), Index([1, 2]), Index(), Singleton()]:
-      self.assertFalse(Nothing().is_subpartitioning_of(p), p)
+      self.assertTrue(Arbitrary().is_subpartitioning_of(p), p)
 
   def test_singleton_subpartition(self):
-    for p in [Nothing(), Index([1]), Index([1, 2]), Index(), Singleton()]:
-      self.assertTrue(Singleton().is_subpartitioning_of(p), p)
+    self.assertTrue(Singleton().is_subpartitioning_of(Singleton()))
+    for p in [Arbitrary(), Index([1]), Index([1, 2]), Index()]:
+      self.assertFalse(Singleton().is_subpartitioning_of(p), p)
 
   def test_singleton_partition(self):
     parts = list(Singleton().partition_fn(pd.Series(range(10)), 1000))

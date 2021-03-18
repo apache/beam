@@ -19,12 +19,9 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import typing
 import unittest
 
-import future.tests.base  # pylint: disable=unused-import
 import numpy as np
 # patches unittest.testcase to be python3 compatible
 import pandas as pd

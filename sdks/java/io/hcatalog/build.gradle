@@ -19,7 +19,7 @@
 import java.util.stream.Collectors
 
 plugins { id 'org.apache.beam.module' }
-applyJavaNature(enableStrictDependencies: true, automaticModuleName: 'org.apache.beam.sdk.io.hcatalog')
+applyJavaNature(automaticModuleName: 'org.apache.beam.sdk.io.hcatalog')
 
 description = "Apache Beam :: SDKs :: Java :: IO :: HCatalog"
 ext.summary = "IO to read and write for HCatalog source."

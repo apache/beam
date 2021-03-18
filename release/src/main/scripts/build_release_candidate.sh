@@ -36,6 +36,7 @@ else
   exit 1
 fi
 
+SCRIPT_DIR=$(dirname $0)
 LOCAL_CLONE_DIR=build_release_candidate
 LOCAL_JAVA_STAGING_DIR=java_staging_dir
 LOCAL_PYTHON_STAGING_DIR=python_staging_dir
@@ -65,8 +66,10 @@ echo "Which release candidate number(e.g. 1) are you going to create: "
 read RC_NUM
 echo "Please enter your github username(ID): "
 read USER_GITHUB_ID
+RC_TAG="v${RELEASE}-RC${RC_NUM}"
 
 USER_REMOTE_URL=https://github.com/${USER_GITHUB_ID}/beam-site
+RC_TAG="v${RELEASE}-RC${RC_NUM}"
 
 echo "=================Pre-requirements===================="
 echo "Please make sure you have configured and started your gpg by running ./preparation_before_release.sh."
@@ -80,7 +83,7 @@ echo "================Checking Environment Variables=============="
 echo "beam repo will be cloned into: ${LOCAL_CLONE_DIR}"
 echo "working on release version: ${RELEASE}"
 echo "working on release branch: ${RELEASE_BRANCH}"
-echo "will create release candidate: RC${RC_NUM}"
+echo "will create release candidate: RC${RC_NUM} from commit tagged ${RC_TAG}"
 echo "Your forked beam-site URL: ${USER_REMOTE_URL}"
 echo "Your signing key: ${SIGNING_KEY}"
 echo "Please review all environment variables and confirm: [y|N]"
@@ -89,6 +92,14 @@ if [[ $confirmation != "y" ]]; then
   echo "Please rerun this script and make sure you have the right inputs."
   exit
 fi
+
+echo "================Checking Environment Variables=============="
+echo "Pushing tagged commit for RC${RC_NUM}"
+sh $SCRIPT_DIR/set_version.sh ${RELEASE} --release"
+git add -u
+git commit -m "Set version for ${RELEASE} RC${RC_NUM}"
+git tag -s "$RC_TAG" HEAD
+git push --follow-tags origin "$RC_TAG"
 
 echo "[Current Step]: Build and stage java artifacts"
 echo "Do you want to proceed? [y|N]"
@@ -102,31 +113,12 @@ if [[ $confirmation = "y" ]]; then
   fi
   mkdir -p ${LOCAL_CLONE_DIR}
   cd ${LOCAL_CLONE_DIR}
-  git clone ${GIT_REPO_URL}
+  git clone --depth 1 --branch "${RC_TAG}" ${GIT_REPO_URL} "${BEAM_ROOT_DIR}"
   cd ${BEAM_ROOT_DIR}
-  git checkout ${RELEASE_BRANCH}
-  RELEASE_COMMIT=$(git rev-parse --verify ${RELEASE_BRANCH})
 
   echo "-------------Building Java Artifacts with Gradle-------------"
   git config credential.helper store
 
-  if git rev-parse "v${RELEASE}-RC${RC_NUM}" >/dev/null 2>&1; then
-    echo "Tag v${RELEASE}-RC${RC_NUM} already exists."
-    echo "Delete the tag and create a new tag commit (y) or skip this step (n)? [y/N]"
-    read confirmation
-    if [[ $confirmation = "y" ]]; then
-      # Delete tag with the git push <from>:<to> format, as shown here:
-      # https://git-scm.com/docs/git-push#Documentation/git-push.txt-codegitpushoriginexperimentalcode
-      git push origin :refs/tags/v${RELEASE}-RC${RC_NUM}
-    fi
-  fi
-  if [[ $confirmation = "y" ]]; then # Expected to be "y" unless user chose to skip creating tag.
-    ./gradlew release -Prelease.newVersion=${RELEASE}-SNAPSHOT \
-                  -Prelease.releaseVersion=${RELEASE}-RC${RC_NUM} \
-                  -Prelease.useAutomaticVersion=true --info --no-daemon
-    git push origin "${RELEASE_BRANCH}"
-    git push origin "v${RELEASE}-RC${RC_NUM}"
-  fi
   echo "-------------Staging Java Artifacts into Maven---------------"
   gpg --local-user ${SIGNING_KEY} --output /dev/null --sign ~/.bashrc
   ./gradlew publish -Psigning.gnupg.keyName=${SIGNING_KEY} -PisRelease --no-daemon
@@ -173,7 +165,7 @@ if [[ $confirmation = "y" ]]; then
   if [[ $confirmation != "y" ]]; then
     echo "Exit without staging source release on dist.apache.org."
   else
-    svn commit --no-auth-cache --non-interactive -m "Staging Java artifacts for Apache Beam ${RELEASE} RC${RC_NUM}"
+    svn commit --no-auth-cache -m "Staging Java artifacts for Apache Beam ${RELEASE} RC${RC_NUM}"
   fi
   rm -rf ~/${LOCAL_JAVA_STAGING_DIR}
 fi
@@ -239,7 +231,7 @@ if [[ $confirmation = "y" ]]; then
   if [[ $confirmation != "y" ]]; then
     echo "Exit without staging python artifacts on dist.apache.org."
   else
-    svn commit --no-auth-cache --non-interactive -m "Staging Python artifacts for Apache Beam ${RELEASE} RC${RC_NUM}"
+    svn commit --no-auth-cache -m "Staging Python artifacts for Apache Beam ${RELEASE} RC${RC_NUM}"
   fi
   rm -rf "${HOME:?}/${LOCAL_PYTHON_STAGING_DIR}"
 fi

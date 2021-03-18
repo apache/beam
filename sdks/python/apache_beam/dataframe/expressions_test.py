@@ -14,11 +14,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import absolute_import
-
 import unittest
 
+import pandas as pd
+
 from apache_beam.dataframe import expressions
+from apache_beam.dataframe import partitionings
 
 
 class ExpressionTest(unittest.TestCase):
@@ -52,6 +53,71 @@ class ExpressionTest(unittest.TestCase):
     b = expressions.PlaceholderExpression('s')
     with self.assertRaises(TypeError):
       expressions.ComputedExpression('add', lambda a, b: a + b, [a, b])
+
+  def test_preserves_singleton_output_partitioning(self):
+    # Empty DataFrame with one column and two index levels
+    input_expr = expressions.ConstantExpression(
+        pd.DataFrame(columns=["column"], index=[[], []]))
+
+    preserves_only_singleton = expressions.ComputedExpression(
+        'preserves_only_singleton',
+        # index is replaced with an entirely new one, so
+        # if we were partitioned by Index we're not anymore.
+        lambda df: df.set_index('column'),
+        [input_expr],
+        requires_partition_by=partitionings.Arbitrary(),
+        preserves_partition_by=partitionings.Singleton())
+
+    for partitioning in (partitionings.Singleton(), ):
+      self.assertEqual(
+          expressions.output_partitioning(
+              preserves_only_singleton, partitioning),
+          partitioning,
+          f"Should preserve {partitioning}")
+
+    for partitioning in (partitionings.Index([0]),
+                         partitionings.Index(),
+                         partitionings.Arbitrary()):
+      self.assertEqual(
+          expressions.output_partitioning(
+              preserves_only_singleton, partitioning),
+          partitionings.Arbitrary(),
+          f"Should NOT preserve {partitioning}")
+
+  def test_preserves_index_output_partitioning(self):
+    # Empty DataFrame with two columns and two index levels
+    input_expr = expressions.ConstantExpression(
+        pd.DataFrame(columns=["foo", "bar"], index=[[], []]))
+
+    preserves_partial_index = expressions.ComputedExpression(
+        'preserves_partial_index',
+        # This adds an additional index  level, so we'd only preserve
+        # partitioning on the two index levels that existed before.
+        lambda df: df.set_index('foo', append=True),
+        [input_expr],
+        requires_partition_by=partitionings.Arbitrary(),
+        preserves_partition_by=partitionings.Index([0, 1]))
+
+    for partitioning in (
+        partitionings.Singleton(),
+        partitionings.Index([0]),
+        partitionings.Index([1]),
+        partitionings.Index([0, 1]),
+    ):
+      self.assertEqual(
+          expressions.output_partitioning(
+              preserves_partial_index, partitioning),
+          partitioning,
+          f"Should preserve {partitioning}")
+
+    for partitioning in (partitionings.Index([0, 1, 2]),
+                         partitionings.Index(),
+                         partitionings.Arbitrary()):
+      self.assertEqual(
+          expressions.output_partitioning(
+              preserves_partial_index, partitioning),
+          partitionings.Arbitrary(),
+          f"Should NOT preserve {partitioning}")
 
 
 if __name__ == '__main__':

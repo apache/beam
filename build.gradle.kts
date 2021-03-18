@@ -181,7 +181,7 @@ task("javaHadoopVersionsTest") {
   dependsOn(":sdks:java:io:hcatalog:hadoopVersionsTest")
   dependsOn(":sdks:java:io:parquet:hadoopVersionsTest")
   dependsOn(":sdks:java:extensions:sorter:hadoopVersionsTest")
-  dependsOn(":runners:spark:hadoopVersionsTest")
+  dependsOn(":runners:spark:2:hadoopVersionsTest")
 }
 
 task("sqlPostCommit") {
@@ -192,9 +192,21 @@ task("sqlPostCommit") {
 }
 
 task("goPreCommit") {
-  dependsOn(":sdks:go:goBuild")
-  dependsOn(":sdks:go:goTest")
+  // Ensure the Precommit builds run after the tests, in order to avoid the
+  // flake described in BEAM-11918. This is done by splitting them into two
+  // tasks and using "mustRunAfter" to enforce ordering.
+  dependsOn(":goPrecommitTest")
+  dependsOn(":goPrecommitBuild")
+}
 
+task("goPrecommitTest") {
+  dependsOn(":sdks:go:goTest")
+}
+
+task("goPrecommitBuild") {
+  mustRunAfter(":goPrecommitTest")
+
+  dependsOn(":sdks:go:goBuild")
   dependsOn(":sdks:go:examples:goBuild")
   dependsOn(":sdks:go:test:goBuild")
 
@@ -317,7 +329,8 @@ task("typescriptPreCommit") {
 }
 
 task("pushAllDockerImages") {
-  dependsOn(":runners:spark:job-server:container:dockerPush")
+  dependsOn(":runners:spark:2:job-server:container:dockerPush")
+  dependsOn(":runners:spark:3:job-server:container:dockerPush")
   dependsOn(":sdks:java:container:pushAll")
   dependsOn(":sdks:python:container:pushAll")
   for (version in project.ext.get("allFlinkVersions") as Array<*>) {

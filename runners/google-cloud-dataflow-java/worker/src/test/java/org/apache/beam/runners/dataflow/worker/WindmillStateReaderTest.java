@@ -115,7 +115,7 @@ public class WindmillStateReaderTest {
                 Windmill.TagBag.newBuilder()
                     .setTag(STATE_KEY_1)
                     .setStateFamily(STATE_FAMILY)
-                    .setFetchMaxBytes(WindmillStateReader.MAX_BAG_BYTES));
+                    .setFetchMaxBytes(WindmillStateReader.INITIAL_MAX_BAG_BYTES));
 
     Windmill.KeyedGetDataResponse.Builder response =
         Windmill.KeyedGetDataResponse.newBuilder()
@@ -156,7 +156,7 @@ public class WindmillStateReaderTest {
                 Windmill.TagBag.newBuilder()
                     .setTag(STATE_KEY_1)
                     .setStateFamily(STATE_FAMILY)
-                    .setFetchMaxBytes(WindmillStateReader.MAX_BAG_BYTES));
+                    .setFetchMaxBytes(WindmillStateReader.INITIAL_MAX_BAG_BYTES));
 
     Windmill.KeyedGetDataResponse.Builder response1 =
         Windmill.KeyedGetDataResponse.newBuilder()
@@ -174,12 +174,12 @@ public class WindmillStateReaderTest {
             .setKey(DATA_KEY)
             .setShardingKey(SHARDING_KEY)
             .setWorkToken(WORK_TOKEN)
-            .setMaxBytes(WindmillStateReader.MAX_KEY_BYTES)
+            .setMaxBytes(WindmillStateReader.MAX_CONTINUATION_KEY_BYTES)
             .addBagsToFetch(
                 Windmill.TagBag.newBuilder()
                     .setTag(STATE_KEY_1)
                     .setStateFamily(STATE_FAMILY)
-                    .setFetchMaxBytes(WindmillStateReader.MAX_BAG_BYTES)
+                    .setFetchMaxBytes(WindmillStateReader.CONTINUATION_MAX_BAG_BYTES)
                     .setRequestPosition(CONT_POSITION));
 
     Windmill.KeyedGetDataResponse.Builder response2 =
@@ -231,7 +231,7 @@ public class WindmillStateReaderTest {
                     .setTag(STATE_KEY_1)
                     .setStateFamily(STATE_FAMILY)
                     .addFetchRanges(SortedListRange.newBuilder().setStart(beginning).setLimit(end))
-                    .setFetchMaxBytes(WindmillStateReader.MAX_BAG_BYTES));
+                    .setFetchMaxBytes(WindmillStateReader.MAX_ORDERED_LIST_BYTES));
 
     Windmill.KeyedGetDataResponse.Builder response =
         Windmill.KeyedGetDataResponse.newBuilder()
@@ -294,19 +294,19 @@ public class WindmillStateReaderTest {
                     .setTag(STATE_KEY_1)
                     .setStateFamily(STATE_FAMILY)
                     .addFetchRanges(SortedListRange.newBuilder().setStart(0).setLimit(5))
-                    .setFetchMaxBytes(WindmillStateReader.MAX_BAG_BYTES))
+                    .setFetchMaxBytes(WindmillStateReader.MAX_ORDERED_LIST_BYTES))
             .addSortedListsToFetch(
                 Windmill.TagSortedListFetchRequest.newBuilder()
                     .setTag(STATE_KEY_1)
                     .setStateFamily(STATE_FAMILY)
                     .addFetchRanges(SortedListRange.newBuilder().setStart(5).setLimit(6))
-                    .setFetchMaxBytes(WindmillStateReader.MAX_BAG_BYTES))
+                    .setFetchMaxBytes(WindmillStateReader.MAX_ORDERED_LIST_BYTES))
             .addSortedListsToFetch(
                 Windmill.TagSortedListFetchRequest.newBuilder()
                     .setTag(STATE_KEY_1)
                     .setStateFamily(STATE_FAMILY)
                     .addFetchRanges(SortedListRange.newBuilder().setStart(6).setLimit(10))
-                    .setFetchMaxBytes(WindmillStateReader.MAX_BAG_BYTES));
+                    .setFetchMaxBytes(WindmillStateReader.MAX_ORDERED_LIST_BYTES));
 
     Windmill.KeyedGetDataResponse.Builder response =
         Windmill.KeyedGetDataResponse.newBuilder()
@@ -398,7 +398,7 @@ public class WindmillStateReaderTest {
                     .setTag(STATE_KEY_1)
                     .setStateFamily(STATE_FAMILY)
                     .addFetchRanges(SortedListRange.newBuilder().setStart(beginning).setLimit(end))
-                    .setFetchMaxBytes(WindmillStateReader.MAX_BAG_BYTES));
+                    .setFetchMaxBytes(WindmillStateReader.MAX_ORDERED_LIST_BYTES));
 
     final ByteString CONT = ByteString.copyFrom("CONTINUATION", Charsets.UTF_8);
     Windmill.KeyedGetDataResponse.Builder response1 =
@@ -426,7 +426,7 @@ public class WindmillStateReaderTest {
                     .setStateFamily(STATE_FAMILY)
                     .addFetchRanges(SortedListRange.newBuilder().setStart(beginning).setLimit(end))
                     .setRequestPosition(CONT)
-                    .setFetchMaxBytes(WindmillStateReader.MAX_BAG_BYTES));
+                    .setFetchMaxBytes(WindmillStateReader.MAX_ORDERED_LIST_BYTES));
 
     Windmill.KeyedGetDataResponse.Builder response2 =
         Windmill.KeyedGetDataResponse.newBuilder()

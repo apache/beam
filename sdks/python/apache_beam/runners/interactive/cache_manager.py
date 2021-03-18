@@ -23,9 +23,9 @@ from __future__ import print_function
 
 import collections
 import os
-import sys
 import tempfile
-import urllib
+from urllib.parse import quote
+from urllib.parse import unquote_to_bytes
 
 import apache_beam as beam
 from apache_beam import coders
@@ -33,13 +33,6 @@ from apache_beam.io import filesystems
 from apache_beam.io import textio
 from apache_beam.io import tfrecordio
 from apache_beam.transforms import combiners
-
-if sys.version_info[0] > 2:
-  unquote_to_bytes = urllib.parse.unquote_to_bytes
-  quote = urllib.parse.quote
-else:
-  unquote_to_bytes = urllib.unquote  # pylint: disable=deprecated-urllib-function
-  quote = urllib.quote  # pylint: disable=deprecated-urllib-function
 
 
 class CacheManager(object):
