@@ -304,9 +304,6 @@ class TimestampedValue(object):
   def __hash__(self):
     return hash((self.value, self.timestamp))
 
-  def __ne__(self, other):
-    return not self == other
-
   def __lt__(self, other):
     if type(self) != type(other):
       return type(self).__name__ < type(other).__name__
@@ -337,9 +334,6 @@ class GlobalWindow(BoundedWindow):
   def __eq__(self, other):
     # Global windows are always and only equal to each other.
     return self is other or type(self) is type(other)
-
-  def __ne__(self, other):
-    return not self == other
 
   @property
   def start(self):
@@ -390,9 +384,6 @@ class GlobalWindows(NonMergingWindowFn):
   def __eq__(self, other):
     # Global windowfn is always and only equal to each other.
     return self is other or type(self) is type(other)
-
-  def __ne__(self, other):
-    return not self == other
 
   def to_runner_api_parameter(self, context):
     return common_urns.global_windows.urn, None
@@ -453,9 +444,6 @@ class FixedWindows(NonMergingWindowFn):
 
   def __hash__(self):
     return hash((self.size, self.offset))
-
-  def __ne__(self, other):
-    return not self == other
 
   def to_runner_api_parameter(self, context):
     return (
@@ -524,9 +512,6 @@ class SlidingWindows(NonMergingWindowFn):
       return (
           self.size == other.size and self.offset == other.offset and
           self.period == other.period)
-
-  def __ne__(self, other):
-    return not self == other
 
   def __hash__(self):
     return hash((self.offset, self.period))
@@ -603,9 +588,6 @@ class Sessions(WindowFn):
   def __eq__(self, other):
     if type(self) == type(other) == Sessions:
       return self.gap_size == other.gap_size
-
-  def __ne__(self, other):
-    return not self == other
 
   def __hash__(self):
     return hash(self.gap_size)
