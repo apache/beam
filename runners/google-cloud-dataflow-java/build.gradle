@@ -403,7 +403,7 @@ task validatesRunnerV2Streaming {
     excludedCategories: [
       'org.apache.beam.sdk.testing.LargeKeys$Above10KB',
       'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo',
-      'org.apache.beam.sdk.testing.UsesAttemptedMetrics',
+      'org.apache.beam.sdk.testing.UsesCommittedMetrics',
       'org.apache.beam.sdk.testing.UsesTestStream',
     ],
     excludedTests: [
