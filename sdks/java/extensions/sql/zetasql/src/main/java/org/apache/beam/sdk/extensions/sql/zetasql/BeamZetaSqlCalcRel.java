@@ -169,10 +169,10 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
     private final Schema outputSchema;
     private final String defaultTimezone;
     private final boolean verifyRowValues;
-    private transient @Nullable PreparedExpression exp;
-    private transient @Nullable List<Integer> referencedColumns;
+    private transient List<Integer> referencedColumns = ImmutableList.of();
+    private transient Map<BoundedWindow, Queue<TimestampedFuture>> pending = new HashMap<>();
+    private transient PreparedExpression exp;
     private transient PreparedExpression.@Nullable Stream stream;
-    private transient @Nullable Map<BoundedWindow, Queue<TimestampedFuture>> pending;
 
     CalcFn(
         String sql,
@@ -182,6 +182,7 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
         String defaultTimezone,
         boolean verifyRowValues) {
       this.sql = sql;
+      this.exp = new PreparedExpression(sql);
       this.nullParams = nullParams;
       this.inputSchema = inputSchema;
       this.outputSchema = outputSchema;
@@ -189,8 +190,8 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
       this.verifyRowValues = verifyRowValues;
     }
 
-    @Setup
-    public void setup() {
+    /** exp cannot be reused and is transient so needs to be reinitialized. */
+    private void prepareExpression() {
       AnalyzerOptions options =
           SqlAnalyzer.getAnalyzerOptions(QueryParameters.ofNamed(nullParams), defaultTimezone);
       for (int i = 0; i < inputSchema.getFieldCount(); i++) {
@@ -199,17 +200,21 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
             ZetaSqlBeamTranslationUtils.toZetaSqlType(inputSchema.getField(i).getType()));
       }
 
-      PreparedExpression expression = new PreparedExpression(sql);
-      exp = expression;
-      expression.prepare(options);
+      exp = new PreparedExpression(sql);
+      exp.prepare(options);
+    }
+
+    @Setup
+    public void setup() {
+      prepareExpression();
 
       ImmutableList.Builder<Integer> columns = new ImmutableList.Builder<>();
-      for (String c : expression.getReferencedColumns()) {
+      for (String c : exp.getReferencedColumns()) {
         columns.add(Integer.parseInt(c.substring(1)));
       }
       referencedColumns = columns.build();
 
-      stream = expression.stream();
+      stream = exp.stream();
     }
 
     @StartBundle
@@ -227,18 +232,17 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
         @Element Row row, @Timestamp Instant t, BoundedWindow w, OutputReceiver<Row> r)
         throws InterruptedException {
       Map<String, Value> columns = new HashMap<>();
-      for (int i : checkArgumentNotNull(referencedColumns)) {
+      for (int i : referencedColumns) {
         columns.put(
             columnName(i),
             ZetaSqlBeamTranslationUtils.toZetaSqlValue(
-                row.getBaseValue(i, Object.class),
-                inputSchema.getField(i).getType()));
+                row.getBaseValue(i, Object.class), inputSchema.getField(i).getType()));
       }
 
       @NonNull
       Future<Value> valueFuture = checkArgumentNotNull(stream).execute(columns, nullParams);
 
-      @Nullable Queue<TimestampedFuture> pendingWindow = checkArgumentNotNull(pending).get(w);
+      @Nullable Queue<TimestampedFuture> pendingWindow = pending.get(w);
       if (pendingWindow == null) {
         pendingWindow = new ArrayDeque<>();
         pending.put(w, pendingWindow);
@@ -254,8 +258,7 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
     @FinishBundle
     public void finishBundle(FinishBundleContext c) throws InterruptedException {
       checkArgumentNotNull(stream).flush();
-      for (Map.Entry<BoundedWindow, Queue<TimestampedFuture>> pendingWindow :
-          checkArgumentNotNull(pending).entrySet()) {
+      for (Map.Entry<BoundedWindow, Queue<TimestampedFuture>> pendingWindow : pending.entrySet()) {
         OutputReceiver<Row> rowOutputReciever =
             new OutputReceiverForFinishBundle(c, pendingWindow.getKey());
         for (TimestampedFuture timestampedFuture : pendingWindow.getValue()) {
@@ -303,7 +306,7 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
     @Teardown
     public void teardown() {
       checkArgumentNotNull(stream).close();
-      checkArgumentNotNull(exp).close();
+      exp.close();
     }
   }
 }
