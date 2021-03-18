@@ -161,6 +161,9 @@ class JavaJarServer(SubprocessServer):
       dict(__init__=lambda self: setattr(self, 'replacements', {})))()
 
   def __init__(self, stub_class, path_to_jar, java_arguments):
+    if not shutil.which('java'):
+      raise RuntimeError(
+          'Java must be installed on this system to use this transform/runner.')
     super(JavaJarServer, self).__init__(
         stub_class, ['java', '-jar', path_to_jar] + list(java_arguments))
     self._existing_service = path_to_jar if _is_service_endpoint(
