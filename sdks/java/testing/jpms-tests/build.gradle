@@ -40,6 +40,7 @@ def testRunnerClass = [
         directRunnerIntegrationTest: "org.apache.beam.runners.direct.DirectRunner",
         flinkRunnerIntegrationTest: "org.apache.beam.runners.flink.TestFlinkRunner",
         dataflowRunnerIntegrationTest: "org.apache.beam.runners.dataflow.TestDataflowRunner",
+        sparkRunnerIntegrationTest: "org.apache.beam.runners.spark.TestSparkRunner",
 ]
 
 configurations {
@@ -47,7 +48,11 @@ configurations {
   directRunnerIntegrationTest.extendsFrom(baseIntegrationTest)
   flinkRunnerIntegrationTest.extendsFrom(baseIntegrationTest)
   dataflowRunnerIntegrationTest.extendsFrom(baseIntegrationTest)
+  sparkRunnerIntegrationTest.extendsFrom(baseIntegrationTest)
 }
+
+def spark_version = '3.1.1'
+def spark_scala_version = '2.12'
 
 dependencies {
   compile project(path: ":sdks:java:core", configuration: "shadow")
@@ -60,6 +65,9 @@ dependencies {
   directRunnerIntegrationTest project(":runners:direct-java")
   flinkRunnerIntegrationTest project(":runners:flink:${project.ext.latestFlinkVersion}")
   dataflowRunnerIntegrationTest project(":runners:google-cloud-dataflow-java")
+  sparkRunnerIntegrationTest project(":runners:spark:3")
+  sparkRunnerIntegrationTest "org.apache.spark:spark-sql_$spark_scala_version:$spark_version"
+  sparkRunnerIntegrationTest "org.apache.spark:spark-streaming_$spark_scala_version:$spark_version"
 }
 
 /*
