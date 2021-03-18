@@ -303,7 +303,6 @@ limitations under the License.
 &lt;li>
 &lt;ul>
 &lt;li>&lt;a href="#use-cut_release_branchsh-to-cut-a-release-branch">Use cut_release_branch.sh to cut a release branch&lt;/a>&lt;/li>
-&lt;li>&lt;a href="#alternative-run-all-steps-manually">(Alternative) Run all steps manually&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;/li>
 &lt;li>&lt;a href="#start-a-snapshot-build">Start a snapshot build&lt;/a>
@@ -599,9 +598,18 @@ The release manager oversees these just like any other JIRA issue marked with th
 &lt;h2 id="4-create-a-release-branch-in-apachebeam-repository">4. Create a release branch in apache/beam repository&lt;/h2>
 &lt;p>Attention: Only committer has permission to create release branch in apache/beam.&lt;/p>
 &lt;p>Release candidates are built from a release branch.
-As a final step in preparation for the release, you should create the release branch, push it to the Apache code repository, and update version information on the original branch.&lt;/p>
-&lt;p>There are 2 ways to cut a release branch: either running automation script(recommended), or running all commands manually.&lt;/p>
-&lt;p>After following one of these processes you should manually update &lt;code>CHANGES.md&lt;/code> on &lt;code>master&lt;/code> by adding a new section for the next release.&lt;/p>
+As a final step in preparation for the release, you should create the release branch, push it to the Apache code repository, and update version information on the original branch.
+The final state of the repository should match this diagram:&lt;/p>
+&lt;img src="/images/cut-release-branch.png" alt="Increment minor version on master branch and set Dataflow container version on release branch" width="100%">
+&lt;p>The key points to know:&lt;/p>
+&lt;ul>
+&lt;li>The &lt;code>master&lt;/code> branch has the SNAPSHOT/dev version incremented.&lt;/li>
+&lt;li>The release branch has the SNAPSHOT/dev version to be released.&lt;/li>
+&lt;li>The Dataflow container image should be modified to the version to be released.&lt;/li>
+&lt;/ul>
+&lt;p>This will all be accomplished by the &lt;a href="https://github.com/apache/beam/blob/master/release/src/main/scripts/cut_release_branch.sh">cut_release_branch.sh&lt;/a>
+script.&lt;/p>
+&lt;p>After cutting the branch, you should manually update &lt;code>CHANGES.md&lt;/code> on &lt;code>master&lt;/code> by adding a new section for the next release.&lt;/p>
 &lt;h4 id="use-cut_release_branchsh-to-cut-a-release-branch">Use cut_release_branch.sh to cut a release branch&lt;/h4>
 &lt;ul>
 &lt;li>
@@ -616,85 +624,6 @@ As a final step in preparation for the release, you should create the release br
 # Show help page
 ./beam/release/src/main/scripts/cut_release_branch.sh -h
 &lt;/code>&lt;/pre>&lt;/li>
-&lt;li>
-&lt;p>&lt;strong>The script will:&lt;/strong>&lt;/p>
-&lt;ol>
-&lt;li>
-&lt;p>Create release-${RELEASE_VERSION} branch locally.&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Change and commit dev versoin number in master branch:&lt;/p>
-&lt;p>&lt;a href="https://github.com/apache/beam/blob/e8abafe360e126818fe80ae0f6075e71f0fc227d/buildSrc/src/main/groovy/org/apache/beam/gradle/BeamModulePlugin.groovy#L209">BeamModulePlugin.groovy&lt;/a>,
-&lt;a href="https://github.com/apache/beam/blob/e8abafe360e126818fe80ae0f6075e71f0fc227d/gradle.properties#L25">gradle.properties&lt;/a>,
-&lt;a href="https://github.com/apache/beam/blob/e8abafe360e126818fe80ae0f6075e71f0fc227d/sdks/python/apache_beam/version.py#L21">version.py&lt;/a>&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>Change and commit version number in release branch:&lt;/p>
-&lt;p>&lt;a href="https://github.com/apache/beam/blob/release-2.6.0/sdks/python/apache_beam/version.py#L21">version.py&lt;/a>,
-&lt;a href="https://github.com/apache/beam/blob/release-2.6.0/runners/google-cloud-dataflow-java/build.gradle#L39">build.gradle&lt;/a>,
-&lt;a href="https://github.com/apache/beam/blob/release-2.16.0/gradle.properties#L27">gradle.properties&lt;/a>&lt;/p>
-&lt;/li>
-&lt;/ol>
-&lt;/li>
-&lt;/ul>
-&lt;h4 id="alternative-run-all-steps-manually">(Alternative) Run all steps manually&lt;/h4>
-&lt;ul>
-&lt;li>
-&lt;p>&lt;strong>Checkout working branch&lt;/strong>&lt;/p>
-&lt;p>Check out the version of the codebase from which you start the release.
-For a new minor or major release, this may be &lt;code>HEAD&lt;/code> of the &lt;code>master&lt;/code> branch.
-To build a hotfix/incremental release, instead of the &lt;code>master&lt;/code> branch, use the release tag of the release being patched.
-(Please make sure your cloned repository is up-to-date before starting.)&lt;/p>
-&lt;pre>&lt;code>git checkout &amp;lt;master branch OR release tag&amp;gt;
-&lt;/code>&lt;/pre>
-&lt;p>&lt;strong>NOTE&lt;/strong>: If you are doing an incremental/hotfix release (e.g. 2.5.1), please check out the previous release tag, rather than the master branch.&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;strong>Set up environment variables&lt;/strong>&lt;/p>
-&lt;p>Set up a few environment variables to simplify Maven commands that follow.
-(We use &lt;code>bash&lt;/code> Unix syntax in this guide.)&lt;/p>
-&lt;pre>&lt;code>RELEASE=2.5.0
-NEXT_VERSION_IN_BASE_BRANCH=2.6.0
-BRANCH=release-${RELEASE}
-&lt;/code>&lt;/pre>
-&lt;p>Version represents the release currently underway, while next version specifies the anticipated next version to be released from that branch.
-Normally, 1.2.0 is followed by 1.3.0, while 1.2.3 is followed by 1.2.4.&lt;/p>
-&lt;p>&lt;strong>NOTE&lt;/strong>: Only if you are doing an incremental/hotfix release (e.g. 2.5.1), please check out the previous release tag, before running the following instructions:&lt;/p>
-&lt;pre>&lt;code>BASE_RELEASE=2.5.0
-RELEASE=2.5.1
-NEXT_VERSION_IN_BASE_BRANCH=2.6.0
-git checkout tags/${BASE_RELEASE}
-&lt;/code>&lt;/pre>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;strong>Create release branch locally&lt;/strong>&lt;/p>
-&lt;pre>&lt;code>git branch ${BRANCH}
-&lt;/code>&lt;/pre>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;strong>Update version files in the master branch&lt;/strong>&lt;/p>
-&lt;pre>&lt;code># Now change the version in existing gradle files, and Python files
-sed -i -e &amp;quot;s/'${RELEASE}'/'${NEXT_VERSION_IN_BASE_BRANCH}'/g&amp;quot; build_rules.gradle
-sed -i -e &amp;quot;s/${RELEASE}/${NEXT_VERSION_IN_BASE_BRANCH}/g&amp;quot; gradle.properties
-sed -i -e &amp;quot;s/${RELEASE}/${NEXT_VERSION_IN_BASE_BRANCH}/g&amp;quot; sdks/python/apache_beam/version.py
-# Save changes in master branch
-git add gradle.properties build_rules.gradle sdks/python/apache_beam/version.py
-git commit -m &amp;quot;Moving to ${NEXT_VERSION_IN_BASE_BRANCH}-SNAPSHOT on master branch.&amp;quot;
-&lt;/code>&lt;/pre>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;strong>Check out the release branch&lt;/strong>&lt;/p>
-&lt;pre>&lt;code>git checkout ${BRANCH}
-&lt;/code>&lt;/pre>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;strong>Update version files in release branch&lt;/strong>&lt;/p>
-&lt;pre>&lt;code>DEV=${RELEASE}.dev
-sed -i -e &amp;quot;s/${DEV}/${RELEASE}/g&amp;quot; sdks/python/apache_beam/version.py
-sed -i -e &amp;quot;s/${DEV}/${RELEASE}/g&amp;quot; gradle.properties
-sed -i -e &amp;quot;s/'beam-master-.*'/'beam-${RELEASE}'/g&amp;quot; runners/google-cloud-dataflow-java/build.gradle
-&lt;/code>&lt;/pre>
-&lt;/li>
 &lt;/ul>
 &lt;h3 id="start-a-snapshot-build">Start a snapshot build&lt;/h3>
 &lt;p>Start a build of &lt;a href="https://ci-beam.apache.org/job/beam_Release_NightlySnapshot/">the nightly snapshot&lt;/a> against master branch.
