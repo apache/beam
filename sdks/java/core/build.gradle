@@ -110,5 +110,4 @@ dependencies {
   shadowTest library.java.zstd_jni
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly library.java.junit5JupiterEngine
-  testRuntimeOnly library.java.junit5PlatformRunner
 }
