@@ -49,10 +49,6 @@ public interface TransformTranslator<TransformT extends PTransform> {
    * including reading and writing the values of {@link PCollection}s and side inputs.
    */
   interface TranslationContext {
-    default boolean isFnApi() {
-      return DataflowRunner.useUnifiedWorker(getPipelineOptions());
-    }
-
     default boolean isStreamingEngine() {
       List<String> experiments = getPipelineOptions().getExperiments();
       return experiments != null
