@@ -44,9 +44,7 @@ public final class PCollectionViewTesting {
 
     // TODO(BEAM-10097): Make this the default case once all portable runners can support
     // the iterable access pattern.
-    if (hasExperiment(options, "beam_fn_api")
-        && (hasExperiment(options, "use_runner_v2")
-            || hasExperiment(options, "use_unified_worker"))) {
+    if (hasExperiment(options, "beam_fn_api")) {
       if (View.AsSingleton.class.equals(viewTransformClass.getClass())) {
         for (Object value : values) {
           rval.add(value);
