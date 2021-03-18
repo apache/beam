@@ -69,6 +69,7 @@ read USER_GITHUB_ID
 RC_TAG="v${RELEASE}-RC${RC_NUM}"
 
 USER_REMOTE_URL=https://github.com/${USER_GITHUB_ID}/beam-site
+RC_TAG="v${RELEASE}-RC${RC_NUM}"
 
 echo "=================Pre-requirements===================="
 echo "Please make sure you have configured and started your gpg by running ./preparation_before_release.sh."
@@ -82,7 +83,7 @@ echo "================Checking Environment Variables=============="
 echo "beam repo will be cloned into: ${LOCAL_CLONE_DIR}"
 echo "working on release version: ${RELEASE}"
 echo "working on release branch: ${RELEASE_BRANCH}"
-echo "will create release candidate: RC${RC_NUM} with tag ${RC_TAG}"
+echo "will create release candidate: RC${RC_NUM} from commit tagged ${RC_TAG}"
 echo "Your forked beam-site URL: ${USER_REMOTE_URL}"
 echo "Your signing key: ${SIGNING_KEY}"
 echo "Please review all environment variables and confirm: [y|N]"
@@ -112,31 +113,12 @@ if [[ $confirmation = "y" ]]; then
   fi
   mkdir -p ${LOCAL_CLONE_DIR}
   cd ${LOCAL_CLONE_DIR}
-  git clone ${GIT_REPO_URL}
+  git clone --depth 1 --branch "${RC_TAG}" ${GIT_REPO_URL} "${BEAM_ROOT_DIR}"
   cd ${BEAM_ROOT_DIR}
-  git checkout ${RELEASE_BRANCH}
-  RELEASE_COMMIT=$(git rev-parse --verify ${RELEASE_BRANCH})
 
   echo "-------------Building Java Artifacts with Gradle-------------"
   git config credential.helper store
 
-  if git rev-parse "v${RELEASE}-RC${RC_NUM}" >/dev/null 2>&1; then
-    echo "Tag v${RELEASE}-RC${RC_NUM} already exists."
-    echo "Delete the tag and create a new tag commit (y) or skip this step (n)? [y/N]"
-    read confirmation
-    if [[ $confirmation = "y" ]]; then
-      # Delete tag with the git push <from>:<to> format, as shown here:
-      # https://git-scm.com/docs/git-push#Documentation/git-push.txt-codegitpushoriginexperimentalcode
-      git push origin :refs/tags/v${RELEASE}-RC${RC_NUM}
-    fi
-  fi
-  if [[ $confirmation = "y" ]]; then # Expected to be "y" unless user chose to skip creating tag.
-    ./gradlew release -Prelease.newVersion=${RELEASE}-SNAPSHOT \
-                  -Prelease.releaseVersion=${RELEASE}-RC${RC_NUM} \
-                  -Prelease.useAutomaticVersion=true --info --no-daemon
-    git push origin "${RELEASE_BRANCH}"
-    git push origin "v${RELEASE}-RC${RC_NUM}"
-  fi
   echo "-------------Staging Java Artifacts into Maven---------------"
   gpg --local-user ${SIGNING_KEY} --output /dev/null --sign ~/.bashrc
   ./gradlew publish -Psigning.gnupg.keyName=${SIGNING_KEY} -PisRelease --no-daemon
