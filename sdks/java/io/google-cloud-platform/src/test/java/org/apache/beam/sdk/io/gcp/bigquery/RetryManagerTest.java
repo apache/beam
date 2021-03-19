@@ -138,10 +138,9 @@ public class RetryManagerTest {
     RetryManager<String, RetryManagerTest.Context> retryManager =
         new RetryManager<>(Duration.millis(1), Duration.millis(1), 50);
     for (int i = 0; i < 5; ++i) {
-      final int index = i;
-      String value = "yes " + i;
       Context context = new Context();
       contexts.add(context);
+      String value = "yes " + i;
       retryManager.addOperation(
           c -> {
             if (c.numStarted == 0) {

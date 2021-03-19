@@ -41,15 +41,19 @@ import org.joda.time.Duration;
 
 /**
  * Retry manager used by Storage API operations. This class manages a sequence of operations (e.g.
- * sequential appends to a stream) and retries of those operations.
+ * sequential appends to a stream) and retries of those operations. If any one operation fails, then
+ * all subsequent operations are expected to fail true and will alll be retried.
  */
 class RetryManager<ResultT, ContextT extends Context<ResultT>> {
   private Queue<Operation<ResultT, ContextT>> operations;
   private final BackOff backoff;
   private final ExecutorService executor;
 
+  // Enum returned by onError indicating whether errors should be retried.
   enum RetryType {
+    // The in-flight operations will not be retried.
     DONT_RETRY,
+    // All operations will be retried.
     RETRY_ALL_OPERATIONS
   };
 
@@ -257,7 +261,7 @@ class RetryManager<ResultT, ContextT extends Context<ResultT>> {
             operation.onError.apply(
                 operations.stream().map(o -> o.context).collect(Collectors.toList()));
         if (retryType == RetryType.DONT_RETRY) {
-          operations.remove();
+          operations.clear();
         } else {
           Preconditions.checkState(RetryType.RETRY_ALL_OPERATIONS == retryType);
           if (!BackOffUtils.next(Sleeper.DEFAULT, backoff)) {
