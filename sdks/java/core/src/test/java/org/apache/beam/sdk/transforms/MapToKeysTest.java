@@ -33,9 +33,7 @@ import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link MapToKeys} transform.
- */
+/** Tests for {@link MapToKeys} transform. */
 @RunWith(JUnit4.class)
 public class MapToKeysTest {
 
@@ -44,16 +42,15 @@ public class MapToKeysTest {
       "unchecked"
   })
   static final KV<Integer, String>[] TABLE =
-      new KV[]{KV.of(1, "one"), KV.of(2, "none"), KV.of(3, "none")};
+      new KV[] {KV.of(1, "one"), KV.of(2, "none"), KV.of(3, "none")};
 
   @SuppressWarnings({
       "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
       "unchecked"
   })
-  static final KV<Integer, String>[] EMPTY_TABLE = new KV[]{};
+  static final KV<Integer, String>[] EMPTY_TABLE = new KV[] {};
 
-  @Rule
-  public final TestPipeline p = TestPipeline.create();
+  @Rule public final TestPipeline p = TestPipeline.create();
 
   @Test
   @Category(NeedsRunner.class)
