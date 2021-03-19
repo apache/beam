@@ -128,6 +128,7 @@ class CodersTest(unittest.TestCase):
         coders.AvroGenericCoder,
         coders.DeterministicProtoCoder,
         coders.FastCoder,
+        coders.ListLikeCoder,
         coders.ProtoCoder,
         coders.ToBytesCoder
     ])
@@ -398,6 +399,14 @@ class CodersTest(unittest.TestCase):
     self.assertCountEqual(
         list(iter_generator(count)),
         iterable_coder.decode(iterable_coder.encode(iter_generator(count))))
+
+  def test_list_coder(self):
+    list_coder = coders.ListCoder(coders.VarIntCoder())
+    # Test unnested
+    self.check_coder(list_coder, [1], [-1, 0, 100])
+    # Test nested
+    self.check_coder(
+        coders.TupleCoder((coders.VarIntCoder(), list_coder)), (1, [1, 2, 3]))
 
   def test_windowedvalue_coder_paneinfo(self):
     coder = coders.WindowedValueCoder(
