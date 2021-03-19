@@ -823,8 +823,8 @@ class UtilTest(unittest.TestCase):
         'test_job_name',
         '--temp_location',
         'gs://test-location/temp',
-        '--create_from_snapshot'
-        'test_snapshot_id',
+        '--create_from_snapshot',
+        'test_snapshot_id'
     ])
     job = apiclient.Job(pipeline_options, FAKE_PIPELINE_URL)
     self.assertEqual('test_snapshot_id', job.proto.createdFromSnapshotId)
