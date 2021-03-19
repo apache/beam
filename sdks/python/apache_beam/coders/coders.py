@@ -80,6 +80,7 @@ __all__ = [
     'FastPrimitivesCoder',
     'FloatCoder',
     'IterableCoder',
+    'ListCoder',
     'MapCoder',
     'NullableCoder',
     'PickleCoder',
