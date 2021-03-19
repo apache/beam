@@ -31,10 +31,13 @@ import apache_beam as beam
 import apache_beam.transforms.combiners as combine
 from apache_beam.coders import RowCoder
 from apache_beam.pipeline import PipelineOptions
+from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 from apache_beam.portability.api import beam_expansion_api_pb2_grpc
 from apache_beam.portability.api.external_transforms_pb2 import ExternalConfigurationPayload
+from apache_beam.runners.portability import artifact_service
 from apache_beam.runners.portability import expansion_service
 from apache_beam.transforms import ptransform
+from apache_beam.transforms.environments import PyPIArtifactRegistry
 from apache_beam.transforms.external import ImplicitSchemaPayloadBuilder
 from apache_beam.utils import thread_pool_executor
 
@@ -51,6 +54,7 @@ TEST_COMGL_URN = "beam:transforms:xlang:test:comgl"
 TEST_COMPK_URN = "beam:transforms:xlang:test:compk"
 TEST_FLATTEN_URN = "beam:transforms:xlang:test:flatten"
 TEST_PARTITION_URN = "beam:transforms:xlang:test:partition"
+TEST_PYTHON_BS4_URN = "beam:transforms:xlang:test:python_bs4"
 
 
 @ptransform.PTransform.register_urn('beam:transforms:xlang:count', None)
@@ -226,6 +230,27 @@ class PartitionTransform(ptransform.PTransform):
     return PartitionTransform()
 
 
+class ExtractHtmlTitleDoFn(beam.DoFn):
+  def process(self, element):
+    from bs4 import BeautifulSoup
+    soup = BeautifulSoup(element, 'html.parser')
+    return [soup.title.string]
+
+
+@ptransform.PTransform.register_urn(TEST_PYTHON_BS4_URN, None)
+class ExtractHtmlTitleTransform(ptransform.PTransform):
+  def expand(self, pcoll):
+    return pcoll | beam.ParDo(ExtractHtmlTitleDoFn()).with_output_types(unicode)
+
+  def to_runner_api_parameter(self, unused_context):
+    return TEST_PYTHON_BS4_URN, None
+
+  @staticmethod
+  def from_runner_api_parameter(
+      unused_ptransform, unused_parameter, unused_context):
+    return ExtractHtmlTitleTransform()
+
+
 @ptransform.PTransform.register_urn('payload', bytes)
 class PayloadTransform(ptransform.PTransform):
   def __init__(self, payload):
@@ -287,6 +312,7 @@ def cleanup(unused_signum, unused_frame):
 
 
 def main(unused_argv):
+  PyPIArtifactRegistry.register_artifact('beautifulsoup4', '>=4.9,<5.0')
   parser = argparse.ArgumentParser()
   parser.add_argument(
       '-p', '--port', type=int, help='port on which to serve the job api')
@@ -297,6 +323,10 @@ def main(unused_argv):
       expansion_service.ExpansionServiceServicer(
           PipelineOptions(
               ["--experiments", "beam_fn_api", "--sdk_location", "container"])),
+      server)
+  beam_artifact_api_pb2_grpc.add_ArtifactRetrievalServiceServicer_to_server(
+      artifact_service.ArtifactRetrievalService(
+          artifact_service.BeamFilesystemHandler(None).file_reader),
       server)
   server.add_insecure_port('localhost:{}'.format(options.port))
   server.start()

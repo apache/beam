@@ -141,6 +141,7 @@ def attempt_to_run_background_caching_job(
     from apache_beam.runners.interactive import pipeline_instrument as instr
     runner_pipeline = beam.pipeline.Pipeline.from_runner_api(
         user_pipeline.to_runner_api(use_fake_coders=True), runner, options)
+    ie.current_env().add_derived_pipeline(user_pipeline, runner_pipeline)
     background_caching_job_result = beam.pipeline.Pipeline.from_runner_api(
         instr.build_pipeline_instrument(
             runner_pipeline).background_caching_pipeline_proto(),

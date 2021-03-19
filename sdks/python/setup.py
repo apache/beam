@@ -131,6 +131,10 @@ REQUIRED_PACKAGES = [
     # Avro 1.9.2 for python3 was broken. The issue was fixed in version 1.9.2.1
     'avro-python3>=1.8.1,!=1.9.2,<1.10.0',
     'crcmod>=1.7,<2.0',
+    # dataclasses backport for python_version<3.7. No version bound because this
+    # is Python standard since Python 3.7 and each Python version is compatible
+    # with a specific dataclasses version.
+    'dataclasses;python_version<"3.7"',
     # Dill doesn't have forwards-compatibility guarantees within minor version.
     # Pickles created with a new version of dill may not unpickle using older
     # version of dill. It is best to use the same version of dill on client and
@@ -268,6 +272,7 @@ setuptools.setup(
         '*/*.pyx', '*/*/*.pyx', '*/*.pxd', '*/*/*.pxd', '*/*.h', '*/*/*.h',
         'testing/data/*.yaml', 'portability/api/*.yaml']},
     ext_modules=cythonize([
+        # Make sure to use language_level=3 cython directive in files below.
         'apache_beam/**/*.pyx',
         'apache_beam/coders/coder_impl.py',
         'apache_beam/metrics/cells.py',

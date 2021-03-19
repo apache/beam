@@ -84,12 +84,6 @@ categories:
           - language: java
             name: org.apache.beam.sdk.io.thrift.ThriftIO
             url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/thrift/ThriftIO.html
-      - transform: VcfIO
-        description: A source for reading from [VCF files](https://samtools.github.io/hts-specs/VCFv4.2.pdf) (version 4.x).
-        implementations:
-          - language: py
-            name: apache_beam.io.vcfio
-            url: https://beam.apache.org/releases/pydoc/current/apache_beam.io.vcfio.html
       - transform: S3IO
         description: A source for reading from and writing to [Amazon S3](https://aws.amazon.com/s3/).
         implementations:

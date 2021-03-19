@@ -21,8 +21,6 @@ Only those coders listed in __all__ are part of the public API of this module.
 """
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import base64
 from builtins import object
 from typing import TYPE_CHECKING
@@ -292,10 +290,6 @@ class Coder(object):
         self._dict_without_impl() == other._dict_without_impl())
 
   # pylint: enable=protected-access
-
-  def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
 
   def __hash__(self):
     return hash(type(self))
@@ -754,7 +748,7 @@ class PickleCoder(_PickleCoderBase):
         lambda x: dumps(x, protocol), pickle.loads)
 
   def as_deterministic_coder(self, step_label, error_message=None):
-    return DeterministicFastPrimitivesCoder(self, step_label)
+    return FastPrimitivesCoder(self, requires_deterministic=step_label)
 
   def to_type_hint(self):
     return Any
@@ -773,8 +767,9 @@ class DeterministicFastPrimitivesCoder(FastCoder):
     self._step_label = step_label
 
   def _create_impl(self):
-    return coder_impl.DeterministicFastPrimitivesCoderImpl(
-        self._underlying_coder.get_impl(), self._step_label)
+    return coder_impl.FastPrimitivesCoderImpl(
+        self._underlying_coder.get_impl(),
+        requires_deterministic_step_label=self._step_label)
 
   def is_deterministic(self):
     # type: () -> bool

@@ -274,41 +274,6 @@ class StagerTest(unittest.TestCase):
     self.assertTrue(os.path.isfile(os.path.join(staging_dir, 'abc.txt')))
     self.assertTrue(os.path.isfile(os.path.join(staging_dir, 'def.txt')))
 
-  @unittest.skipIf(
-      sys.version_info[0] == 3,
-      'This test is not hermetic '
-      'and halts test suite execution on Python 3. '
-      'TODO: BEAM-5502')
-  def test_with_setup_file(self):
-    staging_dir = self.make_temp_dir()
-    source_dir = self.make_temp_dir()
-    self.create_temp_file(os.path.join(source_dir, 'setup.py'), 'notused')
-
-    options = PipelineOptions()
-    self.update_options(options)
-    options.view_as(SetupOptions).setup_file = os.path.join(
-        source_dir, 'setup.py')
-
-    self.assertEqual(
-        [stager.WORKFLOW_TARBALL_FILE],
-        self.stager.create_and_stage_job_resources(
-            options,
-            # We replace the build setup command because a realistic one would
-            # require the setuptools package to be installed. Note that we can't
-            # use "touch" here to create the expected output tarball file, since
-            # touch is not available on Windows, so we invoke python to produce
-            # equivalent behavior.
-            build_setup_args=[
-                'python',
-                '-c',
-                'open(__import__("sys").argv[1], "a")',
-                os.path.join(source_dir, stager.WORKFLOW_TARBALL_FILE)
-            ],
-            temp_dir=source_dir,
-            staging_location=staging_dir)[1])
-    self.assertTrue(
-        os.path.isfile(os.path.join(staging_dir, stager.WORKFLOW_TARBALL_FILE)))
-
   def test_setup_file_not_present(self):
     staging_dir = self.make_temp_dir()
 

@@ -80,9 +80,6 @@ import org.mockito.ArgumentMatcher;
 
 /** Test case for {@link S3FileSystem}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class S3FileSystemTest {
   private static S3Mock api;
   private static AmazonS3 client;

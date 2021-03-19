@@ -30,9 +30,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /** Mock of a network server. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 class NetworkMockServer {
   private final int port;
   private ServerSocket serverSocket;

@@ -63,7 +63,6 @@ import org.powermock.reflect.Whitebox;
 @RunWith(JUnit4.class)
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class KafkaIOExternalTest {
   @Test
@@ -128,12 +127,14 @@ public class KafkaIOExternalTest {
 
     RunnerApi.PTransform kafkaComposite =
         result.getComponents().getTransformsOrThrow(transform.getSubtransforms(0));
-    RunnerApi.PTransform kafkaReadComposite =
-        result.getComponents().getTransformsOrThrow(kafkaComposite.getSubtransforms(0));
-    RunnerApi.PTransform kafkaSdfComposite =
-        result.getComponents().getTransformsOrThrow(kafkaReadComposite.getSubtransforms(2));
+    assertThat(
+        kafkaComposite.getSubtransformsList(),
+        Matchers.contains(
+            "test_namespacetest/KafkaIO.Read/Impulse",
+            "test_namespacetest/KafkaIO.Read/ParDo(GenerateKafkaSourceDescriptor)",
+            "test_namespacetest/KafkaIO.Read/KafkaIO.ReadSourceDescriptors"));
     RunnerApi.PTransform kafkaSdfParDo =
-        result.getComponents().getTransformsOrThrow(kafkaSdfComposite.getSubtransforms(0));
+        result.getComponents().getTransformsOrThrow(kafkaComposite.getSubtransforms(2));
     RunnerApi.ParDoPayload parDoPayload =
         RunnerApi.ParDoPayload.parseFrom(kafkaSdfParDo.getSpec().getPayload());
     assertNotNull(parDoPayload.getRestrictionCoderId());

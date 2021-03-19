@@ -17,12 +17,13 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.HashMap;
-import java.util.Map;
 import java.util.Objects;
-import javax.servlet.ServletException;
+import java.util.concurrent.ConcurrentMap;
+import java.util.function.BiConsumer;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.apache.beam.runners.core.StateNamespace;
@@ -36,9 +37,9 @@ import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Equivalence;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.RemovalCause;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheStats;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.Weigher;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashMultimap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.MapMaker;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -50,29 +51,28 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * StreamingDataflowWorker} ensures that a single computation * processing key is executing on one
  * thread at a time, so this is safe.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class WindmillStateCache implements StatusDataProvider {
   // Convert Megabytes to bytes
   private static final long MEGABYTES = 1024 * 1024;
   // Estimate of overhead per StateId.
-  private static final int PER_STATE_ID_OVERHEAD = 20;
+  private static final long PER_STATE_ID_OVERHEAD = 28;
   // Initial size of hash tables per entry.
   private static final int INITIAL_HASH_MAP_CAPACITY = 4;
   // Overhead of each hash map entry.
   private static final int HASH_MAP_ENTRY_OVERHEAD = 16;
-  // Overhead of each cache entry.  Three longs, plus a hash table.
+  // Overhead of each StateCacheEntry.  One long, plus a hash table.
   private static final int PER_CACHE_ENTRY_OVERHEAD =
-      24 + HASH_MAP_ENTRY_OVERHEAD * INITIAL_HASH_MAP_CAPACITY;
+      8 + HASH_MAP_ENTRY_OVERHEAD * INITIAL_HASH_MAP_CAPACITY;
 
   private Cache<StateId, StateCacheEntry> stateCache;
-  private HashMultimap<WindmillComputationKey, StateId> keyIndex =
-      HashMultimap.<WindmillComputationKey, StateId>create();
-  private long displayedWeight = 0; // Only used for status pages and unit tests.
+  // Contains the current valid ForKey object. Entries in the cache are keyed by ForKey with pointer
+  // equality so entries may be invalidated by creating a new key object, rendering the previous
+  // entries inaccessible. They will be evicted through normal cache operation.
+  private ConcurrentMap<WindmillComputationKey, ForKey> keyIndex =
+      new MapMaker().weakValues().concurrencyLevel(4).makeMap();
   private long workerCacheBytes; // Copy workerCacheMb and convert to bytes.
 
-  public WindmillStateCache(Integer workerCacheMb) {
+  public WindmillStateCache(long workerCacheMb) {
     final Weigher<Weighted, Weighted> weigher = Weighers.weightedKeysAndValues();
     workerCacheBytes = workerCacheMb * MEGABYTES;
     stateCache =
@@ -80,25 +80,35 @@ public class WindmillStateCache implements StatusDataProvider {
             .maximumWeight(workerCacheBytes)
             .recordStats()
             .weigher(weigher)
-            .removalListener(
-                removal -> {
-                  if (removal.getCause() != RemovalCause.REPLACED) {
-                    synchronized (this) {
-                      StateId id = (StateId) removal.getKey();
-                      if (removal.getCause() != RemovalCause.EXPLICIT) {
-                        // When we invalidate a key explicitly, we'll also update the keyIndex, so
-                        // no need to do it here.
-                        keyIndex.remove(id.getWindmillComputationKey(), id);
-                      }
-                      displayedWeight -= weigher.weigh(id, removal.getValue());
-                    }
-                  }
-                })
+            .concurrencyLevel(4)
             .build();
   }
 
+  private static class EntryStats {
+    long entries;
+    long idWeight;
+    long entryWeight;
+    long entryValues;
+    long maxEntryValues;
+  }
+
+  private EntryStats calculateEntryStats() {
+    EntryStats stats = new EntryStats();
+    BiConsumer<StateId, StateCacheEntry> consumer =
+        (stateId, stateCacheEntry) -> {
+          stats.entries++;
+          stats.idWeight += stateId.getWeight();
+          stats.entryWeight += stateCacheEntry.getWeight();
+          stats.entryValues += stateCacheEntry.values.size();
+          stats.maxEntryValues = Math.max(stats.maxEntryValues, stateCacheEntry.values.size());
+        };
+    stateCache.asMap().forEach(consumer);
+    return stats;
+  }
+
   public long getWeight() {
-    return displayedWeight;
+    EntryStats w = calculateEntryStats();
+    return w.idWeight + w.entryWeight;
   }
 
   public long getMaxWeight() {
@@ -116,62 +126,108 @@ public class WindmillStateCache implements StatusDataProvider {
 
     /** Invalidate all cache entries for this computation and {@code processingKey}. */
     public void invalidate(ByteString processingKey, long shardingKey) {
-      synchronized (this) {
-        WindmillComputationKey key =
-            WindmillComputationKey.create(computation, processingKey, shardingKey);
-        for (StateId id : keyIndex.removeAll(key)) {
-          stateCache.invalidate(id);
-        }
-      }
+      WindmillComputationKey key =
+          WindmillComputationKey.create(computation, processingKey, shardingKey);
+      // By removing the ForKey object, all state for the key is orphaned in the cache and will
+      // be removed by normal cache cleanup.
+      keyIndex.remove(key);
     }
 
-    /** Returns a per-computation, per-key view of the state cache. */
-    public ForKey forKey(
+    /**
+     * Returns a per-computation, per-key, per-state-family view of the state cache. Access to the
+     * cached data for this key is not thread-safe. Callers should ensure that there is only a
+     * single ForKeyAndFamily object in use at a time and that access to it is synchronized or
+     * single-threaded.
+     */
+    public ForKeyAndFamily forKey(
         WindmillComputationKey computationKey,
         String stateFamily,
         long cacheToken,
         long workToken) {
-      return new ForKey(computationKey, stateFamily, cacheToken, workToken);
+      ForKey forKey = keyIndex.get(computationKey);
+      if (forKey == null || !forKey.updateTokens(cacheToken, workToken)) {
+        forKey = new ForKey(computationKey, cacheToken, workToken);
+        // We prefer this implementation to using compute because that is implemented similarly for
+        // ConcurrentHashMap with the downside of it performing inserts for unchanged existing
+        // values as well.
+        keyIndex.put(computationKey, forKey);
+      }
+      return new ForKeyAndFamily(forKey, stateFamily);
     }
   }
 
   /** Per-computation, per-key view of the state cache. */
-  public class ForKey {
-
+  // Note that we utilize the default equality and hashCode for this class based upon the instance
+  // (instead of the fields) to optimize cache invalidation.
+  private static class ForKey {
     private final WindmillComputationKey computationKey;
-    private final String stateFamily;
     // Cache token must be consistent for the key for the cache to be valid.
     private final long cacheToken;
 
     // The work token for processing must be greater than the last work token.  As work items are
     // increasing for a key, a less-than or equal to work token indicates that the current token is
-    // for stale processing. We don't use the cache so that fetches performed will fail with a no
-    // longer valid work token.
-    private final long workToken;
+    // for stale processing.
+    private long workToken;
 
-    private ForKey(
-        WindmillComputationKey computationKey,
-        String stateFamily,
-        long cacheToken,
-        long workToken) {
+    private ForKey(WindmillComputationKey computationKey, long cacheToken, long workToken) {
       this.computationKey = computationKey;
-      this.stateFamily = stateFamily;
       this.cacheToken = cacheToken;
       this.workToken = workToken;
     }
 
-    public <T extends State> T get(StateNamespace namespace, StateTag<T> address) {
-      return WindmillStateCache.this.get(
-          computationKey, stateFamily, cacheToken, workToken, namespace, address);
+    private boolean updateTokens(long cacheToken, long workToken) {
+      if (this.cacheToken != cacheToken || workToken <= this.workToken) {
+        return false;
+      }
+      this.workToken = workToken;
+      return true;
+    }
+  }
+
+  /**
+   * Per-computation, per-key, per-family view of the state cache. Modifications are cached locally
+   * and must be flushed to the cache by calling persist. This class is not thread-safe.
+   */
+  public class ForKeyAndFamily {
+    final ForKey forKey;
+    final String stateFamily;
+    private HashMap<StateId, StateCacheEntry> localCache;
+
+    private ForKeyAndFamily(ForKey forKey, String stateFamily) {
+      this.forKey = forKey;
+      this.stateFamily = stateFamily;
+      localCache = new HashMap<>();
     }
 
-    // Note that once a value has been put for a given workToken, get calls with that same workToken
-    // will fail. This is ok as we only put entries when we are building the commit and will no
-    // longer be performing gets for the same work token.
+    public String getStateFamily() {
+      return stateFamily;
+    }
+
+    public <T extends State> @Nullable T get(StateNamespace namespace, StateTag<T> address) {
+      StateId id = new StateId(forKey, stateFamily, namespace);
+      @SuppressWarnings("nullness") // Unsure how to annotate lambda return allowing null.
+      @Nullable
+      StateCacheEntry entry = localCache.computeIfAbsent(id, key -> stateCache.getIfPresent(key));
+      return entry == null ? null : entry.get(namespace, address);
+    }
+
     public <T extends State> void put(
         StateNamespace namespace, StateTag<T> address, T value, long weight) {
-      WindmillStateCache.this.put(
-          computationKey, stateFamily, cacheToken, workToken, namespace, address, value, weight);
+      StateId id = new StateId(forKey, stateFamily, namespace);
+      @Nullable StateCacheEntry entry = localCache.get(id);
+      if (entry == null) {
+        entry = stateCache.getIfPresent(id);
+        if (entry == null) {
+          entry = new StateCacheEntry();
+        }
+        boolean hadValue = localCache.putIfAbsent(id, entry) != null;
+        Preconditions.checkState(!hadValue);
+      }
+      entry.put(namespace, address, value, weight);
+    }
+
+    public void persist() {
+      localCache.forEach((id, entry) -> stateCache.put(id, entry));
     }
   }
 
@@ -180,143 +236,84 @@ public class WindmillStateCache implements StatusDataProvider {
     return new ForComputation(computation);
   }
 
-  private <T extends State> T get(
-      WindmillComputationKey computationKey,
-      String stateFamily,
-      long cacheToken,
-      long workToken,
-      StateNamespace namespace,
-      StateTag<T> address) {
-    StateId id = new StateId(computationKey, stateFamily, namespace);
-    StateCacheEntry entry = stateCache.getIfPresent(id);
-    if (entry == null) {
-      return null;
-    }
-    if (entry.getCacheToken() != cacheToken) {
-      stateCache.invalidate(id);
-      return null;
-    }
-    if (workToken <= entry.getLastWorkToken()) {
-      // We don't used the cached item but we don't invalidate it.
-      return null;
-    }
-    return entry.get(namespace, address);
-  }
-
-  private <T extends State> void put(
-      WindmillComputationKey computationKey,
-      String stateFamily,
-      long cacheToken,
-      long workToken,
-      StateNamespace namespace,
-      StateTag<T> address,
-      T value,
-      long weight) {
-    StateId id = new StateId(computationKey, stateFamily, namespace);
-    StateCacheEntry entry = stateCache.getIfPresent(id);
-    if (entry == null) {
-      synchronized (this) {
-        keyIndex.put(id.getWindmillComputationKey(), id);
-      }
-    }
-    if (entry == null || entry.getCacheToken() != cacheToken) {
-      entry = new StateCacheEntry(cacheToken);
-      this.displayedWeight += id.getWeight();
-      this.displayedWeight += entry.getWeight();
-    }
-    entry.setLastWorkToken(workToken);
-    this.displayedWeight += entry.put(namespace, address, value, weight);
-    // Always add back to the cache to update the weight.
-    stateCache.put(id, entry);
-  }
-
-  /** Struct identifying a cache entry that contains all data for a key and namespace. */
+  /**
+   * Struct identifying a cache entry that contains all data for a ForKey instance and namespace.
+   */
   private static class StateId implements Weighted {
-
-    private final WindmillComputationKey computationKey;
+    private final ForKey forKey;
     private final String stateFamily;
     private final Object namespaceKey;
+    private final int hashCode;
 
-    public StateId(
-        WindmillComputationKey computationKey, String stateFamily, StateNamespace namespace) {
-      this.computationKey = computationKey;
+    public StateId(ForKey forKey, String stateFamily, StateNamespace namespace) {
+      this.forKey = forKey;
       this.stateFamily = stateFamily;
       this.namespaceKey = namespace.getCacheKey();
+      this.hashCode = Objects.hash(forKey, stateFamily, namespaceKey);
     }
 
     @Override
     public boolean equals(@Nullable Object other) {
-      if (other instanceof StateId) {
-        StateId otherId = (StateId) other;
-        return computationKey.equals(otherId.computationKey)
-            && stateFamily.equals(otherId.stateFamily)
-            && namespaceKey.equals(otherId.namespaceKey);
+      if (this == other) {
+        return true;
       }
-      return false;
-    }
-
-    public WindmillComputationKey getWindmillComputationKey() {
-      return computationKey;
+      if (!(other instanceof StateId)) {
+        return false;
+      }
+      StateId otherId = (StateId) other;
+      return hashCode == otherId.hashCode
+          && forKey == otherId.forKey
+          && stateFamily.equals(otherId.stateFamily)
+          && namespaceKey.equals(otherId.namespaceKey);
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(computationKey, namespaceKey);
+      return hashCode;
     }
 
     @Override
     public long getWeight() {
-      return (long) computationKey.key().size() + PER_STATE_ID_OVERHEAD;
+      return forKey.computationKey.key().size() + stateFamily.length() + PER_STATE_ID_OVERHEAD;
     }
   }
 
-  /**
-   * Entry in the state cache that stores a map of values, a cache token representing the validity
-   * of the values, and a work token that is increasing to ensure sequential processing.
-   */
+  /** Entry in the state cache that stores a map of values. */
   private static class StateCacheEntry implements Weighted {
-
-    private final long cacheToken;
-    private long lastWorkToken;
-    private final Map<NamespacedTag<?>, WeightedValue<?>> values;
+    private final HashMap<NamespacedTag<?>, WeightedValue<?>> values;
     private long weight;
 
-    public StateCacheEntry(long cacheToken) {
+    public StateCacheEntry() {
       this.values = new HashMap<>(INITIAL_HASH_MAP_CAPACITY);
-      this.cacheToken = cacheToken;
-      this.lastWorkToken = Long.MIN_VALUE;
       this.weight = 0;
     }
 
-    public void setLastWorkToken(long workToken) {
-      this.lastWorkToken = workToken;
-    }
-
-    @SuppressWarnings("unchecked")
-    public <T extends State> T get(StateNamespace namespace, StateTag<T> tag) {
+    public <T extends State> @Nullable T get(StateNamespace namespace, StateTag<T> tag) {
+      @SuppressWarnings("unchecked")
+      @Nullable
       WeightedValue<T> weightedValue =
           (WeightedValue<T>) values.get(new NamespacedTag<>(namespace, tag));
       return weightedValue == null ? null : weightedValue.value;
     }
 
-    public <T extends State> long put(
+    public <T extends State> void put(
         StateNamespace namespace, StateTag<T> tag, T value, long weight) {
-      @SuppressWarnings("unchecked")
-      WeightedValue<T> weightedValue =
-          (WeightedValue<T>) values.get(new NamespacedTag<>(namespace, tag));
-      long weightDelta = 0;
-      if (weightedValue == null) {
-        weightedValue = new WeightedValue<>();
-        weightDelta += HASH_MAP_ENTRY_OVERHEAD;
-      } else {
-        weightDelta -= weightedValue.weight;
-      }
-      weightedValue.value = value;
-      weightedValue.weight = weight;
-      weightDelta += weight;
-      this.weight += weightDelta;
-      values.put(new NamespacedTag<>(namespace, tag), weightedValue);
-      return weightDelta;
+      values.compute(
+          new NamespacedTag<>(namespace, tag),
+          (t, v) -> {
+            @SuppressWarnings("unchecked")
+            WeightedValue<T> weightedValue = (WeightedValue<T>) v;
+            if (weightedValue == null) {
+              weightedValue = new WeightedValue<>();
+              this.weight += HASH_MAP_ENTRY_OVERHEAD;
+            } else {
+              this.weight -= weightedValue.weight;
+            }
+            this.weight += weight;
+            weightedValue.value = value;
+            weightedValue.weight = weight;
+            return weightedValue;
+          });
     }
 
     @Override
@@ -324,14 +321,9 @@ public class WindmillStateCache implements StatusDataProvider {
       return weight + PER_CACHE_ENTRY_OVERHEAD;
     }
 
-    public long getCacheToken() {
-      return cacheToken;
-    }
-
-    public long getLastWorkToken() {
-      return lastWorkToken;
-    }
-
+    // Even though we use the namespace at the higher cache level, we are only using the cacheKey.
+    // That allows for grouped eviction of entries sharing a cacheKey but we require the full
+    // namespace here to distinguish between grouped entries.
     private static class NamespacedTag<T extends State> {
 
       private final StateNamespace namespace;
@@ -344,6 +336,9 @@ public class WindmillStateCache implements StatusDataProvider {
 
       @Override
       public boolean equals(@Nullable Object other) {
+        if (other == this) {
+          return true;
+        }
         if (!(other instanceof NamespacedTag)) {
           return false;
         }
@@ -358,22 +353,31 @@ public class WindmillStateCache implements StatusDataProvider {
     }
 
     private static class WeightedValue<T> {
-
-      public long weight = 0;
-      public T value = null;
+      public long weight;
+      public @Nullable T value;
     }
   }
 
   /** Print summary statistics of the cache to the given {@link PrintWriter}. */
   @Override
   public void appendSummaryHtml(PrintWriter response) {
-    response.println("Cache Stats: <br><table border=0>");
+    response.println("Cache Stats: <br><table>");
     response.println(
-        "<tr><th>Hit Ratio</th><th>Evictions</th><th>Size</th><th>Weight</th></tr><tr>");
-    response.println("<th>" + stateCache.stats().hitRate() + "</th>");
-    response.println("<th>" + stateCache.stats().evictionCount() + "</th>");
-    response.println("<th>" + stateCache.size() + "</th>");
-    response.println("<th>" + getWeight() + "</th>");
+        "<tr><th>Hit Ratio</th><th>Evictions</th><th>Entries</th>"
+            + "<th>Entry Values</th><th>Max Entry Values</th>"
+            + "<th>Id Weight</th><th>Entry Weight</th><th>Max Weight</th><th>Keys</th>"
+            + "</tr><tr>");
+    CacheStats cacheStats = stateCache.stats();
+    EntryStats entryStats = calculateEntryStats();
+    response.println("<td>" + cacheStats.hitRate() + "</td>");
+    response.println("<td>" + cacheStats.evictionCount() + "</td>");
+    response.println("<td>" + entryStats.entries + "(" + stateCache.size() + " inc. weak) </td>");
+    response.println("<td>" + entryStats.entryValues + "</td>");
+    response.println("<td>" + entryStats.maxEntryValues + "</td>");
+    response.println("<td>" + entryStats.idWeight / MEGABYTES + "MB</td>");
+    response.println("<td>" + entryStats.entryWeight / MEGABYTES + "MB</td>");
+    response.println("<td>" + getMaxWeight() / MEGABYTES + "MB</td>");
+    response.println("<td>" + keyIndex.size() + "</td>");
     response.println("</tr></table><br>");
   }
 
@@ -381,8 +385,7 @@ public class WindmillStateCache implements StatusDataProvider {
     return new BaseStatusServlet("/cachez") {
       @Override
       protected void doGet(HttpServletRequest request, HttpServletResponse response)
-          throws IOException, ServletException {
-
+          throws IOException {
         PrintWriter writer = response.getWriter();
         writer.println("<h1>Cache Information</h1>");
         appendSummaryHtml(writer);

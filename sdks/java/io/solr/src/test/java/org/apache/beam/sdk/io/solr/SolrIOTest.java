@@ -68,7 +68,6 @@ import org.slf4j.LoggerFactory;
 @RunWith(RandomizedRunner.class)
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class SolrIOTest extends SolrCloudTestCase {
   private static final Logger LOG = LoggerFactory.getLogger(SolrIOTest.class);

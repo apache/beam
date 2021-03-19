@@ -53,9 +53,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
 /** Test Coverage for the IO. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class DynamoDBIOTest implements Serializable {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
   @Rule public final transient ExpectedLogs expectedLogs = ExpectedLogs.none(DynamoDBIO.class);

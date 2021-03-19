@@ -18,7 +18,6 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-  enableStrictDependencies: true,
   automaticModuleName: 'org.apache.beam.sdk.io.jdbc',
 )
 provideIntegrationTestingDependencies()
@@ -30,9 +29,9 @@ ext.summary = "IO to read and write on JDBC datasource."
 dependencies {
   compile library.java.vendored_guava_26_0_jre
   compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile "org.apache.commons:commons-dbcp2:2.6.0"
+  compile "org.apache.commons:commons-dbcp2:2.8.0"
   compile library.java.joda_time
-  compile "org.apache.commons:commons-pool2:2.6.1"
+  compile "org.apache.commons:commons-pool2:2.8.1"
   compile library.java.slf4j_api
   testCompile "org.apache.derby:derby:10.14.2.0"
   testCompile "org.apache.derby:derbyclient:10.14.2.0"

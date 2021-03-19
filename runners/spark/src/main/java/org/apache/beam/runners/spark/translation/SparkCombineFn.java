@@ -796,7 +796,7 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> implements Serializ
   }
 
   private WindowedAccumulator.Type getType(WindowingStrategy<?, ?> windowingStrategy) {
-    if (windowingStrategy.getWindowFn().isNonMerging()) {
+    if (!windowingStrategy.needsMerge()) {
       if (globalCombine) {
         /* global combine must use map-based accumulator to incorporate multiple windows */
         return WindowedAccumulator.Type.NON_MERGING;

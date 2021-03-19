@@ -35,9 +35,6 @@ import org.junit.runners.JUnit4;
 
 /** Tests for {@link ByteKeyRangeTrackerTest}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class ByteKeyRangeTrackerTest {
   @Rule public final ExpectedException expected = ExpectedException.none();
 

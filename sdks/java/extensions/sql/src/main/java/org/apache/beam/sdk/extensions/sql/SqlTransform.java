@@ -143,7 +143,6 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
     BeamSqlEnvBuilder sqlEnvBuilder = BeamSqlEnv.builder(metaTableProvider);
 
     // TODO: validate duplicate functions.
-    sqlEnvBuilder.autoLoadBuiltinFunctions();
     registerFunctions(sqlEnvBuilder);
 
     // Load automatic table providers before user ones so the user ones will cause a conflict if

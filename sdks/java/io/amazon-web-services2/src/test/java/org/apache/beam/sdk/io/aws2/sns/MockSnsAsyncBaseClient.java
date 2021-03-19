@@ -20,9 +20,6 @@ package org.apache.beam.sdk.io.aws2.sns;
 import java.io.Serializable;
 import software.amazon.awssdk.services.sns.SnsAsyncClient;
 
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 class MockSnsAsyncBaseClient implements SnsAsyncClient, Serializable {
   @Override
   public String serviceName() {

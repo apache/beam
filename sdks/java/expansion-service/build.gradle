@@ -18,7 +18,6 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-  enableStrictDependencies: true,
   automaticModuleName: 'org.apache.beam.sdk.expansion.service')
 
 description = "Apache Beam :: SDKs :: Java :: Expansion Service"
@@ -44,10 +43,6 @@ dependencies {
   compile library.java.slf4j_api
   runtimeOnly library.java.slf4j_jdk14
   testCompile library.java.junit
-  // TODO(BEAM-10632): Remove this. Currently Schema inference (used in
-  // ExpansionServiceTest) hits an NPE when checker is enabled and
-  // checkerframework is not in the classpath.
-  testCompile "org.checkerframework:checker:3.10.0"
 }
 
 task runExpansionService (type: JavaExec) {

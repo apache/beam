@@ -182,10 +182,6 @@ class TypeConstraint(object):
       else:
         visitor(t, visitor_arg)
 
-  def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
-
 
 def match_type_variables(type_constraint, concrete_type):
   if isinstance(type_constraint, TypeConstraint):

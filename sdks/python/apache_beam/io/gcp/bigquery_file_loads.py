@@ -77,6 +77,10 @@ _MAXIMUM_SOURCE_URIS = 10 * 1000
 # this many records are written.
 _FILE_TRIGGERING_RECORD_COUNT = 500000
 
+# If using auto-sharding for unbounded data, we batch the records before
+# triggering file write to avoid generating too many small files.
+_FILE_TRIGGERING_BATCHING_DURATION_SECS = 1
+
 
 def _generate_job_name(job_name, job_type, step_name):
   return bigquery_tools.generate_bq_job_name(
@@ -842,9 +846,10 @@ class BigQueryBatchFileLoads(beam.PTransform):
     # We use only the user-supplied trigger on the actual BigQuery load.
     # This allows us to offload the data to the filesystem.
     #
-    # In the case of auto sharding, however, we use a default triggering and
-    # instead apply the user supplied triggering_frequency to the transfrom that
-    # performs sharding.
+    # In the case of dynamic sharding, however, we use a default trigger since
+    # the transform performs sharding also batches elements to avoid generating
+    # too many tiny files. User trigger is applied right after writes to limit
+    # the number of load jobs.
     if self.is_streaming_pipeline and not self.with_auto_sharding:
       return beam.WindowInto(beam.window.GlobalWindows(),
                              trigger=trigger.Repeatedly(
@@ -935,7 +940,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
             lambda kv: (bigquery_tools.get_hashable_destination(kv[0]), kv[1]))
         | 'WithAutoSharding' >> GroupIntoBatches.WithShardedKey(
             batch_size=_FILE_TRIGGERING_RECORD_COUNT,
-            max_buffering_duration_secs=self.triggering_frequency,
+            max_buffering_duration_secs=_FILE_TRIGGERING_BATCHING_DURATION_SECS,
             clock=clock)
         | 'FromHashableTableRefAndDropShard' >> beam.Map(
             lambda kvs:

@@ -132,6 +132,7 @@ import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.UsesStatefulParDo;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -181,9 +182,6 @@ import org.powermock.modules.junit4.PowerMockRunner;
  * <p>Implements {@link Serializable} because it is caught in closures.
  */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class DataflowRunnerTest implements Serializable {
 
   private static final String VALID_BUCKET = "valid-bucket";
@@ -1406,16 +1404,19 @@ public class DataflowRunnerTest implements Serializable {
   }
 
   @Test
-  public void testMapStateUnsupportedInBatch() throws Exception {
+  public void testMapStateUnsupportedRunnerV2() throws Exception {
     PipelineOptions options = buildPipelineOptions();
-    options.as(StreamingOptions.class).setStreaming(false);
+    ExperimentalOptions.addExperiment(options.as(ExperimentalOptions.class), "use_runner_v2");
     verifyMapStateUnsupported(options);
   }
 
   @Test
-  public void testMapStateUnsupportedInStreaming() throws Exception {
+  public void testMapStateUnsupportedStreamingEngine() throws Exception {
     PipelineOptions options = buildPipelineOptions();
-    options.as(StreamingOptions.class).setStreaming(true);
+    ExperimentalOptions.addExperiment(
+        options.as(ExperimentalOptions.class), GcpOptions.STREAMING_ENGINE_EXPERIMENT);
+    options.as(DataflowPipelineOptions.class).setStreaming(true);
+
     verifyMapStateUnsupported(options);
   }
 
@@ -1438,17 +1439,19 @@ public class DataflowRunnerTest implements Serializable {
   }
 
   @Test
-  public void testSetStateUnsupportedInBatch() throws Exception {
+  public void testSetStateUnsupportedRunnerV2() throws Exception {
     PipelineOptions options = buildPipelineOptions();
-    options.as(StreamingOptions.class).setStreaming(false);
+    ExperimentalOptions.addExperiment(options.as(ExperimentalOptions.class), "use_runner_v2");
     Pipeline.create(options);
     verifySetStateUnsupported(options);
   }
 
   @Test
-  public void testSetStateUnsupportedInStreaming() throws Exception {
+  public void testSetStateUnsupportedStreamingEngine() throws Exception {
     PipelineOptions options = buildPipelineOptions();
-    options.as(StreamingOptions.class).setStreaming(true);
+    ExperimentalOptions.addExperiment(
+        options.as(ExperimentalOptions.class), GcpOptions.STREAMING_ENGINE_EXPERIMENT);
+    options.as(DataflowPipelineOptions.class).setStreaming(true);
     verifySetStateUnsupported(options);
   }
 
@@ -1736,7 +1739,7 @@ public class DataflowRunnerTest implements Serializable {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class})
   public void testBatchGroupIntoBatchesOverride() {
     // Ignore this test for streaming pipelines.
     assumeFalse(pipeline.getOptions().as(StreamingOptions.class).isStreaming());
@@ -1764,7 +1767,6 @@ public class DataflowRunnerTest implements Serializable {
     List<String> experiments =
         new ArrayList<>(
             ImmutableList.of(
-                "enable_streaming_auto_sharding",
                 GcpOptions.STREAMING_ENGINE_EXPERIMENT,
                 GcpOptions.WINDMILL_SERVICE_EXPERIMENT,
                 "use_runner_v2"));

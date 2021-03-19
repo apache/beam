@@ -51,7 +51,6 @@ import org.junit.runners.Parameterized;
 @RunWith(Enclosed.class)
 @SuppressWarnings({
   "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
 })
 public class SchemaCoderTest {
 

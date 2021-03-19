@@ -55,3 +55,8 @@ EMBEDDED_PYTHON_GRPC = "beam:env:embedded_python_grpc:v1"
 # and artifact fetching code.
 # (Used for testing.)
 SUBPROCESS_SDK = "beam:env:harness_subprocess_python:v1"
+
+# An annotation that indicates combiner packing is OK in all sub-transforms
+# of this transform.  This optimization may result in renamed counters and
+# PCollection element counts.
+APPLY_COMBINER_PACKING = "beam:annotation:apply_combiner_packing:v1"

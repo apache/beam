@@ -44,9 +44,6 @@ import org.junit.runners.JUnit4;
 /** Unit tests for {@link JsonToRow}. */
 @RunWith(JUnit4.class)
 @Category(UsesSchema.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class JsonToRowTest implements Serializable {
 
   @Rule public transient TestPipeline pipeline = TestPipeline.create();

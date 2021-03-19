@@ -360,14 +360,19 @@ class GroupIntoBatchesWithShardedKeyPTransformOverride(PTransformOverride):
       return False
     google_cloud_options = self.options.view_as(GoogleCloudOptions)
     if not google_cloud_options.enable_streaming_engine:
-      return False
+      raise ValueError(
+          'Runner determined sharding not available in Dataflow for '
+          'GroupIntoBatches for non-Streaming-Engine jobs. In order to use '
+          'runner determined sharding, please use '
+          '--streaming --enable_streaming_engine --experiments=use_runner_v2')
 
     from apache_beam.runners.dataflow.internal import apiclient
     if not apiclient._use_unified_worker(self.options):
-      return False
-    experiments = self.options.view_as(DebugOptions).experiments or []
-    if 'enable_streaming_auto_sharding' not in experiments:
-      return False
+      raise ValueError(
+          'Runner determined sharding not available in Dataflow for '
+          'GroupIntoBatches for jobs not using Runner V2. In order to use '
+          'runner determined sharding, please use '
+          '--streaming --enable_streaming_engine --experiments=use_runner_v2')
 
     self.dataflow_runner.add_pcoll_with_auto_sharding(applied_ptransform)
     return True

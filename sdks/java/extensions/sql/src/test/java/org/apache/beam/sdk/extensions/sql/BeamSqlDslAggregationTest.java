@@ -60,9 +60,6 @@ import org.junit.experimental.categories.Category;
  * Tests for GROUP-BY/aggregation, with global_window/fix_time_window/sliding_window/session_window
  * with BOUNDED PCollection.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
   public PCollection<Row> boundedInput3;
 

@@ -229,7 +229,7 @@ public class DataflowPipelineTranslator {
   /** Renders a {@link Job} as a string. */
   public static String jobToString(Job job) {
     try {
-      return MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(job);
+      return MAPPER.writeValueAsString(job);
     } catch (JsonProcessingException exc) {
       throw new IllegalStateException("Failed to render Job as String.", exc);
     }
@@ -334,6 +334,7 @@ public class DataflowPipelineTranslator {
 
       Environment environment = new Environment();
       job.setEnvironment(environment);
+      job.getEnvironment().setServiceOptions(options.getServiceOptions());
 
       WorkerPool workerPool = new WorkerPool();
 
@@ -794,8 +795,7 @@ public class DataflowPipelineTranslator {
                 byteArrayToJsonString(
                     serializeWindowingStrategy(windowingStrategy, context.getPipelineOptions())));
             stepContext.addInput(
-                PropertyNames.IS_MERGING_WINDOW_FN,
-                !windowingStrategy.getWindowFn().isNonMerging());
+                PropertyNames.IS_MERGING_WINDOW_FN, windowingStrategy.needsMerge());
             stepContext.addCollectionToSingletonOutput(
                 input, PropertyNames.OUTPUT, transform.getView());
           }
@@ -849,8 +849,7 @@ public class DataflowPipelineTranslator {
 
             stepContext.addEncodingInput(fn.getAccumulatorCoder());
 
-            List<String> experiments = context.getPipelineOptions().getExperiments();
-            boolean isFnApi = experiments != null && experiments.contains("beam_fn_api");
+            boolean isFnApi = DataflowRunner.useUnifiedWorker(context.getPipelineOptions());
 
             if (isFnApi) {
               String ptransformId =
@@ -926,7 +925,7 @@ public class DataflowPipelineTranslator {
             boolean isStreaming =
                 context.getPipelineOptions().as(StreamingOptions.class).isStreaming();
             boolean allowCombinerLifting =
-                windowingStrategy.getWindowFn().isNonMerging()
+                !windowingStrategy.needsMerge()
                     && windowingStrategy.getWindowFn().assignsToOneWindow();
             if (isStreaming) {
               allowCombinerLifting &= transform.fewKeys();
@@ -1259,7 +1258,12 @@ public class DataflowPipelineTranslator {
 
     boolean isStateful = DoFnSignatures.isStateful(fn);
     if (isStateful) {
-      DataflowRunner.verifyDoFnSupported(fn, context.getPipelineOptions().isStreaming());
+      DataflowPipelineOptions options = context.getPipelineOptions();
+      DataflowRunner.verifyDoFnSupported(
+          fn,
+          options.isStreaming(),
+          DataflowRunner.useUnifiedWorker(options),
+          DataflowRunner.useStreamingEngine(options));
       DataflowRunner.verifyStateSupportForWindowingStrategy(windowingStrategy);
     }
 

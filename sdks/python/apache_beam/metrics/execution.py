@@ -15,6 +15,8 @@
 # limitations under the License.
 #
 
+# cython: language_level=3
+
 """
 This module is for internal use only; no backwards-compatibility guarantees.
 
@@ -86,10 +88,6 @@ class MetricKey(object):
         self.step == other.step and self.metric == other.metric and
         self.labels == other.labels)
 
-  def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
-
   def __hash__(self):
     return hash((self.step, self.metric, frozenset(self.labels)))
 
@@ -128,10 +126,6 @@ class MetricResult(object):
     return (
         self.key == other.key and self.committed == other.committed and
         self.attempted == other.attempted)
-
-  def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
 
   def __hash__(self):
     return hash((self.key, self.committed, self.attempted))
@@ -192,9 +186,6 @@ class _TypedMetricName(object):
   def __eq__(self, other):
     return self is other or (
         self.cell_type == other.cell_type and self.fast_name == other.fast_name)
-
-  def __ne__(self, other):
-    return not self == other
 
   def __hash__(self):
     return self._hash

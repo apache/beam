@@ -279,6 +279,7 @@ class PipelineInstrumentTest(unittest.TestCase):
     self._mock_write_cache(p_origin, [b'1', b'4', b'9'], second_pcoll_cache_key)
     # Mark the completeness of PCollections from the original(user) pipeline.
     ie.current_env().mark_pcollection_computed((init_pcoll, second_pcoll))
+    ie.current_env().add_derived_pipeline(p_origin, p_copy)
     instr.build_pipeline_instrument(p_copy)
 
     cached_init_pcoll = (
@@ -315,6 +316,7 @@ class PipelineInstrumentTest(unittest.TestCase):
         user_pipeline.to_runner_api(use_fake_coders=True),
         user_pipeline.runner,
         options=None)
+    ie.current_env().add_derived_pipeline(user_pipeline, runner_pipeline)
     # This is a totally irrelevant user pipeline in the watched scope.
     irrelevant_user_pipeline = beam.Pipeline(
         interactive_runner.InteractiveRunner())
@@ -506,6 +508,7 @@ class PipelineInstrumentTest(unittest.TestCase):
         p_original.to_runner_api(),
         runner=interactive_runner.InteractiveRunner(),
         options=options)
+    ie.current_env().add_derived_pipeline(p_original, p_copy)
     instrumenter = instr.build_pipeline_instrument(p_copy)
     actual_pipeline = beam.Pipeline.from_runner_api(
         proto=instrumenter.instrumented_pipeline_proto(),
@@ -766,6 +769,7 @@ class PipelineInstrumentTest(unittest.TestCase):
         user_pipeline.to_runner_api(use_fake_coders=True),
         user_pipeline.runner,
         None)
+    ie.current_env().add_derived_pipeline(user_pipeline, runner_pipeline)
 
     # Mock as if init_pcoll is cached.
     init_pcoll_cache_key = self.cache_key_of('init_pcoll', init_pcoll)

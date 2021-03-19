@@ -14,8 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import absolute_import
-
 import sys
 import unittest
 
@@ -124,6 +122,22 @@ class DeferredFrameTest(unittest.TestCase):
     })
     self._run_test(new_column, df)
 
+  def test_str_split(self):
+    s = pd.Series([
+        "this is a regular sentence",
+        "https://docs.python.org/3/tutorial/index.html",
+        np.nan
+    ])
+
+    # TODO(BEAM-11931): pandas produces None for empty values with expand=True,
+    # while we produce NaN (from pd.concat). This replicates some doctests that
+    # verify that behavior, but with a replace call to ignore the difference.
+    self._run_test(
+        lambda s: s.str.split(expand=True).replace({None: np.nan}), s)
+    self._run_test(
+        lambda s: s.str.rsplit("/", n=1, expand=True).replace({None: np.nan}),
+        s)
+
   def test_set_column_from_index(self):
     def new_column(df):
       df['NewCol'] = df.index
@@ -134,6 +148,24 @@ class DeferredFrameTest(unittest.TestCase):
         'Speed': [380., 370., 24., 26.]
     })
     self._run_test(new_column, df)
+
+  def test_tz_localize_ambiguous_series(self):
+    # This replicates a tz_localize doctest:
+    #   s.tz_localize('CET', ambiguous=np.array([True, True, False]))
+    # But using a DeferredSeries instead of a np array
+
+    s = pd.Series(
+        range(3),
+        index=pd.DatetimeIndex([
+            '2018-10-28 01:20:00', '2018-10-28 02:36:00', '2018-10-28 03:46:00'
+        ]))
+    ambiguous = pd.Series([True, True, False], index=s.index)
+
+    self._run_test(
+        lambda s,
+        ambiguous: s.tz_localize('CET', ambiguous=ambiguous),
+        s,
+        ambiguous)
 
   def test_groupby(self):
     df = pd.DataFrame({
@@ -221,6 +253,12 @@ class DeferredFrameTest(unittest.TestCase):
         expect_error=True)
     self._run_test(
         lambda df: df.groupby('bad').foo.sum(), df, expect_error=True)
+
+  def test_groupby_callable(self):
+    df = GROUPBY_DF
+
+    self._run_test(lambda df: df.groupby(lambda x: x % 2).foo.sum(), df)
+    self._run_test(lambda df: df.groupby(lambda x: x % 5).median(), df)
 
   def test_set_index(self):
     df = pd.DataFrame({

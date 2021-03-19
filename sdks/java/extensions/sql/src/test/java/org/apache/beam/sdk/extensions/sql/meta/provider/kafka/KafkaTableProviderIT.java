@@ -75,6 +75,7 @@ import org.apache.thrift.protocol.TBinaryProtocol;
 import org.apache.thrift.protocol.TProtocolFactory;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Assert;
+import org.junit.Assume;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -88,9 +89,6 @@ import org.testcontainers.utility.DockerImageName;
 
 /** Integration Test utility for KafkaTableProvider implementations. */
 @RunWith(Parameterized.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class KafkaTableProviderIT {
   private static final String KAFKA_CONTAINER_VERSION = "5.5.2";
 
@@ -177,6 +175,57 @@ public class KafkaTableProviderIT {
 
     PCollection<Row> queryOutput =
         BeamSqlRelUtils.toPCollection(pipeline, env.parseQuery("SELECT * FROM kafka_table"));
+
+    queryOutput
+        .apply(ParDo.of(new FakeKvPair()))
+        .setCoder(KvCoder.of(StringUtf8Coder.of(), RowCoder.of(TEST_TABLE_SCHEMA)))
+        .apply(
+            "waitForSuccess",
+            ParDo.of(
+                new StreamAssertEqual(
+                    ImmutableSet.of(generateRow(0), generateRow(1), generateRow(2)))));
+    queryOutput.apply(logRecords(""));
+    pipeline.run();
+    TimeUnit.SECONDS.sleep(4);
+    produceSomeRecords(3);
+
+    for (int i = 0; i < 200; i++) {
+      if (FLAG.getOrDefault(pipeline.getOptions().getOptionsId(), false)) {
+        return;
+      }
+      TimeUnit.MILLISECONDS.sleep(90);
+    }
+    Assert.fail();
+  }
+
+  @Test
+  public void testFakeNested() throws InterruptedException {
+    Assume.assumeFalse(topic.equals("csv_topic"));
+    pipeline.getOptions().as(DirectOptions.class).setBlockOnRun(false);
+    String createTableString =
+        String.format(
+            "CREATE EXTERNAL TABLE kafka_table(\n"
+                + "headers ARRAY<ROW<key VARCHAR, `values` ARRAY<VARBINARY>>>,"
+                + "payload ROW<"
+                + "f_long BIGINT NOT NULL, \n"
+                + "f_int INTEGER NOT NULL, \n"
+                + "f_string VARCHAR NOT NULL \n"
+                + ">"
+                + ") \n"
+                + "TYPE 'kafka' \n"
+                + "LOCATION ''\n"
+                + "TBLPROPERTIES '%s'",
+            objectsProvider.getKafkaPropertiesString());
+    TableProvider tb = new KafkaTableProvider();
+    BeamSqlEnv env = BeamSqlEnv.inMemory(tb);
+
+    env.executeDdl(createTableString);
+
+    PCollection<Row> queryOutput =
+        BeamSqlRelUtils.toPCollection(
+            pipeline,
+            env.parseQuery(
+                "SELECT kafka_table.payload.f_long, kafka_table.payload.f_int, kafka_table.payload.f_string FROM kafka_table"));
 
     queryOutput
         .apply(ParDo.of(new FakeKvPair()))

@@ -35,9 +35,6 @@ import org.junit.Rule;
 import org.junit.Test;
 
 /** Tests for automatic inferring schema from the input {@link PCollection} of JavaBeans. */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class InferredJavaBeanSqlTest {
 
   @Rule public final TestPipeline pipeline = TestPipeline.create();

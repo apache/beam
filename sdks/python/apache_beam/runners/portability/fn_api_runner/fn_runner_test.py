@@ -20,11 +20,11 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 import collections
+import gc
 import logging
 import os
 import random
 import shutil
-import sys
 import tempfile
 import threading
 import time
@@ -37,7 +37,6 @@ from typing import Any
 from typing import Dict
 from typing import Tuple
 
-# patches unittest.TestCase to be python3 compatible
 import hamcrest  # pylint: disable=ungrouped-imports
 from hamcrest.core.matcher import Matcher
 from hamcrest.core.string_description import StringDescription
@@ -46,6 +45,7 @@ from tenacity import retry
 from tenacity import stop_after_attempt
 
 import apache_beam as beam
+from apache_beam.coders import coders
 from apache_beam.coders.coders import StrUtf8Coder
 from apache_beam.io import restriction_trackers
 from apache_beam.io.watermark_estimators import ManualWatermarkEstimator
@@ -104,12 +104,7 @@ class FnApiRunnerTest(unittest.TestCase):
   def test_assert_that(self):
     # TODO: figure out a way for fn_api_runner to parse and raise the
     # underlying exception.
-    if sys.version_info < (3, 2):
-      assertRaisesRegex = self.assertRaisesRegexp
-    else:
-      assertRaisesRegex = self.assertRaisesRegex
-
-    with assertRaisesRegex(Exception, 'Failed assert'):
+    with self.assertRaisesRegex(Exception, 'Failed assert'):
       with self.create_pipeline() as p:
         assert_that(p | beam.Create(['a', 'b']), equal_to(['a']))
 
@@ -779,6 +774,21 @@ class FnApiRunnerTest(unittest.TestCase):
           | beam.GroupByKey()
           | beam.Map(lambda k_vs1: (k_vs1[0], sorted(k_vs1[1]))))
       assert_that(res, equal_to([('k', [1, 2]), ('k', [100, 101, 102])]))
+
+  def test_custom_merging_window(self):
+    with self.create_pipeline() as p:
+      res = (
+          p
+          | beam.Create([1, 2, 100, 101, 102])
+          | beam.Map(lambda t: window.TimestampedValue(('k', t), t))
+          | beam.WindowInto(CustomMergingWindowFn())
+          | beam.GroupByKey()
+          | beam.Map(lambda k_vs1: (k_vs1[0], sorted(k_vs1[1]))))
+      assert_that(
+          res, equal_to([('k', [1]), ('k', [101]), ('k', [2, 100, 102])]))
+    gc.collect()
+    from apache_beam.runners.portability.fn_api_runner.execution import GenericMergingWindowFn
+    self.assertEqual(GenericMergingWindowFn._HANDLES, {})
 
   @unittest.skip('BEAM-9119: test is flaky')
   def test_large_elements(self):
@@ -1636,11 +1646,12 @@ class FnApiRunnerSplitTest(unittest.TestCase):
 
   def run_sdf_split_half(self, is_drain=False):
     element_counter = ElementCounter()
-    is_first_bundle = [True]  # emulate nonlocal for Python 2
+    is_first_bundle = True
 
     def split_manager(num_elements):
+      nonlocal is_first_bundle
       if is_first_bundle and num_elements > 0:
-        del is_first_bundle[:]
+        is_first_bundle = False
         breakpoint = element_counter.set_breakpoint(1)
         yield
         breakpoint.wait()
@@ -1939,9 +1950,6 @@ class FnApiBasedLullLoggingTest(unittest.TestCase):
 
   def test_lull_logging(self):
 
-    # TODO(BEAM-1251): Remove this test skip after dropping Py 2 support.
-    if sys.version_info < (3, 4):
-      self.skipTest('Log-based assertions are supported after Python 3.4')
     try:
       utils.check_compiled('apache_beam.runners.worker.opcounters')
     except RuntimeError:
@@ -2000,6 +2008,26 @@ class FnApiBasedStateBackedCoderTest(unittest.TestCase):
           | beam.MapTuple(lambda _, vs: sum(e.num_elements for e in vs)))
 
       assert_that(r, equal_to([VALUES_PER_ELEMENT * NUM_OF_ELEMENTS]))
+
+
+# TODO(robertwb): Why does pickling break when this is inlined?
+class CustomMergingWindowFn(window.WindowFn):
+  def assign(self, assign_context):
+    return [
+        window.IntervalWindow(
+            assign_context.timestamp, assign_context.timestamp + 1000)
+    ]
+
+  def merge(self, merge_context):
+    evens = [w for w in merge_context.windows if w.start % 2 == 0]
+    if evens:
+      merge_context.merge(
+          evens,
+          window.IntervalWindow(
+              min(w.start for w in evens), max(w.end for w in evens)))
+
+  def get_window_coder(self):
+    return coders.IntervalWindowCoder()
 
 
 if __name__ == '__main__':

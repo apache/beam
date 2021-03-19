@@ -36,7 +36,8 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_PVR_Spark_Streaming',
       steps {
         gradle {
           rootBuildScriptDir(commonJobProperties.checkoutDir)
-          tasks(':runners:spark:job-server:validatesPortableRunnerStreaming')
+          tasks(':runners:spark:2:job-server:validatesPortableRunnerStreaming')
+          tasks(':runners:spark:3:job-server:validatesPortableRunnerStreaming')
           commonJobProperties.setGradleSwitches(delegate)
         }
       }

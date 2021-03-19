@@ -18,14 +18,12 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-  enableStrictDependencies: true,
   automaticModuleName: 'org.apache.beam.sdk',
   classesTriggerCheckerBugs: [
     'DoFnTester': 'https://github.com/typetools/checker-framework/issues/3776',
     'MergingActiveWindowSetTest': 'https://github.com/typetools/checker-framework/issues/3776',
     'WindowFnTestUtils': 'https://github.com/typetools/checker-framework/issues/3776',
   ],
-  checkerTooSlowOnTests: true,
   shadowClosure: {
     dependencies {
       include(dependency("org.apache.commons:.*"))

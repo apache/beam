@@ -30,8 +30,17 @@ You can also [try an Apache Beam pipeline](/get-started/try-apache-beam) using t
 ### Learn the basics
 
 In this notebook we go through the basics of what is Apache Beam and how to get started.
+We learn what is a data pipeline, a PCollection, a PTransform, as well as some basic transforms like `Map`, `FlatMap`, `Filter`, `Combine`, and `GroupByKey`.
 
 {{< button-colab url="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/tour-of-beam/getting-started.ipynb" >}}
+
+### Reading and writing data
+
+In this notebook we go through some examples on how to read and write data to and from different data formats.
+We introduce the built-in `ReadFromText` and `WriteToText` transforms.
+We also see how we can read from CSV files, read from a SQLite database, write fixed-sized batches of elements, and write windows of elements.
+
+{{< button-colab url="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/tour-of-beam/reading-and-writing-data.ipynb" >}}
 
 ## Transforms
 

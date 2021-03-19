@@ -35,9 +35,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
  * -Dexec.args='org.apache.beam.sdk.coders.BigEndianIntegerCoderTest.TEST_CODER \
  * org.apache.beam.sdk.coders.BigEndianIntegerCoderTest.TEST_VALUES' }
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class PrintBase64Encodings {
 
   /** Gets a field even if it is private, which the test data generally will be. */

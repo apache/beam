@@ -38,9 +38,6 @@ import org.junit.runners.JUnit4;
 
 /** Unit tests for {@link ListCoder}. */
 @RunWith(JUnit4.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
 public class ListCoderTest {
 
   private static final Coder<List<Integer>> TEST_CODER = ListCoder.of(VarIntCoder.of());

@@ -237,3 +237,19 @@ task chicagoTaxiExample {
     }
   }
 }
+
+task validatesContainer() {
+  def pyversion = "${project.ext.pythonVersion.replace('.', '')}"
+  dependsOn 'installGcpTest'
+  dependsOn ':sdks:python:sdist'
+  dependsOn ":sdks:python:container:py${pyversion}:docker"
+  def runScriptsPath = "${rootDir}/sdks/python/container/run_validatescontainer.sh"
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && cd ${rootDir} && ${runScriptsPath} " +
+              "python${pyversion} " +
+              "${files(configurations.distTarBall.files).singleFile}"
+    }
+  }
+}
