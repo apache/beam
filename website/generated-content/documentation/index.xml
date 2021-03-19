@@ -7323,7 +7323,7 @@ a single global window for a &lt;code>PCollection&lt;/code>:&lt;/p>
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="kn">from&lt;/span> &lt;span class="nn">apache_beam&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">window&lt;/span>
-&lt;span class="n">session_windowed_items&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;span class="n">global_windowed_items&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
 &lt;span class="n">items&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;window&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">WindowInto&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">window&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">GlobalWindows&lt;/span>&lt;span class="p">()))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
