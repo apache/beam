@@ -2261,12 +2261,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     }
 
     @Override
-    public DoFn<InputT, OutputT>.SetupContext setupContext(DoFn<InputT, OutputT> doFn) {
-      throw new UnsupportedOperationException(
-          "Cannot access SetupContext outside of @Setup method.");
-    }
-
-    @Override
     public DoFn<InputT, OutputT>.StartBundleContext startBundleContext(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           "Cannot access StartBundleContext outside of @StartBundle method.");

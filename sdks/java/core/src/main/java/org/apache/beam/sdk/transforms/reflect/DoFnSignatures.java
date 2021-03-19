@@ -147,10 +147,7 @@ public class DoFnSignatures {
               Parameter.BundleFinalizerParameter.class);
 
   private static final ImmutableList<Class<? extends Parameter>> ALLOWED_SETUP_PARAMETERS =
-      ImmutableList.of(
-          Parameter.PipelineOptionsParameter.class,
-          Parameter.SetupContextParameter.class,
-          Parameter.BundleFinalizerParameter.class);
+      ImmutableList.of(Parameter.PipelineOptionsParameter.class);
 
   private static final ImmutableList<Class<? extends Parameter>> ALLOWED_START_BUNDLE_PARAMETERS =
       ImmutableList.of(
@@ -1015,18 +1012,6 @@ public class DoFnSignatures {
   }
 
   /**
-   * Generates a {@link TypeDescriptor} for {@code DoFn<InputT, OutputT>.SetupContext} given {@code
-   * InputT} and {@code OutputT}.
-   */
-  private static <InputT, OutputT>
-      TypeDescriptor<DoFn<InputT, OutputT>.SetupContext> doFnSetupContextTypeOf(
-          TypeDescriptor<InputT> inputT, TypeDescriptor<OutputT> outputT) {
-    return new TypeDescriptor<DoFn<InputT, OutputT>.SetupContext>() {}.where(
-            new TypeParameter<InputT>() {}, inputT)
-        .where(new TypeParameter<OutputT>() {}, outputT);
-  }
-
-  /**
    * Generates a {@link TypeDescriptor} for {@code DoFn<InputT, OutputT>.StartBundleContext} given
    * {@code InputT} and {@code OutputT}.
    */
@@ -1317,7 +1302,6 @@ public class DoFnSignatures {
       TypeDescriptor<?> outputT) {
 
     TypeDescriptor<?> expectedProcessContextT = doFnProcessContextTypeOf(inputT, outputT);
-    TypeDescriptor<?> expectedSetupContextT = doFnSetupContextTypeOf(inputT, outputT);
     TypeDescriptor<?> expectedStartBundleContextT = doFnStartBundleContextTypeOf(inputT, outputT);
     TypeDescriptor<?> expectedFinishBundleContextT = doFnFinishBundleContextTypeOf(inputT, outputT);
     TypeDescriptor<?> expectedOnTimerContextT = doFnOnTimerContextTypeOf(inputT, outputT);
@@ -1374,12 +1358,6 @@ public class DoFnSignatures {
           "ProcessContext argument must have type %s",
           format(expectedProcessContextT));
       return Parameter.processContext();
-    } else if (rawType.equals(DoFn.SetupContext.class)) {
-      paramErrors.checkArgument(
-          paramT.equals(expectedSetupContextT),
-          "Setup argument must have type %s",
-          format(expectedSetupContextT));
-      return Parameter.setupContext();
     } else if (rawType.equals(DoFn.StartBundleContext.class)) {
       paramErrors.checkArgument(
           paramT.equals(expectedStartBundleContextT),

@@ -47,7 +47,6 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.ProcessCon
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionTrackerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SchemaElementParameter;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SetupContextParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SideInputParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StartBundleContextParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
@@ -863,16 +862,6 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
 
     return parameter.match(
         new Cases<StackManipulation>() {
-
-          @Override
-          public StackManipulation dispatch(SetupContextParameter p) {
-            return new StackManipulation.Compound(
-                pushDelegate,
-                MethodInvocation.invoke(
-                    getExtraContextFactoryMethodDescription(
-                        SETUP_CONTEXT_PARAMETER_METHOD, DoFn.class)));
-          }
-
           @Override
           public StackManipulation dispatch(StartBundleContextParameter p) {
             return new StackManipulation.Compound(

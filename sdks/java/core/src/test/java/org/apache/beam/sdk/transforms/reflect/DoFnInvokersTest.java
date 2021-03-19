@@ -48,6 +48,7 @@ import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -92,7 +93,6 @@ import org.mockito.MockitoAnnotations;
 public class DoFnInvokersTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
 
-  @Mock private DoFn<String, String>.SetupContext mockSetupContext;
   @Mock private DoFn<String, String>.StartBundleContext mockStartBundleContext;
   @Mock private DoFn<String, String>.FinishBundleContext mockFinishBundleContext;
   @Mock private DoFn<String, String>.ProcessContext mockProcessContext;
@@ -103,6 +103,7 @@ public class DoFnInvokersTest {
   @Mock private IntervalWindow mockWindow;
   // @Mock private PaneInfo mockPaneInfo;
   @Mock private DoFnInvoker.ArgumentProvider<String, String> mockArgumentProvider;
+  @Mock private PipelineOptions mockOptions;
 
   @Before
   public void setUp() {
@@ -117,7 +118,7 @@ public class DoFnInvokersTest {
     when(mockArgumentProvider.outputReceiver(Matchers.<DoFn>any())).thenReturn(mockOutputReceiver);
     when(mockArgumentProvider.taggedOutputReceiver(Matchers.<DoFn>any()))
         .thenReturn(mockMultiOutputReceiver);
-    when(mockArgumentProvider.setupContext(Matchers.<DoFn>any())).thenReturn(mockSetupContext);
+    when(mockArgumentProvider.pipelineOptions()).thenReturn(mockOptions);
     when(mockArgumentProvider.startBundleContext(Matchers.<DoFn>any()))
         .thenReturn(mockStartBundleContext);
     when(mockArgumentProvider.finishBundleContext(Matchers.<DoFn>any()))
@@ -359,7 +360,7 @@ public class DoFnInvokersTest {
 
   @Test
   public void testDoFnWithStartBundleSetupTeardown() throws Exception {
-    when(mockArgumentProvider.setupContext(any(DoFn.class))).thenReturn(mockSetupContext);
+    when(mockArgumentProvider.pipelineOptions()).thenReturn(mockOptions);
     when(mockArgumentProvider.startBundleContext(any(DoFn.class)))
         .thenReturn(mockStartBundleContext);
     when(mockArgumentProvider.finishBundleContext(any(DoFn.class)))
@@ -375,7 +376,7 @@ public class DoFnInvokersTest {
       public void finishBundle(FinishBundleContext c) {}
 
       @Setup
-      public void before(SetupContext c) {}
+      public void before(PipelineOptions options) {}
 
       @Teardown
       public void after() {}
@@ -388,7 +389,7 @@ public class DoFnInvokersTest {
     invoker.invokeStartBundle(mockArgumentProvider);
     invoker.invokeFinishBundle(mockArgumentProvider);
     invoker.invokeTeardown();
-    verify(fn).before(mockSetupContext);
+    verify(fn).before(mockOptions);
     verify(fn).startBundle(mockStartBundleContext);
     verify(fn).finishBundle(mockFinishBundleContext);
     verify(fn).after();

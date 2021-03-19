@@ -134,23 +134,13 @@ public class SplittableParDoNaiveBounded {
     }
 
     @Setup
-    public void setup(SetupContext c) {
+    public void setup(PipelineOptions options) {
       this.invoker = DoFnInvokers.invokerFor(fn);
       invoker.invokeSetup(
           new BaseArgumentProvider<InputT, OutputT>() {
             @Override
-            public DoFn<InputT, OutputT>.SetupContext setupContext(DoFn<InputT, OutputT> doFn) {
-              return new DoFn<InputT, OutputT>.SetupContext() {
-                @Override
-                public PipelineOptions getPipelineOptions() {
-                  return c.getPipelineOptions();
-                }
-              };
-            }
-
-            @Override
             public PipelineOptions pipelineOptions() {
-              return c.getPipelineOptions();
+              return options;
             }
 
             @Override
@@ -595,11 +585,6 @@ public class SplittableParDoNaiveBounded {
       }
 
       // ----------- Unsupported methods --------------------
-      @Override
-      public DoFn<InputT, OutputT>.SetupContext setupContext(DoFn<InputT, OutputT> doFn) {
-        throw new IllegalStateException();
-      }
-
       @Override
       public DoFn<InputT, OutputT>.StartBundleContext startBundleContext(
           DoFn<InputT, OutputT> doFn) {
