@@ -38,15 +38,15 @@ import org.junit.runners.JUnit4;
 public class MapToValuesTest {
 
   @SuppressWarnings({
-      "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-      "unchecked"
+    "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+    "unchecked"
   })
   static final KV<String, Integer>[] TABLE =
       new KV[] {KV.of("one", 1), KV.of("two", 2), KV.of("dup", 2)};
 
   @SuppressWarnings({
-      "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-      "unchecked"
+    "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+    "unchecked"
   })
   static final KV<String, Integer>[] EMPTY_TABLE = new KV[] {};
 

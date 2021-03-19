@@ -38,15 +38,15 @@ import org.junit.runners.JUnit4;
 public class MapToKeysTest {
 
   @SuppressWarnings({
-      "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-      "unchecked"
+    "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+    "unchecked"
   })
   static final KV<Integer, String>[] TABLE =
       new KV[] {KV.of(1, "one"), KV.of(2, "none"), KV.of(3, "none")};
 
   @SuppressWarnings({
-      "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
-      "unchecked"
+    "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
+    "unchecked"
   })
   static final KV<Integer, String>[] EMPTY_TABLE = new KV[] {};
 
