@@ -2,6 +2,7 @@ package org.apache.beam.sdk.transforms;
 
 import java.util.Arrays;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
+import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.NeedsRunner;
@@ -48,7 +49,8 @@ public class MapKeysTest {
             .withCoder(KvCoder.of(BigEndianIntegerCoder.of(), StringUtf8Coder.of())));
 
     PCollection<KV<Double, String>> output =
-        input.apply(MapKeys.via(Integer::doubleValue));
+        input.apply(MapKeys.via(Integer::doubleValue)).setCoder(
+            KvCoder.of(DoubleCoder.of(), StringUtf8Coder.of()));
 
     PAssert.that(output)
         .containsInAnyOrder(KV.of(1.0d, "one"), KV.of(2.0d, "none"), KV.of(3.0d, "none"));
@@ -65,7 +67,8 @@ public class MapKeysTest {
             .withCoder(KvCoder.of(BigEndianIntegerCoder.of(), StringUtf8Coder.of())));
 
     PCollection<KV<Double, String>> output =
-        input.apply(MapKeys.via(Integer::doubleValue));
+        input.apply(MapKeys.via(Integer::doubleValue)).setCoder(
+            KvCoder.of(DoubleCoder.of(), StringUtf8Coder.of()));
 
     PAssert.that(output).empty();
 
