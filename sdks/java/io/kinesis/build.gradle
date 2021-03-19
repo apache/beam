@@ -38,7 +38,7 @@ dependencies {
   compile library.java.guava
   compile library.java.joda_time
   compile library.java.slf4j_api
-  compile "com.amazonaws:amazon-kinesis-client:1.13.0"
+  compile "com.amazonaws:amazon-kinesis-client:1.14.2"
   compile "com.amazonaws:amazon-kinesis-producer:0.14.1"
   compile "commons-lang:commons-lang:2.6"
   compile library.java.vendored_guava_26_0_jre
