@@ -58,7 +58,8 @@ public class MapKeys<K1, K2, V> extends PTransform<PCollection<KV<K1, V>>, PColl
 
   @Override
   public PCollection<KV<K2, V>> expand(PCollection<KV<K1, V>> input) {
-    return input.apply("MapKeys",
+    return input.apply(
+        "MapKeys",
         MapElements.via(
             new SimpleFunction<KV<K1, V>, KV<K2, V>>() {
               @Override

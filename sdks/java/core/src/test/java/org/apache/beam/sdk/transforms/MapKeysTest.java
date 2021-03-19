@@ -44,9 +44,7 @@ public class MapKeysTest {
       "unchecked"
   })
   static final KV<Integer, String>[] TABLE =
-      new KV[]{
-          KV.of(1, "one"), KV.of(2, "none"), KV.of(3, "none")
-      };
+      new KV[]{KV.of(1, "one"), KV.of(2, "none"), KV.of(3, "none")};
 
   @SuppressWarnings({
       "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
@@ -62,12 +60,14 @@ public class MapKeysTest {
   public void testMapKeys() {
 
     PCollection<KV<Integer, String>> input =
-        p.apply(Create.of(Arrays.asList(TABLE))
-            .withCoder(KvCoder.of(BigEndianIntegerCoder.of(), StringUtf8Coder.of())));
+        p.apply(
+            Create.of(Arrays.asList(TABLE))
+                .withCoder(KvCoder.of(BigEndianIntegerCoder.of(), StringUtf8Coder.of())));
 
     PCollection<KV<Double, String>> output =
-        input.apply(MapKeys.via(Integer::doubleValue)).setCoder(
-            KvCoder.of(DoubleCoder.of(), StringUtf8Coder.of()));
+        input
+            .apply(MapKeys.via(Integer::doubleValue))
+            .setCoder(KvCoder.of(DoubleCoder.of(), StringUtf8Coder.of()));
 
     PAssert.that(output)
         .containsInAnyOrder(KV.of(1.0d, "one"), KV.of(2.0d, "none"), KV.of(3.0d, "none"));
@@ -80,12 +80,14 @@ public class MapKeysTest {
   public void testMapKeysEmpty() {
 
     PCollection<KV<Integer, String>> input =
-        p.apply(Create.of(Arrays.asList(EMPTY_TABLE))
-            .withCoder(KvCoder.of(BigEndianIntegerCoder.of(), StringUtf8Coder.of())));
+        p.apply(
+            Create.of(Arrays.asList(EMPTY_TABLE))
+                .withCoder(KvCoder.of(BigEndianIntegerCoder.of(), StringUtf8Coder.of())));
 
     PCollection<KV<Double, String>> output =
-        input.apply(MapKeys.via(Integer::doubleValue)).setCoder(
-            KvCoder.of(DoubleCoder.of(), StringUtf8Coder.of()));
+        input
+            .apply(MapKeys.via(Integer::doubleValue))
+            .setCoder(KvCoder.of(DoubleCoder.of(), StringUtf8Coder.of()));
 
     PAssert.that(output).empty();
 

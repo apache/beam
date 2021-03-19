@@ -44,9 +44,7 @@ public class MapValuesTest {
       "unchecked"
   })
   static final KV<String, Integer>[] TABLE =
-      new KV[]{
-          KV.of("one", 1), KV.of("two", 2), KV.of("dup", 2)
-      };
+      new KV[]{KV.of("one", 1), KV.of("two", 2), KV.of("dup", 2)};
 
   @SuppressWarnings({
       "rawtypes", // TODO(https://issues.apache.org/jira/browse/BEAM-10556)
@@ -62,12 +60,14 @@ public class MapValuesTest {
   public void testMapValues() {
 
     PCollection<KV<String, Integer>> input =
-        p.apply(Create.of(Arrays.asList(TABLE))
-            .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
+        p.apply(
+            Create.of(Arrays.asList(TABLE))
+                .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
 
     PCollection<KV<String, Double>> output =
-        input.apply(MapValues.via(Integer::doubleValue)).setCoder(
-            KvCoder.of(StringUtf8Coder.of(), DoubleCoder.of()));
+        input
+            .apply(MapValues.via(Integer::doubleValue))
+            .setCoder(KvCoder.of(StringUtf8Coder.of(), DoubleCoder.of()));
 
     PAssert.that(output)
         .containsInAnyOrder(KV.of("one", 1.0d), KV.of("two", 2.0d), KV.of("dup", 2.0d));
@@ -80,12 +80,14 @@ public class MapValuesTest {
   public void testMapValuesEmpty() {
 
     PCollection<KV<String, Integer>> input =
-        p.apply(Create.of(Arrays.asList(EMPTY_TABLE))
-            .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
+        p.apply(
+            Create.of(Arrays.asList(EMPTY_TABLE))
+                .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
 
     PCollection<KV<String, Double>> output =
-        input.apply(MapValues.via(Integer::doubleValue)).setCoder(
-            KvCoder.of(StringUtf8Coder.of(), DoubleCoder.of()));
+        input
+            .apply(MapValues.via(Integer::doubleValue))
+            .setCoder(KvCoder.of(StringUtf8Coder.of(), DoubleCoder.of()));
 
     PAssert.that(output).empty();
 

@@ -37,8 +37,8 @@ import org.apache.beam.sdk.values.PCollection;
  * @param <V1> the type of the values in the input {@code PCollection}
  * @param <V2> the type of the elements in the output {@code PCollection}
  */
-public class MapToValues<V1, V2> extends
-    PTransform<PCollection<? extends KV<?, V1>>, PCollection<V2>> {
+public class MapToValues<V1, V2>
+    extends PTransform<PCollection<? extends KV<?, V1>>, PCollection<V2>> {
 
   private final SerializableFunction<V1, V2> fn;
 
@@ -58,7 +58,8 @@ public class MapToValues<V1, V2> extends
 
   @Override
   public PCollection<V2> expand(PCollection<? extends KV<?, V1>> input) {
-    return input.apply("MapToValues",
+    return input.apply(
+        "MapToValues",
         MapElements.via(
             new SimpleFunction<KV<?, V1>, V2>() {
               @Override
