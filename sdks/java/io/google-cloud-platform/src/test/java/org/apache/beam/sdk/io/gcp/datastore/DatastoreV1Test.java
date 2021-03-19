@@ -453,7 +453,7 @@ public class DatastoreV1Test {
 
   @Test
   public void testDatastoreWriteFnDisplayData() {
-    DatastoreWriterFn datastoreWriter = new DatastoreWriterFn(PROJECT_ID, null);
+    DatastoreWriterFn datastoreWriter = new DatastoreWriterFn(PROJECT_ID, null, null);
     DisplayData displayData = DisplayData.from(datastoreWriter);
     assertThat(displayData, hasDisplayItem("projectId", PROJECT_ID));
   }
@@ -490,7 +490,7 @@ public class DatastoreV1Test {
 
     DatastoreWriterFn datastoreWriter =
         new DatastoreWriterFn(
-            StaticValueProvider.of(PROJECT_ID), null, mockDatastoreFactory, new FakeWriteBatcher());
+            StaticValueProvider.of(PROJECT_ID), null, null, mockDatastoreFactory, new FakeWriteBatcher());
     DoFnTester<Mutation, Void> doFnTester = DoFnTester.of(datastoreWriter);
     doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
     doFnTester.processBundle(mutations);
@@ -528,7 +528,7 @@ public class DatastoreV1Test {
 
     DatastoreWriterFn datastoreWriter =
         new DatastoreWriterFn(
-            StaticValueProvider.of(PROJECT_ID), null, mockDatastoreFactory, new FakeWriteBatcher());
+            StaticValueProvider.of(PROJECT_ID), null, null, mockDatastoreFactory, new FakeWriteBatcher());
     DoFnTester<Mutation, Void> doFnTester = DoFnTester.of(datastoreWriter);
     doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
     doFnTester.processBundle(mutations);
@@ -566,7 +566,7 @@ public class DatastoreV1Test {
 
     DatastoreWriterFn datastoreWriter =
         new DatastoreWriterFn(
-            StaticValueProvider.of(PROJECT_ID), null, mockDatastoreFactory, new FakeWriteBatcher());
+            StaticValueProvider.of(PROJECT_ID), null, null, mockDatastoreFactory, new FakeWriteBatcher());
     DoFnTester<Mutation, Void> doFnTester = DoFnTester.of(datastoreWriter);
     doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
     doFnTester.processBundle(mutations);
