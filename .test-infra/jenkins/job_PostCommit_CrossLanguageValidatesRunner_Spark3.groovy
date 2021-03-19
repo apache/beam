@@ -22,9 +22,9 @@ import PostcommitJobBuilder
 import static PythonTestProperties.CROSS_LANGUAGE_VALIDATES_RUNNER_PYTHON_VERSIONS
 
 // This job runs the suite of ValidatesRunner tests against the Flink runner.
-PostcommitJobBuilder.postCommitJob('beam_PostCommit_XVR_Spark',
-    'Run XVR_Spark PostCommit', 'Spark CrossLanguageValidatesRunner Tests', this) {
-      description('Runs the CrossLanguageValidatesRunner suite on the Spark runner.')
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_XVR_Spark3',
+    'Run XVR_Spark3 PostCommit', 'Spark3 CrossLanguageValidatesRunner Tests', this) {
+      description('Runs the CrossLanguageValidatesRunner suite on the Spark3 runner.')
 
       // Set common parameters.
       commonJobProperties.setTopLevelMainJobProperties(delegate)
@@ -37,10 +37,10 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_XVR_Spark',
       // Gradle goals for this job.
       steps {
         CROSS_LANGUAGE_VALIDATES_RUNNER_PYTHON_VERSIONS.each { pythonVersion ->
-          shell("echo \"*** RUN CROSS-LANGUAGE SPARK USING PYTHON ${pythonVersion} ***\"")
+          shell("echo \"*** RUN CROSS-LANGUAGE SPARK3 USING PYTHON ${pythonVersion} ***\"")
           gradle {
             rootBuildScriptDir(commonJobProperties.checkoutDir)
-            tasks(':runners:spark:2:job-server:validatesCrossLanguageRunner')
+            tasks(':runners:spark:3:job-server:validatesCrossLanguageRunner')
             commonJobProperties.setGradleSwitches(delegate)
             switches("-PpythonVersion=${pythonVersion}")
           }

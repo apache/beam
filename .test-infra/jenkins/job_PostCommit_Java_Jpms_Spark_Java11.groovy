@@ -19,15 +19,16 @@
 import CommonJobProperties as commonJobProperties
 import PostcommitJobBuilder
 
-import static PythonTestProperties.CROSS_LANGUAGE_VALIDATES_RUNNER_PYTHON_VERSIONS
 
-// This job runs the suite of ValidatesRunner tests against the Flink runner.
-PostcommitJobBuilder.postCommitJob('beam_PostCommit_XVR_Spark',
-    'Run XVR_Spark PostCommit', 'Spark CrossLanguageValidatesRunner Tests', this) {
-      description('Runs the CrossLanguageValidatesRunner suite on the Spark runner.')
+// This job runs the Java postcommit tests, including the suite of integration
+// tests.
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_Java_Jpms_Spark_Java11', 'Run Jpms Spark Java 11 PostCommit',
+    'JPMS Java 11 Spark Post Commit Tests', this) {
+
+      description('Runs JPMS tests on Spark using the Java 11 SDK.')
 
       // Set common parameters.
-      commonJobProperties.setTopLevelMainJobProperties(delegate)
+      commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
 
       // Publish all test results to Jenkins
       publishers {
@@ -36,14 +37,13 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_XVR_Spark',
 
       // Gradle goals for this job.
       steps {
-        CROSS_LANGUAGE_VALIDATES_RUNNER_PYTHON_VERSIONS.each { pythonVersion ->
-          shell("echo \"*** RUN CROSS-LANGUAGE SPARK USING PYTHON ${pythonVersion} ***\"")
-          gradle {
-            rootBuildScriptDir(commonJobProperties.checkoutDir)
-            tasks(':runners:spark:2:job-server:validatesCrossLanguageRunner')
-            commonJobProperties.setGradleSwitches(delegate)
-            switches("-PpythonVersion=${pythonVersion}")
-          }
+        gradle {
+          rootBuildScriptDir(commonJobProperties.checkoutDir)
+          tasks(':sdks:java:testing:jpms-tests:sparkRunnerIntegrationTest')
+          commonJobProperties.setGradleSwitches(delegate)
+          switches("-Dorg.gradle.java.home=${commonJobProperties.JAVA_11_HOME}")
+          // Specify maven home on Jenkins, needed by Maven archetype integration tests.
+          switches('-Pmaven_home=/home/jenkins/tools/maven/apache-maven-3.5.4')
         }
       }
     }

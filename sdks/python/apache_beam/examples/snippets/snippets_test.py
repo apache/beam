@@ -1240,11 +1240,11 @@ class CombineTest(unittest.TestCase):
           beam.Map(lambda x: beam.window.TimestampedValue(('k', x), x)))
       # [START setting_global_window]
       from apache_beam import window
-      session_windowed_items = (
+      global_windowed_items = (
           items | 'window' >> beam.WindowInto(window.GlobalWindows()))
       # [END setting_global_window]
       summed = (
-          session_windowed_items
+          global_windowed_items
           | 'group' >> beam.GroupByKey()
           | 'combine' >> beam.CombineValues(sum))
       unkeyed = summed | 'unkey' >> beam.Map(lambda x: x[1])

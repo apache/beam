@@ -86,9 +86,6 @@ class Index(Partitioning):
   def __eq__(self, other):
     return type(self) == type(other) and self._levels == other._levels
 
-  def __ne__(self, other):
-    return not self == other
-
   def __hash__(self):
     if self._levels:
       return hash(tuple(sorted(self._levels)))
@@ -125,6 +122,9 @@ class Index(Partitioning):
       yield key, df[hashes % num_partitions == key]
 
   def check(self, dfs):
+    # Drop empty DataFrames
+    dfs = [df for df in dfs if len(df)]
+
     if not len(dfs):
       return True
 
@@ -154,9 +154,6 @@ class Singleton(Partitioning):
   def __eq__(self, other):
     return type(self) == type(other)
 
-  def __ne__(self, other):
-    return not self == other
-
   def __hash__(self):
     return hash(type(self))
 
@@ -175,9 +172,6 @@ class Arbitrary(Partitioning):
   """
   def __eq__(self, other):
     return type(self) == type(other)
-
-  def __ne__(self, other):
-    return not self == other
 
   def __hash__(self):
     return hash(type(self))

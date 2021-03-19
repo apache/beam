@@ -80,6 +80,7 @@ __all__ = [
     'FastPrimitivesCoder',
     'FloatCoder',
     'IterableCoder',
+    'ListCoder',
     'MapCoder',
     'NullableCoder',
     'PickleCoder',
@@ -290,10 +291,6 @@ class Coder(object):
         self._dict_without_impl() == other._dict_without_impl())
 
   # pylint: enable=protected-access
-
-  def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
 
   def __hash__(self):
     return hash(type(self))
@@ -1131,7 +1128,7 @@ class TupleSequenceCoder(FastCoder):
     return hash((type(self), self._elem_coder))
 
 
-class IterableCoder(FastCoder):
+class ListLikeCoder(FastCoder):
   """Coder of iterables of homogeneous objects."""
   def __init__(self, elem_coder):
     # type: (Coder) -> None
@@ -1148,7 +1145,7 @@ class IterableCoder(FastCoder):
     if self.is_deterministic():
       return self
     else:
-      return IterableCoder(
+      return type(self)(
           self._elem_coder.as_deterministic_coder(step_label, error_message))
 
   def as_cloud_object(self, coders_context=None):
@@ -1163,20 +1160,17 @@ class IterableCoder(FastCoder):
   def value_coder(self):
     return self._elem_coder
 
-  def to_type_hint(self):
-    return typehints.Iterable[self._elem_coder.to_type_hint()]
-
-  @staticmethod
-  def from_type_hint(typehint, registry):
-    # type: (Any, CoderRegistry) -> IterableCoder
-    return IterableCoder(registry.get_coder(typehint.inner_type))
+  @classmethod
+  def from_type_hint(cls, typehint, registry):
+    # type: (Any, CoderRegistry) -> ListLikeCoder
+    return cls(registry.get_coder(typehint.inner_type))
 
   def _get_component_coders(self):
     # type: () -> Tuple[Coder, ...]
     return (self._elem_coder, )
 
   def __repr__(self):
-    return 'IterableCoder[%r]' % self._elem_coder
+    return '%s[%r]' % (self.__class__.__name__, self._elem_coder)
 
   def __eq__(self, other):
     return (
@@ -1186,7 +1180,19 @@ class IterableCoder(FastCoder):
     return hash((type(self), self._elem_coder))
 
 
+class IterableCoder(ListLikeCoder):
+  """Coder of iterables of homogeneous objects."""
+  def to_type_hint(self):
+    return typehints.Iterable[self._elem_coder.to_type_hint()]
+
+
 Coder.register_structured_urn(common_urns.coders.ITERABLE.urn, IterableCoder)
+
+
+class ListCoder(ListLikeCoder):
+  """Coder of Python lists."""
+  def to_type_hint(self):
+    return List[self._elem_coder.to_type_hint()]
 
 
 class GlobalWindowCoder(SingletonCoder):

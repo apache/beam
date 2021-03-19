@@ -78,7 +78,7 @@ class SparkJarJobServer(job_server.JavaJarJobServer):
               'Unable to parse jar URL "%s". If using a full URL, make sure '
               'the scheme is specified. If using a local file path, make sure '
               'the file exists; you may have to first build the job server '
-              'using `./gradlew runners:spark:job-server:shadowJar`.' %
+              'using `./gradlew runners:spark:2:job-server:shadowJar`.' %
               self._jar)
       return self._jar
     else:

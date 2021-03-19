@@ -58,13 +58,10 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.ArtifactInformation;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.DockerPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
-import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.ModelCoders;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
-import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
-import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.JobSpecification;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
@@ -879,80 +876,6 @@ public class DataflowPipelineTranslatorTest implements Serializable {
         KvCoder.of(SerializableCoder.of(OffsetRange.class), VoidCoder.of()), restrictionCoder);
   }
 
-  /** Smoke test to fail fast if translation of a splittable ParDo in FnAPI. */
-  @Test
-  public void testSplittableParDoTranslationFnApi() throws Exception {
-    DataflowPipelineOptions options = buildPipelineOptions();
-    options.setExperiments(Arrays.asList("beam_fn_api"));
-    DataflowRunner runner = DataflowRunner.fromOptions(options);
-    DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
-
-    Pipeline pipeline = Pipeline.create(options);
-
-    PCollection<String> windowedInput =
-        pipeline
-            .apply(Impulse.create())
-            .apply(
-                MapElements.via(
-                    new SimpleFunction<byte[], String>() {
-                      @Override
-                      public String apply(byte[] input) {
-                        return "";
-                      }
-                    }))
-            .apply(Window.into(FixedWindows.of(Duration.standardMinutes(1))));
-    windowedInput.apply(ParDo.of(new TestSplittableFn()));
-
-    runner.replaceTransforms(pipeline);
-
-    SdkComponents sdkComponents = createSdkComponents(options);
-    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents, true);
-    JobSpecification result =
-        translator.translate(
-            pipeline, pipelineProto, sdkComponents, runner, Collections.emptyList());
-
-    Job job = result.getJob();
-
-    // The job should contain a ParDo step, containing a "restriction_encoding".
-
-    List<Step> steps = job.getSteps();
-    Step splittableParDo = null;
-    for (Step step : steps) {
-      if ("ParallelDo".equals(step.getKind())
-          && step.getProperties().containsKey(PropertyNames.RESTRICTION_ENCODING)) {
-        assertNull(splittableParDo);
-        splittableParDo = step;
-      }
-    }
-    assertNotNull(splittableParDo);
-
-    String fn = Structs.getString(splittableParDo.getProperties(), PropertyNames.SERIALIZED_FN);
-
-    Components componentsProto = result.getPipelineProto().getComponents();
-    RehydratedComponents components = RehydratedComponents.forComponents(componentsProto);
-    RunnerApi.PTransform splittableTransform = componentsProto.getTransformsOrThrow(fn);
-    assertEquals(
-        PTransformTranslation.PAR_DO_TRANSFORM_URN, splittableTransform.getSpec().getUrn());
-    ParDoPayload payload = ParDoPayload.parseFrom(splittableTransform.getSpec().getPayload());
-    assertThat(
-        ParDoTranslation.doFnWithExecutionInformationFromProto(payload.getDoFn()).getDoFn(),
-        instanceOf(TestSplittableFn.class));
-    Coder expectedRestrictionAndStateCoder =
-        KvCoder.of(SerializableCoder.of(OffsetRange.class), VoidCoder.of());
-    assertEquals(
-        expectedRestrictionAndStateCoder, components.getCoder(payload.getRestrictionCoderId()));
-
-    // In the Fn API case, we still translate the restriction coder into the RESTRICTION_CODER
-    // property as a CloudObject, and it gets passed through the Dataflow backend, but in the end
-    // the Dataflow worker will end up fetching it from the SPK transform payload instead.
-    Coder<?> restrictionCoder =
-        CloudObjects.coderFromCloudObject(
-            (CloudObject)
-                Structs.getObject(
-                    splittableParDo.getProperties(), PropertyNames.RESTRICTION_ENCODING));
-    assertEquals(expectedRestrictionAndStateCoder, restrictionCoder);
-  }
-
   @Test
   public void testPortablePipelineContainsExpectedDependenciesAndCapabilities() throws Exception {
     DataflowPipelineOptions options = buildPipelineOptions();
@@ -1077,76 +1000,6 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     assertTrue(
         Structs.getBoolean(Iterables.getOnlyElement(toIsmRecordOutputs), "use_indexed_format"));
 
-    Step collectionToSingletonStep = steps.get(steps.size() - 1);
-    assertEquals("CollectionToSingleton", collectionToSingletonStep.getKind());
-  }
-
-  @Test
-  public void testToSingletonTranslationWithFnApiSideInput() throws Exception {
-    // A "change detector" test that makes sure the translation
-    // of getting a PCollectionView<T> does not change
-    // in bad ways during refactor
-
-    DataflowPipelineOptions options = buildPipelineOptions();
-    options.setExperiments(Arrays.asList("beam_fn_api"));
-    DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
-
-    Pipeline pipeline = Pipeline.create(options);
-    pipeline.apply(Create.of(1)).apply(View.asSingleton());
-    DataflowRunner runner = DataflowRunner.fromOptions(options);
-    runner.replaceTransforms(pipeline);
-    SdkComponents sdkComponents = createSdkComponents(options);
-    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents, true);
-    Job job =
-        translator
-            .translate(pipeline, pipelineProto, sdkComponents, runner, Collections.emptyList())
-            .getJob();
-    assertAllStepOutputsHaveUniqueIds(job);
-
-    List<Step> steps = job.getSteps();
-    assertEquals(9, steps.size());
-
-    Step collectionToSingletonStep = steps.get(steps.size() - 1);
-    assertEquals("CollectionToSingleton", collectionToSingletonStep.getKind());
-
-    @SuppressWarnings("unchecked")
-    List<Map<String, Object>> ctsOutputs =
-        (List<Map<String, Object>>)
-            steps.get(steps.size() - 1).getProperties().get(PropertyNames.OUTPUT_INFO);
-    assertTrue(Structs.getBoolean(Iterables.getOnlyElement(ctsOutputs), "use_indexed_format"));
-  }
-
-  @Test
-  public void testToIterableTranslationWithFnApiSideInput() throws Exception {
-    // A "change detector" test that makes sure the translation
-    // of getting a PCollectionView<Iterable<T>> does not change
-    // in bad ways during refactor
-
-    DataflowPipelineOptions options = buildPipelineOptions();
-    options.setExperiments(Arrays.asList("beam_fn_api"));
-    DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
-
-    Pipeline pipeline = Pipeline.create(options);
-    pipeline.apply(Create.of(1, 2, 3)).apply(View.asIterable());
-
-    DataflowRunner runner = DataflowRunner.fromOptions(options);
-    runner.replaceTransforms(pipeline);
-    SdkComponents sdkComponents = createSdkComponents(options);
-    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents, true);
-    Job job =
-        translator
-            .translate(pipeline, pipelineProto, sdkComponents, runner, Collections.emptyList())
-            .getJob();
-    assertAllStepOutputsHaveUniqueIds(job);
-
-    List<Step> steps = job.getSteps();
-    assertEquals(5, steps.size());
-
-    @SuppressWarnings("unchecked")
-    List<Map<String, Object>> ctsOutputs =
-        (List<Map<String, Object>>)
-            steps.get(steps.size() - 1).getProperties().get(PropertyNames.OUTPUT_INFO);
-    assertTrue(Structs.getBoolean(Iterables.getOnlyElement(ctsOutputs), "use_indexed_format"));
     Step collectionToSingletonStep = steps.get(steps.size() - 1);
     assertEquals("CollectionToSingleton", collectionToSingletonStep.getKind());
   }

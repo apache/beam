@@ -310,6 +310,8 @@ task validatesStructuredStreamingRunnerBatch(type: Test) {
   // Only one SparkContext may be running in a JVM (SPARK-2243)
   forkEvery 1
   maxParallelForks 4
+  // Increase memory heap in order to avoid OOM errors
+  jvmArgs '-Xmx4g'
   useJUnit {
     includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
     // Unbounded
