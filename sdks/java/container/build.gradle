@@ -76,6 +76,7 @@ licenseReport {
 }
 
 task pullLicenses(type: Exec) {
+  // no-op comment - test
   dependsOn generateLicenseReport
   generateLicenseReport.outputs.cacheIf { false }
 
