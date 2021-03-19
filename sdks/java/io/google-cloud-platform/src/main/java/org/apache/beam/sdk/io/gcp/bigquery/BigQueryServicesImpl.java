@@ -829,6 +829,7 @@ class BigQueryServicesImpl implements BigQueryServices {
         boolean ignoreUnkownValues,
         boolean ignoreInsertIds)
         throws IOException, InterruptedException {
+      LOG.info("ajamato BigQueryServicesImpl insertAll0 ");
       checkNotNull(ref, "ref");
       if (executor == null) {
         this.executor =
@@ -887,6 +888,7 @@ class BigQueryServicesImpl implements BigQueryServices {
             content.setRows(rows);
             content.setSkipInvalidRows(skipInvalidRows);
             content.setIgnoreUnknownValues(ignoreUnkownValues);
+            LOG.info("ajamato BigQueryServicesImpl0");
 
             String urn = MonitoringInfoConstants.Urns.API_REQUEST_COUNT;
             HashMap<String, String> labels = new HashMap<String, String>();
@@ -901,6 +903,7 @@ class BigQueryServicesImpl implements BigQueryServices {
 
             MonitoringInfoMetricName name = MonitoringInfoMetricName.named(urn, labels);
             Counter counter = LabeledMetrics.counter(name, true);
+            LOG.info("ajamato BigQueryServicesImpl1 created counter");
 
             final Bigquery.Tabledata.InsertAll insert =
                 client
@@ -917,8 +920,11 @@ class BigQueryServicesImpl implements BigQueryServices {
                       long totalBackoffMillis = 0L;
                       while (true) {
                         try {
+                          LOG.info("ajamato BigQueryServicesImpl2 call insert API");
                           List<TableDataInsertAllResponse.InsertErrors> response = insert.execute().getInsertErrors();
+                          LOG.info("ajamato BigQueryServicesImpl3 call insert API done");
                           counter.inc(1);
+                          LOG.info("ajamato BigQueryServicesImpl3 call increment counter");
                           return response;
                         } catch (IOException e) {
                           recordError(e);

@@ -1,22 +1,15 @@
 package org.apache.beam.examples.cookbook;
 
-// TODO remove imports
 import org.apache.beam.examples.cookbook.BigQueryTornadoes;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryOptions;
-import org.apache.beam.sdk.io.gcp.testing.BigqueryMatcher;
 import org.apache.beam.sdk.io.range.OffsetRange;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.joda.time.Duration;
 
 import java.io.IOException;
 
@@ -30,12 +23,13 @@ public class BigQueryIOMetricsPipeline {
     }
 
     @ProcessElement
-    public void processElement(
+    public ProcessContinuation processElement(
       @Element Object element,
-      RestrictionTracker<OffsetRange, Long> tracker,
-      OutputReceiver<Integer> outputReceiver)
+      RestrictionTracker<OffsetRange, Long> tracker)
+      //OutputReceiver<Void> outputReceiver)
       throws IOException, InterruptedException {
-      Thread.sleep(1000);
+      // Return a short delay if there is no data to process at the moment.
+      return ProcessContinuation.resume().withResumeDelay(Duration.standardSeconds(10));
     }
 
     // Providing the coder is only necessary if it can not be inferred at runtime.

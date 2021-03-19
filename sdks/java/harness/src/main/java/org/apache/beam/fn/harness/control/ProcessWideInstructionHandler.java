@@ -43,18 +43,22 @@ public class ProcessWideInstructionHandler {
 
   public BeamFnApi.InstructionResponse.Builder harnessMonitoringInfos(
       BeamFnApi.InstructionRequest request) {
-    LOG.info("ajamato harnessMonitoringInfos request " + request.toString());
+    LOG.info("ajamato harnessMonitoringInfos0 request " + request.toString());
     BeamFnApi.HarnessMonitoringInfosResponse.Builder response =
         BeamFnApi.HarnessMonitoringInfosResponse.newBuilder();
 
     MetricsContainer container = MetricsEnvironment.getProcessWideContainer();
     if (container != null) {
+      LOG.info("ajamato harnessMonitoringInfos1 hasContainer " + container);
       for (MetricsApi.MonitoringInfo info : container.getMonitoringInfos()) {
+        LOG.info("ajamato harnessMonitoringInfos2 addMonitoringData ");
         response.putMonitoringData(
           ShortIdCache.getShortIdCache().getShortId(info), info.getPayload());
       }
+    } else {
+      LOG.info("ajamato harnessMonitoringInfos1 DOES NOT HAVE Container!");
     }
-    LOG.info("ajamato harnessMonitoringInfos response " + response.toString());
+    LOG.info("ajamato harnessMonitoringInfos3 response " + response.toString());
     return BeamFnApi.InstructionResponse.newBuilder().setHarnessMonitoringInfos(response);
   }
 }
