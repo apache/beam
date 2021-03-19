@@ -407,9 +407,9 @@ class UpdateDestinationSchema(beam.DoFn):
     #        the order of fields are not equivalent according to == but do not
     #        need a schema modification job to precede the copy job.
     if temp_table_schema == destination_table.schema:
-        # Destination table schema is already the same as the temp table schema,
-        # so no need to run a job to update the destination table schema.
-        return
+      # Destination table schema is already the same as the temp table schema,
+      # so no need to run a job to update the destination table schema.
+      return
 
     destination_hash = _bq_uuid(
         '%s:%s.%s' % (
