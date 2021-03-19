@@ -100,6 +100,7 @@ public class BigQueryStorageAPIStreamingIT {
     PCollection<Value> values =
         p.apply(
                 GenerateSequence.from(1)
+                    .to(1000000)
                     .withRate(options.getRecordsPerSecond(), Duration.standardSeconds(1)))
             .apply(
                 MapElements.into(TypeDescriptor.of(Value.class))
