@@ -505,6 +505,9 @@ class Job(object):
           self.proto.transformNameMapping.additionalProperties.append(
               dataflow.Job.TransformNameMappingValue.AdditionalProperty(
                   key=key, value=value))
+    if self.google_cloud_options.create_from_snapshot:
+      self.proto.createdFromSnapshotId = (
+          self.google_cloud_options.create_from_snapshot)
     # Labels.
     if self.google_cloud_options.labels:
       self.proto.labels = dataflow.Job.LabelsValue()

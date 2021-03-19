@@ -815,6 +815,20 @@ class UtilTest(unittest.TestCase):
     job = apiclient.Job(pipeline_options, FAKE_PIPELINE_URL)
     self.assertIsNotNone(job.proto.transformNameMapping)
 
+  def test_created_from_snapshot_id(self):
+    pipeline_options = PipelineOptions([
+        '--project',
+        'test_project',
+        '--job_name',
+        'test_job_name',
+        '--temp_location',
+        'gs://test-location/temp',
+        '--create_from_snapshot',
+        'test_snapshot_id'
+    ])
+    job = apiclient.Job(pipeline_options, FAKE_PIPELINE_URL)
+    self.assertEqual('test_snapshot_id', job.proto.createdFromSnapshotId)
+
   def test_labels(self):
     pipeline_options = PipelineOptions([
         '--project',
