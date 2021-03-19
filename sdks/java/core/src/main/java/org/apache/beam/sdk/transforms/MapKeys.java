@@ -21,9 +21,8 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
 /**
- * {@code MapKeys} maps a {@code SerializableFunction} over keys
- * of a {@code PCollection} of {@code KV<IK, V>}s
- * and returns a {@code PCollection} of {@code KV<OK, V>}s.
+ * {@code MapKeys} maps a {@code SerializableFunction} over keys of a {@code PCollection} of {@code
+ * KV<IK, V>}s and returns a {@code PCollection} of {@code KV<OK, V>}s.
  *
  * <p>Example of use:
  *
@@ -40,32 +39,32 @@ import org.apache.beam.sdk.values.PCollection;
  */
 public class MapKeys<IK, OK, V> extends PTransform<PCollection<KV<IK, V>>, PCollection<KV<OK, V>>> {
 
-    private final SerializableFunction<IK, OK> fn;
+  private final SerializableFunction<IK, OK> fn;
 
-    /**
-     * Returns a {@code MapKeys<IK, OK, V>} {@code PTransform}.
-     *
-     * @param <IK> the type of the keys in the input {@code PCollection}
-     * @param <OK> the type of the keys in the output {@code PCollection}
-     * @param <V>  the type of the values in the input and output {@code PCollection}s
-     */
-    public static <IK, OK, V> MapKeys<IK, OK, V> via(SerializableFunction<IK, OK> fn) {
-        return new MapKeys<>(fn);
-    }
+  /**
+   * Returns a {@code MapKeys<IK, OK, V>} {@code PTransform}.
+   *
+   * @param <IK> the type of the keys in the input {@code PCollection}
+   * @param <OK> the type of the keys in the output {@code PCollection}
+   * @param <V> the type of the values in the input and output {@code PCollection}s
+   */
+  public static <IK, OK, V> MapKeys<IK, OK, V> via(SerializableFunction<IK, OK> fn) {
+    return new MapKeys<>(fn);
+  }
 
-    private MapKeys(SerializableFunction<IK, OK> fn) {
-        this.fn = fn;
-    }
+  private MapKeys(SerializableFunction<IK, OK> fn) {
+    this.fn = fn;
+  }
 
-    @Override
-    public PCollection<KV<OK, V>> expand(PCollection<KV<IK, V>> input) {
-        return input.apply("MapKeys",
-                MapElements.via(
-                        new SimpleFunction<KV<IK, V>, KV<OK, V>>() {
-                            @Override
-                            public KV<OK, V> apply(KV<IK, V> input) {
-                                return KV.of(fn.apply(input.getKey()), input.getValue());
-                            }
-                        }));
-    }
+  @Override
+  public PCollection<KV<OK, V>> expand(PCollection<KV<IK, V>> input) {
+    return input.apply("MapKeys",
+        MapElements.via(
+            new SimpleFunction<KV<IK, V>, KV<OK, V>>() {
+              @Override
+              public KV<OK, V> apply(KV<IK, V> input) {
+                return KV.of(fn.apply(input.getKey()), input.getValue());
+              }
+            }));
+  }
 }

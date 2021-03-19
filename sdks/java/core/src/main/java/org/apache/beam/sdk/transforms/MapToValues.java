@@ -21,9 +21,8 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
 /**
- * {@code MapToValues} maps a {@code SerializableFunction} over values
- * of a {@code PCollection} of {@code KV<K, IV>}s
- * and returns a {@code PCollection} of the values.
+ * {@code MapToValues} maps a {@code SerializableFunction} over values of a {@code PCollection} of
+ * {@code KV<K, IV>}s and returns a {@code PCollection} of the values.
  *
  * <p>Example of use:
  *
@@ -38,33 +37,34 @@ import org.apache.beam.sdk.values.PCollection;
  * @param <IV> the type of the values in the input {@code PCollection}
  * @param <OV> the type of the elements in the output {@code PCollection}
  */
-public class MapToValues<IV, OV> extends PTransform<PCollection<? extends KV<?, IV>>, PCollection<OV>> {
+public class MapToValues<IV, OV> extends
+    PTransform<PCollection<? extends KV<?, IV>>, PCollection<OV>> {
 
-    private final SerializableFunction<IV, OV> fn;
+  private final SerializableFunction<IV, OV> fn;
 
-    /**
-     * Returns a {@code MapToValues<IV, OV>} {@code PTransform}.
-     *
-     * @param <IV> the type of the values in the input {@code PCollection}
-     * @param <OV> the type of the elements in the output {@code PCollection}
-     */
-    public static <IV, OV> MapToValues<IV, OV> via(SerializableFunction<IV, OV> fn) {
-        return new MapToValues<>(fn);
-    }
+  /**
+   * Returns a {@code MapToValues<IV, OV>} {@code PTransform}.
+   *
+   * @param <IV> the type of the values in the input {@code PCollection}
+   * @param <OV> the type of the elements in the output {@code PCollection}
+   */
+  public static <IV, OV> MapToValues<IV, OV> via(SerializableFunction<IV, OV> fn) {
+    return new MapToValues<>(fn);
+  }
 
-    private MapToValues(SerializableFunction<IV, OV> fn) {
-        this.fn = fn;
-    }
+  private MapToValues(SerializableFunction<IV, OV> fn) {
+    this.fn = fn;
+  }
 
-    @Override
-    public PCollection<OV> expand(PCollection<? extends KV<?, IV>> input) {
-        return input.apply("MapToValues",
-                MapElements.via(
-                        new SimpleFunction<KV<?, IV>, OV>() {
-                            @Override
-                            public OV apply(KV<?, IV> input) {
-                                return fn.apply(input.getValue());
-                            }
-                        }));
-    }
+  @Override
+  public PCollection<OV> expand(PCollection<? extends KV<?, IV>> input) {
+    return input.apply("MapToValues",
+        MapElements.via(
+            new SimpleFunction<KV<?, IV>, OV>() {
+              @Override
+              public OV apply(KV<?, IV> input) {
+                return fn.apply(input.getValue());
+              }
+            }));
+  }
 }
