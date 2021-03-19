@@ -76,7 +76,7 @@ func TestTop_ProcessImports(t *testing.T) {
 		{name: "shim", got: &Top{Shims: []Func{{Name: "emit"}}}, want: []string{ReflectxImport, "context", "keepit", "fmt", "io", "unrelated"}},
 		{name: "iter&emit", got: &Top{Emitters: []Emitter{{Name: "emit"}}, Inputs: []Input{{Name: "iter"}}}, want: []string{ExecImport, TypexImport, "keepit", "unrelated"}},
 		{name: "functions", got: &Top{Functions: []string{"func1"}}, want: []string{RuntimeImport, "context", "keepit", "fmt", "io", "unrelated"}},
-		{name: "types", got: &Top{Types: []string{"func1"}}, want: []string{RuntimeImport, "context", "keepit", "fmt", "io", "unrelated"}},
+		{name: "types", got: &Top{Types: []string{"func1"}}, want: []string{SchemaImport, RuntimeImport, "context", "keepit", "fmt", "io", "unrelated"}},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
