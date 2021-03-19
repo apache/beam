@@ -53,7 +53,7 @@ public class MapValuesTest {
             KvCoder.of(StringUtf8Coder.of(), DoubleCoder.of()));
 
     PAssert.that(output)
-        .containsInAnyOrder(KV.of("1", 1.0d), KV.of("2", 2.0d), KV.of("dup", 2.0d));
+        .containsInAnyOrder(KV.of("one", 1.0d), KV.of("two", 2.0d), KV.of("dup", 2.0d));
 
     p.run();
   }
