@@ -977,8 +977,6 @@ class BigQueryBatchFileLoads(beam.PTransform):
          of the load jobs would fail but not other. If any of them fails, then
          copy jobs are not triggered.
     """
-    singleton_pc = p | "ImpulseLoadData" >> beam.Create([None])
-
     # Load data using temp tables
     trigger_loads_outputs = (
         partitions_using_temp_tables
@@ -1000,7 +998,8 @@ class BigQueryBatchFileLoads(beam.PTransform):
     temp_tables_pc = trigger_loads_outputs[TriggerLoadJobs.TEMP_TABLES]
 
     finished_temp_tables_load_jobs_pc = (
-        singleton_pc
+        p
+        | "ImpulseMonitorLoadJobs" >> beam.Create([None])
         | "WaitForTempTableLoadJobs" >> beam.ParDo(
             WaitForBQJobs(self.test_client),
             pvalue.AsList(temp_tables_load_job_ids_pc)))
@@ -1016,7 +1015,8 @@ class BigQueryBatchFileLoads(beam.PTransform):
             schema_mod_job_name_pcv))
 
     finished_schema_mod_jobs_pc = (
-        singleton_pc
+        p
+        | "ImpulseMonitorSchemaModJobs" >> beam.Create([None])
         | "WaitForSchemaModJobs" >> beam.ParDo(
             WaitForBQJobs(self.test_client),
             pvalue.AsList(schema_mod_job_ids_pc)))
@@ -1033,13 +1033,15 @@ class BigQueryBatchFileLoads(beam.PTransform):
             pvalue.AsIter(finished_schema_mod_jobs_pc)))
 
     finished_copy_jobs_pc = (
-        singleton_pc
+        p
+        | "ImpulseMonitorCopyJobs" >> beam.Create([None])
         | "WaitForCopyJobs" >> beam.ParDo(
             WaitForBQJobs(self.test_client),
             pvalue.AsList(destination_copy_job_ids_pc)))
 
     _ = (
-        singleton_pc
+        p
+        | "RemoveTempTables/Impulse" >> beam.Create([None])
         | "RemoveTempTables/PassTables" >> beam.FlatMap(
             lambda _,
             unused_copy_jobs,
@@ -1069,7 +1071,8 @@ class BigQueryBatchFileLoads(beam.PTransform):
             *self.schema_side_inputs))
 
     _ = (
-        singleton_pc
+        p
+        | "ImpulseMonitorDestinationLoadJobs" >> beam.Create([None])
         | "WaitForDestinationLoadJobs" >> beam.ParDo(
             WaitForBQJobs(self.test_client),
             pvalue.AsList(destination_load_job_ids_pc)))
