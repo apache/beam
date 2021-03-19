@@ -385,7 +385,7 @@ class UpdateDestinationSchema(beam.DoFn):
 
     try:
       # Check if destination table exists
-      _ = self._bq_wrapper.get_table(
+      destination_table = self._bq_wrapper.get_table(
           project_id=table_reference.projectId,
           dataset_id=table_reference.datasetId,
           table_id=table_reference.tableId)
@@ -402,6 +402,14 @@ class UpdateDestinationSchema(beam.DoFn):
         job_id=temp_table_load_job_reference.jobId,
         location=temp_table_load_job_reference.location)
     temp_table_schema = temp_table_load_job.configuration.load.schema
+
+    # FIXME: This short-circuit lacks specificity. Schemas differing only in
+    #        the order of fields are not equivalent according to == but do not
+    #        need a schema modification job to precede the copy job.
+    if temp_table_schema == destination_table.schema:
+        # Destination table schema is already the same as the temp table schema,
+        # so no need to run a job to update the destination table schema.
+        return
 
     destination_hash = _bq_uuid(
         '%s:%s.%s' % (
