@@ -38,7 +38,7 @@ from tenacity import stop_after_attempt
 from tenacity import wait_fixed
 from urllib.request import urlopen, URLError, HTTPError
 
-SOURCE_CODE_REQUIRED_LICENSES = ['lgpl', 'glp', 'cddl', 'mpl', 'gnu', 'mozilla public license']
+SOURCE_CODE_REQUIRED_LICENSES = ['lgpl', 'gpl', 'cddl', 'mpl', 'gnu', 'mozilla public license']
 RETRY_NUM = 9
 THREADS = 16
 
