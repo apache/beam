@@ -110,7 +110,7 @@ public class BigQueryUtils {
   public abstract static class SchemaConversionOptions implements Serializable {
 
     /**
-     * Controls whether to use the map or row FieldType for a TableSchema field that appears to
+     * /** Controls whether to use the map or row FieldType for a TableSchema field that appears to
      * represent a map (it is an array of structs containing only {@code key} and {@code value}
      * fields).
      */
@@ -558,7 +558,7 @@ public class BigQueryUtils {
         } // fall through
 
       default:
-        return fieldValue;
+        return fieldValue.toString();
     }
   }
 
