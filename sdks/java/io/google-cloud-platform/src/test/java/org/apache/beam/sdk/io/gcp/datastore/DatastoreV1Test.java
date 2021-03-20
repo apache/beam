@@ -490,7 +490,8 @@ public class DatastoreV1Test {
 
     DatastoreWriterFn datastoreWriter =
         new DatastoreWriterFn(
-            StaticValueProvider.of(PROJECT_ID), null, null, mockDatastoreFactory, new FakeWriteBatcher());
+            StaticValueProvider.of(PROJECT_ID), null, null, mockDatastoreFactory,
+            new FakeWriteBatcher());
     DoFnTester<Mutation, Void> doFnTester = DoFnTester.of(datastoreWriter);
     doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
     doFnTester.processBundle(mutations);
@@ -831,15 +832,15 @@ public class DatastoreV1Test {
     writeBatcher.start();
     writeBatcher.addRequestLatency(0, 10000, 200);
     writeBatcher.addRequestLatency(0, 10000, 200);
-    assertEquals(100, writeBatcher.nextBatchSize(0));
+    assertEquals(160, writeBatcher.nextBatchSize(0));
   }
 
   @Test
   public void testWriteBatcherSizeNotBelowMinimum() {
     DatastoreV1.WriteBatcher writeBatcher = new DatastoreV1.WriteBatcherImpl();
     writeBatcher.start();
-    writeBatcher.addRequestLatency(0, 30000, 50);
-    writeBatcher.addRequestLatency(0, 30000, 50);
+    writeBatcher.addRequestLatency(0, 40000, 50);
+    writeBatcher.addRequestLatency(0, 40000, 50);
     assertEquals(DatastoreV1.DATASTORE_BATCH_UPDATE_ENTITIES_MIN, writeBatcher.nextBatchSize(0));
   }
 
@@ -848,8 +849,8 @@ public class DatastoreV1Test {
     DatastoreV1.WriteBatcher writeBatcher = new DatastoreV1.WriteBatcherImpl();
     writeBatcher.start();
     writeBatcher.addRequestLatency(0, 30000, 50);
-    writeBatcher.addRequestLatency(50000, 5000, 200);
-    writeBatcher.addRequestLatency(100000, 5000, 200);
+    writeBatcher.addRequestLatency(50000, 8000, 200);
+    writeBatcher.addRequestLatency(100000, 8000, 200);
     assertEquals(200, writeBatcher.nextBatchSize(150000));
   }
 
