@@ -893,6 +893,7 @@ class BigQueryServicesImpl implements BigQueryServices {
             String urn = MonitoringInfoConstants.Urns.API_REQUEST_COUNT;
             HashMap<String, String> labels = new HashMap<String, String>();
             // TODO add step name?
+            labels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "TODO");
             labels.put(MonitoringInfoConstants.Labels.SERVICE, "BigQuery");
             labels.put(MonitoringInfoConstants.Labels.METHOD, "BigQueryBatchWrite");
             labels.put(MonitoringInfoConstants.Labels.RESOURCE, "TODO");

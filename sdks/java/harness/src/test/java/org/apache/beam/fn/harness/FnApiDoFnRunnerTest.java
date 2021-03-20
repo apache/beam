@@ -801,7 +801,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
 
     /** @return a test MetricUpdate for expected metrics to compare against */
     public MetricUpdate create(String stepName, MetricName name, long value) {
-      return MetricUpdate.create(MetricKey.create(stepName, name), value);
+      return MetricUpdate.create(MetricKey.create(stepName, name), value, null);
     }
 
     @Test

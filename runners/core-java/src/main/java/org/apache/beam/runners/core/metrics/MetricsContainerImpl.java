@@ -172,7 +172,9 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer, Met
       if (cell.getValue().getDirty().beforeCommit()) {
         updates.add(
             MetricUpdate.create(
-                MetricKey.create(stepName, cell.getKey()), cell.getValue().getCumulative()));
+                MetricKey.create(stepName, cell.getKey()),
+                cell.getValue().getCumulative(),
+                cell.getValue().getStartTime()));
       }
     }
     return updates.build();
@@ -191,8 +193,12 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer, Met
   private @Nullable MonitoringInfo counterUpdateToMonitoringInfo(MetricUpdate<Long> metricUpdate) {
     SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder(true);
 
+
     MetricName metricName = metricUpdate.getKey().metricName();
+    LOG.info("ajamato counterUpdateToMonitoringInfo0 " + metricName.toString() + " "  +
+        metricName.getClass().getName());
     if (metricName instanceof MonitoringInfoMetricName) {
+      LOG.info("ajamato counterUpdateToMonitoringInfo1 using MonitoringInfoMetricName" + metricName.toString());
       MonitoringInfoMetricName monitoringInfoName = (MonitoringInfoMetricName) metricName;
       // Represents a specific MonitoringInfo for a specific URN.
       builder.setUrn(monitoringInfoName.getUrn());
@@ -200,11 +206,15 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer, Met
         builder.setLabel(e.getKey(), e.getValue());
       }
     } else { // Represents a user counter.
+      LOG.info("ajamato counterUpdateToMonitoringInfo1 NOT using MonitoringInfoMetricName" + metricName.toString());
       // Drop if the stepname is not set. All user counters must be
       // defined for a PTransform. They must be defined on a container bound to a step.
       if (this.stepName == null) {
+        LOG.info("ajamato counterUpdateToMonitoringInfo ret NULL CASE " + metricName.toString());
         return null;
       }
+
+      builder.setStartTime(metricUpdate.getStartTime());
 
       builder
           .setUrn(MonitoringInfoConstants.Urns.USER_SUM_INT64)
@@ -218,7 +228,13 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer, Met
 
     builder.setInt64SumValue(metricUpdate.getUpdate());
 
-    return builder.build();
+    MonitoringInfo ret = builder.build();
+    if (ret == null) {
+      LOG.info("ajamato counterUpdateToMonitoringInfo FAILED BUILDER RET NULL" + metricName.toString());
+    } else {
+      LOG.info("ajamato counterUpdateToMonitoringInfo RET SUCCESS " + metricName.toString());
+    }
+    return ret;
   }
 
   /**
@@ -265,20 +281,35 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer, Met
     ArrayList<MonitoringInfo> monitoringInfos = new ArrayList<MonitoringInfo>();
     MetricUpdates metricUpdates = this.getUpdates();
 
+    LOG.info("ajamato getMonitoringInfos 0 ");
     for (MetricUpdate<Long> metricUpdate : metricUpdates.counterUpdates()) {
+      LOG.info("ajamato getMonitoringInfos 0.1 key: " + metricUpdate.getKey() + ". " +
+          metricUpdate.toString());
       MonitoringInfo mi = counterUpdateToMonitoringInfo(metricUpdate);
       if (mi != null) {
+        LOG.info("ajamato getMonitoringInfos SUCCESS 0.2 mi: " + mi.toString());
         monitoringInfos.add(mi);
+      } else {
+        LOG.info("ajamato getMonitoringInfos FAILED 0.2 key: " + metricUpdate.getKey() + ". " +
+            metricUpdate.toString());
       }
     }
 
+    LOG.info("ajamato getMonitoringInfos1 ");
     for (MetricUpdate<org.apache.beam.runners.core.metrics.DistributionData> metricUpdate :
         metricUpdates.distributionUpdates()) {
+      LOG.info("ajamato getMonitoringInfos 1.1 key: " + metricUpdate.getKey() + ". " +
+          metricUpdate.toString());
       MonitoringInfo mi = distributionUpdateToMonitoringInfo(metricUpdate);
       if (mi != null) {
+        LOG.info("ajamato getMonitoringInfos SUCCESS 1.2 mi: " + mi.toString());
         monitoringInfos.add(mi);
+      } else {
+        LOG.info("ajamato getMonitoringInfos FAILED 1.2 key: " + metricUpdate.getKey() + ". " +
+          metricUpdate.toString());
       }
     }
+    LOG.info("ajamato getMonitoringInfos2 ");
     return monitoringInfos;
   }
 
@@ -303,7 +334,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer, Met
     ImmutableList.Builder<MetricUpdate<UpdateT>> updates = ImmutableList.builder();
     for (Map.Entry<MetricName, CellT> cell : cells.entries()) {
       UpdateT update = checkNotNull(cell.getValue().getCumulative());
-      updates.add(MetricUpdate.create(MetricKey.create(stepName, cell.getKey()), update));
+      updates.add(MetricUpdate.create(MetricKey.create(stepName, cell.getKey()), update, null));
     }
     return updates.build();
   }

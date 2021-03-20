@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.core.metrics;
 
+import static org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.util.Timestamps.fromMillis;
 import static org.apache.beam.model.pipeline.v1.MetricsApi.monitoringInfoSpec;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeDoubleCounter;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeDoubleDistribution;
@@ -26,10 +27,16 @@ import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encod
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.HashMap;
+import java.util.Optional;
+
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoSpec;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoSpecs;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Timestamp;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.DateTime;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Simplified building of MonitoringInfo fields, allows setting one field at a time with simpler
@@ -51,6 +58,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * builder.build();
  */
 public class SimpleMonitoringInfoBuilder {
+  private static final Logger LOG = LoggerFactory.getLogger(SimpleMonitoringInfoBuilder.class);
+
   private final boolean validateAndDropInvalid;
 
   private static final HashMap<String, MonitoringInfoSpec> specs =
@@ -153,6 +162,10 @@ public class SimpleMonitoringInfoBuilder {
     return this;
   }
 
+  public SimpleMonitoringInfoBuilder setStartTime(DateTime startTime) {
+    this.builder.setStartTime(fromMillis(startTime.getMillis()));
+  }
+
   public void clear() {
     this.builder = MonitoringInfo.newBuilder();
   }
@@ -166,8 +179,13 @@ public class SimpleMonitoringInfoBuilder {
    * not match respecting MonitoringInfoSpec based on urn.
    */
   public @Nullable MonitoringInfo build() {
+    LOG.info("ajamato SimpleMonitoringInfoBuilder build()0 ");
     final MonitoringInfo result = this.builder.build();
-    if (validateAndDropInvalid && this.validator.validate(result).isPresent()) {
+    LOG.info("ajamato SimpleMonitoringInfoBuilder build()1 " + this.builder.toString());
+    Optional<String> validationResult = this.validator.validate(result);
+    LOG.info("ajamato validationResult validationResult.isPresent " + validationResult.isPresent() + " " + result.toString());
+    if (validateAndDropInvalid && validationResult.isPresent()) {
+      LOG.info("ajamato validationResult " + validationResult.get() + " MI: " + result.toString());
       return null;
     }
     return result;

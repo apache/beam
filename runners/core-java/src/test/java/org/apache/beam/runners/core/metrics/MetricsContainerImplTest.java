@@ -18,6 +18,7 @@
 package org.apache.beam.runners.core.metrics;
 
 import static org.apache.beam.runners.core.metrics.MetricUpdateMatchers.metricUpdate;
+import static org.apache.beam.sdk.testing.SerializableMatchers.emptyIterable;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.emptyIterable;
