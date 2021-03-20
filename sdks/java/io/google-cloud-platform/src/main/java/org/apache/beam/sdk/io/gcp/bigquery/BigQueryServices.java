@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import com.google.api.core.ApiFuture;
 import com.google.api.services.bigquery.model.Dataset;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfigurationExtract;
@@ -34,6 +35,13 @@ import com.google.cloud.bigquery.storage.v1.ReadRowsResponse;
 import com.google.cloud.bigquery.storage.v1.ReadSession;
 import com.google.cloud.bigquery.storage.v1.SplitReadStreamRequest;
 import com.google.cloud.bigquery.storage.v1.SplitReadStreamResponse;
+import com.google.cloud.bigquery.storage.v1beta2.AppendRowsResponse;
+import com.google.cloud.bigquery.storage.v1beta2.BatchCommitWriteStreamsResponse;
+import com.google.cloud.bigquery.storage.v1beta2.FinalizeWriteStreamResponse;
+import com.google.cloud.bigquery.storage.v1beta2.FlushRowsResponse;
+import com.google.cloud.bigquery.storage.v1beta2.ProtoRows;
+import com.google.cloud.bigquery.storage.v1beta2.WriteStream;
+import com.google.protobuf.Descriptors.Descriptor;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
@@ -164,6 +172,47 @@ public interface BigQueryServices extends Serializable {
     /** Patch BigQuery {@link Table} description. */
     Table patchTableDescription(TableReference tableReference, @Nullable String tableDescription)
         throws IOException, InterruptedException;
+
+    /** Create a Write Stream for use with the the Storage Write API. */
+    WriteStream createWriteStream(String tableUrn, WriteStream.Type type)
+        throws IOException, InterruptedException;
+
+    /**
+     * Create an append client for a given Storage API write stream. The stream must be created
+     * first.
+     */
+    StreamAppendClient getStreamAppendClient(String streamName) throws Exception;
+
+    /** Flush a given stream up to the given offset. The stream must have type BUFFERED. */
+    ApiFuture<FlushRowsResponse> flush(String streamName, long flushOffset)
+        throws IOException, InterruptedException;
+
+    /**
+     * Finalize a write stream. After finalization, no more records can be appended to the stream.
+     */
+    ApiFuture<FinalizeWriteStreamResponse> finalizeWriteStream(String streamName);
+
+    /** Commit write streams of type PENDING. The streams must be finalized before committing. */
+    ApiFuture<BatchCommitWriteStreamsResponse> commitWriteStreams(
+        String tableUrn, Iterable<String> writeStreamNames);
+  }
+
+  /** An interface for appending records to a Storage API write stream. */
+  interface StreamAppendClient extends AutoCloseable {
+    /** Append rows to a Storage API write stream at the given offset. */
+    ApiFuture<AppendRowsResponse> appendRows(long offset, ProtoRows rows, Descriptor descriptor)
+        throws Exception;
+
+    /**
+     * Pin this object. If close() is called before all pins are removed, the underlying resources
+     * will not be freed until all pins are removed.
+     */
+    void pin();
+
+    /**
+     * Unpin this object. If the object has been closed, this will release any underlying resources.
+     */
+    void unpin() throws Exception;
   }
 
   /**
