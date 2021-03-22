@@ -135,35 +135,15 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameter;
-import org.junit.runners.Parameterized.Parameters;
+import org.junit.runners.JUnit4;
 import org.junit.runners.model.Statement;
 
 /** Tests for {@link BigQueryIO#write}. */
-@RunWith(Parameterized.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://issues.apache.org/jira/browse/BEAM-10402)
-})
+@RunWith(JUnit4.class)
 public class BigQueryIOWriteTest implements Serializable {
   private transient PipelineOptions options;
   private transient TemporaryFolder testFolder = new TemporaryFolder();
   private transient TestPipeline p;
-
-  @Parameters
-  public static Iterable<Object[]> data() {
-    return ImmutableList.of(
-        new Object[] {false, false},
-        new Object[] {false, true},
-        new Object[] {true, false},
-        new Object[] {true, true});
-  }
-
-  @Parameter(0)
-  public boolean useStorageApi;
-
-  @Parameter(1)
-  public boolean useStreaming;
 
   @Rule
   public final transient TestRule folderThenPipeline =
@@ -179,16 +159,10 @@ public class BigQueryIOWriteTest implements Serializable {
                 @Override
                 public void evaluate() throws Throwable {
                   options = TestPipeline.testingPipelineOptions();
-                  BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
-                  bqOptions.setProject("project-id");
-                  bqOptions.setTempLocation(testFolder.getRoot().getAbsolutePath());
-                  if (useStorageApi) {
-                    bqOptions.setUseStorageWriteApi(true);
-                    if (useStreaming) {
-                      bqOptions.setNumStorageWriteApiStreams(2);
-                      bqOptions.setStorageWriteApiTriggeringFrequencySec(1);
-                    }
-                  }
+                  options.as(BigQueryOptions.class).setProject("project-id");
+                  options
+                      .as(BigQueryOptions.class)
+                      .setTempLocation(testFolder.getRoot().getAbsolutePath());
                   p = TestPipeline.fromOptions(options);
                   p.apply(base, description).evaluate();
                 }
@@ -225,9 +199,6 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testWriteEmptyPCollection() throws Exception {
-    if (useStreaming || useStorageApi) {
-      return;
-    }
     TableSchema schema =
         new TableSchema()
             .setFields(
@@ -250,27 +221,32 @@ public class BigQueryIOWriteTest implements Serializable {
   }
 
   @Test
-  public void testWriteDynamicDestinations() throws Exception {
-    writeDynamicDestinations(false, false);
+  public void testWriteDynamicDestinationsBatch() throws Exception {
+    writeDynamicDestinations(false, false, false);
   }
 
   @Test
   public void testWriteDynamicDestinationsBatchWithSchemas() throws Exception {
-    writeDynamicDestinations(true, false);
+    writeDynamicDestinations(false, true, false);
+  }
+
+  @Test
+  public void testWriteDynamicDestinationsStreaming() throws Exception {
+    writeDynamicDestinations(true, false, false);
+  }
+
+  @Test
+  public void testWriteDynamicDestinationsStreamingWithSchemas() throws Exception {
+    writeDynamicDestinations(true, true, false);
   }
 
   @Test
   public void testWriteDynamicDestinationsStreamingWithAutoSharding() throws Exception {
-    if (useStorageApi) {
-      return;
-    }
-    if (!useStreaming) {
-      return;
-    }
-    writeDynamicDestinations(true, true);
+    writeDynamicDestinations(true, true, true);
   }
 
-  public void writeDynamicDestinations(boolean schemas, boolean autoSharding) throws Exception {
+  public void writeDynamicDestinations(boolean streaming, boolean schemas, boolean autoSharding)
+      throws Exception {
     final Schema schema =
         Schema.builder().addField("name", FieldType.STRING).addField("id", FieldType.INT32).build();
 
@@ -299,7 +275,7 @@ public class BigQueryIOWriteTest implements Serializable {
         p.apply("CreateUsers", Create.of(userList))
             .apply(Window.into(new PartitionedGlobalWindows<>(arg -> arg)));
 
-    if (useStreaming) {
+    if (streaming) {
       users = users.setIsBoundedInternal(PCollection.IsBounded.UNBOUNDED);
     }
 
@@ -422,8 +398,11 @@ public class BigQueryIOWriteTest implements Serializable {
         new TableSchema()
             .setFields(
                 ImmutableList.of(
-                    new TableFieldSchema().setName("date").setType("DATE"),
-                    new TableFieldSchema().setName("number").setType("INTEGER")));
+                    new TableFieldSchema()
+                        .setName("date")
+                        .setType("DATE")
+                        .setName("number")
+                        .setType("INTEGER")));
 
     Write<TableRow> writeTransform =
         BigQueryIO.writeTableRows()
@@ -464,38 +443,27 @@ public class BigQueryIOWriteTest implements Serializable {
   }
 
   @Test
-  public void testTimePartitioning() throws Exception {
-    BigQueryIO.Write.Method method;
-    if (useStorageApi) {
-      method = Method.STORAGE_WRITE_API;
-    } else if (useStreaming) {
-      method = Method.STREAMING_INSERTS;
-    } else {
-      method = Method.FILE_LOADS;
-    }
-    testTimePartitioning(method);
+  public void testTimePartitioningStreamingInserts() throws Exception {
+    testTimePartitioning(BigQueryIO.Write.Method.STREAMING_INSERTS);
   }
 
   @Test
-  public void testTimePartitioningStorageApi() throws Exception {
-    if (!useStorageApi) {
-      return;
-    }
-    testTimePartitioning(Method.STORAGE_WRITE_API);
+  public void testTimePartitioningBatchLoads() throws Exception {
+    testTimePartitioning(BigQueryIO.Write.Method.FILE_LOADS);
   }
 
   @Test
-  public void testClusteringStorageApi() throws Exception {
-    if (useStorageApi) {
-      testClustering(Method.STORAGE_WRITE_API);
-    }
+  public void testClusteringStreamingInserts() throws Exception {
+    testClustering(BigQueryIO.Write.Method.STREAMING_INSERTS);
+  }
+
+  @Test
+  public void testClusteringBatchLoads() throws Exception {
+    testClustering(BigQueryIO.Write.Method.FILE_LOADS);
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void testClusteringThrowsWithoutPartitioning() throws Exception {
-    if (useStorageApi || !useStreaming) {
-      throw new IllegalArgumentException();
-    }
     p.enableAbandonedNodeEnforcement(false);
     testTimePartitioningClustering(Method.STREAMING_INSERTS, false, true);
   }
@@ -511,12 +479,11 @@ public class BigQueryIOWriteTest implements Serializable {
         new TableSchema()
             .setFields(
                 ImmutableList.of(
-                    new TableFieldSchema().setName("date").setType("DATE"),
-                    new TableFieldSchema().setName("number").setType("INTEGER")));
-
-    // withMethod overrides the pipeline option, so we need to explicitly request
-    // STORAGE_API_WRITES.
-    BigQueryIO.Write.Method method = useStorageApi ? Method.STORAGE_WRITE_API : Method.FILE_LOADS;
+                    new TableFieldSchema()
+                        .setName("date")
+                        .setType("DATE")
+                        .setName("number")
+                        .setType("INTEGER")));
     p.apply(Create.of(row1, row2))
         .apply(
             BigQueryIO.writeTableRows()
@@ -531,7 +498,7 @@ public class BigQueryIOWriteTest implements Serializable {
                           new Clustering().setFields(ImmutableList.of("date")));
                     })
                 .withTestServices(fakeBqServices)
-                .withMethod(method)
+                .withMethod(BigQueryIO.Write.Method.FILE_LOADS)
                 .withSchema(schema)
                 .withClustering()
                 .withoutValidation());
@@ -546,9 +513,6 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testTriggeredFileLoads() throws Exception {
-    if (useStorageApi || !useStreaming) {
-      return;
-    }
     List<TableRow> elements = Lists.newArrayList();
     for (int i = 0; i < 30; ++i) {
       elements.add(new TableRow().set("number", i));
@@ -566,7 +530,6 @@ public class BigQueryIOWriteTest implements Serializable {
                 elements.get(20), Iterables.toArray(elements.subList(21, 30), TableRow.class))
             .advanceWatermarkToInfinity();
 
-    BigQueryIO.Write.Method method = Method.FILE_LOADS;
     p.apply(testStream)
         .apply(
             BigQueryIO.writeTableRows()
@@ -579,7 +542,7 @@ public class BigQueryIOWriteTest implements Serializable {
                 .withTestServices(fakeBqServices)
                 .withTriggeringFrequency(Duration.standardSeconds(30))
                 .withNumFileShards(2)
-                .withMethod(method)
+                .withMethod(BigQueryIO.Write.Method.FILE_LOADS)
                 .withoutValidation());
     p.run();
 
@@ -589,9 +552,6 @@ public class BigQueryIOWriteTest implements Serializable {
   }
 
   public void testTriggeredFileLoadsWithTempTables(String tableRef) throws Exception {
-    if (useStorageApi || !useStreaming) {
-      return;
-    }
     List<TableRow> elements = Lists.newArrayList();
     for (int i = 0; i < 30; ++i) {
       elements.add(new TableRow().set("number", i));
@@ -609,7 +569,6 @@ public class BigQueryIOWriteTest implements Serializable {
                 elements.get(20), Iterables.toArray(elements.subList(21, 30), TableRow.class))
             .advanceWatermarkToInfinity();
 
-    BigQueryIO.Write.Method method = Method.FILE_LOADS;
     p.apply(testStream)
         .apply(
             BigQueryIO.writeTableRows()
@@ -624,7 +583,7 @@ public class BigQueryIOWriteTest implements Serializable {
                 .withNumFileShards(2)
                 .withMaxBytesPerPartition(1)
                 .withMaxFilesPerPartition(1)
-                .withMethod(method)
+                .withMethod(BigQueryIO.Write.Method.FILE_LOADS)
                 .withoutValidation());
     p.run();
 
@@ -645,10 +604,6 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testTriggeredFileLoadsWithAutoSharding() throws Exception {
-    if (useStorageApi || !useStreaming) {
-      // This test does not make sense for the storage API.
-      return;
-    }
     List<TableRow> elements = Lists.newArrayList();
     for (int i = 0; i < 30; ++i) {
       elements.add(new TableRow().set("number", i));
@@ -717,9 +672,6 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testFailuresNoRetryPolicy() throws Exception {
-    if (useStorageApi || !useStreaming) {
-      return;
-    }
     TableRow row1 = new TableRow().set("name", "a").set("number", "1");
     TableRow row2 = new TableRow().set("name", "b").set("number", "2");
     TableRow row3 = new TableRow().set("name", "c").set("number", "3");
@@ -756,9 +708,6 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testRetryPolicy() throws Exception {
-    if (useStorageApi || !useStreaming) {
-      return;
-    }
     TableRow row1 = new TableRow().set("name", "a").set("number", "1");
     TableRow row2 = new TableRow().set("name", "b").set("number", "2");
     TableRow row3 = new TableRow().set("name", "c").set("number", "3");
@@ -828,9 +777,6 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testWriteWithoutInsertId() throws Exception {
-    if (useStorageApi || !useStreaming) {
-      return;
-    }
     TableRow row1 = new TableRow().set("name", "a").set("number", 1);
     TableRow row2 = new TableRow().set("name", "b").set("number", 2);
     TableRow row3 = new TableRow().set("name", "c").set("number", 3);
@@ -881,9 +827,6 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testWriteAvro() throws Exception {
-    if (useStorageApi || useStreaming) {
-      return;
-    }
     p.apply(
             Create.of(
                     InputRecord.create("test", 1, 1.0, Instant.parse("2019-01-01T00:00:00Z")),
@@ -932,9 +875,6 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testWriteAvroWithCustomWriter() throws Exception {
-    if (useStorageApi || useStreaming) {
-      return;
-    }
     SerializableFunction<AvroWriteRequest<InputRecord>, GenericRecord> formatFunction =
         r -> {
           GenericRecord rec = new GenericData.Record(r.getSchema());
@@ -1000,16 +940,10 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testStreamingWriteWithAutoSharding() throws Exception {
-    if (useStorageApi) {
-      return;
-    }
     streamingWrite(true);
   }
 
   private void streamingWrite(boolean autoSharding) throws Exception {
-    if (!useStreaming) {
-      return;
-    }
     BigQueryIO.Write<TableRow> write =
         BigQueryIO.writeTableRows()
             .to("project-id:dataset-id.table-id")
@@ -1027,22 +961,22 @@ public class BigQueryIOWriteTest implements Serializable {
     }
     p.apply(
             Create.of(
-                    new TableRow().set("name", "a").set("number", "1"),
-                    new TableRow().set("name", "b").set("number", "2"),
-                    new TableRow().set("name", "c").set("number", "3"),
-                    new TableRow().set("name", "d").set("number", "4"))
+                    new TableRow().set("name", "a").set("number", 1),
+                    new TableRow().set("name", "b").set("number", 2),
+                    new TableRow().set("name", "c").set("number", 3),
+                    new TableRow().set("name", "d").set("number", 4))
                 .withCoder(TableRowJsonCoder.of()))
         .setIsBoundedInternal(PCollection.IsBounded.UNBOUNDED)
-        .apply("WriteToBQ", write);
+        .apply(write);
     p.run();
 
     assertThat(
         fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
         containsInAnyOrder(
-            new TableRow().set("name", "a").set("number", "1"),
-            new TableRow().set("name", "b").set("number", "2"),
-            new TableRow().set("name", "c").set("number", "3"),
-            new TableRow().set("name", "d").set("number", "4")));
+            new TableRow().set("name", "a").set("number", 1),
+            new TableRow().set("name", "b").set("number", 2),
+            new TableRow().set("name", "c").set("number", 3),
+            new TableRow().set("name", "d").set("number", 4)));
   }
 
   @DefaultSchema(JavaFieldSchema.class)
@@ -1059,9 +993,6 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testSchemaWriteLoads() throws Exception {
-    // withMethod overrides the pipeline option, so we need to explicitly request
-    // STORAGE_API_WRITES.
-    BigQueryIO.Write.Method method = useStorageApi ? Method.STORAGE_WRITE_API : Method.FILE_LOADS;
     p.apply(
             Create.of(
                 new SchemaPojo("a", 1),
@@ -1072,14 +1003,12 @@ public class BigQueryIOWriteTest implements Serializable {
             BigQueryIO.<SchemaPojo>write()
                 .to("project-id:dataset-id.table-id")
                 .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
-                .withMethod(method)
+                .withMethod(Method.FILE_LOADS)
                 .useBeamSchema()
                 .withTestServices(fakeBqServices)
                 .withoutValidation());
     p.run();
 
-    System.err.println(
-        "Wrote: " + fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"));
     assertThat(
         fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
         containsInAnyOrder(
@@ -1091,9 +1020,6 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testSchemaWriteStreams() throws Exception {
-    if (useStorageApi || !useStreaming) {
-      return;
-    }
     p.apply(
             Create.of(
                 new SchemaPojo("a", 1),
@@ -1229,7 +1155,16 @@ public class BigQueryIOWriteTest implements Serializable {
   }
 
   @Test
-  public void testWriteWithDynamicTables() throws Exception {
+  public void testStreamingWriteWithDynamicTables() throws Exception {
+    testWriteWithDynamicTables(true);
+  }
+
+  @Test
+  public void testBatchWriteWithDynamicTables() throws Exception {
+    testWriteWithDynamicTables(false);
+  }
+
+  public void testWriteWithDynamicTables(boolean streaming) throws Exception {
     List<Integer> inserts = new ArrayList<>();
     for (int i = 0; i < 10; i++) {
       inserts.add(i);
@@ -1268,7 +1203,7 @@ public class BigQueryIOWriteTest implements Serializable {
         };
 
     PCollection<Integer> input = p.apply("CreateSource", Create.of(inserts));
-    if (useStreaming) {
+    if (streaming) {
       input = input.setIsBoundedInternal(PCollection.IsBounded.UNBOUNDED);
     }
 
@@ -1280,9 +1215,7 @@ public class BigQueryIOWriteTest implements Serializable {
         .apply(
             BigQueryIO.<Integer>write()
                 .to(tableFunction)
-                .withFormatFunction(
-                    i ->
-                        new TableRow().set("name", "number" + i).set("number", Integer.toString(i)))
+                .withFormatFunction(i -> new TableRow().set("name", "number" + i).set("number", i))
                 .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
                 .withSchemaFromView(schemasView)
                 .withTestServices(fakeBqServices)
@@ -1309,20 +1242,13 @@ public class BigQueryIOWriteTest implements Serializable {
       assertThat(
           fakeDatasetService.getAllRows("project-id", "dataset-id", tableId),
           containsInAnyOrder(
-              new TableRow()
-                  .set("name", String.format("number%d", i))
-                  .set("number", Integer.toString(i)),
-              new TableRow()
-                  .set("name", String.format("number%d", i + 5))
-                  .set("number", Integer.toString(i + 5))));
+              new TableRow().set("name", String.format("number%d", i)).set("number", i),
+              new TableRow().set("name", String.format("number%d", i + 5)).set("number", i + 5)));
     }
   }
 
   @Test
   public void testWriteUnknown() throws Exception {
-    if (useStorageApi) {
-      return;
-    }
     p.apply(
             Create.of(
                     new TableRow().set("name", "a").set("number", 1),
@@ -1343,9 +1269,6 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testWriteFailedJobs() throws Exception {
-    if (useStorageApi) {
-      return;
-    }
     p.apply(
             Create.of(
                     new TableRow().set("name", "a").set("number", 1),
@@ -1369,16 +1292,10 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testWriteWithMissingSchemaFromView() throws Exception {
-    // Because no messages
     PCollectionView<Map<String, String>> view =
         p.apply("Create schema view", Create.of(KV.of("foo", "bar"), KV.of("bar", "boo")))
             .apply(View.asMap());
-    p.apply(
-            Create.of(
-                    new TableRow().set("name", "a").set("number", 1),
-                    new TableRow().set("name", "b").set("number", 2),
-                    new TableRow().set("name", "c").set("number", 3))
-                .withCoder(TableRowJsonCoder.of()))
+    p.apply(Create.empty(TableRowJsonCoder.of()))
         .apply(
             BigQueryIO.writeTableRows()
                 .to("dataset-id.table-id")
@@ -1488,14 +1405,13 @@ public class BigQueryIOWriteTest implements Serializable {
     assertThat(displayData, hasDisplayItem("validation", false));
   }
 
-  @Test
-  public void testWriteValidatesDataset() throws Exception {
+  private void testWriteValidatesDataset(boolean unbounded) throws Exception {
     TableReference tableRef = new TableReference();
     tableRef.setDatasetId("somedataset");
     tableRef.setTableId("sometable");
 
     PCollection<TableRow> tableRows;
-    if (useStreaming) {
+    if (unbounded) {
       tableRows =
           p.apply(GenerateSequence.from(0))
               .apply(
@@ -1526,10 +1442,17 @@ public class BigQueryIOWriteTest implements Serializable {
   }
 
   @Test
+  public void testWriteValidatesDatasetBatch() throws Exception {
+    testWriteValidatesDataset(false);
+  }
+
+  @Test
+  public void testWriteValidatesDatasetStreaming() throws Exception {
+    testWriteValidatesDataset(true);
+  }
+
+  @Test
   public void testCreateNeverWithStreaming() throws Exception {
-    if (!useStreaming) {
-      return;
-    }
     p.enableAbandonedNodeEnforcement(false);
 
     TableReference tableRef = new TableReference();
@@ -1590,9 +1513,6 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testWriteValidateFailsBothFormatFunctions() {
-    if (useStorageApi) {
-      return;
-    }
     p.enableAbandonedNodeEnforcement(false);
 
     thrown.expect(IllegalArgumentException.class);
@@ -1610,9 +1530,6 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testWriteValidateFailsWithBeamSchemaAndAvroFormatFunction() {
-    if (useStorageApi) {
-      return;
-    }
     p.enableAbandonedNodeEnforcement(false);
 
     thrown.expect(IllegalArgumentException.class);
@@ -1628,9 +1545,6 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testWriteValidateFailsWithAvroFormatAndStreamingInserts() {
-    if (!useStreaming && !useStorageApi) {
-      return;
-    }
     p.enableAbandonedNodeEnforcement(false);
 
     thrown.expect(IllegalArgumentException.class);
@@ -1647,9 +1561,6 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testWriteValidateFailsWithBatchAutoSharding() {
-    if (useStorageApi) {
-      return;
-    }
     p.enableAbandonedNodeEnforcement(false);
 
     thrown.expect(IllegalArgumentException.class);
@@ -2057,22 +1968,16 @@ public class BigQueryIOWriteTest implements Serializable {
     TableRow row1 = new TableRow().set("name", "a").set("number", "1");
     TableRow row2 = new TableRow().set("name", "b").set("number", "2");
 
-    // withMethod overrides the pipeline option, so we need to explicitly requiest
-    // STORAGE_API_WRITES.
-    BigQueryIO.Write.Method method =
-        useStorageApi ? Method.STORAGE_WRITE_API : Method.STREAMING_INSERTS;
     TableSchema schema =
         new TableSchema()
             .setFields(
-                ImmutableList.of(
-                    new TableFieldSchema().setName("name").setType("STRING"),
-                    new TableFieldSchema().setName("number").setType("INTEGER")));
+                ImmutableList.of(new TableFieldSchema().setName("number").setType("INTEGER")));
     p.apply(Create.of(row1, row2))
         .apply(
             BigQueryIO.writeTableRows()
                 .to("project-id:dataset-id.table-id$20171127")
                 .withTestServices(fakeBqServices)
-                .withMethod(method)
+                .withMethod(BigQueryIO.Write.Method.STREAMING_INSERTS)
                 .withSchema(schema)
                 .withoutValidation());
     p.run();
@@ -2080,9 +1985,6 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testExtendedErrorRetrieval() throws Exception {
-    if (useStorageApi) {
-      return;
-    }
     TableRow row1 = new TableRow().set("name", "a").set("number", "1");
     TableRow row2 = new TableRow().set("name", "b").set("number", "2");
     TableRow row3 = new TableRow().set("name", "c").set("number", "3");
@@ -2135,9 +2037,6 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testWrongErrorConfigs() {
-    if (useStorageApi) {
-      return;
-    }
     p.enableAutoRunIfMissing(true);
     TableRow row1 = new TableRow().set("name", "a").set("number", "1");
 
@@ -2208,8 +2107,7 @@ public class BigQueryIOWriteTest implements Serializable {
             .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
             .withSchemaUpdateOptions(schemaUpdateOptions);
 
-    p.apply("Create" + insertMethod, Create.<TableRow>of(row))
-        .apply("Write" + insertMethod, writeTransform);
+    p.apply(Create.<TableRow>of(row)).apply(writeTransform);
     p.run();
 
     List<String> expectedOptions =
@@ -2241,9 +2139,6 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testSchemaUpdateOptionsFailsStreamingInserts() throws Exception {
-    if (!useStreaming && !useStorageApi) {
-      return;
-    }
     Set<SchemaUpdateOption> options = EnumSet.of(SchemaUpdateOption.ALLOW_FIELD_ADDITION);
     p.enableAbandonedNodeEnforcement(false);
     thrown.expect(IllegalArgumentException.class);
