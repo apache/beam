@@ -18,8 +18,10 @@
 package org.apache.beam.examples.complete.datatokenization;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.startsWith;
+import static org.junit.Assert.assertNotNull;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -28,8 +30,8 @@ import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import org.apache.beam.examples.complete.datatokenization.options.DataTokenizationOptions;
-import org.apache.beam.examples.complete.datatokenization.transforms.io.FileSystemIO;
-import org.apache.beam.examples.complete.datatokenization.transforms.io.FileSystemIO.FORMAT;
+import org.apache.beam.examples.complete.datatokenization.transforms.io.TokenizationFileSystemIO;
+import org.apache.beam.examples.complete.datatokenization.transforms.io.TokenizationFileSystemIO.FORMAT;
 import org.apache.beam.examples.complete.datatokenization.utils.FailsafeElementCoder;
 import org.apache.beam.examples.complete.datatokenization.utils.RowToCsv;
 import org.apache.beam.examples.complete.datatokenization.utils.SchemasUtils;
@@ -42,7 +44,6 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.JsonToRow;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
@@ -106,28 +107,24 @@ public class DataTokenizationTest {
 
   @Test
   public void testFileSystemIOReadCSV() throws IOException {
-    PCollection<String> jsons = fileSystemIORead(CSV_FILE_PATH, FORMAT.CSV);
-    assertField(jsons);
+    PCollection<Row> jsons = fileSystemIORead(CSV_FILE_PATH, FORMAT.CSV);
+    assertRows(jsons);
     testPipeline.run();
   }
 
   @Test
   public void testFileSystemIOReadJSON() throws IOException {
-    PCollection<String> jsons = fileSystemIORead(JSON_FILE_PATH, FORMAT.JSON);
-    assertField(jsons);
+    PCollection<Row> jsons = fileSystemIORead(JSON_FILE_PATH, FORMAT.JSON);
+    assertRows(jsons);
     testPipeline.run();
   }
 
   @Test
   public void testJsonToRow() throws IOException {
-    PCollection<String> jsons = fileSystemIORead(JSON_FILE_PATH, FORMAT.JSON);
+    PCollection<Row> rows = fileSystemIORead(JSON_FILE_PATH, FORMAT.JSON);
     SchemasUtils testSchemaUtils = new SchemasUtils(SCHEMA_FILE_PATH, StandardCharsets.UTF_8);
-    JsonToRow.ParseResult rows =
-        jsons.apply(
-            "JsonToRow",
-            JsonToRow.withExceptionReporting(testSchemaUtils.getBeamSchema())
-                .withExtendedErrorInfo());
-    PAssert.that(rows.getResults())
+
+    PAssert.that(rows)
         .satisfies(
             x -> {
               LinkedList<Row> beamRows = Lists.newLinkedList(x);
@@ -144,8 +141,8 @@ public class DataTokenizationTest {
     testPipeline.run();
   }
 
-  private PCollection<String> fileSystemIORead(
-      String inputGcsFilePattern, FORMAT inputGcsFileFormat) throws IOException {
+  private PCollection<Row> fileSystemIORead(String inputGcsFilePattern, FORMAT inputGcsFileFormat)
+      throws IOException {
     DataTokenizationOptions options =
         PipelineOptionsFactory.create().as(DataTokenizationOptions.class);
     options.setDataSchemaPath(SCHEMA_FILE_PATH);
@@ -173,18 +170,22 @@ public class DataTokenizationTest {
             RowCoder.of(testSchemaUtils.getBeamSchema()));
     coderRegistry.registerCoderForType(coder.getEncodedTypeDescriptor(), coder);
 
-    return new FileSystemIO(options).read(testPipeline, testSchemaUtils.getJsonBeamSchema());
+    return new TokenizationFileSystemIO(options).read(testPipeline, testSchemaUtils);
   }
 
-  private void assertField(PCollection<String> jsons) {
+  private void assertRows(PCollection<Row> jsons) {
     PAssert.that(jsons)
         .satisfies(
             x -> {
-              LinkedList<String> rows = Lists.newLinkedList(x);
+              LinkedList<Row> rows = Lists.newLinkedList(x);
               assertThat(rows, hasSize(3));
               rows.forEach(
                   row -> {
-                    assertThat(row, startsWith("{\"Field1\":"));
+                    assertNotNull(row.getSchema());
+                    assertThat(row.getSchema().getFields(), hasSize(3));
+                    assertThat(row.getSchema().getField(0).getName(), equalTo("Field1"));
+
+                    assertThat(row.getValues(), hasSize(3));
                   });
               return null;
             });

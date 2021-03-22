@@ -18,14 +18,14 @@
 package org.apache.beam.examples.complete.datatokenization.transforms.io;
 
 import org.apache.beam.examples.complete.datatokenization.options.DataTokenizationOptions;
+import org.apache.beam.examples.complete.datatokenization.transforms.JsonToBeamRow;
+import org.apache.beam.examples.complete.datatokenization.transforms.SerializableFunctions;
 import org.apache.beam.examples.complete.datatokenization.utils.CsvConverters;
 import org.apache.beam.examples.complete.datatokenization.utils.ErrorConverters;
 import org.apache.beam.examples.complete.datatokenization.utils.FailsafeElement;
-import org.apache.beam.examples.complete.datatokenization.utils.FailsafeElementCoder;
 import org.apache.beam.examples.complete.datatokenization.utils.RowToCsv;
+import org.apache.beam.examples.complete.datatokenization.utils.SchemasUtils;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.NullableCoder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
@@ -40,11 +40,9 @@ import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-/** The {@link FileSystemIO} class to read/write data from/into File Systems. */
-public class FileSystemIO {
+/** The {@link TokenizationFileSystemIO} class to read/write data from/into File Systems. */
+public class TokenizationFileSystemIO {
 
   /** The tag for the headers of the CSV if required. */
   static final TupleTag<String> CSV_HEADERS = new TupleTag<String>() {};
@@ -59,16 +57,6 @@ public class FileSystemIO {
   /** The tag for the main output. */
   static final TupleTag<FailsafeElement<String, String>> PROCESSING_OUT =
       new TupleTag<FailsafeElement<String, String>>() {};
-
-  /* Logger for class. */
-  private static final Logger LOG = LoggerFactory.getLogger(FileSystemIO.class);
-
-  public static final String DEAD_LETTER_PREFIX = "CSV_CONVERTOR";
-
-  /** String/String Coder for FailsafeElement. */
-  private static final FailsafeElementCoder<String, String> FAILSAFE_ELEMENT_CODER =
-      FailsafeElementCoder.of(
-          NullableCoder.of(StringUtf8Coder.of()), NullableCoder.of(StringUtf8Coder.of()));
 
   /** Supported format to read from GCS. */
   public enum FORMAT {
@@ -88,7 +76,7 @@ public class FileSystemIO {
 
     @Description("File format of input files. Supported formats: JSON, CSV")
     @Default.Enum("JSON")
-    FileSystemIO.FORMAT getInputFileFormat();
+    TokenizationFileSystemIO.FORMAT getInputFileFormat();
 
     void setInputFileFormat(FORMAT inputFileFormat);
 
@@ -99,7 +87,7 @@ public class FileSystemIO {
 
     @Description("File format of output files. Supported formats: JSON, CSV")
     @Default.Enum("JSON")
-    FileSystemIO.FORMAT getOutputFileFormat();
+    TokenizationFileSystemIO.FORMAT getOutputFileFormat();
 
     void setOutputFileFormat(FORMAT outputFileFormat);
 
@@ -141,108 +129,133 @@ public class FileSystemIO {
 
   private final DataTokenizationOptions options;
 
-  public FileSystemIO(DataTokenizationOptions options) {
+  public TokenizationFileSystemIO(DataTokenizationOptions options) {
     this.options = options;
   }
 
-  public PCollection<String> read(Pipeline pipeline, String schema) {
-    if (options.getInputFileFormat() == FORMAT.JSON) {
-      return pipeline.apply("ReadJsonFromFiles", TextIO.read().from(options.getInputFilePattern()));
-    } else if (options.getInputFileFormat() == FORMAT.CSV) {
-      PCollectionTuple jsons =
-          pipeline
-              /*
-               * Step 1: Read CSV file(s) from File System using {@link CsvConverters.ReadCsv}.
-               */
-              .apply(
-                  "ReadCsvFromFiles",
-                  CsvConverters.ReadCsv.newBuilder()
-                      .setCsvFormat(options.getCsvFormat())
-                      .setDelimiter(options.getCsvDelimiter())
-                      .setHasHeaders(options.getCsvContainsHeaders())
-                      .setInputFileSpec(options.getInputFilePattern())
-                      .setHeaderTag(CSV_HEADERS)
-                      .setLineTag(CSV_LINES)
-                      .build())
-              /*
-               * Step 2: Convert lines to Json.
-               */
-              .apply(
-                  "LineToJson",
-                  CsvConverters.LineToFailsafeJson.newBuilder()
-                      .setDelimiter(options.getCsvDelimiter())
-                      .setJsonSchema(schema)
-                      .setHeaderTag(CSV_HEADERS)
-                      .setLineTag(CSV_LINES)
-                      .setUdfOutputTag(PROCESSING_OUT)
-                      .setUdfDeadletterTag(PROCESSING_DEADLETTER_OUT)
-                      .build());
-
-      if (options.getNonTokenizedDeadLetterPath() != null) {
-        /*
-         * Step 3: Write jsons to dead-letter that weren't successfully processed.
-         */
-        jsons
-            .get(PROCESSING_DEADLETTER_OUT)
-            .apply(
-                "WriteCsvConversionErrorsToFS",
-                ErrorConverters.WriteStringMessageErrorsAsCsv.newBuilder()
-                    .setCsvDelimiter(options.getCsvDelimiter())
-                    .setErrorWritePath(options.getNonTokenizedDeadLetterPath())
-                    .build());
-      }
-
-      /*
-       * Step 4: Get jsons that were successfully processed.
-       */
-      return jsons
-          .get(PROCESSING_OUT)
-          .apply(
-              "GetJson",
-              MapElements.into(TypeDescriptors.strings()).via(FailsafeElement::getPayload));
-    } else {
-      throw new IllegalStateException(
-          "No valid format for input data is provided. Please, choose JSON or CSV.");
+  public PCollection<Row> read(Pipeline pipeline, SchemasUtils schema) {
+    switch (options.getInputFileFormat()) {
+      case JSON:
+        return readJson(pipeline)
+            .apply(new JsonToBeamRow(options.getNonTokenizedDeadLetterPath(), schema));
+      case CSV:
+        return readCsv(pipeline, schema)
+            .apply(new JsonToBeamRow(options.getNonTokenizedDeadLetterPath(), schema));
+      default:
+        throw new IllegalStateException(
+            "No valid format for input data is provided. Please, choose JSON or CSV.");
     }
   }
 
+  private PCollection<String> readJson(Pipeline pipeline) {
+    return pipeline.apply("ReadJsonFromFiles", TextIO.read().from(options.getInputFilePattern()));
+  }
+
+  private PCollection<String> readCsv(Pipeline pipeline, SchemasUtils schema) {
+    /*
+     * Step 1: Read CSV file(s) from File System using {@link CsvConverters.ReadCsv}.
+     */
+    PCollectionTuple csvLines = readCsv(pipeline);
+    /*
+     * Step 2: Convert lines to Json.
+     */
+    PCollectionTuple jsons = csvLineToJson(csvLines, schema.getJsonBeamSchema());
+
+    if (options.getNonTokenizedDeadLetterPath() != null) {
+      /*
+       * Step 3: Write jsons to dead-letter that weren't successfully processed.
+       */
+      jsons
+          .get(PROCESSING_DEADLETTER_OUT)
+          .apply(
+              "WriteCsvConversionErrorsToFS",
+              ErrorConverters.WriteErrorsToTextIO.<String, String>newBuilder()
+                  .setErrorWritePath(options.getNonTokenizedDeadLetterPath())
+                  .setTranslateFunction(SerializableFunctions.getCsvErrorConverter())
+                  .build());
+    }
+
+    /*
+     * Step 4: Get jsons that were successfully processed.
+     */
+    return jsons
+        .get(PROCESSING_OUT)
+        .apply(
+            "GetJson",
+            MapElements.into(TypeDescriptors.strings()).via(FailsafeElement::getPayload));
+  }
+
+  private PCollectionTuple readCsv(Pipeline pipeline) {
+    return pipeline.apply(
+        "ReadCsvFromFiles",
+        CsvConverters.ReadCsv.newBuilder()
+            .setCsvFormat(options.getCsvFormat())
+            .setDelimiter(options.getCsvDelimiter())
+            .setHasHeaders(options.getCsvContainsHeaders())
+            .setInputFileSpec(options.getInputFilePattern())
+            .setHeaderTag(CSV_HEADERS)
+            .setLineTag(CSV_LINES)
+            .build());
+  }
+
+  private PCollectionTuple csvLineToJson(PCollectionTuple csvLines, String jsonSchema) {
+    return csvLines.apply(
+        "LineToJson",
+        CsvConverters.LineToFailsafeJson.newBuilder()
+            .setDelimiter(options.getCsvDelimiter())
+            .setJsonSchema(jsonSchema)
+            .setHeaderTag(CSV_HEADERS)
+            .setLineTag(CSV_LINES)
+            .setUdfOutputTag(PROCESSING_OUT)
+            .setUdfDeadletterTag(PROCESSING_DEADLETTER_OUT)
+            .build());
+  }
+
   public PDone write(PCollection<Row> input, Schema schema) {
-    if (options.getOutputFileFormat() == FORMAT.JSON) {
-      PCollection<String> jsons = input.apply("RowsToJSON", ToJson.of());
+    switch (options.getOutputFileFormat()) {
+      case JSON:
+        return writeJson(input);
+      case CSV:
+        return writeCsv(input, schema);
+      default:
+        throw new IllegalStateException(
+            "No valid format for output data is provided. Please, choose JSON or CSV.");
+    }
+  }
 
-      if (jsons.isBounded() == IsBounded.BOUNDED) {
-        return jsons.apply("WriteToFS", TextIO.write().to(options.getOutputDirectory()));
-      } else {
-        return jsons.apply(
-            "WriteToFS",
-            TextIO.write().withWindowedWrites().withNumShards(1).to(options.getOutputDirectory()));
-      }
-    } else if (options.getOutputFileFormat() == FORMAT.CSV) {
-      String header = String.join(options.getCsvDelimiter(), schema.getFieldNames());
-      String csvDelimiter = options.getCsvDelimiter();
+  private PDone writeJson(PCollection<Row> input) {
+    PCollection<String> jsons = input.apply("RowsToJSON", ToJson.of());
 
-      PCollection<String> csvs =
-          input.apply(
-              "ConvertToCSV",
-              MapElements.into(TypeDescriptors.strings())
-                  .via((Row inputRow) -> new RowToCsv(csvDelimiter).getCsvFromRow(inputRow)));
-
-      if (csvs.isBounded() == IsBounded.BOUNDED) {
-        return csvs.apply(
-            "WriteToFS", TextIO.write().to(options.getOutputDirectory()).withHeader(header));
-      } else {
-        return csvs.apply(
-            "WriteToFS",
-            TextIO.write()
-                .withWindowedWrites()
-                .withNumShards(1)
-                .to(options.getOutputDirectory())
-                .withHeader(header));
-      }
-
+    if (jsons.isBounded() == IsBounded.BOUNDED) {
+      return jsons.apply("WriteToFS", TextIO.write().to(options.getOutputDirectory()));
     } else {
-      throw new IllegalStateException(
-          "No valid format for output data is provided. Please, choose JSON or CSV.");
+      return jsons.apply(
+          "WriteToFS",
+          TextIO.write().withWindowedWrites().withNumShards(1).to(options.getOutputDirectory()));
+    }
+  }
+
+  private PDone writeCsv(PCollection<Row> input, Schema schema) {
+    String header = String.join(options.getCsvDelimiter(), schema.getFieldNames());
+    String csvDelimiter = options.getCsvDelimiter();
+
+    PCollection<String> csvs =
+        input.apply(
+            "ConvertToCSV",
+            MapElements.into(TypeDescriptors.strings())
+                .via((Row inputRow) -> new RowToCsv(csvDelimiter).getCsvFromRow(inputRow)));
+
+    if (csvs.isBounded() == IsBounded.BOUNDED) {
+      return csvs.apply(
+          "WriteToFS", TextIO.write().to(options.getOutputDirectory()).withHeader(header));
+    } else {
+      return csvs.apply(
+          "WriteToFS",
+          TextIO.write()
+              .withWindowedWrites()
+              .withNumShards(1)
+              .to(options.getOutputDirectory())
+              .withHeader(header));
     }
   }
 }

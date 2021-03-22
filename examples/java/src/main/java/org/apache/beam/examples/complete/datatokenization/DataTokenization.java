@@ -25,9 +25,11 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import org.apache.beam.examples.complete.datatokenization.options.DataTokenizationOptions;
 import org.apache.beam.examples.complete.datatokenization.transforms.DataProtectors.RowToTokenizedRow;
-import org.apache.beam.examples.complete.datatokenization.transforms.io.BigQueryIO;
-import org.apache.beam.examples.complete.datatokenization.transforms.io.BigTableIO;
-import org.apache.beam.examples.complete.datatokenization.transforms.io.FileSystemIO;
+import org.apache.beam.examples.complete.datatokenization.transforms.JsonToBeamRow;
+import org.apache.beam.examples.complete.datatokenization.transforms.SerializableFunctions;
+import org.apache.beam.examples.complete.datatokenization.transforms.io.TokenizationBigQueryIO;
+import org.apache.beam.examples.complete.datatokenization.transforms.io.TokenizationBigTableIO;
+import org.apache.beam.examples.complete.datatokenization.transforms.io.TokenizationFileSystemIO;
 import org.apache.beam.examples.complete.datatokenization.utils.ErrorConverters;
 import org.apache.beam.examples.complete.datatokenization.utils.FailsafeElement;
 import org.apache.beam.examples.complete.datatokenization.utils.FailsafeElementCoder;
@@ -45,7 +47,6 @@ import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteResult;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.transforms.JsonToRow;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -55,7 +56,6 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -182,7 +182,7 @@ public class DataTokenization {
   private static final Logger LOG = LoggerFactory.getLogger(DataTokenization.class);
 
   /** String/String Coder for FailsafeElement. */
-  private static final FailsafeElementCoder<String, String> FAILSAFE_ELEMENT_CODER =
+  public static final FailsafeElementCoder<String, String> FAILSAFE_ELEMENT_CODER =
       FailsafeElementCoder.of(
           NullableCoder.of(StringUtf8Coder.of()), NullableCoder.of(StringUtf8Coder.of()));
 
@@ -244,54 +244,31 @@ public class DataTokenization {
 
     coderRegistry.registerCoderForType(coder.getEncodedTypeDescriptor(), coder);
 
-    PCollection<String> jsons;
+    PCollection<Row> rows;
     if (options.getInputFilePattern() != null) {
-      jsons = new FileSystemIO(options).read(pipeline, schema.getJsonBeamSchema());
+      rows = new TokenizationFileSystemIO(options).read(pipeline, schema);
     } else if (options.getPubsubTopic() != null) {
-      jsons =
-          pipeline.apply(
-              "ReadMessagesFromPubsub", PubsubIO.readStrings().fromTopic(options.getPubsubTopic()));
+      rows =
+          pipeline
+              .apply(
+                  "ReadMessagesFromPubsub",
+                  PubsubIO.readStrings().fromTopic(options.getPubsubTopic()))
+              .apply(
+                  "TransformToBeamRow",
+                  new JsonToBeamRow(options.getNonTokenizedDeadLetterPath(), schema));
       if (options.getOutputDirectory() != null) {
-        jsons =
-            jsons.apply(Window.into(FixedWindows.of(parseDuration(options.getWindowDuration()))));
+        rows = rows.apply(Window.into(FixedWindows.of(parseDuration(options.getWindowDuration()))));
       }
     } else {
       throw new IllegalStateException(
           "No source is provided, please configure File System or Pub/Sub");
     }
 
-    JsonToRow.ParseResult rows =
-        jsons.apply(
-            "JsonToRow",
-            JsonToRow.withExceptionReporting(schema.getBeamSchema()).withExtendedErrorInfo());
-
-    if (options.getNonTokenizedDeadLetterPath() != null) {
-      /*
-       * Write Row conversion errors to filesystem specified path
-       */
-      rows.getFailedToParseLines()
-          .apply(
-              "ToFailsafeElement",
-              MapElements.into(FAILSAFE_ELEMENT_CODER.getEncodedTypeDescriptor())
-                  .via(
-                      (Row errRow) ->
-                          FailsafeElement.of(
-                                  Strings.nullToEmpty(errRow.getString("line")),
-                                  Strings.nullToEmpty(errRow.getString("line")))
-                              .setErrorMessage(Strings.nullToEmpty(errRow.getString("err")))))
-          .apply(
-              "WriteCsvConversionErrorsToFS",
-              ErrorConverters.WriteStringMessageErrorsAsCsv.newBuilder()
-                  .setCsvDelimiter(options.getCsvDelimiter())
-                  .setErrorWritePath(options.getNonTokenizedDeadLetterPath())
-                  .build());
-    }
     /*
     Tokenize data using remote API call
      */
     PCollectionTuple tokenizedRows =
-        rows.getResults()
-            .setRowSchema(schema.getBeamSchema())
+        rows.setRowSchema(schema.getBeamSchema())
             .apply(
                 MapElements.into(
                         TypeDescriptors.kvs(TypeDescriptors.integers(), TypeDescriptors.rows()))
@@ -324,17 +301,18 @@ public class DataTokenization {
                               new RowToCsv(csvDelimiter).getCsvFromRow(fse.getPayload()))))
           .apply(
               "WriteTokenizationErrorsToFS",
-              ErrorConverters.WriteStringMessageErrorsAsCsv.newBuilder()
-                  .setCsvDelimiter(options.getCsvDelimiter())
+              ErrorConverters.WriteErrorsToTextIO.<String, String>newBuilder()
                   .setErrorWritePath(options.getNonTokenizedDeadLetterPath())
+                  .setTranslateFunction(SerializableFunctions.getCsvErrorConverter())
                   .build());
     }
 
     if (options.getOutputDirectory() != null) {
-      new FileSystemIO(options).write(tokenizedRows.get(TOKENIZATION_OUT), schema.getBeamSchema());
+      new TokenizationFileSystemIO(options)
+          .write(tokenizedRows.get(TOKENIZATION_OUT), schema.getBeamSchema());
     } else if (options.getBigQueryTableName() != null) {
       WriteResult writeResult =
-          BigQueryIO.write(
+          TokenizationBigQueryIO.write(
               tokenizedRows.get(TOKENIZATION_OUT),
               options.getBigQueryTableName(),
               schema.getBigQuerySchema());
@@ -343,7 +321,7 @@ public class DataTokenization {
           .apply(
               "WrapInsertionErrors",
               MapElements.into(FAILSAFE_ELEMENT_CODER.getEncodedTypeDescriptor())
-                  .via(BigQueryIO::wrapBigQueryInsertError))
+                  .via(TokenizationBigQueryIO::wrapBigQueryInsertError))
           .setCoder(FAILSAFE_ELEMENT_CODER)
           .apply(
               "WriteInsertionFailedRecords",
@@ -353,7 +331,8 @@ public class DataTokenization {
                   .setErrorRecordsTableSchema(DEADLETTER_SCHEMA)
                   .build());
     } else if (options.getBigTableInstanceId() != null) {
-      new BigTableIO(options).write(tokenizedRows.get(TOKENIZATION_OUT), schema.getBeamSchema());
+      new TokenizationBigTableIO(options)
+          .write(tokenizedRows.get(TOKENIZATION_OUT), schema.getBeamSchema());
     } else {
       throw new IllegalStateException(
           "No sink is provided, please configure BigQuery or BigTable.");
