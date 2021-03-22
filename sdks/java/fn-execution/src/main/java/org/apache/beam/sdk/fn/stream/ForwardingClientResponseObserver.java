@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.fn.stream;
 
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.ClientCallStreamObserver;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.ClientResponseObserver;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.ClientCallStreamObserver;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.ClientResponseObserver;
+import org.apache.beam.vendor.grpc.v1p36p0.io.grpc.stub.StreamObserver;
 
 /**
  * A {@link ClientResponseObserver} which delegates all {@link StreamObserver} calls.
