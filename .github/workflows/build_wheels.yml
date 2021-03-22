@@ -61,18 +61,24 @@ jobs:
     name: Build python source distribution
     outputs:
       is_rc: ${{ steps.is_rc.outputs.is_rc }}
+      get_version: ${{ steps.get_version.outputs.VERSION }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-      - name: Install python
-        uses: actions/setup-python@v2
-        with:
-          python-version: 3.7
-      - name: Get build dependencies
-        working-directory: ./sdks/python
-        run: python -m pip install -r build-requirements.txt
-      - name: Install wheels
-        run: python -m pip install wheel
+#      - name: Install python
+#        uses: actions/setup-python@v2
+#        with:
+#          python-version: 3.7
+#      - name: Get build dependencies
+#        working-directory: ./sdks/python
+#        run: python -m pip install -r build-requirements.txt
+#      - name: Install wheels
+#        run: python -m pip install wheel
+      - name: Get the version
+        id: get_version
+        run: |
+          echo ::set-output name=VERSION::${GITHUB_REF#refs/tags/}
+          echo ${GITHUB_REF##*/}
       - name: Check for rc version
         id: is_rc
         working-directory: ./sdks/python
@@ -97,18 +103,18 @@ jobs:
         if: steps.is_rc.outputs.is_rc == 1
         working-directory: ./sdks/python
         run: mv $(ls | grep apache-beam) apache-beam-source-rc
-      - name: Upload source tagged rc as artifact
-        if: steps.is_rc.outputs.is_rc == 1
-        uses: actions/upload-artifact@v2
-        with:
-          name: source_rc
-          path: sdks/python/apache-beam-source-rc
-      - name: Upload compressed sources tagged rc as artifacts
-        if: steps.is_rc.outputs.is_rc == 1
-        uses: actions/upload-artifact@v2
-        with:
-          name: source_zip_rc
-          path: sdks/python/dist
+#      - name: Upload source tagged rc as artifact
+#        if: steps.is_rc.outputs.is_rc == 1
+#        uses: actions/upload-artifact@v2
+#        with:
+#          name: source_rc
+#          path: sdks/python/apache-beam-source-rc
+#      - name: Upload compressed sources tagged rc as artifacts
+#        if: steps.is_rc.outputs.is_rc == 1
+#        uses: actions/upload-artifact@v2
+#        with:
+#          name: source_zip_rc
+#          path: sdks/python/dist
       - name: Clear dist rc
         if: steps.is_rc.outputs.is_rc == 1
         working-directory: ./sdks/python
@@ -134,16 +140,16 @@ jobs:
       - name: Rename source directory
         working-directory: ./sdks/python
         run: mv $(ls | grep apache-beam) apache-beam-source
-      - name: Upload source as artifact
-        uses: actions/upload-artifact@v2
-        with:
-          name: source
-          path: sdks/python/apache-beam-source
-      - name: Upload compressed sources as artifacts
-        uses: actions/upload-artifact@v2
-        with:
-          name: source_zip
-          path: sdks/python/dist
+#      - name: Upload source as artifact
+#        uses: actions/upload-artifact@v2
+#        with:
+#          name: source
+#          path: sdks/python/apache-beam-source
+#      - name: Upload compressed sources as artifacts
+#        uses: actions/upload-artifact@v2
+#        with:
+#          name: source_zip
+#          path: sdks/python/dist
 
   prepare_gcs:
     name: Prepare GCS
