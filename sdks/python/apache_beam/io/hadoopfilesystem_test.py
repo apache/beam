@@ -56,10 +56,6 @@ class FakeFile(io.BytesIO):
   def __eq__(self, other):
     return self.stat == other.stat and self.getvalue() == self.getvalue()
 
-  def __ne__(self, other):
-    # TODO(BEAM-5949): Needed for Python 2 compatibility.
-    return not self == other
-
   def close(self):
     self.saved_data = self.getvalue()
     io.BytesIO.close(self)

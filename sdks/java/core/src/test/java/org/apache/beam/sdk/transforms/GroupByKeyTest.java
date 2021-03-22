@@ -753,7 +753,7 @@ public class GroupByKeyTest implements Serializable {
    * returns {@code false} for {@link #equals(Object)}. The results of the test are correct if the
    * runner correctly hashes and sorts on the encoded bytes.
    */
-  static class BadEqualityKey {
+  protected static class BadEqualityKey {
     long key;
 
     public BadEqualityKey() {}
@@ -774,7 +774,7 @@ public class GroupByKeyTest implements Serializable {
   }
 
   /** Deterministic {@link Coder} for {@link BadEqualityKey}. */
-  static class DeterministicKeyCoder extends AtomicCoder<BadEqualityKey> {
+  protected static class DeterministicKeyCoder extends AtomicCoder<BadEqualityKey> {
 
     public static DeterministicKeyCoder of() {
       return INSTANCE;

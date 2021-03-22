@@ -149,6 +149,24 @@ class DeferredFrameTest(unittest.TestCase):
     })
     self._run_test(new_column, df)
 
+  def test_tz_localize_ambiguous_series(self):
+    # This replicates a tz_localize doctest:
+    #   s.tz_localize('CET', ambiguous=np.array([True, True, False]))
+    # But using a DeferredSeries instead of a np array
+
+    s = pd.Series(
+        range(3),
+        index=pd.DatetimeIndex([
+            '2018-10-28 01:20:00', '2018-10-28 02:36:00', '2018-10-28 03:46:00'
+        ]))
+    ambiguous = pd.Series([True, True, False], index=s.index)
+
+    self._run_test(
+        lambda s,
+        ambiguous: s.tz_localize('CET', ambiguous=ambiguous),
+        s,
+        ambiguous)
+
   def test_groupby(self):
     df = pd.DataFrame({
         'group': ['a' if i % 5 == 0 or i % 3 == 0 else 'b' for i in range(100)],

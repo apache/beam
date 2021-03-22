@@ -28,8 +28,6 @@ enableJavaPerformanceTesting()
 description = "Apache Beam :: SDKs :: Java :: IO :: Amazon Web Services 2"
 ext.summary = "IO library to read and write Amazon Web Services services from Beam."
 
-def aws_sdk_version = "2.13.54"
-
 dependencies {
   compile library.java.vendored_guava_26_0_jre
   compile project(path: ":sdks:java:core", configuration: "shadow")
@@ -42,18 +40,18 @@ dependencies {
   compile library.java.aws_java_sdk2_sns
   compile library.java.aws_java_sdk2_sqs
   compile library.java.aws_java_sdk2_s3
+  compile library.java.aws_java_sdk2_http_client_spi
+  compile library.java.aws_java_sdk2_regions
+  compile library.java.aws_java_sdk2_utils
   compile library.java.jackson_core
   compile library.java.jackson_annotations
   compile library.java.jackson_databind
   compile library.java.joda_time
   compile library.java.slf4j_api
-  compile "software.amazon.kinesis:amazon-kinesis-client:2.2.5"
+  compile "software.amazon.kinesis:amazon-kinesis-client:2.3.4"
   compile "commons-lang:commons-lang:2.6"
   compile library.java.commons_lang3
   compile library.java.http_core
-  compile "software.amazon.awssdk:http-client-spi:$aws_sdk_version"
-  compile "software.amazon.awssdk:regions:$aws_sdk_version"
-  compile "software.amazon.awssdk:utils:$aws_sdk_version"
   compile library.java.commons_codec
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile project(path: ":sdks:java:io:common", configuration: "testRuntime")

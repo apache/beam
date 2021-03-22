@@ -418,12 +418,13 @@ class BeamModulePlugin implements Plugin<Project> {
     def activemq_version = "5.14.5"
     def autovalue_version = "1.7.4"
     def aws_java_sdk_version = "1.11.974"
-    def aws_java_sdk2_version = "2.13.54"
+    def aws_java_sdk2_version = "2.15.31"
     def cassandra_driver_version = "3.10.2"
     def checkerframework_version = "3.10.0"
     def classgraph_version = "4.8.65"
     def errorprone_version = "2.3.4"
     def google_clients_version = "1.31.0"
+    def google_auth_version = "0.19.0"
     def google_cloud_bigdataoss_version = "2.1.6"
     def google_cloud_pubsublite_version = "0.7.0"
     def google_code_gson_version = "2.8.6"
@@ -487,6 +488,9 @@ class BeamModulePlugin implements Plugin<Project> {
         aws_java_sdk2_sns                           : "software.amazon.awssdk:sns:$aws_java_sdk2_version",
         aws_java_sdk2_sqs                           : "software.amazon.awssdk:sqs:$aws_java_sdk2_version",
         aws_java_sdk2_s3                            : "software.amazon.awssdk:s3:$aws_java_sdk2_version",
+        aws_java_sdk2_http_client_spi               : "software.amazon.awssdk:http-client-spi:$aws_java_sdk2_version",
+        aws_java_sdk2_regions                       : "software.amazon.awssdk:regions:$aws_java_sdk2_version",
+        aws_java_sdk2_utils                         : "software.amazon.awssdk:utils:$aws_java_sdk2_version",
         bigdataoss_gcsio                            : "com.google.cloud.bigdataoss:gcsio:$google_cloud_bigdataoss_version",
         bigdataoss_util                             : "com.google.cloud.bigdataoss:util:$google_cloud_bigdataoss_version",
         cassandra_driver_core                       : "com.datastax.cassandra:cassandra-driver-core:$cassandra_driver_version",
@@ -515,7 +519,7 @@ class BeamModulePlugin implements Plugin<Project> {
         google_auth_library_credentials             : "com.google.auth:google-auth-library-credentials", // google_cloud_platform_libraries_bom sets version
         google_auth_library_oauth2_http             : "com.google.auth:google-auth-library-oauth2-http", // google_cloud_platform_libraries_bom sets version
         google_cloud_bigquery                       : "com.google.cloud:google-cloud-bigquery", // google_cloud_platform_libraries_bom sets version
-        google_cloud_bigquery_storage               : "com.google.cloud:google-cloud-bigquerystorage:1.8.5",
+        google_cloud_bigquery_storage               : "com.google.cloud:google-cloud-bigquerystorage:1.12.0",
         google_cloud_bigtable_client_core           : "com.google.cloud.bigtable:bigtable-client-core:1.16.0",
         google_cloud_bigtable_emulator              : "com.google.cloud:google-cloud-bigtable-emulator:0.125.2",
         google_cloud_core                           : "com.google.cloud:google-cloud-core", // google_cloud_platform_libraries_bom sets version
@@ -599,8 +603,8 @@ class BeamModulePlugin implements Plugin<Project> {
         protobuf_java                               : "com.google.protobuf:protobuf-java:$protobuf_version",
         protobuf_java_util                          : "com.google.protobuf:protobuf-java-util:$protobuf_version",
         proto_google_cloud_bigquery_storage_v1      : "com.google.api.grpc:proto-google-cloud-bigquerystorage-v1", // google_cloud_platform_libraries_bom sets version
-        proto_google_cloud_bigquerybeta2_storage_v1 : "com.google.api.grpc:proto-google-cloud-bigquerystorage-v1beta2", // google_cloud_platform_libraries_bom sets version
         proto_google_cloud_bigtable_admin_v2        : "com.google.api.grpc:proto-google-cloud-bigtable-admin-v2", // google_cloud_platform_libraries_bom sets version
+        proto_google_cloud_bigquery_storage_v1beta2 : "com.google.api.grpc:proto-google-cloud-bigquerystorage-v1beta2", // google_cloud_platform_libraries_bom sets version
         proto_google_cloud_bigtable_v2              : "com.google.api.grpc:proto-google-cloud-bigtable-v2", // google_cloud_platform_libraries_bom sets version
         proto_google_cloud_datacatalog_v1beta1      : "com.google.api.grpc:proto-google-cloud-datacatalog-v1beta1", // google_cloud_platform_libraries_bom sets version
         proto_google_cloud_datastore_v1             : "com.google.api.grpc:proto-google-cloud-datastore-v1", // google_cloud_platform_libraries_bom sets version

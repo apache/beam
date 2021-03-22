@@ -673,6 +673,10 @@ class GoogleCloudOptions(PipelineOptions):
         help='Set a Google Cloud KMS key name to be used in '
         'Dataflow state operations (GBK, Streaming).')
     parser.add_argument(
+        '--create_from_snapshot',
+        default=None,
+        help='The snapshot from which the job should be created.')
+    parser.add_argument(
         '--flexrs_goal',
         default=None,
         choices=['COST_OPTIMIZED', 'SPEED_OPTIMIZED'],

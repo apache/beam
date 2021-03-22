@@ -41,7 +41,6 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_XVR_Spark',
           gradle {
             rootBuildScriptDir(commonJobProperties.checkoutDir)
             tasks(':runners:spark:2:job-server:validatesCrossLanguageRunner')
-            tasks(':runners:spark:3:job-server:validatesCrossLanguageRunner')
             commonJobProperties.setGradleSwitches(delegate)
             switches("-PpythonVersion=${pythonVersion}")
           }

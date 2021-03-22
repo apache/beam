@@ -74,7 +74,6 @@ import json
 import logging
 import math
 import struct
-import urllib
 
 import apache_beam as beam
 from apache_beam.io import iobase
@@ -261,12 +260,11 @@ class _BoundedMongoSource(iobase.BoundedSource):
 
   def display_data(self):
     res = super(_BoundedMongoSource, self).display_data()
-    res['uri'] = _mask_uri_password(self.uri)
     res['database'] = self.db
     res['collection'] = self.coll
-    res['filter'] = json.dumps(self.filter)
+    res['filter'] = json.dumps(
+        self.filter, default=lambda x: 'not_serializable(%s)' % str(x))
     res['projection'] = str(self.projection)
-    res['mongo_client_spec'] = json.dumps(_mask_spec_password(self.spec))
     res['bucket_auto'] = self.bucket_auto
     return res
 
@@ -565,10 +563,8 @@ class _WriteMongoFn(DoFn):
 
   def display_data(self):
     res = super(_WriteMongoFn, self).display_data()
-    res['uri'] = _mask_uri_password(self.uri)
     res['database'] = self.db
     res['collection'] = self.coll
-    res['mongo_client_params'] = json.dumps(_mask_spec_password(self.spec))
     res['batch_size'] = self.batch_size
     return res
 
@@ -612,23 +608,3 @@ class _MongoSink(object):
   def __exit__(self, exc_type, exc_val, exc_tb):
     if self.client is not None:
       self.client.close()
-
-
-def _mask_uri_password(uri):
-  # Masks password in uri if present
-  if uri:
-    components = urllib.parse.urlsplit(uri)
-    if components.password:
-      replaced = components._replace(
-          netloc='{}:{}@{}'.format(
-              components.username, '******', components.hostname))
-      uri = replaced.geturl()
-  return uri
-
-
-def _mask_spec_password(spec):
-  # Masks password in spec if present
-  if spec and 'password' in spec:
-    spec = spec.copy()
-    spec['password'] = '******'
-  return spec

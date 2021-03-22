@@ -241,9 +241,116 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
   astype = frame_base._elementwise_method('astype')
   copy = frame_base._elementwise_method('copy')
 
+  @frame_base.args_to_kwargs(pd.DataFrame)
+  @frame_base.populate_defaults(pd.DataFrame)
+  def tz_localize(self, ambiguous, **kwargs):
+    if isinstance(ambiguous, np.ndarray):
+      raise frame_base.WontImplementError(
+          "ambiguous=ndarray is not supported, please use a deferred Series "
+          "instead.")
+    elif isinstance(ambiguous, frame_base.DeferredFrame):
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'tz_localize',
+              lambda df,
+              ambiguous: df.tz_localize(ambiguous=ambiguous, **kwargs),
+              [self._expr, ambiguous._expr],
+              requires_partition_by=partitionings.Index(),
+              preserves_partition_by=partitionings.Singleton()))
+    elif ambiguous == 'infer':
+      # infer attempts to infer based on the order of the timestamps
+      raise frame_base.WontImplementError("order-sensitive")
+
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'tz_localize',
+            lambda df: df.tz_localize(ambiguous=ambiguous, **kwargs),
+            [self._expr],
+            requires_partition_by=partitionings.Arbitrary(),
+            preserves_partition_by=partitionings.Singleton()))
+
+  @property
+  def size(self):
+    sizes = expressions.ComputedExpression(
+        'get_sizes',
+        # Wrap scalar results in a Series for easier concatenation later
+        lambda df: pd.Series(df.size),
+        [self._expr],
+        requires_partition_by=partitionings.Arbitrary(),
+        preserves_partition_by=partitionings.Singleton())
+
+    with expressions.allow_non_parallel_operations(True):
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'sum_sizes',
+              lambda sizes: sizes.sum(), [sizes],
+              requires_partition_by=partitionings.Singleton(),
+              preserves_partition_by=partitionings.Singleton()))
+
+  @property
+  def empty(self):
+    empties = expressions.ComputedExpression(
+        'get_empties',
+        # Wrap scalar results in a Series for easier concatenation later
+        lambda df: pd.Series(df.empty),
+        [self._expr],
+        requires_partition_by=partitionings.Arbitrary(),
+        preserves_partition_by=partitionings.Singleton())
+
+    with expressions.allow_non_parallel_operations(True):
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'check_all_empty',
+              lambda empties: empties.all(), [empties],
+              requires_partition_by=partitionings.Singleton(),
+              preserves_partition_by=partitionings.Singleton()))
+
+  def bool(self):
+    # Will throw if any partition has >1 element
+    bools = expressions.ComputedExpression(
+        'get_bools',
+        # Wrap scalar results in a Series for easier concatenation later
+        lambda df: pd.Series([], dtype=bool)
+        if df.empty else pd.Series([df.bool()]),
+        [self._expr],
+        requires_partition_by=partitionings.Arbitrary(),
+        preserves_partition_by=partitionings.Singleton())
+
+    with expressions.allow_non_parallel_operations(True):
+      # Will throw if overall dataset has != 1 element
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'combine_all_bools',
+              lambda bools: bools.bool(), [bools],
+              proxy=bool(),
+              requires_partition_by=partitionings.Singleton(),
+              preserves_partition_by=partitionings.Singleton()))
+
+  def equals(self, other):
+    intermediate = expressions.ComputedExpression(
+        'equals_partitioned',
+        # Wrap scalar results in a Series for easier concatenation later
+        lambda df,
+        other: pd.Series(df.equals(other)),
+        [self._expr, other._expr],
+        requires_partition_by=partitionings.Index(),
+        preserves_partition_by=partitionings.Singleton())
+
+    with expressions.allow_non_parallel_operations(True):
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'aggregate_equals',
+              lambda df: df.all(), [intermediate],
+              requires_partition_by=partitionings.Singleton(),
+              preserves_partition_by=partitionings.Singleton()))
+
   @property
   def dtype(self):
     return self._expr.proxy().dtype
+
+  @property
+  def ndim(self):
+    return self._expr.proxy().ndim
 
   dtypes = dtype
 
@@ -254,6 +361,9 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
       _get_index, frame_base.not_implemented_method('index (setter)'))
 
   hist = frame_base.wont_implement_method('plot')
+
+  first = last = frame_base.wont_implement_method('order-sensitive')
+  head = tail = frame_base.wont_implement_method('order-sensitive')
 
 
 @populate_not_implemented(pd.Series)
@@ -590,8 +700,6 @@ class DeferredSeries(DeferredDataFrameOrSeries):
   cummax = cummin = cumsum = cumprod = frame_base.wont_implement_method(
       'order-sensitive')
   diff = frame_base.wont_implement_method('order-sensitive')
-
-  head = tail = frame_base.wont_implement_method('order-sensitive')
 
   filter = frame_base._elementwise_method('filter')
 
@@ -1142,8 +1250,6 @@ class DeferredDataFrame(DeferredDataFrameOrSeries):
             proxy=proxy))
 
   __matmul__ = dot
-
-  head = tail = frame_base.wont_implement_method('order-sensitive')
 
   def mode(self, axis=0, *args, **kwargs):
     if axis == 1 or axis == 'columns':
