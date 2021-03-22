@@ -17,11 +17,8 @@
 
 # pytype: skip-file
 
-from __future__ import absolute_import
-
 import threading
 import unittest
-from builtins import range
 
 from apache_beam.metrics.cells import CounterCell
 from apache_beam.metrics.cells import DistributionCell
