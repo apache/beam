@@ -21,6 +21,7 @@
 
 from __future__ import absolute_import
 
+import itertools
 import logging
 import unittest
 
@@ -193,6 +194,34 @@ class SideInputsTest(unittest.TestCase):
     result = pcol | 'compute' >> beam.FlatMap(
         lambda x, s: [x * y for y in s], beam.pvalue.AsIter(side))
     assert_that(result, equal_to([3, 4, 6, 8]))
+    pipeline.run()
+
+  @attr('ValidatesRunner')
+  def test_reiterable_side_input(self):
+    expected_side = frozenset(range(100))
+
+    def check_reiteration(main, side):
+      assert expected_side == set(side), side
+      # Iterate a second time.
+      assert expected_side == set(side), side
+      # Iterate over two copies of the input at the same time.
+      both = zip(side, side)
+      first, second = zip(*both)
+      assert expected_side == set(first), first
+      assert expected_side == set(second), second
+      # This will iterate over two copies of the side input, but offset.
+      offset = [None] * (len(expected_side) // 2)
+      both = zip(itertools.chain(side, offset), itertools.chain(offset, side))
+      first, second = zip(*both)
+      expected_and_none = frozenset.union(expected_side, [None])
+      assert expected_and_none == set(first), first
+      assert expected_and_none == set(second), second
+
+    pipeline = self.create_pipeline()
+    pcol = pipeline | 'start' >> beam.Create(['A', 'B'])
+    side = pipeline | 'side' >> beam.Create(expected_side)
+    result = pcol | 'check' >> beam.Map(
+        check_reiteration, beam.pvalue.AsIter(side))
     pipeline.run()
 
   @attr('ValidatesRunner')
