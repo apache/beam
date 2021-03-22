@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.beam.runners.core.construction.resources.PipelineResources.detectClassPathResourcesToStage;
+import static org.apache.beam.sdk.options.ExperimentalOptions.hasExperiment;
 import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
 import static org.apache.beam.sdk.util.SerializableUtils.serializeToByteArray;
 import static org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString;
@@ -452,6 +453,27 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     this.pcollectionsRequiringIndexedFormat = new HashSet<>();
     this.pcollectionsRequiringAutoSharding = new HashSet<>();
     this.ptransformViewsWithNonDeterministicKeyCoders = new HashSet<>();
+  }
+
+  /** For portable jobs, Dataflow still requires an override of the PubsubIO transforms. */
+  private List<PTransformOverride> getPortableOverrides() {
+    ImmutableList.Builder<PTransformOverride> overridesBuilder = ImmutableList.builder();
+
+    if (!hasExperiment(options, "enable_custom_pubsub_source")) {
+      overridesBuilder.add(
+          PTransformOverride.of(
+              PTransformMatchers.classEqualTo(PubsubUnboundedSource.class),
+              new DataflowReadFromPubsubSourceForRunnerV2OverrideFactory()));
+    }
+
+    if (!hasExperiment(options, "enable_custom_pubsub_sink")) {
+      overridesBuilder.add(
+          PTransformOverride.of(
+              PTransformMatchers.classEqualTo(PubsubUnboundedSink.class),
+              new DataflowWriteToPubsubRunnerV2OverrideFactory()));
+    }
+
+    return overridesBuilder.build();
   }
 
   private List<PTransformOverride> getOverrides(boolean streaming) {
@@ -959,6 +981,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             .addAllCapabilities(Environments.getJavaCapabilities())
             .build());
 
+    if (useUnifiedWorker(options)) {
+      pipeline.replaceAll(getPortableOverrides());
+    }
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents, true);
 
     LOG.debug("Portable pipeline proto:\n{}", TextFormat.printToString(pipelineProto));
