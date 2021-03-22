@@ -339,8 +339,7 @@ public class BigQueryServicesImplTest {
         .thenReturn(toStream(testTable));
 
     BigQueryServicesImpl.DatasetServiceImpl datasetService =
-        new BigQueryServicesImpl.DatasetServiceImpl(
-            bigquery, null, PipelineOptionsFactory.create());
+        new BigQueryServicesImpl.DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
 
     Table table = datasetService.getTable(tableRef, null, BackOff.ZERO_BACKOFF, Sleeper.DEFAULT);
 
@@ -356,8 +355,7 @@ public class BigQueryServicesImplTest {
     when(response.getStatusCode()).thenReturn(404);
 
     BigQueryServicesImpl.DatasetServiceImpl datasetService =
-        new BigQueryServicesImpl.DatasetServiceImpl(
-            bigquery, null, PipelineOptionsFactory.create());
+        new BigQueryServicesImpl.DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
 
     TableReference tableRef =
         new TableReference()
@@ -387,8 +385,7 @@ public class BigQueryServicesImplTest {
     thrown.expectMessage(String.format("Unable to get table: %s", tableRef.getTableId()));
 
     BigQueryServicesImpl.DatasetServiceImpl datasetService =
-        new BigQueryServicesImpl.DatasetServiceImpl(
-            bigquery, null, PipelineOptionsFactory.create());
+        new BigQueryServicesImpl.DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
     datasetService.getTable(tableRef, null, BackOff.STOP_BACKOFF, Sleeper.DEFAULT);
   }
 
@@ -410,8 +407,7 @@ public class BigQueryServicesImplTest {
         .thenReturn(toStream(testDataList));
 
     BigQueryServicesImpl.DatasetServiceImpl datasetService =
-        new BigQueryServicesImpl.DatasetServiceImpl(
-            bigquery, null, PipelineOptionsFactory.create());
+        new BigQueryServicesImpl.DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
 
     assertFalse(datasetService.isTableEmpty(tableRef, BackOff.ZERO_BACKOFF, Sleeper.DEFAULT));
 
@@ -426,8 +422,7 @@ public class BigQueryServicesImplTest {
     when(response.getStatusCode()).thenReturn(404);
 
     BigQueryServicesImpl.DatasetServiceImpl datasetService =
-        new BigQueryServicesImpl.DatasetServiceImpl(
-            bigquery, null, PipelineOptionsFactory.create());
+        new BigQueryServicesImpl.DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
 
     TableReference tableRef =
         new TableReference()
@@ -459,8 +454,7 @@ public class BigQueryServicesImplTest {
             .setTableId("tableId");
 
     BigQueryServicesImpl.DatasetServiceImpl datasetService =
-        new BigQueryServicesImpl.DatasetServiceImpl(
-            bigquery, null, PipelineOptionsFactory.create());
+        new BigQueryServicesImpl.DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
 
     thrown.expect(IOException.class);
     thrown.expectMessage(String.format("Unable to list table data: %s", tableRef.getTableId()));
@@ -523,7 +517,7 @@ public class BigQueryServicesImplTest {
         .thenReturn(toStream(new TableDataInsertAllResponse()));
 
     DatasetServiceImpl dataService =
-        new DatasetServiceImpl(bigquery, null, PipelineOptionsFactory.create());
+        new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
     dataService.insertAll(
         ref,
         rows,
@@ -559,7 +553,7 @@ public class BigQueryServicesImplTest {
         .thenReturn(toStream(new TableDataInsertAllResponse()));
 
     DatasetServiceImpl dataService =
-        new DatasetServiceImpl(bigquery, null, PipelineOptionsFactory.create());
+        new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
     dataService.insertAll(
         ref,
         rows,
@@ -605,7 +599,7 @@ public class BigQueryServicesImplTest {
     thrown.expectMessage("quotaExceeded");
 
     DatasetServiceImpl dataService =
-        new DatasetServiceImpl(bigquery, null, PipelineOptionsFactory.create());
+        new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
     dataService.insertAll(
         ref,
         rows,
@@ -656,7 +650,7 @@ public class BigQueryServicesImplTest {
         .thenReturn(toStream(allRowsSucceeded));
 
     DatasetServiceImpl dataService =
-        new DatasetServiceImpl(bigquery, null, PipelineOptionsFactory.create());
+        new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
     dataService.insertAll(
         ref,
         rows,
@@ -700,7 +694,7 @@ public class BigQueryServicesImplTest {
         .thenAnswer(invocation -> toStream(row0Failed));
 
     DatasetServiceImpl dataService =
-        new DatasetServiceImpl(bigquery, null, PipelineOptionsFactory.create());
+        new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
 
     // Expect it to fail.
     try {
@@ -751,7 +745,7 @@ public class BigQueryServicesImplTest {
         .thenReturn(toStream(errorWithReasonAndStatus("actually forbidden", 403)))
         .thenReturn(toStream(new TableDataInsertAllResponse()));
     DatasetServiceImpl dataService =
-        new DatasetServiceImpl(bigquery, null, PipelineOptionsFactory.create());
+        new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
     thrown.expect(RuntimeException.class);
     thrown.expectMessage("actually forbidden");
     try {
@@ -823,7 +817,7 @@ public class BigQueryServicesImplTest {
         .thenReturn(toStream(allRowsSucceeded));
 
     DatasetServiceImpl dataService =
-        new DatasetServiceImpl(bigquery, null, PipelineOptionsFactory.create());
+        new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
 
     List<ValueInSingleWindow<TableRow>> failedInserts = Lists.newArrayList();
     dataService.insertAll(
@@ -865,7 +859,7 @@ public class BigQueryServicesImplTest {
         .thenReturn(toStream(allRowsSucceeded));
 
     DatasetServiceImpl dataService =
-        new DatasetServiceImpl(bigquery, null, PipelineOptionsFactory.create());
+        new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
 
     // First, test with all flags disabled
     dataService.insertAll(
@@ -941,7 +935,7 @@ public class BigQueryServicesImplTest {
   @Test
   public void testGetErrorInfo() throws IOException {
     DatasetServiceImpl dataService =
-        new DatasetServiceImpl(bigquery, null, PipelineOptionsFactory.create());
+        new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
     ErrorInfo info = new ErrorInfo();
     List<ErrorInfo> infoList = new ArrayList<>();
     infoList.add(info);
@@ -965,8 +959,7 @@ public class BigQueryServicesImplTest {
     when(response.getContent()).thenReturn(toStream(testTable));
 
     BigQueryServicesImpl.DatasetServiceImpl services =
-        new BigQueryServicesImpl.DatasetServiceImpl(
-            bigquery, null, PipelineOptionsFactory.create());
+        new BigQueryServicesImpl.DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
     Table ret =
         services.tryCreateTable(
             testTable, new RetryBoundedBackOff(0, BackOff.ZERO_BACKOFF), Sleeper.DEFAULT);
@@ -994,8 +987,7 @@ public class BigQueryServicesImplTest {
     thrown.expectMessage("actually forbidden");
 
     BigQueryServicesImpl.DatasetServiceImpl services =
-        new BigQueryServicesImpl.DatasetServiceImpl(
-            bigquery, null, PipelineOptionsFactory.create());
+        new BigQueryServicesImpl.DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
     try {
       services.tryCreateTable(
           testTable, new RetryBoundedBackOff(3, BackOff.ZERO_BACKOFF), Sleeper.DEFAULT);
@@ -1024,8 +1016,7 @@ public class BigQueryServicesImplTest {
     when(response.getStatusCode()).thenReturn(409); // 409 means already exists
 
     BigQueryServicesImpl.DatasetServiceImpl services =
-        new BigQueryServicesImpl.DatasetServiceImpl(
-            bigquery, null, PipelineOptionsFactory.create());
+        new BigQueryServicesImpl.DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
     Table ret =
         services.tryCreateTable(
             testTable, new RetryBoundedBackOff(0, BackOff.ZERO_BACKOFF), Sleeper.DEFAULT);
@@ -1051,8 +1042,7 @@ public class BigQueryServicesImplTest {
         .thenReturn(toStream(testTable));
 
     BigQueryServicesImpl.DatasetServiceImpl services =
-        new BigQueryServicesImpl.DatasetServiceImpl(
-            bigquery, null, PipelineOptionsFactory.create());
+        new BigQueryServicesImpl.DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
     Table ret =
         services.tryCreateTable(
             testTable, new RetryBoundedBackOff(3, BackOff.ZERO_BACKOFF), Sleeper.DEFAULT);
@@ -1097,7 +1087,7 @@ public class BigQueryServicesImplTest {
     when(response.getContent()).thenReturn(toStream(failures));
 
     DatasetServiceImpl dataService =
-        new DatasetServiceImpl(bigquery, null, PipelineOptionsFactory.create());
+        new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
 
     List<ValueInSingleWindow<TableRow>> failedInserts = Lists.newArrayList();
     dataService.insertAll(
@@ -1153,7 +1143,7 @@ public class BigQueryServicesImplTest {
     when(response.getContent()).thenReturn(toStream(failures));
 
     DatasetServiceImpl dataService =
-        new DatasetServiceImpl(bigquery, null, PipelineOptionsFactory.create());
+        new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
 
     List<ValueInSingleWindow<BigQueryInsertError>> failedInserts = Lists.newArrayList();
     dataService.insertAll(
