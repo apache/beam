@@ -208,9 +208,9 @@ import org.slf4j.LoggerFactory;
  * DeidentifyConfig deidConfig = new DeidentifyConfig(); // use default DeidentifyConfig
  * pipeline.apply(FhirIO.deidentify(fhirStoreName, destinationFhirStoreName, deidConfig));
  *
- * // Search FHIR resources using a simple query.
+ * // Search FHIR resources using an "OR" query.
  * Map<String, String> queries = new HashMap<>();
- * queries.put("name", "Alice");
+ * queries.put("name", "Alice,Bob");
  * FhirSearchParameter<String> searchParameter = FhirSearchParameter.of("Patient", queries);
  * PCollection<FhirSearchParameter<String>> searchQueries =
  * pipeline.apply(
@@ -220,7 +220,7 @@ import org.slf4j.LoggerFactory;
  *      searchQueries.apply(FhirIO.searchResources(options.getFhirStore()));
  * PCollection<JsonArray> resources = searchResult.getResources(); // JsonArray of results
  *
- * // Search FHIR resources using an "OR" query.
+ * // Search FHIR resources using an "AND" query with a key.
  * Map<String, List<String>> listQueries = new HashMap<>();
  * listQueries.put("name", Arrays.asList("Alice", "Bob"));
  * FhirSearchParameter<List<String>> listSearchParameter =
