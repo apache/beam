@@ -282,18 +282,11 @@ class Environment(object):
     # Dataflow workers.
     environments_to_use = self._get_environments_from_tranforms()
     if _use_unified_worker(options):
-      # Adding a SDK container image for the pipeline SDKs
-      container_image = dataflow.SdkHarnessContainerImage()
-      pipeline_sdk_container_image = get_container_image_from_options(options)
-      container_image.containerImage = pipeline_sdk_container_image
-      container_image.useSingleCorePerContainer = True  # True for Python SDK.
-      pool.sdkHarnessContainerImages.append(container_image)
-
-      already_added_containers = [pipeline_sdk_container_image]
+      python_sdk_container_image = get_container_image_from_options(options)
 
       # Adding container images for other SDKs that may be needed for
       # cross-language pipelines.
-      for environment in environments_to_use:
+      for id, environment in environments_to_use:
         if environment.urn != common_urns.environments.DOCKER.urn:
           raise Exception(
               'Dataflow can only execute pipeline steps in Docker environments.'
@@ -301,26 +294,14 @@ class Environment(object):
         environment_payload = proto_utils.parse_Bytes(
             environment.payload, beam_runner_api_pb2.DockerPayload)
         container_image_url = environment_payload.container_image
-        if container_image_url in already_added_containers:
-          # Do not add the pipeline environment again.
-
-          # Currently, Dataflow uses Docker container images to uniquely
-          # identify execution environments. Hence Dataflow executes all
-          # transforms that specify the the same Docker container image in a
-          # single container instance. Dependencies of all environments that
-          # specify a given container image will be staged in the container
-          # instance for that particular container image.
-          # TODO(BEAM-9455): loosen this restriction to support multiple
-          # environments with the same container image when Dataflow supports
-          # environment specific artifact provisioning.
-          continue
-        already_added_containers.append(container_image_url)
 
         container_image = dataflow.SdkHarnessContainerImage()
         container_image.containerImage = container_image_url
         # Currently we only set following to True for Python SDK.
         # TODO: set this correctly for remote environments that might be Python.
-        container_image.useSingleCorePerContainer = False
+        container_image.useSingleCorePerContainer = (
+            container_image_url == python_sdk_container_image)
+        container_image.environmentId = id
         pool.sdkHarnessContainerImages.append(container_image)
 
     if self.debug_options.number_of_worker_harness_threads:
@@ -378,10 +359,8 @@ class Environment(object):
         for transform in self._proto_pipeline.components.transforms.values()
         if transform.environment_id)
 
-    return [
-        self._proto_pipeline.components.environments[id]
-        for id in environment_ids
-    ]
+    return [(id, self._proto_pipeline.components.environments[id])
+            for id in environment_ids]
 
   def _get_python_sdk_name(self):
     python_version = '%d.%d' % (sys.version_info[0], sys.version_info[1])
@@ -739,6 +718,25 @@ class DataflowApplicationClient(object):
       new_payload = copy(docker_payload)
       new_payload.container_image = new_container_image
       environment.payload = new_payload.SerializeToString()
+
+    # De-dup environments by Docker container image since currently Dataflow
+    # does not properly support running multiple SDK Harness containers with the
+    # same container image.
+    # TODDO(BEAM-12025): remove following restriction when Dataflow supports
+    # environment specific dependency provisioning.
+    container_url_to_env_map = dict()
+    container_url_to_env_id_map = dict()
+    for transform in proto_pipeline.components.transforms.values():
+      environment_id = transform.environment_id
+      environment = proto_pipeline.components.environments[environment_id]
+      docker_payload = proto_utils.parse_Bytes(
+          environment.payload, beam_runner_api_pb2.DockerPayload)
+      image = docker_payload.container_image
+      if image in container_url_to_env_map:
+        transform.environment_id = container_url_to_env_id_map[image]
+      else:
+        container_url_to_env_map[image] = environment
+        container_url_to_env_id_map[image] = environment_id
 
   def create_job_description(self, job):
     """Creates a job described by the workflow proto."""
