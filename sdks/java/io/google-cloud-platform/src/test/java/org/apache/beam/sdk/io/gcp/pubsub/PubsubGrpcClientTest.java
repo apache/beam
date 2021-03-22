@@ -71,6 +71,7 @@ public class PubsubGrpcClientTest {
   private static final String TIMESTAMP_ATTRIBUTE = "timestamp";
   private static final String ID_ATTRIBUTE = "id";
   private static final String MESSAGE_ID = "testMessageId";
+  private static final String ORDERING_KEY = "testOrderingKey";
   private static final String DATA = "testData";
   private static final String RECORD_ID = "testRecordId";
   private static final String ACK_ID = "testAckId";
@@ -159,6 +160,7 @@ public class PubsubGrpcClientTest {
     PubsubMessage expectedPubsubMessage =
         PubsubMessage.newBuilder()
             .setData(ByteString.copyFrom(DATA.getBytes(StandardCharsets.UTF_8)))
+            .setOrderingKey(ORDERING_KEY)
             .putAllAttributes(ATTRIBUTES)
             .putAllAttributes(
                 ImmutableMap.of(
@@ -190,6 +192,7 @@ public class PubsubGrpcClientTest {
           OutgoingMessage.of(
               com.google.pubsub.v1.PubsubMessage.newBuilder()
                   .setData(ByteString.copyFromUtf8(DATA))
+                  .setOrderingKey(ORDERING_KEY)
                   .putAllAttributes(ATTRIBUTES)
                   .build(),
               MESSAGE_TIME,

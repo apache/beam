@@ -46,6 +46,7 @@ public class PubsubTestClientTest {
   private static final long REQ_TIME = 1234L;
   private static final long MESSAGE_TIME = 6789L;
   private static final String MESSAGE_ID = "testMessageId";
+  private static final String ORDERING_KEY = "testOrderingKey";
   private static final String DATA = "testData";
   private static final String ACK_ID = "testAckId";
   private static final int ACK_TIMEOUT_S = 60;
@@ -114,7 +115,7 @@ public class PubsubTestClientTest {
   public void publishOneMessage() throws IOException {
     OutgoingMessage expectedOutgoingMessage =
         OutgoingMessage.of(
-            PubsubMessage.newBuilder().setData(ByteString.copyFromUtf8(DATA)).build(),
+            PubsubMessage.newBuilder().setData(ByteString.copyFromUtf8(DATA)).setOrderingKey(ORDERING_KEY).build(),
             MESSAGE_TIME,
             MESSAGE_ID);
     try (PubsubTestClientFactory factory =
