@@ -30,9 +30,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 
-/**
- * The {@link JsonToBeamRow} converts jsons string to beam rows.
- */
+/** The {@link JsonToBeamRow} converts jsons string to beam rows. */
 public class JsonToBeamRow extends PTransform<PCollection<String>, PCollection<Row>> {
 
   private final String failedToParseDeadLetterPath;

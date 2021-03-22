@@ -110,7 +110,8 @@ public class DataProtectors {
       Duration maxBuffering = Duration.millis(MAX_BUFFERING);
       PCollectionTuple pCollectionTuple =
           inputRows
-              .apply("GroupRowsIntoBatches",
+              .apply(
+                  "GroupRowsIntoBatches",
                   GroupIntoBatches.<Integer, Row>ofSize(batchSize())
                       .withMaxBufferingDuration(maxBuffering))
               .apply(
