@@ -115,7 +115,10 @@ public class PubsubTestClientTest {
   public void publishOneMessage() throws IOException {
     OutgoingMessage expectedOutgoingMessage =
         OutgoingMessage.of(
-            PubsubMessage.newBuilder().setData(ByteString.copyFromUtf8(DATA)).setOrderingKey(ORDERING_KEY).build(),
+            PubsubMessage.newBuilder()
+                .setData(ByteString.copyFromUtf8(DATA))
+                .setOrderingKey(ORDERING_KEY)
+                .build(),
             MESSAGE_TIME,
             MESSAGE_ID);
     try (PubsubTestClientFactory factory =

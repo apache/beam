@@ -17,20 +17,17 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
+
+import java.nio.charset.StandardCharsets;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.nio.charset.StandardCharsets;
-import java.util.Map;
-
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
 
 /** Unit tests for {@link PubsubMessageWithAttributesAndOrderingKeyCoder}. */
 @RunWith(JUnit4.class)
@@ -39,9 +36,9 @@ public class PubsubMessageWithOrderingKeyCoderTest {
   private static final String DATA = "testData";
   private static final String ORDERING_KEY = "testOrderingKey";
   private static final Coder<PubsubMessage> TEST_CODER =
-          PubsubMessageWithAttributesAndOrderingKeyCoder.of();
+      PubsubMessageWithAttributesAndOrderingKeyCoder.of();
   private static final PubsubMessage TEST_VALUE =
-          new PubsubMessage(DATA.getBytes(StandardCharsets.UTF_8), null, null, ORDERING_KEY);
+      new PubsubMessage(DATA.getBytes(StandardCharsets.UTF_8), null, null, ORDERING_KEY);
 
   @Test
   public void testValueEncodable() throws Exception {
