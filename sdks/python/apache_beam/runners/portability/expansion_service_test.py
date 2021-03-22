@@ -56,6 +56,9 @@ TEST_FLATTEN_URN = "beam:transforms:xlang:test:flatten"
 TEST_PARTITION_URN = "beam:transforms:xlang:test:partition"
 TEST_PYTHON_BS4_URN = "beam:transforms:xlang:test:python_bs4"
 
+# A transform that does not produce an output.
+TEST_NO_OUTPUT_URN = "beam:transforms:xlang:test:nooutput"
+
 
 @ptransform.PTransform.register_urn('beam:transforms:xlang:count', None)
 class CountPerElementTransform(ptransform.PTransform):
@@ -294,6 +297,27 @@ class FibTransform(ptransform.PTransform):
   @staticmethod
   def from_runner_api_parameter(unused_ptransform, level, unused_context):
     return FibTransform(int(level.decode('ascii')))
+
+
+@ptransform.PTransform.register_urn(TEST_NO_OUTPUT_URN, None)
+class NoOutputTransform(ptransform.PTransform):
+  def __init__(self, payload):
+    self._payload = payload
+
+  def expand(self, pcoll):
+    def log_val(val):
+      logging.info('Got value: %r', val)
+
+    # Logging without returning anything
+    _ = (pcoll | 'TestLabel' >> beam.ParDo(log_val))
+
+  def to_runner_api_parameter(self, unused_context):
+    return TEST_NO_OUTPUT_URN, ImplicitSchemaPayloadBuilder(
+        {'data': self._payload}).payload()
+
+  @staticmethod
+  def from_runner_api_parameter(unused_ptransform, payload, unused_context):
+    return NoOutputTransform(parse_string_payload(payload)['data'])
 
 
 def parse_string_payload(input_byte):

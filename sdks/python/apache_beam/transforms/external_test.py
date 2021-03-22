@@ -259,6 +259,33 @@ class ExternalTransformTest(unittest.TestCase):
     self.assertEqual(
         len(set(pcolls)), len(pcolls), msg='PCollection names are not unique.')
 
+  def test_external_transform_finder_non_leaf(self):
+    pipeline = beam.Pipeline()
+    _ = (
+        pipeline
+        | beam.Create(['a', 'b'])
+        | beam.ExternalTransform(
+            'beam:transforms:xlang:test:prefix',
+            ImplicitSchemaPayloadBuilder({'data': u'0'}),
+            expansion_service.ExpansionServiceServicer())
+        | beam.FlatMap(lambda x: x))
+    pipeline.run().wait_until_finish()
+
+    self.assertTrue(pipeline.contains_external_transforms)
+
+  def test_external_transform_finder_leaf(self):
+    pipeline = beam.Pipeline()
+    _ = (
+        pipeline
+        | beam.Create(['a', 'b'])
+        | beam.ExternalTransform(
+            'beam:transforms:xlang:test:nooutput',
+            ImplicitSchemaPayloadBuilder({'data': u'0'}),
+            expansion_service.ExpansionServiceServicer()))
+    pipeline.run().wait_until_finish()
+
+    self.assertTrue(pipeline.contains_external_transforms)
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
