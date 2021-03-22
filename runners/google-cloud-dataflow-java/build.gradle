@@ -309,14 +309,12 @@ task validatesRunnerStreaming {
     name: 'validatesRunnerLegacyWorkerTestStreaming',
     pipelineOptions: legacyPipelineOptions + ['--streaming=true'],
     excludedCategories: [
+      'org.apache.beam.sdk.testing.UsesCommittedMetrics',
       'org.apache.beam.sdk.testing.UsesMapState',
       'org.apache.beam.sdk.testing.UsesRequiresTimeSortedInput',
       'org.apache.beam.sdk.testing.UsesSetState',
       'org.apache.beam.sdk.testing.UsesStrictTimerOrdering',
     ],
-    excludedTests: [
-      'org.apache.beam.sdk.metrics.MetricsTest$CommittedMetricTests'
-    ]
   ))
 }
 
