@@ -31,6 +31,9 @@ if (!project.hasProperty('imageJavaVersion')) {
 }
 def imageJavaVersion = project.findProperty('imageJavaVersion')
 
+def pullLicenses = project.rootProject.hasProperty(["docker-pull-licenses"]) ||
+        project.rootProject.hasProperty(["isRelease"])
+
 description = "Apache Beam :: SDKs :: Java :: Container :: Java ${imageJavaVersion} Container"
 
 configurations {
@@ -59,21 +62,26 @@ task copySdkHarnessLauncher(type: Copy) {
     into "build/target"
 }
 
-task copyJavaThirdPartyLicenses(type: Copy) {
-    from("${project(':sdks:java:container').buildDir}/build/target/third_party_licenses")
-    into "build/target/third_party_licenses"
+// Task to copy pulled licenses into folders expected by Dockerfile
+task copyPulledLicenses(type: Copy) {
     dependsOn ':sdks:java:container:pullLicenses'
-}
-
-task copyGolangLicenses(type: Copy) {
-    from "${project(':release:go-licenses:java').buildDir}/output"
-    into "build/target/go-licenses"
     dependsOn ':release:go-licenses:java:createLicenses'
+
+    // Copy Java 3rd party licenses into 'build/target/third_party_licenses'
+    from("${project(':sdks:java:container').buildDir}/target/third_party_licenses")
+    into 'build/target/third_party_licenses'
+
+    // Copy Golang licenses into 'build/target/third_party_licenses/golang'
+    into ('golang') {
+        from("${project(':release:go-licenses:java').buildDir}/output")
+    }
 }
 
-task skipPullLicenses(type: Exec) {
-    executable "sh"
-    args "-c", "mkdir -p build/target/third_party_licenses && touch build/target/third_party_licenses/skip"
+// Task to create an empty folder expected by Dockerfile
+task createEmptyLicenses() {
+    doFirst {
+        mkdir "build/target/third_party_licenses"
+    }
 }
 
 docker {
@@ -89,18 +97,15 @@ docker {
     dockerfile project.file("../Dockerfile")
     files "./build/"
     buildArgs([
-            'pull_licenses': project.rootProject.hasProperty(["docker-pull-licenses"]) ||
-                    project.rootProject.hasProperty(["isRelease"]),
+            'pull_licenses': pullLicenses,
             'java_version': imageJavaVersion,
     ])
 }
 
-if (project.rootProject.hasProperty(["docker-pull-licenses"]) ||
-        project.rootProject.hasProperty(["isRelease"])) {
-    dockerPrepare.dependsOn copyJavaThirdPartyLicenses
-    dockerPrepare.dependsOn copyGolangLicenses
+if (pullLicenses) {
+    dockerPrepare.dependsOn copyPulledLicenses
 } else {
-    dockerPrepare.dependsOn skipPullLicenses
+    dockerPrepare.dependsOn createEmptyLicenses
 }
 dockerPrepare.dependsOn copySdkHarnessLauncher
 dockerPrepare.dependsOn copyDockerfileDependencies
