@@ -27,7 +27,6 @@ import io
 import logging
 import os
 import random
-import sys
 import time
 import unittest
 from builtins import object
@@ -750,10 +749,7 @@ class TestGCSIO(unittest.TestCase):
     # and does not corrupt '\r\n' during uploads (the patch to apitools in
     # Python 3 is applied in io/gcp/__init__.py).
     from apitools.base.py.transfer import email_generator
-    if sys.version_info[0] == 3:
-      generator_cls = email_generator.BytesGenerator
-    else:
-      generator_cls = email_generator.Generator
+    generator_cls = email_generator.BytesGenerator
     output_buffer = io.BytesIO()
     generator = generator_cls(output_buffer)
     test_msg = 'a\nb\r\nc\n\r\n\n\nd'

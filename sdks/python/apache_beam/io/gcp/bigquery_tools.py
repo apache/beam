@@ -35,10 +35,10 @@ import io
 import json
 import logging
 import re
-import sys
 import time
 import uuid
 from builtins import object
+from json.decoder import JSONDecodeError
 
 import fastavro
 from future.utils import iteritems
@@ -72,12 +72,6 @@ try:
   from apitools.base.py.exceptions import HttpError, HttpForbiddenError
 except ImportError:
   pass
-
-try:
-  # TODO(pabloem): Remove this workaround after Python 2.7 support ends.
-  from json.decoder import JSONDecodeError
-except ImportError:
-  JSONDecodeError = ValueError
 
 # pylint: enable=wrong-import-order, wrong-import-position
 
@@ -273,7 +267,7 @@ class BigQueryWrapper(object):
     self.client = client or bigquery.BigqueryV2(
         http=get_new_http(),
         credentials=auth.get_service_credentials(),
-        response_encoding=None if sys.version_info[0] < 3 else 'utf8')
+        response_encoding='utf8')
     self._unique_row_id = 0
     # For testing scenarios where we pass in a client we do not want a
     # randomized prefix for row IDs.
