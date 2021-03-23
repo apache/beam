@@ -23,6 +23,7 @@ import com.google.auto.value.AutoValue;
 import com.google.zetasql.AnalyzerOptions;
 import com.google.zetasql.PreparedExpression;
 import com.google.zetasql.Value;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayDeque;
 import java.util.HashMap;
 import java.util.List;
@@ -162,6 +163,7 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
    * {@code CalcFn} is the executor for a {@link BeamZetaSqlCalcRel} step. The implementation is
    * based on the {@code ZetaSQL} expression evaluator.
    */
+  @SuppressFBWarnings("SE_TRANSIENT_FIELD_NOT_RESTORED")
   private static class CalcFn extends DoFn<Row, Row> {
     private final String sql;
     private final Map<String, Value> nullParams;
@@ -290,12 +292,22 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
       }
     }
 
+    private static RuntimeException extractException(ExecutionException e) {
+      try {
+        throw e.getCause();
+      } catch (RuntimeException r) {
+        return r;
+      } catch (Throwable t) {
+        return new RuntimeException(t);
+      }
+    }
+
     private void outputRow(TimestampedFuture c, OutputReceiver<Row> r) throws InterruptedException {
       final Value v;
       try {
         v = c.future().get();
       } catch (ExecutionException e) {
-        throw new RuntimeException(checkArgumentNotNull(e.getCause()));
+        throw extractException(e);
       }
       if (!v.isNull()) {
         Row row = ZetaSqlBeamTranslationUtils.toBeamRow(v, outputSchema, verifyRowValues);
