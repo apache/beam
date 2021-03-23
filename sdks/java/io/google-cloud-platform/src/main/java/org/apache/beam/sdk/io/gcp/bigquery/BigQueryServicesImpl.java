@@ -101,6 +101,7 @@ import java.util.stream.Collectors;
 import org.apache.beam.runners.core.metrics.LabeledMetrics;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
+import org.apache.beam.runners.core.metrics.ServiceCallMetric;
 import org.apache.beam.sdk.extensions.gcp.auth.NullCredentialInitializer;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
@@ -467,24 +468,6 @@ class BigQueryServicesImpl implements BigQueryServices {
         Metrics.counter(DatasetServiceImpl.class, "throttling-msecs");
 
     private ExecutorService executor;
-
-    protected static final Map<Integer, String> CANONICAL_STATUS_MAP =
-        ImmutableMap.<Integer, String>builder()
-            .put(200, "ok")
-            .put(400, "out_of_range")
-            .put(401, "unauthenticated")
-            .put(403, "permission_denied")
-            .put(404, "not_found")
-            .put(409, "already_exists")
-            .put(429, "resource_exhausted")
-            .put(499, "cancelled")
-            .put(500, "internal")
-            .put(501, "not_implemented")
-            .put(503, "unavailable")
-            .put(504, "deadline_exceeded")
-            .build();
-
-    protected static final String CANONICAL_STATUS_UNKNOWN = "unknown";
 
     @VisibleForTesting
     DatasetServiceImpl(
@@ -891,20 +874,17 @@ class BigQueryServicesImpl implements BigQueryServices {
             LOG.info("ajamato BigQueryServicesImpl0");
 
             String urn = MonitoringInfoConstants.Urns.API_REQUEST_COUNT;
-            HashMap<String, String> labels = new HashMap<String, String>();
-            // TODO add step name?
-            labels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "TODO");
-            labels.put(MonitoringInfoConstants.Labels.SERVICE, "BigQuery");
-            labels.put(MonitoringInfoConstants.Labels.METHOD, "BigQueryBatchWrite");
-            labels.put(MonitoringInfoConstants.Labels.RESOURCE, "TODO");
-            labels.put(MonitoringInfoConstants.Labels.BIGQUERY_PROJECT_ID, ref.getProjectId());
-            labels.put(MonitoringInfoConstants.Labels.BIGQUERY_DATASET, ref.getDatasetId());
-            labels.put(MonitoringInfoConstants.Labels.BIGQUERY_TABLE, ref.getTableId());
-            labels.put(MonitoringInfoConstants.Labels.STATUS, "ok"); // TODO move the ServiceCallMetric class
+            HashMap<String, String> baseLabels = new HashMap<String, String>();
+            baseLabels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "TODO"); // TODO can we grab this somehow?
+            baseLabels.put(MonitoringInfoConstants.Labels.SERVICE, "BigQuery");
+            baseLabels.put(MonitoringInfoConstants.Labels.METHOD, "BigQueryBatchWrite");
+            baseLabels.put(MonitoringInfoConstants.Labels.RESOURCE, "TODO");
+            baseLabels.put(MonitoringInfoConstants.Labels.BIGQUERY_PROJECT_ID, ref.getProjectId());
+            baseLabels.put(MonitoringInfoConstants.Labels.BIGQUERY_DATASET, ref.getDatasetId());
+            baseLabels.put(MonitoringInfoConstants.Labels.BIGQUERY_TABLE, ref.getTableId());
 
-            MonitoringInfoMetricName name = MonitoringInfoMetricName.named(urn, labels);
-            Counter counter = LabeledMetrics.counter(name, true);
-            LOG.info("ajamato BigQueryServicesImpl1 created counter");
+            ServiceCallMetric serviceCallMetric = new ServiceCallMetric(
+                MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
 
             final Bigquery.Tabledata.InsertAll insert =
                 client
@@ -924,15 +904,17 @@ class BigQueryServicesImpl implements BigQueryServices {
                           LOG.info("ajamato BigQueryServicesImpl2 call insert API");
                           List<TableDataInsertAllResponse.InsertErrors> response = insert.execute().getInsertErrors();
                           LOG.info("ajamato BigQueryServicesImpl3 call insert API done");
-                          counter.inc(1);
+                          serviceCallMetric.call("ok");
                           LOG.info("ajamato BigQueryServicesImpl3 call increment counter");
                           return response;
                         } catch (IOException e) {
                           recordError(e);
                           GoogleJsonError.ErrorInfo errorInfo = getErrorInfo(e);
                           if (errorInfo == null) {
+                            serviceCallMetric.call(ServiceCallMetric.CANONICAL_STATUS_UNKNOWN);
                             throw e;
                           }
+                          serviceCallMetric.call(errorInfo.getReason());
                           /**
                            * TODO(BEAM-10584): Check for QUOTA_EXCEEDED error will be replaced by
                            * ApiErrorExtractor.INSTANCE.quotaExceeded(e) after the next release of
@@ -1070,7 +1052,7 @@ class BigQueryServicesImpl implements BigQueryServices {
       if (e instanceof GoogleJsonResponseException) {
         int errorCode = ((GoogleJsonResponseException) e).getDetails().getCode();
         String canonicalGcpStatus =
-            CANONICAL_STATUS_MAP.getOrDefault(errorCode, CANONICAL_STATUS_UNKNOWN);
+            ServiceCallMetric.convertToCanonicalStatusString(errorCode); // TODO update this to use ServiceCallMetric
         LabeledMetrics.counter(
                 MonitoringInfoMetricName.named(
                     MonitoringInfoConstants.Urns.API_REQUEST_COUNT,

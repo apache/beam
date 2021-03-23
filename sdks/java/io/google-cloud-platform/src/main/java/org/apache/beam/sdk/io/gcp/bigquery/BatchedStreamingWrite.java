@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.Set;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
+import org.apache.beam.runners.core.metrics.ServiceCallMetric;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -145,7 +146,7 @@ class BatchedStreamingWrite<ErrorT, ElementT>
         MonitoringInfoMetricName.named(
             MonitoringInfoConstants.Urns.API_REQUEST_LATENCIES,
             BigQueryServicesImpl.API_METRIC_LABEL));
-    for (String status : BigQueryServicesImpl.DatasetServiceImpl.CANONICAL_STATUS_MAP.values()) {
+    for (String status : ServiceCallMetric.CANONICAL_STATUS_MAP.values()) {
       setBuilder.add(
           MonitoringInfoMetricName.named(
               MonitoringInfoConstants.Urns.API_REQUEST_COUNT,
@@ -161,7 +162,7 @@ class BatchedStreamingWrite<ErrorT, ElementT>
                 .putAll(BigQueryServicesImpl.API_METRIC_LABEL)
                 .put(
                     MonitoringInfoConstants.Labels.STATUS,
-                    BigQueryServicesImpl.DatasetServiceImpl.CANONICAL_STATUS_UNKNOWN)
+                    ServiceCallMetric.CANONICAL_STATUS_UNKNOWN)
                 .build()));
     return setBuilder.build();
   }

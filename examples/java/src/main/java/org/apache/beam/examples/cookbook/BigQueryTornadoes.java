@@ -169,6 +169,12 @@ public class BigQueryTornadoes {
 
     void setWriteDisposition(BigQueryIO.Write.WriteDisposition value);
 
+    @Description("Table Creation mode to use when writing to BigQuery")
+    @Default.Enum("CREATE_IF_NEEDED")
+    BigQueryIO.Write.CreateDisposition getCreateDisposition();
+
+    void setCreateDisposition(BigQueryIO.Write.CreateDisposition value);
+
     @Description(
       "BigQuery table to write to, specified as "
         + "<project_id>:<dataset_id>.<table_id>. The dataset must already exist.")
@@ -178,11 +184,7 @@ public class BigQueryTornadoes {
     void setOutput(String value);
   }
 
-  public static Pipeline runBigQueryTornadoes(Options options) {
-    LOG.info("runBigQueryTornadoes using " + options.toString());
-    Pipeline p = Pipeline.create(options);
-
-
+  public static void applyBigQueryTornadoes(Pipeline p, Options options) {
     // Build the table schema for the output table.
     List<TableFieldSchema> fields = new ArrayList<>();
     fields.add(new TableFieldSchema().setName("month").setType("INTEGER"));
@@ -212,11 +214,15 @@ public class BigQueryTornadoes {
         BigQueryIO.writeTableRows()
           .to(options.getOutput())
           .withSchema(schema)
-          .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+          .withCreateDisposition(options.getCreateDisposition())
           .withWriteDisposition(options.getWriteDisposition())
           .withMethod(options.getWriteMethod()));
+  }
 
-
+  public static Pipeline runBigQueryTornadoes(Options options) {
+    LOG.info("Running BigQuery Tornadoes with options " + options.toString());
+    Pipeline p = Pipeline.create(options);
+    applyBigQueryTornadoes(p, options);
     return p;
   }
 

@@ -18,6 +18,7 @@
 package org.apache.beam.runners.core.metrics;
 
 import org.apache.beam.model.pipeline.v1.MetricsApi;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 
 import java.io.Serializable;
@@ -41,7 +42,7 @@ public interface MetricCell<DataT> extends Serializable {
   void reset();
 
   /** Return the cumulative values for any metrics in this container as MonitoringInfos. */
-  default DateTime getStartTime() {
+  default @Nullable DateTime getStartTime() {
     return null;
   }
 }

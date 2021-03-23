@@ -25,6 +25,8 @@ import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Tracks the current value (and delta) for a Counter metric for a specific context and bundle.
@@ -35,6 +37,8 @@ import org.joda.time.DateTimeZone;
  * indirection.
  */
 public class CounterCell implements Counter, MetricCell<Long> {
+  private static final Logger LOG = LoggerFactory.getLogger(CounterCell.class);
+
 
   private final DirtyState dirty = new DirtyState();
   private final AtomicLong value = new AtomicLong();
@@ -50,6 +54,8 @@ public class CounterCell implements Counter, MetricCell<Long> {
   public CounterCell(MetricName name) {
     this.name = name;
     this.startTime = new DateTime(DateTimeZone.UTC);
+    LOG.info("ajamato CounterCell this.startTime " + this.startTime.toString() + " "
+      + name.toString());
   }
 
   @Override
@@ -100,7 +106,7 @@ public class CounterCell implements Counter, MetricCell<Long> {
   }
 
   @Override
-  public DateTime getStartTime() { return startTime; }
+  public @Nullable DateTime getStartTime() { return startTime; }
 
   @Override
   public boolean equals(@Nullable Object object) {

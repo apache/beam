@@ -164,6 +164,7 @@ public class SimpleMonitoringInfoBuilder {
 
   public SimpleMonitoringInfoBuilder setStartTime(DateTime startTime) {
     this.builder.setStartTime(fromMillis(startTime.getMillis()));
+    return this;
   }
 
   public void clear() {

@@ -214,8 +214,6 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer, Met
         return null;
       }
 
-      builder.setStartTime(metricUpdate.getStartTime());
-
       builder
           .setUrn(MonitoringInfoConstants.Urns.USER_SUM_INT64)
           .setLabel(
@@ -225,6 +223,10 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer, Met
               MonitoringInfoConstants.Labels.NAME, metricUpdate.getKey().metricName().getName())
           .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, metricUpdate.getKey().stepName());
     }
+
+    LOG.info("ajamato counterUpdateToMonitoringInfo2 metricUpdate.getStartTime " + metricUpdate.getStartTime() +
+      " " + metricName.toString());
+    builder.setStartTime(metricUpdate.getStartTime());
 
     builder.setInt64SumValue(metricUpdate.getUpdate());
 

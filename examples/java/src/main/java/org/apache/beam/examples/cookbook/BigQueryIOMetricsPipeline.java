@@ -3,6 +3,7 @@ package org.apache.beam.examples.cookbook;
 import org.apache.beam.examples.cookbook.BigQueryTornadoes;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
@@ -42,9 +43,16 @@ public class BigQueryIOMetricsPipeline {
   // TODO add variant that reads via query, table, view. etc.
   public static void main(String args[]) {
     BigQueryTornadoes.Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(
-      BigQueryTornadoes.Options.class);
-
+        BigQueryTornadoes.Options.class);
     Pipeline p = BigQueryTornadoes.runBigQueryTornadoes(options);
+
+    BigQueryTornadoes.Options optionsCopy = PipelineOptionsFactory.fromArgs(args).withValidation().as(
+        BigQueryTornadoes.Options.class);
+
+    optionsCopy.setOutput(options.getOutput() + "_not_found_expected");
+    optionsCopy.setCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER);
+    BigQueryTornadoes.applyBigQueryTornadoes(p, optionsCopy);
+
     p.apply(Create.of(1,2,3,4,5))
          .apply(ParDo.of(new SleepForever()));
     p.run().waitUntilFinish();
