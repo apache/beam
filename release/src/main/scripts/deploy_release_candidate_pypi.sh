@@ -33,7 +33,7 @@ USER_GITHUB_ID=
 DEPLOY=no
 PYTHON_ARTIFACTS_DIR=python
 BEAM_ROOT_DIR=beam
-GIT_REPO_BASE_URL=benWize/beam
+GIT_REPO_BASE_URL=apache/beam
 
 while [[ $# -gt 0 ]] ; do
   arg="$1"
