@@ -105,8 +105,7 @@ dependencies {
   compile library.java.netty_tcnative_boringssl_static
   permitUnusedDeclared library.java.netty_tcnative_boringssl_static // BEAM-11761
   compile library.java.proto_google_cloud_bigquery_storage_v1
-  compile library.java.proto_google_cloud_bigquerybeta2_storage_v1
-  permitUnusedDeclared library.java.proto_google_cloud_bigquerybeta2_storage_v1 // BEAM-11761
+  compile library.java.proto_google_cloud_bigquery_storage_v1beta2
   compile library.java.proto_google_cloud_bigtable_admin_v2
   compile library.java.proto_google_cloud_bigtable_v2
   compile library.java.proto_google_cloud_datastore_v1
