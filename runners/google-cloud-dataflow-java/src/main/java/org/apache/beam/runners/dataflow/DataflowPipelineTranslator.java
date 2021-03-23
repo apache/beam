@@ -849,7 +849,8 @@ public class DataflowPipelineTranslator {
 
             stepContext.addEncodingInput(fn.getAccumulatorCoder());
 
-            boolean isFnApi = DataflowRunner.useUnifiedWorker(context.getPipelineOptions());
+            List<String> experiments = context.getPipelineOptions().getExperiments();
+            boolean isFnApi = experiments != null && experiments.contains("beam_fn_api");
 
             if (isFnApi) {
               String ptransformId =
