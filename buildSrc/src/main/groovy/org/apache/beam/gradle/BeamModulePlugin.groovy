@@ -840,6 +840,12 @@ class BeamModulePlugin implements Plugin<Project> {
           'org.checkerframework.checker.nullness.NullnessChecker'
         ]
 
+        if (project.findProperty('enableCheckerFramework') || project.jenkins.isCIBuild) {
+          skipCheckerFramework = false
+        } else {
+          skipCheckerFramework = true
+        }
+
         // Always exclude checkerframework on tests. It's slow, and it often
         // raises erroneous error because we don't have checker annotations for
         // test libraries like junit and hamcrest. See BEAM-11436.
