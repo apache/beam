@@ -296,22 +296,15 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
       }
     }
 
-    private static RuntimeException extractException(ExecutionException e) {
-      try {
-        throw checkArgumentNotNull(e.getCause());
-      } catch (RuntimeException r) {
-        return r;
-      } catch (Throwable t) {
-        return new RuntimeException(t);
-      }
-    }
-
     private void outputRow(TimestampedFuture c, OutputReceiver<Row> r) throws InterruptedException {
       final Value v;
       try {
         v = c.future().get();
       } catch (ExecutionException e) {
-        throw extractException(e);
+        if (e.getCause() instanceof RuntimeException) {
+          throw (RuntimeException) e.getCause();
+        }
+        throw new RuntimeException(e);
       }
       if (!v.isNull()) {
         Row row = ZetaSqlBeamTranslationUtils.toBeamRow(v, outputSchema, verifyRowValues);
