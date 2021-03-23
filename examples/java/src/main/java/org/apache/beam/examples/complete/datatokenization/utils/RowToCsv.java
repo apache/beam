@@ -30,6 +30,9 @@ public class RowToCsv {
   }
 
   public String getCsvFromRow(Row row) {
-    return row.getValues().stream().map(Object::toString).collect(Collectors.joining(csvDelimiter));
+    return row.getValues().stream()
+        .map(item -> item == null ? "null" : item)
+        .map(Object::toString)
+        .collect(Collectors.joining(csvDelimiter));
   }
 }

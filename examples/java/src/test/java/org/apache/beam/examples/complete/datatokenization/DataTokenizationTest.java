@@ -106,6 +106,21 @@ public class DataTokenizationTest {
   }
 
   @Test
+  public void testRowToCSVWithNull() {
+    final String nullableTestSchema =
+        "{\"fields\":[{\"mode\":\"REQUIRED\",\"name\":\"FieldName1\",\"type\":\"STRING\"},{\"mode\":\"NULLABLE\",\"name\":\"FieldName2\",\"type\":\"STRING\"}]}";
+    final String expectedCsv = "TestValueOne;null";
+
+    List<Object> values = Lists.newArrayList("TestValueOne", null);
+
+    Schema beamSchema = new SchemasUtils(nullableTestSchema).getBeamSchema();
+    Row.Builder rowBuilder = Row.withSchema(beamSchema);
+    Row row = rowBuilder.addValues(values).build();
+    String csvResult = new RowToCsv(";").getCsvFromRow(row);
+    Assert.assertEquals(expectedCsv, csvResult);
+  }
+
+  @Test
   public void testFileSystemIOReadCSV() throws IOException {
     PCollection<Row> jsons = fileSystemIORead(CSV_FILE_PATH, FORMAT.CSV);
     assertRows(jsons);
