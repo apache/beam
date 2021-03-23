@@ -301,19 +301,15 @@ class FibTransform(ptransform.PTransform):
 
 @ptransform.PTransform.register_urn(TEST_NO_OUTPUT_URN, None)
 class NoOutputTransform(ptransform.PTransform):
-  def __init__(self, payload):
-    self._payload = payload
-
   def expand(self, pcoll):
     def log_val(val):
-      logging.info('Got value: %r', val)
+      logging.debug('Got value: %r', val)
 
     # Logging without returning anything
     _ = (pcoll | 'TestLabel' >> beam.ParDo(log_val))
 
   def to_runner_api_parameter(self, unused_context):
-    return TEST_NO_OUTPUT_URN, ImplicitSchemaPayloadBuilder(
-        {'data': self._payload}).payload()
+    return TEST_NO_OUTPUT_URN, None
 
   @staticmethod
   def from_runner_api_parameter(unused_ptransform, payload, unused_context):

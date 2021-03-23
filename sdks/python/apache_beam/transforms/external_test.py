@@ -268,7 +268,7 @@ class ExternalTransformTest(unittest.TestCase):
             'beam:transforms:xlang:test:prefix',
             ImplicitSchemaPayloadBuilder({'data': u'0'}),
             expansion_service.ExpansionServiceServicer())
-        | beam.FlatMap(lambda x: x))
+        | beam.Map(lambda x: x))
     pipeline.run().wait_until_finish()
 
     self.assertTrue(pipeline.contains_external_transforms)
