@@ -28,6 +28,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -39,13 +40,7 @@ import org.junit.runners.JUnit4;
 public class MapToValuesTest {
 
   private static final List<KV<String, Integer>> TABLE =
-      new ArrayList<KV<String, Integer>>() {
-        {
-          add(KV.of("one", 1));
-          add(KV.of("two", 2));
-          add(KV.of("dup", 2));
-        }
-      };
+      ImmutableList.of(KV.of("one", 1), KV.of("two", 2), KV.of("dup", 2));
 
   private static final List<KV<String, Integer>> EMPTY_TABLE = new ArrayList<>();
 

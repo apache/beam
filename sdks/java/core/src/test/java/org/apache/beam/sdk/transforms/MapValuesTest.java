@@ -40,13 +40,7 @@ import org.junit.runners.JUnit4;
 public class MapValuesTest {
 
   private static final List<KV<String, Integer>> TABLE =
-      new ArrayList<KV<String, Integer>>() {
-        {
-          add(KV.of("one", 1));
-          add(KV.of("two", 2));
-          add(KV.of("dup", 2));
-        }
-      };
+      ImmutableList.of(KV.of("one", 1), KV.of("two", 2), KV.of("dup", 2));
 
   private static final List<KV<String, Integer>> EMPTY_TABLE = new ArrayList<>();
 

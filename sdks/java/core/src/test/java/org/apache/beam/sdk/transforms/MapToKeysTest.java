@@ -28,6 +28,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -39,13 +40,7 @@ import org.junit.runners.JUnit4;
 public class MapToKeysTest {
 
   private static final List<KV<Integer, String>> TABLE =
-      new ArrayList<KV<Integer, String>>() {
-        {
-          add(KV.of(1, "one"));
-          add(KV.of(2, "none"));
-          add(KV.of(3, "none"));
-        }
-      };
+      ImmutableList.of(KV.of(1, "one"), KV.of(2, "none"), KV.of(3, "none"));
 
   private static final List<KV<Integer, String>> EMPTY_TABLE = new ArrayList<>();
 
